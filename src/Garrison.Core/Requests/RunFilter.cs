@@ -60,6 +60,11 @@ namespace Garrison.Core.Requests
         public string? CallerId { get; set; } = null;
 
         /// <summary>
+        /// Served model, or null for any. The value "unknown" matches runs that recorded no served model.
+        /// </summary>
+        public string? ServedModel { get; set; } = null;
+
+        /// <summary>
         /// Created at or after (UTC).
         /// </summary>
         public DateTime? FromUtc { get; set; } = null;

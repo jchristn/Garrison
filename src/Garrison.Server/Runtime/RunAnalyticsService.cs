@@ -139,6 +139,7 @@ namespace Garrison.Server.Runtime
             filter.AgentId = String.IsNullOrEmpty(query.AgentId) ? null : query.AgentId;
             filter.DeploymentId = String.IsNullOrEmpty(query.DeploymentId) ? null : query.DeploymentId;
             filter.HarnessType = query.HarnessType;
+            filter.ServedModel = String.IsNullOrEmpty(query.Model) ? null : query.Model;
             filter.FromUtc = fromUtc;
             filter.ToUtc = toUtc;
             List<Run> runs = await _Database.Runs.ListForAnalyticsAsync(filter, _MaxRuns + 1, token).ConfigureAwait(false);
@@ -183,6 +184,70 @@ namespace Garrison.Server.Runtime
             }
 
             return response;
+        }
+
+        /// <summary>
+        /// Distinct agents, harnesses, deployments, and served models among a tenant's runs in a range.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="fromUtc">Inclusive start; null means DefaultRange before toUtc.</param>
+        /// <param name="toUtc">Exclusive end; null means now.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Dimensions.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId is null or empty.</exception>
+        /// <exception cref="ValidationException">Thrown when the range is empty.</exception>
+        public async Task<RunAnalyticsDimensions> DimensionsAsync(string tenantId, DateTime? fromUtc, DateTime? toUtc, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            DateTime to = toUtc.HasValue ? DateTime.SpecifyKind(toUtc.Value, DateTimeKind.Utc) : DateTime.UtcNow;
+            DateTime from = fromUtc.HasValue ? DateTime.SpecifyKind(fromUtc.Value, DateTimeKind.Utc) : to - _DefaultRange;
+            if (from >= to)
+            {
+                throw new ValidationException("from must be earlier than to.", new Dictionary<string, string> { { "from", "Must be earlier than to." } });
+            }
+
+            RunFilter filter = new RunFilter();
+            filter.TenantId = tenantId;
+            filter.FromUtc = from;
+            filter.ToUtc = to;
+            List<Run> runs = await _Database.Runs.ListForAnalyticsAsync(filter, _MaxRuns + 1, token).ConfigureAwait(false);
+
+            RunAnalyticsDimensions result = new RunAnalyticsDimensions();
+            result.Truncated = runs.Count > _MaxRuns;
+            if (result.Truncated) runs = runs.Take(_MaxRuns).ToList();
+
+            Dictionary<string, string> agents = new Dictionary<string, string>(StringComparer.Ordinal);
+            Dictionary<string, string> deployments = new Dictionary<string, string>(StringComparer.Ordinal);
+            HashSet<string> harnesses = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> models = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Run run in runs)
+            {
+                if (!agents.ContainsKey(run.AgentId)) agents[run.AgentId] = String.IsNullOrEmpty(run.AgentName) ? run.AgentId : run.AgentName;
+                if (!String.IsNullOrEmpty(run.DeploymentId) && !deployments.ContainsKey(run.DeploymentId)) deployments[run.DeploymentId] = run.AgentId;
+                harnesses.Add(run.HarnessType.ToString());
+                models.Add(ModelOf(run));
+            }
+
+            foreach (KeyValuePair<string, string> agent in agents)
+            {
+                result.Agents.Add(new RunAnalyticsAgentDimension { Id = agent.Key, Name = agent.Value });
+            }
+            foreach (KeyValuePair<string, string> deployment in deployments)
+            {
+                token.ThrowIfCancellationRequested();
+                Deployment? stored = await _Database.Deployments.ReadAsync(tenantId, deployment.Key, token).ConfigureAwait(false);
+                result.Deployments.Add(new RunAnalyticsDeploymentDimension
+                {
+                    Id = deployment.Key,
+                    Name = stored != null && !String.IsNullOrEmpty(stored.Name) ? stored.Name : deployment.Key,
+                    AgentId = deployment.Value
+                });
+            }
+            result.Agents = result.Agents.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            result.Deployments = result.Deployments.OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            result.Harnesses = harnesses.OrderBy(h => h, StringComparer.OrdinalIgnoreCase).ToList();
+            result.Models = models.OrderBy(m => m, StringComparer.OrdinalIgnoreCase).ToList();
+            return result;
         }
 
         /// <summary>
@@ -252,6 +317,11 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        private static string ModelOf(Run run)
+        {
+            return String.IsNullOrWhiteSpace(run.ServedModel) ? "unknown" : run.ServedModel;
+        }
+
         private static List<RunAnalyticsGroup> Group(List<Run> runs, RunAnalyticsGroupByEnum groupBy)
         {
             if (groupBy == RunAnalyticsGroupByEnum.None)
@@ -264,11 +334,31 @@ namespace Garrison.Server.Runtime
             Dictionary<string, RunAnalyticsGroup> groups = new Dictionary<string, RunAnalyticsGroup>(StringComparer.Ordinal);
             foreach (Run run in runs)
             {
-                string key = groupBy == RunAnalyticsGroupByEnum.Agent ? run.AgentId : run.HarnessType.ToString();
+                string model = ModelOf(run);
+                string key;
+                string label;
+                switch (groupBy)
+                {
+                    case RunAnalyticsGroupByEnum.Agent:
+                        key = run.AgentId;
+                        // Runs arrive newest first, so an agent's label is its name on its most recent run.
+                        label = String.IsNullOrEmpty(run.AgentName) ? run.AgentId : run.AgentName;
+                        break;
+                    case RunAnalyticsGroupByEnum.Model:
+                        key = model;
+                        label = model;
+                        break;
+                    case RunAnalyticsGroupByEnum.HarnessModel:
+                        key = run.HarnessType.ToString() + "|" + model;
+                        label = run.HarnessType.ToString() + " / " + model;
+                        break;
+                    default:
+                        key = run.HarnessType.ToString();
+                        label = key;
+                        break;
+                }
                 if (!groups.TryGetValue(key, out RunAnalyticsGroup? group))
                 {
-                    // Runs arrive newest first, so an agent's label is its name on its most recent run.
-                    string label = groupBy == RunAnalyticsGroupByEnum.Agent ? (String.IsNullOrEmpty(run.AgentName) ? run.AgentId : run.AgentName) : key;
                     group = new RunAnalyticsGroup(key, label);
                     groups[key] = group;
                 }

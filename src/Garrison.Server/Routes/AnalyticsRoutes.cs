@@ -54,9 +54,17 @@ namespace Garrison.Server.Routes
                 OpenApiParameterMetadata.Query("agentId", "Only runs of this agent.", false, OpenApiSchemaMetadata.String()),
                 OpenApiParameterMetadata.Query("harnessType", "Only runs of this harness type (for example ClaudeCode, Codex, Mux, Generic).", false, OpenApiSchemaMetadata.String()),
                 OpenApiParameterMetadata.Query("deploymentId", "Only runs of this deployment.", false, OpenApiSchemaMetadata.String()),
-                OpenApiParameterMetadata.Query("groupBy", "none, agent, or harness: one series per group. Default none.", false, OpenApiSchemaMetadata.String())
+                OpenApiParameterMetadata.Query("model", "Only runs whose served model equals this value; unknown matches runs without a recorded model.", false, OpenApiSchemaMetadata.String()),
+                OpenApiParameterMetadata.Query("groupBy", "none, agent, harness, model, or harnessModel: one series per group. Default none.", false, OpenApiSchemaMetadata.String())
             };
             routes.Scoped(HttpMethod.GET, "/v1.0/api/tenants/{tenantId}/analytics/runs", ResourceTypeEnum.Run, OperationTypeEnum.Read, RunsAsync, "Time-bucketed run analytics (counts, tokens, cost, timing averages and percentiles)", "Analytics", null, typeof(RunAnalyticsResponse), "id", query);
+
+            List<OpenApiParameterMetadata> range = new List<OpenApiParameterMetadata>
+            {
+                OpenApiParameterMetadata.Query("from", "Inclusive range start, ISO 8601 UTC. Default: 24 hours before to.", false, OpenApiSchemaMetadata.String("date-time")),
+                OpenApiParameterMetadata.Query("to", "Exclusive range end, ISO 8601 UTC. Default: now.", false, OpenApiSchemaMetadata.String("date-time"))
+            };
+            routes.Scoped(HttpMethod.GET, "/v1.0/api/tenants/{tenantId}/analytics/runs/dimensions", ResourceTypeEnum.Run, OperationTypeEnum.Read, DimensionsAsync, "Distinct agents, harnesses, deployments, and served models among runs in a range (for analytics filters)", "Analytics", null, typeof(RunAnalyticsDimensions), "id", range);
         }
 
         #endregion
@@ -74,6 +82,7 @@ namespace Garrison.Server.Routes
             query.GroupBy = Enum(context, "groupBy", RunAnalyticsGroupByEnum.None, errors);
             query.AgentId = RouteHelpers.Query(context, "agentId");
             query.DeploymentId = RouteHelpers.Query(context, "deploymentId");
+            query.Model = RouteHelpers.Query(context, "model");
             string? harness = RouteHelpers.Query(context, "harnessType");
             if (!String.IsNullOrEmpty(harness))
             {
@@ -84,6 +93,16 @@ namespace Garrison.Server.Routes
 
             RunAnalyticsResponse response = await _Analytics.QueryAsync(query, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, response).ConfigureAwait(false);
+        }
+
+        private async Task DimensionsAsync(HttpContextBase context)
+        {
+            Dictionary<string, string> errors = new Dictionary<string, string>();
+            DateTime? from = Date(context, "from", errors);
+            DateTime? to = Date(context, "to", errors);
+            if (errors.Count > 0) throw new ValidationException("Invalid analytics query: " + String.Join(" ", errors.Values), errors);
+            RunAnalyticsDimensions dimensions = await _Analytics.DimensionsAsync(RouteHelpers.Tenant(context), from, to, context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 200, dimensions).ConfigureAwait(false);
         }
 
         private static DateTime? Date(HttpContextBase context, string key, Dictionary<string, string> errors)

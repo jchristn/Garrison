@@ -18,6 +18,16 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// One series per harness type (key and label are the harness type).
         /// </summary>
-        Harness
+        Harness,
+
+        /// <summary>
+        /// One series per served model (key and label are the model; runs without one use "unknown").
+        /// </summary>
+        Model,
+
+        /// <summary>
+        /// One series per harness type and served model pair (key "Harness|model", label "Harness / model").
+        /// </summary>
+        HarnessModel
     }
 }

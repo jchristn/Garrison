@@ -9,8 +9,8 @@ namespace Garrison.Core.Responses
     public class RunAnalyticsSeries
     {
         /// <summary>
-        /// Series key: "all" without grouping, the agent ID when grouped by agent, or the harness type when grouped
-        /// by harness.
+        /// Series key: "all" without grouping, the agent ID when grouped by agent, the harness type when grouped by
+        /// harness, the served model (or "unknown") when grouped by model, or "Harness|model" when grouped by harnessModel.
         /// </summary>
         public string Key { get; set; } = String.Empty;
 

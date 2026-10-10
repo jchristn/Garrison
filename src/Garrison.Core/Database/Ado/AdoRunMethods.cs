@@ -582,10 +582,13 @@ namespace Garrison.Core.Database.Ado
             if (!String.IsNullOrEmpty(filter.AgentId)) clauses.Add("agentid = @agentid");
             if (!String.IsNullOrEmpty(filter.DeploymentId)) clauses.Add("deploymentid = @deploymentid");
             if (filter.HarnessType.HasValue) clauses.Add("harnesstype = @harnesstype");
+            bool unknownModel = String.Equals(filter.ServedModel, "unknown", StringComparison.OrdinalIgnoreCase);
+            if (unknownModel) clauses.Add("(servedmodel IS NULL OR servedmodel = '')");
+            else if (!String.IsNullOrEmpty(filter.ServedModel)) clauses.Add("servedmodel = @servedmodel");
             if (filter.FromUtc.HasValue) clauses.Add("createdutc >= @fromutc");
             if (filter.ToUtc.HasValue) clauses.Add("createdutc < @toutc");
 
-            string sql = "SELECT id, tenantid, agentid, agentname, deploymentid, harnesstype, status, outcome, queuedutc, leasedutc, completedutc, " +
+            string sql = "SELECT id, tenantid, agentid, agentname, deploymentid, harnesstype, servedmodel, status, outcome, queuedutc, leasedutc, completedutc, " +
                 "inputtokens, outputtokens, cachedtokens, costusd, reasoningtokens, toolcallcount, ttftms, streamingms, executionms, queuems, totalms, createdutc " +
                 "FROM " + _Table + " WHERE " + String.Join(" AND ", clauses) + " ORDER BY createdutc DESC" + _Driver.Dialect.LimitOffsetClause() + ";";
 
@@ -595,6 +598,7 @@ namespace Garrison.Core.Database.Ado
                 if (!String.IsNullOrEmpty(filter.AgentId)) AdoDatabaseDriver.Add(command, "agentid", filter.AgentId);
                 if (!String.IsNullOrEmpty(filter.DeploymentId)) AdoDatabaseDriver.Add(command, "deploymentid", filter.DeploymentId);
                 if (filter.HarnessType.HasValue) AdoDatabaseDriver.Add(command, "harnesstype", filter.HarnessType.Value.ToString());
+                if (!unknownModel && !String.IsNullOrEmpty(filter.ServedModel)) AdoDatabaseDriver.Add(command, "servedmodel", filter.ServedModel);
                 if (filter.FromUtc.HasValue) AdoDatabaseDriver.Add(command, "fromutc", filter.FromUtc.Value);
                 if (filter.ToUtc.HasValue) AdoDatabaseDriver.Add(command, "toutc", filter.ToUtc.Value);
                 AdoDatabaseDriver.Add(command, "max", Math.Max(1, limit));
@@ -882,6 +886,7 @@ namespace Garrison.Core.Database.Ado
             obj.AgentName = AdoConverters.Str(reader, "agentname");
             obj.DeploymentId = AdoConverters.Str(reader, "deploymentid");
             obj.HarnessType = AdoConverters.Enum<HarnessTypeEnum>(reader, "harnesstype", HarnessTypeEnum.Generic);
+            obj.ServedModel = AdoConverters.NullableStr(reader, "servedmodel");
             obj.Status = AdoConverters.Enum<RunStatusEnum>(reader, "status", RunStatusEnum.Pending);
             obj.Outcome = AdoConverters.Enum<RunOutcomeEnum>(reader, "outcome", RunOutcomeEnum.None);
             obj.QueuedUtc = AdoConverters.NullableDate(reader, "queuedutc");

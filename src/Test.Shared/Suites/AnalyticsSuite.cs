@@ -44,6 +44,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "buckets-and-totals", "Hourly buckets are gap-filled; totals, averages, and percentiles are correct (" + provider + ")", ct => BucketsAndTotalsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "filters", "agentId, harnessType, and deploymentId filters combine (" + provider + ")", ct => FiltersAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "group-by", "groupBy agent and harness produce one series per group (" + provider + ")", ct => GroupByAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "by-model", "Model filter, groupBy model and harnessModel, and the dimensions endpoint (" + provider + ")", ct => ByModelAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "intervals", "Auto, day, and week intervals choose and align buckets (" + provider + ")", ct => IntervalsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "validation", "Bad ranges, intervals, and filters return 400 (" + provider + ")", ct => ValidationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "auth-and-isolation", "Run Read is required and tenants only see their own runs (" + provider + ")", ct => AuthAndIsolationAsync(provider, ct)));
@@ -84,6 +85,7 @@ namespace Test.Shared.Suites
 
             await SeedRunAsync(db, t, "agt_a", "alpha", HarnessTypeEnum.ClaudeCode, "dep_1", RunStatusEnum.Succeeded, _Base.AddMinutes(10), r =>
             {
+                r.ServedModel = "claude-sonnet-5-5";
                 r.InputTokens = 100;
                 r.OutputTokens = 500;
                 r.CachedTokens = 10;
@@ -97,6 +99,7 @@ namespace Test.Shared.Suites
             }, token).ConfigureAwait(false);
             await SeedRunAsync(db, t, "agt_a", "alpha", HarnessTypeEnum.ClaudeCode, "dep_1", RunStatusEnum.Failed, _Base.AddMinutes(20), r =>
             {
+                r.ServedModel = "claude-sonnet-5-5";
                 r.OutputTokens = 10;
                 r.ToolCallCount = 1;
                 r.TimeToFirstTokenMs = 300;
@@ -106,6 +109,7 @@ namespace Test.Shared.Suites
             }, token).ConfigureAwait(false);
             await SeedRunAsync(db, t, "agt_a", "alpha", HarnessTypeEnum.ClaudeCode, "dep_1", RunStatusEnum.Succeeded, _Base.AddMinutes(150), r =>
             {
+                r.ServedModel = "claude-haiku-5-5";
                 r.OutputTokens = 1000;
                 r.CostUsd = 0.02;
                 r.TimeToFirstTokenMs = 200;
@@ -115,6 +119,7 @@ namespace Test.Shared.Suites
             await SeedRunAsync(db, t, "agt_b", "beta", HarnessTypeEnum.Codex, "dep_2", RunStatusEnum.Cancelled, _Base.AddMinutes(165), null, token).ConfigureAwait(false);
             await SeedRunAsync(db, t, "agt_b", "beta", HarnessTypeEnum.Codex, "dep_2", RunStatusEnum.TimedOut, _Base.AddMinutes(359), r =>
             {
+                r.ServedModel = "gpt-5";
                 r.TimeToFirstTokenMs = 1000;
                 r.ExecutionMs = 10000;
             }, token).ConfigureAwait(false);
@@ -251,6 +256,45 @@ namespace Test.Shared.Suites
 
                 RunAnalyticsResponse explicitNone = await GetAsync(host.AdminClient, Path(host, Standard() + "&groupBy=none"), token).ConfigureAwait(false);
                 Assert.Equal("all", explicitNone.Series.Single().Key, "groupBy none");
+            }
+        }
+
+        private static async Task ByModelAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                await SeedStandardAsync(host, token).ConfigureAwait(false);
+
+                RunAnalyticsResponse byModel = await GetAsync(host.AdminClient, Path(host, Standard() + "&groupBy=model"), token).ConfigureAwait(false);
+                Assert.Equal(4, byModel.Series.Count, "Model series");
+                Assert.Equal("claude-sonnet-5-5", byModel.Series[0].Key, "Largest model first");
+                Assert.Equal(2L, byModel.Series[0].Buckets.Sum(b => b.Runs), "Sonnet runs");
+                Assert.True(byModel.Series.Any(x => x.Key == "unknown" && x.Buckets.Sum(b => b.Runs) == 1), "A run without a model groups under unknown");
+
+                RunAnalyticsResponse byPair = await GetAsync(host.AdminClient, Path(host, Standard() + "&groupBy=harnessModel"), token).ConfigureAwait(false);
+                RunAnalyticsSeries sonnet = Assert.NotNull(byPair.Series.FirstOrDefault(x => x.Key == "ClaudeCode|claude-sonnet-5-5"), "Harness and model series");
+                Assert.Equal("ClaudeCode / claude-sonnet-5-5", sonnet.Label, "Harness and model label");
+                Assert.True(byPair.Series.Any(x => x.Key == "Codex|gpt-5"), "Codex and gpt-5 series");
+                Assert.True(byPair.Series.Any(x => x.Key == "Codex|unknown"), "Codex without a model");
+                Assert.Equal(4, byPair.Series.Count, "Harness and model series count");
+
+                RunAnalyticsResponse filtered = await GetAsync(host.AdminClient, Path(host, Standard() + "&model=gpt-5"), token).ConfigureAwait(false);
+                Assert.Equal(1L, filtered.Totals.Runs, "model filter");
+                RunAnalyticsResponse unknown = await GetAsync(host.AdminClient, Path(host, Standard() + "&model=unknown"), token).ConfigureAwait(false);
+                Assert.Equal(1L, unknown.Totals.Runs, "model=unknown matches runs without a model");
+                RunAnalyticsResponse combined = await GetAsync(host.AdminClient, Path(host, Standard() + "&model=claude-sonnet-5-5&harnessType=Codex"), token).ConfigureAwait(false);
+                Assert.Equal(0L, combined.Totals.Runs, "model combines with other filters");
+
+                RunAnalyticsDimensions dimensions = await HttpTestHelpers.SendAsync<RunAnalyticsDimensions>(host.AdminClient, HttpMethod.Get,
+                    "/v1.0/api/tenants/" + host.TenantId + "/analytics/runs/dimensions?" + Standard(), null, 200, token).ConfigureAwait(false);
+                Assert.Equal(2, dimensions.Agents.Count, "Agents");
+                Assert.Equal("alpha", dimensions.Agents[0].Name, "Agents ordered by name");
+                Assert.Equal(2, dimensions.Harnesses.Count, "Harnesses");
+                Assert.Equal(2, dimensions.Deployments.Count, "Deployments");
+                Assert.True(dimensions.Deployments.All(d => !String.IsNullOrEmpty(d.AgentId)), "Deployments carry their agent");
+                Assert.Equal(4, dimensions.Models.Count, "Models");
+                Assert.True(dimensions.Models.Contains("unknown"), "unknown model listed");
+                Assert.True(!dimensions.Truncated, "Not truncated");
             }
         }
 

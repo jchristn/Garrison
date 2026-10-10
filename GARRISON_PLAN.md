@@ -80,9 +80,9 @@ Rules for keeping the plan honest:
 | 0 | Repository bootstrap | M1 | Complete | 14 / 14 |
 | 1 | Core foundation: settings, data layer, identity, RBAC, history, audit | M1 | Complete | 50 / 50 |
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
-| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 43 / 44 |
+| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 43 / 45 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
-| 5 | Dashboard | M1 | In progress | 41 / 49 |
+| 5 | Dashboard | M1 | In progress | 41 / 50 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 34 / 37 |
 | 8 | Documentation and Postman | M1 | In progress | 16 / 22 |
@@ -737,8 +737,8 @@ Analytics endpoint: `GET /v1.0/api/tenants/{tenantId}/analytics/runs` (permissio
 |---|---|---|
 | `from`, `to` | ISO 8601 UTC range | last 24 hours |
 | `interval` | `minute`, `hour`, `day`, `week`, or `auto` (about 24 to 96 buckets) | `auto` |
-| `agentId`, `harnessType`, `deploymentId` | Filters (combinable) | none |
-| `groupBy` | `none`, `agent`, or `harness`: one series per group | `none` |
+| `agentId`, `harnessType`, `deploymentId`, `model` | Filters (combinable); `model` matches the run's served model | none |
+| `groupBy` | `none`, `agent`, `harness`, `model`, or `harnessModel` (one series per harness and served model pair, label `Harness / model`): one series per group | `none` |
 
 Response:
 
@@ -753,7 +753,7 @@ Response:
 }
 ```
 
-Metrics object (every bucket and `totals`): `runs`, `succeeded`, `failed`, `cancelled`, `timedOut`, `inputTokens`, `outputTokens`, `cachedTokens`, `reasoningTokens`, `costUsd`, `toolCalls`, `timeToFirstTokenMsAvg`, `timeToFirstTokenMsP50`, `timeToFirstTokenMsP95`, `streamingMsAvg`, `executionMsAvg`, `executionMsP95`, `queueMsAvg`, `outputTokensPerSecondAvg`. Buckets are gap-filled (zero counts, null averages). Series keys are agent IDs or harness types; labels are agent names or harness types. At most 100,000 runs are aggregated per request (`truncated` reports when the cap was hit); ranges above 400 buckets return 400.
+Metrics object (every bucket and `totals`): `runs`, `succeeded`, `failed`, `cancelled`, `timedOut`, `inputTokens`, `outputTokens`, `cachedTokens`, `reasoningTokens`, `costUsd`, `toolCalls`, `timeToFirstTokenMsAvg`, `timeToFirstTokenMsP50`, `timeToFirstTokenMsP95`, `streamingMsAvg`, `executionMsAvg`, `executionMsP95`, `queueMsAvg`, `outputTokensPerSecondAvg`. Buckets are gap-filled (zero counts, null averages). Series keys are agent IDs, harness types, served models, or `harness|model` pairs; labels are agent names, harness types, models, or `Harness / model`. Runs without a served model group under `unknown`. A companion `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions?from=&to=` returns the distinct agents, harnesses, deployments, and models seen in the range so the dashboard can populate its filters. At most 100,000 runs are aggregated per request (`truncated` reports when the cap was hit); ranges above 400 buckets return 400.
 
 ## 11. Security Model
 
@@ -1187,6 +1187,7 @@ Tests
 - [x] P3.11.1 Application metrics and spans in section 17 for server and worker.  | claude 2026-10-10 worker: Radiant in Garrison.Core (shared GarrisonTelemetry), garrison.worker.* leases, runs, run.duration, harness.tokens, harness.cost_usd, completion_reports, runs.active, slots.free; span "harness <type> exec" parented on spec.TraceParent; scraped from both workers in K3S
 - [x] P3.12 Run timing telemetry per section 10.6: worker measures TTFT, streaming, and execution on a monotonic clock and counts tool calls; parsers report reasoning tokens where available; node protocol, migration 2 (Sqlite and Postgresql), server computes queue, total, and tokens per second; REST, MCP run summary, tests.  | claude 2026-10-10 worker Stopwatch timing (HarnessTiming), migration 2 on Sqlite and Postgresql (upgrades v1 in place), reasoning tokens from Codex, Claude, Mux; K3S live: Claude TTFT 1.6 s, 96 tok/s; Mux TTFT 11 s; Codex streams 0 ms (single message, G-12)
 - [x] P3.13 Analytics endpoint per section 10.6 (time-bucketed, gap-filled, percentiles, filters, group by agent or harness), operation scope entry, tests on both providers, `REST_API.md`, Postman.  | claude 2026-10-10 AnalyticsRoutes and RunAnalyticsService; auto interval picks at most 96 buckets; selected by createdUtc; nearest-rank percentiles; 7 cases per provider; live on K3S grouped by harness
+- [ ] P3.14 Analytics by model: `model` filter, `groupBy=model` and `groupBy=harnessModel`, and the `analytics/runs/dimensions` endpoint (section 10.6); tests on both providers; SDKs, REST_API.md, Postman.
 - [x] P3.12.1 OpenAPI metadata on every Phase 3 route.  | claude 2026-10-10
 
 ### Phase 4: Protocol ingress
@@ -1260,7 +1261,8 @@ Quality
 - [ ] P5.43 Runs telemetry: Runs table columns (TTFT, streaming, duration, queue, input, output, cached, reasoning tokens, tokens per second, cost; column picker defaults) and a Telemetry panel on Run detail with every section 10.6 field explained.
 - [ ] P5.44 Tooltips everywhere (D-030): a shared accessible Tooltip (hover and keyboard focus, portaled, delay) on every button, link, input, select, textarea, checkbox, label, column header, tab, badge, KPI card, chart control, and menu item; text in translation catalogs (`tips.*`) for every locale; an automated test visits every route, tab, and create/edit modal and fails on any element without a tooltip or whose tooltip only restates its label.
 - [ ] P5.45 Relationship explainers: Agents vs Deployments (an agent is the addressable identity; deployments are how it runs, one or more per agent with traffic weights), plus the same treatment for Harness profiles vs Deployments, Prompt templates and bindings, Secrets and aliases, MCP servers and bindings, Nodes vs Node pools, Users vs Credentials, Roles vs Permissions vs Assignments, Runs vs Queue; an info panel per tab and a short diagram on Agents.
-- [ ] P5.46 Analytics hub (sidebar, Monitoring or its own item): charts over time for TTFT (avg, p50, p95), streaming and execution time, queue time, tokens (input, output, cached, reasoning), tokens per second, cost, run outcomes, and tool calls; filter by agent, harness, and deployment; group by agent or harness; range presets and custom range; URL-synced filters.
+- [ ] P5.46 Analytics hub (sidebar, Monitoring or its own item): charts over time for TTFT (avg, p50, p95), streaming and execution time, queue time, tokens (input, output, cached, reasoning), tokens per second, cost, run outcomes, and tool calls; filter by agent, harness, deployment, and model; group by agent, harness, model, or harness and model (usage over time by agent harness by model, as stacked token and cost charts and a harness by model breakdown table); range presets and custom range; URL-synced filters.
+- [ ] P5.50 Chart export everywhere: every chart in the dashboard (Analytics, Home activity, Request History, Run detail timeline) has an export menu with CSV (the exact bucketed data behind the chart, one column per series, ISO timestamps, locale-independent numbers), PNG (rendered at 2x with title, legend, filters, and time range), SVG, and JSON; the filename carries the chart name, range, and filters; data tables get CSV export too. Tested with Playwright downloads.
 - [ ] P5.47 Docs and Playwright coverage for P5.43 to P5.46 (mocked and live).
 - [ ] P5.48 Additional locales matching Armada: `es`, `fr`, `it`, `zh-Hans`, `zh-Hant`, `yue-Hant` (beta label in the selector), complete catalogs including tooltips, CJK font hints, key-parity and placeholder tests, and a native-speaker review checklist in `docs/I18N.md`.
 - [ ] P5.49 RTL readiness beyond the `zz` pseudo-locale: audit with `dir="rtl"` across every route (logical CSS properties, icons that mirror, charts), documented so an RTL language such as Arabic or Hebrew can be added without code changes.

@@ -45,6 +45,11 @@ namespace Garrison.Core.Requests
         public string? DeploymentId { get; set; } = null;
 
         /// <summary>
+        /// Only runs whose served model equals this value ("unknown" matches runs without one), or null for all.
+        /// </summary>
+        public string? Model { get; set; } = null;
+
+        /// <summary>
         /// Series grouping. Default None.
         /// </summary>
         public RunAnalyticsGroupByEnum GroupBy { get; set; } = RunAnalyticsGroupByEnum.None;
