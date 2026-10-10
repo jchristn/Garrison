@@ -1,0 +1,4 @@
+{
+  "skillsEnabled": false,
+  "taskPlanningEnabled": false
+}

@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""End-to-end harness for the Garrison Python SDK.
+
+Usage: python test_harness.py [baseUrl] [accessKey] [secretKey]
+Requires a running server and a worker able to run the builtin/fake harness profile.
+"""
+
+import sys
+import time
+import traceback
+import uuid
+
+from garrison_sdk import GarrisonClient, GarrisonError
+
+BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8700"
+ACCESS = sys.argv[2] if len(sys.argv) > 2 else "access_garrison_default"
+SECRET = sys.argv[3] if len(sys.argv) > 3 else "secret_garrison_default_change_me"
+SUFFIX = uuid.uuid4().hex[:8]
+
+passed = 0
+failures = []
+state = {}
+
+
+def check(name, fn):
+    global passed
+    started = time.monotonic()
+    try:
+        fn()
+        passed += 1
+        print(f"PASS  {name} ({int((time.monotonic() - started) * 1000)}ms)")
+    except Exception as e:  # noqa: BLE001 - harness reports every failure
+        failures.append(f"{name}: {e}")
+        print(f"FAIL  {name}: {e}")
+        if "--verbose" in sys.argv:
+            traceback.print_exc()
+
+
+def require(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
+client = GarrisonClient(BASE)
+print(f"Garrison Python SDK harness against {BASE}")
+
+
+def t_health():
+    require(client.health()["status"] == "healthy", "not healthy")
+
+
+def t_token():
+    issued = client.login_with_keys(ACCESS, SECRET)
+    require(issued.get("token"), "no token")
+    state["tenant"] = issued.get("tenantId")
+    require(client.token_details()["principalType"] == "Credential", "unexpected principal")
+
+
+def t_signed():
+    signed = GarrisonClient(BASE)
+    signed.use_signed_requests(ACCESS, SECRET, state.get("tenant") or "ten_default")
+    require(signed.agents.list(max_results=5)["success"], "list failed")
+
+
+def t_builtin():
+    profiles = client.harness_profiles.builtin()
+    fake = [p for p in profiles if p["name"] == "builtin/fake"]
+    require(fake, "builtin/fake not found")
+    state["fake"] = fake[0]["id"]
+
+
+def t_create():
+    agent = client.agents.create({"name": f"sdk-py-{SUFFIX}", "description": "Python SDK harness scratch agent."})
+    state["agent"] = agent["id"]
+    deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-fake", "agentId": agent["id"], "harnessProfileId": state["fake"]})
+    state["deployment"] = deployment["id"]
+
+
+def t_invoke():
+    run = client.agents.invoke(state["agent"], "Hello from the Python SDK", wait=True, wait_seconds=90)
+    require(run["status"] == "Succeeded", f"status {run['status']} {run.get('errorMessage')}")
+    require((run.get("resultText") or "").startswith("Echo:"), f"result {run.get('resultText')}")
+
+
+def t_stream():
+    run = client.runs.create("Stream this please", agent_id=state["agent"])
+    events, final = 0, None
+    for item in client.runs.stream(run["id"]):
+        if "event" in item:
+            events += 1
+        if "run" in item:
+            final = item["run"]
+    require(final is not None, "no run.completed")
+    require(final["status"] == "Succeeded", f"status {final['status']}")
+    require(events > 0, "no events")
+
+
+def t_cancel():
+    run = client.runs.create("Cancel me", agent_id=state["agent"])
+    try:
+        client.runs.cancel(run["id"])
+    except GarrisonError as e:
+        if e.status_code != 409:
+            raise
+    final = client.runs.wait_for_completion(run["id"], timeout=60)
+    require(final["status"] in ("Cancelled", "Succeeded"), f"status {final['status']}")
+
+
+def t_manifest():
+    yaml = f"apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-py-manifest-{SUFFIX}\nspec:\n  description: Dry run only.\n"
+    result = client.manifests.apply(yaml, dry_run=True)
+    require(result["dryRun"], "not a dry run")
+    require(result["failedCount"] == 0, f"failed {result['failedCount']}")
+
+
+def t_list_runs():
+    page = client.runs.list(agent_id=state["agent"])
+    require(page["totalRecords"] >= 3, f"total {page['totalRecords']}")
+    require(all(r["agentId"] == state["agent"] for r in page["objects"]), "foreign runs")
+
+
+def t_cleanup():
+    if "deployment" in state:
+        client.deployments.delete(state["deployment"])
+    if "agent" in state:
+        client.agents.delete(state["agent"])
+
+
+for name, fn in [("health", t_health), ("token auth", t_token), ("signed request auth", t_signed),
+                 ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create),
+                 ("invoke with wait", t_invoke), ("stream events", t_stream), ("cancel run", t_cancel),
+                 ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs), ("cleanup", t_cleanup)]:
+    check(name, fn)
+
+print(f"\nPassed: {passed}  Failed: {len(failures)}")
+for f in failures:
+    print(f"  FAIL {f}")
+sys.exit(0 if not failures else 1)

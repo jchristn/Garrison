@@ -1,0 +1,428 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import PageHeader from './PageHeader';
+import TableFrame from './TableFrame';
+import Modal from './Modal';
+import ConfirmModal from './ConfirmModal';
+import JsonViewerModal from './JsonViewerModal';
+import ActionMenu from './ActionMenu';
+import FormFields from './FormFields';
+import { EmptyState, ErrorBanner } from './States';
+import { PlusIcon, TrashIcon } from './Icons';
+import { useAuth } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
+import useAutoRefresh from '../hooks/useAutoRefresh';
+import useDebounce from '../hooks/useDebounce';
+import { DEFAULT_PAGE_SIZE, STORAGE_KEYS } from '../utils/constants';
+import { buildListParams, sortLocal, SERVER_SORT_KEYS, stripForDuplicate, toLocalInput, toUtcIso } from '../utils/query';
+import { errorMessage, errorDetail, isMissingEndpoint } from '../utils/errors';
+
+function savedPageSize(tableId) {
+  try {
+    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.pageSize) || '{}');
+    return all[tableId] || DEFAULT_PAGE_SIZE;
+  } catch {
+    return DEFAULT_PAGE_SIZE;
+  }
+}
+
+function persistPageSize(tableId, size) {
+  try {
+    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.pageSize) || '{}');
+    all[tableId] = size;
+    localStorage.setItem(STORAGE_KEYS.pageSize, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Generic record page: header with + Add, search and filter row, server-paginated table with Select Columns,
+ * sortable headers, row actions (View, Edit, Duplicate, Delete, View JSON, extras), bulk delete, purpose-built
+ * create/edit/view modal from field descriptors, custom confirmations, and loading/empty/error states.
+ */
+export default function ResourceView({ config }) {
+  const { t, i18n } = useTranslation();
+  const { apiClient } = useAuth();
+  const { tenantId } = useApp();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tableId = config.id;
+  const ctx = useMemo(() => ({ apiClient, tenantId, t, i18n, navigate, addToast }), [apiClient, tenantId, t, i18n, navigate, addToast]);
+
+  const [items, setItems] = useState([]);
+  const [page, setPage] = useState({ pageNumber: 1, pageSize: savedPageSize(tableId), totalCount: 0 });
+  const [sort, setSort] = useState({ key: config.defaultSort || 'createdUtc', dir: config.defaultSortDir || 'desc' });
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
+  const [filters, setFilters] = useState(() => {
+    const initial = { ...(config.defaultFilters || {}) };
+    for (const key of config.urlFilters || []) {
+      const v = searchParams.get(key);
+      if (v) initial[key] = v;
+    }
+    return initial;
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [jsonValue, setJsonValue] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [autoRefreshSeconds, setAutoRefreshSeconds] = useState(config.autoRefresh ?? 0);
+  const [extraModal, setExtraModal] = useState(null);
+  const [options, setOptions] = useState({});
+  const [step, setStep] = useState(0);
+  const requestSeq = useRef(0);
+
+  const load = useCallback(
+    (pageNumber = 1, pageSize = page.pageSize) => {
+      if (!apiClient) return;
+      const seq = ++requestSeq.current;
+      setLoading(true);
+      setError(null);
+      const params = buildListParams({
+        pageNumber,
+        pageSize,
+        sortKey: SERVER_SORT_KEYS.includes(sort.key) ? sort.key : undefined,
+        sortDir: sort.dir,
+        search: debouncedSearch,
+        filters
+      });
+      config.api
+        .list(apiClient, tenantId, params)
+        .then((r) => {
+          if (seq !== requestSeq.current) return;
+          setItems(r.items || []);
+          setPage({ pageNumber: r.pageNumber || pageNumber, pageSize, totalCount: r.totalCount ?? (r.items || []).length });
+          setSelected([]);
+        })
+        .catch((e) => seq === requestSeq.current && setError(e))
+        .finally(() => seq === requestSeq.current && setLoading(false));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [apiClient, tenantId, sort.key, sort.dir, debouncedSearch, filters, config]
+  );
+
+  useEffect(() => {
+    load(1);
+  }, [load]);
+
+  useAutoRefresh(() => !editing && !jsonValue && load(page.pageNumber, page.pageSize), autoRefreshSeconds);
+
+  const displayItems = SERVER_SORT_KEYS.includes(sort.key) ? items : sortLocal(items, sort.key, sort.dir);
+  const isEditable = (row) => (config.isEditable ? config.isEditable(row) : !row?.isBuiltIn);
+  const canDelete = (row) => (config.canDelete ? config.canDelete(row) : !row?.isProtected && !row?.isBuiltIn);
+
+  const open = (mode, data) => {
+    setFieldErrors({});
+    setStep(0);
+    setEditing({ mode, data });
+    if (config.loadOptions) {
+      config
+        .loadOptions(ctx)
+        .then(setOptions)
+        .catch(() => setOptions({}));
+    }
+  };
+  const openRow = (row) => {
+    if (config.detailPath) navigate(config.detailPath(row));
+    else open(isEditable(row) && config.api.update ? 'edit' : 'view', config.toForm ? config.toForm(row) : { ...row });
+  };
+
+  const save = async () => {
+    setBusy(true);
+    setFieldErrors({});
+    try {
+      const d = editing.data;
+      const validation = config.validate ? config.validate(d, t) : null;
+      if (validation && Object.keys(validation).length > 0) {
+        setFieldErrors(validation);
+        return;
+      }
+      const body = config.toBody ? config.toBody(d, editing.mode) : d;
+      let result;
+      if (editing.mode === 'edit') result = await config.api.update(apiClient, tenantId, d.id, body);
+      else result = await config.api.create(apiClient, tenantId, body);
+      addToast({ type: 'success', message: t(editing.mode === 'edit' ? 'common.toasts.saved' : 'common.toasts.created') });
+      setEditing(null);
+      if (config.afterCreate && editing.mode !== 'edit') config.afterCreate(result, { ...ctx, setExtraModal });
+      load(page.pageNumber);
+    } catch (e) {
+      if (e?.fields) setFieldErrors(e.fields);
+      addToast({ type: 'error', message: `${errorMessage(t, e)} ${errorDetail(t, e)}`.trim() });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doDelete = async () => {
+    try {
+      await config.api.remove(apiClient, tenantId, deleteTarget.id);
+      addToast({ type: 'success', message: t('common.toasts.deleted') });
+      setDeleteTarget(null);
+      load(page.pageNumber);
+    } catch (e) {
+      addToast({ type: 'error', message: errorMessage(t, e) });
+      setDeleteTarget(null);
+    }
+  };
+
+  const doBulkDelete = async () => {
+    let failed = 0;
+    for (const id of selected) {
+      try {
+        await config.api.remove(apiClient, tenantId, id);
+      } catch {
+        failed += 1;
+      }
+    }
+    setBulkOpen(false);
+    addToast({ type: failed ? 'warning' : 'success', message: t('common.toasts.bulkDeleted', { count: selected.length - failed, failed }) });
+    load(page.pageNumber);
+  };
+
+  const columns = [
+    ...config.columns(ctx),
+    {
+      key: 'actions',
+      label: t('common.generic.actions'),
+      headerClass: 'right',
+      cellClass: 'actions-cell',
+      pinned: true,
+      render: (r) => (
+        <ActionMenu
+          items={[
+            { label: t('common.actions.view'), onClick: () => (config.detailPath ? navigate(config.detailPath(r)) : open('view', config.toForm ? config.toForm(r) : { ...r })) },
+            { label: t('common.actions.edit'), hidden: !config.api.update || !isEditable(r), onClick: () => open('edit', config.toForm ? config.toForm(r) : { ...r }) },
+            {
+              label: t('common.actions.duplicate'),
+              hidden: config.canDuplicate === false || !config.api.create,
+              onClick: () => open('create', stripForDuplicate(config.toForm ? config.toForm(r) : r, config.duplicateStrip || []))
+            },
+            ...((config.rowActions && config.rowActions(r, { ...ctx, reload: () => load(page.pageNumber), setExtraModal, setJsonValue })) || []),
+            { label: t('common.actions.viewJson'), onClick: () => setJsonValue(r) },
+            { label: t('common.actions.delete'), danger: true, hidden: !config.api.remove || !canDelete(r), onClick: () => setDeleteTarget(r) }
+          ]}
+        />
+      )
+    }
+  ];
+
+  const prefix = `resources.${config.id}`;
+  const allFields = editing ? config.fields(editing.data, { ...ctx, mode: editing.mode, options }) : [];
+  const steps = config.steps || null;
+  const fields = steps ? allFields.filter((f) => (f.step || 0) === step) : allFields;
+  const missing = isMissingEndpoint(error);
+  const noData = !loading && !error && items.length === 0 && !debouncedSearch && Object.values(filters).every((v) => !v);
+
+  const filterSlot = (
+    <div className="filter-inline">
+      <input
+        type="search"
+        className="filter-search"
+        value={search}
+        placeholder={t('components.filters.searchName')}
+        aria-label={t('components.filters.searchName')}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {(config.filters || []).map((f) =>
+        f.type === 'datetime' ? (
+          <label key={f.name} className="filter-date">
+            <span>{f.label(t)}</span>
+            <input type="datetime-local" value={toLocalInput(filters[f.name])} onChange={(e) => setFilters((prev) => ({ ...prev, [f.name]: toUtcIso(e.target.value) || '' }))} />
+          </label>
+        ) : (
+        <label key={f.name} className="filter-select">
+          <span className="sr-only">{f.label(t)}</span>
+          <select aria-label={f.label(t)} value={filters[f.name] || ''} onChange={(e) => setFilters((prev) => ({ ...prev, [f.name]: e.target.value }))}>
+            <option value="">{f.label(t)}: {t('common.generic.all')}</option>
+            {f.options.map((o) => (
+              <option key={o} value={o}>
+                {f.optionLabel ? f.optionLabel(o, t) : t(`enums.${f.enumGroup || f.name}.${o}`, { defaultValue: o })}
+              </option>
+            ))}
+          </select>
+        </label>
+        )
+      )}
+      {(search || Object.values(filters).some(Boolean)) && (
+        <button
+          type="button"
+          className="button-ghost button-sm"
+          onClick={() => {
+            setSearch('');
+            setFilters(config.defaultFilters || {});
+          }}
+        >
+          {t('components.filters.clear')}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div>
+      <PageHeader
+        title={t(`${prefix}.title`)}
+        subtitle={t(`${prefix}.subtitle`)}
+        actions={
+          <>
+            {config.headerActions && config.headerActions({ ...ctx, reload: () => load(page.pageNumber), setExtraModal })}
+            {config.api.create && (
+              <button type="button" className="button-primary" onClick={() => open('create', config.blank ? config.blank(ctx) : {})} data-testid="add-button">
+                <PlusIcon /> {t(`${prefix}.add`)}
+              </button>
+            )}
+          </>
+        }
+      />
+
+      {config.intro && <div className="page-intro">{config.intro(ctx)}</div>}
+
+      {error && !missing && <ErrorBanner message={`${errorMessage(t, error)} ${errorDetail(t, error)}`.trim()} onRetry={() => load(page.pageNumber)} />}
+
+      {missing ? (
+        <div className="table-frame">
+          <EmptyState title={t('common.states.unavailableTitle')} body={t('common.states.unavailableBody', { resource: t(`${prefix}.title`) })} />
+        </div>
+      ) : noData ? (
+        <div className="table-frame">
+          <EmptyState
+            title={t(`${prefix}.emptyTitle`)}
+            body={t(`${prefix}.emptyBody`)}
+            action={
+              config.api.create && (
+                <button type="button" className="button-primary" onClick={() => open('create', config.blank ? config.blank(ctx) : {})}>
+                  <PlusIcon /> {t(`${prefix}.add`)}
+                </button>
+              )
+            }
+          />
+        </div>
+      ) : (
+        <TableFrame
+          tableId={tableId}
+          columns={columns}
+          items={displayItems}
+          loading={loading}
+          emptyMessage={t('components.table.noMatches')}
+          rowId={(r) => r.id}
+          onRowClick={openRow}
+          sortKey={sort.key}
+          sortDir={sort.dir}
+          onSort={(key) => setSort((s) => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }))}
+          totalRecords={page.totalCount}
+          pageNumber={page.pageNumber}
+          pageSize={page.pageSize}
+          onPageChange={(p) => load(p)}
+          onPageSizeChange={(s) => {
+            persistPageSize(tableId, s);
+            setPage((prev) => ({ ...prev, pageSize: s }));
+            load(1, s);
+          }}
+          onRefresh={() => load(page.pageNumber)}
+          autoRefreshSeconds={autoRefreshSeconds}
+          onAutoRefreshChange={setAutoRefreshSeconds}
+          filterSlot={filterSlot}
+          selectable={!!config.api.remove}
+          selected={selected}
+          onSelectChange={setSelected}
+          bulkActions={
+            <button type="button" className="button-danger button-sm" onClick={() => setBulkOpen(true)}>
+              <TrashIcon size={14} /> {t('components.table.bulkDelete')}
+            </button>
+          }
+        />
+      )}
+
+      <Modal
+        open={!!editing}
+        onClose={() => !busy && setEditing(null)}
+        size={config.formSize || 'large'}
+        title={editing ? t(`${prefix}.${editing.mode === 'create' ? 'create' : editing.mode === 'edit' ? 'edit' : 'view'}`) : ''}
+        headerMeta={editing?.data?.id ? <code className="cell-id">{editing.data.id}</code> : null}
+        footer={
+          editing?.mode === 'view' ? (
+            <>
+              <button type="button" className="button-secondary" onClick={() => setJsonValue(editing.data)}>
+                {t('common.actions.viewJson')}
+              </button>
+              {config.api.update && isEditable(editing.data) && (
+                <button type="button" className="button-secondary" onClick={() => setEditing((e) => ({ ...e, mode: 'edit' }))}>
+                  {t('common.actions.edit')}
+                </button>
+              )}
+              <button type="button" className="button-primary" onClick={() => setEditing(null)}>
+                {t('common.actions.close')}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="button-secondary" onClick={() => setEditing(null)} disabled={busy}>
+                {t('common.actions.cancel')}
+              </button>
+              {steps && step > 0 && (
+                <button type="button" className="button-secondary" onClick={() => setStep((v) => v - 1)}>
+                  {t('common.actions.back')}
+                </button>
+              )}
+              {steps && step < steps.length - 1 && (
+                <button type="button" className="button-secondary" onClick={() => setStep((v) => v + 1)}>
+                  {t('common.actions.next')}
+                </button>
+              )}
+              <button type="button" className="button-primary" onClick={save} disabled={busy} data-testid="save-button">
+                {busy ? t('common.generic.saving') : t('common.actions.save')}
+              </button>
+            </>
+          )
+        }
+      >
+        {editing && (
+          <>
+            {Object.keys(fieldErrors).length > 0 && <div className="error-banner">{t('common.errors.fixFields')}</div>}
+            {editing.mode === 'view' && config.viewExtra && config.viewExtra(editing.data, ctx)}
+            {steps && (
+              <div className="stepper" role="tablist" aria-label={t('components.form.steps')}>
+                {steps.map((s, i) => (
+                  <button key={s} type="button" role="tab" aria-selected={step === i} className={`stepper-step ${step === i ? 'active' : ''}`} onClick={() => setStep(i)}>
+                    <span className="stepper-index">{i + 1}</span> {t(`${prefix}.steps.${s}`)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <FormFields fields={fields} data={editing.data} errors={fieldErrors} disabled={editing.mode === 'view'} onChange={(d) => setEditing((e) => ({ ...e, data: d }))} idPrefix={config.id} />
+          </>
+        )}
+      </Modal>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        danger
+        title={t(`${prefix}.deleteTitle`)}
+        message={t('common.confirm.deleteNamed', { name: deleteTarget?.name || deleteTarget?.email || deleteTarget?.id })}
+        confirmLabel={t('common.actions.delete')}
+        onConfirm={doDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+      <ConfirmModal
+        open={bulkOpen}
+        danger
+        title={t('components.table.bulkDelete')}
+        message={t('common.confirm.bulkDelete', { count: selected.length })}
+        confirmLabel={t('common.actions.delete')}
+        onConfirm={doBulkDelete}
+        onCancel={() => setBulkOpen(false)}
+      />
+      <JsonViewerModal open={!!jsonValue} value={jsonValue} onClose={() => setJsonValue(null)} />
+      {extraModal}
+    </div>
+  );
+}

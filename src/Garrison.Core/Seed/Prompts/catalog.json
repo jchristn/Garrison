@@ -1,0 +1,16 @@
+[
+  { "key": "default-system", "kind": "System", "description": "Default system prompt for hosted agents. Includes delegation instructions when delegation is enabled and schema instructions when the harness lacks native schema support." },
+  { "key": "default-task", "kind": "Task", "description": "Wraps the caller's message and any run parameters." },
+  { "key": "delegated-task", "kind": "Task", "description": "Task wrapper used when the caller is another agent." },
+  { "key": "garrison-tools-instructions", "kind": "Fragment", "description": "Explains Garrison's delegation tools; included by system prompts when delegation is enabled." },
+  { "key": "structured-output-instructions", "kind": "Fragment", "description": "Output schema instructions for harnesses without native schema support." },
+  { "key": "structured-output-repair", "kind": "Task", "description": "Repair prompt sent when output fails schema validation." },
+  { "key": "mcp-tool-description", "kind": "ToolDescription", "description": "Description of an agent exposed as its own MCP tool." },
+  { "key": "a2a-skill-description", "kind": "ToolDescription", "description": "Description of an agent's A2A skill." },
+  { "key": "claude-code-mcp-config", "kind": "ConfigFile", "description": "Claude Code --mcp-config JSON file." },
+  { "key": "mux-mcp-config", "kind": "ConfigFile", "description": "Mux --mcp-config JSON file (bearer tokens referenced from the environment)." },
+  { "key": "mux-endpoints", "kind": "ConfigFile", "description": "Mux endpoints.json rendered from deployment parameters (adapterType, baseUrl) and model." },
+  { "key": "mux-settings", "kind": "ConfigFile", "description": "Mux settings.json for headless runs." },
+  { "key": "mux-subagents", "kind": "ConfigFile", "description": "Mux subagents.json (no subagents)." },
+  { "key": "gemini-settings", "kind": "ConfigFile", "description": "Gemini CLI settings.json with MCP servers." }
+]

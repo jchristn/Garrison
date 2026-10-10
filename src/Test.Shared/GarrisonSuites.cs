@@ -1,0 +1,38 @@
+namespace Test.Shared
+{
+    using System.Collections.Generic;
+    using Garrison.Core.Enums;
+    using Test.Shared.Infrastructure;
+    using Test.Shared.Suites;
+    using Touchstone.Core;
+
+    /// <summary>
+    /// Registry of every Garrison test suite consumed by the console, xUnit, and NUnit runners.
+    /// </summary>
+    public static class GarrisonSuites
+    {
+        /// <summary>
+        /// All suites for the selected providers.
+        /// </summary>
+        public static IReadOnlyList<TestSuiteDescriptor> All
+        {
+            get
+            {
+                List<TestSuiteDescriptor> suites = new List<TestSuiteDescriptor>();
+                foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
+                {
+                    suites.Add(DatabaseContractSuite.Build(provider));
+                }
+                suites.AddRange(TemplateSuite.Build());
+                suites.AddRange(CompilerSuite.Build());
+                suites.AddRange(ParserSuite.Build());
+                suites.AddRange(IdentitySuite.Build());
+                suites.AddRange(ConfigurationSuite.Build());
+                suites.AddRange(RuntimeSuite.Build());
+                suites.AddRange(WorkerSuite.Build());
+                suites.AddRange(ProtocolSuite.Build());
+                return suites;
+            }
+        }
+    }
+}

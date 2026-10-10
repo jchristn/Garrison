@@ -1,0 +1,42 @@
+{{- if .Values.networkPolicies.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-worker
+  namespace: {{ include "garrison.namespace" . }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: garrison-worker }
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports: [ { port: 8710 }, { port: 9465 } ]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-server
+  namespace: {{ include "garrison.namespace" . }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: garrison-server }
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports: [ { port: 8700 }, { port: 8701 }, { port: 9464 } ]
+{{- if eq .Values.database.mode "embedded" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-postgres
+  namespace: {{ include "garrison.namespace" . }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: garrison-postgres }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: garrison-server }
+      ports: [ { port: 5432 } ]
+{{- end }}
+{{- end }}

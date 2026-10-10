@@ -1,0 +1,241 @@
+# Harnesses
+
+A harness is the command-line agent that does the actual work: Claude Code, Codex, Mux, Gemini CLI, or anything else that can take a prompt and print what it is doing. Garrison never links against a harness. It describes each one as data in a **harness profile**, compiles that profile together with an agent and a deployment into an `ExecutionSpec`, and hands the spec to a worker, which runs it.
+
+This page covers what a profile contains, how a deployment changes it, how the worker runs it, the built-in profiles, and how to add a new CLI without writing code.
+
+## From profile to process
+
+```text
+harness profile  +  deployment (model, parameters, overrides, prompts, MCP servers, secrets, workspace)
+                 +  agent (name, description, output schema, delegation rules)
+                 +  run (input, parameters, caller)
+        |
+        v   control plane: render every template, resolve secrets, mint a run token
+  ExecutionSpec  (executable, argv, environment, files, stdin, parser, timeouts, MCP checks, values to scrub)
+        |
+        v   worker: create work/, home/, config/ directories, write files, check MCP servers, launch
+  harness process  -->  stdout parsed into normalized events  -->  result, usage, outcome
+```
+
+Everything that varies by harness is in the profile, and everything is a template, so a new flag, a new environment variable, or a new config file format is a profile edit rather than a release. The worker never renders a template or reads the database; by the time a spec reaches it, every value is final except three directory placeholders.
+
+## Built-in profiles
+
+| Profile | Executable | Prompt | System prompt | MCP configuration | Parser | Result from |
+|---|---|---|---|---|---|---|
+| `builtin/claude-code` | `claude` | stdin | `--system-prompt-file` | `--mcp-config` JSON file with `--strict-mcp-config` | `ClaudeStreamJson` | final event |
+| `builtin/codex` | `codex` | stdin | `-c model_instructions_file=...` | one `--config=mcp_servers.<name>...` override per setting | `CodexJsonl` | final event |
+| `builtin/mux` | `mux` | stdin | `--system-prompt` file | `--mcp-config` JSON file with `--strict-mcp-config` | `MuxJsonl` | `--output-last-message` file |
+| `builtin/gemini-cli` | `gemini` | stdin | `GEMINI_SYSTEM_MD` file | `settings.json` in an isolated `GEMINI_CLI_HOME` | `GeminiStreamJson` | final event |
+| `builtin/generic-jsonl` | from the `executable` parameter | stdin | prepended to the prompt | none | `GenericJsonl` | final event |
+| `builtin/fake` | `garrison-fake-harness` | stdin | file | none | `ClaudeStreamJson` | final event |
+
+Built-in profiles cannot be edited. Clone one (`POST .../harness-profiles/{id}/clone`) and change the copy, or leave the profile alone and adjust it per deployment with overrides and parameters.
+
+### Claude Code
+
+```text
+claude -p --output-format stream-json --verbose --setting-sources "" --disable-slash-commands
+       --permission-mode <permissionMode, default acceptEdits>
+       [--system-prompt-file $GARRISON_CONFIG_DIR/system-prompt.md]
+       [--model <model>] [--fallback-model <fallbackModel>] [--effort <effort>]
+       --max-turns <maxTurns, default 20> [--max-budget-usd <maxBudgetUsd>]
+       [--mcp-config $GARRISON_CONFIG_DIR/mcp.json] --strict-mcp-config
+       --allowedTools <allowedTools, default Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,mcp__garrison>
+       [--json-schema <agent output schema>]
+```
+
+`--setting-sources ""` and `--strict-mcp-config` keep the harness from picking up user settings or MCP servers that happen to exist on the worker. Credentials come from a secret of kind `AnthropicApiKey` (as `ANTHROPIC_API_KEY`) or `ClaudeCodeOAuthToken` (as `CLAUDE_CODE_OAUTH_TOKEN`). Deployment parameters: `permissionMode`, `allowedTools`, `anthropicBaseUrl`, and `mcpToolTimeoutMs` (default 600000).
+
+### Codex
+
+```text
+codex exec --json --skip-git-repo-check --ignore-user-config
+      -s <sandbox, default workspace-write> -C $GARRISON_WORKSPACE_DIR [-m <model>]
+      -c project_doc_max_bytes=0 [-c model_reasoning_effort=<effort>]
+      [-c model_instructions_file="$GARRISON_CONFIG_DIR/system-prompt.md"]
+      --config=mcp_servers.<name>.url=... (and headers, required, tool_timeout_sec, approval mode, command, args, env)
+      [--output-schema $GARRISON_CONFIG_DIR/output-schema.json] -
+```
+
+`--ignore-user-config` and `project_doc_max_bytes=0` stop Codex from reading the worker's own configuration or an `AGENTS.md` in the workspace. MCP bearer tokens are never written into arguments: each header is passed by environment variable name (`env_http_headers`), and the worker sets those variables. Credentials come from a secret of kind `OpenAiApiKey` (as both `CODEX_API_KEY` and `OPENAI_API_KEY`) or `CodexAuthJson`, which is written to `$HOME/.codex/auth.json` with mode 600. Deployment parameters: `sandbox` and `openaiBaseUrl`.
+
+### Mux
+
+```text
+mux --print --config-dir $GARRISON_CONFIG_DIR/mux -e garrison --output-format jsonl
+    [--yolo] [--approval-policy <approvalPolicy>] --sandbox <sandbox, default workspace-write>
+    -w $GARRISON_WORKSPACE_DIR [-m <model>] --max-turns <maxTurns, default 20>
+    [--system-prompt $GARRISON_CONFIG_DIR/system-prompt.md]
+    [--mcp-config $GARRISON_CONFIG_DIR/mux-mcp.json --strict-mcp-config]
+    [--output-schema $GARRISON_CONFIG_DIR/output-schema.json]
+    --output-last-message $GARRISON_CONFIG_DIR/last-message.txt --no-session-persistence
+```
+
+Mux talks to whatever model endpoint you point it at. The profile writes a private config directory with three files rendered from prompt templates: `endpoints.json` (`builtin/mux-endpoints`, one endpoint named `garrison` built from the deployment parameters `adapterType` (default `openai-compatible`), `baseUrl` (default `https://api.openai.com/v1`), and `timeoutMs`, plus the deployment model), `settings.json`, and `subagents.json`. The API key comes from a secret of kind `OpenAiApiKey`, exposed as `GARRISON_MUX_API_KEY` and referenced from `endpoints.json`, so it never appears in a file.
+
+### Gemini CLI
+
+```text
+gemini -p "" -o stream-json --skip-trust --approval-mode <approvalMode, default yolo>
+       [-m <model>] [--allowed-mcp-server-names <names>]
+```
+
+Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` from `builtin/gemini-settings`, and the system prompt is passed as the file named by `GEMINI_SYSTEM_MD`. The key comes from a secret of kind `GeminiApiKey`. Gemini CLI is not in the worker image unless it is built with `INCLUDE_GEMINI=true`.
+
+### Generic JSON lines and the fake harness
+
+`builtin/generic-jsonl` is a starting point for any CLI that reads a prompt on stdin and prints one JSON object per line. Set the `executable` parameter (and `argument1`, `argument2` if it needs them) on the deployment, or clone the profile and set the four field paths described under Parsers below. A secret of kind `GenericEnv` becomes `API_KEY`.
+
+`builtin/fake` runs `garrison-fake-harness`, which echoes the prompt in Claude Code's stream-json format without spending tokens. Its deployment parameters are `format` (`claude`, `codex`, `mux`, or `plain`), `delayMs`, `scenario`, and `exitCode`. Tests and the cluster smoke test use it.
+
+## Profile fields
+
+| Field | Meaning |
+|---|---|
+| `harnessType` | `ClaudeCode`, `Codex`, `Mux`, `GeminiCli`, or `Generic`. Workers advertise which types they can run, and runs are only leased to workers that have the type. |
+| `executable` | Executable name or path. A template, so it can come from a parameter. |
+| `arguments` | Ordered argument templates (below). |
+| `environment` | Environment variable templates. `isSecret` marks values to scrub from output. |
+| `files` | Files to write before launch (below). |
+| `promptDelivery` | `Stdin`, `Argument` (the prompt, or `promptArgumentTemplate`, is appended as the last argument), or `File` (written to the config directory as `promptArgumentTemplate`, default `prompt.md`). |
+| `systemPromptDelivery` | `File` (written to `systemPromptTarget` in the config directory), `Argument` (`systemPromptTarget` is the flag), `Environment` (`systemPromptTarget` is the variable), `PrependToPrompt`, or `None` (the profile handles it with its own arguments or files). |
+| `mcpConfigFormat`, `mcpConfigFileName` | Which MCP configuration dialect the harness reads and where. Informational for the built-in formats, which are produced by the profile's own files and arguments. |
+| `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, or `PlainText`. |
+| `resultSource` | `ParserFinalEvent`, `LastMessageFile` (read `resultFileName` from the config directory), or `Stdout`. |
+| `successPolicy` | `FinalEvent` (the parser saw a successful final event), `ExitCode` (the exit code is in `successExitCodes`), or `FinalEventAndExitCode`. `PlainText` always uses `ExitCode`. |
+| `genericTextField`, `genericFinalField`, `genericSuccessField`, `genericSuccessValue` | Dotted JSON paths for `GenericJsonl`: assistant text, the final result, and the field and value that mean success. |
+| `defaultTimeoutSeconds` | Deadline when the deployment does not set one (5 to 86400, default 1800). |
+| `killGraceSeconds` | Time between asking the process to stop and killing its process tree (0 to 60, default 5). |
+| `maxOutputBytes` | Stdout limit; the run fails with `OutputLimitExceeded` beyond it (default 64 MiB). |
+| `stderrTailBytes` | How much stderr to keep for diagnosis (default 8000). |
+| `isolateHome` | Give each run its own `HOME` (and `USERPROFILE`, and `CODEX_HOME` for Codex). On by default for every built-in. |
+| `successExitCodes`, `probeArguments` | Exit codes that count as success, and the arguments used to check the harness is installed (`--version`). |
+| `credentialEnvironmentAllowlist` | The only environment variables allowed to reference a secret. When the list is not empty, an environment template (from the profile or a deployment override) that references a secret under any other name fails compilation with `SecretNotAllowed`. |
+
+### Arguments
+
+Each argument template renders to exactly one argv entry, so values with spaces never need quoting and never split.
+
+| Field | Meaning |
+|---|---|
+| `template` | The value. An empty template produces an empty argument (Claude Code's `--setting-sources ""`). |
+| `condition` | Optional. The argument is skipped when the condition renders empty or `false`. Flags and their values are separate arguments with the same condition. |
+| `repeatOver` | Optional list variable, such as `resources.httpMcpServers`. The argument is emitted once per element, with the element available as `this`. |
+
+### Files
+
+| Field | Meaning |
+|---|---|
+| `baseDirectory` | `Config` (private to the run, deleted afterwards), `Workspace` (the harness's working directory), or `Home` (the run's `HOME`). |
+| `pathTemplate` | Relative path. Absolute paths and `..` are rejected. |
+| `contentTemplate` | Content. Usually includes a `ConfigFile` prompt template, as in `{{> builtin/claude-code-mcp-config}}`. |
+| `condition`, `mode`, `isSecret` | Skip when empty; octal file mode such as `600`; scrub the content from output. |
+
+### Directory placeholders
+
+The control plane does not know where the worker will put a run, so templates refer to the run's directories with placeholders that the worker replaces in the executable, arguments, environment values, file paths, and file contents:
+
+| Placeholder | Directory |
+|---|---|
+| `$GARRISON_WORKSPACE_DIR` | `<WorkRoot>/<runId>/work`, the harness's working directory |
+| `$GARRISON_CONFIG_DIR` | `<WorkRoot>/<runId>/config`, for prompts and configuration files |
+| `$GARRISON_HOME_DIR` | `<WorkRoot>/<runId>/home`, the isolated `HOME` |
+
+The same values are available to templates as `run.workspaceDir`, `run.configDir`, and `run.homeDir`.
+
+## Template variables
+
+Every string in a profile is rendered with the Garrison template language (see `docs/PROMPTS.md` for syntax). These are the variables available when compiling a run:
+
+| Variable | Contents |
+|---|---|
+| `tenant` | `id`, `name` |
+| `agent` | `id`, `name`, `displayName`, `description`, `version`, `outputSchema`, `inputSchema` (compact JSON), `tags`, `skills`, `delegation` (`mode`, `maxDepth`, `allowRecursion`, `allowList`) |
+| `deployment` | `id`, `name`, `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd`, `timeoutSeconds`, `version`, `parameters` (deployment parameters merged with allowed run overrides) |
+| `run` | `id`, `kind`, `depth`, `attempt`, `parentRunId`, `rootRunId`, `deadlineUtc`, `callChain`, and the directory placeholders |
+| `input` | `message`, `contentType`, `parameters` (map), `parameterList` (list of `name` and `value`) |
+| `caller` | `type`, `id`, `name`, `agentName` (the delegating agent, when there is one) |
+| `prompts` | `system` and `task`, the rendered prompts |
+| `resources` | `mcpServers`, `httpMcpServers`, `stdioMcpServers` (each with `name`, `transport`, `endpoint`, `url`, `path`, `command`, `args`, `required`, `requiredTools`, `toolTimeoutSeconds`, `toolTimeoutMs`, `headers`, `env`, `bearerEnvName`, `bearerEnvRef`), `hasMcpServers`, `mcpServerNames`, `workspace` |
+| `secret` | Bound secrets by alias (`secret.anthropic`), and the first bound secret of each kind (`secret.kind.AnthropicApiKey`) |
+| `garrison` | `mcpUrl`, `apiUrl`, `version`, `mcpServerName`, `delegationEnabled` |
+| `harness` | `type`, `profile`, `model`, `nativeSchema` (whether the harness enforces output schemas itself) |
+| `now` | Compile time (UTC) |
+
+The model can be overridden per run when the deployment allows it, which is why profiles use `deployment.model` rather than reading the deployment record.
+
+## Secrets and credentials
+
+Secrets are stored encrypted and bound to a deployment with an alias. A profile reaches them through `{{secret.<alias>}}` or, for profiles that should work with any deployment, `{{secret.kind.<Kind>}}`. Secret kinds: `AnthropicApiKey`, `ClaudeCodeOAuthToken`, `OpenAiApiKey`, `CodexAuthJson`, `GeminiApiKey`, `GenericEnv`, `GenericFile`, `BearerToken`, `BasicAuth`, `GitCredential`.
+
+Every decrypted value is added to the run's scrub list. The worker replaces scrubbed values in events, results, and the stderr tail before anything leaves the node. An environment variable whose value renders empty is not set, so a profile can list both `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` and only the bound one appears.
+
+The worker starts each harness with an empty environment plus a short allowlist (`PATH`, `LANG`, proxy and certificate settings, and a few others; see `docs/CONFIGURATION.md`). Keys sitting in the worker's own environment do not leak into harnesses.
+
+Subscription credentials (`ClaudeCodeOAuthToken`, `CodexAuthJson`) work, but using a personal subscription to serve other people may break the provider's terms. Use API keys for anything shared.
+
+## Deployments
+
+A deployment binds one agent to one profile and adjusts it without touching the profile:
+
+| Deployment field | Effect |
+|---|---|
+| `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd` | Exposed as `deployment.*`; the built-in profiles turn them into flags |
+| `timeoutSeconds` | Run deadline, ahead of the profile's default and the cluster's `Runs.DefaultTimeoutSeconds` |
+| `parameters` | Named values available as `deployment.parameters.<name>`. Every knob in the built-in profiles is one of these |
+| `allowedRunOverrides` | Which parameters (and `model`) a caller may set per run, each validated as `Any`, `Enum` (comma-separated values), `Regex`, or `IntegerRange` (`min,max`) |
+| `argumentOverrides` | `Append`, `Prepend`, `Remove` (matching a profile argument template exactly), or `Replace` (same match, new template) |
+| `environmentOverrides`, `fileOverrides` | Add variables and files, or replace ones with the same name or path |
+| `promptBindings` | Which template fills each prompt role (`System`, `Task`, `DelegatedTask`), optionally pinned to a version |
+| `resourceBindings` | MCP servers and secrets, each with an alias |
+| `workspaceTemplateId` | Empty directory, a git clone, or seeded files, and whether to keep the workspace afterwards |
+| `nodeSelector`, `nodePoolId` | Labels and pool a worker must have |
+| `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | Concurrency, retries, and traffic split among an agent's deployments |
+
+New deployments get the default prompt bindings (`builtin/default-system`, `builtin/default-task`, `builtin/delegated-task`) for any role you do not bind. `POST .../deployments/{id}/compile-preview` shows the exact `ExecutionSpec` a run would get, with secrets masked, and is the quickest way to check an override.
+
+## On the worker
+
+For each run the worker:
+
+1. Creates `<WorkRoot>/<runId>/` with `work/`, `home/`, and `config/`, and prepares the workspace (git clone or seeded files).
+2. Replaces the directory placeholders and writes every file in the spec with its mode.
+3. Runs MCP pre-flight: each HTTP MCP server marked required, or with required tools, must answer `initialize` and `tools/list` within `McpPreflightTimeoutMs` and offer the required tools. If not, the run fails with `McpPreflightFailed` before the harness starts.
+4. Launches the process with the allowlisted environment plus the spec's variables, writes stdin, and parses stdout line by line into events, flushing them to the control plane in batches.
+5. Applies the deadline and cancellation by stopping the process tree, waiting `killGraceSeconds`, then killing it.
+6. Decides the outcome, reads the result, scrubs secrets, reports completion, and deletes `config/` and `home/` (and the workspace too, unless the workspace template keeps it).
+
+Workers probe for `claude`, `codex`, `mux`, `gemini`, and `garrison-fake-harness` at startup and every `ProbeIntervalSeconds`. Each one found adds the label `garrison.io/harness-<label>=true` (`claude`, `codex`, `mux`, `gemini`, `fake`) and its harness type to the node's capabilities.
+
+### Outcomes
+
+| Outcome | Meaning |
+|---|---|
+| `Succeeded` | The success policy was met |
+| `HarnessFailed` | The harness reported failure, exited badly, or never produced a final result |
+| `NotInstalled` | The executable was not found |
+| `NotCredentialed` | Stderr matched a known authentication failure (`invalid api key`, `not logged in`, `401 unauthorized`, and similar) |
+| `McpPreflightFailed` | A required MCP server or tool was missing |
+| `OutputLimitExceeded` | Stdout passed `maxOutputBytes` |
+| `TimedOut`, `Cancelled` | Deadline reached or cancelled |
+| `NodeLost`, `StaleLease` | The worker disappeared or lost its lease |
+| `CompileFailed`, `WorkspaceFailed`, `SchemaValidationFailed`, `Rejected`, `InternalError` | Failures before or around the harness |
+
+### Quirks Garrison handles
+
+- **Exit code 0 after a failure.** Several harnesses exit 0 when the model call failed. The built-in profiles use the `FinalEvent` success policy, so success means the harness said so in its final event.
+- **MCP servers that fail quietly.** A harness may start even though an MCP server rejected its credentials. MCP pre-flight catches this before launch, and the Claude Code parser also checks the `mcp_servers` status in the init event for servers the run requires.
+- **Model substitution.** A harness may serve a different model from the one requested. Parsers record the model the harness reports, and the run stores it as `servedModel`, so you can compare it with the deployment's model.
+- **Leftover configuration.** User settings, project instruction files, and global MCP servers on the worker are ignored by the flags each built-in passes, and each run gets its own `HOME`.
+
+## Adding a new CLI
+
+1. Check the CLI can run headless: a prompt on stdin, as an argument, or in a file, and output you can parse (JSON lines are best; plain text works with `PlainText`).
+2. Create a profile with `harnessType` `Generic`, the executable, arguments, and the `GenericJsonl` field paths, or clone `builtin/generic-jsonl`.
+3. Install the CLI on workers and add a probe for it (`HarnessType` `Generic`, its executable, a label) to the worker's `Probes` setting. Runs are leased only to nodes that report the profile's harness type as available, and a `Generic` capability can come from any generic probe, including the fake harness, so add a node selector on the new label (`garrison.io/harness-<label>=true`) to keep the runs off workers without the CLI.
+4. Create a secret and bind it to the deployment; reference it from an environment template.
+5. Use `compile-preview` to inspect the spec, then invoke the agent and watch the events.
+
+The same steps apply as a manifest; see `docs/MANIFESTS.md`.

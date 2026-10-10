@@ -1,0 +1,34 @@
+name: SDKs
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sdk-harnesses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Run SDK harnesses
+        run: |
+          if [ -f scripts/run-sdk-harnesses.sh ]; then
+            bash scripts/run-sdk-harnesses.sh
+          else
+            echo "scripts/run-sdk-harnesses.sh not present yet (plan task P6.14)"
+          fi

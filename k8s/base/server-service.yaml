@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-server
+  labels:
+    app.kubernetes.io/name: garrison-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: garrison-server
+  ports:
+    - name: http
+      port: 8700
+      targetPort: http
+    - name: mcp
+      port: 8701
+      targetPort: mcp
+    - name: metrics
+      port: 9464
+      targetPort: metrics

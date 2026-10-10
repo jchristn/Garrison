@@ -1,0 +1,491 @@
+namespace Garrison.Core.Database.Ado
+{
+    using System;
+    using System.Collections.Generic;
+    using System.Data.Common;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Garrison.Core.Database.Sql;
+    using Garrison.Core.Helpers;
+
+    /// <summary>
+    /// Shared ADO.NET database driver. Implements the data-access surface once against
+    /// <see cref="System.Data.Common"/>, parameterized by a <see cref="SqlDialect"/> and a <see cref="TableCatalog"/>.
+    /// Provider subclasses supply a connection, a dialect, and connection or transaction specifics. Thread-safe.
+    /// </summary>
+    public abstract class AdoDatabaseDriver : DatabaseDriverBase
+    {
+        #region Public-Members
+
+        /// <summary>
+        /// Provider dialect.
+        /// </summary>
+        public SqlDialect Dialect
+        {
+            get
+            {
+                return _Dialect;
+            }
+        }
+
+        /// <summary>
+        /// Table catalog.
+        /// </summary>
+        public TableCatalog Catalog
+        {
+            get
+            {
+                return _Catalog;
+            }
+        }
+
+        /// <summary>
+        /// Database settings.
+        /// </summary>
+        public DatabaseSettings Settings
+        {
+            get
+            {
+                return _Settings;
+            }
+        }
+
+        /// <summary>
+        /// Maximum number of retries when a transaction hits a transient conflict. Minimum 0, maximum 100, default 16.
+        /// </summary>
+        public int MaxConflictRetries
+        {
+            get
+            {
+                return _MaxConflictRetries;
+            }
+            set
+            {
+                _MaxConflictRetries = Math.Clamp(value, 0, 100);
+            }
+        }
+
+        #endregion
+
+        #region Private-Members
+
+        private readonly DatabaseSettings _Settings;
+        private readonly SqlDialect _Dialect;
+        private readonly TableCatalog _Catalog;
+        private int _MaxConflictRetries = 16;
+
+        #endregion
+
+        #region Constructors-and-Factories
+
+        /// <summary>
+        /// Instantiate and wire the shared method implementations.
+        /// </summary>
+        /// <param name="settings">Database settings.</param>
+        /// <param name="dialect">Provider dialect.</param>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        protected AdoDatabaseDriver(DatabaseSettings settings, SqlDialect dialect)
+        {
+            _Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _Dialect = dialect ?? throw new ArgumentNullException(nameof(dialect));
+            _Catalog = new TableCatalog(settings.TablePrefix, settings.Schema, dialect);
+
+            Tenants = new AdoTenantMethods(this);
+            Users = new AdoUserMethods(this);
+            Credentials = new AdoCredentialMethods(this);
+            Sessions = new AdoAuthSessionMethods(this);
+            Roles = new AdoRoleMethods(this);
+            Permissions = new AdoPermissionMethods(this);
+            RolePermissionMaps = new AdoRolePermissionMapMethods(this);
+            UserRoleAssignments = new AdoUserRoleAssignmentMethods(this);
+            CredentialScopeAssignments = new AdoCredentialScopeAssignmentMethods(this);
+            Audit = new AdoAuditRecordMethods(this);
+            RequestHistory = new AdoRequestHistoryEntryMethods(this);
+            HarnessProfiles = new AdoHarnessProfileMethods(this);
+            PromptTemplates = new AdoPromptTemplateMethods(this);
+            PromptTemplateVersions = new AdoPromptTemplateVersionMethods(this);
+            McpServers = new AdoMcpServerMethods(this);
+            Secrets = new AdoSecretMethods(this);
+            WorkspaceTemplates = new AdoWorkspaceTemplateMethods(this);
+            ArtifactStores = new AdoArtifactStoreMethods(this);
+            Agents = new AdoAgentMethods(this);
+            Deployments = new AdoDeploymentMethods(this);
+            NodePools = new AdoNodePoolMethods(this);
+            Nodes = new AdoNodeMethods(this);
+            Runs = new AdoRunMethods(this);
+            RunEvents = new AdoRunEventMethods(this);
+            CoordinationLeases = new AdoCoordinationLeaseMethods(this);
+            ClusterSettings = new AdoClusterSettingMethods(this);
+            ManifestApplies = new AdoManifestApplyMethods(this);
+        }
+
+        #endregion
+
+        #region Public-Methods
+
+        /// <inheritdoc />
+        public override async Task InitializeAsync(CancellationToken token = default)
+        {
+            _Settings.Validate();
+
+            if (!String.IsNullOrEmpty(_Settings.Schema))
+            {
+                string? schemaSql = _Dialect.CreateSchemaStatement(_Settings.Schema!);
+                if (!String.IsNullOrEmpty(schemaSql)) await NonQueryAsync(schemaSql!, null, token).ConfigureAwait(false);
+            }
+
+            if (_Settings.ManageSchema) await ApplyMigrationsAsync(token).ConfigureAwait(false);
+            else await VerifyTablesAsync(token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public override async Task<bool> PingAsync(CancellationToken token = default)
+        {
+            object? result = await ScalarAsync("SELECT 1;", null, token).ConfigureAwait(false);
+            return result != null;
+        }
+
+        /// <inheritdoc />
+        public override Task CloseAsync(CancellationToken token = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Resolve a raw table name to a quoted, prefixed, optionally schema-qualified reference.
+        /// </summary>
+        /// <param name="rawName">Unprefixed table name.</param>
+        /// <returns>Table reference.</returns>
+        public string Table(string rawName)
+        {
+            return _Catalog.Reference(rawName);
+        }
+
+        /// <summary>
+        /// Create a new, unopened connection.
+        /// </summary>
+        /// <returns>Connection.</returns>
+        public abstract DbConnection CreateConnection();
+
+        /// <summary>
+        /// Open a new connection.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Open connection.</returns>
+        public virtual async Task<DbConnection> OpenConnectionAsync(CancellationToken token = default)
+        {
+            DbConnection connection = CreateConnection();
+            await connection.OpenAsync(token).ConfigureAwait(false);
+            await OnConnectionOpenedAsync(connection, token).ConfigureAwait(false);
+            return connection;
+        }
+
+        /// <summary>
+        /// Begin a transaction on an open connection.
+        /// </summary>
+        /// <param name="connection">Open connection.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Transaction.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when connection is null.</exception>
+        public virtual async Task<DbTransaction> BeginTransactionAsync(DbConnection connection, CancellationToken token = default)
+        {
+            if (connection == null) throw new ArgumentNullException(nameof(connection));
+            return await connection.BeginTransactionAsync(token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Execute a non-query statement.
+        /// </summary>
+        /// <param name="sql">SQL text.</param>
+        /// <param name="bind">Optional parameter binder.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Affected rows.</returns>
+        public async Task<int> NonQueryAsync(string sql, Action<DbCommand>? bind, CancellationToken token = default)
+        {
+            using (IDisposable? writeLock = await EnterWriteAsync(token).ConfigureAwait(false))
+            {
+                await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
+                {
+                    await using (DbCommand command = connection.CreateCommand())
+                    {
+                        command.CommandText = sql;
+                        bind?.Invoke(command);
+                        return await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Execute a scalar query.
+        /// </summary>
+        /// <param name="sql">SQL text.</param>
+        /// <param name="bind">Optional parameter binder.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Scalar value, or null.</returns>
+        public async Task<object?> ScalarAsync(string sql, Action<DbCommand>? bind, CancellationToken token = default)
+        {
+            await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
+            {
+                await using (DbCommand command = connection.CreateCommand())
+                {
+                    command.CommandText = sql;
+                    bind?.Invoke(command);
+                    object? result = await command.ExecuteScalarAsync(token).ConfigureAwait(false);
+                    return result == null || result == DBNull.Value ? null : result;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Execute a query and map each row.
+        /// </summary>
+        /// <typeparam name="T">Row type.</typeparam>
+        /// <param name="sql">SQL text.</param>
+        /// <param name="bind">Optional parameter binder.</param>
+        /// <param name="map">Row mapper.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Mapped rows.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when map is null.</exception>
+        public async Task<List<T>> QueryAsync<T>(string sql, Action<DbCommand>? bind, Func<DbDataReader, T> map, CancellationToken token = default)
+        {
+            if (map == null) throw new ArgumentNullException(nameof(map));
+
+            List<T> results = new List<T>();
+            await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
+            {
+                await using (DbCommand command = connection.CreateCommand())
+                {
+                    command.CommandText = sql;
+                    bind?.Invoke(command);
+                    await using (DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync(token).ConfigureAwait(false)) results.Add(map(reader));
+                    }
+                }
+            }
+            return results;
+        }
+
+        /// <summary>
+        /// Execute a query and map the first row.
+        /// </summary>
+        /// <typeparam name="T">Row type.</typeparam>
+        /// <param name="sql">SQL text.</param>
+        /// <param name="bind">Optional parameter binder.</param>
+        /// <param name="map">Row mapper.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>First row, or null.</returns>
+        public async Task<T?> QuerySingleAsync<T>(string sql, Action<DbCommand>? bind, Func<DbDataReader, T> map, CancellationToken token = default) where T : class
+        {
+            List<T> results = await QueryAsync(sql, bind, map, token).ConfigureAwait(false);
+            return results.Count > 0 ? results[0] : null;
+        }
+
+        /// <summary>
+        /// Run work inside one transaction, retrying on transient conflicts. The transaction commits when the
+        /// work completes and rolls back when it throws.
+        /// </summary>
+        /// <param name="work">Work receiving the connection, transaction, and token.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when work is null.</exception>
+        public async Task ExecuteInTransactionAsync(Func<DbConnection, DbTransaction, CancellationToken, Task> work, CancellationToken token = default)
+        {
+            if (work == null) throw new ArgumentNullException(nameof(work));
+
+            int attempt = 0;
+            while (true)
+            {
+                try
+                {
+                    using (IDisposable? writeLock = await EnterWriteAsync(token).ConfigureAwait(false))
+                    {
+                        await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
+                        {
+                            await using (DbTransaction transaction = await BeginTransactionAsync(connection, token).ConfigureAwait(false))
+                            {
+                                await work(connection, transaction, token).ConfigureAwait(false);
+                                await transaction.CommitAsync(token).ConfigureAwait(false);
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) when (_Dialect.IsTransientConflict(ex) && attempt < _MaxConflictRetries)
+                {
+                    attempt++;
+                    await Task.Delay(Math.Min(5 + attempt * 5, 100), token).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Execute a statement on an existing connection and transaction.
+        /// </summary>
+        /// <param name="connection">Connection.</param>
+        /// <param name="transaction">Transaction.</param>
+        /// <param name="sql">SQL text.</param>
+        /// <param name="bind">Optional parameter binder.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Affected rows.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        public static async Task<int> ExecuteAsync(DbConnection connection, DbTransaction transaction, string sql, Action<DbCommand>? bind, CancellationToken token = default)
+        {
+            if (connection == null) throw new ArgumentNullException(nameof(connection));
+            if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+            if (String.IsNullOrEmpty(sql)) throw new ArgumentNullException(nameof(sql));
+
+            await using (DbCommand command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = sql;
+                bind?.Invoke(command);
+                return await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Execute a query on an existing connection and transaction and map each row.
+        /// </summary>
+        /// <typeparam name="T">Row type.</typeparam>
+        /// <param name="connection">Connection.</param>
+        /// <param name="transaction">Transaction.</param>
+        /// <param name="sql">SQL text.</param>
+        /// <param name="bind">Optional parameter binder.</param>
+        /// <param name="map">Row mapper.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Mapped rows.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        public static async Task<List<T>> QueryAsync<T>(DbConnection connection, DbTransaction transaction, string sql, Action<DbCommand>? bind, Func<DbDataReader, T> map, CancellationToken token = default)
+        {
+            if (connection == null) throw new ArgumentNullException(nameof(connection));
+            if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+            if (map == null) throw new ArgumentNullException(nameof(map));
+
+            List<T> results = new List<T>();
+            await using (DbCommand command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = sql;
+                bind?.Invoke(command);
+                await using (DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(token).ConfigureAwait(false)) results.Add(map(reader));
+                }
+            }
+            return results;
+        }
+
+        /// <summary>
+        /// Add a parameter, mapping null to DBNull and normalizing timestamps to UTC.
+        /// </summary>
+        /// <param name="command">Command.</param>
+        /// <param name="name">Parameter name without prefix.</param>
+        /// <param name="value">Value, or null.</param>
+        /// <exception cref="ArgumentNullException">Thrown when command or name is null.</exception>
+        public static void Add(DbCommand command, string name, object? value)
+        {
+            if (command == null) throw new ArgumentNullException(nameof(command));
+            if (String.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            if (value is DateTime dt) value = TimestampHelper.Normalize(dt);
+
+            DbParameter parameter = command.CreateParameter();
+            parameter.ParameterName = "@" + name;
+            parameter.Value = value ?? DBNull.Value;
+            command.Parameters.Add(parameter);
+        }
+
+        #endregion
+
+        #region Protected-Methods
+
+        /// <summary>
+        /// Hook invoked after a connection opens. Override to set provider pragmas.
+        /// </summary>
+        /// <param name="connection">Open connection.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        protected virtual Task OnConnectionOpenedAsync(DbConnection connection, CancellationToken token)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Enter the provider's write section. Providers that need writes serialized (Sqlite) return a releaser;
+        /// others return null.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Releaser, or null.</returns>
+        protected virtual Task<IDisposable?> EnterWriteAsync(CancellationToken token)
+        {
+            return Task.FromResult<IDisposable?>(null);
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private async Task ApplyMigrationsAsync(CancellationToken token)
+        {
+            await NonQueryAsync(SchemaBuilder.MigrationsTableDdl(_Catalog, _Dialect), null, token).ConfigureAwait(false);
+
+            HashSet<int> applied = new HashSet<int>();
+            List<int> appliedList = await QueryAsync(
+                "SELECT version FROM " + _Catalog.Reference("schema_migrations") + " ORDER BY version ASC;",
+                null,
+                reader => Convert.ToInt32(reader.GetValue(0)),
+                token).ConfigureAwait(false);
+            foreach (int version in appliedList) applied.Add(version);
+
+            foreach (SchemaMigration migration in SchemaBuilder.Build(_Catalog, _Dialect))
+            {
+                if (applied.Contains(migration.Version)) continue;
+
+                await ExecuteInTransactionAsync(async (connection, transaction, ct) =>
+                {
+                    foreach (string statement in migration.Statements)
+                    {
+                        await ExecuteAsync(connection, transaction, statement, null, ct).ConfigureAwait(false);
+                    }
+
+                    await ExecuteAsync(connection, transaction,
+                        "INSERT INTO " + _Catalog.Reference("schema_migrations") + " (version, description, appliedutc) VALUES (@v, @d, @t);",
+                        command =>
+                        {
+                            Add(command, "v", migration.Version);
+                            Add(command, "d", migration.Description);
+                            Add(command, "t", DateTime.UtcNow);
+                        }, ct).ConfigureAwait(false);
+                }, token).ConfigureAwait(false);
+                applied.Add(migration.Version);
+            }
+
+            SchemaVersion = applied.Count > 0 ? applied.Max() : 0;
+        }
+
+        private async Task VerifyTablesAsync(CancellationToken token)
+        {
+            foreach (string rawName in TableCatalog.AllTables)
+            {
+                string probe = _Dialect.TableExistsProbe(_Catalog.Schema);
+                object? result = await ScalarAsync(probe, command =>
+                {
+                    Add(command, "name", _Catalog.RawName(rawName));
+                    if (!String.IsNullOrEmpty(_Catalog.Schema)) Add(command, "schema", _Catalog.Schema);
+                }, token).ConfigureAwait(false);
+
+                if (result == null)
+                {
+                    throw new InvalidOperationException(
+                        "Required table '" + _Catalog.RawName(rawName) + "' was not found and ManageSchema is disabled. " +
+                        "Create the Garrison tables (see reference/sql/" + _Dialect.DatabaseType.ToString().ToLowerInvariant() + "/schema.sql) or enable ManageSchema.");
+                }
+            }
+        }
+
+        #endregion
+    }
+}

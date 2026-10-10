@@ -1,0 +1,22 @@
+# helm install garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/values-minikube.yaml
+server:
+  service:
+    type: NodePort
+    nodePorts: { http: 30870, mcp: 30871 }
+dashboard:
+  service:
+    type: NodePort
+    nodePort: 30880
+workerPools:
+  - name: default
+    replicas: 2
+    maxConcurrentRuns: 2
+    labels: "garrison.io/pool=default"
+    storage: 10Gi
+    storageClassName: ""
+    terminationGracePeriodSeconds: 900
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: "4", memory: 4Gi }
+    nodeSelector: {}
+    tolerations: []

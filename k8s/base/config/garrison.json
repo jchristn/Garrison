@@ -1,0 +1,22 @@
+{
+  "NodeId": null,
+  "Rest": { "Hostname": "*", "Port": 8700, "Ssl": false, "PublicBaseUrl": null, "CorsOrigins": [] },
+  "Mcp": { "Enable": true, "Hostname": "*", "Port": 8701, "Path": "/mcp", "PublicUrl": null, "MaxMessageSize": 16777216, "MaxToolWaitSeconds": 90 },
+  "Database": {
+    "Type": "Postgresql",
+    "Host": "garrison-postgres",
+    "Port": 5432,
+    "DatabaseName": "garrison",
+    "Username": "garrison",
+    "Password": null,
+    "Schema": null,
+    "TablePrefix": null,
+    "ManageSchema": true,
+    "MaxPoolSize": 100
+  },
+  "Logging": { "ConsoleLogging": true, "FileLogging": false, "LogDirectory": "logs/", "LogFilename": "garrison.log", "MinimumSeverity": 1 },
+  "Auth": { "Issuer": "garrison", "TokenLifetimeMinutes": 480, "SignedRequestSkewSeconds": 300, "RateLimitPerMinute": 60 },
+  "RequestHistory": { "Enabled": true, "MaxRequestBodyBytes": 65536, "MaxResponseBodyBytes": 65536, "RetentionDays": 30 },
+  "Telemetry": { "Enabled": true, "ServiceName": "garrison-server", "PrometheusEnable": true, "PrometheusHostname": "*", "PrometheusPort": 9464, "PrometheusPath": "/metrics", "OtlpEnable": false, "OtlpEndpoint": "http://127.0.0.1:4317" },
+  "Cluster": { "ExpectedReplicas": 1, "SettingsFileReadOnly": true }
+}

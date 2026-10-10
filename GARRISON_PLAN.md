@@ -1,0 +1,1618 @@
+# Garrison Implementation Plan
+
+Garrison is a multi-tenant control plane that stations headless agent harnesses (Claude Code, Codex, Mux, Gemini CLI, and any CLI you can describe) on a fleet of worker nodes, and dispatches them on demand behind REST, MCP, and A2A. The control plane decides what runs, where, with which prompts, credentials, MCP servers, and workspaces. Worker nodes do the running. Each side scales on its own.
+
+This document is the build plan. It is meant to be executed, annotated, and kept current by whoever is doing the work. The first stopping point is the MVP (milestone M1, Phase 9). Everything after M1 takes the system to a production-grade, horizontally scalable 1.0.
+
+| | |
+|---|---|
+| Repository | https://github.com/jchristn/Garrison |
+| Product version at plan creation | `0.1.0-alpha` (agents never change versions without explicit approval, see `VERSIONING.md`) |
+| License | MIT |
+| Primary language | C# (.NET 8 and .NET 10), React 19 dashboard |
+| Deployment target | Kubernetes (generic, K3S, minikube) |
+| Plan owner | Joel Christner |
+
+---
+
+## Table of Contents
+
+1. [How To Use This Plan](#1-how-to-use-this-plan)
+2. [Progress Dashboard](#2-progress-dashboard)
+3. [Product Definition](#3-product-definition)
+4. [Decision Log](#4-decision-log)
+5. [Requirements Compliance Matrix](#5-requirements-compliance-matrix)
+6. [Architecture](#6-architecture)
+7. [Domain Model](#7-domain-model)
+8. [Configurability Model: Harnesses, Prompts, Resources, Deployments](#8-configurability-model-harnesses-prompts-resources-deployments)
+9. [Run Lifecycle, Scheduling, and Leasing](#9-run-lifecycle-scheduling-and-leasing)
+10. [API Surfaces](#10-api-surfaces)
+11. [Security Model](#11-security-model)
+12. [Repository Layout](#12-repository-layout)
+13. [Kubernetes Deployment Design](#13-kubernetes-deployment-design)
+14. [Dashboard Design and Route Inventory](#14-dashboard-design-and-route-inventory)
+15. [SDK Design](#15-sdk-design)
+16. [Testing Strategy](#16-testing-strategy)
+17. [Telemetry](#17-telemetry)
+18. [Work Breakdown](#18-work-breakdown)
+19. [Risks and Open Questions](#19-risks-and-open-questions)
+20. [Appendices](#20-appendices)
+
+---
+
+## 1. How To Use This Plan
+
+Every unit of work is a checkbox with a stable ID such as `P3.4.2`. The ID never changes once assigned, even if the task moves or gets dropped, so commits, pull requests, and notes can reference it.
+
+Annotate tasks in place. The status marker goes in the checkbox, and the annotation goes at the end of the line after two spaces and a pipe:
+
+| Marker | Meaning |
+|---|---|
+| `[ ]` | Not started |
+| `[~]` | In progress |
+| `[x]` | Done and verified (tests or a described manual check) |
+| `[-]` | Dropped or deferred, with a reason in the annotation |
+| `[!]` | Blocked, with the blocker in the annotation |
+
+Annotation format: `  | <who> <YYYY-MM-DD> <short note, commit hash, or PR>`
+
+Example:
+
+```
+- [x] P1.2.3 Implement `TenantMethods` for Postgresql.  | claude 2026-10-09 schema_migrations tracked, idempotent (db-* migrate-twice test)
+- [!] P7.3.1 Publish images to Docker Hub.  | jc 2026-10-14 blocked on Docker Hub org token
+```
+
+Rules for keeping the plan honest:
+
+- A task is `[x]` only when its acceptance note is true. If a task has no acceptance note, "builds without warnings and is covered by a test or a written manual check" is the default bar.
+- When scope changes, add a new task with a new ID. Do not silently rewrite a finished task.
+- Decisions that change architecture go in the [Decision Log](#4-decision-log) with the next `D-` number, and the affected sections get updated in the same change.
+- Update the [Progress Dashboard](#2-progress-dashboard) counts when a phase changes state. It is maintained by hand, and that is fine.
+- Never use em-dashes in this file or in anything the plan produces (see `WRITING_DOCUMENTS.md`).
+
+---
+
+## 2. Progress Dashboard
+
+| Phase | Name | Milestone | Status | Done / Total |
+|---|---|---|---|---|
+| 0 | Repository bootstrap | M1 | Complete | 14 / 14 |
+| 1 | Core foundation: settings, data layer, identity, RBAC, history, audit | M1 | Complete | 50 / 50 |
+| 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
+| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 41 / 42 |
+| 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
+| 5 | Dashboard | M1 | In progress | 40 / 41 |
+| 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 17 / 20 |
+| 7 | Container images and Kubernetes assets | M1 | In progress | 30 / 33 |
+| 8 | Documentation and Postman | M1 | In progress | 16 / 17 |
+| 9 | MVP verification (milestone M1) | M1 | In progress | 13 / 16 |
+| 10 | Control plane high availability and scale-out | M2 | Not started | 0 / 18 |
+| 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
+| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 28 |
+| 13 | Observability stack and dashboards | M2 | Not started | 0 / 12 |
+| 14 | Benchmarking | M3 | Not started | 0 / 14 |
+| 15 | Hardening, simulated user testing, and 1.0 release | M4 | Not started | 0 / 20 |
+
+Milestones:
+
+| Milestone | Definition | Phases |
+|---|---|---|
+| **M1: MVP** | One control node, two worker nodes, a Claude Code agent, a Mux agent, and a Codex agent running headless; dashboard, four SDKs, tests, Postman, and documentation; deployable to minikube and K3S. | 0 to 9 |
+| **M2: Scale** | N control-plane replicas behind a Service with HPA, leader-elected maintenance, event backplane, pod-per-run isolation, full observability stack. | 10, 11, 13 |
+| **M3: Orchestration** | Multi-turn conversations, permission approvals relayed to humans, self-registered remote agents invoked over A2A/MCP, triggers, budgets and quotas, artifact storage, benchmarks. | 12, 14 |
+| **M4: 1.0** | Security review, simulated user testing, upgrade path, release process. | 15 |
+
+---
+
+## 3. Product Definition
+
+### 3.1 The problem
+
+Agent harnesses such as Claude Code, Codex, and Mux are full agents. They bring their own tool loops, file editing, shell access, MCP clients, and session state. Running one of them from a script is easy. Running hundreds of them for many teams, each with its own prompts, credentials, MCP servers, and workspaces, with requests arriving over MCP and A2A and agents calling other agents, is not. Kubernetes can schedule the containers, but it knows nothing about prompts, sessions, tool permissions, delegation depth, token cost, or who is allowed to invoke which agent.
+
+Aegon proved the pattern on one machine: each agent is a harness wrapped as a service, long work runs as jobs that are started and polled, and every tool call carries a short-lived token scoped to one turn. Garrison is that pattern made distributed, multi-tenant, and declarative.
+
+### 3.2 What Garrison is
+
+- A **control plane** ("Command") of stateless .NET nodes that own the registry of agents and their configuration, accept invocations over REST, MCP, and A2A, compile each invocation into a fully resolved execution spec, queue it, and track it through completion.
+- A **data plane** of worker nodes ("Posts") that pull work by lease, materialize an isolated workspace and home directory, run the harness process headless with the compiled command line, environment, files, and stdin, parse its output stream into normalized events, and report back.
+- A **configuration system** in which every harness command line, every prompt, and every resource binding is data, not code, and can be edited, versioned, previewed, cloned, and applied declaratively.
+- A **dashboard and SDKs** that make all of that operable.
+
+### 3.3 What Garrison is not
+
+- Not a model gateway. Model routing belongs to the harness or to a separate gateway such as Conductor. A Mux deployment can point at a Conductor virtual model runner by configuration.
+- Not a general container scheduler. Garrison runs inside Kubernetes and uses it; it does not replace it.
+- Not an agent framework. Garrison does not implement a tool loop of its own in the MVP. A provider-API execution mode (PolyPrompt, as in Aegon) is a post-1.0 option, not a goal.
+
+### 3.4 Vocabulary
+
+The Garrison theme is used for product naming and documentation. API nouns stay literal so the REST surface reads cleanly.
+
+| Concept | API noun | Garrison name | Meaning |
+|---|---|---|---|
+| Control plane node | (server) | Command | Stateless API, scheduler, compiler, registry. Many replicas. |
+| Worker node | `Node` | Post | Pulls runs, executes harnesses. Many replicas. |
+| Harness profile | `HarnessProfile` | Drill | How to run one harness headless: executable, argument template, environment, files, parser. |
+| Prompt template | `PromptTemplate` | Orders | A named, versioned, rendered text template. Every prompt Garrison sends is one. |
+| Agent | `Agent` | Unit | A named capability with an identity, a description, A2A card data, and exposure settings. |
+| Agent deployment | `Deployment` | Detail | Binds an agent to a harness profile, prompt templates, resources, placement, and limits. An agent can have several (for example a Claude Code variant and a Mux variant) with traffic weights. |
+| Run | `Run` | Sortie | One invocation of one deployment. Has a lifecycle, events, a result, and usage. |
+| Resource bindings | `McpServer`, `Secret`, `Workspace`, `ArtifactStore` | Kit | What a run is issued: MCP servers, credentials, a workspace, and storage. |
+| Delegation | `Run.ParentRunId` | Requisition | One agent's run invoking another agent. |
+| Self-registration | `POST .../register` | Muster | Nodes and remote agents announcing themselves. |
+
+### 3.5 Personas
+
+| Persona | Primary jobs |
+|---|---|
+| Platform administrator | Install and upgrade Garrison, manage tenants, node pools, global settings, and built-in harness profiles. |
+| Tenant administrator | Manage users, credentials, roles, secrets, and quotas inside a tenant. |
+| Agent developer | Author harness profiles, prompt templates, agents, and deployments; preview renders; test-invoke; read run transcripts. |
+| Operator | Watch runs and nodes, cancel or retry work, investigate failures through events, request history, and audit. |
+| Integrator | Call agents from code (SDKs, REST), from MCP clients, or from other A2A agents. |
+| Agent (non-human) | Delegates to other agents through Garrison's MCP tools with a scoped run token. |
+
+---
+
+## 4. Decision Log
+
+| ID | Decision | Rationale | Source |
+|---|---|---|---|
+| D-001 | Product name is Garrison. | Chosen by the user. | User, 2026-10-09 |
+| D-002 | Kubernetes is the deployment target. Ship Kustomize base plus overlays for generic Kubernetes, K3S, and minikube, and a Helm chart. Docker Compose stacks are not shipped. Dockerfiles exist only to build images. | User asked for Kubernetes assets instead of Docker assets. | User, 2026-10-09 |
+| D-003 | Harness credentials support API keys and subscription tokens: `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`/`CODEX_API_KEY`, a Codex `auth.json` file credential, and generic env/file secrets. Documentation carries a terms-of-service caveat for subscription tokens on shared servers. | User selected "Subscription tokens too". | User, 2026-10-09 |
+| D-004 | Run isolation: MVP runs each harness as a subprocess inside the worker pod with its own workspace and its own `HOME`. Phase 11 adds an optional executor that launches a Kubernetes Job (pod) per run. | User selected subprocess in MVP, pod-per-run later. | User, 2026-10-09 |
+| D-005 | SDKs: C#, Python, JavaScript/TypeScript, Go. | User selected all four. | User, 2026-10-09 |
+| D-006 | All prompts are configurable. Every piece of text Garrison sends to a harness or exposes as a tool description is a `PromptTemplate`. Built-ins are seeded, protected, cloneable, and resettable. | User requirement. | User, 2026-10-09 |
+| D-007 | Headless harness invocation is fully configurable through `HarnessProfile` data: executable, ordered argument templates with conditions, environment templates, materialized files, prompt and system prompt delivery, MCP config delivery, output parser, timeouts, exit-code policy, and probes. Deployments layer overrides on top. | User requirement. | User, 2026-10-09 |
+| D-008 | Scheduling is pull-based. Workers lease runs from the control plane with an atomic compare-and-set claim and a fencing epoch. The control plane never connects to workers. | Keeps the control plane stateless and leaderless on the hot path, works across NAT and network policy, and lets each plane scale independently. | Ideation |
+| D-009 | Coordination uses database leases by default (`coordination_leases` table) behind an `ILeaseProvider` interface. Clutch is an optional provider (Phase 12). Padlock is used for in-process keyed locks only. | Avoids a required service dependency. Padlock cannot coordinate across processes. | Ideation |
+| D-010 | The control plane compiles each run into a fully resolved `ExecutionSpec` (command line, environment, files, stdin, parser, timeouts, MCP config) and hands it to the worker with the lease. Workers never read the database or render templates. | One source of truth for rendering and secret resolution; workers stay thin and replaceable. | Ideation |
+| D-011 | Database providers: Sqlite and Postgresql only. MySQL and SQL Server are out of scope by user direction, which narrows `BACKEND_ARCHITECTURE.md`'s four-provider rule. Postgresql is the default for Kubernetes. Sqlite is for development and single-node use only and is rejected at startup when more than one control-plane replica is configured. | Requirements plus horizontal scaling. | Requirements |
+| D-012 | URL convention follows Clutch: management API under `/v1.0/api/...`, tokens at `/v1.0/token`, health at `/v1.0/api/health`, request history at `/v1.0/api/request-history`, tenant-owned resources under `/v1.0/api/tenants/{tenantId}/...`. This resolves the `/api/v1` vs `/v1.0/api` inconsistency inside `BACKEND_ARCHITECTURE.md` in favor of the form the same document mandates for request history and that the reference projects use. | Consistency with the reference implementation. | Requirements conflict, called out |
+| D-013 | Voltaic hosts MCP on its own `HttpListener`, so the control plane exposes MCP on a second port (default 8701). A2A is served on the main Watson port by Garrison's own routes using Voltaic's public A2A model and JSON types, because one Voltaic `A2AHttpServer` hosts exactly one agent card and Garrison hosts many. | Voltaic's dispatch layer is internal and cannot be mounted into Watson. | Research of Voltaic 2.3.0 |
+| D-014 | Settings are split. Node-local bootstrap settings (bind address, ports, database connection, logging) come from the settings JSON file and environment and are restart-required. Cluster runtime settings (scheduling, retention, limits, security policy, feature flags) live in the database, are edited from the Settings page, and apply live across all replicas. When the settings file is writable (development), the Settings page edits it as `BACKEND_ARCHITECTURE.md` requires; when it is mounted from a ConfigMap, those fields are shown read-only with their source. | A settings file cannot be the shared source of truth for N replicas mounted from a read-only ConfigMap. | Justified divergence, see section 5 |
+| D-015 | Run events are persisted to the database with a per-run monotonic sequence. Live streaming (SSE, WebSocket, A2A streaming) tails the database by sequence, which works across replicas without a broker. Phase 10 adds an optional notification backplane to cut latency. | Correct across replicas on day one, optimizable later. | Ideation |
+| D-016 | Images publish to Docker Hub as `jchristn77/garrison-server`, `jchristn77/garrison-worker`, and `jchristn77/garrison-dashboard`, multi-arch (amd64, arm64). `DOCKERHUB_README.md` is kept because images are published. | Matches the reference projects' publishing pattern. | Clutch build scripts |
+| D-017 | Dashboard locales: `en` (source), `de`, `ja`, plus the `zz` RTL/expansion pseudo-locale. | Matches Clutch and Hydra. | Requirements |
+| D-018 | The worker image bundles Node.js with pinned `@anthropic-ai/claude-code` and `@openai/codex`, and Mux built from a pinned commit of `jchristn/Mux` as a framework-dependent `Mux.Cli.dll` with a `/usr/local/bin/mux` wrapper (Aegon's method). Gemini CLI is optional behind a build argument. | Aegon proved this layout. | Aegon `docker/images/harness-base/Dockerfile` |
+| D-019 | Run success is decided by the parser's final event, never by the exit code alone. The exit code is recorded. | Aegon lesson: harnesses exit 0 on failure and non-zero after success in some cases. | Aegon `AEGON_PLAN.md` section 7 |
+| D-020 | MCP pre-flight is part of the execution spec. Before launching a harness, the worker verifies each required MCP server answers `tools/list` and exposes its required tools, because Claude Code, Gemini CLI, and Mux fail MCP authentication silently. | Aegon lesson. | Aegon `McpPreflight` |
+| D-021 | No hard-coded prompt text anywhere in the run path. Armada left its launch prompt, mission-mode contract, persona output contracts, pipeline handoff text, and review feedback as string literals while a template for the launch prompt sat unused. Garrison's compiler takes every string it sends from a `PromptTemplate`, and a test fails if the compiler emits text that did not come from a template or from caller input. | Armada lesson; user requirement D-006. | Armada `MissionPromptBuilder.BuildLaunchPromptAsync` |
+| D-022 | Template resolution is always tenant-scoped (tenant row first, then built-in), by ID or by `(tenantId, name)`, never by name alone. | Armada resolves templates by name without a tenant filter. | Armada `PromptTemplateService.ResolveAsync` |
+| D-023 | Every credential, including model endpoint keys and MCP header values that reference secrets, is encrypted at rest (D-003, section 11.5). | Armada stores model endpoint API keys in plain text. | Armada `ModelEndpointMethods` |
+| D-024 | Workers buffer events across control-plane outages (bounded, with drop counters) and replay them with their original sequence numbers; runs are never silently truncated by a link drop. | Armada Harbor loses output produced while the link is down. | Armada `docs/HARBOR_PROTOCOL.md` |
+| D-025 | Phase 12 permission approvals reuse Claude Code's rule syntax (`Bash(git status:*)`, `mcp__server__*`) and Armada's matcher semantics (deny beats allow, every shell subcommand must match, no command substitution), relayed through `--permission-prompt-tool mcp__garrison__garrison_permission_prompt`. Other harnesses get `Bypass` or `Refuse` until they expose an equivalent hook. | Armada proved the relay works for Claude Code only. | Armada `CliPermissionService`, `CliPermissionRuleMatcher` |
+| D-026 | Garrison sets SyslogLogging `EnableConsole` only to turn the console off; the default stays on. The setter probes for a terminal (`UserInteractive`, `WindowHeight`), which fails in containers and silently drops all console output. | Changing SyslogLogging's probe would alter behavior for its existing users; an additive opt-in property can replace this later. | `src/Garrison.Server/Bootstrapper.cs`, `src/Garrison.Worker/Bootstrapper.cs` |
+| D-027 | A wildcard Prometheus hostname (`*`, `+`, `0.0.0.0`) binds to the machine host name (the pod IP in Kubernetes) and falls back to `127.0.0.1`. | The OpenTelemetry Prometheus listener cannot bind a wildcard: `*` and `+` fail URI parsing and `0.0.0.0` is rejected by the managed `HttpListener`. | `GarrisonTelemetry` |
+
+---
+
+## 5. Requirements Compliance Matrix
+
+The requirements in `~/Code/Agents/requirements` apply to this repository. This table maps each one to where the plan satisfies it, and records every deliberate divergence.
+
+| Requirement document | How Garrison complies | Plan tasks |
+|---|---|---|
+| `REPOSITORY_REQUIREMENTS.md` | `.gitignore`, `.dockerignore`, `README.md`, `DOCKERHUB_README.md`, `CHANGELOG.md`, `LICENSE.md` (MIT); source only in `src/`, `dashboard/`, `sdk/`; SDKs in `sdk/{csharp,python,js,go}` each with README and test harness using `127.0.0.1`; `REST_API.md`, `MCP_API.md` (plus `A2A_API.md`); Postman collection under `assets/postman/` with variables and folder/request descriptions. **Divergence (D-002):** items 9 through 12 describe Docker Compose. Garrison implements their intent in Kubernetes: `.yaml` extension everywhere; health probes use `exec` cURL against `127.0.0.1` with `periodSeconds: 5`, `timeoutSeconds` no greater than 5, `failureThreshold: 2`, and `successThreshold: 2` on readiness probes (Kubernetes requires `successThreshold: 1` on liveness and startup probes, which is the only deviation from "2 successes"); startup ordering uses init containers that wait for dependencies to report healthy; `k8s/scripts/update.{sh,bat}` replaces `docker/update.bat` (pull images, rolling restart, report pod status, non-destructive) and `k8s/scripts/factory-reset.{sh,bat}` replaces `docker/factory/reset.bat`. | P0.*, P6.*, P7.*, P8.* |
+| `CODE_STYLE.md` | Enforced by `CLAUDE.md` in the repository, `Directory.Build.props` (`Nullable` enabled, `ImplicitUsings` disabled, documentation file generation, warnings as errors on library projects), and review. One class or enum per file, no `var`, no tuples, `using` inside the namespace, `_PascalCase` private fields, `ConfigureAwait(false)`, cancellation tokens on every async method, async variants of `IEnumerable` methods, configurable values instead of constants, specific exception types with `<exception>` docs, full dispose pattern, no `Console.WriteLine` in library code, no em-dashes. | P0.4, every C# task |
+| `VERSIONING.md` | Version starts at `0.1.0-alpha` in one place (`src/Directory.Build.props`, dashboard and SDK manifests mirror it). Agents never change it without explicit approval. | P0.5 |
+| `BACKEND_ARCHITECTURE.md` | Watson 7 (`Watson` package 7.3.x) as the only HTTP stack; thin `Program.cs` delegating to a bootstrapper; instance server host; per-feature route registrars; `AuthenticateRequest`, `Preflight`, and `PostRouting` hooks; typed DTOs; PrettyId prefixed IDs; `DatabaseDriverBase`, `DatabaseDriverFactory`, `DatabaseSettings`, `DatabaseTypeEnum`, `SchemaMigration`, `Interfaces/`, provider folders `Sqlite` and `Postgresql` each with `Implementations/` and `Queries/`; structured persistence with child tables (no BLOB-store anti-pattern; the only unmanaged JSON columns are named exceptions documented in section 7.5); versioned idempotent migrations; first-boot seeding; Sqlite write serialization; request capture in `PostRouting` with tenant-scoped history routes and server-side gap-filled summary buckets; `Server.UseOpenApi()`; runtime settings API with live/restart metadata and restart endpoint. **Divergence (D-014):** settings split between file (bootstrap) and database (cluster runtime) for multi-replica correctness. **Divergence (D-013):** MCP on a second port because Voltaic cannot share Watson's listener. **Divergence (D-002):** Docker Compose operations guidance is implemented as Kubernetes assets. | P1.*, P2.*, P3.*, P4.* |
+| `AUTHENTICATION.md` | Full AAA model: tenants, users, credentials (access key plus encrypted secret, auth modes), auth sessions with AES-256 random-IV opaque tokens, roles, permissions (Permit/Deny, resource types, operation types), role permission maps, user role assignments and credential scope assignments with Tenant/Resource scope and `InheritsToChildren`, built-in protected roles seeded and refreshed with stable IDs, effective-permission resolution with explicit deny, owner ceiling for credentials, permission cache with version counter, bypass rules (`IsAdmin`, `IsTenantAdmin`), admin endpoint hardening, persisted authorization denials and privileged events, effective-permission inspection endpoints, constant-time comparisons, auth rate limiting, cascading deletes, signed-request (HMAC) credential auth. **Extension:** a fourth principal type, `Run`, for agent-to-agent delegation tokens, whose permissions are the intersection of the originating principal's grants and the deployment's delegation policy (section 11.4). | P1.5 to P1.9, P4.4 |
+| `BACKEND_TEST_ARCHITECTURE.md` | Touchstone `Test.Shared`, `Test.Automated`, `Test.Xunit`, `Test.Nunit`; suites run against Sqlite and Postgresql in CI using a Postgres service container; `127.0.0.1` everywhere; exit codes; GitHub Actions workflow. | P1.12, P3.12, P9.* |
+| `FRONTEND_ARCHITECTURE.md` | React 19, Vite 6, React Router 7, `fetch`-based `ApiClient`, no axios, hand-rolled SVG charts, `AuthContext`, `AppContext`, required Home, Request History, Request Details modal, API Explorer (OpenAPI-driven, streaming, history of 12), i18n runtime with `index.js`, `localeRegistry.js`, `resources.js`, `formatters.js`, `LanguageSelector`, CSS variables, nginx Dockerfile, ESLint. | P5.* |
+| `DASHBOARD_STYLE_AND_USABILITY.md` | Route inventory (section 14.2) written before coding; grouped sidebar; topbar context chips, health, GitHub link, theme, language, logout; reusable table with above-table pagination, page sizes, jump, refresh, sortable headers, column filters, Select Columns with pinned columns, row action menus portaled above overflow, row click opens edit (view when not editable), Duplicate action, bulk actions; custom modals and confirms only; Settings page with restart-required indicators and Restart Server; setup wizard and tour; external-services card; Playwright visual QA at 1280, 768, 390 in light and dark. | P5.* |
+| `I18N.md` | Same as the frontend i18n row, plus pseudo-locale and missing-key checks, locale persistence tests, `lang`/`dir` synchronization tests, and `docs/I18N.md` for maintaining locales. Backend operator-facing text uses stable codes plus structured data so the dashboard localizes it. | P5.3, P5.38 |
+| `TELEMETRY_REQUIREMENTS.md` | Watson built-in telemetry confirmed on; Radiant collector subscribing to `Watson`, `Garrison`, `Voltaic`, and `Padlock` meters and sources; application meters and spans for scheduling, leasing, compilation, harness execution stages, MCP, A2A, delegation, and integrations; low-cardinality labels; observability stack as a Kubernetes component (Prometheus, Grafana, Tempo, Loki, OpenTelemetry Collector) with Grafana provisioned as code in a `Garrison` folder split by domain; external-services card on Home. **Divergence (D-002):** the stack is a Kustomize component and Helm sub-values instead of `compose.yaml`. | P1.11, P3.11, P13.* |
+| `WRITING_DOCUMENTS.md` | No em-dashes anywhere; README and docs reviewed for human voice; a CI check greps for the em-dash character. | P0.13, P8.* |
+| `BENCHMARKING.md` | `src/Test.Benchmark` (assembly `Garrison.Benchmark`), `benchmarks/` layout, `BENCHMARKING.md`, `IMPROVEMENTS.md`, stub harness, isolated stack on K3S in Docker, CI gate. Post-MVP. | P14.* |
+| `SIMULATED_USER_TESTING.md` | A recorded session before 1.0 covering every documented install path, the dashboard, SDKs, Postman, MCP, and A2A, with findings surfaced to the user before fixing. A lighter session runs at M1. | P9.14, P15.* |
+| `INSTALLERS.md` | Not applicable: Garrison is a server platform delivered as container images, Kustomize, and Helm. No desktop installers. | none |
+| `EXAMPLE_APPLICATIONS.md` | References used: Clutch (repository shape, Ado plus dialect data layer, settings API, dashboard shell, SDK harness pattern, CI), Aegon (harness invocation, parsers, job model, scoped tokens, worker image), Armada (prompt templates, personas, permission relay, RBAC tests, multi-tenant scoping tests), Conductor and Tempo (test runners, dashboard tables), Hydra (i18n and request history), Constellation (controller/worker placement), Pneuma (telemetry and Grafana), SharpAI (SDK test harness). | all |
+
+---
+
+## 6. Architecture
+
+### 6.1 Topology
+
+```
+                 REST / SSE / WebSocket        MCP (streamable HTTP)        A2A (JSON-RPC, SSE)
+  Dashboard, SDKs, Postman      MCP clients, agents             Other A2A agents
+            |                          |                                |
+            v                          v                                v
+  +-----------------------------------------------------------------------------------+
+  |  Kubernetes Service: garrison-server   (ports 8700 REST+A2A+WS, 8701 MCP)          |
+  +-----------------------------------------------------------------------------------+
+            |                    |                    |
+  +-----------------+  +-----------------+  +-----------------+     stateless, N replicas (HPA)
+  | Command (pod 1) |  | Command (pod 2) |  | Command (pod N) |     Registry, compiler, auth/RBAC,
+  +-----------------+  +-----------------+  +-----------------+     scheduler claim, event log,
+            \                    |                   /              leader-elected maintenance
+             \                   |                  /
+           +---------------------------------------------+
+           | PostgreSQL                                  |  source of truth: config, runs,
+           | coordination_leases, runs, run_events, ...  |  leases, events, history, audit
+           +---------------------------------------------+
+                                 ^
+          lease / heartbeat / events / complete (HTTPS, pull only)
+                                 |
+  +-----------------+  +-----------------+  +-----------------+     StatefulSet, M replicas
+  | Post (worker 0) |  | Post (worker 1) |  | Post (worker M) |     Each: harness runtimes,
+  |  claude, codex, |  |  claude, codex, |  |  mux only (GPU  |     process executor, workspace
+  |  mux, gemini    |  |  mux            |  |  pool label)    |     PVC, own HOME per run
+  +-----------------+  +-----------------+  +-----------------+
+         | spawns per run: isolated workspace dir + HOME dir + harness subprocess
+         | (Phase 11: optional Kubernetes Job per run instead of subprocess)
+```
+
+The control plane never initiates a connection to a worker. Workers need outbound access to the control plane Service and to whatever the harnesses call (model APIs, MCP servers). That single rule is what lets both planes scale independently: adding control nodes adds API and claim capacity, adding workers adds execution capacity, and neither needs to know how many of the other exist.
+
+### 6.2 Components
+
+| Component | Project | Responsibility |
+|---|---|---|
+| Garrison.Core | `src/Garrison.Core` | Models, enums, settings models, data layer (Sqlite and Postgresql), security primitives (token service, secret cipher, password hashing, HMAC signing), prompt renderer, invocation compiler, harness profile model, output parsers, shared services. |
+| Garrison.Server | `src/Garrison.Server` | Command node. Watson host, route registrars, authentication and authorization services, request history capture, audit, scheduler claim endpoint, worker protocol, event log tailing (SSE, WebSocket), A2A gateway, Voltaic MCP host, maintenance loops under leader election, telemetry. |
+| Garrison.Worker | `src/Garrison.Worker` | Post node. Registration, heartbeat, lease loop, `IRunExecutor` (process executor in MVP, Kubernetes Job executor in Phase 11), workspace and home materialization, MCP pre-flight, harness process supervision, event batching, cancellation, health endpoint, telemetry. |
+| Garrison.Harnesses | `src/Garrison.Harnesses` | Output parsers (`ClaudeStreamJson`, `CodexJsonl`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, `PlainText`), MCP config writers per harness, harness probes, `ProcessRunner`. Referenced by Worker and by Core tests. |
+| Garrison.Sdk | `sdk/csharp/Garrison.Sdk` | C# SDK (also used by the worker for the node protocol). |
+| Garrison.FakeHarness | `src/Garrison.FakeHarness` | Deterministic test harness executable that emits Claude stream-json, Codex JSONL, Mux JSONL, or plain text from a script file. Used by tests, CI, and the in-cluster smoke test. |
+| Test projects | `src/Test.Shared`, `src/Test.Automated`, `src/Test.Xunit`, `src/Test.Nunit` | Touchstone suites and runners. |
+| Garrison.Benchmark | `src/Test.Benchmark` | Benchmark harness (Phase 14). |
+| Dashboard | `dashboard/` | React operator console. |
+
+### 6.3 Request flows
+
+**Invoke an agent (REST, MCP, or A2A).**
+
+1. The ingress authenticates the caller and resolves exactly one tenant.
+2. Authorization checks `Execute` on resource type `Agent` for the target agent.
+3. The run service selects a deployment: the one named in the request, else a weighted pick across the agent's active deployments.
+4. Admission control checks tenant and agent quotas, delegation depth, and concurrency policy. A rejected run is persisted as `Rejected` with a reason code.
+5. The run is persisted as `Queued` with its inputs, caller principal, parent run (if delegated), priority, deadline, and placement requirements derived from the deployment (required harness type, node selector labels, node pool).
+6. The caller gets the run ID right away. Synchronous wrappers (`invoke?wait=true`, MCP `garrison_invoke_agent`, A2A `message/send` without `returnImmediately`) then wait on the event log up to a bounded timeout.
+
+**Execute a run (worker).**
+
+1. A worker calls `POST /v1.0/api/node/lease` with its free capacity and a long-poll wait.
+2. The Command node selects candidate runs matching the worker's capabilities and labels, claims one atomically (section 9.3), increments its fencing epoch, mints a scoped run token, compiles the `ExecutionSpec`, and returns the assignment.
+3. The worker prepares the workspace, writes the files from the spec, runs MCP pre-flight, starts the harness process, and reports `started`.
+4. The parser converts stdout lines into normalized events. The worker batches them to `POST .../runs/{id}/events` with the epoch. Heartbeats extend all held leases and return cancellation requests.
+5. On exit, the worker reports `complete` with outcome, result text, structured output, usage, cost, session ID, exit code, and stderr tail. The Command node validates the epoch, finalizes the run, and revokes the run token.
+
+**Delegate (agent to agent).**
+
+1. The harness calls Garrison's MCP tool `garrison_invoke_agent` using the run token from its MCP config.
+2. The token resolves to principal type `Run`, with the originating principal, tenant, depth, call chain, and the deployment's delegation policy.
+3. Policy checks run: the callee is allowed, depth is below the maximum, the callee is not already in the chain unless recursion is allowed, and the budget remains.
+4. A child run is created with `ParentRunId`, `RootRunId`, and `Depth + 1`. It is scheduled like any other run, possibly on a different worker. The tool waits and returns the child's result, or the child's run ID if the caller asked for asynchronous mode.
+
+### 6.4 Scaling model
+
+| Plane | Scales by | Bottleneck and mitigation |
+|---|---|---|
+| Control | Replicas behind a Service (HPA on CPU and request rate) | Database. Mitigations: indexed claim queries, bounded long-poll, event batching, request-history capture on a bounded channel, read replicas later. |
+| Data | Worker replicas (StatefulSet scale, or multiple StatefulSets per node pool) | Harness processes per worker (`MaxConcurrentRuns`), model API rate limits. Mitigation: per-deployment and per-tenant concurrency limits enforced at claim time. |
+| Storage | Managed Postgres or in-cluster StatefulSet | Event volume. Mitigation: event retention policy, run event compaction (keep text deltas merged), optional object storage for large artifacts. |
+
+### 6.5 Failure handling
+
+| Failure | Behavior |
+|---|---|
+| Worker dies mid-run | Its lease expires. The leader's reaper moves `Leased` runs back to `Queued` (attempt + 1) and moves `Running` runs to `Failed` with `NodeLost`, or requeues them when the deployment sets `RetryOnNodeLoss`. A stale worker that comes back is fenced out because its epoch no longer matches. |
+| Command node dies | Stateless. In-flight HTTP calls fail and clients retry. Long-poll leases re-issue on another replica. Leader election moves maintenance to another replica after the coordination lease expires. |
+| Database unavailable | Health reports `degraded` and readiness fails, so the Service stops routing. Workers keep running their current harness processes, buffer events up to a bounded size, and retry. |
+| Harness hangs | The run deadline kills the process tree, the run ends as `TimedOut`, and stderr and the last events are kept. |
+| Harness fails MCP auth silently | MCP pre-flight fails the run before launch with `McpPreflightFailed` and names the server and missing tools. |
+| Duplicate submission | An `Idempotency-Key` header on run creation returns the existing run for the same caller and key within 24 hours. |
+
+---
+
+## 7. Domain Model
+
+### 7.1 Conventions
+
+All records have `id` (string, up to 64 characters, PrettyId K-sortable with a prefix), `createdutc`, `lastupdateutc`, and `active`. Tenant-owned records carry `tenantid`. Protected seeded records carry `isprotected`. Built-in records that every tenant can see (built-in harness profiles, built-in prompt templates, built-in roles) use a null `tenantid` and cannot be edited through tenant APIs; tenants clone them.
+
+### 7.2 Identity and security entities (per `AUTHENTICATION.md`)
+
+| Entity | Prefix | Table | Notes |
+|---|---|---|---|
+| Tenant | `ten_` | `tenants` | Name, active, protected, default quotas. |
+| User | `usr_` | `users` | Email unique per tenant, password SHA-256, `isadmin`, `istenantadmin`. |
+| Credential | `crd_` | `credentials` | Access key `access_` + 32, encrypted secret, last 4, auth mode, expiry, last used. |
+| AuthSession | `ses_` | `authsessions` | Principal type `Administrator`, `User`, `Credential`, `Run`; scheme; token ID; revocation. |
+| Role | `rol_` | `userroles` | Built-in roles null tenant and protected. |
+| Permission | `prm_` | `permissions` | Child tables `permission_resource_types`, `permission_operation_types` (structured, no JSON arrays). |
+| RolePermissionMap | `rpm_` | `rolepermissionmaps` | |
+| UserRoleAssignment | `ura_` | `userroleassignments` | Scope `Tenant` or `Resource`, `resourceid`, `inheritstochildren`. |
+| CredentialScopeAssignment | `csa_` | `credentialscopeassignments` | Optional direct grants in child tables. |
+| AuditRecord | `aud_` | `audit_records` | Denials, privileged events, configuration changes. |
+| RequestHistoryEntry | `req_` | `request_history` | Headers in child table `request_history_headers`. Bodies are retained raw text (unmanaged by design, see 7.5). |
+
+Built-in roles: `TenantAdmin`, `SecurityAdmin`, `Auditor`, `ResourceAdmin`, `Editor`, `Viewer`, `TenantMember`, `Custom` (from `AUTHENTICATION.md`), plus Garrison roles:
+
+| Role | Grants |
+|---|---|
+| `AgentDeveloper` | `Write` and `Read` on `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Workspace`; `Read` on `Secret` metadata; `Execute` on `Agent`; `Read` on `Run`. |
+| `AgentOperator` | `Read` on configuration; `Execute` on `Agent`; `Read`, `Update` (cancel, retry) on `Run`; `Read` on `Node`. |
+| `AgentInvoker` | `Execute` on `Agent` (tenant or resource scope); `Read` on own `Run`. Intended for integration credentials. |
+| `SecretManager` | `All` on `Secret`. |
+| `NodeAgent` | Internal. `Execute` on the node protocol only. Assigned to node credentials. |
+| `AgentRegistrar` | `Create`, `Update` on `Agent` with `Kind = Remote`; used by self-registering remote agents. |
+
+Garrison resource types added to the permission vocabulary: `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `Settings`.
+
+### 7.3 Configuration entities
+
+| Entity | Prefix | Tables | Key fields |
+|---|---|---|---|
+| HarnessProfile | `hrn_` | `harness_profiles`, child `harness_profile_args` (ordered), `harness_profile_env`, `harness_profile_files`, `harness_profile_success_codes` | See section 8.1. |
+| PromptTemplate | `tpl_` | `prompt_templates`, `prompt_template_versions`, child `prompt_template_variables` (per version) | Name (unique per tenant), kind, description, current version, protected, built-in key. |
+| McpServer | `mcp_` | `mcp_servers`, child `mcp_server_args`, `mcp_server_env`, `mcp_server_headers`, `mcp_server_required_tools` | Transport `Http` or `Stdio`, URL and path, command, timeout, required flag. Header and env values are templates that may reference secrets. |
+| Secret | `sec_` | `secrets` | Kind (`AnthropicApiKey`, `ClaudeCodeOAuthToken`, `OpenAiApiKey`, `CodexAuthJson`, `GeminiApiKey`, `GenericEnv`, `GenericFile`, `BearerToken`, `BasicAuth`, `GitCredential`), encrypted value (AES-256-GCM with the cluster master key), last 4, fingerprint, expiry, rotation timestamp. Values are write-only through the API. |
+| WorkspaceTemplate | `wsp_` | `workspace_templates`, child `workspace_template_files` | Kind `Empty`, `GitRepository` (URL, ref, depth, credential secret), `Seeded` (inline files), `PersistentVolume` (Phase 11). Retention policy (`DeleteOnSuccess`, `Keep`, `KeepOnFailure`). |
+| ArtifactStore | `ast_` | `artifact_stores` | Kind `Database` (MVP, small artifacts), `Filesystem`, `S3` (Phase 12). |
+| Agent | `agt_` | `agents`, child `agent_skills`, `agent_tags`, `agent_delegation_allowlist` | Name (unique per tenant, DNS-safe), display name, description, kind (`Hosted`, `Remote`), version, A2A exposure flag, MCP exposure flag and tool name, MCP tool description template, input mode (`Text`, `Structured` with JSON Schema), output JSON Schema (optional), delegation policy (max depth, allow recursion, allowlist mode), visibility, remote endpoint fields when `Remote`. |
+| Deployment | `dep_` | `deployments`, child `deployment_prompt_bindings`, `deployment_resource_bindings`, `deployment_arg_overrides`, `deployment_env_overrides`, `deployment_file_overrides`, `deployment_node_selectors`, `deployment_parameters`, `deployment_allowed_run_overrides` | See section 8.4. |
+| NodePool | `npl_` | `node_pools`, child `node_pool_tenants` | Label set and optional tenant dedication. |
+| ManifestApply | `man_` | `manifest_applies`, child `manifest_apply_items` | Audit of declarative applies (who, when, what changed). |
+
+### 7.4 Runtime entities
+
+| Entity | Prefix | Tables | Key fields |
+|---|---|---|---|
+| Node | `nod_` | `nodes`, child `node_labels`, `node_capabilities` (harness type, executable, detected version, probe status) | Name (unique, StatefulSet pod name), address (informational), version, status (`Ready`, `Draining`, `Cordoned`, `Lost`), max concurrent runs, active run count, last heartbeat, credential ID, node pool. Global table (platform-owned fleet), justified in section 11.6. |
+| Run | `run_` | `runs`, child `run_parameters`, `run_requirements` (labels), `run_usage` | Tenant, agent, deployment, deployment snapshot version, kind (`Invoke`, `Delegated`, `Test`), status, priority, input text, input content type, caller principal type and ID, parent and root run IDs, depth, idempotency key, attempt, max attempts, lease node, lease epoch, lease expiry, queued/leased/started/completed timestamps, deadline, outcome code, result text, structured output (unmanaged JSON, see 7.5), session ID, served model, exit code, stderr tail, error message, cost USD, cost estimated flag. |
+| RunEvent | `rev_` | `run_events` | Run ID, sequence, type (`Lifecycle`, `AssistantText`, `Thinking`, `ToolCall`, `ToolResult`, `Usage`, `Progress`, `Warning`, `Error`, `Stdout`, `Stderr`, `Result`), timestamp, text, tool name, tool call ID, success flag, token counts, raw event (unmanaged JSON, see 7.5). Unique `(runid, sequence)`. |
+| CoordinationLease | `lea_` | `coordination_leases` | Name, holder, epoch, acquired, expires. Leader election and singleton jobs. |
+| Conversation | `cnv_` | `conversations` | Phase 12. A2A `contextId`, harness session ID, affinity node, last run. |
+| Approval | `apr_` | `approvals` | Phase 12. Permission request relayed from a harness, decision, decider, rule. |
+| Artifact | `art_` | `artifacts` | Phase 12 (Database store in MVP for small files). Run, name, media type, size, SHA-256, store, location. |
+| ClusterSetting | `cst_` | `cluster_settings` | Key, typed value columns, value kind, updated by. Cluster runtime settings (D-014). |
+
+### 7.5 Unmanaged JSON exceptions
+
+`BACKEND_ARCHITECTURE.md` forbids storing structured entities as JSON blobs. Garrison has four properties that are genuinely schemaless, named so the exception is visible:
+
+| Property | Why it is unmanaged | What is promoted to columns |
+|---|---|---|
+| `run_events.raweventjson` | Verbatim harness output line retained for diagnostics; harness schemas change between CLI versions. | Type, sequence, text, tool name, tool call ID, success, token counts. |
+| `runs.structuredoutputjson` | Caller-defined output schema; Garrison does not interpret it. | Nothing; validation result is a column. |
+| `agents.inputschemajson`, `agents.outputschemajson` | User-authored JSON Schema documents. | Nothing. |
+| `request_history.requestbody`, `request_history.responsebody` | Retained HTTP bodies for diagnostics (explicitly allowed by the requirements). | Method, path, status, duration, principal, sizes, truncation flags. |
+
+---
+
+## 8. Configurability Model: Harnesses, Prompts, Resources, Deployments
+
+This section answers one question: how does an operator control exactly what runs, without touching code? Four layers stack, each overriding the one before:
+
+```
+HarnessProfile (how to run a harness headless)
+   + PromptTemplates (what to say, rendered per run)
+   + Resource bindings (MCP servers, secrets, workspace, artifact store)
+   = Deployment (the binding, with overrides, placement, limits)
+   + Run-time parameters (only those the deployment allows)
+   -> InvocationCompiler -> ExecutionSpec (fully resolved, sent to the worker)
+```
+
+### 8.1 HarnessProfile
+
+A harness profile describes one headless invocation style. Built-in profiles are seeded for each supported harness and protected; tenants clone and edit.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `Name`, `Description` | string | Unique per tenant (built-ins under a reserved prefix `builtin/`). |
+| `HarnessType` | enum `ClaudeCode`, `Codex`, `Mux`, `GeminiCli`, `Generic` | Drives capability matching and default parser. Workers advertise which types they can run. |
+| `Executable` | template | Command name or absolute path, for example `claude`. |
+| `Arguments` | ordered list of `{Template, Condition, Repeat}` | Each item renders to zero or more argv entries. `Condition` is a template expression; when it renders empty or `false` the argument is skipped. `Repeat` names a list variable and emits the argument once per element. Arguments are passed through `ArgumentList`, never through a shell. |
+| `Environment` | list of `{Name, ValueTemplate, IsSecret}` | Rendered environment. Secret references use `{{secret.<alias>}}`. The process environment starts empty except for a configurable allowlist (`PATH`, `LANG`, `TZ`, certificate variables, proxy variables), following Aegon's whitelist. |
+| `Files` | list of `{PathTemplate, ContentTemplate, Mode, IsSecret}` | Files materialized before launch: system prompt file, MCP config, settings files, `auth.json`. Paths are relative to the run's config directory, workspace, or home directory (`{{run.configDir}}`, `{{run.workspaceDir}}`, `{{run.homeDir}}`). |
+| `PromptDelivery` | enum `Stdin`, `Argument`, `File` | How the rendered task prompt reaches the harness. Default `Stdin` (Aegon). |
+| `PromptArgumentTemplate` | template | Used when delivery is `Argument` or `File`. |
+| `SystemPromptDelivery` | enum `File`, `Argument`, `Environment`, `PrependToPrompt`, `None` | Built-ins: Claude `--system-prompt-file`, Codex `-c model_instructions_file=...`, Mux `--system-prompt <file>`, Gemini `GEMINI_SYSTEM_MD`. |
+| `McpConfigFormat` | enum `ClaudeJson`, `CodexToml`, `MuxJson`, `GeminiSettings`, `None` | Garrison renders the run's MCP servers (including Garrison's own MCP endpoint with the run token) into this format. Tokens are passed through environment variables and referenced from the file where the harness supports it (Mux `${VAR}`), so they never touch disk. |
+| `OutputParser` | enum `ClaudeStreamJson`, `CodexJsonl`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, `PlainText` | Normalizes output into run events and a final result. `GenericJsonl` takes field mappings (`TextPath`, `FinalPath`, `SuccessExpression`, `UsagePaths`) so a new CLI can be supported without code. |
+| `ResultSource` | enum `ParserFinalEvent`, `LastMessageFile`, `Stdout` | Mux needs `LastMessageFile` (`--output-last-message`) or concatenated text because its `run_completed` event has no answer text. |
+| `SuccessPolicy` | enum `FinalEvent`, `ExitCode`, `FinalEventAndExitCode` | Default `FinalEvent` (D-019). |
+| `SuccessExitCodes` | list of int | Used when policy involves exit codes. |
+| `DefaultTimeoutSeconds` | int, 5 to 86400, default 1800 | Run deadline when the deployment does not set one. |
+| `KillGraceSeconds` | int, 0 to 60, default 5 | Time between graceful stop and tree kill. |
+| `MaxOutputBytes` | long | Stdout cap before the run fails as `OutputLimitExceeded`. |
+| `StderrTailBytes` | int, default 8000 | Retained stderr tail. |
+| `ProbeCommand` | template list | Version probe that spends no tokens, for example `claude --version`. Workers run it at startup and report capabilities. |
+| `CredentialEnvironmentAllowlist` | list | Variables that may be injected from secrets for this harness (Aegon's `CredentialVariables`). |
+| `IsolateHome` | bool, default true | Give each run its own `HOME` (and `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `MUX_CONFIG_DIR` as the profile sets). |
+| `SupportsResume` | bool | Phase 12 conversations. |
+
+Built-in profiles seeded at first boot (rendered argument lists are in Appendix A):
+
+| Built-in name | Harness | Summary |
+|---|---|---|
+| `builtin/claude-code` | ClaudeCode | `claude -p --output-format stream-json --verbose --setting-sources "" --permission-mode <mode> --system-prompt-file ... --model ... --max-turns ... --mcp-config ... --strict-mcp-config [--allowedTools ...] [--json-schema ...]`, prompt on stdin. |
+| `builtin/codex` | Codex | `codex exec --json --skip-git-repo-check --ignore-user-config -s <sandbox> -C <workspace> [-m model] -c model_instructions_file=... -c project_doc_max_bytes=0 [-c mcp_servers...] [--output-schema ...] -`, prompt on stdin. |
+| `builtin/mux` | Mux | `mux --print --config-dir <cfg> -e garrison --output-format jsonl --yolo -w <workspace> [-m model] --max-turns N --system-prompt <file> [--mcp-config ... --strict-mcp-config] --output-last-message <file>`, prompt on stdin; `endpoints.json` rendered from the deployment's model endpoint parameters with `${VAR}` secret references. |
+| `builtin/gemini-cli` | GeminiCli | `gemini -p " " -o stream-json --skip-trust --approval-mode yolo [-m model]`, `GEMINI_CLI_HOME` and `GEMINI_SYSTEM_MD` set, settings file rendered. Optional in the image. |
+| `builtin/generic-jsonl` | Generic | Template for bringing any CLI that emits JSONL. |
+| `builtin/fake` | Generic | `garrison-fake-harness`, used by tests and the in-cluster smoke test. |
+
+### 8.2 PromptTemplate
+
+Every prompt is a template. That includes the task prompt and system prompt for each agent, the wrapper Garrison adds around delegated requests, the instructions that tell an agent how to use Garrison's MCP tools, MCP tool descriptions, A2A skill descriptions, and the structured-output repair prompt.
+
+**Syntax.** A deliberately small, logic-light dialect so templates stay safe to let tenants edit:
+
+| Construct | Example | Notes |
+|---|---|---|
+| Variable | `{{input.message}}` | Dotted path into the render context. Missing required variables fail validation at save time and fail the run at compile time. |
+| Default | `{{input.parameters.tone \| default: "plain"}}` | Filters: `default`, `upper`, `lower`, `trim`, `json`, `indent: n`, `truncate: n`. |
+| Conditional | `{{#if agent.outputSchema}} ... {{else}} ... {{/if}}` | Truthiness on strings, lists, booleans. |
+| Loop | `{{#each resources.mcpServers}}- {{this.name}}{{/each}}` | Over lists in the context. |
+| Include | `{{> builtin/garrison-tools-instructions}}` | Includes another template by name (cycle-checked, depth-limited). |
+| Secret | `{{secret.anthropic}}` | Only allowed in harness profile environment and files, never in prompts. Enforced at save time. |
+| Raw | `{{{{raw}}}} ... {{{{/raw}}}}` | Literal braces. |
+
+**Render context.** Available to all templates: `tenant.*` (id, name), `agent.*` (name, description, skills, output schema), `deployment.*` (name, parameters), `run.*` (id, depth, parentRunId, rootRunId, workspaceDir, configDir, homeDir, deadlineUtc, attempt), `input.*` (message, contentType, parameters, structured), `caller.*` (principal type, display name, agent name when delegated), `resources.*` (mcpServers, workspace, artifactStore), `garrison.*` (mcpUrl, version), `harness.*` (type, model), and `now`.
+
+**Versioning.** Each save creates an immutable `prompt_template_versions` row with the content, declared variables, author, and change note. Deployments pin a version or follow `latest`. Every run records the template versions it was compiled with, so a transcript can always be traced to the exact prompt text that produced it.
+
+**Built-in templates** (protected, cloneable, resettable to default):
+
+| Key | Kind | Used for |
+|---|---|---|
+| `builtin/default-system` | System | Default system prompt for hosted agents. |
+| `builtin/default-task` | Task | Wraps the caller's message (`{{input.message}}`) with optional structured parameters. |
+| `builtin/delegated-task` | Task | Task wrapper when the caller is another agent: names the caller, the root request, and the depth. |
+| `builtin/garrison-tools-instructions` | Fragment | Explains `garrison_invoke_agent`, `garrison_list_agents`, and the delegation rules; included by system prompts when delegation is enabled. |
+| `builtin/structured-output-instructions` | Fragment | Appended when the agent has an output schema and the harness lacks native schema support. |
+| `builtin/structured-output-repair` | Task | Repair prompt when output fails schema validation (one retry, Aegon pattern). |
+| `builtin/mcp-tool-description` | ToolDescription | Description for an agent exposed as an MCP tool. |
+| `builtin/a2a-skill-description` | ToolDescription | Description for the agent's A2A skill. |
+| `builtin/claude-code-mcp-config`, `builtin/codex-mcp-config`, `builtin/mux-mcp-config`, `builtin/mux-endpoints`, `builtin/mux-settings`, `builtin/gemini-settings` | ConfigFile | File content templates used by built-in harness profiles. Editable like any other template. |
+
+Endpoints: create, update (new version), list versions, diff two versions, restore a version, clone, reset built-in to default, and **render preview** (`POST .../prompt-templates/{id}/render` with a sample context, returns rendered text and the variables used or missing). The dashboard's template editor uses preview on every change.
+
+### 8.3 Resource bindings
+
+| Resource | Bound by | Effect at compile time |
+|---|---|---|
+| `McpServer` | Deployment binding with alias | Rendered into the harness MCP config; header and env templates resolved (secrets allowed); `RequiredTools` drive pre-flight. Garrison's own MCP server (`garrison`) is added automatically when the agent's delegation policy allows any callee. |
+| `Secret` | Deployment binding with alias (`{{secret.<alias>}}`) | Decrypted only inside the compiler, injected into environment or files allowed by the harness profile's credential allowlist, delivered to the worker over TLS in the lease response, never logged, scrubbed from stderr tails (Aegon `Secrets` scrubbing). |
+| `WorkspaceTemplate` | Deployment binding (zero or one) | Worker prepares the workspace: empty directory, shallow git clone (credential from a bound secret), or seeded files. |
+| `ArtifactStore` | Deployment binding (zero or one) | Where the worker uploads files matching the deployment's artifact globs after the run. |
+
+### 8.4 Deployment
+
+| Field | Meaning |
+|---|---|
+| `AgentId`, `Name`, `Description` | A deployment belongs to one agent. |
+| `HarnessProfileId` | The profile to run. |
+| `Model`, `FallbackModel`, `Effort`, `MaxTurns`, `MaxBudgetUsd` | Common knobs exposed as typed fields because every built-in profile uses them. Available to templates as `deployment.model` and so on. |
+| `PromptBindings` | Role to template mapping: `System`, `Task`, `DelegatedTask`, `StructuredOutputInstructions`, `Repair`, plus any custom role a profile references. Each binding pins a version or follows latest. |
+| `ResourceBindings` | MCP servers, secrets, workspace, artifact store, each with an alias. |
+| `ArgumentOverrides` | Append, replace by key, or remove arguments from the profile. |
+| `EnvironmentOverrides`, `FileOverrides` | Add or replace environment variables and files. |
+| `Parameters` | Named values with defaults, exposed to templates as `deployment.parameters.*`. |
+| `AllowedRunOverrides` | Which parameters a caller may set per run (for example `model`, `tone`), with validation (enum, regex, numeric range). Everything else is fixed by the deployment. |
+| `NodeSelector`, `NodePoolId` | Placement requirements matched against node labels. |
+| `MaxConcurrentRuns` | Per-deployment concurrency limit enforced at claim time. |
+| `TimeoutSeconds`, `MaxAttempts`, `RetryOnNodeLoss` | Execution policy. |
+| `Weight`, `IsActive` | Traffic split across an agent's active deployments. |
+| `Version` | Increments on every change. Runs snapshot the deployment version they were compiled from. |
+
+### 8.5 Declarative manifests
+
+Every configuration entity can be expressed as a YAML or JSON document with `apiVersion: garrison/v1`, `kind`, `metadata.name`, and `spec`. `POST /v1.0/api/tenants/{tenantId}/manifests/apply` accepts a multi-document body, validates all documents, resolves name references (`harnessProfile: builtin/claude-code`), and applies them in dependency order inside one transaction, returning a per-document result (`Created`, `Updated`, `Unchanged`, `Failed`). `dryRun=true` validates without writing. Secrets in manifests carry metadata only by default; values are accepted only when `allowSecretValues=true` and the caller has `SecretManager`.
+
+In Kubernetes, a ConfigMap of manifests plus a bootstrap Job applies them at install time, which is how the MVP's three sample agents arrive. This is also the GitOps path: keep manifests in a repository, apply them in CI.
+
+Example (from `k8s/base/manifests/agents.yaml`):
+
+```yaml
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: claude-helper
+spec:
+  displayName: Claude Helper
+  description: General-purpose assistant running on Claude Code.
+  exposure: { a2a: true, mcpTool: true }
+  delegation: { maxDepth: 2, allow: [codex-coder, mux-helper] }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: claude-helper-default
+spec:
+  agent: claude-helper
+  harnessProfile: builtin/claude-code
+  model: sonnet
+  maxTurns: 8
+  prompts:
+    System: builtin/default-system
+    Task: builtin/default-task
+  resources:
+    secrets:
+      - { alias: anthropic, secret: claude-oauth-token }
+  timeoutSeconds: 600
+  nodeSelector: { garrison.io/harness-claude: "true" }
+```
+
+### 8.6 InvocationCompiler
+
+`InvocationCompiler.CompileAsync(run, deployment snapshot, context)` produces an `ExecutionSpec`:
+
+| Field | Content |
+|---|---|
+| `Executable`, `Arguments` | Final argv. |
+| `Environment` | Final environment (allowlist plus rendered values plus secret values). |
+| `Files` | Path, content, mode, and secret flag for each file. |
+| `Stdin` | Rendered task prompt when delivery is `Stdin`. |
+| `WorkingDirectoryKind`, `Workspace` | Workspace preparation instructions. |
+| `Parser`, `ParserOptions`, `ResultSource`, `SuccessPolicy`, `SuccessExitCodes` | Output handling. |
+| `TimeoutSeconds`, `KillGraceSeconds`, `MaxOutputBytes`, `StderrTailBytes` | Limits. |
+| `McpPreflight` | Servers to check and required tools. |
+| `ScrubValues` | Secret values to redact from stderr and events. |
+| `TemplateVersions` | Template IDs and versions used, recorded on the run. |
+
+Compilation is a pure function of its inputs and is unit-tested with golden files per built-in profile (`src/Test.Shared/Golden/`). `POST .../deployments/{id}/compile-preview` returns the spec with secret values redacted so developers can see the exact command line before invoking.
+
+---
+
+## 9. Run Lifecycle, Scheduling, and Leasing
+
+### 9.1 States
+
+```
+            +-----------+
+ create --> |  Pending  | --admission denied--> Rejected
+            +-----------+
+                  | admitted
+                  v
+            +-----------+   lease expires before start (attempt < max)
+            |  Queued   | <------------------------------------------+
+            +-----------+                                            |
+                  | claimed by worker (epoch++)                      |
+                  v                                                  |
+            +-----------+ ------------------------------------------+
+            |  Leased   |
+            +-----------+
+                  | worker reports started
+                  v
+            +-----------+  cancel requested  +------------+
+            |  Running  | -----------------> | Cancelling | --> Cancelled
+            +-----------+                    +------------+
+              |   |   |
+              |   |   +--> TimedOut (deadline)
+              |   +------> Failed (outcome code: HarnessFailed, NotCredentialed, McpPreflightFailed,
+              |                     NodeLost, OutputLimitExceeded, SchemaValidationFailed, ...)
+              +----------> Succeeded
+```
+
+Phase 12 adds `AwaitingApproval` between `Running` and resumption.
+
+### 9.2 Lease protocol
+
+| Call | Purpose |
+|---|---|
+| `POST /v1.0/api/node/register` | Idempotent by node name. Sends labels, capabilities (harness types, versions, probe results), capacity, version. Returns node ID and lease settings. |
+| `POST /v1.0/api/node/heartbeat` | Every `HeartbeatIntervalMs` (default 5000). Sends held runs with epochs and free capacity. Extends node liveness and all held run leases. Returns run IDs to cancel, drain flag, and settings version. |
+| `POST /v1.0/api/node/lease` | Long-poll up to `LeaseWaitMs` (default 20000). Returns up to `maxRuns` assignments, each with run, epoch, run token, and `ExecutionSpec`. |
+| `POST /v1.0/api/node/runs/{runId}/started` | Epoch, process ID, start time. Moves `Leased` to `Running`. |
+| `POST /v1.0/api/node/runs/{runId}/events` | Epoch plus an ordered batch of events with worker-assigned sequence numbers. Idempotent on `(runId, sequence)`. |
+| `POST /v1.0/api/node/runs/{runId}/complete` | Epoch plus outcome, result, usage, cost, session ID, served model, exit code, stderr tail. |
+| `POST /v1.0/api/node/drain` | Node stops leasing new work and exits after current runs. Used by the pod `preStop` hook. |
+
+Every call carries the node's session token (`NodeAgent` role). Every run-scoped call carries the epoch; a mismatch returns 409 `StaleLease` and the worker kills the process.
+
+### 9.3 Atomic claim
+
+The claim must be correct on both providers without relying on `SKIP LOCKED`, which Sqlite lacks. Garrison uses optimistic compare-and-set:
+
+1. Select up to `k` candidate run IDs: `status = 'Queued'`, `harnesstype IN (worker capabilities)`, node pool allowed, ordered by priority descending then `queuedutc` ascending. Candidates whose label requirements the worker does not satisfy are filtered in code.
+2. For each candidate, check the deployment and tenant concurrency limits against `Leased + Running` counts.
+3. Claim with `UPDATE runs SET status = 'Leased', leasenodeid = @node, leaseepoch = leaseepoch + 1, leaseexpiresutc = @exp, leasedutc = @now, lastupdateutc = @now WHERE id = @id AND status = 'Queued'`. One affected row wins. Zero means another worker won, so try the next candidate.
+4. On Postgresql, step 1 may use `FOR UPDATE SKIP LOCKED` as an optimization behind the provider's `Queries` class. The CAS in step 3 remains the correctness guarantee.
+
+Concurrency limits are enforced inside the claim with a conditional count when the provider supports it, and are re-validated after the claim (a claim that exceeds a limit is released back to `Queued` without consuming an attempt). The limits are soft by at most the number of simultaneous claimers, which is documented.
+
+### 9.4 Leader election and maintenance
+
+Singleton work runs on exactly one Command replica, chosen through `ILeaseProvider` (`coordination_leases`, epoch-fenced, renewed every `LeaderRenewMs`):
+
+| Loop | Interval | Work |
+|---|---|---|
+| Lease reaper | 2 s | Expired run leases: requeue or fail (section 6.5). Nodes past heartbeat timeout move to `Lost`. |
+| Deadline enforcer | 5 s | Runs past deadline without a worker response move to `TimedOut`. |
+| Retention | 1 h | Prune request history, run events, finished runs, and audit by cluster settings. |
+| Session cleanup | 15 min | Expired auth sessions and run tokens. |
+
+Non-singleton work (claims, event ingestion, API) runs on every replica.
+
+### 9.5 Event streaming
+
+Run events are appended with a per-run sequence assigned by the worker and enforced unique. Readers tail by sequence:
+
+- `GET .../runs/{id}/events?afterSequence=n&limit=m` for polling.
+- `GET .../runs/{id}/events/stream` (SSE) for live streaming. The server polls the database every `EventPollMs` (default 250) for that run while a subscriber is connected.
+- WebSocket `/v1.0/ws` for dashboard subscriptions to run lists and individual runs.
+- A2A `message/stream` and MCP progress notifications are built on the same tailer.
+
+---
+
+## 10. API Surfaces
+
+### 10.1 REST (port 8700)
+
+All paths below are under `/v1.0/api` unless noted. `{t}` is the tenant ID. Every list endpoint supports `maxResults`, `skip`, `ordering`, and resource-specific filters, and returns the `EnumerationResult` shape used by the reference projects (`objects`, `totalRecords`, `recordsRemaining`, `endOfResults`, `timestampUtc`).
+
+| Area | Endpoints |
+|---|---|
+| Health and info | `GET /v1.0/api/health` (anonymous), `GET /v1.0/api/server-info`, `GET /openapi.json` |
+| Tokens | `POST /v1.0/token`, `POST /v1.0/token/refresh`, `GET /v1.0/token`, `GET /v1.0/token/details`, `DELETE /v1.0/token` |
+| Tenants | `GET/POST /tenants`, `GET/PUT/DELETE /tenants/{t}` |
+| Users, credentials | `/tenants/{t}/users[/{id}]`, `/tenants/{t}/credentials[/{id}]`, `POST /tenants/{t}/credentials/{id}/rotate` |
+| RBAC | `/tenants/{t}/roles`, `/tenants/{t}/permissions`, `/tenants/{t}/role-permissions`, `/tenants/{t}/user-role-assignments`, `/tenants/{t}/credential-scope-assignments`, `GET /tenants/{t}/users/{id}/permissions`, `GET /tenants/{t}/credentials/{id}/permissions` |
+| Audit | `GET /tenants/{t}/audit`, `GET /tenants/{t}/audit/{id}`, `DELETE` single and bulk |
+| Harness profiles | `/tenants/{t}/harness-profiles[/{id}]`, `POST .../{id}/clone`, `GET /harness-profiles/builtin` |
+| Prompt templates | `/tenants/{t}/prompt-templates[/{id}]`, `GET .../{id}/versions`, `GET .../{id}/versions/{v}`, `POST .../{id}/restore/{v}`, `POST .../{id}/clone`, `POST .../{id}/reset`, `POST .../{id}/render`, `POST /tenants/{t}/prompt-templates/render` (ad hoc) |
+| MCP servers | `/tenants/{t}/mcp-servers[/{id}]`, `POST .../{id}/test` (connect and list tools) |
+| Secrets | `/tenants/{t}/secrets[/{id}]` (values write-only), `PUT .../{id}/value`, `POST .../{id}/test` (where meaningful) |
+| Workspaces | `/tenants/{t}/workspace-templates[/{id}]` |
+| Agents | `/tenants/{t}/agents[/{id}]`, `POST .../{id}/invoke`, `GET .../{id}/card` (A2A card), `POST /tenants/{t}/agents/register` (self-registration, idempotent by name) |
+| Deployments | `/tenants/{t}/deployments[/{id}]`, `POST .../{id}/compile-preview`, `POST .../{id}/test` (invoke with a test prompt) |
+| Runs | `GET/POST /tenants/{t}/runs`, `GET .../runs/{id}`, `POST .../runs/{id}/cancel`, `POST .../runs/{id}/retry`, `GET .../runs/{id}/events`, `GET .../runs/{id}/events/stream` (SSE), `GET .../runs/{id}/children`, `DELETE` single and bulk (finished runs only) |
+| Manifests | `POST /tenants/{t}/manifests/apply`, `POST /tenants/{t}/manifests/export`, `GET /tenants/{t}/manifests/applies[/{id}]` |
+| Nodes | `GET /nodes`, `GET /nodes/{id}`, `POST /nodes/{id}/cordon`, `POST /nodes/{id}/uncordon`, `POST /nodes/{id}/drain`, `DELETE /nodes/{id}`, node pools `/node-pools[/{id}]` |
+| Node protocol | `POST /node/register`, `/node/heartbeat`, `/node/lease`, `/node/drain`, `/node/runs/{id}/started`, `/node/runs/{id}/events`, `/node/runs/{id}/complete` |
+| Scheduling | `GET /tenants/{t}/queue/summary` (queued, leased, running by agent and harness) |
+| Request history | `GET /v1.0/api/request-history`, `GET .../summary`, `GET .../{id}`, `DELETE .../{id}`, `DELETE` bulk |
+| Settings | `GET/PUT /v1.0/api/settings`, `POST /v1.0/api/settings/restart`, `POST /v1.0/api/settings/database/test` |
+| Overview | `GET /tenants/{t}/overview` (KPIs for the Home page in one call) |
+| WebSocket | `/v1.0/ws` (subscriptions: `runs`, `run:{id}`, `nodes`) |
+| A2A | `GET /v1.0/a2a/{t}/{agentName}/.well-known/agent-card.json`, `POST /v1.0/a2a/{t}/{agentName}` (JSON-RPC: `message/send`, `message/stream`, `tasks/get`, `tasks/list`, `tasks/cancel`, `tasks/resubscribe`), `GET /v1.0/a2a/{t}` (catalog of cards) |
+
+### 10.2 MCP (port 8701, Voltaic `McpHttpServer`, path `/mcp`)
+
+Authentication uses the same bearer tokens and access keys as REST (validated in Voltaic's `AuthenticationHandler`, which places principal and tenant in claims), plus run tokens for delegation.
+
+| Tool | Purpose |
+|---|---|
+| `garrison_list_agents` | Agents the caller may invoke, with descriptions and input schemas. |
+| `garrison_get_agent` | One agent's details. |
+| `garrison_invoke_agent` | Start a run and wait up to `waitSeconds` (bounded below the client's tool timeout). Returns the result, or the run ID and status if still running. |
+| `garrison_start_run` | Start a run and return immediately. |
+| `garrison_get_run` | Status, result, usage. |
+| `garrison_get_run_events` | Events after a sequence (the Aegon job-events pattern, avoids long-held calls). |
+| `garrison_cancel_run` | Cancel. |
+| `garrison_list_runs` | Recent runs, filtered. |
+| `agent__<name>` | Optional per-agent tools when `Agent.ExposeAsMcpTool` is on; description from the agent's tool-description template. |
+
+Management tools (create agents, apply manifests) are Phase 12 and gated on `AgentDeveloper`.
+
+### 10.3 A2A
+
+Each hosted or remote agent with A2A exposure gets a card at `/v1.0/a2a/{t}/{agentName}/.well-known/agent-card.json` whose skills come from `agent_skills` and whose descriptions come from templates. `message/send` creates a run (A2A task ID = run ID, `contextId` = conversation ID in Phase 12). `message/stream` streams `TaskStatusUpdateEvent` and `TaskArtifactUpdateEvent` from the run event tailer. Authentication is a bearer token or access key declared in the card's security schemes.
+
+### 10.4 Error shape
+
+```json
+{ "error": "Forbidden", "code": "AuthorizationDenied", "message": "Credential scope is missing Execute on Agent.",
+  "requestId": "...", "requiredPermission": "Execute", "resourceType": "Agent", "tenantId": "ten_..." }
+```
+
+`code` values are stable identifiers so the dashboard localizes messages (I18N backend rule).
+
+---
+
+## 11. Security Model
+
+### 11.1 Tenancy
+
+Every tenant-owned query filters by tenant ID taken from the request context. Tenant IDs in paths must match the authenticated tenant unless the caller is a system administrator. Cross-tenant access returns 404, not 403, so resource existence does not leak.
+
+### 11.2 Authentication
+
+Schemes: bearer session token (`Authorization` or `x-token`), user login headers or body on `POST /v1.0/token`, credential direct header (`x-access-key` plus `x-secret-key`), AWS-style signed requests (`x-access-key`, `x-date`, `x-nonce`, `x-signature`), and system admin API key (`x-api-key`, platform routes only). Tokens are opaque AES-256-CBC with a random IV per token plus an HMAC-SHA256 tag (encrypt-then-MAC), backed by an `authsessions` row.
+
+### 11.3 Authorization
+
+Central `OperationScopeMap` maps every route and MCP tool to `(ResourceType, Operation)`. The evaluator implements explicit deny, implicit deny, resource scope, inheritance, credential owner ceiling, and the bypass order from `AUTHENTICATION.md`, with a per-principal cache invalidated by an authorization version counter in `cluster_settings`.
+
+### 11.4 Run tokens (delegation)
+
+When a run is leased, the Command node mints a run token: an auth session with principal type `Run`, bound to the tenant, the run ID, the originating principal, and an expiry of the run deadline plus a grace period. Its effective permissions are the intersection of:
+
+1. The originating principal's effective permissions (owner ceiling, the same rule credentials use).
+2. `Execute` on the agents in the deployment's delegation allowlist, and `Read` on its own descendant runs.
+
+The token is revoked when the run reaches a terminal state. It is delivered to the harness only through its MCP configuration (environment variable reference where supported).
+
+### 11.5 Secrets
+
+The cluster master key comes from a Kubernetes Secret (`GARRISON_MASTER_KEY`, 32 bytes base64). Secret values are encrypted with AES-256-GCM, a random nonce per value, and the secret ID as associated data. Key rotation (Phase 15) re-encrypts with a key version column. Secret values never appear in API responses, logs, request history (request bodies on secret routes are redacted before capture), run events, or compile previews.
+
+### 11.6 Global tables
+
+`nodes`, `node_pools`, `coordination_leases`, `cluster_settings`, `schema_migrations`, built-in rows of `harness_profiles`, `prompt_templates`, and `userroles`, and `request_history` rows for unauthenticated requests are global. Nodes are platform infrastructure shared across tenants, with optional dedication through node pools; tenants see only the node pools they are allowed to use, and only the runs of their own tenant on any node.
+
+### 11.7 Execution isolation
+
+MVP (D-004): each run gets `workspaces/<runId>/work`, `workspaces/<runId>/home`, and `workspaces/<runId>/config` directories owned by the worker's non-root user, an empty environment plus allowlist, and a process tree that is killed on deadline or cancel. Harness permission modes default to the safest mode that works headless (Claude `--permission-mode` from the deployment, Codex `-s workspace-write`, Mux `--sandbox workspace-write`). The documentation is explicit that subprocess isolation shares the pod's kernel, network, and service account; deployments that run untrusted prompts should wait for Phase 11's pod-per-run executor with its own service account, network policy, and resource limits.
+
+---
+
+## 12. Repository Layout
+
+```
+Garrison/
+|-- .github/workflows/          tests.yaml, dashboard.yaml, sdk.yaml, images.yaml, em-dash-check.yaml
+|-- assets/
+|   |-- logo.png, icon.png
+|   |-- postman/                Garrison.postman_collection.json, Garrison.postman_environment.json
+|   `-- grafana/                dashboards (Phase 13)
+|-- benchmarks/                 (Phase 14)
+|-- dashboard/                  React 19 + Vite 6 operator console, Dockerfile, nginx.conf
+|-- docs/
+|   |-- ARCHITECTURE.md, CONFIGURATION.md, HARNESSES.md, PROMPTS.md, MANIFESTS.md,
+|   |-- KUBERNETES.md, SCALING.md, SECURITY.md, TELEMETRY.md, I18N.md, DEVELOPMENT.md
+|-- k8s/
+|   |-- base/                   namespace, configmaps, server, worker, dashboard, bootstrap job, rbac, netpol
+|   |-- components/
+|   |   |-- postgres/           in-cluster PostgreSQL StatefulSet (turnkey installs)
+|   |   |-- observability/      Prometheus, Grafana, Tempo, Loki, OTel Collector (Phase 13)
+|   |   `-- smoke-test/         fake-harness agent manifests and a smoke Job
+|   |-- overlays/
+|   |   |-- minikube/           NodePort services, local images, small resources
+|   |   |-- k3s/                Traefik ingress, local-path storage
+|   |   `-- production/         external DB, HPA, PDB, ingress-nginx with TLS, larger resources
+|   |-- helm/garrison/          Helm chart mirroring the Kustomize base and components
+|   `-- scripts/                deploy-*.{sh,bat}, update.{sh,bat}, factory-reset.{sh,bat},
+|                               generate-secrets.{sh,bat}, port-forward.{sh,bat}, smoke-test.{sh,bat}
+|-- sdk/
+|   |-- README.md               language matrix
+|   |-- csharp/                 Garrison.Sdk, Garrison.Sdk.Test (harness), README.md
+|   |-- python/                 garrison_sdk/, test_harness.py, pyproject.toml, README.md
+|   |-- js/                     src/ (TypeScript), dist/, test-harness.mjs, package.json, README.md
+|   `-- go/                     garrison/ package, cmd/testharness, go.mod, README.md
+|-- src/
+|   |-- Garrison.sln
+|   |-- Directory.Build.props
+|   |-- Garrison.Core/
+|   |-- Garrison.Harnesses/
+|   |-- Garrison.Server/        Dockerfile, garrison.json
+|   |-- Garrison.Worker/        Dockerfile, garrison-worker.json
+|   |-- Garrison.FakeHarness/
+|   |-- Test.Shared/  Test.Automated/  Test.Xunit/  Test.Nunit/
+|   `-- Test.Benchmark/         (Phase 14)
+|-- build-server.{sh,bat}  build-worker.{sh,bat}  build-dashboard.{sh,bat}  build-all.{sh,bat}
+|-- CLAUDE.md  GARRISON_PLAN.md  README.md  DOCKERHUB_README.md  CHANGELOG.md  LICENSE.md
+|-- REST_API.md  MCP_API.md  A2A_API.md  WEBSOCKETS_API.md
+|-- .gitignore  .dockerignore
+```
+
+---
+
+## 13. Kubernetes Deployment Design
+
+### 13.1 Images
+
+| Image | Base | Contents | Ports |
+|---|---|---|---|
+| `jchristn77/garrison-server` | `mcr.microsoft.com/dotnet/aspnet` is not needed; `dotnet/runtime:10.0` plus `curl` | Garrison.Server | 8700 REST/A2A/WS, 8701 MCP, 9464 metrics |
+| `jchristn77/garrison-worker` | `dotnet/runtime:10.0` plus Node.js 22, `git`, `curl`, `ripgrep`, `ca-certificates` | Garrison.Worker, `claude` (`@anthropic-ai/claude-code`, pinned), `codex` (`@openai/codex`, pinned), `mux` (built from a pinned Mux commit), optional `gemini`, `garrison-fake-harness` | 8710 health, 9465 metrics |
+| `jchristn77/garrison-dashboard` | `node:22-alpine` build, `nginx:alpine` runtime | Built dashboard, `nginx.conf` with SPA fallback and `/health` | 80 |
+
+All images run as a non-root user (UID 10001), set `DISABLE_AUTOUPDATER=1` and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` (worker), and take harness versions as build arguments recorded in image labels.
+
+### 13.2 Kustomize base
+
+| Resource | Kind | Notes |
+|---|---|---|
+| `garrison` | Namespace | |
+| `garrison-server` | Deployment (replicas 1 in base) | Readiness and liveness probes as described in section 5; `preStop` sleep for connection draining; settings from ConfigMap `garrison-server-settings`; secrets from `garrison-secrets`; init container waits for database health. |
+| `garrison-server` | Service (ClusterIP) | Ports 8700, 8701, 9464. |
+| `garrison-worker` | StatefulSet (replicas 2) | Stable names `garrison-worker-0`, `-1` used as node names; `volumeClaimTemplates` for `workspaces` (10 GiB); node credential from `garrison-node-credential`; `preStop` calls `/node/drain` and waits up to `terminationGracePeriodSeconds` (default 900) for runs to finish; init container waits for the server to report healthy. |
+| `garrison-worker` | Service (headless) | Health and metrics only. |
+| `garrison-dashboard` | Deployment + Service | Port 80, server URL injected at runtime through `config.js`. |
+| `garrison-bootstrap` | Job | Waits for server health, applies `garrison-manifests` ConfigMap through the manifest API, idempotent. |
+| `garrison-manifests` | ConfigMap | Sample agents, deployments, and harness profile overrides. |
+| `garrison-server`, `garrison-worker` | ServiceAccount | Worker service account has no API permissions in MVP; Phase 11 adds a Role for creating Jobs. |
+| NetworkPolicy | | Workers egress to server and internet only; server ingress from dashboard, ingress controller, workers. |
+
+Secrets are not committed. `k8s/scripts/generate-secrets.{sh,bat}` creates `garrison-secrets` (master key, token signing key, admin password, database password) and `garrison-node-credential` with random values, and `garrison-harness-credentials` from environment variables the operator provides (`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`, Mux endpoint URL and key). The bootstrap Job turns those into Garrison `Secret` records.
+
+### 13.3 Overlays and components
+
+| Path | Purpose |
+|---|---|
+| `overlays/minikube` | NodePort services (server 30870, MCP 30871, dashboard 30880), `imagePullPolicy: IfNotPresent` for images loaded with `minikube image load`, reduced resource requests, includes `components/postgres`. |
+| `overlays/k3s` | Traefik `IngressRoute` or `Ingress` for `garrison.local` paths `/`, `/v1.0`, `/openapi.json`, `/mcp`; `local-path` storage class; includes `components/postgres`. |
+| `overlays/production` | External database through `garrison-db` Secret, server replicas 3 with HPA (2 to 10), PDBs (server `minAvailable: 1`, worker `maxUnavailable: 1`), ingress-nginx with TLS and long timeouts for SSE, resource requests and limits, pod anti-affinity, topology spread. |
+| `components/postgres` | PostgreSQL 17 StatefulSet with PVC, probe `pg_isready`. |
+| `components/observability` | Phase 13. |
+| `components/smoke-test` | Fake-harness profile, agent, deployment, and a Job that invokes it and asserts success. Used in CI on K3S. |
+
+### 13.4 Helm chart
+
+`k8s/helm/garrison` renders the same resources with values for image tags, replica counts, database mode (`embedded` or `external`), ingress, harness credential secret names, worker pools (a list, each becoming its own StatefulSet with labels and harness capabilities), observability toggle, and smoke test toggle. `helm template` output is checked in CI against `kubectl kustomize` output for structural parity on the shared resources.
+
+### 13.5 Scripts
+
+| Script | Behavior |
+|---|---|
+| `deploy-minikube` | Starts minikube if needed, builds images into minikube's image store, generates secrets if missing, applies `overlays/minikube`, waits for rollout, prints URLs and the admin credential. |
+| `deploy-k3s` | Applies `overlays/k3s` to the current context (works with K3S on a host or with `rancher/k3s` running in Docker), imports images with `k3s ctr images import` when building locally. |
+| `update` | Non-destructive: pulls or reloads images, `kubectl rollout restart` for server, dashboard, and worker, waits for rollout, prints `kubectl get pods`. |
+| `factory-reset` | Destructive: requires typing `RESET`, deletes the namespace including PVCs, re-applies the overlay, re-runs bootstrap. |
+| `smoke-test` | Applies `components/smoke-test`, waits for the Job, prints the run transcript. |
+| `port-forward` | Forwards server, MCP, and dashboard ports to `127.0.0.1`. |
+
+### 13.6 Probes
+
+| Workload | Readiness | Liveness | Startup |
+|---|---|---|---|
+| Server | `curl -fsS http://127.0.0.1:8700/v1.0/api/health` every 5 s, timeout 4 s, failure 2, success 2 | same command, failure 2, success 1 | same command, period 5 s, failure 24 (2 minutes for migrations) |
+| Worker | `curl -fsS http://127.0.0.1:8710/health/ready` (registered with the server and leasing) | `curl -fsS http://127.0.0.1:8710/health/live` | `.../health/live`, failure 24 |
+| Dashboard | `curl -fsS http://127.0.0.1/health` | same | none |
+
+---
+
+## 14. Dashboard Design and Route Inventory
+
+### 14.1 References used and why
+
+| Reference | Used for | Why |
+|---|---|---|
+| Clutch (`~/Code/Clutch/dashboard`) | Shell, `ApiClient`, i18n runtime, Settings page, TableFrame, request history, API Explorer | Most recent implementation in this family; same conventions and versions. |
+| Armada (`~/Code/Armada/src/Armada.Dashboard`) | Run detail with live log and event viewer, grouped navigation for a large surface, WebSocket refresh, prompt template editing | Closest domain: dispatching agents and reading their transcripts. |
+| Hydra admin dashboard | Route-specific page headers, request history inspector, i18n catalog structure | Strongest i18n and inspector reference. |
+| Tempo | Table mechanics, setup wizard auto-detection | Strong table frame and first-run flow. |
+| Constellation | Worker (node) cards and placement drill-down | Same controller/worker idea. |
+| Aegon | Agent profile modal, harness chips, prompt editor with preview | Same harness configuration problem. |
+
+### 14.2 Route inventory
+
+| Route | User job | Roles | Backend resources | Table/filter needs | Actions and modals | Empty/error states |
+|---|---|---|---|---|---|---|
+| `/` | Sign in | Anyone | `POST /v1.0/token` | none | Server URL, tenant, email/password or access key; language selector | Bad credentials, server unreachable |
+| `/dashboard/home` | See fleet and run health now | All | `overview`, request-history summary, nodes, runs | Range tabs for charts | KPI cards link to filtered runs/nodes; CTAs: invoke agent, add agent, apply manifest, open API Explorer; external services card | No agents yet (CTA to setup), no nodes registered (CTA to docs), partial failures per panel |
+| `/dashboard/invoke` | Try an agent interactively | Invoker and above | agents, `POST runs`, events SSE | none | Agent and deployment pickers, parameters form from deployment, streaming transcript, cancel, open run | No invokable agents, run failed with outcome code |
+| `/dashboard/runs` | Find and act on runs | Operator and above | runs list, cancel, retry, delete | Status, agent, deployment, harness, node, caller, outcome, from/to, depth, root run; server-side paging and sort | View (run detail), cancel, retry, delete (finished), View JSON, bulk cancel and delete | No runs, no matches, backend unavailable |
+| `/dashboard/runs/:id` | Read a run's transcript and outcome | Operator and above | run, events SSE, children | Event type filter | Live event timeline (text, tool calls, results, usage), compiled spec (redacted), result and structured output, stderr tail, child runs tree, cancel, retry | Running with no events yet, run not found |
+| `/dashboard/agents` | Manage agents | Developer and above (read: all) | agents CRUD | Kind, exposure, tag, name | + Add, View, Edit, Duplicate, Delete, View JSON, Invoke, View A2A card | No agents (CTA: apply sample manifest) |
+| `/dashboard/agents/:id` | See one agent end to end | Developer and above | agent, deployments, runs | Runs table | Deployments with weights, A2A card, MCP exposure, delegation policy, recent runs | Agent has no active deployment |
+| `/dashboard/deployments` | Bind agents to harnesses, prompts, resources | Developer and above | deployments CRUD, compile-preview, test | Agent, harness, active | + Add (multi-step form: harness, prompts, resources, overrides, placement, limits), Edit, Duplicate, Compile preview modal, Test invoke, Delete, View JSON | Missing harness profile or template references |
+| `/dashboard/harness-profiles` | Control how harnesses run headless | Developer and above | harness profiles CRUD, built-ins | Harness type, built-in | + Add, Clone built-in, Edit (argument list editor with conditions, env, files, parser), Delete, View JSON | Built-ins only (prompt to clone) |
+| `/dashboard/prompt-templates` | Edit every prompt | Developer and above | templates CRUD, versions, render | Kind, built-in, name | Editor with live render preview and variable list, version history with diff and restore, clone, reset built-in, View JSON | Template has validation errors |
+| `/dashboard/mcp-servers` | Register MCP servers for agents | Developer and above | MCP servers CRUD, test | Transport | + Add, Edit, Test connection (lists tools), Delete, View JSON | Test failed with reason |
+| `/dashboard/secrets` | Manage harness and integration credentials | Secret manager, tenant admin | secrets CRUD (write-only values) | Kind, expiring soon | + Add, Set value, Rotate, Delete, View metadata JSON | No secrets (explains which agents need them) |
+| `/dashboard/workspaces` | Define run workspaces | Developer and above | workspace templates CRUD | Kind | + Add, Edit, Duplicate, Delete, View JSON | none |
+| `/dashboard/manifests` | Apply and export configuration as code | Developer and above | manifests apply, export, applies history | Applies table | Paste or upload YAML, dry run diff, apply, export tenant, view apply details | Validation errors per document |
+| `/dashboard/nodes` | Watch and control the worker fleet | Operator, admin | nodes, node pools | Status, pool, harness capability, label | View (capabilities, active runs, labels), cordon, uncordon, drain, remove lost node, View JSON | No nodes registered (deployment help) |
+| `/dashboard/queue` | Understand scheduling pressure | Operator, admin | queue summary, runs | Grouped by agent and harness | Links to filtered runs | Empty queue |
+| `/dashboard/requests` | Investigate HTTP traffic | Operator, admin, tenant admin | request history list, detail, summary, delete | Method, status, path, tenant, user, from/to; server-side paging | Request inspector modal, View JSON, delete, bulk delete | No traffic retained, no matches, disabled |
+| `/dashboard/audit` | Review security events | Auditor, security admin, tenant admin | audit list, detail | Event type, principal, result, from/to | View, View JSON, bulk delete (retention) | No events |
+| `/dashboard/explorer` | Execute API calls | Developer, operator, admin | `/openapi.json`, raw execution | Endpoint search | Execute, copy curl/fetch/C#, destructive confirm, response tabs, history | OpenAPI unavailable |
+| `/dashboard/tenants` | Manage tenants | System admin | tenants CRUD | Name, active | + Add, Edit, Duplicate, Delete (confirm with name), View JSON | none |
+| `/dashboard/users` | Manage users | Tenant admin, security admin | users CRUD | Email, admin flags, active | + Add, Edit, Duplicate, Delete, View effective permissions, View JSON | none |
+| `/dashboard/credentials` | Manage access keys | Tenant admin, security admin | credentials CRUD, rotate | User, active, expiring | + Add (secret shown once with copy), Rotate, Edit, Delete, View effective permissions, View JSON | none |
+| `/dashboard/roles` | Manage roles and permissions | Security admin | roles, permissions, role-permission maps | Built-in, name | + Add, Clone built-in, Edit permissions matrix, Delete, View JSON | none |
+| `/dashboard/assignments` | Grant roles to users and credentials | Security admin | user role assignments, credential scope assignments | Principal, role, scope | + Add, Edit, Delete, View JSON | none |
+| `/dashboard/settings` | Edit server and cluster settings | System admin (read: admin) | settings get/put, restart, database test | none | Grouped form, restart-required badges, source chips (file, env, ConfigMap, database), Restart Server with confirm and health polling | Read-only when managed by ConfigMap |
+| `/dashboard/server-info` | See endpoints, version, auth context | All | server-info, token details | none | Copyable REST, MCP, A2A URLs; version; feature flags; current principal and permissions | none |
+
+Navigation groups: **Start** (Home, Invoke), **Operate** (Runs, Queue, Nodes), **Configure** (Agents, Deployments, Harness Profiles, Prompt Templates, MCP Servers, Secrets, Workspaces, Manifests), **Observe** (Request History, Audit, API Explorer), **Administration** (Tenants, Users, Credentials, Roles, Assignments), **System** (Settings, Server Info). Sidebar footer: setup wizard, tour, version. Topbar: server URL chip, tenant chip with switcher (system admins), principal and role pills, health dot, live (WebSocket) indicator, GitHub link, theme, language, logout.
+
+---
+
+## 15. SDK Design
+
+All four SDKs share one surface and naming, adjusted to each language's idioms:
+
+| Module | Operations |
+|---|---|
+| Client | Construct with base URL (default `http://127.0.0.1:8700`), token or access key and secret, optional tenant; `authenticate*`, `health`, `serverInfo`. |
+| Agents | list, get, create, update, delete, invoke (wait or not), card, register (remote). |
+| Deployments | list, get, create, update, delete, compilePreview, test. |
+| HarnessProfiles, PromptTemplates, McpServers, Secrets, Workspaces | CRUD; templates also render, versions, restore, clone, reset. |
+| Runs | create, get, list, cancel, retry, events (poll), stream (SSE iterator), waitForCompletion. |
+| Manifests | apply (with dry run), export. |
+| Nodes | list, get, cordon, uncordon, drain. |
+| Admin | tenants, users, credentials, roles, assignments, request history, audit, settings. |
+
+Each SDK ships a test harness (`Garrison.Sdk.Test`, `test_harness.py`, `test-harness.mjs`, `cmd/testharness`) that takes `<baseUrl> <accessKey> <secretKey>` and exercises authentication, CRUD on a scratch agent and deployment using `builtin/fake`, invocation with wait, SSE streaming, cancellation, manifest apply, and cleanup, exiting 0 or 1. `scripts/run-sdk-harnesses.{sh,bat}` starts a local server and worker on Sqlite with the fake harness and runs all four. Go is compiled and tested inside a `golang` container when Go is not installed on the host.
+
+---
+
+## 16. Testing Strategy
+
+| Layer | Where | Runs in CI |
+|---|---|---|
+| Model and helper unit suites | `Test.Shared` suites `Ids`, `Settings`, `Crypto`, `TemplateRenderer`, `InvocationCompiler` (golden), `Parsers` (recorded fixtures for Claude, Codex, Mux, Gemini), `GenericJsonl` | Every push |
+| Database contract suites | `Test.Shared` per provider: migrations, seeding, CRUD for every entity, tenant isolation, cascading deletes, claim CAS under concurrency, lease reaper, event sequence uniqueness | Sqlite every push; Postgresql via a service container on Linux |
+| Security suites | Authentication schemes, token tamper and expiry, signed requests and replay, RBAC evaluation matrix, bypass rules, admin hardening, effective permissions, run token ceiling, cross-tenant 404s | Every push |
+| Integration suites | In-process server plus two in-process workers on `127.0.0.1` with the fake harness: invoke, stream, cancel, timeout, node loss and requeue, fencing, delegation depth and cycle, manifest apply, MCP tools via Voltaic client, A2A via Voltaic client, request history, settings API | Every push |
+| Real-harness suites | Same flows against real `claude`, `codex`, `mux` | Manual or nightly with credentials; skipped with a reason when credentials are absent |
+| Dashboard | Vitest unit tests (formatters, locale registry, query builders, openApi helpers), Playwright e2e and visual checks at 1280, 768, 390 in light and dark against a seeded server | Every push |
+| SDK harnesses | Four harnesses against a local server | Every push |
+| Kubernetes | `kubectl kustomize` and `helm template` render checks, kubeconform schema validation, K3S-in-Docker smoke test with the fake harness | Every push (render), main branch (smoke) |
+| Text hygiene | Em-dash grep across the repository | Every push |
+
+---
+
+## 17. Telemetry
+
+Meters and activity sources subscribed by Radiant: `Watson`, `Garrison`, `Garrison.Worker`, `Voltaic`, `Padlock`. Application metrics (prefix `garrison_`, low-cardinality labels only):
+
+| Metric | Type | Labels |
+|---|---|---|
+| `garrison_runs_total` | counter | `outcome`, `harness`, `kind` |
+| `garrison_run_stage_duration_seconds` | histogram | `stage` (`queued`, `leased`, `preflight`, `workspace`, `execution`, `finalize`), `harness` |
+| `garrison_runs_active` | gauge | `status` |
+| `garrison_claims_total` | counter | `result` (`won`, `lost`, `limit`, `none`) |
+| `garrison_lease_expirations_total` | counter | `action` (`requeued`, `failed`) |
+| `garrison_nodes` | gauge | `status` |
+| `garrison_harness_tokens_total` | counter | `harness`, `direction` (`input`, `output`, `cached`) |
+| `garrison_harness_cost_usd_total` | counter | `harness` |
+| `garrison_delegations_total` | counter | `result` |
+| `garrison_mcp_tool_calls_total` | counter | `tool`, `result` |
+| `garrison_a2a_requests_total` | counter | `method`, `result` |
+| `garrison_compile_duration_seconds` | histogram | `harness` |
+| `garrison_event_ingest_batch_size` | histogram | none |
+
+Spans: `run:compile`, `run:claim`, `stage:<name>` on the worker, `harness <type> exec`, `mcp <tool>`, `a2a <method>`, `db <operation>` for hot queries. The worker propagates `traceparent` from the lease response so a run's server and worker spans form one trace.
+
+---
+
+## 18. Work Breakdown
+
+Acceptance notes follow the arrow (`->`). Tasks marked **(M1)** are required for the MVP; unmarked tasks in Phases 0 through 9 are also MVP unless marked **(post-M1)**.
+
+### Phase 0: Repository bootstrap
+
+- [x] P0.1 Create `~/Code/Garrison`, `git init -b main`, add remote `origin` `https://github.com/jchristn/Garrison.git`.  | claude 2026-10-09
+- [x] P0.2 Add `LICENSE.md` (MIT), `.gitignore`, `.dockerignore`.  | claude 2026-10-09
+- [x] P0.3 Add `GARRISON_PLAN.md` (this file).  | claude 2026-10-09 initial plan
+- [x] P0.4 Add `CLAUDE.md` with the full `CODE_STYLE.md` rules, repository conventions, build and test commands, and the version rule.  | claude 2026-10-09 CLAUDE.md with full style rules
+- [x] P0.5 Add `src/Directory.Build.props`: `net8.0;net10.0`, `Nullable` enable, `ImplicitUsings` disable, `LangVersion latest`, `Version 0.1.0-alpha`, `GenerateDocumentationFile` true, `TreatWarningsAsErrors` true for library projects. -> `dotnet build` of an empty solution succeeds.  | claude 2026-10-09 src/Directory.Build.props
+- [x] P0.6 Create `src/Garrison.sln` with projects `Garrison.Core`, `Garrison.Harnesses`, `Garrison.Server`, `Garrison.Worker`, `Garrison.FakeHarness`, `Test.Shared`, `Test.Automated`, `Test.Xunit`, `Test.Nunit`, and `sdk/csharp/Garrison.Sdk`.  | claude 2026-10-09 src/Garrison.sln with 9 projects
+- [x] P0.7 Add package references: `Watson` 7.3.x, `Voltaic` 2.3.x, `PrettyId` 2.0.x, `SyslogLogging`, `Radiant`, `Padlock` 1.2.x, `Npgsql`, `Microsoft.Data.Sqlite`, `Touchstone.*` 0.2.x, `xunit`, `NUnit`. -> restore succeeds on net8.0 and net10.0.  | claude 2026-10-09 restore OK net8.0/net10.0
+- [x] P0.8 Add `README.md` skeleton, `CHANGELOG.md` (Keep a Changelog, `[0.1.0-alpha] - Unreleased`), `DOCKERHUB_README.md` skeleton.  | claude 2026-10-10 README.md, CHANGELOG.md (DOCKERHUB_README by docs stream)
+- [x] P0.9 Add `assets/logo.png` and `assets/icon.png` (placeholder art until replaced).  | claude 2026-10-10 assets/logo.png, icon.png, logo.svg (placeholder art)
+- [x] P0.10 Add build scripts `build-server`, `build-worker`, `build-dashboard`, `build-all` (`.sh` and `.bat`) using Docker Build Cloud multi-arch, matching Clutch.  | k8s stream 2026-10-09 build-*.sh/.bat (Docker Build Cloud, multi-arch)
+- [x] P0.11 Add `.github/workflows/tests.yaml` skeleton (restore, build, Touchstone runner) on push to every branch and on pull requests.  | k8s stream 2026-10-09 .github/workflows/tests.yaml
+- [x] P0.12 Add `.github/workflows/dashboard.yaml`, `sdk.yaml`, `k8s.yaml` skeletons.  | k8s stream 2026-10-09 dashboard/sdk/k8s/em-dash workflows
+- [x] P0.13 Add em-dash check script `scripts/check-em-dash.{sh,bat}` and wire it into CI.  | k8s stream 2026-10-09 scripts/check-em-dash.{sh,bat}
+- [x] P0.14 Initialize the NotDory memory scope for Garrison with categories `architecture`, `conventions`, `build-and-test`, `decisions`, `open-work`.  | claude 2026-10-09 NotDory scope Garrison with decisions and conventions
+
+### Phase 1: Core foundation
+
+Settings and composition
+
+- [x] P1.1.1 `Constants.cs` with ID prefixes, header names, default ports, product name.  | claude 2026-10-09 Constants.cs
+- [x] P1.1.2 `IdGenerator` (PrettyId K-sortable, 32 characters) with one method per entity prefix.  | claude 2026-10-09 generated IdGenerator
+- [x] P1.1.3 Server settings model: `ServerSettings` with `Rest`, `Mcp`, `Database`, `Logging`, `Auth`, `RequestHistory`, `Telemetry`, `Scheduling`, `Security`, `Cluster`; clamped properties with documented defaults; JSON PascalCase on disk.  | claude 2026-10-09 ServerSettings + sections
+- [x] P1.1.4 Environment overrides `GARRISON_SETTINGS_FILE`, `GARRISON_DB_TYPE`, `GARRISON_DB_HOST`, `GARRISON_DB_PORT`, `GARRISON_DB_DATABASE`, `GARRISON_DB_USERNAME`, `GARRISON_DB_PASSWORD`, `GARRISON_DB_FILENAME`, `GARRISON_AUTH_SIGNING_KEY`, `GARRISON_MASTER_KEY`, `GARRISON_ADMIN_API_KEY`, `GARRISON_ADMIN_PASSWORD`, `GARRISON_REST_PORT`, `GARRISON_MCP_PORT`, `GARRISON_PUBLIC_BASE_URL`, `GARRISON_MCP_PUBLIC_URL`, `GARRISON_REPLICA_MODE`. -> overridden fields reported as `Environment` source by the settings API.  | claude 2026-10-09 ServerSettings.ApplyEnvironment records overrides
+- [x] P1.1.5 `Bootstrapper` (settings, logging, database, seeding, services, server, graceful shutdown on SIGTERM with drain) and thin `Program.cs`.  | claude 2026-10-09 Bootstrapper + SIGTERM drain
+- [x] P1.1.6 Startup guard: refuse Sqlite when `Cluster.ExpectedReplicas > 1` or `GARRISON_REPLICA_MODE=multi`, with a clear error.  | claude 2026-10-09 ServerSettings.Validate rejects Sqlite with >1 replica
+
+Data layer
+
+- [x] P1.2.1 `DatabaseSettings`, `DatabaseTypeEnum` (`Sqlite`, `Postgresql`), `DatabaseDriverBase` exposing one `I*Methods` property per entity, `DatabaseDriverFactory` (`Create`, `CreateAndInitializeAsync`), `SchemaMigration`.  | claude 2026-10-09 driver base/factory/settings/migration
+- [x] P1.2.2 Shared ADO execution layer (connection, transaction, parameter binding, retry on transient conflict per provider) plus `ISqlDialect`, following Clutch's `Ado` pattern; provider folders `Sqlite` and `Postgresql` each with driver, `Implementations/` (provider-specific method overrides, for example claim and returning clauses), `Queries/` (dialect, schema DDL, provider SQL), `Sanitizer.cs`, `Converters.cs`.  | claude 2026-10-09 Ado layer + Sqlite/Postgresql dialects
+- [x] P1.2.3 Migration runner with `schema_migrations` tracking, idempotent, one transaction per version, logged provider and version.  | claude 2026-10-10 AdoDatabaseDriver.ApplyMigrationsAsync; DatabaseDriverBase.SchemaVersion; bootstrapper logs provider and schema version; migrate-twice asserts the version
+- [x] P1.2.4 Schema v1 DDL for identity, security, audit, and request history tables on both providers, with tenant-scoped composite unique indexes.  | claude 2026-10-09 SchemaBuilder v1 for all tables
+- [x] P1.2.5 Sqlite pragmas (WAL, busy timeout, synchronous normal) and write serialization with `SemaphoreSlim`.  | claude 2026-10-09 WAL pragmas + SemaphoreSlim writes
+- [x] P1.2.6 `reference/sql/{sqlite,postgresql}/schema.sql` generated from the schema builder for operators who manage schema themselves (`ManageSchema=false` verifies tables instead of creating them).  | claude 2026-10-10 reference/sql/{sqlite,postgresql}/schema.sql (61 tables)
+- [x] P1.2.7 `EnumerationRequest` and `EnumerationResult<T>` with ordering, `maxResults`, `skip`, continuation, and typed filters per entity.  | claude 2026-10-09 EnumerationQuery/Result
+
+Identity and security
+
+- [x] P1.3.1 Models and methods: `Tenant`, `User`, `Credential`, `AuthSession`. -> provider contract suites pass.  | claude 2026-10-09 contract suites green sqlite+postgresql
+- [x] P1.3.2 Models and methods: `Role`, `Permission` (with child tables), `RolePermissionMap`, `UserRoleAssignment`, `CredentialScopeAssignment`.  | claude 2026-10-09 RBAC entities with child tables
+- [x] P1.3.3 Cascading deletes (tenant -> everything; user -> credentials, sessions, assignments; credential -> scope assignments, sessions).  | identity stream 2026-10-09 cascading deletes tested
+- [x] P1.4.1 `PasswordHasher` (SHA-256 per requirements), `SecretGenerator` (access and secret keys), constant-time comparison helpers.  | claude 2026-10-09
+- [x] P1.4.2 `TokenService`: AES-256-CBC random IV plus HMAC-SHA256, payload per `AUTHENTICATION.md`, backed by `authsessions`.  | claude 2026-10-09 AES-CBC + HMAC encrypt-then-MAC
+- [x] P1.4.3 `SecretCipher`: AES-256-GCM with master key, nonce per value, associated data.  | claude 2026-10-09 AES-256-GCM
+- [x] P1.4.4 `RequestSigner` and verifier for AWS-style signed requests with clock-skew window and nonce replay cache.  | claude 2026-10-09 RequestSigner + NonceCache
+- [x] P1.5.1 `RequestContext` with authentication, authorization, and URL sub-contexts and request type.  | claude 2026-10-09
+- [x] P1.5.2 `AuthenticationService` hooked to `Routes.AuthenticateRequest`: bearer and `x-token` agreement, login headers on token routes only, access key and secret, signed requests, admin API key; tenant resolution and conflict rejection.  | claude 2026-10-09 all schemes incl. run tokens
+- [x] P1.5.3 Token routes: `POST/GET/DELETE /v1.0/token`, `/refresh`, `/details`.  | claude 2026-10-09 /v1.0/token routes
+- [x] P1.5.4 Authentication rate limiting on token and login routes (429).  | claude 2026-10-09 AuthRateLimiter on POST /v1.0/token
+- [x] P1.6.1 Built-in roles and permissions seeded with stable IDs and refreshed at startup (requirements roles plus Garrison roles in section 7.2).  | claude 2026-10-09 BuiltInRoles seeded with stable IDs
+- [x] P1.6.2 `OperationScopeMap`: every route and MCP tool mapped to `(ResourceType, Operation)`; unit test fails when a registered route is missing from the map.  | claude+identity 2026-10-09 RouteRegistrar records every route; completeness test
+- [x] P1.6.3 `AuthorizationService`: effective permissions resolution, explicit and implicit deny, resource scope, inheritance, credential owner ceiling, bypass order, admin endpoint hardening, version-counter cache.  | claude 2026-10-09 AuthorizationService
+- [x] P1.6.4 Effective permission inspection endpoints for users and credentials.  | identity stream 2026-10-09
+- [x] P1.7.1 Routes: tenants, users, credentials (secret shown once, last 4 after), rotate credential.  | identity stream 2026-10-09
+- [x] P1.7.2 Routes: roles, permissions, role-permission maps, user role assignments, credential scope assignments.  | identity stream 2026-10-09
+- [x] P1.8.1 First-boot seeding: `Default` tenant (protected), admin user `admin@garrison.local` with password from `GARRISON_ADMIN_PASSWORD` (default `garrison` only when running outside Kubernetes, logged as a warning), default credential with `TenantAdmin`, admin API key from settings.  | claude 2026-10-09 DefaultSeeder (admin, default + node credentials)
+- [x] P1.9.1 Audit: `AuditRecord` model and methods, persisted authorization denials, auth successes and failures, session issue and revoke, credential use and rotation, RBAC changes, bypasses, configuration changes, settings changes, restarts.  | identity stream 2026-10-09
+- [x] P1.9.2 Audit routes (tenant-scoped, list with filters, read, delete, bulk delete) and retention.  | identity stream 2026-10-09
+- [x] P1.10.1 Request history: model, child headers table, methods (`CreateAsync`, `ReadAsync`, `EnumerateAsync`, `SummarizeAsync` with server-side gap fill, `DeleteAsync`, `DeleteManyAsync`, `PruneAsync`).  | identity stream 2026-10-09
+- [x] P1.10.2 `RequestHistoryCaptureService` in `PostRouting` with bounded channel, header redaction (`authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-token`, `x-secret-key`, `x-api-key`, `x-signature`, anything containing `token`, `secret`, `api-key`), body truncation, secret-route body redaction.  | identity stream 2026-10-09
+- [x] P1.10.3 Request history routes at `/v1.0/api/request-history`; disabled mode returns empty results.  | identity stream 2026-10-09
+- [x] P1.11.1 `GarrisonTelemetry` wrapping Radiant: Prometheus listener on 9464, optional OTLP, subscriptions to `Watson`, `Garrison`, `Voltaic`, `Padlock`; best-effort (never throws into request handling).  | claude 2026-10-09 GarrisonTelemetry (Radiant)
+- [x] P1.11.2 Confirm Watson `Settings.Telemetry.Enable` and log it at startup.  | claude 2026-10-09 Watson telemetry default on, Watson sources subscribed
+- [x] P1.12.1 Settings API: `GET /v1.0/api/settings` with per-field metadata (`source`: `File`, `Environment`, `ConfigMap`, `Database`; `applyMode`: `Live` or `RestartRequired`; `editable`; secrets as set or not set).  | identity stream 2026-10-09
+- [x] P1.12.2 `PUT /v1.0/api/settings` with validation, clamping, per-field errors, secret preservation, writes file fields when the file is writable and cluster fields to `cluster_settings`, live application to running components, audit.  | identity stream 2026-10-09
+- [x] P1.12.3 `POST /v1.0/api/settings/restart` (drain, exit non-zero so Kubernetes restarts the pod) and `POST /v1.0/api/settings/database/test`.  | identity stream 2026-10-09
+- [x] P1.12.4 `cluster_settings` table and `ClusterSettingsService` with version polling so all replicas apply changes live.  | identity stream 2026-10-09
+- [x] P1.13.1 Server host: Watson `Webserver`, `UseOpenApi` (title, version, security schemes), `Preflight`, `PostRouting`, default 404 JSON, health route returning `healthy` or `degraded` with database check.  | claude 2026-10-09 GarrisonServer host, OpenAPI, CORS, health
+- [x] P1.13.2 `server-info` route: version, node ID, REST, MCP, and A2A public URLs, feature flags, database type, replica mode.  | identity stream 2026-10-09
+- [x] P1.14.1 Test suites: IDs, settings clamping and overrides, crypto (token tamper, expiry, GCM tamper), signed requests and replay.  | identity stream 2026-10-09
+- [x] P1.14.2 Test suites: provider contract for identity, RBAC, audit, request history on Sqlite; matrix configuration for the other three providers via `GARRISON_TEST_PROVIDERS`.  | claude+identity 2026-10-09 GARRISON_TEST_PROVIDERS matrix
+- [x] P1.14.3 Test suites: RBAC evaluation matrix, bypass rules, admin hardening, cross-tenant 404, cascading deletes.  | identity stream 2026-10-09
+- [x] P1.14.4 Test suites: settings API metadata, secret preservation, restart-required flags.  | identity stream 2026-10-09
+- [x] P1.15.1 `docker/test/compose.test.yaml` is not shipped (D-002); instead `scripts/test-databases.{sh,bat}` starts a Postgresql container on a non-default loopback port for the provider matrix, and CI uses GitHub Actions service containers.  | claude 2026-10-09 Postgres test container on 127.0.0.1:55432; CI service container in tests.yaml
+- [x] P1.15.2 Provider matrix green on Sqlite and Postgresql locally. -> recorded in the annotation with the command used.  | claude 2026-10-10 84/84 green on sqlite+postgresql
+
+### Phase 2: Configuration domain
+
+- [x] P2.1.1 Template engine `TemplateRenderer`: parser and evaluator for variables, filters, `if`/`else`, `each`, includes with cycle and depth limits, raw blocks; precise error positions; no reflection on arbitrary objects (render context is a typed tree of dictionaries and lists).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.1.2 Template static analysis: declared vs used variables, unknown variables, secret references forbidden outside harness environment and files.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.1.3 Render context builder (`tenant`, `agent`, `deployment`, `run`, `input`, `caller`, `resources`, `garrison`, `harness`, `now`).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.2.1 `PromptTemplate`, `PromptTemplateVersion`, `PromptTemplateVariable` models, schema, methods on both providers.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.2.2 Prompt template routes: CRUD (update creates a version), versions, version read, restore, clone, reset built-in, render preview, ad hoc render.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.2.3 Built-in templates in section 8.2, seeded and refreshed by key with stable IDs; content lives in `src/Garrison.Core/Seed/Prompts/*.md` embedded resources so they diff cleanly.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.3.1 `HarnessProfile` model with child tables (args, env, files, success codes), schema, methods.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.3.2 Harness profile routes: CRUD, clone, list built-ins.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.3.3 Built-in harness profiles in section 8.1 and Appendix A, seeded and refreshed with stable IDs.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.4.1 `McpServer` model with child tables, schema, methods, routes, `test` endpoint (Voltaic `McpHttpClient` for HTTP; stdio test runs only on a worker in Phase 12 and is reported as unsupported on the server).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.4.2 `Secret` model, schema, methods; routes with write-only values, set value, rotate; redaction everywhere; audit on read of metadata and every write.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.4.3 `WorkspaceTemplate` model with child files, schema, methods, routes.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.4.4 `ArtifactStore` model (kind `Database` in MVP), schema, methods, routes.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.5.1 `Agent` model with child tables (skills, tags, delegation allowlist), schema, methods, routes.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.5.2 Agent self-registration `POST /tenants/{t}/agents/register` (idempotent upsert by name, `AgentRegistrar` role, records last registration time and TTL for remote agents).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.5.3 A2A card generation from agent, skills, and templates (`GET .../agents/{id}/card`).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.6.1 `Deployment` model with all child tables in section 7.3, versioning, schema, methods, routes.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.6.2 Deployment validation: references exist and are visible to the tenant, prompt roles required by the profile are bound, secrets allowed by the profile's credential allowlist, run override rules valid.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.7.1 `InvocationCompiler` producing `ExecutionSpec` per section 8.6, including MCP config rendering for `ClaudeJson`, `CodexToml`, `MuxJson`, `GeminiSettings`, the automatic `garrison` MCP server with run token, secret scrub list, template version capture.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.7.2 `compile-preview` route with secrets redacted.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.7.3 Golden-file tests for every built-in profile with representative deployments (with and without MCP servers, schemas, delegation).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.8.1 Manifest model (`apiVersion`, `kind`, `metadata`, `spec`) for `HarnessProfile`, `PromptTemplate`, `McpServer`, `Secret`, `WorkspaceTemplate`, `Agent`, `Deployment`; YAML and JSON parsing (YamlDotNet).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.8.2 `ManifestService.ApplyAsync`: validate all, resolve names, dependency order, one transaction, per-document result, dry run with diff.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.8.3 Manifest export of a tenant's configuration (secrets as metadata only).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.8.4 Manifest routes and `manifest_applies` audit trail.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.9.1 Test suites: template renderer (syntax, filters, errors), static analysis, compiler goldens, manifest apply and dry run, tenant isolation on every configuration entity, built-in protection (cannot edit or delete through tenant APIs, clone works, reset restores).  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.9.2 Provider matrix green for Phase 2 schema on both providers.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.10.1 Configuration change audit records for every create, update, delete, apply.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+- [x] P2.10.2 OpenAPI metadata (summary, tag, request and response schemas) on every Phase 2 route.  | config stream 2026-10-10 155 tests green on sqlite+postgresql
+
+### Phase 3: Runtime
+
+Control plane
+
+- [x] P3.1.1 `Run`, `RunEvent`, `Node`, `NodePool`, `CoordinationLease` models, schema, methods on both providers, with indexes for the claim query (`status, harnesstype, priority, queuedutc`) and event tailing (`runid, sequence`).  | claude 2026-10-10 runtime models + claim/tail indexes
+- [x] P3.1.2 `RunService.CreateAsync`: deployment selection (explicit or weighted), run override validation, admission (quotas, depth, concurrency policy), idempotency key, persistence as `Queued`.  | claude 2026-10-10 RunService
+- [x] P3.1.3 Run routes: create, get, list with filters, cancel, retry (new run linked to the original), events poll, events SSE stream, children, delete finished runs (single and bulk).  | claude 2026-10-10 RunRoutes incl. SSE
+- [x] P3.1.4 `POST .../agents/{id}/invoke` with `wait` and `waitSeconds`; deployment `test` route.  | claude 2026-10-10 invoke + deployment test routes
+- [x] P3.2.1 Node protocol routes in section 9.2 with `NodeAgent` authorization and epoch fencing (409 `StaleLease`).  | claude 2026-10-10 NodeProtocolRoutes with epoch fencing (409 StaleLease)
+- [x] P3.2.2 Node credential bootstrap: `garrison-node-credential` Secret in Kubernetes carries an access key and secret seeded into the `Default` tenant's system scope with the `NodeAgent` role; seeding is idempotent and the bootstrap Job verifies it.  | claude 2026-10-09 node credential seeded with NodeAgent
+- [x] P3.2.3 `SchedulerService.ClaimAsync` per section 9.3 with provider-specific candidate queries and CAS claim; concurrency limits; claim metrics.  | claude 2026-10-10 SchedulerService CAS claim
+- [x] P3.2.4 Long-poll lease with a per-replica wake signal (new runs created on this replica wake local waiters immediately; other replicas pick up on their next poll tick, default 500 ms).  | claude 2026-10-10 AsyncSignal wake + LeasePollMs
+- [x] P3.2.5 Run token minting at claim and revocation at completion.  | claude 2026-10-10 run tokens minted at claim, revoked at completion
+- [x] P3.2.6 Event ingestion: batch insert, sequence uniqueness, terminal event handling, run usage accumulation.  | claude 2026-10-10 InsertBatch ON CONFLICT DO NOTHING
+- [~] P3.2.7 Completion: outcome mapping, structured output validation against the agent's output schema, one repair retry using the repair template when the harness supports resume (otherwise fail with `SchemaValidationFailed`).  | claude 2026-10-10 completion mapping done; structured output validation and repair retry pending
+- [x] P3.3.1 `ILeaseProvider` and `DatabaseLeaseProvider` (`coordination_leases`, epoch-fenced).  | claude 2026-10-10 CoordinationLease TryAcquire/Release
+- [x] P3.3.2 `LeaderElectionService` and maintenance loops in section 9.4.  | claude 2026-10-10 LeaderElectionService + MaintenanceService
+- [x] P3.3.3 Node liveness: heartbeat timeout moves nodes to `Lost`; lost-node runs handled by the reaper.  | claude 2026-10-10 lost nodes
+- [x] P3.3.4 Node admin routes: list, get, cordon, uncordon, drain, delete lost node; node pools CRUD.  | claude 2026-10-10 NodeRoutes
+- [x] P3.3.5 Queue summary route and overview route (Home KPIs).  | claude 2026-10-10 OverviewRoutes
+- [x] P3.4.1 WebSocket `/v1.0/ws` with token authentication from the first message or `Sec-WebSocket-Protocol`, subscriptions `runs`, `run:{id}`, `nodes`, backed by the event tailer and a periodic snapshot. Documented in `WEBSOCKETS_API.md`.  | claude 2026-10-10 LiveUpdatesHandler at /v1.0/ws
+
+Worker
+
+- [x] P3.5.1 Worker settings `WorkerSettings` (`ServerUrl`, `NodeName`, `AccessKey`, `SecretKey`, `Labels`, `MaxConcurrentRuns`, `WorkRoot`, `HeartbeatIntervalMs`, `LeaseWaitMs`, `EventFlushIntervalMs`, `EventBatchSize`, `EnvironmentAllowlist`, `HealthPort`, `Telemetry`), file plus `GARRISON_WORKER_*` environment overrides; `NodeName` defaults to `HOSTNAME`.  | worker stream 2026-10-10
+- [x] P3.5.2 Worker bootstrapper, health endpoints `/health/live` and `/health/ready` on Watson (port 8710), graceful shutdown with drain.  | worker stream 2026-10-10
+- [x] P3.5.3 Capability probing at startup: for each built-in harness type, run the probe command (no tokens spent), record executable path, version, and status; re-probe on an interval.  | worker stream 2026-10-10
+- [x] P3.5.4 Registration and heartbeat loops with exponential backoff and jitter.  | worker stream 2026-10-10
+- [x] P3.5.5 Lease loop respecting `MaxConcurrentRuns`, using Padlock for per-run state transitions.  | worker stream 2026-10-10
+- [x] P3.6.1 `IRunExecutor` interface and `ProcessRunExecutor`: directory layout per run (`work`, `home`, `config`), file materialization with modes, environment build from allowlist plus spec, `ArgumentList` launch, stdin write and close, stdout line reader feeding the parser, stderr tail with scrubbing, deadline and cancel with tree kill after grace.  | worker stream 2026-10-10
+- [x] P3.6.2 Workspace preparation: `Empty`, `GitRepository` (shallow clone with credential helper from the spec, never written to the workspace), `Seeded`; retention policy cleanup.  | worker stream 2026-10-10 (git path untested)
+- [x] P3.6.3 MCP pre-flight using Voltaic `McpHttpClient` (`tools/list`, required tools); failure maps to `McpPreflightFailed`.  | worker stream 2026-10-10
+- [x] P3.6.4 Event batching and flushing with ordered sequences, retry with backoff, bounded buffer during server outages.  | worker stream 2026-10-10
+- [x] P3.6.5 Completion reporting with outcome classification (cancelled, timed out, parser failure, parser success, credential heuristics from stderr mapping to `NotCredentialed`, executable missing mapping to `NotInstalled`).  | worker stream 2026-10-10
+- [x] P3.6.6 Cancellation from heartbeat responses; stale lease (409) kills the process immediately.  | worker stream 2026-10-10
+
+Harnesses
+
+- [x] P3.7.1 `IHarnessOutputParser` and `HarnessRunState` normalized model (text, thinking, tool calls, tool results, usage, cost, session ID, served model, final result, success, failure).  | worker stream 2026-10-10
+- [x] P3.7.2 `ClaudeStreamJsonParser` (system init MCP status check, stream events, assistant fallback, user tool results, final `result` with usage and cost), with recorded fixtures.  | worker stream 2026-10-10
+- [x] P3.7.3 `CodexJsonlParser` (`thread.started`, items, `turn.completed` usage, `turn.failed`, `error`), with recorded fixtures.  | worker stream 2026-10-10
+- [x] P3.7.4 `MuxJsonlParser` (contract version 2 events; final text from `--output-last-message` file or concatenated `assistant_text`), with recorded fixtures.  | worker stream 2026-10-10
+- [x] P3.7.5 `GeminiStreamJsonParser`, `GenericJsonlParser` (configurable paths), `PlainTextParser`.  | worker stream 2026-10-10
+- [x] P3.7.6 `Garrison.FakeHarness`: reads a scenario file or the prompt, emits Claude, Codex, Mux, or plain output, supports delays, failures, hangs, large output, MCP calls back to Garrison (for delegation tests).  | worker stream 2026-10-10
+- [x] P3.8.1 Record fixtures from real CLIs (`claude` 2.1.x, `codex` 0.15x, `mux` 1.2.x) into `src/Test.Shared/Fixtures/` with a `RECORDING.md` describing how they were produced.  | worker stream 2026-10-10 claude+codex recorded, mux+gemini hand-written
+
+Tests
+
+- [x] P3.9.1 Suites: claim CAS race (N parallel claimers, exactly one wins each run), concurrency limits, fencing (stale epoch rejected), lease expiry requeue and fail, node lost.  | claude 2026-10-10 RuntimeSuite claim-race/fencing/reaper
+- [x] P3.9.2 Suites: in-process server plus two workers with the fake harness: invoke and wait, SSE stream, cancel, timeout, output limit, worker kill mid-run, retry.  | claude 2026-10-10 ProtocolSuite e2e: invoke, two workers, SSE, cancel (in-process server + workers)
+- [x] P3.9.3 Suites: parsers against fixtures; outcome classification table.  | worker stream 2026-10-10 ParserSuite
+- [x] P3.9.4 Provider matrix green for Phase 3 schema on both providers.  | claude 2026-10-10 runtime suites green on both providers
+- [x] P3.10.1 Real-harness suite (skipped without credentials): Claude Code, Codex, and Mux each answer a one-line prompt through a worker.  | claude 2026-10-10 local real harnesses: Claude Code (haiku) and Codex answered OK; Mux 1.2.0 real CLI against a stub OpenAI endpoint; uses isolateHome=false clones to reuse local logins
+- [x] P3.11.1 Application metrics and spans in section 17 for server and worker.  | claude 2026-10-10 worker: Radiant in Garrison.Core (shared GarrisonTelemetry), garrison.worker.* leases, runs, run.duration, harness.tokens, harness.cost_usd, completion_reports, runs.active, slots.free; span "harness <type> exec" parented on spec.TraceParent; scraped from both workers in K3S
+- [x] P3.12.1 OpenAPI metadata on every Phase 3 route.  | claude 2026-10-10
+
+### Phase 4: Protocol ingress
+
+- [x] P4.1.1 `GarrisonMcpServer` on Voltaic `McpHttpServer` (port 8701, `/mcp`, legacy endpoints off, raised `MaxMessageSize`), `AuthenticationHandler` validating bearer tokens, access keys, and run tokens, mapping principal and tenant into claims.  | claude 2026-10-10 GarrisonMcpServer on Voltaic, own port
+- [x] P4.1.2 MCP tools in section 10.2 with `OperationScopeMap` entries; long waits bounded and returning run IDs for polling (Voltaic 100-second handshake call limit noted by Aegon).  | claude 2026-10-10 8 tools, descriptions from builtin/mcp-tool-* templates
+- [-] P4.1.3 Optional per-agent MCP tools, refreshed with `NotifyToolsChanged` when agents change.  | deferred 2026-10-10: one MCP server serves all tenants, so per-agent tools would leak agent names across tenants; revisit with per-tenant MCP paths in Phase 12
+- [x] P4.1.4 Bind address handling (`*` instead of `0.0.0.0`, startup detection of bind failure from the Voltaic log event).  | claude 2026-10-10 bind * and startup fault detection
+- [x] P4.2.1 A2A gateway routes on Watson using Voltaic A2A models and `A2AJson`: agent card per agent, catalog, JSON-RPC `message/send`, `message/stream` (SSE), `tasks/get`, `tasks/list`, `tasks/cancel`, `tasks/resubscribe`.  | claude 2026-10-10 A2ARoutes using Voltaic models
+- [x] P4.2.2 A2A task state mapping from run status; artifacts from result text and structured output.  | claude 2026-10-10 A2AMapper
+- [x] P4.3.1 Delegation: run token principal, policy checks (allowlist, depth, recursion, budget), child run creation, synchronous wait with bound, asynchronous mode.  | claude 2026-10-10 DelegationPolicy + AgentInvoker
+- [x] P4.3.2 `builtin/garrison-tools-instructions` included in system prompts when delegation is enabled.  | config stream 2026-10-10 builtin/garrison-tools-instructions included when delegation is enabled
+- [x] P4.4.1 Suites: MCP tools via Voltaic client (auth failure, list, invoke, start and poll, cancel), A2A via Voltaic `A2AClient` (card, send, stream, get, cancel), delegation (allowed, denied, depth exceeded, cycle, token revoked after completion, ceiling enforced).  | claude 2026-10-10 ProtocolSuite: MCP via Voltaic McpHttpClient, A2A via Voltaic A2AClient, delegation allow/deny/admin denial
+- [x] P4.5.1 `MCP_API.md` and `A2A_API.md` complete.  | claude 2026-10-10 docs stream; MCP_API.md and A2A_API.md with captured responses
+
+### Phase 5: Dashboard
+
+Foundation
+
+- [x] P5.1 Scaffold `dashboard/` (React 19, Vite 6, React Router 7, ESLint flat config), aliases, dev proxy to `127.0.0.1:8700`, `package.json` version mirroring the product version.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.2 `ApiClient` with every endpoint as a named method, enumeration normalization to `{items, pageNumber, pageSize, totalCount}`, normalized `ApiError`, `executeExplorer` raw path, SSE helper.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.3 i18n runtime: `src/i18n/index.js`, `localeRegistry.js` (en, de, ja, zz), `resources.js`, `formatters.js` (all required helpers), `LanguageSelector` in login, topbar, settings; `lang` and `dir` sync.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.4 `AuthContext` (server URL, token, tenant, principal, permissions from token details and effective permissions, theme), `AppContext`, `ToastContext`.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.5 Design tokens and global styles (light and dark), CJK-capable font stack, compact density.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.6 Route metadata table (path, nav group, icon, title key, summary key, required permission) driving sidebar, page header, `document.title`, and role gating.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+
+Shared components
+
+- [x] P5.7 Shell: `Sidebar` (groups, collapse, footer utilities), `Topbar` (chips, health, live indicator, GitHub, theme, language, logout), `PageHeader`.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.8 `DataTable` and `TableFrame`: above-table toolbar, pagination with jump and page sizes `[10, 25, 50, 100, 250, 500, 1000]`, refresh, sortable headers with `aria-sort`, column filters, Select Columns with pinned columns persisted per table, row click opens edit (view when not editable) with interactive-target guard, bulk selection bar, ID cells no-wrap.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.9 `ActionMenu` portaled above overflow; row actions View, Edit, Duplicate, Delete, View JSON.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.10 `Modal` (sizes, ESC, backdrop close, focus trap, scroll lock), `ConfirmModal`, `JsonViewerModal`, `CodeBlock`, `CopyButton`, `CopyableId`, `StatusBadge`, `States` (loading, empty, error with retry), `FilterBar`, `RangeTabs`, `AutoRefreshSelect`.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.11 `ActivityChart` (hand-rolled SVG, stacked success and failure, portal tooltip, hour/day/week/month presets with exact bucket counts, refresh), `RunTimeline` (event stream viewer), `KeyValueEditor`, `ArgumentListEditor`, `TemplateEditor` (monospace, variable sidebar, live preview), `DiffViewer`.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.12 Setup wizard (detects empty tenant: no agents or no secrets; walks through secrets, applying sample manifests, test invoke) and guided tour; both relaunchable from the sidebar footer.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+
+Pages (one task per route in section 14.2)
+
+- [x] P5.13 Login.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.14 Home (KPIs, run activity chart, request activity chart, nodes summary, recent failures, CTAs, external services card).  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.15 Invoke.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.16 Runs.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.17 Run detail.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.18 Agents.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.19 Agent detail.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.20 Deployments (multi-step form, compile preview, test).  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.21 Harness profiles.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.22 Prompt templates (editor, preview, versions, diff, restore, clone, reset).  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.23 MCP servers.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.24 Secrets.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.25 Workspaces.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.26 Manifests.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.27 Nodes.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.28 Queue.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.29 Request History and Request Details modal.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.30 Audit.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.31 API Explorer (OpenAPI-driven, streaming, history, snippets).  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.32 Tenants.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.33 Users.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.34 Credentials.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.35 Roles.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.36 Assignments.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.37 Settings (grouped form, sources, restart required, restart with health polling) and Server Info.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+
+Quality
+
+- [x] P5.38 Vitest unit tests: formatters with explicit locales, locale persistence, `lang`/`dir` sync, query builders, OpenAPI helpers, pseudo-locale and missing-key check.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.39 Playwright: login, navigation of every route, table pagination and filters, action menu not clipped, modals, request inspector, API Explorer execution, theme and language toggles, logout; screenshots at 1280, 768, 390 in light and dark saved under `dashboard/test-results/` (git-ignored) with a summary in the handoff.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [x] P5.40 Dashboard `Dockerfile` (node build, nginx runtime), `nginx.conf` (SPA fallback, `/health`, caching), runtime `config.js` injection of the server URL.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
+- [~] P5.41 Accessibility pass (landmarks, labels, focus, color-independent status) and the dashboard handoff note (route inventory summary, references, missing capabilities, visual QA summary).  | claude 2026-10-10 dashboard stream; a11y pass done (landmarks, labels); handoff note not written
+
+### Phase 6: SDKs
+
+- [x] P6.1 `sdk/README.md` language matrix and shared conventions.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.2 C# `Garrison.Sdk`: `GarrisonClient` with module properties, typed models, SSE reader, signed-request support, NuGet metadata (README, icon, license, snupkg).  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.3 C# `Garrison.Sdk.Test` harness.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.4 C# README.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.5 Python `garrison_sdk` (requests-based, typed dataclasses, SSE iterator), `pyproject.toml`.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.6 Python `test_harness.py`.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.7 Python README.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.8 JavaScript/TypeScript `@garrison/sdk` (TypeScript source, ESM and CJS builds, `fetch`-based, SSE async iterator, Node 18+ and browsers).  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.9 JavaScript `test-harness.mjs`.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.10 JavaScript README.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.11 Go module `github.com/jchristn/Garrison/sdk/go` (`net/http`, context everywhere, SSE reader).  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.12 Go `cmd/testharness`.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.13 Go README.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.14 `scripts/run-sdk-harnesses.{sh,bat}` starting server and worker on Sqlite with the fake harness, running all four harnesses, Go inside a `golang` container when Go is absent.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.15 All four harnesses green locally. -> annotate with command and date.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
+- [x] P6.16 `.github/workflows/sdk.yaml` running the harnesses.  | claude 2026-10-10 SDK stream; .github/workflows/sdk.yaml (not yet run on GitHub)
+- [ ] P6.17 Worker uses `Garrison.Sdk` for the node protocol (dogfooding).
+- [x] P6.18 Each SDK's version mirrors the product version.  | claude 2026-10-10 0.1.0-alpha everywhere (Python 0.1.0a0, the PEP 440 form)
+- [ ] P6.19 SDK interactive consoles (optional, Clutch pattern). **(post-M1)**
+- [ ] P6.20 Publish packages (NuGet, PyPI, npm, Go module tag). **(post-M1, requires approval)**
+
+### Phase 7: Container images and Kubernetes assets
+
+Images
+
+- [x] P7.1 `src/Garrison.Server/Dockerfile` (multi-stage, non-root, curl, labels).  | k8s stream 2026-10-09 image builds, health OK
+- [x] P7.2 `src/Garrison.Worker/Dockerfile` (multi-stage; Node.js 22; pinned Claude Code and Codex; Mux built from pinned commit; optional Gemini; fake harness; non-root; curl, git, ripgrep).  | k8s stream 2026-10-09 2.17 GB, claude/codex/mux/fake on PATH
+- [x] P7.3 `dashboard/Dockerfile` and `nginx.conf`.  | k8s stream 2026-10-09 written; image build waits on dashboard
+- [x] P7.4 Local builds of all three images succeed for the host architecture. -> annotate image sizes.  | claude 2026-10-10 server 416 MB, worker 2.17 GB, dashboard 97 MB (arm64)
+- [ ] P7.5 Build scripts publish multi-arch images to Docker Hub. **(requires approval before first push)**
+
+Kustomize
+
+- [x] P7.6 `k8s/base/kustomization.yaml`, namespace, common labels.  | k8s stream
+- [x] P7.7 Server ConfigMap (`garrison.json` with Postgresql defaults), Deployment, Service, ServiceAccount, probes per section 13.6, init container waiting for the database.  | k8s stream
+- [x] P7.8 Worker ConfigMap, StatefulSet (2 replicas, volume claim templates, `preStop` drain, termination grace), headless Service, ServiceAccount, probes.  | k8s stream
+- [x] P7.9 Dashboard Deployment, Service, probes.  | k8s stream
+- [x] P7.10 Bootstrap Job and `garrison-manifests` ConfigMap with the three MVP agents (Claude, Codex, Mux) and their deployments.  | k8s stream
+- [x] P7.11 NetworkPolicies.  | k8s stream
+- [x] P7.12 `components/postgres`.  | k8s stream
+- [x] P7.13 `components/smoke-test` (fake harness agent and a Job asserting a successful run).  | k8s stream
+- [x] P7.14 `overlays/minikube`.  | k8s stream
+- [x] P7.15 `overlays/k3s`.  | k8s stream
+- [x] P7.16 `overlays/production` (external DB, HPA, PDBs, ingress with TLS, anti-affinity).  | k8s stream
+- [x] P7.17 `secrets.example.yaml` templates (never real values) and `generate-secrets` scripts.  | k8s stream
+
+Helm
+
+- [x] P7.18 Chart skeleton (`Chart.yaml` version mirrors product version, `values.yaml`, helpers).  | k8s stream
+- [x] P7.19 Templates for server, worker pools, dashboard, bootstrap, postgres, ingress, HPA, PDB, NetworkPolicy, smoke test.  | k8s stream
+- [x] P7.20 `values-minikube.yaml`, `values-k3s.yaml`, `values-production.yaml`.  | k8s stream
+- [x] P7.21 `helm lint` and `helm template` clean (Helm run in a container when not installed).  | k8s stream helm lint clean (container)
+
+Scripts and validation
+
+- [x] P7.22 `deploy-minikube`, `deploy-k3s`, `update`, `factory-reset`, `smoke-test`, `port-forward` (`.sh` and `.bat`).  | k8s stream
+- [x] P7.23 `kubectl kustomize` renders every overlay; kubeconform validation passes.  | k8s stream kubeconform 129 resources valid
+- [x] P7.24 `.github/workflows/k8s.yaml`: render and validate on every push; K3S-in-Docker smoke test on main.  | k8s stream
+- [x] P7.25 Deploy to K3S (in Docker) locally: 1 server, 2 workers, dashboard, Postgres; smoke test passes. -> annotate with command and timings.  | claude 2026-10-10 k3s in Docker (rancher/k3s), images imported with ctr; kubectl apply -k k8s/overlays/k3s then k8s/scripts/smoke-test.sh; all pods Ready in about 2 min, smoke run 0.06 s. Fixed: overlays lacked namespace (Postgres landed in default)
+- [ ] P7.26 Deploy to minikube locally (when minikube is available): same checks.
+- [x] P7.27 Worker scale-out check: scale the StatefulSet to 4, observe registration, scale back to 2, observe drain and no lost runs.  | claude 2026-10-10 K3S: scaled to 4, all registered Ready; 12 runs spread over worker-0..3, all Succeeded; scaled to 2, worker-2/-3 drained to Offline, no lost runs
+- [ ] P7.28 Control plane scale check (post-M1, Phase 10 owns HA): scale server to 2 replicas with Postgres and confirm claims, events, and SSE work through either replica.
+- [x] P7.29 `docs/KUBERNETES.md`.  | k8s stream docs/KUBERNETES.md
+- [x] P7.30 Image tags in overlays and chart default to the product version, never `latest`.  | k8s stream v0.1.0-alpha tags
+- [x] P7.31 Resource requests and limits documented per workload.  | k8s stream
+- [x] P7.32 Ingress timeouts and buffering configured for SSE and long-poll.  | k8s stream
+- [x] P7.33 Probe settings reviewed against section 5 compliance row.  | k8s stream
+
+### Phase 8: Documentation and Postman
+
+- [x] P8.1 `README.md`: what Garrison is, use cases, architecture diagram, quick start on minikube and K3S, local development (server plus worker on Sqlite), configuration overview, harness support table, security notes (including subscription token caveat), screenshots, license. Reviewed for human voice.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.2 `DOCKERHUB_README.md` with images, use cases, architecture, getting started, explicit raw.githubusercontent URLs for images.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.3 `REST_API.md`: every endpoint with method, path, parameters, bodies, status codes, auth, examples.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.4 `MCP_API.md`: every tool with purpose, input schema, output, examples.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.5 `A2A_API.md` and `WEBSOCKETS_API.md`.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.6 `docs/ARCHITECTURE.md` (sections 6, 9, 11 expanded).  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.7 `docs/HARNESSES.md` (built-in profiles, adding a new CLI with `GenericJsonl`, credentials per harness, known harness quirks from Aegon).  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.8 `docs/PROMPTS.md` (template syntax, context reference, built-ins, versioning).  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.9 `docs/MANIFESTS.md` (every kind with examples, GitOps workflow).  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.10 `docs/CONFIGURATION.md` (server and worker settings, environment variables, cluster settings).  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.11 `docs/SECURITY.md`, `docs/SCALING.md`, `docs/TELEMETRY.md`, `docs/I18N.md`, `docs/DEVELOPMENT.md`.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.12 `CHANGELOG.md` entry for `0.1.0-alpha` (unreleased) describing the MVP.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.13 Postman collection `assets/postman/Garrison.postman_collection.json`: collection, folder, and request descriptions; variables for `baseUrl`, `mcpUrl`, `tenantId`, `accessKey`, `secretKey`, `token`, IDs; folders by resource; token capture script; no hard-coded values.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.14 Postman environment `assets/postman/Garrison.postman_environment.json` with `127.0.0.1` defaults.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.15 Run the Postman collection with Newman (in a container) against a local server. -> all requests pass.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [x] P8.16 Em-dash check passes across the repository.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
+- [ ] P8.17 Documentation examples executed as written (part of P9.14).
+
+### Phase 9: MVP verification (milestone M1)
+
+- [x] P9.1 Full build on net8.0 and net10.0 with zero warnings.  | claude 2026-10-10 strict build (docs + warnings as errors) 0 warnings on net8.0 and net10.0
+- [x] P9.2 Touchstone runner, xUnit, and NUnit green on Sqlite.  | claude 2026-10-10 Touchstone 155/155 (sqlite+postgresql); xUnit 1/1 (18 s on rerun; the earlier 13 min run was host contention from parallel streams); NUnit 103/103
+- [x] P9.3 Provider matrix green on Postgresql.  | claude 2026-10-10 Postgresql suites green in the same run
+- [x] P9.4 Dashboard lint, unit tests, build, and Playwright green.  | claude 2026-10-10 lint, 40 Vitest, build, 19 Playwright mocked; tests/live 2/2 against K3S (npm run test:live)
+- [x] P9.5 All four SDK harnesses green.  | claude 2026-10-10 C#, Python, JS/TS, Go harnesses green, 11 checks each
+- [x] P9.6 Kubernetes render, validation, and K3S smoke test green.  | claude 2026-10-10 kustomize render + kubeconform 129 resources; helm lint; K3S smoke test PASS
+- [x] P9.7 MVP topology deployed to K3S: 1 control node, 2 worker nodes (`garrison-worker-0`, `-1`), dashboard, Postgres.  | claude 2026-10-10 K3S: garrison-server x1, garrison-worker-0/-1 Ready (Claude 2.1.296, Codex 0.159.3, Mux 1.2.0 probed), dashboard, garrison-postgres-0
+- [x] P9.8 Claude Code agent answers through the cluster (requires a provided `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`).  | claude 2026-10-10 K3S, CLAUDE_CODE_OAUTH_TOKEN in garrison-harness-credentials: claude-helper answered "OK" and "42" (claude-sonnet-5-5) on garrison-worker-0
+- [x] P9.9 Codex agent answers through the cluster (requires `OPENAI_API_KEY` or a Codex `auth.json`).  | claude 2026-10-10 K3S, Codex 0.159.3 with your ChatGPT auth.json (CODEX_AUTH_JSON, secret kind CodexAuthJson): answered "42" over REST. Added CODEX_AUTH_JSON to bootstrap and CODEX_AUTH_JSON_FILE to generate-secrets; fixed bootstrap json_escape for multi-line values
+- [x] P9.10 Mux agent answers through the cluster (requires an OpenAI-compatible endpoint URL, model, and key).  | claude 2026-10-10 K3S, Mux 1.2.0 against gpt-oss:20b (Ollama adapter): answered "OK" and "42". Fixed: manifest parameter names (baseUrl, adapterType) and secret kind (OpenAiApiKey); Mux profile now FinalEventAndExitCode (exit 1 after an LLM 401 was reported as Succeeded)
+- [x] P9.11 Delegation demonstrated: Claude agent invokes the Codex agent through Garrison MCP.  | claude 2026-10-10 Claude to Codex through Garrison MCP: child run Delegated, depth 1, callChain claude-helper,codex-coder on the other worker, answer "s[::-1]" relayed. Also Claude to Mux ("Paris")
+- [x] P9.12 Same three agents invoked through REST, MCP (Voltaic client), and A2A (Voltaic client).  | claude 2026-10-10 K3S: claude-helper, codex-coder, and mux-helper each answered over REST, MCP (garrison_invoke_agent), and A2A SendMessage
+- [x] P9.13 Postman collection passes against the cluster through port-forward.  | claude 2026-10-10 Newman in Docker through port-forward to K3S: 196 requests, 218 assertions, 0 failures (Restart folder excluded)
+- [ ] P9.14 Lightweight simulated user session (README quick start followed literally, dashboard walkthrough, one SDK quick start) with findings recorded in `docs/testing/M1_SESSION.md` and surfaced to the user before fixes.
+- [ ] P9.15 CI workflows green on GitHub. **(requires push approval)**
+- [ ] P9.16 M1 sign-off: update the Progress Dashboard, `CHANGELOG.md`, and the decision log; record known gaps.
+
+### Known gaps at M1 (recorded 2026-10-10)
+
+Found during M1 integration and not yet fixed. Each is actionable; annotate like any task.
+
+- [ ] G-1 MCP sessions live in one server replica's memory; with more than one replica an unknown session ID returns 404. Add a shared session store or document `sessionAffinity: ClientIP` on the MCP Service (production overlay and Helm).
+- [ ] G-2 Passwords are unsalted SHA-256. Move to a salted, slow hash (PBKDF2 or Argon2id) with transparent upgrade on login.
+- [ ] G-3 MCP tool descriptions resolve only `builtin/` template names, so tenants cannot override them. Allow a tenant template to shadow a built-in by name.
+- [ ] G-4 `A2ARoutes` and `AgentCardService` render agent cards differently (template rendering, security scheme key `garrison` vs `bearer`). Use one renderer.
+- [ ] G-5 Unused surface: `exposeMcpTool`, `builtin/mcp-tool-description`, `builtin/structured-output-repair` (see P3.2.7), and the `Rejected` run status are never used.
+- [ ] G-6 Per-replica state: the signed-request nonce cache and token rate limiter are per replica, and per-deployment `maxConcurrentRuns` can be exceeded slightly under concurrent claims on several replicas.
+- [ ] G-7 DELETE returns 204 for identity and runtime resources and 200 with a body for configuration resources. Pick one.
+- [ ] G-8 SyslogLogging: add an opt-in to skip the console probe (D-026), then switch Garrison to it.
+- [x] G-9 Codex agent not yet verified in the cluster (P9.9); needs `OPENAI_API_KEY` or a Codex `auth.json`.  | claude 2026-10-10 done, see P9.9
+- [ ] G-10 Codex runs report no served model (`servedModel` is null); the Codex parser should take it from the session or turn events when present.
+
+### Phase 10: Control plane high availability and scale-out (M2)
+
+- [ ] P10.1 Multi-replica correctness review: no in-memory state that must be shared (rate limiter, nonce cache, permission cache, SSE waiters); move shared pieces to the database or make them per-replica-safe.
+- [ ] P10.2 Signed-request nonce cache shared through the database with TTL.
+- [ ] P10.3 Authentication rate limiting shared or documented as per-replica with adjusted limits.
+- [ ] P10.4 `IEventBackplane` with `PollingBackplane` (default) and `PostgresNotifyBackplane` (LISTEN/NOTIFY) for run events, new-run wakeups, and cache invalidation.
+- [ ] P10.5 Lease long-poll wakeups across replicas through the backplane.
+- [ ] P10.6 HPA on CPU plus custom metric (`garrison_runs_active` or request rate) through Prometheus Adapter (documented, optional).
+- [ ] P10.7 PDBs, anti-affinity, topology spread for server and workers.
+- [ ] P10.8 Rolling upgrade test: upgrade server while runs are in flight, zero failed runs.
+- [ ] P10.9 Migration safety: migrations run once under a coordination lease before the server reports ready; other replicas wait.
+- [ ] P10.10 Database connection pool sizing guidance and settings.
+- [ ] P10.11 Read path optimization: covering indexes, run list projections, event pagination.
+- [ ] P10.12 Run and event retention and archival.
+- [ ] P10.13 Load test: 3 server replicas, 10 workers with the fake harness, 1000 concurrent runs; record claim latency and throughput.
+- [ ] P10.14 Chaos test: kill server and worker pods at random during load; zero stuck runs.
+- [ ] P10.15 Multiple worker pools (StatefulSets) with distinct labels and harness sets in Helm and Kustomize.
+- [ ] P10.16 Node pools dedicated to tenants enforced at claim.
+- [ ] P10.17 Backup and restore guidance per database provider.
+- [ ] P10.18 `docs/SCALING.md` updated with measured numbers.
+
+### Phase 11: Pod-per-run isolation executor (M2)
+
+- [ ] P11.1 `KubernetesJobRunExecutor` implementing `IRunExecutor`: creates a Job per run from a pod template (image, resources, security context, service account, node selector), mounts the spec through a Secret, streams logs, reports through the worker.
+- [ ] P11.2 Runner entrypoint inside the job pod (`garrison-worker run-one`) reusing the process executor.
+- [ ] P11.3 Worker Role and RoleBinding for Jobs, Secrets, and Pods (logs) in its namespace only.
+- [ ] P11.4 Run namespace option and NetworkPolicy for run pods (egress allowlist).
+- [ ] P11.5 Resource limits per deployment (CPU, memory, ephemeral storage).
+- [ ] P11.6 `PersistentVolume` workspace kind.
+- [ ] P11.7 Cleanup of finished Jobs and Secrets (TTL after finished).
+- [ ] P11.8 Executor selection per deployment (`Process` or `KubernetesJob`) and per node pool.
+- [ ] P11.9 Tests on K3S: isolation, cancellation, timeout, node loss.
+- [ ] P11.10 gVisor or Kata runtime class option documented.
+- [ ] P11.11 Security context hardening (read-only root, dropped capabilities, seccomp).
+- [ ] P11.12 Image pull secrets and private registries.
+- [ ] P11.13 `docs/SECURITY.md` isolation section updated.
+
+### Phase 12: Advanced orchestration (M3)
+
+- [ ] P12.1 Conversations: `Conversation` entity, A2A `contextId`, harness session resume (`--resume`, `codex exec resume`, Mux `--resume`), node affinity for workspace locality, fallback when the affinity node is lost.
+- [ ] P12.2 Workspace snapshots to an artifact store for cross-node resume.
+- [ ] P12.3 Permission approvals: Claude `--permission-prompt-tool` through Garrison MCP, `Approval` entity, dashboard approvals inbox, rules (allow, deny, ask) per deployment, timeouts (Armada pattern).
+- [ ] P12.4 Remote agents: invoke self-registered A2A agents and MCP tools from a worker executor (`RemoteA2A`, `RemoteMcp`), health checks and TTL expiry for registrations.
+- [ ] P12.5 Triggers: scheduled runs (cron), webhook triggers with signed payloads.
+- [ ] P12.6 Budgets and quotas: per tenant, agent, and deployment limits on runs, concurrency, tokens, and cost; enforcement at admission and through `--max-budget-usd` where supported.
+- [ ] P12.7 Cost estimation from a model price table when the harness does not report cost.
+- [ ] P12.8 Artifact stores: `Filesystem` and `S3` (Less3, Hydra, AWS) with signed download URLs; dashboard artifact browser.
+- [ ] P12.9 Pipelines: ordered multi-agent stages with optional human review gates (Armada pipelines).
+- [ ] P12.10 Management MCP tools (agents, deployments, manifests) for agent-driven configuration.
+- [ ] P12.11 Clutch `ILeaseProvider` implementation using `Clutch.Sdk`.
+- [ ] P12.12 Stdio MCP servers tested from workers.
+- [ ] P12.13 Provider API execution mode (PolyPrompt), Aegon's `ProviderApiHarness` pattern. (Evaluate before committing.)
+- [ ] P12.14 Notifications (webhooks) on run completion and failure.
+- [ ] P12.15 Dashboard pages for each feature above.
+- [ ] P12.16 SDK coverage for each feature above.
+- [ ] P12.17 Postman and API docs for each feature above.
+- [ ] P12.18 Tests for each feature above.
+- [ ] P12.19 Memory integration (NotDory MCP server binding example) documented.
+- [ ] P12.20 Conductor integration example (Mux endpoint pointing at a Conductor virtual model runner).
+- [ ] P12.21 Agent marketplace export and import (manifests bundles).
+- [ ] P12.22 Structured input forms in Invoke generated from agent input schemas.
+- [ ] P12.23 Run comparison view (same prompt across deployments).
+- [ ] P12.24 Traffic splitting experiments with outcome metrics per deployment.
+- [ ] P12.25 Secret providers: Kubernetes Secret references and external vaults.
+- [ ] P12.26 OIDC login for the dashboard with explicit user mapping (separate design document required by `AUTHENTICATION.md`).
+- [ ] P12.27 Run transcripts export (Markdown, JSON).
+- [ ] P12.28 Prompt template A/B evaluation hooks.
+
+### Phase 13: Observability stack and dashboards (M2)
+
+- [ ] P13.1 `components/observability`: Prometheus, Grafana, Tempo, Loki, OpenTelemetry Collector with pinned versions and probes.
+- [ ] P13.2 Prometheus scrape configuration for server and worker pods (annotations or ServiceMonitor option).
+- [ ] P13.3 Grafana provisioning (datasources with stable UIDs, dashboards provider into folder `Garrison`).
+- [ ] P13.4 Dashboard: Overview.
+- [ ] P13.5 Dashboard: HTTP.
+- [ ] P13.6 Dashboard: Runs and Scheduling.
+- [ ] P13.7 Dashboard: Workers and Harnesses.
+- [ ] P13.8 Dashboard: Protocols (MCP, A2A, delegation).
+- [ ] P13.9 Dashboard: Integrations (model APIs as seen by harness usage, database).
+- [ ] P13.10 Loki log shipping from server and worker (structured logs with trace IDs).
+- [ ] P13.11 Helm values for observability.
+- [ ] P13.12 External services card fed by server settings (URLs and default credentials per deployment).
+
+### Phase 14: Benchmarking (M3)
+
+- [ ] P14.1 `BENCHMARKING.md` with hypotheses (claim throughput, end-to-end overhead per run versus direct harness invocation, event latency, scale-out linearity).
+- [ ] P14.2 `src/Test.Benchmark` (assembly `Garrison.Benchmark`, no product references, typed client, `IsTestProject=false`).
+- [ ] P14.3 `benchmarks/` layout and `.gitignore`.
+- [ ] P14.4 Isolated stack: K3S in Docker with non-default ports, pinned images.
+- [ ] P14.5 Commands: `validate`, `ingest` (manifest apply at scale), `routing` (scheduling correctness), `e2e`, `load`, `resilience`, `compare`, `history`, `stub`.
+- [ ] P14.6 Fake harness as the stub; a direct-invocation reference arm as the floor.
+- [ ] P14.7 Datasets: synthetic workloads, frozen live snapshot.
+- [ ] P14.8 Reports with provenance (commit, dirtiness, image digests, dataset hash).
+- [ ] P14.9 Confidence intervals and significance-gated compare.
+- [ ] P14.10 `ci-gate` with committed baselines in CI.
+- [ ] P14.11 `RESULTS.md` round 0 with defects found.
+- [ ] P14.12 `IMPROVEMENTS.md`.
+- [ ] P14.13 Scripts in `.sh` and `.bat` pairs.
+- [ ] P14.14 Definition of Done checklist in `BENCHMARKING.md` satisfied.
+
+### Phase 15: Hardening, simulated user testing, and 1.0 release (M4)
+
+- [ ] P15.1 Security review: threat model, secrets handling, token handling, SSRF on MCP test and remote agents, path traversal in file materialization, command injection review of argument templates.
+- [ ] P15.2 Master key rotation with key versions.
+- [ ] P15.3 Credential and run token expiry policies.
+- [ ] P15.4 Dependency and image vulnerability scanning in CI.
+- [ ] P15.5 Signed images and SBOMs.
+- [ ] P15.6 Upgrade path tests from every 0.x release.
+- [ ] P15.7 Full simulated user testing session per `SIMULATED_USER_TESTING.md` with report under `docs/testing/`.
+- [ ] P15.8 Findings reviewed with the user; approved fixes verified on a fresh instance.
+- [ ] P15.9 Documentation completeness review.
+- [ ] P15.10 Performance targets met (from Phase 14 results).
+- [ ] P15.11 Accessibility audit.
+- [ ] P15.12 Localization review by native speakers for `de` and `ja`.
+- [ ] P15.13 API stability review and OpenAPI freeze for 1.0.
+- [ ] P15.14 SDK stability review.
+- [ ] P15.15 Helm chart published to a chart repository.
+- [ ] P15.16 Release automation (tags, images, packages, changelog).
+- [ ] P15.17 Support policy and versioning documentation.
+- [ ] P15.18 License and third-party notices.
+- [ ] P15.19 1.0 version change. **(requires explicit user approval per `VERSIONING.md`)**
+- [ ] P15.20 Launch materials (README refresh, screenshots, Docker Hub page).
+
+---
+
+## 19. Risks and Open Questions
+
+| ID | Risk or question | Impact | Mitigation or owner |
+|---|---|---|---|
+| R-001 | Harness CLIs change flags and output formats between versions. | Broken runs after an image rebuild. | Pinned versions in the worker image, recorded fixtures, parser contract tests, `GenericJsonl` escape hatch, harness profiles editable without a release. |
+| R-002 | Subscription tokens (`CLAUDE_CODE_OAUTH_TOKEN`, Codex `auth.json`) on a shared multi-user server may violate provider terms. | Legal and account risk for operators. | Supported per D-003 with a prominent documentation caveat; API keys recommended for shared deployments. |
+| R-003 | Subprocess isolation shares the worker pod's kernel, network, and service account. | Untrusted prompts could affect other runs on the same worker. | Separate home and workspace per run, empty environment, no service account permissions in MVP; Phase 11 pod-per-run. |
+| R-004 | Voltaic MCP on a second port complicates ingress and TLS. | Operational friction. | Ingress path routing for `/mcp`; documented; upstream request to Voltaic for an embeddable dispatcher (open question Q-001). |
+| R-005 | Database becomes the bottleneck at high run and event volume. | Throughput ceiling. | Batched events, indexes, retention, backplane, benchmarks in Phase 14 before claiming numbers. |
+| R-006 | Mux needs a model endpoint the cluster can reach. | Mux agent cannot run in MVP without one. | Deployment parameters for endpoint URL, model, and key; documented examples for OpenAI, Ollama in-cluster, and Conductor. |
+| R-007 | Real-harness verification needs credentials the build agent should not copy into a cluster unasked. | MVP checks P9.8 to P9.10 need the user. | Fake harness covers plumbing; real-harness checks run locally with the user's existing logins or with keys the user provides. |
+| Q-001 | Should Voltaic gain a public request dispatcher so MCP can share Watson's port? | Simplifies networking. | User decision; out of scope for Garrison M1. |
+| Q-002 | Should node credentials be per-node (issued at registration with a join token) instead of one shared node credential? | Better revocation granularity. | Recommended for Phase 10: join token exchanged for a per-node credential. |
+| Q-003 | Which model endpoint should the sample Mux agent default to? | Out-of-the-box experience. | Default to an OpenAI-compatible endpoint configured by `generate-secrets`; user to confirm. |
+| R-008 | `AUTHENTICATION.md` specifies unsalted SHA-256 password hashes; Armada already moved to PBKDF2-SHA256. | Weaker offline resistance if the database leaks. | MVP follows the requirement; Q-004 asks whether to adopt salted PBKDF2-SHA256 with a hash-version column (proposed for Phase 15). |
+| Q-004 | Adopt salted PBKDF2-SHA256 for passwords despite the SHA-256 wording in `AUTHENTICATION.md`? | Security posture. | User decision. |
+
+---
+
+## 20. Appendices
+
+### Appendix A: Built-in harness profile argument templates
+
+Conditions are shown in brackets. All profiles deliver the task prompt on stdin unless noted.
+
+**`builtin/claude-code`**
+
+```
+claude
+-p
+--output-format stream-json
+--verbose
+--setting-sources ""                                   (keeps login, drops hooks and CLAUDE.md)
+--disable-slash-commands
+--permission-mode {{deployment.parameters.permissionMode | default: "dontAsk"}}
+--system-prompt-file {{run.configDir}}/system-prompt.md
+[deployment.model]          --model {{deployment.model}}
+[deployment.fallbackModel]  --fallback-model {{deployment.fallbackModel}}
+[deployment.effort]         --effort {{deployment.effort}}
+--max-turns {{deployment.maxTurns | default: 20}}
+[deployment.maxBudgetUsd]   --max-budget-usd {{deployment.maxBudgetUsd}}
+[resources.mcpServers]      --mcp-config {{run.configDir}}/mcp.json --strict-mcp-config
+[deployment.parameters.allowedTools] --allowedTools {{deployment.parameters.allowedTools}}
+[agent.outputSchema]        --json-schema {{agent.outputSchema | json}}
+Environment: CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY from bound secret, DISABLE_AUTOUPDATER=1,
+             CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1, MCP_TOOL_TIMEOUT, HOME={{run.homeDir}}
+Files: system-prompt.md (System template), mcp.json (builtin/claude-code-mcp-config)
+Parser: ClaudeStreamJson. Probe: claude --version
+```
+
+**`builtin/codex`**
+
+```
+codex exec
+--json
+--skip-git-repo-check
+--ignore-user-config
+-s {{deployment.parameters.sandbox | default: "workspace-write"}}
+-C {{run.workspaceDir}}
+[deployment.model]   -m {{deployment.model}}
+-c project_doc_max_bytes=0
+[deployment.effort]  -c model_reasoning_effort="{{deployment.effort}}"
+-c model_instructions_file="{{run.configDir}}/system-prompt.md"
+[each mcp server]    -c mcp_servers.{{name}}.url="{{url}}" -c mcp_servers.{{name}}.http_headers={...}
+                     -c mcp_servers.{{name}}.required=true
+[agent.outputSchema] --output-schema {{run.configDir}}/output-schema.json
+-                                                       (read prompt from stdin)
+Environment: CODEX_API_KEY or OPENAI_API_KEY from bound secret, or CODEX_HOME={{run.homeDir}}/.codex with
+             auth.json materialized from a CodexAuthJson secret
+Parser: CodexJsonl. Probe: codex --version
+```
+
+**`builtin/mux`**
+
+```
+mux
+--print
+--config-dir {{run.configDir}}/mux
+-e garrison
+--output-format jsonl
+--yolo                                                  (or --approval-policy from parameters)
+--sandbox {{deployment.parameters.sandbox | default: "workspace-write"}}
+-w {{run.workspaceDir}}
+[deployment.model]   -m {{deployment.model}}
+--max-turns {{deployment.maxTurns | default: 20}}
+--system-prompt {{run.configDir}}/system-prompt.md
+[resources.mcpServers] --mcp-config {{run.configDir}}/mux-mcp.json --strict-mcp-config
+--output-last-message {{run.configDir}}/last-message.txt
+--no-session-persistence
+Files: mux/endpoints.json (builtin/mux-endpoints: adapterType, baseUrl, model from deployment parameters,
+       apiKey "${GARRISON_MUX_API_KEY}"), mux/settings.json (builtin/mux-settings), mux/subagents.json
+Environment: GARRISON_MUX_API_KEY from bound secret, MUX_TELEMETRY_ENABLED=false, MCP bearer tokens as
+             GARRISON_MCP_TOKEN_<n> referenced from mux-mcp.json
+Parser: MuxJsonl, ResultSource: LastMessageFile. Probe: mux --version
+```
+
+**`builtin/gemini-cli`**
+
+```
+gemini -p " " -o stream-json --skip-trust --approval-mode yolo [-m {{deployment.model}}]
+[resources.mcpServers] --allowed-mcp-server-names {{names}}
+Environment: GEMINI_CLI_HOME={{run.configDir}}/gemini-home, GEMINI_SYSTEM_MD={{run.configDir}}/system-prompt.md,
+             GEMINI_API_KEY from bound secret
+Files: gemini-home/.gemini/settings.json (builtin/gemini-settings)
+Parser: GeminiStreamJson. Probe: gemini --version
+```
+
+### Appendix B: Default ports
+
+| Port | Component | Purpose |
+|---|---|---|
+| 8700 | Server | REST, A2A, WebSocket, SSE, OpenAPI |
+| 8701 | Server | MCP (Voltaic) |
+| 9464 | Server | Prometheus metrics |
+| 8710 | Worker | Health |
+| 9465 | Worker | Prometheus metrics |
+| 80 | Dashboard | nginx (container) |
+| 30870, 30871, 30880 | minikube NodePorts | Server, MCP, dashboard |
+
+### Appendix C: Example server settings (`garrison.json`)
+
+```json
+{
+  "CreatedUtc": "2026-10-09T00:00:00.000Z",
+  "NodeId": null,
+  "Rest": { "Hostname": "*", "Port": 8700, "Ssl": false, "PublicBaseUrl": null },
+  "Mcp": { "Enable": true, "Hostname": "*", "Port": 8701, "Path": "/mcp", "PublicUrl": null, "MaxMessageSize": 16777216 },
+  "Database": { "Type": "Sqlite", "Filename": "data/garrison.db", "Host": null, "Port": 0, "DatabaseName": "garrison",
+                "Username": null, "Password": null, "ManageSchema": true, "MaxPoolSize": 100 },
+  "Logging": { "ConsoleLogging": true, "FileLogging": false, "LogDirectory": "logs", "LogFilename": "garrison.log", "MinimumSeverity": 1 },
+  "Auth": { "Issuer": "garrison", "SigningKey": "override-via-env", "TokenLifetimeMinutes": 60, "AdminApiKey": "override-via-env" },
+  "Security": { "MasterKey": "override-via-env", "SignedRequestSkewSeconds": 300, "AuthRateLimitPerMinute": 30 },
+  "RequestHistory": { "Enabled": true, "MaxRequestBodyBytes": 65536, "MaxResponseBodyBytes": 65536, "RetentionDays": 30 },
+  "Telemetry": { "Enabled": true, "ServiceName": "garrison-server", "PrometheusEnable": true, "PrometheusPort": 9464, "OtlpEnable": false, "OtlpEndpoint": "http://127.0.0.1:4317" },
+  "Cluster": { "ExpectedReplicas": 1 }
+}
+```
+
+Cluster runtime settings (database-backed, D-014) include `Scheduling.LeaseDurationMs` (default 30000), `Scheduling.LeaseWaitMs` (20000), `Scheduling.NodeHeartbeatTimeoutMs` (20000), `Scheduling.EventPollMs` (250), `Runs.DefaultTimeoutSeconds` (1800), `Runs.MaxDelegationDepth` (3), `Runs.RetentionDays` (30), `Runs.EventRetentionDays` (14), `Audit.RetentionDays` (365), and feature flags.
+
+### Appendix D: Example worker settings (`garrison-worker.json`)
+
+```json
+{
+  "ServerUrl": "http://garrison-server:8700",
+  "NodeName": null,
+  "AccessKey": "override-via-env",
+  "SecretKey": "override-via-env",
+  "Labels": { "garrison.io/pool": "default" },
+  "MaxConcurrentRuns": 4,
+  "WorkRoot": "/workspaces",
+  "HealthPort": 8710,
+  "HeartbeatIntervalMs": 5000,
+  "LeaseWaitMs": 20000,
+  "EventFlushIntervalMs": 250,
+  "EventBatchSize": 100,
+  "EnvironmentAllowlist": [ "PATH", "LANG", "TZ", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY" ],
+  "Telemetry": { "Enabled": true, "ServiceName": "garrison-worker", "PrometheusEnable": true, "PrometheusPort": 9465 }
+}
+```

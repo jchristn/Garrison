@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: garrison
+
+# K3S: in-cluster Postgres on the default local-path storage class and a Traefik Ingress for garrison.local.
+# Works with K3S on a host or with rancher/k3s running in Docker (see docs/KUBERNETES.md).
+resources:
+  - ../../base
+  - ingress.yaml
+
+components:
+  - ../../components/postgres

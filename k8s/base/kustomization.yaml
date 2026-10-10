@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Garrison base: one control-plane replica (Command), two worker nodes (Posts), the dashboard,
+# a bootstrap Job that applies sample manifests, network policies, and service accounts.
+# Secrets are not part of the base: create them with k8s/scripts/generate-secrets.sh.
+# Database: the base expects a Postgres service named garrison-postgres (components/postgres)
+# or overrides from an overlay (overlays/production uses an external database).
+
+namespace: garrison
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: garrison
+    includeSelectors: false
+
+resources:
+  - namespace.yaml
+  - serviceaccounts.yaml
+  - server-deployment.yaml
+  - server-service.yaml
+  - worker-statefulset.yaml
+  - worker-service.yaml
+  - dashboard-deployment.yaml
+  - dashboard-service.yaml
+  - bootstrap-job.yaml
+  - networkpolicies.yaml
+
+configMapGenerator:
+  - name: garrison-server-settings
+    files:
+      - garrison.json=config/garrison.json
+  - name: garrison-worker-settings
+    files:
+      - garrison-worker.json=config/garrison-worker.json
+  - name: garrison-manifests
+    files:
+      - agents.yaml=manifests/agents.yaml
+      - deployment-claude.yaml=manifests/deployment-claude.yaml
+      - deployment-codex.yaml=manifests/deployment-codex.yaml
+      - deployment-mux.yaml=manifests/deployment-mux.yaml
+  - name: garrison-bootstrap-scripts
+    files:
+      - bootstrap.sh=scripts/bootstrap.sh
+
+images:
+  - name: jchristn77/garrison-server
+    newTag: v0.1.0-alpha
+  - name: jchristn77/garrison-worker
+    newTag: v0.1.0-alpha
+  - name: jchristn77/garrison-dashboard
+    newTag: v0.1.0-alpha

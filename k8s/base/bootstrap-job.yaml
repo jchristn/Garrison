@@ -1,0 +1,59 @@
+# Applies the sample manifests and creates Garrison secrets from garrison-harness-credentials.
+# Re-run after changing credentials: kubectl -n garrison delete job garrison-bootstrap && kubectl apply -k <overlay>
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: garrison-bootstrap
+  labels:
+    app.kubernetes.io/name: garrison-bootstrap
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: bootstrap
+          image: curlimages/curl:8.10.1
+          command: ["sh", "/scripts/bootstrap.sh"]
+          env:
+            - name: GARRISON_API_URL
+              value: http://garrison-server:8700
+            - name: GARRISON_TENANT_ID
+              value: ten_default
+            - name: GARRISON_MANIFEST_DIR
+              value: /manifests
+            - name: GARRISON_ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-secrets
+                  key: admin-api-key
+          envFrom:
+            - secretRef:
+                name: garrison-harness-credentials
+                optional: true
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: manifests
+              mountPath: /manifests
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: scripts
+          configMap:
+            name: garrison-bootstrap-scripts
+        - name: manifests
+          configMap:
+            name: garrison-manifests

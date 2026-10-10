@@ -1,0 +1,167 @@
+namespace Garrison.Server
+{
+    using System;
+    using System.Collections.Concurrent;
+    using Garrison.Core.Database;
+    using Garrison.Core.Security;
+    using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
+    using Garrison.Server.Routes;
+    using Garrison.Server.Services;
+    using Garrison.Server.Settings;
+    using SyslogLogging;
+
+    /// <summary>
+    /// Shared dependencies for server modules, plus a typed registry modules use to publish services to each other.
+    /// Thread-safe.
+    /// </summary>
+    public class ServerContext
+    {
+        #region Public-Members
+
+        /// <summary>
+        /// Settings.
+        /// </summary>
+        public ServerSettings Settings { get; }
+
+        /// <summary>
+        /// Logging.
+        /// </summary>
+        public LoggingModule Logging { get; }
+
+        /// <summary>
+        /// Database.
+        /// </summary>
+        public DatabaseDriverBase Database { get; }
+
+        /// <summary>
+        /// Secret cipher.
+        /// </summary>
+        public SecretCipher Cipher { get; }
+
+        /// <summary>
+        /// Token service.
+        /// </summary>
+        public TokenService Tokens { get; }
+
+        /// <summary>
+        /// Audit service.
+        /// </summary>
+        public AuditService Audit { get; }
+
+        /// <summary>
+        /// Authentication service.
+        /// </summary>
+        public AuthenticationService Authentication { get; }
+
+        /// <summary>
+        /// Authorization service.
+        /// </summary>
+        public AuthorizationService Authorization { get; }
+
+        /// <summary>
+        /// Telemetry.
+        /// </summary>
+        public GarrisonTelemetry Telemetry { get; }
+
+        /// <summary>
+        /// Operation scope map.
+        /// </summary>
+        public OperationScopeMap Scopes { get; }
+
+        /// <summary>
+        /// Default tenant identifier seeded on first boot.
+        /// </summary>
+        public string DefaultTenantId { get; set; } = "ten_default";
+
+        /// <summary>
+        /// Node identifier of this control-plane replica.
+        /// </summary>
+        public string NodeId
+        {
+            get
+            {
+                return Settings.EffectiveNodeId;
+            }
+        }
+
+        #endregion
+
+        #region Private-Members
+
+        private readonly ConcurrentDictionary<Type, object> _Services = new ConcurrentDictionary<Type, object>();
+
+        #endregion
+
+        #region Constructors-and-Factories
+
+        /// <summary>
+        /// Instantiate.
+        /// </summary>
+        /// <param name="settings">Settings.</param>
+        /// <param name="logging">Logging.</param>
+        /// <param name="database">Database.</param>
+        /// <param name="cipher">Secret cipher.</param>
+        /// <param name="tokens">Token service.</param>
+        /// <param name="audit">Audit service.</param>
+        /// <param name="authentication">Authentication service.</param>
+        /// <param name="authorization">Authorization service.</param>
+        /// <param name="telemetry">Telemetry.</param>
+        /// <param name="scopes">Operation scope map.</param>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        public ServerContext(ServerSettings settings, LoggingModule logging, DatabaseDriverBase database, SecretCipher cipher, TokenService tokens, AuditService audit, AuthenticationService authentication, AuthorizationService authorization, GarrisonTelemetry telemetry, OperationScopeMap scopes)
+        {
+            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            Logging = logging ?? throw new ArgumentNullException(nameof(logging));
+            Database = database ?? throw new ArgumentNullException(nameof(database));
+            Cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
+            Tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
+            Audit = audit ?? throw new ArgumentNullException(nameof(audit));
+            Authentication = authentication ?? throw new ArgumentNullException(nameof(authentication));
+            Authorization = authorization ?? throw new ArgumentNullException(nameof(authorization));
+            Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            Scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
+        }
+
+        #endregion
+
+        #region Public-Methods
+
+        /// <summary>
+        /// Publish a service for other modules.
+        /// </summary>
+        /// <typeparam name="T">Service type.</typeparam>
+        /// <param name="service">Service.</param>
+        /// <exception cref="ArgumentNullException">Thrown when service is null.</exception>
+        public void Register<T>(T service) where T : class
+        {
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            _Services[typeof(T)] = service;
+        }
+
+        /// <summary>
+        /// Resolve a published service.
+        /// </summary>
+        /// <typeparam name="T">Service type.</typeparam>
+        /// <returns>Service.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when no module published the service.</exception>
+        public T Get<T>() where T : class
+        {
+            if (_Services.TryGetValue(typeof(T), out object? service)) return (T)service;
+            throw new InvalidOperationException("Service " + typeof(T).Name + " has not been registered by any module.");
+        }
+
+        /// <summary>
+        /// Resolve a published service if present.
+        /// </summary>
+        /// <typeparam name="T">Service type.</typeparam>
+        /// <returns>Service or null.</returns>
+        public T? TryGet<T>() where T : class
+        {
+            if (_Services.TryGetValue(typeof(T), out object? service)) return (T)service;
+            return null;
+        }
+
+        #endregion
+    }
+}

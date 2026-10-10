@@ -1,0 +1,58 @@
+name: Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [net8.0, net10.0]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: garrison
+          POSTGRES_DB: garrison
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      GARRISON_TEST_PROVIDERS: sqlite,postgresql
+      GARRISON_TEST_PG_HOST: 127.0.0.1
+      GARRISON_TEST_PG_PORT: "55432"
+      GARRISON_TEST_PG_DATABASE: garrison
+      GARRISON_TEST_PG_USERNAME: postgres
+      GARRISON_TEST_PG_PASSWORD: garrison
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Restore
+        run: dotnet restore src/Garrison.sln
+      - name: Build
+        run: dotnet build src/Garrison.sln --no-restore -f ${{ matrix.framework }}
+      - name: Touchstone suites
+        run: dotnet run --project src/Test.Automated -f ${{ matrix.framework }} --no-build -- --results results-${{ matrix.framework }}.json
+      - name: xUnit
+        run: dotnet test src/Test.Xunit -f ${{ matrix.framework }} --no-build
+      - name: NUnit
+        run: dotnet test src/Test.Nunit -f ${{ matrix.framework }} --no-build
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.framework }}
+          path: results-${{ matrix.framework }}.json

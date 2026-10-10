@@ -1,0 +1,177 @@
+{
+  "name": "builtin/claude-code",
+  "description": "Claude Code in headless print mode with stream-json output. Prompt on stdin, system prompt from a file, MCP servers from a strict --mcp-config file.",
+  "harnessType": "ClaudeCode",
+  "executable": "claude",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "File",
+  "systemPromptTarget": "system-prompt.md",
+  "mcpConfigFormat": "ClaudeJson",
+  "mcpConfigFileName": "mcp.json",
+  "outputParser": "ClaudeStreamJson",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEvent",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "supportsResume": true,
+  "arguments": [
+    {
+      "template": "-p"
+    },
+    {
+      "template": "--output-format"
+    },
+    {
+      "template": "stream-json"
+    },
+    {
+      "template": "--verbose"
+    },
+    {
+      "template": "--setting-sources"
+    },
+    {
+      "template": ""
+    },
+    {
+      "template": "--disable-slash-commands"
+    },
+    {
+      "template": "--permission-mode"
+    },
+    {
+      "template": "{{deployment.parameters.permissionMode | default: \"acceptEdits\"}}"
+    },
+    {
+      "template": "--system-prompt-file",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/system-prompt.md",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "--model",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "{{deployment.model}}",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "--fallback-model",
+      "condition": "{{deployment.fallbackModel}}"
+    },
+    {
+      "template": "{{deployment.fallbackModel}}",
+      "condition": "{{deployment.fallbackModel}}"
+    },
+    {
+      "template": "--effort",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "{{deployment.effort}}",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "--max-turns"
+    },
+    {
+      "template": "{{deployment.maxTurns | default: \"20\"}}"
+    },
+    {
+      "template": "--max-budget-usd",
+      "condition": "{{deployment.maxBudgetUsd}}"
+    },
+    {
+      "template": "{{deployment.maxBudgetUsd}}",
+      "condition": "{{deployment.maxBudgetUsd}}"
+    },
+    {
+      "template": "--mcp-config",
+      "condition": "{{resources.hasMcpServers}}"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/mcp.json",
+      "condition": "{{resources.hasMcpServers}}"
+    },
+    {
+      "template": "--strict-mcp-config"
+    },
+    {
+      "template": "--allowedTools"
+    },
+    {
+      "template": "{{deployment.parameters.allowedTools | default: \"Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,mcp__garrison\"}}"
+    },
+    {
+      "template": "--json-schema",
+      "condition": "{{agent.outputSchema}}"
+    },
+    {
+      "template": "{{agent.outputSchema}}",
+      "condition": "{{agent.outputSchema}}"
+    }
+  ],
+  "environment": [
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "valueTemplate": "{{secret.kind.AnthropicApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "CLAUDE_CODE_OAUTH_TOKEN",
+      "valueTemplate": "{{secret.kind.ClaudeCodeOAuthToken}}",
+      "isSecret": true
+    },
+    {
+      "name": "ANTHROPIC_BASE_URL",
+      "valueTemplate": "{{deployment.parameters.anthropicBaseUrl}}",
+      "isSecret": false
+    },
+    {
+      "name": "DISABLE_AUTOUPDATER",
+      "valueTemplate": "1",
+      "isSecret": false
+    },
+    {
+      "name": "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+      "valueTemplate": "1",
+      "isSecret": false
+    },
+    {
+      "name": "MCP_TOOL_TIMEOUT",
+      "valueTemplate": "{{deployment.parameters.mcpToolTimeoutMs | default: \"600000\"}}",
+      "isSecret": false
+    }
+  ],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "system-prompt.md",
+      "contentTemplate": "{{prompts.system}}",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "mcp.json",
+      "contentTemplate": "{{> builtin/claude-code-mcp-config}}",
+      "isSecret": true,
+      "condition": "{{resources.hasMcpServers}}",
+      "mode": "600"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "ANTHROPIC_API_KEY",
+    "CLAUDE_CODE_OAUTH_TOKEN"
+  ]
+}

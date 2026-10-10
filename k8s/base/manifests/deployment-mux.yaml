@@ -1,0 +1,19 @@
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: mux-helper-default
+spec:
+  agent: mux-helper
+  harnessProfile: builtin/mux
+  model: __MUX_MODEL__
+  maxTurns: 8
+  parameters:
+    baseUrl: __MUX_BASE_URL__
+    adapterType: __MUX_ADAPTER_TYPE__
+  prompts:
+    System: builtin/default-system
+    Task: builtin/default-task
+  resources:
+    secrets:
+      - { alias: mux, secret: mux-api-key }
+  timeoutSeconds: 600

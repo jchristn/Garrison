@@ -1,0 +1,184 @@
+{
+  "name": "builtin/mux",
+  "description": "Mux print mode with JSONL events against a configurable OpenAI-compatible (or other) endpoint. The final answer comes from --output-last-message.",
+  "harnessType": "Mux",
+  "executable": "mux",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "File",
+  "systemPromptTarget": "system-prompt.md",
+  "mcpConfigFormat": "MuxJson",
+  "mcpConfigFileName": "mux-mcp.json",
+  "outputParser": "MuxJsonl",
+  "resultSource": "LastMessageFile",
+  "resultFileName": "last-message.txt",
+  "successPolicy": "FinalEventAndExitCode",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "supportsResume": true,
+  "arguments": [
+    {
+      "template": "--print"
+    },
+    {
+      "template": "--config-dir"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/mux"
+    },
+    {
+      "template": "-e"
+    },
+    {
+      "template": "garrison"
+    },
+    {
+      "template": "--output-format"
+    },
+    {
+      "template": "jsonl"
+    },
+    {
+      "template": "--yolo",
+      "condition": "{{#unless deployment.parameters.approvalPolicy}}true{{/unless}}"
+    },
+    {
+      "template": "--approval-policy",
+      "condition": "{{deployment.parameters.approvalPolicy}}"
+    },
+    {
+      "template": "{{deployment.parameters.approvalPolicy}}",
+      "condition": "{{deployment.parameters.approvalPolicy}}"
+    },
+    {
+      "template": "--sandbox"
+    },
+    {
+      "template": "{{deployment.parameters.sandbox | default: \"workspace-write\"}}"
+    },
+    {
+      "template": "-w"
+    },
+    {
+      "template": "$GARRISON_WORKSPACE_DIR"
+    },
+    {
+      "template": "-m",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "{{deployment.model}}",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "--max-turns"
+    },
+    {
+      "template": "{{deployment.maxTurns | default: \"20\"}}"
+    },
+    {
+      "template": "--system-prompt",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/system-prompt.md",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "--mcp-config",
+      "condition": "{{resources.hasMcpServers}}"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/mux-mcp.json",
+      "condition": "{{resources.hasMcpServers}}"
+    },
+    {
+      "template": "--strict-mcp-config",
+      "condition": "{{resources.hasMcpServers}}"
+    },
+    {
+      "template": "--output-schema",
+      "condition": "{{agent.outputSchema}}"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/output-schema.json",
+      "condition": "{{agent.outputSchema}}"
+    },
+    {
+      "template": "--output-last-message"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/last-message.txt"
+    },
+    {
+      "template": "--no-session-persistence"
+    }
+  ],
+  "environment": [
+    {
+      "name": "GARRISON_MUX_API_KEY",
+      "valueTemplate": "{{secret.kind.OpenAiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "MUX_TELEMETRY_ENABLED",
+      "valueTemplate": "false",
+      "isSecret": false
+    },
+    {
+      "name": "MUX_CONFIG_DIR",
+      "valueTemplate": "$GARRISON_CONFIG_DIR/mux",
+      "isSecret": false
+    }
+  ],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "system-prompt.md",
+      "contentTemplate": "{{prompts.system}}",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "output-schema.json",
+      "contentTemplate": "{{agent.outputSchema}}",
+      "isSecret": false,
+      "condition": "{{agent.outputSchema}}"
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "mux/endpoints.json",
+      "contentTemplate": "{{> builtin/mux-endpoints}}",
+      "isSecret": false
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "mux/settings.json",
+      "contentTemplate": "{{> builtin/mux-settings}}",
+      "isSecret": false
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "mux/subagents.json",
+      "contentTemplate": "{{> builtin/mux-subagents}}",
+      "isSecret": false
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "mux-mcp.json",
+      "contentTemplate": "{{> builtin/mux-mcp-config}}",
+      "isSecret": false,
+      "condition": "{{resources.hasMcpServers}}"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "GARRISON_MUX_API_KEY"
+  ]
+}

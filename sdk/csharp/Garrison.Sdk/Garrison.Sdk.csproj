@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Garrison.Sdk</RootNamespace>
+    <AssemblyName>Garrison.Sdk</AssemblyName>
+    <PackageId>Garrison.Sdk</PackageId>
+    <Version>0.1.0-alpha</Version>
+    <Authors>Joel Christner</Authors>
+    <Company>Joel Christner</Company>
+    <Product>Garrison</Product>
+    <Copyright>(c)2026 Joel Christner</Copyright>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <Title>Garrison SDK for .NET</Title>
+    <Description>Client SDK for Garrison, the multi-tenant control plane for headless agent harnesses (Claude Code, Codex, Mux, and more). Covers agents, deployments, harness profiles, prompt templates, runs with streaming events, nodes, and administration.</Description>
+    <PackageTags>agents;claude-code;codex;mux;mcp;a2a;orchestration;garrison</PackageTags>
+    <PackageProjectUrl>https://github.com/jchristn/Garrison</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jchristn/Garrison</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReleaseNotes>Initial alpha. See https://github.com/jchristn/Garrison/blob/main/CHANGELOG.md.</PackageReleaseNotes>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="Exists('..\..\..\assets\logo.png')">
+    <PackageIcon>logo.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Condition="Exists('..\..\..\assets\logo.png')" Include="..\..\..\assets\logo.png" Pack="true" PackagePath="\" />
+    <None Include="..\LICENSE.md" Pack="true" PackagePath="\" />
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

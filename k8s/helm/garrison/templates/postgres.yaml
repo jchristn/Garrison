@@ -1,0 +1,82 @@
+{{- if eq .Values.database.mode "embedded" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-postgres
+  namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-postgres
+spec:
+  selector:
+    app.kubernetes.io/name: garrison-postgres
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garrison-postgres
+  namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-postgres
+    app.kubernetes.io/component: database
+spec:
+  serviceName: garrison-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-postgres
+        app.kubernetes.io/component: database
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: {{ .Values.database.embedded.image }}
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          env:
+            - { name: POSTGRES_DB, value: garrison }
+            - { name: POSTGRES_USER, value: garrison }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.main }}, key: db-password } }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-h", "127.0.0.1", "-U", "garrison", "-d", "garrison"] }
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+            successThreshold: 2
+          livenessProbe:
+            exec: { command: ["pg_isready", "-h", "127.0.0.1", "-U", "garrison", "-d", "garrison"] }
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+            successThreshold: 1
+          startupProbe:
+            exec: { command: ["pg_isready", "-h", "127.0.0.1", "-U", "garrison", "-d", "garrison"] }
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 24
+            successThreshold: 1
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.database.embedded.storageClassName }}
+        storageClassName: {{ .Values.database.embedded.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.database.embedded.storage }}
+{{- end }}

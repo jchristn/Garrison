@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"t-2"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_0","type":"command_execution","command":"ls","status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_0","type":"command_execution","command":"ls","aggregated_output":"README.md\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_1","type":"mcp_tool_call","server":"garrison","tool":"garrison_list_agents","status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"mcp_tool_call","server":"garrison","tool":"garrison_list_agents","status":"failed","error":"unauthorized"}}
+{"type":"turn.failed","error":{"message":"stream disconnected before completion"}}

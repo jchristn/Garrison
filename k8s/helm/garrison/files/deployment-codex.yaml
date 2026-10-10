@@ -1,0 +1,15 @@
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: codex-coder-default
+spec:
+  agent: codex-coder
+  harnessProfile: builtin/codex
+  maxTurns: 8
+  prompts:
+    System: builtin/default-system
+    Task: builtin/default-task
+  resources:
+    secrets:
+      - { alias: codex, secret: __CODEX_SECRET__ }
+  timeoutSeconds: 600

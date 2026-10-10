@@ -1,0 +1,49 @@
+# ingress-nginx with TLS. Replace garrison.example.com and provide Secret garrison-tls (for example with cert-manager).
+# Buffering is off and timeouts are long because runs stream events over SSE and workers long-poll for leases.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: garrison
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - garrison.example.com
+      secretName: garrison-tls
+  rules:
+    - host: garrison.example.com
+      http:
+        paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: garrison-server
+                port:
+                  name: mcp
+          - path: /v1.0
+            pathType: Prefix
+            backend:
+              service:
+                name: garrison-server
+                port:
+                  name: http
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: garrison-server
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: garrison-dashboard
+                port:
+                  name: http

@@ -1,0 +1,150 @@
+namespace Garrison.Core.Models
+{
+    using System;
+    using System.Collections.Generic;
+    using System.Text.Json.Serialization;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
+
+    /// <summary>
+    /// User within a tenant.
+    /// </summary>
+    public class User
+    {
+        #region Public-Members
+
+        /// <summary>
+        /// Identifier.
+        /// </summary>
+        public string Id
+        {
+            get
+            {
+                return _Id;
+            }
+            set
+            {
+                _Id = String.IsNullOrWhiteSpace(value) ? IdGenerator.NewUserId() : value;
+            }
+        }
+
+        /// <summary>
+        /// Tenant identifier.
+        /// </summary>
+        public string TenantId
+        {
+            get
+            {
+                return _TenantId;
+            }
+            set
+            {
+                _TenantId = value ?? String.Empty;
+            }
+        }
+
+        /// <summary>
+        /// First name.
+        /// </summary>
+        public string? FirstName { get; set; } = null;
+
+        /// <summary>
+        /// Last name.
+        /// </summary>
+        public string? LastName { get; set; } = null;
+
+        /// <summary>
+        /// Email address, unique within a tenant.
+        /// </summary>
+        public string Email
+        {
+            get
+            {
+                return _Email;
+            }
+            set
+            {
+                _Email = value ?? String.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Lowercase hex SHA-256 of the password. Never returned by the API.
+        /// </summary>
+        [JsonIgnore]
+        public string PasswordSha256
+        {
+            get
+            {
+                return _PasswordSha256;
+            }
+            set
+            {
+                _PasswordSha256 = value ?? String.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Whether the user is a system administrator (bypasses all checks).
+        /// </summary>
+        public bool IsAdmin { get; set; } = false;
+
+        /// <summary>
+        /// Whether the user is a tenant administrator (bypasses RBAC within the tenant).
+        /// </summary>
+        public bool IsTenantAdmin { get; set; } = false;
+
+        /// <summary>
+        /// Whether the record is active.
+        /// </summary>
+        public bool Active { get; set; } = true;
+
+        /// <summary>
+        /// Whether the record is protected from deletion.
+        /// </summary>
+        public bool IsProtected { get; set; } = false;
+
+        /// <summary>
+        /// Creation timestamp (UTC).
+        /// </summary>
+        public DateTime CreatedUtc
+        {
+            get
+            {
+                return _CreatedUtc;
+            }
+            set
+            {
+                _CreatedUtc = TimestampHelper.Normalize(value);
+            }
+        }
+
+        /// <summary>
+        /// Last update timestamp (UTC).
+        /// </summary>
+        public DateTime LastUpdateUtc
+        {
+            get
+            {
+                return _LastUpdateUtc;
+            }
+            set
+            {
+                _LastUpdateUtc = TimestampHelper.Normalize(value);
+            }
+        }
+
+        #endregion
+
+        #region Private-Members
+
+        private string _Id = IdGenerator.NewUserId();
+        private string _TenantId = String.Empty;
+        private string _Email = String.Empty;
+        private string _PasswordSha256 = String.Empty;
+        private DateTime _CreatedUtc = DateTime.UtcNow;
+        private DateTime _LastUpdateUtc = DateTime.UtcNow;
+
+        #endregion
+    }
+}

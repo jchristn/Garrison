@@ -1,0 +1,42 @@
+# The dashboard proxies /v1.0 and /openapi.json to the server, so one host serves the console and the REST API.
+# MCP has its own listener (port 8701) and its own path.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: garrison
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: garrison.local
+      http:
+        paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: garrison-server
+                port:
+                  name: mcp
+          - path: /v1.0
+            pathType: Prefix
+            backend:
+              service:
+                name: garrison-server
+                port:
+                  name: http
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: garrison-server
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: garrison-dashboard
+                port:
+                  name: http

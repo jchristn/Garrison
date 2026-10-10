@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Smoke test: registers a fake-harness agent and deployment, invokes it through the REST API, and fails the Job
+# unless the run succeeds. Needs no model credentials. Run: k8s/scripts/smoke-test.sh
+resources:
+  - smoke-job.yaml
+
+configMapGenerator:
+  - name: garrison-smoke-test
+    files:
+      - smoke.yaml=smoke.yaml
+      - smoke.sh=smoke.sh

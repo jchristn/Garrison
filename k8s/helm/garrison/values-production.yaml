@@ -1,0 +1,47 @@
+# helm install garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/values-production.yaml --set image.tag=v0.1.0-alpha
+database:
+  mode: external
+  external:
+    secretName: garrison-db
+server:
+  replicas: 3
+  expectedReplicas: 3
+  resources:
+    requests: { cpu: 500m, memory: 512Mi }
+    limits: { cpu: "4", memory: 2Gi }
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCpuUtilization: 70
+  pdb:
+    enabled: true
+    minAvailable: 1
+workerPdb:
+  enabled: true
+  maxUnavailable: 1
+workerPools:
+  - name: default
+    replicas: 4
+    maxConcurrentRuns: 4
+    labels: "garrison.io/pool=default"
+    storage: 50Gi
+    storageClassName: ""
+    terminationGracePeriodSeconds: 900
+    resources:
+      requests: { cpu: "1", memory: 2Gi }
+      limits: { cpu: "8", memory: 8Gi }
+    nodeSelector: {}
+    tolerations: []
+ingress:
+  enabled: true
+  className: nginx
+  host: garrison.example.com
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+  tls:
+    - hosts: [garrison.example.com]
+      secretName: garrison-tls

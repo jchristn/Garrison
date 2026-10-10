@@ -1,0 +1,92 @@
+// End-to-end harness for the Garrison JavaScript/TypeScript SDK.
+// Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
+import { GarrisonClient, GarrisonError } from "./dist/esm/index.js";
+
+const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
+const suffix = Math.random().toString(16).slice(2, 10);
+const client = new GarrisonClient(baseUrl);
+const state = {};
+let passed = 0;
+const failures = [];
+
+function require(condition, message) { if (!condition) throw new Error(message); }
+
+async function check(name, fn) {
+  const started = Date.now();
+  try {
+    await fn();
+    passed++;
+    console.log(`PASS  ${name} (${Date.now() - started}ms)`);
+  } catch (e) {
+    failures.push(`${name}: ${e.message}`);
+    console.log(`FAIL  ${name}: ${e.message}`);
+  }
+}
+
+console.log(`Garrison JavaScript SDK harness against ${baseUrl}`);
+
+await check("health", async () => require((await client.health()).status === "healthy", "not healthy"));
+await check("token auth", async () => {
+  const issued = await client.loginWithKeys(accessKey, secretKey);
+  require(issued.token, "no token");
+  state.tenant = issued.tenantId;
+  require((await client.tokenDetails()).principalType === "Credential", "unexpected principal");
+});
+await check("signed request auth", async () => {
+  const signed = new GarrisonClient(baseUrl);
+  signed.useSignedRequests(accessKey, secretKey, state.tenant ?? "ten_default");
+  require((await signed.agents.list({ maxResults: 5 })).success, "list failed");
+});
+await check("builtin harness profiles", async () => {
+  const fake = (await client.harnessProfiles.builtin()).find((p) => p.name === "builtin/fake");
+  require(fake, "builtin/fake not found");
+  state.fake = fake.id;
+});
+await check("create agent and deployment", async () => {
+  const agent = await client.agents.create({ name: `sdk-js-${suffix}`, description: "JavaScript SDK harness scratch agent." });
+  state.agent = agent.id;
+  const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-fake`, agentId: agent.id, harnessProfileId: state.fake });
+  state.deployment = deployment.id;
+});
+await check("invoke with wait", async () => {
+  const run = await client.agents.invoke(state.agent, "Hello from the JavaScript SDK", { wait: true, waitSeconds: 90 });
+  require(run.status === "Succeeded", `status ${run.status} ${run.errorMessage ?? ""}`);
+  require((run.resultText ?? "").startsWith("Echo:"), `result ${run.resultText}`);
+});
+await check("stream events", async () => {
+  const run = await client.runs.create({ input: "Stream this please", agentId: state.agent });
+  let events = 0;
+  let final;
+  for await (const item of client.runs.stream(run.id)) {
+    if (item.event) events++;
+    if (item.run) final = item.run;
+  }
+  require(final, "no run.completed");
+  require(final.status === "Succeeded", `status ${final.status}`);
+  require(events > 0, "no events");
+});
+await check("cancel run", async () => {
+  const run = await client.runs.create({ input: "Cancel me", agentId: state.agent });
+  try { await client.runs.cancel(run.id); } catch (e) { if (!(e instanceof GarrisonError) || e.statusCode !== 409) throw e; }
+  const final = await client.runs.waitForCompletion(run.id, 60000);
+  require(["Cancelled", "Succeeded"].includes(final.status), `status ${final.status}`);
+});
+await check("manifest dry run", async () => {
+  const yaml = `apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-js-manifest-${suffix}\nspec:\n  description: Dry run only.\n`;
+  const result = await client.manifests.apply(yaml, { dryRun: true });
+  require(result.dryRun, "not a dry run");
+  require(result.failedCount === 0, `failed ${result.failedCount}`);
+});
+await check("list runs by agent", async () => {
+  const page = await client.runs.list({ agentId: state.agent });
+  require(page.totalRecords >= 3, `total ${page.totalRecords}`);
+  require(page.objects.every((r) => r.agentId === state.agent), "foreign runs");
+});
+await check("cleanup", async () => {
+  if (state.deployment) await client.deployments.delete(state.deployment);
+  if (state.agent) await client.agents.delete(state.agent);
+});
+
+console.log(`\nPassed: ${passed}  Failed: ${failures.length}`);
+for (const f of failures) console.log(`  FAIL ${f}`);
+process.exit(failures.length === 0 ? 0 : 1);

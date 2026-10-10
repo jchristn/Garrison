@@ -1,0 +1,48 @@
+import { useTranslation } from 'react-i18next';
+import { formatTime, formatNumber } from '../i18n/formatters';
+
+const TONE = {
+  AssistantText: 'text',
+  Thinking: 'muted',
+  ToolCall: 'info',
+  ToolResult: 'success',
+  Usage: 'muted',
+  Progress: 'muted',
+  Warning: 'warning',
+  Error: 'danger',
+  Stdout: 'muted',
+  Stderr: 'warning',
+  Result: 'success',
+  Lifecycle: 'neutral'
+};
+
+/** Event transcript for a run: assistant text, thinking, tool calls and results, usage, warnings, and errors. */
+export default function RunTimeline({ events, filter = 'all' }) {
+  const { t, i18n } = useTranslation();
+  const visible = events.filter((e) => filter === 'all' || e.eventType === filter);
+  if (visible.length === 0) return <div className="text-muted timeline-empty">{t('views.runDetail.noEvents')}</div>;
+  return (
+    <ol className="timeline" aria-label={t('views.runDetail.transcript')}>
+      {visible.map((e) => {
+        const tone = TONE[e.eventType] || 'neutral';
+        return (
+          <li key={`${e.sequence}-${e.id || ''}`} className={`timeline-item timeline-${tone}`}>
+            <div className="timeline-meta">
+              <span className="timeline-seq monospace">#{e.sequence}</span>
+              <span className="timeline-type">{t(`enums.runEventType.${e.eventType}`, { defaultValue: e.eventType })}</span>
+              <span className="timeline-time text-muted">{formatTime(e.timestampUtc, i18n.language, { timeStyle: 'medium' })}</span>
+              {e.toolName && <code className="timeline-tool">{e.toolName}</code>}
+              {e.success === false && <span className="pill pill-danger">{t('views.runDetail.failed')}</span>}
+              {(e.inputTokens || e.outputTokens) && (
+                <span className="text-muted">
+                  {t('views.runDetail.tokens', { input: formatNumber(e.inputTokens || 0), output: formatNumber(e.outputTokens || 0) })}
+                </span>
+              )}
+            </div>
+            {e.text && <pre className={`timeline-text ${e.eventType === 'AssistantText' || e.eventType === 'Result' ? '' : 'monospace'}`}>{e.text}</pre>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}

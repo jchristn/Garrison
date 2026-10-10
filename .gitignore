@@ -1,0 +1,66 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+
+# .NET
+project.lock.json
+*.nupkg
+*.snupkg
+.vs/
+TestResults/
+results.json
+
+# Node / dashboard
+node_modules/
+dashboard/dist/
+dashboard/test-results/
+dashboard/playwright-report/
+sdk/js/node_modules/
+sdk/js/dist/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Go
+sdk/go/bin/
+
+# Local runtime state
+logs/
+data/
+db/
+workspaces/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Kubernetes local overrides and rendered output
+k8s/**/secrets.local.yaml
+k8s/**/*.rendered.yaml
+k8s/helm/garrison/charts/
+
+# Benchmarks (see BENCHMARKING.md)
+benchmarks/.run/
+benchmarks/data/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.okf/
+
+# Secrets / local settings overrides
+*.local.json
+.env

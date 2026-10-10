@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-dashboard
+  labels:
+    app.kubernetes.io/name: garrison-dashboard
+    app.kubernetes.io/component: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-dashboard
+        app.kubernetes.io/component: dashboard
+    spec:
+      serviceAccountName: garrison-dashboard
+      automountServiceAccountToken: false
+      containers:
+        - name: dashboard
+          image: jchristn77/garrison-dashboard
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            # Empty means the browser calls the API on the dashboard origin; nginx proxies /v1.0 to the server.
+            - name: GARRISON_API_URL
+              value: ""
+            # nginx does not apply DNS search domains, so the upstream must be fully qualified.
+            - name: GARRISON_API_UPSTREAM
+              value: http://garrison-server.garrison.svc.cluster.local:8700
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          readinessProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1/health"]
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+            successThreshold: 2
+          livenessProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1/health"]
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+            successThreshold: 1

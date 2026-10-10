@@ -1,0 +1,306 @@
+namespace Test.Shared.Suites
+{
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Garrison.Core.Compilation;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Protocol;
+    using Garrison.Harnesses;
+    using Garrison.Harnesses.Execution;
+    using Garrison.Harnesses.Parsers;
+    using Test.Shared.Infrastructure;
+    using Touchstone.Core;
+
+    /// <summary>
+    /// Harness output parser and outcome classification suites, driven by recorded and hand-written fixtures.
+    /// </summary>
+    public static class ParserSuite
+    {
+        #region Public-Methods
+
+        /// <summary>
+        /// Build the suites.
+        /// </summary>
+        /// <returns>Suites.</returns>
+        public static List<TestSuiteDescriptor> Build()
+        {
+            List<TestCaseDescriptor> parsers = new List<TestCaseDescriptor>
+            {
+                Case("parsers", "claude-success", "Claude stream-json: recorded success", ClaudeSuccess),
+                Case("parsers", "claude-mcp-failed", "Claude stream-json: failed MCP server fails the run despite exit 0", ClaudeMcpFailed),
+                Case("parsers", "claude-max-turns", "Claude stream-json: error result with tool use", ClaudeMaxTurns),
+                Case("parsers", "codex-success", "Codex JSONL: recorded success with usage", CodexSuccess),
+                Case("parsers", "codex-failed", "Codex JSONL: turn.failed with tool items", CodexFailed),
+                Case("parsers", "mux-success", "Mux JSONL: assistant text concatenation, tools, usage", MuxSuccess),
+                Case("parsers", "mux-failed", "Mux JSONL: max iterations is a failure", MuxFailed),
+                Case("parsers", "mux-llm-error", "Mux JSONL: completed_with_errors plus a non-zero exit is a failure", MuxLlmError),
+                Case("parsers", "gemini-success", "Gemini stream-json: served model from result stats", GeminiSuccess),
+                Case("parsers", "generic-jsonl", "Generic JSONL: dotted path mappings", GenericJsonl),
+                Case("parsers", "plain-text", "Plain text: every line is assistant text", PlainText),
+                Case("parsers", "non-json-lines", "JSON parsers turn non-JSON lines into stdout events", NonJsonLines),
+                Case("parsers", "raw-event-truncation", "Raw events are truncated to the configured size", RawTruncation)
+            };
+
+            List<TestCaseDescriptor> outcomes = new List<TestCaseDescriptor>
+            {
+                Case("outcomes", "precedence", "Cancelled, timed out, not installed, and output limit win over parser state", OutcomePrecedence),
+                Case("outcomes", "final-event-policy", "FinalEvent policy ignores a non-zero exit after success", OutcomeFinalEvent),
+                Case("outcomes", "exit-code-policies", "ExitCode and FinalEventAndExitCode policies", OutcomeExitCodePolicies),
+                Case("outcomes", "credential-heuristics", "Credential stderr markers map to NotCredentialed", OutcomeCredentials),
+                Case("outcomes", "scrubber", "Secret scrubber redacts every occurrence and ignores tiny values", Scrubber)
+            };
+
+            return new List<TestSuiteDescriptor>
+            {
+                new TestSuiteDescriptor("parsers", "Harness output parsers", parsers),
+                new TestSuiteDescriptor("outcomes", "Harness outcome classification", outcomes)
+            };
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private static TestCaseDescriptor Case(string suite, string id, string name, Action body)
+        {
+            return new TestCaseDescriptor(suite, id, name, ct =>
+            {
+                body();
+                return Task.CompletedTask;
+            });
+        }
+
+        private static HarnessRunState Parse(OutputParserEnum kind, string fixture, ExecutionParserOptions? options = null, IEnumerable<string>? requiredMcpServers = null)
+        {
+            string path = Path.Combine(AppContext.BaseDirectory, "Fixtures", fixture);
+            if (!File.Exists(path)) throw new TestAssertionException("Fixture not found: " + path);
+            IHarnessOutputParser parser = ParserFactory.Create(kind, options, requiredMcpServers);
+            HarnessRunState state = new HarnessRunState();
+            foreach (string line in File.ReadAllLines(path)) parser.ParseLine(line, state);
+            parser.Complete(state);
+            return state;
+        }
+
+        private static HarnessRunState ParseLines(OutputParserEnum kind, IEnumerable<string> lines, ExecutionParserOptions? options = null)
+        {
+            IHarnessOutputParser parser = ParserFactory.Create(kind, options);
+            HarnessRunState state = new HarnessRunState();
+            foreach (string line in lines) parser.ParseLine(line, state);
+            parser.Complete(state);
+            return state;
+        }
+
+        private static void ClaudeSuccess()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.ClaudeStreamJson, "claude/success.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(state.SawSuccess && state.SawFinalResult, "Expected success.");
+            Assert.True(state.DetectedFailure == null, "Unexpected failure: " + state.DetectedFailure);
+            Assert.Equal("OK", state.FinalText, "Final text");
+            Assert.Equal("OK", state.AssistantText.ToString(), "Assistant text must not double count the assistant message");
+            Assert.Equal("claude-opus-5-5", state.ServedModel, "Served model");
+            Assert.True(state.CostUsd.HasValue && state.CostUsd.Value > 0, "Cost should be reported.");
+            Assert.True(state.CachedTokens > 0, "Cached tokens should be read.");
+            Assert.True(!String.IsNullOrEmpty(state.SessionId), "Session id should be read.");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.AssistantText && e.Text == "OK"), "Expected an assistant text event.");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Result), "Expected a result event.");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Usage), "Expected a usage event.");
+        }
+
+        private static void ClaudeMcpFailed()
+        {
+            HarnessRunState optional = Parse(OutputParserEnum.ClaudeStreamJson, "claude/mcp-failed.jsonl");
+            Assert.True(optional.DetectedFailure == null, "A non-required server only warns.");
+            Assert.True(optional.Drain().Any(e => e.EventType == RunEventTypeEnum.Warning), "Expected a warning for the optional server.");
+
+            HarnessRunState state = Parse(OutputParserEnum.ClaudeStreamJson, "claude/mcp-failed.jsonl", null, new[] { "garrison" });
+            Assert.True(state.SawSuccess, "The result event itself reports success.");
+            Assert.True(state.DetectedFailure != null && state.DetectedFailure.Contains("garrison"), "MCP failure should be detected.");
+            HarnessOutcome outcome = OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.ClaudeStreamJson }, new ProcessRunResult { ExitCode = 0 }, state);
+            Assert.Equal(RunStatusEnum.Failed, outcome.Status, "Status");
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, outcome.Outcome, "Outcome");
+        }
+
+        private static void ClaudeMaxTurns()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.ClaudeStreamJson, "claude/error-max-turns.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(!state.SawSuccess && state.SawFinalResult, "Expected a failed final result.");
+            Assert.Equal(20L, state.OutputTokens, "Output tokens");
+            Assert.Equal("claude-sonnet-5-5", state.ServedModel, "Served model");
+            RunEventReport call = Assert.NotNull(events.FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolCall), "Tool call");
+            Assert.Equal("Bash", call.ToolName, "Tool name");
+            RunEventReport result = Assert.NotNull(events.FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolResult), "Tool result");
+            Assert.Equal("Bash", result.ToolName, "Tool result name resolved from the call");
+            Assert.True(result.Success == true, "Tool result success");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Error), "Expected an error event.");
+        }
+
+        private static void CodexSuccess()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.CodexJsonl, "codex/success.jsonl");
+            Assert.True(state.SawSuccess, "Expected success.");
+            Assert.Equal("OK", state.FinalText, "Final text");
+            Assert.Equal(16639L, state.InputTokens, "Input tokens");
+            Assert.Equal(13184L, state.CachedTokens, "Cached tokens");
+            Assert.Equal(5L, state.OutputTokens, "Output tokens");
+            Assert.True(!String.IsNullOrEmpty(state.SessionId), "Thread id");
+        }
+
+        private static void CodexFailed()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.CodexJsonl, "codex/failed.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(!state.SawSuccess, "Expected failure.");
+            Assert.True(state.DetectedFailure != null && state.DetectedFailure.Contains("disconnected"), "Failure message");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolName == "shell" && e.Success == true), "Shell result");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolName == "garrison.garrison_list_agents" && e.Success == false), "MCP result");
+        }
+
+        private static void MuxSuccess()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.MuxJsonl, "mux/success.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(state.SawSuccess, "Expected success.");
+            Assert.Equal("OK", state.FinalText, "Final text concatenated from assistant_text");
+            Assert.Equal(120L, state.InputTokens, "Input tokens");
+            Assert.Equal(4L, state.OutputTokens, "Output tokens");
+            Assert.Equal("gpt-5.5-mini", state.ServedModel, "Model");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolName == "read_file" && e.Success == true), "Tool result");
+        }
+
+        private static void MuxLlmError()
+        {
+            HarnessRunState state = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                "{\"contractVersion\":2,\"eventType\":\"run_started\",\"model\":\"gpt-oss:20b\"}",
+                "{\"contractVersion\":2,\"eventType\":\"error\",\"code\":\"llm_request_failed\",\"message\":\"LLM request failed with status 401\"}",
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"status\":\"completed_with_errors\"}"
+            });
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            HarnessOutcome failed = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, state);
+            Assert.Equal(RunStatusEnum.Failed, failed.Status, "Exit code 1 after an LLM error must fail");
+            HarnessOutcome ok = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, state);
+            Assert.Equal(RunStatusEnum.Succeeded, ok.Status, "completed_with_errors with exit 0 still succeeds (tool errors the model recovered from)");
+        }
+
+        private static void MuxFailed()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.MuxJsonl, "mux/failed.jsonl");
+            Assert.True(!state.SawSuccess && state.SawFinalResult, "Expected failure.");
+            Assert.True(state.DetectedFailure != null, "Expected a failure message.");
+        }
+
+        private static void GeminiSuccess()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.GeminiStreamJson, "gemini/success.jsonl");
+            Assert.True(state.SawSuccess, "Expected success.");
+            Assert.Equal("OK", state.FinalText, "Final text excludes the user message");
+            Assert.Equal("gemini-3-flash", state.ServedModel, "Served model comes from result stats");
+            Assert.Equal(25L, state.InputTokens, "Input tokens");
+            Assert.Equal(10L, state.CachedTokens, "Cached tokens");
+        }
+
+        private static void GenericJsonl()
+        {
+            ExecutionParserOptions options = new ExecutionParserOptions();
+            options.TextField = "delta.text";
+            options.FinalField = "final.answer";
+            options.SuccessField = "final.status";
+            options.SuccessValue = "ok";
+            HarnessRunState state = ParseLines(OutputParserEnum.GenericJsonl, new[]
+            {
+                "{\"delta\":{\"text\":\"Hel\"}}",
+                "{\"delta\":{\"text\":\"lo\"}}",
+                "{\"final\":{\"answer\":\"Hello\",\"status\":\"OK\"}}"
+            }, options);
+            Assert.Equal("Hello", state.AssistantText.ToString(), "Assistant text");
+            Assert.Equal("Hello", state.FinalText, "Final text");
+            Assert.True(state.SawSuccess, "Success value match is case-insensitive.");
+
+            HarnessRunState failed = ParseLines(OutputParserEnum.GenericJsonl, new[] { "{\"final\":{\"answer\":\"x\",\"status\":\"error\"}}" }, options);
+            Assert.True(!failed.SawSuccess && failed.DetectedFailure != null, "Non-matching success value fails.");
+        }
+
+        private static void PlainText()
+        {
+            HarnessRunState state = ParseLines(OutputParserEnum.PlainText, new[] { "line one", "line two" });
+            Assert.Equal("line one\nline two", state.FinalText, "Final text");
+            Assert.Equal(2, state.Drain().Count, "Event count");
+            HarnessOutcome ok = OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.PlainText }, new ProcessRunResult { ExitCode = 0 }, state);
+            Assert.Equal(RunStatusEnum.Succeeded, ok.Status, "Plain text success follows the exit code");
+            HarnessOutcome bad = OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.PlainText }, new ProcessRunResult { ExitCode = 2 }, state);
+            Assert.Equal(RunStatusEnum.Failed, bad.Status, "Plain text failure follows the exit code");
+        }
+
+        private static void NonJsonLines()
+        {
+            HarnessRunState state = ParseLines(OutputParserEnum.ClaudeStreamJson, new[] { "warning: something", "{not json", "{\"type\":\"unknown\"}" });
+            List<RunEventReport> events = state.Drain();
+            Assert.Equal(2, state.UnparsedLines, "Unparsed lines");
+            Assert.Equal(2, events.Count(e => e.EventType == RunEventTypeEnum.Stdout), "Stdout events");
+        }
+
+        private static void RawTruncation()
+        {
+            HarnessRunState state = new HarnessRunState();
+            state.MaxRawEventChars = 50;
+            IHarnessOutputParser parser = ParserFactory.Create(OutputParserEnum.CodexJsonl);
+            parser.ParseLine("{\"type\":\"thread.started\",\"thread_id\":\"" + new string('a', 200) + "\"}", state);
+            RunEventReport report = state.Drain().Single();
+            Assert.Equal(50, report.RawEventJson!.Length, "Raw event length");
+        }
+
+        private static void OutcomePrecedence()
+        {
+            HarnessRunState success = new HarnessRunState { SawSuccess = true, SawFinalResult = true };
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.ClaudeStreamJson };
+            Assert.Equal(RunOutcomeEnum.Cancelled, OutcomeClassifier.Classify(spec, new ProcessRunResult { Cancelled = true, TimedOut = true }, success).Outcome, "Cancelled wins");
+            Assert.Equal(RunStatusEnum.TimedOut, OutcomeClassifier.Classify(spec, new ProcessRunResult { TimedOut = true }, success).Status, "Timed out");
+            Assert.Equal(RunOutcomeEnum.NotInstalled, OutcomeClassifier.Classify(spec, new ProcessRunResult { NotInstalled = true }, success).Outcome, "Not installed");
+            Assert.Equal(RunOutcomeEnum.OutputLimitExceeded, OutcomeClassifier.Classify(spec, new ProcessRunResult { OutputLimitExceeded = true, ExitCode = 0 }, success).Outcome, "Output limit");
+        }
+
+        private static void OutcomeFinalEvent()
+        {
+            HarnessRunState success = new HarnessRunState { SawSuccess = true, SawFinalResult = true };
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.GeminiStreamJson, SuccessPolicy = SuccessPolicyEnum.FinalEvent };
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 127 }, success);
+            Assert.Equal(RunStatusEnum.Succeeded, outcome.Status, "Exit code 127 after a successful final event is still success (D-019)");
+            HarnessOutcome missing = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, new HarnessRunState());
+            Assert.Equal(RunStatusEnum.Failed, missing.Status, "Exit 0 without a final event is a failure");
+        }
+
+        private static void OutcomeExitCodePolicies()
+        {
+            HarnessRunState success = new HarnessRunState { SawSuccess = true, SawFinalResult = true };
+            ExecutionSpec exitOnly = new ExecutionSpec { Parser = OutputParserEnum.ClaudeStreamJson, SuccessPolicy = SuccessPolicyEnum.ExitCode, SuccessExitCodes = new List<int> { 0, 3 } };
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(exitOnly, new ProcessRunResult { ExitCode = 3 }, new HarnessRunState()).Status, "Custom success exit code");
+            ExecutionSpec both = new ExecutionSpec { Parser = OutputParserEnum.ClaudeStreamJson, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            Assert.Equal(RunStatusEnum.Failed, OutcomeClassifier.Classify(both, new ProcessRunResult { ExitCode = 1 }, success).Status, "Both required");
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(both, new ProcessRunResult { ExitCode = 0 }, success).Status, "Both satisfied");
+        }
+
+        private static void OutcomeCredentials()
+        {
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.CodexJsonl };
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1, StderrTail = "Error: 401 Unauthorized\n" }, new HarnessRunState());
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, outcome.Outcome, "401");
+            HarnessOutcome login = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1, StderrTail = "Not logged in. Please run /login\n" }, new HarnessRunState());
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, login.Outcome, "Not logged in");
+        }
+
+        private static void Scrubber()
+        {
+            SecretScrubber scrubber = new SecretScrubber(new[] { "sk-abcdef123456", "abc", "sk-abcdef" });
+            Assert.Equal("key=[REDACTED] again [REDACTED]", scrubber.Scrub("key=sk-abcdef123456 again sk-abcdef123456"), "Longest value first");
+            Assert.Equal("abc stays", scrubber.Scrub("abc stays"), "Values shorter than four characters are ignored");
+        }
+
+        #endregion
+    }
+}

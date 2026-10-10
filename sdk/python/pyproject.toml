@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "garrison-sdk"
+version = "0.1.0a0"
+description = "Python SDK for Garrison, the multi-tenant control plane for headless agent harnesses."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Joel Christner" }]
+requires-python = ">=3.9"
+dependencies = ["requests>=2.31"]
+
+[project.urls]
+Homepage = "https://github.com/jchristn/Garrison"
+
+[tool.setuptools]
+packages = ["garrison_sdk"]

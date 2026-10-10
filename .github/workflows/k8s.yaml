@@ -1,0 +1,63 @@
+name: Kubernetes
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-helm@v4
+      - name: Chart files mirror the Kustomize base
+        run: |
+          set -e
+          for f in agents.yaml deployment-claude.yaml deployment-codex.yaml deployment-mux.yaml; do diff k8s/base/manifests/$f k8s/helm/garrison/files/$f; done
+          diff k8s/base/scripts/bootstrap.sh k8s/helm/garrison/files/bootstrap.sh
+          diff k8s/base/config/garrison.json k8s/helm/garrison/files/garrison.json
+          diff k8s/base/config/garrison-worker.json k8s/helm/garrison/files/garrison-worker.json
+          diff k8s/components/smoke-test/smoke.yaml k8s/helm/garrison/files/smoke.yaml
+          diff k8s/components/smoke-test/smoke.sh k8s/helm/garrison/files/smoke.sh
+      - name: Render overlays and chart
+        run: |
+          set -e
+          mkdir -p rendered
+          for o in minikube k3s production smoke-test; do kubectl kustomize k8s/overlays/$o > rendered/kustomize-$o.yaml; done
+          helm lint k8s/helm/garrison
+          for v in values-minikube values-k3s values-production; do
+            helm template garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/$v.yaml --set smokeTest.enabled=true > rendered/helm-$v.yaml
+          done
+      - name: Validate with kubeconform
+        run: docker run --rm -v "$PWD/rendered:/r:ro" ghcr.io/yannh/kubeconform:latest -strict -summary -kubernetes-version 1.31.0 /r
+
+  smoke:
+    if: github.ref == 'refs/heads/main'
+    needs: render
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Start K3S in Docker
+        run: |
+          docker run -d --name garrison-k3s --privileged -p 6443:6443 rancher/k3s:v1.31.4-k3s1 server --disable traefik
+          for i in $(seq 1 60); do docker exec garrison-k3s kubectl get nodes >/dev/null 2>&1 && break; sleep 5; done
+          docker cp garrison-k3s:/etc/rancher/k3s/k3s.yaml k3s.yaml
+          echo "KUBECONFIG=$PWD/k3s.yaml" >> "$GITHUB_ENV"
+      - name: Deploy (images built locally and imported)
+        env:
+          K3S_CONTAINER: garrison-k3s
+        run: bash k8s/scripts/deploy-k3s.sh --build
+      - name: Smoke test
+        run: bash k8s/scripts/smoke-test.sh
+      - name: Diagnostics
+        if: failure()
+        run: |
+          kubectl -n garrison get pods -o wide || true
+          kubectl -n garrison logs deployment/garrison-server --tail=200 || true
+          kubectl -n garrison logs statefulset/garrison-worker --tail=200 || true
+          kubectl -n garrison logs job/garrison-bootstrap || true

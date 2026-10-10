@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-server-settings
+  namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  garrison.json: |
+{{ .Files.Get "files/garrison.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-worker-settings
+  namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  garrison-worker.json: |
+{{ .Files.Get "files/garrison-worker.json" | indent 4 }}

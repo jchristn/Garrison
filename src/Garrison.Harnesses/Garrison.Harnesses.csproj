@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsGarrisonLibrary>true</IsGarrisonLibrary>
+    <RootNamespace>Garrison.Harnesses</RootNamespace>
+    <AssemblyName>Garrison.Harnesses</AssemblyName>
+    <Description>Garrison harness execution: process runner, output parsers, and MCP pre-flight.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Voltaic" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Garrison.Core\Garrison.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Test.Shared" />
+  </ItemGroup>
+
+</Project>

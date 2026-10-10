@@ -1,0 +1,30 @@
+# Sample agents applied by the bootstrap Job (format: GARRISON_PLAN.md section 8.5).
+# Deployments live in separate files so the bootstrap Job applies each one only when its
+# harness credential was provided in the garrison-harness-credentials Secret.
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: claude-helper
+spec:
+  displayName: Claude Helper
+  description: General-purpose assistant running on Claude Code.
+  exposure: { a2a: true, mcpTool: true }
+  delegation: { maxDepth: 2, allow: [codex-coder, mux-helper] }
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: codex-coder
+spec:
+  displayName: Codex Coder
+  description: Coding assistant running on OpenAI Codex.
+  exposure: { a2a: true, mcpTool: true }
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: mux-helper
+spec:
+  displayName: Mux Helper
+  description: Assistant running on Mux against an OpenAI-compatible model endpoint.
+  exposure: { a2a: true, mcpTool: true }

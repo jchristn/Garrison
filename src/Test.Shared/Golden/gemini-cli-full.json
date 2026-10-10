@@ -1,0 +1,184 @@
+{
+  "spec": {
+    "runId": "run_golden",
+    "tenantId": "ten_golden",
+    "agentName": "helper-gemini-cli-full",
+    "deploymentId": "dep_gemini_cli_full",
+    "harnessType": "GeminiCli",
+    "executable": "gemini",
+    "arguments": [
+      "-p",
+      " ",
+      "-o",
+      "stream-json",
+      "--skip-trust",
+      "--approval-mode",
+      "yolo",
+      "-m",
+      "test-model",
+      "--allowed-mcp-server-names",
+      "garrison,docs"
+    ],
+    "environment": [
+      {
+        "name": "GARRISON_MCP_0_H0",
+        "value": "Bearer run-token-golden",
+        "isSecret": true
+      },
+      {
+        "name": "GARRISON_MCP_0_BEARER",
+        "value": "run-token-golden",
+        "isSecret": true
+      },
+      {
+        "name": "GARRISON_MCP_1_H0",
+        "value": "Bearer docs-token-gemini_cli_full",
+        "isSecret": true
+      },
+      {
+        "name": "GARRISON_MCP_1_BEARER",
+        "value": "docs-token-gemini_cli_full",
+        "isSecret": true
+      },
+      {
+        "name": "GEMINI_API_KEY",
+        "value": "credential-gemini_cli_full",
+        "isSecret": true
+      },
+      {
+        "name": "GEMINI_CLI_HOME",
+        "value": "$GARRISON_CONFIG_DIR/gemini-home",
+        "isSecret": false
+      },
+      {
+        "name": "GEMINI_SYSTEM_MD",
+        "value": "$GARRISON_CONFIG_DIR/system-prompt.md",
+        "isSecret": false
+      }
+    ],
+    "files": [
+      {
+        "baseDirectory": "Config",
+        "path": "system-prompt.md",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n\nYou can hand work to other Garrison agents through the \u0022garrison\u0022 MCP server:\n- garrison_list_agents shows the agents you may call and what each one does.\n- garrison_invoke_agent sends a message to an agent and waits for its answer. If it returns a run ID instead of an answer, call garrison_get_run until the run finishes.\n\nDelegate only when another agent is better suited to part of the task. You may call: codex-coder. Delegation can go at most 2 levels below you.\n\n\nYour final answer must be one JSON document that validates against the JSON Schema below. Do not add prose or code fences around it.\n\n{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022answer\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022required\u0022:[\u0022answer\u0022],\u0022additionalProperties\u0022:false}\n\n",
+        "isSecret": false
+      },
+      {
+        "baseDirectory": "Config",
+        "path": "gemini-home/.gemini/settings.json",
+        "content": "{\n  \u0022mcpServers\u0022: {\n    \u0022garrison\u0022: { \u0022httpUrl\u0022: \u0022http://garrison-server:8701/mcp\u0022, \u0022timeout\u0022: 600000, \u0022trust\u0022: true, \u0022headers\u0022: { \u0022Authorization\u0022: \u0022Bearer run-token-golden\u0022 } },\n    \u0022docs\u0022: { \u0022httpUrl\u0022: \u0022https://mcp.example.com/mcp\u0022, \u0022timeout\u0022: 120000, \u0022trust\u0022: true, \u0022headers\u0022: { \u0022Authorization\u0022: \u0022Bearer docs-token-gemini_cli_full\u0022 } }\n  },\n  \u0022privacy\u0022: { \u0022usageStatisticsEnabled\u0022: false },\n  \u0022skills\u0022: { \u0022enabled\u0022: false }\n}\n",
+        "mode": "600",
+        "isSecret": true
+      }
+    ],
+    "stdin": "The agent \u0022planner\u0022 is asking you for help as part of a larger task (delegation depth 1). Reply with a concise, self-contained answer that agent can use directly.\n\nRequest:\nSummarize the repository.\n",
+    "workspace": {
+      "kind": "GitRepository",
+      "gitUrl": "https://github.com/example/repo.git",
+      "gitRef": "main",
+      "gitDepth": 1,
+      "gitUsername": "x-access-token",
+      "gitPassword": "git-token-gemini_cli_full",
+      "files": [],
+      "retention": "Delete"
+    },
+    "parser": "GeminiStreamJson",
+    "parserOptions": {},
+    "resultSource": "ParserFinalEvent",
+    "successPolicy": "FinalEvent",
+    "successExitCodes": [
+      0
+    ],
+    "timeoutSeconds": 1800,
+    "killGraceSeconds": 5,
+    "maxOutputBytes": 67108864,
+    "stderrTailBytes": 8000,
+    "isolateHome": true,
+    "mcpPreflight": [
+      {
+        "name": "garrison",
+        "url": "http://garrison-server:8701",
+        "path": "/mcp",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer run-token-golden",
+            "isSecret": true
+          }
+        ],
+        "requiredTools": [
+          "garrison_invoke_agent"
+        ],
+        "required": true
+      },
+      {
+        "name": "docs",
+        "url": "https://mcp.example.com",
+        "path": "/mcp",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer docs-token-gemini_cli_full",
+            "isSecret": true
+          }
+        ],
+        "requiredTools": [
+          "search"
+        ],
+        "required": true
+      }
+    ],
+    "scrubValues": [
+      "Bearer docs-token-gemini_cli_full",
+      "credential-gemini_cli_full",
+      "docs-token-gemini_cli_full",
+      "git-token-gemini_cli_full",
+      "Bearer run-token-golden",
+      "run-token-golden"
+    ]
+  },
+  "templateVersions": [
+    {
+      "id": "rtv_golden_0",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_system",
+      "templateName": "builtin/default-system",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_1",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_task",
+      "templateName": "builtin/default-task",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_2",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_delegated_task",
+      "templateName": "builtin/delegated-task",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_3",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_garrison_tools_instructions",
+      "templateName": "builtin/garrison-tools-instructions",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_4",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_structured_output_instructions",
+      "templateName": "builtin/structured-output-instructions",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_5",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_gemini_settings",
+      "templateName": "builtin/gemini-settings",
+      "version": 1
+    }
+  ]
+}

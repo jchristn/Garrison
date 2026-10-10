@@ -1,0 +1,17 @@
+apiVersion: v2
+name: garrison
+description: Garrison control plane and worker nodes for running headless agent harnesses on Kubernetes.
+type: application
+version: 0.1.0-alpha
+appVersion: "0.1.0-alpha"
+home: https://github.com/jchristn/Garrison
+sources:
+  - https://github.com/jchristn/Garrison
+keywords:
+  - agents
+  - mcp
+  - a2a
+  - claude-code
+  - codex
+maintainers:
+  - name: Joel Christner

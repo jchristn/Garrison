@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsGarrisonLibrary>true</IsGarrisonLibrary>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Garrison.FakeHarness</RootNamespace>
+    <AssemblyName>garrison-fake-harness</AssemblyName>
+    <Description>Deterministic fake agent harness for tests and smoke tests.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Voltaic" Version="2.3.0" />
+  </ItemGroup>
+
+</Project>

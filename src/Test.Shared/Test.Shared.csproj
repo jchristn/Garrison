@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Touchstone.Core" Version="0.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Garrison.Core\Garrison.Core.csproj" />
+    <ProjectReference Include="..\Garrison.Harnesses\Garrison.Harnesses.csproj" />
+    <ProjectReference Include="..\Garrison.Server\Garrison.Server.csproj" />
+    <ProjectReference Include="..\Garrison.Worker\Garrison.Worker.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Golden\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

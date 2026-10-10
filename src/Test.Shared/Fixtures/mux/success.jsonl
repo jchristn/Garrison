@@ -1,0 +1,7 @@
+{"contractVersion":2,"eventType":"run_started","timestampUtc":"2026-10-09T12:00:00Z","runId":"r-1","sessionId":"ms-1","endpointName":"garrison","adapterType":"openai","model":"gpt-5.5-mini","approvalPolicy":"auto","toolsEnabled":true}
+{"contractVersion":2,"eventType":"assistant_text","timestampUtc":"2026-10-09T12:00:01Z","text":"O"}
+{"contractVersion":2,"eventType":"tool_call_proposed","timestampUtc":"2026-10-09T12:00:01Z","toolCall":{"id":"c1","name":"read_file","arguments":"{\"path\":\"README.md\"}"}}
+{"contractVersion":2,"eventType":"tool_call_completed","timestampUtc":"2026-10-09T12:00:02Z","toolCallId":"c1","toolName":"read_file","elapsedMs":3,"result":{"toolCallId":"c1","success":true,"content":"# Readme"}}
+{"contractVersion":2,"eventType":"assistant_text","timestampUtc":"2026-10-09T12:00:02Z","text":"K"}
+{"contractVersion":2,"eventType":"heartbeat","timestampUtc":"2026-10-09T12:00:02Z","stepNumber":2}
+{"contractVersion":2,"eventType":"run_completed","timestampUtc":"2026-10-09T12:00:03Z","runId":"r-1","sessionId":"ms-1","status":"completed","iterationsCompleted":2,"toolCallCount":1,"usage":{"inputTokens":120,"outputTokens":4,"totalTokens":124,"estimatedTokens":124}}

@@ -1,0 +1,69 @@
+{
+  "name": "builtin/fake",
+  "description": "Deterministic fake harness used by tests and the in-cluster smoke test. Echoes the prompt in Claude stream-json format by default.",
+  "harnessType": "Generic",
+  "executable": "garrison-fake-harness",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "File",
+  "systemPromptTarget": "system-prompt.md",
+  "mcpConfigFormat": "None",
+  "outputParser": "ClaudeStreamJson",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEvent",
+  "defaultTimeoutSeconds": 300,
+  "killGraceSeconds": 2,
+  "isolateHome": true,
+  "arguments": [
+    {
+      "template": "--format"
+    },
+    {
+      "template": "{{deployment.parameters.format | default: \"claude\"}}"
+    },
+    {
+      "template": "--delay-ms",
+      "condition": "{{deployment.parameters.delayMs}}"
+    },
+    {
+      "template": "{{deployment.parameters.delayMs}}",
+      "condition": "{{deployment.parameters.delayMs}}"
+    },
+    {
+      "template": "--scenario",
+      "condition": "{{deployment.parameters.scenario}}"
+    },
+    {
+      "template": "{{deployment.parameters.scenario}}",
+      "condition": "{{deployment.parameters.scenario}}"
+    },
+    {
+      "template": "--fail",
+      "condition": "{{deployment.parameters.fail}}"
+    },
+    {
+      "template": "--exit-code",
+      "condition": "{{deployment.parameters.exitCode}}"
+    },
+    {
+      "template": "{{deployment.parameters.exitCode}}",
+      "condition": "{{deployment.parameters.exitCode}}"
+    }
+  ],
+  "environment": [],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "system-prompt.md",
+      "contentTemplate": "{{prompts.system}}",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": []
+}

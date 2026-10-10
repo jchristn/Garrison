@@ -1,0 +1,31 @@
+# Workers accept no inbound traffic except health and metrics probes; their egress is open so harnesses
+# can reach model APIs and MCP servers. The server accepts traffic from the dashboard, workers, ingress, and the
+# bootstrap Job. Tighten egress in production to the endpoints your harnesses actually call.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-worker
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports:
+        - port: 8710
+        - port: 9465
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-server
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-server
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports:
+        - port: 8700
+        - port: 8701
+        - port: 9464

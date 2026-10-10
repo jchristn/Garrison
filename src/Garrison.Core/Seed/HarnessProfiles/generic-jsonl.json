@@ -1,0 +1,46 @@
+{
+  "name": "builtin/generic-jsonl",
+  "description": "Template for any CLI that reads a prompt on stdin and writes JSONL events. Set deployment parameters executable, textField, finalField, successField, and successValue, or clone and edit.",
+  "harnessType": "Generic",
+  "executable": "{{deployment.parameters.executable | default: \"my-agent\"}}",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "PrependToPrompt",
+  "mcpConfigFormat": "None",
+  "outputParser": "GenericJsonl",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEventAndExitCode",
+  "genericTextField": "text",
+  "genericFinalField": "result",
+  "genericSuccessField": "type",
+  "genericSuccessValue": "result",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "arguments": [
+    {
+      "template": "{{deployment.parameters.argument1}}",
+      "condition": "{{deployment.parameters.argument1}}"
+    },
+    {
+      "template": "{{deployment.parameters.argument2}}",
+      "condition": "{{deployment.parameters.argument2}}"
+    }
+  ],
+  "environment": [
+    {
+      "name": "API_KEY",
+      "valueTemplate": "{{secret.kind.GenericEnv}}",
+      "isSecret": true
+    }
+  ],
+  "files": [],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "API_KEY"
+  ]
+}

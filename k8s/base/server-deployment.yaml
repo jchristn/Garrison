@@ -1,0 +1,178 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-server
+  labels:
+    app.kubernetes.io/name: garrison-server
+    app.kubernetes.io/component: control-plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-server
+        app.kubernetes.io/component: control-plane
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9464"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: garrison-server
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: wait-for-database
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "waiting for database ${GARRISON_DB_HOST}:${GARRISON_DB_PORT}"
+              until nc -z -w 2 "${GARRISON_DB_HOST}" "${GARRISON_DB_PORT}"; do sleep 2; done
+              echo "database reachable"
+          env:
+            - name: GARRISON_DB_HOST
+              value: garrison-postgres
+            - name: GARRISON_DB_PORT
+              value: "5432"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: server
+          image: jchristn77/garrison-server
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8700
+            - name: mcp
+              containerPort: 8701
+            - name: metrics
+              containerPort: 9464
+          env:
+            - name: GARRISON_SETTINGS_FILE
+              value: /etc/garrison/garrison.json
+            - name: GARRISON_SETTINGS_READONLY
+              value: "true"
+            - name: GARRISON_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: GARRISON_DB_TYPE
+              value: Postgresql
+            - name: GARRISON_DB_HOST
+              value: garrison-postgres
+            - name: GARRISON_DB_PORT
+              value: "5432"
+            - name: GARRISON_DB_DATABASE
+              value: garrison
+            - name: GARRISON_DB_USERNAME
+              value: garrison
+            - name: GARRISON_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-secrets
+                  key: db-password
+            - name: GARRISON_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-secrets
+                  key: master-key
+            - name: GARRISON_AUTH_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-secrets
+                  key: signing-key
+            - name: GARRISON_ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-secrets
+                  key: admin-api-key
+            - name: GARRISON_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-secrets
+                  key: admin-password
+            - name: GARRISON_DEFAULT_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-secrets
+                  key: default-access-key
+            - name: GARRISON_DEFAULT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-secrets
+                  key: default-secret-key
+            - name: GARRISON_NODE_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-node-credential
+                  key: access-key
+            - name: GARRISON_NODE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-node-credential
+                  key: secret-key
+            - name: GARRISON_MCP_PUBLIC_URL
+              value: http://garrison-server.garrison.svc.cluster.local:8701
+            - name: GARRISON_PUBLIC_BASE_URL
+              value: http://garrison-server.garrison.svc.cluster.local:8700
+            - name: GARRISON_EXPECTED_REPLICAS
+              value: "1"
+          volumeMounts:
+            - name: settings
+              mountPath: /etc/garrison
+              readOnly: true
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8700/v1.0/api/health"]
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 24
+            successThreshold: 1
+          readinessProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8700/v1.0/api/health"]
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+            successThreshold: 2
+          livenessProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8700/v1.0/api/health"]
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+            successThreshold: 1
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
+      volumes:
+        - name: settings
+          configMap:
+            name: garrison-server-settings
+        - name: data
+          emptyDir: {}

@@ -1,0 +1,62 @@
+{
+  "spec": {
+    "runId": "run_golden",
+    "tenantId": "ten_golden",
+    "agentName": "helper-fake-basic",
+    "deploymentId": "dep_fake_basic",
+    "harnessType": "Generic",
+    "executable": "garrison-fake-harness",
+    "arguments": [
+      "--format",
+      "claude"
+    ],
+    "environment": [],
+    "files": [
+      {
+        "baseDirectory": "Config",
+        "path": "system-prompt.md",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n",
+        "isSecret": false
+      }
+    ],
+    "stdin": "Summarize the repository.\n",
+    "workspace": {
+      "kind": "Empty",
+      "gitDepth": 1,
+      "files": [],
+      "retention": "Delete"
+    },
+    "parser": "ClaudeStreamJson",
+    "parserOptions": {},
+    "resultSource": "ParserFinalEvent",
+    "successPolicy": "FinalEvent",
+    "successExitCodes": [
+      0
+    ],
+    "timeoutSeconds": 300,
+    "killGraceSeconds": 2,
+    "maxOutputBytes": 67108864,
+    "stderrTailBytes": 8000,
+    "isolateHome": true,
+    "mcpPreflight": [],
+    "scrubValues": [
+      "credential-fake_basic"
+    ]
+  },
+  "templateVersions": [
+    {
+      "id": "rtv_golden_0",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_system",
+      "templateName": "builtin/default-system",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_1",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_task",
+      "templateName": "builtin/default-task",
+      "version": 1
+    }
+  ]
+}

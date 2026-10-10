@@ -1,0 +1,20 @@
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: smoke-echo
+spec:
+  displayName: Smoke Echo
+  description: Fake-harness agent used by the Garrison smoke test.
+  exposure: { a2a: true, mcpTool: false }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: smoke-echo-default
+spec:
+  agent: smoke-echo
+  harnessProfile: builtin/fake
+  prompts:
+    System: builtin/default-system
+    Task: builtin/default-task
+  timeoutSeconds: 120

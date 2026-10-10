@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-server
+spec:
+  replicas: 3
+  template:
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: garrison-server
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: garrison-server
+      initContainers:
+        - name: wait-for-database
+          env:
+            - name: GARRISON_DB_HOST
+              value: null
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-db
+                  key: host
+            - name: GARRISON_DB_PORT
+              value: null
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-db
+                  key: port
+      containers:
+        - name: server
+          env:
+            - name: GARRISON_DB_HOST
+              value: null
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-db
+                  key: host
+            - name: GARRISON_DB_PORT
+              value: null
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-db
+                  key: port
+            - name: GARRISON_DB_DATABASE
+              value: null
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-db
+                  key: database
+            - name: GARRISON_DB_USERNAME
+              value: null
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-db
+                  key: username
+            - name: GARRISON_DB_PASSWORD
+              value: null
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-db
+                  key: password
+            - name: GARRISON_EXPECTED_REPLICAS
+              value: "3"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 2Gi

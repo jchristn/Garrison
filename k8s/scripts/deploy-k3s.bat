@@ -1,0 +1,26 @@
+@echo off
+rem Deploys Garrison to the current kubectl context (K3S). Use --build to build images and import them into the
+rem K3S container named by K3S_CONTAINER (K3S in Docker). See deploy-k3s.sh for details.
+setlocal
+if "%GARRISON_TAG%"=="" set GARRISON_TAG=v0.1.0-alpha
+set K8S=%~dp0..
+set REPO=%~dp0..\..
+if "%1"=="--build" (
+  docker build -t jchristn77/garrison-server:%GARRISON_TAG% -f "%REPO%\src\Garrison.Server\Dockerfile" "%REPO%" || exit /b 1
+  docker build -t jchristn77/garrison-worker:%GARRISON_TAG% -f "%REPO%\src\Garrison.Worker\Dockerfile" "%REPO%" || exit /b 1
+  docker build -t jchristn77/garrison-dashboard:%GARRISON_TAG% "%REPO%\dashboard" || exit /b 1
+  if "%K3S_CONTAINER%"=="" (
+    echo [garrison] set K3S_CONTAINER to the K3S container name to import images
+    exit /b 1
+  )
+  for %%i in (garrison-server garrison-worker garrison-dashboard) do (
+    docker save jchristn77/%%i:%GARRISON_TAG% -o "%TEMP%\%%i.tar" || exit /b 1
+    docker cp "%TEMP%\%%i.tar" %K3S_CONTAINER%:/tmp/%%i.tar || exit /b 1
+    docker exec %K3S_CONTAINER% ctr images import /tmp/%%i.tar || exit /b 1
+  )
+)
+call "%~dp0generate-secrets.bat" || exit /b 1
+kubectl apply -k "%K8S%\overlays\k3s" || exit /b 1
+call "%~dp0wait-rollout.bat" || exit /b 1
+echo [garrison] add "127.0.0.1 garrison.local" to your hosts file, then open http://garrison.local
+endlocal

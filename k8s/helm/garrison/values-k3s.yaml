@@ -1,0 +1,7 @@
+# helm install garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/values-k3s.yaml
+ingress:
+  enabled: true
+  className: traefik
+  host: garrison.local
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web

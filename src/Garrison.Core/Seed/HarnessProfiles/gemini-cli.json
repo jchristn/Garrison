@@ -1,0 +1,100 @@
+{
+  "name": "builtin/gemini-cli",
+  "description": "Gemini CLI headless mode with stream-json output. Settings and system prompt come from an isolated GEMINI_CLI_HOME.",
+  "harnessType": "GeminiCli",
+  "executable": "gemini",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "None",
+  "systemPromptTarget": "GEMINI_SYSTEM_MD",
+  "mcpConfigFormat": "GeminiSettings",
+  "mcpConfigFileName": "gemini-home/.gemini/settings.json",
+  "outputParser": "GeminiStreamJson",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEvent",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "supportsResume": true,
+  "arguments": [
+    {
+      "template": "-p"
+    },
+    {
+      "template": " "
+    },
+    {
+      "template": "-o"
+    },
+    {
+      "template": "stream-json"
+    },
+    {
+      "template": "--skip-trust"
+    },
+    {
+      "template": "--approval-mode"
+    },
+    {
+      "template": "{{deployment.parameters.approvalMode | default: \"yolo\"}}"
+    },
+    {
+      "template": "-m",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "{{deployment.model}}",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "--allowed-mcp-server-names",
+      "condition": "{{resources.hasMcpServers}}"
+    },
+    {
+      "template": "{{resources.mcpServerNames}}",
+      "condition": "{{resources.hasMcpServers}}"
+    }
+  ],
+  "environment": [
+    {
+      "name": "GEMINI_API_KEY",
+      "valueTemplate": "{{secret.kind.GeminiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "GEMINI_CLI_HOME",
+      "valueTemplate": "$GARRISON_CONFIG_DIR/gemini-home",
+      "isSecret": false
+    },
+    {
+      "name": "GEMINI_SYSTEM_MD",
+      "valueTemplate": "$GARRISON_CONFIG_DIR/system-prompt.md",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    }
+  ],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "system-prompt.md",
+      "contentTemplate": "{{prompts.system}}",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "gemini-home/.gemini/settings.json",
+      "contentTemplate": "{{> builtin/gemini-settings}}",
+      "isSecret": true,
+      "mode": "600"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "GEMINI_API_KEY"
+  ]
+}

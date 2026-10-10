@@ -1,0 +1,164 @@
+# Garrison A2A API
+
+Garrison exposes agents to other agents over the Agent2Agent protocol (A2A 1.0, JSON-RPC binding). Each agent with `exposeA2A` set gets its own agent card and its own JSON-RPC endpoint. A2A tasks are Garrison runs: sending a message starts a run, the task identifier is the run identifier, and everything you can see over A2A you can also see over REST, MCP, and the dashboard.
+
+The gateway shares the REST listener (port 8700 by default). Agents are addressed by tenant and name:
+
+| Route | Authentication | Purpose |
+|---|---|---|
+| `GET /v1.0/a2a/{tenantId}/{agentName}/.well-known/agent-card.json` | None | The agent card |
+| `GET /v1.0/a2a/{tenantId}` | Read on Agent | Cards for every exposed agent in the tenant, as a JSON array |
+| `POST /v1.0/a2a/{tenantId}/{agentName}` | Any REST scheme | JSON-RPC endpoint |
+
+An agent that does not exist or is not exposed answers 404 for its card and `-32001` on the JSON-RPC endpoint. So does an agent in a tenant other than the caller's, unless the caller is a system administrator.
+
+## Agent cards
+
+```bash
+curl -s http://127.0.0.1:8700/v1.0/a2a/ten_default/docs-echo/.well-known/agent-card.json
+```
+
+```json
+{
+  "name": "docs-echo",
+  "description": "Echoes its input",
+  "version": "0.1.0-alpha",
+  "supportedInterfaces": [
+    { "url": "http://127.0.0.1:8700/v1.0/a2a/ten_default/docs-echo", "protocolBinding": "JSONRPC", "protocolVersion": "1.0" }
+  ],
+  "capabilities": { "streaming": true, "pushNotifications": false, "stateTransitionHistory": false },
+  "provider": { "organization": "Garrison", "url": "https://github.com/jchristn/Garrison" },
+  "skills": [ { "id": "docs-echo", "name": "docs-echo", "description": "Echoes its input", "tags": [] } ],
+  "defaultInputModes": [ "text/plain" ],
+  "defaultOutputModes": [ "text/plain", "application/json" ],
+  "securitySchemes": {
+    "garrison": {
+      "httpAuthSecurityScheme": {
+        "scheme": "bearer",
+        "description": "Garrison session token from POST /v1.0/token, or a run token issued to a Garrison agent."
+      }
+    }
+  },
+  "securityRequirements": [ { "schemes": { "garrison": [] } } ]
+}
+```
+
+The card's `name` is the agent's display name when it has one, and its name otherwise; the URL always uses the agent's name. The interface URL is built from `Rest.PublicBaseUrl` when it is set, and otherwise from the request's `Host` header. Set `Rest.PublicBaseUrl` whenever Garrison sits behind an ingress or load balancer, or remote agents will be handed an address they cannot reach. Agents whose input mode is `Structured` advertise `application/json` as their input mode instead of `text/plain`.
+
+The skill description is the agent's description by default. To word it differently, point the agent's `skillDescriptionTemplateId` at a prompt template (the built-in is `builtin/a2a-skill-description`). Only the `{{agent.name}}` and `{{agent.description}}` placeholders are substituted in this text.
+
+## Authentication
+
+The card advertises bearer authentication, and that is what most A2A clients send, but the JSON-RPC endpoint accepts every scheme REST accepts: session tokens, `x-access-key` and `x-secret-key`, signed requests, the administrator API key, and run tokens. Sending a message needs Execute on Agent; reading, listing, and subscribing need Read on Run; cancelling needs Update on Run. A refusal is JSON-RPC error `-32007`.
+
+## Methods
+
+Garrison accepts both the A2A 1.0 method names and the older slash-style names.
+
+| Method | Alias | What it does |
+|---|---|---|
+| `SendMessage` | `message/send` | Start a run and, unless told not to, wait for it |
+| `SendStreamingMessage` | `message/stream` | Start a run and stream its progress as SSE |
+| `GetTask` | `tasks/get` | Read a task by `id` |
+| `ListTasks` | `tasks/list` | List this agent's tasks |
+| `CancelTask` | `tasks/cancel` | Cancel a task by `id` |
+| `SubscribeToTask` | `tasks/resubscribe` | Stream an existing task's progress as SSE |
+
+### SendMessage
+
+```bash
+curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/ten_default/docs-echo \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "1",
+    "method": "SendMessage",
+    "params": {
+      "message": { "role": "ROLE_USER", "messageId": "m-doc-1", "parts": [ { "text": "Hello over A2A" } ] }
+    }
+  }'
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "task": {
+      "id": "run_mv1r3xkn_Hek6UZChHh5Xc6g2Nep",
+      "contextId": "run_mv1r3xkn_Hek6UZChHh5Xc6g2Nep",
+      "status": { "state": "TASK_STATE_COMPLETED", "timestamp": "2026-10-10T02:04:21.882039+00:00" },
+      "artifacts": [
+        { "artifactId": "run_mv1r3xkn_Hek6UZChHh5Xc6g2Nep-result", "name": "result", "parts": [ { "text": "Echo: Hello over A2A" } ] }
+      ],
+      "metadata": {
+        "garrison.agent": "docs-echo",
+        "garrison.outcome": "Succeeded",
+        "garrison.inputTokens": 12,
+        "garrison.outputTokens": 7
+      }
+    }
+  },
+  "id": "1"
+}
+```
+
+How the message becomes a run:
+
+- **Input.** The parts are joined, separated by blank lines, into the run's input. Text parts are used as is, data parts are serialized as JSON, and URL parts contribute the URL. A message with none of these is rejected with `-32602`.
+- **Idempotency.** `messageId` becomes the run's idempotency key (`a2a:<messageId>`). Sending the same message identifier again within 24 hours returns the original task instead of starting a new run.
+- **Parameters.** Request metadata entries named `garrison.parameter.<name>` become run parameters, for example `"metadata": {"garrison.parameter.model": "sonnet"}`. They are validated against the deployment's allowed overrides exactly like REST parameters.
+- **Waiting.** The call waits up to `Mcp.MaxToolWaitSeconds` (90 by default) for the run to finish. Set `"configuration": {"returnImmediately": true}` to get the task back at once in the `TASK_STATE_SUBMITTED` state, then poll with `GetTask` or attach with `SubscribeToTask`.
+
+### Tasks
+
+| Garrison | A2A |
+|---|---|
+| Run identifier | Task `id` |
+| Root run of the delegation chain (the run itself when it has no parent) | `contextId` |
+| `Pending`, `Queued` | `TASK_STATE_SUBMITTED` |
+| `Leased`, `Running`, `Cancelling` | `TASK_STATE_WORKING` |
+| `Succeeded` | `TASK_STATE_COMPLETED` |
+| `Cancelled` | `TASK_STATE_CANCELED` |
+| `Rejected` | `TASK_STATE_REJECTED` |
+| `Failed`, `TimedOut`, and anything else | `TASK_STATE_FAILED` |
+
+A completed task carries one artifact, `<runId>-result`, named `result`. It has a text part with the final answer and, when the agent produced structured output, a second data part with media type `application/json`. Failed and rejected tasks carry a status message made of the run's outcome and error message, in the form `<outcome>: <error>`. Every task has `garrison.agent`, `garrison.outcome`, `garrison.inputTokens`, and `garrison.outputTokens` in its metadata.
+
+`GetTask` takes `{"id": "<runId>"}`. A task that belongs to a different agent is reported as not found (`-32001`), even when it exists.
+
+`ListTasks` returns this agent's tasks, newest first. Parameters: `contextId` (only tasks in that delegation chain), `pageSize` (1 to 100, default 50), `pageToken` (the `nextPageToken` from the previous page), and `includeArtifacts` (default false). The response has `tasks`, `pageSize`, `totalSize`, and `nextPageToken`, which is empty on the last page.
+
+`CancelTask` takes `{"id": "<runId>"}` and returns the task. A run that already finished cannot be cancelled (`-32002`).
+
+### Streaming
+
+`SendStreamingMessage` takes the same parameters as `SendMessage`. `SubscribeToTask` takes `{"id": "<runId>"}`. Both answer with `text/event-stream`, where every `data:` line is a complete JSON-RPC response carrying the request's `id`. The first one holds the task, the rest hold status or artifact updates, and the stream closes after the terminal status.
+
+```text
+data: {"jsonrpc":"2.0","result":{"task":{"id":"run_mv1r4ek0_vOHPH3orUauTtaLFk52","contextId":"run_mv1r4ek0_vOHPH3orUauTtaLFk52","status":{"state":"TASK_STATE_SUBMITTED",...},...}},"id":2}
+
+data: {"jsonrpc":"2.0","result":{"statusUpdate":{"taskId":"run_mv1r4ek0_vOHPH3orUauTtaLFk52","contextId":"run_mv1r4ek0_vOHPH3orUauTtaLFk52","status":{"state":"TASK_STATE_WORKING",...}}},"id":2}
+
+data: {"jsonrpc":"2.0","result":{"artifactUpdate":{"taskId":"run_mv1r4ek0_vOHPH3orUauTtaLFk52","contextId":"run_mv1r4ek0_vOHPH3orUauTtaLFk52","artifact":{"artifactId":"run_mv1r4ek0_vOHPH3orUauTtaLFk52-result","name":"result","parts":[{"text":"Echo: Stream this"}]},"append":false,"lastChunk":true}},"id":2}
+
+data: {"jsonrpc":"2.0","result":{"statusUpdate":{"taskId":"run_mv1r4ek0_vOHPH3orUauTtaLFk52","contextId":"run_mv1r4ek0_vOHPH3orUauTtaLFk52","status":{"state":"TASK_STATE_COMPLETED",...}}},"id":2}
+```
+
+Garrison sends one status update per state change, plus the result artifact just before the final status of a successful run. It does not stream partial text; follow the run's events over REST or WebSocket for that.
+
+## Errors
+
+| Code | Meaning |
+|---|---|
+| `-32700` | The body is not valid JSON |
+| `-32601` | Unknown method |
+| `-32602` | Invalid parameters: missing input, a parameter the deployment does not allow, or another validation failure |
+| `-32001` | The agent or task was not found |
+| `-32002` | The task already finished and cannot be cancelled |
+| `-32007` | The caller does not have the needed permission |
+
+Conflicts that REST reports as 409, such as an inactive agent or a delegation rule violation, come back as `-32602` with the Garrison error code at the start of the message, for example `AgentInactive: Agent docs-echo is inactive.`
+
+## Calling Garrison agents from Garrison agents
+
+Garrison agents normally delegate over MCP (see `MCP_API.md`), but a run token works here too. Calling remote A2A agents from inside Garrison (agents of kind `Remote`) is not available yet; invoking one fails with `RemoteAgentNotSupported`.

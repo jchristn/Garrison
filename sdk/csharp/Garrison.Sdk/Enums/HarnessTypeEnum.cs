@@ -1,0 +1,33 @@
+namespace Garrison.Sdk.Enums
+{
+    /// <summary>
+    /// Supported agent harness families.
+    /// </summary>
+    public enum HarnessTypeEnum
+    {
+        /// <summary>
+        /// ClaudeCode.
+        /// </summary>
+        ClaudeCode,
+
+        /// <summary>
+        /// Codex.
+        /// </summary>
+        Codex,
+
+        /// <summary>
+        /// Mux.
+        /// </summary>
+        Mux,
+
+        /// <summary>
+        /// GeminiCli.
+        /// </summary>
+        GeminiCli,
+
+        /// <summary>
+        /// Generic.
+        /// </summary>
+        Generic
+    }
+}

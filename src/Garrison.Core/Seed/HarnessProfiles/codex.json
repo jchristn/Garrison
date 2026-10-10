@@ -1,0 +1,169 @@
+{
+  "name": "builtin/codex",
+  "description": "Codex CLI exec mode with JSONL events. Prompt on stdin, model instructions from a file, MCP servers as --config overrides with bearer tokens read from environment variables.",
+  "harnessType": "Codex",
+  "executable": "codex",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "File",
+  "systemPromptTarget": "system-prompt.md",
+  "mcpConfigFormat": "CodexToml",
+  "outputParser": "CodexJsonl",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEvent",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "supportsResume": true,
+  "arguments": [
+    {
+      "template": "exec"
+    },
+    {
+      "template": "--json"
+    },
+    {
+      "template": "--skip-git-repo-check"
+    },
+    {
+      "template": "--ignore-user-config"
+    },
+    {
+      "template": "-s"
+    },
+    {
+      "template": "{{deployment.parameters.sandbox | default: \"workspace-write\"}}"
+    },
+    {
+      "template": "-C"
+    },
+    {
+      "template": "$GARRISON_WORKSPACE_DIR"
+    },
+    {
+      "template": "-m",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "{{deployment.model}}",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "-c"
+    },
+    {
+      "template": "project_doc_max_bytes=0"
+    },
+    {
+      "template": "-c",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "model_reasoning_effort={{deployment.effort | toml}}",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "-c",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "model_instructions_file=\"$GARRISON_CONFIG_DIR/system-prompt.md\"",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.url={{this.endpoint | toml}}",
+      "repeatOver": "resources.httpMcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.env_http_headers={ {{#each this.headers}}{{this.name | toml}} = {{this.envName | toml}}{{#unless @last}}, {{/unless}}{{/each}} }",
+      "condition": "{{this.headers}}",
+      "repeatOver": "resources.httpMcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.required={{this.required}}",
+      "repeatOver": "resources.mcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.tool_timeout_sec={{this.toolTimeoutSeconds}}",
+      "repeatOver": "resources.mcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.default_tools_approval_mode=\"approve\"",
+      "repeatOver": "resources.mcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.command={{this.command | toml}}",
+      "repeatOver": "resources.stdioMcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.args={{this.args | toml}}",
+      "repeatOver": "resources.stdioMcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.env={ {{#each this.env}}{{this.name | toml}} = {{this.value | toml}}{{#unless @last}}, {{/unless}}{{/each}} }",
+      "condition": "{{this.env}}",
+      "repeatOver": "resources.stdioMcpServers"
+    },
+    {
+      "template": "--output-schema",
+      "condition": "{{agent.outputSchema}}"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/output-schema.json",
+      "condition": "{{agent.outputSchema}}"
+    },
+    {
+      "template": "-"
+    }
+  ],
+  "environment": [
+    {
+      "name": "CODEX_API_KEY",
+      "valueTemplate": "{{secret.kind.OpenAiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "valueTemplate": "{{secret.kind.OpenAiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "OPENAI_BASE_URL",
+      "valueTemplate": "{{deployment.parameters.openaiBaseUrl}}",
+      "isSecret": false
+    }
+  ],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "system-prompt.md",
+      "contentTemplate": "{{prompts.system}}",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "output-schema.json",
+      "contentTemplate": "{{agent.outputSchema}}",
+      "isSecret": false,
+      "condition": "{{agent.outputSchema}}"
+    },
+    {
+      "baseDirectory": "Home",
+      "pathTemplate": ".codex/auth.json",
+      "contentTemplate": "{{secret.kind.CodexAuthJson}}",
+      "isSecret": true,
+      "condition": "{{secret.kind.CodexAuthJson}}",
+      "mode": "600"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "CODEX_API_KEY",
+    "OPENAI_API_KEY"
+  ]
+}

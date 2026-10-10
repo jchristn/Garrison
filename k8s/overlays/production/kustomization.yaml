@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: garrison
+
+# Production: external Postgresql (Secret garrison-db with keys host, port, database, username, password),
+# three control-plane replicas with an HPA, disruption budgets, spread and anti-affinity, and an ingress-nginx
+# Ingress with TLS (Secret garrison-tls). Set image tags explicitly; never deploy latest.
+resources:
+  - ../../base
+  - hpa.yaml
+  - pdb.yaml
+  - ingress.yaml
+
+patches:
+  - path: server.yaml
+  - path: worker.yaml

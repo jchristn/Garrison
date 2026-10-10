@@ -1,0 +1,138 @@
+{{- range $pool := .Values.workerPools }}
+{{- $name := ternary "garrison-worker" (printf "garrison-worker-%s" $pool.name) (eq $pool.name "default") }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "garrison.namespace" $ }}
+  labels:
+    {{- include "garrison.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: garrison-worker
+    app.kubernetes.io/component: worker
+    garrison.io/pool: {{ $pool.name }}
+spec:
+  serviceName: {{ $name }}
+  replicas: {{ $pool.replicas }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-worker
+      garrison.io/pool: {{ $pool.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-worker
+        app.kubernetes.io/component: worker
+        garrison.io/pool: {{ $pool.name }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9465"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: garrison-worker
+      automountServiceAccountToken: false
+      {{- with $.Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      terminationGracePeriodSeconds: {{ $pool.terminationGracePeriodSeconds }}
+      {{- with $pool.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pool.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: wait-for-server
+          image: {{ $.Values.bootstrap.image }}
+          command: ["sh", "-c", "until curl -fsS -o /dev/null http://garrison-server:8700/v1.0/api/health; do sleep 2; done"]
+      containers:
+        - name: worker
+          image: {{ include "garrison.image" (dict "root" $ "name" "garrison-worker") }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - { name: health, containerPort: 8710 }
+            - { name: metrics, containerPort: 9465 }
+          env:
+            - { name: GARRISON_WORKER_SETTINGS_FILE, value: /etc/garrison/garrison-worker.json }
+            - { name: GARRISON_WORKER_SERVER_URL, value: "http://garrison-server:8700" }
+            - name: GARRISON_WORKER_NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: GARRISON_WORKER_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: {{ $.Values.secrets.nodeCredential }}, key: access-key } }
+            - name: GARRISON_WORKER_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: {{ $.Values.secrets.nodeCredential }}, key: secret-key } }
+            - { name: GARRISON_WORKER_MAX_CONCURRENT_RUNS, value: {{ $pool.maxConcurrentRuns | quote }} }
+            - { name: GARRISON_WORKER_WORK_ROOT, value: /workspaces }
+            - { name: GARRISON_WORKER_HEALTH_PORT, value: "8710" }
+            - { name: GARRISON_WORKER_LABELS, value: {{ $pool.labels | quote }} }
+            - { name: GARRISON_WORKER_NODE_POOL, value: {{ $pool.name | quote }} }
+          volumeMounts:
+            - { name: settings, mountPath: /etc/garrison, readOnly: true }
+            - { name: workspaces, mountPath: /workspaces }
+          resources:
+            {{- toYaml $pool.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          startupProbe:
+            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8710/health/live" "failure" 24 "success" 1) | nindent 12 }}
+          readinessProbe:
+            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8710/health/ready" "failure" 2 "success" 2) | nindent 12 }}
+          livenessProbe:
+            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8710/health/live" "failure" 2 "success" 1) | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "5"] }
+      volumes:
+        - name: settings
+          configMap: { name: garrison-worker-settings }
+  volumeClaimTemplates:
+    - metadata:
+        name: workspaces
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if $pool.storageClassName }}
+        storageClassName: {{ $pool.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $pool.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "garrison.namespace" $ }}
+  labels:
+    {{- include "garrison.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: garrison-worker
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: garrison-worker
+    garrison.io/pool: {{ $pool.name }}
+  ports:
+    - { name: health, port: 8710, targetPort: health }
+    - { name: metrics, port: 9465, targetPort: metrics }
+{{- end }}
+{{- if .Values.workerPdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: garrison-worker
+  namespace: {{ include "garrison.namespace" . }}
+spec:
+  maxUnavailable: {{ .Values.workerPdb.maxUnavailable }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: garrison-worker }
+{{- end }}

@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: server
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garrison-worker
+spec:
+  template:
+    spec:
+      containers:
+        - name: worker
+          env:
+            - name: GARRISON_WORKER_MAX_CONCURRENT_RUNS
+              value: "2"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi

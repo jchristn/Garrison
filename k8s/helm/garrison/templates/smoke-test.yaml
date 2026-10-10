@@ -1,0 +1,43 @@
+{{- if .Values.smokeTest.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-smoke-test
+  namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  smoke.yaml: |
+{{ .Files.Get "files/smoke.yaml" | indent 4 }}
+  smoke.sh: |
+{{ .Files.Get "files/smoke.sh" | indent 4 }}
+---
+# Run with: helm test <release>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: garrison-smoke-test
+  namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext: { runAsNonRoot: true, runAsUser: 10001 }
+  containers:
+    - name: smoke
+      image: {{ .Values.smokeTest.image }}
+      command: ["sh", "/smoke/smoke.sh"]
+      env:
+        - { name: GARRISON_API_URL, value: "http://garrison-server:8700" }
+        - name: GARRISON_ADMIN_API_KEY
+          valueFrom: { secretKeyRef: { name: {{ .Values.secrets.main }}, key: admin-api-key } }
+      volumeMounts:
+        - { name: smoke, mountPath: /smoke, readOnly: true }
+  volumes:
+    - name: smoke
+      configMap: { name: garrison-smoke-test }
+{{- end }}

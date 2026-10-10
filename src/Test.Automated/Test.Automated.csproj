@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Touchstone.Cli" Version="0.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Test.Shared\Test.Shared.csproj" />
+    <ProjectReference Include="..\Garrison.FakeHarness\Garrison.FakeHarness.csproj" />
+  </ItemGroup>
+
+</Project>

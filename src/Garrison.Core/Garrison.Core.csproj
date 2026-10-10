@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsGarrisonLibrary>true</IsGarrisonLibrary>
+    <RootNamespace>Garrison.Core</RootNamespace>
+    <AssemblyName>Garrison.Core</AssemblyName>
+    <Description>Garrison core: models, data layer, security, template rendering, and invocation compilation.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+    <PackageReference Include="PrettyId" Version="2.0.2" />
+    <PackageReference Include="Radiant" Version="0.1.3" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Seed\**\*.md" />
+    <EmbeddedResource Include="Seed\**\*.json" />
+    <EmbeddedResource Include="Seed\**\*.toml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Test.Shared" />
+  </ItemGroup>
+
+</Project>

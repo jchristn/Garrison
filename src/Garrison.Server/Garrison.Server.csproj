@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsGarrisonLibrary>true</IsGarrisonLibrary>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Garrison.Server</RootNamespace>
+    <AssemblyName>Garrison.Server</AssemblyName>
+    <StartupObject>Garrison.Server.Program</StartupObject>
+    <Description>Garrison control plane node (Command).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SyslogLogging" Version="2.4.0" />
+    <PackageReference Include="Voltaic" Version="2.3.0" />
+    <PackageReference Include="Watson" Version="7.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Garrison.Core\Garrison.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="garrison.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Test.Shared" />
+  </ItemGroup>
+
+</Project>

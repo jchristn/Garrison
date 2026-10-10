@@ -1,0 +1,99 @@
+{
+  "spec": {
+    "runId": "run_golden",
+    "tenantId": "ten_golden",
+    "agentName": "helper-gemini-cli-basic",
+    "deploymentId": "dep_gemini_cli_basic",
+    "harnessType": "GeminiCli",
+    "executable": "gemini",
+    "arguments": [
+      "-p",
+      " ",
+      "-o",
+      "stream-json",
+      "--skip-trust",
+      "--approval-mode",
+      "yolo",
+      "-m",
+      "test-model"
+    ],
+    "environment": [
+      {
+        "name": "GEMINI_API_KEY",
+        "value": "credential-gemini_cli_basic",
+        "isSecret": true
+      },
+      {
+        "name": "GEMINI_CLI_HOME",
+        "value": "$GARRISON_CONFIG_DIR/gemini-home",
+        "isSecret": false
+      },
+      {
+        "name": "GEMINI_SYSTEM_MD",
+        "value": "$GARRISON_CONFIG_DIR/system-prompt.md",
+        "isSecret": false
+      }
+    ],
+    "files": [
+      {
+        "baseDirectory": "Config",
+        "path": "system-prompt.md",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n",
+        "isSecret": false
+      },
+      {
+        "baseDirectory": "Config",
+        "path": "gemini-home/.gemini/settings.json",
+        "content": "{\n  \u0022mcpServers\u0022: {\n  },\n  \u0022privacy\u0022: { \u0022usageStatisticsEnabled\u0022: false },\n  \u0022skills\u0022: { \u0022enabled\u0022: false }\n}\n",
+        "mode": "600",
+        "isSecret": true
+      }
+    ],
+    "stdin": "Summarize the repository.\n",
+    "workspace": {
+      "kind": "Empty",
+      "gitDepth": 1,
+      "files": [],
+      "retention": "Delete"
+    },
+    "parser": "GeminiStreamJson",
+    "parserOptions": {},
+    "resultSource": "ParserFinalEvent",
+    "successPolicy": "FinalEvent",
+    "successExitCodes": [
+      0
+    ],
+    "timeoutSeconds": 1800,
+    "killGraceSeconds": 5,
+    "maxOutputBytes": 67108864,
+    "stderrTailBytes": 8000,
+    "isolateHome": true,
+    "mcpPreflight": [],
+    "scrubValues": [
+      "credential-gemini_cli_basic"
+    ]
+  },
+  "templateVersions": [
+    {
+      "id": "rtv_golden_0",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_system",
+      "templateName": "builtin/default-system",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_1",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_task",
+      "templateName": "builtin/default-task",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_2",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_gemini_settings",
+      "templateName": "builtin/gemini-settings",
+      "version": 1
+    }
+  ]
+}

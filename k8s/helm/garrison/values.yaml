@@ -1,0 +1,100 @@
+# Garrison Helm values. Files under files/ mirror k8s/base and k8s/components; keep them in sync
+# (the k8s CI workflow diffs them).
+
+namespaceOverride: ""
+
+image:
+  registry: jchristn77
+  # Defaults to "v" + Chart appVersion. Never use latest for deployments.
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+secrets:
+  # Created by k8s/scripts/generate-secrets.sh, or by your secret manager.
+  main: garrison-secrets
+  nodeCredential: garrison-node-credential
+  harnessCredentials: garrison-harness-credentials
+
+database:
+  # embedded: deploy an in-cluster Postgres StatefulSet. external: use the Secret named by external.secretName
+  # with keys host, port, database, username, password.
+  mode: embedded
+  embedded:
+    image: postgres:17
+    storage: 5Gi
+    storageClassName: ""
+  external:
+    secretName: garrison-db
+
+server:
+  replicas: 1
+  expectedReplicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "2", memory: 1Gi }
+  service:
+    type: ClusterIP
+    nodePorts: { http: null, mcp: null }
+  # URLs harnesses on workers use to reach Garrison. Empty derives the in-cluster service DNS name.
+  publicBaseUrl: ""
+  mcpPublicUrl: ""
+  extraEnv: []
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCpuUtilization: 70
+  pdb:
+    enabled: false
+    minAvailable: 1
+
+# Each pool becomes its own StatefulSet named garrison-worker-<name> (the pool named "default" keeps the
+# name garrison-worker so it matches the Kustomize base).
+workerPools:
+  - name: default
+    replicas: 2
+    maxConcurrentRuns: 4
+    labels: "garrison.io/pool=default"
+    storage: 10Gi
+    storageClassName: ""
+    terminationGracePeriodSeconds: 900
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: "4", memory: 4Gi }
+    nodeSelector: {}
+    tolerations: []
+
+workerPdb:
+  enabled: false
+  maxUnavailable: 1
+
+dashboard:
+  enabled: true
+  replicas: 1
+  apiUrl: ""
+  service:
+    type: ClusterIP
+    nodePort: null
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 500m, memory: 128Mi }
+
+bootstrap:
+  enabled: true
+  tenantId: ten_default
+  image: curlimages/curl:8.10.1
+
+ingress:
+  enabled: false
+  className: ""
+  host: garrison.local
+  annotations: {}
+  tls: []
+
+networkPolicies:
+  enabled: true
+
+smokeTest:
+  enabled: false
+  image: curlimages/curl:8.10.1

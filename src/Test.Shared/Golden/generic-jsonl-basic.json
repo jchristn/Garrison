@@ -1,0 +1,63 @@
+{
+  "spec": {
+    "runId": "run_golden",
+    "tenantId": "ten_golden",
+    "agentName": "helper-generic-jsonl-basic",
+    "deploymentId": "dep_generic_jsonl_basic",
+    "harnessType": "Generic",
+    "executable": "my-agent",
+    "arguments": [],
+    "environment": [
+      {
+        "name": "API_KEY",
+        "value": "credential-generic_jsonl_basic",
+        "isSecret": true
+      }
+    ],
+    "files": [],
+    "stdin": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n\n\nSummarize the repository.\n",
+    "workspace": {
+      "kind": "Empty",
+      "gitDepth": 1,
+      "files": [],
+      "retention": "Delete"
+    },
+    "parser": "GenericJsonl",
+    "parserOptions": {
+      "textField": "text",
+      "finalField": "result",
+      "successField": "type",
+      "successValue": "result"
+    },
+    "resultSource": "ParserFinalEvent",
+    "successPolicy": "FinalEventAndExitCode",
+    "successExitCodes": [
+      0
+    ],
+    "timeoutSeconds": 1800,
+    "killGraceSeconds": 5,
+    "maxOutputBytes": 67108864,
+    "stderrTailBytes": 8000,
+    "isolateHome": true,
+    "mcpPreflight": [],
+    "scrubValues": [
+      "credential-generic_jsonl_basic"
+    ]
+  },
+  "templateVersions": [
+    {
+      "id": "rtv_golden_0",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_system",
+      "templateName": "builtin/default-system",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_1",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_task",
+      "templateName": "builtin/default-task",
+      "version": 1
+    }
+  ]
+}

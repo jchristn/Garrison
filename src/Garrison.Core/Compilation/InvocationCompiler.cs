@@ -1,0 +1,971 @@
+namespace Garrison.Core.Compilation
+{
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Linq;
+    using System.Security.Cryptography;
+    using System.Text.Json;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Garrison.Core.Database;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Models;
+    using Garrison.Core.Security;
+    using Garrison.Core.Templates;
+
+    /// <summary>
+    /// Compiles a run into a fully resolved <see cref="ExecutionSpec"/> from its deployment, harness profile, prompt
+    /// templates, and resource bindings (plan section 8.6). Every piece of text the compiler emits comes from a
+    /// template or from caller input (D-021); templates resolve tenant first, then built-in (D-022); secrets are
+    /// decrypted only here (D-010, D-023). Thread-safe.
+    /// </summary>
+    public class InvocationCompiler
+    {
+        #region Public-Members
+
+        /// <summary>
+        /// Text that replaces secret values in previews.
+        /// </summary>
+        public static readonly string Redacted = "[REDACTED]";
+
+        /// <summary>
+        /// Compiler options.
+        /// </summary>
+        public CompilerOptions Options
+        {
+            get
+            {
+                return _Options;
+            }
+        }
+
+        #endregion
+
+        #region Private-Members
+
+        private readonly DatabaseDriverBase _Database;
+        private readonly SecretCipher _Cipher;
+        private readonly CompilerOptions _Options;
+
+        #endregion
+
+        #region Constructors-and-Factories
+
+        /// <summary>
+        /// Instantiate.
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="cipher">Secret cipher.</param>
+        /// <param name="options">Options.</param>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        public InvocationCompiler(DatabaseDriverBase database, SecretCipher cipher, CompilerOptions options)
+        {
+            _Database = database ?? throw new ArgumentNullException(nameof(database));
+            _Cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
+            _Options = options ?? throw new ArgumentNullException(nameof(options));
+        }
+
+        #endregion
+
+        #region Public-Methods
+
+        /// <summary>
+        /// Compile a run for execution.
+        /// </summary>
+        /// <param name="run">Run (with parameters loaded).</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Compilation result.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
+        /// <exception cref="CompilationException">Thrown when the run cannot be compiled.</exception>
+        public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CancellationToken token = default)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            CompilationInputs inputs = await LoadAsync(run.TenantId, run.DeploymentId, token).ConfigureAwait(false);
+            return Compile(inputs, run, runToken);
+        }
+
+        /// <summary>
+        /// Compile a preview for a deployment with secret values redacted.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="deploymentId">Deployment identifier.</param>
+        /// <param name="input">Sample input message.</param>
+        /// <param name="parameters">Sample run parameters.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Compilation result with redacted secrets.</returns>
+        /// <exception cref="CompilationException">Thrown when the deployment cannot be compiled.</exception>
+        public async Task<CompilationResult> PreviewAsync(string tenantId, string deploymentId, string input, Dictionary<string, string>? parameters, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (String.IsNullOrEmpty(deploymentId)) throw new ArgumentNullException(nameof(deploymentId));
+
+            CompilationInputs inputs = await LoadAsync(tenantId, deploymentId, token).ConfigureAwait(false);
+            Run run = new Run();
+            run.Id = "run_preview";
+            run.TenantId = tenantId;
+            run.AgentId = inputs.Agent.Id;
+            run.AgentName = inputs.Agent.Name;
+            run.DeploymentId = deploymentId;
+            run.DeploymentVersion = inputs.Deployment.ConfigVersion;
+            run.InputText = input ?? String.Empty;
+            run.CallerName = "preview";
+            if (parameters != null)
+            {
+                foreach (KeyValuePair<string, string> entry in parameters)
+                {
+                    RunParameter parameter = new RunParameter();
+                    parameter.Name = entry.Key;
+                    parameter.Value = entry.Value;
+                    run.Parameters.Add(parameter);
+                }
+            }
+
+            CompilationResult result = Compile(inputs, run, "preview-run-token");
+            Redact(result.Spec);
+            return result;
+        }
+
+        /// <summary>
+        /// Load and validate everything a deployment references.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="deploymentId">Deployment identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Inputs.</returns>
+        /// <exception cref="CompilationException">Thrown when a reference is missing or a template is invalid.</exception>
+        public async Task<CompilationInputs> LoadAsync(string tenantId, string deploymentId, CancellationToken token = default)
+        {
+            CompilationInputs inputs = new CompilationInputs();
+            inputs.Tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
+            inputs.Deployment = await _Database.Deployments.ReadAsync(tenantId, deploymentId, token).ConfigureAwait(false)
+                ?? throw new CompilationException("ReferenceNotFound", "Deployment " + deploymentId + " was not found.");
+            inputs.Agent = await _Database.Agents.ReadAsync(tenantId, inputs.Deployment.AgentId, token).ConfigureAwait(false)
+                ?? throw new CompilationException("ReferenceNotFound", "Agent " + inputs.Deployment.AgentId + " referenced by deployment " + inputs.Deployment.Name + " was not found.");
+            inputs.Profile = await _Database.HarnessProfiles.ReadAsync(tenantId, inputs.Deployment.HarnessProfileId, token).ConfigureAwait(false)
+                ?? throw new CompilationException("ReferenceNotFound", "Harness profile " + inputs.Deployment.HarnessProfileId + " referenced by deployment " + inputs.Deployment.Name + " was not found.");
+
+            foreach (DeploymentPromptBinding binding in inputs.Deployment.PromptBindings)
+            {
+                PromptTemplate template = await _Database.PromptTemplates.ReadAsync(tenantId, binding.TemplateId, token).ConfigureAwait(false)
+                    ?? throw new CompilationException("ReferenceNotFound", "Prompt template " + binding.TemplateId + " bound to role " + binding.Role + " was not found.");
+                BoundPrompt bound = new BoundPrompt();
+                bound.Role = binding.Role;
+                bound.TemplateId = template.Id;
+                bound.TemplateName = template.Name;
+                bound.Version = template.CurrentVersion;
+                bound.Content = template.Content;
+                if (binding.PinnedVersion.HasValue && binding.PinnedVersion.Value != template.CurrentVersion)
+                {
+                    PromptTemplateVersion version = await _Database.PromptTemplateVersions.ReadByVersionAsync(template.Id, binding.PinnedVersion.Value, token).ConfigureAwait(false)
+                        ?? throw new CompilationException("ReferenceNotFound", "Version " + binding.PinnedVersion.Value + " of prompt template " + template.Name + " was not found.");
+                    bound.Version = version.Version;
+                    bound.Content = version.Content;
+                }
+                inputs.Prompts[binding.Role] = bound;
+            }
+
+            foreach (DeploymentResourceBinding binding in inputs.Deployment.ResourceBindings)
+            {
+                if (binding.Kind == ResourceBindingKindEnum.McpServer)
+                {
+                    McpServer server = await _Database.McpServers.ReadAsync(tenantId, binding.ResourceId, token).ConfigureAwait(false)
+                        ?? throw new CompilationException("ReferenceNotFound", "MCP server " + binding.ResourceId + " bound as " + binding.Alias + " was not found.");
+                    if (server.Active) inputs.McpServers.Add(server);
+                }
+                else
+                {
+                    Secret secret = await _Database.Secrets.ReadAsync(tenantId, binding.ResourceId, token).ConfigureAwait(false)
+                        ?? throw new CompilationException("ReferenceNotFound", "Secret " + binding.ResourceId + " bound as " + binding.Alias + " was not found.");
+                    if (secret.Active) inputs.Secrets[binding.Alias] = secret;
+                }
+            }
+
+            if (!String.IsNullOrEmpty(inputs.Deployment.WorkspaceTemplateId))
+            {
+                inputs.Workspace = await _Database.WorkspaceTemplates.ReadAsync(tenantId, inputs.Deployment.WorkspaceTemplateId, token).ConfigureAwait(false)
+                    ?? throw new CompilationException("ReferenceNotFound", "Workspace template " + inputs.Deployment.WorkspaceTemplateId + " was not found.");
+                if (!String.IsNullOrEmpty(inputs.Workspace.GitCredentialSecretId))
+                {
+                    inputs.WorkspaceSecret = await _Database.Secrets.ReadAsync(tenantId, inputs.Workspace.GitCredentialSecretId, token).ConfigureAwait(false);
+                }
+            }
+
+            await LoadIncludesAsync(tenantId, inputs, token).ConfigureAwait(false);
+            return inputs;
+        }
+
+        /// <summary>
+        /// Compile loaded inputs.
+        /// </summary>
+        /// <param name="inputs">Inputs.</param>
+        /// <param name="run">Run.</param>
+        /// <param name="runToken">Run token, or null.</param>
+        /// <returns>Result.</returns>
+        /// <exception cref="CompilationException">Thrown when compilation fails.</exception>
+        public CompilationResult Compile(CompilationInputs inputs, Run run, string? runToken)
+        {
+            if (inputs == null) throw new ArgumentNullException(nameof(inputs));
+            if (run == null) throw new ArgumentNullException(nameof(run));
+
+            Deployment deployment = inputs.Deployment;
+            Agent agent = inputs.Agent;
+            HarnessProfile profile = inputs.Profile;
+            HashSet<string> scrub = new HashSet<string>(StringComparer.Ordinal);
+            ExecutionSpec spec = new ExecutionSpec();
+            spec.RunId = run.Id;
+            spec.TenantId = run.TenantId;
+            spec.AgentName = agent.Name;
+            spec.DeploymentId = deployment.Id;
+            spec.HarnessType = profile.HarnessType;
+
+            Dictionary<string, string> parameters = RunOverrideValidator.Effective(deployment, run.Parameters);
+            bool delegationEnabled = agent.DelegationMode != DelegationModeEnum.None && !String.IsNullOrEmpty(runToken);
+
+            TemplateContext context = BaseContext(inputs, run, parameters, delegationEnabled);
+            Dictionary<string, object?> secrets = SecretContext(inputs, scrub);
+            context.Set("secret", secrets);
+
+            List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled, spec, scrub);
+            context.Set("resources", ResourcesContext(inputs, servers));
+
+            Func<string, string?> includes = name => inputs.Includes.TryGetValue(name, out BoundPrompt? include) ? include.Content : null;
+            HashSet<string> usedIncludes = new HashSet<string>(StringComparer.Ordinal);
+
+            string system = RenderPrompt(inputs, "System", context, includes, usedIncludes);
+            string taskRole = (run.Depth > 0 || run.Kind == RunKindEnum.Delegated) && inputs.Prompts.ContainsKey("DelegatedTask") ? "DelegatedTask" : "Task";
+            string task = inputs.Prompts.ContainsKey(taskRole) ? RenderPrompt(inputs, taskRole, context, includes, usedIncludes) : (run.InputText ?? String.Empty);
+            if (profile.SystemPromptDelivery == SystemPromptDeliveryEnum.PrependToPrompt && system.Length > 0)
+            {
+                task = system + Environment.NewLine + Environment.NewLine + task;
+            }
+            Dictionary<string, object?> prompts = TemplateContext.NewMap();
+            prompts["system"] = system;
+            prompts["task"] = task;
+            context.Set("prompts", prompts);
+
+            spec.Executable = Render(profile.Executable, context, includes, usedIncludes, false, scrub, "executable");
+            if (String.IsNullOrWhiteSpace(spec.Executable)) throw new CompilationException("ExecutableMissing", "Harness profile " + profile.Name + " rendered an empty executable.");
+
+            foreach (HarnessArgument argument in ApplyArgumentOverrides(profile.Arguments, deployment.ArgumentOverrides))
+            {
+                RenderArgument(argument, context, includes, usedIncludes, scrub, spec.Arguments);
+            }
+
+            RenderEnvironment(inputs, context, includes, usedIncludes, scrub, spec);
+            RenderFiles(inputs, context, includes, usedIncludes, scrub, spec);
+
+            switch (profile.SystemPromptDelivery)
+            {
+                case SystemPromptDeliveryEnum.File:
+                    string fileName = String.IsNullOrWhiteSpace(profile.SystemPromptTarget) ? "system-prompt.md" : profile.SystemPromptTarget!;
+                    if (system.Length > 0 && !spec.Files.Any(f => f.BaseDirectory == FileBaseDirectoryEnum.Config && f.Path == fileName))
+                    {
+                        spec.Files.Add(File(FileBaseDirectoryEnum.Config, fileName, system, null, false));
+                    }
+                    break;
+                case SystemPromptDeliveryEnum.Argument:
+                    if (system.Length > 0 && !String.IsNullOrWhiteSpace(profile.SystemPromptTarget))
+                    {
+                        spec.Arguments.Add(profile.SystemPromptTarget!);
+                        spec.Arguments.Add(system);
+                    }
+                    break;
+                case SystemPromptDeliveryEnum.Environment:
+                    if (system.Length > 0 && !String.IsNullOrWhiteSpace(profile.SystemPromptTarget))
+                    {
+                        spec.Environment.Add(Variable(profile.SystemPromptTarget!, system, false));
+                    }
+                    break;
+            }
+
+            switch (profile.PromptDelivery)
+            {
+                case PromptDeliveryEnum.Stdin:
+                    spec.Stdin = task;
+                    break;
+                case PromptDeliveryEnum.Argument:
+                    spec.Arguments.Add(String.IsNullOrWhiteSpace(profile.PromptArgumentTemplate) ? task : Render(profile.PromptArgumentTemplate, context, includes, usedIncludes, false, scrub, "promptArgument"));
+                    break;
+                case PromptDeliveryEnum.File:
+                    string promptFile = String.IsNullOrWhiteSpace(profile.PromptArgumentTemplate) ? "prompt.md" : Render(profile.PromptArgumentTemplate, context, includes, usedIncludes, false, scrub, "promptArgument");
+                    spec.Files.Add(File(FileBaseDirectoryEnum.Config, promptFile, task, null, false));
+                    break;
+            }
+
+            spec.Workspace = Workspace(inputs, scrub);
+            spec.Parser = profile.OutputParser;
+            spec.ParserOptions.TextField = profile.GenericTextField;
+            spec.ParserOptions.FinalField = profile.GenericFinalField;
+            spec.ParserOptions.SuccessField = profile.GenericSuccessField;
+            spec.ParserOptions.SuccessValue = profile.GenericSuccessValue;
+            spec.ResultSource = profile.ResultSource;
+            spec.ResultFileName = profile.ResultFileName;
+            spec.SuccessPolicy = profile.SuccessPolicy;
+            spec.SuccessExitCodes = profile.SuccessExitCodes.Count > 0 ? new List<int>(profile.SuccessExitCodes) : new List<int> { 0 };
+            spec.TimeoutSeconds = deployment.TimeoutSeconds ?? (profile.DefaultTimeoutSeconds > 0 ? profile.DefaultTimeoutSeconds : _Options.DefaultTimeoutSeconds);
+            spec.KillGraceSeconds = profile.KillGraceSeconds;
+            spec.MaxOutputBytes = profile.MaxOutputBytes;
+            spec.StderrTailBytes = profile.StderrTailBytes;
+            spec.IsolateHome = profile.IsolateHome;
+            spec.TraceParent = Activity.Current?.Id;
+
+            foreach (McpServerEntry server in servers)
+            {
+                if (!server.IsHttp) continue;
+                if (!server.Required && server.RequiredTools.Count == 0) continue;
+                ExecutionMcpCheck check = new ExecutionMcpCheck();
+                check.Name = server.Name;
+                check.Url = server.Url;
+                check.Path = server.Path;
+                check.Required = server.Required;
+                check.RequiredTools = new List<string>(server.RequiredTools);
+                foreach (ExecutionEnvironmentVariable header in server.Headers) check.Headers.Add(Variable(header.Name, header.Value, true));
+                spec.McpPreflight.Add(check);
+            }
+
+            if (!String.IsNullOrEmpty(runToken)) scrub.Add(runToken);
+            spec.ScrubValues = scrub.Where(v => !String.IsNullOrEmpty(v) && v.Length >= 4).OrderByDescending(v => v.Length).ToList();
+
+            CompilationResult result = new CompilationResult();
+            result.Spec = spec;
+            result.TemplateVersions = TemplateVersions(inputs, run, usedIncludes);
+            return result;
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private async Task LoadIncludesAsync(string tenantId, CompilationInputs inputs, CancellationToken token)
+        {
+            Queue<string> pending = new Queue<string>();
+            void Scan(string? text)
+            {
+                if (String.IsNullOrEmpty(text) || !text.Contains("{{>", StringComparison.Ordinal)) return;
+                foreach (string name in TemplateAnalyzer.Analyze(text, null, true).Includes) pending.Enqueue(name);
+            }
+
+            foreach (BoundPrompt prompt in inputs.Prompts.Values) Scan(prompt.Content);
+            HarnessProfile profile = inputs.Profile;
+            Scan(profile.Executable);
+            Scan(profile.PromptArgumentTemplate);
+            foreach (HarnessArgument argument in profile.Arguments)
+            {
+                Scan(argument.Template);
+                Scan(argument.Condition);
+            }
+            foreach (HarnessEnvironmentVariable variable in profile.Environment) Scan(variable.ValueTemplate);
+            foreach (HarnessFile file in profile.Files)
+            {
+                Scan(file.PathTemplate);
+                Scan(file.ContentTemplate);
+            }
+            foreach (DeploymentArgumentOverride argument in inputs.Deployment.ArgumentOverrides) Scan(argument.Template);
+            foreach (DeploymentEnvironmentOverride variable in inputs.Deployment.EnvironmentOverrides) Scan(variable.ValueTemplate);
+            foreach (DeploymentFileOverride file in inputs.Deployment.FileOverrides) Scan(file.ContentTemplate);
+
+            while (pending.Count > 0)
+            {
+                string name = pending.Dequeue();
+                if (inputs.Includes.ContainsKey(name)) continue;
+                PromptTemplate? template = await _Database.PromptTemplates.ReadByNameAsync(tenantId, name, token).ConfigureAwait(false);
+                if (template == null) throw new CompilationException("ReferenceNotFound", "Included template '" + name + "' was not found.");
+                BoundPrompt include = new BoundPrompt();
+                include.Role = "Include";
+                include.TemplateId = template.Id;
+                include.TemplateName = template.Name;
+                include.Version = template.CurrentVersion;
+                include.Content = template.Content;
+                inputs.Includes[name] = include;
+                Scan(template.Content);
+            }
+        }
+
+        private TemplateContext BaseContext(CompilationInputs inputs, Run run, Dictionary<string, string> parameters, bool delegationEnabled)
+        {
+            Deployment deployment = inputs.Deployment;
+            Agent agent = inputs.Agent;
+            TemplateContext context = new TemplateContext();
+
+            Dictionary<string, object?> tenant = TemplateContext.NewMap();
+            tenant["id"] = run.TenantId;
+            tenant["name"] = inputs.Tenant?.Name;
+            context.Set("tenant", tenant);
+
+            Dictionary<string, object?> agentMap = TemplateContext.NewMap();
+            agentMap["id"] = agent.Id;
+            agentMap["name"] = agent.Name;
+            agentMap["displayName"] = agent.DisplayName;
+            agentMap["description"] = agent.Description;
+            agentMap["version"] = agent.AgentVersion;
+            agentMap["outputSchema"] = CompactJson(agent.OutputSchemaJson, "output schema of agent " + agent.Name);
+            agentMap["inputSchema"] = CompactJson(agent.InputSchemaJson, "input schema of agent " + agent.Name);
+            agentMap["tags"] = agent.Tags.Cast<object?>().ToList();
+            List<object?> skills = new List<object?>();
+            foreach (AgentSkillDefinition skill in agent.Skills)
+            {
+                Dictionary<string, object?> s = TemplateContext.NewMap();
+                s["id"] = skill.SkillId;
+                s["name"] = skill.Name;
+                s["description"] = skill.Description;
+                skills.Add(s);
+            }
+            agentMap["skills"] = skills;
+            Dictionary<string, object?> delegation = TemplateContext.NewMap();
+            delegation["mode"] = agent.DelegationMode.ToString();
+            delegation["maxDepth"] = agent.DelegationMaxDepth;
+            delegation["allowRecursion"] = agent.DelegationAllowRecursion;
+            delegation["allowList"] = agent.DelegationMode == DelegationModeEnum.AllowList ? agent.DelegationAllowList.Cast<object?>().ToList() : new List<object?>();
+            agentMap["delegation"] = delegation;
+            context.Set("agent", agentMap);
+
+            string? model = parameters.TryGetValue("model", out string? m) && IsAllowed(deployment, "model") ? m : deployment.Model;
+            string? effort = parameters.TryGetValue("effort", out string? ef) && IsAllowed(deployment, "effort") ? ef : deployment.Effort;
+            object? maxTurns = deployment.MaxTurns;
+            if (parameters.TryGetValue("maxTurns", out string? mt) && IsAllowed(deployment, "maxTurns") && Int32.TryParse(mt, out int parsedTurns)) maxTurns = parsedTurns;
+
+            Dictionary<string, object?> deploymentMap = TemplateContext.NewMap();
+            deploymentMap["id"] = deployment.Id;
+            deploymentMap["name"] = deployment.Name;
+            deploymentMap["model"] = model;
+            deploymentMap["fallbackModel"] = deployment.FallbackModel;
+            deploymentMap["effort"] = effort;
+            deploymentMap["maxTurns"] = maxTurns;
+            deploymentMap["maxBudgetUsd"] = deployment.MaxBudgetUsd;
+            deploymentMap["timeoutSeconds"] = deployment.TimeoutSeconds;
+            deploymentMap["version"] = deployment.ConfigVersion;
+            Dictionary<string, object?> parameterMap = TemplateContext.NewMap();
+            foreach (KeyValuePair<string, string> entry in parameters) parameterMap[entry.Key] = entry.Value;
+            deploymentMap["parameters"] = parameterMap;
+            context.Set("deployment", deploymentMap);
+
+            Dictionary<string, object?> runMap = TemplateContext.NewMap();
+            runMap["id"] = run.Id;
+            runMap["kind"] = run.Kind.ToString();
+            runMap["depth"] = run.Depth;
+            runMap["attempt"] = run.Attempt;
+            runMap["parentRunId"] = run.ParentRunId;
+            runMap["rootRunId"] = run.RootRunId ?? run.Id;
+            runMap["deadlineUtc"] = run.DeadlineUtc;
+            runMap["configDir"] = ExecutionPlaceholders.ConfigDir;
+            runMap["workspaceDir"] = ExecutionPlaceholders.WorkspaceDir;
+            runMap["homeDir"] = ExecutionPlaceholders.HomeDir;
+            runMap["systemPromptPath"] = ExecutionPlaceholders.ConfigDir + "/system-prompt.md";
+            List<string> chain = (run.CallChain ?? String.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            runMap["callChain"] = chain.Cast<object?>().ToList();
+            context.Set("run", runMap);
+
+            Dictionary<string, object?> inputMap = TemplateContext.NewMap();
+            inputMap["message"] = run.InputText ?? String.Empty;
+            inputMap["contentType"] = run.InputContentType ?? "text/plain";
+            Dictionary<string, object?> runParameters = TemplateContext.NewMap();
+            List<object?> parameterList = new List<object?>();
+            foreach (RunParameter parameter in run.Parameters)
+            {
+                runParameters[parameter.Name] = parameter.Value;
+                Dictionary<string, object?> item = TemplateContext.NewMap();
+                item["name"] = parameter.Name;
+                item["value"] = parameter.Value;
+                parameterList.Add(item);
+            }
+            inputMap["parameters"] = runParameters;
+            inputMap["parameterList"] = parameterList;
+            context.Set("input", inputMap);
+
+            Dictionary<string, object?> caller = TemplateContext.NewMap();
+            caller["type"] = run.CallerType.ToString();
+            caller["id"] = run.CallerId;
+            caller["name"] = run.CallerName;
+            caller["agentName"] = chain.Count > 1 ? chain[chain.Count - 2] : (chain.Count == 1 && run.Depth > 0 ? chain[0] : null);
+            context.Set("caller", caller);
+
+            Dictionary<string, object?> garrison = TemplateContext.NewMap();
+            garrison["mcpUrl"] = McpEndpoint();
+            garrison["apiUrl"] = _Options.ApiBaseUrl;
+            garrison["version"] = Constants.ProductVersion;
+            garrison["mcpServerName"] = Constants.McpServerName;
+            garrison["delegationEnabled"] = delegationEnabled;
+            context.Set("garrison", garrison);
+
+            Dictionary<string, object?> harness = TemplateContext.NewMap();
+            harness["type"] = inputs.Profile.HarnessType.ToString();
+            harness["profile"] = inputs.Profile.Name;
+            harness["model"] = model;
+            harness["nativeSchema"] = inputs.Profile.HarnessType == HarnessTypeEnum.ClaudeCode || inputs.Profile.HarnessType == HarnessTypeEnum.Codex || inputs.Profile.HarnessType == HarnessTypeEnum.Mux;
+            context.Set("harness", harness);
+
+            context.Set("now", DateTime.UtcNow);
+            return context;
+        }
+
+        private Dictionary<string, object?> SecretContext(CompilationInputs inputs, HashSet<string> scrub)
+        {
+            Dictionary<string, object?> secrets = TemplateContext.NewMap();
+            Dictionary<string, object?> byKind = TemplateContext.NewMap();
+            foreach (KeyValuePair<string, Secret> entry in inputs.Secrets)
+            {
+                string value = Decrypt(entry.Value);
+                if (value.Length > 0) scrub.Add(value);
+                secrets[entry.Key] = value;
+                string kind = entry.Value.Kind.ToString();
+                if (!byKind.ContainsKey(kind)) byKind[kind] = value;
+            }
+            secrets["kind"] = byKind;
+            return secrets;
+        }
+
+        private string Decrypt(Secret secret)
+        {
+            if (String.IsNullOrEmpty(secret.ValueEncrypted)) return String.Empty;
+            try
+            {
+                return _Cipher.Decrypt(secret.ValueEncrypted, secret.Id);
+            }
+            catch (Exception e) when (e is CryptographicException || e is FormatException)
+            {
+                throw new CompilationException("SecretUnreadable", "Secret " + secret.Name + " could not be decrypted with the current master key.", e);
+            }
+        }
+
+        private List<McpServerEntry> BuildMcpServers(CompilationInputs inputs, TemplateContext context, string? runToken, bool delegationEnabled, ExecutionSpec spec, HashSet<string> scrub)
+        {
+            List<McpServerEntry> servers = new List<McpServerEntry>();
+            int index = 0;
+
+            if (delegationEnabled)
+            {
+                McpServerEntry garrison = new McpServerEntry();
+                garrison.Name = Constants.McpServerName;
+                garrison.IsHttp = true;
+                garrison.Url = _Options.McpBaseUrl.TrimEnd('/');
+                garrison.Path = String.IsNullOrEmpty(_Options.McpPath) ? "/mcp" : _Options.McpPath;
+                garrison.Required = true;
+                garrison.RequiredTools.Add("garrison_invoke_agent");
+                garrison.ToolTimeoutSeconds = 600;
+                garrison.Headers.Add(Variable("Authorization", "Bearer " + runToken, true));
+                garrison.BearerToken = runToken;
+                servers.Add(garrison);
+            }
+
+            foreach (McpServer server in inputs.McpServers)
+            {
+                McpServerEntry entry = new McpServerEntry();
+                entry.Name = server.Name;
+                entry.IsHttp = server.Transport == McpTransportEnum.Http;
+                entry.Url = (server.Url ?? String.Empty).TrimEnd('/');
+                entry.Path = String.IsNullOrWhiteSpace(server.Path) ? "/mcp" : server.Path!;
+                entry.Command = server.Command;
+                entry.Args = new List<string>(server.Arguments);
+                entry.Required = server.Required;
+                entry.RequiredTools = new List<string>(server.RequiredTools);
+                entry.ToolTimeoutSeconds = server.ToolTimeoutSeconds;
+                foreach (McpServerHeader header in server.Headers)
+                {
+                    string value = RenderSecretAware(header.ValueTemplate, context, scrub, "mcp server " + server.Name + " header " + header.Name);
+                    if (value.Length == 0) continue;
+                    entry.Headers.Add(Variable(header.Name, value, true));
+                    if (header.Name.Equals("Authorization", StringComparison.OrdinalIgnoreCase) && value.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) entry.BearerToken = value.Substring(7);
+                }
+                foreach (McpServerVariable variable in server.Environment)
+                {
+                    string value = RenderSecretAware(variable.ValueTemplate, context, scrub, "mcp server " + server.Name + " env " + variable.Name);
+                    entry.Env.Add(Variable(variable.Name, value, true));
+                }
+                servers.Add(entry);
+            }
+
+            foreach (McpServerEntry server in servers)
+            {
+                server.Index = index;
+                for (int h = 0; h < server.Headers.Count; h++)
+                {
+                    string envName = "GARRISON_MCP_" + index + "_H" + h;
+                    server.HeaderEnvNames.Add(envName);
+                    spec.Environment.Add(Variable(envName, server.Headers[h].Value, true));
+                    scrub.Add(server.Headers[h].Value);
+                }
+                if (!String.IsNullOrEmpty(server.BearerToken))
+                {
+                    server.BearerEnvName = "GARRISON_MCP_" + index + "_BEARER";
+                    spec.Environment.Add(Variable(server.BearerEnvName, server.BearerToken, true));
+                    scrub.Add(server.BearerToken);
+                }
+                for (int e = 0; e < server.Env.Count; e++)
+                {
+                    string envName = "GARRISON_MCP_" + index + "_E" + e;
+                    server.EnvEnvNames.Add(envName);
+                    spec.Environment.Add(Variable(envName, server.Env[e].Value, true));
+                }
+                index++;
+            }
+            return servers;
+        }
+
+        private Dictionary<string, object?> ResourcesContext(CompilationInputs inputs, List<McpServerEntry> servers)
+        {
+            Dictionary<string, object?> resources = TemplateContext.NewMap();
+            List<object?> all = new List<object?>();
+            List<object?> http = new List<object?>();
+            List<object?> stdio = new List<object?>();
+            foreach (McpServerEntry server in servers)
+            {
+                Dictionary<string, object?> map = TemplateContext.NewMap();
+                map["name"] = server.Name;
+                map["isHttp"] = server.IsHttp;
+                map["transport"] = server.IsHttp ? "http" : "stdio";
+                map["url"] = server.Url;
+                map["path"] = server.Path;
+                map["endpoint"] = server.Url + server.Path;
+                map["command"] = server.Command;
+                map["args"] = server.Args.Cast<object?>().ToList();
+                map["required"] = server.Required;
+                map["requiredTools"] = server.RequiredTools.Cast<object?>().ToList();
+                map["toolTimeoutSeconds"] = server.ToolTimeoutSeconds;
+                map["toolTimeoutMs"] = (long)server.ToolTimeoutSeconds * 1000;
+                map["headers"] = Pairs(server.Headers, server.HeaderEnvNames);
+                map["env"] = Pairs(server.Env, server.EnvEnvNames);
+                map["bearerToken"] = server.BearerToken;
+                map["bearerEnvName"] = server.BearerEnvName;
+                map["bearerEnvRef"] = server.BearerEnvName == null ? null : "${" + server.BearerEnvName + "}";
+                all.Add(map);
+                if (server.IsHttp) http.Add(map);
+                else stdio.Add(map);
+            }
+            resources["mcpServers"] = all;
+            resources["httpMcpServers"] = http;
+            resources["stdioMcpServers"] = stdio;
+            resources["hasMcpServers"] = all.Count > 0;
+            resources["mcpServerNames"] = String.Join(",", servers.Select(s => s.Name));
+
+            Dictionary<string, object?> workspace = TemplateContext.NewMap();
+            workspace["kind"] = inputs.Workspace?.Kind.ToString() ?? WorkspaceKindEnum.Empty.ToString();
+            workspace["gitUrl"] = inputs.Workspace?.GitUrl;
+            workspace["gitRef"] = inputs.Workspace?.GitRef;
+            resources["workspace"] = workspace;
+            return resources;
+        }
+
+        private static List<object?> Pairs(List<ExecutionEnvironmentVariable> values, List<string> envNames)
+        {
+            List<object?> list = new List<object?>();
+            for (int i = 0; i < values.Count; i++)
+            {
+                Dictionary<string, object?> pair = TemplateContext.NewMap();
+                pair["name"] = values[i].Name;
+                pair["value"] = values[i].Value;
+                pair["envName"] = i < envNames.Count ? envNames[i] : null;
+                pair["envRef"] = i < envNames.Count ? "${" + envNames[i] + "}" : null;
+                list.Add(pair);
+            }
+            return list;
+        }
+
+        private string RenderPrompt(CompilationInputs inputs, string role, TemplateContext context, Func<string, string?> includes, HashSet<string> usedIncludes)
+        {
+            if (!inputs.Prompts.TryGetValue(role, out BoundPrompt? prompt)) return String.Empty;
+            TemplateRenderOptions options = new TemplateRenderOptions();
+            options.TemplateName = prompt.TemplateName;
+            options.AllowSecrets = false;
+            options.IncludeResolver = includes;
+            try
+            {
+                string rendered = TemplateRenderer.Render(prompt.Content, context, options);
+                foreach (string include in options.UsedIncludes) usedIncludes.Add(include);
+                return rendered;
+            }
+            catch (TemplateException e)
+            {
+                throw new CompilationException("TemplateRenderFailed", "Prompt role " + role + ": " + e.Message, e);
+            }
+        }
+
+        private static string Render(string? template, TemplateContext context, Func<string, string?> includes, HashSet<string> usedIncludes, bool allowSecrets, HashSet<string> scrub, string what, RenderScope? scope = null)
+        {
+            TemplateRenderOptions options = new TemplateRenderOptions();
+            options.TemplateName = what;
+            options.AllowSecrets = allowSecrets;
+            options.IncludeResolver = includes;
+            try
+            {
+                string rendered = TemplateRenderer.Render(template ?? String.Empty, context, options, scope);
+                foreach (string include in options.UsedIncludes) usedIncludes.Add(include);
+                foreach (string secret in options.UsedSecretValues) scrub.Add(secret);
+                return rendered;
+            }
+            catch (TemplateException e)
+            {
+                throw new CompilationException("TemplateRenderFailed", e.Message, e);
+            }
+        }
+
+        private static bool Condition(string? condition, TemplateContext context, Func<string, string?> includes, HashSet<string> usedIncludes, bool allowSecrets, HashSet<string> scrub, string what, RenderScope? scope = null)
+        {
+            if (String.IsNullOrWhiteSpace(condition)) return true;
+            return TemplateValues.IsTruthy(Render(condition, context, includes, usedIncludes, allowSecrets, scrub, what + " condition", scope));
+        }
+
+        private static string RenderSecretAware(string? template, TemplateContext context, HashSet<string> scrub, string what)
+        {
+            return Render(template, context, name => null, new HashSet<string>(StringComparer.Ordinal), true, scrub, what);
+        }
+
+        private static List<HarnessArgument> ApplyArgumentOverrides(List<HarnessArgument> arguments, List<DeploymentArgumentOverride> overrides)
+        {
+            List<HarnessArgument> result = arguments.OrderBy(a => a.Position).ToList();
+            foreach (DeploymentArgumentOverride item in overrides.OrderBy(o => o.Position))
+            {
+                switch (item.Operation)
+                {
+                    case ArgumentOverrideOperationEnum.Append:
+                        result.Add(Argument(item.Template, item.Condition));
+                        break;
+                    case ArgumentOverrideOperationEnum.Prepend:
+                        result.Insert(0, Argument(item.Template, item.Condition));
+                        break;
+                    case ArgumentOverrideOperationEnum.Remove:
+                        result.RemoveAll(a => a.Template == (item.Match ?? String.Empty));
+                        break;
+                    case ArgumentOverrideOperationEnum.Replace:
+                        for (int i = 0; i < result.Count; i++)
+                        {
+                            if (result[i].Template != (item.Match ?? String.Empty)) continue;
+                            HarnessArgument replacement = Argument(item.Template, item.Condition ?? result[i].Condition);
+                            replacement.RepeatOver = result[i].RepeatOver;
+                            result[i] = replacement;
+                        }
+                        break;
+                }
+            }
+            return result;
+        }
+
+        private static HarnessArgument Argument(string? template, string? condition)
+        {
+            HarnessArgument argument = new HarnessArgument();
+            argument.Template = template ?? String.Empty;
+            argument.Condition = condition;
+            return argument;
+        }
+
+        private static void RenderArgument(HarnessArgument argument, TemplateContext context, Func<string, string?> includes, HashSet<string> usedIncludes, HashSet<string> scrub, List<string> output)
+        {
+            if (String.IsNullOrWhiteSpace(argument.RepeatOver))
+            {
+                if (!Condition(argument.Condition, context, includes, usedIncludes, false, scrub, "argument")) return;
+                output.Add(Render(argument.Template, context, includes, usedIncludes, false, scrub, "argument"));
+                return;
+            }
+
+            object? source = context.Get(argument.RepeatOver!);
+            if (source is not List<object?> items) return;
+            for (int i = 0; i < items.Count; i++)
+            {
+                RenderScope scope = new RenderScope();
+                scope.Current = items[i];
+                scope.Index = i;
+                scope.Count = items.Count;
+                if (!Condition(argument.Condition, context, includes, usedIncludes, false, scrub, "argument", scope)) continue;
+                output.Add(Render(argument.Template, context, includes, usedIncludes, false, scrub, "argument", scope));
+            }
+        }
+
+        private void RenderEnvironment(CompilationInputs inputs, TemplateContext context, Func<string, string?> includes, HashSet<string> usedIncludes, HashSet<string> scrub, ExecutionSpec spec)
+        {
+            HarnessProfile profile = inputs.Profile;
+            List<HarnessEnvironmentVariable> variables = new List<HarnessEnvironmentVariable>(profile.Environment);
+            foreach (DeploymentEnvironmentOverride item in inputs.Deployment.EnvironmentOverrides)
+            {
+                variables.RemoveAll(v => String.Equals(v.Name, item.Name, StringComparison.Ordinal));
+                HarnessEnvironmentVariable variable = new HarnessEnvironmentVariable();
+                variable.Name = item.Name;
+                variable.ValueTemplate = item.ValueTemplate;
+                variable.IsSecret = item.IsSecret;
+                variables.Add(variable);
+            }
+
+            foreach (HarnessEnvironmentVariable variable in variables)
+            {
+                if (String.IsNullOrWhiteSpace(variable.Name)) continue;
+                List<string> secretReferences = TemplateAnalyzer.Analyze(variable.ValueTemplate, variable.Name, true).SecretReferences;
+                if (secretReferences.Count > 0 && profile.CredentialEnvironmentAllowlist.Count > 0 && !profile.CredentialEnvironmentAllowlist.Contains(variable.Name, StringComparer.Ordinal))
+                {
+                    throw new CompilationException("SecretNotAllowed", "Environment variable " + variable.Name + " references a secret but is not in the credential allowlist of harness profile " + profile.Name + ".");
+                }
+                if (!Condition(variable.Condition, context, includes, usedIncludes, true, scrub, "environment " + variable.Name)) continue;
+                string value = Render(variable.ValueTemplate, context, includes, usedIncludes, true, scrub, "environment " + variable.Name);
+                if (value.Length == 0) continue;
+                spec.Environment.RemoveAll(v => v.Name == variable.Name);
+                spec.Environment.Add(Variable(variable.Name, value, variable.IsSecret || secretReferences.Count > 0));
+            }
+        }
+
+        private void RenderFiles(CompilationInputs inputs, TemplateContext context, Func<string, string?> includes, HashSet<string> usedIncludes, HashSet<string> scrub, ExecutionSpec spec)
+        {
+            List<HarnessFile> files = new List<HarnessFile>(inputs.Profile.Files);
+            foreach (DeploymentFileOverride item in inputs.Deployment.FileOverrides)
+            {
+                files.RemoveAll(f => f.BaseDirectory == item.BaseDirectory && f.PathTemplate == item.PathTemplate);
+                HarnessFile file = new HarnessFile();
+                file.BaseDirectory = item.BaseDirectory;
+                file.PathTemplate = item.PathTemplate;
+                file.ContentTemplate = item.ContentTemplate;
+                file.Mode = item.Mode;
+                file.IsSecret = item.IsSecret;
+                files.Add(file);
+            }
+
+            foreach (HarnessFile file in files)
+            {
+                if (!Condition(file.Condition, context, includes, usedIncludes, true, scrub, "file " + file.PathTemplate)) continue;
+                string path = Render(file.PathTemplate, context, includes, usedIncludes, false, scrub, "file path").Trim();
+                ValidateRelativePath(path);
+                int before = scrub.Count;
+                string content = Render(file.ContentTemplate, context, includes, usedIncludes, true, scrub, "file " + path);
+                bool secret = file.IsSecret || scrub.Count > before || scrub.Any(s => s.Length >= 4 && content.Contains(s, StringComparison.Ordinal));
+                spec.Files.RemoveAll(f => f.BaseDirectory == file.BaseDirectory && f.Path == path);
+                spec.Files.Add(File(file.BaseDirectory, path, content, file.Mode, secret));
+            }
+        }
+
+        private static void ValidateRelativePath(string path)
+        {
+            if (path.Length == 0) throw new CompilationException("InvalidFilePath", "A harness file rendered an empty path.");
+            string normalized = path.Replace('\\', '/');
+            if (normalized.StartsWith("/", StringComparison.Ordinal) || normalized.Contains(':') || normalized.Split('/').Any(s => s == ".."))
+            {
+                throw new CompilationException("InvalidFilePath", "Harness file path '" + path + "' must be relative and must not contain '..'.");
+            }
+        }
+
+        private ExecutionWorkspace Workspace(CompilationInputs inputs, HashSet<string> scrub)
+        {
+            ExecutionWorkspace workspace = new ExecutionWorkspace();
+            if (inputs.Workspace == null) return workspace;
+            WorkspaceTemplate template = inputs.Workspace;
+            workspace.Kind = template.Kind;
+            workspace.GitUrl = template.GitUrl;
+            workspace.GitRef = template.GitRef;
+            workspace.GitDepth = template.GitDepth;
+            workspace.Retention = template.Retention;
+            foreach (WorkspaceFile file in template.Files)
+            {
+                ValidateRelativePath(file.Path);
+                ExecutionWorkspaceFile seeded = new ExecutionWorkspaceFile();
+                seeded.Path = file.Path;
+                seeded.Content = file.Content;
+                workspace.Files.Add(seeded);
+            }
+            if (inputs.WorkspaceSecret != null)
+            {
+                string value = Decrypt(inputs.WorkspaceSecret);
+                if (value.Length > 0)
+                {
+                    int colon = value.IndexOf(':');
+                    if (inputs.WorkspaceSecret.Kind == SecretKindEnum.BearerToken || colon < 0)
+                    {
+                        workspace.GitUsername = "x-access-token";
+                        workspace.GitPassword = value;
+                    }
+                    else
+                    {
+                        workspace.GitUsername = value.Substring(0, colon);
+                        workspace.GitPassword = value.Substring(colon + 1);
+                    }
+                    scrub.Add(workspace.GitPassword);
+                }
+            }
+            return workspace;
+        }
+
+        private static List<RunTemplateVersion> TemplateVersions(CompilationInputs inputs, Run run, HashSet<string> usedIncludes)
+        {
+            List<RunTemplateVersion> versions = new List<RunTemplateVersion>();
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            IEnumerable<BoundPrompt> used = inputs.Prompts.Values.Concat(inputs.Includes.Where(i => usedIncludes.Contains(i.Key)).Select(i => i.Value));
+            foreach (BoundPrompt prompt in used)
+            {
+                if (!seen.Add(prompt.TemplateId + ":" + prompt.Version)) continue;
+                RunTemplateVersion version = new RunTemplateVersion();
+                version.RunId = run.Id;
+                version.TemplateId = prompt.TemplateId;
+                version.TemplateName = prompt.TemplateName;
+                version.Version = prompt.Version;
+                versions.Add(version);
+            }
+            return versions;
+        }
+
+        private static bool IsAllowed(Deployment deployment, string name)
+        {
+            return deployment.AllowedRunOverrides.Any(r => String.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private string McpEndpoint()
+        {
+            return _Options.McpBaseUrl.TrimEnd('/') + (String.IsNullOrEmpty(_Options.McpPath) ? "/mcp" : _Options.McpPath);
+        }
+
+        private static string? CompactJson(string? json, string what)
+        {
+            if (String.IsNullOrWhiteSpace(json)) return null;
+            try
+            {
+                using (JsonDocument document = JsonDocument.Parse(json))
+                {
+                    return JsonSerializer.Serialize(document.RootElement);
+                }
+            }
+            catch (JsonException e)
+            {
+                throw new CompilationException("InvalidSchema", "The " + what + " is not valid JSON: " + e.Message, e);
+            }
+        }
+
+        private static ExecutionEnvironmentVariable Variable(string name, string value, bool secret)
+        {
+            ExecutionEnvironmentVariable variable = new ExecutionEnvironmentVariable();
+            variable.Name = name;
+            variable.Value = value ?? String.Empty;
+            variable.IsSecret = secret;
+            return variable;
+        }
+
+        private static ExecutionFile File(FileBaseDirectoryEnum baseDirectory, string path, string content, string? mode, bool secret)
+        {
+            ExecutionFile file = new ExecutionFile();
+            file.BaseDirectory = baseDirectory;
+            file.Path = path;
+            file.Content = content ?? String.Empty;
+            file.Mode = mode;
+            file.IsSecret = secret;
+            return file;
+        }
+
+        private static void Redact(ExecutionSpec spec)
+        {
+            List<string> secrets = spec.ScrubValues;
+            string Clean(string? text)
+            {
+                if (String.IsNullOrEmpty(text)) return text ?? String.Empty;
+                string result = text;
+                foreach (string secret in secrets) result = result.Replace(secret, Redacted, StringComparison.Ordinal);
+                return result;
+            }
+
+            for (int i = 0; i < spec.Arguments.Count; i++) spec.Arguments[i] = Clean(spec.Arguments[i]);
+            foreach (ExecutionEnvironmentVariable variable in spec.Environment) variable.Value = variable.IsSecret ? Redacted : Clean(variable.Value);
+            foreach (ExecutionFile file in spec.Files) file.Content = Clean(file.Content);
+            foreach (ExecutionMcpCheck check in spec.McpPreflight)
+            {
+                foreach (ExecutionEnvironmentVariable header in check.Headers) header.Value = Redacted;
+            }
+            if (spec.Workspace.GitPassword != null) spec.Workspace.GitPassword = Redacted;
+            spec.Stdin = Clean(spec.Stdin);
+            spec.ScrubValues = secrets.Select(s => Redacted).ToList();
+        }
+
+        #endregion
+    }
+}

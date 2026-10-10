@@ -1,0 +1,18 @@
+# Headless service for the worker StatefulSet. Workers accept no inbound traffic except health and metrics.
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-worker
+  labels:
+    app.kubernetes.io/name: garrison-worker
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: garrison-worker
+  ports:
+    - name: health
+      port: 8710
+      targetPort: health
+    - name: metrics
+      port: 9465
+      targetPort: metrics

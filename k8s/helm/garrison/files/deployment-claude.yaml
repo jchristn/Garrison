@@ -1,0 +1,16 @@
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: claude-helper-default
+spec:
+  agent: claude-helper
+  harnessProfile: builtin/claude-code
+  model: sonnet
+  maxTurns: 8
+  prompts:
+    System: builtin/default-system
+    Task: builtin/default-task
+  resources:
+    secrets:
+      - { alias: anthropic, secret: __CLAUDE_SECRET__ }
+  timeoutSeconds: 600

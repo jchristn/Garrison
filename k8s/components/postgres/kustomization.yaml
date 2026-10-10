@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# In-cluster PostgreSQL for turnkey installs (minikube, K3S). Production should use a managed database
+# through overlays/production instead.
+resources:
+  - postgres.yaml

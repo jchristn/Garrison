@@ -1,0 +1,3 @@
+{"contractVersion":2,"eventType":"run_started","timestampUtc":"2026-10-09T12:00:00Z","runId":"r-2","sessionId":"ms-2","model":"gpt-5.5-mini"}
+{"contractVersion":2,"eventType":"error","timestampUtc":"2026-10-09T12:00:01Z","code":"tool_call_denied","errorCode":"tool_call_denied","message":"Tool call denied by approval policy.","failureCategory":"approval"}
+{"contractVersion":2,"eventType":"run_completed","timestampUtc":"2026-10-09T12:00:01Z","runId":"r-2","sessionId":"ms-2","status":"max_iterations_reached","usage":{"inputTokens":40,"outputTokens":2,"totalTokens":42}}

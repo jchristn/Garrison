@@ -1,0 +1,86 @@
+{
+  "spec": {
+    "runId": "run_golden",
+    "tenantId": "ten_golden",
+    "agentName": "helper-codex-basic",
+    "deploymentId": "dep_codex_basic",
+    "harnessType": "Codex",
+    "executable": "codex",
+    "arguments": [
+      "exec",
+      "--json",
+      "--skip-git-repo-check",
+      "--ignore-user-config",
+      "-s",
+      "workspace-write",
+      "-C",
+      "$GARRISON_WORKSPACE_DIR",
+      "-m",
+      "test-model",
+      "-c",
+      "project_doc_max_bytes=0",
+      "-c",
+      "model_instructions_file=\"$GARRISON_CONFIG_DIR/system-prompt.md\"",
+      "-"
+    ],
+    "environment": [
+      {
+        "name": "CODEX_API_KEY",
+        "value": "credential-codex_basic",
+        "isSecret": true
+      },
+      {
+        "name": "OPENAI_API_KEY",
+        "value": "credential-codex_basic",
+        "isSecret": true
+      }
+    ],
+    "files": [
+      {
+        "baseDirectory": "Config",
+        "path": "system-prompt.md",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n",
+        "isSecret": false
+      }
+    ],
+    "stdin": "Summarize the repository.\n",
+    "workspace": {
+      "kind": "Empty",
+      "gitDepth": 1,
+      "files": [],
+      "retention": "Delete"
+    },
+    "parser": "CodexJsonl",
+    "parserOptions": {},
+    "resultSource": "ParserFinalEvent",
+    "successPolicy": "FinalEvent",
+    "successExitCodes": [
+      0
+    ],
+    "timeoutSeconds": 1800,
+    "killGraceSeconds": 5,
+    "maxOutputBytes": 67108864,
+    "stderrTailBytes": 8000,
+    "isolateHome": true,
+    "mcpPreflight": [],
+    "scrubValues": [
+      "credential-codex_basic"
+    ]
+  },
+  "templateVersions": [
+    {
+      "id": "rtv_golden_0",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_system",
+      "templateName": "builtin/default-system",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_1",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_task",
+      "templateName": "builtin/default-task",
+      "version": 1
+    }
+  ]
+}

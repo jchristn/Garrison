@@ -1,0 +1,279 @@
+namespace Garrison.Server.Routes
+{
+    using System;
+    using System.Collections.Generic;
+    using System.Text.Json;
+    using System.Threading.Tasks;
+    using Garrison.Core.Enumeration;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Responses;
+    using Garrison.Core.Security;
+    using Garrison.Core.Serialization;
+    using WatsonWebserver.Core;
+
+    /// <summary>
+    /// Shared helpers for route handlers. Thread-safe.
+    /// </summary>
+    public static class RouteHelpers
+    {
+        #region Public-Methods
+
+        /// <summary>
+        /// Request context stored by the authentication hook.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <returns>Request context.</returns>
+        public static RequestContext Context(HttpContextBase context)
+        {
+            if (context.Metadata is RequestContext requestContext) return requestContext;
+            return RequestContext.Unauthenticated();
+        }
+
+        /// <summary>
+        /// Tenant identifier from the {tenantId} path parameter.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <returns>Tenant identifier.</returns>
+        /// <exception cref="ArgumentException">Thrown when the route has no tenantId parameter.</exception>
+        public static string Tenant(HttpContextBase context)
+        {
+            string? tenantId = Param(context, "tenantId");
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentException("The route requires a tenantId path parameter.");
+            return tenantId;
+        }
+
+        /// <summary>
+        /// Send a JSON response.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="statusCode">Status code.</param>
+        /// <param name="body">Body, or null.</param>
+        /// <returns>Task.</returns>
+        public static async Task JsonAsync(HttpContextBase context, int statusCode, object? body)
+        {
+            context.Response.StatusCode = statusCode;
+            context.Response.ContentType = "application/json";
+            await context.Response.Send(Serializer.Serialize(body)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Send a 204 response.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <returns>Task.</returns>
+        public static async Task NoContentAsync(HttpContextBase context)
+        {
+            context.Response.StatusCode = 204;
+            await context.Response.Send().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Send an error response.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="statusCode">Status code.</param>
+        /// <param name="code">Stable error code.</param>
+        /// <param name="message">Message.</param>
+        /// <returns>Task.</returns>
+        public static async Task ErrorAsync(HttpContextBase context, int statusCode, string code, string message)
+        {
+            ErrorResponse error = new ErrorResponse(ErrorName(statusCode), code, message);
+            error.RequestId = Context(context).RequestId;
+            await JsonAsync(context, statusCode, error).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Send a 404 response.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="what">What was not found.</param>
+        /// <returns>Task.</returns>
+        public static Task NotFoundAsync(HttpContextBase context, string what)
+        {
+            return ErrorAsync(context, 404, "NotFound", what + " not found.");
+        }
+
+        /// <summary>
+        /// Send a 400 validation response with field errors.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="message">Message.</param>
+        /// <param name="fields">Field errors.</param>
+        /// <returns>Task.</returns>
+        public static async Task ValidationAsync(HttpContextBase context, string message, Dictionary<string, string>? fields = null)
+        {
+            ErrorResponse error = new ErrorResponse("BadRequest", "ValidationFailed", message);
+            error.RequestId = Context(context).RequestId;
+            error.Fields = fields;
+            await JsonAsync(context, 400, error).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Path parameter.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="key">Key.</param>
+        /// <returns>Value or null.</returns>
+        public static string? Param(HttpContextBase context, string key)
+        {
+            if (context.Request.Url.Parameters == null) return null;
+            return context.Request.Url.Parameters[key];
+        }
+
+        /// <summary>
+        /// Query parameter.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="key">Key.</param>
+        /// <returns>Value or null.</returns>
+        public static string? Query(HttpContextBase context, string key)
+        {
+            if (context.Request.Query == null || context.Request.Query.Elements == null) return null;
+            return context.Request.Query.Elements[key];
+        }
+
+        /// <summary>
+        /// Integer query parameter.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="key">Key.</param>
+        /// <returns>Value or null.</returns>
+        public static int? QueryInt(HttpContextBase context, string key)
+        {
+            string? value = Query(context, key);
+            if (!String.IsNullOrEmpty(value) && Int32.TryParse(value, out int parsed)) return parsed;
+            return null;
+        }
+
+        /// <summary>
+        /// Long query parameter.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="key">Key.</param>
+        /// <returns>Value or null.</returns>
+        public static long? QueryLong(HttpContextBase context, string key)
+        {
+            string? value = Query(context, key);
+            if (!String.IsNullOrEmpty(value) && Int64.TryParse(value, out long parsed)) return parsed;
+            return null;
+        }
+
+        /// <summary>
+        /// Boolean query parameter.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="key">Key.</param>
+        /// <returns>Value or null.</returns>
+        public static bool? QueryBool(HttpContextBase context, string key)
+        {
+            string? value = Query(context, key);
+            if (!String.IsNullOrEmpty(value) && Boolean.TryParse(value, out bool parsed)) return parsed;
+            return null;
+        }
+
+        /// <summary>
+        /// UTC timestamp query parameter.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="key">Key.</param>
+        /// <returns>Value or null.</returns>
+        public static DateTime? QueryDate(HttpContextBase context, string key)
+        {
+            string? value = Query(context, key);
+            if (String.IsNullOrEmpty(value)) return null;
+            if (value.Contains('%')) value = Uri.UnescapeDataString(value);
+            if (DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out DateTime parsed)) return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+            return null;
+        }
+
+        /// <summary>
+        /// Enum query parameter.
+        /// </summary>
+        /// <typeparam name="T">Enum type.</typeparam>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="key">Key.</param>
+        /// <returns>Value or null.</returns>
+        public static T? QueryEnum<T>(HttpContextBase context, string key) where T : struct, Enum
+        {
+            string? value = Query(context, key);
+            if (!String.IsNullOrEmpty(value) && Enum.TryParse<T>(value, true, out T parsed)) return parsed;
+            return null;
+        }
+
+        /// <summary>
+        /// Enumeration query from maxResults, skip, ordering, search, activeOnly, and includeBuiltIn.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <returns>Query.</returns>
+        public static EnumerationQuery Enumeration(HttpContextBase context)
+        {
+            EnumerationQuery query = new EnumerationQuery();
+            int? maxResults = QueryInt(context, "maxResults");
+            if (maxResults.HasValue) query.MaxResults = maxResults.Value;
+            int? skip = QueryInt(context, "skip");
+            if (skip.HasValue) query.Skip = skip.Value;
+            EnumerationOrderEnum? ordering = QueryEnum<EnumerationOrderEnum>(context, "ordering");
+            if (ordering.HasValue) query.Ordering = ordering.Value;
+            query.Search = Query(context, "search");
+            query.ActiveOnly = QueryBool(context, "activeOnly") ?? false;
+            query.IncludeBuiltIn = QueryBool(context, "includeBuiltIn") ?? true;
+            return query;
+        }
+
+        /// <summary>
+        /// Deserialize the request body.
+        /// </summary>
+        /// <typeparam name="T">Body type.</typeparam>
+        /// <param name="context">HTTP context.</param>
+        /// <returns>Body, or null when empty.</returns>
+        /// <exception cref="RequestBodyException">Thrown when the body is not valid JSON for the type.</exception>
+        public static T? Body<T>(HttpContextBase context) where T : class
+        {
+            string body = context.Request.DataAsString;
+            if (String.IsNullOrWhiteSpace(body)) return null;
+            try
+            {
+                return Serializer.Deserialize<T>(body);
+            }
+            catch (JsonException e)
+            {
+                throw new RequestBodyException("Request body is not valid JSON for " + typeof(T).Name + ": " + e.Message, e);
+            }
+        }
+
+        /// <summary>
+        /// Deserialize a required request body.
+        /// </summary>
+        /// <typeparam name="T">Body type.</typeparam>
+        /// <param name="context">HTTP context.</param>
+        /// <returns>Body.</returns>
+        /// <exception cref="RequestBodyException">Thrown when the body is missing or invalid.</exception>
+        public static T RequiredBody<T>(HttpContextBase context) where T : class
+        {
+            T? body = Body<T>(context);
+            if (body == null) throw new RequestBodyException("A JSON request body of type " + typeof(T).Name + " is required.");
+            return body;
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private static string ErrorName(int statusCode)
+        {
+            switch (statusCode)
+            {
+                case 400: return "BadRequest";
+                case 401: return "Unauthorized";
+                case 403: return "Forbidden";
+                case 404: return "NotFound";
+                case 409: return "Conflict";
+                case 429: return "TooManyRequests";
+                case 503: return "ServiceUnavailable";
+                default: return statusCode >= 500 ? "InternalServerError" : "Error";
+            }
+        }
+
+        #endregion
+    }
+}
