@@ -27,17 +27,28 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 - Leader election through a database lease, with a maintenance loop that requeues or fails runs whose node disappeared, enforces deadlines, marks silent nodes lost, and prunes old runs and events.
 - Run lifecycle with cancellation, retry, idempotency keys, events streamed over SSE and WebSocket, and delegation limited by allowlist, depth, and recursion rules.
 - Structured output validation: when an agent has an output schema, the control plane validates each run's final output against it (JsonSchema.Net), makes one repair attempt that resumes the harness session in the same lease with the `Repair` prompt template when the profile supports resume, and otherwise fails the run with `SchemaValidationFailed`. Runs carry `outputSchemaValid`, `schemaValidationErrors`, and `repairAttempts`.
+- Run telemetry measured on the worker's clock: time to first token, streaming, execution, queue, and total time, output tokens per second, input, output, cached, and reasoning tokens, tool calls, cost, the served model (for Codex, read from its session file), and the time spent waiting on delegated runs with time to first token excluding it.
+- Analytics API (`GET .../analytics/runs` and `.../dimensions`): gap-filled time buckets with averages and p50/p95, filters by agent, harness, deployment, and model, and grouping by agent, harness, model, or harness and model.
+- Queued runs that no worker can take report why (`blockedReason`: no Ready worker, no worker with the harness, or no matching pool), with a one-time warning event and an optional fail-after setting.
+- Claude Code output streams token by token (`--include-partial-messages`); Mux streams natively.
 - Worker metrics (leases, runs, duration, tokens, cost, completion reports) and a span per harness execution that joins the run's trace.
 - Worker node with capability probes, an isolated workspace and home directory per run, MCP pre-flight, output parsers for every built-in harness, secret scrubbing, buffered event delivery that survives control-plane outages, and drain on shutdown.
 
 ### Protocols
 
 - MCP server on Voltaic with agent discovery, invocation, and run tracking tools whose descriptions are prompt templates.
-- A2A gateway with one agent card per agent and JSON-RPC send, stream, get, list, cancel, and subscribe.
+- A2A gateway with one agent card per agent and JSON-RPC send, stream, get, list, cancel, and subscribe. Cards advertise `Rest.ExternalBaseUrl`; reusing a `messageId` with different content returns 409.
+- Agents can be addressed by name or ID on every agent route, with authorization checked against the resolved agent.
+
+### Defaults
+
+- First start seeds tenant `default` with the administrator `admin@garrison` and password `password` (`GARRISON_ADMIN_EMAIL`, `GARRISON_ADMIN_PASSWORD`). Change them before the server is reachable by anyone else.
 
 ### Delivery
 
 - Container images for the server, worker (with Claude Code, Codex, Mux, and the fake harness), and dashboard.
 - Kubernetes assets: Kustomize base, overlays for minikube, K3S, and production, a PostgreSQL component, a smoke test, a Helm chart, and deployment scripts.
-- React operator console, SDKs for C#, Python, JavaScript and TypeScript, and Go, a Postman collection, and API documentation.
+- Docker Compose stack (`docker/compose.yaml`) with one server, two workers, the dashboard, PostgreSQL, and a bootstrap container, plus `docker/update` (rebuild and recreate) and `docker/factory/reset` (delete all data and start fresh).
+- React operator console: nine-hub navigation with tabs, run telemetry columns and a telemetry panel, an Analytics page with charts by agent, harness, and model, CSV, PNG, SVG, and JSON export on every chart, explainer panels for related objects, a useful tooltip on every control, and nine languages (English, German, Japanese, Spanish, French, Italian, Simplified Chinese, Traditional Chinese, and Cantonese) with RTL readiness.
+- SDKs for C#, Python, JavaScript and TypeScript, and Go, a Postman collection, and API documentation.
 - A quick start (`docs/QUICKSTART.md`) with a multi-agent sample manifest (`examples/multi-agent.yaml`) and a validation script (`examples/validate.sh`, `validate.bat`) that checks REST, MCP, A2A, streaming, delegation, telemetry, and analytics and prints PASS or FAIL per check.

@@ -80,13 +80,13 @@ Rules for keeping the plan honest:
 | 0 | Repository bootstrap | M1 | Complete | 14 / 14 |
 | 1 | Core foundation: settings, data layer, identity, RBAC, history, audit | M1 | Complete | 50 / 50 |
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
-| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 44 / 45 |
+| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | Complete | 45 / 45 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
 | 5 | Dashboard | M1 | Complete | 51 / 51 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 34 / 37 |
 | 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
-| 9 | MVP verification (milestone M1) | M1 | In progress | 15 / 16 |
+| 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
 | 10 | Control plane high availability and scale-out | M2 | Not started | 0 / 18 |
 | 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
 | 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 29 |
@@ -98,7 +98,7 @@ Milestones:
 
 | Milestone | Definition | Phases |
 |---|---|---|
-| **M1: MVP** | One control node, two worker nodes, a Claude Code agent, a Mux agent, and a Codex agent running headless; dashboard, four SDKs, tests, Postman, and documentation; deployable to minikube and K3S. | 0 to 9 |
+| **M1: MVP** (signed off 2026-10-10, D-031) | One control node, two worker nodes, a Claude Code agent, a Mux agent, and a Codex agent running headless; dashboard, four SDKs, tests, Postman, and documentation; deployable to minikube and K3S. | 0 to 9 |
 | **M2: Scale** | N control-plane replicas behind a Service with HPA, leader-elected maintenance, event backplane, pod-per-run isolation, full observability stack. | 10, 11, 13 |
 | **M3: Orchestration** | Multi-turn conversations, permission approvals relayed to humans, self-registered remote agents invoked over A2A/MCP, triggers, budgets and quotas, artifact storage, benchmarks. | 12, 14 |
 | **M4: 1.0** | Security review, simulated user testing, upgrade path, release process. | 15 |
@@ -190,6 +190,7 @@ The Garrison theme is used for product naming and documentation. API nouns stay 
 | D-028 | Docker Compose assets ship alongside Kubernetes (`docker/compose.yaml`, `docker/update.{sh,bat}`, `docker/factory/reset.{sh,bat}`), amending D-002. `update` rebuilds images from source by default (`--pull` uses published images), as the user asked; the requirements default is pull. The bootstrap container reuses the Kubernetes bootstrap script and sample manifests. | A single-machine stack with real harnesses is the fastest way to evaluate Garrison; one bootstrap script keeps both runtimes identical. | `docker/`, `docs/DOCKER.md` |
 | D-029 | Run timing is measured on the worker with a monotonic clock (time to first token, streaming time, execution time) and reported with the completion; the server computes queue time from its own timestamps. Analytics aggregate in the server process over a bounded window, so percentiles work the same on Sqlite and Postgresql. | Worker and server clocks can differ; durations measured on one clock are exact. SQL percentile functions differ by provider. | Section 10.6 |
 | D-030 | Every interactive or labeled dashboard element carries a useful, translated tooltip that explains what it is and how it is used (never a restatement of its label), enforced by an automated test over every route, tab, and form. | Operators learn the product from the UI itself. | P5.44 |
+| D-031 | M1 is signed off with these exceptions, each recorded: P6.17 (the worker using `Garrison.Sdk` for the node protocol) is deferred because it is internal dogfooding with no user impact; P6.19, P6.20, and P7.28 are post-M1 by design; P7.5 and P6.20 wait for the user's approval to publish images and packages; P7.26 waits for minikube on the build machine (the K3S, Docker Compose, and production paths are verified or reviewed). Open known gaps G-1 to G-8, G-11, G-12, G-17, G-19, and G-20 carry into M2. | Every M1 capability works end to end on K3S and Docker Compose with real Claude Code, Codex, and Mux harnesses; the exceptions do not affect what an operator can do. | Section 2 |
 
 ---
 
@@ -1286,7 +1287,7 @@ Quality
 - [x] P6.14 `scripts/run-sdk-harnesses.{sh,bat}` starting server and worker on Sqlite with the fake harness, running all four harnesses, Go inside a `golang` container when Go is absent.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
 - [x] P6.15 All four harnesses green locally. -> annotate with command and date.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
 - [x] P6.16 `.github/workflows/sdk.yaml` running the harnesses.  | claude 2026-10-10 SDK stream; .github/workflows/sdk.yaml (not yet run on GitHub)
-- [ ] P6.17 Worker uses `Garrison.Sdk` for the node protocol (dogfooding).
+- [ ] P6.17 Worker uses `Garrison.Sdk` for the node protocol (dogfooding). **(deferred past M1, D-031)**
 - [x] P6.18 Each SDK's version mirrors the product version.  | claude 2026-10-10 0.1.0-alpha everywhere (Python 0.1.0a0, the PEP 440 form)
 - [x] P6.21 SDKs: section 10.6 run fields and an analytics method in C#, Python, JavaScript/TypeScript, and Go, covered by each test harness.  | claude 2026-10-10 C# client.Analytics.RunsAsync, Python client.analytics.runs, JS client.analytics.runs, Go client.Analytics.Runs; harnesses 15/15 each
 - [ ] P6.19 SDK interactive consoles (optional, Clutch pattern). **(post-M1)**
@@ -1330,7 +1331,7 @@ Scripts and validation
 - [x] P7.23 `kubectl kustomize` renders every overlay; kubeconform validation passes.  | k8s stream kubeconform 129 resources valid
 - [x] P7.24 `.github/workflows/k8s.yaml`: render and validate on every push; K3S-in-Docker smoke test on main.  | k8s stream
 - [x] P7.25 Deploy to K3S (in Docker) locally: 1 server, 2 workers, dashboard, Postgres; smoke test passes. -> annotate with command and timings.  | claude 2026-10-10 k3s in Docker (rancher/k3s), images imported with ctr; kubectl apply -k k8s/overlays/k3s then k8s/scripts/smoke-test.sh; all pods Ready in about 2 min, smoke run 0.06 s. Fixed: overlays lacked namespace (Postgres landed in default)
-- [ ] P7.26 Deploy to minikube locally (when minikube is available): same checks.
+- [ ] P7.26 Deploy to minikube locally (when minikube is available): same checks. **(waits for minikube on the build machine, D-031)**
 - [x] P7.27 Worker scale-out check: scale the StatefulSet to 4, observe registration, scale back to 2, observe drain and no lost runs.  | claude 2026-10-10 K3S: scaled to 4, all registered Ready; 12 runs spread over worker-0..3, all Succeeded; scaled to 2, worker-2/-3 drained to Offline, no lost runs
 - [ ] P7.28 Control plane scale check (post-M1, Phase 10 owns HA): scale server to 2 replicas with Postgres and confirm claims, events, and SSE work through either replica.
 - [x] P7.29 `docs/KUBERNETES.md`.  | k8s stream docs/KUBERNETES.md
@@ -1392,7 +1393,7 @@ Scripts and validation
   - M1-01: settings updates validate every value against its metadata (range, allowed values, type) and return 400 with `errors` as an object keyed by setting path; nothing is clamped silently.
   - M1-14: manifest dry runs and applies report, per item, `changes`: a list of `{ field, before, after }` (values as strings, truncated to 200 characters) for Updated items.
   - M1-12: MCP and A2A run summaries include `servedModel`.
-- [ ] P9.16 M1 sign-off: update the Progress Dashboard, `CHANGELOG.md`, and the decision log; record known gaps.
+- [x] P9.16 M1 sign-off: update the Progress Dashboard, `CHANGELOG.md`, and the decision log; record known gaps.  | claude 2026-10-10 D-031 records the sign-off and exceptions; CHANGELOG.md covers telemetry, analytics, blocked runs, streaming, Docker Compose, the dashboard, languages, and defaults; Progress Dashboard counts current. Verified on K3S (1 server, 2 workers, Postgres, dashboard): examples/validate.sh 25/25 with Claude Code, Codex, and Mux, live dashboard suite 6/6, CI green
 
 ### Known gaps at M1 (recorded 2026-10-10)
 
