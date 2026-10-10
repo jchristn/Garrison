@@ -1,6 +1,7 @@
 namespace Test.Shared.Infrastructure
 {
     using System;
+    using System.Collections.Generic;
     using System.Net;
     using System.Net.Http;
     using System.Net.Sockets;
@@ -20,6 +21,9 @@ namespace Test.Shared.Infrastructure
     /// </summary>
     public sealed class TestServerHost : IAsyncDisposable
     {
+        private static readonly HashSet<int> _IssuedPorts = new HashSet<int>();
+        private static readonly object _IssuedPortsLock = new object();
+
         #region Public-Members
 
         /// <summary>
@@ -148,16 +152,26 @@ namespace Test.Shared.Infrastructure
         }
 
         /// <summary>
-        /// A free TCP port on 127.0.0.1.
+        /// A free TCP port on 127.0.0.1 that this process has not handed out before. The operating system can return
+        /// the same ephemeral port to two back-to-back probes (it is released between them), which made a server's REST
+        /// and MCP ports collide; remembering issued ports rules that out. Thread-safe.
         /// </summary>
         /// <returns>Port.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when no unused port is found after many attempts.</exception>
         public static int FreePort()
         {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
+            for (int attempt = 0; attempt < 100; attempt++)
+            {
+                TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
+                listener.Start();
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                listener.Stop();
+                lock (_IssuedPortsLock)
+                {
+                    if (_IssuedPorts.Add(port)) return port;
+                }
+            }
+            throw new InvalidOperationException("Could not find a free TCP port that was not already handed out.");
         }
 
         /// <summary>
