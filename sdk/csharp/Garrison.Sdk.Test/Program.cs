@@ -150,6 +150,47 @@ namespace Garrison.Sdk.Test
                     Require(analytics.Series.Count > 0, "no series");
                 }).ConfigureAwait(false);
 
+                await CheckAsync("run analytics grouped by harness and model", async () =>
+                {
+                    RunAnalyticsQuery query = new RunAnalyticsQuery();
+                    query.From = DateTime.UtcNow.AddHours(-1);
+                    query.To = DateTime.UtcNow.AddMinutes(1);
+                    query.GroupBy = AnalyticsGroupByEnum.HarnessModel;
+                    RunAnalyticsResponse analytics = await client.Analytics.RunsAsync(query, token).ConfigureAwait(false);
+                    Require(analytics.Series.Count > 0, "no series");
+                    foreach (RunAnalyticsSeries series in analytics.Series)
+                    {
+                        Require(series.Key.Contains('|'), "series key " + series.Key);
+                        Require(series.Label.Contains(" / ", StringComparison.Ordinal), "series label " + series.Label);
+                    }
+                }).ConfigureAwait(false);
+
+                await CheckAsync("run analytics dimensions", async () =>
+                {
+                    RunAnalyticsDimensions dimensions = await client.Analytics.DimensionsAsync(DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false);
+                    Require(dimensions.Agents.Any(a => a.Id == agentId), "scratch agent missing from dimensions");
+                    Require(dimensions.Deployments.Any(d => d.Id == deploymentId && d.AgentId == agentId), "scratch deployment missing from dimensions");
+                    Require(dimensions.Harnesses.Count > 0, "no harnesses");
+                    Require(dimensions.Models.Count > 0, "no models");
+                    string expected = String.IsNullOrWhiteSpace(invokedRun?.ServedModel) ? "unknown" : invokedRun!.ServedModel!;
+                    Require(dimensions.Models.Contains(expected), "model " + expected + " missing from " + String.Join(",", dimensions.Models));
+                }).ConfigureAwait(false);
+
+                await CheckAsync("run analytics filtered by model", async () =>
+                {
+                    string model = String.IsNullOrWhiteSpace(invokedRun?.ServedModel) ? "unknown" : invokedRun!.ServedModel!;
+                    RunAnalyticsQuery query = new RunAnalyticsQuery();
+                    query.From = DateTime.UtcNow.AddHours(-1);
+                    query.To = DateTime.UtcNow.AddMinutes(1);
+                    query.AgentId = agentId;
+                    query.Model = model;
+                    RunAnalyticsResponse matched = await client.Analytics.RunsAsync(query, token).ConfigureAwait(false);
+                    Require(matched.Totals.Runs >= 1, "model " + model + " matched " + matched.Totals.Runs + " runs");
+                    query.Model = "garrison-sdk-no-such-model";
+                    RunAnalyticsResponse none = await client.Analytics.RunsAsync(query, token).ConfigureAwait(false);
+                    Require(none.Totals.Runs == 0, "unknown model matched " + none.Totals.Runs + " runs");
+                }).ConfigureAwait(false);
+
                 await CheckAsync("run analytics rejects from >= to", async () =>
                 {
                     RunAnalyticsQuery query = new RunAnalyticsQuery();

@@ -4464,7 +4464,7 @@
                 }
               ]
             },
-            "description": "Time-bucketed run analytics for the tenant (permission: Run, Read). Runs are selected by creation time in [from, to). interval is minute, hour, day, week, or auto (about 24 to 96 buckets; the default). groupBy is none, agent, or harness. agentId, harnessType, and deploymentId filter and can be combined. Buckets are gap-filled: counts and sums are 0 and averages are null in empty buckets. The pre-request script sets analyticsFrom and analyticsTo to the last hour."
+            "description": "Time-bucketed run analytics for the tenant (permission: Run, Read). Runs are selected by creation time in [from, to). interval is minute, hour, day, week, or auto (about 24 to 96 buckets; the default). groupBy is none, agent, harness, model, or harnessModel. agentId, harnessType, deploymentId, and model (served model; unknown matches runs without one) filter and can be combined. Buckets are gap-filled: counts and sums are 0 and averages are null in empty buckets. The pre-request script sets analyticsFrom and analyticsTo to the last hour."
           },
           "event": [
             {
@@ -4558,6 +4558,200 @@
                   "var json = pm.response.json();",
                   "pm.test('auto interval stays within 24 to 96 buckets', function () { json.series.forEach(function (s) { pm.expect(s.buckets.length).to.be.within(24, 97); }); });",
                   "pm.test('series keyed by harness type', function () { json.series.forEach(function (s) { pm.expect(s.key).to.eql('Generic'); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run analytics dimensions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/analytics/runs/dimensions?from={{analyticsFrom}}&to={{analyticsTo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "analytics",
+                "runs",
+                "dimensions"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{analyticsFrom}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{analyticsTo}}"
+                }
+              ]
+            },
+            "description": "Distinct agents, harness types, deployments, and served models among the tenant's runs in [from, to) (permission: Run, Read). Use it to fill analytics filter pickers. from and to default to the last 24 hours. Lists are sorted by name; deployments carry their agentId, and a deployment or agent without a stored name falls back to its ID. \"unknown\" in models stands for runs without a recorded model and can be passed back as model=unknown. truncated is true when more than 100,000 runs were in the range. The test stores the first model in analyticsModel for the next request."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var now = new Date();",
+                  "pm.collectionVariables.set('analyticsFrom', new Date(now.getTime() - 3600000).toISOString());",
+                  "pm.collectionVariables.set('analyticsTo', new Date(now.getTime() + 60000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('response shape', function () { pm.expect(json.agents).to.be.an('array'); pm.expect(json.harnesses).to.be.an('array'); pm.expect(json.deployments).to.be.an('array'); pm.expect(json.models).to.be.an('array'); pm.expect(json.truncated).to.be.a('boolean'); });",
+                  "pm.test('includes this collection\\'s agent', function () { pm.expect(json.agents.map(function (a) { return a.id; })).to.include(pm.collectionVariables.get('agentId')); });",
+                  "pm.test('deployments carry an agentId', function () { json.deployments.forEach(function (d) { pm.expect(d).to.have.property('id'); pm.expect(d).to.have.property('name'); pm.expect(d).to.have.property('agentId'); }); });",
+                  "pm.test('fake harness runs appear as Generic', function () { pm.expect(json.harnesses).to.include('Generic'); });",
+                  "pm.test('at least one model', function () { pm.expect(json.models.length).to.be.above(0); });",
+                  "if (json.models && json.models.length > 0) { pm.collectionVariables.set('analyticsModel', json.models[0]); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run analytics filtered by model",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/analytics/runs?from={{analyticsFrom}}&to={{analyticsTo}}&model={{analyticsModel}}&groupBy=model",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "analytics",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{analyticsFrom}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{analyticsTo}}"
+                },
+                {
+                  "key": "model",
+                  "value": "{{analyticsModel}}"
+                },
+                {
+                  "key": "groupBy",
+                  "value": "model"
+                }
+              ]
+            },
+            "description": "Keeps only runs whose served model equals model (the value comes from the dimensions request). The value unknown matches runs without a recorded model. groupBy=model gives one series per served model, keyed and labeled by the model name, so with the filter applied every series is keyed by analyticsModel."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var now = new Date();",
+                  "pm.collectionVariables.set('analyticsFrom', new Date(now.getTime() - 3600000).toISOString());",
+                  "pm.collectionVariables.set('analyticsTo', new Date(now.getTime() + 60000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "var model = pm.collectionVariables.get('analyticsModel');",
+                  "pm.test('runs matched the model', function () { pm.expect(json.totals.runs).to.be.above(0); });",
+                  "pm.test('every series is keyed by the filtered model', function () { pm.expect(json.series.length).to.be.above(0); json.series.forEach(function (s) { pm.expect(s.key).to.eql(model); pm.expect(s.label).to.eql(model); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run analytics by harness and model",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/analytics/runs?from={{analyticsFrom}}&to={{analyticsTo}}&agentId={{agentId}}&groupBy=harnessModel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "analytics",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{analyticsFrom}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{analyticsTo}}"
+                },
+                {
+                  "key": "agentId",
+                  "value": "{{agentId}}"
+                },
+                {
+                  "key": "groupBy",
+                  "value": "harnessModel"
+                }
+              ]
+            },
+            "description": "groupBy=harnessModel gives one series per harness type and served model pair. Keys look like Harness|model (for example ClaudeCode|claude-sonnet-4-5) and labels like Harness / model; runs without a recorded model use unknown as the model. The agentId filter keeps the series to this collection's agent, whose fake harness runs appear as Generic."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var now = new Date();",
+                  "pm.collectionVariables.set('analyticsFrom', new Date(now.getTime() - 3600000).toISOString());",
+                  "pm.collectionVariables.set('analyticsTo', new Date(now.getTime() + 60000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('series keyed Harness|model and labeled Harness / model', function () { pm.expect(json.series.length).to.be.above(0); json.series.forEach(function (s) { var parts = s.key.split('|'); pm.expect(parts.length).to.eql(2); pm.expect(s.label).to.eql(parts[0] + ' / ' + parts[1]); }); });",
+                  "pm.test('fake harness runs appear under Generic', function () { pm.expect(json.series.some(function (s) { return s.key.indexOf('Generic|') === 0; })).to.be.true; });",
+                  "pm.test('series totals add up to the overall totals', function () { var sum = 0; json.series.forEach(function (s) { s.buckets.forEach(function (b) { sum += b.runs; }); }); pm.expect(sum).to.eql(json.totals.runs); });"
                 ]
               }
             }
@@ -8450,6 +8644,10 @@
     },
     {
       "key": "analyticsTo",
+      "value": ""
+    },
+    {
+      "key": "analyticsModel",
       "value": ""
     }
   ]

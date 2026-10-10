@@ -77,7 +77,18 @@ for series in result["series"]:
         print(series["label"], bucket["startUtc"], bucket["runs"], bucket["timeToFirstTokenMsP95"])
 ```
 
-`analytics.runs(from_=None, to=None, interval=None, agent_id=None, harness_type=None, deployment_id=None, group_by=None)` accepts `datetime` values or ISO 8601 UTC strings for `from_` and `to`. `interval` is `minute`, `hour`, `day`, `week`, or `auto`; `group_by` is `none`, `agent`, or `harness`. The response carries `fromUtc`, `toUtc`, `interval`, `bucketSeconds` (authoritative bucket size), `truncated` (true when the 100,000 run cap was hit), `totals`, and `series` (each with `key`, `label`, and `buckets`). Totals and buckets share the same metrics: counts by outcome, token totals, `toolCalls`, `costUsd`, and latency averages and percentiles that are `None` when there are no samples. A range where `from_ >= to`, one that needs more than 400 buckets, or an invalid parameter raises `GarrisonError` with status 400.
+`analytics.runs(from_=None, to=None, interval=None, agent_id=None, harness_type=None, deployment_id=None, group_by=None, model=None)` accepts `datetime` values or ISO 8601 UTC strings for `from_` and `to`. `interval` is `minute`, `hour`, `day`, `week`, or `auto`. `model` keeps only runs whose served model equals the value, and `"unknown"` matches runs without a recorded model. `group_by` is `none`, `agent`, `harness`, `model`, or `harnessModel`; with `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-4-5`) and its label is `Harness / model`. The response carries `fromUtc`, `toUtc`, `interval`, `bucketSeconds` (authoritative bucket size), `truncated` (true when the 100,000 run cap was hit), `totals`, and `series` (each with `key`, `label`, and `buckets`). Totals and buckets share the same metrics: counts by outcome, token totals, `toolCalls`, `costUsd`, and latency averages and percentiles that are `None` when there are no samples. A range where `from_ >= to`, one that needs more than 400 buckets, or an invalid parameter raises `GarrisonError` with status 400.
+
+To fill filter pickers, `analytics.dimensions(from_=None, to=None)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` and returns the distinct values among runs in the range (default: the last 24 hours):
+
+```python
+dims = client.analytics.dimensions(from_=now - timedelta(days=7), to=now)
+for model in dims["models"]:
+    report = client.analytics.runs(from_=now - timedelta(days=7), to=now, model=model)
+    print(model, report["totals"]["runs"])
+```
+
+The result is `{"agents": [{"id", "name"}], "harnesses": [str], "deployments": [{"id", "name", "agentId"}], "models": [str], "truncated": bool}`. Lists are sorted by name, and `"unknown"` in `models` stands for runs without a recorded model.
 
 ## Manifests
 

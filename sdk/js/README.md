@@ -67,7 +67,7 @@ Finished runs carry timing and usage metrics. Nullable fields are omitted by the
 
 ## Run analytics
 
-`analytics.runs(query)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns totals plus time-bucketed series. Every query field is optional: `from`, `to` (ISO 8601 UTC strings or `Date`), `interval` (`minute`, `hour`, `day`, `week`, `auto`), `agentId`, `harnessType`, `deploymentId`, and `groupBy` (`none`, `agent`, `harness`).
+`analytics.runs(query)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns totals plus time-bucketed series. Every query field is optional: `from`, `to` (ISO 8601 UTC strings or `Date`), `interval` (`minute`, `hour`, `day`, `week`, `auto`), `agentId`, `harnessType`, `deploymentId`, `model` (served model; `"unknown"` matches runs without a recorded model), and `groupBy` (`none`, `agent`, `harness`, `model`, `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-4-5`) and its label is `Harness / model`.
 
 ```ts
 const now = Date.now();
@@ -79,6 +79,16 @@ for (const series of report.series) {
 ```
 
 `bucketSeconds` is the authoritative bucket size. `truncated` is true when the 100,000-run cap was hit. Averages and percentiles are `null` when a bucket has no samples. The server returns 400 when `from` is not before `to`, when the range needs more than 400 buckets, or when a parameter is invalid.
+
+`analytics.dimensions({ from, to })` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` and returns the distinct values among runs in the range (default: the last 24 hours), which is handy for filter pickers. The result is `{ agents: [{ id, name }], harnesses: string[], deployments: [{ id, name, agentId }], models: string[], truncated }`, with each list sorted by name.
+
+```ts
+const dims = await client.analytics.dimensions({ from: new Date(now - 7 * 86400000), to: new Date(now) });
+for (const model of dims.models) {
+  const byModel = await client.analytics.runs({ from: new Date(now - 7 * 86400000), to: new Date(now), model, groupBy: "harnessModel" });
+  console.log(model, byModel.totals.runs);
+}
+```
 
 ## Errors
 

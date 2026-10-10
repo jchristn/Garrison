@@ -120,6 +120,8 @@ type Run struct {
 	ReasoningTokens int64 `json:"reasoningTokens"`
 	// ToolCallCount is the number of tool calls the run made. Default 0.
 	ToolCallCount int64 `json:"toolCallCount"`
+	// ServedModel is the model the harness reported serving the run; empty when not reported.
+	ServedModel string `json:"servedModel,omitempty"`
 }
 
 // RunEvent is one normalized event emitted by a run.
@@ -201,7 +203,11 @@ type AnalyticsQuery struct {
 	HarnessType string
 	// DeploymentID limits results to one deployment.
 	DeploymentID string
-	// GroupBy is none, agent, or harness.
+	// Model limits results to runs whose served model equals this value; "unknown" matches runs
+	// without a recorded model.
+	Model string
+	// GroupBy is none, agent, harness, model, or harnessModel. With harnessModel each series key is
+	// "Harness|model" and its label is "Harness / model".
 	GroupBy string
 }
 
@@ -235,8 +241,9 @@ type AnalyticsBucket struct {
 	AnalyticsMetrics
 }
 
-// AnalyticsSeries is one series. Key is "all", an agent ID, or a harness type depending on GroupBy;
-// Label is "All runs", the agent name, or the harness type.
+// AnalyticsSeries is one series. Key is "all", an agent ID, a harness type, a served model (or "unknown"),
+// or "Harness|model" depending on GroupBy; Label is "All runs", the agent name, the harness type, the
+// served model, or "Harness / model".
 type AnalyticsSeries struct {
 	Key     string            `json:"key"`
 	Label   string            `json:"label"`
@@ -255,4 +262,32 @@ type RunAnalytics struct {
 	Truncated bool              `json:"truncated"`
 	Totals    AnalyticsMetrics  `json:"totals"`
 	Series    []AnalyticsSeries `json:"series"`
+}
+
+// AnalyticsAgentDimension is an agent with runs in the range. Name falls back to the ID when the run did
+// not record one.
+type AnalyticsAgentDimension struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// AnalyticsDeploymentDimension is a deployment with runs in the range. Name falls back to the ID when the
+// deployment no longer exists.
+type AnalyticsDeploymentDimension struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	AgentID string `json:"agentId"`
+}
+
+// AnalyticsDimensions is the response of GET .../analytics/runs/dimensions: the distinct agents, harness
+// types, deployments, and served models among runs in a range, each list sorted by name.
+type AnalyticsDimensions struct {
+	Agents []AnalyticsAgentDimension `json:"agents"`
+	// Harnesses are harness types such as ClaudeCode or Generic.
+	Harnesses   []string                       `json:"harnesses"`
+	Deployments []AnalyticsDeploymentDimension `json:"deployments"`
+	// Models are served models; "unknown" stands for runs without a recorded model.
+	Models []string `json:"models"`
+	// Truncated is true when the server's 100,000-run cap was hit.
+	Truncated bool `json:"truncated"`
 }

@@ -249,6 +249,95 @@ func main() {
 		}
 		return nil
 	})
+	servedModel := func() string {
+		if finished == nil || finished.ServedModel == "" {
+			return "unknown"
+		}
+		return finished.ServedModel
+	}
+	check("analytics runs grouped by harness and model", func(ctx context.Context) error {
+		now := time.Now().UTC()
+		result, err := client.Analytics.Runs(ctx, garrison.AnalyticsQuery{
+			From:    now.Add(-time.Hour).Format(time.RFC3339),
+			To:      now.Add(time.Minute).Format(time.RFC3339),
+			GroupBy: "harnessModel",
+		})
+		if err != nil {
+			return err
+		}
+		if len(result.Series) == 0 {
+			return errors.New("no series")
+		}
+		for _, series := range result.Series {
+			if !strings.Contains(series.Key, "|") {
+				return fmt.Errorf("series key %q", series.Key)
+			}
+			if !strings.Contains(series.Label, " / ") {
+				return fmt.Errorf("series label %q", series.Label)
+			}
+		}
+		return nil
+	})
+	check("analytics dimensions", func(ctx context.Context) error {
+		now := time.Now().UTC()
+		dims, err := client.Analytics.Dimensions(ctx, now.Add(-time.Hour).Format(time.RFC3339), now.Add(time.Minute).Format(time.RFC3339))
+		if err != nil {
+			return err
+		}
+		foundAgent := false
+		for _, a := range dims.Agents {
+			if a.ID == agentID {
+				foundAgent = true
+			}
+		}
+		if !foundAgent {
+			return errors.New("scratch agent missing from dimensions")
+		}
+		foundDeployment := false
+		for _, d := range dims.Deployments {
+			if d.ID == deploymentID && d.AgentID == agentID {
+				foundDeployment = true
+			}
+		}
+		if !foundDeployment {
+			return errors.New("scratch deployment missing from dimensions")
+		}
+		if len(dims.Harnesses) == 0 {
+			return errors.New("no harnesses")
+		}
+		model := servedModel()
+		for _, m := range dims.Models {
+			if m == model {
+				return nil
+			}
+		}
+		return fmt.Errorf("model %s missing from %v", model, dims.Models)
+	})
+	check("analytics runs filtered by model", func(ctx context.Context) error {
+		now := time.Now().UTC()
+		query := garrison.AnalyticsQuery{
+			From:    now.Add(-time.Hour).Format(time.RFC3339),
+			To:      now.Add(time.Minute).Format(time.RFC3339),
+			AgentID: agentID,
+			Model:   servedModel(),
+		}
+		matched, err := client.Analytics.Runs(ctx, query)
+		if err != nil {
+			return err
+		}
+		if matched.Totals.Runs < 1 {
+			return fmt.Errorf("model %s matched %d runs", query.Model, matched.Totals.Runs)
+		}
+		query.Model = "garrison-sdk-no-such-model"
+		none, err := client.Analytics.Runs(ctx, query)
+		if err != nil {
+			return err
+		}
+		if none.Totals.Runs != 0 {
+			return fmt.Errorf("unknown model matched %d runs", none.Totals.Runs)
+		}
+		return nil
+	})
 	check("analytics rejects from >= to", func(ctx context.Context) error {
 		now := time.Now().UTC().Format(time.RFC3339)
 		_, err := client.Analytics.Runs(ctx, garrison.AnalyticsQuery{From: now, To: now})

@@ -373,25 +373,38 @@ class Analytics:
     """Tenant analytics. Responses are dictionaries with the server's camelCase field names."""
 
     INTERVALS = ("minute", "hour", "day", "week", "auto")
-    GROUP_BY = ("none", "agent", "harness")
+    GROUP_BY = ("none", "agent", "harness", "model", "harnessModel")
 
     def __init__(self, transport: Transport):
         self._t = transport
 
     def runs(self, from_: Optional[Union[datetime, str]] = None, to: Optional[Union[datetime, str]] = None,
              interval: Optional[str] = None, agent_id: Optional[str] = None, harness_type: Optional[str] = None,
-             deployment_id: Optional[str] = None, group_by: Optional[str] = None) -> Dict[str, Any]:
+             deployment_id: Optional[str] = None, group_by: Optional[str] = None,
+             model: Optional[str] = None) -> Dict[str, Any]:
         """Run analytics over a time range: GET /v1.0/api/tenants/{tenantId}/analytics/runs.
 
         from_ and to accept a datetime (converted to UTC) or an ISO 8601 UTC string. interval is minute, hour,
-        day, week, or auto. group_by is none, agent, or harness. Omitted parameters use the server defaults.
+        day, week, or auto. model keeps only runs whose served model equals the value; "unknown" matches runs
+        without a recorded model. group_by is none, agent, harness, model, or harnessModel (series key
+        "Harness|model", label "Harness / model"). Omitted parameters use the server defaults.
         Returns {fromUtc, toUtc, interval, bucketSeconds, truncated, totals, series: [{key, label, buckets}]}.
         Raises GarrisonError (400) when from_ >= to, when the range needs more than 400 buckets, or when a
         parameter is invalid.
         """
         return self._t.request("GET", self._t.tenant_path("/analytics/runs"), {
             "from": from_, "to": to, "interval": interval, "agentId": agent_id, "harnessType": harness_type,
-            "deploymentId": deployment_id, "groupBy": group_by})
+            "deploymentId": deployment_id, "model": model, "groupBy": group_by})
+
+    def dimensions(self, from_: Optional[Union[datetime, str]] = None,
+                   to: Optional[Union[datetime, str]] = None) -> Dict[str, Any]:
+        """Distinct filter values among runs in a range: GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions.
+
+        from_ and to behave as in runs (default: the last 24 hours). Returns {agents: [{id, name}], harnesses:
+        [str], deployments: [{id, name, agentId}], models: [str], truncated}. "unknown" in models stands for
+        runs without a recorded model. Raises GarrisonError (400) when from_ >= to or a timestamp is invalid.
+        """
+        return self._t.request("GET", self._t.tenant_path("/analytics/runs/dimensions"), {"from": from_, "to": to})
 
 
 class Global:

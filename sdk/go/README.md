@@ -62,7 +62,7 @@ The stream ends after `run.completed`. `Runs.Events` polls and `Runs.WaitForComp
 
 ## Run analytics
 
-`client.Analytics.Runs(ctx, garrison.AnalyticsQuery{...})` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns a `*garrison.RunAnalytics` with `Totals` and one or more `Series`, each holding time `Buckets` (`StartUTC` plus the same metrics as `Totals`). Query fields are optional: `From` and `To` (ISO 8601 UTC), `Interval` (`minute`, `hour`, `day`, `week`, or `auto`), `AgentID`, `HarnessType`, `DeploymentID`, and `GroupBy` (`none`, `agent`, or `harness`). `BucketSeconds` in the response is the authoritative bucket size.
+`client.Analytics.Runs(ctx, garrison.AnalyticsQuery{...})` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns a `*garrison.RunAnalytics` with `Totals` and one or more `Series`, each holding time `Buckets` (`StartUTC` plus the same metrics as `Totals`). Query fields are optional: `From` and `To` (ISO 8601 UTC), `Interval` (`minute`, `hour`, `day`, `week`, or `auto`), `AgentID`, `HarnessType`, `DeploymentID`, `Model` (served model; `unknown` matches runs without a recorded model), and `GroupBy` (`none`, `agent`, `harness`, `model`, or `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-4-5`) and its label is `Harness / model`. `BucketSeconds` in the response is the authoritative bucket size.
 
 ```go
 now := time.Now().UTC()
@@ -82,6 +82,22 @@ for _, series := range stats.Series {
 ```
 
 The server returns HTTP 400 when `From` is not before `To`, when the range needs more than 400 buckets, or for an invalid interval, group, harness type, or date.
+
+`client.Analytics.Dimensions(ctx, from, to)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` and returns a `*garrison.AnalyticsDimensions` listing the distinct `Agents` (`ID`, `Name`), `Harnesses`, `Deployments` (`ID`, `Name`, `AgentID`), and `Models` among runs in the range, plus `Truncated`. Pass empty strings for the server default range (the last 24 hours). Use it to fill filter pickers, then feed a value back into `AnalyticsQuery`:
+
+```go
+dims, err := client.Analytics.Dimensions(ctx, now.Add(-7*24*time.Hour).Format(time.RFC3339), now.Format(time.RFC3339))
+if err != nil {
+	return err
+}
+for _, model := range dims.Models {
+	byModel, err := client.Analytics.Runs(ctx, garrison.AnalyticsQuery{Model: model, GroupBy: "harnessModel"})
+	if err != nil {
+		return err
+	}
+	fmt.Println(model, byModel.Totals.Runs)
+}
+```
 
 ## Errors
 

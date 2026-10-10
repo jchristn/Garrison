@@ -80,7 +80,7 @@ Rules for keeping the plan honest:
 | 0 | Repository bootstrap | M1 | Complete | 14 / 14 |
 | 1 | Core foundation: settings, data layer, identity, RBAC, history, audit | M1 | Complete | 50 / 50 |
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
-| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 43 / 45 |
+| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 44 / 45 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
 | 5 | Dashboard | M1 | In progress | 41 / 50 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
@@ -1187,7 +1187,7 @@ Tests
 - [x] P3.11.1 Application metrics and spans in section 17 for server and worker.  | claude 2026-10-10 worker: Radiant in Garrison.Core (shared GarrisonTelemetry), garrison.worker.* leases, runs, run.duration, harness.tokens, harness.cost_usd, completion_reports, runs.active, slots.free; span "harness <type> exec" parented on spec.TraceParent; scraped from both workers in K3S
 - [x] P3.12 Run timing telemetry per section 10.6: worker measures TTFT, streaming, and execution on a monotonic clock and counts tool calls; parsers report reasoning tokens where available; node protocol, migration 2 (Sqlite and Postgresql), server computes queue, total, and tokens per second; REST, MCP run summary, tests.  | claude 2026-10-10 worker Stopwatch timing (HarnessTiming), migration 2 on Sqlite and Postgresql (upgrades v1 in place), reasoning tokens from Codex, Claude, Mux; K3S live: Claude TTFT 1.6 s, 96 tok/s; Mux TTFT 11 s; Codex streams 0 ms (single message, G-12)
 - [x] P3.13 Analytics endpoint per section 10.6 (time-bucketed, gap-filled, percentiles, filters, group by agent or harness), operation scope entry, tests on both providers, `REST_API.md`, Postman.  | claude 2026-10-10 AnalyticsRoutes and RunAnalyticsService; auto interval picks at most 96 buckets; selected by createdUtc; nearest-rank percentiles; 7 cases per provider; live on K3S grouped by harness
-- [ ] P3.14 Analytics by model: `model` filter, `groupBy=model` and `groupBy=harnessModel`, and the `analytics/runs/dimensions` endpoint (section 10.6); tests on both providers; SDKs, REST_API.md, Postman.
+- [x] P3.14 Analytics by model: `model` filter, `groupBy=model` and `groupBy=harnessModel`, and the `analytics/runs/dimensions` endpoint (section 10.6); tests on both providers; SDKs, REST_API.md, Postman.  | claude 2026-10-10 server, tests on both providers (183), SDKs 18/18 each, REST_API.md, Postman (Newman 203 requests, 243 assertions, 0 failures)
 - [x] P3.12.1 OpenAPI metadata on every Phase 3 route.  | claude 2026-10-10
 
 ### Phase 4: Protocol ingress

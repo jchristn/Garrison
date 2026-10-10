@@ -105,6 +105,34 @@ await check("run analytics by harness", async () => {
   const result = await client.analytics.runs({ from: new Date(now - 3600000), to: new Date(now + 60000), interval: "auto", groupBy: "harness" });
   require(result.series.length >= 1, "no series");
 });
+await check("run analytics by harness and model", async () => {
+  const now = Date.now();
+  const result = await client.analytics.runs({ from: new Date(now - 3600000), to: new Date(now + 60000), groupBy: "harnessModel" });
+  require(result.series.length >= 1, "no series");
+  for (const series of result.series) {
+    require(series.key.includes("|"), `series key ${series.key}`);
+    require(series.label.includes(" / "), `series label ${series.label}`);
+  }
+});
+await check("run analytics dimensions", async () => {
+  const now = Date.now();
+  const dims = await client.analytics.dimensions({ from: new Date(now - 3600000), to: new Date(now + 60000) });
+  const model = state.run?.servedModel || "unknown";
+  require(dims.agents.some((a) => a.id === state.agent), "scratch agent missing from dimensions");
+  require(dims.deployments.some((d) => d.id === state.deployment && d.agentId === state.agent), "scratch deployment missing from dimensions");
+  require(dims.harnesses.length >= 1, "no harnesses");
+  require(dims.models.includes(model), `model ${model} missing from ${dims.models.join(",")}`);
+  require(typeof dims.truncated === "boolean", "truncated is not a boolean");
+});
+await check("run analytics filtered by model", async () => {
+  const now = Date.now();
+  const model = state.run?.servedModel || "unknown";
+  const range = { from: new Date(now - 3600000), to: new Date(now + 60000), agentId: state.agent };
+  const matched = await client.analytics.runs({ ...range, model });
+  require(matched.totals.runs >= 1, `model ${model} matched ${matched.totals.runs} runs`);
+  const none = await client.analytics.runs({ ...range, model: "garrison-sdk-no-such-model" });
+  require(none.totals.runs === 0, `unknown model matched ${none.totals.runs} runs`);
+});
 await check("run analytics rejects from >= to", async () => {
   const now = new Date();
   try {

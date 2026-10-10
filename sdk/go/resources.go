@@ -306,9 +306,29 @@ func (a *AnalyticsClient) Runs(ctx context.Context, query AnalyticsQuery) (*RunA
 	set("agentId", query.AgentID)
 	set("harnessType", query.HarnessType)
 	set("deploymentId", query.DeploymentID)
+	set("model", query.Model)
 	set("groupBy", query.GroupBy)
 	var out RunAnalytics
 	if err := a.c.Do(ctx, http.MethodGet, a.c.TenantPath("/analytics/runs"), q, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Dimensions returns the distinct agents, harness types, deployments, and served models among runs in a
+// range, for populating analytics filters. from and to are ISO 8601 UTC strings; empty values use the
+// server defaults (the last 24 hours). The server returns HTTP 400 (as *Error) when from is not before to
+// or a date is invalid.
+func (a *AnalyticsClient) Dimensions(ctx context.Context, from, to string) (*AnalyticsDimensions, error) {
+	q := url.Values{}
+	if from != "" {
+		q.Set("from", from)
+	}
+	if to != "" {
+		q.Set("to", to)
+	}
+	var out AnalyticsDimensions
+	if err := a.c.Do(ctx, http.MethodGet, a.c.TenantPath("/analytics/runs/dimensions"), q, nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil

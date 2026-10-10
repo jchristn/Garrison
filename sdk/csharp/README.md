@@ -100,7 +100,23 @@ foreach (RunAnalyticsSeries series in analytics.Series)
 }
 ```
 
-Every query member is optional. `Interval` is `Auto`, `Minute`, `Hour`, `Day`, or `Week`; `GroupBy` is `None`, `Agent`, or `Harness`; `AgentId`, `DeploymentId`, and `HarnessType` filter the runs. `BucketSeconds` in the response is the authoritative bucket size, and `Truncated` is true when the server hit its 100,000-run cap. The server returns 400 (thrown as `GarrisonException`) when `From` is not earlier than `To`, when the range needs more than 400 buckets, or when a parameter is invalid.
+Every query member is optional. `Interval` is `Auto`, `Minute`, `Hour`, `Day`, or `Week`. `GroupBy` is `None`, `Agent`, `Harness`, `Model`, or `HarnessModel` (sent as `harnessModel`); with `HarnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-4-5`) and its label is `Harness / model`. `AgentId`, `DeploymentId`, `HarnessType`, and `Model` filter the runs; `Model` matches the run's served model, and `"unknown"` matches runs without a recorded model. `BucketSeconds` in the response is the authoritative bucket size, and `Truncated` is true when the server hit its 100,000-run cap. The server returns 400 (thrown as `GarrisonException`) when `From` is not earlier than `To`, when the range needs more than 400 buckets, or when a parameter is invalid.
+
+`Analytics.DimensionsAsync(from, to)` returns the distinct agents, harness types, deployments, and served models among runs in a range (default: the last 24 hours), which is what a filter picker needs. Lists are sorted by name and never null.
+
+```csharp
+RunAnalyticsDimensions dimensions = await client.Analytics.DimensionsAsync(DateTime.UtcNow.AddDays(-7), DateTime.UtcNow);
+foreach (string model in dimensions.Models)
+{
+    RunAnalyticsQuery byModel = new RunAnalyticsQuery();
+    byModel.Model = model;
+    byModel.GroupBy = AnalyticsGroupByEnum.HarnessModel;
+    RunAnalyticsResponse report = await client.Analytics.RunsAsync(byModel);
+    Console.WriteLine(model + ": " + report.Totals.Runs);
+}
+```
+
+`RunAnalyticsDimensions` has `Agents` (`RunAnalyticsAgentDimension`: `Id`, `Name`), `Harnesses`, `Deployments` (`RunAnalyticsDeploymentDimension`: `Id`, `Name`, `AgentId`), `Models`, and `Truncated`.
 
 ## Manifests
 

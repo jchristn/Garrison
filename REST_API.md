@@ -2335,13 +2335,14 @@ Time-bucketed run analytics: counts, tokens, cost, and timing averages and perce
 | `from`, `to` | ISO 8601 UTC range. A run is included when its creation time is in `[from, to)` | the last 24 hours |
 | `interval` | `minute`, `hour`, `day`, `week`, or `auto` | `auto` |
 | `agentId`, `harnessType`, `deploymentId` | Filters; combine them freely (`harnessType` is case-insensitive, for example `ClaudeCode`, `Codex`, `Mux`, `Generic`) | none |
-| `groupBy` | `none`, `agent`, or `harness`: one series per group | `none` |
+| `model` | Only runs whose served model (the run's `servedModel`) equals this value. `unknown` matches runs without a recorded model. Combines with the other filters | none |
+| `groupBy` | `none`, `agent`, `harness`, `model`, or `harnessModel`: one series per group | `none` |
 
 How the response is built:
 
 - Buckets are aligned to UTC multiples of the bucket size (days start at midnight UTC, weeks on Monday), so the first bucket can start before `from`. Every bucket in the range is returned, including empty ones: counts and sums are 0 and averages and percentiles are `null`.
 - `auto` picks the smallest size from 1, 5, 10, 15, and 30 minutes; 1, 2, 3, 6, and 12 hours; 1 and 2 days; then whole weeks that gives at most 96 buckets (about 24 to 96 for most ranges). `interval` in the response is `minute`, `hour`, `day`, or `week` when the size matches one of those, and `auto` otherwise; `bucketSeconds` is always the exact size.
-- Series keys are `all` (label `All runs`) without grouping, agent IDs (label: the agent's name on its newest run) for `groupBy=agent`, and harness types for `groupBy=harness`. Series are ordered by run count, largest first. `totals` covers every series.
+- Series keys are `all` (label `All runs`) without grouping, agent IDs (label: the agent's name on its newest run) for `groupBy=agent`, harness types for `groupBy=harness`, served models for `groupBy=model` (runs without a recorded model share the key and label `unknown`), and `Harness|model` (label `Harness / model`, for example key `ClaudeCode|claude-sonnet-4-5` and label `ClaudeCode / claude-sonnet-4-5`) for `groupBy=harnessModel`. The `|` separator is safe to split on because harness type names never contain it. Series are ordered by run count, largest first. `totals` covers every series.
 - At most 100,000 runs are aggregated per request, newest first; `truncated` is `true` when the cap was hit, in which case the oldest runs in the range are left out.
 - Aggregation happens in the server process, so the numbers are the same on Sqlite and Postgresql. Percentiles use the nearest-rank method (the smallest value with at least p percent of samples at or below it). Averages are rounded to one decimal place, `outputTokensPerSecondAvg` to two, and `costUsd` to six.
 
@@ -2399,6 +2400,62 @@ Response (abbreviated to one series and one bucket):
       ]
     }
   ]
+}
+```
+
+Filtering by model and grouping by harness and model:
+
+```bash
+curl -s -G "http://127.0.0.1:8700/v1.0/api/tenants/default/analytics/runs" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "from=2026-10-09T00:00:00Z" --data-urlencode "to=2026-10-10T00:00:00Z" \
+  --data-urlencode "model=claude-sonnet-4-5" --data-urlencode "groupBy=harnessModel"
+```
+
+Each series in that response has a key such as `ClaudeCode|claude-sonnet-4-5` and a label such as `ClaudeCode / claude-sonnet-4-5`; the metrics are the same as above.
+
+#### `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions`
+
+The distinct agents, harness types, deployments, and served models among runs in a range. Use it to fill the filter pickers for the analytics endpoint.
+
+| | |
+|---|---|
+| Permission | Read on `Run` |
+| Response | `RunAnalyticsDimensions` |
+| Success | 200 |
+| Errors | 400 when `from` is not earlier than `to` or a timestamp is invalid |
+
+| Query | Meaning | Default |
+|---|---|---|
+| `from`, `to` | ISO 8601 UTC range. A run is included when its creation time is in `[from, to)` | the last 24 hours |
+
+| Field | Meaning |
+|---|---|
+| `agents` | `[{ "id", "name" }]`, sorted by name. `name` is the agent's name on a run in the range, or the ID when the run has none |
+| `harnesses` | Harness type names, sorted |
+| `deployments` | `[{ "id", "name", "agentId" }]` for runs that have a deployment, sorted by name. `name` falls back to the ID when the deployment no longer exists |
+| `models` | Served models, sorted. `unknown` stands for runs without a recorded model and can be passed back as `model=unknown` |
+| `truncated` | `true` when the range held more than 100,000 runs and only the newest were scanned |
+
+```bash
+curl -s -G "http://127.0.0.1:8700/v1.0/api/tenants/default/analytics/runs/dimensions" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "from=2026-10-09T00:00:00Z" --data-urlencode "to=2026-10-10T00:00:00Z"
+```
+
+Response:
+
+```json
+{
+  "agents": [
+    { "id": "agt_mv2abc...", "name": "helper" }
+  ],
+  "harnesses": ["ClaudeCode", "Codex"],
+  "deployments": [
+    { "id": "dep_mv2def...", "name": "helper-claude", "agentId": "agt_mv2abc..." }
+  ],
+  "models": ["claude-sonnet-4-5", "gpt-5-codex", "unknown"],
+  "truncated": false
 }
 ```
 

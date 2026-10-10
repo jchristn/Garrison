@@ -9,7 +9,7 @@ namespace Garrison.Sdk.Responses
     public class RunAnalyticsSeries
     {
         /// <summary>
-        /// Series key: "all" when not grouped, an agent identifier when grouped by agent, or a harness type when grouped by harness.
+        /// Series key: "all" when not grouped, an agent identifier when grouped by agent, a harness type when grouped by harness, a served model (or "unknown") when grouped by model, or "Harness|model" when grouped by harness and model.
         /// </summary>
         public string Key
         {
@@ -24,7 +24,7 @@ namespace Garrison.Sdk.Responses
         }
 
         /// <summary>
-        /// Display label: "All runs", the agent name, or the harness type.
+        /// Display label: "All runs", the agent name, the harness type, the served model, or "Harness / model".
         /// </summary>
         public string Label
         {

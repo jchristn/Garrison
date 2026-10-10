@@ -39,6 +39,11 @@ namespace Garrison.Sdk.Requests
         public string? DeploymentId { get; set; } = null;
 
         /// <summary>
+        /// Served model filter: only runs whose served model equals this value. The value "unknown" matches runs without a recorded model.
+        /// </summary>
+        public string? Model { get; set; } = null;
+
+        /// <summary>
         /// Series grouping. Null uses the server default (none).
         /// </summary>
         public AnalyticsGroupByEnum? GroupBy { get; set; } = null;

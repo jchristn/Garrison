@@ -82,6 +82,7 @@ def t_invoke():
     require(run["status"] == "Succeeded", f"status {run['status']} {run.get('errorMessage')}")
     require((run.get("resultText") or "").startswith("Echo:"), f"result {run.get('resultText')}")
     state["run"] = run["id"]
+    state["model"] = run.get("servedModel") or "unknown"
 
 
 def t_run_metrics():
@@ -112,6 +113,34 @@ def t_analytics_group():
     start, end = _window()
     result = client.analytics.runs(from_=start, to=end, interval="auto", group_by="harness")
     require(len(result["series"]) >= 1, "no series")
+
+
+def t_analytics_harness_model():
+    start, end = _window()
+    result = client.analytics.runs(from_=start, to=end, group_by="harnessModel")
+    require(len(result["series"]) >= 1, "no series")
+    for series in result["series"]:
+        require("|" in series["key"], f"series key {series['key']}")
+        require(" / " in series["label"], f"series label {series['label']}")
+
+
+def t_analytics_dimensions():
+    start, end = _window()
+    dims = client.analytics.dimensions(from_=start, to=end)
+    require(any(a["id"] == state["agent"] for a in dims["agents"]), "scratch agent missing from dimensions")
+    require(any(d["id"] == state["deployment"] and d["agentId"] == state["agent"] for d in dims["deployments"]),
+            "scratch deployment missing from dimensions")
+    require(len(dims["harnesses"]) >= 1, "no harnesses")
+    require(state["model"] in dims["models"], f"model {state['model']} missing from {dims['models']}")
+    require(isinstance(dims["truncated"], bool), "truncated is not a bool")
+
+
+def t_analytics_model():
+    start, end = _window()
+    matched = client.analytics.runs(from_=start, to=end, agent_id=state["agent"], model=state["model"])
+    require(matched["totals"]["runs"] >= 1, f"model {state['model']} matched {matched['totals']['runs']} runs")
+    none = client.analytics.runs(from_=start, to=end, agent_id=state["agent"], model="garrison-sdk-no-such-model")
+    require(none["totals"]["runs"] == 0, f"unknown model matched {none['totals']['runs']} runs")
 
 
 def t_analytics_invalid():
@@ -172,6 +201,8 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create),
                  ("invoke with wait", t_invoke), ("run timing metrics", t_run_metrics),
                  ("run analytics", t_analytics), ("run analytics grouped by harness", t_analytics_group),
+                 ("run analytics grouped by harness and model", t_analytics_harness_model),
+                 ("run analytics dimensions", t_analytics_dimensions), ("run analytics filtered by model", t_analytics_model),
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
                  ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs), ("cleanup", t_cleanup)]:
     check(name, fn)

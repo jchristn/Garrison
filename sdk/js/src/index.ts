@@ -68,6 +68,8 @@ export interface Run extends Json {
   totalMs?: number | null;
   /** Output tokens per second while streaming; absent when not measurable. */
   outputTokensPerSecond?: number | null;
+  /** Model the harness reported serving the run; absent when the harness did not report one. */
+  servedModel?: string | null;
 }
 
 export interface RunEvent extends Json {
@@ -90,8 +92,8 @@ export interface RunFilter {
 /** Bucket size for run analytics. */
 export type AnalyticsInterval = "minute" | "hour" | "day" | "week" | "auto";
 
-/** Series grouping for run analytics. */
-export type AnalyticsGroupBy = "none" | "agent" | "harness";
+/** Series grouping for run analytics. harnessModel keys each series "Harness|model" and labels it "Harness / model". */
+export type AnalyticsGroupBy = "none" | "agent" | "harness" | "model" | "harnessModel";
 
 /** Query for GET /v1.0/api/tenants/{tenantId}/analytics/runs. Every field is optional. */
 export interface RunAnalyticsQuery {
@@ -103,6 +105,8 @@ export interface RunAnalyticsQuery {
   agentId?: string;
   harnessType?: string;
   deploymentId?: string;
+  /** Only runs whose served model equals this value; "unknown" matches runs without a recorded model. */
+  model?: string;
   groupBy?: AnalyticsGroupBy;
 }
 
@@ -122,7 +126,7 @@ export interface RunAnalyticsBucket extends RunAnalyticsMetrics {
   startUtc: string;
 }
 
-/** One series: "all" for groupBy none, an agent ID for agent, a harness type for harness. */
+/** One series: "all" for groupBy none, an agent ID for agent, a harness type for harness, a served model (or "unknown") for model, "Harness|model" for harnessModel. */
 export interface RunAnalyticsSeries {
   key: string;
   label: string;
@@ -141,6 +145,32 @@ export interface RunAnalytics {
   truncated: boolean;
   totals: RunAnalyticsMetrics;
   series: RunAnalyticsSeries[];
+}
+
+/** Query for GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions. Defaults to the last 24 hours. */
+export interface RunAnalyticsDimensionsQuery {
+  /** Range start (ISO 8601 UTC). */
+  from?: string | Date;
+  /** Range end (ISO 8601 UTC); must be after from. */
+  to?: string | Date;
+}
+
+/** An agent with runs in the range. name falls back to the ID when the run did not record one. */
+export interface RunAnalyticsAgentDimension { id: string; name: string; }
+
+/** A deployment with runs in the range. name falls back to the ID when the deployment no longer exists. */
+export interface RunAnalyticsDeploymentDimension { id: string; name: string; agentId: string; }
+
+/** Distinct filter values among runs in a range. Lists are sorted by name. */
+export interface RunAnalyticsDimensions {
+  agents: RunAnalyticsAgentDimension[];
+  /** Harness types, for example ClaudeCode or Generic. */
+  harnesses: string[];
+  deployments: RunAnalyticsDeploymentDimension[];
+  /** Served models; "unknown" stands for runs without a recorded model. */
+  models: string[];
+  /** True when the 100,000-run cap was hit. */
+  truncated: boolean;
 }
 
 export class GarrisonError extends Error {
@@ -440,6 +470,8 @@ export class Analytics {
   constructor(private readonly t: Transport) {}
   /** Aggregate run metrics over time. Rejects with GarrisonError (400) when from is not before to, the range needs more than 400 buckets, or a parameter is invalid. */
   runs(query: RunAnalyticsQuery = {}): Promise<RunAnalytics> { return this.t.request("GET", this.t.tenantPath("/analytics/runs"), query as any); }
+  /** Distinct agents, harnesses, deployments, and served models among runs in a range, for analytics filters. Rejects with GarrisonError (400) when from is not before to. */
+  dimensions(query: RunAnalyticsDimensionsQuery = {}): Promise<RunAnalyticsDimensions> { return this.t.request("GET", this.t.tenantPath("/analytics/runs/dimensions"), query as any); }
 }
 
 /** Platform-level collection (tenants, nodes, node pools). */
