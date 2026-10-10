@@ -4,6 +4,7 @@
 import fs from 'fs';
 import { test, expect } from '@playwright/test';
 import { installMocks } from './mocks.js';
+import { pathFor } from '../../src/config/navConfig.js';
 
 async function login(page) {
   await page.goto('/');
@@ -251,4 +252,91 @@ test('home, request history, run detail, and tables export their data', async ({
   expect(header).toContain('Run,Agent,Status');
   expect(header).toContain('TTFT');
   expect(table.body.toString('utf8').split('\r\n')[1]).toMatch(/^run_0001,echo-agent,/);
+});
+
+// ---------------------------------------------------------------- G-15 blocked runs
+
+test('blocked queued runs show a warning badge, an explanation, and a Home banner', async ({ page }) => {
+  await login(page);
+
+  // Home: overview.blockedRuns drives a banner that links to the queued runs.
+  const banner = page.getByTestId('blocked-banner');
+  await expect(banner).toContainText('2 queued runs cannot start');
+  expect((await banner.getAttribute('data-tip')).length).toBeGreaterThan(40);
+  await banner.getByRole('button', { name: 'Show queued runs' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/runs\?status=Queued$/);
+
+  // Runs table: run_0003 is queued with blockedReason NoCapableWorker.
+  await page.goto('/dashboard/runs');
+  const row = page.locator('.data-table tbody tr', { hasText: 'run_0003' });
+  const badge = row.locator('.blocked-badge .pill');
+  await expect(badge).toHaveText(/No capable worker/);
+  await expect(badge).toHaveAttribute('data-tip', /Fleet page/);
+  await expect(page.locator('.data-table tbody tr', { hasText: 'run_0009' }).locator('.blocked-badge')).toHaveText(/No ready worker/);
+  await expect(page.locator('.data-table tbody tr', { hasText: 'run_0001' }).locator('.blocked-badge')).toHaveCount(0);
+
+  // Run detail: the notice explains the reason and links to the Fleet page.
+  await page.goto('/dashboard/runs/run_0003');
+  const notice = page.getByTestId('blocked-notice');
+  await expect(notice).toContainText('Waiting for a worker');
+  await expect(notice).toContainText('none reports the Claude Code harness as available');
+  await expect(notice).toContainText('Runtime.FailBlockedAfterSeconds');
+  await notice.getByRole('button', { name: 'Open Fleet' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/fleet$/);
+
+  // Queue tab: blocked counts per agent and harness.
+  await page.goto('/dashboard/queue');
+  await expect(page.getByTestId('blocked-banner')).toBeVisible();
+  await expect(page.locator('[data-cell="blocked"]').first()).toContainText('No capable worker');
+
+  // A run that failed because it stayed blocked shows the new outcome label.
+  await page.goto('/dashboard/runs/run_0007');
+  await expect(page.locator('.run-summary')).toContainText('No capable worker');
+  await expect(page.getByTestId('blocked-notice')).toHaveCount(0);
+});
+
+// ---------------------------------------------------------------- G-16 enum labels
+
+test('detail pages, modals, and forms show translated enum labels, never raw values', async ({ page }) => {
+  const { ENUMS } = await import('../../src/utils/constants.js');
+  await login(page);
+  await page.locator('.topbar .topbar-lang select').selectOption('zz');
+  // In the pseudo-locale every label is wrapped in brackets, so a raw enum value stands out as bare text.
+  const invariant = new Set(['A2A', 'S3', 'Stdout', 'Stderr']);
+  const raw = new Set(Object.values(ENUMS).flat().filter((v) => !invariant.has(v)));
+  const scan = async (where) => {
+    const texts = await page.evaluate(() =>
+      [...document.querySelectorAll('.pill, td, option, .detail-item-value, .checkbox-chip span, .inline-meta, .plain-list li span')]
+        .filter((el) => el.getClientRects().length)
+        .flatMap((el) => el.innerText.split(/\n|, | \/ /))
+        .map((s) => s.replace(/^[\s⚠]+|\s+$/g, ''))
+    );
+    return texts.filter((s) => raw.has(s)).map((s) => `${where}: ${s}`);
+  };
+  const problems = [];
+  for (const path of [pathFor('home'), pathFor('runs', 'run_0003'), pathFor('agents', 'agt_0002'), pathFor('queue'), pathFor('serverInfo'), pathFor('audit'), pathFor('harnessProfiles'), pathFor('nodes')]) {
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+    problems.push(...(await scan(path)));
+  }
+  await page.goto(pathFor('roles'));
+  await page.locator('[data-tab-key="permissions"]').click();
+  await page.waitForLoadState('networkidle');
+  problems.push(...(await scan('permissions')));
+  // Forms: the agent form (Delegation) and the deployment Resources step (binding Kind) from the G-16 report.
+  await page.goto('/dashboard/agents');
+  await page.getByTestId('add-button').first().click();
+  problems.push(...(await scan('agent form')));
+  await page.locator('.modal .modal-header .icon-button').click();
+  await page.goto('/dashboard/deployments');
+  await page.getByTestId('add-button').first().click();
+  const steps = page.locator('.modal .stepper-step');
+  for (let i = 0; i < (await steps.count()); i++) {
+    await steps.nth(i).click();
+    const addButtons = page.locator('.modal .object-list > button');
+    for (let j = 0; j < (await addButtons.count()); j++) await addButtons.nth(j).click();
+    problems.push(...(await scan(`deployment form step ${i}`)));
+    if (i === 3) await expect(page.locator('.modal select[id$="-kind"]').first().locator('option[value="McpServer"]')).toHaveText(/^⟦/);
+  }
+  expect(problems).toEqual([]);
 });

@@ -103,6 +103,88 @@ const es = {
     Http503: 'El servidor no está disponible.'
   },
   enums: {
+    principalType: { Administrator: 'Administrador del sistema', User: 'Usuario', Credential: 'Clave de acceso', Run: 'Token de ejecución' },
+    runBlockedReason: {
+      NoReadyWorker: 'Ningún nodo de trabajo listo',
+      NoCapableWorker: 'Ningún nodo de trabajo compatible',
+      NoMatchingPool: 'Ningún grupo de nodos coincide'
+    },
+    promptDelivery: { Stdin: 'Entrada estándar', Argument: 'Argumento de línea de comandos', File: 'Archivo' },
+    systemPromptDelivery: {
+      File: 'Archivo',
+      Argument: 'Argumento de línea de comandos',
+      Environment: 'Variable de entorno',
+      PrependToPrompt: 'Antepuesto al prompt',
+      None: 'No se entrega'
+    },
+    mcpConfigFormat: {
+      None: 'Sin configuración MCP',
+      ClaudeJson: 'Claude Code JSON',
+      CodexToml: 'Codex TOML',
+      MuxJson: 'Mux JSON',
+      GeminiSettings: 'Ajustes de Gemini CLI'
+    },
+    outputParser: {
+      ClaudeStreamJson: 'JSON en streaming de Claude Code',
+      CodexJsonl: 'Codex JSONL',
+      MuxJsonl: 'Mux JSONL',
+      GeminiStreamJson: 'JSON en streaming de Gemini CLI',
+      GenericJsonl: 'JSONL genérico',
+      PlainText: 'Texto sin formato'
+    },
+    resultSource: { ParserFinalEvent: 'Evento final del analizador', LastMessageFile: 'Archivo del último mensaje', Stdout: 'Stdout' },
+    successPolicy: { FinalEvent: 'Evento final', ExitCode: 'Código de salida', FinalEventAndExitCode: 'Evento final y código de salida' },
+    fileBaseDirectory: { Config: 'Directorio de configuración', Workspace: 'Espacio de trabajo', Home: 'Directorio personal' },
+    artifactStoreKind: { Database: 'Base de datos', Filesystem: 'Sistema de archivos', S3: 'S3' },
+    agentInputMode: { Text: 'Texto', Structured: 'JSON estructurado' },
+    argumentOverrideOperation: { Append: 'Añadir al final', Prepend: 'Añadir al principio', Remove: 'Quitar', Replace: 'Reemplazar' },
+    runOverrideValidation: { Any: 'Cualquier valor', Enum: 'Uno de una lista', Regex: 'Expresión regular', IntegerRange: 'Rango de enteros' },
+    credentialAuthMode: {
+      DirectHeader: 'Cabeceras directas',
+      SignedRequest: 'Solicitudes firmadas',
+      SessionExchange: 'Intercambio por token de sesión',
+      Hybrid: 'Cualquier método'
+    },
+    operationType: {
+      All: 'Todas las operaciones',
+      Create: 'Crear',
+      Read: 'Leer',
+      Write: 'Escribir',
+      Update: 'Actualizar',
+      Delete: 'Eliminar',
+      Execute: 'Ejecutar',
+      Admin: 'Administrar'
+    },
+    resourceType: {
+      All: 'Todos los recursos',
+      Account: 'Cuenta',
+      Tenant: 'Inquilino',
+      Admin: 'Administración',
+      User: 'Usuario',
+      Credential: 'Clave de acceso',
+      Session: 'Sesión',
+      Role: 'Rol',
+      Permission: 'Permiso',
+      Assignment: 'Asignación',
+      Audit: 'Registro de auditoría',
+      RequestHistory: 'Historial de solicitudes',
+      Settings: 'Ajustes',
+      HarnessProfile: 'Perfil de harness',
+      PromptTemplate: 'Plantilla de prompt',
+      Agent: 'Agente',
+      Deployment: 'Despliegue',
+      McpServer: 'Servidor MCP',
+      Secret: 'Secreto',
+      Workspace: 'Espacio de trabajo',
+      ArtifactStore: 'Almacén de artefactos',
+      Run: 'Ejecución',
+      Node: 'Nodo',
+      NodePool: 'Grupo de nodos',
+      Manifest: 'Manifiesto',
+      Conversation: 'Conversación',
+      Approval: 'Aprobación',
+      Artifact: 'Artefacto'
+    },
     runStatus: {
       Pending: 'Pendiente',
       Queued: 'En cola',
@@ -131,7 +213,8 @@ const es = {
       CompileFailed: 'Error de compilación',
       WorkspaceFailed: 'Error del espacio de trabajo',
       Rejected: 'Rechazado',
-      InternalError: 'Error interno'
+      InternalError: 'Error interno',
+      NoCapableWorker: 'Ningún nodo de trabajo compatible'
     },
     runEventType: {
       Lifecycle: 'Ciclo de vida',
@@ -285,6 +368,26 @@ const es = {
     run: 'Token de ejecución'
   },
   components: {
+    blocked: {
+      title: 'Esperando un nodo de trabajo',
+      body: 'Esta ejecución está en cola, pero ahora mismo ningún nodo de trabajo puede tomarla.',
+      reasons: {
+        NoReadyWorker: 'Ningún nodo de trabajo está listo. Inicia un nodo de trabajo o registra uno nuevo y revisa en la página Flota los nodos perdidos, desconectados, drenando o acordonados.',
+        NoCapableWorker: 'Hay nodos de trabajo listos, pero ninguno informa del harness {{harness}} como disponible. Inicia o registra un nodo de trabajo con ese harness instalado, o revisa sus credenciales y los resultados de las sondas en la página Flota.',
+        NoMatchingPool: 'Un nodo de trabajo listo puede ejecutar {{harness}}, pero ninguno coincide con el grupo de nodos o los selectores de nodo de este despliegue. Revisa la ubicación del despliegue o añade un nodo de trabajo a ese grupo.'
+      },
+      failNote: 'Si el ajuste de clúster Runtime.FailBlockedAfterSeconds es mayor que 0, una ejecución que siga bloqueada ese tiempo falla con el resultado «Ningún nodo de trabajo compatible».',
+      openFleet: 'Abrir Flota',
+      openAgent: 'Abrir los despliegues del agente',
+      homeBanner_one: '{{count}} ejecución en cola no puede empezar: ningún nodo de trabajo listo puede ejecutarla.',
+      homeBanner_many: '{{count}} ejecuciones en cola no pueden empezar: ningún nodo de trabajo listo puede ejecutarlas.',
+      homeBanner_other: '{{count}} ejecuciones en cola no pueden empezar: ningún nodo de trabajo listo puede ejecutarlas.',
+      showRuns: 'Ver ejecuciones en cola',
+      queueColumn: 'Bloqueadas',
+      queueCount_one: '{{count}} bloqueada',
+      queueCount_many: '{{count}} bloqueadas',
+      queueCount_other: '{{count}} bloqueadas'
+    },
     autoRefresh: {
       label: 'Actualización automática',
       none: 'Desactivada',
@@ -1012,7 +1115,7 @@ const es = {
         ConfigMap: 'Gestionado por un ConfigMap de Kubernetes. Cámbialo en tus manifiestos.',
         other: 'Este ajuste no se puede editar aquí.'
       },
-      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Base de datos', Logging: 'Registro', Auth: 'Autenticación', Security: 'Seguridad', RequestHistory: 'Historial de solicitudes', Telemetry: 'Telemetría', Cluster: 'Clúster', Scheduling: 'Planificación', Runs: 'Ejecuciones', Audit: 'Auditoría' },
+      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Base de datos', Logging: 'Registro', Auth: 'Autenticación', Security: 'Seguridad', RequestHistory: 'Historial de solicitudes', Telemetry: 'Telemetría', Cluster: 'Clúster', Scheduling: 'Planificación', Runs: 'Ejecuciones', Audit: 'Auditoría', Runtime: 'Tiempo de ejecución' },
       fields: {}
     },
     analytics: {

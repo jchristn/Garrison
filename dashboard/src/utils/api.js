@@ -91,6 +91,15 @@ class ApiClient {
     return this._normalizeEnum(res, params.pageNumber, params.pageSize);
   }
 
+  /**
+   * Audit and request history page by pageNumber and pageSize (not maxResults and skip) and answer
+   * { pageNumber, pageSize, totalCount, totalPages, objects }.
+   */
+  async _pagedList(path, params = {}) {
+    const res = await this._request('GET', path, { query: params });
+    return this._normalizeEnum(res, params.pageNumber, params.pageSize);
+  }
+
   _t(tenantId, sub) {
     return `/v1.0/api/tenants/${enc(tenantId)}/${sub}`;
   }
@@ -342,7 +351,7 @@ class ApiClient {
   // ------------------------------------------------------------------ audit
 
   listAudit(tenantId, params) {
-    return this._list(this._t(tenantId, 'audit'), params);
+    return this._pagedList(this._t(tenantId, 'audit'), params);
   }
 
   getAuditRecord(tenantId, id) {
@@ -360,7 +369,7 @@ class ApiClient {
   // ------------------------------------------------------------------ request history
 
   getRequestHistory(filters = {}) {
-    return this._list('/v1.0/api/request-history', filters);
+    return this._pagedList('/v1.0/api/request-history', filters);
   }
 
   getRequestHistorySummary(filters = {}) {
@@ -785,9 +794,22 @@ export function parseSseFrame(frame) {
   }
 }
 
-/** Normalize an EnumerationResult (or a bare array) into { items, pageNumber, pageSize, totalCount }. */
+/**
+ * Normalize an EnumerationResult ({ objects, totalRecords, maxResults, skip }), a page result ({ objects, pageNumber,
+ * pageSize, totalCount }), or a bare array into { items, pageNumber, pageSize, totalCount }.
+ */
 export function normalizeEnumeration(result, requestedPageNumber, requestedPageSize) {
   const objects = Array.isArray(result?.objects) ? result.objects : Array.isArray(result) ? result : [];
+  if (result && !Array.isArray(result) && result.totalCount !== undefined && result.pageNumber !== undefined) {
+    const pageSize = result.pageSize ?? requestedPageSize ?? (objects.length || 25);
+    return {
+      items: objects,
+      pageNumber: result.pageNumber,
+      pageSize,
+      totalCount: result.totalCount,
+      endOfResults: result.pageNumber >= (result.totalPages ?? Math.ceil(result.totalCount / pageSize))
+    };
+  }
   const total = result?.totalRecords ?? objects.length;
   const size = result?.maxResults ?? requestedPageSize ?? (objects.length || 25);
   const skip = result?.skip ?? 0;

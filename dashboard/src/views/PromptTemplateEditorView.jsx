@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import useDebounce from '../hooks/useDebounce';
-import { ENUMS } from '../utils/constants';
+import { enumOptions } from '../utils/enums';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { extractVariables } from '../utils/templates';
@@ -157,7 +157,7 @@ export default function PromptTemplateEditorView({ recordId }) {
 
   const fields = [
     { name: 'name', type: 'text', label: t('resources.promptTemplates.fields.name'), tip: resourceTip(t, 'promptTemplates', 'name'), required: true, readOnly: readOnly || !isNew },
-    { name: 'kind', type: 'select', label: t('resources.promptTemplates.fields.kind'), tip: resourceTip(t, 'promptTemplates', 'kind'), required: true, options: ENUMS.promptTemplateKind, optionLabel: (v) => t(`enums.promptTemplateKind.${v}`, { defaultValue: v }), readOnly },
+    { name: 'kind', type: 'select', label: t('resources.promptTemplates.fields.kind'), tip: resourceTip(t, 'promptTemplates', 'kind'), required: true, options: enumOptions(t, 'promptTemplateKind'), readOnly },
     { name: 'description', type: 'text', label: t('resources.promptTemplates.fields.description'), tip: resourceTip(t, 'promptTemplates', 'description'), readOnly, span: 'full' }
   ];
 

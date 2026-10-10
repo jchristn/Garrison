@@ -276,7 +276,20 @@ const tips = {
       tail: 'Ausführung nach der letzten Modellausgabe: Werkzeugaufrufe, Ergebnisverarbeitung und Prozessende.'
     }
   },
+  blocked: {
+    panel: 'Warum dieser Lauf noch wartet und was Sie ändern müssen, damit ein Worker ihn übernehmen kann.',
+    openFleet: 'Öffnet die Seite Flotte: welche Worker-Knoten bereit sind, welche Harnesses jeder meldet und deren Prüfdetails.',
+    openAgent: 'Öffnet den Agenten dieses Laufs, um seine Bereitstellungen samt Knotenpool und Knotenselektoren zu prüfen.',
+    homeBanner: 'Wartende Läufe, die gerade kein bereiter Worker ausführen kann. Sie warten, bis ein passender Worker erscheint, oder schlagen fehl, sobald Runtime.FailBlockedAfterSeconds gesetzt ist und abläuft.',
+    showRuns: 'Öffnet die Seite Läufe, gefiltert auf wartende Läufe. Blockierte Läufe tragen ein Warnabzeichen mit dem Grund.',
+    queueColumn: 'Wartende Läufe dieser Gruppe, die gerade kein bereiter Worker ausführen kann. Zeigen Sie auf das Abzeichen für Grund und Abhilfe.'
+  },
   enums: {
+    runBlockedReason: {
+      NoReadyWorker: 'Blockiert: Kein Worker-Knoten ist bereit, daher kann niemand diesen Lauf übernehmen. Starten Sie einen Worker oder registrieren Sie einen neuen und prüfen Sie auf der Seite Flotte, welche Knoten verloren, offline, im Leeren oder gesperrt sind.',
+      NoCapableWorker: 'Blockiert: Worker-Knoten sind bereit, aber keiner meldet den Harness dieses Laufs als verfügbar. Starten oder registrieren Sie einen Worker mit installiertem Harness, oder prüfen Sie dessen Anmeldedaten und Prüfergebnisse auf der Seite Flotte.',
+      NoMatchingPool: 'Blockiert: Ein bereiter Worker kann diesen Harness ausführen, aber keiner passt zum Knotenpool der Bereitstellung, zur Mandantenbindung des Pools oder zu den Knotenselektoren. Prüfen Sie die Platzierung der Bereitstellung oder fügen Sie dem Pool einen Worker hinzu.'
+    },
     runStatus: {
       Pending: 'Ausstehend: Der Lauf wurde angenommen und wird vorbereitet, bevor er in die Warteschlange kommt.',
       Queued: 'In Warteschlange: wartet auf einen Worker-Knoten mit passender Harness und Platzierung, der ihn übernimmt.',
@@ -305,7 +318,8 @@ const tips = {
       CompileFailed: 'Die Bereitstellung konnte nicht kompiliert werden, zum Beispiel wegen einer fehlenden Vorlagenvariable.',
       WorkspaceFailed: 'Der Arbeitsbereich konnte nicht vorbereitet werden, zum Beispiel weil ein Git-Klon fehlgeschlagen ist.',
       Rejected: 'Die Anfrage wurde abgelehnt, bevor ein Lauf starten konnte.',
-      InternalError: 'In Garrison ist ein interner Fehler aufgetreten. Details stehen in den Serverprotokollen.'
+      InternalError: 'In Garrison ist ein interner Fehler aufgetreten. Details stehen in den Serverprotokollen.',
+      NoCapableWorker: 'Der Lauf wartete länger in der Warteschlange, als die Clustereinstellung Runtime.FailBlockedAfterSeconds erlaubt, und kein bereiter Worker konnte ihn ausführen. Deshalb ist er fehlgeschlagen.'
     },
     nodeStatus: {
       Ready: 'Bereit: sendet Heartbeats und nimmt neue Läufe an.',
@@ -988,6 +1002,7 @@ const tips = {
       sourceGeneric: 'Woher der aktuelle Wert stammt.',
       testDatabase: 'Vor dem Speichern versuchen, mit den obigen Datenbankeinstellungen eine Verbindung herzustellen.',
       groups: {
+        Runtime: 'Wie die Steuerungsebene wartende Läufe behandelt, etwa wie lange ein Lauf auf einen passenden Worker warten darf, bevor er fehlschlägt.',
         Rest: 'Wie die REST-API lauscht: Host, Port, TLS und öffentliche Adresse.',
         Mcp: 'Wie der MCP-Server lauscht und wie lange Werkzeugaufrufe warten dürfen.',
         Database: 'Welche Datenbank Garrison verwendet und wie die Verbindung hergestellt wird.',

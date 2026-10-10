@@ -27,3 +27,25 @@ jobs:
         run: npm run build
       - name: Docker build
         run: docker build -t garrison-dashboard:ci .
+
+  contract:
+    # P5.51: start a real server and worker (Sqlite, fake harness) and fail when tests/e2e/mocks.js drifts from the
+    # shapes the server returns for every GET the dashboard calls.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Mock contract test
+        run: npm run test:contract

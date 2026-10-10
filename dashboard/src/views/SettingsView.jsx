@@ -10,7 +10,7 @@ import { EyeIcon, EyeOffIcon } from '../components/Icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import ApiClient from '../utils/api';
-import { normalizeSettings, groupSettings, clampSetting } from '../utils/settings';
+import { normalizeSettings, groupSettings, clampSetting, settingsUpdateBody } from '../utils/settings';
 import { errorMessage } from '../utils/errors';
 import { tip } from '../components/Tooltip';
 import { optionalText } from '../utils/tips';
@@ -88,7 +88,7 @@ export default function SettingsView() {
     }
     setSaving(true);
     try {
-      const result = await apiClient.updateSettings({ values });
+      const result = await apiClient.updateSettings(settingsUpdateBody(values));
       const needsRestart = result?.restartRequired ?? Object.keys(values).some((p) => fields.find((f) => f.path === p)?.applyMode === 'RestartRequired');
       if (needsRestart) setRestartPending(true);
       addToast({ type: 'success', message: needsRestart ? t('views.settings.savedRestart') : t('views.settings.savedLive') });

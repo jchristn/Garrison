@@ -13,6 +13,8 @@ import { errorMessage } from '../utils/errors';
 import { formatNumber } from '../i18n/formatters';
 import Explainer from '../components/Explainer';
 import { tip } from '../components/Tooltip';
+import { BlockedBadge, BlockedRunsBanner, blockedReasonOf } from '../components/BlockedRun';
+import { enumLabel } from '../utils/enums';
 
 /** Derive queue counts from a page of active runs when the summary endpoint is unavailable. */
 function summarizeRuns(runs) {
@@ -44,6 +46,22 @@ function normalizeSummary(s) {
   return { queued: num(s?.queued ?? total('queued')), leased: num(s?.leased ?? total('leased')), running: num(s?.running ?? total('running')), groups };
 }
 
+/**
+ * Blocked queued runs (G-15) grouped like the summary rows: { 'agent|harness': { count, reasons: { reason: n } } }.
+ */
+export function summarizeBlocked(runs) {
+  const out = {};
+  for (const r of runs || []) {
+    const reason = blockedReasonOf(r);
+    if (!reason) continue;
+    const key = `${r.agentName}|${r.harnessType}`;
+    out[key] = out[key] || { count: 0, reasons: {} };
+    out[key].count += 1;
+    out[key].reasons[reason] = (out[key].reasons[reason] || 0) + 1;
+  }
+  return out;
+}
+
 /** Scheduling pressure: queued, leased, and running work grouped by agent and harness. */
 export default function QueueView() {
   const { t } = useTranslation();
@@ -51,11 +69,16 @@ export default function QueueView() {
   const { tenantId } = useApp();
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
+  const [blocked, setBlocked] = useState({});
   const [error, setError] = useState(null);
   const [refresh, setRefresh] = useState(5);
 
   const load = useCallback(async () => {
     if (!apiClient) return;
+    apiClient
+      .listRuns(tenantId, { pageNumber: 1, pageSize: 1000, status: 'Queued' })
+      .then((r) => setBlocked(summarizeBlocked(r.items)))
+      .catch(() => setBlocked({}));
     try {
       const s = await apiClient.getQueueSummary(tenantId);
       setSummary(normalizeSummary(s));
@@ -82,6 +105,7 @@ export default function QueueView() {
       <Explainer topic="queue" />
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       {!summary && !error && <LoadingState />}
+      <BlockedRunsBanner count={Object.values(blocked).reduce((n, b) => n + b.count, 0)} />
       {summary && (
         <>
           <div className="kpi-grid">
@@ -104,6 +128,7 @@ export default function QueueView() {
                       <th scope="col" className="right" {...tip(t('tips.views.queue.queued'))}>
                         {t('views.queue.queued')}
                       </th>
+                      <th scope="col" {...tip(t('tips.blocked.queueColumn'))}>{t('components.blocked.queueColumn')}</th>
                       <th scope="col" className="right" {...tip(t('tips.views.queue.leased'))}>
                         {t('views.queue.leased')}
                       </th>
@@ -118,8 +143,16 @@ export default function QueueView() {
                         <td>
                           <strong>{g.agentName}</strong>
                         </td>
-                        <td>{g.harnessType}</td>
+                        <td>{enumLabel(t, 'harnessType', g.harnessType)}</td>
                         <td className="right">{formatNumber(g.queued)}</td>
+                        <td data-cell="blocked">
+                          {Object.entries(blocked[`${g.agentName}|${g.harnessType}`]?.reasons || {}).map(([reason, n]) => (
+                            <span key={reason} className="inline-meta">
+                              <BlockedBadge reason={reason} t={t} /> <span className="text-muted">{t('components.blocked.queueCount', { count: n })}</span>
+                            </span>
+                          ))}
+                          {!blocked[`${g.agentName}|${g.harnessType}`] && '-'}
+                        </td>
                         <td className="right">{formatNumber(g.leased)}</td>
                         <td className="right">{formatNumber(g.running)}</td>
                       </tr>

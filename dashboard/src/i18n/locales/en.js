@@ -120,6 +120,64 @@ const en = {
     Http503: 'The server is unavailable.'
   },
   enums: {
+    principalType: { Administrator: 'Administrator', User: 'User', Credential: 'Access key', Run: 'Run token' },
+    runBlockedReason: { NoReadyWorker: 'No ready worker', NoCapableWorker: 'No capable worker', NoMatchingPool: 'No matching pool' },
+    promptDelivery: { Stdin: 'Standard input', Argument: 'Command-line argument', File: 'File' },
+    systemPromptDelivery: {
+      File: 'File',
+      Argument: 'Command-line argument',
+      Environment: 'Environment variable',
+      PrependToPrompt: 'Prepended to the prompt',
+      None: 'Not delivered'
+    },
+    mcpConfigFormat: { None: 'No MCP configuration', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI settings' },
+    outputParser: {
+      ClaudeStreamJson: 'Claude Code stream JSON',
+      CodexJsonl: 'Codex JSONL',
+      MuxJsonl: 'Mux JSONL',
+      GeminiStreamJson: 'Gemini CLI stream JSON',
+      GenericJsonl: 'Generic JSONL',
+      PlainText: 'Plain text'
+    },
+    resultSource: { ParserFinalEvent: 'Final parser event', LastMessageFile: 'Last message file', Stdout: 'Stdout' },
+    successPolicy: { FinalEvent: 'Final event', ExitCode: 'Exit code', FinalEventAndExitCode: 'Final event and exit code' },
+    fileBaseDirectory: { Config: 'Configuration directory', Workspace: 'Workspace', Home: 'Home directory' },
+    artifactStoreKind: { Database: 'Database', Filesystem: 'File system', S3: 'S3' },
+    agentInputMode: { Text: 'Text', Structured: 'Structured JSON' },
+    argumentOverrideOperation: { Append: 'Append', Prepend: 'Prepend', Remove: 'Remove', Replace: 'Replace' },
+    runOverrideValidation: { Any: 'Any value', Enum: 'One of a list', Regex: 'Regular expression', IntegerRange: 'Integer range' },
+    credentialAuthMode: { DirectHeader: 'Direct headers', SignedRequest: 'Signed requests', SessionExchange: 'Session token exchange', Hybrid: 'Any method' },
+    operationType: { All: 'All operations', Create: 'Create', Read: 'Read', Write: 'Write', Update: 'Update', Delete: 'Delete', Execute: 'Execute', Admin: 'Administer' },
+    resourceType: {
+      All: 'All resources',
+      Account: 'Account',
+      Tenant: 'Tenant',
+      Admin: 'Administration',
+      User: 'User',
+      Credential: 'Access key',
+      Session: 'Session',
+      Role: 'Role',
+      Permission: 'Permission',
+      Assignment: 'Assignment',
+      Audit: 'Audit log',
+      RequestHistory: 'Request history',
+      Settings: 'Settings',
+      HarnessProfile: 'Harness profile',
+      PromptTemplate: 'Prompt template',
+      Agent: 'Agent',
+      Deployment: 'Deployment',
+      McpServer: 'MCP server',
+      Secret: 'Secret',
+      Workspace: 'Workspace',
+      ArtifactStore: 'Artifact store',
+      Run: 'Run',
+      Node: 'Node',
+      NodePool: 'Node pool',
+      Manifest: 'Manifest',
+      Conversation: 'Conversation',
+      Approval: 'Approval',
+      Artifact: 'Artifact'
+    },
     runStatus: {
       Pending: 'Pending',
       Queued: 'Queued',
@@ -148,7 +206,8 @@ const en = {
       CompileFailed: 'Compile failed',
       WorkspaceFailed: 'Workspace failed',
       Rejected: 'Rejected',
-      InternalError: 'Internal error'
+      InternalError: 'Internal error',
+      NoCapableWorker: 'No capable worker'
     },
     runEventType: {
       Lifecycle: 'Lifecycle',
@@ -302,6 +361,24 @@ const en = {
     run: 'Run token'
   },
   components: {
+    blocked: {
+      title: 'Waiting for a worker',
+      body: 'This run is queued, but no worker can take it right now.',
+      reasons: {
+        NoReadyWorker: 'No worker node is Ready. Start a worker or register a new one, and check the Fleet page for nodes that are Lost, Offline, Draining, or Cordoned.',
+        NoCapableWorker: 'Workers are Ready, but none reports the {{harness}} harness as available. Start or register a worker with that harness installed, or check its credentials and probe results on the Fleet page.',
+        NoMatchingPool: 'A Ready worker can run {{harness}}, but none matches this deployment\'s node pool or node selectors. Check the deployment\'s placement, or add a worker to that pool.'
+      },
+      failNote: 'When the cluster setting Runtime.FailBlockedAfterSeconds is above 0, a run that stays blocked that long fails with the outcome "No capable worker".',
+      openFleet: 'Open Fleet',
+      openAgent: 'Open the agent\'s deployments',
+      homeBanner_one: '{{count}} queued run cannot start: no Ready worker can run it.',
+      homeBanner_other: '{{count}} queued runs cannot start: no Ready worker can run them.',
+      showRuns: 'Show queued runs',
+      queueColumn: 'Blocked',
+      queueCount_one: '{{count}} blocked',
+      queueCount_other: '{{count}} blocked'
+    },
     autoRefresh: {
       label: 'Auto-refresh',
       none: 'Off',
@@ -1020,7 +1097,7 @@ const en = {
         ConfigMap: 'Managed by a Kubernetes ConfigMap. Change it in your manifests.',
         other: 'This setting cannot be edited here.'
       },
-      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit' },
+      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit', Runtime: 'Runtime' },
       fields: {}
     },
     analytics: {

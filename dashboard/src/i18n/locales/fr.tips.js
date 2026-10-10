@@ -275,7 +275,20 @@ const tips = {
       tail: 'Exécution après la dernière sortie du modèle : appels d\'outils, traitement du résultat et fin du processus.'
     }
   },
+  blocked: {
+    panel: 'Pourquoi cette exécution attend encore et ce qu\'il faut changer pour qu\'un worker puisse la prendre.',
+    openFleet: 'Ouvre la page Flotte pour voir quels nœuds worker sont prêts, quels harness chacun signale et le détail de leurs sondes.',
+    openAgent: 'Ouvre l\'agent de cette exécution pour vérifier ses déploiements, dont le pool de nœuds et les sélecteurs de nœuds de chacun.',
+    homeBanner: 'Exécutions en file d\'attente qu\'aucun worker prêt ne peut exécuter pour l\'instant. Elles attendent qu\'un worker compatible apparaisse, ou échouent une fois le délai Runtime.FailBlockedAfterSeconds défini et écoulé.',
+    showRuns: 'Ouvre la page Exécutions filtrée sur les exécutions en file d\'attente. Les exécutions bloquées portent un badge d\'avertissement qui en explique la raison.',
+    queueColumn: 'Exécutions en file d\'attente de ce groupe qu\'aucun worker prêt ne peut exécuter pour l\'instant. Survolez le badge pour connaître la raison et la marche à suivre.'
+  },
   enums: {
+    runBlockedReason: {
+      NoReadyWorker: 'Bloquée : aucun nœud worker n\'est prêt, donc rien ne peut prendre cette exécution. Démarrez un worker ou enregistrez-en un nouveau, puis vérifiez sur la page Flotte les nœuds perdus, hors ligne, en drainage ou isolés.',
+      NoCapableWorker: 'Bloquée : des nœuds worker sont prêts, mais aucun ne signale le harness de cette exécution comme disponible. Démarrez ou enregistrez un worker sur lequel le harness est installé, ou vérifiez ses identifiants et les résultats de ses sondes sur la page Flotte.',
+      NoMatchingPool: 'Bloquée : un worker prêt peut exécuter ce harness, mais aucun ne correspond au pool de nœuds du déploiement, à la restriction de locataire du pool ou à ses sélecteurs de nœuds. Vérifiez le placement du déploiement ou ajoutez un worker à ce pool.'
+    },
     runStatus: {
       Pending: 'En attente : l\'exécution a été acceptée et est préparée avant d\'entrer dans la file.',
       Queued: 'En file d\'attente : attend qu\'un nœud worker avec un harness et un placement compatibles la prenne en bail.',
@@ -304,7 +317,8 @@ const tips = {
       CompileFailed: 'Le déploiement n\'a pas pu être compilé, par exemple à cause d\'une variable de modèle manquante.',
       WorkspaceFailed: 'L\'espace de travail n\'a pas pu être préparé, par exemple parce qu\'un clonage Git a échoué.',
       Rejected: 'La requête a été rejetée avant qu\'une exécution puisse démarrer.',
-      InternalError: 'Garrison a rencontré une erreur interne. Les journaux du serveur contiennent les détails.'
+      InternalError: 'Garrison a rencontré une erreur interne. Les journaux du serveur contiennent les détails.',
+      NoCapableWorker: 'L\'exécution a attendu dans la file d\'attente plus longtemps que ne le permet le paramètre de cluster Runtime.FailBlockedAfterSeconds, et aucun nœud worker prêt ne pouvait l\'exécuter : elle a donc échoué.'
     },
     nodeStatus: {
       Ready: 'Prêt : envoie des signaux de vie et accepte de nouvelles exécutions.',
@@ -987,6 +1001,7 @@ const tips = {
       sourceGeneric: 'Provenance de la valeur actuelle.',
       testDatabase: 'Tester la connexion avec les paramètres de base de données ci-dessus avant de les enregistrer.',
       groups: {
+        Runtime: 'Comment le plan de contrôle traite les exécutions en file d\'attente, notamment combien de temps une exécution peut attendre un worker compatible avant d\'échouer.',
         Rest: 'Comment l\'API REST écoute : hôte, port, TLS et adresse publique.',
         Mcp: 'Comment le serveur MCP écoute et combien de temps les appels d\'outils peuvent attendre.',
         Database: 'La base de données utilisée par Garrison et comment s\'y connecter.',

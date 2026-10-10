@@ -275,7 +275,20 @@ const tips = {
       tail: '模型最后一次输出之后的执行：工具调用、结果处理和进程退出。'
     }
   },
+  blocked: {
+    panel: '此运行为何仍在排队，以及需要改什么才能让工作节点接手。',
+    openFleet: '打开机群页面，查看哪些工作节点已就绪、每个节点报告了哪些 Harness，以及探测详情。',
+    openAgent: '打开此运行的智能体，检查它的部署，包括每个部署的节点池和节点选择器。',
+    homeBanner: '目前没有就绪的工作节点能运行的排队运行。它们会一直排队，直到出现可用的工作节点；如果设置了 Runtime.FailBlockedAfterSeconds，超时后会失败。',
+    showRuns: '打开按排队状态筛选的运行页面。被阻塞的运行带有说明原因的警告徽章。',
+    queueColumn: '此分组中目前没有就绪工作节点能运行的排队运行。将鼠标悬停在徽章上可查看原因和处理方法。'
+  },
   enums: {
+    runBlockedReason: {
+      NoReadyWorker: '已阻塞：没有任何工作节点处于就绪状态，因此没有节点能接手此运行。请启动或注册一个工作节点，然后在机群页面检查丢失、离线、排空中或已封锁的节点。',
+      NoCapableWorker: '已阻塞：有就绪的工作节点，但没有节点报告此运行的 Harness 可用。请启动或注册一个已安装该 Harness 的工作节点，或在机群页面检查它的凭据和探测结果。',
+      NoMatchingPool: '已阻塞：有就绪的工作节点能运行此 Harness，但没有节点符合部署的节点池、节点池的租户限制或节点选择器。请检查部署的调度放置，或向该节点池添加工作节点。'
+    },
     runStatus: {
       Pending: '待处理：运行已被接受，正在准备加入队列。',
       Queued: '已排队：等待具有匹配 Harness 和调度放置条件的工作节点来租用它。',
@@ -304,7 +317,8 @@ const tips = {
       CompileFailed: '无法编译部署，例如因为缺少模板变量。',
       WorkspaceFailed: '无法准备工作区，例如因为 Git 克隆失败。',
       Rejected: '请求在运行启动前被拒绝。',
-      InternalError: 'Garrison 遇到内部错误。服务器日志中有详细信息。'
+      InternalError: 'Garrison 遇到内部错误。服务器日志中有详细信息。',
+      NoCapableWorker: '该运行在队列中等待的时间超过了集群设置 Runtime.FailBlockedAfterSeconds 允许的时长，且没有就绪的工作节点能运行它，因此已失败。'
     },
     nodeStatus: {
       Ready: '就绪：正在发送心跳并接受新的运行。',
@@ -987,6 +1001,7 @@ const tips = {
       sourceGeneric: '当前值的来源。',
       testDatabase: '在保存之前，先尝试使用上面的数据库设置进行连接。',
       groups: {
+        Runtime: '控制平面如何处理排队的运行，包括运行在失败前可以等待可用工作节点多久。',
         Rest: 'REST API 的监听方式：主机、端口、TLS 和公开地址。',
         Mcp: 'MCP 服务器的监听方式，以及工具调用可以等待多久。',
         Database: 'Garrison 使用哪个数据库以及如何连接。',

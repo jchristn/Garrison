@@ -13,6 +13,7 @@ import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 import { errorMessage } from '../utils/errors';
 import { resourceTip, enumTip, optionalText } from '../utils/tips';
+import { enumLabel, enumOptions, enumList } from '../utils/enums';
 import { AgentRelationDiagram } from '../components/Explainer';
 import { tip } from '../components/Tooltip';
 
@@ -46,7 +47,6 @@ const builtInCol = (id, t) =>
   col(id, t, 'isBuiltIn', (r) =>
     r.isBuiltIn ? <Badge tone="info" tip={t('tips.badges.builtIn')}>{t('common.generic.builtIn')}</Badge> : <Badge tip={t('tips.badges.custom')}>{t('common.generic.custom')}</Badge>
   );
-const enumLabel = (t, group, value) => (value ? t(`enums.${group}.${value}`, { defaultValue: value }) : '-');
 const enumBadge = (t, group, value, tone = 'neutral') => (value ? <Badge tone={tone} tip={enumTip(t, group, value)}>{enumLabel(t, group, value)}</Badge> : '-');
 const actionTip = (t, id, name) => t(`tips.resources.${id}.actions.${name}`);
 
@@ -150,7 +150,7 @@ export const credentialsConfig = {
       readOnly: mode === 'edit',
       options: (options.users || []).map((u) => ({ value: u.id, label: u.email }))
     }),
-    field('credentials', t, 'authMode', 'select', { required: true, options: ENUMS.credentialAuthMode }),
+    field('credentials', t, 'authMode', 'select', { required: true, options: enumOptions(t, 'credentialAuthMode') }),
     field('credentials', t, 'expiresUtc', 'datetime'),
     field('credentials', t, 'active', 'checkbox')
   ],
@@ -225,16 +225,16 @@ export const permissionsConfig = {
   columns: ({ t }) => [
     nameCol('permissions', t),
     col('permissions', t, 'permissionType', (r) => enumBadge(t, 'permissionType', r.permissionType, r.permissionType === 'Deny' ? 'danger' : 'success')),
-    col('permissions', t, 'resourceTypes', (r) => (r.resourceTypes || []).join(', ') || '-'),
-    col('permissions', t, 'operationTypes', (r) => (r.operationTypes || []).join(', ') || '-'),
+    col('permissions', t, 'resourceTypes', (r) => enumList(t, 'resourceType', r.resourceTypes) || '-', { csv: (r) => (r.resourceTypes || []).join(' ') }),
+    col('permissions', t, 'operationTypes', (r) => enumList(t, 'operationType', r.operationTypes) || '-', { csv: (r) => (r.operationTypes || []).join(' ') }),
     builtInCol('permissions', t),
     idCol('permissions', t)
   ],
   fields: (_d, { t }) => [
     field('permissions', t, 'name', 'text', { required: true }),
-    field('permissions', t, 'permissionType', 'select', { required: true, options: ENUMS.permissionType }),
-    field('permissions', t, 'resourceTypes', 'multiselect', { options: ENUMS.resourceType }),
-    field('permissions', t, 'operationTypes', 'multiselect', { options: ENUMS.operationType }),
+    field('permissions', t, 'permissionType', 'select', { required: true, options: enumOptions(t, 'permissionType') }),
+    field('permissions', t, 'resourceTypes', 'multiselect', { options: enumOptions(t, 'resourceType') }),
+    field('permissions', t, 'operationTypes', 'multiselect', { options: enumOptions(t, 'operationType') }),
     field('permissions', t, 'active', 'checkbox')
   ],
   validate: (d, t) => {
@@ -268,7 +268,7 @@ function assignmentConfig(id, principalKey, api, loadPrincipals, principalLabel)
     fields: (d, { t, options }) => [
       field(id, t, principalKey, 'select', { required: true, options: (options.principals || []).map((p) => ({ value: p.id, label: principalLabel(p) })) }),
       field(id, t, 'roleId', 'select', { required: true, options: (options.roles || []).map((r) => ({ value: r.id, label: r.name })) }),
-      field(id, t, 'resourceScope', 'select', { required: true, options: ENUMS.resourceScope }),
+      field(id, t, 'resourceScope', 'select', { required: true, options: enumOptions(t, 'resourceScope') }),
       field(id, t, 'resourceId', 'text', { showIf: (x) => x.resourceScope === 'Resource' }),
       field(id, t, 'inheritsToChildren', 'checkbox', { showIf: (x) => x.resourceScope === 'Tenant' }),
       field(id, t, 'active', 'checkbox')
@@ -306,7 +306,7 @@ export const harnessProfilesConfig = {
   explainer: 'harnessProfiles',
   api: tenantApi('listHarnessProfiles', 'createHarnessProfile', 'updateHarnessProfile', 'deleteHarnessProfile'),
   isEditable: notBuiltIn,
-  filters: [{ name: 'harnessType', label: (t) => t('resources.harnessProfiles.fields.harnessType'), options: ENUMS.harnessType }],
+  filters: [{ name: 'harnessType', label: (t) => t('resources.harnessProfiles.fields.harnessType'), options: ENUMS.harnessType, enumGroup: 'harnessType' }],
   steps: ['basics', 'invocation', 'output', 'limits'],
   blank: () => ({
     name: '',
@@ -337,7 +337,7 @@ export const harnessProfilesConfig = {
     nameCol('harnessProfiles', t),
     col('harnessProfiles', t, 'harnessType', (r) => enumBadge(t, 'harnessType', r.harnessType, 'info')),
     col('harnessProfiles', t, 'executable', (r) => <code>{r.executable}</code>),
-    col('harnessProfiles', t, 'outputParser', (r) => r.outputParser),
+    col('harnessProfiles', t, 'outputParser', (r) => enumLabel(t, 'outputParser', r.outputParser), { csv: (r) => r.outputParser }),
     builtInCol('harnessProfiles', t),
     idCol('harnessProfiles', t),
     createdCol('harnessProfiles', t, i18n)
@@ -347,7 +347,7 @@ export const harnessProfilesConfig = {
     return [
       field(id, t, 'name', 'text', { required: true, step: 0 }),
       field(id, t, 'description', 'textarea', { step: 0 }),
-      field(id, t, 'harnessType', 'select', { required: true, options: ENUMS.harnessType, step: 0 }),
+      field(id, t, 'harnessType', 'select', { required: true, options: enumOptions(t, 'harnessType'), step: 0 }),
       field(id, t, 'executable', 'text', { required: true, step: 0 }),
       field(id, t, 'probeArguments', 'stringList', { step: 0 }),
       field(id, t, 'active', 'checkbox', { step: 0 }),
@@ -360,11 +360,11 @@ export const harnessProfilesConfig = {
           { name: 'repeatOver', type: 'text', label: t('resources.harnessProfiles.fields.argRepeatOver') }
         ]
       }),
-      field(id, t, 'promptDelivery', 'select', { required: true, options: ENUMS.promptDelivery, step: 1 }),
+      field(id, t, 'promptDelivery', 'select', { required: true, options: enumOptions(t, 'promptDelivery'), step: 1 }),
       field(id, t, 'promptArgumentTemplate', 'text', { step: 1, showIf: (x) => x.promptDelivery !== 'Stdin' }),
-      field(id, t, 'systemPromptDelivery', 'select', { required: true, options: ENUMS.systemPromptDelivery, step: 1 }),
+      field(id, t, 'systemPromptDelivery', 'select', { required: true, options: enumOptions(t, 'systemPromptDelivery'), step: 1 }),
       field(id, t, 'systemPromptTarget', 'text', { step: 1, showIf: (x) => x.systemPromptDelivery !== 'None' && x.systemPromptDelivery !== 'PrependToPrompt' }),
-      field(id, t, 'mcpConfigFormat', 'select', { required: true, options: ENUMS.mcpConfigFormat, step: 1 }),
+      field(id, t, 'mcpConfigFormat', 'select', { required: true, options: enumOptions(t, 'mcpConfigFormat'), step: 1 }),
       field(id, t, 'mcpConfigFileName', 'text', { step: 1, showIf: (x) => x.mcpConfigFormat && x.mcpConfigFormat !== 'None' }),
       field(id, t, 'environment', 'objectList', {
         step: 1,
@@ -378,7 +378,7 @@ export const harnessProfilesConfig = {
       field(id, t, 'files', 'objectList', {
         step: 1,
         fields: [
-          { name: 'baseDirectory', type: 'select', label: t('resources.harnessProfiles.fields.fileBase'), options: ENUMS.fileBaseDirectory, required: true },
+          { name: 'baseDirectory', type: 'select', label: t('resources.harnessProfiles.fields.fileBase'), options: enumOptions(t, 'fileBaseDirectory'), required: true },
           { name: 'pathTemplate', type: 'text', label: t('resources.harnessProfiles.fields.filePath'), required: true },
           { name: 'contentTemplate', type: 'code', rows: 5, label: t('resources.harnessProfiles.fields.fileContent') },
           { name: 'condition', type: 'text', label: t('resources.harnessProfiles.fields.argCondition') },
@@ -387,14 +387,14 @@ export const harnessProfilesConfig = {
         ]
       }),
       field(id, t, 'credentialEnvironmentAllowlist', 'stringList', { step: 1 }),
-      field(id, t, 'outputParser', 'select', { required: true, options: ENUMS.outputParser, step: 2 }),
+      field(id, t, 'outputParser', 'select', { required: true, options: enumOptions(t, 'outputParser'), step: 2 }),
       field(id, t, 'genericTextField', 'text', { step: 2, showIf: (x) => x.outputParser === 'GenericJsonl' }),
       field(id, t, 'genericFinalField', 'text', { step: 2, showIf: (x) => x.outputParser === 'GenericJsonl' }),
       field(id, t, 'genericSuccessField', 'text', { step: 2, showIf: (x) => x.outputParser === 'GenericJsonl' }),
       field(id, t, 'genericSuccessValue', 'text', { step: 2, showIf: (x) => x.outputParser === 'GenericJsonl' }),
-      field(id, t, 'resultSource', 'select', { required: true, options: ENUMS.resultSource, step: 2 }),
+      field(id, t, 'resultSource', 'select', { required: true, options: enumOptions(t, 'resultSource'), step: 2 }),
       field(id, t, 'resultFileName', 'text', { step: 2, showIf: (x) => x.resultSource === 'LastMessageFile' }),
-      field(id, t, 'successPolicy', 'select', { required: true, options: ENUMS.successPolicy, step: 2 }),
+      field(id, t, 'successPolicy', 'select', { required: true, options: enumOptions(t, 'successPolicy'), step: 2 }),
       field(id, t, 'successExitCodes', 'stringList', { step: 2 }),
       field(id, t, 'defaultTimeoutSeconds', 'number', { min: 5, max: 86400, step: 3 }),
       field(id, t, 'killGraceSeconds', 'number', { min: 0, max: 60, step: 3 }),
@@ -451,7 +451,7 @@ export const mcpServersConfig = {
     ];
     return [
       field(id, t, 'name', 'text', { required: true }),
-      field(id, t, 'transport', 'select', { required: true, options: ENUMS.mcpTransport, optionLabel: (v) => t(`enums.mcpTransport.${v}`, { defaultValue: v }) }),
+      field(id, t, 'transport', 'select', { required: true, options: enumOptions(t, 'mcpTransport') }),
       field(id, t, 'description', 'textarea'),
       field(id, t, 'url', 'text', { showIf: (x) => x.transport !== 'Stdio' }),
       field(id, t, 'path', 'text', { showIf: (x) => x.transport !== 'Stdio' }),
@@ -495,7 +495,7 @@ export const secretsConfig = {
   ],
   fields: (_d, { t, mode }) => [
     field('secrets', t, 'name', 'text', { required: true }),
-    field('secrets', t, 'kind', 'select', { required: true, options: ENUMS.secretKind, optionLabel: (v) => t(`enums.secretKind.${v}`, { defaultValue: v }) }),
+    field('secrets', t, 'kind', 'select', { required: true, options: enumOptions(t, 'secretKind') }),
     field('secrets', t, 'description', 'textarea'),
     field('secrets', t, 'value', 'password', { required: mode === 'create', showIf: () => mode === 'create' }),
     field('secrets', t, 'expiresUtc', 'datetime'),
@@ -574,7 +574,7 @@ export const workspacesConfig = {
   ],
   fields: (_d, { t, options }) => [
     field('workspaces', t, 'name', 'text', { required: true }),
-    field('workspaces', t, 'kind', 'select', { required: true, options: ENUMS.workspaceKind }),
+    field('workspaces', t, 'kind', 'select', { required: true, options: enumOptions(t, 'workspaceKind') }),
     field('workspaces', t, 'description', 'textarea'),
     field('workspaces', t, 'gitUrl', 'text', { showIf: (x) => x.kind === 'GitRepository' }),
     field('workspaces', t, 'gitRef', 'text', { showIf: (x) => x.kind === 'GitRepository' }),
@@ -587,7 +587,7 @@ export const workspacesConfig = {
         { name: 'content', type: 'code', rows: 5, label: t('resources.workspaces.fields.fileContent') }
       ]
     }),
-    field('workspaces', t, 'retention', 'select', { required: true, options: ENUMS.workspaceRetention }),
+    field('workspaces', t, 'retention', 'select', { required: true, options: enumOptions(t, 'workspaceRetention') }),
     field('workspaces', t, 'active', 'checkbox')
   ],
   validate: (d, t) => {
@@ -606,7 +606,7 @@ export const artifactStoresConfig = {
   columns: ({ t, i18n }) => [nameCol('artifactStores', t), col('artifactStores', t, 'kind', (r) => enumBadge(t, 'artifactStoreKind', r.kind)), col('artifactStores', t, 'description', (r) => r.description || '-'), activeCol('artifactStores', t), idCol('artifactStores', t), createdCol('artifactStores', t, i18n)],
   fields: (_d, { t }) => [
     field('artifactStores', t, 'name', 'text', { required: true }),
-    field('artifactStores', t, 'kind', 'select', { required: true, options: ENUMS.artifactStoreKind }),
+    field('artifactStores', t, 'kind', 'select', { required: true, options: enumOptions(t, 'artifactStoreKind') }),
     field('artifactStores', t, 'description', 'textarea'),
     field('artifactStores', t, 'active', 'checkbox')
   ],
@@ -658,10 +658,10 @@ export const agentsConfig = {
       field(id, t, 'name', 'text', { required: true }),
       field(id, t, 'displayName', 'text'),
       field(id, t, 'description', 'textarea'),
-      field(id, t, 'kind', 'select', { required: true, options: ENUMS.agentKind }),
+      field(id, t, 'kind', 'select', { required: true, options: enumOptions(t, 'agentKind') }),
       field(id, t, 'agentVersion', 'text'),
       field(id, t, 'tags', 'stringList'),
-      field(id, t, 'remoteProtocol', 'select', { options: ENUMS.remoteProtocol, optionLabel: (v) => t(`enums.remoteProtocol.${v}`, { defaultValue: v }), showIf: (x) => x.kind === 'Remote' }),
+      field(id, t, 'remoteProtocol', 'select', { options: enumOptions(t, 'remoteProtocol'), showIf: (x) => x.kind === 'Remote' }),
       field(id, t, 'remoteEndpointUrl', 'text', { showIf: (x) => x.kind === 'Remote' }),
       section(id, t, 'exposure'),
       field(id, t, 'exposeA2A', 'checkbox'),
@@ -675,11 +675,11 @@ export const agentsConfig = {
         ]
       }),
       section(id, t, 'io'),
-      field(id, t, 'inputMode', 'select', { required: true, options: ENUMS.agentInputMode }),
+      field(id, t, 'inputMode', 'select', { required: true, options: enumOptions(t, 'agentInputMode') }),
       field(id, t, 'inputSchemaJson', 'json', { showIf: (x) => x.inputMode === 'Structured' }),
       field(id, t, 'outputSchemaJson', 'json'),
       section(id, t, 'delegation'),
-      field(id, t, 'delegationMode', 'select', { required: true, options: ENUMS.delegationMode }),
+      field(id, t, 'delegationMode', 'select', { required: true, options: enumOptions(t, 'delegationMode') }),
       field(id, t, 'delegationAllowList', 'multiselect', { options: (options.agents || []).map((a) => a.name), showIf: (x) => x.delegationMode === 'AllowList' }),
       field(id, t, 'delegationMaxDepth', 'number', { min: 0, max: 10, showIf: (x) => x.delegationMode !== 'None' }),
       field(id, t, 'delegationAllowRecursion', 'checkbox', { showIf: (x) => x.delegationMode !== 'None' }),
@@ -797,7 +797,7 @@ export const deploymentsConfig = {
       field(id, t, 'resourceBindings', 'objectList', {
         step: 3,
         fields: [
-          { name: 'kind', type: 'select', label: t('resources.deployments.fields.bindingKind'), required: true, options: ENUMS.resourceBindingKind },
+          { name: 'kind', type: 'select', label: t('resources.deployments.fields.bindingKind'), required: true, options: enumOptions(t, 'resourceBindingKind') },
           { name: 'alias', type: 'text', label: t('resources.deployments.fields.alias'), required: true },
           {
             name: 'resourceId',
@@ -814,7 +814,7 @@ export const deploymentsConfig = {
         step: 4,
         ordered: true,
         fields: [
-          { name: 'operation', type: 'select', label: t('resources.deployments.fields.operation'), required: true, options: ENUMS.argumentOverrideOperation },
+          { name: 'operation', type: 'select', label: t('resources.deployments.fields.operation'), required: true, options: enumOptions(t, 'argumentOverrideOperation') },
           { name: 'match', type: 'text', label: t('resources.deployments.fields.match') },
           { name: 'template', type: 'text', label: t('resources.deployments.fields.argTemplate') },
           { name: 'condition', type: 'text', label: t('resources.deployments.fields.condition') }
@@ -831,7 +831,7 @@ export const deploymentsConfig = {
       field(id, t, 'fileOverrides', 'objectList', {
         step: 4,
         fields: [
-          { name: 'baseDirectory', type: 'select', label: t('resources.harnessProfiles.fields.fileBase'), options: ENUMS.fileBaseDirectory, required: true },
+          { name: 'baseDirectory', type: 'select', label: t('resources.harnessProfiles.fields.fileBase'), options: enumOptions(t, 'fileBaseDirectory'), required: true },
           { name: 'pathTemplate', type: 'text', label: t('resources.harnessProfiles.fields.filePath'), required: true },
           { name: 'contentTemplate', type: 'code', rows: 4, label: t('resources.harnessProfiles.fields.fileContent') },
           { name: 'mode', type: 'text', label: t('resources.harnessProfiles.fields.fileMode') },
@@ -842,7 +842,7 @@ export const deploymentsConfig = {
         step: 4,
         fields: [
           { name: 'name', type: 'text', label: t('resources.deployments.fields.paramName'), required: true },
-          { name: 'validation', type: 'select', label: t('resources.deployments.fields.validation'), required: true, options: ENUMS.runOverrideValidation },
+          { name: 'validation', type: 'select', label: t('resources.deployments.fields.validation'), required: true, options: enumOptions(t, 'runOverrideValidation') },
           { name: 'pattern', type: 'text', label: t('resources.deployments.fields.pattern') }
         ]
       }),

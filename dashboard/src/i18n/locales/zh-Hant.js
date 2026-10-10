@@ -103,6 +103,58 @@ const zhHant = {
     Http503: '伺服器無法使用。'
   },
   enums: {
+    principalType: { Administrator: '系統管理員', User: '使用者', Credential: '存取金鑰', Run: '執行權杖' },
+    runBlockedReason: { NoReadyWorker: '沒有就緒的工作節點', NoCapableWorker: '沒有可執行的工作節點', NoMatchingPool: '沒有相符的節點池' },
+    promptDelivery: { Stdin: '標準輸入', Argument: '命令列引數', File: '檔案' },
+    systemPromptDelivery: { File: '檔案', Argument: '命令列引數', Environment: '環境變數', PrependToPrompt: '加在提示前面', None: '不傳遞' },
+    mcpConfigFormat: { None: '無 MCP 設定', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI 設定' },
+    outputParser: {
+      ClaudeStreamJson: 'Claude Code 串流 JSON',
+      CodexJsonl: 'Codex JSONL',
+      MuxJsonl: 'Mux JSONL',
+      GeminiStreamJson: 'Gemini CLI 串流 JSON',
+      GenericJsonl: '通用 JSONL',
+      PlainText: '純文字'
+    },
+    resultSource: { ParserFinalEvent: '剖析器最終事件', LastMessageFile: '最後訊息檔案', Stdout: 'Stdout' },
+    successPolicy: { FinalEvent: '最終事件', ExitCode: '結束代碼', FinalEventAndExitCode: '最終事件與結束代碼' },
+    fileBaseDirectory: { Config: '設定目錄', Workspace: '工作區', Home: '主目錄' },
+    artifactStoreKind: { Database: '資料庫', Filesystem: '檔案系統', S3: 'S3' },
+    agentInputMode: { Text: '文字', Structured: '結構化 JSON' },
+    argumentOverrideOperation: { Append: '附加到結尾', Prepend: '插入到開頭', Remove: '移除', Replace: '取代' },
+    runOverrideValidation: { Any: '任何值', Enum: '清單中的值', Regex: '規則運算式', IntegerRange: '整數範圍' },
+    credentialAuthMode: { DirectHeader: '直接標頭', SignedRequest: '簽署要求', SessionExchange: '換取工作階段權杖', Hybrid: '任何方式' },
+    operationType: { All: '所有操作', Create: '建立', Read: '讀取', Write: '寫入', Update: '更新', Delete: '刪除', Execute: '執行', Admin: '管理' },
+    resourceType: {
+      All: '所有資源',
+      Account: '帳戶',
+      Tenant: '租用戶',
+      Admin: '系統管理',
+      User: '使用者',
+      Credential: '存取金鑰',
+      Session: '工作階段',
+      Role: '角色',
+      Permission: '權限',
+      Assignment: '指派',
+      Audit: '稽核記錄',
+      RequestHistory: '要求記錄',
+      Settings: '設定',
+      HarnessProfile: 'Harness 設定檔',
+      PromptTemplate: '提示範本',
+      Agent: '代理程式',
+      Deployment: '部署',
+      McpServer: 'MCP 伺服器',
+      Secret: '祕密',
+      Workspace: '工作區',
+      ArtifactStore: '成品存放區',
+      Run: '執行',
+      Node: '節點',
+      NodePool: '節點池',
+      Manifest: '清單',
+      Conversation: '對話',
+      Approval: '核准',
+      Artifact: '成品'
+    },
     runStatus: {
       Pending: '待處理',
       Queued: '已排入佇列',
@@ -131,7 +183,8 @@ const zhHant = {
       CompileFailed: '編譯失敗',
       WorkspaceFailed: '工作區失敗',
       Rejected: '已拒絕',
-      InternalError: '內部錯誤'
+      InternalError: '內部錯誤',
+      NoCapableWorker: '沒有可執行的工作節點'
     },
     runEventType: {
       Lifecycle: '生命週期',
@@ -285,6 +338,22 @@ const zhHant = {
     run: '執行權杖'
   },
   components: {
+    blocked: {
+      title: '等待工作節點',
+      body: '這個執行已排入佇列，但目前沒有工作節點能接手。',
+      reasons: {
+        NoReadyWorker: '沒有就緒的工作節點。請啟動或註冊工作節點，並在機群頁面檢查遺失、離線、清空中或已封鎖的節點。',
+        NoCapableWorker: '有就緒的工作節點，但沒有節點回報 {{harness}} Harness 可用。請啟動或註冊已安裝該 Harness 的工作節點，或在機群頁面檢查它的憑證與探測結果。',
+        NoMatchingPool: '有就緒的工作節點能執行 {{harness}}，但沒有節點符合這個部署的節點池或節點選取器。請檢查部署的排程放置，或在該節點池加入工作節點。'
+      },
+      failNote: '當叢集設定 Runtime.FailBlockedAfterSeconds 大於 0 時，受阻達到該時長的執行會以結果「沒有可執行的工作節點」失敗。',
+      openFleet: '開啟機群',
+      openAgent: '開啟代理程式的部署',
+      homeBanner_other: '{{count}} 個佇列中的執行無法開始：沒有就緒的工作節點能執行它們。',
+      showRuns: '檢視佇列中的執行',
+      queueColumn: '受阻',
+      queueCount_other: '{{count}} 個受阻'
+    },
     autoRefresh: {
       label: '自動重新整理',
       none: '關閉',
@@ -1003,7 +1072,7 @@ const zhHant = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。請在你的清單中變更。',
         other: '此設定無法在這裡編輯。'
       },
-      groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '記錄', Auth: '驗證', Security: '安全性', RequestHistory: '請求歷程', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '稽核' },
+      groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '記錄', Auth: '驗證', Security: '安全性', RequestHistory: '請求歷程', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '稽核', Runtime: '執行階段' },
       fields: {}
     },
     analytics: {

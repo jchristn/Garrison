@@ -103,6 +103,79 @@ const de = {
     Http503: 'Der Server ist nicht verfügbar.'
   },
   enums: {
+    principalType: { Administrator: 'Systemadministrator', User: 'Benutzer', Credential: 'Zugriffsschlüssel', Run: 'Lauf-Token' },
+    runBlockedReason: { NoReadyWorker: 'Kein bereiter Worker', NoCapableWorker: 'Kein passender Worker', NoMatchingPool: 'Kein passender Pool' },
+    promptDelivery: { Stdin: 'Standardeingabe', Argument: 'Befehlszeilenargument', File: 'Datei' },
+    systemPromptDelivery: {
+      File: 'Datei',
+      Argument: 'Befehlszeilenargument',
+      Environment: 'Umgebungsvariable',
+      PrependToPrompt: 'Dem Prompt vorangestellt',
+      None: 'Nicht übergeben'
+    },
+    mcpConfigFormat: {
+      None: 'Keine MCP-Konfiguration',
+      ClaudeJson: 'Claude Code JSON',
+      CodexToml: 'Codex TOML',
+      MuxJson: 'Mux JSON',
+      GeminiSettings: 'Gemini CLI-Einstellungen'
+    },
+    outputParser: {
+      ClaudeStreamJson: 'Claude Code Stream-JSON',
+      CodexJsonl: 'Codex JSONL',
+      MuxJsonl: 'Mux JSONL',
+      GeminiStreamJson: 'Gemini CLI Stream-JSON',
+      GenericJsonl: 'Generisches JSONL',
+      PlainText: 'Klartext'
+    },
+    resultSource: { ParserFinalEvent: 'Letztes Parser-Ereignis', LastMessageFile: 'Datei mit letzter Nachricht', Stdout: 'Stdout' },
+    successPolicy: { FinalEvent: 'Abschlussereignis', ExitCode: 'Exit-Code', FinalEventAndExitCode: 'Abschlussereignis und Exit-Code' },
+    fileBaseDirectory: { Config: 'Konfigurationsverzeichnis', Workspace: 'Arbeitsbereich', Home: 'Home-Verzeichnis' },
+    artifactStoreKind: { Database: 'Datenbank', Filesystem: 'Dateisystem', S3: 'S3' },
+    agentInputMode: { Text: 'Freitext', Structured: 'Strukturiertes JSON' },
+    argumentOverrideOperation: { Append: 'Anhängen', Prepend: 'Voranstellen', Remove: 'Entfernen', Replace: 'Ersetzen' },
+    runOverrideValidation: { Any: 'Beliebiger Wert', Enum: 'Wert aus einer Liste', Regex: 'Regulärer Ausdruck', IntegerRange: 'Ganzzahlbereich' },
+    credentialAuthMode: { DirectHeader: 'Direkte Header', SignedRequest: 'Signierte Anfragen', SessionExchange: 'Sitzungstoken-Austausch', Hybrid: 'Beliebige Methode' },
+    operationType: {
+      All: 'Alle Operationen',
+      Create: 'Erstellen',
+      Read: 'Lesen',
+      Write: 'Schreiben',
+      Update: 'Aktualisieren',
+      Delete: 'Löschen',
+      Execute: 'Ausführen',
+      Admin: 'Verwalten'
+    },
+    resourceType: {
+      All: 'Alle Ressourcen',
+      Account: 'Konto',
+      Tenant: 'Mandant',
+      Admin: 'Systemverwaltung',
+      User: 'Benutzer',
+      Credential: 'Zugriffsschlüssel',
+      Session: 'Sitzung',
+      Role: 'Rolle',
+      Permission: 'Berechtigung',
+      Assignment: 'Zuweisung',
+      Audit: 'Audit-Protokoll',
+      RequestHistory: 'Anfrageverlauf',
+      Settings: 'Einstellungen',
+      HarnessProfile: 'Harness-Profil',
+      PromptTemplate: 'Prompt-Vorlage',
+      Agent: 'Agent',
+      Deployment: 'Bereitstellung',
+      McpServer: 'MCP-Server',
+      Secret: 'Geheimnis',
+      Workspace: 'Arbeitsbereich',
+      ArtifactStore: 'Artefaktspeicher',
+      Run: 'Lauf',
+      Node: 'Knoten',
+      NodePool: 'Knotenpool',
+      Manifest: 'Manifest',
+      Conversation: 'Unterhaltung',
+      Approval: 'Freigabe',
+      Artifact: 'Artefakt'
+    },
     runStatus: {
       Pending: 'Ausstehend',
       Queued: 'In Warteschlange',
@@ -131,7 +204,8 @@ const de = {
       CompileFailed: 'Kompilierung fehlgeschlagen',
       WorkspaceFailed: 'Arbeitsbereich fehlgeschlagen',
       Rejected: 'Abgelehnt',
-      InternalError: 'Interner Fehler'
+      InternalError: 'Interner Fehler',
+      NoCapableWorker: 'Kein passender Worker'
     },
     runEventType: {
       Lifecycle: 'Lebenszyklus',
@@ -285,6 +359,24 @@ const de = {
     run: 'Lauf-Token'
   },
   components: {
+    blocked: {
+      title: 'Wartet auf einen Worker',
+      body: 'Dieser Lauf ist in der Warteschlange, aber gerade kann kein Worker ihn übernehmen.',
+      reasons: {
+        NoReadyWorker: 'Kein Worker-Knoten ist bereit. Starten Sie einen Worker oder registrieren Sie einen neuen und prüfen Sie auf der Seite Flotte, welche Knoten verloren, offline, im Leeren oder gesperrt sind.',
+        NoCapableWorker: 'Worker sind bereit, aber keiner meldet den Harness {{harness}} als verfügbar. Starten oder registrieren Sie einen Worker mit diesem Harness, oder prüfen Sie dessen Anmeldedaten und Prüfergebnisse auf der Seite Flotte.',
+        NoMatchingPool: 'Ein bereiter Worker kann {{harness}} ausführen, aber keiner passt zum Knotenpool oder zu den Knotenselektoren dieser Bereitstellung. Prüfen Sie die Platzierung der Bereitstellung oder fügen Sie dem Pool einen Worker hinzu.'
+      },
+      failNote: 'Ist die Clustereinstellung Runtime.FailBlockedAfterSeconds größer als 0, schlägt ein Lauf, der so lange blockiert bleibt, mit dem Ergebnis „Kein passender Worker“ fehl.',
+      openFleet: 'Flotte öffnen',
+      openAgent: 'Bereitstellungen des Agenten öffnen',
+      homeBanner_one: '{{count}} wartender Lauf kann nicht starten: Kein bereiter Worker kann ihn ausführen.',
+      homeBanner_other: '{{count}} wartende Läufe können nicht starten: Kein bereiter Worker kann sie ausführen.',
+      showRuns: 'Wartende Läufe anzeigen',
+      queueColumn: 'Blockiert',
+      queueCount_one: '{{count}} blockiert',
+      queueCount_other: '{{count}} blockiert'
+    },
     autoRefresh: {
       label: 'Automatisch aktualisieren',
       none: 'Aus',
@@ -1001,7 +1093,7 @@ const de = {
         ConfigMap: 'Von einer Kubernetes-ConfigMap verwaltet. Ändern Sie den Wert in Ihren Manifesten.',
         other: 'Diese Einstellung kann hier nicht bearbeitet werden.'
       },
-      groups: { General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit' },
+      groups: { General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit', Runtime: 'Laufzeit' },
       fields: {}
     },
     analytics: {

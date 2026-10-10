@@ -276,7 +276,20 @@ const tips = {
       tail: 'Execution after the last model output: tool calls, result handling, and process exit.'
     }
   },
+  blocked: {
+    panel: 'Why this run is still queued and what to change so a worker can pick it up.',
+    openFleet: 'Open the Fleet page to see which worker nodes are Ready, which harnesses each one reports, and their probe details.',
+    openAgent: 'Open this run\'s agent to check its deployments, including each deployment\'s node pool and node selectors.',
+    homeBanner: 'Queued runs that no Ready worker can run right now. They stay queued until a capable worker appears, or fail once Runtime.FailBlockedAfterSeconds is set and passes.',
+    showRuns: 'Open the Runs page filtered to queued runs. Blocked runs carry a warning badge that explains the reason.',
+    queueColumn: 'Queued runs in this group that no Ready worker can run right now. Hover the badge for the reason and what to do.'
+  },
   enums: {
+    runBlockedReason: {
+      NoReadyWorker: 'Blocked: no worker node is Ready, so nothing can take this run. Start a worker or register a new one, then check the Fleet page for nodes that are Lost, Offline, Draining, or Cordoned.',
+      NoCapableWorker: 'Blocked: worker nodes are Ready, but none reports this run\'s harness as available. Start or register a worker with the harness installed, or check its credentials and probe results on the Fleet page.',
+      NoMatchingPool: 'Blocked: a Ready worker can run this harness, but none matches the deployment\'s node pool, the pool\'s tenant restriction, or its node selectors. Check the deployment\'s placement, or add a worker to that pool.'
+    },
     runStatus: {
       Pending: 'Pending: the run was accepted and is being prepared before it joins the queue.',
       Queued: 'Queued: waiting for a worker node with a matching harness and placement to lease it.',
@@ -305,7 +318,8 @@ const tips = {
       CompileFailed: 'The deployment could not be compiled, for example because of a missing template variable.',
       WorkspaceFailed: 'The workspace could not be prepared, for example because a Git clone failed.',
       Rejected: 'The request was rejected before a run could start.',
-      InternalError: 'Garrison hit an internal error. The server logs have details.'
+      InternalError: 'Garrison hit an internal error. The server logs have details.',
+      NoCapableWorker: 'The run waited in the queue longer than the cluster setting Runtime.FailBlockedAfterSeconds allows, and no Ready worker could run it, so it was failed.'
     },
     nodeStatus: {
       Ready: 'Ready: heartbeating and accepting new runs.',
@@ -988,6 +1002,7 @@ const tips = {
       sourceGeneric: 'Where the current value comes from.',
       testDatabase: 'Try connecting with the database settings above before saving them.',
       groups: {
+        Runtime: 'How the control plane treats queued runs, including how long a run may wait for a capable worker before it fails.',
         Rest: 'How the REST API listens: host, port, TLS, and public address.',
         Mcp: 'How the MCP server listens and how long tool calls may wait.',
         Database: 'Which database Garrison uses and how to connect.',

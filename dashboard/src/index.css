@@ -975,3 +975,11 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* Per-locale font hint, set from localeRegistry.js (fontFamily) on <html> as --locale-font. */
 body { font-family: var(--locale-font, var(--font-family)); }
+
+/* Blocked queued runs (G-15) */
+.blocked-badge { display: inline-flex; margin-inline-start: var(--spacing-xs); }
+.blocked-notice { align-items: flex-start; justify-content: space-between; }
+.blocked-notice-text { display: flex; flex-direction: column; gap: var(--spacing-xs); flex: 1 1 24rem; min-width: 0; }
+.blocked-notice-text p { margin: 0; }
+.blocked-notice-title { display: flex; align-items: center; gap: var(--spacing-xs); flex-wrap: wrap; }
+.blocked-notice-actions { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }

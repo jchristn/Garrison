@@ -11,7 +11,8 @@
     "lint": "eslint src tests --max-warnings 0",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:live": "playwright test --config playwright.live.config.js"
+    "test:live": "playwright test --config playwright.live.config.js",
+    "test:contract": "node tests/contract/run.mjs"
   },
   "dependencies": {
     "i18next": "^24.2.0",

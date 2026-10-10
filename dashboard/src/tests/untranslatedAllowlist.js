@@ -10,7 +10,7 @@ const PRODUCT_WORDS = new Set([
   'Kubernetes', 'ConfigMap', 'StatefulSet', 'Prometheus', 'Grafana', 'OpenTelemetry', 'OpenAPI', 'WebSocket', 'OAuth',
   'MCP', 'A2A', 'REST', 'API', 'APIs', 'SSE', 'JSON', 'YAML', 'URL', 'URLs', 'HTTP', 'HTTPS', 'SDK', 'ID', 'IDs', 'UTC',
   'CSV', 'PNG', 'SVG', 'HMAC', 'TTFT', 'USD', 'PID', 'HOME', 'stdio', 'Stdout', 'Stderr', 'stdout', 'stderr', 'auth',
-  'Harness', 'Harnesses', 'harness', 'harnesses', 'Tempo', 'json', 'sonnet', 'opus', 'haiku', 'p50', 'p90', 'p95', 'p99', 'ms', 's', 'min', 'tok', 'KB', 'MB', 'GB', 'TB', 'B'
+  'JSONL', 'TOML', 'S3', 'Harness', 'Harnesses', 'harness', 'harnesses', 'Tempo', 'json', 'sonnet', 'opus', 'haiku', 'p50', 'p90', 'p95', 'p99', 'ms', 's', 'min', 'tok', 'KB', 'MB', 'GB', 'TB', 'B'
 ]);
 
 /** True when every word in the value is a product, protocol, or unit term that stays in English. */
@@ -28,7 +28,7 @@ export const UNTRANSLATED_ALLOWLIST = {
   ],
   de: [
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
-    'Offline', 'Operation', 'Parser', 'Reasoning', 'Repository', 'Server', 'Status', 'System', 'Transport',
+    'Manifest', 'Offline', 'Operation', 'Parser', 'Reasoning', 'Repository', 'Server', 'Status', 'System', 'Transport',
     'Version', 'Version {{version}}'
   ],
   ja: [],
@@ -42,7 +42,7 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Version {{version}}', 'Versions ({{count}})'
   ],
   it: [
-    'Cluster', 'Database', 'Email', 'Endpoint', 'Home', 'Input', 'Logging', 'No', 'Offline', 'Output', 'Parser',
+    'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',
     'Password', 'Polling', 'Principal', 'Repository', 'Server', 'Tenant', 'record', '{{count}} file'
   ],
   'zh-Hans': [],

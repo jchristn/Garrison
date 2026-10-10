@@ -275,7 +275,20 @@ const tips = {
       tail: 'Esecuzione dopo l\'ultimo output del modello: chiamate a strumenti, gestione del risultato e uscita del processo.'
     }
   },
+  blocked: {
+    panel: 'Perché questa esecuzione è ancora in coda e cosa cambiare perché un worker possa prenderla.',
+    openFleet: 'Apre la pagina Flotta per vedere quali nodi worker sono pronti, quali harness segnala ciascuno e i dettagli delle verifiche.',
+    openAgent: 'Apre l\'agente di questa esecuzione per controllare le sue distribuzioni, compresi pool di nodi e selettori di nodo di ognuna.',
+    homeBanner: 'Esecuzioni in coda che al momento nessun worker pronto può eseguire. Restano in coda finché non compare un worker compatibile, oppure falliscono quando Runtime.FailBlockedAfterSeconds è impostato e scade.',
+    showRuns: 'Apre la pagina Esecuzioni filtrata sulle esecuzioni in coda. Quelle bloccate hanno un badge di avviso che ne spiega il motivo.',
+    queueColumn: 'Esecuzioni in coda di questo gruppo che al momento nessun worker pronto può eseguire. Passa sul badge per vedere motivo e rimedio.'
+  },
   enums: {
+    runBlockedReason: {
+      NoReadyWorker: 'Bloccata: nessun nodo worker è pronto, quindi nessuno può prendere questa esecuzione. Avvia un worker o registrane uno nuovo, poi controlla nella pagina Flotta i nodi persi, offline, in svuotamento o isolati.',
+      NoCapableWorker: 'Bloccata: ci sono nodi worker pronti, ma nessuno segnala come disponibile l\'harness di questa esecuzione. Avvia o registra un worker con l\'harness installato, oppure controlla le sue credenziali e i risultati delle verifiche nella pagina Flotta.',
+      NoMatchingPool: 'Bloccata: un worker pronto può eseguire questo harness, ma nessuno corrisponde al pool di nodi della distribuzione, alla restrizione di tenant del pool o ai selettori di nodo. Controlla il posizionamento della distribuzione o aggiungi un worker a quel pool.'
+    },
     runStatus: {
       Pending: 'In sospeso: l\'esecuzione è stata accettata e viene preparata prima di entrare in coda.',
       Queued: 'In coda: in attesa che un nodo worker con harness e posizionamento corrispondenti la prenda in lease.',
@@ -304,7 +317,8 @@ const tips = {
       CompileFailed: 'Non è stato possibile compilare la distribuzione, per esempio per una variabile di modello mancante.',
       WorkspaceFailed: 'Non è stato possibile preparare l\'area di lavoro, per esempio perché un clone Git non è riuscito.',
       Rejected: 'La richiesta è stata rifiutata prima che un\'esecuzione potesse partire.',
-      InternalError: 'Garrison ha riscontrato un errore interno. I log del server contengono i dettagli.'
+      InternalError: 'Garrison ha riscontrato un errore interno. I log del server contengono i dettagli.',
+      NoCapableWorker: 'L\'esecuzione è rimasta in coda più a lungo di quanto consente l\'impostazione del cluster Runtime.FailBlockedAfterSeconds e nessun nodo worker pronto poteva eseguirla, quindi è fallita.'
     },
     nodeStatus: {
       Ready: 'Pronto: invia heartbeat e accetta nuove esecuzioni.',
@@ -987,6 +1001,7 @@ const tips = {
       sourceGeneric: 'Da dove proviene il valore attuale.',
       testDatabase: 'Prova a connetterti con le impostazioni del database qui sopra prima di salvarle.',
       groups: {
+        Runtime: 'Come il piano di controllo gestisce le esecuzioni in coda, compreso quanto un\'esecuzione può attendere un worker compatibile prima di fallire.',
         Rest: 'Come resta in ascolto la REST API: host, porta, TLS e indirizzo pubblico.',
         Mcp: 'Come resta in ascolto il server MCP e quanto possono attendere le chiamate agli strumenti.',
         Database: 'Quale database usa Garrison e come connettersi.',

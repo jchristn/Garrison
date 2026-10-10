@@ -113,6 +113,8 @@ describe('api helpers', () => {
     const n = normalizeEnumeration({ objects: [1, 2], totalRecords: 30, skip: 25, maxResults: 25 }, 2, 25);
     expect(n).toMatchObject({ items: [1, 2], pageNumber: 2, pageSize: 25, totalCount: 30 });
     expect(normalizeEnumeration([1, 2, 3]).totalCount).toBe(3);
+    // Audit and request history answer a page result keyed by pageNumber and totalCount.
+    expect(normalizeEnumeration({ pageNumber: 2, pageSize: 25, totalCount: 42, totalPages: 2, objects: [1] }, 2, 25)).toMatchObject({ items: [1], pageNumber: 2, pageSize: 25, totalCount: 42, endOfResults: true });
   });
   it('parses SSE frames', () => {
     expect(parseSseFrame('event: run\ndata: {"a":1}')).toEqual({ a: 1 });
@@ -212,5 +214,24 @@ describe('overview normalization', () => {
     expect(k.nodesTotal).toBeNull();
     expect(k.agents).toBeNull();
     expect(overviewKpis({ nodesByStatus: [] }).nodesTotal).toBe(0);
+  });
+});
+
+describe('settings contract', () => {
+  it('maps the server field metadata onto the editor', async () => {
+    const { normalizeSettings, settingsUpdateBody } = await import('../utils/settings');
+    const [port, ssl, db, pwd] = normalizeSettings({
+      fields: [
+        { path: 'Rest.Port', type: 'int', value: '8700', minimum: 1, maximum: 65535, source: 'File', applyMode: 'RestartRequired', editable: true },
+        { path: 'Rest.Ssl', type: 'bool', value: 'false', source: 'File', editable: true },
+        { path: 'Database.Type', type: 'enum', value: 'Sqlite', allowedValues: ['Sqlite', 'Postgresql'], source: 'File', editable: true },
+        { path: 'Database.Password', type: 'secret', value: '********', isSecret: true, isSet: true, source: 'File', editable: true }
+      ]
+    });
+    expect(port).toMatchObject({ type: 'integer', value: 8700, min: 1, max: 65535 });
+    expect(ssl).toMatchObject({ type: 'boolean', value: false });
+    expect(db).toMatchObject({ type: 'enum', options: ['Sqlite', 'Postgresql'] });
+    expect(pwd).toMatchObject({ isSecret: true, value: '********' });
+    expect(settingsUpdateBody({ 'Rest.Port': 8701, 'Rest.Ssl': true })).toEqual({ values: [{ path: 'Rest.Port', value: '8701' }, { path: 'Rest.Ssl', value: 'true' }] });
   });
 });

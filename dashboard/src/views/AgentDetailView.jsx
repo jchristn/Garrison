@@ -18,6 +18,7 @@ import { formatRelativeTime, formatNumber, formatPercent } from '../i18n/formatt
 import Explainer from '../components/Explainer';
 import { tip } from '../components/Tooltip';
 import { enumTip } from '../utils/tips';
+import { enumLabel } from '../utils/enums';
 import { trafficShares } from '../utils/deployments';
 
 /** One agent end to end: identity, exposure, delegation, deployments with weights, A2A card, and recent runs. */
@@ -110,7 +111,7 @@ export default function AgentDetailView({ recordId }) {
         </div>
         <div className="detail-item">
           <div className="detail-item-label" {...tip(t('tips.resources.agents.inputMode'))}>{t('resources.agents.fields.inputMode')}</div>
-          <div className="detail-item-value">{agent.inputMode}</div>
+          <div className="detail-item-value">{enumLabel(t, 'agentInputMode', agent.inputMode)}</div>
         </div>
       </div>
       {deployments.filter((d) => d.active).length === 0 && <div className="warning-banner">{t('views.agentDetail.noActiveDeployment')}</div>}

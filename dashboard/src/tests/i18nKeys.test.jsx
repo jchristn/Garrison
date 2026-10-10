@@ -126,13 +126,20 @@ describe('i18n key coverage', () => {
     expect(en.resources.mcpServers.emptyTitle).toBe('No MCP servers yet');
   });
 
-  it('has labels for every enum value', () => {
+  it('has labels for every enum value (G-16: raw enum values are never shown)', () => {
     const missing = [];
     for (const [group, values] of Object.entries(ENUMS)) {
-      if (!en.enums[group]) continue;
       for (const v of values) if (!exists(en, `enums.${group}.${v}`)) missing.push(`${group}.${v}`);
     }
     expect(missing).toEqual([]);
+  });
+
+  it('explains every blocked reason in a tooltip (G-15)', () => {
+    for (const v of ENUMS.runBlockedReason) {
+      expect(exists(en, `tips.enums.runBlockedReason.${v}`), v).toBe(true);
+      expect(exists(en, `components.blocked.reasons.${v}`), v).toBe(true);
+    }
+    expect(exists(en, 'tips.enums.runOutcome.NoCapableWorker')).toBe(true);
   });
 });
 

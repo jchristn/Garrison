@@ -276,7 +276,20 @@ const tips = {
       tail: '模型最後一個輸出之後嘅執行：工具呼叫、結果處理同程序結束。'
     }
   },
+  blocked: {
+    panel: '點解呢個執行仲排緊隊，同埋要改啲乜嘢先可以畀工作節點接手。',
+    openFleet: '打開機群頁面，睇吓邊啲工作節點就緒、每個節點報咗邊啲 Harness，同埋探測詳情。',
+    openAgent: '打開呢個執行嘅代理程式，檢查佢嘅部署，包括每個部署嘅節點池同節點選取器。',
+    homeBanner: '而家冇就緒工作節點做到嘅排隊執行。佢哋會一直排隊，等到有工作節點做到為止；如果設定咗 Runtime.FailBlockedAfterSeconds，過咗時間就會失敗。',
+    showRuns: '打開篩選咗排隊執行嘅執行頁面。塞住咗嘅執行會有一個警告徽章講明原因。',
+    queueColumn: '呢個群組入面而家冇就緒工作節點做到嘅排隊執行。將游標停喺徽章上面就睇到原因同處理方法。'
+  },
   enums: {
+    runBlockedReason: {
+      NoReadyWorker: '塞住咗：冇任何工作節點係就緒狀態，所以冇節點可以接呢個執行。請啟動或者註冊一個工作節點，再喺機群頁面睇吓邊啲節點失聯、離線、清空緊或者已封鎖。',
+      NoCapableWorker: '塞住咗：有就緒嘅工作節點，但係冇一個話呢個執行嘅 Harness 用得。請啟動或者註冊一個裝咗嗰個 Harness 嘅工作節點，或者喺機群頁面睇吓佢嘅憑證同探測結果。',
+      NoMatchingPool: '塞住咗：有就緒嘅工作節點做到呢個 Harness，但係冇一個啱部署嘅節點池、節點池嘅租用戶限制或者節點選取器。請檢查部署嘅排程放置，或者喺嗰個節點池加工作節點。'
+    },
     runStatus: {
       Pending: '等候中：執行已經接受咗，入隊之前準備緊。',
       Queued: '排隊中：等緊一個 Harness 同排程放置都符合嘅工作節點嚟租用。',
@@ -305,7 +318,8 @@ const tips = {
       CompileFailed: '部署編譯唔到，例如因為缺少範本變數。',
       WorkspaceFailed: '工作區準備唔到，例如因為 Git 複製失敗。',
       Rejected: '請求喺執行開始之前已經被拒絕。',
-      InternalError: 'Garrison 遇到內部錯誤。詳情睇伺服器日誌。'
+      InternalError: 'Garrison 遇到內部錯誤。詳情睇伺服器日誌。',
+      NoCapableWorker: '呢個執行喺隊列等嘅時間超過咗叢集設定 Runtime.FailBlockedAfterSeconds 准許嘅時長，又冇就緒嘅工作節點做到佢，所以已經失敗。'
     },
     nodeStatus: {
       Ready: '就緒：發送緊心跳，並且接受新嘅執行。',
@@ -988,6 +1002,7 @@ const tips = {
       sourceGeneric: '目前數值嚟自邊度。',
       testDatabase: '儲存之前，用上面嘅資料庫設定試吓連接。',
       groups: {
+        Runtime: '控制平面點樣處理排緊隊嘅執行，包括執行喺失敗之前可以等幾耐先有工作節點做到。',
         Rest: 'REST API 點樣監聽：主機、連接埠、TLS 同公開地址。',
         Mcp: 'MCP 伺服器點樣監聽，同埋工具呼叫可以等幾耐。',
         Database: 'Garrison 用邊個資料庫，同埋點樣連接。',

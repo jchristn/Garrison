@@ -109,17 +109,19 @@ function FieldControl({ field, value, onChange, disabled, id }) {
       return (
         <div className="checkbox-grid" id={id}>
           {(field.options || []).map((o) => {
+            const opt = typeof o === 'object' ? o : { value: o, label: field.optionLabel ? field.optionLabel(o) : o };
             const list = Array.isArray(value) ? value : [];
+            const optTip = tip(t('tips.form.option', { option: opt.label, field: field.label }));
             return (
-              <label key={o} className="checkbox-chip" {...tip(t('tips.form.option', { option: o, field: field.label }))}>
+              <label key={opt.value} className="checkbox-chip" {...optTip}>
                 <input
                   type="checkbox"
-                  {...tip(t('tips.form.option', { option: o, field: field.label }))}
+                  {...optTip}
                   disabled={disabled}
-                  checked={list.includes(o)}
-                  onChange={() => onChange(list.includes(o) ? list.filter((x) => x !== o) : [...list, o])}
+                  checked={list.includes(opt.value)}
+                  onChange={() => onChange(list.includes(opt.value) ? list.filter((x) => x !== opt.value) : [...list, opt.value])}
                 />
-                <span>{o}</span>
+                <span>{opt.label}</span>
               </label>
             );
           })}
@@ -193,7 +195,11 @@ export function KeyValueEditor({ value, onChange, disabled, keyLabel, valueLabel
 export function ObjectListEditor({ value, onChange, disabled, fields, addLabel, ordered = false, fieldLabel = '' }) {
   const { t } = useTranslation();
   const rows = Array.isArray(value) ? value : [];
-  const blank = () => Object.fromEntries(fields.map((f) => [f.name, f.type === 'checkbox' ? false : f.default ?? (f.type === 'select' && f.required ? (f.options || [])[0] : '')]));
+  const firstOption = (f) => {
+    const o = (f.options || [])[0];
+    return o !== null && typeof o === 'object' ? o.value : o;
+  };
+  const blank = () => Object.fromEntries(fields.map((f) => [f.name, f.type === 'checkbox' ? false : f.default ?? (f.type === 'select' && f.required ? firstOption(f) : '')]));
   const update = (i, next) => onChange(rows.map((r, j) => (j === i ? next : r)));
   const move = (i, d) => {
     const j = i + d;

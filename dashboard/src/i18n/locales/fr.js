@@ -103,6 +103,84 @@ const fr = {
     Http503: 'Le serveur est indisponible.'
   },
   enums: {
+    principalType: { Administrator: 'Administrateur système', User: 'Utilisateur', Credential: 'Clé d\'accès', Run: 'Jeton d\'exécution' },
+    runBlockedReason: { NoReadyWorker: 'Aucun nœud worker prêt', NoCapableWorker: 'Aucun nœud worker compatible', NoMatchingPool: 'Aucun pool de nœuds correspondant' },
+    promptDelivery: { Stdin: 'Entrée standard', Argument: 'Argument de ligne de commande', File: 'Fichier' },
+    systemPromptDelivery: {
+      File: 'Fichier',
+      Argument: 'Argument de ligne de commande',
+      Environment: 'Variable d\'environnement',
+      PrependToPrompt: 'Ajouté avant le prompt',
+      None: 'Non transmis'
+    },
+    mcpConfigFormat: {
+      None: 'Aucune configuration MCP',
+      ClaudeJson: 'Claude Code JSON',
+      CodexToml: 'Codex TOML',
+      MuxJson: 'Mux JSON',
+      GeminiSettings: 'Paramètres Gemini CLI'
+    },
+    outputParser: {
+      ClaudeStreamJson: 'JSON en flux de Claude Code',
+      CodexJsonl: 'Codex JSONL',
+      MuxJsonl: 'Mux JSONL',
+      GeminiStreamJson: 'JSON en flux de Gemini CLI',
+      GenericJsonl: 'JSONL générique',
+      PlainText: 'Texte brut'
+    },
+    resultSource: { ParserFinalEvent: 'Dernier événement de l\'analyseur', LastMessageFile: 'Fichier du dernier message', Stdout: 'Stdout' },
+    successPolicy: { FinalEvent: 'Événement final', ExitCode: 'Code de sortie', FinalEventAndExitCode: 'Événement final et code de sortie' },
+    fileBaseDirectory: { Config: 'Répertoire de configuration', Workspace: 'Espace de travail', Home: 'Répertoire personnel' },
+    artifactStoreKind: { Database: 'Base de données', Filesystem: 'Système de fichiers', S3: 'S3' },
+    agentInputMode: { Text: 'Texte libre', Structured: 'JSON structuré' },
+    argumentOverrideOperation: { Append: 'Ajouter à la fin', Prepend: 'Ajouter au début', Remove: 'Retirer', Replace: 'Remplacer' },
+    runOverrideValidation: { Any: 'N\'importe quelle valeur', Enum: 'Valeur d\'une liste', Regex: 'Expression régulière', IntegerRange: 'Plage d\'entiers' },
+    credentialAuthMode: {
+      DirectHeader: 'En-têtes directs',
+      SignedRequest: 'Requêtes signées',
+      SessionExchange: 'Échange contre un jeton de session',
+      Hybrid: 'N\'importe quelle méthode'
+    },
+    operationType: {
+      All: 'Toutes les opérations',
+      Create: 'Créer',
+      Read: 'Lire',
+      Write: 'Écrire',
+      Update: 'Mettre à jour',
+      Delete: 'Supprimer',
+      Execute: 'Exécuter',
+      Admin: 'Administrer'
+    },
+    resourceType: {
+      All: 'Toutes les ressources',
+      Account: 'Compte',
+      Tenant: 'Locataire',
+      Admin: 'Administration système',
+      User: 'Utilisateur',
+      Credential: 'Clé d\'accès',
+      Session: 'Session de connexion',
+      Role: 'Rôle',
+      Permission: 'Autorisation',
+      Assignment: 'Attribution',
+      Audit: 'Journal d\'audit',
+      RequestHistory: 'Historique des requêtes',
+      Settings: 'Paramètres',
+      HarnessProfile: 'Profil de harness',
+      PromptTemplate: 'Modèle de prompt',
+      Agent: 'Agent IA',
+      Deployment: 'Déploiement',
+      McpServer: 'Serveur MCP',
+      Secret: 'Secret stocké',
+      Workspace: 'Espace de travail',
+      ArtifactStore: 'Stockage d\'artefacts',
+      Run: 'Exécution',
+      Node: 'Nœud',
+      NodePool: 'Pool de nœuds',
+      Manifest: 'Manifeste',
+      Conversation: 'Conversation IA',
+      Approval: 'Approbation',
+      Artifact: 'Artefact'
+    },
     runStatus: {
       Pending: 'En attente',
       Queued: 'En file d\'attente',
@@ -131,7 +209,8 @@ const fr = {
       CompileFailed: 'Échec de la compilation',
       WorkspaceFailed: 'Échec de l\'espace de travail',
       Rejected: 'Rejetée',
-      InternalError: 'Erreur interne'
+      InternalError: 'Erreur interne',
+      NoCapableWorker: 'Aucun nœud worker compatible'
     },
     runEventType: {
       Lifecycle: 'Cycle de vie',
@@ -285,6 +364,26 @@ const fr = {
     run: 'Jeton d\'exécution'
   },
   components: {
+    blocked: {
+      title: 'En attente d\'un worker',
+      body: 'Cette exécution est dans la file d\'attente, mais aucun worker ne peut la prendre pour l\'instant.',
+      reasons: {
+        NoReadyWorker: 'Aucun nœud worker n\'est prêt. Démarrez un worker ou enregistrez-en un nouveau, et vérifiez sur la page Flotte les nœuds perdus, hors ligne, en drainage ou isolés.',
+        NoCapableWorker: 'Des workers sont prêts, mais aucun ne signale le harness {{harness}} comme disponible. Démarrez ou enregistrez un worker sur lequel ce harness est installé, ou vérifiez ses identifiants et les résultats de ses sondes sur la page Flotte.',
+        NoMatchingPool: 'Un worker prêt peut exécuter {{harness}}, mais aucun ne correspond au pool de nœuds ni aux sélecteurs de nœuds de ce déploiement. Vérifiez le placement du déploiement ou ajoutez un worker à ce pool.'
+      },
+      failNote: 'Lorsque le paramètre de cluster Runtime.FailBlockedAfterSeconds est supérieur à 0, une exécution qui reste bloquée aussi longtemps échoue avec le résultat « Aucun nœud worker compatible ».',
+      openFleet: 'Ouvrir la flotte',
+      openAgent: 'Ouvrir les déploiements de l\'agent',
+      homeBanner_one: '{{count}} exécution en file d\'attente ne peut pas démarrer : aucun worker prêt ne peut l\'exécuter.',
+      homeBanner_many: '{{count}} exécutions en file d\'attente ne peuvent pas démarrer : aucun worker prêt ne peut les exécuter.',
+      homeBanner_other: '{{count}} exécutions en file d\'attente ne peuvent pas démarrer : aucun worker prêt ne peut les exécuter.',
+      showRuns: 'Voir les exécutions en file d\'attente',
+      queueColumn: 'Bloquées',
+      queueCount_one: '{{count}} bloquée',
+      queueCount_many: '{{count}} bloquées',
+      queueCount_other: '{{count}} bloquées'
+    },
     autoRefresh: {
       label: 'Actualisation automatique',
       none: 'Désactivée',
@@ -1012,7 +1111,7 @@ const fr = {
         ConfigMap: 'Géré par une ConfigMap Kubernetes. Modifiez-le dans vos manifestes.',
         other: 'Ce paramètre ne peut pas être modifié ici.'
       },
-      groups: { General: 'Général', Rest: 'REST', Mcp: 'MCP', Database: 'Base de données', Logging: 'Journalisation', Auth: 'Authentification', Security: 'Sécurité', RequestHistory: 'Historique des requêtes', Telemetry: 'Télémétrie', Cluster: 'Cluster', Scheduling: 'Planification', Runs: 'Exécutions', Audit: 'Audit' },
+      groups: { General: 'Général', Rest: 'REST', Mcp: 'MCP', Database: 'Base de données', Logging: 'Journalisation', Auth: 'Authentification', Security: 'Sécurité', RequestHistory: 'Historique des requêtes', Telemetry: 'Télémétrie', Cluster: 'Cluster', Scheduling: 'Planification', Runs: 'Exécutions', Audit: 'Audit', Runtime: 'Moteur d\'exécution' },
       fields: {}
     },
     analytics: {

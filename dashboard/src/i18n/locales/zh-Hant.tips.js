@@ -275,7 +275,20 @@ const tips = {
       tail: '最後一個模型輸出之後的執行：工具呼叫、結果處理與程序結束。'
     }
   },
+  blocked: {
+    panel: '這個執行為何仍在佇列中，以及需要改什麼才能讓工作節點接手。',
+    openFleet: '開啟機群頁面，查看哪些工作節點已就緒、每個節點回報了哪些 Harness，以及探測詳細資料。',
+    openAgent: '開啟這個執行的代理程式，檢查它的部署，包括每個部署的節點池與節點選取器。',
+    homeBanner: '目前沒有就緒的工作節點能執行的佇列中執行。它們會一直等待，直到出現可執行的工作節點；若設定了 Runtime.FailBlockedAfterSeconds，逾時後會失敗。',
+    showRuns: '開啟依佇列狀態篩選的執行頁面。受阻的執行帶有說明原因的警告徽章。',
+    queueColumn: '這個群組中目前沒有就緒工作節點能執行的佇列中執行。將游標停在徽章上可查看原因與處理方式。'
+  },
   enums: {
+    runBlockedReason: {
+      NoReadyWorker: '受阻：沒有任何工作節點處於就緒狀態，因此沒有節點能接手這個執行。請啟動或註冊工作節點，然後在機群頁面檢查遺失、離線、清空中或已封鎖的節點。',
+      NoCapableWorker: '受阻：有就緒的工作節點，但沒有節點回報這個執行的 Harness 可用。請啟動或註冊已安裝該 Harness 的工作節點，或在機群頁面檢查它的憑證與探測結果。',
+      NoMatchingPool: '受阻：有就緒的工作節點能執行這個 Harness，但沒有節點符合部署的節點池、節點池的租用戶限制或節點選取器。請檢查部署的排程放置，或在該節點池加入工作節點。'
+    },
     runStatus: {
       Pending: '待處理：執行已被接受，正在準備中，尚未加入佇列。',
       Queued: '已排入佇列：等待具有相符 Harness 與排程放置條件的工作節點取得租約。',
@@ -304,7 +317,8 @@ const tips = {
       CompileFailed: '無法編譯部署，例如因為缺少範本變數。',
       WorkspaceFailed: '無法準備工作區，例如因為 Git 複製失敗。',
       Rejected: '請求在執行開始前就被拒絕。',
-      InternalError: 'Garrison 發生內部錯誤。詳細資訊請參閱伺服器記錄。'
+      InternalError: 'Garrison 發生內部錯誤。詳細資訊請參閱伺服器記錄。',
+      NoCapableWorker: '這個執行在佇列中等待的時間超過叢集設定 Runtime.FailBlockedAfterSeconds 允許的時長，而且沒有就緒的工作節點能執行它，因此已失敗。'
     },
     nodeStatus: {
       Ready: '就緒：正在傳送心跳訊號並接受新的執行。',
@@ -987,6 +1001,7 @@ const tips = {
       sourceGeneric: '目前值的來源。',
       testDatabase: '在儲存之前，先以上方的資料庫設定嘗試連線。',
       groups: {
+        Runtime: '控制平面如何處理佇列中的執行，包括執行在失敗前可以等待可執行的工作節點多久。',
         Rest: 'REST API 的接聽方式：主機、連接埠、TLS 與公開位址。',
         Mcp: 'MCP 伺服器的接聽方式，以及工具呼叫可以等待多久。',
         Database: 'Garrison 使用哪個資料庫以及如何連線。',

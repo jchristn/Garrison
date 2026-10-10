@@ -103,6 +103,58 @@ const yueHant = {
     Http503: '伺服器暫時用唔到。'
   },
   enums: {
+    principalType: { Administrator: '系統管理員', User: '用戶', Credential: '存取金鑰', Run: '執行權杖' },
+    runBlockedReason: { NoReadyWorker: '冇就緒嘅工作節點', NoCapableWorker: '冇工作節點做到', NoMatchingPool: '冇相符嘅節點池' },
+    promptDelivery: { Stdin: '標準輸入', Argument: '命令列參數', File: '檔案' },
+    systemPromptDelivery: { File: '檔案', Argument: '命令列參數', Environment: '環境變數', PrependToPrompt: '加喺提示前面', None: '唔傳遞' },
+    mcpConfigFormat: { None: '冇 MCP 設定', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI 設定' },
+    outputParser: {
+      ClaudeStreamJson: 'Claude Code 串流 JSON',
+      CodexJsonl: 'Codex JSONL',
+      MuxJsonl: 'Mux JSONL',
+      GeminiStreamJson: 'Gemini CLI 串流 JSON',
+      GenericJsonl: '通用 JSONL',
+      PlainText: '純文字'
+    },
+    resultSource: { ParserFinalEvent: '解析器最後事件', LastMessageFile: '最後訊息檔案', Stdout: 'Stdout' },
+    successPolicy: { FinalEvent: '最後事件', ExitCode: '結束代碼', FinalEventAndExitCode: '最後事件同結束代碼' },
+    fileBaseDirectory: { Config: '設定目錄', Workspace: '工作區', Home: '主目錄' },
+    artifactStoreKind: { Database: '資料庫', Filesystem: '檔案系統', S3: 'S3' },
+    agentInputMode: { Text: '文字', Structured: '結構化 JSON' },
+    argumentOverrideOperation: { Append: '加喺尾', Prepend: '加喺頭', Remove: '移除', Replace: '取代' },
+    runOverrideValidation: { Any: '任何值', Enum: '清單入面嘅值', Regex: '正規表達式', IntegerRange: '整數範圍' },
+    credentialAuthMode: { DirectHeader: '直接標頭', SignedRequest: '簽署請求', SessionExchange: '換取工作階段權杖', Hybrid: '任何方式' },
+    operationType: { All: '所有操作', Create: '建立', Read: '讀取', Write: '寫入', Update: '更新', Delete: '刪除', Execute: '執行', Admin: '管理' },
+    resourceType: {
+      All: '所有資源',
+      Account: '帳戶',
+      Tenant: '租用戶',
+      Admin: '系統管理',
+      User: '用戶',
+      Credential: '存取金鑰',
+      Session: '工作階段',
+      Role: '角色',
+      Permission: '權限',
+      Assignment: '指派',
+      Audit: '審計記錄',
+      RequestHistory: '請求記錄',
+      Settings: '設定',
+      HarnessProfile: 'Harness 設定檔',
+      PromptTemplate: '提示範本',
+      Agent: '代理程式',
+      Deployment: '部署',
+      McpServer: 'MCP 伺服器',
+      Secret: '機密',
+      Workspace: '工作區',
+      ArtifactStore: '成品存放區',
+      Run: '執行',
+      Node: '節點',
+      NodePool: '節點池',
+      Manifest: '清單',
+      Conversation: '對話',
+      Approval: '批核',
+      Artifact: '成品'
+    },
     runStatus: {
       Pending: '等候中',
       Queued: '排隊中',
@@ -131,7 +183,8 @@ const yueHant = {
       CompileFailed: '編譯失敗',
       WorkspaceFailed: '工作區失敗',
       Rejected: '已拒絕',
-      InternalError: '內部錯誤'
+      InternalError: '內部錯誤',
+      NoCapableWorker: '冇工作節點做到'
     },
     runEventType: {
       Lifecycle: '生命週期',
@@ -285,6 +338,22 @@ const yueHant = {
     run: '執行權杖'
   },
   components: {
+    blocked: {
+      title: '等緊工作節點',
+      body: '呢個執行排緊隊，但係而家冇工作節點接得到。',
+      reasons: {
+        NoReadyWorker: '冇就緒嘅工作節點。請啟動或者註冊一個工作節點，再喺機群頁面睇吓邊啲節點失聯、離線、清空緊或者已封鎖。',
+        NoCapableWorker: '有就緒嘅工作節點，但係冇一個話 {{harness}} Harness 用得。請啟動或者註冊一個裝咗嗰個 Harness 嘅工作節點，或者喺機群頁面睇吓佢嘅憑證同探測結果。',
+        NoMatchingPool: '有就緒嘅工作節點做到 {{harness}}，但係冇一個啱呢個部署嘅節點池或者節點選取器。請檢查部署嘅排程放置，或者喺嗰個節點池加工作節點。'
+      },
+      failNote: '如果叢集設定 Runtime.FailBlockedAfterSeconds 大過 0，塞住咗咁耐嘅執行會以結果「冇工作節點做到」失敗。',
+      openFleet: '打開機群',
+      openAgent: '打開代理程式嘅部署',
+      homeBanner_other: '有 {{count}} 個排緊隊嘅執行開始唔到：冇就緒嘅工作節點做到佢哋。',
+      showRuns: '睇排緊隊嘅執行',
+      queueColumn: '塞住咗',
+      queueCount_other: '{{count}} 個塞住咗'
+    },
     autoRefresh: {
       label: '自動重新整理',
       none: '關閉',
@@ -1002,7 +1071,7 @@ const yueHant = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。請喺你嘅清單入面改。',
         other: '呢個設定唔可以喺度編輯。'
       },
-      groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '日誌', Auth: '驗證', Security: '保安', RequestHistory: '請求記錄', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '審計' },
+      groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '日誌', Auth: '驗證', Security: '保安', RequestHistory: '請求記錄', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '審計', Runtime: '執行階段' },
       fields: {}
     },
     analytics: {

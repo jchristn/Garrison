@@ -103,6 +103,58 @@ const ja = {
     Http503: 'サーバーを利用できません。'
   },
   enums: {
+    principalType: { Administrator: 'システム管理者', User: 'ユーザー', Credential: 'アクセスキー', Run: '実行トークン' },
+    runBlockedReason: { NoReadyWorker: '準備完了のワーカーなし', NoCapableWorker: '対応できるワーカーなし', NoMatchingPool: '一致するプールなし' },
+    promptDelivery: { Stdin: '標準入力', Argument: 'コマンドライン引数', File: 'ファイル' },
+    systemPromptDelivery: { File: 'ファイル', Argument: 'コマンドライン引数', Environment: '環境変数', PrependToPrompt: 'プロンプトの先頭に追加', None: '渡さない' },
+    mcpConfigFormat: { None: 'MCP 設定なし', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI 設定' },
+    outputParser: {
+      ClaudeStreamJson: 'Claude Code ストリーム JSON',
+      CodexJsonl: 'Codex JSONL',
+      MuxJsonl: 'Mux JSONL',
+      GeminiStreamJson: 'Gemini CLI ストリーム JSON',
+      GenericJsonl: '汎用 JSONL',
+      PlainText: 'プレーンテキスト'
+    },
+    resultSource: { ParserFinalEvent: 'パーサーの最終イベント', LastMessageFile: '最終メッセージファイル', Stdout: 'Stdout' },
+    successPolicy: { FinalEvent: '最終イベント', ExitCode: '終了コード', FinalEventAndExitCode: '最終イベントと終了コード' },
+    fileBaseDirectory: { Config: '設定ディレクトリ', Workspace: 'ワークスペース', Home: 'ホームディレクトリ' },
+    artifactStoreKind: { Database: 'データベース', Filesystem: 'ファイルシステム', S3: 'S3' },
+    agentInputMode: { Text: 'テキスト', Structured: '構造化 JSON' },
+    argumentOverrideOperation: { Append: '末尾に追加', Prepend: '先頭に追加', Remove: '削除', Replace: '置換' },
+    runOverrideValidation: { Any: '任意の値', Enum: 'リストのいずれか', Regex: '正規表現', IntegerRange: '整数の範囲' },
+    credentialAuthMode: { DirectHeader: '直接ヘッダー', SignedRequest: '署名付きリクエスト', SessionExchange: 'セッショントークン交換', Hybrid: 'すべての方式' },
+    operationType: { All: 'すべての操作', Create: '作成', Read: '読み取り', Write: '書き込み', Update: '更新', Delete: '削除', Execute: '実行', Admin: '管理' },
+    resourceType: {
+      All: 'すべてのリソース',
+      Account: 'アカウント',
+      Tenant: 'テナント',
+      Admin: '管理',
+      User: 'ユーザー',
+      Credential: 'アクセスキー',
+      Session: 'セッション',
+      Role: 'ロール',
+      Permission: '権限',
+      Assignment: '割り当て',
+      Audit: '監査ログ',
+      RequestHistory: 'リクエスト履歴',
+      Settings: '設定',
+      HarnessProfile: 'ハーネスプロファイル',
+      PromptTemplate: 'プロンプトテンプレート',
+      Agent: 'エージェント',
+      Deployment: 'デプロイメント',
+      McpServer: 'MCP サーバー',
+      Secret: 'シークレット',
+      Workspace: 'ワークスペース',
+      ArtifactStore: '成果物ストア',
+      Run: '実行',
+      Node: 'ノード',
+      NodePool: 'ノードプール',
+      Manifest: 'マニフェスト',
+      Conversation: '会話',
+      Approval: '承認',
+      Artifact: '成果物'
+    },
     runStatus: {
       Pending: '保留中',
       Queued: 'キュー待ち',
@@ -131,7 +183,8 @@ const ja = {
       CompileFailed: 'コンパイル失敗',
       WorkspaceFailed: 'ワークスペース失敗',
       Rejected: '拒否',
-      InternalError: '内部エラー'
+      InternalError: '内部エラー',
+      NoCapableWorker: '対応できるワーカーなし'
     },
     runEventType: {
       Lifecycle: 'ライフサイクル',
@@ -285,6 +338,22 @@ const ja = {
     run: '実行トークン'
   },
   components: {
+    blocked: {
+      title: 'ワーカー待ち',
+      body: 'この実行はキューにありますが、現在引き受けられるワーカーがありません。',
+      reasons: {
+        NoReadyWorker: '準備完了のワーカーノードがありません。ワーカーを起動するか新しく登録し、フリートページで喪失、オフライン、ドレイン中、隔離中のノードを確認してください。',
+        NoCapableWorker: 'ワーカーは準備完了ですが、{{harness}} ハーネスを利用可能と報告しているものがありません。そのハーネスをインストールしたワーカーを起動または登録するか、フリートページで認証情報とプローブ結果を確認してください。',
+        NoMatchingPool: '{{harness}} を実行できる準備完了のワーカーはありますが、このデプロイメントのノードプールやノードセレクターに一致しません。デプロイメントの配置を確認するか、そのプールにワーカーを追加してください。'
+      },
+      failNote: 'クラスター設定 Runtime.FailBlockedAfterSeconds が 0 より大きい場合、その時間ブロックされたままの実行は結果「対応できるワーカーなし」で失敗します。',
+      openFleet: 'フリートを開く',
+      openAgent: 'エージェントのデプロイメントを開く',
+      homeBanner_other: 'キュー内の {{count}} 件の実行を開始できません。準備完了のワーカーで実行できるものがありません。',
+      showRuns: 'キュー内の実行を表示',
+      queueColumn: 'ブロック',
+      queueCount_other: '{{count}} 件ブロック'
+    },
     autoRefresh: {
       label: '自動更新',
       none: 'オフ',
@@ -1001,7 +1070,7 @@ const ja = {
         ConfigMap: 'Kubernetes の ConfigMap で管理されています。マニフェストで変更してください。',
         other: 'この設定はここでは編集できません。'
       },
-      groups: { General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査' },
+      groups: { General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査', Runtime: 'ランタイム' },
       fields: {}
     },
     analytics: {

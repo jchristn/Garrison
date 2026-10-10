@@ -16,6 +16,7 @@ import { pathFor } from '../config/navConfig';
 import { formatNumber, formatRelativeTime, formatTime } from '../i18n/formatters';
 import { overviewKpis } from '../utils/overview';
 import { tip } from '../components/Tooltip';
+import { BlockedRunsBanner } from '../components/BlockedRun';
 import { enumTip } from '../utils/tips';
 
 /** Build the overview from list endpoints when /overview is unavailable. */
@@ -101,6 +102,7 @@ export default function HomeView() {
       />
 
       {overview?.partial && <div className="warning-banner">{t('views.home.partial')}</div>}
+      <BlockedRunsBanner count={Number(overview?.blockedRuns) || 0} />
       {noAgents && (
         <div className="callout" data-testid="setup-callout">
           <div>

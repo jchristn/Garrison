@@ -7,7 +7,9 @@ import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 import { errorMessage } from '../utils/errors';
 import { resourceTip, enumTip } from '../utils/tips';
+import { enumLabel } from '../utils/enums';
 import { runTelemetry, formatMs, formatCount, formatRate, formatUsd } from '../utils/telemetry';
+import { BlockedBadge } from '../components/BlockedRun';
 import { tip } from '../components/Tooltip';
 
 function col(id, t, key, render, extra = {}) {
@@ -64,7 +66,12 @@ export const runsConfig = {
   columns: ({ t, i18n }) => [
     col('runs', t, 'id', (r) => <CopyableId value={r.id} />, { pinned: true, cellClass: 'cell-id' }),
     col('runs', t, 'agentName', (r) => <strong>{r.agentName}</strong>, { sortable: true, serverSort: false }),
-    col('runs', t, 'status', (r) => <RunStatus status={r.status} t={t} />, { sortable: true, serverSort: false }),
+    col('runs', t, 'status', (r) => (
+      <>
+        <RunStatus status={r.status} t={t} />
+        <BlockedBadge run={r} t={t} />
+      </>
+    ), { sortable: true, serverSort: false, csv: (r) => (r.blockedReason && r.status === 'Queued' ? `${r.status} (${r.blockedReason})` : r.status) }),
     col('runs', t, 'outcome', (r) =>
       r.outcome && r.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', r.outcome))}>{t(`enums.runOutcome.${r.outcome}`, { defaultValue: r.outcome })}</span> : '-'
     ),
@@ -118,7 +125,7 @@ export const nodesConfig = {
     col('nodes', t, 'harnesses', (r) =>
       (r.capabilities || [])
         .filter((c) => c.available)
-        .map((c) => c.harnessType)
+        .map((c) => enumLabel(t, 'harnessType', c.harnessType))
         .join(', ') || '-',
       { csv: (r) => (r.capabilities || []).filter((c) => c.available).map((c) => c.harnessType).join(' ') }
     ),
@@ -189,7 +196,7 @@ export const auditConfig = {
     col('audit', t, 'createdUtc', (r) => <span {...tip(formatDateTime(r.createdUtc, i18n.language))}>{formatRelativeTime(r.createdUtc, i18n.language)}</span>, { sortable: true, pinned: true }),
     col('audit', t, 'eventType', (r) => <Badge tone={/Denied|Failure/.test(r.eventType) ? 'danger' : /Bypass/.test(r.eventType) ? 'warning' : 'neutral'} tip={enumTip(t, 'auditEventType', r.eventType)}>{t(`enums.auditEventType.${r.eventType}`, { defaultValue: r.eventType })}</Badge>),
     col('audit', t, 'principalName', (r) => r.principalName || r.principalId || '-'),
-    col('audit', t, 'resource', (r) => [r.resourceType, r.operation].filter(Boolean).join(' / ') || '-', { csv: (r) => [r.resourceType, r.operation].filter(Boolean).join('/') }),
+    col('audit', t, 'resource', (r) => [r.resourceType && enumLabel(t, 'resourceType', r.resourceType), r.operation && enumLabel(t, 'operationType', r.operation)].filter(Boolean).join(' / ') || '-', { csv: (r) => [r.resourceType, r.operation].filter(Boolean).join('/') }),
     col('audit', t, 'reason', (r) => r.reason || r.description || '-'),
     col('audit', t, 'sourceIp', (r) => r.sourceIp || '-', { defaultHidden: true }),
     col('audit', t, 'id', (r) => <CopyableId value={r.id} />, { cellClass: 'cell-id', defaultHidden: true })

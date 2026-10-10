@@ -23,6 +23,7 @@ import RunTelemetryPanel from '../components/RunTelemetryPanel';
 import ExportMenu from '../components/ExportMenu';
 import { exportFileName, toCsv } from '../utils/exporters';
 import { tip } from '../components/Tooltip';
+import { BlockedBadge, BlockedRunNotice } from '../components/BlockedRun';
 import { enumTip } from '../utils/tips';
 
 function Detail({ label, tip: tipText, children }) {
@@ -173,7 +174,7 @@ export default function RunDetailView({ recordId }) {
         title={t('views.runDetail.titleWithAgent', { agent: run.agentName })}
         subtitle={
           <span className="inline-meta">
-            <CopyableId value={run.id} max={40} /> <RunStatus status={run.status} t={t} /> {live && <span className="pill pill-info" {...tip(t('tips.views.runDetail.live'))}>{t('topbar.live')}</span>}
+            <CopyableId value={run.id} max={40} /> <RunStatus status={run.status} t={t} /> <BlockedBadge run={run} t={t} /> {live && <span className="pill pill-info" {...tip(t('tips.views.runDetail.live'))}>{t('topbar.live')}</span>}
           </span>
         }
         actions={
@@ -194,6 +195,8 @@ export default function RunDetailView({ recordId }) {
           </>
         }
       />
+
+      <BlockedRunNotice run={run} />
 
       <div className="panel detail-grid run-summary">
         <Detail label={t('resources.runs.columns.outcome')} tip={t('tips.resources.runs.outcome')}>

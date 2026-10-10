@@ -275,7 +275,20 @@ const tips = {
       tail: 'Ejecución posterior a la última salida del modelo: llamadas a herramientas, gestión del resultado y salida del proceso.'
     }
   },
+  blocked: {
+    panel: 'Por qué esta ejecución sigue en cola y qué cambiar para que un nodo de trabajo pueda tomarla.',
+    openFleet: 'Abre la página Flota para ver qué nodos de trabajo están listos, qué harness informa cada uno y los detalles de sus sondas.',
+    openAgent: 'Abre el agente de esta ejecución para revisar sus despliegues, incluido el grupo de nodos y los selectores de nodo de cada uno.',
+    homeBanner: 'Ejecuciones en cola que ahora mismo ningún nodo de trabajo listo puede ejecutar. Siguen en cola hasta que aparezca uno compatible, o fallan cuando Runtime.FailBlockedAfterSeconds está definido y se agota.',
+    showRuns: 'Abre la página Ejecuciones filtrada por ejecuciones en cola. Las bloqueadas llevan una insignia de aviso que explica el motivo.',
+    queueColumn: 'Ejecuciones en cola de este grupo que ahora mismo ningún nodo de trabajo listo puede ejecutar. Pasa el cursor por la insignia para ver el motivo y qué hacer.'
+  },
   enums: {
+    runBlockedReason: {
+      NoReadyWorker: 'Bloqueada: ningún nodo de trabajo está listo, así que nadie puede tomar esta ejecución. Inicia un nodo de trabajo o registra uno nuevo y revisa en la página Flota los nodos perdidos, desconectados, drenando o acordonados.',
+      NoCapableWorker: 'Bloqueada: hay nodos de trabajo listos, pero ninguno informa del harness de esta ejecución como disponible. Inicia o registra un nodo de trabajo con el harness instalado, o revisa sus credenciales y los resultados de las sondas en la página Flota.',
+      NoMatchingPool: 'Bloqueada: un nodo de trabajo listo puede ejecutar este harness, pero ninguno coincide con el grupo de nodos del despliegue, la restricción de inquilino del grupo o sus selectores de nodo. Revisa la ubicación del despliegue o añade un nodo de trabajo a ese grupo.'
+    },
     runStatus: {
       Pending: 'Pendiente: la ejecución se aceptó y se está preparando antes de entrar en la cola.',
       Queued: 'En cola: esperando a que un nodo de trabajo con un harness y una ubicación compatibles obtenga su concesión.',
@@ -304,7 +317,8 @@ const tips = {
       CompileFailed: 'No se pudo compilar el despliegue, por ejemplo por faltar una variable de plantilla.',
       WorkspaceFailed: 'No se pudo preparar el espacio de trabajo, por ejemplo porque falló un clon de Git.',
       Rejected: 'La solicitud se rechazó antes de que pudiera iniciarse una ejecución.',
-      InternalError: 'Garrison encontró un error interno. Los registros del servidor tienen los detalles.'
+      InternalError: 'Garrison encontró un error interno. Los registros del servidor tienen los detalles.',
+      NoCapableWorker: 'La ejecución esperó en la cola más tiempo del que permite el ajuste de clúster Runtime.FailBlockedAfterSeconds y ningún nodo de trabajo listo podía ejecutarla, así que falló.'
     },
     nodeStatus: {
       Ready: 'Listo: envía latidos y acepta nuevas ejecuciones.',
@@ -987,6 +1001,7 @@ const tips = {
       sourceGeneric: 'De dónde proviene el valor actual.',
       testDatabase: 'Prueba a conectarte con los ajustes de base de datos de arriba antes de guardarlos.',
       groups: {
+        Runtime: 'Cómo trata el plano de control las ejecuciones en cola, incluido cuánto puede esperar una ejecución a un nodo de trabajo compatible antes de fallar.',
         Rest: 'Cómo escucha la API REST: host, puerto, TLS y dirección pública.',
         Mcp: 'Cómo escucha el servidor MCP y cuánto pueden esperar las llamadas a herramientas.',
         Database: 'Qué base de datos usa Garrison y cómo conectarse a ella.',

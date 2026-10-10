@@ -103,6 +103,58 @@ const zhHans = {
     Http503: '服务器不可用。'
   },
   enums: {
+    principalType: { Administrator: '系统管理员', User: '用户', Credential: '访问密钥', Run: '运行令牌' },
+    runBlockedReason: { NoReadyWorker: '没有就绪的工作节点', NoCapableWorker: '没有可用的工作节点', NoMatchingPool: '没有匹配的节点池' },
+    promptDelivery: { Stdin: '标准输入', Argument: '命令行参数', File: '文件' },
+    systemPromptDelivery: { File: '文件', Argument: '命令行参数', Environment: '环境变量', PrependToPrompt: '加在提示词前面', None: '不传递' },
+    mcpConfigFormat: { None: '无 MCP 配置', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI 设置' },
+    outputParser: {
+      ClaudeStreamJson: 'Claude Code 流式 JSON',
+      CodexJsonl: 'Codex JSONL',
+      MuxJsonl: 'Mux JSONL',
+      GeminiStreamJson: 'Gemini CLI 流式 JSON',
+      GenericJsonl: '通用 JSONL',
+      PlainText: '纯文本'
+    },
+    resultSource: { ParserFinalEvent: '解析器最终事件', LastMessageFile: '最后消息文件', Stdout: 'Stdout' },
+    successPolicy: { FinalEvent: '最终事件', ExitCode: '退出码', FinalEventAndExitCode: '最终事件和退出码' },
+    fileBaseDirectory: { Config: '配置目录', Workspace: '工作区', Home: '主目录' },
+    artifactStoreKind: { Database: '数据库', Filesystem: '文件系统', S3: 'S3' },
+    agentInputMode: { Text: '文本', Structured: '结构化 JSON' },
+    argumentOverrideOperation: { Append: '追加到末尾', Prepend: '插入到开头', Remove: '移除', Replace: '替换' },
+    runOverrideValidation: { Any: '任意值', Enum: '列表中的值', Regex: '正则表达式', IntegerRange: '整数范围' },
+    credentialAuthMode: { DirectHeader: '直接请求头', SignedRequest: '签名请求', SessionExchange: '换取会话令牌', Hybrid: '任意方式' },
+    operationType: { All: '所有操作', Create: '创建', Read: '读取', Write: '写入', Update: '更新', Delete: '删除', Execute: '执行', Admin: '管理' },
+    resourceType: {
+      All: '所有资源',
+      Account: '账户',
+      Tenant: '租户',
+      Admin: '系统管理',
+      User: '用户',
+      Credential: '访问密钥',
+      Session: '会话',
+      Role: '角色',
+      Permission: '权限',
+      Assignment: '分配',
+      Audit: '审计日志',
+      RequestHistory: '请求历史',
+      Settings: '设置',
+      HarnessProfile: 'Harness 配置文件',
+      PromptTemplate: '提示词模板',
+      Agent: '智能体',
+      Deployment: '部署',
+      McpServer: 'MCP 服务器',
+      Secret: '机密',
+      Workspace: '工作区',
+      ArtifactStore: '制品存储',
+      Run: '运行',
+      Node: '节点',
+      NodePool: '节点池',
+      Manifest: '清单',
+      Conversation: '对话',
+      Approval: '审批',
+      Artifact: '制品'
+    },
     runStatus: {
       Pending: '待处理',
       Queued: '已排队',
@@ -131,7 +183,8 @@ const zhHans = {
       CompileFailed: '编译失败',
       WorkspaceFailed: '工作区失败',
       Rejected: '已拒绝',
-      InternalError: '内部错误'
+      InternalError: '内部错误',
+      NoCapableWorker: '没有可用的工作节点'
     },
     runEventType: {
       Lifecycle: '生命周期',
@@ -285,6 +338,22 @@ const zhHans = {
     run: '运行令牌'
   },
   components: {
+    blocked: {
+      title: '等待工作节点',
+      body: '此运行已排队，但目前没有工作节点能接手。',
+      reasons: {
+        NoReadyWorker: '没有就绪的工作节点。请启动或注册一个工作节点，并在机群页面检查丢失、离线、排空中或已封锁的节点。',
+        NoCapableWorker: '有就绪的工作节点，但没有节点报告 {{harness}} Harness 可用。请启动或注册一个已安装该 Harness 的工作节点，或在机群页面检查它的凭据和探测结果。',
+        NoMatchingPool: '有就绪的工作节点能运行 {{harness}}，但没有节点符合此部署的节点池或节点选择器。请检查部署的调度放置，或向该节点池添加工作节点。'
+      },
+      failNote: '当集群设置 Runtime.FailBlockedAfterSeconds 大于 0 时，阻塞达到该时长的运行会以结果“没有可用的工作节点”失败。',
+      openFleet: '打开机群',
+      openAgent: '打开智能体的部署',
+      homeBanner_other: '{{count}} 个排队中的运行无法开始：没有就绪的工作节点能运行它们。',
+      showRuns: '查看排队中的运行',
+      queueColumn: '已阻塞',
+      queueCount_other: '{{count}} 个已阻塞'
+    },
     autoRefresh: {
       label: '自动刷新',
       none: '关闭',
@@ -1003,7 +1072,7 @@ const zhHans = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。请在你的清单中修改。',
         other: '此设置无法在此处编辑。'
       },
-      groups: { General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计' },
+      groups: { General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计', Runtime: '运行时' },
       fields: {}
     },
     analytics: {
