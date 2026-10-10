@@ -7,7 +7,9 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
     using Garrison.Core.Database;
+    using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Protocol;
     using Garrison.Core.Requests;
@@ -121,6 +123,7 @@ namespace Garrison.Server.Runtime
                 evt.EventType = e.EventType;
                 evt.TimestampUtc = e.TimestampUtc;
                 evt.Text = e.Text;
+                evt.Code = e.Code;
                 evt.ToolName = e.ToolName;
                 evt.ToolCallId = e.ToolCallId;
                 evt.Success = e.Success;
@@ -283,6 +286,30 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        private async Task ApplyDelegationWaitAsync(Run run, DateTime receivedUtc, CancellationToken token)
+        {
+            // Child runs (parentRunId equals this run) on the server clock; the worker's clock is not used.
+            List<Run> children = new List<Run>();
+            RunFilter filter = new RunFilter();
+            filter.TenantId = run.TenantId;
+            filter.ParentRunId = run.Id;
+            filter.MaxResults = 1000;
+            filter.Ordering = EnumerationOrderEnum.CreatedAscending;
+            for (int page = 0; page < 10; page++)
+            {
+                token.ThrowIfCancellationRequested();
+                filter.Skip = page * filter.MaxResults;
+                EnumerationResult<Run> result = await _Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
+                children.AddRange(result.Objects);
+                if (result.Objects.Count < filter.MaxResults) break;
+            }
+
+            DateTime windowStart = run.StartedUtc ?? run.LeasedUtc ?? run.CreatedUtc;
+            DelegationWaitResult wait = DelegationWaitCalculator.Compute(windowStart, receivedUtc, run.TimeToFirstTokenMs, children);
+            run.DelegationWaitMs = wait.DelegationWaitMs;
+            run.TimeToFirstTokenExcludingDelegationMs = wait.TimeToFirstTokenExcludingDelegationMs;
+        }
+
         private static long? Sum(long? first, long? second)
         {
             if (!first.HasValue) return second;
@@ -334,6 +361,7 @@ namespace Garrison.Server.Runtime
             DateTime receivedUtc = DateTime.UtcNow;
             run.QueueMs = Run.ElapsedMs(run.QueuedUtc, run.LeasedUtc);
             run.TotalMs = Run.ElapsedMs(run.QueuedUtc, receivedUtc);
+            await ApplyDelegationWaitAsync(run, receivedUtc, token).ConfigureAwait(false);
 
             if (!await _Database.Runs.CompleteAsync(run, request.NodeId, request.Epoch, token).ConfigureAwait(false))
             {

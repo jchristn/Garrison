@@ -57,14 +57,37 @@ namespace Garrison.Sdk.Test
                     Require(health.Status == "healthy", "status " + health.Status);
                 }).ConfigureAwait(false);
 
+                int authFailureStatus = 0;
                 await CheckAsync("token auth", async () =>
                 {
-                    TokenResponse issued = await client.LoginWithKeysAsync(accessKey, secretKey, token).ConfigureAwait(false);
+                    TokenResponse issued;
+                    try
+                    {
+                        issued = await client.LoginWithKeysAsync(accessKey, secretKey, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 401 || e.StatusCode == 403)
+                    {
+                        authFailureStatus = e.StatusCode;
+                        throw;
+                    }
+
                     Require(!String.IsNullOrEmpty(issued.Token), "empty token");
                     tenantId = issued.TenantId;
                     TokenDetailsResponse details = await client.GetTokenDetailsAsync(token).ConfigureAwait(false);
                     Require(details.PrincipalType == PrincipalTypeEnum.Credential, "principal " + details.PrincipalType);
                 }).ConfigureAwait(false);
+
+                if (authFailureStatus != 0)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine(
+                        "Authentication failed (HTTP " + authFailureStatus + "): the server rejected access key " + accessKey + ". "
+                        + "The remaining checks need a signed-in client, so the harness stops here. Pass this server's keys as arguments: "
+                        + "Garrison.Sdk.Test <baseUrl> <accessKey> <secretKey>. Docker Compose and source builds default to "
+                        + "access_garrison_default and secret_garrison_default_change_me; on Kubernetes read default-access-key and "
+                        + "default-secret-key from Secret garrison-secrets (see README, \"Where the credentials come from\").");
+                    return 1;
+                }
 
                 await CheckAsync("signed request auth", async () =>
                 {

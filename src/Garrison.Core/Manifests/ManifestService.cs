@@ -135,6 +135,8 @@ namespace Garrison.Core.Manifests
                 item.Kind = planned.Document.Kind;
                 item.Name = planned.Document.Metadata.Name;
                 item.ResourceId = planned.ResourceId;
+                item.PlannedResult = planned.Result;
+                if (planned.Result == ManifestApplyResultEnum.Updated) item.Changes = planned.Changes;
                 if (planned.Result == ManifestApplyResultEnum.Failed)
                 {
                     item.Result = ManifestApplyResultEnum.Failed;
@@ -142,7 +144,10 @@ namespace Garrison.Core.Manifests
                 else if (options.DryRun)
                 {
                     item.Result = ManifestApplyResultEnum.Validated;
-                    planned.Message = planned.Message ?? ("Would be " + planned.Result.ToString().ToLowerInvariant() + ".");
+                    planned.Message = planned.Message ?? DryRunMessage(planned);
+
+                    // Nothing was written, so a document that would be created has no resource yet.
+                    if (planned.Result == ManifestApplyResultEnum.Created) item.ResourceId = null;
                 }
                 else if (failed)
                 {
@@ -157,9 +162,11 @@ namespace Garrison.Core.Manifests
                 apply.Items.Add(item);
             }
 
-            apply.CreatedCount = apply.Items.Count(i => i.Result == ManifestApplyResultEnum.Created);
-            apply.UpdatedCount = apply.Items.Count(i => i.Result == ManifestApplyResultEnum.Updated);
-            apply.UnchangedCount = apply.Items.Count(i => i.Result == ManifestApplyResultEnum.Unchanged);
+            // A dry run counts what would happen; a real apply counts what happened.
+            Func<ManifestApplyItem, ManifestApplyResultEnum?> outcome = i => options.DryRun && i.Result == ManifestApplyResultEnum.Validated ? i.PlannedResult : i.Result;
+            apply.CreatedCount = apply.Items.Count(i => outcome(i) == ManifestApplyResultEnum.Created);
+            apply.UpdatedCount = apply.Items.Count(i => outcome(i) == ManifestApplyResultEnum.Updated);
+            apply.UnchangedCount = apply.Items.Count(i => outcome(i) == ManifestApplyResultEnum.Unchanged);
             apply.FailedCount = apply.Items.Count(i => i.Result == ManifestApplyResultEnum.Failed);
             return await _Database.ManifestApplies.CreateAsync(apply, token).ConfigureAwait(false);
         }
@@ -241,7 +248,13 @@ namespace Garrison.Core.Manifests
         private async Task PlanSecretAsync(string tenantId, ManifestDocument document, ManifestApplyOptions options, Resolver resolver, Planned planned, CancellationToken token)
         {
             SecretSpec spec = Deserialize<SecretSpec>(document);
+            Dictionary<string, string> expiryErrors = new Dictionary<string, string>();
+            if (!ConfigurationValidator.SecretExpiry(spec.ExpiresUtc, DateTime.UtcNow, expiryErrors, "spec.expiresUtc"))
+            {
+                throw new ValidationException("Secret " + document.Metadata.Name + " has an invalid expiry.", expiryErrors, new Dictionary<string, string> { { "spec.expiresUtc", "ExpiryInPast" } });
+            }
             Secret? existing = await _Database.Secrets.ReadByNameAsync(tenantId, document.Metadata.Name, token).ConfigureAwait(false);
+            Dictionary<string, object?>? beforeTree = existing == null ? null : SecretTree(existing);
             Secret secret = existing ?? new Secret();
             secret.TenantId = tenantId;
             secret.Name = document.Metadata.Name;
@@ -266,7 +279,12 @@ namespace Garrison.Core.Manifests
 
             planned.Model = secret;
             planned.ResourceId = secret.Id;
-            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (valueChanged || !Same(SecretTree(existing), SecretTree(secret)) ? ManifestApplyResultEnum.Updated : ManifestApplyResultEnum.Unchanged);
+            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (valueChanged || !Same(beforeTree!, SecretTree(secret)) ? ManifestApplyResultEnum.Updated : ManifestApplyResultEnum.Unchanged);
+            if (planned.Result == ManifestApplyResultEnum.Updated)
+            {
+                planned.Changes = Diff(beforeTree!, SecretTree(secret));
+                if (valueChanged) planned.Changes.Add(new ManifestFieldChange("value", "(hidden)", "(hidden, changed)"));
+            }
             resolver.Add("Secret", secret.Name, secret.Id);
         }
 
@@ -292,6 +310,7 @@ namespace Garrison.Core.Manifests
             planned.ResourceId = template.Id;
             planned.ContentChanged = contentChanged;
             planned.Result = existing == null ? ManifestApplyResultEnum.Created : (!Same(PromptTree(before), PromptTree(template)) ? ManifestApplyResultEnum.Updated : ManifestApplyResultEnum.Unchanged);
+            if (planned.Result == ManifestApplyResultEnum.Updated) planned.Changes = Diff(PromptTree(before), PromptTree(template));
             resolver.Add("PromptTemplate", template.Name, template.Id);
         }
 
@@ -314,6 +333,7 @@ namespace Garrison.Core.Manifests
             planned.Model = profile;
             planned.ResourceId = profile.Id;
             planned.Result = existing == null ? ManifestApplyResultEnum.Created : (Same(Tree(existing), Tree(profile)) ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            if (planned.Result == ManifestApplyResultEnum.Updated) planned.Changes = Diff(Tree(existing!), Tree(profile));
             resolver.Add("HarnessProfile", profile.Name, profile.Id);
         }
 
@@ -332,6 +352,7 @@ namespace Garrison.Core.Manifests
             planned.Model = server;
             planned.ResourceId = server.Id;
             planned.Result = existing == null ? ManifestApplyResultEnum.Created : (Same(Tree(existing), Tree(server)) ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            if (planned.Result == ManifestApplyResultEnum.Updated) planned.Changes = Diff(Tree(existing!), Tree(server));
             resolver.Add("McpServer", server.Name, server.Id);
         }
 
@@ -352,6 +373,7 @@ namespace Garrison.Core.Manifests
             planned.Model = workspace;
             planned.ResourceId = workspace.Id;
             planned.Result = existing == null ? ManifestApplyResultEnum.Created : (Same(Tree(existing), Tree(workspace)) ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            if (planned.Result == ManifestApplyResultEnum.Updated) planned.Changes = Diff(Tree(existing!), Tree(workspace));
             resolver.Add("WorkspaceTemplate", workspace.Name, workspace.Id);
         }
 
@@ -402,7 +424,17 @@ namespace Garrison.Core.Manifests
             ConfigurationValidator.Agent(agent);
             planned.Model = agent;
             planned.ResourceId = agent.Id;
-            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (Same(await AgentTreeAsync(existing, resolver, token).ConfigureAwait(false), await AgentTreeAsync(agent, resolver, token).ConfigureAwait(false)) ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            if (existing == null)
+            {
+                planned.Result = ManifestApplyResultEnum.Created;
+            }
+            else
+            {
+                Dictionary<string, object?> agentBefore = await AgentTreeAsync(existing, resolver, token).ConfigureAwait(false);
+                Dictionary<string, object?> agentAfter = await AgentTreeAsync(agent, resolver, token).ConfigureAwait(false);
+                planned.Result = Same(agentBefore, agentAfter) ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated;
+                if (planned.Result == ManifestApplyResultEnum.Updated) planned.Changes = Diff(agentBefore, agentAfter);
+            }
             resolver.Add("Agent", agent.Name, agent.Id);
         }
 
@@ -493,7 +525,14 @@ namespace Garrison.Core.Manifests
 
             planned.Model = deployment;
             planned.ResourceId = deployment.Id;
-            bool unchanged = existing != null && Same(await DeploymentTreeAsync(existing, resolver, token).ConfigureAwait(false), await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false));
+            bool unchanged = false;
+            if (existing != null)
+            {
+                Dictionary<string, object?> deploymentBefore = await DeploymentTreeAsync(existing, resolver, token).ConfigureAwait(false);
+                Dictionary<string, object?> deploymentAfter = await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false);
+                unchanged = Same(deploymentBefore, deploymentAfter);
+                if (!unchanged) planned.Changes = Diff(deploymentBefore, deploymentAfter);
+            }
             planned.Result = existing == null ? ManifestApplyResultEnum.Created : (unchanged ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
             if (existing != null && !unchanged) deployment.ConfigVersion = existing.ConfigVersion + 1;
             resolver.Add("Deployment", deployment.Name, deployment.Id);
@@ -610,6 +649,54 @@ namespace Garrison.Core.Manifests
         private static bool Same(Dictionary<string, object?> a, Dictionary<string, object?> b)
         {
             return TemplateValues.ToJson(a) == TemplateValues.ToJson(b);
+        }
+
+        private static string DryRunMessage(Planned planned)
+        {
+            switch (planned.Result)
+            {
+                case ManifestApplyResultEnum.Created:
+                    return "Would be created.";
+                case ManifestApplyResultEnum.Unchanged:
+                    return "Already up to date; would be left unchanged.";
+                case ManifestApplyResultEnum.Updated:
+                    return "Would be updated: " + (planned.Changes.Count == 0 ? "no field differences recorded." : String.Join(", ", planned.Changes.Select(c => c.Field)) + ".");
+                default:
+                    return "Would be " + planned.Result.ToString().ToLowerInvariant() + ".";
+            }
+        }
+
+        private static List<ManifestFieldChange> Diff(Dictionary<string, object?> before, Dictionary<string, object?> after)
+        {
+            Dictionary<string, string?> left = new Dictionary<string, string?>(StringComparer.Ordinal);
+            Dictionary<string, string?> right = new Dictionary<string, string?>(StringComparer.Ordinal);
+            Flatten(before, String.Empty, left);
+            Flatten(after, String.Empty, right);
+            List<ManifestFieldChange> changes = new List<ManifestFieldChange>();
+            foreach (string field in left.Keys.Union(right.Keys).OrderBy(k => k, StringComparer.Ordinal))
+            {
+                left.TryGetValue(field, out string? was);
+                right.TryGetValue(field, out string? now);
+                if (!String.Equals(was, now, StringComparison.Ordinal)) changes.Add(new ManifestFieldChange(field, was, now));
+            }
+            return changes;
+        }
+
+        private static void Flatten(object? value, string path, Dictionary<string, string?> output)
+        {
+            if (value is Dictionary<string, object?> map)
+            {
+                foreach (KeyValuePair<string, object?> entry in map) Flatten(entry.Value, path.Length == 0 ? entry.Key : path + "." + entry.Key, output);
+                return;
+            }
+            if (value is List<object?> list)
+            {
+                if (list.Count == 0 && path.Length > 0) output[path] = "[]";
+                for (int i = 0; i < list.Count; i++) Flatten(list[i], path + "[" + i + "]", output);
+                return;
+            }
+            if (path.Length == 0) return;
+            output[path] = value == null ? null : TemplateValues.ToText(value);
         }
 
         private static Dictionary<string, object?> SecretTree(Secret secret)

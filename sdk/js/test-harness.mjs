@@ -27,11 +27,25 @@ console.log(`Garrison JavaScript SDK harness against ${baseUrl}`);
 
 await check("health", async () => require((await client.health()).status === "healthy", "not healthy"));
 await check("token auth", async () => {
-  const issued = await client.loginWithKeys(accessKey, secretKey);
+  let issued;
+  try {
+    issued = await client.loginWithKeys(accessKey, secretKey);
+  } catch (e) {
+    if (e instanceof GarrisonError && (e.statusCode === 401 || e.statusCode === 403)) state.authFailed = e.statusCode;
+    throw e;
+  }
   require(issued.token, "no token");
   state.tenant = issued.tenantId;
   require((await client.tokenDetails()).principalType === "Credential", "unexpected principal");
 });
+if (state.authFailed) {
+  console.log(`\nAuthentication failed (HTTP ${state.authFailed}): the server rejected access key ${accessKey}. ` +
+    "The remaining checks need a signed-in client, so the harness stops here. Pass this server's keys as arguments: " +
+    "node test-harness.mjs <baseUrl> <accessKey> <secretKey>. Docker Compose and source builds default to " +
+    "access_garrison_default and secret_garrison_default_change_me; on Kubernetes read default-access-key and " +
+    "default-secret-key from Secret garrison-secrets (see README, \"Where the credentials come from\").");
+  process.exit(1);
+}
 await check("signed request auth", async () => {
   const signed = new GarrisonClient(baseUrl);
   signed.useSignedRequests(accessKey, secretKey, state.tenant ?? "default");

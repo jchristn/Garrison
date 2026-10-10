@@ -58,6 +58,10 @@ namespace Garrison.Core.Database.Ado
             v3.BuildVersion3();
             migrations.Add(new SchemaMigration(3, "Structured output validation and repair", v3._Statements, v3._Columns));
 
+            SchemaBuilder v4 = new SchemaBuilder(catalog, dialect);
+            v4.BuildVersion4();
+            migrations.Add(new SchemaMigration(4, "Delegation wait telemetry, manifest field changes, and run event codes", v4._Statements, v4._Columns));
+
             return migrations;
         }
 
@@ -99,6 +103,31 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion4()
+        {
+            SqlDialect d = _Dialect;
+
+            // runs: time spent waiting on delegated child runs, and time to first token without it (M1-08)
+            Column("runs", "delegationwaitms", d.TypeBigInt);
+            Column("runs", "ttftexcldelegationms", d.TypeBigInt);
+
+            // run events: machine code for text Garrison generates (M1-24)
+            Column("run_events", "code", "VARCHAR(64)");
+
+            // manifest applies: the planned result in dry runs and per-field changes for updated documents (M1-14)
+            Column("manifest_apply_items", "plannedresult", "VARCHAR(64)");
+            Table("manifest_apply_changes",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "manifestapplyid " + d.TypeId + " NOT NULL",
+                "manifestapplyitemid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + "",
+                "position " + d.TypeInt + " NOT NULL",
+                "field VARCHAR(512) NOT NULL",
+                "beforevalue " + d.TypeText + "",
+                "aftervalue " + d.TypeText + "");
+            Index("manifest_apply_changes", "parent", false, "manifestapplyid");
         }
 
         private void BuildVersion3()

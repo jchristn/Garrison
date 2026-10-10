@@ -78,6 +78,26 @@ namespace Garrison.Sdk.Responses
         public double? TimeToFirstTokenMsP95 { get; set; } = null;
 
         /// <summary>
+        /// Average time to first token excluding delegation wait, in milliseconds, or null.
+        /// </summary>
+        public double? TimeToFirstTokenExcludingDelegationMsAvg { get; set; } = null;
+
+        /// <summary>
+        /// Median time to first token excluding delegation wait, in milliseconds, or null.
+        /// </summary>
+        public double? TimeToFirstTokenExcludingDelegationMsP50 { get; set; } = null;
+
+        /// <summary>
+        /// 95th percentile time to first token excluding delegation wait, in milliseconds, or null.
+        /// </summary>
+        public double? TimeToFirstTokenExcludingDelegationMsP95 { get; set; } = null;
+
+        /// <summary>
+        /// Average time runs spent waiting on child runs they delegated to, in milliseconds, or null.
+        /// </summary>
+        public double? DelegationWaitMsAvg { get; set; } = null;
+
+        /// <summary>
         /// Average streaming time in milliseconds, or null.
         /// </summary>
         public double? StreamingMsAvg { get; set; } = null;

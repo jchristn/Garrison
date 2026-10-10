@@ -83,6 +83,31 @@ namespace Garrison.Core.Responses
         public double? TimeToFirstTokenMsP95 { get; set; } = null;
 
         /// <summary>
+        /// Average milliseconds runs spent waiting on child runs they delegated to (runs that recorded it, including
+        /// runs that delegated nothing, which count as 0).
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public double? DelegationWaitMsAvg { get; set; } = null;
+
+        /// <summary>
+        /// Average time to first token excluding the delegation wait before the first token.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public double? TimeToFirstTokenExcludingDelegationMsAvg { get; set; } = null;
+
+        /// <summary>
+        /// Median time to first token excluding delegation wait (nearest rank).
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public double? TimeToFirstTokenExcludingDelegationMsP50 { get; set; } = null;
+
+        /// <summary>
+        /// 95th percentile time to first token excluding delegation wait (nearest rank).
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public double? TimeToFirstTokenExcludingDelegationMsP95 { get; set; } = null;
+
+        /// <summary>
         /// Average streaming time.
         /// </summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.Never)]

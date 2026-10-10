@@ -181,6 +181,12 @@ namespace Garrison.Server.Routes
         private async Task RetryAsync(HttpContextBase context)
         {
             Run run = await RequireRunAsync(context).ConfigureAwait(false);
+            if (await _Context.Database.Agents.ReadAsync(run.TenantId, run.AgentId, context.Token).ConfigureAwait(false) == null)
+            {
+                // Checked before the agent permission so the caller learns why, instead of a generic not found.
+                await RouteHelpers.ErrorAsync(context, 409, "AgentDeleted", "Run " + run.Id + " cannot be retried because the agent " + run.AgentName + " was deleted.").ConfigureAwait(false);
+                return;
+            }
             if (_Routes != null && !await _Routes.RequireAsync(context, run.TenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, run.AgentId).ConfigureAwait(false)) return;
             RequestContext ctx = RouteHelpers.Context(context);
             RunCreateContext caller = new RunCreateContext();

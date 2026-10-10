@@ -48,6 +48,18 @@ namespace Garrison.Core.Responses
         public System.Collections.Generic.Dictionary<string, string>? Fields { get; set; } = null;
 
         /// <summary>
+        /// Validation errors keyed by field or setting path (for example Audit.RetentionDays), with a human message for
+        /// each. Same content as Fields; present on every 400 ValidationFailed response that names fields.
+        /// </summary>
+        public System.Collections.Generic.Dictionary<string, string>? Errors { get; set; } = null;
+
+        /// <summary>
+        /// Stable machine code for each entry in Errors, keyed by the same path (for example OutOfRange,
+        /// NotAnInteger, ParameterNotAllowed, or Invalid when no specific code applies), for translated messages.
+        /// </summary>
+        public System.Collections.Generic.Dictionary<string, string>? FieldCodes { get; set; } = null;
+
+        /// <summary>
         /// Instantiate.
         /// </summary>
         public ErrorResponse()

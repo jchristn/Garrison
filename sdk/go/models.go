@@ -136,6 +136,12 @@ type Run struct {
 	QueueMs *int64 `json:"queueMs,omitempty"`
 	// TotalMs is milliseconds from queued to completed (server clock); nil when not measurable.
 	TotalMs *int64 `json:"totalMs,omitempty"`
+	// DelegationWaitMs is milliseconds the run spent waiting on child runs it started, measured from server
+	// timestamps of the child runs whose parentRunId is this run; nil when not measurable.
+	DelegationWaitMs *int64 `json:"delegationWaitMs,omitempty"`
+	// TimeToFirstTokenExcludingDelegationMs is time to first token minus the delegation wait that happened before
+	// the first token, never negative; nil when not measurable.
+	TimeToFirstTokenExcludingDelegationMs *int64 `json:"timeToFirstTokenExcludingDelegationMs,omitempty"`
 	// OutputTokensPerSecond is output tokens divided by streaming time; nil when not measurable.
 	OutputTokensPerSecond *float64 `json:"outputTokensPerSecond,omitempty"`
 	// ReasoningTokens is the reasoning token count reported by the harness. Default 0.
@@ -213,12 +219,45 @@ type RunFilter struct {
 	MaxResults, Skip                                                                              int
 }
 
-// ManifestApply is the result of applying manifests.
+// ManifestApply is the result of applying manifests. Items is kept raw for forward compatibility; call
+// ParsedItems for the typed per-document results.
 type ManifestApply struct {
 	ID          string          `json:"id"`
 	DryRun      bool            `json:"dryRun"`
 	FailedCount int             `json:"failedCount"`
 	Items       json.RawMessage `json:"items"`
+}
+
+// ManifestApplyItem is the result for one manifest document.
+type ManifestApplyItem struct {
+	Position   int    `json:"position"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Result     string `json:"result"`
+	ResourceID string `json:"resourceId,omitempty"`
+	Message    string `json:"message,omitempty"`
+	// Changes lists field-level changes for Updated items (dry runs report them too); empty otherwise.
+	Changes []ManifestFieldChange `json:"changes,omitempty"`
+}
+
+// ManifestFieldChange is one changed field of an Updated manifest item. Before and After are strings
+// truncated to 200 characters; nil when the field had or has no value.
+type ManifestFieldChange struct {
+	Field  string  `json:"field"`
+	Before *string `json:"before"`
+	After  *string `json:"after"`
+}
+
+// ParsedItems decodes Items into typed per-document results.
+func (m *ManifestApply) ParsedItems() ([]ManifestApplyItem, error) {
+	var items []ManifestApplyItem
+	if len(m.Items) == 0 || string(m.Items) == "null" {
+		return items, nil
+	}
+	if err := json.Unmarshal(m.Items, &items); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 // AnalyticsQuery filters GET .../analytics/runs. Empty fields are omitted.
@@ -246,20 +285,26 @@ type AnalyticsQuery struct {
 // AnalyticsMetrics are the aggregate run metrics reported for totals and for every bucket.
 // Nullable averages and percentiles are nil when there are no samples.
 type AnalyticsMetrics struct {
-	Runs                     int64    `json:"runs"`
-	Succeeded                int64    `json:"succeeded"`
-	Failed                   int64    `json:"failed"`
-	Cancelled                int64    `json:"cancelled"`
-	TimedOut                 int64    `json:"timedOut"`
-	InputTokens              int64    `json:"inputTokens"`
-	OutputTokens             int64    `json:"outputTokens"`
-	CachedTokens             int64    `json:"cachedTokens"`
-	ReasoningTokens          int64    `json:"reasoningTokens"`
-	ToolCalls                int64    `json:"toolCalls"`
-	CostUSD                  float64  `json:"costUsd"`
-	TimeToFirstTokenMsAvg    *float64 `json:"timeToFirstTokenMsAvg"`
-	TimeToFirstTokenMsP50    *float64 `json:"timeToFirstTokenMsP50"`
-	TimeToFirstTokenMsP95    *float64 `json:"timeToFirstTokenMsP95"`
+	Runs                  int64    `json:"runs"`
+	Succeeded             int64    `json:"succeeded"`
+	Failed                int64    `json:"failed"`
+	Cancelled             int64    `json:"cancelled"`
+	TimedOut              int64    `json:"timedOut"`
+	InputTokens           int64    `json:"inputTokens"`
+	OutputTokens          int64    `json:"outputTokens"`
+	CachedTokens          int64    `json:"cachedTokens"`
+	ReasoningTokens       int64    `json:"reasoningTokens"`
+	ToolCalls             int64    `json:"toolCalls"`
+	CostUSD               float64  `json:"costUsd"`
+	TimeToFirstTokenMsAvg *float64 `json:"timeToFirstTokenMsAvg"`
+	TimeToFirstTokenMsP50 *float64 `json:"timeToFirstTokenMsP50"`
+	TimeToFirstTokenMsP95 *float64 `json:"timeToFirstTokenMsP95"`
+	// TimeToFirstTokenExcludingDelegationMsAvg, P50, and P95 exclude time spent waiting on delegated child runs.
+	TimeToFirstTokenExcludingDelegationMsAvg *float64 `json:"timeToFirstTokenExcludingDelegationMsAvg"`
+	TimeToFirstTokenExcludingDelegationMsP50 *float64 `json:"timeToFirstTokenExcludingDelegationMsP50"`
+	TimeToFirstTokenExcludingDelegationMsP95 *float64 `json:"timeToFirstTokenExcludingDelegationMsP95"`
+	// DelegationWaitMsAvg is the average time runs spent waiting on child runs they started.
+	DelegationWaitMsAvg      *float64 `json:"delegationWaitMsAvg"`
 	StreamingMsAvg           *float64 `json:"streamingMsAvg"`
 	ExecutionMsAvg           *float64 `json:"executionMsAvg"`
 	ExecutionMsP95           *float64 `json:"executionMsP95"`

@@ -1,6 +1,7 @@
 namespace Garrison.Core.Serialization
 {
     using System;
+    using System.Text.Encodings.Web;
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
@@ -39,6 +40,7 @@ namespace Garrison.Core.Serialization
 
         private static readonly JsonSerializerOptions _Options = Build(false);
         private static readonly JsonSerializerOptions _FileOptions = Build(true);
+        private static readonly JsonSerializerOptions _ReadableOptions = BuildReadable();
 
         #endregion
 
@@ -53,6 +55,19 @@ namespace Garrison.Core.Serialization
         {
             if (value == null) return "null";
             return JsonSerializer.Serialize(value, value.GetType(), _Options);
+        }
+
+        /// <summary>
+        /// Serialize to JSON with minimal escaping: quotes are written as \" and apostrophes, angle brackets, and
+        /// non-ASCII characters are written as they are rather than as \uXXXX escapes. Use for JSON that people read as
+        /// text inside another protocol (for example MCP tool results); never embed the output in HTML.
+        /// </summary>
+        /// <param name="value">Value.</param>
+        /// <returns>JSON text.</returns>
+        public static string SerializeReadable(object? value)
+        {
+            if (value == null) return "null";
+            return JsonSerializer.Serialize(value, value.GetType(), _ReadableOptions);
         }
 
         /// <summary>
@@ -83,6 +98,13 @@ namespace Garrison.Core.Serialization
         #endregion
 
         #region Private-Methods
+
+        private static JsonSerializerOptions BuildReadable()
+        {
+            JsonSerializerOptions options = Build(false);
+            options.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+            return options;
+        }
 
         private static JsonSerializerOptions Build(bool file)
         {

@@ -43,6 +43,13 @@ kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.admin-passwo
 
 Signing in with email and password (`POST /v1.0/token`, or the dashboard) works the same way on every runtime, so most people never need the API key.
 
+The SDK examples and test harnesses can also sign in with the default administrator access and secret keys. On Docker and source builds those are `access_garrison_default` and `secret_garrison_default_change_me`. Here they are random and live in the same Secret under `default-access-key` and `default-secret-key`:
+
+```bash
+kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.default-access-key}' | base64 --decode; echo
+kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.default-secret-key}' | base64 --decode; echo
+```
+
 Harness credentials never become worker environment variables. The bootstrap Job turns each one that is present into a Garrison secret record, encrypted with the master key, and the sample deployments bind those records by alias. That keeps credentials per tenant and lets Garrison scrub them from logs and run output. One caution about `CLAUDE_CODE_OAUTH_TOKEN` and Codex subscription logins: using a personal subscription on a shared, multi-user server may conflict with the provider's terms. API keys are the safer choice for anything shared.
 
 `k8s/secrets.example.yaml` shows the shape of every Secret if you would rather feed them from an external secret manager.

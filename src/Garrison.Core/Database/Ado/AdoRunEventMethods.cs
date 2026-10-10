@@ -88,7 +88,7 @@ namespace Garrison.Core.Database.Ado
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, runid = @runid, sequence = @sequence, eventtype = @eventtype, timestamputc = @timestamputc, text = @text, toolname = @toolname, toolcallid = @toolcallid, success = @success, inputtokens = @inputtokens, outputtokens = @outputtokens, raweventjson = @raweventjson WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, runid = @runid, sequence = @sequence, eventtype = @eventtype, timestamputc = @timestamputc, text = @text, code = @code, toolname = @toolname, toolcallid = @toolcallid, success = @success, inputtokens = @inputtokens, outputtokens = @outputtokens, raweventjson = @raweventjson WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -101,6 +101,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "eventtype", obj.EventType.ToString());
                     AdoDatabaseDriver.Add(command, "timestamputc", obj.TimestampUtc);
                     AdoDatabaseDriver.Add(command, "text", obj.Text);
+                    AdoDatabaseDriver.Add(command, "code", obj.Code);
                     AdoDatabaseDriver.Add(command, "toolname", obj.ToolName);
                     AdoDatabaseDriver.Add(command, "toolcallid", obj.ToolCallId);
                     AdoDatabaseDriver.Add(command, "success", obj.Success);
@@ -182,6 +183,7 @@ namespace Garrison.Core.Database.Ado
             obj.EventType = AdoConverters.Enum<RunEventTypeEnum>(reader, "eventtype", RunEventTypeEnum.Lifecycle);
             obj.TimestampUtc = AdoConverters.Date(reader, "timestamputc");
             obj.Text = AdoConverters.NullableStr(reader, "text");
+            obj.Code = AdoConverters.NullableStr(reader, "code");
             obj.ToolName = AdoConverters.NullableStr(reader, "toolname");
             obj.ToolCallId = AdoConverters.NullableStr(reader, "toolcallid");
             obj.Success = AdoConverters.NullableBool(reader, "success");
@@ -198,8 +200,8 @@ namespace Garrison.Core.Database.Ado
             if (events == null) throw new ArgumentNullException(nameof(events));
             if (events.Count == 0) return 0;
 
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, runid, sequence, eventtype, timestamputc, text, toolname, toolcallid, success, inputtokens, outputtokens, raweventjson, createdutc) " +
-                         "VALUES (@id, @tenantid, @runid, @sequence, @eventtype, @timestamputc, @text, @toolname, @toolcallid, @success, @inputtokens, @outputtokens, @raweventjson, @createdutc) ON CONFLICT (runid, sequence) DO NOTHING;";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, runid, sequence, eventtype, timestamputc, text, code, toolname, toolcallid, success, inputtokens, outputtokens, raweventjson, createdutc) " +
+                         "VALUES (@id, @tenantid, @runid, @sequence, @eventtype, @timestamputc, @text, @code, @toolname, @toolcallid, @success, @inputtokens, @outputtokens, @raweventjson, @createdutc) ON CONFLICT (runid, sequence) DO NOTHING;";
             int inserted = 0;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -215,6 +217,7 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "eventtype", evt.EventType.ToString());
                         AdoDatabaseDriver.Add(command, "timestamputc", evt.TimestampUtc);
                         AdoDatabaseDriver.Add(command, "text", evt.Text);
+                        AdoDatabaseDriver.Add(command, "code", evt.Code);
                         AdoDatabaseDriver.Add(command, "toolname", evt.ToolName);
                         AdoDatabaseDriver.Add(command, "toolcallid", evt.ToolCallId);
                         AdoDatabaseDriver.Add(command, "success", evt.Success);
@@ -260,7 +263,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, RunEvent obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, runid, sequence, eventtype, timestamputc, text, toolname, toolcallid, success, inputtokens, outputtokens, raweventjson, createdutc) VALUES (@id, @tenantid, @runid, @sequence, @eventtype, @timestamputc, @text, @toolname, @toolcallid, @success, @inputtokens, @outputtokens, @raweventjson, @createdutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, runid, sequence, eventtype, timestamputc, text, code, toolname, toolcallid, success, inputtokens, outputtokens, raweventjson, createdutc) VALUES (@id, @tenantid, @runid, @sequence, @eventtype, @timestamputc, @text, @code, @toolname, @toolcallid, @success, @inputtokens, @outputtokens, @raweventjson, @createdutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -270,6 +273,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "eventtype", obj.EventType.ToString());
                 AdoDatabaseDriver.Add(command, "timestamputc", obj.TimestampUtc);
                 AdoDatabaseDriver.Add(command, "text", obj.Text);
+                    AdoDatabaseDriver.Add(command, "code", obj.Code);
                 AdoDatabaseDriver.Add(command, "toolname", obj.ToolName);
                 AdoDatabaseDriver.Add(command, "toolcallid", obj.ToolCallId);
                 AdoDatabaseDriver.Add(command, "success", obj.Success);

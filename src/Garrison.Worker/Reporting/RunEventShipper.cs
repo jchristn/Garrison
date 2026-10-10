@@ -250,6 +250,7 @@ namespace Garrison.Worker.Reporting
                     {
                         RunEventReport warning = new RunEventReport();
                         warning.EventType = RunEventTypeEnum.Warning;
+                        warning.Code = "EventsDropped";
                         warning.Text = (dropped - _DroppedReported) + " event(s) were dropped because the control plane was unreachable and the worker buffer was full.";
                         warning.Sequence = ++_Sequence;
                         _Buffer.Add(warning);

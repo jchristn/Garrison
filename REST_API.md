@@ -51,15 +51,40 @@ Every error has the same shape. `error` names the broad category (`NotFound`, `U
 }
 ```
 
-Authorization failures add `requiredPermission`, `resourceType`, and `tenantId`. Validation failures (400 `ValidationFailed`) add `fields`, a map from field path to the problem with that field.
+Authorization failures add `requiredPermission`, `resourceType`, and `tenantId`. Validation failures (400 `ValidationFailed`) that concern particular fields add three maps keyed by the same field path: `fields` and `errors` (the same human message per field; `errors` is the name the settings contract uses, `fields` stays for older clients) and `fieldCodes`, a stable machine code per field so a client can show its own translated text.
+
+```json
+{
+  "error": "BadRequest",
+  "code": "ValidationFailed",
+  "message": "One or more settings are invalid. Nothing was saved.",
+  "fields":     { "Audit.RetentionDays": "Must be between 1 and 3650." },
+  "errors":     { "Audit.RetentionDays": "Must be between 1 and 3650." },
+  "fieldCodes": { "Audit.RetentionDays": "OutOfRange" }
+}
+```
+
+| Field code | Meaning |
+|---|---|
+| `OutOfRange` | A number is outside the allowed range (the settings metadata carries `minimum` and `maximum`) |
+| `NotAnInteger`, `NotABoolean` | The value has the wrong type |
+| `NotAllowedValue` | The value is not one of `allowedValues` |
+| `TooLong` | The value is longer than allowed |
+| `UnknownSetting`, `PathRequired` | The setting path does not exist or is missing |
+| `OverriddenByEnvironment`, `SettingsFileReadOnly` | The setting cannot be changed through the API on this deployment |
+| `ParameterNotAllowed`, `ParameterInvalid` | A run parameter the deployment does not allow, or a value its rule rejects |
+| `ExpiryInPast` | A secret `expiresUtc` that has already passed |
+| `Invalid` | Any other field problem; read the message |
+
+Query string values are decoded the way browsers and HTTP clients encode them: percent escapes are decoded and a `+` is a space, so send a literal plus sign as `%2B`. A model name such as `gpt-oss:20b` works raw or encoded (`gpt-oss%3A20b`). Timestamps keep a raw `+` as a time zone offset sign.
 
 | Status | When |
 |---|---|
 | 400 | Malformed JSON (`InvalidJson`, `InvalidBody`), invalid input (`ValidationFailed`, `BadRequest`), template errors (`TemplateRenderFailed`), unknown references (`ReferenceNotFound`) |
 | 401 | Missing or invalid credentials (`AuthenticationRequired`, `InvalidCredentials`) |
 | 403 | Authenticated but not permitted (`AuthorizationDenied`) |
-| 404 | The resource does not exist or belongs to another tenant (`NotFound`, `RouteNotFound`) |
-| 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound` |
+| 404 | The resource does not exist or belongs to another tenant (`NotFound`, `RouteNotFound`). A system administrator who names a tenant that does not exist in a `/tenants/{tenantId}/...` path gets `TenantNotFound`; other callers get `NotFound` for any tenant but their own, so the response does not reveal which tenants exist |
+| 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound` |
 | 429 | Too many authentication attempts from one address (`RateLimited`) |
 | 500 | An unexpected failure (`InternalError`); the server log has the request identifier |
 
@@ -206,12 +231,13 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/token/refresh" \
 
 #### `DELETE /v1.0/token`
 
-Revoke the presented token (logout).
+Revoke the presented token (logout). The response has the same shape as `GET /v1.0/token`: `{"valid": false}` once the token is revoked. The route returns 200 with that body rather than 204 so that one parser handles both token routes.
 
 | | |
 |---|---|
 | Permission | Authenticated; the handler checks permissions (see notes) |
-| Success | 204 |
+| Response | `TokenValidResponse` |
+| Success | 200 |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/token" \
@@ -1073,6 +1099,8 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/settings" \
   -d '{"values": [{"path": "Runs.DefaultTimeoutSeconds", "value": "900"}]}'
 ```
 
+Every value is checked against its metadata from `GET /v1.0/api/settings` (`type`, `minimum`, `maximum`, `allowedValues`) before anything is written. If any value is invalid, the whole update is rejected with 400 `ValidationFailed`, `errors` and `fieldCodes` keyed by setting path (see [Errors](#errors)), and nothing is saved. Values are never clamped: `-5` for `Audit.RetentionDays` is an error, not 1.
+
 #### `POST /v1.0/api/settings/restart`
 
 Restart this server process (the container runtime restarts it).
@@ -1566,6 +1594,8 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets" \
   -d '{"name": "anthropic-api-key", "kind": "AnthropicApiKey", "value": "sk-ant-..."}'
 ```
 
+`expiresUtc` is optional. When set it must be in the future: a time that has already passed returns 400 `ValidationFailed` with field code `ExpiryInPast`, on create and on update. Manifests apply the same rule to a Secret's `spec.expiresUtc`.
+
 #### `GET /v1.0/api/tenants/{tenantId}/secrets/{id}`
 
 Read secret metadata.
@@ -1596,8 +1626,10 @@ Update secret metadata (and value when supplied).
 curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "string", "description": "string", "kind": "AnthropicApiKey", "value": "string", "expiresUtc": "2026-01-01T00:00:00Z"}'
+  -d '{"name": "anthropic-api-key", "description": "Rotated quarterly", "kind": "AnthropicApiKey", "expiresUtc": "2027-12-31T00:00:00Z"}'
 ```
+
+Leave `value` out to keep the stored value. A past `expiresUtc` returns 400 (`ExpiryInPast`).
 
 #### `PUT /v1.0/api/tenants/{tenantId}/secrets/{id}/value`
 
@@ -2053,6 +2085,30 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/apply"
   --data-binary @manifests.yaml
 ```
 
+Add `?dryRun=true` to see what would happen without writing anything. Each item in `items` reports:
+
+| Field | Meaning |
+|---|---|
+| `result` | `Created`, `Updated`, `Unchanged`, or `Failed` for an apply; `Validated` (or `Failed`) for a dry run, and for every document of an apply that was not written because another document failed |
+| `plannedResult` | What the apply does or would do: `Created`, `Updated`, `Unchanged`, or `Failed`. In a dry run this is the answer to "what would change" |
+| `changes` | For `Updated` documents, one entry per changed field: `{ "field", "before", "after" }`. Values are text, truncated to 200 characters, `null` when the field was not set. Secret values are never shown; a changed value appears as field `value` with `(hidden)` and `(hidden, changed)` |
+| `resourceId` | The record's ID; `null` in a dry run for a record that does not exist yet |
+| `message` | For people, for example `Would be updated: content, description.` |
+
+In a dry run, `createdCount`, `updatedCount`, and `unchangedCount` count what would happen. The applied record, including `changes`, is stored and returned again by `GET .../manifests/applies/{id}`.
+
+```json
+{
+  "dryRun": true, "createdCount": 0, "updatedCount": 1, "unchangedCount": 1, "failedCount": 0,
+  "items": [
+    { "kind": "PromptTemplate", "name": "helper-system", "result": "Validated", "plannedResult": "Updated",
+      "message": "Would be updated: content.",
+      "changes": [ { "field": "content", "before": "Be brief.", "after": "Answer in one line." } ] },
+    { "kind": "Agent", "name": "helper", "result": "Validated", "plannedResult": "Unchanged", "changes": [] }
+  ]
+}
+```
+
 #### `POST /v1.0/api/tenants/{tenantId}/manifests/export`
 
 Export the tenant configuration as YAML manifests (secrets as metadata only).
@@ -2117,6 +2173,10 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{agentId}
   -d '{"input": "Summarize the README", "wait": true, "waitSeconds": 60}'
 ```
 
+An agent with no active deployment whose weight is above zero cannot run: the call returns 409 `NoActiveDeployment` with a message that says so. Create a deployment for the agent (or activate one) first. A 404 means the agent itself does not exist.
+
+An `Idempotency-Key` header makes retries safe: the same key with the same agent and input returns the run it created (within 24 hours). The same key with different input returns 409 `IdempotencyKeyConflict` naming the existing run; use a new key for a new request.
+
 #### `POST /v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test`
 
 Invoke a specific deployment with a test input.
@@ -2144,7 +2204,7 @@ Create a run.
 | Permission | Create on `Run` |
 | Request body | `RunCreateRequest` |
 | Response | `Run` |
-| Success | 201 |
+| Success | 200 when the run finished within the wait, 202 when it is still queued or running (always 202 with `"wait": false`) |
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
@@ -2152,6 +2212,8 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
   -H "Content-Type: application/json" \
   -d '{"agentName": "helper", "input": "Summarize the README", "parameters": {"model": "haiku"}, "wait": false}'
 ```
+
+This needs the `helper-claude` deployment from the Deployments section (created with `helper`'s ID, and allowing `model` overrides). Without an active deployment the call returns 409 `NoActiveDeployment`, and a parameter the deployment does not allow returns 400 with field code `ParameterNotAllowed` under `parameters.model`. The status codes match invoke: 202 Accepted means the run was queued, not that it finished.
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs`
 
@@ -2170,7 +2232,16 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
 
 #### `DELETE /v1.0/api/tenants/{tenantId}/runs`
 
-Delete finished runs matching a filter.
+Delete finished runs matching a filter, up to 1000 per call. Runs that are still active are skipped; cancel them first.
+
+**Warning:** every filter is optional. A call with no filter deletes up to 1000 finished runs of every agent in the tenant, with their events. There is no undo. List first with the same filters (`GET .../runs?...`) to see what would go.
+
+| Query parameter | Meaning |
+|---|---|
+| `status` | Only runs in this status, for example `Failed` or `Cancelled` |
+| `agentId` | Only runs of this agent (ID) |
+| `fromUtc` | Only runs created at or after this ISO 8601 UTC time |
+| `toUtc` | Only runs created before this ISO 8601 UTC time |
 
 | | |
 |---|---|
@@ -2178,10 +2249,16 @@ Delete finished runs matching a filter.
 | Response | `DeleteCountResponse` |
 | Success | 200 |
 
+This example deletes the failed runs of one agent that are older than 30 days:
+
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
-  -H "Authorization: Bearer $TOKEN"
+CUTOFF=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-30d +%Y-%m-%dT%H:%M:%SZ)
+curl -s -G -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "agentId=agt_..." --data-urlencode "status=Failed" --data-urlencode "toUtc=$CUTOFF"
 ```
+
+The `date` line works with GNU `date` (Linux) and BSD `date` (macOS).
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}`
 
@@ -2200,7 +2277,7 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}" \
 
 ##### Run timing and usage fields
 
-Every `Run` (and every run in a list) carries these telemetry fields. Durations are milliseconds. A field that could not be measured is `null`.
+Every `Run` (and every run in a list) carries these telemetry fields. Durations are milliseconds. A field that could not be measured is left out of the JSON, following the general rule for null values, with one exception: `outputTokensPerSecond` is always present and is `null` when it cannot be measured. Clients should treat a missing field and `null` the same way.
 
 | Field | Meaning | Measured by |
 |---|---|---|
@@ -2214,6 +2291,10 @@ Every `Run` (and every run in a list) carries these telemetry fields. Durations 
 | `inputTokens`, `outputTokens`, `cachedTokens` | Usage reported by the harness | Parser |
 | `reasoningTokens` | Reasoning or thinking tokens when the harness reports them (Codex `reasoning_output_tokens`, Claude Code `thinking_tokens`), otherwise 0 | Parser |
 | `toolCallCount` | Tool call events in the run | Worker |
+| `delegationWaitMs` | Time the run spent waiting on child runs it delegated to (runs whose `parentRunId` is this run): the union of each child's lifetime, created to finished, clipped to this run's execution, so children running in parallel count once. 0 for a run that delegated nothing | Server timestamps, when the run finishes |
+| `timeToFirstTokenExcludingDelegationMs` | `timeToFirstTokenMs` minus the part of `delegationWaitMs` that happened before the first model output, never negative. Equal to `timeToFirstTokenMs` for a run that delegated nothing first. Use it to compare agents that delegate with agents that answer directly | Server |
+
+`timeToFirstTokenMs` stays the true time to the first model output, so a run that calls `garrison_invoke_agent` before writing anything has a long TTFT; the two delegation fields explain how much of it was spent waiting. Runs that finished before schema migration 4, or without a worker report, have `null` delegation fields.
 
 Runs that finished before schema migration 2, or that ended without a worker report (cancelled while queued, failed by the lease reaper), have `null` worker timings; their `queueMs` and `totalMs` are derived from the stored timestamps. See `docs/TELEMETRY.md` for how each value is measured.
 
@@ -2225,7 +2306,8 @@ Runs that finished before schema migration 2, or that ended without a worker rep
   "toolCallCount": 0,
   "firstTokenUtc": "2026-10-09T18:02:11.412Z", "lastTokenUtc": "2026-10-09T18:02:11.655Z",
   "timeToFirstTokenMs": 184, "streamingMs": 243, "executionMs": 466,
-  "queueMs": 41, "totalMs": 590, "outputTokensPerSecond": 28.81
+  "queueMs": 41, "totalMs": 590, "outputTokensPerSecond": 28.81,
+  "delegationWaitMs": 0, "timeToFirstTokenExcludingDelegationMs": 184
 }
 ```
 
@@ -2325,6 +2407,8 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/retry"
   -H "Authorization: Bearer $TOKEN"
 ```
 
+Only finished runs can be retried (409 `RunNotFinished` otherwise). If the run's agent was deleted, the retry returns 409 `AgentDeleted` ("Run ... cannot be retried because the agent ... was deleted."); if only its deployment was deleted, 409 `DeploymentDeleted`. Invoke the agent again instead.
+
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events`
 
 Read run events after a sequence.
@@ -2339,6 +2423,8 @@ Read run events after a sequence.
 curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/events" \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+Events whose text Garrison writes itself (rather than the harness or the model) carry a stable `code` so clients can show a translated label next to, or instead of, the English `text`: `WorkspacePrepared`, `RepairAttemptStarted`, `McpPreflightPassed`, `McpPreflightWarning`, `HarnessExited`, `EventsDropped`, `RunBlocked` (the run's `blockedReason` says why), and `StructuredOutputInvalid`. Other events have no `code`.
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream`
 
@@ -2394,7 +2480,7 @@ How the response is built:
 
 - Buckets are aligned to UTC multiples of the bucket size (days start at midnight UTC, weeks on Monday), so the first bucket can start before `from`. Every bucket in the range is returned, including empty ones: counts and sums are 0 and averages and percentiles are `null`.
 - `auto` picks the smallest size from 1, 5, 10, 15, and 30 minutes; 1, 2, 3, 6, and 12 hours; 1 and 2 days; then whole weeks that gives at most 96 buckets (about 24 to 96 for most ranges). `interval` in the response is `minute`, `hour`, `day`, or `week` when the size matches one of those, and `auto` otherwise; `bucketSeconds` is always the exact size.
-- Series keys are `all` (label `All runs`) without grouping, agent IDs (label: the agent's name on its newest run) for `groupBy=agent`, harness types for `groupBy=harness`, served models for `groupBy=model` (runs without a recorded model share the key and label `unknown`), and `Harness|model` (label `Harness / model`, for example key `ClaudeCode|claude-sonnet-4-5` and label `ClaudeCode / claude-sonnet-4-5`) for `groupBy=harnessModel`. The `|` separator is safe to split on because harness type names never contain it. Series are ordered by run count, largest first. `totals` covers every series.
+- Series keys are `all` (label `All runs`) without grouping, agent IDs (label: the agent's name on its newest run) for `groupBy=agent`, harness types for `groupBy=harness`, served models for `groupBy=model` (runs without a recorded model share the key and label `unknown`), and `Harness|model` (label `Harness / model`, for example key `ClaudeCode|claude-sonnet-5-5` and label `ClaudeCode / claude-sonnet-5-5`) for `groupBy=harnessModel`. The `|` separator is safe to split on because harness type names never contain it. Series are ordered by run count, largest first. `totals` covers every series.
 - At most 100,000 runs are aggregated per request, newest first; `truncated` is `true` when the cap was hit, in which case the oldest runs in the range are left out.
 - Aggregation happens in the server process, so the numbers are the same on Sqlite and Postgresql. Percentiles use the nearest-rank method (the smallest value with at least p percent of samples at or below it). Averages are rounded to one decimal place, `outputTokensPerSecondAvg` to two, and `costUsd` to six.
 
@@ -2406,15 +2492,22 @@ Metrics, present in `totals` and in every bucket:
 | `succeeded`, `failed`, `cancelled`, `timedOut` | Runs by terminal status (`failed` includes `Rejected`; queued and running runs count only toward `runs`) |
 | `inputTokens`, `outputTokens`, `cachedTokens`, `reasoningTokens`, `costUsd`, `toolCalls` | Sums |
 | `timeToFirstTokenMsAvg`, `timeToFirstTokenMsP50`, `timeToFirstTokenMsP95` | Time to first token over runs that have it |
+| `delegationWaitMsAvg` | Average `delegationWaitMs` over runs that recorded it (runs that delegated nothing count as 0) |
+| `timeToFirstTokenExcludingDelegationMsAvg`, `timeToFirstTokenExcludingDelegationMsP50`, `timeToFirstTokenExcludingDelegationMsP95` | Time to first token without the delegation wait before it, over runs that recorded it |
 | `streamingMsAvg` | Average streaming time |
 | `executionMsAvg`, `executionMsP95` | Process start to exit |
 | `queueMsAvg` | Queued to leased |
 | `outputTokensPerSecondAvg` | Average of the per-run `outputTokensPerSecond` over runs where it is defined |
 
+The examples below cover the last 24 hours, computed when you run them. The `date` lines work with GNU `date` (Linux) and BSD `date` (macOS):
+
 ```bash
+FROM=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)
+TO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
 curl -s -G "http://127.0.0.1:8700/v1.0/api/tenants/default/analytics/runs" \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "from=2026-10-09T00:00:00Z" --data-urlencode "to=2026-10-10T00:00:00Z" \
+  --data-urlencode "from=$FROM" --data-urlencode "to=$TO" \
   --data-urlencode "interval=hour" --data-urlencode "groupBy=agent"
 ```
 
@@ -2460,11 +2553,11 @@ Filtering by model and grouping by harness and model:
 ```bash
 curl -s -G "http://127.0.0.1:8700/v1.0/api/tenants/default/analytics/runs" \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "from=2026-10-09T00:00:00Z" --data-urlencode "to=2026-10-10T00:00:00Z" \
-  --data-urlencode "model=claude-sonnet-4-5" --data-urlencode "groupBy=harnessModel"
+  --data-urlencode "from=$FROM" --data-urlencode "to=$TO" \
+  --data-urlencode "model=claude-sonnet-5-5" --data-urlencode "groupBy=harnessModel"
 ```
 
-Each series in that response has a key such as `ClaudeCode|claude-sonnet-4-5` and a label such as `ClaudeCode / claude-sonnet-4-5`; the metrics are the same as above.
+Each series in that response has a key such as `ClaudeCode|claude-sonnet-5-5` and a label such as `ClaudeCode / claude-sonnet-5-5`; the metrics are the same as above. Use a model name your runs actually report: the `servedModel` of a recent run, or the `models` list from the dimensions endpoint below. Names with reserved characters, such as Ollama's `gpt-oss:20b`, work when they are URL-encoded, which `--data-urlencode` does.
 
 #### `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions`
 
@@ -2492,8 +2585,10 @@ The distinct agents, harness types, deployments, and served models among runs in
 ```bash
 curl -s -G "http://127.0.0.1:8700/v1.0/api/tenants/default/analytics/runs/dimensions" \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "from=2026-10-09T00:00:00Z" --data-urlencode "to=2026-10-10T00:00:00Z"
+  --data-urlencode "from=$FROM" --data-urlencode "to=$TO"
 ```
+
+`FROM` and `TO` are the variables set in the analytics example above.
 
 Response:
 
@@ -2506,7 +2601,7 @@ Response:
   "deployments": [
     { "id": "dep_mv2def...", "name": "helper-claude", "agentId": "agt_mv2abc..." }
   ],
-  "models": ["claude-sonnet-4-5", "gpt-5-codex", "unknown"],
+  "models": ["claude-sonnet-5-5", "gpt-6.1-sol", "unknown"],
   "truncated": false
 }
 ```
@@ -3761,8 +3856,20 @@ Child record of ManifestApply: per-document results.
 | `kind` | `string` | Document kind. |
 | `name` | `string` | Document name. |
 | `result` | `ManifestApplyResultEnum` | Result. |
-| `resourceId` | `string?` | Resulting resource identifier. |
+| `resourceId` | `string?` | Resulting resource identifier; null in a dry run for a record that does not exist yet. |
 | `message` | `string?` | Message. |
+| `plannedResult` | `ManifestApplyResultEnum?` | What the apply does or, in a dry run, would do: Created, Updated, Unchanged, or Failed. |
+| `changes` | `List<ManifestFieldChange>` | Changed fields of an Updated document; empty otherwise. |
+
+#### `ManifestFieldChange`
+
+One field a manifest apply changes (or would change) on an existing resource.
+
+| Field | Type | Description |
+|---|---|---|
+| `field` | `string` | Field path within the document spec, for example `content`, `model`, or `resources.secrets[0].secret`. |
+| `before` | `string?` | Value before, as text, truncated to 200 characters; null when not set. |
+| `after` | `string?` | Value after, as text, truncated to 200 characters; null when removed. |
 
 #### `ManifestApplyResultEnum`
 
@@ -4099,6 +4206,8 @@ One invocation of one deployment.
 | `costEstimated` | `bool` | Whether the cost is an estimate. |
 | `lastEventSequence` | `long` | Highest event sequence received. |
 | `blockedReason` | `RunBlockedReasonEnum?` | Read-only and computed on read: why the queued run cannot be handed to any worker right now, or `null`. Always present. See [Blocked runs](#blocked-runs-blockedreason). |
+| `delegationWaitMs` | `long?` | Milliseconds spent waiting on child runs this run delegated to, from server timestamps; 0 when it delegated nothing. See [Run timing and usage fields](#run-timing-and-usage-fields). |
+| `timeToFirstTokenExcludingDelegationMs` | `long?` | `timeToFirstTokenMs` minus the delegation wait before the first output, never negative. |
 | `active` | `bool` | Whether the record is active. |
 | `isProtected` | `bool` | Whether the record is protected from deletion. |
 | `createdUtc` | `DateTime` | Creation timestamp (UTC). |
@@ -4492,6 +4601,7 @@ Normalized event reported by a worker.
 | `sequence` | `long` | Per-run sequence assigned by the worker, starting at 1. |
 | `eventType` | `RunEventTypeEnum` | Event type. |
 | `timestampUtc` | `DateTime` | Event time (UTC). |
+| `code` | `string?` | Stable machine code for text Garrison writes itself (for example `WorkspacePrepared`, `HarnessExited`, `RunBlocked`); null for harness or model text. |
 | `text` | `string?` | Text content. |
 | `toolName` | `string?` | Tool name. |
 | `toolCallId` | `string?` | Tool call identifier. |
@@ -4528,6 +4638,7 @@ Normalized event emitted by a run.
 | `sequence` | `long` | Per-run sequence number. |
 | `eventType` | `RunEventTypeEnum` | Event type. |
 | `timestampUtc` | `DateTime` | Event time (UTC). |
+| `code` | `string?` | Stable machine code for text Garrison writes itself (for example `WorkspacePrepared`, `HarnessExited`, `RunBlocked`); null for harness or model text. |
 | `text` | `string?` | Text content. |
 | `toolName` | `string?` | Tool name. |
 | `toolCallId` | `string?` | Tool call identifier. |

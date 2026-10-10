@@ -84,6 +84,12 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
+        /// Stable machine code for text Garrison itself generates (for example WorkspacePrepared, HarnessExited,
+        /// RunBlocked), so clients can show a translated label; null for text that comes from the harness or model.
+        /// </summary>
+        public string? Code { get; set; } = null;
+
+        /// <summary>
         /// Text content.
         /// </summary>
         public string? Text { get; set; } = null;

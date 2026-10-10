@@ -27,6 +27,8 @@ namespace Garrison.Server.Runtime
         private double _CostUsd = 0;
         private long _ToolCalls = 0;
         private readonly List<long> _TimeToFirstToken = new List<long>();
+        private readonly List<long> _DelegationWait = new List<long>();
+        private readonly List<long> _TimeToFirstTokenExcludingDelegation = new List<long>();
         private readonly List<long> _Streaming = new List<long>();
         private readonly List<long> _Execution = new List<long>();
         private readonly List<long> _Queue = new List<long>();
@@ -69,6 +71,8 @@ namespace Garrison.Server.Runtime
             _CostUsd += run.CostUsd ?? 0;
             _ToolCalls += run.ToolCallCount;
             if (run.TimeToFirstTokenMs.HasValue) _TimeToFirstToken.Add(run.TimeToFirstTokenMs.Value);
+            if (run.DelegationWaitMs.HasValue) _DelegationWait.Add(run.DelegationWaitMs.Value);
+            if (run.TimeToFirstTokenExcludingDelegationMs.HasValue) _TimeToFirstTokenExcludingDelegation.Add(run.TimeToFirstTokenExcludingDelegationMs.Value);
             if (run.StreamingMs.HasValue) _Streaming.Add(run.StreamingMs.Value);
             if (run.ExecutionMs.HasValue) _Execution.Add(run.ExecutionMs.Value);
             if (run.QueueMs.HasValue) _Queue.Add(run.QueueMs.Value);
@@ -98,6 +102,10 @@ namespace Garrison.Server.Runtime
             metrics.TimeToFirstTokenMsAvg = Average(_TimeToFirstToken);
             metrics.TimeToFirstTokenMsP50 = Percentile(_TimeToFirstToken, 50);
             metrics.TimeToFirstTokenMsP95 = Percentile(_TimeToFirstToken, 95);
+            metrics.DelegationWaitMsAvg = Average(_DelegationWait);
+            metrics.TimeToFirstTokenExcludingDelegationMsAvg = Average(_TimeToFirstTokenExcludingDelegation);
+            metrics.TimeToFirstTokenExcludingDelegationMsP50 = Percentile(_TimeToFirstTokenExcludingDelegation, 50);
+            metrics.TimeToFirstTokenExcludingDelegationMsP95 = Percentile(_TimeToFirstTokenExcludingDelegation, 95);
             metrics.StreamingMsAvg = Average(_Streaming);
             metrics.ExecutionMsAvg = Average(_Execution);
             metrics.ExecutionMsP95 = Percentile(_Execution, 95);

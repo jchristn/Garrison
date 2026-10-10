@@ -3,6 +3,7 @@ namespace Garrison.Core.Database.Ado
     using System;
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database.Interfaces;
@@ -21,6 +22,7 @@ namespace Garrison.Core.Database.Ado
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
         private readonly string _ItemsTable;
+        private readonly string _ChangesTable;
 
         #endregion
 
@@ -36,6 +38,7 @@ namespace Garrison.Core.Database.Ado
             _Driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _Table = driver.Table("manifest_applies");
             _ItemsTable = driver.Table("manifest_apply_items");
+            _ChangesTable = driver.Table("manifest_apply_changes");
         }
 
         #endregion
@@ -221,6 +224,16 @@ namespace Garrison.Core.Database.Ado
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
                 MapItems,
                 token).ConfigureAwait(false);
+
+            List<ManifestFieldChangeRow> changes = await _Driver.QueryAsync(
+                "SELECT * FROM " + _ChangesTable + " WHERE manifestapplyid = @parentid ORDER BY position ASC;",
+                command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
+                MapChanges,
+                token).ConfigureAwait(false);
+            foreach (ManifestApplyItem item in obj.Items)
+            {
+                item.Changes = changes.Where(c => c.ItemId == item.Id).Select(c => c.Change).ToList();
+            }
         }
 
         #endregion
@@ -258,7 +271,7 @@ namespace Garrison.Core.Database.Ado
                 child.ManifestApplyId = obj.Id;
                 child.Position = i;
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _ItemsTable + " (id, manifestapplyid, tenantid, position, kind, name, result, resourceid, message) VALUES (@id, @manifestapplyid, @tenantid, @position, @kind, @name, @result, @resourceid, @message);",
+                    "INSERT INTO " + _ItemsTable + " (id, manifestapplyid, tenantid, position, kind, name, result, resourceid, message, plannedresult) VALUES (@id, @manifestapplyid, @tenantid, @position, @kind, @name, @result, @resourceid, @message, @plannedresult);",
                     command =>
                     {
                         AdoDatabaseDriver.Add(command, "id", child.Id);
@@ -270,12 +283,34 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "result", child.Result.ToString());
                         AdoDatabaseDriver.Add(command, "resourceid", child.ResourceId);
                         AdoDatabaseDriver.Add(command, "message", child.Message);
+                        AdoDatabaseDriver.Add(command, "plannedresult", child.PlannedResult?.ToString());
                     }, token).ConfigureAwait(false);
+
+                for (int j = 0; j < child.Changes.Count; j++)
+                {
+                    ManifestFieldChange change = child.Changes[j];
+                    string changeId = batch + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + j.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + "chg";
+                    int position = j;
+                    await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
+                        "INSERT INTO " + _ChangesTable + " (id, manifestapplyid, manifestapplyitemid, tenantid, position, field, beforevalue, aftervalue) VALUES (@id, @manifestapplyid, @itemid, @tenantid, @position, @field, @beforevalue, @aftervalue);",
+                        command =>
+                        {
+                            AdoDatabaseDriver.Add(command, "id", changeId);
+                            AdoDatabaseDriver.Add(command, "manifestapplyid", obj.Id);
+                            AdoDatabaseDriver.Add(command, "itemid", child.Id);
+                            AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
+                            AdoDatabaseDriver.Add(command, "position", position);
+                            AdoDatabaseDriver.Add(command, "field", change.Field);
+                            AdoDatabaseDriver.Add(command, "beforevalue", change.Before);
+                            AdoDatabaseDriver.Add(command, "aftervalue", change.After);
+                        }, token).ConfigureAwait(false);
+                }
             }
         }
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
         {
+            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ChangesTable + " WHERE manifestapplyid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ItemsTable + " WHERE manifestapplyid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
         }
 
@@ -290,7 +325,17 @@ namespace Garrison.Core.Database.Ado
             child.Result = AdoConverters.Enum<ManifestApplyResultEnum>(reader, "result", ManifestApplyResultEnum.Validated);
             child.ResourceId = AdoConverters.NullableStr(reader, "resourceid");
             child.Message = AdoConverters.NullableStr(reader, "message");
+            string? planned = AdoConverters.NullableStr(reader, "plannedresult");
+            if (!String.IsNullOrEmpty(planned) && Enum.TryParse<ManifestApplyResultEnum>(planned, true, out ManifestApplyResultEnum parsed)) child.PlannedResult = parsed;
             return child;
+        }
+
+        private static ManifestFieldChangeRow MapChanges(DbDataReader reader)
+        {
+            ManifestFieldChangeRow row = new ManifestFieldChangeRow();
+            row.ItemId = AdoConverters.Str(reader, "manifestapplyitemid");
+            row.Change = new ManifestFieldChange(AdoConverters.Str(reader, "field"), AdoConverters.NullableStr(reader, "beforevalue"), AdoConverters.NullableStr(reader, "aftervalue"));
+            return row;
         }
 
         #endregion

@@ -82,6 +82,7 @@ namespace Garrison.Server.Protocols
             {
                 { "garrison.agent", run.AgentName },
                 { "garrison.outcome", run.Outcome.ToString() },
+                { "garrison.servedModel", run.ServedModel },
                 { "garrison.inputTokens", run.InputTokens },
                 { "garrison.outputTokens", run.OutputTokens },
                 { "garrison.cachedTokens", run.CachedTokens },
@@ -93,6 +94,8 @@ namespace Garrison.Server.Protocols
             if (run.ExecutionMs.HasValue) task.Metadata["garrison.executionMs"] = run.ExecutionMs.Value;
             if (run.QueueMs.HasValue) task.Metadata["garrison.queueMs"] = run.QueueMs.Value;
             if (run.TotalMs.HasValue) task.Metadata["garrison.totalMs"] = run.TotalMs.Value;
+            if (run.DelegationWaitMs.HasValue) task.Metadata["garrison.delegationWaitMs"] = run.DelegationWaitMs.Value;
+            if (run.TimeToFirstTokenExcludingDelegationMs.HasValue) task.Metadata["garrison.timeToFirstTokenExcludingDelegationMs"] = run.TimeToFirstTokenExcludingDelegationMs.Value;
             double? rate = run.OutputTokensPerSecond;
             if (rate.HasValue) task.Metadata["garrison.outputTokensPerSecond"] = rate.Value;
             return task;

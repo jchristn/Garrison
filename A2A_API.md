@@ -66,7 +66,10 @@ Garrison accepts both the A2A 1.0 method names and the older slash-style names.
 
 ### SendMessage
 
+Give every new message its own `messageId`. This works in bash and zsh because the ID is made in the current shell, not in a pipeline subshell:
+
 ```bash
+MSG_ID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid)
 curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
@@ -74,7 +77,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
     "id": "1",
     "method": "SendMessage",
     "params": {
-      "message": { "role": "ROLE_USER", "messageId": "m-doc-1", "parts": [ { "text": "Hello over A2A" } ] }
+      "message": { "role": "ROLE_USER", "messageId": "'"$MSG_ID"'", "parts": [ { "text": "Hello over A2A" } ] }
     }
   }'
 ```
@@ -93,6 +96,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
       "metadata": {
         "garrison.agent": "docs-echo",
         "garrison.outcome": "Succeeded",
+        "garrison.servedModel": "fake-model",
         "garrison.inputTokens": 12,
         "garrison.outputTokens": 7
       }
@@ -105,8 +109,8 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
 How the message becomes a run:
 
 - **Input.** The parts are joined, separated by blank lines, into the run's input. Text parts are used as is, data parts are serialized as JSON, and URL parts contribute the URL. A message with none of these is rejected with `-32602`.
-- **Idempotency.** `messageId` becomes the run's idempotency key (`a2a:<messageId>`). Sending the same message identifier again within 24 hours returns the original task instead of starting a new run.
-- **Parameters.** Request metadata entries named `garrison.parameter.<name>` become run parameters, for example `"metadata": {"garrison.parameter.model": "sonnet"}`. They are validated against the deployment's allowed overrides exactly like REST parameters.
+- **Idempotency.** `messageId` becomes the run's idempotency key (`a2a:<messageId>`). Sending the same `messageId` with the same content again within 24 hours returns the original task instead of starting a new run, so retries are safe. Sending it with different content is a mistake and is rejected with HTTP 409 Conflict and a JSON-RPC error (code `-32602`, `data.code` `MessageIdConflict`, `data.taskId` the existing task) whose message names the `messageId` and the task. Use a new `messageId` for every new message.
+- **Parameters.** Request metadata entries named `garrison.parameter.<name>` become run parameters, for example `"metadata": {"garrison.parameter.model": "sonnet"}`. They are validated against the deployment's allowed overrides exactly like REST parameters. A rejected parameter is named in the error message (for example `parameters.model: Deployment echo-default does not allow overriding model.`) and in `data.errors` and `data.fieldCodes`.
 - **Waiting.** The call waits up to `Mcp.MaxToolWaitSeconds` (90 by default) for the run to finish. Set `"configuration": {"returnImmediately": true}` to get the task back at once in the `TASK_STATE_SUBMITTED` state, then poll with `GetTask` or attach with `SubscribeToTask`.
 
 ### Tasks
@@ -122,7 +126,7 @@ How the message becomes a run:
 | `Rejected` | `TASK_STATE_REJECTED` |
 | `Failed`, `TimedOut`, and anything else | `TASK_STATE_FAILED` |
 
-A completed task carries one artifact, `<runId>-result`, named `result`. It has a text part with the final answer and, when the agent produced structured output, a second data part with media type `application/json`. Failed and rejected tasks carry a status message made of the run's outcome and error message, in the form `<outcome>: <error>`. Every task has `garrison.agent`, `garrison.outcome`, `garrison.inputTokens`, `garrison.outputTokens`, `garrison.cachedTokens`, `garrison.reasoningTokens`, and `garrison.toolCallCount` in its metadata. Once measured, it also has the run timing values `garrison.timeToFirstTokenMs`, `garrison.streamingMs`, `garrison.executionMs`, `garrison.queueMs`, `garrison.totalMs`, and `garrison.outputTokensPerSecond` (see `docs/TELEMETRY.md`).
+A completed task carries one artifact, `<runId>-result`, named `result`. It has a text part with the final answer and, when the agent produced structured output, a second data part with media type `application/json`. Failed and rejected tasks carry a status message made of the run's outcome and error message, in the form `<outcome>: <error>`. Every task has `garrison.agent`, `garrison.outcome`, `garrison.inputTokens`, `garrison.outputTokens`, `garrison.cachedTokens`, `garrison.reasoningTokens`, and `garrison.toolCallCount` in its metadata, and `garrison.servedModel` (the model the harness reported, or `null`). Once measured, it also has the run timing values `garrison.timeToFirstTokenMs`, `garrison.streamingMs`, `garrison.executionMs`, `garrison.queueMs`, `garrison.totalMs`, and `garrison.outputTokensPerSecond`, and once the run finishes `garrison.delegationWaitMs` and `garrison.timeToFirstTokenExcludingDelegationMs` (see `docs/TELEMETRY.md`).
 
 `GetTask` takes `{"id": "<runId>"}`. A task that belongs to a different agent is reported as not found (`-32001`), even when it exists.
 
@@ -157,7 +161,26 @@ Garrison sends one status update per state change, plus the result artifact just
 | `-32002` | The task already finished and cannot be cancelled |
 | `-32007` | The caller does not have the needed permission |
 
-Conflicts that REST reports as 409, such as an inactive agent or a delegation rule violation, come back as `-32602` with the Garrison error code at the start of the message, for example `AgentInactive: Agent docs-echo is inactive.`
+Conflicts that REST reports as 409, such as an inactive agent, an agent with no active deployment, or a delegation rule violation, come back as `-32602` with the Garrison error code at the start of the message, for example `NoActiveDeployment: Agent docs-echo has no active deployment with a weight above zero, so it cannot run. ...`. JSON-RPC errors are sent with HTTP 200, except a reused `messageId` with different content, which is sent with HTTP 409.
+
+Garrison errors also carry `data` with a stable machine code, so clients do not need to parse the message:
+
+```json
+{
+  "jsonrpc": "2.0", "id": "1",
+  "error": {
+    "code": -32602,
+    "message": "Run parameter model is not allowed for deployment docs-echo-default: Deployment docs-echo-default does not allow overriding model. parameters.model: Deployment docs-echo-default does not allow overriding model.",
+    "data": {
+      "code": "ValidationFailed",
+      "errors": { "parameters.model": "Deployment docs-echo-default does not allow overriding model." },
+      "fieldCodes": { "parameters.model": "ParameterNotAllowed" }
+    }
+  }
+}
+```
+
+`data.code` is `ValidationFailed`, `MessageIdConflict`, `InvalidParams`, or the REST conflict code (for example `NoActiveDeployment`).
 
 ## Calling Garrison agents from Garrison agents
 

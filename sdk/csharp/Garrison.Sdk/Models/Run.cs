@@ -364,6 +364,16 @@ namespace Garrison.Sdk.Models
         public long? TotalMs { get; set; } = null;
 
         /// <summary>
+        /// Milliseconds the run spent waiting on child runs it started (delegation), measured from server timestamps of the child runs whose parentRunId is this run. Overlapping child runs are counted once. Null when not measurable.
+        /// </summary>
+        public long? DelegationWaitMs { get; set; } = null;
+
+        /// <summary>
+        /// Time to first token minus the delegation wait that happened before the first token, in milliseconds. Never negative. Null when not measurable.
+        /// </summary>
+        public long? TimeToFirstTokenExcludingDelegationMs { get; set; } = null;
+
+        /// <summary>
         /// Output tokens per second over the streaming window. Null when not measurable.
         /// </summary>
         public double? OutputTokensPerSecond { get; set; } = null;

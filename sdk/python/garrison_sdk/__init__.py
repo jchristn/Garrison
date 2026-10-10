@@ -3,7 +3,7 @@
 Example:
     from garrison_sdk import GarrisonClient
     client = GarrisonClient("http://127.0.0.1:8700")
-    client.login_with_keys("access_...", "secret_...")
+    client.login("admin@garrison", "password")
     run = client.agents.invoke("my-agent", "Summarize the release notes", wait=True)
     print(run["status"], run.get("resultText"))
 """

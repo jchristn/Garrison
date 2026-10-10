@@ -186,10 +186,36 @@ namespace Garrison.Server.Routes
             {
                 await SendRpcErrorAsync(context, id, Error((int)A2AErrorCode.TaskNotFound, e.Message)).ConfigureAwait(false);
             }
-            catch (Exception e) when (e is ConflictException || e is ValidationException || e is JsonException || e is ArgumentException)
+            catch (IdempotencyConflictException e)
             {
-                string code = e is ConflictException conflict ? conflict.Code + ": " : String.Empty;
-                await SendRpcErrorAsync(context, id, Error(-32602, code + e.Message)).ConfigureAwait(false);
+                // A reused messageId with different content (M1-10): HTTP 409 with a JSON-RPC error body.
+                JsonRpcError error = Error(-32602, "messageId " + e.Key + " was already used for task " + e.ExistingRunId + " with different content. Send a new messageId for a new message; resending identical content returns the existing task.");
+                error.Data = new A2AErrorData { Code = "MessageIdConflict", TaskId = e.ExistingRunId };
+                await SendRpcErrorAsync(context, id, error, 409).ConfigureAwait(false);
+            }
+            catch (ValidationException e)
+            {
+                JsonRpcError error = Error(-32602, e.Describe());
+                A2AErrorData data = new A2AErrorData { Code = "ValidationFailed" };
+                if (e.Fields.Count > 0)
+                {
+                    data.Errors = e.Fields;
+                    data.FieldCodes = e.Fields.Keys.ToDictionary(k => k, k => e.CodeFor(k));
+                }
+                error.Data = data;
+                await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+            }
+            catch (ConflictException e)
+            {
+                JsonRpcError error = Error(-32602, e.Code + ": " + e.Message);
+                error.Data = new A2AErrorData { Code = e.Code };
+                await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is JsonException || e is ArgumentException)
+            {
+                JsonRpcError error = Error(-32602, "InvalidParams: " + e.Message);
+                error.Data = new A2AErrorData { Code = "InvalidParams" };
+                await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
             }
         }
 
@@ -338,12 +364,12 @@ namespace Garrison.Server.Routes
             await SendA2AJsonAsync(context, 200, response).ConfigureAwait(false);
         }
 
-        private static async Task SendRpcErrorAsync(HttpContextBase context, object? id, JsonRpcError error)
+        private static async Task SendRpcErrorAsync(HttpContextBase context, object? id, JsonRpcError error, int status = 200)
         {
             JsonRpcResponse response = new JsonRpcResponse();
             response.Id = id;
             response.Error = error;
-            await SendA2AJsonAsync(context, 200, response).ConfigureAwait(false);
+            await SendA2AJsonAsync(context, status, response).ConfigureAwait(false);
         }
 
         private static async Task SendStreamEventAsync(HttpContextBase context, object? id, StreamResponse payload, bool final)

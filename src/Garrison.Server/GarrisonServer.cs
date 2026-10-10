@@ -97,7 +97,7 @@ namespace Garrison.Server
             _Server = new Webserver(settings, DefaultRouteAsync);
             context.Register(_Server);
 
-            _Routes = new RouteRegistrar(_Server, context.Authorization, context.Scopes, context.Logging);
+            _Routes = new RouteRegistrar(_Server, context.Authorization, context.Database, context.Scopes, context.Logging);
             if (context.Settings.Rest.CorsOrigins.Count > 0) _CorsOrigin = String.Join(" ", context.Settings.Rest.CorsOrigins);
         }
 

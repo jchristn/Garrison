@@ -47,7 +47,7 @@ namespace Test.Shared.Suites
             {
                 Assert.True(await first.PingAsync(token).ConfigureAwait(false), "Ping failed after first initialization.");
                 firstVersion = first.SchemaVersion;
-                Assert.Equal(3, firstVersion, "Schema version after first initialization");
+                Assert.Equal(4, firstVersion, "Schema version after first initialization");
             }
             using (DatabaseDriverBase second = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
@@ -91,7 +91,7 @@ namespace Test.Shared.Suites
 
             using (DatabaseDriverBase upgraded = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(3, upgraded.SchemaVersion, "Schema version after upgrade");
+                Assert.Equal(4, upgraded.SchemaVersion, "Schema version after upgrade");
                 Run legacy = Assert.NotNull(await upgraded.Runs.ReadAsync("run_legacy", token).ConfigureAwait(false), "Legacy run");
                 Assert.Equal(20L, legacy.OutputTokens, "Existing columns survive");
                 Assert.Equal(0L, legacy.ReasoningTokens, "Reasoning tokens default to 0");
@@ -118,7 +118,7 @@ namespace Test.Shared.Suites
 
             using (DatabaseDriverBase again = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(3, again.SchemaVersion, "Schema version after a second upgrade pass");
+                Assert.Equal(4, again.SchemaVersion, "Schema version after a second upgrade pass");
             }
         }
 
@@ -154,6 +154,8 @@ namespace Test.Shared.Suites
                 result.ExecutionMs = 3100;
                 result.QueueMs = 700;
                 result.TotalMs = 5000;
+                result.DelegationWaitMs = 800;
+                result.TimeToFirstTokenExcludingDelegationMs = 400;
                 Assert.True(await db.Runs.CompleteAsync(result, "nod_1", epoch, token).ConfigureAwait(false), "Complete");
 
                 Run read = Assert.NotNull(await db.Runs.ReadAsync(run.Id, token).ConfigureAwait(false), "Completed run");
@@ -167,12 +169,15 @@ namespace Test.Shared.Suites
                 Assert.Equal(700L, read.QueueMs ?? -1, "Queue");
                 Assert.Equal(5000L, read.TotalMs ?? -1, "Total");
                 Assert.Equal(200.0, read.OutputTokensPerSecond ?? -1, "Tokens per second");
+                Assert.Equal(800L, read.DelegationWaitMs ?? -1, "Delegation wait");
+                Assert.Equal(400L, read.TimeToFirstTokenExcludingDelegationMs ?? -1, "TTFT excluding delegation");
 
                 RunFilter filter = new RunFilter();
                 filter.TenantId = "ten_a";
                 List<Run> rows = await db.Runs.ListForAnalyticsAsync(filter, 10, token).ConfigureAwait(false);
                 Assert.Equal(1, rows.Count, "Analytics rows");
                 Assert.Equal(1200L, rows[0].TimeToFirstTokenMs ?? -1, "Analytics TTFT");
+                Assert.Equal(800L, rows[0].DelegationWaitMs ?? -1, "Analytics delegation wait");
                 filter.TenantId = "ten_b";
                 Assert.Equal(0, (await db.Runs.ListForAnalyticsAsync(filter, 10, token).ConfigureAwait(false)).Count, "Analytics rows for another tenant");
             }

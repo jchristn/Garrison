@@ -4,9 +4,14 @@ Go client for the Garrison REST API. Standard library only; Go 1.21+.
 
 ## Install
 
+There is no tagged release of the Go module yet. Until there is, point your module at your checkout of the repository with a `replace` directive:
+
 ```bash
-go get github.com/jchristn/Garrison/sdk/go
+go mod edit -require=github.com/jchristn/Garrison/sdk/go@v0.0.0 -replace=github.com/jchristn/Garrison/sdk/go=/path/to/Garrison/sdk/go
+go mod tidy
 ```
+
+If your machine can fetch `github.com/jchristn/Garrison`, `go get github.com/jchristn/Garrison/sdk/go@main` also works and records a pseudo-version for the current commit.
 
 ## Quick start
 
@@ -14,7 +19,8 @@ go get github.com/jchristn/Garrison/sdk/go
 import garrison "github.com/jchristn/Garrison/sdk/go"
 
 client := garrison.NewClient("http://127.0.0.1:8700")
-if _, err := client.LoginWithKeys(ctx, "access_...", "secret_..."); err != nil {
+// The same email and password you use in the dashboard.
+if _, err := client.Login(ctx, "admin@garrison", "password", "default"); err != nil {
 	return err
 }
 run, err := client.Agents.Invoke(ctx, "my-agent", garrison.InvokeRequest{Input: "Summarize the release notes", Wait: true, WaitSeconds: 120})
@@ -25,6 +31,31 @@ fmt.Println(run.Status, run.ResultText)
 ```
 
 Every call takes a `context.Context`.
+
+To sign in with an access key pair instead, call `client.LoginWithKeys(ctx, accessKey, secretKey)`. See "Where the credentials come from" below.
+
+## Where the credentials come from
+
+Email and password sign-in works the same on every runtime: tenant `default`, user `admin@garrison`, and the administrator password. That password is `password` on Docker Compose and source builds unless `GARRISON_ADMIN_PASSWORD` was set before the first start. On Kubernetes it is whatever `GARRISON_ADMIN_PASSWORD` held when `k8s/scripts/generate-secrets.sh` ran (also `password` by default), stored in Secret `garrison-secrets`.
+
+The seeded administrator access and secret keys depend on the runtime:
+
+| Runtime | Access key | Secret key |
+|---|---|---|
+| Docker Compose and source builds | `access_garrison_default` (or `GARRISON_DEFAULT_ACCESS_KEY` in `docker/.env`) | `secret_garrison_default_change_me` (or `GARRISON_DEFAULT_SECRET_KEY`) |
+| Kubernetes (Kustomize or Helm) | random, key `default-access-key` in Secret `garrison-secrets` | random, key `default-secret-key` in Secret `garrison-secrets` |
+
+On Kubernetes, read them with:
+
+```bash
+kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.default-access-key}' | base64 --decode; echo
+kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.default-secret-key}' | base64 --decode; echo
+kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.admin-password}' | base64 --decode; echo
+```
+
+You can also create a credential of your own in the dashboard (Access > Credentials); the secret key is shown once.
+
+Responses are dictionaries with the server's camelCase field names, exactly as documented in `REST_API.md`.
 
 ## Authentication
 
@@ -53,11 +84,13 @@ The stream ends after `run.completed`. `Runs.Events` polls and `Runs.WaitForComp
 
 ## Run timing and usage fields
 
-`garrison.Run` carries timing and usage measurements. Pointer fields are nil when the server could not measure them (the server omits them from JSON):
+`garrison.Run` carries timing and usage measurements. Pointer fields are nil when the server could not measure them (the server omits most of them from JSON, and sends `outputTokensPerSecond` as `null`):
 
 - `FirstTokenUTC`, `LastTokenUTC` (`*string`): ISO 8601 UTC times of the first and last model output event.
 - `TimeToFirstTokenMs`, `StreamingMs`, `ExecutionMs`, `QueueMs`, `TotalMs` (`*int64`): durations in milliseconds.
-- `OutputTokensPerSecond` (`*float64`).
+- `DelegationWaitMs` (`*int64`): time the run spent waiting on child runs it started (delegation), measured from server timestamps of the runs whose `parentRunId` is this run.
+- `TimeToFirstTokenExcludingDelegationMs` (`*int64`): `TimeToFirstTokenMs` minus the delegation wait that happened before the first token; never negative.
+- `OutputTokensPerSecond` (`*float64`): nil when there was no streaming window or it was shorter than 100 ms.
 - `ReasoningTokens`, `ToolCallCount` (`int64`, default 0), alongside `InputTokens`, `OutputTokens`, `CachedTokens`, and `CostUSD`.
 
 `Run.BlockedReason` (`*string`) is computed by the server when a run is read. It is nil unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector). The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
@@ -66,7 +99,7 @@ When the agent has an output schema, the server validates each run's final outpu
 
 ## Run analytics
 
-`client.Analytics.Runs(ctx, garrison.AnalyticsQuery{...})` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns a `*garrison.RunAnalytics` with `Totals` and one or more `Series`, each holding time `Buckets` (`StartUTC` plus the same metrics as `Totals`). Query fields are optional: `From` and `To` (ISO 8601 UTC), `Interval` (`minute`, `hour`, `day`, `week`, or `auto`), `AgentID`, `HarnessType`, `DeploymentID`, `Model` (served model; `unknown` matches runs without a recorded model), and `GroupBy` (`none`, `agent`, `harness`, `model`, or `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-4-5`) and its label is `Harness / model`. `BucketSeconds` in the response is the authoritative bucket size.
+`client.Analytics.Runs(ctx, garrison.AnalyticsQuery{...})` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns a `*garrison.RunAnalytics` with `Totals` and one or more `Series`, each holding time `Buckets` (`StartUTC` plus the same metrics as `Totals`). Query fields are optional: `From` and `To` (ISO 8601 UTC), `Interval` (`minute`, `hour`, `day`, `week`, or `auto`), `AgentID`, `HarnessType`, `DeploymentID`, `Model` (served model; `unknown` matches runs without a recorded model), and `GroupBy` (`none`, `agent`, `harness`, `model`, or `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-5-5`) and its label is `Harness / model`. `BucketSeconds` in the response is the authoritative bucket size. `AnalyticsMetrics` includes `TimeToFirstTokenExcludingDelegationMsAvg`, `TimeToFirstTokenExcludingDelegationMsP50`, `TimeToFirstTokenExcludingDelegationMsP95`, and `DelegationWaitMsAvg` (all `*float64`, nil without samples), so agents that delegate can be compared with agents that answer directly.
 
 ```go
 now := time.Now().UTC()
@@ -103,12 +136,35 @@ for _, model := range dims.Models {
 }
 ```
 
+## Manifests
+
+```go
+result, err := client.Manifests.Apply(ctx, yamlText, true, false) // dry run
+if err != nil {
+	return err
+}
+items, err := result.ParsedItems()
+if err != nil {
+	return err
+}
+for _, item := range items {
+	fmt.Println(item.Kind, item.Name, item.Result, item.Message)
+	for _, change := range item.Changes {
+		fmt.Println("  ", change.Field, change.Before, change.After)
+	}
+}
+```
+
+Each `ManifestApplyItem` reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `Changes` (`ManifestFieldChange`: `Field`, `Before`, `After`; `Before` and `After` are `*string`), with values truncated to 200 characters.
+
 ## Errors
 
-Non-2xx responses return `*garrison.Error` with `StatusCode`, `Code`, `Message`, and `Body`. `garrison.IsStatus(err, 409)` checks the status.
+Non-2xx responses return `*garrison.Error` with `StatusCode`, `Code`, `Message`, `RequestID`, and `Body`. Validation failures fill `Fields`. The settings routes return 400 with `Errors`, a map keyed by setting path (for example `Audit.RetentionDays`) whose values say what is wrong; nothing is saved when any value is rejected. `garrison.IsStatus(err, 409)` checks the status.
 
 ## Test harness
 
 ```bash
 go run ./cmd/testharness http://127.0.0.1:8700 access_garrison_default secret_garrison_default_change_me
 ```
+
+The arguments are the base URL, an access key, and a secret key. The values above are the Docker Compose and source-build defaults; on Kubernetes pass the keys from Secret `garrison-secrets` (see "Where the credentials come from"). When the server rejects the keys, the harness stops after the token check with one message that says so.

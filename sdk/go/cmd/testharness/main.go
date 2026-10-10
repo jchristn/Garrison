@@ -50,9 +50,14 @@ func main() {
 		}
 		return err
 	})
+	authFailed := 0
 	check("token auth", func(ctx context.Context) error {
 		issued, err := client.LoginWithKeys(ctx, accessKey, secretKey)
 		if err != nil {
+			var apiErr *garrison.Error
+			if errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden) {
+				authFailed = apiErr.StatusCode
+			}
 			return err
 		}
 		tenant = issued.TenantID
@@ -62,6 +67,14 @@ func main() {
 		}
 		return err
 	})
+	if authFailed != 0 {
+		fmt.Printf("\nAuthentication failed (HTTP %d): the server rejected access key %s. The remaining checks need a "+
+			"signed-in client, so the harness stops here. Pass this server's keys as arguments: "+
+			"go run ./cmd/testharness <baseUrl> <accessKey> <secretKey>. Docker Compose and source builds default to "+
+			"access_garrison_default and secret_garrison_default_change_me; on Kubernetes read default-access-key and "+
+			"default-secret-key from Secret garrison-secrets (see README, \"Where the credentials come from\").\n", authFailed, accessKey)
+		os.Exit(1)
+	}
 	check("signed request auth", func(ctx context.Context) error {
 		signed := garrison.NewClient(baseURL)
 		t := tenant

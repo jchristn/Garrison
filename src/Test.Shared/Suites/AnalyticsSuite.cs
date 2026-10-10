@@ -12,6 +12,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
+    using Garrison.Server.Routes;
     using Garrison.Server.Runtime;
     using Test.Shared.Infrastructure;
     using Touchstone.Core;
@@ -45,6 +46,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "filters", "agentId, harnessType, and deploymentId filters combine (" + provider + ")", ct => FiltersAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "group-by", "groupBy agent and harness produce one series per group (" + provider + ")", ct => GroupByAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "by-model", "Model filter, groupBy model and harnessModel, and the dimensions endpoint (" + provider + ")", ct => ByModelAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "model-encoding", "Query values are decoded: model names with colons, spaces, plus signs, and slashes filter correctly (" + provider + ")", ct => ModelEncodingAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "intervals", "Auto, day, and week intervals choose and align buckets (" + provider + ")", ct => IntervalsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "validation", "Bad ranges, intervals, and filters return 400 (" + provider + ")", ct => ValidationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "auth-and-isolation", "Run Read is required and tenants only see their own runs (" + provider + ")", ct => AuthAndIsolationAsync(provider, ct)));
@@ -295,6 +297,38 @@ namespace Test.Shared.Suites
                 Assert.Equal(4, dimensions.Models.Count, "Models");
                 Assert.True(dimensions.Models.Contains("unknown"), "unknown model listed");
                 Assert.True(!dimensions.Truncated, "Not truncated");
+            }
+        }
+
+        private static async Task ModelEncodingAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                DatabaseDriverBase db = host.Server.Context.Database;
+                string t = host.TenantId;
+                string[] models = new string[] { "gpt-oss:20b", "my model", "a+b", "org/model-1" };
+                foreach (string model in models)
+                {
+                    await SeedRunAsync(db, t, "agt_m", "mux", HarnessTypeEnum.Mux, "dep_m", RunStatusEnum.Succeeded, _Base.AddMinutes(30), r => r.ServedModel = model, token).ConfigureAwait(false);
+                }
+                await SeedRunAsync(db, t, "agt_m", "mux", HarnessTypeEnum.Mux, "dep_m", RunStatusEnum.Succeeded, _Base.AddMinutes(31), r => r.ServedModel = "gpt-oss:20b", token).ConfigureAwait(false);
+
+                Assert.Equal(2L, (await GetAsync(host.AdminClient, Path(host, Standard() + "&model=gpt-oss%3A20b"), token).ConfigureAwait(false)).Totals.Runs, "Percent-encoded colon (what browsers and SDKs send)");
+                Assert.Equal(2L, (await GetAsync(host.AdminClient, Path(host, Standard() + "&model=gpt-oss:20b"), token).ConfigureAwait(false)).Totals.Runs, "Raw colon");
+                Assert.Equal(1L, (await GetAsync(host.AdminClient, Path(host, Standard() + "&model=my%20model"), token).ConfigureAwait(false)).Totals.Runs, "Space as %20");
+                Assert.Equal(1L, (await GetAsync(host.AdminClient, Path(host, Standard() + "&model=my+model"), token).ConfigureAwait(false)).Totals.Runs, "Space as a plus sign (form encoding, Go url.Values)");
+                Assert.Equal(1L, (await GetAsync(host.AdminClient, Path(host, Standard() + "&model=a%2Bb"), token).ConfigureAwait(false)).Totals.Runs, "Literal plus sign as %2B");
+                Assert.Equal(1L, (await GetAsync(host.AdminClient, Path(host, Standard() + "&model=org%2Fmodel-1"), token).ConfigureAwait(false)).Totals.Runs, "Slash as %2F");
+                Assert.Equal(1L, (await GetAsync(host.AdminClient, Path(host, Standard() + "&model=" + Uri.EscapeDataString("org/model-1")), token).ConfigureAwait(false)).Totals.Runs, "Uri.EscapeDataString round trip");
+
+                Assert.Equal("gpt-oss:20b", RouteHelpers.DecodeQueryValue("gpt-oss%3A20b"), "Decode colon");
+                Assert.Equal("a b", RouteHelpers.DecodeQueryValue("a+b"), "Plus is a space");
+                Assert.Equal("a+b", RouteHelpers.DecodeQueryValue("a%2Bb"), "Encoded plus");
+                Assert.Equal("100%", RouteHelpers.DecodeQueryValue("100%25"), "Encoded percent");
+
+                // Dates keep a raw plus sign as an offset sign.
+                RunAnalyticsResponse offset = await GetAsync(host.AdminClient, Path(host, "from=2026-01-05T02:00:00+02:00&to=2026-01-05T06:00:00Z"), token).ConfigureAwait(false);
+                Assert.Equal(_Base, offset.FromUtc, "A raw +02:00 offset still parses");
             }
         }
 

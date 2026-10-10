@@ -686,6 +686,39 @@
               }
             }
           ]
+        },
+        {
+          "name": "Nonexistent tenant returns 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/no-such-tenant-{{suffix}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "no-such-tenant-{{suffix}}",
+                "agents"
+              ]
+            },
+            "description": "A tenant-scoped path naming a tenant that does not exist returns 404 instead of an empty list. System administrators get code `TenantNotFound`; other callers get `NotFound`, which does not reveal which tenants exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('not found code', function () { pm.expect(['TenantNotFound', 'NotFound']).to.include(pm.response.json().code); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -2024,6 +2057,53 @@
           ]
         },
         {
+          "name": "Update settings rejects out-of-range values",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "settings"
+              ]
+            },
+            "description": "An out-of-range value is rejected with 400 and nothing is saved or clamped. `errors` and `fieldCodes` are keyed by setting path.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"values\": [\n    {\n      \"path\": \"Audit.RetentionDays\",\n      \"value\": \"-5\"\n    },\n    {\n      \"path\": \"Runs.RetentionDays\",\n      \"value\": \"ten\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "var e = pm.response.json();",
+                  "pm.test('errors keyed by setting path', function () { pm.expect(e.errors).to.have.property('Audit.RetentionDays'); pm.expect(e.errors['Audit.RetentionDays']).to.include('between 1 and 3650'); });",
+                  "pm.test('machine codes', function () { pm.expect(e.fieldCodes['Audit.RetentionDays']).to.eql('OutOfRange'); pm.expect(e.fieldCodes['Runs.RetentionDays']).to.eql('NotAnInteger'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Test database connection",
           "request": {
             "method": "POST",
@@ -2852,6 +2932,53 @@
                   "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('secretId', json.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create secret with a past expiry is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/secrets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "secrets"
+              ]
+            },
+            "description": "A secret whose `expiresUtc` has already passed is rejected with 400 and field code `ExpiryInPast`, on create and on update.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-expired-{{suffix}}\",\n  \"kind\": \"GenericEnv\",\n  \"value\": \"x\",\n  \"expiresUtc\": \"2020-01-01T00:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('expiry code', function () { pm.expect(pm.response.json().fieldCodes.expiresUtc).to.eql('ExpiryInPast'); });"
                 ]
               }
             }
@@ -4284,6 +4411,188 @@
           ]
         },
         {
+          "name": "Reused idempotency key with different input is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-{{suffix}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}",
+                "invoke"
+              ]
+            },
+            "description": "The same Idempotency-Key with different input is a mistake: 409 `IdempotencyKeyConflict` names the run the key already belongs to.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Different text from Postman\",\n  \"wait\": true,\n  \"waitSeconds\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('conflict code', function () { pm.expect(pm.response.json().code).to.eql('IdempotencyKeyConflict'); pm.expect(pm.response.json().message).to.include(pm.collectionVariables.get('runId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create agent without a deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "description": "An agent with no deployment, used to show the error invoking it returns.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-bare-{{suffix}}\",\n  \"description\": \"No deployment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('bareAgentId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invoke an agent with no deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{bareAgentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{bareAgentId}}",
+                "invoke"
+              ]
+            },
+            "description": "An agent with no active deployment cannot run: 409 `NoActiveDeployment` with a message that says so (404 would mean the agent does not exist).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Hello\",\n  \"wait\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('no deployment code', function () { pm.expect(pm.response.json().code).to.eql('NoActiveDeployment'); pm.expect(pm.response.json().message).to.include('no active deployment'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete agent without a deployment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{bareAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{bareAgentId}}"
+              ]
+            },
+            "description": "Removes the agent created above."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Test deployment",
           "request": {
             "method": "POST",
@@ -4356,7 +4665,7 @@
                 "runs"
               ]
             },
-            "description": "Creates a run for the node-protocol agent without waiting. It stays Queued because no real worker has the required label.",
+            "description": "Creates a run for the node-protocol agent without waiting. It stays Queued because no real worker has the required label. Returns 202 Accepted while the run is queued, 200 if it already finished; never 201.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"agentId\": \"{{nodeAgentId}}\",\n  \"input\": \"Queued for the Postman node\"\n}",
@@ -4373,7 +4682,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is one of [201, 202]', function () { pm.expect([201, 202]).to.include(pm.response.code); });",
+                  "pm.test('status is one of [200, 202]', function () { pm.expect([200, 202]).to.include(pm.response.code); });",
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('queuedRunId', json.id); }"
                 ]
@@ -4411,7 +4720,8 @@
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('timing telemetry is present', function () { var r = pm.response.json(); pm.expect(r).to.have.property('timeToFirstTokenMs'); pm.expect(r).to.have.property('executionMs'); pm.expect(r).to.have.property('queueMs'); pm.expect(r.toolCallCount).to.be.at.least(0); });",
                   "pm.test('structured output validation fields are present', function () { var r = pm.response.json(); pm.expect(r).to.have.property('outputSchemaValid'); pm.expect(r).to.have.property('schemaValidationErrors'); pm.expect(r.repairAttempts).to.be.within(0, 1); });",
-                  "pm.test('blockedReason is present and null for a run a worker took', function () { var r = pm.response.json(); pm.expect(r).to.have.property('blockedReason'); pm.expect(r.blockedReason).to.eql(null); });"
+                  "pm.test('blockedReason is present and null for a run a worker took', function () { var r = pm.response.json(); pm.expect(r).to.have.property('blockedReason'); pm.expect(r.blockedReason).to.eql(null); });",
+                  "pm.test('delegation fields present', function () { var r = pm.response.json(); pm.expect(r).to.have.property('delegationWaitMs'); pm.expect(r).to.have.property('timeToFirstTokenExcludingDelegationMs'); pm.expect(r.delegationWaitMs).to.eql(0); });"
                 ]
               }
             }
@@ -4524,7 +4834,8 @@
                   "pm.test('minute buckets', function () { pm.expect(json.interval).to.eql('minute'); pm.expect(json.bucketSeconds).to.eql(60); });",
                   "pm.test('totals count the runs from this collection', function () { pm.expect(json.totals.runs).to.be.above(0); });",
                   "pm.test('one series per agent with gap-filled buckets', function () { pm.expect(json.series.length).to.be.above(0); pm.expect(json.series[0].buckets.length).to.be.within(60, 62); pm.expect(json.series[0].buckets[0]).to.have.property('startUtc'); });",
-                  "pm.test('metrics carry timing fields', function () { pm.expect(json.totals).to.have.property('timeToFirstTokenMsP95'); pm.expect(json.totals).to.have.property('outputTokensPerSecondAvg'); });"
+                  "pm.test('metrics carry timing fields', function () { pm.expect(json.totals).to.have.property('timeToFirstTokenMsP95'); pm.expect(json.totals).to.have.property('outputTokensPerSecondAvg'); });",
+                  "pm.test('metrics carry delegation fields', function () { ['delegationWaitMsAvg', 'timeToFirstTokenExcludingDelegationMsAvg', 'timeToFirstTokenExcludingDelegationMsP50', 'timeToFirstTokenExcludingDelegationMsP95'].forEach(function (k) { pm.expect(json.totals).to.have.property(k); }); });"
                 ]
               }
             }
@@ -4722,6 +5033,69 @@
                   "var model = pm.collectionVariables.get('analyticsModel');",
                   "pm.test('runs matched the model', function () { pm.expect(json.totals.runs).to.be.above(0); });",
                   "pm.test('every series is keyed by the filtered model', function () { pm.expect(json.series.length).to.be.above(0); json.series.forEach(function (s) { pm.expect(s.key).to.eql(model); pm.expect(s.label).to.eql(model); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run analytics with a model name containing a colon",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/analytics/runs?from={{analyticsFrom}}&to={{analyticsTo}}&groupBy=model&model=gpt-oss%3A20b",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "analytics",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{analyticsFrom}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{analyticsTo}}"
+                },
+                {
+                  "key": "groupBy",
+                  "value": "model"
+                },
+                {
+                  "key": "model",
+                  "value": "gpt-oss%3A20b"
+                }
+              ]
+            },
+            "description": "Query values are decoded, so an encoded colon (gpt-oss%3A20b) matches the model gpt-oss:20b. This collection has no such runs, so the filter returns zero runs, but the request must be accepted."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var now = new Date();",
+                  "pm.collectionVariables.set('analyticsFrom', new Date(now.getTime() - 3600000).toISOString());",
+                  "pm.collectionVariables.set('analyticsTo', new Date(now.getTime() + 60000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('filter accepted', function () { pm.expect(pm.response.json().totals.runs).to.eql(0); });"
                 ]
               }
             }
@@ -6025,7 +6399,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('nothing failed', function () { pm.expect(pm.response.json().failedCount).to.eql(0); });"
+                  "pm.test('nothing failed', function () { pm.expect(pm.response.json().failedCount).to.eql(0); });",
+                  "pm.test('every item plans a result', function () { pm.response.json().items.forEach(function (i) { pm.expect(i.result).to.eql('Validated'); pm.expect(['Created', 'Updated', 'Unchanged']).to.include(i.plannedResult); }); });"
                 ]
               }
             }
@@ -6076,6 +6451,60 @@
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('manifestApplyId', json.id); }",
                   "pm.test('three created', function () { pm.expect(pm.response.json().createdCount).to.eql(3); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply manifest again (dry run) reports no changes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/yaml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/manifests/apply?dryRun=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "manifests",
+                "apply"
+              ],
+              "query": [
+                {
+                  "key": "dryRun",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "After the apply, a dry run of the same documents plans Unchanged for each, with no field changes.",
+            "body": {
+              "mode": "raw",
+              "raw": "apiVersion: garrison/v1\nkind: PromptTemplate\nmetadata:\n  name: postman-manifest-task-{{suffix}}\nspec:\n  kind: Task\n  content: \"Manifest says: {{input.message}}\"\n---\napiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: postman-manifest-agent-{{suffix}}\n  description: Created from a Postman manifest\nspec:\n  exposure:\n    a2a: false\n---\napiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: postman-manifest-dep-{{suffix}}\nspec:\n  agent: postman-manifest-agent-{{suffix}}\n  harnessProfile: builtin/fake\n  prompts:\n    Task: postman-manifest-task-{{suffix}}\n",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('all unchanged', function () { var j = pm.response.json(); pm.expect(j.unchangedCount).to.eql(j.documentCount); j.items.forEach(function (i) { pm.expect(i.plannedResult).to.eql('Unchanged'); pm.expect(i.changes.length).to.eql(0); }); });"
                 ]
               }
             }
@@ -6297,7 +6726,101 @@
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "var r = pm.response.json();",
                   "pm.test('completed', function () { pm.expect(r.result.task.status.state).to.eql('TASK_STATE_COMPLETED'); });",
-                  "pm.collectionVariables.set('taskId', r.result.task.id);"
+                  "pm.collectionVariables.set('taskId', r.result.task.id);",
+                  "pm.test('metadata carries servedModel', function () { pm.expect(r.result.task.metadata).to.have.property('garrison.servedModel'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SendMessage again with the same messageId and text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/a2a/{{tenantId}}/{{agentName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "a2a",
+                "{{tenantId}}",
+                "{{agentName}}"
+              ]
+            },
+            "description": "A retry with the same messageId and the same content returns the existing task.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"1\",\n  \"method\": \"SendMessage\",\n  \"params\": {\n    \"message\": {\n      \"role\": \"ROLE_USER\",\n      \"messageId\": \"postman-{{suffix}}-1\",\n      \"parts\": [\n        {\n          \"text\": \"Hello over A2A\"\n        }\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same task', function () { pm.expect(pm.response.json().result.task.id).to.eql(pm.collectionVariables.get('taskId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SendMessage reusing a messageId with different text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/a2a/{{tenantId}}/{{agentName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "a2a",
+                "{{tenantId}}",
+                "{{agentName}}"
+              ]
+            },
+            "description": "The same messageId with different content is rejected with HTTP 409 and a JSON-RPC error whose data.code is MessageIdConflict.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"1\",\n  \"method\": \"SendMessage\",\n  \"params\": {\n    \"message\": {\n      \"role\": \"ROLE_USER\",\n      \"messageId\": \"postman-{{suffix}}-1\",\n      \"parts\": [\n        {\n          \"text\": \"Different text\"\n        }\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "var r = pm.response.json();",
+                  "pm.test('conflict error', function () { pm.expect(r.error.data.code).to.eql('MessageIdConflict'); pm.expect(r.error.data.taskId).to.eql(pm.collectionVariables.get('taskId')); pm.expect(r.error.message).to.include('postman-'); });"
                 ]
               }
             }
@@ -6728,7 +7251,8 @@
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "var s = JSON.parse(pm.response.json().result.content[0].text);",
                   "pm.test('finished', function () { pm.expect(s.status).to.eql('Succeeded'); });",
-                  "pm.collectionVariables.set('mcpRunId', s.runId);"
+                  "pm.collectionVariables.set('mcpRunId', s.runId);",
+                  "pm.test('summary carries servedModel', function () { pm.expect(s).to.have.property('servedModel'); });"
                 ]
               }
             }
@@ -6823,6 +7347,55 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_get_run for a missing run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "description": "Tool errors are results with isError true and text in the form `Code: message`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 6,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_get_run\",\n    \"arguments\": {\n      \"runId\": \"run_nope\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var res = pm.response.json().result;",
+                  "pm.test('tool error with a code', function () { pm.expect(res.isError).to.eql(true); pm.expect(res.content[0].text).to.eql('NotFound: Run run_nope not found.'); });"
                 ]
               }
             }
@@ -8685,6 +9258,10 @@
     },
     {
       "key": "analyticsModel",
+      "value": ""
+    },
+    {
+      "key": "bareAgentId",
       "value": ""
     }
   ]

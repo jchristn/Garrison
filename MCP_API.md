@@ -87,6 +87,7 @@ A successful call returns one text content item holding a JSON object. The run t
   "blockedReason": null,
   "finished": true,
   "result": "Echo: Hello from MCP",
+  "servedModel": "fake-model",
   "inputTokens": 12,
   "outputTokens": 7,
   "costUsd": 0.0001,
@@ -99,6 +100,8 @@ A successful call returns one text content item holding a JSON object. The run t
   "executionMs": 88,
   "queueMs": 9,
   "totalMs": 104,
+  "delegationWaitMs": 0,
+  "timeToFirstTokenExcludingDelegationMs": 61,
   "createdUtc": "2026-10-10T01:57:36.591804Z",
   "completedUtc": "2026-10-10T01:57:36.674182Z"
 }
@@ -111,6 +114,7 @@ A successful call returns one text content item holding a JSON object. The run t
 | `blockedReason` | Always present. `null` unless the run is `Queued` and no Ready worker can run it, in which case it is `NoReadyWorker`, `NoCapableWorker`, or `NoMatchingPool` (see "Blocked runs" in `REST_API.md`). Computed when the summary is built |
 | `finished` | Whether the run reached a terminal status |
 | `result` | The final text, when finished |
+| `servedModel` | The model the harness reported serving the run, for example `claude-sonnet-5-5`. Always present; `null` until the run reports it or when the harness reports none |
 | `structuredOutputJson` | Structured output as a JSON string, when the agent defines an output schema |
 | `outputSchemaValid` | Whether the final output validated against the agent's output schema. Omitted when the agent has no schema or nothing was validated (see "Structured output validation" in `REST_API.md`) |
 | `repairAttempts` | Structured output repairs started for the run: 0 or 1 |
@@ -118,19 +122,47 @@ A successful call returns one text content item holding a JSON object. The run t
 | `inputTokens`, `outputTokens`, `cachedTokens`, `reasoningTokens`, `costUsd` | Usage reported by the harness (`reasoningTokens` is 0 when the harness does not report it) |
 | `toolCallCount` | Tool call events in the run |
 | `timeToFirstTokenMs`, `streamingMs`, `executionMs`, `queueMs`, `totalMs`, `outputTokensPerSecond` | Run timing, with the same meaning as the REST run fields (see "Run timing and usage fields" in `REST_API.md` and `docs/TELEMETRY.md`). Omitted when not measured |
+| `delegationWaitMs`, `timeToFirstTokenExcludingDelegationMs` | Time the run spent waiting on runs it delegated to, and time to first token without that wait. Omitted until the run finishes |
 | `createdUtc`, `completedUtc` | Timestamps |
 
-`garrison_list_agents` returns `{"agents":[...],"totalRecords":n}`, where each agent has `id`, `name`, `description`, `inputMode`, and `skills`. `garrison_get_agent` returns one such agent, adding `displayName`, `inputSchemaJson`, and `outputSchemaJson` when they are set. `garrison_list_runs` returns `{"runs":[...],"totalRecords":n}` of run summaries. `garrison_get_run_events` returns the same body as `GET .../runs/{id}/events`, without the raw harness output.
+`garrison_list_agents` returns `{"agents":[...],"totalRecords":n}`. `garrison_get_agent` returns one agent in the same shape. Each agent has these fields:
+
+| Field | Meaning |
+|---|---|
+| `id` | Agent identifier |
+| `name` | Agent name, usable as the `agent` argument |
+| `displayName` | Human-friendly name; omitted when not set |
+| `description` | What the agent does; omitted when not set |
+| `inputMode` | `Text` or `Structured` |
+| `skills` | The agent's skills, each as `name` or `name: description` (an empty list when there are none) |
+| `inputSchemaJson`, `outputSchemaJson` | The agent's input and output JSON Schemas as strings; omitted when the agent has none |
+
+For example:
+
+```json
+{"agents":[{"id":"agt_mv2j4kki_BWJVBqKxEXAMPLE","name":"codex-coder","displayName":"Codex coder","description":"Writes and reviews code.","inputMode":"Text","skills":[]}],"totalRecords":1}
+```
+ `garrison_list_runs` returns `{"runs":[...],"totalRecords":n}` of run summaries. `garrison_get_run_events` returns the same body as `GET .../runs/{id}/events`, without the raw harness output.
 
 When `garrison_invoke_agent` stops waiting before the run finishes, the summary has `finished: false` and the current status. Follow it with `garrison_get_run` or `garrison_get_run_events`. If `blockedReason` is not null, no worker can take the run yet; waiting longer only helps once a suitable worker registers.
 
 ### Errors
 
-Failures inside a tool (not found, not permitted, a missing argument, a rejected parameter) come back as a normal result with `isError: true` and the message as text:
+Failures inside a tool (not found, not permitted, a missing argument, a rejected parameter) come back as a normal result with `isError: true` and one line of text in the form `Code: message`, so a caller can match the code before the colon:
 
 ```json
-{"jsonrpc":"2.0","result":{"content":[{"type":"text","text":"Run run_nope not found."}],"isError":true},"id":5}
+{"jsonrpc":"2.0","result":{"content":[{"type":"text","text":"NotFound: Run run_nope not found."}],"isError":true},"id":5}
 ```
+
+| Code | When |
+|---|---|
+| `NotFound` | The agent or run does not exist (or is outside the calling run's tree) |
+| `Forbidden` | The caller lacks the permission; the message names it |
+| `ValidationFailed` | A missing argument or a rejected value. Parameter errors name the parameter, for example `ValidationFailed: Run parameter model is not allowed for deployment echo-default: Deployment echo-default does not allow overriding model. parameters.model: ...` |
+| `TenantRequired`, `Unauthorized`, `UnknownTool`, `BadRequest` | The call could not be resolved |
+| Any REST conflict code | For example `RunFinished`, `NoActiveDeployment`, `DelegationNotAllowed`, `IdempotencyKeyConflict` (see the 409 codes in `REST_API.md`) |
+
+Tool result text is JSON written with plain `\"` escapes, so quotes in run output read naturally.
 
 Protocol problems such as an unknown tool name are JSON-RPC errors:
 

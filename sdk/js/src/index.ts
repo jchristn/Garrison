@@ -66,7 +66,14 @@ export interface Run extends Json {
   queueMs?: number | null;
   /** Milliseconds from queued to completed (server clock); absent when not measurable. */
   totalMs?: number | null;
-  /** Output tokens per second while streaming; absent when not measurable. */
+  /**
+   * Milliseconds the run spent waiting on child runs it started (delegation), measured from server timestamps of the
+   * runs whose parentRunId is this run; absent when not measurable.
+   */
+  delegationWaitMs?: number | null;
+  /** timeToFirstTokenMs minus the delegation wait that happened before the first token, never negative; absent when not measurable. */
+  timeToFirstTokenExcludingDelegationMs?: number | null;
+  /** Output tokens per second while streaming; always present, null when not measurable. */
   outputTokensPerSecond?: number | null;
   /** Model the harness reported serving the run; absent when the harness did not report one. */
   servedModel?: string | null;
@@ -146,6 +153,12 @@ export interface RunAnalyticsMetrics {
   inputTokens: number; outputTokens: number; cachedTokens: number; reasoningTokens: number; toolCalls: number;
   costUsd: number;
   timeToFirstTokenMsAvg: number | null; timeToFirstTokenMsP50: number | null; timeToFirstTokenMsP95: number | null;
+  /** Time to first token excluding time spent waiting on delegated child runs. */
+  timeToFirstTokenExcludingDelegationMsAvg: number | null;
+  timeToFirstTokenExcludingDelegationMsP50: number | null;
+  timeToFirstTokenExcludingDelegationMsP95: number | null;
+  /** Average time runs spent waiting on child runs they started. */
+  delegationWaitMsAvg: number | null;
   streamingMsAvg: number | null; executionMsAvg: number | null; executionMsP95: number | null;
   queueMsAvg: number | null; outputTokensPerSecondAvg: number | null;
 }
@@ -203,6 +216,29 @@ export interface RunAnalyticsDimensions {
   truncated: boolean;
 }
 
+/** One changed field of an Updated manifest item. Values are strings truncated to 200 characters; null when absent. */
+export interface ManifestFieldChange {
+  field: string;
+  before?: string | null;
+  after?: string | null;
+}
+
+/** Result for one manifest document. */
+export interface ManifestApplyItem extends Json {
+  position: number; kind: string; name: string;
+  /** Created, Updated, Unchanged, Failed, or Validated. */
+  result: string;
+  resourceId?: string; message?: string;
+  /** Field-level changes for items that are (or, in a dry run, would be) Updated; empty or absent otherwise. */
+  changes?: ManifestFieldChange[];
+}
+
+/** Result of a manifest apply or dry run. */
+export interface ManifestApply extends Json {
+  id: string; dryRun: boolean; failedCount: number;
+  items: ManifestApplyItem[];
+}
+
 export class GarrisonError extends Error {
   readonly statusCode: number;
   readonly body: string;
@@ -219,6 +255,10 @@ export class GarrisonError extends Error {
   }
 
   get code(): string | undefined { return this.error?.code; }
+  /** Field-level validation details keyed by field path, when the server returned them. */
+  get fields(): Record<string, string> | undefined { return this.error?.fields; }
+  /** Per-setting validation errors keyed by setting path (settings routes, HTTP 400). */
+  get errors(): Record<string, string> | undefined { return this.error?.errors; }
 }
 
 type AuthMode = "none" | "token" | "keys" | "signed" | "admin";
@@ -448,7 +488,7 @@ export class Secrets extends Resource {
 export class Manifests {
   constructor(private readonly t: Transport) {}
   /** Apply YAML or JSON manifests (multi-document). */
-  apply(content: string, options: { dryRun?: boolean; allowSecretValues?: boolean } = {}): Promise<Json> {
+  apply(content: string, options: { dryRun?: boolean; allowSecretValues?: boolean } = {}): Promise<ManifestApply> {
     const trimmed = content.trimStart();
     const contentType = trimmed.startsWith("{") || trimmed.startsWith("[") ? "application/json" : "application/yaml";
     return this.t.request("POST", this.t.tenantPath("/manifests/apply"), { dryRun: options.dryRun ?? false, allowSecretValues: options.allowSecretValues ? true : undefined }, content, contentType);

@@ -48,6 +48,11 @@ namespace Garrison.Sdk.Responses
         public System.Collections.Generic.Dictionary<string, string>? Fields { get; set; } = null;
 
         /// <summary>
+        /// Per-setting validation errors keyed by setting path (for example Audit.RetentionDays), returned by the settings routes with 400. Null for other errors.
+        /// </summary>
+        public System.Collections.Generic.Dictionary<string, string>? Errors { get; set; } = null;
+
+        /// <summary>
         /// Instantiate.
         /// </summary>
         public ErrorResponse()

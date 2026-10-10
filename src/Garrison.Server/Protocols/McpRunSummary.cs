@@ -99,6 +99,13 @@ namespace Garrison.Server.Protocols
         public int ToolCallCount { get; set; } = 0;
 
         /// <summary>
+        /// Model the harness reported serving the run (for example claude-sonnet-5-5); null until the run reports it or
+        /// when the harness does not report one. Always present in the JSON.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? ServedModel { get; set; } = null;
+
+        /// <summary>
         /// Milliseconds from harness process start to the first model output; null when not measured.
         /// </summary>
         public long? TimeToFirstTokenMs { get; set; } = null;
@@ -122,6 +129,16 @@ namespace Garrison.Server.Protocols
         /// Milliseconds from queued to completed; null until finished.
         /// </summary>
         public long? TotalMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds the run spent waiting on child runs it delegated to; null until the run finishes.
+        /// </summary>
+        public long? DelegationWaitMs { get; set; } = null;
+
+        /// <summary>
+        /// Time to first token minus the delegation wait before it; null when not measured.
+        /// </summary>
+        public long? TimeToFirstTokenExcludingDelegationMs { get; set; } = null;
 
         /// <summary>
         /// Output tokens per second of streaming; null when streaming lasted under 100 milliseconds.

@@ -49,18 +49,24 @@ namespace Garrison.Core.Compilation
         {
             if (deployment == null) throw new ArgumentNullException(nameof(deployment));
             Dictionary<string, string> errors = new Dictionary<string, string>(StringComparer.Ordinal);
+            Dictionary<string, string> codes = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (RunParameter parameter in parameters ?? Enumerable.Empty<RunParameter>())
             {
                 DeploymentRunOverrideRule? rule = deployment.AllowedRunOverrides.FirstOrDefault(r => String.Equals(r.Name, parameter.Name, StringComparison.OrdinalIgnoreCase));
                 if (rule == null)
                 {
                     errors["parameters." + parameter.Name] = "The deployment does not allow callers to set '" + parameter.Name + "'.";
+                    codes["parameters." + parameter.Name] = "ParameterNotAllowed";
                     continue;
                 }
                 string? problem = Check(rule, parameter.Value);
-                if (problem != null) errors["parameters." + parameter.Name] = problem;
+                if (problem != null)
+                {
+                    errors["parameters." + parameter.Name] = "Parameter " + parameter.Name + ": " + problem;
+                    codes["parameters." + parameter.Name] = "ParameterInvalid";
+                }
             }
-            if (errors.Count > 0) throw new ValidationException("One or more run parameters are invalid.", errors);
+            if (errors.Count > 0) throw new ValidationException("Invalid run parameters: " + String.Join(" ", errors.Values), errors, codes);
         }
 
         /// <summary>

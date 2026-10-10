@@ -4,9 +4,14 @@ Client for the Garrison REST API, written in TypeScript and published as ESM and
 
 ## Install
 
+The package is not published to npm yet, so `npm install @garrison/sdk` fails. Build it from your checkout of the repository and install it by path:
+
 ```bash
-npm install @garrison/sdk
+cd /path/to/Garrison/sdk/js && npm install && npm run build
+cd /path/to/your-project && npm install /path/to/Garrison/sdk/js
 ```
+
+Run `npm run build` again in `sdk/js` after pulling SDK changes; `npm install` by path links the folder, so your project picks up the new `dist`.
 
 ## Quick start
 
@@ -14,13 +19,38 @@ npm install @garrison/sdk
 import { GarrisonClient } from "@garrison/sdk";
 
 const client = new GarrisonClient("http://127.0.0.1:8700");
-await client.loginWithKeys("access_...", "secret_...");
+await client.login("admin@garrison", "password");   // the same email and password you use in the dashboard
 
 const run = await client.agents.invoke("my-agent", "Summarize the release notes", { wait: true, waitSeconds: 120 });
 console.log(run.status, run.resultText);
 ```
 
 CommonJS works too: `const { GarrisonClient } = require("@garrison/sdk");`.
+
+To sign in with an access key pair instead, call `client.loginWithKeys(accessKey, secretKey)`. See "Where the credentials come from" below.
+
+## Where the credentials come from
+
+Email and password sign-in works the same on every runtime: tenant `default`, user `admin@garrison`, and the administrator password. That password is `password` on Docker Compose and source builds unless `GARRISON_ADMIN_PASSWORD` was set before the first start. On Kubernetes it is whatever `GARRISON_ADMIN_PASSWORD` held when `k8s/scripts/generate-secrets.sh` ran (also `password` by default), stored in Secret `garrison-secrets`.
+
+The seeded administrator access and secret keys depend on the runtime:
+
+| Runtime | Access key | Secret key |
+|---|---|---|
+| Docker Compose and source builds | `access_garrison_default` (or `GARRISON_DEFAULT_ACCESS_KEY` in `docker/.env`) | `secret_garrison_default_change_me` (or `GARRISON_DEFAULT_SECRET_KEY`) |
+| Kubernetes (Kustomize or Helm) | random, key `default-access-key` in Secret `garrison-secrets` | random, key `default-secret-key` in Secret `garrison-secrets` |
+
+On Kubernetes, read them with:
+
+```bash
+kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.default-access-key}' | base64 --decode; echo
+kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.default-secret-key}' | base64 --decode; echo
+kubectl -n garrison get secret garrison-secrets -o jsonpath='{.data.admin-password}' | base64 --decode; echo
+```
+
+You can also create a credential of your own in the dashboard (Access > Credentials); the secret key is shown once.
+
+Responses are dictionaries with the server's camelCase field names, exactly as documented in `REST_API.md`.
 
 ## Authentication
 
@@ -51,7 +81,7 @@ The iterator ends after `run.completed`. `runs.events` polls, and `runs.waitForC
 
 ## Run timing and usage fields
 
-Finished runs carry timing and usage metrics. Nullable fields are omitted by the server when they cannot be measured, so treat them as optional.
+Finished runs carry timing and usage metrics. Most nullable fields are omitted by the server when they cannot be measured, so treat them as optional. `outputTokensPerSecond`, `blockedReason`, `outputSchemaValid`, and `schemaValidationErrors` are always present and are `null` when there is nothing to report.
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -61,7 +91,9 @@ Finished runs carry timing and usage metrics. Nullable fields are omitted by the
 | `executionMs` | `number` or absent | Start to completion. |
 | `queueMs` | `number` or absent | Creation to start. |
 | `totalMs` | `number` or absent | Creation to completion. |
-| `outputTokensPerSecond` | `number` or absent | Output throughput while streaming. |
+| `delegationWaitMs` | `number` or absent | Time the run spent waiting on child runs it started (delegation), measured from server timestamps of the runs whose `parentRunId` is this run. |
+| `timeToFirstTokenExcludingDelegationMs` | `number` or absent | `timeToFirstTokenMs` minus the delegation wait that happened before the first token; never negative. |
+| `outputTokensPerSecond` | `number` or `null` | Output throughput while streaming; `null` when not measurable (no streaming window, or one shorter than 100 ms). |
 | `reasoningTokens` | `number` (default 0) | Reasoning tokens reported by the harness. |
 | `toolCallCount` | `number` (default 0) | Tool calls made by the run. |
 
@@ -71,7 +103,7 @@ When the agent has an output schema, the server validates each run's final outpu
 
 ## Run analytics
 
-`analytics.runs(query)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns totals plus time-bucketed series. Every query field is optional: `from`, `to` (ISO 8601 UTC strings or `Date`), `interval` (`minute`, `hour`, `day`, `week`, `auto`), `agentId`, `harnessType`, `deploymentId`, `model` (served model; `"unknown"` matches runs without a recorded model), and `groupBy` (`none`, `agent`, `harness`, `model`, `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-4-5`) and its label is `Harness / model`.
+`analytics.runs(query)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns totals plus time-bucketed series. Every query field is optional: `from`, `to` (ISO 8601 UTC strings or `Date`), `interval` (`minute`, `hour`, `day`, `week`, `auto`), `agentId`, `harnessType`, `deploymentId`, `model` (served model; `"unknown"` matches runs without a recorded model), and `groupBy` (`none`, `agent`, `harness`, `model`, `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-5-5`) and its label is `Harness / model`.
 
 ```ts
 const now = Date.now();
@@ -82,7 +114,7 @@ for (const series of report.series) {
 }
 ```
 
-`bucketSeconds` is the authoritative bucket size. `truncated` is true when the 100,000-run cap was hit. Averages and percentiles are `null` when a bucket has no samples. The server returns 400 when `from` is not before `to`, when the range needs more than 400 buckets, or when a parameter is invalid.
+`bucketSeconds` is the authoritative bucket size. `truncated` is true when the 100,000-run cap was hit. Averages and percentiles are `null` when a bucket has no samples. Besides `timeToFirstTokenMsAvg`, `timeToFirstTokenMsP50`, and `timeToFirstTokenMsP95`, the metrics include `timeToFirstTokenExcludingDelegationMsAvg`, `timeToFirstTokenExcludingDelegationMsP50`, `timeToFirstTokenExcludingDelegationMsP95`, and `delegationWaitMsAvg`, so agents that delegate can be compared with agents that answer directly. The server returns 400 when `from` is not before `to`, when the range needs more than 400 buckets, or when a parameter is invalid.
 
 `analytics.dimensions({ from, to })` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` and returns the distinct values among runs in the range (default: the last 24 hours), which is handy for filter pickers. The result is `{ agents: [{ id, name }], harnesses: string[], deployments: [{ id, name, agentId }], models: string[], truncated }`, with each list sorted by name.
 
@@ -94,9 +126,21 @@ for (const model of dims.models) {
 }
 ```
 
+## Manifests
+
+```ts
+const result = await client.manifests.apply(yamlText, { dryRun: true });
+for (const item of result.items) {
+  console.log(item.kind, item.name, item.result, item.message ?? "");
+  for (const change of item.changes ?? []) console.log("  ", change.field, change.before, "->", change.after);
+}
+```
+
+Each item (`ManifestApplyItem`) reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `changes` (`ManifestFieldChange`: `field`, `before`, `after`), with values as strings truncated to 200 characters.
+
 ## Errors
 
-Non-success responses reject with `GarrisonError` carrying `statusCode`, `code`, `body`, and the parsed `error` payload.
+Non-success responses reject with `GarrisonError` carrying `statusCode`, `code`, `body`, and the parsed `error` payload. Validation failures expose field details as `fields`. The settings routes return 400 with `errors`, an object keyed by setting path (for example `Audit.RetentionDays`) whose values say what is wrong; nothing is saved when any value is rejected.
 
 ## Build and test
 
@@ -105,3 +149,5 @@ npm install
 npm run build
 node test-harness.mjs http://127.0.0.1:8700 access_garrison_default secret_garrison_default_change_me
 ```
+
+The harness arguments are the base URL, an access key, and a secret key. The values above are the Docker Compose and source-build defaults; on Kubernetes pass the keys from Secret `garrison-secrets` (see "Where the credentials come from"). When the server rejects the keys, the harness stops after the token check with one message that says so.

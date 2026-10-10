@@ -98,6 +98,7 @@ namespace Garrison.Core.Database
                 "cluster_settings",
                 "manifest_applies",
                 "manifest_apply_items",
+                "manifest_apply_changes",
         };
 
         private readonly SqlDialect _Dialect;

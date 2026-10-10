@@ -25,6 +25,12 @@ namespace Garrison.Core.Protocol
         public DateTime TimestampUtc { get; set; } = DateTime.UtcNow;
 
         /// <summary>
+        /// Stable machine code for text Garrison itself generates (for example WorkspacePrepared, HarnessExited,
+        /// RunBlocked), so clients can show a translated label; null for text that comes from the harness or model.
+        /// </summary>
+        public string? Code { get; set; } = null;
+
+        /// <summary>
         /// Text content.
         /// </summary>
         public string? Text { get; set; } = null;

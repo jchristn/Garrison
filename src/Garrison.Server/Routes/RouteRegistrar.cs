@@ -5,6 +5,7 @@ namespace Garrison.Server.Routes
     using System.Text.Json;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
@@ -43,6 +44,7 @@ namespace Garrison.Server.Routes
 
         private readonly Webserver _Server;
         private readonly AuthorizationService _Authorization;
+        private readonly DatabaseDriverBase _Database;
         private readonly OperationScopeMap _Scopes;
         private readonly LoggingModule _Logging;
         private readonly string _Header = "[Routes] ";
@@ -56,13 +58,15 @@ namespace Garrison.Server.Routes
         /// </summary>
         /// <param name="server">Watson server.</param>
         /// <param name="authorization">Authorization service.</param>
+        /// <param name="database">Database, used to check that the tenant in a tenant-scoped path exists.</param>
         /// <param name="scopes">Operation scope map.</param>
         /// <param name="logging">Logging.</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public RouteRegistrar(Webserver server, AuthorizationService authorization, OperationScopeMap scopes, LoggingModule logging)
+        public RouteRegistrar(Webserver server, AuthorizationService authorization, DatabaseDriverBase database, OperationScopeMap scopes, LoggingModule logging)
         {
             _Server = server ?? throw new ArgumentNullException(nameof(server));
             _Authorization = authorization ?? throw new ArgumentNullException(nameof(authorization));
+            _Database = database ?? throw new ArgumentNullException(nameof(database));
             _Scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
             _Logging = logging ?? throw new ArgumentNullException(nameof(logging));
         }
@@ -170,6 +174,16 @@ namespace Garrison.Server.Routes
 
         private void Add(HttpMethod method, string path, Func<HttpContextBase, Task> handler, OpenApiRouteMetadata metadata)
         {
+            // Every authenticated route under /tenants/{tenantId} checks here, once, that the tenant exists (M1-13).
+            if (path.Contains("/tenants/{tenantId}", StringComparison.Ordinal))
+            {
+                Func<HttpContextBase, Task> inner = handler;
+                handler = async context =>
+                {
+                    if (await TenantMissingAsync(context).ConfigureAwait(false)) return;
+                    await inner(context).ConfigureAwait(false);
+                };
+            }
             if (path.Contains('{')) _Server.Routes.PostAuthentication.Parameter.Add(method, path, handler, null, openApiMetadata: metadata);
             else _Server.Routes.PostAuthentication.Static.Add(method, path, handler, null, openApiMetadata: metadata);
         }
@@ -204,6 +218,18 @@ namespace Garrison.Server.Routes
             return metadata;
         }
 
+        private async Task<bool> TenantMissingAsync(HttpContextBase context)
+        {
+            // Only system administrators can address a tenant other than their own; everyone else already gets the
+            // authorization layer's 404 for another tenant, which must not reveal whether that tenant exists.
+            RequestContext ctx = RouteHelpers.Context(context);
+            string? tenantId = RouteHelpers.Param(context, "tenantId");
+            if (!ctx.IsAdmin || String.IsNullOrEmpty(tenantId)) return false;
+            if (await _Database.Tenants.ExistsAsync(tenantId, context.Token).ConfigureAwait(false)) return false;
+            await RouteHelpers.ErrorAsync(context, 404, "TenantNotFound", "Tenant " + tenantId + " not found.").ConfigureAwait(false);
+            return true;
+        }
+
         private async Task DenyAsync(HttpContextBase context, RequestContext ctx, AuthorizationDecision decision, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? tenantId)
         {
             int status = decision.Result == Garrison.Core.Enums.AuthorizationResultEnum.NotFound ? 404 : 403;
@@ -230,7 +256,7 @@ namespace Garrison.Server.Routes
             }
             catch (ValidationException e)
             {
-                await RouteHelpers.ValidationAsync(context, e.Message, e.Fields.Count > 0 ? e.Fields : null).ConfigureAwait(false);
+                await RouteHelpers.ValidationAsync(context, e.Message, e.Fields.Count > 0 ? e.Fields : null, e.Codes).ConfigureAwait(false);
             }
             catch (NotFoundException e)
             {

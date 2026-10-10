@@ -195,6 +195,7 @@ namespace Garrison.Server.Runtime
                 evt.EventType = RunEventTypeEnum.Warning;
                 evt.TimestampUtc = DateTime.UtcNow;
                 evt.Text = text;
+                evt.Code = "StructuredOutputInvalid";
                 evt.RawEventJson = Serializer.Serialize(notice);
                 int inserted = await _Database.RunEvents.InsertBatchAsync(new List<RunEvent> { evt }, token).ConfigureAwait(false);
                 if (inserted > 0) break;

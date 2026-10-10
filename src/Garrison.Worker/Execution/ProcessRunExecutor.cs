@@ -79,17 +79,17 @@ namespace Garrison.Worker.Execution
                 {
                     return Fail(complete, RunOutcomeEnum.WorkspaceFailed, scrubber.Scrub("Workspace preparation failed: " + e.Message));
                 }
-                if (spec.RepairAttempt > 0) Lifecycle(reporter, "Structured output repair attempt " + spec.RepairAttempt + ": resuming the harness session in " + directories.Workspace + ".");
-                else Lifecycle(reporter, "Workspace prepared at " + directories.Workspace + ".");
+                if (spec.RepairAttempt > 0) Lifecycle(reporter, "RepairAttemptStarted", "Structured output repair attempt " + spec.RepairAttempt + ": resuming the harness session in " + directories.Workspace + ".");
+                else Lifecycle(reporter, "WorkspacePrepared", "Workspace prepared at " + directories.Workspace + ".");
 
                 if (spec.McpPreflight.Count > 0)
                 {
                     McpPreflight preflight = new McpPreflight();
                     preflight.TimeoutMs = _Options.McpPreflightTimeoutMs;
                     McpPreflightResult check = await preflight.CheckAsync(spec.McpPreflight, token).ConfigureAwait(false);
-                    foreach (string warning in check.Warnings) Emit(reporter, scrubber, RunEventTypeEnum.Warning, warning);
+                    foreach (string warning in check.Warnings) Emit(reporter, scrubber, RunEventTypeEnum.Warning, warning, "McpPreflightWarning");
                     if (!check.Success) return Fail(complete, RunOutcomeEnum.McpPreflightFailed, scrubber.Scrub(check.Message));
-                    Lifecycle(reporter, "MCP pre-flight passed for " + spec.McpPreflight.Count + " server(s).");
+                    Lifecycle(reporter, "McpPreflightPassed", "MCP pre-flight passed for " + spec.McpPreflight.Count + " server(s).");
                 }
 
                 HarnessRunState state = new HarnessRunState();
@@ -151,7 +151,7 @@ namespace Garrison.Worker.Execution
                 complete.CompletedUtc = DateTime.UtcNow;
                 succeeded = complete.Status == RunStatusEnum.Succeeded;
 
-                Lifecycle(reporter, "Harness exited" + (process.ExitCode.HasValue ? " with code " + process.ExitCode.Value : String.Empty) + ": " + complete.Status + " (" + complete.Outcome + ").");
+                Lifecycle(reporter, "HarnessExited", "Harness exited" + (process.ExitCode.HasValue ? " with code " + process.ExitCode.Value : String.Empty) + ": " + complete.Status + " (" + complete.Outcome + ").");
                 return complete;
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -261,18 +261,20 @@ namespace Garrison.Worker.Execution
             reporter.Emit(report);
         }
 
-        private static void Emit(IRunReporter reporter, SecretScrubber scrubber, RunEventTypeEnum type, string? text)
+        private static void Emit(IRunReporter reporter, SecretScrubber scrubber, RunEventTypeEnum type, string? text, string? code = null)
         {
             RunEventReport report = new RunEventReport();
             report.EventType = type;
             report.Text = text;
+            report.Code = code;
             EmitScrubbed(reporter, scrubber, report);
         }
 
-        private static void Lifecycle(IRunReporter reporter, string text)
+        private static void Lifecycle(IRunReporter reporter, string code, string text)
         {
             RunEventReport report = new RunEventReport();
             report.EventType = RunEventTypeEnum.Lifecycle;
+            report.Code = code;
             report.Text = text;
             reporter.Emit(report);
         }

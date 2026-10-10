@@ -76,8 +76,9 @@ namespace Garrison.Server.Runtime
         /// <returns>The queued run, or the existing run for a repeated idempotency key.</returns>
         /// <exception cref="ArgumentNullException">Thrown when create is null.</exception>
         /// <exception cref="ValidationException">Thrown when the input or overrides are invalid.</exception>
-        /// <exception cref="NotFoundException">Thrown when no usable deployment exists.</exception>
-        /// <exception cref="ConflictException">Thrown when delegation depth is exceeded.</exception>
+        /// <exception cref="NotFoundException">Thrown when a requested deployment does not exist for the agent.</exception>
+        /// <exception cref="ConflictException">Thrown when delegation depth is exceeded, or with NoActiveDeployment when the agent has no active deployment with a weight above zero.</exception>
+        /// <exception cref="IdempotencyConflictException">Thrown when the idempotency key belongs to a run with different content.</exception>
         public async Task<Run> CreateAsync(RunCreateContext create, CancellationToken token = default)
         {
             if (create == null) throw new ArgumentNullException(nameof(create));
@@ -89,7 +90,15 @@ namespace Garrison.Server.Runtime
             if (!String.IsNullOrEmpty(create.IdempotencyKey))
             {
                 Run? existing = await _Database.Runs.ReadByIdempotencyKeyAsync(create.TenantId, create.CallerId, create.IdempotencyKey, token).ConfigureAwait(false);
-                if (existing != null) return existing;
+                if (existing != null)
+                {
+                    // Same key and same content is a safe retry; the same key with different content is a mistake.
+                    bool sameContent = existing.AgentId == create.Agent.Id && String.Equals(existing.InputText ?? String.Empty, create.Input ?? String.Empty, StringComparison.Ordinal);
+                    if (sameContent) return existing;
+                    string shown = create.IdempotencyKey.StartsWith("a2a:", StringComparison.Ordinal) ? create.IdempotencyKey.Substring(4) : create.IdempotencyKey;
+                    throw new IdempotencyConflictException(shown, existing.Id,
+                        "Idempotency key " + shown + " was already used for run " + existing.Id + " with different content. Use a new key for a new request; resend identical content to get the existing run.");
+                }
             }
 
             Deployment deployment = await SelectDeploymentAsync(create, token).ConfigureAwait(false);
@@ -205,15 +214,18 @@ namespace Garrison.Server.Runtime
         /// <param name="token">Cancellation token.</param>
         /// <returns>New run.</returns>
         /// <exception cref="ArgumentNullException">Thrown when original is null.</exception>
-        /// <exception cref="ConflictException">Thrown when the run has not finished.</exception>
-        /// <exception cref="NotFoundException">Thrown when the agent no longer exists.</exception>
+        /// <exception cref="ConflictException">Thrown with RunNotFinished when the run has not finished, AgentDeleted when its agent was deleted, or DeploymentDeleted when its deployment was deleted.</exception>
         public async Task<Run> RetryAsync(Run original, PrincipalTypeEnum callerType, string? callerId, string? callerName, CancellationToken token = default)
         {
             if (original == null) throw new ArgumentNullException(nameof(original));
             if (!TerminalStatuses.Contains(original.Status)) throw new ConflictException("RunNotFinished", "Only finished runs can be retried.");
 
             Agent agent = await _Database.Agents.ReadAsync(original.TenantId, original.AgentId, token).ConfigureAwait(false)
-                ?? throw new NotFoundException("Agent " + original.AgentId + " no longer exists.");
+                ?? throw new ConflictException("AgentDeleted", "Run " + original.Id + " cannot be retried because the agent " + original.AgentName + " was deleted.");
+            if (!String.IsNullOrEmpty(original.DeploymentId) && await _Database.Deployments.ReadAsync(original.TenantId, original.DeploymentId, token).ConfigureAwait(false) == null)
+            {
+                throw new ConflictException("DeploymentDeleted", "Run " + original.Id + " cannot be retried because its deployment " + original.DeploymentId + " was deleted. Invoke agent " + original.AgentName + " again instead.");
+            }
 
             RunCreateContext create = new RunCreateContext();
             create.TenantId = original.TenantId;
@@ -291,7 +303,10 @@ namespace Garrison.Server.Runtime
                 skip += page.Objects.Count;
             }
 
-            if (candidates.Count == 0) throw new NotFoundException("Agent " + create.Agent.Name + " has no active deployment with a weight above zero.");
+            if (candidates.Count == 0)
+            {
+                throw new ConflictException("NoActiveDeployment", "Agent " + create.Agent.Name + " has no active deployment with a weight above zero, so it cannot run. Create a deployment for it, or activate one and give it a weight above zero.");
+            }
             if (candidates.Count == 1) return candidates[0];
 
             int total = candidates.Sum(d => d.Weight);
@@ -310,22 +325,34 @@ namespace Garrison.Server.Runtime
             if (requested == null || requested.Count == 0) return accepted;
 
             Dictionary<string, string> errors = new Dictionary<string, string>();
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            List<string> names = new List<string>();
             foreach (KeyValuePair<string, string> parameter in requested)
             {
                 DeploymentRunOverrideRule? rule = deployment.AllowedRunOverrides.FirstOrDefault(r => String.Equals(r.Name, parameter.Key, StringComparison.Ordinal));
                 if (rule == null)
                 {
                     errors["parameters." + parameter.Key] = "Deployment " + deployment.Name + " does not allow overriding " + parameter.Key + ".";
+                    codes["parameters." + parameter.Key] = "ParameterNotAllowed";
+                    names.Add(parameter.Key);
                     continue;
                 }
 
                 string value = parameter.Value ?? String.Empty;
                 string? problem = Check(rule, value);
-                if (problem != null) errors["parameters." + parameter.Key] = problem;
+                if (problem != null)
+                {
+                    errors["parameters." + parameter.Key] = "Parameter " + parameter.Key + ": " + problem;
+                    codes["parameters." + parameter.Key] = "ParameterInvalid";
+                    names.Add(parameter.Key);
+                }
                 else accepted[parameter.Key] = value;
             }
 
-            if (errors.Count > 0) throw new ValidationException("One or more run parameters are not allowed.", errors);
+            if (errors.Count > 0)
+            {
+                throw new ValidationException("Run parameter" + (names.Count == 1 ? " " : "s ") + String.Join(", ", names) + (names.Count == 1 ? " is" : " are") + " not allowed for deployment " + deployment.Name + ": " + String.Join(" ", errors.Values), errors, codes);
+            }
             return accepted;
         }
 

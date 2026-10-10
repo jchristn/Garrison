@@ -154,10 +154,13 @@ curl -s -X POST $GARRISON_MCP_URL -H "Authorization: Bearer $TOKEN" -H "MCP-Sess
 ```bash
 curl -s $GARRISON_URL/v1.0/a2a/default/planner/.well-known/agent-card.json | jq '{name, skills: [.skills[].name]}'
 
+MSG_ID="qs-$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid)"
 curl -s -X POST $GARRISON_URL/v1.0/a2a/default/planner -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":"1","method":"SendMessage","params":{"message":{"role":"ROLE_USER","messageId":"qs-'$RANDOM'","parts":[{"text":"Reply with READY."}]}}}' |
+  -d '{"jsonrpc":"2.0","id":"1","method":"SendMessage","params":{"message":{"role":"ROLE_USER","messageId":"'"$MSG_ID"'","parts":[{"text":"Reply with READY."}]}}}' |
   jq '{state: .result.task.status.state, text: .result.task.artifacts[0].parts[0].text}'
 ```
+
+Run the `MSG_ID=` line again before every `SendMessage`. Garrison treats `messageId` as an idempotency key: sending the same identifier with the same text returns the task it already ran, and sending it with different text is rejected with a conflict error. `uuidgen` (macOS and most Linux distributions) gives a fresh value each time in bash and zsh alike; avoid `$RANDOM` inside a pipeline, because zsh evaluates it in a subshell and repeats the same number.
 
 In the dashboard, **Invoke** does the same: pick the agent, type a message, press **Send**.
 
@@ -225,8 +228,10 @@ PASS  run telemetry fields
       queue 2ms ttft 1897ms streaming 623ms exec 2547ms total 2572ms tokens in 1252 out 22 cost 0.007001 model claude-sonnet-5-5
 PASS  analytics endpoint (53 runs in the last 24 hours; agents: planner echo coder researcher)
 
-30 passed, 0 failed
+25 passed, 0 failed
 ```
+
+That count is for the three default agents. The script runs ten checks once and five for every agent (deployment, REST invoke, MCP invoke, A2A card, A2A `SendMessage`), so `--agents "planner coder echo researcher"` gives 30, `--skip-delegation` removes two, and `--agents echo --skip-delegation` gives 13.
 
 ## When something fails
 

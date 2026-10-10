@@ -216,9 +216,9 @@ namespace Garrison.Server.Protocols
         private async Task<object> DispatchAsync(McpToolDefinition tool, RpcParameters? args, RpcCallContext? call, CancellationToken token)
         {
             RequestContext ctx = PrincipalClaims.Decode(call?.Claims);
-            if (!ctx.IsAuthenticated) throw new McpToolException("Authentication is required.");
+            if (!ctx.IsAuthenticated) throw ToolError("Unauthorized", "Authentication is required.");
             string? tenantId = ctx.TenantId ?? args?.GetString("tenantId");
-            if (String.IsNullOrEmpty(tenantId)) throw new McpToolException("No tenant could be resolved. System administrators must pass tenantId.");
+            if (String.IsNullOrEmpty(tenantId)) throw ToolError("TenantRequired", "No tenant could be resolved. System administrators must pass tenantId.");
 
             _Context.Telemetry.Increment("garrison.mcp.tool.calls", new RadiantTag("tool", tool.Name));
             try
@@ -252,10 +252,10 @@ namespace Garrison.Server.Protocols
                         result = await ListRunsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     default:
-                        throw new McpToolException("Unknown tool " + tool.Name + ".");
+                        throw ToolError("UnknownTool", "Unknown tool " + tool.Name + ".");
                 }
                 _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.Name), new RadiantTag("result", "ok"));
-                return McpToolCallResult.FromText(Serializer.Serialize(result));
+                return McpToolCallResult.FromText(Serializer.SerializeReadable(result));
             }
             catch (McpToolException)
             {
@@ -265,15 +265,17 @@ namespace Garrison.Server.Protocols
             catch (Exception e) when (e is NotFoundException || e is ConflictException || e is ValidationException || e is ArgumentException)
             {
                 _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.Name), new RadiantTag("result", "error"));
-                string code = e is ConflictException c ? c.Code + ": " : String.Empty;
-                throw new McpToolException(code + e.Message);
+                if (e is ValidationException validation) throw ToolError("ValidationFailed", validation.Describe());
+                if (e is ConflictException conflict) throw ToolError(conflict.Code, e.Message);
+                if (e is NotFoundException) throw ToolError("NotFound", e.Message);
+                throw ToolError("BadRequest", e.Message);
             }
         }
 
         private async Task Require(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, CancellationToken token)
         {
             AuthorizationDecision decision = await _Context.Authorization.AuthorizeAsync(ctx, tenantId, resourceType, operation, resourceId, token).ConfigureAwait(false);
-            if (!decision.Permitted) throw new McpToolException("Not permitted: " + decision.Reason);
+            if (!decision.Permitted) throw ToolError("Forbidden", "Not permitted: " + decision.Reason);
         }
 
         private async Task<object> ListAgentsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
@@ -315,7 +317,7 @@ namespace Garrison.Server.Protocols
 
             InvocationOptions options = new InvocationOptions();
             options.Input = args?.GetString("input") ?? String.Empty;
-            if (String.IsNullOrWhiteSpace(options.Input)) throw new McpToolException("input is required.");
+            if (String.IsNullOrWhiteSpace(options.Input)) throw ToolError("ValidationFailed", "input is required.");
             options.DeploymentId = args?.GetString("deploymentId");
             options.Parameters = ReadParameters(args);
             options.Wait = wait;
@@ -358,12 +360,12 @@ namespace Garrison.Server.Protocols
         private async Task<Run> RequireRunAsync(RequestContext ctx, string tenantId, RpcParameters? args, OperationTypeEnum operation, CancellationToken token)
         {
             string? runId = args?.GetString("runId");
-            if (String.IsNullOrEmpty(runId)) throw new McpToolException("runId is required.");
-            Run run = await _Context.Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false) ?? throw new McpToolException("Run " + runId + " not found.");
+            if (String.IsNullOrEmpty(runId)) throw ToolError("ValidationFailed", "runId is required.");
+            Run run = await _Context.Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Run " + runId + " not found.");
             if (ctx.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(ctx.RunId))
             {
                 string root = await RootOfAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
-                if (run.Id != root && run.RootRunId != root) throw new McpToolException("Run " + runId + " not found.");
+                if (run.Id != root && run.RootRunId != root) throw ToolError("NotFound", "Run " + runId + " not found.");
             }
             await Require(ctx, tenantId, ResourceTypeEnum.Run, operation, run.Id, token).ConfigureAwait(false);
             return run;
@@ -401,9 +403,17 @@ namespace Garrison.Server.Protocols
             summary.Description = agent.Description;
             summary.InputMode = agent.InputMode.ToString();
             summary.Skills = agent.Skills.Select(s => s.Name + (String.IsNullOrEmpty(s.Description) ? String.Empty : ": " + s.Description)).ToList();
-            summary.InputSchemaJson = agent.InputSchemaJson;
-            summary.OutputSchemaJson = agent.OutputSchemaJson;
+            summary.InputSchemaJson = String.IsNullOrWhiteSpace(agent.InputSchemaJson) ? null : agent.InputSchemaJson;
+            summary.OutputSchemaJson = String.IsNullOrWhiteSpace(agent.OutputSchemaJson) ? null : agent.OutputSchemaJson;
+            summary.DisplayName = String.IsNullOrWhiteSpace(agent.DisplayName) ? null : agent.DisplayName;
+            summary.Description = String.IsNullOrWhiteSpace(agent.Description) ? null : agent.Description;
             return summary;
+        }
+
+        private static McpToolException ToolError(string code, string message)
+        {
+            // Every tool error reads "Code: message" so callers can match the code (M1-30).
+            return new McpToolException(code + ": " + message);
         }
 
         private async Task<McpRunSummary> SummarizeAsync(Run run, CancellationToken token)
@@ -433,11 +443,14 @@ namespace Garrison.Server.Protocols
             summary.CachedTokens = run.CachedTokens;
             summary.ReasoningTokens = run.ReasoningTokens;
             summary.ToolCallCount = run.ToolCallCount;
+            summary.ServedModel = run.ServedModel;
             summary.TimeToFirstTokenMs = run.TimeToFirstTokenMs;
             summary.StreamingMs = run.StreamingMs;
             summary.ExecutionMs = run.ExecutionMs;
             summary.QueueMs = run.QueueMs;
             summary.TotalMs = run.TotalMs;
+            summary.DelegationWaitMs = run.DelegationWaitMs;
+            summary.TimeToFirstTokenExcludingDelegationMs = run.TimeToFirstTokenExcludingDelegationMs;
             summary.OutputTokensPerSecond = run.OutputTokensPerSecond;
             summary.CreatedUtc = run.CreatedUtc;
             summary.CompletedUtc = run.CompletedUtc;

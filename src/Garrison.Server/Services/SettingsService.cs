@@ -165,13 +165,19 @@ namespace Garrison.Server.Services
             try
             {
                 Dictionary<string, string> errors = new Dictionary<string, string>();
+                Dictionary<string, string> codes = new Dictionary<string, string>();
                 List<FileSettingDescriptor> fileChanges = new List<FileSettingDescriptor>();
                 List<SettingValue> fileValues = new List<SettingValue>();
                 List<SettingValue> clusterValues = new List<SettingValue>();
 
                 foreach (SettingValue item in request.Values)
                 {
-                    if (item == null || String.IsNullOrEmpty(item.Path)) continue;
+                    if (item == null || String.IsNullOrWhiteSpace(item.Path))
+                    {
+                        errors["values"] = "Every value needs a setting path.";
+                        codes["values"] = "PathRequired";
+                        continue;
+                    }
                     FileSettingDescriptor? field = _Fields.FirstOrDefault(f => String.Equals(f.Path, item.Path, StringComparison.OrdinalIgnoreCase));
                     if (field != null)
                     {
@@ -179,15 +185,21 @@ namespace Garrison.Server.Services
                         if (_Settings.EnvironmentOverrides.Contains(field.Path))
                         {
                             errors[item.Path] = "Overridden by an environment variable; change the environment instead.";
+                            codes[item.Path] = "OverriddenByEnvironment";
                             continue;
                         }
                         if (!FileWritable())
                         {
                             errors[item.Path] = "The settings file is managed externally (for example a ConfigMap) and is read-only.";
+                            codes[item.Path] = "SettingsFileReadOnly";
                             continue;
                         }
-                        string? error = Validate(field, item.Value);
-                        if (error != null) errors[item.Path] = error;
+                        string? error = Validate(field, item.Value, out string code);
+                        if (error != null)
+                        {
+                            errors[item.Path] = error;
+                            codes[item.Path] = code;
+                        }
                         else
                         {
                             fileChanges.Add(field);
@@ -198,15 +210,21 @@ namespace Garrison.Server.Services
 
                     if (_Cluster.Find(item.Path) != null)
                     {
-                        if (_Cluster.Normalize(item.Path, item.Value, out string? clusterError) == null) errors[item.Path] = clusterError ?? "Invalid value.";
+                        if (_Cluster.Normalize(item.Path, item.Value, out string? clusterError, out string clusterCode) == null)
+                        {
+                            errors[item.Path] = clusterError ?? "Invalid value.";
+                            codes[item.Path] = clusterCode;
+                        }
                         else clusterValues.Add(item);
                         continue;
                     }
 
                     errors[item.Path] = "Unknown setting.";
+                    codes[item.Path] = "UnknownSetting";
                 }
 
-                if (errors.Count > 0) throw new ValidationException("One or more settings are invalid.", errors);
+                // Nothing is saved, and nothing is clamped, when any value is invalid.
+                if (errors.Count > 0) throw new ValidationException("One or more settings are invalid. Nothing was saved.", errors, codes);
 
                 SettingsSaveResponse response = new SettingsSaveResponse();
 
@@ -278,24 +296,43 @@ namespace Garrison.Server.Services
 
         #region Private-Methods
 
-        private static string? Validate(FileSettingDescriptor field, string? value)
+        private static string? Validate(FileSettingDescriptor field, string? value, out string code)
         {
+            code = String.Empty;
             switch (field.Type)
             {
                 case "int":
-                    if (!Int64.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long n)) return "Must be an integer.";
-                    if (field.Minimum.HasValue && n < field.Minimum.Value) return "Must be at least " + field.Minimum.Value + ".";
-                    if (field.Maximum.HasValue && n > field.Maximum.Value) return "Must be at most " + field.Maximum.Value + ".";
+                    if (!Int64.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long n))
+                    {
+                        code = "NotAnInteger";
+                        return "Must be an integer.";
+                    }
+                    if ((field.Minimum.HasValue && n < field.Minimum.Value) || (field.Maximum.HasValue && n > field.Maximum.Value))
+                    {
+                        code = "OutOfRange";
+                        return RangeMessage(field.Minimum, field.Maximum);
+                    }
                     return null;
                 case "bool":
-                    return Boolean.TryParse(value, out bool _) ? null : "Must be true or false.";
+                    if (Boolean.TryParse(value, out bool _)) return null;
+                    code = "NotABoolean";
+                    return "Must be true or false.";
                 case "enum":
-                    if (field.AllowedValues == null || !field.AllowedValues.Any(a => String.Equals(a, value, StringComparison.OrdinalIgnoreCase))) return "Must be one of " + String.Join(", ", field.AllowedValues ?? new List<string>()) + ".";
-                    return null;
+                    if (field.AllowedValues != null && field.AllowedValues.Any(a => String.Equals(a, value, StringComparison.OrdinalIgnoreCase))) return null;
+                    code = "NotAllowedValue";
+                    return "Must be one of " + String.Join(", ", field.AllowedValues ?? new List<string>()) + ".";
                 default:
-                    if (value != null && value.Length > 4096) return "Must be at most 4096 characters.";
-                    return null;
+                    if (value == null || value.Length <= 4096) return null;
+                    code = "TooLong";
+                    return "Must be at most 4096 characters.";
             }
+        }
+
+        private static string RangeMessage(long? minimum, long? maximum)
+        {
+            if (minimum.HasValue && maximum.HasValue) return "Must be between " + minimum.Value + " and " + maximum.Value + ".";
+            if (minimum.HasValue) return "Must be at least " + minimum.Value + ".";
+            return "Must be at most " + maximum!.Value + ".";
         }
 
         private static int ParseInt(string? value)

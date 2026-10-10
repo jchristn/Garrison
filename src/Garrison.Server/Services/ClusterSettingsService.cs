@@ -166,27 +166,45 @@ namespace Garrison.Server.Services
         /// <returns>Normalized value, or null with an error.</returns>
         public string? Normalize(string key, string? value, out string? error)
         {
+            return Normalize(key, value, out error, out string _);
+        }
+
+        /// <summary>
+        /// Validate a candidate value. Out-of-range values are rejected, never clamped.
+        /// </summary>
+        /// <param name="key">Key.</param>
+        /// <param name="value">Value.</param>
+        /// <param name="error">Validation error, or null when the value is valid.</param>
+        /// <param name="code">Machine code for the error (UnknownSetting, NotABoolean, NotAnInteger, OutOfRange), or empty when valid.</param>
+        /// <returns>Normalized value, or null with an error.</returns>
+        public string? Normalize(string key, string? value, out string? error, out string code)
+        {
             error = null;
+            code = String.Empty;
             ClusterSettingDefinition? definition = Find(key);
             if (definition == null)
             {
                 error = "Unknown cluster setting.";
+                code = "UnknownSetting";
                 return null;
             }
             if (definition.Type == "bool")
             {
                 if (Boolean.TryParse(value, out bool b)) return b ? "true" : "false";
                 error = "Must be true or false.";
+                code = "NotABoolean";
                 return null;
             }
             if (!Int64.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long n))
             {
                 error = "Must be an integer.";
+                code = "NotAnInteger";
                 return null;
             }
             if (n < definition.Minimum || n > definition.Maximum)
             {
                 error = "Must be between " + definition.Minimum + " and " + definition.Maximum + ".";
+                code = "OutOfRange";
                 return null;
             }
             return n.ToString(CultureInfo.InvariantCulture);
@@ -203,8 +221,8 @@ namespace Garrison.Server.Services
         /// <exception cref="ValidationException">Thrown when the value is invalid.</exception>
         public async Task SetAsync(string key, string? value, string? updatedBy, CancellationToken token = default)
         {
-            string? normalized = Normalize(key, value, out string? error);
-            if (normalized == null) throw new ValidationException(error ?? "Invalid value.", new Dictionary<string, string> { { key, error ?? "Invalid value." } });
+            string? normalized = Normalize(key, value, out string? error, out string code);
+            if (normalized == null) throw new ValidationException(error ?? "Invalid value.", new Dictionary<string, string> { { key, error ?? "Invalid value." } }, new Dictionary<string, string> { { key, code } });
             ClusterSettingDefinition definition = Find(key)!;
             await _Database.ClusterSettings.UpsertAsync(definition.Key, normalized, updatedBy, token).ConfigureAwait(false);
             _Values[definition.Key] = normalized;

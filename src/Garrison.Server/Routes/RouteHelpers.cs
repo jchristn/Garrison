@@ -2,6 +2,7 @@ namespace Garrison.Server.Routes
 {
     using System;
     using System.Collections.Generic;
+    using System.Net;
     using System.Text.Json;
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
@@ -102,9 +103,32 @@ namespace Garrison.Server.Routes
         /// <returns>Task.</returns>
         public static async Task ValidationAsync(HttpContextBase context, string message, Dictionary<string, string>? fields = null)
         {
+            await ValidationAsync(context, message, fields, null).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Send a 400 validation response with field errors and their machine codes. Fields are reported as both
+        /// fields and errors; every field gets a code in fieldCodes (Invalid when none was given).
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="message">Message.</param>
+        /// <param name="fields">Field errors, or null.</param>
+        /// <param name="codes">Machine codes keyed by field path, or null.</param>
+        /// <returns>Task.</returns>
+        public static async Task ValidationAsync(HttpContextBase context, string message, Dictionary<string, string>? fields, Dictionary<string, string>? codes)
+        {
             ErrorResponse error = new ErrorResponse("BadRequest", "ValidationFailed", message);
             error.RequestId = Context(context).RequestId;
-            error.Fields = fields;
+            if (fields != null && fields.Count > 0)
+            {
+                error.Fields = fields;
+                error.Errors = fields;
+                error.FieldCodes = new Dictionary<string, string>();
+                foreach (string path in fields.Keys)
+                {
+                    error.FieldCodes[path] = codes != null && codes.TryGetValue(path, out string? code) && !String.IsNullOrEmpty(code) ? code : "Invalid";
+                }
+            }
             await JsonAsync(context, 400, error).ConfigureAwait(false);
         }
 
@@ -121,15 +145,33 @@ namespace Garrison.Server.Routes
         }
 
         /// <summary>
-        /// Query parameter.
+        /// Query parameter, decoded the way browsers and HTTP clients encode query strings
+        /// (application/x-www-form-urlencoded): percent escapes are decoded and a plus sign is a space. Send a literal
+        /// plus sign as %2B. The HTTP stack hands query values over still encoded, so every query parameter must be read
+        /// through this method (or the typed variants below) rather than from the request directly.
         /// </summary>
         /// <param name="context">HTTP context.</param>
         /// <param name="key">Key.</param>
-        /// <returns>Value or null.</returns>
+        /// <returns>Decoded value, or null when absent.</returns>
         public static string? Query(HttpContextBase context, string key)
         {
-            if (context.Request.Query == null || context.Request.Query.Elements == null) return null;
-            return context.Request.Query.Elements[key];
+            string? raw = RawQuery(context, key);
+            if (raw == null) return null;
+            return DecodeQueryValue(raw);
+        }
+
+        /// <summary>
+        /// Decode one query string value: a plus sign becomes a space and percent escapes are decoded as UTF-8.
+        /// Malformed escapes are left as they are.
+        /// </summary>
+        /// <param name="raw">Raw, still encoded value.</param>
+        /// <returns>Decoded value.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when raw is null.</exception>
+        public static string DecodeQueryValue(string raw)
+        {
+            if (raw == null) throw new ArgumentNullException(nameof(raw));
+            if (raw.IndexOf('%') < 0 && raw.IndexOf('+') < 0) return raw;
+            return WebUtility.UrlDecode(raw);
         }
 
         /// <summary>
@@ -179,7 +221,8 @@ namespace Garrison.Server.Routes
         /// <returns>Value or null.</returns>
         public static DateTime? QueryDate(HttpContextBase context, string key)
         {
-            string? value = Query(context, key);
+            // Percent escapes are decoded but a plus sign stays a plus sign, so a raw offset such as +02:00 still parses.
+            string? value = RawQuery(context, key);
             if (String.IsNullOrEmpty(value)) return null;
             if (value.Contains('%')) value = Uri.UnescapeDataString(value);
             if (DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out DateTime parsed)) return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
@@ -258,6 +301,12 @@ namespace Garrison.Server.Routes
         #endregion
 
         #region Private-Methods
+
+        private static string? RawQuery(HttpContextBase context, string key)
+        {
+            if (context.Request.Query == null || context.Request.Query.Elements == null) return null;
+            return context.Request.Query.Elements[key];
+        }
 
         private static string ErrorName(int statusCode)
         {

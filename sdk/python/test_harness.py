@@ -51,7 +51,12 @@ def t_health():
 
 
 def t_token():
-    issued = client.login_with_keys(ACCESS, SECRET)
+    try:
+        issued = client.login_with_keys(ACCESS, SECRET)
+    except GarrisonError as e:
+        if e.status_code in (401, 403):
+            state["auth_failed"] = e.status_code
+        raise
     require(issued.get("token"), "no token")
     state["tenant"] = issued.get("tenantId")
     require(client.token_details()["principalType"] == "Credential", "unexpected principal")
@@ -197,6 +202,14 @@ def t_cleanup():
         client.agents.delete(state["agent"])
 
 
+AUTH_HELP = (
+    "Authentication failed (HTTP {status}): the server rejected access key {access}. The remaining checks need a "
+    "signed-in client, so the harness stops here. Pass this server's keys as arguments: "
+    "python test_harness.py <baseUrl> <accessKey> <secretKey>. Docker Compose and source builds default to "
+    "access_garrison_default and secret_garrison_default_change_me; on Kubernetes read default-access-key and "
+    "default-secret-key from Secret garrison-secrets (see README, \"Where the credentials come from\")."
+)
+
 for name, fn in [("health", t_health), ("token auth", t_token), ("signed request auth", t_signed),
                  ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create),
                  ("invoke with wait", t_invoke), ("run timing metrics", t_run_metrics),
@@ -206,6 +219,10 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
                  ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs), ("cleanup", t_cleanup)]:
     check(name, fn)
+    if "auth_failed" in state:
+        print()
+        print(AUTH_HELP.format(status=state["auth_failed"], access=ACCESS))
+        sys.exit(1)
 
 print(f"\nPassed: {passed}  Failed: {len(failures)}")
 for f in failures:

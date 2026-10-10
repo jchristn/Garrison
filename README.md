@@ -150,7 +150,7 @@ Authentication is the same everywhere: a bearer session token from `POST /v1.0/t
 | JavaScript and TypeScript | `sdk/js` | `@garrison/sdk` |
 | Go | `sdk/go` | `github.com/jchristn/Garrison/sdk/go` |
 
-Each SDK has a README and a test harness. `scripts/run-sdk-harnesses.sh` starts a local server and worker and runs all four.
+Each SDK has a README and a test harness. `scripts/run-sdk-harnesses.sh` starts a local server and worker and runs all four. None of the packages is published to NuGet, PyPI, or npm yet, and the Go module has no tagged release, so install them from this repository; each SDK README shows how.
 
 ## Testing
 

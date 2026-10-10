@@ -42,6 +42,24 @@ namespace Garrison.Core.Services
         }
 
         /// <summary>
+        /// Validate a secret expiry: when set, it must be in the future (an already expired secret would be unusable
+        /// from the moment it is saved).
+        /// </summary>
+        /// <param name="expiresUtc">Expiry, or null for no expiry.</param>
+        /// <param name="nowUtc">Current time (UTC).</param>
+        /// <param name="errors">Error collection.</param>
+        /// <param name="field">Field name.</param>
+        /// <returns>True when valid.</returns>
+        public static bool SecretExpiry(DateTime? expiresUtc, DateTime nowUtc, Dictionary<string, string> errors, string field = "expiresUtc")
+        {
+            if (!expiresUtc.HasValue) return true;
+            DateTime expiry = expiresUtc.Value.Kind == DateTimeKind.Local ? expiresUtc.Value.ToUniversalTime() : expiresUtc.Value;
+            if (expiry > nowUtc) return true;
+            errors[field] = "The expiry " + expiry.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture) + " is in the past. Use a future time, or omit expiresUtc for no expiry.";
+            return false;
+        }
+
+        /// <summary>
         /// Validate a template and record errors.
         /// </summary>
         /// <param name="template">Template.</param>

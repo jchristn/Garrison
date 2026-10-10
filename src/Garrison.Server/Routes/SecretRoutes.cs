@@ -145,9 +145,15 @@ namespace Garrison.Server.Routes
         private static void Validate(SecretRequest request)
         {
             System.Collections.Generic.Dictionary<string, string> errors = new System.Collections.Generic.Dictionary<string, string>();
+            System.Collections.Generic.Dictionary<string, string> codes = new System.Collections.Generic.Dictionary<string, string>();
             ConfigurationValidator.Name(request.Name, errors);
-            if (request.Value != null && request.Value.Length > 1048576) errors["value"] = "Secret values are limited to 1 MiB.";
-            if (errors.Count > 0) throw new ValidationException("The secret is invalid.", errors);
+            if (request.Value != null && request.Value.Length > 1048576)
+            {
+                errors["value"] = "Secret values are limited to 1 MiB.";
+                codes["value"] = "TooLong";
+            }
+            if (!ConfigurationValidator.SecretExpiry(request.ExpiresUtc, DateTime.UtcNow, errors)) codes["expiresUtc"] = "ExpiryInPast";
+            if (errors.Count > 0) throw new ValidationException("The secret is invalid: " + String.Join(" ", errors.Values), errors, codes);
         }
 
         private async Task<Secret> LoadAsync(HttpContextBase http)

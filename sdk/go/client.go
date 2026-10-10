@@ -51,6 +51,10 @@ type Error struct {
 	Code       string `json:"code"`
 	Message    string `json:"message"`
 	RequestID  string `json:"requestId"`
+	// Fields holds field-level validation details, keyed by field path, when the server returns them.
+	Fields map[string]string `json:"fields,omitempty"`
+	// Errors holds per-setting validation errors keyed by setting path (settings routes, HTTP 400).
+	Errors map[string]string `json:"errors,omitempty"`
 }
 
 func (e *Error) Error() string {

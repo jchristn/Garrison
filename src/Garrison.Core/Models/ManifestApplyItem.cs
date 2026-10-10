@@ -93,6 +93,28 @@ namespace Garrison.Core.Models
         /// </summary>
         public string? Message { get; set; } = null;
 
+        /// <summary>
+        /// What the apply does (or, in a dry run, would do) with this document: Created, Updated, or Unchanged; Failed
+        /// when it failed validation. In a dry run Result is Validated and this carries the planned outcome.
+        /// </summary>
+        public ManifestApplyResultEnum? PlannedResult { get; set; } = null;
+
+        /// <summary>
+        /// Fields that change on an existing resource (planned result Updated), with before and after values as text.
+        /// Empty for created, unchanged, and failed documents.
+        /// </summary>
+        public List<ManifestFieldChange> Changes
+        {
+            get
+            {
+                return _Changes;
+            }
+            set
+            {
+                _Changes = value ?? new List<ManifestFieldChange>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -101,6 +123,7 @@ namespace Garrison.Core.Models
         private string _ManifestApplyId = String.Empty;
         private string _Kind = String.Empty;
         private string _Name = String.Empty;
+        private List<ManifestFieldChange> _Changes = new List<ManifestFieldChange>();
 
         #endregion
     }

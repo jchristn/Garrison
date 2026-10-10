@@ -92,6 +92,21 @@ namespace Garrison.Sdk.Models
         /// </summary>
         public string? Message { get; set; } = null;
 
+        /// <summary>
+        /// Field-level changes for Updated items (also reported by dry runs): one entry per changed field, with values as strings truncated to 200 characters. Empty for other results.
+        /// </summary>
+        public List<ManifestFieldChange> Changes
+        {
+            get
+            {
+                return _Changes;
+            }
+            set
+            {
+                _Changes = value ?? new List<ManifestFieldChange>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -100,6 +115,7 @@ namespace Garrison.Sdk.Models
         private string _ManifestApplyId = String.Empty;
         private string _Kind = String.Empty;
         private string _Name = String.Empty;
+        private List<ManifestFieldChange> _Changes = new List<ManifestFieldChange>();
 
         #endregion
     }

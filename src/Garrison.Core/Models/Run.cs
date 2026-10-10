@@ -400,6 +400,23 @@ namespace Garrison.Core.Models
         public long? TotalMs { get; set; } = null;
 
         /// <summary>
+        /// Milliseconds the run spent waiting on child runs it delegated to (runs whose parentRunId is this run),
+        /// computed by the server from its own timestamps when the run finishes: the union of each child's lifetime
+        /// (created to finished), clipped to this run's execution window, so overlapping children count once. 0 when the
+        /// run delegated nothing. Null for runs that finished before this was recorded or ended without a worker report.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public long? DelegationWaitMs { get; set; } = null;
+
+        /// <summary>
+        /// TimeToFirstTokenMs minus the delegation wait that happened before the first model output, never negative.
+        /// Equals TimeToFirstTokenMs for runs that delegated nothing before their first output. Use it to compare
+        /// delegating agents with agents that answer directly. Null when TimeToFirstTokenMs or DelegationWaitMs is null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public long? TimeToFirstTokenExcludingDelegationMs { get; set; } = null;
+
+        /// <summary>
         /// Output tokens per second of streaming: OutputTokens divided by StreamingMs in seconds, rounded to two
         /// decimals. Null when StreamingMs is null or below 100 milliseconds. Computed; not stored.
         /// </summary>
