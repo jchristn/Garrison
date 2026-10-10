@@ -193,7 +193,7 @@ namespace Test.Shared.Suites
             run.AgentId = deployment.AgentId;
             run.DeploymentId = deployment.Id;
             run.InputText = "Summarize the repository.";
-            run.CallerName = "admin@garrison.local";
+            run.CallerName = "admin@garrison";
             if (delegated)
             {
                 run.Kind = RunKindEnum.Delegated;

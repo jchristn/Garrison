@@ -74,7 +74,7 @@ export default function Login() {
             <>
               <div className="field">
                 <label htmlFor="tenantId">{t('login.tenantId')}</label>
-                <input id="tenantId" type="text" value={tenantId} onChange={(e) => setTenantId(e.target.value)} disabled={loading} placeholder="ten_default" />
+                <input id="tenantId" type="text" value={tenantId} onChange={(e) => setTenantId(e.target.value)} disabled={loading} placeholder="default" />
               </div>
               <div className="field">
                 <label htmlFor="email">{t('login.email')}</label>

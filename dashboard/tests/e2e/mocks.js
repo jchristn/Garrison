@@ -2,12 +2,12 @@
 
 const NOW = Date.parse('2026-10-09T12:00:00Z');
 const iso = (offsetMinutes) => new Date(NOW - offsetMinutes * 60000).toISOString();
-const TENANT = 'ten_default';
+const TENANT = 'default';
 
 export const PRINCIPAL = {
   principalType: 'User',
   principalId: 'usr_admin',
-  principalName: 'admin@garrison.local',
+  principalName: 'admin@garrison',
   tenantId: TENANT,
   isAdmin: true,
   isTenantAdmin: true,
@@ -64,8 +64,8 @@ const FACTORIES = {
     lastHeartbeatUtc: iso(0),
     capabilities: [{ harnessType: 'ClaudeCode', available: true, detectedVersion: '2.1.0' }]
   }),
-  audit: (i) => base('aud', i, { eventType: i % 5 === 0 ? 'AuthorizationDenied' : 'AuthSuccess', principalName: 'admin@garrison.local', principalId: 'usr_0001', resourceType: 'Agent', operation: 'Read', reason: 'ok', sourceIp: '127.0.0.1' }),
-  'manifest-applies': (i) => base('ma', i, { principalName: 'admin@garrison.local', dryRun: i % 2 === 0, createdCount: 2, updatedCount: 1, unchangedCount: 0, failedCount: 0 }),
+  audit: (i) => base('aud', i, { eventType: i % 5 === 0 ? 'AuthorizationDenied' : 'AuthSuccess', principalName: 'admin@garrison', principalId: 'usr_0001', resourceType: 'Agent', operation: 'Read', reason: 'ok', sourceIp: '127.0.0.1' }),
+  'manifest-applies': (i) => base('ma', i, { principalName: 'admin@garrison', dryRun: i % 2 === 0, createdCount: 2, updatedCount: 1, unchangedCount: 0, failedCount: 0 }),
   'request-history': (i) => ({
     id: `req_${String(i).padStart(4, '0')}`,
     method: ['GET', 'POST', 'PUT', 'DELETE'][i % 4],
@@ -74,7 +74,7 @@ const FACTORIES = {
     statusCode: i % 7 === 0 ? 500 : i % 5 === 0 ? 404 : 200,
     durationMs: 3 + i,
     createdUtc: iso(i * 2),
-    principalName: 'admin@garrison.local',
+    principalName: 'admin@garrison',
     sourceIp: '127.0.0.1',
     tenantId: TENANT
   })

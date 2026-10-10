@@ -47,7 +47,7 @@ docker run -d --name garrison-dashboard --network garrison \
   jchristn77/garrison-dashboard:latest
 ```
 
-Open http://127.0.0.1:8080 and sign in as `admin@garrison.local` with password `garrison`, or call the API directly:
+Open http://127.0.0.1:8080 and sign in as `admin@garrison` with password `password`, or call the API directly:
 
 ```bash
 curl -s http://127.0.0.1:8700/v1.0/api/health
@@ -71,7 +71,7 @@ Mount a volume at `/app/data` on the server to keep the Sqlite database. Multipl
 | `GARRISON_ADMIN_API_KEY` | Administrator API key | `garrisonadmin` |
 | `GARRISON_AUTH_SIGNING_KEY` | Session token key | a placeholder; set it |
 | `GARRISON_MASTER_KEY` | Secret encryption key | a placeholder; set it |
-| `GARRISON_ADMIN_PASSWORD` | Seeded administrator password | `garrison` |
+| `GARRISON_ADMIN_PASSWORD` | Seeded administrator password | `password` |
 | `GARRISON_DEFAULT_ACCESS_KEY`, `GARRISON_DEFAULT_SECRET_KEY` | Seeded administrator credential | `access_garrison_default`, `secret_garrison_default_change_me` |
 | `GARRISON_NODE_ACCESS_KEY`, `GARRISON_NODE_SECRET_KEY` | Seeded worker credential | `access_garrison_node`, `secret_garrison_node_change_me` |
 | `GARRISON_NODE_ID` | Control-plane node identifier | the host name |

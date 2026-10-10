@@ -3,9 +3,9 @@
 import { test, expect } from '@playwright/test';
 import { ROUTES } from '../../src/utils/routes.js';
 
-const TENANT = process.env.GARRISON_TENANT_ID || 'ten_default';
-const EMAIL = process.env.GARRISON_ADMIN_EMAIL || 'admin@garrison.local';
-const PASSWORD = process.env.GARRISON_ADMIN_PASSWORD || 'garrison';
+const TENANT = process.env.GARRISON_TENANT_ID || 'default';
+const EMAIL = process.env.GARRISON_ADMIN_EMAIL || 'admin@garrison';
+const PASSWORD = process.env.GARRISON_ADMIN_PASSWORD || 'password';
 
 async function login(page) {
   await page.goto('/');

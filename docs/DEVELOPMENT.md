@@ -32,7 +32,7 @@ cd src/Garrison.Server && dotnet run -f net10.0
 cd src/Garrison.Worker && dotnet run -f net10.0
 ```
 
-The server writes `garrison.json` and `data/garrison.db` in its working directory on first start and seeds the default tenant, the `admin@garrison.local` user (password `garrison`), the administrator credential, and the worker credential. Delete the database file to start over.
+The server writes `garrison.json` and `data/garrison.db` in its working directory on first start and seeds the default tenant, the `admin@garrison` user (password `password`), the administrator credential, and the worker credential. Delete the database file to start over.
 
 To run more than one worker on one machine, give each a distinct name and health port:
 

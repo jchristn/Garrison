@@ -34,7 +34,7 @@ await check("token auth", async () => {
 });
 await check("signed request auth", async () => {
   const signed = new GarrisonClient(baseUrl);
-  signed.useSignedRequests(accessKey, secretKey, state.tenant ?? "ten_default");
+  signed.useSignedRequests(accessKey, secretKey, state.tenant ?? "default");
   require((await signed.agents.list({ maxResults: 5 })).success, "list failed");
 });
 await check("builtin harness profiles", async () => {

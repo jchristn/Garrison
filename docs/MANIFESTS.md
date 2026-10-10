@@ -31,7 +31,7 @@ Documents refer to each other by name, never by identifier, so the same manifest
 ## Applying
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/manifests/apply?dryRun=true" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/apply?dryRun=true" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/yaml" \
   --data-binary @reviewer.yaml
 ```
@@ -48,7 +48,7 @@ Apply is all or nothing at the validation stage: every document is validated fir
 ```json
 {
   "id": "man_mv1rhrbl_CACIkntqpee8lbNjiue",
-  "tenantId": "ten_default",
+  "tenantId": "default",
   "principalName": "System Administrator (API key)",
   "dryRun": true,
   "documentCount": 6,
@@ -83,7 +83,7 @@ Manifests never delete anything. Removing a document from a manifest leaves the 
 ## Exporting
 
 ```bash
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/ten_default/manifests/export \
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/export \
   -H "Authorization: Bearer $TOKEN" > tenant.yaml
 ```
 
@@ -335,9 +335,9 @@ spec:
 ```
 
 ```bash
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/ten_default/manifests/apply \
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/apply \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/yaml" --data-binary @shouter.yaml
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents/shouter/invoke \
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/agents/shouter/invoke \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"input":"hello","wait":true}'
 ```
 

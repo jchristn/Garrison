@@ -65,7 +65,7 @@ func main() {
 		signed := garrison.NewClient(baseURL)
 		t := tenant
 		if t == "" {
-			t = "ten_default"
+			t = "default"
 		}
 		signed.UseSignedRequests(accessKey, secretKey, t)
 		var page garrison.EnumerationResult[garrison.Agent]

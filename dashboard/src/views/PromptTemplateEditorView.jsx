@@ -22,12 +22,12 @@ import { extractVariables } from '../utils/templates';
 import { formatDateTime } from '../i18n/formatters';
 
 const SAMPLE_CONTEXT = {
-  tenant: { id: 'ten_default', name: 'Default' },
+  tenant: { id: 'default', name: 'Default' },
   agent: { name: 'example-agent', description: 'Example agent' },
   deployment: { name: 'example-deployment', model: 'sonnet', parameters: {} },
   run: { id: 'run_example', depth: 0, workspaceDir: '$GARRISON_WORKSPACE_DIR', configDir: '$GARRISON_CONFIG_DIR', homeDir: '$GARRISON_HOME_DIR' },
   input: { message: 'Summarize the repository README.', parameters: {} },
-  caller: { principalType: 'User', displayName: 'admin@garrison.local' },
+  caller: { principalType: 'User', displayName: 'admin@garrison' },
   resources: { mcpServers: [] }
 };
 

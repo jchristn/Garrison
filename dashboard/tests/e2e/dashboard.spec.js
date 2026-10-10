@@ -12,8 +12,8 @@ const VIEWPORTS = [
 
 async function login(page) {
   await page.goto('/');
-  await page.locator('#tenantId').fill('ten_default');
-  await page.locator('#email').fill('admin@garrison.local');
+  await page.locator('#tenantId').fill('default');
+  await page.locator('#email').fill('admin@garrison');
   await page.locator('#password').fill('password');
   await page.getByTestId('login-submit').click();
   await expect(page.locator('.dashboard')).toBeVisible();

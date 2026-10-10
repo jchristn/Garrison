@@ -82,7 +82,7 @@ dashboard:
 
 bootstrap:
   enabled: true
-  tenantId: ten_default
+  tenantId: default
   image: curlimages/curl:8.10.1
 
 ingress:

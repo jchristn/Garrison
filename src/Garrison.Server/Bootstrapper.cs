@@ -88,6 +88,7 @@ namespace Garrison.Server
             if (settings.Auth.SigningKey == new AuthSettings().SigningKey) logging.Warn("[Garrison] Auth.SigningKey is the built-in default. Set GARRISON_AUTH_SIGNING_KEY.");
 
             SeedOptions seed = new SeedOptions();
+            seed.AdminEmail = settings.Security.AdminEmail;
             seed.AdminPassword = settings.Security.AdminPassword;
             seed.DefaultAccessKey = settings.Security.DefaultAccessKey;
             seed.DefaultSecretKey = settings.Security.DefaultSecretKey;

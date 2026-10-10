@@ -70,14 +70,14 @@ cd src/Garrison.Server && dotnet run -f net10.0
 cd src/Garrison.Worker && dotnet run -f net10.0
 ```
 
-On first start the server seeds a `Default` tenant (`ten_default`), the administrator `admin@garrison.local` with password `garrison`, an administrator credential `access_garrison_default` / `secret_garrison_default_change_me`, and the worker credential the worker uses by default. Every one of these comes from settings or environment variables; change them before anything leaves your laptop.
+On first start the server seeds a `Default` tenant (`default`), the administrator `admin@garrison` with password `password`, an administrator credential `access_garrison_default` / `secret_garrison_default_change_me`, and the worker credential the worker uses by default. Every one of these comes from settings or environment variables; change them before anything leaves your laptop.
 
 Get a token and look around:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8700/v1.0/token \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@garrison.local","password":"garrison"}'
+  -d '{"email":"admin@garrison","password":"password"}'
 
 curl -s http://127.0.0.1:8700/v1.0/api/nodes -H "x-api-key: garrisonadmin"
 curl -s http://127.0.0.1:8700/v1.0/api/harness-profiles/builtin -H "x-api-key: garrisonadmin"
@@ -86,14 +86,14 @@ curl -s http://127.0.0.1:8700/v1.0/api/harness-profiles/builtin -H "x-api-key: g
 Create an agent on the fake harness and invoke it. The fake harness has to be on the worker's `PATH`; the worker image already includes it, and locally you can point a small wrapper at `src/Garrison.FakeHarness`.
 
 ```bash
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents \
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/agents \
   -H "x-api-key: garrisonadmin" -H "Content-Type: application/json" \
   -d '{"name":"echo","description":"Echoes its input"}'
 # use the returned agent id, and the id of builtin/fake from the built-in profile list
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/ten_default/deployments \
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/deployments \
   -H "x-api-key: garrisonadmin" -H "Content-Type: application/json" \
   -d '{"agentId":"<agent id>","name":"echo-default","harnessProfileId":"<builtin/fake id>"}'
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents/<agent id>/invoke \
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/agents/<agent id>/invoke \
   -H "x-api-key: garrisonadmin" -H "Content-Type: application/json" \
   -d '{"input":"Hello, Garrison","wait":true}'
 ```

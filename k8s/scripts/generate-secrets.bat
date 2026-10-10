@@ -17,7 +17,8 @@ set CREATE=1
 kubectl -n %GARRISON_NAMESPACE% get secret garrison-secrets >nul 2>&1 && set CREATE=0
 if "%FORCE%"=="1" set CREATE=1
 if "%CREATE%"=="1" (
-  for /f %%v in ('%RAND%20)"') do set ADMIN_PASSWORD=%%v
+  set ADMIN_PASSWORD=%GARRISON_ADMIN_PASSWORD%
+  if "!ADMIN_PASSWORD!"=="" set ADMIN_PASSWORD=password
   for /f %%v in ('%KEY32%') do set MASTER_KEY=%%v
   for /f %%v in ('%RAND%48)"') do set SIGNING_KEY=%%v
   for /f %%v in ('%RAND%40)"') do set ADMIN_API_KEY=%%v
@@ -26,9 +27,8 @@ if "%CREATE%"=="1" (
   for /f %%v in ('%RAND%48)"') do set DEFAULT_SECRET=%%v
   kubectl -n %GARRISON_NAMESPACE% create secret generic garrison-secrets --from-literal=master-key=!MASTER_KEY! --from-literal=signing-key=!SIGNING_KEY! --from-literal=admin-api-key=!ADMIN_API_KEY! --from-literal=admin-password=!ADMIN_PASSWORD! --from-literal=db-password=!DB_PASSWORD! --from-literal=default-access-key=access_!DEFAULT_ACCESS! --from-literal=default-secret-key=secret_!DEFAULT_SECRET! --dry-run=client -o yaml | kubectl apply -f - >nul
   echo [garrison] created secret garrison-secrets
-  echo [garrison] WARNING: the administrator password is shown once. Store it now.
-  echo [garrison]   admin user: admin@garrison.local
-  echo [garrison]   admin password: !ADMIN_PASSWORD!
+  echo [garrison]   tenant: default   admin user: admin@garrison   admin password: !ADMIN_PASSWORD!
+  if "%GARRISON_ADMIN_PASSWORD%"=="" echo [garrison] WARNING: using the default administrator password. Set GARRISON_ADMIN_PASSWORD before deploying anywhere shared.
 ) else (
   echo [garrison] secret garrison-secrets exists; keeping it ^(use --force to rotate^)
 )

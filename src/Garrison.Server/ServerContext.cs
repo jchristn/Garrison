@@ -72,7 +72,7 @@ namespace Garrison.Server
         /// <summary>
         /// Default tenant identifier seeded on first boot.
         /// </summary>
-        public string DefaultTenantId { get; set; } = "ten_default";
+        public string DefaultTenantId { get; set; } = Garrison.Core.Constants.DefaultTenantId;
 
         /// <summary>
         /// Node identifier of this control-plane replica.

@@ -69,7 +69,7 @@ namespace Garrison.Sdk.Test
                 {
                     using (GarrisonClient signed = new GarrisonClient(baseUrl))
                     {
-                        signed.UseSignedRequests(accessKey, secretKey, tenantId ?? "ten_default");
+                        signed.UseSignedRequests(accessKey, secretKey, tenantId ?? "default");
                         EnumerationQuery query = new EnumerationQuery();
                         query.MaxResults = 5;
                         EnumerationResult<Agent> agents = await signed.Agents.ListAsync(query, token).ConfigureAwait(false);

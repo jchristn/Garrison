@@ -55,7 +55,7 @@ JSON
 
 echo "== starting server on $BASE_URL"
 (cd "$WORK/server" && GARRISON_SETTINGS_FILE="$WORK/server/garrison.json" GARRISON_TELEMETRY_ENABLE=false \
-  dotnet "$ART/bin/Garrison.Server/debug_net10.0/Garrison.Server.dll" > "$WORK/server.log" 2>&1) &
+  exec dotnet "$ART/bin/Garrison.Server/debug_net10.0/Garrison.Server.dll" > "$WORK/server.log" 2>&1) &
 SERVER_PID=$!
 
 for i in $(seq 1 60); do
@@ -69,7 +69,7 @@ echo "== starting worker"
   GARRISON_WORKER_SERVER_URL="$BASE_URL" GARRISON_WORKER_NODE_NAME="sdk-harness-worker" \
   GARRISON_WORKER_HEALTH_PORT="$HEALTH_PORT" GARRISON_WORKER_WORK_ROOT="$WORK/worker/workspaces" \
   GARRISON_WORKER_MAX_CONCURRENT_RUNS=4 GARRISON_WORKER_TELEMETRY_ENABLE=false \
-  dotnet "$ART/bin/Garrison.Worker/debug_net10.0/Garrison.Worker.dll" > "$WORK/worker.log" 2>&1) &
+  exec dotnet "$ART/bin/Garrison.Worker/debug_net10.0/Garrison.Worker.dll" > "$WORK/worker.log" 2>&1) &
 WORKER_PID=$!
 
 READY=0

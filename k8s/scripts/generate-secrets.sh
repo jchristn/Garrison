@@ -17,7 +17,7 @@ rand() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c "$1"; }
 kubectl get namespace "${GARRISON_NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${GARRISON_NAMESPACE}" >/dev/null
 
 if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garrison-secrets >/dev/null 2>&1; then
-  ADMIN_PASSWORD="$(rand 20)"
+  ADMIN_PASSWORD="${GARRISON_ADMIN_PASSWORD:-password}"
   kubectl -n "${GARRISON_NAMESPACE}" create secret generic garrison-secrets \
     --from-literal=master-key="$(openssl rand -base64 32)" \
     --from-literal=signing-key="$(rand 48)" \
@@ -28,9 +28,10 @@ if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garri
     --from-literal=default-secret-key="secret_$(rand 48)" \
     --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   log "created secret garrison-secrets"
-  log "WARNING: the administrator password is shown once. Store it now."
-  log "  admin user: admin@garrison.local"
-  log "  admin password: ${ADMIN_PASSWORD}"
+  log "  tenant: default   admin user: admin@garrison   admin password: ${ADMIN_PASSWORD}"
+  if [ -z "${GARRISON_ADMIN_PASSWORD:-}" ]; then
+    log "WARNING: using the default administrator password. Set GARRISON_ADMIN_PASSWORD before deploying anywhere shared."
+  fi
 else
   log "secret garrison-secrets exists; keeping it (use --force to rotate)"
 fi

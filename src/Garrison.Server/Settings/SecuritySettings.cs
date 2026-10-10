@@ -31,9 +31,14 @@ namespace Garrison.Server.Settings
         }
 
         /// <summary>
-        /// Password for the seeded administrator. Override with GARRISON_ADMIN_PASSWORD.
+        /// Email for the seeded administrator (first boot only). Default admin@garrison. Override with GARRISON_ADMIN_EMAIL.
         /// </summary>
-        public string AdminPassword { get; set; } = "garrison";
+        public string AdminEmail { get; set; } = "admin@garrison";
+
+        /// <summary>
+        /// Password for the seeded administrator (first boot only). Default password. Override with GARRISON_ADMIN_PASSWORD.
+        /// </summary>
+        public string AdminPassword { get; set; } = "password";
 
         /// <summary>
         /// Access key of the default administrator credential seeded on first boot. Override with GARRISON_DEFAULT_ACCESS_KEY.

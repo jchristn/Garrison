@@ -18,7 +18,7 @@ A connection is authenticated with a session token or a run token, in one of two
 Browsers cannot set headers on a WebSocket, which is why the token travels in the URL or a message rather than in `Authorization`. Prefer the auth message when your URLs end up in logs. Access keys and the administrator API key are not accepted here; exchange them for a session token with `POST /v1.0/token` first.
 
 ```json
-{"type":"welcome","principal":"admin@garrison.local","tenantId":"ten_default"}
+{"type":"welcome","principal":"admin@garrison","tenantId":"default"}
 ```
 
 Until the connection is authenticated, every message except `auth` and `ping` gets an `AuthenticationRequired` error.
@@ -50,8 +50,8 @@ The `runs` and `run:{runId}` channels follow the tenant of the token, so they on
 
 ```json
 {"type":"subscribed","channel":"run:run_mv1r5tum_PzmDRtwczukdCvf7i62"}
-{"type":"run.event","runId":"run_mv1r5tum_PzmDRtwczukdCvf7i62","event":{"id":"rev_mv1r5twb_JNHtUD7rzc9Gp4VSFWh","tenantId":"ten_default","runId":"run_mv1r5tum_PzmDRtwczukdCvf7i62","sequence":3,"eventType":"AssistantText","timestampUtc":"2026-10-10T02:05:50.359046Z","text":"Echo: ws demo","createdUtc":"2026-10-10T02:05:50.363466Z"}}
-{"type":"run.event","runId":"run_mv1r5tum_PzmDRtwczukdCvf7i62","event":{"id":"rev_mv1r5twb_ue1aJaHmerAVWvZEchK","tenantId":"ten_default","runId":"run_mv1r5tum_PzmDRtwczukdCvf7i62","sequence":4,"eventType":"Usage","timestampUtc":"2026-10-10T02:05:50.360608Z","inputTokens":12,"outputTokens":7,"createdUtc":"2026-10-10T02:05:50.363472Z"}}
+{"type":"run.event","runId":"run_mv1r5tum_PzmDRtwczukdCvf7i62","event":{"id":"rev_mv1r5twb_JNHtUD7rzc9Gp4VSFWh","tenantId":"default","runId":"run_mv1r5tum_PzmDRtwczukdCvf7i62","sequence":3,"eventType":"AssistantText","timestampUtc":"2026-10-10T02:05:50.359046Z","text":"Echo: ws demo","createdUtc":"2026-10-10T02:05:50.363466Z"}}
+{"type":"run.event","runId":"run_mv1r5tum_PzmDRtwczukdCvf7i62","event":{"id":"rev_mv1r5twb_ue1aJaHmerAVWvZEchK","tenantId":"default","runId":"run_mv1r5tum_PzmDRtwczukdCvf7i62","sequence":4,"eventType":"Usage","timestampUtc":"2026-10-10T02:05:50.360608Z","inputTokens":12,"outputTokens":7,"createdUtc":"2026-10-10T02:05:50.363472Z"}}
 {"type":"run.status","run":{"id":"run_mv1r5tum_PzmDRtwczukdCvf7i62","agentName":"docs-echo","status":"Succeeded","outcome":"Succeeded","resultText":"Echo: ws demo", ...}}
 ```
 

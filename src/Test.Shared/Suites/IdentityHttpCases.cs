@@ -466,7 +466,7 @@ namespace Test.Shared.Suites
         {
             if (userId == null)
             {
-                User admin = (await host.Server.Context.Database.Users.ReadByEmailAsync(host.TenantId, "admin@garrison.local", token).ConfigureAwait(false))!;
+                User admin = (await host.Server.Context.Database.Users.ReadByEmailAsync(host.TenantId, "admin@garrison", token).ConfigureAwait(false))!;
                 userId = admin.Id;
             }
             return await HttpTestHelpers.SendAsync<CredentialCreateResponse>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants/" + tenantId + "/credentials", new CredentialRequest { Name = "test-" + Guid.NewGuid().ToString("N").Substring(0, 6), UserId = userId, RoleName = roleName }, 201, token).ConfigureAwait(false);

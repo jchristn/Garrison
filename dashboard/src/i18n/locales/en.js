@@ -259,7 +259,7 @@ const en = {
     connecting: 'Signing in...',
     restoring: 'Restoring your session...',
     errorGeneric: 'Could not sign in. Check the server URL and your credentials.',
-    footerHint: 'Local development default: admin@garrison.local in tenant ten_default.'
+    footerHint: 'Local development default: admin@garrison in tenant default.'
   },
   topbar: {
     server: 'Server',

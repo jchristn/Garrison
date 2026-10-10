@@ -46,7 +46,7 @@ namespace Garrison.Core.Templates
             context.Set("input.parameters", TemplateContext.NewMap());
             context.Set("input.parameterList", new List<object?>());
             context.Set("caller.type", "User");
-            context.Set("caller.name", "admin@garrison.local");
+            context.Set("caller.name", "admin@garrison");
             context.Set("resources.mcpServers", new List<object?>());
             context.Set("resources.httpMcpServers", new List<object?>());
             context.Set("resources.stdioMcpServers", new List<object?>());

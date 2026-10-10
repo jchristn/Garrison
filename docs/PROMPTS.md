@@ -136,7 +136,7 @@ Secrets are available as `secret.*`, but only to templates rendered into the exe
 Render a stored template, or any content, before you bind it:
 
 ```bash
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/render \
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/render \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
     "content": "Hello {{agent.name | upper}}.{{#if input.parameterList}} Params: {{#each input.parameterList}}{{this.name}}={{this.value}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}",

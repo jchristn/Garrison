@@ -249,7 +249,7 @@ const de = {
     connecting: 'Anmeldung läuft...',
     restoring: 'Ihre Sitzung wird wiederhergestellt...',
     errorGeneric: 'Anmeldung nicht möglich. Prüfen Sie die Server-URL und Ihre Zugangsdaten.',
-    footerHint: 'Standard für lokale Entwicklung: admin@garrison.local im Mandanten ten_default.'
+    footerHint: 'Standard für lokale Entwicklung: admin@garrison im Mandanten default.'
   },
   topbar: {
     server: 'Server',

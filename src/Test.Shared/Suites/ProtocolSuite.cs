@@ -262,7 +262,7 @@ namespace Test.Shared.Suites
                 parent.Status = RunStatusEnum.Running;
                 parent.CallChain = lead.Name;
                 parent.CallerType = PrincipalTypeEnum.User;
-                Garrison.Core.Models.User? admin = await cluster.Server.Server.Context.Database.Users.ReadByEmailAsync(tenant, "admin@garrison.local", token).ConfigureAwait(false);
+                Garrison.Core.Models.User? admin = await cluster.Server.Server.Context.Database.Users.ReadByEmailAsync(tenant, "admin@garrison", token).ConfigureAwait(false);
                 parent.CallerId = admin?.Id;
                 parent = await cluster.Server.Server.Context.Database.Runs.CreateAsync(parent, token).ConfigureAwait(false);
                 string runToken = await cluster.Server.Server.Context.Authentication.IssueForRunAsync(parent, DateTime.UtcNow.AddMinutes(5), token).ConfigureAwait(false);

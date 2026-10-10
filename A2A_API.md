@@ -15,7 +15,7 @@ An agent that does not exist or is not exposed answers 404 for its card and `-32
 ## Agent cards
 
 ```bash
-curl -s http://127.0.0.1:8700/v1.0/a2a/ten_default/docs-echo/.well-known/agent-card.json
+curl -s http://127.0.0.1:8700/v1.0/a2a/default/docs-echo/.well-known/agent-card.json
 ```
 
 ```json
@@ -24,7 +24,7 @@ curl -s http://127.0.0.1:8700/v1.0/a2a/ten_default/docs-echo/.well-known/agent-c
   "description": "Echoes its input",
   "version": "0.1.0-alpha",
   "supportedInterfaces": [
-    { "url": "http://127.0.0.1:8700/v1.0/a2a/ten_default/docs-echo", "protocolBinding": "JSONRPC", "protocolVersion": "1.0" }
+    { "url": "http://127.0.0.1:8700/v1.0/a2a/default/docs-echo", "protocolBinding": "JSONRPC", "protocolVersion": "1.0" }
   ],
   "capabilities": { "streaming": true, "pushNotifications": false, "stateTransitionHistory": false },
   "provider": { "organization": "Garrison", "url": "https://github.com/jchristn/Garrison" },
@@ -67,7 +67,7 @@ Garrison accepts both the A2A 1.0 method names and the older slash-style names.
 ### SendMessage
 
 ```bash
-curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/ten_default/docs-echo \
+curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",

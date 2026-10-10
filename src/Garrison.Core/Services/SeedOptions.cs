@@ -8,14 +8,14 @@ namespace Garrison.Core.Services
     public class SeedOptions
     {
         /// <summary>
-        /// Administrator email. Default admin@garrison.local.
+        /// Administrator email. Default admin@garrison.
         /// </summary>
-        public string AdminEmail { get; set; } = "admin@garrison.local";
+        public string AdminEmail { get; set; } = "admin@garrison";
 
         /// <summary>
-        /// Administrator password.
+        /// Administrator password. Default password. Change it before the server is reachable by anyone else.
         /// </summary>
-        public string AdminPassword { get; set; } = "garrison";
+        public string AdminPassword { get; set; } = "password";
 
         /// <summary>
         /// Default credential access key.

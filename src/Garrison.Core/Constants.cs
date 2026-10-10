@@ -32,6 +32,11 @@ namespace Garrison.Core
         public const string BuiltInPrefix = "builtin/";
 
         /// <summary>
+        /// Identifier of the default tenant seeded on first boot.
+        /// </summary>
+        public const string DefaultTenantId = "default";
+
+        /// <summary>
         /// Name of the default tenant seeded on first boot.
         /// </summary>
         public const string DefaultTenantName = "Default";

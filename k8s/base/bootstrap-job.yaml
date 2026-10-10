@@ -27,7 +27,7 @@ spec:
             - name: GARRISON_API_URL
               value: http://garrison-server:8700
             - name: GARRISON_TENANT_ID
-              value: ten_default
+              value: default
             - name: GARRISON_MANIFEST_DIR
               value: /manifests
             - name: GARRISON_ADMIN_API_KEY

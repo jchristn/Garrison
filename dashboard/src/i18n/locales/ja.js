@@ -249,7 +249,7 @@ const ja = {
     connecting: 'サインイン中...',
     restoring: 'セッションを復元しています...',
     errorGeneric: 'サインインできません。サーバー URL と認証情報を確認してください。',
-    footerHint: 'ローカル開発の既定値: テナント ten_default の admin@garrison.local。'
+    footerHint: 'ローカル開発の既定値: テナント default の admin@garrison。'
   },
   topbar: {
     server: 'サーバー',

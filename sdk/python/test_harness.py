@@ -58,7 +58,7 @@ def t_token():
 
 def t_signed():
     signed = GarrisonClient(BASE)
-    signed.use_signed_requests(ACCESS, SECRET, state.get("tenant") or "ten_default")
+    signed.use_signed_requests(ACCESS, SECRET, state.get("tenant") or "default")
     require(signed.agents.list(max_results=5)["success"], "list failed")
 
 

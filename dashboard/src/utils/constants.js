@@ -30,8 +30,8 @@ export function defaultServerUrl() {
 
 // Development defaults pre-filled into the login form.
 export const DEV_DEFAULTS = {
-  tenantId: 'ten_default',
-  email: 'admin@garrison.local',
+  tenantId: 'default',
+  email: 'admin@garrison',
   accessKey: 'access_garrison_default'
 };
 

@@ -1030,7 +1030,7 @@ Identity and security
 - [x] P1.6.4 Effective permission inspection endpoints for users and credentials.  | identity stream 2026-10-09
 - [x] P1.7.1 Routes: tenants, users, credentials (secret shown once, last 4 after), rotate credential.  | identity stream 2026-10-09
 - [x] P1.7.2 Routes: roles, permissions, role-permission maps, user role assignments, credential scope assignments.  | identity stream 2026-10-09
-- [x] P1.8.1 First-boot seeding: `Default` tenant (protected), admin user `admin@garrison.local` with password from `GARRISON_ADMIN_PASSWORD` (default `garrison` only when running outside Kubernetes, logged as a warning), default credential with `TenantAdmin`, admin API key from settings.  | claude 2026-10-09 DefaultSeeder (admin, default + node credentials)
+- [x] P1.8.1 First-boot seeding: `Default` tenant (protected), admin user `admin@garrison` with password from `GARRISON_ADMIN_PASSWORD` (default `password`; `generate-secrets` warns when the default is used), default credential with `TenantAdmin`, admin API key from settings.  | claude 2026-10-09 DefaultSeeder (admin, default + node credentials)
 - [x] P1.9.1 Audit: `AuditRecord` model and methods, persisted authorization denials, auth successes and failures, session issue and revoke, credential use and rotation, RBAC changes, bypasses, configuration changes, settings changes, restarts.  | identity stream 2026-10-09
 - [x] P1.9.2 Audit routes (tenant-scoped, list with filters, read, delete, bulk delete) and retention.  | identity stream 2026-10-09
 - [x] P1.10.1 Request history: model, child headers table, methods (`CreateAsync`, `ReadAsync`, `EnumerateAsync`, `SummarizeAsync` with server-side gap fill, `DeleteAsync`, `DeleteManyAsync`, `PruneAsync`).  | identity stream 2026-10-09

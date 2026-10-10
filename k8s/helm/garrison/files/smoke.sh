@@ -2,7 +2,7 @@
 # Applies the smoke agent, invokes it with wait=true, and exits 0 only when the run succeeded.
 set -u
 API="${GARRISON_API_URL:-http://garrison-server:8700}"
-TENANT="${GARRISON_TENANT_ID:-ten_default}"
+TENANT="${GARRISON_TENANT_ID:-default}"
 KEY="${GARRISON_ADMIN_API_KEY:?GARRISON_ADMIN_API_KEY is required}"
 BASE="${API}/v1.0/api/tenants/${TENANT}"
 

@@ -2,7 +2,7 @@
 
 This is the reference for Garrison's HTTP surface on the control plane: authentication, tenancy, the shared request and response conventions, every endpoint grouped by resource, the worker node protocol, the server-sent event stream, and the models those endpoints exchange. The live OpenAPI document at `GET /openapi.json` is generated from the same route registrations and is what the dashboard's API Explorer reads; this file adds the permission each route needs, examples, and the parts OpenAPI does not describe well, such as streaming.
 
-The server listens on port 8700 by default. MCP is on its own port (8701, see `MCP_API.md`), A2A shares the REST port (see `A2A_API.md`), and the WebSocket live-update channel is at `/v1.0/ws` (see `WEBSOCKETS_API.md`). Examples use `http://127.0.0.1:8700`, the default tenant `ten_default`, and `$TOKEN` for a session token.
+The server listens on port 8700 by default. MCP is on its own port (8701, see `MCP_API.md`), A2A shares the REST port (see `A2A_API.md`), and the WebSocket live-update channel is at `/v1.0/ws` (see `WEBSOCKETS_API.md`). Examples use `http://127.0.0.1:8700`, the default tenant `default`, and `$TOKEN` for a session token.
 
 ## Conventions
 
@@ -82,14 +82,14 @@ Every route except health, token issuance, and A2A agent cards requires credenti
 ```bash
 curl -s -X POST http://127.0.0.1:8700/v1.0/token \
   -H "Content-Type: application/json" \
-  -d '{"tenantId":"ten_default","email":"admin@garrison.local","password":"garrison"}'
+  -d '{"tenantId":"default","email":"admin@garrison","password":"password"}'
 ```
 
 ```json
 {
   "token": "mYN7C3k11nw1I53l16XgBVT9VAWQ0-fVuQqVdOM3y4Fc0pRL7AJa3jYAB5iJFwiQp5Uy...",
   "expiresUtc": "2026-10-10T09:16:07.6Z",
-  "tenantId": "ten_default",
+  "tenantId": "default",
   "sessionId": "ses_mv1pdwe5_PbsIONqokkSegZfhQXs",
   "principalType": "User"
 }
@@ -114,7 +114,7 @@ A signed request proves possession of the secret key without sending it. Build t
 ```bash
 DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ); NONCE=$(uuidgen)
 BODYHASH=$(printf '' | shasum -a 256 | cut -d' ' -f1)
-CANON=$(printf 'GET\n/v1.0/api/nodes\n\nten_default\n%s\n%s\n%s' "$DATE" "$NONCE" "$BODYHASH")
+CANON=$(printf 'GET\n/v1.0/api/nodes\n\ndefault\n%s\n%s\n%s' "$DATE" "$NONCE" "$BODYHASH")
 SIG=$(printf '%s' "$CANON" | openssl dgst -sha256 -hmac "$SECRET_KEY" | sed 's/^.* //')
 curl -s http://127.0.0.1:8700/v1.0/api/nodes \
   -H "x-access-key: $ACCESS_KEY" -H "x-date: $DATE" -H "x-nonce: $NONCE" -H "x-signature: $SIG"
@@ -157,7 +157,7 @@ Issue a session token from user login or credential keys.
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/token" \
   -H "Content-Type: application/json" \
-  -d '{"tenantId": "ten_default", "email": "admin@garrison.local", "password": "garrison"}'
+  -d '{"tenantId": "default", "email": "admin@garrison", "password": "password"}'
 ```
 
 #### `GET /v1.0/token`
@@ -264,7 +264,7 @@ Read a tenant.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -280,7 +280,7 @@ Update a tenant.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "active": false}'
@@ -297,7 +297,7 @@ Delete a tenant and everything it owns.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -314,7 +314,7 @@ List users.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/users" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/users" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -330,7 +330,7 @@ Create a user.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/users" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/users" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"email": "dev@acme.example", "password": "change-me", "firstName": "Dev", "lastName": "User"}'
@@ -347,7 +347,7 @@ Read a user (self or with User Read).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/users/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/users/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -363,7 +363,7 @@ Update a user.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/users/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/users/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"email": "string", "password": "string", "firstName": "string", "lastName": "string", "isTenantAdmin": false, "isAdmin": false, "active": false}'
@@ -379,7 +379,7 @@ Delete a user with credentials, sessions, and assignments.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/users/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/users/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -394,7 +394,7 @@ Effective permissions of a user (self or with User Admin).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/users/{id}/permissions" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/users/{id}/permissions" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -411,7 +411,7 @@ List credentials.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credentials" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -427,7 +427,7 @@ Create a credential (the secret is returned once).
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credentials" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "ci key", "userId": "usr_...", "roleName": "AgentInvoker"}'
@@ -444,7 +444,7 @@ Read a credential.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credentials/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -460,7 +460,7 @@ Update a credential.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credentials/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "userId": "string", "authMode": "DirectHeader", "expiresUtc": "2026-01-01T00:00:00Z", "active": false, "roleName": "string"}'
@@ -477,7 +477,7 @@ Rotate a credential secret (the new secret is returned once).
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credentials/{id}/rotate" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials/{id}/rotate" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -491,7 +491,7 @@ Delete a credential.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credentials/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -506,7 +506,7 @@ Effective permissions of a credential (self or with Credential Admin).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credentials/{id}/permissions" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials/{id}/permissions" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -523,7 +523,7 @@ List roles, including built-in roles.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/roles" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/roles" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -539,7 +539,7 @@ Create a custom role.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/roles" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/roles" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Runner", "description": "Invoke agents and read runs"}'
@@ -556,7 +556,7 @@ Read a role.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/roles/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/roles/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -572,7 +572,7 @@ Update a custom role.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/roles/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/roles/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "active": false}'
@@ -588,7 +588,7 @@ Delete a custom role.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/roles/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/roles/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -604,7 +604,7 @@ Clone a role (including built-ins) into a custom role.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/roles/{id}/clone" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/roles/{id}/clone" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "active": false}'
@@ -621,7 +621,7 @@ List role-permission mappings (filter with roleId).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/role-permissions" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/role-permissions" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -637,7 +637,7 @@ Map a permission to a custom role.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/role-permissions" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/role-permissions" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"roleId": "rol_...", "permissionId": "prm_..."}'
@@ -653,7 +653,7 @@ Remove a role-permission mapping.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/role-permissions/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/role-permissions/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -670,7 +670,7 @@ List permissions, including built-ins.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/permissions" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/permissions" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -686,7 +686,7 @@ Create a permission.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/permissions" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/permissions" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Invoke agents", "permissionType": "Permit", "resourceTypes": ["Agent"], "operationTypes": ["Read", "Execute"]}'
@@ -703,7 +703,7 @@ Read a permission.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/permissions/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/permissions/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -719,7 +719,7 @@ Update a permission.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/permissions/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/permissions/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "permissionType": "Permit", "resourceTypes": ["string"], "operationTypes": ["string"], "active": false}'
@@ -735,7 +735,7 @@ Delete a permission.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/permissions/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/permissions/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -752,7 +752,7 @@ List user role assignments (filter with userId).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/user-role-assignments" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/user-role-assignments" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -768,7 +768,7 @@ Assign a role to a user.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/user-role-assignments" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/user-role-assignments" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"userId": "usr_...", "roleName": "AgentOperator", "resourceScope": "Tenant"}'
@@ -785,7 +785,7 @@ Read a user role assignment.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/user-role-assignments/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/user-role-assignments/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -801,7 +801,7 @@ Update a user role assignment.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/user-role-assignments/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/user-role-assignments/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"userId": "string", "credentialId": "string", "roleId": "string", "roleName": "string", "resourceScope": "Tenant", "resourceId": "string", "inheritsToChildren": false, "active": false}'
@@ -817,7 +817,7 @@ Remove a user role assignment.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/user-role-assignments/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/user-role-assignments/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -832,7 +832,7 @@ List credential scope assignments (filter with credentialId).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credential-scope-assignments" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/credential-scope-assignments" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -848,7 +848,7 @@ Assign a role to a credential.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credential-scope-assignments" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/credential-scope-assignments" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"credentialId": "crd_...", "roleName": "AgentInvoker", "resourceScope": "Resource", "resourceId": "agt_..."}'
@@ -865,7 +865,7 @@ Read a credential scope assignment.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credential-scope-assignments/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/credential-scope-assignments/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -881,7 +881,7 @@ Update a credential scope assignment.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credential-scope-assignments/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/credential-scope-assignments/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"userId": "string", "credentialId": "string", "roleId": "string", "roleName": "string", "resourceScope": "Tenant", "resourceId": "string", "inheritsToChildren": false, "active": false}'
@@ -897,7 +897,7 @@ Remove a credential scope assignment.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/credential-scope-assignments/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/credential-scope-assignments/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -914,7 +914,7 @@ List audit records (eventType, principalId, result, fromUtc, toUtc, pageNumber, 
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/audit" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/audit" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -929,7 +929,7 @@ Read an audit record.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/audit/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/audit/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -943,7 +943,7 @@ Delete an audit record.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/audit/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/audit/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -958,7 +958,7 @@ Delete audit records matching the filter.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/audit" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/audit" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1148,7 +1148,7 @@ List harness profiles (tenant and built-in).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/harness-profiles" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/harness-profiles" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1164,7 +1164,7 @@ Create a harness profile.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/harness-profiles" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/harness-profiles" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "my-cli", "harnessType": "Generic", "executable": "my-agent", "promptDelivery": "Stdin", "systemPromptDelivery": "None", "outputParser": "GenericJsonl", "genericTextField": "delta.text", "genericFinalField": "result", "genericSuccessField": "status", "genericSuccessValue": "ok", "arguments": [{"template": "--json"}]}'
@@ -1181,7 +1181,7 @@ Read a harness profile.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/harness-profiles/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/harness-profiles/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1197,7 +1197,7 @@ Update a harness profile.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/harness-profiles/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/harness-profiles/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "harnessType": "ClaudeCode", "executable": "string", "promptDelivery": "Stdin", "promptArgumentTemplate": "string", "systemPromptDelivery": "File", "systemPromptTarget": "string", "mcpConfigFormat": "None", "mcpConfigFileName": "string", "outputParser": "ClaudeStreamJson", "resultSource": "ParserFinalEvent", "resultFileName": "string", "successPolicy": "FinalEvent", "genericTextField": "string", "genericFinalField": "string", "genericSuccessField": "string", "genericSuccessValue": "string", "defaultTimeoutSeconds": 0, "killGraceSeconds": 0, "maxOutputBytes": 0, "stderrTailBytes": 0, "isolateHome": false, "supportsResume": false, "active": false, "arguments": [{}], "environment": [{}], "files": [{}], "successExitCodes": [0], "probeArguments": ["string"], "credentialEnvironmentAllowlist": ["string"]}'
@@ -1214,7 +1214,7 @@ Delete a harness profile.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/harness-profiles/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/harness-profiles/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1230,7 +1230,7 @@ Clone a harness profile (built-in or tenant) into a new tenant profile.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/harness-profiles/{id}/clone" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/harness-profiles/{id}/clone" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "claude-code-local"}'
@@ -1249,7 +1249,7 @@ List prompt templates (tenant and built-in).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1265,7 +1265,7 @@ Create a prompt template.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "helper-system", "kind": "System", "content": "You are {{agent.name}}. {{agent.description}}", "changeNote": "First version"}'
@@ -1283,7 +1283,7 @@ Render ad hoc template content with sample data.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/render" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/render" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"content": "Hello {{input.message | upper}}", "context": {"input": {"message": "world"}}}'
@@ -1300,7 +1300,7 @@ Read a prompt template.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1316,7 +1316,7 @@ Update a prompt template (content changes create a version).
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "kind": "System", "content": "string", "variables": [{}], "changeNote": "string"}'
@@ -1333,7 +1333,7 @@ Delete a prompt template and its versions.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1348,7 +1348,7 @@ List template versions, newest first.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}/versions" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}/versions" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1363,7 +1363,7 @@ Read one template version.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}/versions/{version}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}/versions/{version}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1378,7 +1378,7 @@ Restore a version as a new version.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}/restore/{version}" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}/restore/{version}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1394,7 +1394,7 @@ Clone a template (built-in or tenant).
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}/clone" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}/clone" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "default-system-custom"}'
@@ -1411,7 +1411,7 @@ Reset a cloned built-in template to the shipped default.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}/reset" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}/reset" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1427,7 +1427,7 @@ Render a stored template with sample data.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/prompt-templates/{id}/render" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}/render" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"context": {"input": {"message": "world"}}}'
@@ -1446,7 +1446,7 @@ List MCP servers.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/mcp-servers" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1462,7 +1462,7 @@ Register an MCP server.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/mcp-servers" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "docs", "transport": "Http", "url": "https://mcp.example", "path": "/mcp", "headers": [{"name": "Authorization", "valueTemplate": "Bearer {{secret.docs}}"}], "requiredTools": ["search"]}'
@@ -1479,7 +1479,7 @@ Read an MCP server.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/mcp-servers/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1495,7 +1495,7 @@ Update an MCP server.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/mcp-servers/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "transport": "Http", "url": "string", "path": "string", "command": "string", "toolTimeoutSeconds": 0, "required": false, "active": false, "arguments": ["string"], "environment": [{}], "headers": [{}], "requiredTools": ["string"]}'
@@ -1512,7 +1512,7 @@ Delete an MCP server.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/mcp-servers/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1527,7 +1527,7 @@ Connect to an HTTP MCP server and list its tools.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/mcp-servers/{id}/test" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers/{id}/test" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1544,7 +1544,7 @@ List secrets (metadata only).
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/secrets" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1560,7 +1560,7 @@ Create a secret.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/secrets" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "anthropic-api-key", "kind": "AnthropicApiKey", "value": "sk-ant-..."}'
@@ -1577,7 +1577,7 @@ Read secret metadata.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/secrets/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1593,7 +1593,7 @@ Update secret metadata (and value when supplied).
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/secrets/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "kind": "AnthropicApiKey", "value": "string", "expiresUtc": "2026-01-01T00:00:00Z"}'
@@ -1611,7 +1611,7 @@ Set a secret value.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/secrets/{id}/value" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}/value" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"value": "new-value"}'
@@ -1629,7 +1629,7 @@ Rotate a secret value.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/secrets/{id}/rotate" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}/rotate" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"value": "new-value"}'
@@ -1646,7 +1646,7 @@ Delete a secret.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/secrets/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1663,7 +1663,7 @@ List workspace templates.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/workspace-templates" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/workspace-templates" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1679,7 +1679,7 @@ Create a workspace template.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/workspace-templates" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/workspace-templates" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "repo", "kind": "GitRepository", "gitUrl": "https://github.com/example/repo.git", "gitRef": "main", "gitDepth": 1}'
@@ -1696,7 +1696,7 @@ Read a workspace template.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/workspace-templates/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/workspace-templates/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1712,7 +1712,7 @@ Update a workspace template.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/workspace-templates/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/workspace-templates/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "kind": "Empty", "gitUrl": "string", "gitRef": "string", "gitDepth": 0, "gitCredentialSecretId": "string", "retention": "Delete", "active": false, "files": [{}]}'
@@ -1729,7 +1729,7 @@ Delete a workspace template.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/workspace-templates/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/workspace-templates/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1746,7 +1746,7 @@ List artifact stores.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/artifact-stores" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-stores" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1762,7 +1762,7 @@ Create an artifact store.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/artifact-stores" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-stores" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "default", "kind": "Database"}'
@@ -1779,7 +1779,7 @@ Read an artifact store.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/artifact-stores/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-stores/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1795,7 +1795,7 @@ Update an artifact store.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/artifact-stores/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-stores/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "description": "string", "kind": "Database", "active": false}'
@@ -1812,7 +1812,7 @@ Delete an artifact store.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/artifact-stores/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-stores/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1829,7 +1829,7 @@ List agents.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/agents" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1845,7 +1845,7 @@ Create an agent.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "helper", "description": "General assistant", "exposeA2A": true, "delegationMode": "AllowList", "delegationAllowList": ["coder"]}'
@@ -1863,7 +1863,7 @@ Self-register an agent (idempotent by name).
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents/register" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/register" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "remote-helper", "kind": "Remote", "remoteProtocol": "A2A", "remoteEndpointUrl": "https://agents.example/helper", "registrationTtlSeconds": 300}'
@@ -1880,7 +1880,7 @@ Read an agent.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1896,7 +1896,7 @@ Update an agent.
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "string", "displayName": "string", "description": "string", "kind": "Hosted", "agentVersion": "string", "exposeA2A": false, "exposeMcpTool": false, "mcpToolName": "string", "toolDescriptionTemplateId": "string", "skillDescriptionTemplateId": "string", "inputMode": "Text", "inputSchemaJson": "string", "outputSchemaJson": "string", "delegationMode": "None", "delegationMaxDepth": 0, "delegationAllowRecursion": false, "remoteProtocol": "A2A", "remoteEndpointUrl": "string", "remoteCredentialSecretId": "string", "lastRegisteredUtc": "2026-01-01T00:00:00Z", "registrationTtlSeconds": 0, "active": false, "skills": [{}], "tags": ["string"], "delegationAllowList": ["string"]}'
@@ -1913,7 +1913,7 @@ Delete an agent and its deployments.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1928,7 +1928,7 @@ Read the agent's A2A agent card.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents/{id}/card" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}/card" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1945,7 +1945,7 @@ List deployments.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/deployments" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1961,7 +1961,7 @@ Create a deployment.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/deployments" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"agentId": "agt_...", "name": "helper-claude", "harnessProfileId": "hrn_builtin_claude_code", "model": "sonnet", "maxTurns": 8, "timeoutSeconds": 600, "resourceBindings": [{"kind": "Secret", "alias": "anthropic", "resourceId": "sec_..."}], "allowedRunOverrides": [{"name": "model", "validation": "Enum", "pattern": "sonnet,haiku"}]}'
@@ -1978,7 +1978,7 @@ Read a deployment.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/deployments/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1994,7 +1994,7 @@ Update a deployment (increments its configuration version).
 | Success | 200 |
 
 ```bash
-curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/deployments/{id}" \
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"agentId": "string", "name": "string", "description": "string", "harnessProfileId": "string", "model": "string", "fallbackModel": "string", "effort": "string", "maxTurns": 0, "maxBudgetUsd": 0, "maxConcurrentRuns": 0, "timeoutSeconds": 0, "maxAttempts": 0, "retryOnNodeLoss": false, "weight": 0, "nodePoolId": "string", "workspaceTemplateId": "string", "artifactStoreId": "string", "active": false, "promptBindings": [{}], "resourceBindings": [{}], "argumentOverrides": [{}], "environmentOverrides": [{}], "fileOverrides": [{}], "nodeSelector": [{}], "parameters": [{}], "allowedRunOverrides": [{}]}'
@@ -2011,7 +2011,7 @@ Delete a deployment.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/deployments/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2027,7 +2027,7 @@ Compile the deployment with sample input; secret values are redacted.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/deployments/{id}/compile-preview" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{id}/compile-preview" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"input": "Reply with OK", "parameters": {}}'
@@ -2047,7 +2047,7 @@ Apply YAML or JSON manifests (query: dryRun, allowSecretValues).
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/manifests/apply" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/apply" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/yaml" \
   --data-binary @manifests.yaml
@@ -2063,7 +2063,7 @@ Export the tenant configuration as YAML manifests (secrets as metadata only).
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/manifests/export" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/export" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2078,7 +2078,7 @@ List manifest applies.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/manifests/applies" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/applies" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2093,7 +2093,7 @@ Read a manifest apply with per-document results.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/manifests/applies/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/applies/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2111,7 +2111,7 @@ Invoke an agent.
 | Success | 200 when the run finished within the wait, 202 when it is still queued or running |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/agents/{agentId}/invoke" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{agentId}/invoke" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"input": "Summarize the README", "wait": true, "waitSeconds": 60}'
@@ -2129,7 +2129,7 @@ Invoke a specific deployment with a test input.
 | Success | 200 when the run finished within the wait, 202 when it is still queued or running |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/deployments/{deploymentId}/test" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{deploymentId}/test" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"input": "Reply with OK", "wait": true}'
@@ -2147,7 +2147,7 @@ Create a run.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"agentName": "helper", "input": "Summarize the README", "parameters": {"model": "haiku"}, "wait": false}'
@@ -2164,7 +2164,7 @@ List runs.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2179,7 +2179,7 @@ Delete finished runs matching a filter.
 | Success | 200 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2194,7 +2194,7 @@ Read a run.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2208,7 +2208,7 @@ Delete a finished run.
 | Success | 204 |
 
 ```bash
-curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs/{id}" \
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2223,7 +2223,7 @@ Cancel a run.
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs/{id}/cancel" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/cancel" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2238,7 +2238,7 @@ Retry a finished run as a new run.
 | Success | 201 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs/{id}/retry" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/retry" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2253,7 +2253,7 @@ Read run events after a sequence.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs/{id}/events" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/events" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2267,7 +2267,7 @@ Stream run events (server-sent events).
 | Success | 200 (text/event-stream) |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs/{id}/events/stream" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/events/stream" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2282,7 +2282,7 @@ List runs delegated by a run.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/runs/{id}/children" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/children" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2299,7 +2299,7 @@ Tenant overview for the Home page.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/overview" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/overview" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2314,7 +2314,7 @@ Active runs grouped by agent and harness.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/ten_default/queue/summary" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/queue/summary" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2649,7 +2649,7 @@ A2A agent card.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/a2a/ten_default/{agentName}/.well-known/agent-card.json"
+curl -s -X GET "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}/.well-known/agent-card.json"
 ```
 
 #### `GET /v1.0/a2a/{tenantId}`
@@ -2662,7 +2662,7 @@ A2A agent cards for every exposed agent in a tenant.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/a2a/ten_default" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/a2a/default" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2676,7 +2676,7 @@ A2A JSON-RPC endpoint (SendMessage, SendStreamingMessage, GetTask, ListTasks, Ca
 | Success | 200 |
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/ten_default/{agentName}" \
+curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 

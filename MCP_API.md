@@ -23,7 +23,7 @@ Send the same credentials you would send to REST: a bearer session token, `x-acc
 ```bash
 TOKEN=$(curl -s -X POST http://127.0.0.1:8700/v1.0/token \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@garrison.local","password":"garrison"}' | jq -r .token)
+  -d '{"email":"admin@garrison","password":"password"}' | jq -r .token)
 
 curl -s -i -X POST http://127.0.0.1:8701/mcp \
   -H "Authorization: Bearer $TOKEN" \
@@ -54,7 +54,7 @@ A credential is the better choice for a long-lived client, since session tokens 
 Users, credentials, and run tokens belong to one tenant, and every tool works inside it. Every tool's input schema also has an optional `tenantId` argument. Only callers using the administrator API key need it, because that key has no tenant; without it their calls fail with "No tenant could be resolved." Everyone else can leave it out, and it is ignored for them.
 
 ```json
-{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"garrison_invoke_agent","arguments":{"tenantId":"ten_default","agent":"docs-echo","input":"Hello from MCP","waitSeconds":30}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"garrison_invoke_agent","arguments":{"tenantId":"default","agent":"docs-echo","input":"Hello from MCP","waitSeconds":30}}}
 ```
 
 ## Tools

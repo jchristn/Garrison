@@ -17,7 +17,7 @@ export function AppProvider({ children }) {
   const [tourOpen, setTourOpen] = useState(false);
 
   const isSystemAdmin = !!principal?.isAdmin;
-  const tenantId = (isSystemAdmin && tenantOverride) || principal?.tenantId || tenantOverride || 'ten_default';
+  const tenantId = (isSystemAdmin && tenantOverride) || principal?.tenantId || tenantOverride || 'default';
 
   useEffect(() => {
     if (!apiClient || !isSystemAdmin) return;

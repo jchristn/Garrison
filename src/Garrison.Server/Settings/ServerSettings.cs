@@ -165,6 +165,7 @@ namespace Garrison.Server.Settings
             Str("GARRISON_AUTH_SIGNING_KEY", "Auth.SigningKey", v => Auth.SigningKey = v);
             Str("GARRISON_ADMIN_API_KEY", "Auth.AdminApiKey", v => Auth.AdminApiKey = v);
             Str("GARRISON_MASTER_KEY", "Security.MasterKey", v => Security.MasterKey = v);
+            Str("GARRISON_ADMIN_EMAIL", "Security.AdminEmail", v => Security.AdminEmail = v);
             Str("GARRISON_ADMIN_PASSWORD", "Security.AdminPassword", v => Security.AdminPassword = v);
             Str("GARRISON_DEFAULT_ACCESS_KEY", "Security.DefaultAccessKey", v => Security.DefaultAccessKey = v);
             Str("GARRISON_DEFAULT_SECRET_KEY", "Security.DefaultSecretKey", v => Security.DefaultSecretKey = v);

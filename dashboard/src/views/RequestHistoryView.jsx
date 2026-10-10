@@ -178,7 +178,7 @@ export default function RequestHistoryView({ apiClient }) {
     { key: 'pathContains', label: t('components.filters.path'), type: 'text', placeholder: t('components.filters.pathPlaceholder') },
     { key: 'fromUtc', label: t('components.filters.from'), type: 'datetime' },
     { key: 'toUtc', label: t('components.filters.to'), type: 'datetime' },
-    ...(caps.isSystemAdmin ? [{ key: 'tenantId', label: t('components.filters.tenant'), type: 'text', placeholder: 'ten_default' }] : [])
+    ...(caps.isSystemAdmin ? [{ key: 'tenantId', label: t('components.filters.tenant'), type: 'text', placeholder: 'default' }] : [])
   ];
 
   const columns = [

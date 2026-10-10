@@ -23,7 +23,7 @@ namespace Garrison.Core.Services
         /// <summary>
         /// Email of the internal user that owns node credentials.
         /// </summary>
-        public static readonly string NodeUserEmail = "nodes@garrison.local";
+        public static readonly string NodeUserEmail = "nodes@garrison";
 
         #endregion
 
@@ -72,7 +72,7 @@ namespace Garrison.Core.Services
             if (tenant == null)
             {
                 tenant = new Tenant();
-                tenant.Id = "ten_default";
+                tenant.Id = Constants.DefaultTenantId;
                 tenant.Name = Constants.DefaultTenantName;
                 tenant.Description = "Default tenant created on first boot.";
                 tenant.IsProtected = true;
