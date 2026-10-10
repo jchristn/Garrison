@@ -34,6 +34,13 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// An MCP session was closed. Subject is the cluster session identifier.
         /// </summary>
-        McpSessionClosed
+        McpSessionClosed,
+
+        /// <summary>
+        /// An MCP client cancelled a request (notifications/cancelled) on one replica; the replica running the request
+        /// relays the cancellation to its local session. Subject: cluster session identifier, a line feed, and the raw
+        /// JSON request identifier.
+        /// </summary>
+        McpRequestCancelled
     }
 }

@@ -125,7 +125,7 @@ namespace Garrison.Server.Runtime
             Agent? agent = await _Database.Agents.ReadAsync(run.TenantId, run.AgentId, token).ConfigureAwait(false);
             Deployment? deployment = await _Database.Deployments.ReadAsync(run.TenantId, run.DeploymentId, token).ConfigureAwait(false);
             HarnessProfile? profile = deployment == null ? null : await _Database.HarnessProfiles.ReadAsync(run.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
-            int timeoutSeconds = deployment?.TimeoutSeconds ?? profile?.DefaultTimeoutSeconds ?? 1800;
+            int timeoutSeconds = InvocationCompiler.EffectiveTimeoutSeconds(deployment, profile, run.Parameters, 1800, _Options.MaxRunSeconds);
             DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
             string? runToken = null;
@@ -135,7 +135,7 @@ namespace Garrison.Server.Runtime
             }
 
             CompilationResult compiled = await _Compiler().CompileRepairAsync(run, runToken, repair, token).ConfigureAwait(false);
-            compiled.Spec.TimeoutSeconds = compiled.Spec.TimeoutSeconds > 0 ? compiled.Spec.TimeoutSeconds : timeoutSeconds;
+            compiled.Spec.TimeoutSeconds = Math.Min(compiled.Spec.TimeoutSeconds > 0 ? compiled.Spec.TimeoutSeconds : timeoutSeconds, _Options.MaxRunSeconds);
             run.DeadlineUtc = DateTime.UtcNow.AddSeconds(compiled.Spec.TimeoutSeconds + _Options.DeadlineGraceSeconds);
 
             List<RunTemplateVersion> added = compiled.TemplateVersions

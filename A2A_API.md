@@ -113,6 +113,7 @@ How the message becomes a run:
 - **Idempotency.** `messageId` becomes the run's idempotency key (`a2a:<messageId>`). Sending the same `messageId` with the same content again within 24 hours returns the original task instead of starting a new run, so retries are safe. Sending it with different content is a mistake and is rejected with HTTP 409 Conflict and a JSON-RPC error (code `-32602`, `data.code` `MessageIdConflict`, `data.taskId` the existing task) whose message names the `messageId` and the task. Use a new `messageId` for every new message.
 - **Parameters.** Request metadata entries named `garrison.parameter.<name>` become run parameters, for example `"metadata": {"garrison.parameter.model": "sonnet"}`. They are validated against the deployment's allowed overrides exactly like REST parameters. A rejected parameter is named in the error message (for example `parameters.model: Deployment echo-default does not allow overriding model.`) and in `data.errors` and `data.fieldCodes`.
 - **Waiting.** The call waits up to `Mcp.MaxToolWaitSeconds` (90 by default) for the run to finish. Set `"configuration": {"returnImmediately": true}` to get the task back at once in the `TASK_STATE_SUBMITTED` state, then poll with `GetTask` or attach with `SubscribeToTask`.
+- **Disconnecting.** A blocking `SendMessage` whose client disconnects before the task finishes cancels the task (and any runs it delegated), so an abandoned request does not keep a model busy. The wait running out does not cancel it, and neither does a replica shutting down. To start work that outlives the connection, use `returnImmediately`.
 
 ### Tasks
 
@@ -150,6 +151,10 @@ data: {"jsonrpc":"2.0","result":{"statusUpdate":{"taskId":"run_mv1r4ek0_vOHPH3or
 ```
 
 Garrison sends one status update per state change, plus the result artifact just before the final status of a successful run. It does not stream partial text; follow the run's events over REST or WebSocket for that.
+
+Closing a `SendStreamingMessage` stream before the final status cancels the task it started, the same as disconnecting from a blocking `SendMessage`. Closing a `SubscribeToTask` stream only stops watching; the task keeps running.
+
+A task can also fail on its own when a worker run guard stops it: the status message starts with `RepetitionDetected`, `OutputLimitExceeded`, or `NoProgress`, followed by the reason (see "Run guards" in `REST_API.md`).
 
 ## Errors
 

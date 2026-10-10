@@ -953,6 +953,21 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<Run>> ListActiveStartedBeforeAsync(DateTime startedBeforeUtc, int limit, CancellationToken token = default)
+        {
+            return await _Driver.QueryAsync(
+                "SELECT * FROM " + _Table + " WHERE status IN ('Leased', 'Running', 'Cancelling') AND COALESCE(startedutc, leasedutc) IS NOT NULL AND COALESCE(startedutc, leasedutc) < @before ORDER BY COALESCE(startedutc, leasedutc) ASC" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "before", startedBeforeUtc);
+                    AdoDatabaseDriver.Add(command, "max", Math.Clamp(limit, 1, 1000));
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                },
+                Map,
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<Run>> ListQueuedAsync(string? tenantId, int limit, CancellationToken token = default)
         {
             bool scoped = !String.IsNullOrEmpty(tenantId);

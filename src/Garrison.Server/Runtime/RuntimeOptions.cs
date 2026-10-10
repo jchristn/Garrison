@@ -162,6 +162,24 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Cluster cap on any run's execution, in seconds. Compiled runs get the smaller of their own timeout and this
+        /// cap, and the leader times out any leased or running run that started longer ago than this cap plus
+        /// <see cref="DeadlineGraceSeconds"/>, whatever its stored deadline. Minimum 60, maximum 604800 (7 days),
+        /// default 3600. Refreshed from the cluster setting Runtime.MaxRunSeconds.
+        /// </summary>
+        public int MaxRunSeconds
+        {
+            get
+            {
+                return _MaxRunSeconds;
+            }
+            set
+            {
+                _MaxRunSeconds = Math.Clamp(value, 60, 604800);
+            }
+        }
+
+        /// <summary>
         /// Seconds a queued run may stay blocked (no Ready worker can run it) before the leader fails it with outcome
         /// NoCapableWorker. 0 never fails blocked runs. Minimum 0, maximum 604800 (7 days), default 0. Refreshed from the
         /// cluster setting Runtime.FailBlockedAfterSeconds.
@@ -243,6 +261,7 @@ namespace Garrison.Server.Runtime
         private int _MaintenanceIntervalMs = 2000;
         private int _LeaderLeaseMs = 15000;
         private int _FailBlockedAfterSeconds = 0;
+        private int _MaxRunSeconds = 3600;
         private int _ControlNodeHeartbeatMs = 5000;
         private int _ControlNodeOfflineAfterMs = 30000;
         private int _ControlNodeOfflineRetentionHours = 24;

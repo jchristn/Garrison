@@ -135,7 +135,8 @@ export interface Run extends Json {
 export const RUN_OUTCOMES = [
   "None", "Succeeded", "HarnessFailed", "NotInstalled", "NotCredentialed", "McpPreflightFailed", "NodeLost",
   "OutputLimitExceeded", "SchemaValidationFailed", "TimedOut", "Cancelled", "StaleLease", "CompileFailed",
-  "WorkspaceFailed", "Rejected", "NoCapableWorker", "InternalError"
+  "WorkspaceFailed", "Rejected", "NoCapableWorker", "InternalError",
+  "RepetitionDetected", "NoProgress"
 ] as const;
 
 /** One of {@link RUN_OUTCOMES}. */
@@ -153,6 +154,8 @@ export interface RunStreamItem { name: string; data: string; event?: RunEvent; r
 
 export interface InvokeOptions {
   wait?: boolean; waitSeconds?: number; parameters?: Record<string, string>; deploymentId?: string; priority?: number;
+  /** When waiting, cancel the run if the connection drops first (server default true). */
+  cancelOnDisconnect?: boolean;
 }
 
 export interface RunFilter {
@@ -480,7 +483,7 @@ export class Agents extends Resource<Agent> {
   invoke(agent: string, input: string, options: InvokeOptions = {}): Promise<Run> {
     return this.t.request("POST", this.item(agent) + "/invoke", undefined, {
       input, wait: options.wait ?? true, waitSeconds: options.waitSeconds ?? 60, parameters: options.parameters ?? {},
-      deploymentId: options.deploymentId, priority: options.priority ?? 0,
+      deploymentId: options.deploymentId, priority: options.priority ?? 0, cancelOnDisconnect: options.cancelOnDisconnect,
     });
   }
   card(id: string): Promise<Json> { return this.t.request("GET", this.item(id) + "/card"); }
@@ -538,7 +541,7 @@ export class Runs {
   constructor(private readonly t: Transport) {}
   private p(suffix = ""): string { return this.t.tenantPath("/runs" + suffix); }
 
-  create(request: { input: string; agentId?: string; agentName?: string; deploymentId?: string; parameters?: Record<string, string>; priority?: number; wait?: boolean; waitSeconds?: number }): Promise<Run> {
+  create(request: { input: string; agentId?: string; agentName?: string; deploymentId?: string; parameters?: Record<string, string>; priority?: number; wait?: boolean; waitSeconds?: number; cancelOnDisconnect?: boolean }): Promise<Run> {
     return this.t.request("POST", this.p(), undefined, { parameters: {}, ...request });
   }
   get(id: string): Promise<Run> { return this.t.request("GET", this.p(`/${seg(id)}`)); }

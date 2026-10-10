@@ -32,7 +32,7 @@ namespace Garrison.Core.Compilation
 
         #region Private-Members
 
-        private static readonly HashSet<string> _FieldOverrides = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "model", "effort", "maxTurns" };
+        private static readonly HashSet<string> _FieldOverrides = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "model", "effort", "maxTurns", "timeoutSeconds" };
 
         #endregion
 

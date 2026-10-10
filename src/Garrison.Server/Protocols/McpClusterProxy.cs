@@ -232,6 +232,53 @@ namespace Garrison.Server.Protocols
         private void OnBackplaneMessage(object? sender, BackplaneMessage message)
         {
             if (message.Kind == BackplaneMessageKindEnum.McpSessionClosed && !String.IsNullOrEmpty(message.Subject)) Forget(message.Subject!);
+            if (message.Kind == BackplaneMessageKindEnum.McpRequestCancelled && !String.IsNullOrEmpty(message.Subject)) _ = RelayCancelAsync(message.Subject!);
+        }
+
+        private async Task RelayCancelAsync(string subject)
+        {
+            int separator = subject.IndexOf('\n');
+            if (separator <= 0 || separator == subject.Length - 1) return;
+            string clusterId = subject.Substring(0, separator);
+            string requestId = subject.Substring(separator + 1);
+            if (!_Sessions.TryGetValue(clusterId, out McpLocalSession? local) || local.Caller == null) return;
+            try
+            {
+                byte[] body = Encoding.UTF8.GetBytes("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":" + requestId + ",\"reason\":\"cancelled on another replica\"}}");
+                using (HttpRequestMessage request = BuildInternalRequest("POST", _Context.Settings.Mcp.Path, body, local.Caller, null))
+                {
+                    request.Headers.TryAddWithoutValidation(Voltaic.Mcp.McpProtocol.SessionIdHeader, local.LocalId);
+                    using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                    using (HttpResponseMessage response = await _Http.SendAsync(request, timeout.Token).ConfigureAwait(false))
+                    {
+                        _Context.Logging.Debug(_Header + "relayed a cancellation for session " + clusterId + ": " + (int)response.StatusCode);
+                    }
+                }
+            }
+            catch (Exception e) when (e is HttpRequestException || e is IOException || e is OperationCanceledException)
+            {
+                _Context.Logging.Debug(_Header + "could not relay a cancellation for session " + clusterId + ": " + e.Message);
+            }
+        }
+
+        private void PublishCancellation(string clusterId, byte[]? body)
+        {
+            if (_Backplane == null || body == null || body.Length == 0 || body.Length > 4096) return;
+            McpCancelledEnvelope? envelope;
+            try
+            {
+                envelope = Serializer.Deserialize<McpCancelledEnvelope>(Encoding.UTF8.GetString(body));
+            }
+            catch (Exception e) when (e is JsonException || e is NotSupportedException || e is ArgumentException)
+            {
+                return;
+            }
+            if (envelope == null || !String.Equals(envelope.Method, "notifications/cancelled", StringComparison.Ordinal)) return;
+            JsonElement? requestId = envelope.Params?.RequestId;
+            if (!requestId.HasValue || (requestId.Value.ValueKind != JsonValueKind.String && requestId.Value.ValueKind != JsonValueKind.Number)) return;
+            string raw = requestId.Value.GetRawText();
+            if (clusterId.Length + raw.Length + 1 > 256) return;
+            _Backplane.Publish(new BackplaneMessage(BackplaneMessageKindEnum.McpRequestCancelled, clusterId + "\n" + raw));
         }
 
         private async Task HandleAsync(HttpContextBase context)
@@ -302,6 +349,8 @@ namespace Garrison.Server.Protocols
                 return;
             }
 
+            local.Caller = caller;
+            if (String.Equals(method, "POST", StringComparison.OrdinalIgnoreCase)) PublishCancellation(clusterId!, body);
             HttpResponseMessage first = await ForwardAsync(method, pathAndQuery, headers, body, local.LocalId, caller, clientAddress, token).ConfigureAwait(false);
             if (await IsSessionNotFoundAsync(first, token).ConfigureAwait(false))
             {

@@ -48,6 +48,7 @@ namespace Garrison.Server.Modules
         private IEventBackplane? _Backplane = null;
         private ClusterSettingsService? _Cluster = null;
         private RunGaugeService? _Gauges = null;
+        private CompilerOptions? _Compiler = null;
 
         #endregion
 
@@ -59,6 +60,7 @@ namespace Garrison.Server.Modules
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             _Options = new RuntimeOptions();
+            _Compiler = context.TryGet<CompilerOptions>();
             _Signals = new RunSignals();
             _Backplane = context.TryGet<IEventBackplane>();
             _Signals.Backplane = _Backplane;
@@ -70,7 +72,7 @@ namespace Garrison.Server.Modules
             _Runs.ShutdownToken = context.Stopping;
             _Events.Logging = context.Logging;
             _Analytics = new RunAnalyticsService(context.Database);
-            _Nodes = new NodeService(context.Database, _Options, context.Audit);
+            _Nodes = new NodeService(context.Database, _Options, context.Audit, _Signals);
             _Delegation = new DelegationPolicy(context.Database);
             _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation);
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
@@ -208,6 +210,15 @@ namespace Garrison.Server.Modules
             _Options.EventPollMs = cluster.GetInt("Scheduling.EventPollMs");
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
             _Options.FailBlockedAfterSeconds = cluster.GetInt("Runtime.FailBlockedAfterSeconds");
+            _Options.MaxRunSeconds = cluster.GetInt("Runtime.MaxRunSeconds");
+            if (_Compiler != null)
+            {
+                _Compiler.DefaultTimeoutSeconds = cluster.GetInt("Runs.DefaultTimeoutSeconds");
+                _Compiler.MaxRunSeconds = cluster.GetInt("Runtime.MaxRunSeconds");
+                _Compiler.RepetitionGuard = cluster.GetBool("Runtime.RepetitionGuard");
+                _Compiler.MaxAssistantChars = cluster.GetInt("Runtime.MaxAssistantChars");
+                _Compiler.NoProgressSeconds = cluster.GetInt("Runtime.NoProgressSeconds");
+            }
             _Options.ControlNodeHeartbeatMs = cluster.GetInt("ControlPlane.HeartbeatIntervalMs");
             _Options.ControlNodeOfflineAfterMs = cluster.GetInt("ControlPlane.OfflineAfterMs");
             _Options.ControlNodeOfflineRetentionHours = cluster.GetInt("ControlPlane.OfflineRetentionHours");

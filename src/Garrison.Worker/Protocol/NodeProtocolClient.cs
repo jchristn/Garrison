@@ -113,6 +113,22 @@ namespace Garrison.Worker.Protocol
         }
 
         /// <summary>
+        /// Watch runs for cancellation (long poll). Returns as soon as the control plane cancels any watched run, or
+        /// empty when the wait ends.
+        /// </summary>
+        /// <param name="request">Request.</param>
+        /// <param name="token">Cancellation token; cancelling it abandons the call (for example to watch a new run).</param>
+        /// <returns>Response.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when request is null.</exception>
+        /// <exception cref="NodeProtocolException">Thrown when the call fails; status 404 means the control plane does not
+        /// offer the watch (an older release) or the node is not registered.</exception>
+        public Task<NodeWatchResponse> WatchAsync(NodeWatchRequest request, CancellationToken token = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return PostAsync<NodeWatchResponse>("/v1.0/api/node/watch", request, null, request.WaitMs + _CallTimeoutMs, token);
+        }
+
+        /// <summary>
         /// Tell the control plane the node is draining.
         /// </summary>
         /// <param name="nodeId">Node identifier.</param>

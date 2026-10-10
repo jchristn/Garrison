@@ -35,6 +35,8 @@ const (
 	RunOutcomeRejected               = "Rejected"
 	RunOutcomeNoCapableWorker        = "NoCapableWorker"
 	RunOutcomeInternalError          = "InternalError"
+	RunOutcomeRepetitionDetected     = "RepetitionDetected"
+	RunOutcomeNoProgress             = "NoProgress"
 )
 
 // TokenResponse is returned by POST /v1.0/token.
@@ -238,6 +240,8 @@ type InvokeRequest struct {
 	Parameters   map[string]string `json:"parameters,omitempty"`
 	DeploymentID string            `json:"deploymentId,omitempty"`
 	Priority     int               `json:"priority,omitempty"`
+	// CancelOnDisconnect, when waiting, cancels the run if the client disconnects first. Nil means true.
+	CancelOnDisconnect *bool `json:"cancelOnDisconnect,omitempty"`
 }
 
 // RunCreateRequest is the body of POST .../runs.
@@ -250,6 +254,8 @@ type RunCreateRequest struct {
 	Priority     int               `json:"priority,omitempty"`
 	Wait         bool              `json:"wait,omitempty"`
 	WaitSeconds  int               `json:"waitSeconds,omitempty"`
+	// CancelOnDisconnect, when waiting, cancels the run if the client disconnects first. Nil means true.
+	CancelOnDisconnect *bool `json:"cancelOnDisconnect,omitempty"`
 }
 
 // RunFilter filters run listings. Empty fields are omitted.

@@ -131,7 +131,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, name = @name, description = @description, harnessprofileid = @harnessprofileid, model = @model, fallbackmodel = @fallbackmodel, effort = @effort, maxturns = @maxturns, maxbudgetusd = @maxbudgetusd, maxconcurrentruns = @maxconcurrentruns, timeoutseconds = @timeoutseconds, maxattempts = @maxattempts, retryonnodeloss = @retryonnodeloss, weight = @weight, nodepoolid = @nodepoolid, workspacetemplateid = @workspacetemplateid, artifactstoreid = @artifactstoreid, configversion = @configversion, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, name = @name, description = @description, harnessprofileid = @harnessprofileid, model = @model, fallbackmodel = @fallbackmodel, effort = @effort, maxturns = @maxturns, maxbudgetusd = @maxbudgetusd, maxconcurrentruns = @maxconcurrentruns, timeoutseconds = @timeoutseconds, repetitionguard = @repetitionguard, maxassistantchars = @maxassistantchars, noprogressseconds = @noprogressseconds, maxattempts = @maxattempts, retryonnodeloss = @retryonnodeloss, weight = @weight, nodepoolid = @nodepoolid, workspacetemplateid = @workspacetemplateid, artifactstoreid = @artifactstoreid, configversion = @configversion, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -150,6 +150,9 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "maxbudgetusd", obj.MaxBudgetUsd);
                     AdoDatabaseDriver.Add(command, "maxconcurrentruns", obj.MaxConcurrentRuns);
                     AdoDatabaseDriver.Add(command, "timeoutseconds", obj.TimeoutSeconds);
+                    AdoDatabaseDriver.Add(command, "repetitionguard", obj.RepetitionGuard);
+                    AdoDatabaseDriver.Add(command, "maxassistantchars", obj.MaxAssistantChars);
+                    AdoDatabaseDriver.Add(command, "noprogressseconds", obj.NoProgressSeconds);
                     AdoDatabaseDriver.Add(command, "maxattempts", obj.MaxAttempts);
                     AdoDatabaseDriver.Add(command, "retryonnodeloss", obj.RetryOnNodeLoss);
                     AdoDatabaseDriver.Add(command, "weight", obj.Weight);
@@ -250,6 +253,9 @@ namespace Garrison.Core.Database.Ado
             obj.MaxBudgetUsd = AdoConverters.NullableDouble(reader, "maxbudgetusd");
             obj.MaxConcurrentRuns = AdoConverters.Int(reader, "maxconcurrentruns");
             obj.TimeoutSeconds = AdoConverters.NullableInt(reader, "timeoutseconds");
+            obj.RepetitionGuard = AdoConverters.NullableBool(reader, "repetitionguard");
+            obj.MaxAssistantChars = AdoConverters.NullableLong(reader, "maxassistantchars");
+            obj.NoProgressSeconds = AdoConverters.NullableInt(reader, "noprogressseconds");
             obj.MaxAttempts = AdoConverters.Int(reader, "maxattempts");
             obj.RetryOnNodeLoss = AdoConverters.Bool(reader, "retryonnodeloss");
             obj.Weight = AdoConverters.Int(reader, "weight");
@@ -362,7 +368,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Deployment obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, name, description, harnessprofileid, model, fallbackmodel, effort, maxturns, maxbudgetusd, maxconcurrentruns, timeoutseconds, maxattempts, retryonnodeloss, weight, nodepoolid, workspacetemplateid, artifactstoreid, configversion, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @name, @description, @harnessprofileid, @model, @fallbackmodel, @effort, @maxturns, @maxbudgetusd, @maxconcurrentruns, @timeoutseconds, @maxattempts, @retryonnodeloss, @weight, @nodepoolid, @workspacetemplateid, @artifactstoreid, @configversion, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, name, description, harnessprofileid, model, fallbackmodel, effort, maxturns, maxbudgetusd, maxconcurrentruns, timeoutseconds, repetitionguard, maxassistantchars, noprogressseconds, maxattempts, retryonnodeloss, weight, nodepoolid, workspacetemplateid, artifactstoreid, configversion, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @name, @description, @harnessprofileid, @model, @fallbackmodel, @effort, @maxturns, @maxbudgetusd, @maxconcurrentruns, @timeoutseconds, @repetitionguard, @maxassistantchars, @noprogressseconds, @maxattempts, @retryonnodeloss, @weight, @nodepoolid, @workspacetemplateid, @artifactstoreid, @configversion, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -378,6 +384,9 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "maxbudgetusd", obj.MaxBudgetUsd);
                 AdoDatabaseDriver.Add(command, "maxconcurrentruns", obj.MaxConcurrentRuns);
                 AdoDatabaseDriver.Add(command, "timeoutseconds", obj.TimeoutSeconds);
+                    AdoDatabaseDriver.Add(command, "repetitionguard", obj.RepetitionGuard);
+                    AdoDatabaseDriver.Add(command, "maxassistantchars", obj.MaxAssistantChars);
+                    AdoDatabaseDriver.Add(command, "noprogressseconds", obj.NoProgressSeconds);
                 AdoDatabaseDriver.Add(command, "maxattempts", obj.MaxAttempts);
                 AdoDatabaseDriver.Add(command, "retryonnodeloss", obj.RetryOnNodeLoss);
                 AdoDatabaseDriver.Add(command, "weight", obj.Weight);

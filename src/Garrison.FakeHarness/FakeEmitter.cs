@@ -116,14 +116,17 @@ namespace Garrison.FakeHarness
             {
                 case "claude":
                     Line(new { type = "assistant", message = new { content = new object[] { new { type = "tool_use", id, name = tool, input = new { } } } } });
+                    ToolSleep();
                     Line(new { type = "user", message = new { content = new object[] { new { type = "tool_result", tool_use_id = id, is_error = !success, content = result } } } });
                     break;
                 case "codex":
                     Line(new { type = "item.started", item = new { id, type = "mcp_tool_call", server = "garrison", tool, status = "in_progress" } });
+                    ToolSleep();
                     Line(new { type = "item.completed", item = new { id, type = "mcp_tool_call", server = "garrison", tool, status = success ? "completed" : "failed", result } });
                     break;
                 case "mux":
                     Line(new { contractVersion = 2, eventType = "tool_call_proposed", timestampUtc = DateTime.UtcNow, toolCall = new { id, name = tool, arguments = "{}" } });
+                    ToolSleep();
                     Line(new { contractVersion = 2, eventType = "tool_call_completed", timestampUtc = DateTime.UtcNow, toolCallId = id, toolName = tool, elapsedMs = 1, result = new { toolCallId = id, success, content = result } });
                     break;
                 default:
@@ -205,9 +208,64 @@ namespace Garrison.FakeHarness
             Console.Out.Flush();
         }
 
+        /// <summary>
+        /// Emit legitimate answer text, then the loop text as assistant text deltas until the process is killed. Never
+        /// returns.
+        /// </summary>
+        /// <param name="answer">Answer text emitted first.</param>
+        /// <param name="loopText">Text repeated forever.</param>
+        public void Loop(string answer, string loopText)
+        {
+            switch (_Options.Format)
+            {
+                case "claude":
+                    Line(new { type = "stream_event", @event = new { type = "message_start" } });
+                    Line(new { type = "stream_event", @event = new { type = "content_block_delta", index = 0, delta = new { type = "thinking_delta", thinking = "Considering the request." } } });
+                    break;
+                case "mux":
+                    Line(new { contractVersion = 2, eventType = "assistant_thinking", timestampUtc = DateTime.UtcNow, text = "Considering the request." });
+                    break;
+                default:
+                    break;
+            }
+            Think();
+            foreach (string chunk in Chunk(answer + "\n")) Text(chunk);
+            while (true)
+            {
+                Text(loopText);
+                if (_Options.DelayMs > 0) Thread.Sleep(_Options.DelayMs);
+                else Thread.Sleep(1);
+            }
+        }
+
         #endregion
 
         #region Private-Methods
+
+        private void Text(string chunk)
+        {
+            switch (_Options.Format)
+            {
+                case "claude":
+                    Line(new { type = "stream_event", @event = new { type = "content_block_delta", index = 0, delta = new { type = "text_delta", text = chunk } } });
+                    break;
+                case "codex":
+                    Line(new { type = "item.completed", item = new { id = "msg_" + Guid.NewGuid().ToString("N").Substring(0, 8), type = "agent_message", text = chunk } });
+                    break;
+                case "mux":
+                    Line(new { contractVersion = 2, eventType = "assistant_text", timestampUtc = DateTime.UtcNow, text = chunk });
+                    break;
+                default:
+                    Console.Out.Write(chunk);
+                    Console.Out.Flush();
+                    break;
+            }
+        }
+
+        private void ToolSleep()
+        {
+            if (_Options.ToolSleepMs > 0) Thread.Sleep(_Options.ToolSleepMs);
+        }
 
         private void Line(object value)
         {

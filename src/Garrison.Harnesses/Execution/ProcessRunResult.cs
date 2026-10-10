@@ -30,6 +30,22 @@ namespace Garrison.Harnesses.Execution
         public bool Cancelled { get; set; } = false;
 
         /// <summary>
+        /// Whether a run guard stopped the process through <see cref="ProcessRunRequest.StopToken"/>.
+        /// </summary>
+        public bool Stopped { get; set; } = false;
+
+        /// <summary>
+        /// Milliseconds from the stop request (cancellation, deadline, output limit, or guard) until the process exited,
+        /// or null when the process exited on its own.
+        /// </summary>
+        public long? StopLatencyMs { get; set; } = null;
+
+        /// <summary>
+        /// Whether the process had to be killed with SIGKILL (or a forced tree kill) after the grace period.
+        /// </summary>
+        public bool Killed { get; set; } = false;
+
+        /// <summary>
         /// Whether the executable could not be found.
         /// </summary>
         public bool NotInstalled { get; set; } = false;

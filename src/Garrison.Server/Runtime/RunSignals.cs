@@ -86,6 +86,31 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Start waiting for cancellations of runs held by a worker node (the node's cancellation watch). Dispose the
+        /// subscription when done.
+        /// </summary>
+        /// <param name="nodeId">Node identifier.</param>
+        /// <returns>Subscription.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when nodeId is null or empty.</exception>
+        public RunSignalSubscription SubscribeNode(string nodeId)
+        {
+            if (String.IsNullOrEmpty(nodeId)) throw new ArgumentNullException(nameof(nodeId));
+            return Subscribe(NodeSubject(nodeId));
+        }
+
+        /// <summary>
+        /// A run held by a worker node was cancelled: wake that node's cancellation watch here and on other replicas.
+        /// The signal travels as a RunChanged backplane message whose subject is "node:" plus the node identifier, which
+        /// can never collide with a run identifier.
+        /// </summary>
+        /// <param name="nodeId">Node identifier; null or empty is ignored.</param>
+        public void NotifyNode(string? nodeId)
+        {
+            if (String.IsNullOrEmpty(nodeId)) return;
+            Notify(NodeSubject(nodeId));
+        }
+
+        /// <summary>
         /// A run finished: wake its waiters here and on other replicas.
         /// </summary>
         /// <param name="runId">Run identifier.</param>
@@ -156,6 +181,11 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private static string NodeSubject(string nodeId)
+        {
+            return "node:" + nodeId;
+        }
 
         private void SignalLocal(string runId)
         {

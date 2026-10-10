@@ -2,6 +2,7 @@ namespace Garrison.Harnesses.Execution
 {
     using System;
     using System.Collections.Generic;
+    using System.Threading;
     using Garrison.Core.Enums;
 
     /// <summary>
@@ -59,5 +60,12 @@ namespace Garrison.Harnesses.Execution
         /// exit as soon as it is observed. Null disables timing.
         /// </summary>
         public HarnessTiming? Timing { get; set; } = null;
+
+        /// <summary>
+        /// Cancelled by a run guard to stop the process. The runner stops the process tree the same way as for a
+        /// cancellation (SIGTERM, then SIGKILL after the grace period) and sets <see cref="ProcessRunResult.Stopped"/>.
+        /// Default: never cancelled.
+        /// </summary>
+        public CancellationToken StopToken { get; set; } = CancellationToken.None;
     }
 }

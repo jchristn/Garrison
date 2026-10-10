@@ -98,6 +98,28 @@ namespace Garrison.FakeHarness
         /// </summary>
         public bool StructuredOutput { get; set; } = false;
 
+        /// <summary>
+        /// Ignore SIGTERM, so only SIGKILL stops the process. Used to prove the worker's kill path. Default false.
+        /// </summary>
+        public bool IgnoreSigterm { get; set; } = false;
+
+        /// <summary>
+        /// After the thinking event and the answer, emit this text as assistant text deltas forever (a degenerate
+        /// generation loop like the gpt-oss "* \n" loop). The escapes \n, \r, and \t are expanded. Null turns it off.
+        /// </summary>
+        public string? LoopText { get; set; } = null;
+
+        /// <summary>
+        /// Start a long-lived child process (sleep 600) and write its process identifier to this file, so tests can
+        /// check that stopping the harness also stops its children. Null turns it off. Unix only.
+        /// </summary>
+        public string? SpawnChildPidFile { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds each fake tool call (--tool-calls) runs between its call and its result. Default 0.
+        /// </summary>
+        public int ToolSleepMs { get; set; } = 0;
+
         #endregion
 
         #region Public-Methods
@@ -164,6 +186,18 @@ namespace Garrison.FakeHarness
                     case "--structured-output":
                         options.StructuredOutput = true;
                         break;
+                    case "--ignore-sigterm":
+                        options.IgnoreSigterm = true;
+                        break;
+                    case "--loop-text":
+                        if (next != null) { options.LoopText = Unescape(next); i++; }
+                        break;
+                    case "--spawn-child":
+                        if (next != null) { options.SpawnChildPidFile = next; i++; }
+                        break;
+                    case "--tool-sleep-ms":
+                        if (next != null) { options.ToolSleepMs = Math.Max(0, Int32.Parse(next, CultureInfo.InvariantCulture)); i++; }
+                        break;
                     case "--stderr":
                         if (next != null) { options.Stderr = next; i++; }
                         break;
@@ -172,6 +206,15 @@ namespace Garrison.FakeHarness
                 }
             }
             return options;
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private static string Unescape(string value)
+        {
+            return value.Replace("\\n", "\n", StringComparison.Ordinal).Replace("\\r", "\r", StringComparison.Ordinal).Replace("\\t", "\t", StringComparison.Ordinal);
         }
 
         #endregion

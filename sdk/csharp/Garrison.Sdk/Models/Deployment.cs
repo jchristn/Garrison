@@ -138,6 +138,26 @@ namespace Garrison.Sdk.Models
         public int? TimeoutSeconds { get; set; } = null;
 
         /// <summary>
+        /// Run guard: whether the worker stops runs whose assistant text degenerates into repetition (outcome
+        /// RepetitionDetected). Null uses the cluster setting Runtime.RepetitionGuard (default true).
+        /// </summary>
+        public bool? RepetitionGuard { get; set; } = null;
+
+        /// <summary>
+        /// Run guard: most characters of assistant text per run before the worker stops it (outcome
+        /// OutputLimitExceeded); 0 is unlimited. Null uses the cluster setting Runtime.MaxAssistantChars (default
+        /// 200,000).
+        /// </summary>
+        public long? MaxAssistantChars { get; set; } = null;
+
+        /// <summary>
+        /// Run guard: seconds without assistant text, thinking, tool call, or tool result (while no tool call is open)
+        /// before the worker stops a run (outcome NoProgress); 0 turns it off. Null uses the cluster setting
+        /// Runtime.NoProgressSeconds (default 300).
+        /// </summary>
+        public int? NoProgressSeconds { get; set; } = null;
+
+        /// <summary>
         /// Maximum attempts. Minimum 1, maximum 10, default 1.
         /// </summary>
         public int MaxAttempts

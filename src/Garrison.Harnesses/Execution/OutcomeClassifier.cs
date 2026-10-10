@@ -7,7 +7,7 @@ namespace Garrison.Harnesses.Execution
     using Garrison.Core.Enums;
 
     /// <summary>
-    /// Classifies a finished harness run (Aegon order): cancelled, timed out, not installed, output limit, parser
+    /// Classifies a finished harness run (Aegon order): cancelled, run guard trip, timed out, not installed, output limit, parser
     /// failure, success per policy, credential failures reported in the stream, credential heuristics from stderr,
     /// otherwise failed. The exit code is recorded but
     /// decides success only when the success policy involves it (or the parser is PlainText). Thread-safe.
@@ -60,11 +60,28 @@ namespace Garrison.Harnesses.Execution
         /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
         public static HarnessOutcome Classify(ExecutionSpec spec, ProcessRunResult process, HarnessRunState state)
         {
+            return Classify(spec, process, state, null);
+        }
+
+        /// <summary>
+        /// Classify, taking a run guard trip into account. A trip ranks right after cancellation: the run ends Failed
+        /// with the guard's outcome (RepetitionDetected, OutputLimitExceeded, or NoProgress) even when the harness
+        /// managed to exit on its own after the trip.
+        /// </summary>
+        /// <param name="spec">Execution spec.</param>
+        /// <param name="process">Process result.</param>
+        /// <param name="state">Parser state.</param>
+        /// <param name="trip">Run guard trip, or null when no guard tripped.</param>
+        /// <returns>Outcome.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when spec, process, or state is null.</exception>
+        public static HarnessOutcome Classify(ExecutionSpec spec, ProcessRunResult process, HarnessRunState state, RunGuardTrip? trip)
+        {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (process == null) throw new ArgumentNullException(nameof(process));
             if (state == null) throw new ArgumentNullException(nameof(state));
 
             if (process.Cancelled) return Make(RunStatusEnum.Cancelled, RunOutcomeEnum.Cancelled, "Run was cancelled.");
+            if (trip != null) return Make(RunStatusEnum.Failed, trip.Outcome, trip.Reason);
             if (process.TimedOut) return Make(RunStatusEnum.TimedOut, RunOutcomeEnum.TimedOut, "Run exceeded its deadline of " + spec.TimeoutSeconds + " seconds.");
             if (process.NotInstalled) return Make(RunStatusEnum.Failed, RunOutcomeEnum.NotInstalled, process.LaunchError ?? ("Executable '" + spec.Executable + "' is not installed."));
             if (process.OutputLimitExceeded) return Make(RunStatusEnum.Failed, RunOutcomeEnum.OutputLimitExceeded, "Harness output exceeded " + spec.MaxOutputBytes + " bytes.");

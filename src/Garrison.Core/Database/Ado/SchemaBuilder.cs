@@ -74,6 +74,10 @@ namespace Garrison.Core.Database.Ado
             v7.BuildVersion7();
             migrations.Add(new SchemaMigration(7, "Control-plane replicas (control nodes)", v7._Statements, v7._Columns));
 
+            SchemaBuilder v8 = new SchemaBuilder(catalog, dialect);
+            v8.BuildVersion8();
+            migrations.Add(new SchemaMigration(8, "Run guard limits on deployments", v8._Statements, v8._Columns));
+
             return migrations;
         }
 
@@ -129,6 +133,16 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion8()
+        {
+            SqlDialect d = _Dialect;
+
+            // deployments: run guard limits; null means the cluster default (P3.15)
+            Column("deployments", "repetitionguard", d.TypeBool);
+            Column("deployments", "maxassistantchars", d.TypeBigInt);
+            Column("deployments", "noprogressseconds", d.TypeInt);
         }
 
         private void BuildVersion7()

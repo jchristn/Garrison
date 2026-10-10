@@ -90,6 +90,18 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// InternalError.
         /// </summary>
-        InternalError
+        InternalError,
+
+        /// <summary>
+        /// RepetitionDetected: the worker's repetition guard stopped the run because its assistant text degenerated into
+        /// one short repeated unit or into text with no letters or digits. The partial output is the result text.
+        /// </summary>
+        RepetitionDetected,
+
+        /// <summary>
+        /// NoProgress: the worker's no-progress guard stopped the run because the harness produced no assistant text,
+        /// thinking, tool call, or tool result for longer than the deployment's noProgressSeconds.
+        /// </summary>
+        NoProgress
     }
 }

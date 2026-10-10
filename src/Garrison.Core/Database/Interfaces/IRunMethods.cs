@@ -300,6 +300,16 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<Run>> ListPastDeadlineAsync(DateTime nowUtc, int limit, CancellationToken token = default);
 
         /// <summary>
+        /// Leased, running, or cancelling runs that started (or, when they never started, were leased) before a time,
+        /// whatever their stored deadline. Used to enforce the cluster cap Runtime.MaxRunSeconds.
+        /// </summary>
+        /// <param name="startedBeforeUtc">Cutoff (UTC).</param>
+        /// <param name="limit">Maximum rows.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs, oldest first.</returns>
+        Task<List<Run>> ListActiveStartedBeforeAsync(DateTime startedBeforeUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Queued runs, oldest first, with their placement requirements loaded (parameters and template versions are not
         /// loaded). Used to work out which queued runs no worker can take.
         /// </summary>

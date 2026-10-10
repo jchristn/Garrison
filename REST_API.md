@@ -2256,6 +2256,8 @@ An agent with no active deployment whose weight is above zero cannot run: the ca
 
 An `Idempotency-Key` header makes retries safe: the same key with the same agent and input returns the run it created (within 24 hours), even when the retries reach different replicas at the same moment. The same key with different input returns 409 `IdempotencyKeyConflict` naming the existing run; use a new key for a new request.
 
+A waiting call (`"wait": true`) that loses its client cancels the run: when the connection closes before the run finishes, the run moves to `Cancelling` and the worker stops the harness, so nobody pays for output that no one will read. To keep the run going after a disconnect (and read it later with `GET .../runs/{id}`), send `"cancelOnDisconnect": false` in the body or `?cancelOnDisconnect=false` on the URL; the query parameter wins. The wait timing out (`waitSeconds` elapsing, answered with 202) never cancels the run, and neither does a control-plane replica shutting down. See [Cancellation](#cancellation).
+
 #### `POST /v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test`
 
 Invoke a specific deployment with a test input.
@@ -2292,7 +2294,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs" \
   -d '{"agentName": "helper", "input": "Summarize the README", "parameters": {"model": "haiku"}, "wait": false}'
 ```
 
-This needs the `helper-claude` deployment from the Deployments section (created with `helper`'s ID, and allowing `model` overrides). Without an active deployment the call returns 409 `NoActiveDeployment`, and a parameter the deployment does not allow returns 400 with field code `ParameterNotAllowed` under `parameters.model`. The status codes match invoke: 202 Accepted means the run was queued, not that it finished.
+This needs the `helper-claude` deployment from the Deployments section (created with `helper`'s ID, and allowing `model` overrides). Without an active deployment the call returns 409 `NoActiveDeployment`, and a parameter the deployment does not allow returns 400 with field code `ParameterNotAllowed` under `parameters.model`. The status codes match invoke: 202 Accepted means the run was queued, not that it finished. With `"wait": true`, a client disconnect cancels the run unless `cancelOnDisconnect` is `false`, as for invoke.
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs`
 
@@ -2442,6 +2444,30 @@ A repair is possible when the deployment's harness profile has `supportsResume` 
 }
 ```
 
+##### Run guards (`RepetitionDetected`, `OutputLimitExceeded`, `NoProgress`)
+
+The worker watches every run, whatever the harness, and stops it when it stops doing useful work. A small model stuck printing `* \n` forever is the typical case: without a guard it runs until its deadline.
+
+| Guard | Deployment field | Cluster default | Stops the run when | Outcome |
+|---|---|---|---|---|
+| Repetition | `repetitionGuard` | `Runtime.RepetitionGuard` (`true`) | The most recent 2,000 characters of assistant text are one unit of 1 to 64 characters repeated (at least 30 times), or the most recent 1,000 characters contain no letter or digit (only whitespace, punctuation, or symbols). | `RepetitionDetected` |
+| Assistant text size | `maxAssistantChars` | `Runtime.MaxAssistantChars` (200,000; 0 is unlimited) | The run's assistant text passes the limit. | `OutputLimitExceeded` |
+| No progress | `noProgressSeconds` | `Runtime.NoProgressSeconds` (300; 0 turns it off) | No progress for that many seconds while no tool call is open. | `NoProgress` |
+
+Progress means an `AssistantText`, `Thinking`, `ToolCall`, or `ToolResult` event. A tool call is open from its `ToolCall` event until the `ToolResult` with the same `toolCallId`, or until the model writes text or thinks again, so a 20-minute build or test command never counts as no progress. Lifecycle, usage, warning, error, stdout, and stderr events are not progress. The repetition window only covers assistant text written since the last tool call or tool result, so an agent that says "Reading the next file." between hundreds of tool calls is not a loop. The deadline (`timeoutSeconds`, capped by `Runtime.MaxRunSeconds`) still bounds everything.
+
+When a guard trips, the worker sends the harness SIGTERM, then SIGKILL after the harness profile's `killGraceSeconds`, to the harness and every process it started. The run gets exactly one `Warning` event with code `RunGuardTriggered` whose text says which guard tripped and why, and it ends `Failed` with the guard's outcome. `errorMessage` repeats the reason and `resultText` keeps the output produced so far.
+
+```json
+{
+  "id": "run_mv2z7m72...",
+  "status": "Failed",
+  "outcome": "RepetitionDetected",
+  "errorMessage": "Repetition guard: the last 1,000 characters of assistant text contain no letters or digits (only whitespace, punctuation, or symbols), ending with \" \\n* \\n* \\n* \\n*\".",
+  "resultText": "You are Mux Helper, an agent operated by Garrison. ... * \n* \n* \n"
+}
+```
+
 #### `DELETE /v1.0/api/tenants/{tenantId}/runs/{id}`
 
 Delete a finished run.
@@ -2470,6 +2496,18 @@ Cancel a run.
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/cancel" \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+##### Cancellation
+
+A queued run is cancelled at once. A leased or running run moves to `Cancelling`; the worker holding it learns about it through its cancellation watch (`POST /v1.0/api/node/watch`, a long poll answered the moment the run is cancelled on any replica) and stops the harness with SIGTERM, then SIGKILL after the profile's `killGraceSeconds`. In the test suite the cancel request reaches a `Cancelled` run in under 100 ms for a harness that exits on SIGTERM and in about 1.1 seconds for one that ignores SIGTERM with a 1-second grace; the contract is under 5 seconds. The heartbeat (every 5 seconds by default) is the fallback when the watch is unavailable.
+
+Cancelling a run also cancels the runs it delegated to other agents that have not finished, and their delegated runs in turn. Callers that go away cancel their runs too:
+
+| Caller | Cancels its run when |
+|---|---|
+| REST invoke, deployment test, or run create with `wait=true` | The client disconnects before the run finishes, unless `cancelOnDisconnect` is `false`. |
+| MCP `garrison_invoke_agent` | The client sends `notifications/cancelled` for the tool call, or deletes or closes the MCP session, while the call waits. See `MCP_API.md`. |
+| A2A blocking `SendMessage` and `SendStreamingMessage` | The client disconnects before the task finishes. See `A2A_API.md`. |
 
 #### `POST /v1.0/api/tenants/{tenantId}/runs/{id}/retry`
 
@@ -3040,6 +3078,24 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/heartbeat" \
   -d '{"nodeId": "string", "activeRuns": [{}], "freeCapacity": 0, "draining": false}'
 ```
 
+#### `POST /v1.0/api/node/watch`
+
+Watch held runs for cancellation (long poll). The worker names the runs it is executing that it has not been told to cancel; the call returns as soon as any of them is cancelled (from any replica, through the event backplane) or when `waitMs` (at most 60,000) elapses, and the worker calls again. The worker restarts the watch when it starts a new run. A worker talking to an older control plane gets 404 and relies on the heartbeat.
+
+| | |
+|---|---|
+| Permission | Execute on `Node` |
+| Request body | `NodeWatchRequest` |
+| Response | `NodeWatchResponse` |
+| Success | 200 |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/watch" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"nodeId": "string", "runs": [{"runId": "string", "epoch": 1}], "waitMs": 25000}'
+```
+
 #### `POST /v1.0/api/node/lease`
 
 Lease runs (long poll). Any replica can answer: a run queued on another replica wakes the wait through the event backplane. While the replica is shutting down, a waiting long poll returns with no assignments and new lease requests get 503 `Draining`, so the worker retries against another replica.
@@ -3181,7 +3237,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Addressing agents.** Every route under `.../agents/{idOrName}` (read, update, delete, card, and invoke) accepts the agent's identifier or its name, resolved within the tenant. An identifier match takes precedence over an agent whose name happens to equal it. When a name is used, resource-scoped permissions are checked against the resolved agent's identifier.
 
-**Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors.
+**Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors. Besides deployment parameters, a deployment can allow the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds` (validate it with an `IntegerRange` rule, for example `"pattern": "30,1800"`); a per-run `timeoutSeconds` is still capped by `Runtime.MaxRunSeconds`. A waiting call cancels its run when the client disconnects unless `cancelOnDisconnect` is false.
 
 **Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
@@ -3460,10 +3516,13 @@ Fully resolved instructions for one harness invocation. Compiled by the control 
 | `resultFileName` | `string?` | Result file name in the config directory, for LastMessageFile. |
 | `successPolicy` | `SuccessPolicyEnum` | Success policy. |
 | `successExitCodes` | `List<int>` | Successful exit codes. |
-| `timeoutSeconds` | `int` | Deadline in seconds from start. |
+| `timeoutSeconds` | `int` | Deadline in seconds from start: the deployment's `timeoutSeconds` (or the per-run `timeoutSeconds` parameter when the deployment allows it), else the profile default, capped by `Runtime.MaxRunSeconds`. |
 | `killGraceSeconds` | `int` | Seconds between graceful stop and process tree kill. |
 | `maxOutputBytes` | `long` | Maximum stdout bytes. |
 | `stderrTailBytes` | `int` | Retained stderr tail bytes. |
+| `repetitionGuard` | `bool` | Run guard: stop with RepetitionDetected when assistant text degenerates. From the deployment, else `Runtime.RepetitionGuard`. Default true. |
+| `maxAssistantChars` | `long` | Run guard: most characters of assistant text before OutputLimitExceeded; 0 is unlimited. From the deployment, else `Runtime.MaxAssistantChars`. Default 200,000. |
+| `noProgressSeconds` | `int` | Run guard: seconds without progress (while no tool call is open) before NoProgress; 0 turns it off. From the deployment, else `Runtime.NoProgressSeconds`. Default 300. |
 | `isolateHome` | `bool` | Whether the run gets its own HOME directory. |
 | `mcpPreflight` | `List<ExecutionMcpCheck>` | MCP pre-flight checks. |
 | `scrubValues` | `List<string>` | Values to redact from stderr, events, and logs. |
@@ -3692,7 +3751,10 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `maxTurns` | `int?` | Maximum agent turns. |
 | `maxBudgetUsd` | `double?` | Maximum spend per run in USD where the harness supports it. |
 | `maxConcurrentRuns` | `int` | Maximum concurrent runs; 0 means unlimited. Minimum 0, maximum 100000. |
-| `timeoutSeconds` | `int?` | Run deadline override. |
+| `timeoutSeconds` | `int?` | Run deadline override. Capped by the cluster setting `Runtime.MaxRunSeconds` (default 3600). |
+| `repetitionGuard` | `bool?` | Run guard: stop runs whose assistant text degenerates into repetition (outcome RepetitionDetected). Null uses `Runtime.RepetitionGuard` (default true). |
+| `maxAssistantChars` | `long?` | Run guard: most characters of assistant text per run (outcome OutputLimitExceeded); 0 is unlimited. Null uses `Runtime.MaxAssistantChars` (default 200,000). Minimum 0, maximum 100,000,000. |
+| `noProgressSeconds` | `int?` | Run guard: seconds without progress before a run stops (outcome NoProgress); 0 turns it off. Null uses `Runtime.NoProgressSeconds` (default 300). Minimum 0, maximum 86,400. |
 | `maxAttempts` | `int` | Maximum attempts. Minimum 1, maximum 10, default 1. |
 | `retryOnNodeLoss` | `bool` | Whether a running run is requeued when its node is lost. |
 | `weight` | `int` | Traffic weight among the agent's active deployments. Minimum 0, maximum 1000, default 100. |
@@ -3999,6 +4061,7 @@ Request to invoke an agent.
 | `priority` | `int` | Priority from -100 to 100. |
 | `wait` | `bool` | Whether to wait for completion before responding. |
 | `waitSeconds` | `int` | Maximum seconds to wait (1 to 600, default 60). |
+| `cancelOnDisconnect` | `bool?` | When waiting, whether the run is cancelled if the client disconnects before it finishes. Null means true; false keeps the run going. The query parameter `cancelOnDisconnect` overrides it. |
 
 #### `ManifestApply`
 
@@ -4207,6 +4270,24 @@ Heartbeat result.
 | `lostRunIds` | `List<string>` | Runs whose lease the worker no longer holds; kill immediately. |
 | `drain` | `bool` | Whether the control plane asks the worker to drain. |
 | `leaseDurationMs` | `int` | Lease duration in milliseconds. |
+
+#### `NodeWatchRequest`
+
+Cancellation watch (long poll).
+
+| Field | Type | Description |
+|---|---|---|
+| `nodeId` | `string` | Node identifier. |
+| `runs` | `List<NodeRunLease>` | Runs to watch (run identifier and lease epoch). |
+| `waitMs` | `int` | Longest wait in milliseconds. Minimum 0, maximum 60,000, default 25,000. |
+
+#### `NodeWatchResponse`
+
+Cancellation watch result.
+
+| Field | Type | Description |
+|---|---|---|
+| `cancelRunIds` | `List<string>` | Watched runs the worker must cancel now. |
 
 #### `NodeLeaseRequest`
 
@@ -4429,7 +4510,9 @@ One invocation of one deployment.
 
 #### `RunOutcomeEnum`
 
-`None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`
+`None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`, `RepetitionDetected`, `NoProgress`
+
+`RepetitionDetected`, `NoProgress`, and `OutputLimitExceeded` (when the assistant text passed `maxAssistantChars`) are run guard stops; see [Run guards](#run-guards-repetitiondetected-outputlimitexceeded-noprogress). `OutputLimitExceeded` also means the harness wrote more than the profile's `maxOutputBytes` to stdout.
 
 `NoCapableWorker` means the run stayed queued with no Ready worker able to run it for longer than `Runtime.FailBlockedAfterSeconds`.
 
@@ -4784,6 +4867,7 @@ Request to create a run.
 | `priority` | `int` | Priority from -100 to 100; higher runs first. |
 | `wait` | `bool` | Whether to wait for completion before responding. |
 | `waitSeconds` | `int` | Maximum seconds to wait (1 to 600). |
+| `cancelOnDisconnect` | `bool?` | When waiting, whether the run is cancelled if the client disconnects before it finishes. Null means true; false keeps the run going. The query parameter `cancelOnDisconnect` overrides it. |
 
 #### `RunEventsRequest`
 

@@ -108,8 +108,17 @@ namespace Garrison.Server.Runtime
 
             Run run = await _Runs.CreateAsync(create, token).ConfigureAwait(false);
             if (!options.Wait) return run;
-            Run? finished = await _Runs.WaitAsync(tenantId, run.Id, options.WaitSeconds, token).ConfigureAwait(false);
-            return finished ?? run;
+            try
+            {
+                Run? finished = await _Runs.WaitAsync(tenantId, run.Id, options.WaitSeconds, token).ConfigureAwait(false);
+                return finished ?? run;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested && options.CancelOnDisconnect && !_Runs.ShutdownToken.IsCancellationRequested && (options.CallerGone == null || options.CallerGone()))
+            {
+                // Nobody is waiting for the result any more: stop the harness instead of letting it run to its deadline.
+                await _Runs.CancelAbandonedAsync(tenantId, run.Id, options.DisconnectReason, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
         }
 
         #endregion

@@ -2,7 +2,9 @@ namespace Garrison.Server.Routes
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
+    using System.Net.Sockets;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -236,11 +238,27 @@ namespace Garrison.Server.Routes
             }
             options.Wait = !streaming && (request.Configuration == null || !request.Configuration.ReturnImmediately);
             options.WaitSeconds = _Context.Settings.Mcp.MaxToolWaitSeconds;
+            options.CancelOnDisconnect = true;
+            options.CallerGone = () => context.RequestAborted && !_Context.IsDraining;
+            options.DisconnectReason = "the A2A client disconnected from a blocking SendMessage";
 
             Run run = await _Invoker.InvokeAsync(ctx, tenantId, agent, options, context.Token).ConfigureAwait(false);
             if (streaming)
             {
-                await StreamAsync(context, id, tenantId, run).ConfigureAwait(false);
+                try
+                {
+                    await StreamAsync(context, id, tenantId, run).ConfigureAwait(false);
+                }
+                catch (Exception e) when ((e is OperationCanceledException || e is IOException || e is SocketException || e is ObjectDisposedException) && !_Context.IsDraining)
+                {
+                    // The client closed the stream of the task it started: nobody is listening, so stop the task.
+                    await _Runs.CancelAbandonedAsync(tenantId, run.Id, "the A2A client disconnected from SendStreamingMessage", CancellationToken.None).ConfigureAwait(false);
+                    throw;
+                }
+                if (context.Token.IsCancellationRequested && context.RequestAborted && !_Context.IsDraining)
+                {
+                    await _Runs.CancelAbandonedAsync(tenantId, run.Id, "the A2A client disconnected from SendStreamingMessage", CancellationToken.None).ConfigureAwait(false);
+                }
                 return;
             }
 

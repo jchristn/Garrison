@@ -112,6 +112,9 @@
     "killGraceSeconds": 5,
     "maxOutputBytes": 67108864,
     "stderrTailBytes": 8000,
+    "repetitionGuard": true,
+    "maxAssistantChars": 200000,
+    "noProgressSeconds": 300,
     "isolateHome": true,
     "mcpPreflight": [
       {

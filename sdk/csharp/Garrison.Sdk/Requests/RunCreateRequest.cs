@@ -53,5 +53,11 @@ namespace Garrison.Sdk.Requests
         /// Maximum seconds to wait (1 to 600).
         /// </summary>
         public int WaitSeconds { get; set; } = 60;
+
+        /// <summary>
+        /// When waiting, whether the run is cancelled if the connection drops before it finishes. Null means true (the
+        /// server default for waiting calls); false keeps the run going so it can be read later.
+        /// </summary>
+        public bool? CancelOnDisconnect { get; set; } = null;
     }
 }

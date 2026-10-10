@@ -1,7 +1,9 @@
 namespace Garrison.FakeHarness
 {
     using System;
+    using System.Diagnostics;
     using System.IO;
+    using System.Runtime.InteropServices;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -13,7 +15,8 @@ namespace Garrison.FakeHarness
     /// Usage: garrison-fake-harness --version | --format claude|codex|mux|plain [--scenario file] [--delay-ms N]
     /// [--fail] [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
     /// [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N] [--answer text]
-    /// [--resume-answer text] [--resume sessionId] [--structured-output].
+    /// [--resume-answer text] [--resume sessionId] [--structured-output] [--ignore-sigterm] [--loop-text text]
+    /// [--spawn-child pidfile] [--tool-sleep-ms N].
     /// </summary>
     public static class Program
     {
@@ -35,6 +38,14 @@ namespace Garrison.FakeHarness
                 Console.Out.WriteLine("garrison-fake-harness " + FakeVersion);
                 return 0;
             }
+
+            PosixSignalRegistration? sigterm = null;
+            if (options.IgnoreSigterm && !OperatingSystem.IsWindows())
+            {
+                // Swallow SIGTERM so only SIGKILL ends the process (tests of the worker's kill path).
+                sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, context => context.Cancel = true);
+            }
+            if (!String.IsNullOrEmpty(options.SpawnChildPidFile)) SpawnChild(options.SpawnChildPidFile);
 
             string prompt = Console.IsInputRedirected ? await Console.In.ReadToEndAsync().ConfigureAwait(false) : String.Empty;
             string answer = "Echo: " + (prompt.Length > 200 ? prompt.Substring(0, 200) : prompt).Trim();
@@ -62,6 +73,11 @@ namespace Garrison.FakeHarness
             if (options.Hang)
             {
                 Thread.Sleep(Timeout.Infinite);
+            }
+
+            if (options.LoopText != null)
+            {
+                emitter.Loop(answer, options.LoopText.Length == 0 ? " " : options.LoopText);
             }
 
             for (int i = 0; i < options.LargeOutputLines; i++) emitter.Filler(i);
@@ -92,9 +108,23 @@ namespace Garrison.FakeHarness
             }
 
             emitter.Finish(answer, options.Fail);
+            GC.KeepAlive(sigterm);
             if (!String.IsNullOrEmpty(options.Stderr)) Console.Error.WriteLine(options.Stderr);
             if (options.ExitCode.HasValue) return options.ExitCode.Value;
             return options.Fail ? 1 : 0;
+        }
+
+        private static void SpawnChild(string pidFile)
+        {
+            ProcessStartInfo info = new ProcessStartInfo("sleep");
+            info.ArgumentList.Add("600");
+            info.UseShellExecute = false;
+            info.RedirectStandardInput = true;
+            using (Process? child = Process.Start(info))
+            {
+                if (child == null) return;
+                File.WriteAllText(pidFile, child.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
         }
 
         private static string? SessionDirectory()

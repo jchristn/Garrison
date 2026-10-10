@@ -118,6 +118,21 @@ namespace Garrison.Sdk.Compilation
         public int StderrTailBytes { get; set; } = 8000;
 
         /// <summary>
+        /// Run guard: stop the run with RepetitionDetected when its assistant text degenerates. Default true.
+        /// </summary>
+        public bool RepetitionGuard { get; set; } = true;
+
+        /// <summary>
+        /// Run guard: most characters of assistant text before OutputLimitExceeded; 0 is unlimited. Default 200,000.
+        /// </summary>
+        public long MaxAssistantChars { get; set; } = 200000;
+
+        /// <summary>
+        /// Run guard: seconds without progress before NoProgress; 0 turns it off. Default 300.
+        /// </summary>
+        public int NoProgressSeconds { get; set; } = 300;
+
+        /// <summary>
         /// Whether the run gets its own HOME directory.
         /// </summary>
         public bool IsolateHome { get; set; } = true;

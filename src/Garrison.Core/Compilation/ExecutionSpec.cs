@@ -118,6 +118,27 @@ namespace Garrison.Core.Compilation
         public int StderrTailBytes { get; set; } = 8000;
 
         /// <summary>
+        /// Run guard: stop the run with outcome RepetitionDetected when the most recent assistant text degenerates into
+        /// one short repeated unit or into text with no letters or digits. From the deployment's repetitionGuard, else
+        /// the cluster setting Runtime.RepetitionGuard. Default true.
+        /// </summary>
+        public bool RepetitionGuard { get; set; } = true;
+
+        /// <summary>
+        /// Run guard: most characters of assistant text before the run stops with outcome OutputLimitExceeded. 0 turns
+        /// the limit off. From the deployment's maxAssistantChars, else the cluster setting Runtime.MaxAssistantChars.
+        /// Default 200,000.
+        /// </summary>
+        public long MaxAssistantChars { get; set; } = 200000;
+
+        /// <summary>
+        /// Run guard: seconds without assistant text, thinking, tool call, or tool result (while no tool call is open)
+        /// before the run stops with outcome NoProgress. 0 turns the guard off. From the deployment's
+        /// noProgressSeconds, else the cluster setting Runtime.NoProgressSeconds. Default 300.
+        /// </summary>
+        public int NoProgressSeconds { get; set; } = 300;
+
+        /// <summary>
         /// Whether the run gets its own HOME directory.
         /// </summary>
         public bool IsolateHome { get; set; } = true;

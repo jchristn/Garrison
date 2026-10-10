@@ -62,7 +62,7 @@
       {
         "baseDirectory": "Config",
         "path": "mux/settings.json",
-        "content": "{\n  \u0022skillsEnabled\u0022: false,\n  \u0022taskPlanningEnabled\u0022: false\n}\n",
+        "content": "{\n  \u0022skillsEnabled\u0022: false,\n  \u0022projectSkillsEnabled\u0022: false,\n  \u0022taskPlanningEnabled\u0022: false,\n  \u0022memoryEnabled\u0022: false,\n  \u0022fileMentionMaxBytes\u0022: 0,\n  \u0022setupCompleted\u0022: true\n}\n",
         "isSecret": false
       },
       {
@@ -91,6 +91,9 @@
     "killGraceSeconds": 5,
     "maxOutputBytes": 67108864,
     "stderrTailBytes": 8000,
+    "repetitionGuard": true,
+    "maxAssistantChars": 200000,
+    "noProgressSeconds": 300,
     "isolateHome": true,
     "mcpPreflight": [],
     "scrubValues": [

@@ -19,8 +19,9 @@ namespace Garrison.Worker.Execution
     /// <summary>
     /// Runs a leased run as a subprocess (plan D-004): creates per-run work, home, and config directories, resolves
     /// worker-side placeholders, prepares the workspace, materializes files, runs MCP pre-flight, launches the harness
-    /// with an allowlisted environment, converts stdout into normalized events, classifies the outcome, and applies
-    /// workspace retention. Thread-safe; each call is independent.
+    /// with an allowlisted environment, converts stdout into normalized events, enforces the run guards (repetition,
+    /// assistant text size, no progress; see <see cref="RunGuard"/>), classifies the outcome, and applies workspace
+    /// retention. Thread-safe; each call is independent.
     /// </summary>
     public class ProcessRunExecutor : IRunExecutor
     {
@@ -96,6 +97,12 @@ namespace Garrison.Worker.Execution
                 HarnessRunState state = new HarnessRunState();
                 IHarnessOutputParser parser = ParserFactory.Create(spec.Parser, spec.ParserOptions, spec.McpPreflight.Where(c => c.Required).Select(c => c.Name));
 
+                RunGuardOptions guardOptions = new RunGuardOptions();
+                guardOptions.RepetitionGuard = spec.RepetitionGuard;
+                guardOptions.MaxAssistantChars = spec.MaxAssistantChars;
+                guardOptions.NoProgressSeconds = spec.NoProgressSeconds;
+                RunGuard guard = new RunGuard(guardOptions);
+
                 ProcessRunRequest request = new ProcessRunRequest();
                 request.Executable = spec.Executable;
                 request.Arguments = spec.Arguments;
@@ -108,23 +115,63 @@ namespace Garrison.Worker.Execution
                 request.StderrTailBytes = spec.StderrTailBytes;
                 request.Timing = timing;
 
-                ProcessRunResult process = await _Runner.RunAsync(
-                    request,
-                    line =>
+                ProcessRunResult process;
+                using (CancellationTokenSource guardStop = new CancellationTokenSource())
+                using (CancellationTokenSource idleLoop = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    int tripped = 0;
+                    Action<RunGuardTrip?> onTrip = trip =>
                     {
-                        parser.ParseLine(line, state);
-                        foreach (RunEventReport report in state.Drain())
+                        if (trip == null || Interlocked.Exchange(ref tripped, 1) == 1) return;
+                        // One Warning event per run, then stop the harness: SIGTERM, SIGKILL after the kill grace.
+                        Emit(reporter, scrubber, RunEventTypeEnum.Warning, trip.Reason, RunGuardTrip.EventCode);
+                        _Log?.Invoke("run " + assignment.RunId + " stopped by run guard " + trip.Guard + " (" + trip.Outcome + "): " + trip.Reason + " " + RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
+                        try
                         {
-                            timing.Observe(report);
-                            EmitScrubbed(reporter, scrubber, report);
+                            guardStop.Cancel();
                         }
-                    },
-                    pid =>
+                        catch (ObjectDisposedException)
+                        {
+                        }
+                    };
+                    request.StopToken = guardStop.Token;
+                    Task idle = WatchIdleAsync(guard, onTrip, idleLoop.Token);
+
+                    try
                     {
-                        _Log?.Invoke("run " + assignment.RunId + " started process " + pid + " (" + spec.Executable + ") " + RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
-                        return reporter.StartedAsync(pid, token);
-                    },
-                    token).ConfigureAwait(false);
+                        process = await _Runner.RunAsync(
+                            request,
+                            line =>
+                            {
+                                parser.ParseLine(line, state);
+                                foreach (RunEventReport report in state.Drain())
+                                {
+                                    timing.Observe(report);
+                                    EmitScrubbed(reporter, scrubber, report);
+                                    onTrip(guard.Observe(report));
+                                }
+                            },
+                            pid =>
+                            {
+                                guard.Start();
+                                _Log?.Invoke("run " + assignment.RunId + " started process " + pid + " (" + spec.Executable + ") " + RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
+                                return reporter.StartedAsync(pid, token);
+                            },
+                            token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        idleLoop.Cancel();
+                        try
+                        {
+                            await idle.ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                    }
+                }
+                if (process.StopLatencyMs.HasValue) _Log?.Invoke("run " + assignment.RunId + " harness exited " + process.StopLatencyMs.Value + " ms after the stop request" + (process.Killed ? " (killed after the grace period)" : String.Empty) + " " + RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
 
                 parser.Complete(state);
                 foreach (RunEventReport report in state.Drain()) EmitScrubbed(reporter, scrubber, report);
@@ -133,7 +180,7 @@ namespace Garrison.Worker.Execution
                     state.ServedModel = CodexSessionReader.ReadModel(Path.Combine(directories.Home, ".codex"));
                 }
 
-                HarnessOutcome outcome = OutcomeClassifier.Classify(spec, process, state);
+                HarnessOutcome outcome = OutcomeClassifier.Classify(spec, process, state, guard.Trip);
                 complete.Status = outcome.Status;
                 complete.Outcome = outcome.Outcome;
                 complete.ErrorMessage = scrubber.Scrub(outcome.ErrorMessage);
@@ -188,6 +235,20 @@ namespace Garrison.Worker.Execution
         #endregion
 
         #region Private-Methods
+
+        private static async Task WatchIdleAsync(RunGuard guard, Action<RunGuardTrip?> onTrip, CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Task.Delay(1000, token).ConfigureAwait(false);
+                RunGuardTrip? trip = guard.CheckIdle();
+                if (trip != null)
+                {
+                    onTrip(trip);
+                    return;
+                }
+            }
+        }
 
         private Dictionary<string, string> BuildEnvironment(ExecutionSpec spec, RunDirectories directories)
         {

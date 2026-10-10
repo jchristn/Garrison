@@ -461,6 +461,9 @@ namespace Garrison.Core.Manifests
             deployment.MaxBudgetUsd = spec.MaxBudgetUsd;
             deployment.MaxConcurrentRuns = spec.MaxConcurrentRuns;
             deployment.TimeoutSeconds = spec.TimeoutSeconds;
+            deployment.RepetitionGuard = spec.RepetitionGuard;
+            deployment.MaxAssistantChars = spec.MaxAssistantChars;
+            deployment.NoProgressSeconds = spec.NoProgressSeconds;
             deployment.MaxAttempts = spec.MaxAttempts;
             deployment.RetryOnNodeLoss = spec.RetryOnNodeLoss;
             deployment.Weight = spec.Weight;
@@ -748,6 +751,9 @@ namespace Garrison.Core.Manifests
             spec.MaxBudgetUsd = deployment.MaxBudgetUsd;
             spec.MaxConcurrentRuns = deployment.MaxConcurrentRuns;
             spec.TimeoutSeconds = deployment.TimeoutSeconds;
+            spec.RepetitionGuard = deployment.RepetitionGuard;
+            spec.MaxAssistantChars = deployment.MaxAssistantChars;
+            spec.NoProgressSeconds = deployment.NoProgressSeconds;
             spec.MaxAttempts = deployment.MaxAttempts;
             spec.RetryOnNodeLoss = deployment.RetryOnNodeLoss;
             spec.Weight = deployment.Weight;

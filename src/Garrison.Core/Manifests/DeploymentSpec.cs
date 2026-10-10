@@ -60,6 +60,21 @@ namespace Garrison.Core.Manifests
         public int? TimeoutSeconds { get; set; } = null;
 
         /// <summary>
+        /// Run guard: stop runs whose assistant text degenerates into repetition. Null uses Runtime.RepetitionGuard.
+        /// </summary>
+        public bool? RepetitionGuard { get; set; } = null;
+
+        /// <summary>
+        /// Run guard: most characters of assistant text per run (0 is unlimited). Null uses Runtime.MaxAssistantChars.
+        /// </summary>
+        public long? MaxAssistantChars { get; set; } = null;
+
+        /// <summary>
+        /// Run guard: seconds without progress before a run stops (0 turns it off). Null uses Runtime.NoProgressSeconds.
+        /// </summary>
+        public int? NoProgressSeconds { get; set; } = null;
+
+        /// <summary>
         /// Maximum attempts.
         /// </summary>
         public int MaxAttempts { get; set; } = 1;

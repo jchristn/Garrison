@@ -98,7 +98,7 @@ namespace Garrison.Server.Routes
             InvokeRequest request = RouteHelpers.Body<InvokeRequest>(context) ?? new InvokeRequest();
             Agent agent = await ResolveAgentAsync(tenantId, agentId, null, context).ConfigureAwait(false);
             if (agent.Id != agentId && _Routes != null && !await _Routes.RequireAsync(context, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id).ConfigureAwait(false)) return;
-            await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, RunKindEnum.Invoke).ConfigureAwait(false);
+            await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Invoke).ConfigureAwait(false);
         }
 
         private async Task TestDeploymentAsync(HttpContextBase context)
@@ -110,7 +110,7 @@ namespace Garrison.Server.Routes
                 ?? throw new NotFoundException("Deployment " + deploymentId + " not found.");
             if (_Routes != null && !await _Routes.RequireAsync(context, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, deployment.AgentId).ConfigureAwait(false)) return;
             Agent agent = await ResolveAgentAsync(tenantId, deployment.AgentId, null, context).ConfigureAwait(false);
-            await CreateAndRespondAsync(context, tenantId, agent, deployment.Id, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, RunKindEnum.Test).ConfigureAwait(false);
+            await CreateAndRespondAsync(context, tenantId, agent, deployment.Id, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Test).ConfigureAwait(false);
         }
 
         private async Task CreateAsync(HttpContextBase context)
@@ -119,10 +119,10 @@ namespace Garrison.Server.Routes
             RunCreateRequest request = RouteHelpers.RequiredBody<RunCreateRequest>(context);
             Agent agent = await ResolveAgentAsync(tenantId, request.AgentId, request.AgentName, context).ConfigureAwait(false);
             if (_Routes != null && !await _Routes.RequireAsync(context, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id).ConfigureAwait(false)) return;
-            await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, RunKindEnum.Invoke).ConfigureAwait(false);
+            await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Invoke).ConfigureAwait(false);
         }
 
-        private async Task CreateAndRespondAsync(HttpContextBase context, string tenantId, Agent agent, string? deploymentId, string input, string? contentType, Dictionary<string, string>? parameters, int priority, bool wait, int waitSeconds, RunKindEnum kind)
+        private async Task CreateAndRespondAsync(HttpContextBase context, string tenantId, Agent agent, string? deploymentId, string input, string? contentType, Dictionary<string, string>? parameters, int priority, bool wait, int waitSeconds, bool? cancelOnDisconnect, RunKindEnum kind)
         {
             InvocationOptions options = new InvocationOptions();
             options.Input = input ?? String.Empty;
@@ -134,6 +134,9 @@ namespace Garrison.Server.Routes
             options.IdempotencyKey = context.Request.Headers[Constants.HeaderIdempotencyKey];
             options.Wait = RouteHelpers.QueryBool(context, "wait") ?? wait;
             options.WaitSeconds = RouteHelpers.QueryInt(context, "waitSeconds") ?? waitSeconds;
+            options.CancelOnDisconnect = RouteHelpers.QueryBool(context, "cancelOnDisconnect") ?? cancelOnDisconnect ?? true;
+            options.CallerGone = () => context.RequestAborted && !_Context.IsDraining;
+            options.DisconnectReason = "the REST client disconnected while waiting";
             Run run = await _Invoker.InvokeAsync(RouteHelpers.Context(context), tenantId, agent, options, context.Token).ConfigureAwait(false);
             await _Blocked.AnnotateAsync(run, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, RunService.IsTerminal(run.Status) ? 200 : 202, run).ConfigureAwait(false);

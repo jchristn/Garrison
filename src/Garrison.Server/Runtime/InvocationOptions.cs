@@ -53,5 +53,25 @@ namespace Garrison.Server.Runtime
         /// Maximum wait in seconds.
         /// </summary>
         public int WaitSeconds { get; set; } = 60;
+
+        /// <summary>
+        /// Whether a waiting caller that goes away cancels the run: when <see cref="Wait"/> is true and the invoke's
+        /// cancellation token is cancelled while waiting (client disconnect, cancelled MCP request, closed MCP session),
+        /// the run is cancelled before the cancellation propagates. Ignored when not waiting. Default false; each
+        /// protocol sets its own default (REST and A2A blocking calls default to true).
+        /// </summary>
+        public bool CancelOnDisconnect { get; set; } = false;
+
+        /// <summary>
+        /// Optional check that the caller is really gone when the cancellation token fires, so a replica shutting down
+        /// (which also cancels request tokens) does not cancel runs. Null treats any cancellation as the caller leaving.
+        /// </summary>
+        public Func<bool>? CallerGone { get; set; } = null;
+
+        /// <summary>
+        /// Short description of the caller for the log line written when the run is cancelled, for example "the REST
+        /// client disconnected".
+        /// </summary>
+        public string DisconnectReason { get; set; } = "the caller disconnected";
     }
 }

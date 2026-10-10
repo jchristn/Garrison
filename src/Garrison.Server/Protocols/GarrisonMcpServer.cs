@@ -470,6 +470,11 @@ namespace Garrison.Server.Protocols
             options.Wait = wait;
             long requested = args?.GetInt64("waitSeconds") ?? _Context.Settings.Mcp.MaxToolWaitSeconds;
             options.WaitSeconds = (int)Math.Clamp(requested, 0, _Context.Settings.Mcp.MaxToolWaitSeconds);
+            // Voltaic cancels the tool call's token when the client sends notifications/cancelled for it or the MCP
+            // session is deleted or closed; garrison_invoke_agent then cancels the run it is waiting on.
+            options.CancelOnDisconnect = wait;
+            options.CallerGone = () => !_Context.IsDraining;
+            options.DisconnectReason = "the MCP client cancelled garrison_invoke_agent or closed its session";
             Run run = await _Invoker.InvokeAsync(ctx, tenantId, agent, options, token).ConfigureAwait(false);
             return await SummarizeAsync(run, token).ConfigureAwait(false);
         }

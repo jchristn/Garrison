@@ -407,6 +407,28 @@ namespace Garrison.Server.Runtime
                     _Signals.Complete(run.Id);
                 }
             }
+
+            // The cluster cap bounds every run, including runs compiled before the cap was lowered and runs whose stored
+            // deadline is missing or later than the cap allows.
+            int capSeconds = _Options.MaxRunSeconds;
+            List<Run> overCap = await _Database.Runs.ListActiveStartedBeforeAsync(DateTime.UtcNow.AddSeconds(-(capSeconds + _Options.DeadlineGraceSeconds)), 200, token).ConfigureAwait(false);
+            foreach (Run run in overCap)
+            {
+                RunTransition transition = new RunTransition();
+                transition.RunId = run.Id;
+                transition.FromStatuses.Add(run.Status);
+                transition.Epoch = run.LeaseEpoch;
+                transition.ToStatus = RunStatusEnum.TimedOut;
+                transition.Outcome = RunOutcomeEnum.TimedOut;
+                transition.ErrorMessage = "The run passed the cluster cap Runtime.MaxRunSeconds (" + capSeconds + " seconds) without a result from its node.";
+                transition.ClearLease = true;
+                transition.SetCompleted = true;
+                if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
+                {
+                    await _Database.Sessions.RevokeByRunAsync(run.Id, "Run timed out.", token).ConfigureAwait(false);
+                    _Signals.Complete(run.Id);
+                }
+            }
         }
 
         private async Task MarkLostNodesAsync(CancellationToken token)

@@ -5,6 +5,7 @@ namespace Garrison.Harnesses.Execution
     using System.ComponentModel;
     using System.Diagnostics;
     using System.IO;
+    using System.Linq;
     using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading;
@@ -12,8 +13,10 @@ namespace Garrison.Harnesses.Execution
 
     /// <summary>
     /// Runs a harness process: arguments through ArgumentList (never a shell), a fully specified environment, stdin
-    /// written then closed, stdout read line by line with a byte limit, a stderr tail, and a deadline. On deadline or
-    /// cancellation the process receives SIGTERM (Unix), then the whole tree is killed after the grace period.
+    /// written then closed, stdout read line by line with a byte limit, a stderr tail, and a deadline. On deadline,
+    /// cancellation, output limit, or a run guard stop, the process and its descendants receive SIGTERM (Unix), and
+    /// whatever is still alive after the grace period receives SIGKILL; the descendants are listed before the signal so
+    /// children of a harness that exits first (Node and Rust processes under Claude Code or Codex) are not left behind.
     /// Thread-safe; each call is independent.
     /// </summary>
     public class ProcessRunner
@@ -79,7 +82,7 @@ namespace Garrison.Harnesses.Execution
                 using (CancellationTokenSource deadline = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Max(1, request.TimeoutSeconds))))
                 using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token))
                 using (CancellationTokenSource outputLimit = new CancellationTokenSource())
-                using (CancellationTokenSource stopAll = CancellationTokenSource.CreateLinkedTokenSource(linked.Token, outputLimit.Token))
+                using (CancellationTokenSource stopAll = CancellationTokenSource.CreateLinkedTokenSource(linked.Token, outputLimit.Token, request.StopToken))
                 {
                     Task stdinTask = WriteStdinAsync(process, request.Stdin);
                     Task stderrTask = ReadStderrAsync(process, stderr);
@@ -96,10 +99,16 @@ namespace Garrison.Harnesses.Execution
                     else
                     {
                         if (token.IsCancellationRequested) result.Cancelled = true;
+                        else if (request.StopToken.IsCancellationRequested) result.Stopped = true;
                         else if (outputLimit.IsCancellationRequested) result.OutputLimitExceeded = true;
                         else result.TimedOut = true;
-                        await StopAsync(process, request.KillGraceSeconds).ConfigureAwait(false);
-                        if (process.HasExited) request.Timing?.MarkExited();
+                        Stopwatch stopping = Stopwatch.StartNew();
+                        result.Killed = await StopAsync(process, request.KillGraceSeconds).ConfigureAwait(false);
+                        if (process.HasExited)
+                        {
+                            request.Timing?.MarkExited();
+                            result.StopLatencyMs = stopping.ElapsedMilliseconds;
+                        }
                     }
 
                     try
@@ -192,38 +201,64 @@ namespace Garrison.Harnesses.Execution
             }
         }
 
-        private static async Task StopAsync(Process process, int graceSeconds)
+        private static async Task<bool> StopAsync(Process process, int graceSeconds)
         {
-            if (process.HasExited) return;
+            if (process.HasExited) return false;
+            bool killed = false;
 
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && graceSeconds > 0)
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                // List the tree before the root can exit: once it does, its children are re-parented and cannot be found.
+                int rootId = process.Id;
+                HashSet<int> tree = new HashSet<int>(ProcessTree.Descendants(rootId));
+                if (graceSeconds > 0)
+                {
+                    PosixSignals.Send(rootId, PosixSignals.SigTerm);
+                    foreach (int child in tree) PosixSignals.Send(child, PosixSignals.SigTerm);
+                    try
+                    {
+                        using (CancellationTokenSource grace = new CancellationTokenSource(TimeSpan.FromSeconds(graceSeconds)))
+                        {
+                            await process.WaitForExitAsync(grace.Token).ConfigureAwait(false);
+                            while (tree.Any(PosixSignals.Exists)) await Task.Delay(50, grace.Token).ConfigureAwait(false);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+                }
+
+                if (!process.HasExited)
+                {
+                    foreach (int child in ProcessTree.Descendants(rootId)) tree.Add(child);
+                    if (PosixSignals.Send(rootId, PosixSignals.SigKill)) killed = true;
+                }
+                foreach (int child in tree)
+                {
+                    if (PosixSignals.Exists(child) && PosixSignals.Send(child, PosixSignals.SigKill)) killed = true;
+                }
+            }
+
+            if (!process.HasExited)
             {
                 try
                 {
-                    using (Process signal = Process.Start(new ProcessStartInfo("kill", "-TERM " + process.Id) { UseShellExecute = false, CreateNoWindow = true })!)
-                    {
-                        await signal.WaitForExitAsync().ConfigureAwait(false);
-                    }
-                    using (CancellationTokenSource grace = new CancellationTokenSource(TimeSpan.FromSeconds(graceSeconds)))
-                    {
-                        await process.WaitForExitAsync(grace.Token).ConfigureAwait(false);
-                    }
+                    process.Kill(true);
+                    killed = true;
                 }
-                catch (OperationCanceledException)
+                catch (InvalidOperationException)
                 {
                 }
                 catch (Win32Exception)
                 {
                 }
-                catch (InvalidOperationException)
-                {
-                }
             }
 
-            if (process.HasExited) return;
             try
             {
-                process.Kill(true);
                 using (CancellationTokenSource wait = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
                 {
                     await process.WaitForExitAsync(wait.Token).ConfigureAwait(false);
@@ -235,9 +270,7 @@ namespace Garrison.Harnesses.Execution
             catch (InvalidOperationException)
             {
             }
-            catch (Win32Exception)
-            {
-            }
+            return killed;
         }
 
         #endregion

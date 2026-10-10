@@ -20,7 +20,7 @@
       "-c",
       "project_doc_max_bytes=0",
       "-c",
-      "model_instructions_file=\"$GARRISON_CONFIG_DIR/system-prompt.md\"",
+      "model_instructions_file=\u0022$GARRISON_CONFIG_DIR/system-prompt.md\u0022",
       "-"
     ],
     "environment": [
@@ -61,6 +61,9 @@
     "killGraceSeconds": 5,
     "maxOutputBytes": 67108864,
     "stderrTailBytes": 8000,
+    "repetitionGuard": true,
+    "maxAssistantChars": 200000,
+    "noProgressSeconds": 300,
     "isolateHome": true,
     "mcpPreflight": [],
     "scrubValues": [

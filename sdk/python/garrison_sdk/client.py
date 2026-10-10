@@ -219,11 +219,14 @@ class Roles(Resource):
 
 class Agents(Resource):
     def invoke(self, agent: str, input: str, wait: bool = True, wait_seconds: int = 60, parameters: Optional[Dict[str, str]] = None,
-               deployment_id: Optional[str] = None, priority: int = 0) -> Dict[str, Any]:
-        """Invoke an agent by identifier or name. With wait=True the finished run is returned when it completes in time."""
+               deployment_id: Optional[str] = None, priority: int = 0, cancel_on_disconnect: Optional[bool] = None) -> Dict[str, Any]:
+        """Invoke an agent by identifier or name. With wait=True the finished run is returned when it completes in time.
+        A waiting call that disconnects cancels its run unless cancel_on_disconnect is False."""
         body = {"input": input, "wait": wait, "waitSeconds": wait_seconds, "parameters": parameters or {}, "priority": priority}
         if deployment_id:
             body["deploymentId"] = deployment_id
+        if cancel_on_disconnect is not None:
+            body["cancelOnDisconnect"] = cancel_on_disconnect
         return self._t.request("POST", self._item(agent) + "/invoke", body=body)
 
     def card(self, id: str) -> Dict[str, Any]:
@@ -315,9 +318,11 @@ class Runs:
         return self._t.tenant_path("/runs" + suffix)
 
     def create(self, input: str, agent_id: Optional[str] = None, agent_name: Optional[str] = None, deployment_id: Optional[str] = None,
-               parameters: Optional[Dict[str, str]] = None, priority: int = 0, wait: bool = False, wait_seconds: int = 60) -> Dict[str, Any]:
+               parameters: Optional[Dict[str, str]] = None, priority: int = 0, wait: bool = False, wait_seconds: int = 60,
+               cancel_on_disconnect: Optional[bool] = None) -> Dict[str, Any]:
         body = {"agentId": agent_id, "agentName": agent_name, "deploymentId": deployment_id, "input": input,
-                "parameters": parameters or {}, "priority": priority, "wait": wait, "waitSeconds": wait_seconds}
+                "parameters": parameters or {}, "priority": priority, "wait": wait, "waitSeconds": wait_seconds,
+                "cancelOnDisconnect": cancel_on_disconnect}
         return self._t.request("POST", self._p(), body={k: v for k, v in body.items() if v is not None})
 
     def get(self, id: str) -> Dict[str, Any]:

@@ -12,6 +12,7 @@ namespace Test.Shared.Suites
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database.Ado;
+    using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Protocol;
@@ -50,6 +51,7 @@ namespace Test.Shared.Suites
                     cases.Add(new TestCaseDescriptor(id, "lease-wakeup-notify", "A worker long-polling replica B wakes promptly when a run is created on A (PostgresNotify) (" + provider + ")", ct => LeaseWakeupAsync(provider, BackplaneModeEnum.PostgresNotify, ct)));
                     cases.Add(new TestCaseDescriptor(id, "lease-wakeup-polling", "A worker long-polling replica B wakes promptly when a run is created on A (Polling) (" + provider + ")", ct => LeaseWakeupAsync(provider, BackplaneModeEnum.Polling, ct)));
                     cases.Add(new TestCaseDescriptor(id, "mcp-session-cross-replica", "An MCP session opened on replica A works on B, stays bound to its principal, and closes everywhere (" + provider + ")", ct => McpAcrossReplicasAsync(provider, ct)));
+                    cases.Add(new TestCaseDescriptor(id, "mcp-cancel-cross-replica", "notifications/cancelled sent to replica B cancels a garrison_invoke_agent call running on A, and its run (" + provider + ")", ct => McpCancelAcrossReplicasAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "nonce-replay", "A signed request accepted by replica A is rejected as a replay by B (" + provider + ")", ct => NonceReplayAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "rate-limit-shared", "The token rate limit counts attempts on every replica together (" + provider + ")", ct => RateLimitAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "max-concurrent-runs", "maxConcurrentRuns holds under concurrent claims through two replicas (" + provider + ")", ct => MaxConcurrentAsync(provider, ct)));
@@ -272,6 +274,62 @@ namespace Test.Shared.Suites
                         await Task.Delay(100, token).ConfigureAwait(false);
                     }
                     Assert.Equal(404, status, "A session closed on B is gone on A");
+                }
+            }
+        }
+
+        private static async Task McpCancelAcrossReplicasAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestReplicaCluster cluster = await TestReplicaCluster.StartAsync(provider, 2, BackplaneModeEnum.Auto, null, token).ConfigureAwait(false))
+            {
+                await cluster.AddWorkerAsync(0, null, token).ConfigureAwait(false);
+                Agent agent = await cluster.CreateAgentAsync(0, "mcp-replica-slow", d => d.Parameters.Add(new DeploymentParameter { Name = "delayMs", Value = "20000" }), token).ConfigureAwait(false);
+                string urlA = cluster.Replicas[0].McpUrl + "/mcp";
+                string urlB = cluster.Replicas[1].McpUrl + "/mcp";
+                using (HttpClient admin = new HttpClient())
+                {
+                    admin.Timeout = TimeSpan.FromSeconds(120);
+                    admin.DefaultRequestHeaders.Add("x-api-key", cluster.Replicas[0].Settings.Auth.AdminApiKey);
+                    admin.DefaultRequestHeaders.Add("x-tenant-id", cluster.TenantId);
+
+                    McpReply init = await McpPostAsync(admin, urlA, null, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"replica-cancel\",\"version\":\"1.0\"}}}", token).ConfigureAwait(false);
+                    string session = init.SessionId ?? throw new TestAssertionException("initialize returned no MCP-Session-Id.");
+                    await McpPostAsync(admin, urlA, session, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}", token).ConfigureAwait(false);
+
+                    using (CancellationTokenSource stop = CancellationTokenSource.CreateLinkedTokenSource(token))
+                    {
+                        Task<McpReply> call = McpPostAsync(admin, urlA, session, "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\",\"params\":{\"name\":\"garrison_invoke_agent\",\"arguments\":{\"tenantId\":\"" + cluster.TenantId + "\",\"agent\":\"mcp-replica-slow\",\"input\":\"take a long time\",\"waitSeconds\":60}}}", stop.Token);
+                        Run? running = null;
+                        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+                        while (running == null && DateTime.UtcNow < deadline)
+                        {
+                            EnumerationResult<Run> page = await cluster.Replicas[0].Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = cluster.TenantId, AgentId = agent.Id }, token).ConfigureAwait(false);
+                            running = page.Objects.FirstOrDefault(r => r.Status == RunStatusEnum.Running);
+                            if (running == null) await Task.Delay(100, token).ConfigureAwait(false);
+                        }
+                        if (running == null) throw new TestAssertionException("The invoked run did not start.");
+
+                        McpReply cancelled = await McpPostAsync(admin, urlB, session, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":7,\"reason\":\"user pressed stop\"}}", token).ConfigureAwait(false);
+                        Assert.True(cancelled.Status == 202 || cancelled.Status == 200, "notifications/cancelled on B returned " + cancelled.Status + ": " + cancelled.Body);
+
+                        Run? final = null;
+                        deadline = DateTime.UtcNow.AddSeconds(15);
+                        while (DateTime.UtcNow < deadline)
+                        {
+                            final = await cluster.Replicas[0].Server.Context.Database.Runs.ReadAsync(cluster.TenantId, running.Id, token).ConfigureAwait(false);
+                            if (final != null && RunService.IsTerminal(final.Status)) break;
+                            await Task.Delay(100, token).ConfigureAwait(false);
+                        }
+                        Assert.Equal(RunStatusEnum.Cancelled, final?.Status ?? RunStatusEnum.Running, "the run behind the cancelled MCP call");
+                        stop.Cancel();
+                        try
+                        {
+                            await call.ConfigureAwait(false);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
                 }
             }
         }

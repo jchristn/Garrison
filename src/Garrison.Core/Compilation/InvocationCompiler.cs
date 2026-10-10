@@ -3,6 +3,7 @@ namespace Garrison.Core.Compilation
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Globalization;
     using System.Linq;
     using System.Security.Cryptography;
     using System.Text.Json;
@@ -380,7 +381,10 @@ namespace Garrison.Core.Compilation
             spec.ResultFileName = profile.ResultFileName;
             spec.SuccessPolicy = profile.SuccessPolicy;
             spec.SuccessExitCodes = profile.SuccessExitCodes.Count > 0 ? new List<int>(profile.SuccessExitCodes) : new List<int> { 0 };
-            spec.TimeoutSeconds = deployment.TimeoutSeconds ?? (profile.DefaultTimeoutSeconds > 0 ? profile.DefaultTimeoutSeconds : _Options.DefaultTimeoutSeconds);
+            spec.TimeoutSeconds = EffectiveTimeoutSeconds(deployment, profile, run.Parameters, _Options.DefaultTimeoutSeconds, _Options.MaxRunSeconds);
+            spec.RepetitionGuard = deployment.RepetitionGuard ?? _Options.RepetitionGuard;
+            spec.MaxAssistantChars = deployment.MaxAssistantChars ?? _Options.MaxAssistantChars;
+            spec.NoProgressSeconds = deployment.NoProgressSeconds ?? _Options.NoProgressSeconds;
             spec.KillGraceSeconds = profile.KillGraceSeconds;
             spec.MaxOutputBytes = profile.MaxOutputBytes;
             spec.StderrTailBytes = profile.StderrTailBytes;
@@ -410,6 +414,35 @@ namespace Garrison.Core.Compilation
             result.Spec = spec;
             result.TemplateVersions = TemplateVersions(inputs, run, usedIncludes);
             return result;
+        }
+
+        /// <summary>
+        /// A run's timeout in seconds: the deployment's timeoutSeconds, else the harness profile's default, else the
+        /// compiler default; replaced by the run's timeoutSeconds parameter when the deployment allows that override and
+        /// the value passes its rule; finally bounded by the cluster cap Runtime.MaxRunSeconds. The result is at least 5.
+        /// </summary>
+        /// <param name="deployment">Deployment; null uses the profile and default only.</param>
+        /// <param name="profile">Harness profile; null skips the profile default.</param>
+        /// <param name="runParameters">The run's parameters; null for none.</param>
+        /// <param name="defaultTimeoutSeconds">Default when neither the deployment nor the profile sets one.</param>
+        /// <param name="maxRunSeconds">Cluster cap.</param>
+        /// <returns>Timeout in seconds.</returns>
+        public static int EffectiveTimeoutSeconds(Deployment? deployment, HarnessProfile? profile, IEnumerable<RunParameter>? runParameters, int defaultTimeoutSeconds, int maxRunSeconds)
+        {
+            int timeout = deployment?.TimeoutSeconds ?? (profile != null && profile.DefaultTimeoutSeconds > 0 ? profile.DefaultTimeoutSeconds : defaultTimeoutSeconds);
+            if (deployment != null && runParameters != null && IsAllowed(deployment, "timeoutSeconds"))
+            {
+                RunParameter? requested = runParameters.FirstOrDefault(p => String.Equals(p.Name, "timeoutSeconds", StringComparison.OrdinalIgnoreCase));
+                if (requested != null
+                    && RunOverrideValidator.Effective(deployment, new List<RunParameter> { requested }).TryGetValue("timeoutSeconds", out string? value)
+                    && value == requested.Value
+                    && Int32.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int overridden)
+                    && overridden > 0)
+                {
+                    timeout = overridden;
+                }
+            }
+            return Math.Clamp(timeout, 5, Math.Max(5, maxRunSeconds));
         }
 
         #endregion

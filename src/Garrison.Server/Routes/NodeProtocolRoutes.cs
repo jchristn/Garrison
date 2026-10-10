@@ -58,6 +58,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/register", ResourceTypeEnum.Node, OperationTypeEnum.Execute, RegisterAsync, "Register a worker node", tag, typeof(NodeRegisterRequest), typeof(NodeRegisterResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/heartbeat", ResourceTypeEnum.Node, OperationTypeEnum.Execute, HeartbeatAsync, "Worker heartbeat", tag, typeof(NodeHeartbeatRequest), typeof(NodeHeartbeatResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/lease", ResourceTypeEnum.Node, OperationTypeEnum.Execute, LeaseAsync, "Lease runs (long poll)", tag, typeof(NodeLeaseRequest), typeof(NodeLeaseResponse), "none");
+            routes.Scoped(HttpMethod.POST, "/v1.0/api/node/watch", ResourceTypeEnum.Node, OperationTypeEnum.Execute, WatchAsync, "Watch held runs for cancellation (long poll)", tag, typeof(NodeWatchRequest), typeof(NodeWatchResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/drain", ResourceTypeEnum.Node, OperationTypeEnum.Execute, DrainAsync, "Report that a worker is draining", tag, typeof(NodeHeartbeatRequest), typeof(NodeAckResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/started", ResourceTypeEnum.Node, OperationTypeEnum.Execute, StartedAsync, "Report a run started", tag, typeof(RunStartedRequest), typeof(NodeAckResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/events", ResourceTypeEnum.Node, OperationTypeEnum.Execute, EventsAsync, "Report run events", tag, typeof(RunEventsRequest), typeof(NodeAckResponse), "none");
@@ -95,6 +96,15 @@ namespace Garrison.Server.Routes
             NodeLeaseRequest request = RouteHelpers.RequiredBody<NodeLeaseRequest>(context);
             Node node = await RequireNodeAsync(request.NodeId, context).ConfigureAwait(false);
             NodeLeaseResponse response = await _Scheduler.LeaseAsync(node, request, context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 200, response).ConfigureAwait(false);
+        }
+
+        private async Task WatchAsync(HttpContextBase context)
+        {
+            NodeWatchRequest request = RouteHelpers.RequiredBody<NodeWatchRequest>(context);
+            Node node = await RequireNodeAsync(request.NodeId, context).ConfigureAwait(false);
+            if (_Context.IsDraining) request.WaitMs = 0;
+            NodeWatchResponse response = await _Nodes.WatchAsync(node, request, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, response).ConfigureAwait(false);
         }
 

@@ -8,6 +8,7 @@ garrison-fake-harness --format claude|codex|mux|plain [--scenario file] [--delay
                       [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
                       [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N]
                       [--answer text] [--resume-answer text] [--resume sessionId] [--structured-output]
+                      [--ignore-sigterm] [--loop-text text] [--spawn-child pidfile] [--tool-sleep-ms N]
 ```
 
 | Option | Effect |
@@ -27,6 +28,10 @@ garrison-fake-harness --format claude|codex|mux|plain [--scenario file] [--delay
 | `--resume-answer text` | The answer to give when a session is resumed with `--resume`. Defaults to `--answer`. Used to fix (or not fix) the output on a structured output repair. |
 | `--resume sessionId` | Resume a session. Each run records its session as `$HOME/.garrison-fake/sessions/<id>.txt`; resuming reports the same session ID. An unknown session prints `No conversation found with session ID: <id>` to stderr and exits 1, so a resume only works in the same home directory, like a real CLI. |
 | `--structured-output` | In Claude format, also report the answer as `structured_output` in the result event when it parses as JSON, the way Claude Code does with `--json-schema`. |
+| `--ignore-sigterm` | Swallow SIGTERM so only SIGKILL stops the process. Used to prove the worker kills a harness that ignores the graceful stop. |
+| `--loop-text text` | After the thinking event and the answer, stream `text` as assistant text deltas forever (`\n`, `\r`, and `\t` are expanded), like a model stuck repeating `* \n`. `--delay-ms` sets the pause between deltas (default 1 ms). Used to test the repetition guard end to end. |
+| `--spawn-child pidfile` | Start a child process (`sleep 600`) that inherits stdout and write its process ID to `pidfile`. Used to check that stopping a harness also stops its children. Unix only. |
+| `--tool-sleep-ms N` | Pause N milliseconds between each fake tool call and its result (with `--tool-calls`). Used to check that a long tool execution does not count as no progress. |
 | `--think-ms N` | Pause between the thinking event and the first answer chunk. Default 20, so every run has a measurable time to first token and streaming time. |
 
 In the Claude, Codex, and Mux formats the answer is preceded by one thinking event (a `thinking_delta`, a `reasoning` item, or `assistant_thinking`), and the final usage reports 2 reasoning tokens (`output_tokens_details.thinking_tokens` for Claude, `reasoning_output_tokens` for Codex). Plain format has no thinking event.

@@ -243,7 +243,7 @@ namespace Garrison.Server.Runtime
                 Agent? agent = await _Database.Agents.ReadAsync(tenantId, run.AgentId, token).ConfigureAwait(false);
                 Deployment? deployment = await _Database.Deployments.ReadAsync(tenantId, run.DeploymentId, token).ConfigureAwait(false);
                 HarnessProfile? profile = deployment == null ? null : await _Database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
-                int timeoutSeconds = deployment?.TimeoutSeconds ?? profile?.DefaultTimeoutSeconds ?? 1800;
+                int timeoutSeconds = InvocationCompiler.EffectiveTimeoutSeconds(deployment, profile, run.Parameters, 1800, _Options.MaxRunSeconds);
                 DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
                 string? runToken = null;
@@ -261,7 +261,7 @@ namespace Garrison.Server.Runtime
 
                 // The worker parents its harness span on this, so the whole run shares one trace.
                 compiled.Spec.TraceParent = claim?.Id ?? run.TraceParent ?? compiled.Spec.TraceParent;
-                compiled.Spec.TimeoutSeconds = compiled.Spec.TimeoutSeconds > 0 ? compiled.Spec.TimeoutSeconds : timeoutSeconds;
+                compiled.Spec.TimeoutSeconds = Math.Min(compiled.Spec.TimeoutSeconds > 0 ? compiled.Spec.TimeoutSeconds : timeoutSeconds, _Options.MaxRunSeconds);
 
                 RunTransition deadlineUpdate = new RunTransition();
                 deadlineUpdate.RunId = run.Id;

@@ -20,19 +20,19 @@
       "-c",
       "project_doc_max_bytes=0",
       "-c",
-      "model_reasoning_effort=\"high\"",
+      "model_reasoning_effort=\u0022high\u0022",
       "-c",
-      "model_instructions_file=\"$GARRISON_CONFIG_DIR/system-prompt.md\"",
-      "--config=mcp_servers.garrison.url=\"http://garrison-server:8701/mcp\"",
-      "--config=mcp_servers.docs.url=\"https://mcp.example.com/mcp\"",
-      "--config=mcp_servers.garrison.env_http_headers={ \"Authorization\" = \"GARRISON_MCP_0_H0\" }",
-      "--config=mcp_servers.docs.env_http_headers={ \"Authorization\" = \"GARRISON_MCP_1_H0\" }",
+      "model_instructions_file=\u0022$GARRISON_CONFIG_DIR/system-prompt.md\u0022",
+      "--config=mcp_servers.garrison.url=\u0022http://garrison-server:8701/mcp\u0022",
+      "--config=mcp_servers.docs.url=\u0022https://mcp.example.com/mcp\u0022",
+      "--config=mcp_servers.garrison.env_http_headers={ \u0022Authorization\u0022 = \u0022GARRISON_MCP_0_H0\u0022 }",
+      "--config=mcp_servers.docs.env_http_headers={ \u0022Authorization\u0022 = \u0022GARRISON_MCP_1_H0\u0022 }",
       "--config=mcp_servers.garrison.required=true",
       "--config=mcp_servers.docs.required=true",
       "--config=mcp_servers.garrison.tool_timeout_sec=600",
       "--config=mcp_servers.docs.tool_timeout_sec=120",
-      "--config=mcp_servers.garrison.default_tools_approval_mode=\"approve\"",
-      "--config=mcp_servers.docs.default_tools_approval_mode=\"approve\"",
+      "--config=mcp_servers.garrison.default_tools_approval_mode=\u0022approve\u0022",
+      "--config=mcp_servers.docs.default_tools_approval_mode=\u0022approve\u0022",
       "--output-schema",
       "$GARRISON_CONFIG_DIR/output-schema.json",
       "-"
@@ -73,17 +73,17 @@
       {
         "baseDirectory": "Config",
         "path": "system-prompt.md",
-        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n\nYou can hand work to other Garrison agents through the \"garrison\" MCP server:\n- garrison_list_agents shows the agents you may call and what each one does.\n- garrison_invoke_agent sends a message to an agent and waits for its answer. If it returns a run ID instead of an answer, call garrison_get_run until the run finishes.\n\nDelegate only when another agent is better suited to part of the task. You may call: codex-coder. Delegation can go at most 2 levels below you.\n\n",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n\nYou can hand work to other Garrison agents through the \u0022garrison\u0022 MCP server:\n- garrison_list_agents shows the agents you may call and what each one does.\n- garrison_invoke_agent sends a message to an agent and waits for its answer. If it returns a run ID instead of an answer, call garrison_get_run until the run finishes.\n\nDelegate only when another agent is better suited to part of the task. You may call: codex-coder. Delegation can go at most 2 levels below you.\n\n",
         "isSecret": false
       },
       {
         "baseDirectory": "Config",
         "path": "output-schema.json",
-        "content": "{\"type\":\"object\",\"properties\":{\"answer\":{\"type\":\"string\"}},\"required\":[\"answer\"],\"additionalProperties\":false}",
+        "content": "{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022answer\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022required\u0022:[\u0022answer\u0022],\u0022additionalProperties\u0022:false}",
         "isSecret": false
       }
     ],
-    "stdin": "The agent \"planner\" is asking you for help as part of a larger task (delegation depth 1). Reply with a concise, self-contained answer that agent can use directly.\n\nRequest:\nSummarize the repository.\n",
+    "stdin": "The agent \u0022planner\u0022 is asking you for help as part of a larger task (delegation depth 1). Reply with a concise, self-contained answer that agent can use directly.\n\nRequest:\nSummarize the repository.\n",
     "workspace": {
       "kind": "GitRepository",
       "gitUrl": "https://github.com/example/repo.git",
@@ -105,6 +105,9 @@
     "killGraceSeconds": 5,
     "maxOutputBytes": 67108864,
     "stderrTailBytes": 8000,
+    "repetitionGuard": true,
+    "maxAssistantChars": 200000,
+    "noProgressSeconds": 300,
     "isolateHome": true,
     "mcpPreflight": [
       {

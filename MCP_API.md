@@ -148,7 +148,18 @@ For example:
 ```
  `garrison_list_runs` returns `{"runs":[...],"totalRecords":n}` of run summaries. `garrison_get_run_events` returns the same body as `GET .../runs/{id}/events`, without the raw harness output.
 
-When `garrison_invoke_agent` stops waiting before the run finishes, the summary has `finished: false` and the current status. Follow it with `garrison_get_run` or `garrison_get_run_events`. If `blockedReason` is not null, no worker can take the run yet; waiting longer only helps once a suitable worker registers.
+When `garrison_invoke_agent` stops waiting before the run finishes, the summary has `finished: false` and the current status. Follow it with `garrison_get_run` or `garrison_get_run_events`. If `blockedReason` is not null, no worker can take the run yet; waiting longer only helps once a suitable worker registers. Running out of `waitSeconds` never cancels the run.
+
+### Cancelling a waiting call
+
+While `garrison_invoke_agent` waits, its run belongs to the call. The run is cancelled (and with it any runs it delegated) when:
+
+- the client cancels the call with `notifications/cancelled` for the call's request ID (most clients send it when the user stops a tool call or a request times out on the client side), or
+- the MCP session ends while the call waits: the client sends `DELETE` for the session, or the session is closed on any replica.
+
+A cancel notification may reach a different control-plane replica than the one running the call; the replica that receives it relays it over the event backplane to the one that has the call. The harness gets SIGTERM within about a second. The call itself gets no response (the client cancelled it); use `garrison_get_run` to see the run end as `Cancelled`. A control-plane replica that is shutting down does not cancel runs. `garrison_start_run` never ties its run to the call; cancel those runs with `garrison_cancel_run`.
+
+Runs can also end on their own when a worker run guard trips: `outcome` is `RepetitionDetected`, `OutputLimitExceeded`, or `NoProgress`, `errorMessage` says why, and `result` holds the output produced before the stop (see "Run guards" in `REST_API.md`).
 
 ### Errors
 

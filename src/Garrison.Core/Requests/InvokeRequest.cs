@@ -43,5 +43,12 @@ namespace Garrison.Core.Requests
         /// Maximum seconds to wait (1 to 600).
         /// </summary>
         public int WaitSeconds { get; set; } = 60;
+
+        /// <summary>
+        /// When waiting, whether the run is cancelled if the client disconnects before it finishes. Null means true
+        /// (the default for waiting calls); false keeps the run going after a disconnect so it can be read later. The
+        /// query parameter cancelOnDisconnect overrides this value. Ignored when not waiting.
+        /// </summary>
+        public bool? CancelOnDisconnect { get; set; } = null;
     }
 }

@@ -139,6 +139,47 @@ namespace Garrison.Core.Models
         public int? TimeoutSeconds { get; set; } = null;
 
         /// <summary>
+        /// Run guard limit: whether the worker stops a run whose assistant text degenerates into one short repeated unit
+        /// or into text with no letters or digits (outcome RepetitionDetected). Null uses the cluster setting
+        /// Runtime.RepetitionGuard (default true).
+        /// </summary>
+        public bool? RepetitionGuard { get; set; } = null;
+
+        /// <summary>
+        /// Run guard limit: most characters of assistant text a run may produce before the worker stops it (outcome
+        /// OutputLimitExceeded). 0 turns the limit off. Null uses the cluster setting Runtime.MaxAssistantChars (default
+        /// 200,000). Minimum 0, maximum 100,000,000.
+        /// </summary>
+        public long? MaxAssistantChars
+        {
+            get
+            {
+                return _MaxAssistantChars;
+            }
+            set
+            {
+                _MaxAssistantChars = value.HasValue ? Math.Clamp(value.Value, 0, 100000000) : null;
+            }
+        }
+
+        /// <summary>
+        /// Run guard limit: seconds without assistant text, thinking, tool call, or tool result (while no tool call is
+        /// open) before the worker stops a run (outcome NoProgress). 0 turns the guard off. Null uses the cluster setting
+        /// Runtime.NoProgressSeconds (default 300). Minimum 0, maximum 86,400.
+        /// </summary>
+        public int? NoProgressSeconds
+        {
+            get
+            {
+                return _NoProgressSeconds;
+            }
+            set
+            {
+                _NoProgressSeconds = value.HasValue ? Math.Clamp(value.Value, 0, 86400) : null;
+            }
+        }
+
+        /// <summary>
         /// Maximum attempts. Minimum 1, maximum 10, default 1.
         /// </summary>
         public int MaxAttempts
@@ -363,6 +404,8 @@ namespace Garrison.Core.Models
         private string _Name = String.Empty;
         private string _HarnessProfileId = String.Empty;
         private int _MaxConcurrentRuns = 0;
+        private long? _MaxAssistantChars = null;
+        private int? _NoProgressSeconds = null;
         private int _MaxAttempts = 1;
         private int _Weight = 100;
         private DateTime _CreatedUtc = DateTime.UtcNow;

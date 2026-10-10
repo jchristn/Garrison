@@ -51,6 +51,7 @@ namespace Garrison.Server.Modules
             options.McpPath = context.Settings.Mcp.Path;
             options.ApiBaseUrl = ApiBaseUrl(context);
             _Compiler = new InvocationCompiler(context.Database, context.Cipher, options);
+            context.Register(options);
             _Manifests = new ManifestService(context.Database, context.Cipher);
             _Cards = new AgentCardService(context.Database, () => ExternalUrls.RestBaseUrl(context, null));
 

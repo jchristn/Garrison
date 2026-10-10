@@ -17,11 +17,33 @@ namespace Garrison.Server.Runtime
     /// </summary>
     public class NodeService
     {
+        #region Public-Members
+
+        /// <summary>
+        /// Longest time a cancellation watch waits for a signal before it re-reads the database, in milliseconds.
+        /// Minimum 250, maximum 60,000, default 5,000.
+        /// </summary>
+        public int WatchRecheckMs
+        {
+            get
+            {
+                return _WatchRecheckMs;
+            }
+            set
+            {
+                _WatchRecheckMs = Math.Clamp(value, 250, 60000);
+            }
+        }
+
+        #endregion
+
         #region Private-Members
 
         private readonly DatabaseDriverBase _Database;
         private readonly RuntimeOptions _Options;
         private readonly AuditService _Audit;
+        private readonly RunSignals? _Signals;
+        private int _WatchRecheckMs = 5000;
 
         #endregion
 
@@ -34,11 +56,24 @@ namespace Garrison.Server.Runtime
         /// <param name="options">Runtime options.</param>
         /// <param name="audit">Audit service.</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public NodeService(DatabaseDriverBase database, RuntimeOptions options, AuditService audit)
+        public NodeService(DatabaseDriverBase database, RuntimeOptions options, AuditService audit) : this(database, options, audit, null)
+        {
+        }
+
+        /// <summary>
+        /// Instantiate with run signals, so cancellation watches wake as soon as a held run is cancelled.
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="options">Runtime options.</param>
+        /// <param name="audit">Audit service.</param>
+        /// <param name="signals">Run signals; null makes cancellation watches poll the database once a second.</param>
+        /// <exception cref="ArgumentNullException">Thrown when database, options, or audit is null.</exception>
+        public NodeService(DatabaseDriverBase database, RuntimeOptions options, AuditService audit, RunSignals? signals)
         {
             _Database = database ?? throw new ArgumentNullException(nameof(database));
             _Options = options ?? throw new ArgumentNullException(nameof(options));
             _Audit = audit ?? throw new ArgumentNullException(nameof(audit));
+            _Signals = signals;
         }
 
         #endregion
@@ -152,6 +187,45 @@ namespace Garrison.Server.Runtime
             response.CancelRunIds = held.Where(r => r.CancelRequested || r.Status == RunStatusEnum.Cancelling).Select(r => r.Id).ToList();
             response.Drain = node.Status == NodeStatusEnum.Draining;
             return response;
+        }
+
+        /// <summary>
+        /// Cancellation watch (long poll): answer as soon as any watched run held by the node is cancelled, or with an
+        /// empty list when the wait ends. Wakes on <see cref="RunSignals.NotifyNode"/> from any replica and re-reads the
+        /// database at least every <see cref="WatchRecheckMs"/> in case a backplane message was lost.
+        /// </summary>
+        /// <param name="node">Node.</param>
+        /// <param name="request">Watch request.</param>
+        /// <param name="token">Cancellation token (the HTTP request).</param>
+        /// <returns>Runs to cancel.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        public async Task<NodeWatchResponse> WatchAsync(Node node, NodeWatchRequest request, CancellationToken token = default)
+        {
+            if (node == null) throw new ArgumentNullException(nameof(node));
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            NodeWatchResponse response = new NodeWatchResponse();
+            HashSet<string> watched = new HashSet<string>(request.Runs.Where(r => !String.IsNullOrEmpty(r.RunId)).Select(r => r.RunId), StringComparer.Ordinal);
+            if (watched.Count == 0) return response;
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(Math.Clamp(request.WaitMs, 0, 60000));
+
+            using (RunSignalSubscription? subscription = _Signals?.SubscribeNode(node.Id))
+            {
+                while (true)
+                {
+                    token.ThrowIfCancellationRequested();
+                    long version = subscription?.Signal.Version ?? 0;
+                    List<Run> held = await _Database.Runs.ListActiveByNodeAsync(node.Id, token).ConfigureAwait(false);
+                    response.CancelRunIds = held.Where(r => watched.Contains(r.Id) && (r.CancelRequested || r.Status == RunStatusEnum.Cancelling)).Select(r => r.Id).ToList();
+                    if (response.CancelRunIds.Count > 0) return response;
+
+                    int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
+                    if (remaining <= 0) return response;
+                    int wait = Math.Min(remaining, subscription == null ? 1000 : WatchRecheckMs);
+                    if (subscription != null) await subscription.Signal.WaitAsync(version, wait, token).ConfigureAwait(false);
+                    else await Task.Delay(wait, token).ConfigureAwait(false);
+                }
+            }
         }
 
         #endregion

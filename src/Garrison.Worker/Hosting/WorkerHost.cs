@@ -136,6 +136,9 @@ namespace Garrison.Worker.Hosting
         private int _Leasing = 0;
         private int _NeedsRegistration = 1;
         private long _CompletedRuns = 0;
+        private CancellationTokenSource? _WatchCall = null;
+        private int _WatchWaitMs = 25000;
+        private int _WatchIdlePollMs = 200;
 
         #endregion
 
@@ -315,7 +318,8 @@ namespace Garrison.Worker.Hosting
                 Task heartbeat = Task.Run(() => HeartbeatLoopAsync(token));
                 Task lease = Task.Run(() => LeaseLoopAsync(token));
                 Task probe = Task.Run(() => ProbeLoopAsync(token));
-                await Task.WhenAll(heartbeat, lease, probe).ConfigureAwait(false);
+                Task watch = Task.Run(() => WatchLoopAsync(token));
+                await Task.WhenAll(heartbeat, lease, probe, watch).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -410,6 +414,70 @@ namespace Garrison.Worker.Hosting
             }
         }
 
+        private async Task WatchLoopAsync(CancellationToken token)
+        {
+            // Cancellation fast path: a long poll that returns as soon as a run held here is cancelled, so cancel reaches
+            // the harness in well under a second instead of waiting for the next heartbeat (which stays the fallback).
+            int failures = 0;
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    List<ActiveRun> watched = _Runs.Values.Where(r => !r.Lost && !r.Cancellation.IsCancellationRequested).ToList();
+                    if (watched.Count == 0 || _NodeId == null || Volatile.Read(ref _NeedsRegistration) == 1)
+                    {
+                        await Task.Delay(_WatchIdlePollMs, token).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    NodeWatchRequest request = new NodeWatchRequest();
+                    request.NodeId = _NodeId;
+                    request.Runs = watched.Select(r => new NodeRunLease { RunId = r.RunId, Epoch = r.Epoch }).ToList();
+                    request.WaitMs = _WatchWaitMs;
+                    using (CancellationTokenSource call = CancellationTokenSource.CreateLinkedTokenSource(token))
+                    {
+                        Interlocked.Exchange(ref _WatchCall, call);
+                        try
+                        {
+                            NodeWatchResponse response = await _Client.WatchAsync(request, call.Token).ConfigureAwait(false);
+                            failures = 0;
+                            foreach (string runId in response.CancelRunIds) await TransitionAsync(runId, false, token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                        {
+                            // A run was added or removed: watch again with the new set.
+                        }
+                        finally
+                        {
+                            Interlocked.CompareExchange(ref _WatchCall, null, call);
+                        }
+                    }
+                }
+                catch (NodeProtocolException e)
+                {
+                    failures++;
+                    // 404: an older control plane without the watch, or the node must register again. The heartbeat still
+                    // delivers cancellations, so back off for longer.
+                    int delay = e.StatusCode == 404 ? 30000 : Backoff(failures);
+                    _Logging.Debug(_Header + "cancellation watch failed: " + e.Message);
+                    await Task.Delay(delay, token).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private void RestartWatch()
+        {
+            CancellationTokenSource? call = Volatile.Read(ref _WatchCall);
+            if (call == null) return;
+            try
+            {
+                call.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
         private async Task TransitionAsync(string runId, bool lost, CancellationToken token)
         {
             using (await _RunLocks.LockAsync(runId, token).ConfigureAwait(false))
@@ -497,6 +565,7 @@ namespace Garrison.Worker.Hosting
             }
             Task task = Task.Run(() => ExecuteAsync(run));
             _RunTasks[run.RunId] = task;
+            RestartWatch();
             return true;
         }
 

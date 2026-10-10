@@ -207,7 +207,8 @@ namespace Garrison.Server.Runtime
 
         /// <summary>
         /// Request cancellation. Queued runs cancel immediately; leased and running runs move to Cancelling and the
-        /// worker is told on its next heartbeat.
+        /// worker holding the run is woken through its cancellation watch (the heartbeat is the fallback). Delegated
+        /// child runs that have not finished are cancelled too, and their children in turn.
         /// </summary>
         /// <param name="run">Run.</param>
         /// <param name="token">Cancellation token.</param>
@@ -218,6 +219,38 @@ namespace Garrison.Server.Runtime
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
             if (TerminalStatuses.Contains(run.Status)) throw new ConflictException("RunFinished", "Run " + run.Id + " already finished with status " + run.Status + ".");
+            Run updated = await CancelOneAsync(run, token).ConfigureAwait(false);
+            await CancelChildrenAsync(run, 0, token).ConfigureAwait(false);
+            return updated;
+        }
+
+        /// <summary>
+        /// Cancel a run because its caller went away (client disconnect, cancelled MCP request, closed MCP session).
+        /// Does nothing when the run already finished. Never throws for a run that finished meanwhile.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="reason">Why the run is cancelled, for the log.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when a cancellation was requested.</returns>
+        public async Task<bool> CancelAbandonedAsync(string tenantId, string runId, string reason, CancellationToken token = default)
+        {
+            Run? current = await _Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false);
+            if (current == null || TerminalStatuses.Contains(current.Status)) return false;
+            try
+            {
+                await CancelAsync(current, token).ConfigureAwait(false);
+            }
+            catch (ConflictException)
+            {
+                return false;
+            }
+            _Logging?.Info("[Runs] cancelled run " + runId + " because " + reason + " " + RunTracing.LogFields(runId, current.TraceId));
+            return true;
+        }
+
+        private async Task<Run> CancelOneAsync(Run run, CancellationToken token)
+        {
 
             RunTransition queued = new RunTransition();
             queued.RunId = run.Id;
@@ -241,7 +274,29 @@ namespace Garrison.Server.Runtime
             _Signals.Notify(run.Id);
             _Logging?.Info("[Runs] cancellation requested for run " + run.Id + " " + RunTracing.LogFields(run.Id, run.TraceId));
             Run? updated = await _Database.Runs.ReadAsync(run.TenantId, run.Id, token).ConfigureAwait(false);
+            _Signals.NotifyNode(updated?.LeaseNodeId ?? run.LeaseNodeId);
             return updated ?? run;
+        }
+
+        private async Task CancelChildrenAsync(Run parent, int depth, CancellationToken token)
+        {
+            // Delegation depth is capped at 10, so the recursion is bounded; the depth check guards against bad data.
+            if (depth > 16) return;
+            RunFilter filter = new RunFilter();
+            filter.TenantId = parent.TenantId;
+            filter.ParentRunId = parent.Id;
+            filter.MaxResults = 1000;
+            EnumerationResult<Run> children = await _Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
+            foreach (Run child in children.Objects)
+            {
+                if (child.Id == parent.Id) continue;
+                if (!TerminalStatuses.Contains(child.Status))
+                {
+                    await CancelOneAsync(child, token).ConfigureAwait(false);
+                    _Logging?.Info("[Runs] cancelled delegated run " + child.Id + " with its parent " + parent.Id + " " + RunTracing.LogFields(child.Id, child.TraceId));
+                }
+                await CancelChildrenAsync(child, depth + 1, token).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

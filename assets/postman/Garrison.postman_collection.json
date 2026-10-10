@@ -6041,6 +6041,61 @@
           ]
         },
         {
+          "name": "Watch for cancellation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/node/watch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "node",
+                "watch"
+              ]
+            },
+            "description": "Cancellation watch (long poll): returns as soon as a watched run is cancelled, or with an empty list when waitMs elapses. With no runs it answers at once.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nodeId\": \"{{nodeId}}\",\n  \"runs\": [],\n  \"waitMs\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{nodeToken}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('no runs to cancel', function () { pm.expect(pm.response.json().cancelRunIds).to.eql([]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Read node",
           "request": {
             "method": "GET",
