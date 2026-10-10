@@ -581,7 +581,8 @@ class ApiClient {
   invokeAgent(tenantId, id, body, { wait = false, waitSeconds } = {}) {
     return this._request('POST', this._t(tenantId, `agents/${enc(id)}/invoke`), {
       body,
-      query: { wait: wait ? 'true' : undefined, waitSeconds }
+      // Always explicit: the server waits for the run by default, which would hold the Invoke page until the run ends.
+      query: { wait: wait ? 'true' : 'false', waitSeconds }
     });
   }
 

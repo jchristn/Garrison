@@ -916,7 +916,36 @@ const it = {
       credentials: 'Credenziali predefinite',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: 'Mostra testo grezzo',
+      showRendered: 'Mostra formattato'
+    },
     invoke: {
+      stream: {
+        tabsLabel: 'Viste della risposta',
+        cardLabel: 'Output dell\'esecuzione',
+        preview: 'Anteprima',
+        response: 'Risposta',
+        starting: 'Avvio dell\'esecuzione...',
+        live: 'In diretta',
+        finished: 'Terminata',
+        elapsed: 'Trascorso',
+        firstToken: 'Primo token',
+        tokensPerSecond: 'Velocità',
+        finishedHint: 'Esecuzione terminata.',
+        showResponse: 'Vedi la risposta',
+        reasoning: 'Ragionamento',
+        waiting: 'In attesa dell\'output...',
+        waitingCodex: 'In attesa dell\'output. Codex invia la risposta tutta insieme alla fine.',
+        codexNote: 'Codex non trasmette in streaming: la risposta compare qui tutta insieme quando l\'esecuzione termina.',
+        noText: 'L\'esecuzione non ha trasmesso testo. La scheda Risposta contiene il risultato.',
+        jump: 'Vai al più recente',
+        tool: {
+          running: 'in corso',
+          ok: 'riuscito',
+          failed: 'non riuscito'
+        }
+      },
       noDeployment: 'Questo agente non ha distribuzioni attive con peso maggiore di zero, quindi un\'invocazione verrebbe rifiutata. Aggiungi una distribuzione nella scheda Distribuzioni o aumenta un peso.',
       title: 'Invoca',
       subtitle: 'Invia un messaggio a un agente e segui la trascrizione in streaming.',

@@ -877,7 +877,36 @@ const ja = {
       credentials: '既定の認証情報',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: '生のテキストを表示',
+      showRendered: '整形して表示'
+    },
     invoke: {
+      stream: {
+        tabsLabel: '応答の表示',
+        cardLabel: '実行の出力',
+        preview: 'プレビュー',
+        response: '応答',
+        starting: '実行を開始しています...',
+        live: 'ライブ',
+        finished: '完了',
+        elapsed: '経過時間',
+        firstToken: '最初のトークン',
+        tokensPerSecond: '速度',
+        finishedHint: '実行が完了しました。',
+        showResponse: '応答を見る',
+        reasoning: '推論',
+        waiting: '出力を待っています...',
+        waitingCodex: '出力を待っています。Codex は完了時に回答をまとめて送信します。',
+        codexNote: 'Codex はストリーミングしません。実行が完了すると、回答がここにまとめて表示されます。',
+        noText: 'この実行ではストリーミングされたテキストはありませんでした。結果は「応答」タブにあります。',
+        jump: '最新へ移動',
+        tool: {
+          running: '実行中',
+          ok: '成功',
+          failed: '失敗'
+        }
+      },
       noDeployment: 'このエージェントには重みが 0 より大きい有効なデプロイメントがないため、呼び出しは拒否されます。デプロイメントタブで追加するか、重みを上げてください。',
       title: '呼び出し',
       subtitle: 'エージェントにメッセージを送り、実行の記録をリアルタイムで確認します。',

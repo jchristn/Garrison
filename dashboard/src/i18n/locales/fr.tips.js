@@ -30,6 +30,13 @@ const FILE_ITEMS = {
 
 const tips = {
   ids: { deleted: 'Cet enregistrement a été supprimé. ID {{id}}. Le bouton de copie copie l\'ID.', named: 'ID {{id}}. Le bouton de copie copie l\'ID pour l\'API, les SDK ou une demande d\'assistance.' },
+  markdown: {
+    column: 'Colonne {{name}} d\'un tableau de la sortie de l\'agent. Les tableaux larges défilent horizontalement dans leur cadre.',
+    showRaw: 'Affiche le texte exact renvoyé par l\'agent, sans mise en forme Markdown, pour l\'examiner ou le copier.',
+    showRendered: 'Affiche à nouveau le texte mis en forme en Markdown, avec tableaux, listes, blocs de code et liens.',
+    copy: 'Copie dans le presse-papiers le texte brut du résultat, syntaxe Markdown comprise.',
+    link: 'Ouvre {{href}} dans un nouvel onglet. Le lien provient de la sortie de l\'agent, vérifiez donc l\'adresse avant de lui faire confiance.'
+  },
   common: {
     fields: {
       name: 'Nom unique de cet enregistrement au sein du locataire. Les autres enregistrements et les manifestes y font référence par ce nom.',
@@ -897,6 +904,26 @@ const tips = {
       harness: 'Le harness dont ces exécutions ont besoin. Seuls les nœuds qui l\'annoncent peuvent les prendre.'
     },
     invoke: {
+      stream: {
+        tabs: {
+          preview: 'Suivez la réponse pendant sa diffusion, mise en forme en Markdown, avec le raisonnement et les appels d\'outils. Sélectionné pendant qu\'une exécution est en cours.',
+          response: 'Le résultat final de l\'exécution : texte du résultat (mis en forme ou brut), sortie structurée, résultat, erreurs, télémétrie et liens.'
+        },
+        live: 'L\'exécution est en cours. Cette vue se met à jour à mesure que la sortie arrive par le flux d\'événements en direct.',
+        finished: 'L\'exécution est terminée et aucune autre sortie n\'arrivera. L\'onglet Réponse contient le résultat final.',
+        elapsed: 'Temps écoulé depuis votre clic sur Envoyer, mesuré dans votre navigateur. Il s\'arrête à la fin de l\'exécution.',
+        firstToken: 'Temps entre Envoyer et la première sortie diffusée (texte ou raisonnement), mesuré dans votre navigateur, file d\'attente et démarrage du harness compris. La page de l\'exécution affiche la valeur mesurée par le nœud worker.',
+        tokensPerSecond: 'Jetons de sortie par seconde pendant la diffusion, d\'après l\'utilisation signalée par le harness. Une fois l\'exécution terminée, affiche le débit mesuré par le serveur.',
+        codexNote: 'Codex n\'imprime chaque message qu\'une fois complet (codex exec --json), donc rien n\'est diffusé jeton par jeton. Le temps écoulé continue de défiler pendant qu\'il travaille.',
+        showResponse: 'Passe à l\'onglet Réponse pour le résultat final, la sortie structurée et la télémétrie.',
+        reasoning: 'Texte de réflexion produit par le modèle avant ou entre ses réponses. Replié par défaut ; cliquez pour le déplier.',
+        jump: 'Fait défiler jusqu\'à la sortie la plus récente et suit à nouveau le flux à mesure qu\'il arrive.',
+        tool: {
+          running: 'L\'agent a appelé l\'outil {{name}} et attend son résultat.',
+          ok: 'L\'outil {{name}} a renvoyé un résultat sans erreur.',
+          failed: 'L\'outil {{name}} a renvoyé une erreur. L\'agent peut réessayer ou continuer sans lui.'
+        }
+      },
       applySample: 'Aller dans « Manifestes », où le manifeste d\'exemple crée un agent que vous pouvez essayer tout de suite.',
       agent: 'L\'agent à appeler. Seuls les agents actifs sont listés.',
       deployment: 'Laissez « N\'importe quel déploiement actif (pondéré) » pour que Garrison choisisse selon le poids de trafic, ou choisissez un déploiement pour le tester directement.',

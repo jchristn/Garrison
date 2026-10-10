@@ -920,7 +920,36 @@ const es = {
       credentials: 'Credenciales predeterminadas',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: 'Ver texto sin formato',
+      showRendered: 'Ver con formato'
+    },
     invoke: {
+      stream: {
+        tabsLabel: 'Vistas de la respuesta',
+        cardLabel: 'Salida de la ejecución',
+        preview: 'Vista previa',
+        response: 'Respuesta',
+        starting: 'Iniciando la ejecución...',
+        live: 'En vivo',
+        finished: 'Terminada',
+        elapsed: 'Transcurrido',
+        firstToken: 'Primer token',
+        tokensPerSecond: 'Velocidad',
+        finishedHint: 'Ejecución terminada.',
+        showResponse: 'Ver la respuesta',
+        reasoning: 'Razonamiento',
+        waiting: 'Esperando la salida...',
+        waitingCodex: 'Esperando la salida. Codex envía su respuesta completa al terminar.',
+        codexNote: 'Codex no transmite en streaming: su respuesta aparece aquí completa cuando termina la ejecución.',
+        noText: 'La ejecución no transmitió texto. La pestaña Respuesta tiene el resultado.',
+        jump: 'Ir a lo más reciente',
+        tool: {
+          running: 'en curso',
+          ok: 'correcta',
+          failed: 'fallida'
+        }
+      },
       noDeployment: 'Este agente no tiene ningún despliegue activo con peso mayor que cero, así que se rechazaría la invocación. Añade un despliegue en la pestaña Despliegues o sube el peso de uno.',
       title: 'Invocar',
       subtitle: 'Envía un mensaje a un agente y observa cómo se transmite la transcripción.',

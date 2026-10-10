@@ -521,13 +521,20 @@ export function analytics(url) {
 
 const event = (sequence, eventType, extra) => ({ id: `rev_${pad(sequence)}`, tenantId: TENANT, runId: 'run_0001', sequence, eventType, timestampUtc: iso(6 - sequence * 0.5), ...extra, createdUtc: iso(6 - sequence * 0.5) });
 
+/** Markdown the mocked stream sends in small pieces: a heading, a table, a list with a link, and a code block. */
+export const STREAM_DELTAS = ['## Sum', 'mary\n\n', '| File | Lines |\n|---|---|\n', '| README.md | 42 |\n\n', '- **Bold** item\n', '- [Docs](https://example.com/docs)\n\n', '```bash\nnpm test\n```\n'];
+
 const EVENTS = [
   // Events Garrison writes carry a machine code (P9.17) so the dashboard can translate them.
   event(1, 'Lifecycle', { text: 'Workspace prepared at /work/run_0001.', code: 'WorkspacePrepared' }),
-  event(2, 'AssistantText', { text: 'Hello from the fake harness.', rawEventJson: '{"type":"assistant"}' }),
-  event(3, 'ToolCall', { toolName: 'read_file', text: '{"path":"README.md"}' }),
-  event(4, 'Usage', { inputTokens: 1201, outputTokens: 341 }),
-  event(5, 'Result', { text: 'Done.', rawEventJson: '{"type":"result","is_error":false}' })
+  event(2, 'Thinking', { text: 'The user wants a greeting. I will check the README first.' }),
+  event(3, 'AssistantText', { text: 'Hello from the fake harness.', rawEventJson: '{"type":"assistant"}' }),
+  event(4, 'ToolCall', { toolName: 'read_file', toolCallId: 'toolu_01', text: '{"path":"README.md"}' }),
+  event(5, 'ToolResult', { toolName: 'read_file', toolCallId: 'toolu_01', success: true, text: '# Garrison' }),
+  // Token deltas (no raw line), the way Claude Code streams with partial messages (P5.52).
+  ...STREAM_DELTAS.map((text, i) => event(6 + i, 'AssistantText', { text })),
+  event(6 + STREAM_DELTAS.length, 'Usage', { inputTokens: 1201, outputTokens: 341 }),
+  event(7 + STREAM_DELTAS.length, 'Result', { text: 'Done.', rawEventJson: '{"type":"result","is_error":false}' })
 ];
 
 const OVERVIEW = () => ({
@@ -544,6 +551,8 @@ const OVERVIEW = () => ({
     { status: 'Ready', count: 2 },
     { status: 'Cordoned', count: 1 }
   ],
+  controlNodesByStatus: [{ status: 'Ready', count: 2 }],
+  leaderNodeId: 'garrison-server-a',
   queued: 3,
   blockedRuns: 2,
   active: 2,
@@ -683,7 +692,8 @@ export async function installMocks(page) {
     const req = route.request();
     const url = new URL(req.url());
     if (url.pathname.endsWith('/events/stream')) {
-      const body = EVENTS.map((e) => `event: run.event\ndata: ${JSON.stringify(e)}\n\n`).join('') + `event: run.status\ndata: ${JSON.stringify({ status: 'Succeeded' })}\n\n`;
+      const runId = decodeURIComponent(url.pathname.split('/').slice(-3)[0]);
+      const body = EVENTS.map((e) => `event: run.event\ndata: ${JSON.stringify({ ...e, runId })}\n\n`).join('') + `event: run.status\ndata: ${JSON.stringify({ status: 'Succeeded' })}\n\n`;
       return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body });
     }
     const method = req.method();
@@ -693,4 +703,74 @@ export async function installMocks(page) {
     if (typeof body === 'string') return route.fulfill({ status: 200, contentType: 'application/yaml', body });
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
+}
+
+/**
+ * Replace the run event stream with one the test drives (P5.52). Mocked routes can only answer with a whole body,
+ * so this patches fetch for /events/stream URLs in the page and returns a live ReadableStream per run. Push frames
+ * with `pushRunEvent(page, runId, event)` or `pushRunFrame(page, runId, eventName, data)`. With ignoreAbort, an
+ * aborted stream keeps accepting frames, which simulates a late frame from a previous run still in flight.
+ */
+export async function installControlledStream(page, { ignoreAbort = false } = {}) {
+  await page.addInitScript(
+    ({ ignoreAbort: keepOpen }) => {
+      const streams = {};
+      const encoder = new TextEncoder();
+      window.__sse = { streams, opened: [] };
+      window.__ssePush = (runId, name, data) => {
+        const list = streams[runId] || [];
+        for (const s of list) {
+          if (s.closed) continue;
+          try {
+            s.controller.enqueue(encoder.encode(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`));
+          } catch {
+            s.closed = true;
+          }
+        }
+        return list.filter((s) => !s.closed).length;
+      };
+      const original = window.fetch.bind(window);
+      window.fetch = (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+        const m = /\/runs\/([^/]+)\/events\/stream/.exec(url);
+        if (!m) return original(input, init);
+        const runId = decodeURIComponent(m[1]);
+        const entry = { closed: false, controller: null };
+        const body = new ReadableStream({
+          start(controller) {
+            entry.controller = controller;
+          }
+        });
+        if (init.signal && !keepOpen) {
+          init.signal.addEventListener('abort', () => {
+            entry.closed = true;
+            try {
+              entry.controller.error(new DOMException('Aborted', 'AbortError'));
+            } catch {
+              /* already closed */
+            }
+          });
+        }
+        (streams[runId] = streams[runId] || []).push(entry);
+        window.__sse.opened.push(runId);
+        return Promise.resolve(new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } }));
+      };
+    },
+    { ignoreAbort }
+  );
+}
+
+/** Send one run event over the controlled stream. Returns the number of open streams that received it. */
+export function pushRunEvent(page, runId, event) {
+  return page.evaluate(({ id, e }) => window.__ssePush(id, 'run.event', e), { id: runId, e: { runId, timestampUtc: new Date().toISOString(), ...event } });
+}
+
+/** Send any SSE frame (for example run.completed with the final run) over the controlled stream. */
+export function pushRunFrame(page, runId, name, data) {
+  return page.evaluate(({ id, n, d }) => window.__ssePush(id, n, d), { id: runId, n: name, d: data });
+}
+
+/** A run record shaped like the server's, for controlled-stream tests. */
+export function mockRun(id, extra = {}) {
+  return { ...FACTORIES.runs(1), id, ...extra };
 }

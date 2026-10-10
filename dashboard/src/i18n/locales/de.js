@@ -900,7 +900,36 @@ const de = {
       credentials: 'Standardzugangsdaten',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: 'Rohtext anzeigen',
+      showRendered: 'Formatiert anzeigen'
+    },
     invoke: {
+      stream: {
+        tabsLabel: 'Antwortansichten',
+        cardLabel: 'Ausgabe des Laufs',
+        preview: 'Vorschau',
+        response: 'Antwort',
+        starting: 'Lauf wird gestartet...',
+        live: 'Live',
+        finished: 'Beendet',
+        elapsed: 'Verstrichen',
+        firstToken: 'Erstes Token',
+        tokensPerSecond: 'Tempo',
+        finishedHint: 'Lauf beendet.',
+        showResponse: 'Zur Antwort',
+        reasoning: 'Gedankengang',
+        waiting: 'Warte auf Ausgabe...',
+        waitingCodex: 'Warte auf Ausgabe. Codex sendet seine Antwort am Ende in einem Stück.',
+        codexNote: 'Codex streamt nicht: Die Antwort erscheint hier in einem Stück, wenn der Lauf endet.',
+        noText: 'Der Lauf hat keinen gestreamten Text erzeugt. Das Ergebnis steht im Tab Antwort.',
+        jump: 'Zum Neuesten',
+        tool: {
+          running: 'läuft',
+          ok: 'erfolgreich',
+          failed: 'fehlgeschlagen'
+        }
+      },
       noDeployment: 'Dieser Agent hat keine aktive Bereitstellung mit einer Gewichtung über null, daher würde ein Aufruf abgelehnt. Fügen Sie im Tab Bereitstellungen eine hinzu oder erhöhen Sie eine Gewichtung.',
       title: 'Aufrufen',
       subtitle: 'Senden Sie einem Agenten eine Nachricht und verfolgen Sie das Protokoll live.',

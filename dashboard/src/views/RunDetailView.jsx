@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import RunTimeline from '../components/RunTimeline';
 import CodeBlock from '../components/CodeBlock';
+import MarkdownView from '../components/MarkdownView';
 import CopyableId from '../components/CopyableId';
 import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
@@ -355,7 +356,7 @@ export default function RunDetailView({ recordId }) {
         )}
         {tab === 'result' && (
           <div className="flex-col gap-md">
-            <CodeBlock value={run.resultText} emptyText={terminal ? t('views.runDetail.noResult') : t('views.runDetail.pending')} />
+            <MarkdownView text={run.resultText} rawToggle testId="run-result" emptyText={terminal ? t('views.runDetail.noResult') : t('views.runDetail.pending')} />
             {run.structuredOutputJson && (
               <>
                 <h3 className="section-title">{t('views.runDetail.structuredOutput')}</h3>

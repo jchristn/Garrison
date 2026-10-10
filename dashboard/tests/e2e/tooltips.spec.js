@@ -253,6 +253,15 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   await page.getByTestId('invoke-send').click();
   await expect(page.locator('.invoke-run-head')).toBeVisible();
   await audit(page, 'invoke with a run');
+  // P5.52: the streamed Preview (Markdown links, tool chips, reasoning, timing) and the Response tab.
+  await expect(page.getByTestId('invoke-preview').locator('.markdown-body a').first()).toBeVisible();
+  await page.getByTestId('stream-reasoning').locator('summary').click();
+  await audit(page, 'invoke preview streamed');
+  await page.getByRole('tab', { name: 'Response' }).click();
+  await expect(page.getByTestId('invoke-response')).toBeVisible();
+  await audit(page, 'invoke response');
+  await page.getByTestId('invoke-result').getByTestId('markdown-raw-toggle').click();
+  await audit(page, 'invoke response raw');
 
   // Setup wizard, every step.
   await page.goto('/dashboard/home');

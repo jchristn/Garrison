@@ -916,7 +916,36 @@ const fr = {
       credentials: 'Identifiants par défaut',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: 'Afficher le texte brut',
+      showRendered: 'Afficher la mise en forme'
+    },
     invoke: {
+      stream: {
+        tabsLabel: 'Vues de la réponse',
+        cardLabel: 'Sortie de l\'exécution',
+        preview: 'Aperçu',
+        response: 'Réponse',
+        starting: 'Démarrage de l\'exécution...',
+        live: 'En direct',
+        finished: 'Terminée',
+        elapsed: 'Écoulé',
+        firstToken: 'Premier jeton',
+        tokensPerSecond: 'Débit',
+        finishedHint: 'Exécution terminée.',
+        showResponse: 'Voir la réponse',
+        reasoning: 'Raisonnement',
+        waiting: 'En attente de sortie...',
+        waitingCodex: 'En attente de sortie. Codex envoie sa réponse d\'un seul bloc à la fin.',
+        codexNote: 'Codex ne diffuse pas en continu : sa réponse apparaît ici d\'un seul bloc à la fin de l\'exécution.',
+        noText: 'L\'exécution n\'a diffusé aucun texte. L\'onglet Réponse contient le résultat.',
+        jump: 'Aller au plus récent',
+        tool: {
+          running: 'en cours',
+          ok: 'réussi',
+          failed: 'échoué'
+        }
+      },
       noDeployment: 'Cet agent n\'a aucun déploiement actif avec un poids supérieur à zéro ; un appel serait donc refusé. Ajoutez un déploiement dans l\'onglet Déploiements ou augmentez un poids.',
       title: 'Invoquer',
       subtitle: 'Envoyez un message à un agent et suivez la transcription en direct.',

@@ -30,6 +30,13 @@ const FILE_ITEMS = {
 
 const tips = {
   ids: { deleted: 'Este registro se eliminó. ID {{id}}. El botón de copiar copia el ID.', named: 'ID {{id}}. Usa el botón de copiar para copiar el ID para la API, los SDK o una solicitud de soporte.' },
+  markdown: {
+    column: 'Columna {{name}} de una tabla de la salida del agente. Las tablas anchas se desplazan en horizontal dentro de su marco.',
+    showRaw: 'Muestra el texto exacto que devolvió el agente, sin formato Markdown, para que puedas revisarlo o copiarlo.',
+    showRendered: 'Vuelve a mostrar el texto con formato Markdown: tablas, listas, bloques de código y enlaces.',
+    copy: 'Copia al portapapeles el texto del resultado sin formato, con la sintaxis Markdown incluida.',
+    link: 'Abre {{href}} en una pestaña nueva. El enlace viene de la salida del agente, así que revisa la dirección antes de confiar en ella.'
+  },
   common: {
     fields: {
       name: 'Nombre único de este registro dentro del inquilino. Otros registros y manifiestos lo referencian por este nombre.',
@@ -897,6 +904,26 @@ const tips = {
       harness: 'El harness que necesitan esas ejecuciones. Solo los nodos que lo anuncian pueden aceptarlas.'
     },
     invoke: {
+      stream: {
+        tabs: {
+          preview: 'Sigue la respuesta mientras se transmite, con formato Markdown, razonamiento y llamadas a herramientas. Se selecciona mientras hay una ejecución en curso.',
+          response: 'El resultado final de la ejecución: texto del resultado (con formato o sin él), salida estructurada, resultado, errores, telemetría y enlaces.'
+        },
+        live: 'La ejecución está en curso. Esta vista se actualiza a medida que llega la salida por el flujo de eventos en vivo.',
+        finished: 'La ejecución terminó y no llegará más salida. La pestaña Respuesta tiene el resultado final.',
+        elapsed: 'Tiempo desde que hiciste clic en Enviar, medido en tu navegador. Se detiene cuando termina la ejecución.',
+        firstToken: 'Tiempo desde Enviar hasta la primera salida transmitida (texto o razonamiento), medido en tu navegador, así que incluye la cola y el arranque del harness. La página de la ejecución muestra el valor medido por el worker.',
+        tokensPerSecond: 'Tokens de salida por segundo durante la transmisión, según el uso que informó el harness. Al terminar la ejecución muestra la tasa medida por el servidor.',
+        codexNote: 'Codex imprime cada mensaje solo cuando está completo (codex exec --json), así que nada se transmite token a token. El tiempo transcurrido sigue contando mientras trabaja.',
+        showResponse: 'Cambia a la pestaña Respuesta para ver el resultado final, la salida estructurada y la telemetría.',
+        reasoning: 'Texto de razonamiento que el modelo produjo antes o entre respuestas. Plegado por defecto; haz clic para desplegarlo.',
+        jump: 'Desplázate a la salida más reciente y vuelve a seguir el flujo a medida que llega.',
+        tool: {
+          running: 'El agente llamó a la herramienta {{name}} y espera su resultado.',
+          ok: 'La herramienta {{name}} devolvió un resultado sin errores.',
+          failed: 'La herramienta {{name}} devolvió un error. El agente puede reintentarla o continuar sin ella.'
+        }
+      },
       applySample: 'Ve a "Manifiestos", donde el manifiesto de ejemplo crea un agente que puedes probar enseguida.',
       agent: 'El agente al que se llama. Solo se listan los agentes activos.',
       deployment: 'Déjalo en "Cualquier despliegue activo (ponderado)" para que Garrison elija por peso de tráfico, o elige un despliegue para probarlo directamente.',

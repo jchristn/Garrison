@@ -15,8 +15,10 @@
     "test:contract": "node tests/contract/run.mjs"
   },
   "dependencies": {
+    "dompurify": "^3.4.16",
     "i18next": "^24.2.0",
     "i18next-browser-languagedetector": "^8.0.2",
+    "marked": "^18.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-i18next": "^15.4.0",

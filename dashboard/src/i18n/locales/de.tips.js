@@ -31,6 +31,13 @@ const FILE_ITEMS = {
 
 const tips = {
   ids: { deleted: 'Dieser Datensatz wurde gelöscht. ID {{id}}. Die Kopierschaltfläche kopiert die ID.', named: 'ID {{id}}. Mit der Kopierschaltfläche kopieren Sie die ID für die API, SDKs oder eine Supportanfrage.' },
+  markdown: {
+    column: 'Spalte {{name}} einer Tabelle aus der Ausgabe des Agenten. Breite Tabellen scrollen seitlich in ihrem Rahmen.',
+    showRaw: 'Zeigt den exakten Text, den der Agent zurückgegeben hat, ohne Markdown-Formatierung, zum Prüfen oder Kopieren.',
+    showRendered: 'Zeigt den Text wieder als Markdown formatiert, mit Tabellen, Listen, Codeblöcken und Links.',
+    copy: 'Kopiert den rohen Ergebnistext einschließlich Markdown-Syntax in die Zwischenablage.',
+    link: 'Öffnet {{href}} in einem neuen Tab. Der Link stammt aus der Ausgabe des Agenten, prüfen Sie die Adresse also, bevor Sie ihr vertrauen.'
+  },
   common: {
     fields: {
       name: 'Eindeutiger Name dieses Datensatzes innerhalb des Mandanten. Andere Datensätze und Manifeste verweisen über diesen Namen darauf.',
@@ -898,6 +905,26 @@ const tips = {
       harness: 'Die Harness, die diese Läufe benötigen. Nur Knoten, die sie melden, können sie übernehmen.'
     },
     invoke: {
+      stream: {
+        tabs: {
+          preview: 'Verfolgen Sie die Antwort während des Streamings, als Markdown formatiert, mit Gedankengang und Toolaufrufen. Ausgewählt, solange ein Lauf aktiv ist.',
+          response: 'Das Endergebnis des Laufs: Ergebnistext (formatiert oder roh), strukturierte Ausgabe, Ergebnis, Fehler, Telemetrie und Links.'
+        },
+        live: 'Der Lauf ist aktiv. Diese Ansicht aktualisiert sich, sobald Ausgabe über den Live-Ereignisstream eintrifft.',
+        finished: 'Der Lauf ist beendet, es kommt keine weitere Ausgabe. Das Endergebnis steht im Tab Antwort.',
+        elapsed: 'Zeit seit dem Klick auf Senden, gemessen in Ihrem Browser. Sie stoppt, wenn der Lauf endet.',
+        firstToken: 'Zeit von Senden bis zur ersten gestreamten Ausgabe (Text oder Gedankengang), gemessen im Browser, also einschließlich Warteschlange und Harness-Start. Die Laufseite zeigt den vom Worker gemessenen Wert.',
+        tokensPerSecond: 'Ausgabetokens pro Sekunde während des Streamings, aus der vom Harness gemeldeten Nutzung. Nach dem Lauf wird die vom Server gemessene Rate gezeigt.',
+        codexNote: 'Codex gibt jede Nachricht erst aus, wenn sie vollständig ist (codex exec --json), daher wird nichts Token für Token gestreamt. Die verstrichene Zeit läuft weiter, während Codex arbeitet.',
+        showResponse: 'Wechselt zum Tab Antwort mit Endergebnis, strukturierter Ausgabe und Telemetrie.',
+        reasoning: 'Denktext, den das Modell vor oder zwischen Antworten erzeugt hat. Standardmäßig eingeklappt; klicken Sie zum Aufklappen.',
+        jump: 'Springt zur neuesten Ausgabe und folgt dem Stream wieder, während er eintrifft.',
+        tool: {
+          running: 'Der Agent hat das Tool {{name}} aufgerufen und wartet auf dessen Ergebnis.',
+          ok: 'Das Tool {{name}} hat ein Ergebnis ohne Fehler geliefert.',
+          failed: 'Das Tool {{name}} hat einen Fehler gemeldet. Der Agent kann es erneut versuchen oder ohne es weitermachen.'
+        }
+      },
       applySample: 'Zu den Manifesten wechseln, wo das Beispielmanifest einen Agenten erstellt, den Sie sofort ausprobieren können.',
       agent: 'Der aufzurufende Agent. Nur aktive Agenten werden aufgeführt.',
       deployment: 'Auf Beliebig lassen, damit Garrison nach Verkehrsgewichtung wählt, oder eine Bereitstellung wählen, um sie direkt zu testen.',

@@ -166,7 +166,7 @@ In the dashboard, **Invoke** does the same: pick the agent, type a message, pres
 
 ## 5. Watch a run stream
 
-The dashboard's Invoke page streams the transcript as the harness produces it. Claude Code streams token by token; Codex prints each message only when it is complete, so its answer arrives in one piece.
+The dashboard's Invoke page shows the run in two tabs. **Preview** streams the answer as the harness produces it, formatted as Markdown (tables, lists, code blocks, and links, with any HTML sanitized), with the model's reasoning in a collapsed block, tool calls as small chips, and the elapsed time, time to first token, and tokens per second. **Response** shows the final result once the run ends: the result text (formatted, or raw with one click), structured output, outcome, errors, and telemetry. Claude Code and Mux stream token by token; Codex prints each message only when it is complete, so Preview waits and then shows its answer in one piece. The Run detail page formats the result the same way.
 
 From a terminal, start a run without waiting and attach to its server-sent events. The stream ends with a `run.completed` event that carries the finished run.
 

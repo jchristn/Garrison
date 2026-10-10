@@ -878,7 +878,36 @@ const yueHant = {
       credentials: '預設憑證',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: '顯示原始文字',
+      showRendered: '顯示格式化內容'
+    },
     invoke: {
+      stream: {
+        tabsLabel: '回應檢視',
+        cardLabel: '執行輸出',
+        preview: '預覽',
+        response: '回應',
+        starting: '開緊執行...',
+        live: '即時',
+        finished: '完成咗',
+        elapsed: '用咗時間',
+        firstToken: '第一個 Token',
+        tokensPerSecond: '速度',
+        finishedHint: '執行完成咗。',
+        showResponse: '睇回應',
+        reasoning: '推理過程',
+        waiting: '等緊輸出...',
+        waitingCodex: '等緊輸出。Codex 會喺完成嗰陣一次過送出答案。',
+        codexNote: 'Codex 唔支援串流：執行完咗嗰陣，答案會一次過喺呢度出現。',
+        noText: '呢次執行冇串流文字。結果喺「回應」分頁度。',
+        jump: '跳去最新',
+        tool: {
+          running: '執行緊',
+          ok: '成功',
+          failed: '失敗'
+        }
+      },
       noDeployment: '呢個代理程式冇權重大過零嘅啟用部署，所以調用會俾人拒絕。請喺「部署」分頁加一個部署，或者調高某個部署嘅權重。',
       title: '調用',
       subtitle: '傳訊息畀代理程式，即時睇住對話記錄串流出嚟。',

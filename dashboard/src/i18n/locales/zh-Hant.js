@@ -879,7 +879,36 @@ const zhHant = {
       credentials: '預設憑證',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: '顯示原始文字',
+      showRendered: '顯示格式化內容'
+    },
     invoke: {
+      stream: {
+        tabsLabel: '回應檢視',
+        cardLabel: '執行輸出',
+        preview: '預覽',
+        response: '回應',
+        starting: '正在啟動執行...',
+        live: '即時',
+        finished: '已完成',
+        elapsed: '經過時間',
+        firstToken: '首個 Token',
+        tokensPerSecond: '速度',
+        finishedHint: '執行已完成。',
+        showResponse: '查看回應',
+        reasoning: '推理過程',
+        waiting: '正在等待輸出...',
+        waitingCodex: '正在等待輸出。Codex 會在完成時一次送出回答。',
+        codexNote: 'Codex 不支援串流：執行結束時，回答會一次顯示在這裡。',
+        noText: '此執行沒有串流文字。結果在「回應」分頁中。',
+        jump: '跳到最新',
+        tool: {
+          running: '執行中',
+          ok: '成功',
+          failed: '失敗'
+        }
+      },
       noDeployment: '此代理程式沒有權重大於零的啟用部署，因此呼叫會遭拒。請在「部署」分頁新增部署，或提高某個部署的權重。',
       title: '呼叫',
       subtitle: '傳送訊息給代理程式，並即時觀看對話紀錄串流。',

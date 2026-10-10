@@ -23,6 +23,8 @@ The sidebar only hides what the table above lists. Everything else is enforced b
 
 Detail pages: `/dashboard/runs/:id`, `/dashboard/agents/:id`, `/dashboard/prompt-templates/:id`. They highlight their hub in the sidebar.
 
+Invoke's response card has two tabs (P5.52). Preview streams the assistant text over SSE and renders it as Markdown, with reasoning in a collapsed block, tool calls as chips, and live timing; it stays selected when the run ends and points to Response, which shows the result text, structured output, outcome, errors, and telemetry. Sending again clears the card and drops late frames from the previous run. Model output is rendered by `MarkdownView` (marked for GitHub-flavored Markdown, DOMPurify for sanitizing: no scripts, event handlers, frames, forms, inline styles, or URL schemes other than http, https, and mailto), which Run detail uses for the result too, with a raw text toggle.
+
 ## What every page has
 
 - An explainer panel for pages whose objects relate to others (agents and deployments, profiles, prompts, secrets and aliases, nodes and pools, users and credentials, roles and assignments, runs and queue, manifests). It can be dismissed and reopened.
@@ -36,7 +38,7 @@ Detail pages: `/dashboard/runs/:id`, `/dashboard/agents/:id`, `/dashboard/prompt
 | Check | Command | What it covers |
 |---|---|---|
 | Lint | `npm run lint` | ESLint, no warnings allowed |
-| Unit | `npm test` | formatters per locale, i18n key and placeholder parity, untranslated strings, enum labels, telemetry and analytics helpers, exporters, tooltips for generated controls |
+| Unit | `npm test` | Markdown rendering and sanitizing, formatters per locale, i18n key and placeholder parity, untranslated strings, enum labels, telemetry and analytics helpers, exporters, tooltips for generated controls |
 | Browser (mocked) | `npx playwright test` | every route and tab, forms and modals, tooltips on every element (about 12,600 checks), redirects, keyboard tabs, exports, languages, RTL overflow |
 | API contract | `npm run test:contract` | starts a real server and worker, seeds every resource, and compares 58 GET responses with the mocks the browser tests use |
 | Live | `npm run test:live` | signs in to a deployed stack and visits every page, Analytics, and a run's telemetry and transcript |

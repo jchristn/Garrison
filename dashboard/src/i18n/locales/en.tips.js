@@ -31,6 +31,13 @@ const FILE_ITEMS = {
 
 const tips = {
   ids: { deleted: 'This record was deleted. ID {{id}}. The copy button copies the ID.', named: 'ID {{id}}. Use the copy button to copy the ID for the API, SDKs, or a support request.' },
+  markdown: {
+    column: 'Column {{name}} of a table in the agent output. Wide tables scroll sideways inside their frame.',
+    showRaw: 'Show the exact text the agent returned, without Markdown formatting, so you can inspect or copy it.',
+    showRendered: 'Show the text formatted as Markdown again, with tables, lists, code blocks, and links.',
+    copy: 'Copy the raw result text, Markdown syntax included, to the clipboard.',
+    link: 'Opens {{href}} in a new tab. The link comes from agent output, so check the address before you trust it.'
+  },
   common: {
     fields: {
       name: 'Unique name for this record within the tenant. Other records and manifests refer to it by this name.',
@@ -898,6 +905,26 @@ const tips = {
       harness: 'The harness those runs need. Only nodes that advertise it can take them.'
     },
     invoke: {
+      stream: {
+        tabs: {
+          preview: 'Watch the answer as it streams, formatted as Markdown, with reasoning and tool calls. Selected while a run is in progress.',
+          response: 'The final run result: result text (formatted or raw), structured output, outcome, errors, telemetry, and links.'
+        },
+        live: 'The run is in progress. This view updates as output arrives over the live event stream.',
+        finished: 'The run has ended and no more output will arrive. The Response tab has the final result.',
+        elapsed: 'Time since you clicked Send, measured in your browser. It stops when the run ends.',
+        firstToken: 'Time from Send to the first streamed output (text or reasoning), measured in your browser, so it includes queueing and harness startup. The run page shows the worker-measured value.',
+        tokensPerSecond: 'Output tokens per second while streaming, from the usage the harness reported. Once the run ends it shows the server-measured rate.',
+        codexNote: 'Codex prints each message only when it is complete (codex exec --json), so nothing streams token by token. Elapsed time keeps counting while it works.',
+        showResponse: 'Switch to the Response tab for the final result, structured output, and telemetry.',
+        reasoning: 'Thinking text the model produced before or between answers. Collapsed by default; click to expand it.',
+        jump: 'Scroll to the newest output and keep following the stream as it arrives.',
+        tool: {
+          running: 'The agent called the tool {{name}} and is waiting for its result.',
+          ok: 'The tool {{name}} returned a result without an error.',
+          failed: 'The tool {{name}} returned an error. The agent may retry it or continue without it.'
+        }
+      },
       applySample: 'Go to Manifests, where the sample manifest creates an agent you can try right away.',
       agent: 'The agent to call. Only active agents are listed.',
       deployment: 'Leave on Any to let Garrison pick by traffic weight, or choose one deployment to test it directly.',

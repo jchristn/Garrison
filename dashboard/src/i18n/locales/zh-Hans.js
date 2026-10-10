@@ -879,7 +879,36 @@ const zhHans = {
       credentials: '默认凭据',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: '显示原始文本',
+      showRendered: '显示格式化内容'
+    },
     invoke: {
+      stream: {
+        tabsLabel: '响应视图',
+        cardLabel: '运行输出',
+        preview: '预览',
+        response: '响应',
+        starting: '正在启动运行...',
+        live: '实时',
+        finished: '已完成',
+        elapsed: '已用时间',
+        firstToken: '首个 Token',
+        tokensPerSecond: '速度',
+        finishedHint: '运行已完成。',
+        showResponse: '查看响应',
+        reasoning: '推理过程',
+        waiting: '正在等待输出...',
+        waitingCodex: '正在等待输出。Codex 会在完成时一次性发送回答。',
+        codexNote: 'Codex 不支持流式输出：运行结束时，回答会一次性显示在这里。',
+        noText: '此运行没有流式文本。结果在“响应”选项卡中。',
+        jump: '跳到最新',
+        tool: {
+          running: '运行中',
+          ok: '成功',
+          failed: '失败'
+        }
+      },
       noDeployment: '此智能体没有权重大于零的活动部署，因此调用会被拒绝。请在“部署”标签页中添加部署，或提高某个部署的权重。',
       title: '调用',
       subtitle: '向智能体发送消息，并实时查看对话记录。',

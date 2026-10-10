@@ -904,7 +904,36 @@ const en = {
       credentials: 'Default credentials',
       services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
+    markdown: {
+      showRaw: 'Show raw text',
+      showRendered: 'Show formatted'
+    },
     invoke: {
+      stream: {
+        tabsLabel: 'Response views',
+        cardLabel: 'Run output',
+        preview: 'Preview',
+        response: 'Response',
+        starting: 'Starting the run...',
+        live: 'Live',
+        finished: 'Finished',
+        elapsed: 'Elapsed',
+        firstToken: 'First token',
+        tokensPerSecond: 'Speed',
+        finishedHint: 'Run finished.',
+        showResponse: 'See Response',
+        reasoning: 'Reasoning',
+        waiting: 'Waiting for output...',
+        waitingCodex: 'Waiting for output. Codex sends its answer in one piece when it is done.',
+        codexNote: 'Codex does not stream: its answer appears here in one piece when the run finishes.',
+        noText: 'The run produced no streamed text. The Response tab has the result.',
+        jump: 'Jump to latest',
+        tool: {
+          running: 'running',
+          ok: 'succeeded',
+          failed: 'failed'
+        }
+      },
       noDeployment: 'This agent has no active deployment with a weight above zero, so an invoke would be refused. Add a deployment on the Deployments tab or raise a deployment\'s weight.',
       title: 'Invoke',
       subtitle: 'Send a message to an agent and watch the transcript stream.',
