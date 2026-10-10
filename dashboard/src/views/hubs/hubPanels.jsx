@@ -5,6 +5,7 @@ import RunDetailView from '../RunDetailView';
 import QueueView from '../QueueView';
 import AnalyticsView from '../AnalyticsView';
 import NodesView from '../NodesView';
+import ControlNodesView from '../ControlNodesView';
 import NodePoolsView from '../NodePoolsView';
 import AgentsView from '../AgentsView';
 import AgentDetailView from '../AgentDetailView';
@@ -39,6 +40,7 @@ export const PAGE_VIEWS = {
   queue: QueueView,
   analytics: AnalyticsView,
   nodes: NodesView,
+  controlNodes: ControlNodesView,
   nodePools: NodePoolsView,
   agents: AgentsView,
   deployments: DeploymentsView,

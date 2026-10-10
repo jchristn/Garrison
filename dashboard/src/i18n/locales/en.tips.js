@@ -62,7 +62,7 @@ const tips = {
       analytics: 'Charts of run speed, token use, cost, outcomes, and tool calls over time, filterable by agent, harness, and deployment.',
       agents: 'The agents callers invoke by name, and the deployments that decide how each one actually runs.',
       configuration: 'The building blocks deployments use: harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, and manifests.',
-      fleet: 'The worker nodes that execute runs and the node pools that group them for placement.',
+      fleet: 'The control-plane replicas that serve the API and schedule runs, the worker nodes that execute runs, and the node pools that group workers for placement.',
       access: 'Who can sign in and what they may do: tenants, users, access keys, roles, and role assignments.',
       monitoring: 'Investigate what happened: captured API requests, the security audit trail, and a live API Explorer.',
       system: 'Server settings and the endpoints, versions, and identity of the server you are connected to.'
@@ -80,6 +80,7 @@ const tips = {
       artifactStores: 'Destinations for files that runs produce and you want to keep after the run ends.',
       manifests: 'Apply or export the whole tenant configuration as YAML so it can live in source control.',
       nodes: 'Worker machines or pods that pull runs and execute harnesses. Cordon, drain, or inspect them here.',
+      controlNodes: 'Server replicas (control nodes) that serve REST, MCP, and A2A and schedule runs. One of them is the leader and runs cluster maintenance. Read-only status, version, and activity.',
       nodePools: 'Named groups of nodes, optionally reserved for specific tenants. Deployments can require a pool.',
       tenants: 'Isolated organizations on this server, each with its own users, agents, secrets, and runs.',
       users: 'People who sign in with an email and password. Each user can own access keys.',
@@ -332,6 +333,17 @@ const tips = {
       Rejected: 'The request was rejected before a run could start.',
       InternalError: 'Garrison hit an internal error. The server logs have details.',
       NoCapableWorker: 'The run waited in the queue longer than the cluster setting Runtime.FailBlockedAfterSeconds allows, and no Ready worker could run it, so it was failed.'
+    },
+    controlNodeStatus: {
+      Starting: 'Starting: the replica is initializing and does not serve traffic yet.',
+      Ready: 'Ready: the replica is heartbeating and serving REST, MCP, and A2A requests.',
+      Draining: 'Draining: shutdown has begun. Readiness answers 503, and its streams and long polls are ending.',
+      Offline: 'Offline: the replica stopped cleanly, or was silent for 30 seconds and the leader marked it. Offline rows are removed after 24 hours.'
+    },
+    backplane: {
+      Local: 'Local: events stay inside this process. Fine for a single replica; other replicas do not see them.',
+      Polling: 'Database polling: replicas share live events by polling the database. Works with any database, with a short delay.',
+      PostgresNotify: 'PostgreSQL notifications: replicas share live events through PostgreSQL LISTEN and NOTIFY, with little delay.'
     },
     nodeStatus: {
       Ready: 'Ready: heartbeating and accepting new runs.',
@@ -778,6 +790,34 @@ const tips = {
         runs: 'Open the Runs list filtered to runs this node executed.'
       }
     },
+    controlNodes: {
+      name: 'Replica name: the node ID the server runs with (GARRISON_NODE_ID, the pod name in Kubernetes).',
+      status: 'Lifecycle of the replica: Starting, Ready, Draining, or Offline. Only Ready replicas serve traffic.',
+      version: 'Garrison server version this replica runs. Different versions are expected only during a rolling update.',
+      schemaVersion: 'Database schema version the replica found at startup. Every replica should report the same number.',
+      backplane: 'How this replica shares live events (run streams, WebSocket updates) with the other replicas.',
+      uptime: 'How long the replica process has been running, counted from its start time. Hover to see the exact start.',
+      lastHeartbeatUtc: 'When the replica last heartbeated. Replicas heartbeat every 5 seconds; anything older than 15 seconds is highlighted as stale.',
+      activeRequests: 'HTTP requests the replica was handling at its last heartbeat.',
+      openStreams: 'Server-sent event streams and WebSocket connections open on the replica at its last heartbeat.',
+      heldLongPolls: 'Worker lease long polls the replica was holding at its last heartbeat. Idle workers wait there for new runs.',
+      address: 'IP address and REST port of the replica, as it reported them.',
+      hostname: 'Host name of the machine or pod the replica runs on.',
+      startedUtc: 'When the replica process started, in your local time zone.',
+      id: 'Node ID of the replica. It matches respondingNodeId in API responses and the node label in metrics.',
+      isLeader: 'Whether this replica holds the maintenance leader lease. One replica leads at a time.',
+      leaderEpoch: 'Fencing epoch of the leader lease. It goes up each time leadership moves to another replica.',
+      respondingNodeId: 'The replica that answered this single read. Behind a load balancer it can differ from the replica shown.',
+      answeredBy: 'The control node that answered the request for this list (respondingNodeId). Behind a load balancer, each refresh may be answered by a different replica.',
+      badges: {
+        leader: 'Leader: this replica holds the maintenance lease. It runs retention cleanup, marks silent replicas Offline, and does other cluster-wide upkeep.',
+        leaderEpoch: 'Leader: this replica holds the maintenance lease (epoch {{epoch}}). It runs retention cleanup, marks silent replicas Offline, and does other cluster-wide upkeep.',
+        stale: 'Stale: no heartbeat for more than {{seconds}} seconds, although replicas heartbeat every 5 seconds. The replica may be overloaded, cut off, or gone; the leader marks it Offline after 30 seconds.'
+      },
+      actions: {
+        grafana: 'Open the Garrison overview dashboard in Grafana in a new tab, filtered to control node {{node}}.'
+      }
+    },
     audit: {
       createdUtc: 'When the event happened, in your local time zone.',
       eventType: 'What kind of security or configuration event this was.',
@@ -824,9 +864,13 @@ const tips = {
         queued: 'Runs waiting for a worker node. A number that keeps growing means you need more nodes or capacity.',
         succeeded: 'Runs that finished successfully in the last 24 hours. Click to list them.',
         failed: 'Runs that failed in the last 24 hours. Click to list them and read why.',
-        nodes: 'Worker nodes ready to take runs, out of all registered nodes. Click to manage them.'
+        nodes: 'Worker nodes ready to take runs, out of all registered nodes. Click to manage them.',
+        controlNodes: 'Control-plane replicas that are Ready, out of all registered ones (Offline rows stay listed for 24 hours). The leader is {{leader}}. Click to open Fleet > Control plane.',
+        controlNodesNoLeader: 'Control-plane replicas that are Ready, out of all registered ones (Offline rows stay listed for 24 hours). No replica holds the leader lease right now, so cluster maintenance is paused. Click to open Fleet > Control plane.'
       },
       openFailure: 'Open this failed run to read its transcript, error, and stderr.',
+      openControlPlane: 'Open Fleet > Control plane to see every replica with its status, leader, version, heartbeat, and activity.',
+      openWorkers: 'Open Fleet > Worker nodes to see every worker with its capacity, harnesses, and heartbeat, and to cordon or drain it.',
       cta: {
         invoke: 'Send a message to any agent from the browser.',
         addAgent: 'Go to Agents to create a new agent identity.',
@@ -986,7 +1030,8 @@ const tips = {
       openapi: 'The OpenAPI document that describes every REST operation.',
       version: 'Version of the Garrison server.',
       dashboardVersion: 'Version of this console.',
-      node: 'Which control-plane replica answered.',
+      node: 'The control-plane replica (control node) that answered this page\'s server info request. With several replicas, a reload may be answered by another one.',
+      nodeLink: 'Open Fleet > Control plane to see this replica next to the others, with its status, heartbeat, and whether it is the leader.',
       database: 'Database engine the server uses.',
       health: 'Result of the server health check.',
       replicas: 'How many control-plane replicas the cluster expects.',
@@ -1240,6 +1285,12 @@ const explainers = {
     title: 'Nodes and node pools',
     p1: 'A node is one worker process, usually a pod, that pulls runs from the control plane, launches harnesses, and streams their events back. Nodes register themselves, report which harnesses they found, and send heartbeats; you do not create them here.',
     p2: 'A node can belong to a node pool and carry labels. Deployments use pools and label selectors to decide where their runs may execute. Cordon a node to stop new work, or drain it before maintenance.'
+  },
+  controlNodes: {
+    title: 'Control nodes and worker nodes',
+    p1: 'A control node is one replica of the Garrison server. Control nodes serve the REST API, the MCP server, and the A2A gateway, authenticate callers, compile deployments into runs, and schedule those runs. Any replica can answer any request, so a load balancer can spread traffic across them.',
+    p2: 'One control node is the leader. It holds a lease in the database and runs cluster-wide maintenance: retention cleanup, marking silent replicas Offline, and removing old rows. If the leader stops, another replica takes over the lease within seconds.',
+    p3: 'Worker nodes, on the Worker nodes tab, do the other half: they pull leased runs from the control plane and execute the harnesses. Control nodes never run a harness, and workers never touch the database. Every replica registers itself and heartbeats every 5 seconds, so this tab is read-only.'
   },
   nodePools: {
     title: 'Node pools and nodes',

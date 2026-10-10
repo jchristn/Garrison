@@ -69,6 +69,8 @@ export const ENUMS = {
   argumentOverrideOperation: ['Append', 'Prepend', 'Remove', 'Replace'],
   runOverrideValidation: ['Any', 'Enum', 'Regex', 'IntegerRange'],
   nodeStatus: ['Ready', 'Draining', 'Cordoned', 'Lost', 'Offline'],
+  controlNodeStatus: ['Starting', 'Ready', 'Draining', 'Offline'],
+  backplane: ['Local', 'Polling', 'PostgresNotify'],
   runStatus: ['Pending', 'Queued', 'Leased', 'Running', 'Cancelling', 'Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected'],
   runOutcome: ['None', 'Succeeded', 'HarnessFailed', 'NotInstalled', 'NotCredentialed', 'McpPreflightFailed', 'NodeLost', 'OutputLimitExceeded', 'SchemaValidationFailed', 'TimedOut', 'Cancelled', 'StaleLease', 'CompileFailed', 'WorkspaceFailed', 'Rejected', 'InternalError', 'NoCapableWorker'],
   runBlockedReason: ['NoReadyWorker', 'NoCapableWorker', 'NoMatchingPool'],
@@ -113,6 +115,22 @@ export function nodeStatusTone(status) {
     case 'Cordoned':
       return 'warning';
     case 'Lost':
+    case 'Offline':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for a control node (control-plane replica) status pill. */
+export function controlNodeStatusTone(status) {
+  switch (status) {
+    case 'Ready':
+      return 'success';
+    case 'Starting':
+      return 'info';
+    case 'Draining':
+      return 'warning';
     case 'Offline':
       return 'danger';
     default:

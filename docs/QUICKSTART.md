@@ -237,7 +237,7 @@ That count is for the three default agents. The script runs ten checks once and 
 
 | Symptom | Likely cause |
 |---|---|
-| The run stays `Queued` | No `Ready` worker has that harness, and the run waits until one appears. Fleet in the dashboard, or `GET /v1.0/api/nodes`, lists what each worker found at startup; on Docker, `docker compose logs garrison-worker-1 \| grep harness` shows why a harness is unavailable. Cancel the run from the dashboard or with `POST $API/runs/<id>/cancel`. |
+| The run stays `Queued` | No `Ready` worker has that harness, and the run waits until one appears. Fleet > Worker nodes in the dashboard, or `GET /v1.0/api/nodes`, lists what each worker found at startup; on Docker, `docker compose logs garrison-worker-1 \| grep harness` shows why a harness is unavailable. Cancel the run from the dashboard or with `POST $API/runs/<id>/cancel`. |
 | `Failed` within a second or two, with an authentication message in Stderr | The secret is missing, empty, or the wrong kind for the harness. Fix the value with **Set value** and invoke again. |
 | `"status":"Running"` from a `wait` invoke | The run took longer than `waitSeconds` (default 60). Follow it with `GET $API/runs/<id>` or the dashboard. |
 | A delegating run succeeds but has no child | The model chose not to call the tool. Ask for it by name, and check the agent's allow list. |

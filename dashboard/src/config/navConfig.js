@@ -69,6 +69,7 @@ export const NAV_SECTIONS = [
         icon: 'CpuIcon',
         tabs: [
           { id: 'nodes', slug: 'nodes' },
+          { id: 'controlNodes', slug: 'control-plane' },
           { id: 'nodePools', slug: 'node-pools', requires: 'systemAdmin' }
         ]
       }

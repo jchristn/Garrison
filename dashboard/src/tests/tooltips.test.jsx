@@ -74,7 +74,7 @@ describe('tooltip coverage for configured pages', () => {
 
   it('explains every status badge value', () => {
     const problems = [];
-    for (const group of ['runStatus', 'runOutcome', 'nodeStatus', 'harnessType', 'agentKind', 'secretKind', 'workspaceKind', 'promptTemplateKind', 'mcpTransport', 'permissionType', 'artifactStoreKind', 'auditEventType']) {
+    for (const group of ['runStatus', 'runOutcome', 'nodeStatus', 'controlNodeStatus', 'backplane', 'harnessType', 'agentKind', 'secretKind', 'workspaceKind', 'promptTemplateKind', 'mcpTransport', 'permissionType', 'artifactStoreKind', 'auditEventType']) {
       for (const value of ENUMS[group]) check(problems, `enum ${group}.${value}`, enumTip(t, group, value), t(`enums.${group}.${value}`, { defaultValue: value }));
     }
     expect(problems).toEqual([]);

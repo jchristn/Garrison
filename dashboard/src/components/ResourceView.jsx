@@ -83,6 +83,8 @@ export default function ResourceView({ config }) {
   const [step, setStep] = useState(0);
   const [lookups, setLookups] = useState({});
   const [deletePreview, setDeletePreview] = useState(null);
+  // The last list response without its rows, for pages that show envelope fields such as respondingNodeId.
+  const [listInfo, setListInfo] = useState(null);
   const requestSeq = useRef(0);
 
   // Names for ID columns (M1-20). Reloaded with the list so new records resolve too.
@@ -114,6 +116,7 @@ export default function ResourceView({ config }) {
         .then((r) => {
           if (seq !== requestSeq.current) return;
           setItems(r.items || []);
+          setListInfo(r);
           setPage({ pageNumber: r.pageNumber || pageNumber, pageSize, totalCount: r.totalCount ?? (r.items || []).length });
           setSelected([]);
         })
@@ -251,6 +254,7 @@ export default function ResourceView({ config }) {
   ];
 
   const prefix = `resources.${config.id}`;
+  const intro = config.intro ? config.intro({ ...ctx, listInfo }) : null;
   const allFields = editing ? config.fields(editing.data, { ...ctx, mode: editing.mode, options }) : [];
   const steps = config.steps || null;
   const fields = steps ? allFields.filter((f) => (f.step || 0) === step) : allFields;
@@ -325,7 +329,7 @@ export default function ResourceView({ config }) {
       />
 
       {config.explainer && <Explainer topic={config.explainer} diagram={config.explainerDiagram ? config.explainerDiagram(ctx) : null} />}
-      {config.intro && <div className="page-intro">{config.intro(ctx)}</div>}
+      {intro && <div className="page-intro">{intro}</div>}
 
       {error && !missing && <ErrorBanner message={`${errorMessage(t, error)} ${errorDetail(t, error)}`.trim()} onRetry={() => load(page.pageNumber)} />}
 

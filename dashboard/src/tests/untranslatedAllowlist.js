@@ -29,7 +29,7 @@ export const UNTRANSLATED_ALLOWLIST = {
   de: [
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
     'Manifest', 'Offline', 'Operation', 'Parser', 'Reasoning', 'Repository', 'Server', 'Status', 'System', 'Transport',
-    'Version', 'Version {{version}}'
+    'Version', 'Version {{version}}', 'Leader'
   ],
   ja: [],
   es: [
@@ -39,11 +39,11 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Actions', 'Active', 'Administration', 'Agent', 'Agents', 'Arguments', 'Assistant', 'Cluster', 'Condition',
     'Configuration', 'Description', 'Effort', 'Fragment', 'Invocation', 'Message', 'Mode', 'Navigation', 'Note',
     'Principal', 'Secret', 'Secrets', 'Tags', 'Total', 'Transport', 'Type', 'Validation', 'Version',
-    'Version {{version}}', 'Versions ({{count}})'
+    'Version {{version}}', 'Versions ({{count}})', 'Leader'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',
-    'Password', 'Polling', 'Principal', 'Repository', 'Server', 'Tenant', 'record', '{{count}} file'
+    'Password', 'Polling', 'Principal', 'Repository', 'Server', 'Tenant', 'record', '{{count}} file', 'Leader'
   ],
   'zh-Hans': [],
   'zh-Hant': [],

@@ -62,7 +62,7 @@ const tips = {
       analytics: 'Diagramme zu Geschwindigkeit, Token-Verbrauch, Kosten, Ergebnissen und Werkzeugaufrufen von Läufen im Zeitverlauf, filterbar nach Agent, Harness und Bereitstellung.',
       agents: 'Die Agenten, die Aufrufende über ihren Namen ansprechen, und die Bereitstellungen, die bestimmen, wie jeder davon tatsächlich läuft.',
       configuration: 'Die Bausteine, die Bereitstellungen verwenden: Harness-Profile, Prompt-Vorlagen, MCP-Server, Geheimnisse, Arbeitsbereiche, Artefaktspeicher und Manifeste.',
-      fleet: 'Die Worker-Knoten, die Läufe ausführen, und die Knotenpools, die sie für die Platzierung gruppieren.',
+      fleet: 'Die Replikate der Steuerungsebene, die die API bereitstellen und Läufe planen, die Worker-Knoten, die Läufe ausführen, und die Knotenpools, die Worker für die Platzierung gruppieren.',
       access: 'Wer sich anmelden kann und was erlaubt ist: Mandanten, Benutzer, Zugangsschlüssel, Rollen und Rollenzuweisungen.',
       monitoring: 'Untersuchen, was passiert ist: erfasste API-Anfragen, das Sicherheits-Audit und ein Live-API-Explorer.',
       system: 'Servereinstellungen sowie Endpunkte, Versionen und Identität des Servers, mit dem Sie verbunden sind.'
@@ -80,6 +80,7 @@ const tips = {
       artifactStores: 'Ziele für Dateien, die Läufe erzeugen und die Sie nach dem Ende des Laufs behalten möchten.',
       manifests: 'Die gesamte Konfiguration des Mandanten als YAML anwenden oder exportieren, damit sie in der Versionsverwaltung liegen kann.',
       nodes: 'Worker-Maschinen oder Pods, die Läufe abholen und Harnesses ausführen. Hier können Sie sie sperren, leeren oder prüfen.',
+      controlNodes: 'Server-Replikate (Steuerungsknoten), die REST, MCP und A2A bereitstellen und Läufe planen. Eines davon ist der Leader und übernimmt die Cluster-Wartung. Status, Version und Aktivität, nur lesend.',
       nodePools: 'Benannte Gruppen von Knoten, optional für bestimmte Mandanten reserviert. Bereitstellungen können einen Pool voraussetzen.',
       tenants: 'Isolierte Organisationen auf diesem Server, jede mit eigenen Benutzern, Agenten, Geheimnissen und Läufen.',
       users: 'Personen, die sich mit E-Mail und Passwort anmelden. Jeder Benutzer kann Zugangsschlüssel besitzen.',
@@ -332,6 +333,17 @@ const tips = {
       Rejected: 'Die Anfrage wurde abgelehnt, bevor ein Lauf starten konnte.',
       InternalError: 'In Garrison ist ein interner Fehler aufgetreten. Details stehen in den Serverprotokollen.',
       NoCapableWorker: 'Der Lauf wartete länger in der Warteschlange, als die Clustereinstellung Runtime.FailBlockedAfterSeconds erlaubt, und kein bereiter Worker konnte ihn ausführen. Deshalb ist er fehlgeschlagen.'
+    },
+    controlNodeStatus: {
+      Starting: 'Startet: Das Replikat wird initialisiert und bedient noch keinen Verkehr.',
+      Ready: 'Bereit: Das Replikat sendet Heartbeats und bedient REST-, MCP- und A2A-Anfragen.',
+      Draining: 'Wird geleert: Das Herunterfahren hat begonnen. Die Bereitschaftsprüfung antwortet mit 503, und Datenströme und Long-Polls werden beendet.',
+      Offline: 'Offline: Das Replikat wurde sauber beendet oder war 30 Sekunden still und wurde vom Leader markiert. Offline-Zeilen werden nach 24 Stunden entfernt.'
+    },
+    backplane: {
+      Local: 'Lokal: Ereignisse bleiben in diesem Prozess. Passt für ein einzelnes Replikat; andere Replikate sehen sie nicht.',
+      Polling: 'Datenbankabfrage: Replikate teilen Live-Ereignisse, indem sie die Datenbank abfragen. Funktioniert mit jeder Datenbank, mit kurzer Verzögerung.',
+      PostgresNotify: 'PostgreSQL-Benachrichtigungen: Replikate teilen Live-Ereignisse über PostgreSQL LISTEN und NOTIFY, mit geringer Verzögerung.'
     },
     nodeStatus: {
       Ready: 'Bereit: sendet Heartbeats und nimmt neue Läufe an.',
@@ -778,6 +790,34 @@ const tips = {
         runs: 'Die Liste der Läufe öffnen, gefiltert auf die von diesem Knoten ausgeführten Läufe.'
       }
     },
+    controlNodes: {
+      name: 'Name des Replikats: die Knoten-ID, mit der der Server läuft (GARRISON_NODE_ID, in Kubernetes der Pod-Name).',
+      status: 'Lebenszyklus des Replikats: Startet, Bereit, Wird geleert oder Offline. Nur bereite Replikate bedienen Verkehr.',
+      version: 'Version des Garrison-Servers auf diesem Replikat. Unterschiedliche Versionen sind nur während eines Rolling Updates zu erwarten.',
+      schemaVersion: 'Version des Datenbankschemas, die das Replikat beim Start vorgefunden hat. Alle Replikate sollten dieselbe Zahl melden.',
+      backplane: 'Wie dieses Replikat Live-Ereignisse (Lauf-Datenströme, WebSocket-Aktualisierungen) mit den anderen Replikaten teilt.',
+      uptime: 'Wie lange der Prozess des Replikats schon läuft, gezählt ab seiner Startzeit. Zeigen Sie darauf, um den genauen Start zu sehen.',
+      lastHeartbeatUtc: 'Wann das Replikat zuletzt einen Heartbeat gesendet hat. Replikate senden alle 5 Sekunden einen; alles über 15 Sekunden wird als veraltet hervorgehoben.',
+      activeRequests: 'HTTP-Anfragen, die das Replikat beim letzten Heartbeat bearbeitet hat.',
+      openStreams: 'Server-Sent-Event-Datenströme und WebSocket-Verbindungen, die beim letzten Heartbeat auf dem Replikat offen waren.',
+      heldLongPolls: 'Long-Polls von Worker-Leases, die das Replikat beim letzten Heartbeat gehalten hat. Untätige Worker warten dort auf neue Läufe.',
+      address: 'IP-Adresse und REST-Port des Replikats, wie es sie gemeldet hat.',
+      hostname: 'Hostname der Maschine oder des Pods, auf dem das Replikat läuft.',
+      startedUtc: 'Wann der Prozess des Replikats gestartet ist, in Ihrer lokalen Zeitzone.',
+      id: 'Knoten-ID des Replikats. Sie entspricht respondingNodeId in API-Antworten und dem Label node in Metriken.',
+      isLeader: 'Ob dieses Replikat die Leader-Lease für die Wartung hält. Es führt immer nur ein Replikat.',
+      leaderEpoch: 'Fencing-Epoche der Leader-Lease. Sie steigt jedes Mal, wenn die Führung zu einem anderen Replikat wechselt.',
+      respondingNodeId: 'Das Replikat, das diesen einzelnen Lesezugriff beantwortet hat. Hinter einem Load Balancer kann es ein anderes sein als das angezeigte.',
+      answeredBy: 'Der Steuerungsknoten, der die Anfrage für diese Liste beantwortet hat (respondingNodeId). Hinter einem Load Balancer kann jede Aktualisierung von einem anderen Replikat beantwortet werden.',
+      badges: {
+        leader: 'Leader: Dieses Replikat hält die Wartungs-Lease. Es bereinigt nach Aufbewahrungsfristen, markiert stille Replikate als Offline und erledigt weitere clusterweite Wartung.',
+        leaderEpoch: 'Leader: Dieses Replikat hält die Wartungs-Lease (Epoche {{epoch}}). Es bereinigt nach Aufbewahrungsfristen, markiert stille Replikate als Offline und erledigt weitere clusterweite Wartung.',
+        stale: 'Veraltet: seit mehr als {{seconds}} Sekunden kein Heartbeat, obwohl Replikate alle 5 Sekunden einen senden. Das Replikat ist vielleicht überlastet, abgeschnitten oder weg; der Leader markiert es nach 30 Sekunden als Offline.'
+      },
+      actions: {
+        grafana: 'Das Garrison-Übersichtsdashboard in Grafana in einem neuen Tab öffnen, gefiltert auf den Steuerungsknoten {{node}}.'
+      }
+    },
     audit: {
       createdUtc: 'Wann das Ereignis stattfand, in Ihrer lokalen Zeitzone.',
       eventType: 'Welche Art von Sicherheits- oder Konfigurationsereignis dies war.',
@@ -824,9 +864,13 @@ const tips = {
         queued: 'Läufe, die auf einen Worker-Knoten warten. Eine stetig wachsende Zahl bedeutet, dass Sie mehr Knoten oder Kapazität benötigen.',
         succeeded: 'Läufe, die in den letzten 24 Stunden erfolgreich beendet wurden. Klicken Sie, um sie aufzulisten.',
         failed: 'Läufe, die in den letzten 24 Stunden fehlgeschlagen sind. Klicken Sie, um sie aufzulisten und die Gründe zu lesen.',
-        nodes: 'Worker-Knoten, die bereit sind, Läufe anzunehmen, im Verhältnis zu allen registrierten Knoten. Klicken Sie, um sie zu verwalten.'
+        nodes: 'Worker-Knoten, die bereit sind, Läufe anzunehmen, im Verhältnis zu allen registrierten Knoten. Klicken Sie, um sie zu verwalten.',
+        controlNodes: 'Replikate der Steuerungsebene im Status Bereit, im Verhältnis zu allen registrierten (Offline-Zeilen bleiben 24 Stunden in der Liste). Der Leader ist {{leader}}. Klicken Sie, um Flotte > Steuerungsebene zu öffnen.',
+        controlNodesNoLeader: 'Replikate der Steuerungsebene im Status Bereit, im Verhältnis zu allen registrierten (Offline-Zeilen bleiben 24 Stunden in der Liste). Gerade hält kein Replikat die Leader-Lease, daher ruht die Cluster-Wartung. Klicken Sie, um Flotte > Steuerungsebene zu öffnen.'
       },
       openFailure: 'Diesen fehlgeschlagenen Lauf öffnen, um Protokoll, Fehler und Stderr zu lesen.',
+      openControlPlane: 'Flotte > Steuerungsebene öffnen, um jedes Replikat mit Status, Leader, Version, Heartbeat und Aktivität zu sehen.',
+      openWorkers: 'Flotte > Worker-Knoten öffnen, um jeden Worker mit Kapazität, Harnesses und Heartbeat zu sehen und ihn zu sperren oder zu leeren.',
       cta: {
         invoke: 'Einem beliebigen Agenten aus dem Browser eine Nachricht senden.',
         addAgent: 'Zu den Agenten wechseln, um eine neue Agentenidentität zu erstellen.',
@@ -986,7 +1030,8 @@ const tips = {
       openapi: 'Das OpenAPI-Dokument, das jede REST-Operation beschreibt.',
       version: 'Version des Garrison-Servers.',
       dashboardVersion: 'Version dieser Konsole.',
-      node: 'Welches Replikat der Steuerungsebene geantwortet hat.',
+      node: 'Das Replikat der Steuerungsebene (Steuerungsknoten), das die Serverinfo-Anfrage dieser Seite beantwortet hat. Bei mehreren Replikaten kann nach dem Neuladen ein anderes antworten.',
+      nodeLink: 'Flotte > Steuerungsebene öffnen, um dieses Replikat neben den anderen zu sehen, mit Status, Heartbeat und ob es der Leader ist.',
       database: 'Datenbank-Engine, die der Server verwendet.',
       health: 'Ergebnis der Zustandsprüfung des Servers.',
       replicas: 'Wie viele Replikate der Steuerungsebene der Cluster erwartet.',
@@ -1240,6 +1285,12 @@ const explainers = {
     title: 'Knoten und Knotenpools',
     p1: 'Ein Knoten ist ein Worker-Prozess, meist ein Pod, der Läufe von der Steuerungsebene abholt, Harnesses startet und ihre Ereignisse zurückstreamt. Knoten registrieren sich selbst, melden, welche Harnesses sie gefunden haben, und senden Heartbeats; Sie erstellen sie nicht hier.',
     p2: 'Ein Knoten kann zu einem Knotenpool gehören und Labels tragen. Bereitstellungen verwenden Pools und Label-Auswahlen, um festzulegen, wo ihre Läufe ausgeführt werden dürfen. Sperren Sie einen Knoten, um neue Arbeit zu stoppen, oder leeren Sie ihn vor Wartungsarbeiten.'
+  },
+  controlNodes: {
+    title: 'Steuerungsknoten und Worker-Knoten',
+    p1: 'Ein Steuerungsknoten ist ein Replikat des Garrison-Servers. Steuerungsknoten stellen die REST-API, den MCP-Server und das A2A-Gateway bereit, authentifizieren Aufrufer, kompilieren Bereitstellungen zu Läufen und planen diese Läufe. Jedes Replikat kann jede Anfrage beantworten, daher kann ein Load Balancer den Verkehr auf sie verteilen.',
+    p2: 'Ein Steuerungsknoten ist der Leader. Er hält eine Lease in der Datenbank und übernimmt die clusterweite Wartung: Bereinigung nach Aufbewahrungsfristen, Markieren stiller Replikate als Offline und Entfernen alter Zeilen. Fällt der Leader aus, übernimmt ein anderes Replikat die Lease innerhalb weniger Sekunden.',
+    p3: 'Worker-Knoten auf der Registerkarte Worker-Knoten erledigen die andere Hälfte: Sie holen geleaste Läufe von der Steuerungsebene ab und führen die Harnesses aus. Steuerungsknoten führen nie eine Harness aus, und Worker greifen nie auf die Datenbank zu. Jedes Replikat registriert sich selbst und sendet alle 5 Sekunden einen Heartbeat, daher ist diese Registerkarte nur lesend.'
   },
   nodePools: {
     title: 'Knotenpools und Knoten',

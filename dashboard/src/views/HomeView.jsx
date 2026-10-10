@@ -12,6 +12,8 @@ import { Badge } from '../components/StatusBadge';
 import { EmptyState } from '../components/States';
 import { SendIcon, BotIcon, FileCodeIcon, PlayIcon, ListIcon, CpuIcon, ChartIcon } from '../components/Icons';
 import { RunStatus } from './runConfigs';
+import { ControlNodeStatus, LeaderBadge, HeartbeatAge } from '../components/ControlNodeBadges';
+import { isHeartbeatStale } from '../utils/controlNodes';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { requestRangeToParams, nodeStatusTone } from '../utils/constants';
@@ -25,29 +27,34 @@ import { enumTip } from '../utils/tips';
 /** Build the overview from list endpoints when /overview is unavailable. */
 async function fallbackOverview(apiClient, tenantId) {
   const settle = (p) => p.then((v) => v).catch(() => null);
-  const [agents, deployments, runs, failures, nodes] = await Promise.all([
+  const [agents, deployments, runs, failures, nodes, controlNodes] = await Promise.all([
     settle(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1 })),
     settle(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1 })),
     settle(apiClient.listRuns(tenantId, { pageNumber: 1, pageSize: 250 })),
     settle(apiClient.listRuns(tenantId, { pageNumber: 1, pageSize: 5, status: 'Failed' })),
-    settle(apiClient.listNodes({ pageNumber: 1, pageSize: 250 }))
+    settle(apiClient.listNodes({ pageNumber: 1, pageSize: 250 })),
+    settle(apiClient.listControlNodes({ pageNumber: 1, pageSize: 100 }))
   ]);
   const runsByStatus = {};
   for (const r of runs?.items || []) runsByStatus[r.status] = (runsByStatus[r.status] || 0) + 1;
   const nodesByStatus = {};
   for (const n of nodes?.items || []) nodesByStatus[n.status] = (nodesByStatus[n.status] || 0) + 1;
+  const controlNodesByStatus = {};
+  for (const n of controlNodes?.items || []) controlNodesByStatus[n.status] = (controlNodesByStatus[n.status] || 0) + 1;
   return {
     agents: agents?.totalCount ?? null,
     deployments: deployments?.totalCount ?? null,
     runsByStatus: runs ? runsByStatus : null,
     nodesByStatus: nodes ? nodesByStatus : null,
     nodes: nodes?.items || [],
+    controlNodesByStatus: controlNodes ? controlNodesByStatus : null,
+    leaderNodeId: (controlNodes?.items || []).find((n) => n.isLeader)?.id || null,
     recentFailures: failures?.items || [],
     partial: [agents, deployments, runs, nodes].some((x) => x === null)
   };
 }
 
-/** Command center: KPIs, activity, node health, recent failures, common workflows, external tools. */
+/** Command center: KPIs, activity, control-plane and worker node health, recent failures, common workflows, external tools. */
 export default function HomeView() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -63,6 +70,9 @@ export default function HomeView() {
   const loadOverview = useCallback(async () => {
     if (!apiClient) return;
     let data;
+    // Control-plane replicas for the Nodes panel (P10.19). null when the server does not list them or the caller
+    // may not read nodes; the panel then says so instead of showing an empty list.
+    const controlNodes = apiClient.listControlNodes({ pageNumber: 1, pageSize: 100 }).then((r) => r.items || [], () => null);
     try {
       data = await apiClient.getOverview(tenantId);
       if (!data?.nodes) {
@@ -72,6 +82,7 @@ export default function HomeView() {
     } catch {
       data = await fallbackOverview(apiClient, tenantId);
     }
+    data = { ...data, controlNodes: await controlNodes };
     setOverview(data);
     setLoadedAt(new Date().toISOString());
   }, [apiClient, tenantId]);
@@ -135,6 +146,15 @@ export default function HomeView() {
           tone={kpis.nodesLost ? 'warning' : undefined}
           testId="kpi-nodes"
         />
+        <KpiCard
+          label={t('views.home.kpis.controlNodes')}
+          tip={kpis.leaderNodeId ? t('tips.views.home.kpis.controlNodes', { leader: kpis.leaderNodeId }) : t('tips.views.home.kpis.controlNodesNoLeader')}
+          value={kpis.controlTotal === null ? '-' : `${formatNumber(kpis.controlReady)} / ${formatNumber(kpis.controlTotal)}`}
+          note={t('views.home.kpis.nodesNote')}
+          onClick={() => navigate(pathFor('controlNodes'))}
+          tone={kpis.controlTotal ? (kpis.controlReady === 0 ? 'danger' : kpis.leaderNodeId ? undefined : 'warning') : undefined}
+          testId="kpi-control-nodes"
+        />
       </div>
       {grafana && (
         <div className="grafana-links">
@@ -155,26 +175,61 @@ export default function HomeView() {
       </div>
 
       <div className="home-grid">
-        <section className="panel" aria-labelledby="nodes-title">
+        <section className="panel" aria-labelledby="nodes-title" data-testid="home-nodes">
           <h2 id="nodes-title" className="section-title">
             {t('views.home.nodesTitle')}
           </h2>
-          {(overview?.nodes || []).length === 0 ? (
-            <EmptyState title={t('views.home.noNodesTitle')} body={t('views.home.noNodesBody')} />
-          ) : (
-            <ul className="node-list">
-              {(overview?.nodes || []).slice(0, 8).map((n) => (
-                <li key={n.id}>
-                  <span className={`health-dot ${n.status === 'Ready' ? 'healthy' : n.status === 'Lost' || n.status === 'Offline' ? 'unhealthy' : 'unknown'}`} aria-hidden="true" />
-                  <strong>{n.name}</strong>
-                  <Badge tone={nodeStatusTone(n.status)} tip={enumTip(t, 'nodeStatus', n.status)}>{t(`enums.nodeStatus.${n.status}`, { defaultValue: n.status })}</Badge>
-                  <span className="text-muted">
-                    {t('views.home.nodeLoad', { active: n.activeRuns ?? 0, max: n.maxConcurrentRuns ?? 0 })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="node-section" data-testid="home-control-nodes">
+            <div className="node-section-head">
+              <h3 className="node-section-title">{t('views.home.controlPlaneSection')}</h3>
+              <a href={pathFor('controlNodes')} className="button-ghost button-sm" {...tip(t('tips.views.home.openControlPlane'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('controlNodes')); }}>
+                {t('views.home.openControlPlane')}
+              </a>
+            </div>
+            {!overview ? null : overview.controlNodes === null ? (
+              <p className="text-muted">{t('views.home.controlNodesUnavailable')}</p>
+            ) : (overview?.controlNodes || []).length === 0 ? (
+              <p className="text-muted">{t('views.home.noControlNodes')}</p>
+            ) : (
+              <ul className="node-list">
+                {[...overview.controlNodes].sort((x, y) => Number(!!y.isLeader) - Number(!!x.isLeader) || String(x.name).localeCompare(String(y.name))).slice(0, 8).map((n) => (
+                  <li key={n.id}>
+                    <span className={`health-dot ${n.status === 'Ready' && !isHeartbeatStale(n) ? 'healthy' : n.status === 'Offline' ? 'unhealthy' : 'unknown'}`} aria-hidden="true" />
+                    <strong>{n.name}</strong>
+                    <ControlNodeStatus status={n.status} t={t} />
+                    <LeaderBadge node={n} t={t} />
+                    <span className="text-muted node-meta">
+                      <HeartbeatAge node={n} t={t} lng={i18n.language} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="node-section" data-testid="home-worker-nodes">
+            <div className="node-section-head">
+              <h3 className="node-section-title">{t('views.home.workersSection')}</h3>
+              <a href={pathFor('nodes')} className="button-ghost button-sm" {...tip(t('tips.views.home.openWorkers'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('nodes')); }}>
+                {t('views.home.openWorkers')}
+              </a>
+            </div>
+            {(overview?.nodes || []).length === 0 ? (
+              <EmptyState title={t('views.home.noNodesTitle')} body={t('views.home.noNodesBody')} />
+            ) : (
+              <ul className="node-list">
+                {(overview?.nodes || []).slice(0, 8).map((n) => (
+                  <li key={n.id}>
+                    <span className={`health-dot ${n.status === 'Ready' ? 'healthy' : n.status === 'Lost' || n.status === 'Offline' ? 'unhealthy' : 'unknown'}`} aria-hidden="true" />
+                    <strong>{n.name}</strong>
+                    <Badge tone={nodeStatusTone(n.status)} tip={enumTip(t, 'nodeStatus', n.status)}>{t(`enums.nodeStatus.${n.status}`, { defaultValue: n.status })}</Badge>
+                    <span className="text-muted node-meta">
+                      {t('views.home.nodeLoad', { active: n.activeRuns ?? 0, max: n.maxConcurrentRuns ?? 0 })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         <section className="panel" aria-labelledby="failures-title">

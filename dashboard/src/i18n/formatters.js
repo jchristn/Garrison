@@ -167,3 +167,37 @@ export function elapsedMs(startUtc, endUtc) {
   if (!s || !e) return null;
   return Math.max(0, e.getTime() - s.getTime());
 }
+
+const ELAPSED_UNITS = [
+  ['day', 86_400_000],
+  ['hour', 3_600_000],
+  ['minute', 60_000],
+  ['second', 1000]
+];
+
+/**
+ * Format an elapsed time as its two largest non-zero units in the locale's own words, such as "3 days, 4 hr" or
+ * "12 min, 5 sec". Under a second reads as zero seconds. Used for uptime, where milliseconds do not matter.
+ */
+export function formatElapsed(ms, locale) {
+  if (ms === null || ms === undefined || !Number.isFinite(Number(ms))) return '-';
+  const tag = resolveLocale(locale);
+  let rest = Math.max(0, Math.floor(Number(ms)));
+  const values = ELAPSED_UNITS.map(([unit, size]) => {
+    const v = Math.floor(rest / size);
+    rest -= v * size;
+    return [unit, v];
+  });
+  const first = values.findIndex(([, v]) => v > 0);
+  const unitText = ([unit, v]) => new Intl.NumberFormat(tag, { style: 'unit', unit, unitDisplay: 'short' }).format(v);
+  if (first === -1) return unitText(['second', 0]);
+  const picked = values.slice(first, first + 2).filter(([, v]) => v > 0);
+  return new Intl.ListFormat(tag, { type: 'unit', style: 'short' }).format(picked.map(unitText));
+}
+
+/** Time since `startUtc` (uptime) formatted with formatElapsed, or '-' for a missing or invalid timestamp. */
+export function formatUptime(startUtc, locale, now = Date.now()) {
+  const d = toDate(startUtc);
+  if (!d) return '-';
+  return formatElapsed(now - d.getTime(), locale);
+}

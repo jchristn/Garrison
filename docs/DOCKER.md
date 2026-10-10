@@ -103,7 +103,7 @@ docker compose logs garrison-worker-1 | grep harness           # which harness C
 docker compose logs -f garrison-server                         # server log
 ```
 
-Then sign in to the dashboard. Fleet lists `garrison-worker-1` and `garrison-worker-2` as `Ready`, and Invoke runs any of the sample agents. The whole sequence, from `./update.sh` to seeing both workers, takes well under a minute once the images exist.
+Then sign in to the dashboard. Fleet > Worker nodes lists `garrison-worker-1` and `garrison-worker-2` as `Ready`, Fleet > Control plane lists the server replica as the leader, and Invoke runs any of the sample agents. The whole sequence, from `./update.sh` to seeing both workers, takes well under a minute once the images exist.
 
 ## Observability
 

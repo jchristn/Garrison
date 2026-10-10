@@ -110,3 +110,9 @@ export function nodeDashboardUrl(config, nodeName) {
   if (!nodeName) return null;
   return dashboardUrl(config, 'workers', { vars: { node: nodeName } });
 }
+
+/** Garrison overview dashboard filtered to one control-plane replica (`var-node`, P10.19). */
+export function controlNodeDashboardUrl(config, nodeName) {
+  if (!nodeName) return null;
+  return dashboardUrl(config, 'overview', { vars: { node: nodeName } });
+}

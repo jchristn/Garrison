@@ -61,7 +61,7 @@ const tips = {
       analytics: 'Gráficos de velocidad de ejecución, uso de tokens, coste, resultados y llamadas a herramientas a lo largo del tiempo, filtrables por agente, harness y despliegue.',
       agents: 'Los agentes que los clientes invocan por nombre y los despliegues que deciden cómo se ejecuta realmente cada uno.',
       configuration: 'Las piezas que usan los despliegues: perfiles de harness, plantillas de prompt, servidores MCP, secretos, espacios de trabajo, almacenes de artefactos y manifiestos.',
-      fleet: 'Los nodos de trabajo que ejecutan las ejecuciones y los grupos de nodos que los agrupan para la ubicación.',
+      fleet: 'Las réplicas del plano de control que sirven la API y planifican las ejecuciones, los nodos de trabajo que las ejecutan y los grupos de nodos que agrupan a los nodos de trabajo para la ubicación.',
       access: 'Quién puede iniciar sesión y qué puede hacer: inquilinos, usuarios, claves de acceso, roles y asignaciones de roles.',
       monitoring: 'Investiga qué ocurrió: solicitudes a la API capturadas, el registro de auditoría de seguridad y el Explorador de API en vivo.',
       system: 'Ajustes del servidor y los endpoints, versiones e identidad del servidor al que estás conectado.'
@@ -79,6 +79,7 @@ const tips = {
       artifactStores: 'Destinos para los archivos que producen las ejecuciones y que quieres conservar cuando la ejecución termina.',
       manifests: 'Aplica o exporta toda la configuración del inquilino como YAML para que pueda vivir en el control de versiones.',
       nodes: 'Máquinas o pods de trabajo que obtienen ejecuciones y ejecutan harnesses. Acordónalos, drénalos o inspecciónalos aquí.',
+      controlNodes: 'Réplicas del servidor (nodos de control) que sirven REST, MCP y A2A y planifican las ejecuciones. Una de ellas es el líder y se encarga del mantenimiento del clúster. Estado, versión y actividad de solo lectura.',
       nodePools: 'Grupos de nodos con nombre, opcionalmente reservados para inquilinos específicos. Los despliegues pueden exigir un grupo.',
       tenants: 'Organizaciones aisladas en este servidor, cada una con sus propios usuarios, agentes, secretos y ejecuciones.',
       users: 'Personas que inician sesión con un correo electrónico y una contraseña. Cada usuario puede tener claves de acceso.',
@@ -331,6 +332,17 @@ const tips = {
       Rejected: 'La solicitud se rechazó antes de que pudiera iniciarse una ejecución.',
       InternalError: 'Garrison encontró un error interno. Los registros del servidor tienen los detalles.',
       NoCapableWorker: 'La ejecución esperó en la cola más tiempo del que permite el ajuste de clúster Runtime.FailBlockedAfterSeconds y ningún nodo de trabajo listo podía ejecutarla, así que falló.'
+    },
+    controlNodeStatus: {
+      Starting: 'Iniciando: la réplica se está inicializando y todavía no atiende tráfico.',
+      Ready: 'Listo: la réplica envía latidos y atiende solicitudes REST, MCP y A2A.',
+      Draining: 'Drenando: el apagado ha comenzado. La comprobación de disponibilidad responde 503 y sus flujos y sondeos largos están terminando.',
+      Offline: 'Desconectado: la réplica se detuvo de forma ordenada, o estuvo 30 segundos en silencio y el líder la marcó. Las filas desconectadas se eliminan después de 24 horas.'
+    },
+    backplane: {
+      Local: 'Local: los eventos se quedan dentro de este proceso. Sirve para una sola réplica; las demás réplicas no los ven.',
+      Polling: 'Sondeo de la base de datos: las réplicas comparten los eventos en vivo consultando la base de datos. Funciona con cualquier base de datos, con un pequeño retraso.',
+      PostgresNotify: 'Notificaciones de PostgreSQL: las réplicas comparten los eventos en vivo mediante LISTEN y NOTIFY de PostgreSQL, casi sin retraso.'
     },
     nodeStatus: {
       Ready: 'Listo: envía latidos y acepta nuevas ejecuciones.',
@@ -777,6 +789,34 @@ const tips = {
         runs: 'Abre la lista de ejecuciones filtrada por las que ejecutó este nodo.'
       }
     },
+    controlNodes: {
+      name: 'Nombre de la réplica: el ID de nodo con el que se ejecuta el servidor (GARRISON_NODE_ID, el nombre del pod en Kubernetes).',
+      status: 'Ciclo de vida de la réplica: Iniciando, Listo, Drenando o Desconectado. Solo las réplicas listas atienden tráfico.',
+      version: 'Versión del servidor Garrison que ejecuta esta réplica. Solo debería haber versiones distintas durante una actualización gradual.',
+      schemaVersion: 'Versión del esquema de la base de datos que la réplica encontró al iniciarse. Todas las réplicas deberían informar el mismo número.',
+      backplane: 'Cómo comparte esta réplica los eventos en vivo (flujos de ejecuciones, actualizaciones por WebSocket) con las demás réplicas.',
+      uptime: 'Cuánto tiempo lleva en marcha el proceso de la réplica, contado desde su inicio. Pasa el puntero para ver el inicio exacto.',
+      lastHeartbeatUtc: 'Cuándo envió la réplica su último latido. Las réplicas envían uno cada 5 segundos; si tiene más de 15 segundos se resalta como sin latido.',
+      activeRequests: 'Solicitudes HTTP que la réplica estaba atendiendo en su último latido.',
+      openStreams: 'Flujos de eventos enviados por el servidor y conexiones WebSocket abiertos en la réplica en su último latido.',
+      heldLongPolls: 'Sondeos largos de concesión de los nodos de trabajo que la réplica retenía en su último latido. Los nodos de trabajo inactivos esperan ahí nuevas ejecuciones.',
+      address: 'Dirección IP y puerto REST de la réplica, tal como los informó.',
+      hostname: 'Nombre de host de la máquina o del pod donde se ejecuta la réplica.',
+      startedUtc: 'Cuándo se inició el proceso de la réplica, en tu zona horaria local.',
+      id: 'ID de nodo de la réplica. Coincide con respondingNodeId en las respuestas de la API y con la etiqueta node de las métricas.',
+      isLeader: 'Si esta réplica tiene la concesión de líder para el mantenimiento. Solo una réplica es líder a la vez.',
+      leaderEpoch: 'Época de exclusión (fencing) de la concesión de líder. Aumenta cada vez que el liderazgo pasa a otra réplica.',
+      respondingNodeId: 'La réplica que respondió a esta lectura individual. Detrás de un balanceador de carga puede ser distinta de la réplica mostrada.',
+      answeredBy: 'El nodo de control que respondió a la solicitud de esta lista (respondingNodeId). Detrás de un balanceador de carga, cada actualización puede responderla una réplica distinta.',
+      badges: {
+        leader: 'Líder: esta réplica tiene la concesión de mantenimiento. Se encarga de la limpieza por retención, marca como desconectadas las réplicas en silencio y hace el resto del mantenimiento del clúster.',
+        leaderEpoch: 'Líder: esta réplica tiene la concesión de mantenimiento (época {{epoch}}). Se encarga de la limpieza por retención, marca como desconectadas las réplicas en silencio y hace el resto del mantenimiento del clúster.',
+        stale: 'Sin latido: no llega ningún latido desde hace más de {{seconds}} segundos, aunque las réplicas envían uno cada 5 segundos. La réplica puede estar sobrecargada, aislada o caída; el líder la marca como desconectada a los 30 segundos.'
+      },
+      actions: {
+        grafana: 'Abre el panel de resumen de Garrison en Grafana en una pestaña nueva, filtrado por el nodo de control {{node}}.'
+      }
+    },
     audit: {
       createdUtc: 'Cuándo ocurrió el evento, en tu zona horaria local.',
       eventType: 'Qué tipo de evento de seguridad o de configuración fue.',
@@ -823,9 +863,13 @@ const tips = {
         queued: 'Ejecuciones que esperan un nodo de trabajo. Si el número no deja de crecer, necesitas más nodos o más capacidad.',
         succeeded: 'Ejecuciones que terminaron correctamente en las últimas 24 horas. Haz clic para listarlas.',
         failed: 'Ejecuciones que fallaron en las últimas 24 horas. Haz clic para listarlas y ver por qué.',
-        nodes: 'Nodos de trabajo listos para aceptar ejecuciones, del total de nodos registrados. Haz clic para gestionarlos.'
+        nodes: 'Nodos de trabajo listos para aceptar ejecuciones, del total de nodos registrados. Haz clic para gestionarlos.',
+        controlNodes: 'Réplicas del plano de control que están listas, del total de réplicas registradas (las filas desconectadas siguen en la lista 24 horas). El líder es {{leader}}. Haz clic para abrir Flota > Plano de control.',
+        controlNodesNoLeader: 'Réplicas del plano de control que están listas, del total de réplicas registradas (las filas desconectadas siguen en la lista 24 horas). Ahora mismo ninguna réplica tiene la concesión de líder, así que el mantenimiento del clúster está en pausa. Haz clic para abrir Flota > Plano de control.'
       },
       openFailure: 'Abre esta ejecución fallida para leer su transcripción, su error y Stderr.',
+      openControlPlane: 'Abre Flota > Plano de control para ver cada réplica con su estado, si es el líder, su versión, su latido y su actividad.',
+      openWorkers: 'Abre Flota > Nodos de trabajo para ver cada nodo de trabajo con su capacidad, sus harnesses y su latido, y para acordonarlo o drenarlo.',
       cta: {
         invoke: 'Envía un mensaje a cualquier agente desde el navegador.',
         addAgent: 'Ve a "Agentes" para crear una nueva identidad de agente.',
@@ -985,7 +1029,8 @@ const tips = {
       openapi: 'El documento OpenAPI que describe todas las operaciones REST.',
       version: 'Versión del servidor de Garrison.',
       dashboardVersion: 'Versión de esta consola.',
-      node: 'Qué réplica del plano de control respondió.',
+      node: 'La réplica del plano de control (nodo de control) que respondió a la solicitud de información del servidor de esta página. Con varias réplicas, al recargar puede responder otra.',
+      nodeLink: 'Abre Flota > Plano de control para ver esta réplica junto a las demás, con su estado, su latido y si es el líder.',
       database: 'Motor de base de datos que usa el servidor.',
       health: 'Resultado de la comprobación de estado del servidor.',
       replicas: 'Cuántas réplicas del plano de control espera el clúster.',
@@ -1239,6 +1284,12 @@ const explainers = {
     title: 'Nodos y grupos de nodos',
     p1: 'Un nodo es un proceso de trabajo, normalmente un pod, que obtiene ejecuciones del plano de control, lanza harnesses y transmite sus eventos de vuelta. Los nodos se registran solos, informan de qué harnesses encontraron y envían latidos; no los creas aquí.',
     p2: 'Un nodo puede pertenecer a un grupo de nodos y llevar etiquetas. Los despliegues usan grupos y selectores de etiquetas para decidir dónde pueden ejecutarse sus ejecuciones. Acordona un nodo para que no reciba trabajo nuevo, o drénalo antes del mantenimiento.'
+  },
+  controlNodes: {
+    title: 'Nodos de control y nodos de trabajo',
+    p1: 'Un nodo de control es una réplica del servidor Garrison. Los nodos de control sirven la API REST, el servidor MCP y la pasarela A2A, autentican a quien llama, compilan los despliegues en ejecuciones y planifican esas ejecuciones. Cualquier réplica puede responder a cualquier solicitud, así que un balanceador de carga puede repartir el tráfico entre ellas.',
+    p2: 'Uno de los nodos de control es el líder. Tiene una concesión en la base de datos y se encarga del mantenimiento de todo el clúster: la limpieza por retención, marcar como desconectadas las réplicas en silencio y eliminar filas antiguas. Si el líder se detiene, otra réplica toma la concesión en pocos segundos.',
+    p3: 'Los nodos de trabajo, en la pestaña Nodos de trabajo, hacen la otra mitad: obtienen del plano de control las ejecuciones concedidas y ejecutan los harnesses. Los nodos de control nunca ejecutan un harness y los nodos de trabajo nunca tocan la base de datos. Cada réplica se registra sola y envía un latido cada 5 segundos, por eso esta pestaña es de solo lectura.'
   },
   nodePools: {
     title: 'Grupos de nodos y nodos',

@@ -48,11 +48,23 @@ The control plane is assembled from four modules, each registering its routes an
 4. **Claimed.** A worker's long-poll lease request finds candidate runs it is eligible for (harness, node pool, and tenant dedication are filtered in SQL) and claims one with a single compare-and-set update that also increments the run's fencing epoch. Only one claim can succeed. When the deployment has `maxConcurrentRuns`, claims for that deployment are serialized in the database and the update counts its active runs, so the limit is exact across replicas. A long poll waiting on one replica is woken through the event backplane when a run is queued on another.
 5. **Compiled.** The claiming replica loads the deployment, profile, agent, prompt bindings, MCP servers, secrets, and workspace, issues a run token if the agent may delegate, and renders everything into an `ExecutionSpec`: executable, argument list, environment, files, stdin, parser, result source, success policy, timeouts, MCP checks, and the values to scrub. The template versions used are recorded on the run. A compile failure fails the run with `CompileFailed`.
 6. **Leased.** The spec goes back to the worker in the lease response, with the epoch and lease expiry.
-7. **Running.** The worker creates the run's directories, writes files, runs MCP pre-flight, starts the process, and reports `started`. It parses stdout into normalized events (text, tool calls, usage, results) and sends them in batches. Heartbeats extend the lease and carry back cancellation requests.
+7. **Running.** The worker creates the run's directories, writes files, runs MCP pre-flight, starts the process, and reports `started`. It parses stdout into normalized events (text, tool calls, usage, results) and sends them in batches. Heartbeats extend the lease. The run guards watch the same events and stop the harness when its text degenerates into repetition, grows past `maxAssistantChars`, or nothing happens for `noProgressSeconds` (see `docs/HARNESSES.md`).
 8. **Finished.** When the process exits, the worker classifies the outcome, reads the result, scrubs secrets, reports `complete`, and cleans up. The control plane stores the result, usage, cost, served model, exit code, and stderr tail, revokes the run token, and wakes anyone waiting.
 9. **Delivered.** A waiting invoke returns the run. Streaming clients receive the final event over SSE, WebSocket, or A2A streaming.
 
-Meanwhile the leader's maintenance loop (every 2 seconds) requeues or fails runs whose lease expired, enforces deadlines as a backstop to the worker, marks silent nodes `Lost` and silent control-plane replicas `Offline`, and prunes old records. Every 5 seconds it also looks for blocked queued runs: the first time a run is blocked for a given reason it appends one `Warning` run event saying why (the event carries a marker in its raw JSON so a new leader does not repeat it), and when the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 it fails runs that stay blocked that long with outcome `NoCapableWorker`. Because the control plane can write events before a worker sees the run, each lease tells the worker which sequence to number its events after (`eventSequenceStart`).
+Meanwhile the leader's maintenance loop (every 2 seconds) requeues or fails runs whose lease expired, enforces deadlines as a backstop to the worker (including the cluster cap `Runtime.MaxRunSeconds` for runs compiled with a later deadline), marks silent nodes `Lost` and silent control-plane replicas `Offline`, and prunes old records. Every 5 seconds it also looks for blocked queued runs: the first time a run is blocked for a given reason it appends one `Warning` run event saying why (the event carries a marker in its raw JSON so a new leader does not repeat it), and when the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 it fails runs that stay blocked that long with outcome `NoCapableWorker`. Because the control plane can write events before a worker sees the run, each lease tells the worker which sequence to number its events after (`eventSequenceStart`).
+
+### Cancellation
+
+A cancel request (REST, MCP `garrison_cancel_run`, A2A `CancelTask`, or a caller going away) moves a queued run straight to `Cancelled` and a leased or running run to `Cancelling`, then wakes the worker that holds it. Each worker keeps one long poll open, `POST /v1.0/api/node/watch`, naming the runs it is executing; the control plane answers it as soon as one of them is cancelled, on any replica, because the cancel publishes a node signal over the event backplane. The worker then sends the harness and its child processes SIGTERM and, after the profile's `killGraceSeconds`, SIGKILL. The heartbeat (every 5 seconds by default) still carries cancellations, as a fallback for workers or control planes without the watch. In the test suite a cancel request turns into a `Cancelled` run in under 100 ms for a harness that exits on SIGTERM, and in about 1.1 seconds for one that ignores SIGTERM with a 1-second grace.
+
+Cancelling a run cancels the runs it delegated that have not finished, and their delegated runs, down the whole tree. Callers that stop waiting cancel their runs as well, so an abandoned request does not keep a model busy until its deadline:
+
+- REST `invoke`, deployment `test`, and `POST .../runs` with `wait=true`: the client disconnecting (Watson reports the closed connection) cancels the run, unless the request set `cancelOnDisconnect` to false. A wait that simply times out returns 202 and leaves the run alone.
+- MCP `garrison_invoke_agent`: Voltaic cancels the tool call when the client sends `notifications/cancelled` for it or deletes or closes the session, and the call cancels its run. A `notifications/cancelled` that reaches a different replica than the one running the call is relayed over the backplane.
+- A2A blocking `SendMessage` and `SendStreamingMessage`: the client disconnecting before the task finishes cancels it. Re-subscribing to a task (`SubscribeToTask`) and closing that stream does not.
+
+A control-plane replica that is shutting down never cancels runs on its callers' behalf; they keep running and can be read from another replica.
 
 ### Run states
 
@@ -66,7 +78,7 @@ Pending -> Queued -> Leased -> Running -> Succeeded | Failed | TimedOut | Cancel
 
 `Rejected` exists in the status list for future admission control; nothing sets it in this release.
 
-A run's `outcome` explains a `Failed` status: `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `CompileFailed`, and so on (see `docs/HARNESSES.md`).
+A run's `outcome` explains a `Failed` status: `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `RepetitionDetected`, `NoProgress`, `CompileFailed`, and so on (see `docs/HARNESSES.md`).
 
 ## Design decisions
 

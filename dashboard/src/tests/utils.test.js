@@ -203,11 +203,20 @@ describe('overview normalization', () => {
       runsLast24Hours: 15,
       runsByStatus: [{ status: 'Succeeded', count: 15 }],
       nodesByStatus: [{ status: 'Ready', count: 2 }],
+      controlNodesByStatus: [{ status: 'Ready', count: 2 }, { status: 'Draining', count: 1 }],
+      leaderNodeId: 'garrison-server-a',
       queued: 0,
       active: 0
     });
-    expect(k).toEqual({ agents: 4, deployments: 4, active: 0, queued: 0, succeeded: 15, failed: 0, nodesReady: 2, nodesTotal: 2, nodesLost: 0 });
-    for (const v of Object.values(k)) expect(Number.isFinite(v)).toBe(true);
+    const { leaderNodeId, ...numbers } = k;
+    expect(numbers).toEqual({ agents: 4, deployments: 4, active: 0, queued: 0, succeeded: 15, failed: 0, nodesReady: 2, nodesTotal: 2, nodesLost: 0, controlReady: 2, controlTotal: 3 });
+    expect(leaderNodeId).toBe('garrison-server-a');
+    for (const v of Object.values(numbers)) expect(Number.isFinite(v)).toBe(true);
+  });
+  it('reads control-plane counts and the leader (P10.19)', () => {
+    expect(overviewKpis({ controlNodesByStatus: [{ status: 'Starting', count: 1 }] })).toMatchObject({ controlReady: 0, controlTotal: 1, leaderNodeId: null });
+    expect(overviewKpis({ controlNodesByStatus: [], leaderNodeId: '' })).toMatchObject({ controlReady: 0, controlTotal: 0, leaderNodeId: null });
+    expect(overviewKpis({ nodesByStatus: [] })).toMatchObject({ controlReady: null, controlTotal: null, leaderNodeId: null });
   });
   it('reports unknown values as null rather than NaN', () => {
     const k = overviewKpis({});

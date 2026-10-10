@@ -14,7 +14,7 @@ Ten sidebar hubs in three sections, defined in one place (`src/config/navConfig.
 | | Analytics | none | everyone signed in |
 | | Agents | Agents, Deployments | everyone signed in |
 | Platform | Configuration | Harness Profiles, Prompt Templates, MCP Servers, Secrets, Workspaces, Artifact Stores, Manifests | everyone signed in |
-| | Fleet | Nodes, Node Pools | Node Pools: system administrators |
+| | Fleet | Worker nodes, Control plane, Node Pools | Node Pools: system administrators |
 | Administration | Access | Tenants, Users, Credentials, Roles, Assignments | Tenants: system administrators; the rest: administrators |
 | | Monitoring | Request History, Audit, API Explorer | everyone signed in |
 | | System | Settings, Server Info | Settings: administrators |
@@ -25,9 +25,13 @@ Detail pages: `/dashboard/runs/:id`, `/dashboard/agents/:id`, `/dashboard/prompt
 
 Invoke's response card has two tabs (P5.52). Preview streams the assistant text over SSE and renders it as Markdown, with reasoning in a collapsed block, tool calls as chips, and live timing; it stays selected when the run ends and points to Response, which shows the result text, structured output, outcome, errors, and telemetry. Sending again clears the card and drops late frames from the previous run. Model output is rendered by `MarkdownView` (marked for GitHub-flavored Markdown, DOMPurify for sanitizing: no scripts, event handlers, frames, forms, inline styles, or URL schemes other than http, https, and mailto), which Run detail uses for the result too, with a raw text toggle.
 
+Fleet > Control plane (P10.19) lists the control-plane replicas from `GET /v1.0/api/control-nodes`: name with a Leader badge, translated status (Starting, Ready, Draining, Offline), version, schema version, backplane, uptime, heartbeat age (highlighted with a Stale badge when a replica that is not Offline has been silent for more than 15 seconds), active requests, open streams, held long polls, and address. It is read-only, refreshes every 15 seconds, and says which replica answered the list (`respondingNodeId`). A row opens a detail with every field from a fresh `GET /control-nodes/{id}`. With Grafana configured, each replica links to the Garrison overview dashboard filtered with `var-node`. The worker tab is still the hub's default, so existing links to Fleet land on worker nodes.
+
+Home shows "Control plane ready x / y" next to "Nodes ready" (from the overview's `controlNodesByStatus`; the tooltip names the leader from `leaderNodeId`, and the card turns amber when no replica leads). The Nodes panel has two sections, Control plane and Worker nodes, each with a link to its Fleet tab. System > Server Info links the answering replica (`nodeId`) to the Control plane tab; the top bar does not show it, because server info is cached once per session and a load balancer can send the next request elsewhere.
+
 ## What every page has
 
-- An explainer panel for pages whose objects relate to others (agents and deployments, profiles, prompts, secrets and aliases, nodes and pools, users and credentials, roles and assignments, runs and queue, manifests). It can be dismissed and reopened.
+- An explainer panel for pages whose objects relate to others (agents and deployments, profiles, prompts, secrets and aliases, nodes and pools, control nodes and worker nodes, users and credentials, roles and assignments, runs and queue, manifests). It can be dismissed and reopened.
 - A translated tooltip on every control, column header, tab, badge, and card that says what it is and how it is used (decision D-030).
 - Tables with search, filters, sorting, a column picker, pagination with page sizes up to 1,000, auto-refresh, and CSV export.
 - Charts (Home, Request History, Analytics, Run detail phases) with an export menu: CSV, PNG, SVG, and JSON.
@@ -39,8 +43,8 @@ Invoke's response card has two tabs (P5.52). Preview streams the assistant text 
 |---|---|---|
 | Lint | `npm run lint` | ESLint, no warnings allowed |
 | Unit | `npm test` | Markdown rendering and sanitizing, formatters per locale, i18n key and placeholder parity, untranslated strings, enum labels, telemetry and analytics helpers, exporters, tooltips for generated controls |
-| Browser (mocked) | `npx playwright test` | every route and tab, forms and modals, tooltips on every element (about 12,600 checks), redirects, keyboard tabs, exports, languages, RTL overflow |
-| API contract | `npm run test:contract` | starts a real server and worker, seeds every resource, and compares 58 GET responses with the mocks the browser tests use |
+| Browser (mocked) | `npx playwright test` | every route and tab, forms and modals, tooltips on every element (about 13,200 checks), redirects, keyboard tabs, exports, languages, RTL overflow |
+| API contract | `npm run test:contract` | starts a real server and worker, seeds every resource, and compares 61 GET responses (including both control-node routes) with the mocks the browser tests use |
 | Live | `npm run test:live` | signs in to a deployed stack and visits every page, Analytics, and a run's telemetry and transcript |
 
 Run Playwright with `caffeinate -dims` on a laptop that may sleep; a sleeping host stalls a test until it times out.

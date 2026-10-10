@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import CopyButton from '../components/CopyButton';
 import CodeBlock from '../components/CodeBlock';
@@ -12,6 +13,7 @@ import { errorMessage } from '../utils/errors';
 import { formatDateTime } from '../i18n/formatters';
 import { enumLabel } from '../utils/enums';
 import { tip } from '../components/Tooltip';
+import { pathFor } from '../config/navConfig';
 
 function Row({ label, value, copy, tip: tipText }) {
   return (
@@ -31,6 +33,7 @@ function Row({ label, value, copy, tip: tipText }) {
 export default function ServerInfoView() {
   const { t, i18n } = useTranslation();
   const { apiClient, serverUrl, principal } = useAuth();
+  const navigate = useNavigate();
   const [info, setInfo] = useState(null);
   const [health, setHealth] = useState(null);
   const [error, setError] = useState(null);
@@ -64,7 +67,17 @@ export default function ServerInfoView() {
           <h2 className="section-title">{t('views.serverInfo.server')}</h2>
           <Row label={t('views.serverInfo.version')} tip={t('tips.views.serverInfo.version')} value={info?.version || health?.version} />
           <Row label={t('views.serverInfo.dashboardVersion')} tip={t('tips.views.serverInfo.dashboardVersion')} value={APP_VERSION} />
-          <Row label={t('views.serverInfo.node')} tip={t('tips.views.serverInfo.node')} value={info?.nodeId || health?.node} />
+          <Row
+            label={t('views.serverInfo.node')}
+            tip={t('tips.views.serverInfo.node')}
+            value={
+              info?.nodeId || health?.node ? (
+                <a href={pathFor('controlNodes')} data-testid="server-info-node" {...tip(t('tips.views.serverInfo.nodeLink'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('controlNodes')); }}>
+                  {info?.nodeId || health?.node}
+                </a>
+              ) : null
+            }
+          />
           <Row label={t('views.serverInfo.database')} tip={t('tips.views.serverInfo.database')} value={info?.databaseType} />
           <Row label={t('views.serverInfo.health')} tip={t('tips.views.serverInfo.health')} value={health ? <Badge tone={health.status === 'healthy' ? 'success' : 'warning'} tip={t(health.status === 'healthy' ? 'tips.topbar.health.healthy' : 'tips.topbar.health.unhealthy')}>{t(health.status === 'healthy' ? 'topbar.health.healthy' : 'topbar.health.unhealthy')}</Badge> : <Badge tone="danger">{t('topbar.health.unhealthy')}</Badge>} />
           <Row label={t('views.serverInfo.replicas')} tip={t('tips.views.serverInfo.replicas')} value={info?.expectedReplicas ?? info?.replicas} />

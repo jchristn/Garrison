@@ -591,7 +591,7 @@ const AGENT_CARD = {
 const SERVER_INFO = {
   product: 'Garrison',
   version: '0.1.0-alpha',
-  nodeId: 'garrison-command-0',
+  nodeId: 'garrison-server-a',
   restUrl: 'http://127.0.0.1:8700',
   mcpUrl: 'http://127.0.0.1:8701/mcp',
   a2aUrl: 'http://127.0.0.1:8700/v1.0/a2a',
@@ -623,6 +623,44 @@ function observabilityStatus() {
   return ['grafana', 'prometheus', 'loki', 'tempo'].map((service) => ({ service, configured: false, reachable: false, checkedUtc: iso(0) }));
 }
 
+/**
+ * A control-plane replica (P10.19), the shape GET /control-nodes returns. Timestamps follow the real clock (not NOW)
+ * so heartbeat ages read as fresh in the browser; pass `lastHeartbeatUtc` to simulate a stale replica.
+ */
+export function controlNode(name, extra = {}) {
+  const now = Date.now();
+  return {
+    id: name,
+    name,
+    hostname: name,
+    address: extra.address || '10.42.0.17:8700',
+    version: '0.1.0-alpha',
+    schemaVersion: 7,
+    backplane: 'PostgresNotify',
+    status: 'Ready',
+    startedUtc: new Date(now - (3 * 3600 + 25 * 60) * 1000).toISOString(),
+    lastHeartbeatUtc: new Date(now - 2000).toISOString(),
+    activeRequests: 0,
+    openStreams: 0,
+    heldLongPolls: 0,
+    isLeader: false,
+    ...extra
+  };
+}
+
+/** Two Ready replicas; garrison-server-a holds the leader lease (matches OVERVIEW.leaderNodeId). */
+export function controlNodes() {
+  return [
+    controlNode('garrison-server-a', { isLeader: true, leaderEpoch: 4, activeRequests: 1, openStreams: 2, heldLongPolls: 3 }),
+    controlNode('garrison-server-b', { address: '10.42.0.18:8700', activeRequests: 0, openStreams: 1, heldLongPolls: 1 })
+  ];
+}
+
+/** GET /control-nodes: the enumeration envelope plus respondingNodeId. */
+export function controlNodeList(objects = controlNodes(), respondingNodeId = 'garrison-server-a') {
+  return { respondingNodeId, success: true, maxResults: 25, skip: 0, totalRecords: objects.length, recordsRemaining: 0, endOfResults: true, timestampUtc: new Date().toISOString(), objects };
+}
+
 /** JSON body for a request, or undefined when unhandled. Also used by the contract test (tests/contract/run.mjs). */
 export function respond(method, url) {
   const p = url.pathname;
@@ -631,9 +669,15 @@ export function respond(method, url) {
   if (p === '/v1.0/token' && method === 'GET') return { valid: true };
   if (p === '/v1.0/token/details') return PRINCIPAL;
   if (p.startsWith('/v1.0/token')) return {};
-  if (p === '/v1.0/api/health') return { status: 'healthy', node: 'garrison-command-0', version: '0.1.0-alpha', database: 'ok', schemaVersion: 6, expectedSchemaVersion: 6, backplane: 'PostgresNotify', utc: iso(0) };
+  if (p === '/v1.0/api/health') return { status: 'healthy', node: 'garrison-server-a', version: '0.1.0-alpha', database: 'ok', schemaVersion: 6, expectedSchemaVersion: 6, backplane: 'PostgresNotify', utc: iso(0) };
   if (p === '/v1.0/api/server-info') return SERVER_INFO;
   if (p === '/v1.0/api/observability/status') return observabilityStatus();
+  if (p === '/v1.0/api/control-nodes') return controlNodeList();
+  if (p.startsWith('/v1.0/api/control-nodes/')) {
+    const id = decodeURIComponent(p.split('/').pop());
+    const node = controlNodes().find((n) => n.id === id) || controlNodes()[0];
+    return { ...node, respondingNodeId: 'garrison-server-a' };
+  }
   if (p === '/v1.0/api/settings') return method === 'GET' ? SETTINGS : { saved: true, restartRequired: true, appliedLive: [], pendingRestart: ['Rest.Port'], settings: SETTINGS };
   if (p.startsWith('/v1.0/api/settings')) return { success: true, message: 'ok' };
   if (p === '/v1.0/api/request-history/summary') return summary();

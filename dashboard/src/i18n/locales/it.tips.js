@@ -61,7 +61,7 @@ const tips = {
       analytics: 'Grafici di velocità delle esecuzioni, uso dei token, costi, esiti e chiamate a strumenti nel tempo, filtrabili per agente, harness e distribuzione.',
       agents: 'Gli agenti che i chiamanti invocano per nome e le distribuzioni che decidono come viene effettivamente eseguito ciascuno.',
       configuration: 'I componenti usati dalle distribuzioni: profili harness, modelli di prompt, server MCP, segreti, aree di lavoro, archivi di artefatti e manifest.',
-      fleet: 'I nodi worker che eseguono le esecuzioni e i pool di nodi che li raggruppano per il posizionamento.',
+      fleet: 'Le repliche del piano di controllo che servono l\'API e pianificano le esecuzioni, i nodi worker che le eseguono e i pool di nodi che raggruppano i worker per il posizionamento.',
       access: 'Chi può accedere e cosa può fare: tenant, utenti, chiavi di accesso, ruoli e assegnazioni di ruoli.',
       monitoring: 'Indaga su cosa è successo: richieste API registrate, traccia di audit di sicurezza e lo strumento interattivo Esplora API.',
       system: 'Impostazioni del server ed endpoint, versioni e identità del server a cui sei connesso.'
@@ -79,6 +79,7 @@ const tips = {
       artifactStores: 'Destinazioni per i file prodotti dalle esecuzioni che vuoi conservare dopo la loro fine.',
       manifests: 'Applica o esporta l\'intera configurazione del tenant come YAML, così può stare nel controllo del codice sorgente.',
       nodes: 'Macchine o pod worker che prelevano le esecuzioni ed eseguono gli harness. Qui puoi isolarli, svuotarli o ispezionarli.',
+      controlNodes: 'Repliche del server (nodi di controllo) che servono REST, MCP e A2A e pianificano le esecuzioni. Una di esse è il leader e si occupa della manutenzione del cluster. Stato, versione e attività in sola lettura.',
       nodePools: 'Gruppi di nodi con nome, eventualmente riservati a tenant specifici. Le distribuzioni possono richiedere un pool.',
       tenants: 'Organizzazioni isolate su questo server, ciascuna con i propri utenti, agenti, segreti ed esecuzioni.',
       users: 'Persone che accedono con email e password. Ogni utente può possedere chiavi di accesso.',
@@ -331,6 +332,17 @@ const tips = {
       Rejected: 'La richiesta è stata rifiutata prima che un\'esecuzione potesse partire.',
       InternalError: 'Garrison ha riscontrato un errore interno. I log del server contengono i dettagli.',
       NoCapableWorker: 'L\'esecuzione è rimasta in coda più a lungo di quanto consente l\'impostazione del cluster Runtime.FailBlockedAfterSeconds e nessun nodo worker pronto poteva eseguirla, quindi è fallita.'
+    },
+    controlNodeStatus: {
+      Starting: 'In avvio: la replica si sta inizializzando e non gestisce ancora traffico.',
+      Ready: 'Pronto: la replica invia heartbeat e gestisce le richieste REST, MCP e A2A.',
+      Draining: 'In svuotamento: lo spegnimento è iniziato. Il controllo di prontezza risponde 503 e i suoi stream e long poll stanno terminando.',
+      Offline: 'Offline: la replica si è arrestata correttamente, oppure è rimasta silente per 30 secondi ed è stata contrassegnata dal leader. Le righe offline vengono rimosse dopo 24 ore.'
+    },
+    backplane: {
+      Local: 'Locale: gli eventi restano dentro questo processo. Va bene con una sola replica; le altre repliche non li vedono.',
+      Polling: 'Polling del database: le repliche condividono gli eventi in tempo reale interrogando il database. Funziona con qualsiasi database, con un breve ritardo.',
+      PostgresNotify: 'Notifiche PostgreSQL: le repliche condividono gli eventi in tempo reale tramite LISTEN e NOTIFY di PostgreSQL, con un ritardo minimo.'
     },
     nodeStatus: {
       Ready: 'Pronto: invia heartbeat e accetta nuove esecuzioni.',
@@ -777,6 +789,34 @@ const tips = {
         runs: 'Apri l\'elenco Esecuzioni filtrato sulle esecuzioni eseguite da questo nodo.'
       }
     },
+    controlNodes: {
+      name: 'Nome della replica: l\'ID nodo con cui gira il server (GARRISON_NODE_ID, il nome del pod in Kubernetes).',
+      status: 'Ciclo di vita della replica: In avvio, Pronto, In svuotamento oppure Offline. Solo le repliche pronte gestiscono traffico.',
+      version: 'Versione del server Garrison eseguita da questa replica. Versioni diverse sono previste solo durante un aggiornamento graduale.',
+      schemaVersion: 'Versione dello schema del database trovata dalla replica all\'avvio. Tutte le repliche dovrebbero riportare lo stesso numero.',
+      backplane: 'Come questa replica condivide gli eventi in tempo reale (stream delle esecuzioni, aggiornamenti WebSocket) con le altre repliche.',
+      uptime: 'Da quanto tempo è in esecuzione il processo della replica, contato dal suo avvio. Passa il puntatore per vedere l\'avvio esatto.',
+      lastHeartbeatUtc: 'Quando la replica ha inviato l\'ultimo heartbeat. Le repliche ne inviano uno ogni 5 secondi; oltre 15 secondi il valore viene evidenziato come silente.',
+      activeRequests: 'Richieste HTTP che la replica stava gestendo al suo ultimo heartbeat.',
+      openStreams: 'Stream di eventi inviati dal server e connessioni WebSocket aperti sulla replica al suo ultimo heartbeat.',
+      heldLongPolls: 'Long poll di lease dei worker che la replica teneva al suo ultimo heartbeat. I worker inattivi aspettano lì nuove esecuzioni.',
+      address: 'Indirizzo IP e porta REST della replica, come li ha segnalati.',
+      hostname: 'Nome host della macchina o del pod su cui gira la replica.',
+      startedUtc: 'Quando è partito il processo della replica, nel tuo fuso orario locale.',
+      id: 'ID nodo della replica. Corrisponde a respondingNodeId nelle risposte dell\'API e all\'etichetta node nelle metriche.',
+      isLeader: 'Indica se questa replica detiene il lease di leader per la manutenzione. Una sola replica è leader alla volta.',
+      leaderEpoch: 'Epoca di fencing del lease di leader. Aumenta ogni volta che la leadership passa a un\'altra replica.',
+      respondingNodeId: 'La replica che ha risposto a questa singola lettura. Dietro un bilanciatore di carico può essere diversa da quella mostrata.',
+      answeredBy: 'Il nodo di controllo che ha risposto alla richiesta di questo elenco (respondingNodeId). Dietro un bilanciatore di carico, ogni aggiornamento può ricevere risposta da una replica diversa.',
+      badges: {
+        leader: 'Leader: questa replica detiene il lease di manutenzione. Esegue la pulizia in base alla conservazione, contrassegna come offline le repliche silenti e svolge il resto della manutenzione del cluster.',
+        leaderEpoch: 'Leader: questa replica detiene il lease di manutenzione (epoca {{epoch}}). Esegue la pulizia in base alla conservazione, contrassegna come offline le repliche silenti e svolge il resto della manutenzione del cluster.',
+        stale: 'Silente: nessun heartbeat da più di {{seconds}} secondi, anche se le repliche ne inviano uno ogni 5 secondi. La replica può essere sovraccarica, isolata o non più attiva; il leader la contrassegna come offline dopo 30 secondi.'
+      },
+      actions: {
+        grafana: 'Apri la dashboard di panoramica di Garrison in Grafana in una nuova scheda, filtrata sul nodo di controllo {{node}}.'
+      }
+    },
     audit: {
       createdUtc: 'Quando si è verificato l\'evento, nel tuo fuso orario locale.',
       eventType: 'Che tipo di evento di sicurezza o configurazione era.',
@@ -823,9 +863,13 @@ const tips = {
         queued: 'Esecuzioni in attesa di un nodo worker. Un numero che continua a crescere indica che servono più nodi o più capacità.',
         succeeded: 'Esecuzioni completate con successo nelle ultime 24 ore. Fai clic per elencarle.',
         failed: 'Esecuzioni non riuscite nelle ultime 24 ore. Fai clic per elencarle e leggerne il motivo.',
-        nodes: 'Nodi worker pronti a ricevere esecuzioni, sul totale dei nodi registrati. Fai clic per gestirli.'
+        nodes: 'Nodi worker pronti a ricevere esecuzioni, sul totale dei nodi registrati. Fai clic per gestirli.',
+        controlNodes: 'Repliche del piano di controllo pronte, sul totale delle repliche registrate (le righe offline restano in elenco per 24 ore). Il leader è {{leader}}. Fai clic per aprire Flotta > Piano di controllo.',
+        controlNodesNoLeader: 'Repliche del piano di controllo pronte, sul totale delle repliche registrate (le righe offline restano in elenco per 24 ore). Al momento nessuna replica detiene il lease di leader, quindi la manutenzione del cluster è in pausa. Fai clic per aprire Flotta > Piano di controllo.'
       },
       openFailure: 'Apri questa esecuzione non riuscita per leggerne trascrizione, errore e stderr.',
+      openControlPlane: 'Apri Flotta > Piano di controllo per vedere ogni replica con stato, leader, versione, heartbeat e attività.',
+      openWorkers: 'Apri Flotta > Nodi worker per vedere ogni worker con capacità, harness e heartbeat, e per isolarlo o svuotarlo.',
       cta: {
         invoke: 'Invia un messaggio a qualsiasi agente dal browser.',
         addAgent: 'Vai ad Agenti per creare una nuova identità di agente.',
@@ -985,7 +1029,8 @@ const tips = {
       openapi: 'Il documento OpenAPI che descrive ogni operazione REST.',
       version: 'Versione del server Garrison.',
       dashboardVersion: 'Versione di questa console.',
-      node: 'Quale replica del piano di controllo ha risposto.',
+      node: 'La replica del piano di controllo (nodo di controllo) che ha risposto alla richiesta di info server di questa pagina. Con più repliche, ricaricando può rispondere un\'altra.',
+      nodeLink: 'Apri Flotta > Piano di controllo per vedere questa replica accanto alle altre, con stato, heartbeat e se è il leader.',
       database: 'Motore di database usato dal server.',
       health: 'Risultato del controllo di integrità del server.',
       replicas: 'Quante repliche del piano di controllo prevede il cluster.',
@@ -1239,6 +1284,12 @@ const explainers = {
     title: 'Nodi e pool di nodi',
     p1: 'Un nodo è un processo worker, di solito un pod, che preleva le esecuzioni dal piano di controllo, avvia gli harness e ne rimanda indietro gli eventi in streaming. I nodi si registrano da soli, riportano quali harness hanno trovato e inviano heartbeat; non li crei qui.',
     p2: 'Un nodo può appartenere a un pool di nodi e avere etichette. Le distribuzioni usano pool e selettori di etichette per decidere dove possono essere eseguite le loro esecuzioni. Isola un nodo per bloccare il nuovo lavoro, o svuotalo prima della manutenzione.'
+  },
+  controlNodes: {
+    title: 'Nodi di controllo e nodi worker',
+    p1: 'Un nodo di controllo è una replica del server Garrison. I nodi di controllo servono l\'API REST, il server MCP e il gateway A2A, autenticano i chiamanti, compilano le distribuzioni in esecuzioni e pianificano quelle esecuzioni. Qualsiasi replica può rispondere a qualsiasi richiesta, quindi un bilanciatore di carico può distribuire il traffico tra di esse.',
+    p2: 'Uno dei nodi di controllo è il leader. Detiene un lease nel database e si occupa della manutenzione dell\'intero cluster: pulizia in base alla conservazione, passaggio offline delle repliche silenti e rimozione delle righe vecchie. Se il leader si ferma, un\'altra replica prende il lease in pochi secondi.',
+    p3: 'I nodi worker, nella scheda Nodi worker, fanno l\'altra metà: prelevano dal piano di controllo le esecuzioni in lease ed eseguono gli harness. I nodi di controllo non eseguono mai un harness e i worker non toccano mai il database. Ogni replica si registra da sola e invia un heartbeat ogni 5 secondi, per questo questa scheda è in sola lettura.'
   },
   nodePools: {
     title: 'Pool di nodi e nodi',

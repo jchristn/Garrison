@@ -84,6 +84,18 @@ The worker image bundles Mux 1.3.0, built from source at commit `60fd88a` (the `
 
 Mux talks to whatever model endpoint you point it at. The profile writes a private config directory with three files rendered from prompt templates: `endpoints.json` (`builtin/mux-endpoints`, one endpoint named `garrison` built from the deployment parameters `adapterType` (default `openai-compatible`), `baseUrl` (default `https://api.openai.com/v1`), `timeoutMs`, and `maxTokens`, plus the deployment model), `settings.json`, and `subagents.json`. The API key comes from a secret of kind `OpenAiApiKey`, exposed as `GARRISON_MUX_API_KEY` and referenced from `endpoints.json`, so it never appears in a file.
 
+`settings.json` (`builtin/mux-settings`) turns off the Mux features that only make sense for a person at a terminal, because each one adds tools, prompt text, or side effects to a headless run:
+
+| Setting | Value | Why |
+|---|---|---|
+| `memoryEnabled` | `false` | Mux's persistent memory adds the `remember`, `recall`, and `forget` tools and a `## Memory` section to the system prompt. Garrison runs are independent, so the tools only distract the model (a gpt-oss run asked for its instructions printed that section back and then looped). |
+| `skillsEnabled`, `projectSkillsEnabled` | `false` | No user skills or skills checked into the workspace repository are listed in the system prompt or offered as tools. |
+| `taskPlanningEnabled` | `false` | No `plan_tasks` and `update_task` tools. |
+| `fileMentionMaxBytes` | `0` | An `@path` in the prompt is not expanded into an attached file, so text such as an email address in a caller's input cannot pull workspace files into the prompt. |
+| `setupCompleted` | `true` | The first-run setup wizard is never offered. |
+
+Project instruction files (`AGENTS.md`, `CLAUDE.md`, `MUX.md` in the workspace) stay on, as they do for Claude Code and Codex. Clone the template to change any of this.
+
 Deployment parameters:
 
 | Parameter | Default | Meaning |
@@ -218,9 +230,10 @@ A deployment binds one agent to one profile and adjusts it without touching the 
 | Deployment field | Effect |
 |---|---|
 | `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd` | Exposed as `deployment.*`; the built-in profiles turn them into flags |
-| `timeoutSeconds` | Run deadline, ahead of the profile's default and the cluster's `Runs.DefaultTimeoutSeconds` |
+| `timeoutSeconds` | Run deadline, ahead of the profile's default and the cluster's `Runs.DefaultTimeoutSeconds`, capped by `Runtime.MaxRunSeconds` |
+| `repetitionGuard`, `maxAssistantChars`, `noProgressSeconds` | Run guard limits (see "Run guards"); null uses the cluster defaults |
 | `parameters` | Named values available as `deployment.parameters.<name>`. Every knob in the built-in profiles is one of these |
-| `allowedRunOverrides` | Which parameters (and `model`) a caller may set per run, each validated as `Any`, `Enum` (comma-separated values), `Regex`, or `IntegerRange` (`min,max`) |
+| `allowedRunOverrides` | Which parameters (and the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds`) a caller may set per run, each validated as `Any`, `Enum` (comma-separated values), `Regex`, or `IntegerRange` (`min,max`) |
 | `argumentOverrides` | `Append`, `Prepend`, `Remove` (matching a profile argument template exactly), or `Replace` (same match, new template) |
 | `environmentOverrides`, `fileOverrides` | Add variables and files, or replace ones with the same name or path |
 | `promptBindings` | Which template fills each prompt role (`System`, `Task`, `DelegatedTask`), optionally pinned to a version |
@@ -239,10 +252,30 @@ For each run the worker:
 2. Replaces the directory placeholders and writes every file in the spec with its mode.
 3. Runs MCP pre-flight: each HTTP MCP server marked required, or with required tools, must answer `initialize` and `tools/list` within `McpPreflightTimeoutMs` and offer the required tools. If not, the run fails with `McpPreflightFailed` before the harness starts.
 4. Launches the process with the allowlisted environment plus the spec's variables, writes stdin, and parses stdout line by line into events, flushing them to the control plane in batches.
-5. Applies the deadline and cancellation by stopping the process tree, waiting `killGraceSeconds`, then killing it.
+5. Applies the run guards (below), the deadline, and cancellation. Stopping sends SIGTERM to the harness and every process it started (listed before the signal, so the Node or Rust children of Claude Code and Codex are not orphaned when the parent exits first), waits up to `killGraceSeconds`, then sends SIGKILL to whatever is still alive. A cancel reaches the worker through its cancellation watch, a long poll the control plane answers the moment the run is cancelled, so a harness that exits on SIGTERM is gone well under a second after the cancel request.
 6. Decides the outcome, reads the result, scrubs secrets, reports completion, and deletes `config/` and `home/` (and the workspace too, unless the workspace template keeps it). When the spec has `retainForRepair` set, the directories stay until the control plane has answered the completion report, because the answer may be a structured output repair that resumes the session in them.
 
 Workers probe for `claude`, `codex`, `mux`, `gemini`, and `garrison-fake-harness` at startup and every `ProbeIntervalSeconds`. Each one found adds the label `garrison.io/harness-<label>=true` (`claude`, `codex`, `mux`, `gemini`, `fake`) and its harness type to the node's capabilities.
+
+### Run guards
+
+The worker stops a run on its own when the harness is clearly not doing useful work. The guards apply to every harness, because they read the normalized events rather than any one CLI's output.
+
+| Guard | Deployment field (cluster default) | Trips when | Outcome |
+|---|---|---|---|
+| Repetition | `repetitionGuard` (`Runtime.RepetitionGuard`, on) | The last 2,000 characters of assistant text are one unit of 1 to 64 characters repeated at least 30 times, or the last 1,000 characters contain no letter or digit. | `RepetitionDetected` |
+| Assistant text size | `maxAssistantChars` (`Runtime.MaxAssistantChars`, 200,000; 0 is unlimited) | The run's assistant text passes the limit. | `OutputLimitExceeded` |
+| No progress | `noProgressSeconds` (`Runtime.NoProgressSeconds`, 300; 0 is off) | No progress for that long while no tool call is open. | `NoProgress` |
+
+**What counts as progress.** An `AssistantText`, `Thinking`, `ToolCall`, or `ToolResult` event. A tool call is open from its `ToolCall` event until a `ToolResult` with the same tool call ID (or, when either has no ID, the oldest open call), or until the model writes text or thinks again, which also closes calls whose harness never reports a result (Codex `web_search`). While any call is open the no-progress clock is paused, so a long build, test run, or delegated agent never trips it; the run's deadline still applies. Lifecycle, usage, warning, error, stdout, and stderr events are not progress, so a harness that only prints retries or heartbeats is not making progress. The clock starts when the process starts.
+
+**Repetition.** The detector keeps the last 64 characters and one counter per unit length from 1 to 64; for each new character it checks whether the character matches the one a unit earlier. The window is periodic when the counter for some unit length covers the whole window. It also counts consecutive characters with no letter or digit. Both checks are incremental, so the cost per character is fixed (about a million characters in 0.4 seconds) and memory does not grow with the output. The window covers assistant text written since the last tool call or tool result, so an agent that writes the same short sentence between many tool calls is not a loop. Markdown is safe: tables, rules, lists, and code never run 1,000 characters without a letter or digit, and a repeated paragraph is a unit far longer than 64 characters. Thinking text is not checked.
+
+On the recorded gpt-oss:20b loop (`src/Test.Shared/Fixtures/mux/v1.3.0-repetition-loop-deltas.jsonl`: Mux printed its system prompt, reasoned about it in `* ` bullets, then wrote `* \n` for 1,917 deltas until a person cancelled it about 50 seconds in), the guard trips 999 characters into the loop, about 11 seconds after it starts, and never during the 5,169 characters of legitimate text before it.
+
+**When a guard trips** the worker emits one `Warning` event with code `RunGuardTriggered` and the reason, stops the harness as described above, keeps the output so far as the run's result text, and reports the run `Failed` with the guard's outcome and the reason as `errorMessage`.
+
+**Bounding every run.** The deadline is the deployment's `timeoutSeconds` (or a per-run `timeoutSeconds` parameter when the deployment allows it in `allowedRunOverrides`), else the profile's default, and it is always capped by the cluster setting `Runtime.MaxRunSeconds` (default 3,600). The leader's deadline enforcer also times out any run that started longer ago than the cap plus the deadline grace, whatever deadline it was compiled with.
 
 ### Outcomes
 
@@ -253,7 +286,9 @@ Workers probe for `claude`, `codex`, `mux`, `gemini`, and `garrison-fake-harness
 | `NotInstalled` | The executable was not found |
 | `NotCredentialed` | Stderr matched a known authentication failure (`invalid api key`, `not logged in`, `401 unauthorized`, and similar), or the harness reported one in its output stream (Mux: a 401 from the model, or `config_unresolved_env`) |
 | `McpPreflightFailed` | A required MCP server or tool was missing |
-| `OutputLimitExceeded` | Stdout passed `maxOutputBytes` |
+| `OutputLimitExceeded` | Stdout passed `maxOutputBytes`, or the assistant text passed `maxAssistantChars` (run guard) |
+| `RepetitionDetected` | The repetition guard stopped a degenerate generation loop |
+| `NoProgress` | The no-progress guard stopped a harness that went quiet with no tool call open |
 | `TimedOut`, `Cancelled` | Deadline reached or cancelled |
 | `NodeLost`, `StaleLease` | The worker disappeared or lost its lease |
 | `SchemaValidationFailed` | The output did not validate against the agent's output schema, after the one repair attempt or immediately when no repair was possible (decided by the control plane, see below) |

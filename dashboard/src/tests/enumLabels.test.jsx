@@ -21,6 +21,7 @@ const configs = [...Object.values(resourceConfigs), ...Object.values(runConfigs)
 const COLLECTIONS = {
   tenants: '/v1.0/api/tenants',
   nodes: '/v1.0/api/nodes',
+  controlNodes: '/v1.0/api/control-nodes',
   nodePools: '/v1.0/api/node-pools',
   users: 'users',
   credentials: 'credentials',

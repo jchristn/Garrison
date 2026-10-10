@@ -40,11 +40,13 @@ function sum(map) {
 /**
  * KPI numbers derived from an overview payload. Every value is a finite number or null (unknown).
  * `queued` and `active` prefer the server's all-time counts and fall back to the status map;
- * `succeeded` and `failed` come from runsByStatus (the last 24 hours on the server).
+ * `succeeded` and `failed` come from runsByStatus (the last 24 hours on the server). `controlReady` and `controlTotal`
+ * count control-plane replicas from controlNodesByStatus (P10.19); `leaderNodeId` is null when no replica leads.
  */
 export function overviewKpis(overview) {
   const runs = toStatusMap(overview?.runsByStatus);
   const nodes = toStatusMap(overview?.nodesByStatus);
+  const control = toStatusMap(overview?.controlNodesByStatus);
   const fromRuns = (status) => (runs ? runs[status] || 0 : null);
   return {
     agents: finite(overview?.agents),
@@ -55,6 +57,9 @@ export function overviewKpis(overview) {
     failed: fromRuns('Failed'),
     nodesReady: nodes ? nodes.Ready || 0 : null,
     nodesTotal: nodes ? sum(nodes) : null,
-    nodesLost: nodes ? nodes.Lost || 0 : null
+    nodesLost: nodes ? nodes.Lost || 0 : null,
+    controlReady: control ? control.Ready || 0 : null,
+    controlTotal: control ? sum(control) : null,
+    leaderNodeId: typeof overview?.leaderNodeId === 'string' && overview.leaderNodeId ? overview.leaderNodeId : null
   };
 }

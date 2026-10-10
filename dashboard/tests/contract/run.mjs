@@ -473,6 +473,8 @@ function routes(ids) {
     ['listNodes', `/v1.0/api/nodes?${list}`],
     ['getNode', `/v1.0/api/nodes/${ids.node}`],
     ['listNodePools', `/v1.0/api/node-pools?${list}`],
+    ['listControlNodes', `/v1.0/api/control-nodes?${list}`],
+    ['getControlNode', `/v1.0/api/control-nodes/${ids.controlNode}`],
     ['getOpenApiSpec', '/openapi.json']
   ];
 }
@@ -489,6 +491,7 @@ async function main() {
   ids.requestHistory = (await api.get('/v1.0/api/request-history?maxResults=1&skip=0')).objects?.[0]?.id;
   ids.manifestApply = (await api.get(tp('manifests/applies?maxResults=1&skip=0'))).objects?.[0]?.id;
   ids.node = (await api.get('/v1.0/api/nodes?maxResults=1&skip=0')).objects?.[0]?.id;
+  ids.controlNode = (await api.get('/v1.0/api/control-nodes?maxResults=1&skip=0')).objects?.[0]?.id;
   const openapi = await api.get('/openapi.json');
 
   if (DUMP) fs.mkdirSync(DUMP, { recursive: true });

@@ -1,10 +1,12 @@
-// ResourceView configurations for runs, nodes, and audit records.
+// ResourceView configurations for runs, worker nodes, control nodes, and audit records.
 
 import CopyableId from '../components/CopyableId';
 import { Badge } from '../components/StatusBadge';
 import { ENUMS, TERMINAL_RUN_STATUSES, runStatusTone, nodeStatusTone } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
-import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
+import { formatDateTime, formatNumber, formatRelativeTime, formatUptime } from '../i18n/formatters';
+import ControlNodeDetail from '../components/ControlNodeDetail';
+import { ControlNodeStatus, LeaderBadge, HeartbeatAge } from '../components/ControlNodeBadges';
 import { errorMessage } from '../utils/errors';
 import { resourceTip, enumTip } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
@@ -143,6 +145,71 @@ export const nodesConfig = {
     { label: ctx.t('resources.nodes.actions.drain'), tip: ctx.t('tips.resources.nodes.actions.drain'), hidden: r.status === 'Draining' || r.status === 'Lost', onClick: () => act(ctx, () => ctx.apiClient.drainNode(r.id), 'resources.nodes.toasts.draining') },
     { label: ctx.t('resources.nodes.actions.runs'), tip: ctx.t('tips.resources.nodes.actions.runs'), onClick: () => ctx.navigate(pathFor('runs', null, { nodeId: r.id })) }
   ]
+};
+
+/** Which replica answered the list request (respondingNodeId), noting when it is the leader. */
+function AnsweredBy({ t, listInfo }) {
+  const node = listInfo?.respondingNodeId;
+  if (!node) return null;
+  const isLeader = (listInfo.items || []).some((n) => n.id === node && n.isLeader);
+  return (
+    <span data-testid="control-nodes-answered-by" {...tip(t('tips.resources.controlNodes.answeredBy'))}>
+      {t(isLeader ? 'resources.controlNodes.answeredByLeader' : 'resources.controlNodes.answeredBy', { node })}
+    </span>
+  );
+}
+
+const count = (lng) => (v) => (v === null || v === undefined ? '-' : formatNumber(v, {}, lng));
+
+/**
+ * Control nodes: the control-plane replicas (P10.19). Read-only; each replica registers and heartbeats itself.
+ * Without a status filter because the server filters only by name.
+ */
+export const controlNodesConfig = {
+  id: 'controlNodes',
+  explainer: 'controlNodes',
+  autoRefresh: 15,
+  defaultSort: 'name',
+  defaultSortDir: 'asc',
+  api: {
+    list: (c, _t, p) => c.listControlNodes(p),
+    create: null,
+    update: null,
+    remove: null
+  },
+  canDuplicate: false,
+  isEditable: () => false,
+  canDelete: () => false,
+  intro: (ctx) => <AnsweredBy t={ctx.t} listInfo={ctx.listInfo} />,
+  columns: ({ t, i18n }) => {
+    const lng = i18n.language;
+    const now = Date.now();
+    const n = count(lng);
+    return [
+      col('controlNodes', t, 'name', (r) => (
+        <>
+          <strong>{r.name}</strong> <LeaderBadge node={r} t={t} />
+        </>
+      ), { sortable: true, pinned: true, cellClass: 'nowrap', csv: (r) => (r.isLeader ? `${r.name} (leader)` : r.name) }),
+      col('controlNodes', t, 'status', (r) => <ControlNodeStatus status={r.status} t={t} />, { sortable: true, serverSort: false, csv: (r) => r.status }),
+      col('controlNodes', t, 'version', (r) => r.version || '-', { cellClass: 'nowrap' }),
+      col('controlNodes', t, 'schemaVersion', (r) => r.schemaVersion ?? '-', { cellClass: 'right' }),
+      col('controlNodes', t, 'backplane', (r) => (r.backplane ? <span {...tip(enumTip(t, 'backplane', r.backplane))}>{enumLabel(t, 'backplane', r.backplane)}</span> : '-'), { csv: (r) => r.backplane || '' }),
+      col('controlNodes', t, 'uptime', (r) => <span {...tip(formatDateTime(r.startedUtc, lng, { dateStyle: 'medium', timeStyle: 'medium' }))}>{formatUptime(r.startedUtc, lng, now)}</span>, { cellClass: 'nowrap', csv: (r) => formatUptime(r.startedUtc, lng, now) }),
+      col('controlNodes', t, 'lastHeartbeatUtc', (r) => <HeartbeatAge node={r} t={t} lng={lng} now={now} />, { cellClass: 'nowrap', sortable: true, serverSort: false, csv: (r) => r.lastHeartbeatUtc || '' }),
+      col('controlNodes', t, 'activeRequests', (r) => n(r.activeRequests), { cellClass: 'right', sortable: true, serverSort: false }),
+      col('controlNodes', t, 'openStreams', (r) => n(r.openStreams), { cellClass: 'right', sortable: true, serverSort: false }),
+      col('controlNodes', t, 'heldLongPolls', (r) => n(r.heldLongPolls), { cellClass: 'right', sortable: true, serverSort: false, defaultHidden: true }),
+      col('controlNodes', t, 'address', (r) => r.address || '-', { cellClass: 'nowrap', defaultHidden: true }),
+      col('controlNodes', t, 'hostname', (r) => r.hostname || '-', { defaultHidden: true }),
+      col('controlNodes', t, 'startedUtc', (r) => formatDateTime(r.startedUtc, lng), { defaultHidden: true }),
+      col('controlNodes', t, 'id', (r) => <CopyableId value={r.id} />, { cellClass: 'cell-id', defaultHidden: true })
+    ];
+  },
+  // The record modal shows the read-only detail (with a fresh single read) instead of form fields.
+  fields: () => [],
+  formSize: 'medium',
+  viewExtra: (d) => <ControlNodeDetail node={d} />
 };
 
 function nodeFields(t) {

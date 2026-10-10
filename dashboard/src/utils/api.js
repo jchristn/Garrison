@@ -750,6 +750,20 @@ class ApiClient {
     return this._request('DELETE', `/v1.0/api/nodes/${enc(id)}`);
   }
 
+  /**
+   * Control-plane replicas (GET /control-nodes). The normalized page also carries `respondingNodeId`, the replica
+   * that answered, so a page can say which replica served it.
+   */
+  async listControlNodes(params) {
+    const res = await this._request('GET', '/v1.0/api/control-nodes', { query: this._enumParams(params) });
+    return { ...this._normalizeEnum(res, params?.pageNumber, params?.pageSize), respondingNodeId: res?.respondingNodeId || null };
+  }
+
+  /** One control-plane replica, with `respondingNodeId`. */
+  getControlNode(id) {
+    return this._request('GET', `/v1.0/api/control-nodes/${enc(id)}`);
+  }
+
   listNodePools(params) {
     return this._list('/v1.0/api/node-pools', params);
   }

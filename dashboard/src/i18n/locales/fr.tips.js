@@ -61,7 +61,7 @@ const tips = {
       analytics: 'Graphiques de vitesse d\'exécution, de consommation de jetons, de coût, de résultats et d\'appels d\'outils dans le temps, filtrables par agent, harness et déploiement.',
       agents: 'Les agents que les appelants invoquent par leur nom, et les déploiements qui déterminent comment chacun s\'exécute réellement.',
       configuration: 'Les briques utilisées par les déploiements : profils de harness, modèles de prompt, serveurs MCP, secrets, espaces de travail, stockages d\'artefacts et manifestes.',
-      fleet: 'Les nœuds worker qui traitent les exécutions et les pools de nœuds qui les regroupent pour le placement.',
+      fleet: 'Les réplicas du plan de contrôle qui servent l\'API et planifient les exécutions, les nœuds worker qui les traitent et les pools de nœuds qui regroupent les workers pour le placement.',
       access: 'Qui peut se connecter et ce qu\'il peut faire : locataires, utilisateurs, clés d\'accès, rôles et attributions de rôles.',
       monitoring: 'Enquêter sur ce qui s\'est passé : requêtes API capturées, piste d\'audit de sécurité et Explorateur d\'API en direct.',
       system: 'Paramètres du serveur, ainsi que les points de terminaison, les versions et l\'identité du serveur auquel vous êtes connecté.'
@@ -79,6 +79,7 @@ const tips = {
       artifactStores: 'Destinations des fichiers produits par les exécutions que vous souhaitez conserver après la fin de l\'exécution.',
       manifests: 'Appliquer ou exporter toute la configuration du locataire en YAML pour la versionner dans un gestionnaire de versions.',
       nodes: 'Machines ou pods worker qui récupèrent les exécutions et lancent les harness. Isolez-les, drainez-les ou inspectez-les ici.',
+      controlNodes: 'Réplicas du serveur (nœuds de contrôle) qui servent REST, MCP et A2A et planifient les exécutions. L\'un d\'eux est le leader et assure la maintenance du cluster. Statut, version et activité en lecture seule.',
       nodePools: 'Groupes nommés de nœuds, éventuellement réservés à certains locataires. Les déploiements peuvent exiger un pool.',
       tenants: 'Organisations isolées sur ce serveur, chacune avec ses propres utilisateurs, agents, secrets et exécutions.',
       users: 'Personnes qui se connectent avec une adresse e-mail et un mot de passe. Chaque utilisateur peut posséder des clés d\'accès.',
@@ -331,6 +332,17 @@ const tips = {
       Rejected: 'La requête a été rejetée avant qu\'une exécution puisse démarrer.',
       InternalError: 'Garrison a rencontré une erreur interne. Les journaux du serveur contiennent les détails.',
       NoCapableWorker: 'L\'exécution a attendu dans la file d\'attente plus longtemps que ne le permet le paramètre de cluster Runtime.FailBlockedAfterSeconds, et aucun nœud worker prêt ne pouvait l\'exécuter : elle a donc échoué.'
+    },
+    controlNodeStatus: {
+      Starting: 'Démarrage : le réplica s\'initialise et ne traite pas encore de trafic.',
+      Ready: 'Prêt : le réplica envoie des signaux de vie et traite les requêtes REST, MCP et A2A.',
+      Draining: 'Drainage en cours : l\'arrêt a commencé. La sonde de disponibilité répond 503, et ses flux et long polling se terminent.',
+      Offline: 'Hors ligne : le réplica s\'est arrêté proprement, ou il est resté muet 30 secondes et le leader l\'a marqué. Les lignes hors ligne sont supprimées après 24 heures.'
+    },
+    backplane: {
+      Local: 'Local : les événements restent dans ce processus. Convient à un seul réplica ; les autres réplicas ne les voient pas.',
+      Polling: 'Interrogation de la base de données : les réplicas partagent les événements en direct en interrogeant la base. Fonctionne avec toute base de données, avec un léger délai.',
+      PostgresNotify: 'Notifications PostgreSQL : les réplicas partagent les événements en direct via LISTEN et NOTIFY de PostgreSQL, avec très peu de délai.'
     },
     nodeStatus: {
       Ready: 'Prêt : envoie des signaux de vie et accepte de nouvelles exécutions.',
@@ -777,6 +789,34 @@ const tips = {
         runs: 'Ouvrir la liste « Exécutions » filtrée sur celles exécutées par ce nœud.'
       }
     },
+    controlNodes: {
+      name: 'Nom du réplica : l\'ID de nœud avec lequel le serveur tourne (GARRISON_NODE_ID, le nom du pod dans Kubernetes).',
+      status: 'Cycle de vie du réplica : Démarrage, Prêt, Drainage en cours ou Hors ligne. Seuls les réplicas prêts traitent du trafic.',
+      version: 'Version du serveur Garrison exécutée par ce réplica. Des versions différentes ne sont attendues que pendant une mise à jour progressive.',
+      schemaVersion: 'Version du schéma de base de données trouvée par le réplica au démarrage. Tous les réplicas devraient indiquer le même numéro.',
+      backplane: 'Comment ce réplica partage les événements en direct (flux des exécutions, mises à jour WebSocket) avec les autres réplicas.',
+      uptime: 'Depuis combien de temps le processus du réplica tourne, à partir de son démarrage. Survolez pour voir l\'heure exacte de démarrage.',
+      lastHeartbeatUtc: 'Quand le réplica a envoyé son dernier signal de vie. Les réplicas en envoient un toutes les 5 secondes ; au-delà de 15 secondes, la valeur est mise en évidence comme muette.',
+      activeRequests: 'Requêtes HTTP que le réplica traitait lors de son dernier signal de vie.',
+      openStreams: 'Flux d\'événements envoyés par le serveur et connexions WebSocket ouverts sur le réplica lors de son dernier signal de vie.',
+      heldLongPolls: 'Requêtes long polling de bail des workers que le réplica tenait lors de son dernier signal de vie. Les workers inactifs y attendent de nouvelles exécutions.',
+      address: 'Adresse IP et port REST du réplica, tels qu\'il les a signalés.',
+      hostname: 'Nom d\'hôte de la machine ou du pod sur lequel tourne le réplica.',
+      startedUtc: 'Quand le processus du réplica a démarré, dans votre fuseau horaire.',
+      id: 'ID de nœud du réplica. Il correspond à respondingNodeId dans les réponses de l\'API et au libellé node des métriques.',
+      isLeader: 'Indique si ce réplica détient le bail de leader pour la maintenance. Un seul réplica est leader à la fois.',
+      leaderEpoch: 'Époque de fencing du bail de leader. Elle augmente chaque fois que la direction passe à un autre réplica.',
+      respondingNodeId: 'Le réplica qui a répondu à cette lecture. Derrière un répartiteur de charge, il peut différer du réplica affiché.',
+      answeredBy: 'Le nœud de contrôle qui a répondu à la requête de cette liste (respondingNodeId). Derrière un répartiteur de charge, chaque actualisation peut être servie par un autre réplica.',
+      badges: {
+        leader: 'Leader : ce réplica détient le bail de maintenance. Il assure le nettoyage selon la rétention, marque hors ligne les réplicas muets et effectue le reste de la maintenance du cluster.',
+        leaderEpoch: 'Leader : ce réplica détient le bail de maintenance (époque {{epoch}}). Il assure le nettoyage selon la rétention, marque hors ligne les réplicas muets et effectue le reste de la maintenance du cluster.',
+        stale: 'Muet : aucun signal de vie depuis plus de {{seconds}} secondes, alors que les réplicas en envoient un toutes les 5 secondes. Le réplica est peut-être surchargé, isolé du réseau ou arrêté ; le leader le marque hors ligne au bout de 30 secondes.'
+      },
+      actions: {
+        grafana: 'Ouvrir le tableau de bord de vue d\'ensemble Garrison dans Grafana dans un nouvel onglet, filtré sur le nœud de contrôle {{node}}.'
+      }
+    },
     audit: {
       createdUtc: 'Moment où l\'événement s\'est produit, dans votre fuseau horaire local.',
       eventType: 'Le type d\'événement de sécurité ou de configuration.',
@@ -823,9 +863,13 @@ const tips = {
         queued: 'Exécutions en attente d\'un nœud worker. Un nombre qui ne cesse d\'augmenter signifie qu\'il vous faut plus de nœuds ou de capacité.',
         succeeded: 'Exécutions terminées avec succès au cours des dernières 24 heures. Cliquez pour les lister.',
         failed: 'Exécutions en échec au cours des dernières 24 heures. Cliquez pour les lister et lire la cause.',
-        nodes: 'Nœuds worker prêts à prendre des exécutions, sur l\'ensemble des nœuds enregistrés. Cliquez pour les gérer.'
+        nodes: 'Nœuds worker prêts à prendre des exécutions, sur l\'ensemble des nœuds enregistrés. Cliquez pour les gérer.',
+        controlNodes: 'Réplicas du plan de contrôle prêts, sur l\'ensemble des réplicas enregistrés (les lignes hors ligne restent listées 24 heures). Le leader est {{leader}}. Cliquez pour ouvrir Flotte > Plan de contrôle.',
+        controlNodesNoLeader: 'Réplicas du plan de contrôle prêts, sur l\'ensemble des réplicas enregistrés (les lignes hors ligne restent listées 24 heures). Aucun réplica ne détient le bail de leader pour le moment, donc la maintenance du cluster est en pause. Cliquez pour ouvrir Flotte > Plan de contrôle.'
       },
       openFailure: 'Ouvrir cette exécution en échec pour lire sa transcription, son erreur et sa sortie stderr.',
+      openControlPlane: 'Ouvrir Flotte > Plan de contrôle pour voir chaque réplica avec son statut, le leader, sa version, son signal de vie et son activité.',
+      openWorkers: 'Ouvrir Flotte > Nœuds worker pour voir chaque worker avec sa capacité, ses harness et son signal de vie, et pour l\'isoler ou le drainer.',
       cta: {
         invoke: 'Envoyer un message à n\'importe quel agent depuis le navigateur.',
         addAgent: 'Aller dans « Agents » pour créer une nouvelle identité d\'agent.',
@@ -985,7 +1029,8 @@ const tips = {
       openapi: 'Le document OpenAPI qui décrit chaque opération REST.',
       version: 'Version du serveur Garrison.',
       dashboardVersion: 'Version de cette console.',
-      node: 'Le réplica du plan de contrôle qui a répondu.',
+      node: 'Le réplica du plan de contrôle (nœud de contrôle) qui a répondu à la requête d\'infos serveur de cette page. Avec plusieurs réplicas, un rechargement peut être servi par un autre.',
+      nodeLink: 'Ouvrir Flotte > Plan de contrôle pour voir ce réplica à côté des autres, avec son statut, son signal de vie et s\'il est le leader.',
       database: 'Moteur de base de données utilisé par le serveur.',
       health: 'Résultat du contrôle de santé du serveur.',
       replicas: 'Nombre de réplicas du plan de contrôle attendus par le cluster.',
@@ -1239,6 +1284,12 @@ const explainers = {
     title: 'Nœuds et pools de nœuds',
     p1: 'Un nœud est un processus worker, généralement un pod, qui récupère les exécutions auprès du plan de contrôle, lance les harness et renvoie leurs événements en streaming. Les nœuds s\'enregistrent eux-mêmes, signalent les harness qu\'ils ont trouvés et envoient des signaux de vie ; vous ne les créez pas ici.',
     p2: 'Un nœud peut appartenir à un pool de nœuds et porter des étiquettes. Les déploiements utilisent les pools et les sélecteurs d\'étiquettes pour décider où leurs exécutions peuvent avoir lieu. Isolez un nœud pour arrêter le nouveau travail, ou drainez-le avant une maintenance.'
+  },
+  controlNodes: {
+    title: 'Nœuds de contrôle et nœuds worker',
+    p1: 'Un nœud de contrôle est un réplica du serveur Garrison. Les nœuds de contrôle servent l\'API REST, le serveur MCP et la passerelle A2A, authentifient les appelants, compilent les déploiements en exécutions et planifient ces exécutions. N\'importe quel réplica peut répondre à n\'importe quelle requête, donc un répartiteur de charge peut répartir le trafic entre eux.',
+    p2: 'Un des nœuds de contrôle est le leader. Il détient un bail dans la base de données et assure la maintenance de tout le cluster : nettoyage selon la rétention, passage hors ligne des réplicas muets et suppression des anciennes lignes. Si le leader s\'arrête, un autre réplica reprend le bail en quelques secondes.',
+    p3: 'Les nœuds worker, dans l\'onglet Nœuds worker, font l\'autre moitié du travail : ils récupèrent auprès du plan de contrôle les exécutions prises à bail et lancent les harness. Les nœuds de contrôle ne lancent jamais de harness, et les workers ne touchent jamais à la base de données. Chaque réplica s\'enregistre lui-même et envoie un signal de vie toutes les 5 secondes, donc cet onglet est en lecture seule.'
   },
   nodePools: {
     title: 'Pools de nœuds et nœuds',
