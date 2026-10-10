@@ -82,7 +82,7 @@ Rules for keeping the plan honest:
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
 | 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 44 / 45 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
-| 5 | Dashboard | M1 | In progress | 47 / 51 |
+| 5 | Dashboard | M1 | In progress | 49 / 51 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 34 / 37 |
 | 8 | Documentation and Postman | M1 | In progress | 16 / 22 |
@@ -1265,8 +1265,8 @@ Quality
 - [x] P5.50 Chart export everywhere: every chart in the dashboard (Analytics, Home activity, Request History, Run detail timeline) has an export menu with CSV (the exact bucketed data behind the chart, one column per series, ISO timestamps, locale-independent numbers), PNG (rendered at 2x with title, legend, filters, and time range), SVG, and JSON; the filename carries the chart name, range, and filters; data tables get CSV export too. Tested with Playwright downloads.  | claude 2026-10-10 Export menu (CSV, PNG at 2x, SVG, JSON) on every chart; CSV on every table; filenames carry chart, range, filters; Playwright download tests
 - [ ] P5.51 Mock fidelity: the mocked Playwright suite passed while Run detail showed no transcript, because the mock returned a paged list where the server returns `{ events, lastSequence, hasMore }` (fixed 2026-10-10). Add a contract test that starts a real server with the fake harness, captures every GET the dashboard calls, and fails when a mock's shape (keys and types) differs from the server response.
 - [x] P5.47 Docs and Playwright coverage for P5.43 to P5.46 (mocked and live).  | claude 2026-10-10 lint clean, 69 unit, 38 Playwright (mocked), live 6/6 on K3S; README and docs/I18N.md updated
-- [ ] P5.48 Additional locales matching Armada: `es`, `fr`, `it`, `zh-Hans`, `zh-Hant`, `yue-Hant` (beta label in the selector), complete catalogs including tooltips, CJK font hints, key-parity and placeholder tests, and a native-speaker review checklist in `docs/I18N.md`.
-- [ ] P5.49 RTL readiness beyond the `zz` pseudo-locale: audit with `dir="rtl"` across every route (logical CSS properties, icons that mirror, charts), documented so an RTL language such as Arabic or Hebrew can be added without code changes.
+- [x] P5.48 Additional locales matching Armada: `es`, `fr`, `it`, `zh-Hans`, `zh-Hant`, `yue-Hant` (beta label in the selector), complete catalogs including tooltips, CJK font hints, key-parity and placeholder tests, and a native-speaker review checklist in `docs/I18N.md`.  | claude 2026-10-10 es, fr, it, zh-Hans, zh-Hant, yue-Hant complete (about 2,420 keys each incl. 949 tooltips), beta labels (de and ja too, matching Armada), glossary and native-review checklist in docs/I18N.md, CJK font stacks, alias fallback; key, placeholder, untranslated, and duplicate-label tests
+- [x] P5.49 RTL readiness beyond the `zz` pseudo-locale: audit with `dir="rtl"` across every route (logical CSS properties, icons that mirror, charts), documented so an RTL language such as Arabic or Hebrew can be added without code changes.  | claude 2026-10-10 about 25 physical CSS properties made logical, mirrored directional icons, RTL-aware popover placement, LTR time axes and code; Playwright overflow audit on every route in zz and forced dir=rtl; how to add Arabic documented
 
 ### Phase 6: SDKs
 

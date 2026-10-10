@@ -1,0 +1,1219 @@
+// Traditional Chinese tooltip (tips.*) and relationship explainer (explainers.*) text. Merged into zh-Hant.js. Mirrors en.tips.js key for key.
+
+const TELEMETRY = {
+  timeToFirstTokenMs: '第一個 Token 時間：從工作節點啟動 Harness 程序開始，到模型產生第一個輸出（文字或思考）為止。其中包含 Harness 啟動時間，因此 CLI 啟動緩慢也會反映在這裡。由工作節點以單調時鐘量測。',
+  streamingMs: '串流時間：從第一個模型輸出到最後一個輸出之間的時間，也就是模型實際產生輸出的時長。由工作節點以單調時鐘量測。',
+  executionMs: '執行時間：由工作節點量測，從 Harness 程序啟動到程序結束的時間。未回報此值的舊版伺服器會改用開始與完成時間戳記計算。',
+  queueMs: '排隊時間：執行從進入佇列到被工作節點取得租約之間等待的時間。數值偏高代表所有符合條件的節點都在忙碌，或沒有節點符合排程放置規則。由伺服器量測。',
+  totalMs: '總時間：從進入佇列到完成，也就是排隊時間加上執行時間與結果回報時間。由伺服器量測。',
+  outputTokensPerSecond: '每秒輸出 Token 數：輸出 Token 數除以串流時間。只有在串流持續至少 100 ms 時才會顯示，因為更短的時間區間算出的速率沒有意義。',
+  inputTokens: 'Harness 回報的整個執行輸入 Token 數，包含系統提示、工具結果，以及各回合的對話歷史。',
+  outputTokens: '模型在執行的每個回合中產生的輸出 Token 數，由 Harness 剖析器回報。',
+  cachedTokens: '由供應商提示快取提供的輸入 Token。快取 Token 通常以較低費率計費，因此這裡占比越高，成本越低。',
+  reasoningTokens: '推理或思考 Token，前提是 Harness 會分開回報（例如 Codex 的推理輸出）。若 Harness 沒有分開列出，則為零。',
+  toolCallCount: '執行中的工具呼叫事件數：包含 MCP 工具、Harness 內建工具，以及對其他 Garrison 代理程式的呼叫。由工作節點從事件串流中計算。',
+  costUsd: 'Harness 回報的成本（美元）。若是 Garrison 根據 Token 數自行計算，而非由 Harness 回報，則會標示為估計值。',
+  firstTokenUtc: '執行中第一個模型輸出事件的實際時間（UTC，以你的時區顯示）。',
+  lastTokenUtc: '執行中最後一個模型輸出事件的實際時間（UTC，以你的時區顯示）。'
+};
+
+const FILE_ITEMS = {
+  baseDirectory: '路徑相對於哪個目錄：執行設定目錄、工作區，或執行的 HOME 目錄。',
+  pathTemplate: '啟動前要寫入的檔案相對路徑。可以使用範本，例如 settings/{{run.id}}.json。',
+  contentTemplate: '要轉譯為檔案內容的範本。可以參照變數，以及透過 {{secret.alias}} 繫結的祕密。',
+  condition: '範本運算式；轉譯結果為空或 false 時，不會寫入此檔案。',
+  mode: '以八進位表示的 Unix 檔案權限模式，例如存放憑證的檔案使用 0600。',
+  isSecret: '將轉譯後的內容視為祕密：永遠不會寫入記錄，並且在編譯預覽中會被遮蔽。'
+};
+
+const tips = {
+  common: {
+    fields: {
+      name: '此紀錄在租用戶內的唯一名稱。其他紀錄與清單會以此名稱參照它。',
+      description: '給人看的自由文字備註，說明此紀錄的用途，執行時不會使用。',
+      active: '停用的紀錄會保留但被忽略。關閉此選項即可暫停某項目，而不必刪除它。',
+      id: '系統產生的識別碼，帶有類型前置字串。可在 API 呼叫與指令碼中使用，永遠不會變更。',
+      createdUtc: '此紀錄的建立時間。將滑鼠移到值上可查看確切的日期與時間。',
+      lastUpdateUtc: '此紀錄最後一次變更的時間。',
+      isBuiltIn: '內建紀錄隨 Garrison 提供，為唯讀。自訂紀錄是在此租用戶中建立的，可以編輯。',
+      expiresUtc: '超過此時間後，紀錄將失效。留空表示永不過期。'
+    }
+  },
+  explainer: {
+    reopen: '再次顯示 {{topic}} 的說明：此頁面管理什麼，以及它與 Garrison 其他部分的關係。',
+    dismiss: '隱藏此說明。原位置會保留一個小型「關於」按鈕，讓你隨時可以重新開啟。'
+  },
+  nav: {
+    hubs: {
+      home: '從這裡開始：代理程式、執行與工作節點的即時數量、API 流量、近期失敗，以及常用工作的捷徑。',
+      invoke: '直接在瀏覽器中傳送訊息給代理程式，並觀看對話紀錄即時串流，不需要撰寫任何程式碼。',
+      runs: '每一次代理程式呼叫的對話紀錄、結果與遙測資料，以及等待節點的工作佇列。',
+      analytics: '執行速度、Token 用量、成本、結果與工具呼叫隨時間變化的圖表，可依代理程式、Harness 與部署篩選。',
+      agents: '呼叫端以名稱呼叫的代理程式，以及決定每個代理程式實際如何執行的部署。',
+      configuration: '部署所使用的構成元件：Harness 設定檔、提示範本、MCP 伺服器、祕密、工作區、成品存放區與清單。',
+      fleet: '負責處理執行的工作節點，以及將節點分組以進行排程放置的節點池。',
+      access: '誰可以登入以及可以做什麼：租用戶、使用者、存取金鑰、角色與角色指派。',
+      monitoring: '調查發生了什麼事：擷取的 API 請求、安全性稽核軌跡，以及即時 API 探索器。',
+      system: '伺服器設定，以及你目前連線之伺服器的端點、版本與身分。'
+    },
+    tabs: {
+      runs: '搜尋、篩選並檢視個別執行。開啟某個執行即可閱讀其對話紀錄、結果與遙測資料，或取消並重試。',
+      queue: '正在等待節點、已取得租約或正在執行的執行，依代理程式與 Harness 分組。',
+      agents: '呼叫端透過 REST、MCP 或 A2A 呼叫的具名代理程式。代理程式是身分；它的部署決定它如何執行。',
+      deployments: '每個代理程式的執行方式：Harness 設定檔、模型、提示、MCP 伺服器、祕密、工作區、排程放置、限制與流量權重。',
+      harnessProfiles: '以無介面模式啟動 CLI Harness 的配方：執行檔、引數、環境變數、檔案與輸出剖析。',
+      promptTemplates: 'Garrison 傳送給 Harness 的每一個提示與產生的設定檔，具備版本控管與即時預覽。',
+      mcpServers: '代理程式可以使用的工具伺服器。先在這裡註冊，再將它們繫結到部署。',
+      secrets: '加密儲存的 API 金鑰與權杖。部署以別名繫結它們；值不會再次顯示。',
+      workspaces: '執行所用工作目錄的範本：空白、從 Git 複製，或預先放入檔案。',
+      artifactStores: '存放執行產生、且你希望在執行結束後保留之檔案的目的地。',
+      manifests: '以 YAML 套用或匯出整個租用戶的設定，讓它可以納入原始碼控管。',
+      nodes: '拉取執行並執行 Harness 的工作機器或 Pod。可在此封鎖、清空或檢視它們。',
+      nodePools: '具名的節點群組，可選擇保留給特定租用戶使用。部署可以要求使用某個節點池。',
+      tenants: '此伺服器上彼此隔離的組織，各自擁有自己的使用者、代理程式、祕密與執行。',
+      users: '以電子郵件與密碼登入的人員。每位使用者都可以擁有存取金鑰。',
+      credentials: '供指令碼、SDK 與服務使用的存取金鑰。每把金鑰屬於一位使用者，並以該使用者的權限或更少的權限運作。',
+      roles: '具名的權限組合，以及權限本身。指派角色即可授予存取權。',
+      assignments: '將角色連結到使用者或存取金鑰的授權，範圍可以是整個租用戶或單一資源。',
+      requests: '此伺服器擷取的 API 請求，包含標頭、本文、時間與狀態，用於偵錯整合。',
+      audit: '安全性與設定事件：登入、拒絕、祕密變更、清單套用與節點變更。',
+      explorer: '從伺服器的 OpenAPI 文件中挑選任何 API 操作，填入參數並即時執行。',
+      settings: '伺服器與叢集設定，包含其來源，以及變更是即時生效還是需要重新啟動。',
+      serverInfo: 'REST、MCP 與 A2A 位址、伺服器與儀表板版本，以及你目前登入的身分。'
+    },
+    subtabs: {
+      roles: '角色以一個名稱將權限分組，例如 Operator 或 Invoker。將角色指派給某人，即可授予該角色的所有權限。',
+      permissions: '允許或拒絕對資源類型執行操作的個別規則。角色由這些規則組成；拒絕永遠優先。',
+      userAssignments: '將角色授予以電子郵件與密碼登入的人員。',
+      credentialAssignments: '將角色授予自動化所使用的存取金鑰。金鑰的權限應比其擁有者更窄。'
+    },
+    setup: '開啟設定精靈：儲存 Harness 憑證、套用範例代理程式，並執行一次以確認一切正常。',
+    tour: '重新播放簡短的導覽，介紹導覽列、環境資訊，以及設定所在的位置。',
+    skipToContent: '跳過導覽列，直接前往此頁面的主要內容。主要供鍵盤使用者使用。'
+  },
+  topbar: {
+    toggleSidebar: '收合或展開導覽側邊欄。在小螢幕上，會以覆蓋層方式開啟導覽。',
+    server: '此主控台所連線的 Garrison 伺服器：{{url}}。圓點顯示其健康檢查是否通過。',
+    health: {
+      healthy: '伺服器在過去 30 秒內回應了健康檢查。',
+      unhealthy: '伺服器沒有回應健康檢查。此頁面發出的請求很可能會失敗。',
+      unknown: '正在等待伺服器的第一個健康檢查結果。'
+    },
+    copyServer: '複製伺服器 URL，例如用來設定 SDK 或 curl 指令。',
+    switchTenant: '系統管理員可以檢視任何租用戶。每個頁面都會顯示所選租用戶的資料。',
+    tenant: '你目前在租用戶 {{tenant}} 中工作。你看到的每筆紀錄與執行都屬於它。',
+    principal: '你目前以 {{name}} 的身分登入。你執行的動作都會以此身分記錄。',
+    role: '你在此租用戶中的最高存取層級。它決定了哪些頁面與動作可以使用。',
+    liveOn: '已透過 WebSocket 連線到伺服器，因此執行與節點的變更會即時出現。',
+    liveOff: '沒有即時連線。頁面會改以各自的計時器重新整理，因此變更可能需要幾秒鐘才會顯示。',
+    github: '在新分頁中開啟 GitHub 上的 Garrison 原始碼儲存庫，以查看文件與問題回報。',
+    themeLight: '切換為淺色佈景主題。此選擇會記在這個瀏覽器中。',
+    themeDark: '切換為深色佈景主題。此選擇會記在這個瀏覽器中。',
+    logout: '登出並撤銷此瀏覽器工作階段。你之後需要重新登入。',
+    language: '變更顯示語言。日期與數字格式也會跟著語言調整，且此選擇會被記住。'
+  },
+  login: {
+    passwordTab: '以人員身分使用租用戶、電子郵件與密碼登入。',
+    keyTab: '使用存取金鑰與祕密金鑰登入，也就是指令碼與 SDK 使用的同一組金鑰。',
+    serverUrl: 'Garrison REST API 的基底位址，例如透過連接埠轉送的伺服器 127.0.0.1:8700。',
+    tenantId: '你的帳戶所屬的租用戶。本機預設租用戶名為 default。',
+    email: '你在此租用戶中的使用者帳戶電子郵件地址。',
+    password: '你的帳戶密碼。只會傳送一次以取得工作階段權杖，瀏覽器應用程式不會儲存它。',
+    accessKey: '存取金鑰的公開部分，以 access_ 開頭。可在「存取」>「存取金鑰」下建立金鑰。',
+    secretKey: '存取金鑰的私密部分。只在建立或輪替金鑰時顯示過一次。',
+    submit: '向伺服器驗證憑證，並開啟你租用戶的主控台。'
+  },
+  table: {
+    selectAll: '選取或清除此頁面上的每一列，例如要一起刪除時使用。',
+    selectRow: '選取此列以進行批次動作，例如刪除。',
+    sortServer: '{{tip}} 按一下即可依此欄排序整份清單；再按一下可反轉順序。',
+    sortPageOnly: '{{tip}} 按一下只會排序此頁面上的列；伺服器無法依此欄排序。',
+    clearSelection: '取消選取所有已選取的列，不會變更任何內容。',
+    pageSize: '每頁要載入的列數。頁面越大，載入時間越長。此選擇會依表格分別記住。',
+    first: '前往結果的第一頁。',
+    prev: '返回結果的上一頁。',
+    jump: '輸入 1 到 {{total}} 之間的頁碼，並按下 Enter 直接跳到該頁。',
+    next: '前往結果的下一頁。',
+    last: '前往結果的最後一頁。',
+    refresh: '立即從伺服器重新載入此清單，並保留你目前的頁碼、篩選條件與排序。',
+    autoRefresh: '依計時器自動重新載入此資料。關閉後資料會保持不動，方便你閱讀。',
+    selectColumns: '選擇表格要顯示的欄位。你的選擇會依表格記在這個瀏覽器中。',
+    columnPinned: '{{column}} 一律顯示，因為沒有它就無法識別各列。',
+    columnToggle: '顯示或隱藏 {{column}} 欄。{{tip}}',
+    actionsFor: '開啟 {{name}} 的動作：檢視、編輯、建立副本、檢視 JSON、刪除，以及此紀錄專屬的動作。',
+    actionsMenu: '開啟此列可用的動作。',
+    actionsColumn: '每列的動作。按一下三個點即可檢視、編輯、建立副本、檢查 JSON 或刪除。',
+    search: '輸入部分名稱以縮小清單範圍。你停止輸入後，搜尋會在伺服器上執行。',
+    clearFilters: '移除搜尋文字與所有篩選條件，並再次顯示完整清單。',
+    bulkDelete: '刪除所有已選取的列。系統會先要求你確認。'
+  },
+  filters: {
+    status: '只顯示處於此狀態的紀錄。選擇「全部」即可移除篩選。',
+    harnessType: '只顯示某一種 Harness 的紀錄，例如 Claude Code 或 Codex。',
+    kind: '只顯示某一種類的紀錄。選擇「全部」即可移除篩選。',
+    eventType: '只顯示某一類型的稽核事件，例如登入失敗或祕密變更。',
+    fromUtc: '只顯示在此時間當下或之後建立的紀錄（你的本機時區）。',
+    toUtc: '只顯示在此時間之前建立的紀錄（你的本機時區）。',
+    method: '只顯示使用此 HTTP 方法的請求。',
+    statusCode: '只顯示傳回此 HTTP 狀態碼的請求，例如 404 或 500。',
+    pathContains: '只顯示路徑包含此文字的請求，例如 /agents。',
+    tenantId: '只顯示在此租用戶中發出的請求。留空表示所有租用戶。',
+    apply: '以上方的篩選值執行搜尋。',
+    clear: '將上方所有篩選條件重設為空白，並再次搜尋。'
+  },
+  form: {
+    option: '在 {{field}} 中包含 {{option}}。已勾選的選項會被儲存；未勾選的則不會包含。',
+    reveal: '以純文字顯示輸入的值，讓你在儲存前檢查。',
+    hide: '再次遮蔽此值，讓看著你螢幕的人無法讀取。',
+    key: '{{field}} 中此項目的鍵。清單中的鍵必須唯一。',
+    value: '{{field}} 中此項目的值。在有標示之處可使用範本與祕密參照。',
+    removeRow: '從清單中移除此項目。在你按下「儲存」之前，不會儲存任何內容。',
+    addRow: '在 {{field}} 中新增一個空白的鍵值項目。',
+    moveUp: '將此項目往前移一個位置。這裡的順序很重要，例如引數清單。',
+    moveDown: '將此項目往後移一個位置。這裡的順序很重要，例如引數清單。',
+    removeItem: '從清單中移除此項目。在你按下「儲存」之前，不會儲存任何內容。',
+    addItem: '在 {{field}} 中新增一個空白項目，並填寫其欄位。'
+  },
+  actions: {
+    openDetail: '開啟此紀錄的完整詳細資料頁面。',
+    view: '以唯讀方式開啟此紀錄，查看所有欄位而不會有誤改的風險。',
+    edit: '在表單中開啟此紀錄以進行變更。按下「儲存」後變更才會生效。',
+    duplicate: '以此紀錄的值與帶有 -copy 的名稱預先填入，建立新紀錄。在你儲存之前不會建立任何內容。',
+    viewJson: '顯示 API 傳回的原始 JSON，用於偵錯或複製到指令碼中。',
+    delete: '永久刪除此紀錄。系統會要求你確認，且無法復原。',
+    add: '在表單中建立此類型的新紀錄。',
+    switchToEdit: '將此唯讀檢視切換為可編輯的表單。',
+    retryLoad: '再次嘗試從伺服器載入此資料。'
+  },
+  modal: {
+    close: '關閉此視窗。伺服器上的任何內容都不會變更。',
+    dismiss: '關閉此視窗而不儲存。你也可以按 Escape 鍵。',
+    cancelForm: '關閉表單並捨棄尚未儲存的變更。',
+    back: '前往表單的上一個步驟。你輸入的值會保留。',
+    next: '前往表單的下一個步驟。在你按下「儲存」之前，不會儲存任何內容。',
+    saveEdit: '儲存你對此紀錄的變更。伺服器會驗證內容，並回報任何需要注意的欄位。',
+    saveCreate: '以這些值建立紀錄。伺服器會驗證內容，並回報任何需要注意的欄位。',
+    saveValue: '將此值傳送到伺服器。它在抵達時即被加密，且不會再次顯示。'
+  },
+  confirm: {
+    delete: '是的，永久刪除此紀錄。',
+    bulkDelete: '是的，永久刪除所有已選取的紀錄。',
+    cancel: '返回，不執行任何動作。',
+    danger: '執行此破壞性動作。此動作無法復原。',
+    confirm: '執行上方描述的動作。'
+  },
+  copy: {
+    value: '將此值複製到剪貼簿。',
+    block: '將整個區塊複製到剪貼簿，可直接貼到終端機或檔案中。',
+    done: '已複製到剪貼簿。'
+  },
+  chart: {
+    ranges: {
+      hour: '顯示過去 60 分鐘，以每分鐘為一個區間。',
+      day: '顯示過去 24 小時。區間大小會自動調整，讓圖表保持易讀。',
+      week: '顯示過去 7 天。區間大小會自動調整，讓圖表保持易讀。',
+      month: '顯示過去 30 天。區間大小會自動調整，讓圖表保持易讀。',
+      custom: '自行選擇開始與結束時間。時間範圍過長會被伺服器拒絕。'
+    },
+    refresh: '立即從伺服器重新載入圖表資料。',
+    tenant: '顯示單一租用戶或伺服器上所有租用戶的請求活動。'
+  },
+  badges: {
+    active: '啟用：此紀錄正在使用中。',
+    inactive: '停用：此紀錄會保留，但在重新啟用前會被忽略。',
+    builtIn: '內建：隨 Garrison 提供且為唯讀。複製它即可建立可編輯的版本。',
+    custom: '自訂：在此租用戶中建立，因此可以編輯與刪除。',
+    systemAdmin: '系統管理員：可以管理所有租用戶，並略過授權檢查。',
+    tenantAdmin: '租用戶管理員：可以管理此租用戶內的一切。',
+    user: '一般使用者：存取權僅來自角色指派。',
+    role: '此指派授予 {{role}} 角色及其中的所有權限。',
+    deploymentActive: '啟用：此部署會接收代理程式流量中屬於它的份額。',
+    deploymentInactive: '停用：此部署不會接收流量，但呼叫時仍可明確指定它。'
+  },
+  permissions: {
+    source: '此授權來自的角色。若要修正存取權，請變更該角色或授予它的指派。',
+    type: '「允許」授予這些操作；「拒絕」會封鎖這些操作，即使其他角色允許也一樣。',
+    resources: '此授權涵蓋的紀錄種類，例如 Agent 或 Run。',
+    operations: '可以對這些紀錄執行的動作，例如 Read、Create 或 Execute。',
+    scope: '「租用戶」範圍涵蓋該類型的所有紀錄；「資源」範圍只涵蓋某一筆特定紀錄。'
+  },
+  compilePreview: {
+    input: '用於編譯的範例呼叫端訊息。它會成為任務範本中的 {{input.message}}。',
+    compile: '以與實際執行完全相同的方式編譯此部署，但不啟動執行，並顯示命令列、檔案與環境變數。'
+  },
+  secretOnce: {
+    accessKey: '公開的存取金鑰。它用來識別此存取金鑰紀錄，可以安全地存放在設定中。',
+    secretKey: '祕密金鑰。這是唯一一次顯示；請立即將它複製到你的密碼管理工具或祕密存放區。',
+    done: '關閉此視窗。祕密金鑰之後無法再取回，只能輪替。'
+  },
+  wizard: {
+    skip: '關閉精靈，且不再對此租用戶提供。你可以從側邊欄重新開啟它。',
+    back: '返回精靈的上一個步驟。',
+    start: '開始設定：新增憑證、套用範例代理程式，並進行測試。',
+    saveSecret: '將憑證加密儲存在此租用戶中，並前往下一個步驟。',
+    skipStep: '不新增憑證並繼續。範例代理程式不需要憑證。',
+    apply: '根據上方顯示的清單建立範例代理程式與部署。',
+    invoke: '以你的訊息啟動範例代理程式的執行，並開啟其詳細資料頁面。',
+    secretName: '所儲存憑證的名稱。部署在繫結它時會以此名稱參照。',
+    manifest: 'YAML 格式的範例清單。你可以在套用前編輯它，例如為代理程式重新命名。',
+    message: '要傳送給範例代理程式的訊息。模擬 Harness 會原樣回傳它。'
+  },
+  tour: {
+    skip: '立即結束導覽。你可以從側邊欄重新播放。',
+    back: '顯示導覽的上一站。',
+    next: '前往導覽的下一站。',
+    done: '完成導覽。你可以從側邊欄重新播放。'
+  },
+  telemetry: {
+    ...TELEMETRY,
+    panel: '此執行的每個階段花了多少時間，以及消耗了什麼。各項時長來自工作節點與伺服器的時鐘，說明見各欄位。',
+    phases: '執行的時間花在哪裡，由左至右：在佇列中等待、Harness 啟動到第一個 Token、串流輸出，以及其餘的執行時間。',
+    phase: {
+      queue: '在佇列中等待工作節點取得此執行的租約。',
+      startup: '從程序啟動到第一個模型輸出，包含 Harness 啟動與第一次模型請求。',
+      streaming: '從第一個到最後一個模型輸出。',
+      tail: '最後一個模型輸出之後的執行：工具呼叫、結果處理與程序結束。'
+    }
+  },
+  enums: {
+    runStatus: {
+      Pending: '待處理：執行已被接受，正在準備中，尚未加入佇列。',
+      Queued: '已排入佇列：等待具有相符 Harness 與排程放置條件的工作節點取得租約。',
+      Leased: '已租用：某個工作節點已認領此執行，正在準備工作區。',
+      Running: '執行中：Harness 程序正在工作節點上執行。',
+      Cancelling: '取消中：已要求停止，工作節點正在關閉 Harness。',
+      Succeeded: '成功：Harness 已完成並產生有效結果。',
+      Failed: '失敗：執行以錯誤結束。結果欄會說明原因。',
+      Cancelled: '已取消：有人在執行完成前將其停止。',
+      TimedOut: '逾時：執行到達期限而被停止。',
+      Rejected: '已拒絕：執行無法啟動，例如因為沒有啟用中的部署。'
+    },
+    runOutcome: {
+      None: '執行尚未結束，因此還沒有結果。',
+      Succeeded: 'Harness 已完成，且其結果通過驗證。',
+      HarnessFailed: 'Harness 回報失敗，或在沒有可用結果的情況下結束。請檢查 stderr 與對話紀錄。',
+      NotInstalled: '在工作節點上找不到 Harness 執行檔。',
+      NotCredentialed: 'Harness 沒有可用的憑證。請將祕密繫結到部署。',
+      McpPreflightFailed: '工作節點在啟動前檢查時，必要的 MCP 伺服器或工具無法連線。',
+      NodeLost: '工作節點在持有此執行期間停止傳送心跳訊號。',
+      OutputLimitExceeded: 'Harness 寫出的輸出超過設定檔允許的上限。',
+      SchemaValidationFailed: '即使經過一次修復嘗試，結果仍不符合代理程式的輸出 JSON Schema。',
+      TimedOut: '執行到達了期限。',
+      Cancelled: '執行依要求被取消。',
+      StaleLease: '工作節點在失去租約後才回報，因此其結果被忽略。',
+      CompileFailed: '無法編譯部署，例如因為缺少範本變數。',
+      WorkspaceFailed: '無法準備工作區，例如因為 Git 複製失敗。',
+      Rejected: '請求在執行開始前就被拒絕。',
+      InternalError: 'Garrison 發生內部錯誤。詳細資訊請參閱伺服器記錄。'
+    },
+    nodeStatus: {
+      Ready: '就緒：正在傳送心跳訊號並接受新的執行。',
+      Draining: '清空中：正在完成目前的執行，不接受新的執行。',
+      Cordoned: '已封鎖：不接受新的執行；目前的執行會正常繼續。',
+      Lost: '遺失：錯過了心跳訊號。它的執行會重新排入佇列或標記為失敗。',
+      Offline: '離線：已正常關閉，未持有任何執行。'
+    },
+    harnessType: {
+      ClaudeCode: 'Anthropic Claude Code CLI，以無介面模式執行並使用 stream-JSON 輸出。',
+      Codex: 'OpenAI Codex CLI，以 exec 執行並使用 JSONL 輸出。',
+      Mux: '使用 JSONL 輸出的 Mux CLI；可搭配本機與託管的模型端點。',
+      GeminiCli: '使用 stream-JSON 輸出的 Google Gemini CLI。',
+      Generic: '其他任何命令列代理程式，完全由 Harness 設定檔描述。'
+    },
+    agentKind: {
+      Hosted: '託管：Garrison 透過此代理程式在工作節點上的部署自行執行它。',
+      Remote: '遠端：代理程式在其他地方執行，Garrison 會將呼叫轉送到它的 A2A 或 MCP 端點。'
+    },
+    secretKind: {
+      AnthropicApiKey: 'Anthropic API 金鑰，由 Claude Code 設定檔以 ANTHROPIC_API_KEY 注入。',
+      ClaudeCodeOAuthToken: 'Claude Code 訂閱權杖。在共用伺服器上使用前，請先確認供應商條款。',
+      OpenAiApiKey: '供 Codex 或其他以 OpenAI 為後端之 Harness 使用的 OpenAI API 金鑰。',
+      CodexAuthJson: 'Codex auth.json 檔案的內容，會寫入執行的 HOME 目錄。',
+      GeminiApiKey: '供 Gemini CLI 使用的 Google Gemini API 金鑰。',
+      GenericEnv: '任何要作為環境變數使用的值。',
+      GenericFile: '任何要寫入檔案的值。',
+      BearerToken: 'Bearer 權杖，通常用於 MCP 伺服器的 Authorization 標頭。',
+      BasicAuth: '用於基本驗證的使用者名稱與密碼組合。',
+      GitCredential: '為工作區複製私有 Git 儲存庫時使用的權杖或密碼。'
+    },
+    workspaceKind: {
+      Empty: '每次執行都從一個新的空白目錄開始。',
+      GitRepository: '每次執行都從 Git 儲存庫的全新複製開始。',
+      Seeded: '每次執行都從範本中列出的檔案開始。'
+    },
+    promptTemplateKind: {
+      System: '系統提示：設定代理程式的常駐指示。',
+      Task: '任務提示：將呼叫端的訊息包裝成 Harness 收到的內容。',
+      Fragment: '可重複使用的片段，由其他範本以 {{> name}} 引入。',
+      ToolDescription: '將代理程式描述為 MCP 工具或 A2A 技能的文字。',
+      ConfigFile: '產生的設定檔內容，例如 MCP 設定。',
+      Other: 'Harness 設定檔所轉譯的其他任何文字。'
+    },
+    mcpTransport: {
+      Http: 'Garrison 與 Harness 透過 URL 以可串流 HTTP 連線到伺服器。',
+      Stdio: 'Harness 以本機程序啟動伺服器，並透過 stdin 與 stdout 與它溝通。'
+    },
+    permissionType: {
+      Permit: '允許：允許列出的操作。',
+      Deny: '拒絕：封鎖列出的操作，即使其他權限允許也一樣。'
+    },
+    artifactStoreKind: {
+      Database: '成品儲存在 Garrison 資料庫中。簡單，但最適合小型檔案。',
+      Filesystem: '成品會寫入伺服器可存取的目錄。',
+      S3: '成品會上傳到相容 S3 的儲存貯體。'
+    },
+    manifestApplyResult: {
+      Created: '此文件建立了一筆新紀錄。',
+      Updated: '此文件變更了一筆現有紀錄。',
+      Unchanged: '紀錄已與此文件相符，因此沒有任何變更。',
+      Failed: '此文件未通過驗證。清單中的任何內容都未寫入。',
+      Validated: '試執行：此文件有效，將會被套用。'
+    },
+    auditEventType: {
+      AuthSuccess: '有人成功登入或驗證了請求。',
+      AuthFailure: '登入或驗證嘗試失敗。重複失敗可能代表有人在猜測密碼。',
+      SessionIssued: '已核發工作階段權杖。',
+      SessionRevoked: '工作階段權杖已被撤銷，例如因為登出。',
+      CredentialCreated: '已建立新的存取金鑰。',
+      CredentialRotated: '存取金鑰的祕密已被替換。',
+      CredentialUsed: '已使用存取金鑰進行驗證。',
+      AuthorizationDenied: '請求因呼叫端缺少權限而被拒絕。',
+      AuthorizationBypass: '請求透過略過規則（例如系統管理員）跳過了授權。',
+      RoleChanged: '已建立、變更或刪除角色。',
+      PermissionChanged: '已建立、變更或刪除權限。',
+      AssignmentChanged: '已建立、變更或刪除角色指派。',
+      ConfigurationChanged: '代理程式、部署、設定檔、範本或其他設定紀錄已變更。',
+      SecretChanged: '祕密已建立、變更、輪替或刪除。',
+      SettingsChanged: '伺服器設定已變更。',
+      RestartRequested: '有人要求伺服器重新啟動。',
+      ManifestApplied: '已將清單套用到租用戶。',
+      NodeRegistered: '工作節點已向控制平面註冊。',
+      NodeStatusChanged: '工作節點已被封鎖、清空、遺失或恢復。',
+      RunCancelled: '執行已被使用者、存取金鑰或其上層執行取消。'
+    }
+  },
+  resources: {
+    tenants: {
+      add: '建立新的租用戶：一個彼此隔離的空間，擁有自己的使用者、代理程式、祕密與執行。',
+      name: '租用戶的顯示名稱。使用者登入時是以租用戶 ID 選擇租用戶。',
+      description: '此租用戶的服務對象或用途，例如某個團隊或客戶。',
+      active: '停用的租用戶無法登入或執行代理程式。其資料會保留。'
+    },
+    users: {
+      add: '建立以電子郵件與密碼登入的人員。之後再透過角色指派授予存取權。',
+      email: '此人員登入時使用的電子郵件地址。在租用戶內必須唯一。',
+      name: '名字與姓氏，顯示在稽核紀錄與清單中。',
+      role: '帳戶的管理員層級。一般使用者透過角色指派取得存取權。',
+      password: '登入密碼。編輯時留空即可保留目前的密碼。',
+      firstName: '名字，顯示在清單與稽核紀錄中。',
+      lastName: '姓氏，顯示在清單與稽核紀錄中。',
+      isTenantAdmin: '租用戶管理員可以管理此租用戶內的一切，包括使用者與祕密。',
+      isAdmin: '系統管理員可管理所有租用戶並略過授權檢查。請謹慎授予。',
+      active: '停用的使用者無法登入，且其存取金鑰會停止運作。',
+      actions: { permissions: '顯示此使用者在合併所有角色與指派後最終擁有的每一項權限。' }
+    },
+    credentials: {
+      add: '為指令碼、SDK 或服務建立存取金鑰。儲存後會顯示一次祕密金鑰。',
+      name: '此金鑰的用途，例如 ci-pipeline。方便你在輪替或刪除前找到它。',
+      accessKey: '金鑰的公開部分，隨每個請求傳送。可以安全地存放在設定中。',
+      secretKeyLast4: '祕密金鑰的最後四個字元，讓你不必查看即可比對金鑰。',
+      userId: '擁有此金鑰的使用者。金鑰能做的事永遠不會超過其擁有者。',
+      lastUsedUtc: '金鑰最後一次驗證請求的時間。日期很舊表示金鑰未被使用，可以刪除。',
+      authMode: '金鑰的驗證方式：直接傳送、每個請求簽署、交換為工作階段，或以上任一方式（Hybrid）。',
+      expiresUtc: '超過此時間後金鑰將停止運作。留空表示金鑰永不過期。',
+      active: '停用的金鑰會被拒絕但仍會保留，因此你可以重新啟用。',
+      actions: {
+        rotate: '以新的祕密金鑰取代舊的。舊祕密金鑰會立即失效；新的只會顯示一次。',
+        permissions: '顯示此金鑰在合併其擁有者、角色與指派後最終擁有的每一項權限。'
+      }
+    },
+    roles: {
+      add: '建立自訂角色，然後為它新增權限，並將它指派給使用者或金鑰。',
+      name: '指派角色時使用者看到的名稱，例如 Release Operator。',
+      description: '此角色的用途，以及應該授予給誰。',
+      active: '停用的角色不會授予任何權限，即使已被指派也一樣。',
+      actions: { clone: '為此內建角色建立可編輯的複本，供你調整。' }
+    },
+    permissions: {
+      add: '建立允許或拒絕對資源類型執行操作的規則。',
+      name: '規則的簡短名稱，在你建立角色時顯示。',
+      permissionType: '「允許」會允許下列操作。「拒絕」會封鎖這些操作，且永遠優先於允許。',
+      resourceTypes: '此規則涵蓋的紀錄種類。All 涵蓋所有類型。',
+      operationTypes: '此規則涵蓋的操作，例如 Read、Create 或 Execute（呼叫）。',
+      active: '停用的權限不會產生任何作用。'
+    },
+    userAssignments: {
+      add: '將角色授予使用者，範圍可以是整個租用戶或某一筆特定紀錄。',
+      userId: '接收此角色的人員。',
+      roleName: '授予的角色。此人員會獲得其中的每一項權限。',
+      roleId: '要授予的角色。此人員會獲得其中的每一項權限。',
+      resourceScope: '「租用戶」會將角色套用到每一筆紀錄。「資源」則限制在下方指定的那一筆紀錄。',
+      resourceId: '角色所套用之單一紀錄的識別碼，例如代理程式 ID。',
+      inheritsToChildren: '將角色套用到租用戶中的每一筆紀錄，包括之後建立的紀錄。',
+      active: '停用的指派不會授予任何權限，但會保留。'
+    },
+    credentialAssignments: {
+      add: '將角色授予存取金鑰，範圍可以是整個租用戶或某一筆特定紀錄。',
+      credentialId: '接收此角色的存取金鑰。它的權限仍然不能超過其擁有者。',
+      roleName: '授予此金鑰的角色。',
+      roleId: '要授予的角色。請挑選能讓自動化完成工作的最小權限角色。',
+      resourceScope: '「租用戶」會將角色套用到每一筆紀錄。「資源」則限制在下方指定的那一筆紀錄。',
+      resourceId: '角色所套用之單一紀錄的識別碼，例如 CI 工作可以呼叫的那一個代理程式。',
+      inheritsToChildren: '將角色套用到租用戶中的每一筆紀錄，包括之後建立的紀錄。',
+      active: '停用的指派不會授予任何權限，但會保留。'
+    },
+    harnessProfiles: {
+      add: '描述以無介面模式啟動 CLI 代理程式的新方式。通常複製內建設定檔會比較容易。',
+      name: '設定檔名稱。部署以此名稱選擇設定檔。builtin/ 前置字串為保留字。',
+      harnessType: '此設定檔啟動哪一種 Harness。工作節點會公告它們能執行的類型，並據此決定排程放置。',
+      executable: '要在工作節點上執行的命令，可在 PATH 中找到或以絕對路徑提供，例如 claude。',
+      outputParser: 'Harness 的輸出如何轉換為對話紀錄事件與最終結果。',
+      description: '此設定檔的特別之處，例如它加入了哪些旗標。',
+      probeArguments: '用於版本檢查且不消耗 Token 的引數，例如 --version。工作節點會在啟動時執行它。',
+      active: '停用的設定檔無法供新的執行使用。',
+      arguments: '有順序的命令列引數。每個引數都是範本，可依條件略過，也可針對清單重複產生。',
+      argumentsItems: {
+        template: '單一引數的文字，例如 --model 或 {{deployment.model}}。',
+        condition: '範本運算式；轉譯結果為空或 false 時，會略過此引數。',
+        repeatOver: '清單變數的名稱；清單中每個元素都會產生一次此引數。'
+      },
+      promptDelivery: '任務提示如何傳給 Harness：透過標準輸入、作為引數，或寫入檔案。',
+      promptArgumentTemplate: '提示不是透過標準輸入傳送時所使用的引數或檔案名稱。',
+      systemPromptDelivery: '系統提示如何傳給 Harness：檔案、引數、環境變數、附加在任務前面，或完全不傳送。',
+      systemPromptTarget: '承載系統提示的旗標、變數或檔案名稱。',
+      mcpConfigFormat: '此 Harness 讀取的 MCP 設定格式。Garrison 會以此格式寫入執行所繫結的 MCP 伺服器。',
+      mcpConfigFileName: '產生的 MCP 設定檔名稱，位於執行設定目錄內。',
+      environment: '程序的環境變數。值為範本；{{secret.alias}} 會帶入已繫結的祕密。',
+      environmentItems: {
+        name: '變數名稱，例如 ANTHROPIC_API_KEY。',
+        valueTemplate: '值的範本。憑證請使用 {{secret.alias}}。',
+        condition: '範本運算式；轉譯結果為空或 false 時，不會設定此變數。',
+        isSecret: '將此值視為祕密：永遠不會寫入記錄，並在預覽中被遮蔽。'
+      },
+      files: '啟動前寫入的檔案，例如設定檔或 auth.json。',
+      filesItems: FILE_ITEMS,
+      credentialEnvironmentAllowlist: '此 Harness 可從祕密填入的環境變數名稱。其他任何名稱都會被拒絕。',
+      genericTextField: '每一行輸出中助理文字的 JSON 路徑，供 Generic JSONL 剖析器使用。',
+      genericFinalField: '最終結果文字的 JSON 路徑，供 Generic JSONL 剖析器使用。',
+      genericSuccessField: '表示執行是否成功的 JSON 路徑，供 Generic JSONL 剖析器使用。',
+      genericSuccessValue: '成功路徑上代表執行成功的值，例如 true。',
+      resultSource: '最終答案的來源：剖析器的最終事件、最後訊息檔案，或全部的標準輸出。',
+      resultFileName: '當結果來源為檔案時，Harness 寫入最後訊息的檔案名稱。',
+      successPolicy: '如何判定成功：依最終剖析器事件、依結束代碼，或兩者皆需。',
+      successExitCodes: '當判定方式使用結束代碼時，視為成功的結束代碼。每行一個。',
+      defaultTimeoutSeconds: '部署未設定時的執行期限（秒）。介於 5 到 86400 之間。',
+      killGraceSeconds: '從要求程序停止到強制終止其程序樹之間的秒數。介於 0 到 60 之間。',
+      maxOutputBytes: '一次執行最多可產生的標準輸出量，超過時會以「超出輸出上限」失敗。',
+      stderrTailBytes: '要保留多少標準錯誤的結尾內容，供執行詳細資料頁面顯示。',
+      isolateHome: '為每次執行提供專屬的 HOME 目錄，讓 Harness 設定與快取永遠不會在執行之間外洩。',
+      supportsResume: '此 Harness 是否能繼續先前的工作階段。供對話功能使用。',
+      steps: {
+        basics: '名稱、Harness 類型、執行檔與版本探測。',
+        invocation: '引數、提示傳遞方式、MCP 設定、環境變數與檔案。',
+        output: '輸出如何剖析，以及如何判定成功。',
+        limits: '逾時、輸出上限與 HOME 隔離。'
+      },
+      actions: { clone: '在你的租用戶中建立此設定檔的可編輯複本，名稱會加上 -custom 後綴。' }
+    },
+    promptTemplates: {
+      add: '在具備即時預覽的編輯器中撰寫新的提示範本。每次儲存都會成為一個版本。',
+      name: '範本名稱。部署與其他範本會以此名稱參照它。',
+      kind: '範本的用途：系統提示、任務包裝、片段、工具描述或設定檔。',
+      currentVersion: '最新儲存的版本。部署可以固定某個版本，或跟隨最新版本。',
+      description: '此範本的作用以及使用位置。'
+    },
+    mcpServers: {
+      add: '註冊 MCP 伺服器，讓部署可以繫結它，其代理程式也能使用它的工具。',
+      name: '伺服器名稱。部署以此名稱繫結它，並為它指定別名。',
+      transport: 'HTTP 伺服器透過 URL 連線；stdio 伺服器則由 Harness 以本機程序啟動。',
+      endpoint: '連線到伺服器的位置：它的 URL 與路徑，或 stdio 伺服器的命令。',
+      required: '開啟時，若此伺服器或其必要工具無法連線，執行會在啟動前失敗。',
+      description: '此伺服器提供哪些工具，以及哪些代理程式應該使用它。',
+      url: '工作節點可連線之伺服器的基底 URL，不含 MCP 路徑。',
+      path: '該伺服器上 MCP 端點的路徑，通常為 /mcp。',
+      headers: '傳送給伺服器的 HTTP 標頭，例如 Authorization。值可以使用 {{secret.alias}}。',
+      headersItems: {
+        name: '標頭名稱，例如 Authorization。',
+        valueTemplate: '標頭值範本，例如 Bearer {{secret.github}}。'
+      },
+      command: '在工作節點上啟動 stdio 伺服器的執行檔。',
+      arguments: 'stdio 伺服器命令的引數，每行一個。',
+      environment: 'stdio 伺服器程序的環境變數。值可以使用 {{secret.alias}}。',
+      environmentItems: {
+        name: '伺服器程序的變數名稱。',
+        valueTemplate: '值範本。憑證請使用 {{secret.alias}}。'
+      },
+      requiredTools: '此伺服器上必須存在的工具。工作節點會在啟動前檢查，若缺少任何一個，執行即失敗。',
+      toolTimeoutSeconds: '單一工具呼叫在 Harness 放棄之前可以花費的時間。',
+      active: '停用的伺服器不會納入新的執行，即使部署已繫結它也一樣。',
+      actions: { test: '立即連線到伺服器並列出其工具，以檢查位址與憑證。' }
+    },
+    secrets: {
+      add: '儲存新的憑證，例如 API 金鑰或權杖，並在靜態時加密。部署以別名參照它；儲存後值將不會再次顯示。',
+      name: '祕密名稱。部署以此名稱選擇祕密，並為它指定別名。',
+      kind: '這是哪一種憑證。內建設定檔會依種類判斷要填入哪個變數或檔案。',
+      valueLast4: '所儲存值的最後四個字元，讓你不必揭露即可分辨不同祕密。',
+      rotatedUtc: '值最後一次設定或輪替的時間。',
+      expiresUtc: '僅供參考的到期時間。請在此日期之前輪替值。',
+      description: '值的來源，以及哪些代理程式需要它。',
+      value: '祕密的值。儲存時會加密，之後永遠無法讀回，只能取代。',
+      newValue: '取代用的值。儲存後編譯的每個執行都會使用它。',
+      active: '停用的祕密不會注入到執行中。',
+      saveValue: '加密並儲存新值。舊值會被捨棄且無法復原。',
+      actions: {
+        setValue: '以你輸入的新值取代已儲存的值。舊值無法復原。',
+        rotate: '換上新值並記錄輪替時間，例如在供應商核發新金鑰之後。'
+      }
+    },
+    workspaces: {
+      add: '定義如何準備執行的工作目錄：空白、從 Git 複製，或預先放入檔案。',
+      name: '範本名稱。部署以此名稱選擇工作區範本。',
+      kind: '「空白」從空無一物開始，「Git 儲存庫」會複製儲存庫，「預置檔案」會寫入下方列出的檔案。',
+      gitUrl: '每次執行要複製的儲存庫。私有儲存庫需要 Git 憑證祕密。',
+      retention: '執行結束後目錄如何處理：刪除、保留，或只在執行失敗時保留。',
+      description: '工作區包含哪些內容，以及哪些代理程式使用它。',
+      gitRef: '要簽出的分支、標籤或提交。留空則使用預設分支。',
+      gitDepth: '要擷取多少個提交。1 最快；0 會擷取完整歷史。',
+      gitCredentialSecretId: '存放用來複製私有儲存庫之權杖或密碼的祕密。',
+      files: '執行開始前寫入工作區的檔案。',
+      filesItems: {
+        path: '檔案相對於工作區根目錄的路徑。',
+        content: '檔案的文字內容。'
+      },
+      active: '停用的範本無法供新的執行使用。'
+    },
+    artifactStores: {
+      add: '為執行產生的檔案建立目的地，讓它們在執行的工作區消失後仍然保留。',
+      name: '存放區名稱。部署以此名稱選擇成品存放區。',
+      kind: '檔案存放的位置：Garrison 資料庫、檔案系統目錄或 S3 儲存貯體。',
+      description: '這裡存放什麼，以及應保留多久。',
+      active: '停用的存放區不會接收新的成品。'
+    },
+    agents: {
+      add: '建立新的代理程式身分。在你為它新增至少一個部署之前，它不會做任何事。',
+      name: '呼叫端透過 REST、MCP 與 A2A 呼叫代理程式時使用的 DNS 安全名稱。只能使用小寫字母、數字與連字號。',
+      displayName: '顯示在主控台與 A2A 代理程式卡片中的易記名稱。',
+      kind: '託管代理程式透過部署在這裡執行。遠端代理程式在其他地方執行，並透過其端點呼叫。',
+      exposure: '哪些協定會公告此代理程式：A2A 會為它提供代理程式卡片；MCP 會讓它成為 MCP 用戶端的工具。',
+      delegationMode: '此代理程式的執行可以呼叫哪些其他代理程式：「不委派」、「允許清單」或「任何代理程式」。',
+      tags: '用來尋找與分組代理程式的標記。它們不會影響代理程式的執行方式。',
+      description: '以淺白文字說明代理程式的功能。它會顯示給呼叫端並出現在 A2A 卡片中，所以請以他們為對象撰寫。',
+      agentVersion: 'A2A 卡片中公告的版本字串。代理程式的行為改變時請更新它。',
+      remoteProtocol: 'Garrison 如何呼叫遠端代理程式：A2A 或 MCP。',
+      remoteEndpointUrl: '遠端代理程式的 A2A 或 MCP 端點位址。',
+      exposeA2A: '發布 A2A 代理程式卡片，讓其他 A2A 代理程式可以探索並呼叫此代理程式。',
+      exposeMcpTool: '在 Garrison 的 MCP 伺服器上將此代理程式提供為獨立工具，讓 MCP 用戶端可以直接呼叫它。',
+      mcpToolName: 'MCP 用戶端看到的工具名稱。留空則使用代理程式名稱。',
+      skills: '列在代理程式卡片中的 A2A 技能。它們描述呼叫端可以要求什麼。',
+      skillsItems: {
+        skillId: '技能在 A2A 卡片中的穩定識別碼。',
+        name: '顯示給 A2A 呼叫端的簡短技能名稱。',
+        description: '技能的功能說明，以呼叫端代理程式為對象撰寫。'
+      },
+      inputMode: 'Text 接受純文字訊息。Structured 要求輸入符合輸入 JSON Schema。',
+      inputSchemaJson: '輸入模式為 Structured 時，輸入必須符合的 JSON Schema。',
+      outputSchemaJson: '結果必須符合的 JSON Schema。Garrison 會驗證輸出，若不符合，會以修復提示重試一次。',
+      delegationAllowList: '委派使用允許清單時，此代理程式可以呼叫的代理程式。',
+      delegationMaxDepth: '此代理程式之下可以接續多少層代理程式之間的呼叫。介於 0 到 10 之間。',
+      delegationAllowRecursion: '允許同一個代理程式在一條呼叫鏈中出現兩次。關閉可防止迴圈。',
+      active: '停用的代理程式無法被呼叫。',
+      sections: {
+        identity: '代理程式是誰：它的名稱、描述、種類與版本。',
+        exposure: '哪些協定會公告此代理程式，以及它列出哪些技能。',
+        io: '代理程式接受什麼輸入，以及必須傳回什麼輸出。',
+        delegation: '此代理程式是否可以呼叫其他代理程式，以及可以呼叫多深。'
+      }
+    },
+    deployments: {
+      add: '建立部署：代理程式的具體執行方式，包含 Harness 設定檔、模型、提示與資源。',
+      name: '部署名稱，在租用戶內唯一，例如 reviewer-claude。',
+      agentId: '此部署所執行的代理程式。呼叫該代理程式時可能會選中此部署。',
+      harnessProfileId: '啟動 CLI 的 Harness 設定檔，例如 builtin/claude-code。',
+      model: '傳給 Harness 的模型名稱，例如 sonnet 或 gpt-5。範本可透過 deployment.model 取用。',
+      weight: '在代理程式各啟用部署之間的流量權重。權重 300 的部署收到的呼叫是權重 100 的三倍。',
+      configVersion: '每次變更都會遞增。每個執行都會記錄它是從哪個版本編譯而來。',
+      description: '此部署與該代理程式其他部署的差異，例如使用較便宜的模型。',
+      active: '停用的部署不會收到加權流量，但呼叫端仍可明確指定它。',
+      fallbackModel: '主要模型過載時改用的模型（若 Harness 支援）。',
+      effort: '傳給支援此功能之 Harness 的推理強度提示，例如 low、medium 或 high。',
+      maxTurns: '在 Harness 停止執行之前，一次執行最多可進行的代理程式回合數。',
+      maxBudgetUsd: '每次執行的花費上限（美元），適用於會強制執行上限的 Harness。',
+      parameters: '範本可透過 deployment.parameters.name 讀取的具名值。',
+      parametersItems: {
+        name: '參數名稱，以 deployment.parameters.name 參照。',
+        value: '預設值。只有列在「呼叫端可設定的單次執行覆寫」中時，呼叫端才能覆寫它。'
+      },
+      promptBindings: '每個角色（System、Task、DelegatedTask 等）由哪個提示範本填入。',
+      promptBindingsItems: {
+        role: '此繫結所填入的提示角色，例如 System 或 Task。',
+        templateId: '該角色使用的範本。',
+        pinnedVersion: '要固定的版本。留空則一律使用最新版本。'
+      },
+      resourceBindings: '此部署使用的 MCP 伺服器與祕密，每一個都有供範本使用的別名。',
+      resourceBindingsItems: {
+        kind: '此繫結是 MCP 伺服器還是祕密。',
+        alias: '範本使用的簡短名稱，例如 {{secret.anthropic}} 中的 anthropic。',
+        resourceId: '要繫結的 MCP 伺服器或祕密。'
+      },
+      workspaceTemplateId: '每次執行的工作目錄如何準備。留空表示全新的空白目錄。',
+      artifactStoreId: '執行完成後，其產生的檔案要上傳到哪裡。',
+      argumentOverrides: '僅針對此部署變更 Harness 設定檔的引數：附加、前置、取代或移除。',
+      argumentOverridesItems: {
+        operation: '要執行的動作：附加、前置、取代相符的引數，或移除它。',
+        match: '要取代或移除的現有引數。',
+        template: '新的引數文字。可以使用範本。',
+        condition: '範本運算式；轉譯結果為空或 false 時，會略過此覆寫。'
+      },
+      environmentOverrides: '僅針對此部署新增或取代的環境變數。',
+      environmentOverridesItems: {
+        name: '要新增或取代的變數名稱。',
+        valueTemplate: '值範本。已繫結的祕密請使用 {{secret.alias}}。',
+        isSecret: '將此值視為祕密：永遠不會寫入記錄，並在預覽中被遮蔽。'
+      },
+      fileOverrides: '僅針對此部署新增或取代的檔案。',
+      fileOverridesItems: FILE_ITEMS,
+      allowedRunOverrides: '呼叫端可以在每次執行時變更的參數，並會經過驗證。其他一切保持固定。',
+      allowedRunOverridesItems: {
+        name: '呼叫端可以在每次執行時設定的參數，例如 model 或 tone。',
+        validation: '如何檢查呼叫端提供的值：不限、值清單、規則運算式，或數值範圍。',
+        pattern: '以逗號分隔的允許值、規則運算式，或以 min,max 表示的數值範圍。'
+      },
+      nodePoolId: '只在此節點池中的節點上執行。留空表示允許任何符合條件的節點。',
+      nodeSelector: '必須完全相符的節點標籤，例如 gpu=true。',
+      nodeSelectorItems: {
+        key: '節點必須具備的標籤名稱。',
+        value: '節點必須具備的標籤值。'
+      },
+      maxConcurrentRuns: '此部署在所有節點上同時進行的執行數上限。0 表示不限制。',
+      timeoutSeconds: '執行期限（秒）。留空則使用 Harness 設定檔的預設值。',
+      maxAttempts: '一次執行總共最多可以嘗試幾次。介於 1 到 10 之間。',
+      retryOnNodeLoss: '節點消失時將執行放回佇列，而不是將其標記為失敗。',
+      steps: {
+        basics: '名稱、代理程式與流量權重。',
+        harness: 'Harness 設定檔、模型、限制與參數。',
+        prompts: '每個提示角色由哪個範本填入。',
+        resources: 'MCP 伺服器、祕密、工作區與成品存放區。',
+        overrides: '針對此部署對引數、環境變數與檔案的變更，以及呼叫端可以覆寫的項目。',
+        placement: '執行可以在哪裡進行，以及同時可以進行多少個。'
+      },
+      actions: {
+        compilePreview: '以範例訊息編譯此部署，查看執行會取得的確切命令列、檔案與環境變數。',
+        test: '開啟「呼叫」頁面並預先選取此部署，以傳送真實訊息給它。'
+      }
+    },
+    nodePools: {
+      add: '建立節點池以將節點分組，並可選擇保留給特定租用戶使用。',
+      name: '節點池名稱。節點在註冊時加入節點池，部署可以要求使用某個節點池。',
+      description: '此節點池代表的硬體或用途。',
+      tenants: '允許使用此節點池的租用戶。留空表示所有租用戶。',
+      active: '停用的節點池不接受新的執行。'
+    },
+    runs: {
+      ...TELEMETRY,
+      id: '執行識別碼。按一下該列即可開啟對話紀錄、結果與遙測資料。',
+      agentName: '被呼叫的代理程式。一個執行一律屬於該代理程式的某一個部署。',
+      status: '執行目前處於生命週期的哪個階段：已排入佇列、已租用、執行中，或某個已結束的狀態。',
+      outcome: '執行結束的原因，比狀態更詳細，例如「缺少憑證」。',
+      harnessType: '執行此工作的 Harness，取自部署的設定檔。',
+      leaseNodeName: '執行此工作的工作節點。執行仍在佇列中時為空。',
+      depth: '此執行位於代理程式之間呼叫的第幾層。0 表示由呼叫端直接啟動的執行。',
+      createdUtc: '要求執行的時間。將滑鼠移到值上可查看確切時間。',
+      actions: {
+        cancel: '停止此執行。工作節點會終止 Harness 程序，執行將以「已取消」結束。',
+        retry: '以相同的輸入與部署啟動新的執行。原本的執行會保留。'
+      }
+    },
+    nodes: {
+      name: '節點名稱，通常是工作節點的 Kubernetes Pod 名稱。',
+      status: '節點是否接受新的執行。維護前請先封鎖或清空節點。',
+      capacity: '節點目前持有的執行數，相對於它同時可接受的上限。',
+      harnesses: '節點在啟動時探測後發現已安裝且可正常運作的 Harness。',
+      labels: '節點公告的鍵值標籤。部署的節點選擇器會依這些標籤進行比對。',
+      nodeVersion: '節點上工作節點軟體的版本。',
+      lastHeartbeatUtc: '節點最後一次回報的時間。停止回報的節點會被標記為「遺失」。',
+      address: '節點回報的位址，僅供參考。',
+      maxConcurrentRuns: '此節點同時可接受的執行數上限。',
+      activeRuns: '節點目前持有的執行。',
+      capabilities: '每次 Harness 探測的結果：類型、偵測到的版本，以及是否可用。',
+      labelsItems: { key: '標籤名稱，由部署的節點選擇器比對。', value: '標籤值，由部署的節點選擇器完全比對。' },
+      capabilitiesItems: {
+        harnessType: '探測檢查的 Harness。',
+        detectedVersion: 'Harness 回報的版本字串。',
+        available: 'Harness 是否可以在此節點上執行。',
+        detail: '探測輸出，在 Harness 無法使用時很有幫助。'
+      },
+      actions: {
+        cordon: '停止將新的執行傳送到此節點。已在其上的執行會正常完成。',
+        uncordon: '讓此節點再次接受新的執行。',
+        drain: '停止接受新的執行並讓目前的執行完成，之後節點會進入閒置。請在關閉節點前使用。',
+        runs: '開啟「執行」清單，並篩選出此節點執行過的執行。'
+      }
+    },
+    audit: {
+      createdUtc: '事件發生的時間，以你的本機時區顯示。',
+      eventType: '這是哪一種安全性或設定事件。',
+      principalName: '執行者：使用者、存取金鑰，或代表代理程式行動的執行。',
+      resource: '涉及的紀錄種類與操作，例如 Agent / Read。',
+      reason: '事件發生的原因，或存取被拒絕的原因。',
+      sourceIp: '請求來源的網路位址。',
+      principalType: '執行者是使用者、存取金鑰，還是執行權杖。',
+      principalId: '採取行動之使用者、存取金鑰或執行的識別碼。',
+      resourceType: '涉及的紀錄種類，例如 Agent 或 Secret。',
+      resourceId: '涉及之紀錄的識別碼。',
+      operation: '嘗試執行的操作，例如 Read 或 Execute。',
+      method: '請求的 HTTP 方法。',
+      path: '引發此事件之請求的路徑。',
+      authResult: '確認呼叫端身分的結果。',
+      authorizationResult: '確認呼叫端可以做什麼的結果。',
+      bypassReason: '略過授權的原因，例如系統管理員。',
+      statusCode: '傳回給呼叫端的 HTTP 狀態。',
+      requestId: '請求識別碼。可用它在「請求歷程」或伺服器記錄中搜尋。'
+    },
+    manifestApplies: {
+      createdUtc: '清單被套用或試執行的時間。',
+      principalName: '套用者。',
+      dryRun: '「是」表示只進行了驗證，沒有寫入任何內容。',
+      counts: '各文件處理結果的數量：「已建立」、「已更新」、「未變更」或「失敗」的紀錄各有多少。'
+    }
+  },
+  views: {
+    home: {
+      kpis: {
+        agents: '此租用戶中定義的代理程式。按一下即可開啟「代理程式」清單。',
+        deployments: '所有代理程式的部署。每一個都是代理程式的一種執行方式。按一下即可開啟。',
+        activeRuns: '目前在工作節點上已租用或正在執行的執行。按一下即可查看。',
+        queued: '正在等待工作節點的執行。若數字持續增加，表示你需要更多節點或容量。',
+        succeeded: '過去 24 小時內成功完成的執行。按一下即可列出。',
+        failed: '過去 24 小時內失敗的執行。按一下即可列出並查看原因。',
+        nodes: '已就緒可接收執行的工作節點數，相對於所有已註冊節點數。按一下即可管理。'
+      },
+      openFailure: '開啟此失敗的執行，閱讀其對話紀錄、錯誤與 stderr。',
+      cta: {
+        invoke: '直接從瀏覽器傳送訊息給任何代理程式。',
+        addAgent: '前往「代理程式」以建立新的代理程式身分。',
+        applyManifest: '以 YAML 套用設定，例如範例代理程式。',
+        inspectRuns: '以篩選條件與遙測資料瀏覽所有執行。',
+        nodes: '查看哪些工作節點已就緒，以及它們能執行什麼。',
+        apiExplorer: '對此伺服器即時試用任何 API 呼叫。',
+        analytics: '查看執行速度、Token、成本與結果隨時間的變化。'
+      },
+      services: {
+        grafana: '在新分頁中開啟 Garrison 指標的 Grafana 儀表板。',
+        prometheus: '在新分頁中開啟收集 Garrison 指標的 Prometheus 伺服器。',
+        tempo: '在新分頁中開啟 Tempo 以瀏覽追蹤資料。'
+      },
+      serviceGeneric: '在新分頁中開啟此隨附的服務。'
+    },
+    runDetail: {
+      live: 'Harness 產生事件時，事件會從伺服器即時串流過來。',
+      viewJson: '以 JSON 顯示完整的執行紀錄，包含所有遙測欄位。',
+      deployment: '此執行所選用的部署，依名稱或流量權重選出。',
+      model: 'Harness 回報實際使用的模型，可能與部署所要求的模型不同。',
+      tokens: '整個執行的輸入與輸出 Token。下方的遙測面板有完整的明細。',
+      caller: '啟動此執行的人：使用者、存取金鑰，或其他代理程式的執行。',
+      parent: '當代理程式呼叫另一個代理程式時，委派給此執行的那個執行。',
+      openParent: '開啟委派此工作的上層執行。',
+      attempt: '這是第幾次嘗試，相對於部署允許的最大嘗試次數。',
+      created: '要求執行的時間。',
+      started: 'Harness 程序在工作節點上啟動的時間。',
+      completed: '執行到達最終狀態的時間。',
+      exitCode: 'Harness 程序的結束代碼。成功與否通常依最終事件判定，而非此代碼。',
+      tabs: {
+        transcript: 'Harness 產生的每個事件：助理文字、思考、工具呼叫與結果，以及用量。',
+        result: '最終答案以及任何結構化輸出。',
+        input: '呼叫端傳送的內容、參數，以及實際使用的提示範本版本。',
+        stderr: 'Harness 標準錯誤的最後一部分，祕密已被清除。執行失敗時請查看這裡。',
+        children: '此執行透過呼叫其他代理程式所啟動的執行。'
+      },
+      eventFilter: '只顯示某一類型的事件，例如工具呼叫或錯誤。',
+      openChild: '開啟此子執行，它是在此執行呼叫另一個代理程式時啟動的。'
+    },
+    agentDetail: {
+      name: '呼叫端用來呼叫此代理程式的名稱。',
+      viewJson: '以 JSON 顯示完整的代理程式紀錄。',
+      invoke: '開啟「呼叫」頁面並選取此代理程式。除非你自行選擇，否則會依權重挑選部署。',
+      id: '用於 API 呼叫的代理程式識別碼。',
+      tabs: {
+        deployments: '此代理程式的各種執行方式，包含其權重以及各自分得的流量比例。',
+        runs: '此代理程式最近的執行。',
+        card: '其他代理程式用來探索此代理程式的 A2A 代理程式卡片。'
+      },
+      addDeployment: '前往「部署」為此代理程式建立部署。沒有部署就無法執行。',
+      manageDeployments: '開啟「部署」分頁以編輯權重、模型與繫結。',
+      openRun: '開啟此執行的對話紀錄與遙測資料。',
+      columns: {
+        name: '部署名稱。呼叫端可以明確指定它，以略過加權選擇。',
+        harness: '為此部署啟動 CLI 的 Harness 設定檔。',
+        model: '此部署要求 Harness 使用的模型。',
+        weight: '部署上設定的原始流量權重。',
+        traffic: '此部署收到的呼叫比例：其權重除以所有啟用部署的權重總和。',
+        active: '只有啟用的部署會收到加權流量。'
+      }
+    },
+    queue: {
+      queued: '正在等待節點的執行。按一下即可列出。',
+      leased: '已被節點認領但尚未開始的執行。按一下即可列出。',
+      running: '目前正在執行的執行。按一下即可列出。',
+      agent: '這些等待中的工作所屬的代理程式。',
+      harness: '這些執行需要的 Harness。只有公告支援它的節點才能接手。'
+    },
+    invoke: {
+      applySample: '前往「清單」，範例清單會建立一個可以立即試用的代理程式。',
+      agent: '要呼叫的代理程式。只會列出啟用中的代理程式。',
+      deployment: '保持「任何啟用中的部署（依權重）」可讓 Garrison 依流量權重挑選，或選擇某個部署以直接測試它。',
+      parameter: '{{name}} 的單次執行值。此部署允許呼叫端覆寫它；留空則使用預設值。',
+      message: '你希望代理程式做的事。它會作為執行輸入傳送，並由任務範本包裝。',
+      send: '以此訊息啟動執行，並在這裡串流顯示其對話紀錄。',
+      openRun: '開啟完整的執行頁面，包含結果、遙測資料與 stderr。'
+    },
+    manifests: {
+      results: '套用作業對清單中每份文件所做的處理。',
+      kind: '文件所描述的紀錄種類，例如 Agent 或 Deployment。',
+      name: '文件 metadata 中的紀錄名稱。',
+      result: '文件是建立、更新紀錄、維持紀錄不變，還是失敗。',
+      message: '伺服器提供的詳細資訊，例如驗證錯誤。',
+      tabs: {
+        apply: '貼上或上傳清單，以試執行驗證，然後套用。',
+        export: '將此租用戶的設定下載為清單。永遠不會包含祕密的值。',
+        history: '過去每一次的套用與試執行，以及每份文件的結果。'
+      },
+      upload: '從你的電腦將 YAML 或 JSON 清單檔案載入編輯器。',
+      loadSample: '以範例清單取代編輯器內容：一個在模擬 Harness 上執行的 echo 代理程式。',
+      document: '一份或多份以 --- 分隔的 YAML 或 JSON 文件。紀錄之間以名稱互相參照。',
+      dryRun: '驗證每份文件並顯示將會變更的內容，但不寫入任何東西。',
+      apply: '驗證並寫入每份文件。只要有任何文件失敗，就不會寫入任何內容。',
+      export: '產生可重建此租用戶設定的清單。',
+      download: '將匯出的清單儲存為 YAML 檔案。',
+      confirmApply: '立即將清單寫入此租用戶。'
+    },
+    templateEditor: {
+      clone: '建立此範本的可編輯複本，名稱加上 -custom 後綴。',
+      reset: '將此內建範本還原為 Garrison 隨附的內容。',
+      delete: '刪除此範本。繫結它的部署將無法編譯。',
+      create: '建立範本及其第一個版本。',
+      save: '將內容儲存為新版本。跟隨最新版本的部署會在新的執行中採用它。',
+      content: '範本文字。可使用 {{variables}}、條件、迴圈與引入；預覽會隨著你輸入而更新。',
+      changeNote: '與版本一起儲存的簡短說明，交代變更了什麼以及原因。',
+      tabs: {
+        preview: '以範例內容轉譯範本，確切查看 Harness 會收到什麼。',
+        versions: '每一個已儲存的版本，可比較差異與還原。'
+      },
+      sampleContext: '代替真實執行資料的 JSON。編輯它即可查看範本如何反應。',
+      columns: {
+        version: '版本號碼。數字越大越新。',
+        note: '與版本一起儲存的變更說明。',
+        author: '儲存此範本版本的人。',
+        saved: '版本儲存的時間。'
+      },
+      diff: '將此版本與編輯器目前的內容進行比較。',
+      restore: '讓此版本重新成為目前版本。目前的內容會保留在歷程中。'
+    },
+    serverInfo: {
+      rest: 'REST API 呼叫與 SDK 使用的基底位址。',
+      mcp: 'MCP 用戶端連線的位址。每個以工具形式公開的代理程式都會出現在那裡。',
+      a2a: '此租用戶的 A2A 閘道基底位址。每個代理程式在其下都有自己的卡片。',
+      openapi: '描述每個 REST 操作的 OpenAPI 文件。',
+      version: 'Garrison 伺服器的版本。',
+      dashboardVersion: '此主控台的版本。',
+      node: '回應的控制平面副本。',
+      database: '伺服器使用的資料庫引擎。',
+      health: '伺服器健康檢查的結果。',
+      replicas: '叢集預期的控制平面副本數量。',
+      routes: '伺服器註冊的 API 操作數量。',
+      serverTime: '伺服器時鐘。若與你的時鐘差距過大，可能導致簽署的請求失敗。',
+      principalName: '你目前登入的身分。',
+      principalType: '你是以使用者身分登入，還是使用存取金鑰登入。',
+      role: '你的最高存取層級。',
+      tenant: '你的工作階段所屬的租用戶。',
+      expires: '你的工作階段結束、必須重新登入的時間。',
+      rawJson: '顯示伺服器資訊的原始回應。'
+    },
+    requests: {
+      kpis: {
+        total: '伺服器在所選範圍與篩選條件下保留於歷程中的請求數。',
+        success: '傳回 2xx 或 3xx 狀態的請求。',
+        failure: '傳回 4xx 或 5xx 狀態的請求。',
+        avgDuration: '伺服器回應的平均時間。'
+      },
+      columns: {
+        time: '請求抵達的時間。',
+        method: '請求的 HTTP 方法。',
+        path: '被呼叫的路徑。將滑鼠移到值上可查看完整內容。',
+        status: '伺服器傳回的 HTTP 狀態。',
+        duration: '伺服器回應所花的時間。',
+        principal: '發出請求的人：使用者、存取金鑰或執行權杖。'
+      },
+      viewDetails: '開啟請求，查看標頭、本文與時間資訊。',
+      viewJson: '開啟請求紀錄，包含其原始 JSON。',
+      deleteOne: '從歷程中移除此請求。',
+      bulkDeleteAll: '刪除符合目前篩選條件的所有請求，而不只是此頁面上的請求。'
+    },
+    explorer: {
+      operations: '挑選依領域分組的 API 操作。下方表單會依其參數調整。',
+      pathParam: '路徑參數 {{name}}（{{type}}）。它會被代入 URL。{{description}}',
+      queryParam: '查詢參數 {{name}}（{{type}}）。填寫後會附加到 URL。{{description}}',
+      copyUrl: '複製完整解析後的請求 URL。',
+      headerName: '請求標頭的名稱。Authorization 會根據你的工作階段自動加入。',
+      headerValue: '此標頭要傳送的值。',
+      removeHeader: '從請求中移除此標頭。',
+      addHeader: '新增另一個請求標頭。',
+      body: '用於建立或變更紀錄之操作的 JSON 請求本文。',
+      execute: '立即以你的工作階段將請求傳送到伺服器。破壞性的方法會要求確認。',
+      stop: '中止請求，或停止讀取串流回應。',
+      snippets: {
+        curl: '以 curl 指令表示的相同請求，可在終端機中使用。',
+        fetch: '以 JavaScript fetch 程式碼表示的相同請求。',
+        csharp: '以 C# HttpClient 程式碼表示的相同請求。'
+      },
+      clearHistory: '清除此瀏覽器中儲存的所有近期請求。',
+      loadHistory: '將此請求重新載入表單。',
+      deleteHistory: '從近期請求清單中移除此項目。',
+      confirmExecute: '即使此請求可能變更或刪除資料，仍然傳送。'
+    },
+    settings: {
+      viewJson: '顯示設定的原始回應。',
+      restart: '重新啟動此控制平面副本，讓需要重新啟動的設定生效。',
+      save: '儲存所有已變更的設定。即時設定會立即生效；其他設定需等待重新啟動。',
+      groupGeneric: '{{group}} 群組中的設定。',
+      fieldGeneric: '伺服器設定 {{path}}。',
+      applyLive: '儲存後立即生效。',
+      applyRestart: '伺服器重新啟動後生效。',
+      source: {
+        File: '目前設定於設定檔中。在這裡儲存會更新該檔案。',
+        Environment: '由環境變數設定，其優先順序高於在這裡儲存的任何值。',
+        ConfigMap: '由 Kubernetes ConfigMap 管理。請改為在你的清單中變更。',
+        Database: '以叢集設定的形式儲存在資料庫中，由所有副本共用。'
+      },
+      sourceGeneric: '目前值的來源。',
+      testDatabase: '在儲存之前，先以上方的資料庫設定嘗試連線。',
+      groups: {
+        Rest: 'REST API 的接聽方式：主機、連接埠、TLS 與公開位址。',
+        Mcp: 'MCP 伺服器的接聽方式，以及工具呼叫可以等待多久。',
+        Database: 'Garrison 使用哪個資料庫以及如何連線。',
+        Logging: '記錄輸出到哪裡，以及詳細程度。',
+        Auth: '權杖簽署、有效期限與登入速率限制。',
+        Security: '加密主金鑰與初始帳戶。',
+        RequestHistory: '是否擷取 API 請求，以及每個本文要保留多少內容。',
+        Telemetry: '指標與追蹤資料匯出。',
+        Cluster: '預期的控制平面副本數量。',
+        Scheduling: '工作節點的租約長度與心跳逾時。',
+        Runs: '執行的預設值，以及執行與事件的保留時間。',
+        Audit: '稽核紀錄的保留時間。'
+      }
+    }
+  },
+  analytics: {
+    filters: {
+      from: '自訂範圍的開始時間，以你的本機時區表示。',
+      to: '自訂範圍的結束時間，以你的本機時區表示。',
+      agentId: '只計算此代理程式的執行。部署清單會縮小為它的部署。',
+      harnessType: '只計算由此 Harness 執行的執行。',
+      deploymentId: '只計算此部署的執行，例如用來比較同一代理程式的兩種模型。',
+      model: '只計算 Harness 回報使用此模型的執行。清單會顯示所選範圍內出現過的模型。',
+      groupBy: '將每張圖表依代理程式、Harness、模型，或 Harness 與模型組合拆分為各自的數列，方便比較。'
+    },
+    cards: {
+      runs: '在此範圍內要求且符合篩選條件的執行。',
+      successRate: '成功的執行占已結束執行（成功、失敗、已取消與逾時）的比例。',
+      ttft: '有產生輸出之執行的平均第一個 Token 時間。附註顯示第 95 百分位數。',
+      execution: 'Harness 的平均執行時間。附註顯示第 95 百分位數，反映你較慢的執行。',
+      queue: '執行等待工作節點的平均時間。',
+      tokens: '此範圍內所有執行的輸入加輸出 Token。',
+      throughput: '串流期間每秒的平均輸出 Token 數。',
+      cost: '回報的總成本（美元）。',
+      toolCalls: '此範圍內的執行所發出的工具呼叫總數。'
+    },
+    charts: {
+      outcomes: '每個時間區間內執行的結束方式。將滑鼠移到長條上可查看數量。',
+      ttft: '執行產生第一個 Token 所花的時間：平均值、中位數與第 95 百分位數。',
+      duration: '模型串流了多久，以及 Harness 總共執行了多久。',
+      queue: '執行在節點取得租約前等待了多久。',
+      tokens: '每個區間消耗的 Token，依種類拆分。',
+      throughput: '輸出產生速度，以每秒 Token 數表示。',
+      cost: '每個區間回報的花費。',
+      toolCalls: '每個區間發出的工具呼叫。',
+      usageTokens: '輸入加輸出 Token 隨時間的變化，每個 Harness 與模型組合各為一個堆疊區段。將滑鼠移到長條上可查看拆分。',
+      usageCost: '回報成本隨時間的變化，每個 Harness 與模型組合各為一個堆疊區段。將滑鼠移到長條上可查看拆分。'
+    },
+    metrics: {
+      runs: '此區間內要求的執行。',
+      succeeded: '成功完成的執行。按一下即可隱藏或顯示此數列。',
+      failed: '失敗的執行。按一下即可隱藏或顯示此數列。',
+      cancelled: '已取消的執行。按一下即可隱藏或顯示此數列。',
+      timedOut: '到達期限的執行。按一下即可隱藏或顯示此數列。',
+      inputTokens: '傳送給模型的輸入 Token。按一下即可隱藏或顯示此數列。',
+      outputTokens: '模型產生的輸出 Token。按一下即可隱藏或顯示此數列。',
+      cachedTokens: '由提示快取提供的輸入 Token。按一下即可隱藏或顯示此數列。',
+      reasoningTokens: '推理 Token（若 Harness 有回報）。按一下即可隱藏或顯示此數列。',
+      totalTokens: '每個區間內執行的輸入 Token 加輸出 Token。',
+      costUsd: '回報的成本（美元）。',
+      toolCalls: '每個區間內執行發出的工具呼叫。按一下即可隱藏或顯示此數列。',
+      timeToFirstTokenMsAvg: '此區間的平均第一個 Token 時間。按一下即可隱藏或顯示此線條。',
+      timeToFirstTokenMsP50: '第一個 Token 時間的中位數：一半的執行比它快。按一下即可隱藏或顯示此線條。',
+      timeToFirstTokenMsP95: '第一個 Token 時間的第 95 百分位數：每 20 個執行中只有 1 個比它慢。按一下即可隱藏或顯示此線條。',
+      streamingMsAvg: '平均串流時間，從第一個到最後一個模型輸出。按一下即可隱藏或顯示此線條。',
+      executionMsAvg: 'Harness 的平均執行時間，從程序啟動到結束。按一下即可隱藏或顯示此線條。',
+      executionMsP95: '執行時間的第 95 百分位數。按一下即可隱藏或顯示此線條。',
+      queueMsAvg: '從排入佇列到取得租約的平均時間。',
+      outputTokensPerSecondAvg: '串流期間每秒的平均輸出 Token 數。'
+    },
+    groupSeries: {
+      none: '{{name}}：{{metric}}。',
+      agent: '代理程式 {{name}} 的執行：{{metric}}。按一下即可隱藏或顯示此數列。',
+      harness: '在 {{name}} Harness 上的執行：{{metric}}。按一下即可隱藏或顯示此數列。',
+      model: '由模型 {{name}} 提供服務的執行：{{metric}}。按一下即可隱藏或顯示此數列。',
+      harnessModel: '在 {{name}}（Harness / 模型）上的執行：{{metric}}。按一下即可隱藏或顯示此數列。'
+    },
+    otherSeries: '最繁忙群組以外的所有群組加總。按一下即可隱藏或顯示。',
+    dataTable: '以表格顯示此圖表背後的數字，每個時間區間一列。',
+    bucketStart: '時間區間的開始。每一列涵蓋一個區間。',
+    usage: '依 Harness 與模型拆分的用量隨時間變化，不受上方分組設定影響，並附有整個範圍的總計。',
+    breakdown: '所選範圍內每個 Harness 與模型組合的總計。可用來查看哪個模型主導了你的 Token 用量與成本。',
+    breakdownColumns: {
+      harness: '執行這些執行的 Harness。',
+      model: 'Harness 回報提供服務的模型。「未知模型」表示 Harness 沒有回報。',
+      runs: '此範圍內在此 Harness 與模型上的執行。',
+      inputTokens: '這些執行中傳送給模型的輸入 Token。',
+      outputTokens: '這些執行中模型產生的輸出 Token。',
+      cachedTokens: '這些執行中由提示快取提供的輸入 Token。',
+      reasoningTokens: '推理 Token，適用於會分開回報的 Harness。',
+      costUsd: '這些執行回報的總成本（美元）。',
+      timeToFirstTokenMsAvg: '平均第一個 Token 時間，依每個時間區間內的執行數加權。'
+    }
+  },
+  export: {
+    menu: '下載 {{name}}：以 CSV 或 JSON 下載資料，或將圖表連同標題、圖例、篩選條件與時間範圍下載為 PNG 或 SVG 圖片。',
+    csv: '以 CSV 下載此檢視背後的確切資料：每個區間或紀錄一列，時間戳記為 ISO 8601 UTC，數字使用一般的小數點格式。',
+    png: '以螢幕兩倍解析度將圖表下載為 PNG 圖片，包含標題、圖例、目前的篩選條件與時間範圍。',
+    svg: '將圖表下載為可縮放的 SVG 圖片，包含標題、圖例、目前的篩選條件與時間範圍。',
+    json: '以 JSON 下載資料，數列、區間、篩選條件與時間範圍都在同一份文件中。'
+  }
+};
+
+const explainers = {
+  diagram: {
+    label: '圖示：呼叫端以名稱呼叫代理程式，Garrison 依權重挑選該代理程式的一個部署，再由該部署的繫結決定執行如何進行。',
+    caller: { title: '呼叫端', body: 'REST、MCP、A2A 或其他代理程式', tip: '任何呼叫代理程式的對象：REST API、MCP 用戶端、A2A 代理程式，或其他代理程式的執行。呼叫端只知道代理程式名稱。' },
+    agent: { title: '代理程式', body: '名稱、描述、公開方式、委派、輸出結構描述', tip: '可定址的身分。呼叫端以名稱呼叫它；它說明代理程式是什麼以及如何公開，而不是如何執行。' },
+    deploymentA: { title: '部署 A，權重 300', body: 'Claude Code，sonnet', tip: '執行此代理程式的一種方式。權重 300 對 100 時，它會收到未指定部署之呼叫的 75%。' },
+    deploymentB: { title: '部署 B，權重 100', body: 'Mux，本機模型', tip: '執行同一代理程式的另一種方式。呼叫端也可以明確指定它，以略過加權選擇。' },
+    binds: { title: '每個部署都會繫結', body: 'Harness 設定檔、提示、MCP 伺服器、祕密、工作區、節點池、限制', tip: '將請求轉為具體程序所需的一切：使用哪個 CLI、哪些提示、哪些工具與憑證，以及可以在哪裡執行。' },
+    run: { title: '執行', body: '某個部署的一次執行', tip: '每次呼叫都會建立一個執行，由所選部署編譯而成，並在工作節點上執行。' }
+  },
+  agents: {
+    title: '代理程式與部署',
+    p1: '代理程式是呼叫端使用的身分。它具有名稱、描述、公開方式（A2A 卡片、MCP 工具）、是否可以呼叫其他代理程式，以及其答案必須符合的輸出結構描述。代理程式本身並不會執行任何東西。',
+    p2: '部署決定代理程式如何執行：使用哪個 Harness 設定檔與模型、哪些提示範本、哪些 MCP 伺服器與祕密（透過別名）、什麼工作區、哪個節點池，以及適用哪些限制與單次執行參數。一個代理程式可以有多個部署，每個部署都有流量權重。',
+    p3: '有人呼叫代理程式時，除非呼叫端指定了特定部署，否則 Garrison 會依權重從其啟用中的部署隨機挑選一個。這樣你就能讓 Claude Code 與 Mux 版本並行運作，或逐步將流量移轉到新模型。'
+  },
+  deployments: {
+    title: '什麼是部署',
+    p1: '部署讓代理程式變成可執行的東西。它只屬於一個代理程式，並繫結 Harness 設定檔（要啟動哪個 CLI）、模型、各角色的提示範本、以別名繫結的 MCP 伺服器與祕密、選用的工作區與成品存放區、節點池或標籤上的排程放置，以及逾時與並行數等限制。',
+    p2: '具有多個啟用部署的代理程式會依權重分配流量：權重 300 與 100 時，每四次呼叫有三次會送到第一個部署。停用的部署不會收到加權流量，但仍可被明確指定，這很適合在給予權重之前先測試新的設定。',
+    p3: '對部署使用「編譯預覽」，即可在不啟動執行的情況下，查看執行會取得的確切命令列、檔案與環境變數。'
+  },
+  agentDetail: {
+    title: '此代理程式如何執行',
+    p1: '此代理程式透過其名稱存取。下方的部署是它具體的執行方式。每個啟用的部署所分得的流量比例，等於其權重除以所有啟用部署的權重總和；指定部署的呼叫端會略過加權選擇。'
+  },
+  harnessProfiles: {
+    title: 'Harness 設定檔與部署',
+    p1: 'Harness 設定檔是某個命令列代理程式的啟動配方：執行檔、引數範本、環境變數、要寫入的檔案、提示與系統提示的傳遞方式、它讀取的 MCP 設定格式，以及如何將其輸出剖析為事件。',
+    p2: '設定檔是共用的構成元件。部署挑選一個設定檔，再加上具體內容：模型、提示、祕密，以及只適用於它的引數或環境變數覆寫。許多部署可以使用同一個設定檔，因此修正設定檔就能套用到所有部署。',
+    p3: '內建設定檔為唯讀。若要變更，請先複製一份。'
+  },
+  promptTemplates: {
+    title: '提示範本以及部署如何使用它們',
+    p1: 'Garrison 傳送給 Harness 的每一段文字都是範本：系統提示、包裝呼叫端訊息的內容、委派指示、工具描述，以及產生的設定檔。範本使用 {{input.message}} 與 {{deployment.model}} 等變數，每次儲存都會建立新版本。',
+    p2: '部署將範本繫結到提示角色（System、Task、DelegatedTask 等）。繫結可以跟隨最新版本或固定某個版本，因此你可以編輯範本，而不會在你決定之前變更正式環境的部署。每個執行都會記錄它所使用的確切版本。'
+  },
+  mcpServers: {
+    title: 'MCP 伺服器與繫結',
+    p1: '這裡列出的 MCP 伺服器是工具提供者：包含位址（stdio 伺服器則為命令）、它所需的標頭或環境變數，以及必須存在的工具。註冊伺服器並不會立即將它提供給任何代理程式。',
+    p2: '部署會繫結其代理程式應使用的伺服器，每一個都有別名。編譯時，Garrison 會將它們寫入 Harness 的 MCP 設定，並解析標頭中的祕密參照，工作節點則會在啟動前檢查必要工具。當代理程式可以委派時，Garrison 自己的 MCP 伺服器會自動加入。'
+  },
+  secrets: {
+    title: '祕密與別名',
+    p1: '祕密是加密的值，例如 API 金鑰或權杖。此值只能寫入：儲存後你可以取代或輪替它，但沒有人能透過主控台或 API 讀回它。',
+    p2: '部署以別名繫結祕密。Harness 設定檔的環境變數與檔案再參照 {{secret.alias}}，因此同一個設定檔可以在不同部署中搭配不同的金鑰使用。值只在編譯執行時解密，透過 TLS 傳送到工作節點，並從記錄中清除。'
+  },
+  workspaces: {
+    title: '工作區',
+    p1: '工作區範本描述每次執行開始時所在的目錄：空白、全新的 Git 複製（私有儲存庫可搭配選用的憑證祕密），或一組預先放入的檔案。保留設定決定執行結束後目錄要刪除還是保留。',
+    p2: '一個部署可以繫結零個或一個工作區範本。每次執行都有自己的複本，因此執行之間永遠看不到彼此的檔案。'
+  },
+  artifactStores: {
+    title: '成品存放區',
+    p1: '成品存放區是在執行的工作區消失後，用來保留執行所產生檔案的地方。一個部署可以繫結一個存放區，執行結束時，工作節點會將符合條件的檔案上傳到那裡。'
+  },
+  manifests: {
+    title: '清單以及它們建立的紀錄',
+    p1: '清單是以 YAML 或 JSON 文件撰寫的租用戶設定：祕密（預設不含值）、提示範本、Harness 設定檔、MCP 伺服器、工作區範本、代理程式與部署。文件之間以名稱互相參照，因此同一份清單可以在任何租用戶中使用。',
+    p2: '套用清單會建立或更新一般紀錄，也就是你在其他分頁看到的那些紀錄。套用兩次不會造成任何變更。試執行會顯示將會變更的內容而不寫入，「匯出」則會產生可重建此租用戶的清單。'
+  },
+  nodes: {
+    title: '節點與節點池',
+    p1: '節點是一個工作程序，通常是一個 Pod，它從控制平面拉取執行、啟動 Harness，並將其事件串流回傳。節點會自行註冊、回報它找到的 Harness，並傳送心跳訊號；你不需要在這裡建立它們。',
+    p2: '節點可以屬於某個節點池並帶有標籤。部署使用節點池與標籤選擇器來決定其執行可以在哪裡進行。封鎖節點可停止接收新工作，維護前則應將它清空。'
+  },
+  nodePools: {
+    title: '節點池與節點',
+    p1: '節點池是具名的工作節點群組，例如 GPU 機器或保留給某位客戶的節點。節點在註冊時加入節點池。節點池可以限制只供特定租用戶使用。',
+    p2: '指定節點池的部署只會在該節點池的節點上執行。未指定節點池的部署可以在任何符合條件的節點上執行。'
+  },
+  tenants: {
+    title: '租用戶',
+    p1: '租用戶是此伺服器上一個彼此隔離的組織。使用者、存取金鑰、代理程式、祕密與執行都屬於某一個租用戶，且跨租用戶之間互相看不到。除非節點池保留給特定租用戶，否則節點池與工作節點是共用的。'
+  },
+  users: {
+    title: '使用者與存取金鑰',
+    p1: '使用者是以電子郵件與密碼登入的人員。存取金鑰則是自動化用來登入的方式。每把存取金鑰都屬於一位使用者，且能做的事永遠不會超過該使用者。',
+    p2: '兩者都不會因為存在就自動獲得存取權。存取權來自使用者上的管理員旗標以及角色指派。'
+  },
+  credentials: {
+    title: '存取金鑰與使用者',
+    p1: '存取金鑰是一組存取金鑰與祕密金鑰，供指令碼、SDK 與服務使用。它屬於一位使用者。其有效權限是它自身角色指派所授予的權限與其擁有者可執行之權限的交集。',
+    p2: '祕密金鑰只會在建立或輪替金鑰時顯示一次。請定期輪替金鑰，並刪除長時間未使用的金鑰。'
+  },
+  roles: {
+    title: '角色、權限與指派',
+    p1: '權限是一條規則：允許或拒絕對特定資源類型（例如 Agent 或 Run）執行特定操作（例如 Read 或 Execute）。角色是具名的權限組合。拒絕永遠優先於允許。',
+    p2: '在角色被指派之前，任何人的權限都不會改變。下一個分頁中的指派會將角色連結到使用者或存取金鑰，範圍可以是整個租用戶或單一紀錄。'
+  },
+  assignments: {
+    title: '指派',
+    p1: '指派會將一個角色授予一位使用者或一把存取金鑰。「租用戶」範圍會將角色套用到所涵蓋類型的每一筆紀錄；「資源」範圍則只套用到單一紀錄，例如 CI 工作可以呼叫的那一個代理程式。',
+    p2: '對使用者或存取金鑰使用「有效權限」，即可查看其所有指派合併後的結果。'
+  },
+  runs: {
+    title: '執行與佇列',
+    p1: '執行是某個部署的一次呼叫。它會排入佇列、由工作節點取得租約、執行，並以結果、對話紀錄、輸出內容與遙測資料（例如第一個 Token 時間、Token 數與成本）結束。',
+    p2: '「佇列」分頁顯示這些執行在等待期間的狀態：已排入佇列的執行需要具備正確 Harness 與排程放置條件的節點，已租用的執行已被認領，執行中的執行正在進行。長時間停留在佇列中的執行，代表容量不足，或排程放置規則沒有任何節點符合。'
+  },
+  queue: {
+    title: '佇列',
+    p1: '這是尚未完成之執行的即時檢視：等待節點、已租用或執行中，依代理程式與 Harness 分組。它與「執行」分頁的資料相同，經過彙總以顯示排程壓力。',
+    p2: '某個 Harness 的已排入佇列數量持續增加，通常表示沒有就緒的節點公告支援該 Harness、符合條件的節點已滿，或部署要求的節點池或標籤沒有任何節點具備。'
+  },
+  invoke: {
+    title: '呼叫時會發生什麼事',
+    p1: '你以名稱呼叫代理程式。除非你挑選了部署，否則 Garrison 會依權重從代理程式啟用中的部署選擇一個，依該部署的允許範圍驗證所有單次執行參數，並將執行排入佇列。工作節點執行時，對話紀錄會在這裡串流顯示。'
+  },
+  audit: {
+    title: '稽核與請求歷程',
+    p1: '稽核紀錄是安全性與設定事件：登入、遭拒絕的請求、祕密與角色變更、清單套用，以及節點狀態變更。它們會依設定中的保留期限保存。',
+    p2: '上一個分頁的「請求歷程」是原始的 HTTP 流量。以稽核回答誰變更了什麼，以請求歷程偵錯用戶端實際傳送了什麼。'
+  },
+  requests: {
+    title: '請求歷程',
+    p1: '此伺服器擷取的每個 API 請求，包含方法、路徑、狀態、時間、標頭與本文（依設定的大小截斷）。可用來偵錯整合與 SDK 呼叫。按一下圖表中的長條，即可將表格縮小到該時間範圍。'
+  },
+  analytics: {
+    title: '這些圖表量測什麼',
+    p1: '第一個 Token 時間是從 Harness 程序啟動到第一個模型輸出的時間，因此包含 CLI 啟動時間。串流時間是從第一個到最後一個模型輸出，執行時間則是從程序啟動到結束。排隊時間是執行等待工作節點的時間。這些都以工作節點與伺服器的時鐘量測。',
+    p2: 'Token 數與成本來自各 Harness 的回報。快取 Token 是由供應商提示快取提供的輸入 Token，推理 Token 只會出現在會分開回報的 Harness。每秒輸出 Token 數是輸出 Token 數除以串流時間。',
+    p3: '平均值會忽略無法量測數值的執行。百分位數顯示尾端情況：P95 表示每二十個執行中只有一個比它慢。依代理程式或 Harness 分組，即可並排比較。'
+  }
+};
+
+export { tips, explainers };

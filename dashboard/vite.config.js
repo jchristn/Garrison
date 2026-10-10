@@ -34,7 +34,9 @@ export default defineConfig({
         manualChunks(id) {
           if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'vendor';
           if (/node_modules\/(i18next|react-i18next|i18next-browser-languagedetector)\//.test(id)) return 'i18n';
-          if (id.includes('/src/i18n/locales/')) return 'locales';
+          // One chunk per locale (catalog plus tooltips) keeps every chunk under the size warning.
+          const locale = id.match(/\/src\/i18n\/locales\/([A-Za-z-]+?)(?:\.tips)?\.js$/);
+          if (locale) return `locale-${locale[1]}`;
           if (id.includes('/src/views/')) return 'views';
           return undefined;
         }

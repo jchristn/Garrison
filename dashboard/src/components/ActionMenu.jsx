@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { MoreVerticalIcon } from './Icons';
 import { tip } from './Tooltip';
+import { popupLeft } from '../utils/direction';
 
 /**
  * Three-dot row action menu. Portaled to document.body so it is never clipped by
@@ -25,8 +26,7 @@ export default function ActionMenu({ items = [], label = '' }) {
     const menuW = 180;
     let top = rect.bottom + 4;
     if (window.innerHeight - rect.bottom < menuH + 8) top = rect.top - menuH - 4;
-    let left = rect.right - menuW;
-    left = Math.max(8, Math.min(left, window.innerWidth - menuW - 8));
+    const left = popupLeft(rect, menuW);
     setPos((p) => (p.top === top && p.left === left ? p : { top, left }));
     return true;
   }, [visible.length]);

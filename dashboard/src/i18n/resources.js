@@ -1,12 +1,19 @@
 // Translation catalogs for the Garrison dashboard.
 //
-// English (en) is the source of truth. German (de) and Japanese (ja) carry complete translations and are
-// deep-merged over English as a safety net. The RTL and expansion pseudo-locale (zz) is generated from English.
+// English (en) is the source of truth. Every other real locale (de, ja, es, fr, it, zh-Hans, zh-Hant, yue-Hant)
+// carries a complete translation and is deep-merged over English as a safety net. The RTL and expansion
+// pseudo-locale (zz) is generated from English.
 // See docs/I18N.md for how to add a locale.
 
 import en from './locales/en.js';
 import de from './locales/de.js';
 import ja from './locales/ja.js';
+import es from './locales/es.js';
+import fr from './locales/fr.js';
+import it from './locales/it.js';
+import zhHans from './locales/zh-Hans.js';
+import zhHant from './locales/zh-Hant.js';
+import yueHant from './locales/yue-Hant.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,12 +66,21 @@ function pseudoize(node) {
 
 const zz = pseudoize(en);
 
-const resources = {
-  en: { translation: en },
-  de: { translation: deepMerge(en, de) },
-  ja: { translation: deepMerge(en, ja) },
-  zz: { translation: zz }
+/** Every translated catalog by locale code, before merging over English. Tests iterate this. */
+const TRANSLATIONS = {
+  de,
+  ja,
+  es,
+  fr,
+  it,
+  'zh-Hans': zhHans,
+  'zh-Hant': zhHant,
+  'yue-Hant': yueHant
 };
 
-export { en, de, ja, deepMerge, pseudoString };
+const resources = { en: { translation: en } };
+for (const [code, catalog] of Object.entries(TRANSLATIONS)) resources[code] = { translation: deepMerge(en, catalog) };
+resources.zz = { translation: zz };
+
+export { en, de, ja, es, fr, it, zhHans, zhHant, yueHant, TRANSLATIONS, deepMerge, pseudoString };
 export default resources;

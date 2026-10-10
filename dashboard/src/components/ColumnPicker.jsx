@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ColumnsIcon } from './Icons';
 import { tip } from './Tooltip';
+import { popupLeft } from '../utils/direction';
 
 /** "Select Columns" control. Pinned columns are listed but cannot be hidden. */
 export default function ColumnPicker({ columns, hidden, onToggle }) {
@@ -18,7 +19,7 @@ export default function ColumnPicker({ columns, hidden, onToggle }) {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const width = 240;
-    setPos({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)) });
+    setPos({ top: rect.bottom + 4, left: popupLeft(rect, width) });
   }, [open]);
 
   useEffect(() => {

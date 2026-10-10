@@ -146,28 +146,28 @@ export function RefreshIcon({ size = 14 }) {
 }
 export function ChevronLeftIcon({ size = 14 }) {
   return (
-    <svg {...base(size)}>
+    <svg {...base(size)} className="icon-mirror">
       <path d="M15 6l-6 6 6 6" />
     </svg>
   );
 }
 export function ChevronRightIcon({ size = 14 }) {
   return (
-    <svg {...base(size)}>
+    <svg {...base(size)} className="icon-mirror">
       <path d="M9 6l6 6-6 6" />
     </svg>
   );
 }
 export function ChevronsLeftIcon({ size = 14 }) {
   return (
-    <svg {...base(size)}>
+    <svg {...base(size)} className="icon-mirror">
       <path d="M18 6l-6 6 6 6M12 6l-6 6 6 6" />
     </svg>
   );
 }
 export function ChevronsRightIcon({ size = 14 }) {
   return (
-    <svg {...base(size)}>
+    <svg {...base(size)} className="icon-mirror">
       <path d="M6 6l6 6-6 6M12 6l6 6-6 6" />
     </svg>
   );
@@ -212,7 +212,7 @@ export function MoonIcon({ size = 18 }) {
 }
 export function LogoutIcon({ size = 18 }) {
   return (
-    <svg {...base(size)}>
+    <svg {...base(size)} className="icon-mirror">
       <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
       <path d="M10 17l-5-5 5-5M5 12h11" />
     </svg>
@@ -256,7 +256,7 @@ export function ColumnsIcon({ size = 18 }) {
 
 export function SendIcon({ size = 18 }) {
   return (
-    <svg {...base(size)}>
+    <svg {...base(size)} className="icon-mirror">
       <path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4 20-7z" />
     </svg>
   );

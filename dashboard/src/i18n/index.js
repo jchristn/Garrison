@@ -6,12 +6,15 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 import resources from './resources.js';
-import { STORAGE_KEY, DEFAULT_LOCALE, canonicalizeLocale, getDirection } from './localeRegistry.js';
+import { STORAGE_KEY, DEFAULT_LOCALE, canonicalizeLocale, getLocaleMeta } from './localeRegistry.js';
 
 function syncDocument(nextLocale) {
-  const locale = canonicalizeLocale(nextLocale);
-  document.documentElement.lang = locale;
-  document.documentElement.dir = getDirection(locale);
+  const meta = getLocaleMeta(canonicalizeLocale(nextLocale));
+  const root = document.documentElement;
+  root.lang = meta.code;
+  root.dir = meta.dir;
+  if (meta.fontFamily) root.style.setProperty('--locale-font', meta.fontFamily);
+  else root.style.removeProperty('--locale-font');
 }
 
 if (!i18n.isInitialized) {

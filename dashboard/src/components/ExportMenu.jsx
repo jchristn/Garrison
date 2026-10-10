@@ -5,6 +5,7 @@ import { DownloadIcon } from './Icons';
 import { tip } from './Tooltip';
 import { useToast } from '../context/ToastContext';
 import { downloadText, downloadBlob, svgToPng } from '../utils/exporters';
+import { popupLeft } from '../utils/direction';
 
 const TYPES = { csv: 'text/csv;charset=utf-8', json: 'application/json', svg: 'image/svg+xml' };
 
@@ -27,7 +28,7 @@ export default function ExportMenu({ title, fileName, csv, json, svg, testId }) 
     const w = 200;
     const h = formats.length * 34 + 8;
     const top = window.innerHeight - r.bottom < h + 8 ? r.top - h - 4 : r.bottom + 4;
-    setPos({ top, left: Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) });
+    setPos({ top, left: popupLeft(r, w) });
   }, [open, formats.length]);
 
   useEffect(() => {

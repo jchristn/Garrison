@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { STORAGE_KEYS } from '../utils/constants';
 import { tip } from './Tooltip';
+import { popupStartLeft } from '../utils/direction';
 
 const STEPS = [
   { id: 'sidebar', selector: '[data-tour="sidebar"]' },
@@ -40,7 +41,7 @@ export default function Tour() {
   };
   const step = STEPS[index];
   const top = rect ? Math.min(window.innerHeight - 200, rect.bottom + 12) : window.innerHeight / 2 - 80;
-  const left = rect ? Math.max(12, Math.min(window.innerWidth - 332, rect.left)) : window.innerWidth / 2 - 160;
+  const left = rect ? popupStartLeft(rect, Math.min(340, window.innerWidth - 32), 12) : window.innerWidth / 2 - 160;
 
   return createPortal(
     <div className="tour-layer" role="dialog" aria-modal="true" aria-label={t('tour.title')}>

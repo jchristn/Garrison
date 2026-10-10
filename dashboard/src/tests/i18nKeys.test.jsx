@@ -1,9 +1,12 @@
-// Catalog completeness: every key the UI asks for exists in English, and de/ja mirror English exactly.
+// Catalog completeness: every key the UI asks for exists in English, and every translated locale mirrors English
+// exactly (same keys, same placeholders, no empty strings, no leftover English beyond product terms).
 
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { en, de, ja } from '../i18n/resources';
+import { en, TRANSLATIONS } from '../i18n/resources';
+import { LOCALES } from '../i18n/localeRegistry';
+import { UNTRANSLATED_ALLOWLIST, isProductTerm } from './untranslatedAllowlist';
 import resources from '../i18n/resources';
 import * as resourceConfigs from '../views/resourceConfigs';
 import * as runConfigs from '../views/runConfigs';
@@ -116,7 +119,7 @@ describe('i18n key coverage', () => {
   it('keeps acronyms upper case in every catalog', () => {
     const acronym = /(?<![\w./{-])(mcp|a2a|api|apis|url|urls|json|sse|http|https|sdk|yaml|Mcp|Api|Url|Json|Sse|Http)(?![\w/.}-])/;
     const offenders = [];
-    for (const [code, catalog] of [['en', en], ['de', de], ['ja', ja]]) {
+    for (const [code, catalog] of [['en', en], ...Object.entries(TRANSLATIONS)]) {
       for (const key of leafKeys(catalog)) if (acronym.test(String(lookup(catalog, key)))) offenders.push(`${code}: ${key}`);
     }
     expect(offenders).toEqual([]);
@@ -136,21 +139,21 @@ describe('i18n key coverage', () => {
 describe('locale parity', () => {
   const base = (keys) => new Set([...keys].map((k) => k.replace(PLURAL, '')));
   const enKeys = base(leafKeys(en));
+  const locales = Object.entries(TRANSLATIONS);
 
-  it.each([
-    ['de', de],
-    ['ja', ja]
-  ])('%s has exactly the English keys', (_code, catalog) => {
+  it('covers every real locale in the registry', () => {
+    const real = LOCALES.map((l) => l.code).filter((c) => c !== 'en' && c !== 'zz');
+    expect(Object.keys(TRANSLATIONS).sort()).toEqual(real.sort());
+  });
+
+  it.each(locales)('%s has exactly the English keys', (_code, catalog) => {
     const keys = base(leafKeys(catalog));
     expect([...enKeys].filter((k) => !keys.has(k))).toEqual([]);
     expect([...keys].filter((k) => !enKeys.has(k))).toEqual([]);
   });
 
-  it.each([
-    ['de', de],
-    ['ja', ja]
-  ])('%s keeps every interpolation placeholder', (_code, catalog) => {
-    const vars = (s) => (String(s).match(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g) || []).map((v) => v.replace(/[{}\s]/g, '')).sort();
+  it.each(locales)('%s keeps every interpolation placeholder', (_code, catalog) => {
+    const vars = (s) => (String(s).match(/\{\{\s*([A-Za-z0-9_.]+)\s*\}\}/g) || []).map((v) => v.replace(/[{}\s]/g, '')).sort();
     const mismatched = [];
     for (const key of leafKeys(catalog)) {
       const target = lookup(catalog, key);
@@ -162,8 +165,32 @@ describe('locale parity', () => {
     expect(mismatched).toEqual([]);
   });
 
-  it('contains no em-dashes in any catalog', () => {
-    for (const catalog of [en, de, ja]) expect(JSON.stringify(catalog)).not.toContain(String.fromCharCode(0x2014));
+  it.each(locales)('%s has no empty or non-string values', (_code, catalog) => {
+    const bad = [...leafKeys(catalog)].filter((k) => {
+      const v = lookup(catalog, k);
+      return typeof v !== 'string' || v.trim() === '';
+    });
+    expect(bad).toEqual([]);
+  });
+
+  it.each(locales)('%s leaves no English copy behind beyond product terms and the allowlist', (code, catalog) => {
+    const allowed = new Set([...(UNTRANSLATED_ALLOWLIST['*'] || []), ...(UNTRANSLATED_ALLOWLIST[code] || [])]);
+    const leftovers = [];
+    for (const key of leafKeys(catalog)) {
+      const target = lookup(catalog, key);
+      const source = lookup(en, key) ?? lookup(en, key.replace(PLURAL, '_other'));
+      if (target !== source) continue;
+      if (isProductTerm(target) || allowed.has(target)) continue;
+      leftovers.push(`${key}: ${target}`);
+    }
+    expect(leftovers).toEqual([]);
+  });
+
+  it('contains no em-dashes or en-dashes in any catalog', () => {
+    for (const [code, catalog] of [['en', en], ...locales]) {
+      expect(JSON.stringify(catalog), code).not.toContain(String.fromCharCode(0x2014));
+      expect(JSON.stringify(catalog), code).not.toContain(String.fromCharCode(0x2013));
+    }
   });
 
   it('generates a complete pseudo-locale that preserves placeholders', () => {
