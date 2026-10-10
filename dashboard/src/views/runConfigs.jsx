@@ -78,6 +78,8 @@ export const runsConfig = {
     col('runs', t, 'harnessType', (r) => t(`enums.harnessType.${r.harnessType}`, { defaultValue: r.harnessType })),
     col('runs', t, 'leaseNodeName', (r) => r.leaseNodeName || '-'),
     telemetryCol(t, i18n, 'timeToFirstTokenMs', formatMs),
+    telemetryCol(t, i18n, 'timeToFirstTokenExcludingDelegationMs', formatMs, { defaultHidden: true }),
+    telemetryCol(t, i18n, 'delegationWaitMs', formatMs, { defaultHidden: true }),
     telemetryCol(t, i18n, 'streamingMs', formatMs, { defaultHidden: true }),
     telemetryCol(t, i18n, 'executionMs', formatMs),
     telemetryCol(t, i18n, 'queueMs', formatMs, { defaultHidden: true }),
@@ -166,7 +168,7 @@ function nodeFields(t) {
       type: 'objectList',
       label: t('resources.nodes.fields.capabilities'),
       fields: [
-        { name: 'harnessType', type: 'text', label: t('resources.runs.columns.harnessType') },
+        { name: 'harnessType', type: 'select', label: t('resources.runs.columns.harnessType'), options: ENUMS.harnessType.map((h) => ({ value: h, label: enumLabel(t, 'harnessType', h) })) },
         { name: 'detectedVersion', type: 'text', label: t('resources.nodes.fields.detectedVersion') },
         { name: 'available', type: 'checkbox', label: t('resources.nodes.fields.available') },
         { name: 'detail', type: 'text', label: t('resources.nodes.fields.detail') }

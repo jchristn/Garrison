@@ -25,6 +25,9 @@ import { exportFileName, toCsv } from '../utils/exporters';
 import { tip } from '../components/Tooltip';
 import { BlockedBadge, BlockedRunNotice } from '../components/BlockedRun';
 import { enumTip } from '../utils/tips';
+import NamedId from '../components/NamedId';
+import { translateServerText } from '../utils/serverText';
+import { enumLabel } from '../utils/enums';
 
 function Detail({ label, tip: tipText, children }) {
   return (
@@ -35,6 +38,26 @@ function Detail({ label, tip: tipText, children }) {
       <div className="detail-item-value">{children ?? '-'}</div>
     </div>
   );
+}
+
+/** The template versions a run was compiled with (M1-23), each linking to its template's page. */
+function TemplateVersionLinks({ versions, t, navigate, list = false }) {
+  const links = versions.map((v) => (
+    <a
+      key={`${v.templateId}-${v.version}`}
+      href={pathFor('promptTemplates', v.templateId)}
+      data-testid="run-template-link"
+      {...tip(t('tips.views.runDetail.openTemplate', { name: v.templateName || v.templateId, version: v.version }))}
+      onClick={(e) => {
+        e.preventDefault();
+        navigate(pathFor('promptTemplates', v.templateId));
+      }}
+    >
+      <code>{v.templateName || v.templateId}</code> v{v.version}
+    </a>
+  ));
+  if (list) return <ul className="plain-list">{links.map((l) => <li key={l.key}>{l}</li>)}</ul>;
+  return <span className="template-version-links">{links}</span>;
 }
 
 /** Run detail: live transcript (SSE with polling fallback), outcome, result, stderr, children, cancel and retry. */
@@ -53,6 +76,8 @@ export default function RunDetailView({ recordId }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [live, setLive] = useState(false);
+  const [deployment, setDeployment] = useState(null);
+  const [agentState, setAgentState] = useState(null);
   const lastSeq = useRef(0);
 
   const loadRun = useCallback(() => {
@@ -103,6 +128,27 @@ export default function RunDetailView({ recordId }) {
   }, [apiClient, tenantId, recordId, loadRun, pollEvents]);
 
   const terminal = run && TERMINAL_RUN_STATUSES.includes(run.status);
+
+  // Names for the deployment and agent (M1-20), and whether the agent still exists so Retry can explain itself (M1-22).
+  const deploymentId = run?.deploymentId;
+  const agentId = run?.agentId;
+  useEffect(() => {
+    if (!apiClient || !deploymentId) return;
+    apiClient
+      .getDeployment(tenantId, deploymentId)
+      .then((d) => setDeployment({ name: d?.name, deleted: false }))
+      .catch((e) => setDeployment({ name: null, deleted: e?.status === 404 }));
+  }, [apiClient, tenantId, deploymentId]);
+  useEffect(() => {
+    if (!apiClient || !agentId) return;
+    apiClient
+      .getAgent(tenantId, agentId)
+      .then((a) => setAgentState({ exists: true, name: a?.name }))
+      .catch((e) => setAgentState({ exists: e?.status !== 404 }));
+  }, [apiClient, tenantId, agentId]);
+  const agentMissing = agentState?.exists === false;
+  // The server refuses to retry a run whose agent or deployment was deleted (409 AgentDeleted, DeploymentDeleted).
+  const retryBlocked = agentMissing ? t('views.runDetail.agentDeleted', { agent: run?.agentName }) : deployment?.deleted ? t('views.runDetail.deploymentDeleted', { agent: run?.agentName }) : null;
 
   // Live stream while the run is active; fall back to polling when SSE is unavailable.
   useEffect(() => {
@@ -188,7 +234,7 @@ export default function RunDetailView({ recordId }) {
               </button>
             )}
             {terminal && (
-              <button type="button" className="button-secondary" onClick={retry} {...tip(t('tips.resources.runs.actions.retry'))}>
+              <button type="button" className="button-secondary" onClick={retry} disabled={!!retryBlocked} data-testid="run-retry" {...tip(retryBlocked || t('tips.resources.runs.actions.retry'))}>
                 <RetryIcon size={14} /> {t('resources.runs.actions.retry')}
               </button>
             )}
@@ -197,14 +243,24 @@ export default function RunDetailView({ recordId }) {
       />
 
       <BlockedRunNotice run={run} />
+      {retryBlocked && terminal && (
+        <div className="info-banner" role="note" data-testid="agent-deleted">
+          {retryBlocked}
+        </div>
+      )}
 
       <div className="panel detail-grid run-summary">
         <Detail label={t('resources.runs.columns.outcome')} tip={t('tips.resources.runs.outcome')}>
           {run.outcome && run.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', run.outcome))}>{t(`enums.runOutcome.${run.outcome}`, { defaultValue: run.outcome })}</span> : '-'}
         </Detail>
-        <Detail label={t('resources.runs.columns.harnessType')} tip={t('tips.resources.runs.harnessType')}>{t(`enums.harnessType.${run.harnessType}`, { defaultValue: run.harnessType })}</Detail>
+        <Detail label={t('resources.runs.columns.harnessType')} tip={t('tips.resources.runs.harnessType')}>{enumLabel(t, 'harnessType', run.harnessType)}</Detail>
         <Detail label={t('resources.runs.columns.leaseNodeName')} tip={t('tips.resources.runs.leaseNodeName')}>{run.leaseNodeName}</Detail>
-        <Detail label={t('views.runDetail.deployment')} tip={t('tips.views.runDetail.deployment')}>{run.deploymentId ? <CopyableId value={run.deploymentId} /> : '-'}</Detail>
+        <Detail label={t('views.runDetail.deployment')} tip={t('tips.views.runDetail.deployment')}>
+          {run.deploymentId ? <NamedId id={run.deploymentId} name={run.deploymentName || deployment?.name || (deployment?.deleted ? run.deploymentId : null)} deleted={!!deployment?.deleted} /> : '-'}
+        </Detail>
+        <Detail label={t('views.runDetail.templatesUsed')} tip={t('tips.views.runDetail.templatesUsed')}>
+          {(run.templateVersions || []).length ? <TemplateVersionLinks versions={run.templateVersions} t={t} navigate={navigate} /> : '-'}
+        </Detail>
         <Detail label={t('views.runDetail.model')} tip={t('tips.views.runDetail.model')}>{run.servedModel || '-'}</Detail>
         <Detail label={t('resources.runs.columns.executionMs')} tip={t('tips.telemetry.executionMs')}>{formatMs(tel.executionMs, i18n.language, na)}</Detail>
         <Detail label={t('views.runDetail.tokensLabel')} tip={t('tips.views.runDetail.tokens')}>{t('views.runDetail.tokens', { input: formatNumber(run.inputTokens || 0), output: formatNumber(run.outputTokens || 0) })}</Detail>
@@ -241,7 +297,7 @@ export default function RunDetailView({ recordId }) {
 
       <RunTelemetryPanel run={run} />
 
-      {run.errorMessage && <div className="error-banner">{run.errorMessage}</div>}
+      {run.errorMessage && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
 
       <Tabs
         label={t('views.runDetail.title')}
@@ -308,13 +364,7 @@ export default function RunDetailView({ recordId }) {
             {(run.templateVersions || []).length > 0 && (
               <>
                 <h3 className="section-title">{t('views.runDetail.templateVersions')}</h3>
-                <ul className="plain-list">
-                  {run.templateVersions.map((v) => (
-                    <li key={v.templateId}>
-                      <code>{v.templateName}</code> v{v.version}
-                    </li>
-                  ))}
-                </ul>
+                <TemplateVersionLinks versions={run.templateVersions} t={t} navigate={navigate} list />
               </>
             )}
           </div>

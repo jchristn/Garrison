@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import { tip } from './Tooltip';
 
-/** Confirmation dialog. Set `danger` for destructive actions. */
+/** Confirmation dialog. Set `danger` for destructive actions. `details` renders below the message (lists of affected records). */
 export default function ConfirmModal({
   open,
   title,
@@ -13,6 +13,7 @@ export default function ConfirmModal({
   danger = false,
   confirmTip,
   cancelTip,
+  details,
   onConfirm,
   onCancel
 }) {
@@ -52,6 +53,7 @@ export default function ConfirmModal({
       }
     >
       <p style={{ fontSize: 'var(--font-size-sm)' }}>{message || t('components.confirm.message')}</p>
+      {details}
     </Modal>
   );
 }

@@ -99,6 +99,9 @@ function run(i) {
       firstTokenUtc: iso(i * 7 - 0.02),
       lastTokenUtc: iso(i * 7 - 0.8),
       timeToFirstTokenMs: 1200 + i * 10,
+      // M1-08 (P9.17): every fifth run delegated and waited 800 ms on its child before the first token.
+      delegationWaitMs: i % 5 === 1 ? 800 : 0,
+      timeToFirstTokenExcludingDelegationMs: 1200 + i * 10 - (i % 5 === 1 ? 800 : 0),
       streamingMs: i % 6 === 3 ? null : 46000 + i,
       executionMs: 60000 + i,
       queueMs: 600 + i,
@@ -106,7 +109,7 @@ function run(i) {
       outputTokensPerSecond: i % 6 === 3 ? null : (340 + i) / ((46000 + i) / 1000)
     });
   } else {
-    Object.assign(out, { firstTokenUtc: null, lastTokenUtc: null, timeToFirstTokenMs: null, streamingMs: null, executionMs: null, queueMs: null, totalMs: null, outputTokensPerSecond: null });
+    Object.assign(out, { firstTokenUtc: null, lastTokenUtc: null, timeToFirstTokenMs: null, delegationWaitMs: null, timeToFirstTokenExcludingDelegationMs: null, streamingMs: null, executionMs: null, queueMs: null, totalMs: null, outputTokensPerSecond: null });
   }
   if (terminal) {
     Object.assign(out, { completedUtc: iso(i * 7 - 1), exitCode: status === 'Failed' ? 1 : 0, stderrTail: '', resultText: 'Hello from the fake harness.' });
@@ -166,15 +169,16 @@ const FACTORIES = {
       credentialEnvironmentAllowlist: ['ANTHROPIC_API_KEY']
     });
   },
+  // Built-ins carry their real names, so the deployment wizard's per-role defaults (M1-03) can be exercised.
   'prompt-templates': (i) =>
     base('pt', i, {
-      name: `template-${i}`,
+      name: i === 1 ? 'builtin/default-system' : i === 2 ? 'builtin/default-task' : `template-${i}`,
       description: 'Prompt template',
-      kind: ['System', 'Task', 'Fragment'][i % 3],
+      kind: i === 1 ? 'System' : i === 2 ? 'Task' : ['System', 'Task', 'Fragment'][i % 3],
       content: 'You are {{agent.name}}. Task: {{input.message}}',
       currentVersion: i,
       isBuiltIn: i < 3,
-      builtInKey: i < 3 ? `default-${i}` : undefined,
+      builtInKey: i === 1 ? 'default-system' : i === 2 ? 'default-task' : undefined,
       variables: [{ id: `chr_pt_${pad(i)}_0000var`, promptTemplateId: `pt_${pad(i)}`, name: 'input.message', required: false }]
     }),
   'prompt-template-versions': (v) => record('tpr', v, { tenantId: TENANT, templateId: 'pt_0001', version: v, content: `Version ${v} {{input.message}}`, changeNote: `v${v}`, createdBy: 'admin@garrison' }),
@@ -307,8 +311,22 @@ const FACTORIES = {
       unchangedCount: 0,
       failedCount: 0,
       items: [
-        { id: `chr_ma_${pad(i)}_0000ite`, manifestApplyId: `ma_${pad(i)}`, position: 0, kind: 'Agent', name: 'echo-agent', result: 'Created', resourceId: 'agt_0001' },
-        { id: `chr_ma_${pad(i)}_0001ite`, manifestApplyId: `ma_${pad(i)}`, position: 1, kind: 'Deployment', name: 'echo-agent-default', result: 'Updated', resourceId: 'dep_0001', message: 'Weight changed.' }
+        { id: `chr_ma_${pad(i)}_0000ite`, manifestApplyId: `ma_${pad(i)}`, position: 0, kind: 'Agent', name: 'echo-agent', result: i % 2 === 0 ? 'Validated' : 'Created', plannedResult: 'Created', resourceId: 'agt_0001' },
+        {
+          id: `chr_ma_${pad(i)}_0001ite`,
+          manifestApplyId: `ma_${pad(i)}`,
+          position: 1,
+          kind: 'Deployment',
+          name: 'echo-agent-default',
+          result: i % 2 === 0 ? 'Validated' : 'Updated',
+          plannedResult: 'Updated',
+          resourceId: 'dep_0001',
+          // M1-14 (P9.17): field-level changes for Updated items, values as strings truncated to 200 characters.
+          changes: [
+            { field: 'weight', before: '100', after: '300' },
+            { field: 'model', before: null, after: 'sonnet' }
+          ]
+        }
       ]
     }),
   'request-history': (i) => ({
@@ -449,6 +467,10 @@ function analyticsMetrics(i, scale) {
     timeToFirstTokenMsAvg: quiet ? null : 1100 + (i % 6) * 90,
     timeToFirstTokenMsP50: quiet ? null : 1000 + (i % 6) * 80,
     timeToFirstTokenMsP95: quiet ? null : 2400 + (i % 6) * 150,
+    timeToFirstTokenExcludingDelegationMsAvg: quiet ? null : 900 + (i % 6) * 90,
+    timeToFirstTokenExcludingDelegationMsP50: quiet ? null : 850 + (i % 6) * 80,
+    timeToFirstTokenExcludingDelegationMsP95: quiet ? null : 1900 + (i % 6) * 150,
+    delegationWaitMsAvg: quiet ? null : i % 3 === 0 ? 0 : 200 + (i % 4) * 50,
     streamingMsAvg: quiet ? null : 4200 + (i % 8) * 200,
     executionMsAvg: quiet ? null : 6100 + (i % 8) * 250,
     executionMsP95: quiet ? null : 11000 + (i % 8) * 400,
@@ -464,7 +486,7 @@ function sumMetrics(list) {
     const vals = list.map((m) => m[k]).filter((v) => v !== null);
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   };
-  for (const k of ['timeToFirstTokenMsAvg', 'timeToFirstTokenMsP50', 'timeToFirstTokenMsP95', 'streamingMsAvg', 'executionMsAvg', 'executionMsP95', 'queueMsAvg', 'outputTokensPerSecondAvg']) out[k] = avg(k);
+  for (const k of ['timeToFirstTokenMsAvg', 'timeToFirstTokenMsP50', 'timeToFirstTokenMsP95', 'timeToFirstTokenExcludingDelegationMsAvg', 'timeToFirstTokenExcludingDelegationMsP50', 'timeToFirstTokenExcludingDelegationMsP95', 'delegationWaitMsAvg', 'streamingMsAvg', 'executionMsAvg', 'executionMsP95', 'queueMsAvg', 'outputTokensPerSecondAvg']) out[k] = avg(k);
   return out;
 }
 
@@ -495,7 +517,8 @@ export function analytics(url) {
 const event = (sequence, eventType, extra) => ({ id: `rev_${pad(sequence)}`, tenantId: TENANT, runId: 'run_0001', sequence, eventType, timestampUtc: iso(6 - sequence * 0.5), ...extra, createdUtc: iso(6 - sequence * 0.5) });
 
 const EVENTS = [
-  event(1, 'Lifecycle', { text: 'Run leased by garrison-worker-0' }),
+  // Events Garrison writes carry a machine code (P9.17) so the dashboard can translate them.
+  event(1, 'Lifecycle', { text: 'Workspace prepared at /work/run_0001.', code: 'WorkspacePrepared' }),
   event(2, 'AssistantText', { text: 'Hello from the fake harness.', rawEventJson: '{"type":"assistant"}' }),
   event(3, 'ToolCall', { toolName: 'read_file', text: '{"path":"README.md"}' }),
   event(4, 'Usage', { inputTokens: 1201, outputTokens: 341 }),
@@ -602,7 +625,13 @@ export function respond(method, url) {
     if (collection === 'audit' && parts.length === 1 && method === 'GET') return page('audit', url);
     if (collection === 'manifests' && parts[1] === 'applies') return parts.length === 2 ? enumerate('manifest-applies', url) : FACTORIES['manifest-applies'](1);
     if (collection === 'manifests' && parts[1] === 'export') return 'apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: echo-agent\n';
-    if (collection === 'manifests') return { items: [{ kind: 'Agent', name: 'echo-agent', result: 'Created' }, { kind: 'Deployment', name: 'echo-agent-default', result: 'Created' }] };
+    if (collection === 'manifests')
+      return {
+        items: [
+          { kind: 'Agent', name: 'echo-agent', result: 'Validated', plannedResult: 'Created', message: 'Would be created.' },
+          { kind: 'Deployment', name: 'echo-agent-default', result: 'Validated', plannedResult: 'Updated', message: 'Would be updated.', changes: [{ field: 'timeoutSeconds', before: '300', after: '120' }] }
+        ]
+      };
     if (collection === 'runs' && parts[2] === 'events') {
       // Same shape as the server: { runId, status, events, lastSequence, hasMore }.
       const after = Number(url.searchParams.get('afterSequence') || 0);

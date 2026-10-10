@@ -23,6 +23,8 @@ import { extractVariables } from '../utils/templates';
 import { formatDateTime } from '../i18n/formatters';
 import { tip } from '../components/Tooltip';
 import { resourceTip } from '../utils/tips';
+import CloneTemplateModal from '../components/CloneTemplateModal';
+import { templateDeletePreview } from './resourceConfigs';
 
 const SAMPLE_CONTEXT = {
   tenant: { id: 'default', name: 'Default' },
@@ -55,6 +57,8 @@ export default function PromptTemplateEditorView({ recordId }) {
   const [diffVersion, setDiffVersion] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [jsonOpen, setJsonOpen] = useState(false);
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [deleteInfo, setDeleteInfo] = useState(null);
   const debouncedContent = useDebounce(form.content, 500);
   const debouncedContext = useDebounce(contextText, 500);
 
@@ -143,20 +147,29 @@ export default function PromptTemplateEditorView({ recordId }) {
     }
   };
 
-  const clone = async () => {
-    try {
-      const created = await apiClient.clonePromptTemplate(tenantId, recordId, { name: `${form.name.replace(/^builtin\//, '')}-custom` });
-      addToast({ type: 'success', message: t('common.toasts.cloned') });
-      if (created?.id) navigate(pathFor('promptTemplates', created.id));
-    } catch (e) {
-      addToast({ type: 'error', message: errorMessage(t, e) });
-    }
+  const clone = () => setCloneOpen(true);
+
+  // Before deleting, say which deployments bind this template; the server refuses while any do (M1-21).
+  const askDelete = () => {
+    setDeleteInfo(null);
+    setConfirm({ type: 'delete' });
+    templateDeletePreview(t, apiClient, tenantId, { id: recordId, name: template?.name || form.name })
+      .then(setDeleteInfo)
+      .catch(() => setDeleteInfo(null));
   };
 
   if (!isNew && !template && !error) return <LoadingState />;
 
   const fields = [
-    { name: 'name', type: 'text', label: t('resources.promptTemplates.fields.name'), tip: resourceTip(t, 'promptTemplates', 'name'), required: true, readOnly: readOnly || !isNew },
+    {
+      name: 'name',
+      type: 'text',
+      label: t('resources.promptTemplates.fields.name'),
+      tip: resourceTip(t, 'promptTemplates', 'name'),
+      required: true,
+      readOnly,
+      hint: isNew || readOnly ? undefined : t('views.templateEditor.renameHint')
+    },
     { name: 'kind', type: 'select', label: t('resources.promptTemplates.fields.kind'), tip: resourceTip(t, 'promptTemplates', 'kind'), required: true, options: enumOptions(t, 'promptTemplateKind'), readOnly },
     { name: 'description', type: 'text', label: t('resources.promptTemplates.fields.description'), tip: resourceTip(t, 'promptTemplates', 'description'), readOnly, span: 'full' }
   ];
@@ -171,7 +184,6 @@ export default function PromptTemplateEditorView({ recordId }) {
           ) : (
             <span className="inline-meta">
               <Badge tone={readOnly ? 'info' : 'neutral'} tip={t(readOnly ? 'tips.badges.builtIn' : 'tips.badges.custom')}>{readOnly ? t('common.generic.builtIn') : t('common.generic.custom')}</Badge> v{template?.currentVersion ?? 1}
-              {readOnly && <span className="text-muted"> {t('views.templateEditor.builtInNote')}</span>}
             </span>
           )
         }
@@ -193,7 +205,7 @@ export default function PromptTemplateEditorView({ recordId }) {
               </button>
             )}
             {!isNew && !readOnly && (
-              <button type="button" className="button-danger" onClick={() => setConfirm({ type: 'delete' })} {...tip(t('tips.views.templateEditor.delete'))}>
+              <button type="button" className="button-danger" onClick={askDelete} {...tip(t('tips.views.templateEditor.delete'))}>
                 {t('common.actions.delete')}
               </button>
             )}
@@ -207,6 +219,14 @@ export default function PromptTemplateEditorView({ recordId }) {
       />
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       <Explainer topic="promptTemplates" />
+      {readOnly && (
+        <div className="info-banner readonly-note" role="note" data-testid="builtin-readonly">
+          <span>{t('views.templateEditor.builtInReadOnly')}</span>
+          <button type="button" className="button-primary button-sm" onClick={clone} {...tip(t('tips.views.templateEditor.clone'))}>
+            {t('views.templateEditor.cloneToEdit')}
+          </button>
+        </div>
+      )}
 
       <div className="panel">
         <FormFields fields={fields} data={form} onChange={setForm} idPrefix="tpl" />
@@ -314,11 +334,23 @@ export default function PromptTemplateEditorView({ recordId }) {
         open={!!confirm}
         danger={confirm?.type === 'delete'}
         title={t(`views.templateEditor.confirm.${confirm?.type || 'reset'}Title`)}
-        message={t(`views.templateEditor.confirm.${confirm?.type || 'reset'}Message`, { version: confirm?.version, name: form.name })}
+        message={confirm?.type === 'delete' ? deleteInfo?.message || t('resources.promptTemplates.deleteUnbound', { name: form.name }) : t(`views.templateEditor.confirm.${confirm?.type || 'reset'}Message`, { version: confirm?.version, name: form.name })}
+        details={confirm?.type === 'delete' ? deleteInfo?.details : null}
         onConfirm={runConfirmed}
         onCancel={() => setConfirm(null)}
       />
       <JsonViewerModal open={jsonOpen} value={template} onClose={() => setJsonOpen(false)} />
+      {cloneOpen && template && (
+        <CloneTemplateModal
+          template={template}
+          onClose={() => setCloneOpen(false)}
+          onCloned={(created) => {
+            setCloneOpen(false);
+            addToast({ type: 'success', message: t('common.toasts.cloned') });
+            if (created?.id) navigate(pathFor('promptTemplates', created.id));
+          }}
+        />
+      )}
     </div>
   );
 }

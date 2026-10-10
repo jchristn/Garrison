@@ -6,7 +6,7 @@ import { tip } from './Tooltip';
 import { formatDateTime } from '../i18n/formatters';
 import { runTelemetry, runPhases, formatMs, formatCount, formatRate, formatUsd } from '../utils/telemetry';
 
-const PHASE_COLOR = { queue: 'var(--series-4)', startup: 'var(--series-1)', streaming: 'var(--series-3)', tail: 'var(--series-7)' };
+const PHASE_COLOR = { queue: 'var(--series-4)', startup: 'var(--series-1)', delegation: 'var(--series-5)', streaming: 'var(--series-3)', tail: 'var(--series-7)' };
 
 /**
  * Every run telemetry field from plan section 10.6, each labeled with a tooltip that says what it measures and
@@ -21,6 +21,8 @@ export default function RunTelemetryPanel({ run }) {
 
   const rows = [
     ['timeToFirstTokenMs', formatMs(tel.timeToFirstTokenMs, lng, na)],
+    ['timeToFirstTokenExcludingDelegationMs', formatMs(tel.timeToFirstTokenExcludingDelegationMs, lng, na)],
+    ['delegationWaitMs', formatMs(tel.delegationWaitMs, lng, na)],
     ['streamingMs', formatMs(tel.streamingMs, lng, na)],
     ['executionMs', formatMs(tel.executionMs, lng, na)],
     ['queueMs', formatMs(tel.queueMs, lng, na)],
@@ -78,6 +80,15 @@ export default function RunTelemetryPanel({ run }) {
             ))}
           </div>
         </>
+      )}
+      {tel.delegationWaitMs !== null && tel.delegationWaitMs > 0 && (
+        <p className="text-muted telemetry-note" data-testid="delegation-note">
+          {t('views.runDetail.telemetry.delegationNote', {
+            wait: formatMs(tel.delegationWaitMs, lng, na),
+            ttft: formatMs(tel.timeToFirstTokenMs, lng, na),
+            excluding: formatMs(tel.timeToFirstTokenExcludingDelegationMs, lng, na)
+          })}
+        </p>
       )}
       <div className="telemetry-grid">
         {rows.map(([key, value]) => (

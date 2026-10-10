@@ -84,12 +84,35 @@ export function groupSettings(fields) {
   return groups;
 }
 
-/** Clamp a numeric value to a field's min and max. */
-export function clampSetting(field, value) {
-  if (value === null || value === undefined || value === '') return value;
-  let n = Number(value);
-  if (Number.isNaN(n)) return value;
-  if (field.min !== undefined && field.min !== null) n = Math.max(field.min, n);
-  if (field.max !== undefined && field.max !== null) n = Math.min(field.max, n);
-  return n;
+/**
+ * Validate one edited setting value against its metadata (M1-01). Nothing is clamped: an out-of-range value is an
+ * error the operator must fix. Returns null when the value is valid, otherwise { key, params } where key is a
+ * translation key under views.settings.errors.
+ * @param {object} field Editor field from normalizeSettings.
+ * @param {unknown} value Edited value.
+ * @returns {{ key: string, params: object } | null}
+ */
+export function validateSetting(field, value) {
+  if (!field) return null;
+  const hasMin = field.min !== undefined && field.min !== null && field.min !== '';
+  const hasMax = field.max !== undefined && field.max !== null && field.max !== '';
+  if (field.type === 'integer' || field.type === 'number') {
+    if (value === '' || value === null || value === undefined || Number.isNaN(Number(value))) return { key: 'number', params: {} };
+    const n = Number(value);
+    if (field.type === 'integer' && !Number.isInteger(n)) return { key: 'integer', params: {} };
+    if (hasMin && hasMax && (n < Number(field.min) || n > Number(field.max))) return { key: 'range', params: { min: field.min, max: field.max } };
+    if (hasMin && n < Number(field.min)) return { key: 'min', params: { min: field.min } };
+    if (hasMax && n > Number(field.max)) return { key: 'max', params: { max: field.max } };
+    return null;
+  }
+  if (field.type === 'boolean') return typeof value === 'boolean' || value === 'true' || value === 'false' ? null : { key: 'boolean', params: {} };
+  if (Array.isArray(field.options) && field.options.length && !field.options.includes(value)) return { key: 'allowed', params: { values: field.options.join(', ') } };
+  return null;
+}
+
+/** True when a settings update response reports that nothing was saved (an older server may answer 200 with errors). */
+export function settingsSaveFailed(result) {
+  if (!result || typeof result !== 'object') return false;
+  if (result.saved === false) return true;
+  return !!(result.errors && typeof result.errors === 'object' && Object.keys(result.errors).length > 0);
 }

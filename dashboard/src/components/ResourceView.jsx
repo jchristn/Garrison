@@ -19,7 +19,7 @@ import useAutoRefresh from '../hooks/useAutoRefresh';
 import useDebounce from '../hooks/useDebounce';
 import { DEFAULT_PAGE_SIZE, STORAGE_KEYS } from '../utils/constants';
 import { buildListParams, sortLocal, SERVER_SORT_KEYS, stripForDuplicate, toLocalInput, toUtcIso } from '../utils/query';
-import { errorMessage, errorDetail, isMissingEndpoint } from '../utils/errors';
+import { errorMessage, errorDetail, isMissingEndpoint, fieldErrorMessages } from '../utils/errors';
 
 function savedPageSize(tableId) {
   try {
@@ -81,7 +81,19 @@ export default function ResourceView({ config }) {
   const [extraModal, setExtraModal] = useState(null);
   const [options, setOptions] = useState({});
   const [step, setStep] = useState(0);
+  const [lookups, setLookups] = useState({});
+  const [deletePreview, setDeletePreview] = useState(null);
   const requestSeq = useRef(0);
+
+  // Names for ID columns (M1-20). Reloaded with the list so new records resolve too.
+  const loadLookups = useCallback(() => {
+    if (!apiClient || !config.loadLookups) return;
+    config
+      .loadLookups({ apiClient, tenantId })
+      .then(setLookups)
+      .catch(() => setLookups({}));
+  }, [apiClient, tenantId, config]);
+  useEffect(loadLookups, [loadLookups]);
 
   const load = useCallback(
     (pageNumber = 1, pageSize = page.pageSize) => {
@@ -129,7 +141,11 @@ export default function ResourceView({ config }) {
     if (config.loadOptions) {
       config
         .loadOptions(ctx)
-        .then(setOptions)
+        .then((opts) => {
+          setOptions(opts);
+          // Defaults that depend on the pick lists (for example built-in prompt templates) apply to new records only.
+          if (config.withOptions && mode === 'create') setEditing((e) => (e && e.mode === 'create' ? { ...e, data: config.withOptions(e.data, opts) } : e));
+        })
         .catch(() => setOptions({}));
     }
   };
@@ -157,10 +173,23 @@ export default function ResourceView({ config }) {
       if (config.afterCreate && editing.mode !== 'edit') config.afterCreate(result, { ...ctx, setExtraModal });
       load(page.pageNumber);
     } catch (e) {
-      if (e?.fields) setFieldErrors(e.fields);
+      const perField = fieldErrorMessages(t, e);
+      if (perField) setFieldErrors(perField);
       addToast({ type: 'error', message: `${errorMessage(t, e)} ${errorDetail(t, e)}`.trim() });
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Say what a delete takes with it before the operator confirms (M1-06, M1-21).
+  const askDelete = (row) => {
+    setDeleteTarget(row);
+    setDeletePreview(null);
+    if (config.deletePreview) {
+      config
+        .deletePreview(row, ctx)
+        .then((p) => setDeletePreview(p ? { id: row.id, ...p } : null))
+        .catch(() => setDeletePreview(null));
     }
   };
 
@@ -170,6 +199,7 @@ export default function ResourceView({ config }) {
       addToast({ type: 'success', message: t('common.toasts.deleted') });
       setDeleteTarget(null);
       load(page.pageNumber);
+      loadLookups();
     } catch (e) {
       addToast({ type: 'error', message: errorMessage(t, e) });
       setDeleteTarget(null);
@@ -191,7 +221,7 @@ export default function ResourceView({ config }) {
   };
 
   const columns = [
-    ...config.columns(ctx),
+    ...config.columns({ ...ctx, lookups }),
     {
       key: 'actions',
       label: t('common.generic.actions'),
@@ -213,7 +243,7 @@ export default function ResourceView({ config }) {
             },
             ...((config.rowActions && config.rowActions(r, { ...ctx, reload: () => load(page.pageNumber), setExtraModal, setJsonValue })) || []),
             { label: t('common.actions.viewJson'), tip: t('tips.actions.viewJson'), onClick: () => setJsonValue(r) },
-            { label: t('common.actions.delete'), tip: t('tips.actions.delete'), danger: true, hidden: !config.api.remove || !canDelete(r), onClick: () => setDeleteTarget(r) }
+            { label: t('common.actions.delete'), tip: t('tips.actions.delete'), danger: true, hidden: !config.api.remove || !canDelete(r), onClick: () => askDelete(r) }
           ]}
         />
       )
@@ -418,7 +448,8 @@ export default function ResourceView({ config }) {
         open={!!deleteTarget}
         danger
         title={t(`${prefix}.deleteTitle`)}
-        message={t('common.confirm.deleteNamed', { name: deleteTarget?.name || deleteTarget?.email || deleteTarget?.id })}
+        message={deletePreview && deletePreview.id === deleteTarget?.id && deletePreview.message ? deletePreview.message : t('common.confirm.deleteNamed', { name: deleteTarget?.name || deleteTarget?.email || deleteTarget?.id })}
+        details={deletePreview && deletePreview.id === deleteTarget?.id ? deletePreview.details : null}
         confirmLabel={t('common.actions.delete')}
         confirmTip={t('tips.confirm.delete')}
         onConfirm={doDelete}

@@ -10,8 +10,8 @@ import { EyeIcon, EyeOffIcon } from '../components/Icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import ApiClient from '../utils/api';
-import { normalizeSettings, groupSettings, clampSetting, settingsUpdateBody } from '../utils/settings';
-import { errorMessage } from '../utils/errors';
+import { normalizeSettings, groupSettings, validateSetting, settingsSaveFailed, settingsUpdateBody } from '../utils/settings';
+import { errorMessage, fieldErrorMessages } from '../utils/errors';
 import { tip } from '../components/Tooltip';
 import { optionalText } from '../utils/tips';
 
@@ -25,6 +25,12 @@ function SecretInput({ id, value, isSet, onChange, disabled, t, tipText }) {
       </button>
     </div>
   );
+}
+
+/** Human label for a setting (M1-24): views.settings.fields.<Group>.<Name>, else the name split into words. */
+function settingLabel(t, f) {
+  const fallback = f.label || String(f.path || '').split('.').pop().replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  return t(`views.settings.fields.${f.path}`, { defaultValue: fallback });
 }
 
 /** Form-based server and cluster settings with sources, live versus restart-required badges, and Restart Server. */
@@ -65,19 +71,34 @@ export default function SettingsView() {
   const groups = useMemo(() => groupSettings(fields || []), [fields]);
   const dirty = Object.keys(edits).length > 0;
 
-  const setValue = (f, v) => setEdits((prev) => ({ ...prev, [f.path]: f.type === 'number' || f.type === 'integer' ? clampSetting(f, v) : v }));
+  const fieldError = (f, v) => {
+    const problem = validateSetting(f, v);
+    return problem ? t(`views.settings.errors.${problem.key}`, problem.params) : null;
+  };
+
+  // Validate as the operator types so an out-of-range value is flagged at once; nothing is clamped (M1-01).
+  const setValue = (f, v) => {
+    setEdits((prev) => ({ ...prev, [f.path]: v }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      const message = f.isSecret && !v ? null : fieldError(f, v);
+      if (message) next[f.path] = message;
+      else delete next[f.path];
+      return next;
+    });
+  };
 
   const save = async () => {
     const local = {};
     for (const f of fields || []) {
       if (!(f.path in edits)) continue;
-      const v = edits[f.path];
-      if (f.type === 'number' || f.type === 'integer') {
-        if (v === '' || v === null || Number.isNaN(Number(v))) local[f.path] = t('views.settings.invalidNumber');
-      }
+      if (f.isSecret && !edits[f.path]) continue;
+      const message = fieldError(f, edits[f.path]);
+      if (message) local[f.path] = message;
     }
     if (Object.keys(local).length) {
       setErrors(local);
+      addToast({ type: 'error', message: t('views.settings.notSaved') });
       return;
     }
     const values = {};
@@ -89,13 +110,27 @@ export default function SettingsView() {
     setSaving(true);
     try {
       const result = await apiClient.updateSettings(settingsUpdateBody(values));
+      if (settingsSaveFailed(result)) {
+        setErrors(fieldErrorMessages(t, { fields: result.errors || {}, fieldCodes: result.fieldCodes }) || {});
+        addToast({ type: 'error', message: t('views.settings.notSaved') });
+        return;
+      }
       const needsRestart = result?.restartRequired ?? Object.keys(values).some((p) => fields.find((f) => f.path === p)?.applyMode === 'RestartRequired');
       if (needsRestart) setRestartPending(true);
       addToast({ type: 'success', message: needsRestart ? t('views.settings.savedRestart') : t('views.settings.savedLive') });
       load();
     } catch (e) {
-      if (e?.fields) setErrors(e.fields);
-      addToast({ type: 'error', message: errorMessage(t, e) });
+      // 400 with errors keyed by setting path: show each next to its field. Nothing was saved.
+      // 400 with errors and fieldCodes keyed by setting path: translate each code, using the field's own range.
+      const perField = fieldErrorMessages(t, e, (path, code) => {
+        const f = (fields || []).find((x) => x.path === path);
+        if (!f) return null;
+        if (code === 'OutOfRange' && f.min !== undefined && f.min !== null && f.max !== undefined && f.max !== null) return t('views.settings.errors.range', { min: f.min, max: f.max });
+        if (code === 'NotAllowedValue' && f.options) return t('views.settings.errors.allowed', { values: f.options.join(', ') });
+        return null;
+      });
+      if (perField) setErrors(perField);
+      addToast({ type: 'error', message: perField ? t('views.settings.notSaved') : errorMessage(t, e) });
     } finally {
       setSaving(false);
     }
@@ -195,14 +230,16 @@ export default function SettingsView() {
               const id = `setting-${f.path}`;
               const value = f.path in edits ? edits[f.path] : f.isSecret ? '' : f.value;
               const disabled = !canEdit || !f.editable || restarting;
-              const label = t(`views.settings.fields.${f.path}`, { defaultValue: f.label || f.path });
-              const fieldTip = [f.description || t('tips.views.settings.fieldGeneric', { path: f.path }), t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart'), optionalText(t, `tips.views.settings.source.${f.source}`)]
+              const label = settingLabel(t, f);
+              const fieldTip = [f.description || t('tips.views.settings.fieldGeneric', { path: f.path }), t('tips.views.settings.settingPath', { path: f.path }), t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart'), optionalText(t, `tips.views.settings.source.${f.source}`)]
                 .filter(Boolean)
                 .join(' ');
               return (
                 <div key={f.path} className={`field ${errors[f.path] ? 'has-error' : ''} ${f.type === 'list' ? 'span-full' : ''}`}>
                   <label htmlFor={id} className="settings-label" {...tip(fieldTip)}>
-                    <span>{label}</span>
+                    <span>
+                      {label} <code className="settings-path">{f.path}</code>
+                    </span>
                     <span className="settings-badges">
                       <Badge tone={f.applyMode === 'Live' ? 'success' : 'warning'} tip={t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart')}>{f.applyMode === 'Live' ? t('views.settings.live') : t('views.settings.restartRequired')}</Badge>
                       <Badge tip={t(`tips.views.settings.source.${f.source}`, { defaultValue: t('tips.views.settings.sourceGeneric') })}>{t(`views.settings.sources.${f.source}`, { defaultValue: f.source })}</Badge>
@@ -229,7 +266,11 @@ export default function SettingsView() {
                   )}
                   {(f.min !== undefined && f.min !== null) || (f.max !== undefined && f.max !== null) ? <div className="field-hint">{t('views.settings.range', { min: f.min ?? '-', max: f.max ?? '-' })}</div> : null}
                   {!f.editable && <div className="field-hint">{t(`views.settings.lockedBy.${f.source}`, { defaultValue: t('views.settings.lockedBy.other') })}</div>}
-                  {errors[f.path] && <div className="field-error">{errors[f.path]}</div>}
+                  {errors[f.path] && (
+                    <div className="field-error" role="alert" data-testid={`setting-error-${f.path}`}>
+                      {errors[f.path]}
+                    </div>
+                  )}
                 </div>
               );
             })}

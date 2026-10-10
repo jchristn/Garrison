@@ -113,7 +113,7 @@ describe('analytics helpers', () => {
     const data = normalizeAnalytics(response);
     const ttft = ANALYTICS_CHARTS.find((c) => c.id === 'ttft');
     const single = chartSeries({ ...data, series: [data.series[0]] }, ttft, false);
-    expect(single.series.map((s) => s.metric)).toEqual(['timeToFirstTokenMsAvg', 'timeToFirstTokenMsP50', 'timeToFirstTokenMsP95']);
+    expect(single.series.map((s) => s.metric)).toEqual(['timeToFirstTokenMsAvg', 'timeToFirstTokenMsP50', 'timeToFirstTokenMsP95', 'timeToFirstTokenExcludingDelegationMsAvg']);
     const grouped = chartSeries(data, ttft, true);
     expect(grouped.series.map((s) => s.label)).toEqual(['ClaudeCode / claude-sonnet-5-5', 'Mux / unknown']);
 

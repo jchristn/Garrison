@@ -6,6 +6,29 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const yueHant = {
   common: {
+    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件丟棄咗', HarnessExited: 'Harness 結束咗', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '開始咗修復輸出', WorkspacePrepared: '工作區準備好咗' },
+    fieldCodes: { ExpiryInPast: '請揀一個將來嘅時間。', ParameterInvalid: '呢個值對呢個參數嚟講唔啱。', ParameterNotAllowed: '呢個部署唔畀調用者覆寫呢個參數。', SettingsFileReadOnly: '設定檔係唯讀嘅，所以呢個改動儲存唔到。', OverriddenByEnvironment: '呢個值係由環境變數設定嘅，所以喺度改唔到。', PathRequired: '一定要有設定路徑。', UnknownSetting: '呢部伺服器冇呢項設定。', TooLong: '呢個值太長。', NotAllowedValue: '請揀其中一個容許嘅值。', NotABoolean: '請揀 true 或者 false。', NotAnInteger: '請輸入整數。', OutOfRange: '個值超出咗容許範圍。' },
+    serverText: {
+      notApplied: '冇套用，因為另一份文件驗證唔通過。',
+      wouldBeUnchanged: '已經係最新，乜都唔會改。',
+      wouldBeUpdated: '會更新。',
+      wouldBeCreated: '會建立。',
+      inUse: '{{what}} 仲俾呢啲部署綁定緊：{{deployments}}。請先移除綁定。',
+      noActiveDeployment: '代理程式 {{agent}} 冇權重大過零嘅啟用部署。請加一個部署或者調高某個部署嘅權重，然後再試。',
+      toolCallDenied: '工具調用俾人拒絕咗：{{id}}',
+      threadStarted: '執行緒開始咗。',
+      runStartedModel: '執行開始咗（{{model}}）。',
+      runStarted: '執行開始咗。',
+      sessionInitializedModel: '工作階段初始化咗（{{model}}）。',
+      sessionInitialized: '工作階段初始化咗。',
+      harnessFailed: 'Harness 報告咗失敗。',
+      exitedNoResult: 'Harness 以代碼 {{code}} 結束，冇最終結果。',
+      harnessExited: 'Harness 結束咗：{{status}}（{{outcome}}）。',
+      harnessExitedCode: 'Harness 結束咗，代碼 {{code}}：{{status}}（{{outcome}}）。',
+      mcpPreflight: 'MCP 預檢通過咗。檢查咗嘅伺服器：{{count}}。',
+      repairAttempt: '結構化輸出修復第 {{attempt}} 次嘗試：喺 {{path}} 繼續 Harness 工作階段。',
+      workspacePrepared: '工作區已經喺 {{path}} 準備好。'
+    },
     appName: 'Garrison',
     language: { label: '語言' },
     theme: { switchToLight: '轉做淺色主題', switchToDark: '轉做深色主題' },
@@ -50,6 +73,7 @@ const yueHant = {
       requiredPermission: '需要 {{resource}} 嘅 {{permission}} 權限。'
     },
     generic: {
+      deletedName: '{{name}}（已刪除）',
       actions: '操作',
       active: '啟用中',
       all: '全部',
@@ -80,6 +104,12 @@ const yueHant = {
     units: { msShort: '毫秒', sShort: '秒', mShort: '分鐘', tokPerSec: 'Token/秒' }
   },
   errorCodes: {
+    MessageIdConflict: '呢個 A2A 訊息 ID 已經用過喺唔同嘅內容度。請用新嘅 ID 傳送訊息。',
+    IdempotencyKeyConflict: '呢個冪等金鑰已經用咗喺另一個要求度。請用新嘅金鑰。',
+    DeploymentDeleted: '呢個執行嘅部署已經刪咗，所以冇得重試。請再調用代理程式一次。',
+    AgentDeleted: '呢個執行嘅代理程式已經刪咗，所以冇得重試。',
+    NoActiveDeployment: '呢個代理程式冇權重大過零嘅啟用部署。請加一個部署或者調高某個部署嘅權重。',
+    TenantNotFound: '呢個租用戶唔存在。請檢查租用戶 ID。',
     NetworkError: '連唔到伺服器。請檢查伺服器 URL，同埋確認伺服器係咪運行緊。',
     AuthenticationRequired: '你嘅工作階段已經過期，請重新登入。',
     InvalidCredentials: '租用戶、電郵、密碼或者金鑰唔啱。',
@@ -581,6 +611,9 @@ const yueHant = {
       errors: { reservedPrefix: 'builtin/ 前綴係保留咗嘅。' }
     },
     promptTemplates: {
+      deleteBound_other: '「{{name}}」俾 {{count}} 個部署綁定緊，所以伺服器會拒絕刪除。請先喺以下部署移除綁定：',
+      deleteBound_one: '「{{name}}」俾 {{count}} 個部署綁定緊，所以伺服器會拒絕刪除。請先喺以下部署移除綁定：',
+      deleteUnbound: '確定要刪除「{{name}}」同佢所有版本？冇部署綁定佢。刪咗就冇得復原。',
       ...rp('提示範本', 'Garrison 渲染嘅每個提示同設定檔。每次儲存都會建立一個新版本。', '新範本', '建立範本', '編輯範本', '範本詳情', '刪除範本', '仲未有提示範本', '建立範本，或者複製一個內置範本。'),
       columns: { name: '名稱', kind: '種類', currentVersion: '版本', description: '描述', isBuiltIn: '來源', id: 'ID', lastUpdateUtc: '更新時間' },
       fields: { name: '名稱', kind: '種類', description: '描述' }
@@ -609,11 +642,12 @@ const yueHant = {
       actions: { test: '測試連線' }
     },
     secrets: {
+      errors: { expiryPast: '請揀一個將來嘅到期時間，或者留空等機密永遠唔會過期。' },
       ...rp('機密', 'Harness 同整合用嘅加密憑證。數值只寫唔讀。', '新增機密', '建立機密', '編輯機密', '機密詳情', '刪除機密', '仲未有機密', '加入你啲代理程式需要嘅 API 金鑰或者權杖，例如 Anthropic API 金鑰。'),
       notSet: '未設定',
       columns: { name: '名稱', kind: '種類', valueLast4: '數值', rotatedUtc: '最後變更', expiresUtc: '到期', active: '啟用', id: 'ID' },
       fields: { name: '名稱', kind: '種類', description: '描述', value: '數值', newValue: '新數值', expiresUtc: '到期', active: '啟用' },
-      hints: { kind: '喺共用伺服器用訂閱權杖可能違反供應商條款。共用部署最好用 API 金鑰。' },
+      hints: { expiresUtc: '一定要係將來嘅時間。留空就代表機密永遠唔會過期。', kind: '喺共用伺服器用訂閱權杖可能違反供應商條款。共用部署最好用 API 金鑰。' },
       actions: { setValue: '設定數值', rotate: '輪換' }
     },
     workspaces: {
@@ -627,6 +661,9 @@ const yueHant = {
       fields: { name: '名稱', kind: '種類', description: '描述', active: '啟用' }
     },
     agents: {
+      deleteWithDeployments_other: '確定要刪除「{{name}}」同佢嘅 {{count}} 個部署？下面啲部署都會一齊刪咗。刪咗就冇得復原。',
+      deleteWithDeployments_one: '確定要刪除「{{name}}」同佢嘅 {{count}} 個部署？下面個部署都會一齊刪咗。刪咗就冇得復原。',
+      deleteNoDeployments: '確定要刪除「{{name}}」？佢冇任何部署。刪咗就冇得復原。',
       ...rp('代理程式', '經 REST、MCP 同 A2A 公開嘅具名功能。佢哋點樣運行由部署決定。', '新增代理程式', '建立代理程式', '編輯代理程式', '代理程式詳情', '刪除代理程式', '仲未有代理程式', '新增一個代理程式，或者喺「配置 > 清單」套用範例清單。'),
       sections: { identity: '身份', exposure: '公開方式', io: '輸入同輸出', delegation: '委派' },
       columns: { name: '名稱', displayName: '顯示名稱', kind: '種類', exposure: '公開方式', delegationMode: '委派', tags: '標記', active: '啟用', id: 'ID', createdUtc: '建立時間' },
@@ -659,6 +696,7 @@ const yueHant = {
       errors: { dnsName: '請用細楷字母、數字同連字號，開頭同結尾一定要係字母或者數字。' }
     },
     deployments: {
+      promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行嘅任務包裝', Task: '任務包裝', System: '系統提示' },
       ...rp('部署', '將代理程式綁定到 Harness 設定檔、提示、機密、MCP 伺服器、排程放置同限制。', '新增部署', '建立部署', '編輯部署', '部署詳情', '刪除部署', '仲未有部署', '建立一個部署，等代理程式可以執行。'),
       steps: { basics: '基本', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置同限制' },
       columns: { name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', weight: '權重', configVersion: '配置版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
@@ -708,6 +746,9 @@ const yueHant = {
         retryOnNodeLoss: '節點失聯時重新排隊'
       },
       hints: {
+        secretsKinds: 'Harness 設定檔 {{profile}} 需要任何一個類型係 {{kinds}} 嘅機密。用咩別名綁定都得。',
+        secretsAliases: 'Harness 設定檔 {{profile}} 會讀用呢啲別名綁定嘅機密：{{aliases}}。',
+        secretsNone: 'Harness 設定檔 {{profile}} 唔會讀任何機密，所以唔使綁定機密。',
         promptBindings: '將提示角色（System、Task、DelegatedTask，同 Harness 設定檔用到嘅任何角色）對應到範本。版本留空就會跟最新版本。',
         resourceBindings: '別名會變成範本變數，例如 {{secret.anthropic}}。',
         weight: '冇指明部署嘅請求，會按權重分配畀啟用中嘅部署。',
@@ -725,6 +766,8 @@ const yueHant = {
     runs: {
       ...rp('執行', '每次代理程式調用，連同佢嘅狀態、節點、時長同結果。', '新增執行', '建立執行', '編輯執行', '執行詳情', '刪除執行', '仲未有執行', '調用一個代理程式就會開始一次執行。'),
       columns: {
+        delegationWaitMs: '委派等候時間',
+        timeToFirstTokenExcludingDelegationMs: 'TTFT（唔計委派）',
         id: '執行',
         agentName: '代理程式',
         status: '狀態',
@@ -787,6 +830,9 @@ const yueHant = {
   },
   views: {
     home: {
+      observabilitySetup: '設定可觀測性',
+      observabilityNone: '呢個環境冇設定任何可觀測性服務（Grafana、Prometheus、Tempo 或者 Loki）。',
+      observability: '可觀測性',
       title: '主頁',
       subtitle: '你啲代理程式同工作節點而家做緊乜。',
       lastLoaded: '{{time}} 更新',
@@ -826,9 +872,10 @@ const yueHant = {
       externalServicesNote: '隨附嘅可觀測性工具。分享呢個部署之前，請改咗預設憑證先。',
       externalServicesNone: '呢個部署冇設定任何外部服務。',
       credentials: '預設憑證',
-      services: { grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
+      services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
     invoke: {
+      noDeployment: '呢個代理程式冇權重大過零嘅啟用部署，所以調用會俾人拒絕。請喺「部署」分頁加一個部署，或者調高某個部署嘅權重。',
       title: '調用',
       subtitle: '傳訊息畀代理程式，即時睇住對話記錄串流出嚟。',
       request: '請求',
@@ -849,6 +896,9 @@ const yueHant = {
       applySample: '去清單'
     },
     runDetail: {
+      deploymentDeleted: '呢個執行用嘅部署已經刪咗，所以冇得重試。請再調用代理程式 {{agent}} 一次。',
+      templatesUsed: '用咗嘅範本',
+      agentDeleted: '代理程式 {{agent}} 已經唔存在，所以呢個執行冇得重試。佢嘅記錄、對話記錄同遙測仍然可以喺度睇。',
       title: '執行',
       titleWithAgent: '{{agent}} 嘅執行',
       deployment: '部署',
@@ -890,10 +940,13 @@ const yueHant = {
       notFoundTitle: '搵唔到呢次執行',
       notFoundBody: '佢可能已經被刪除，或者屬於另一個租用戶。',
       telemetry: {
+        delegationNote: '呢個執行等咗委派執行 {{wait}}。第一個 Token 時間計埋呢段等候係 {{ttft}}，唔計就係 {{excluding}}；同唔委派嘅代理程式比較就要用後者。',
         title: '遙測',
         phases: '各階段執行時間',
-        phase: { queue: '排隊', startup: '啟動至第一個 Token', streaming: '串流', tail: '最後一個 Token 之後' },
+        phase: { delegation: '等緊委派執行', queue: '排隊', startup: '啟動至第一個 Token', streaming: '串流', tail: '最後一個 Token 之後' },
         fields: {
+          delegationWaitMs: '委派等候時間',
+          timeToFirstTokenExcludingDelegationMs: '第一個 Token 時間（唔計委派）',
           timeToFirstTokenMs: '第一個 Token 時間',
           streamingMs: '串流時間',
           executionMs: '執行時間',
@@ -935,6 +988,10 @@ const yueHant = {
       manageDeployments: '管理部署'
     },
     templateEditor: {
+      cloneToEdit: '複製一份嚟改',
+      builtInReadOnly: '內置範本係唯讀嘅，所以呢度所有欄位都鎖咗。複製一份就可以攞到可以編輯嘅副本。',
+      renameHint: '你可以幫呢個範本改名。部署用 ID 參照佢，所以綁定唔受影響；不過用名稱引入佢嘅範本就要自己手動更新。',
+      cloneDialog: { taken: '已經有個叫 {{name}} 嘅範本。請揀過第二個名。', reserved: '以 builtin/ 開頭嘅名係留畀內置範本用嘅。', hint: '之後可以喺副本嘅頁面改名。', name: '副本名稱', body: '副本會用而家嘅內容做第 1 版，之後可以編輯、改名同刪除。', title: '複製 {{name}}' },
       newTitle: '新提示範本',
       subtitle: '寫好範本，用範例上下文預覽，然後儲存。',
       builtInNote: '內置範本係唯讀嘅。想自訂就複製一份，或者重設返原本隨附嘅內容。',
@@ -972,6 +1029,8 @@ const yueHant = {
       }
     },
     manifests: {
+      planned: '預計結果：{{result}}',
+      changes: { count_other: '有 {{count}} 個欄位會改。', count_one: '有 {{count}} 個欄位會改。', empty: '（空白）', after: '改之後', before: '改之前', field: '欄位' },
       title: '清單',
       subtitle: '以程式碼形式套用配置。試行只會驗證，唔會寫入。',
       applyTab: '套用',
@@ -1048,6 +1107,8 @@ const yueHant = {
       noSpecBody: '呢部伺服器冇傳回可用嘅 /openapi.json 文件，所以 API 探索器列唔到操作。'
     },
     settings: {
+      errors: { allowed: '請喺以下值之中揀一個：{{values}}。', boolean: '請揀 true 或者 false。', max: '請輸入唔多過 {{max}} 嘅值。', min: '請輸入唔少過 {{min}} 嘅值。', range: '請輸入 {{min}} 至 {{max}} 之間嘅值。', integer: '請輸入整數。', number: '請輸入數字。' },
+      notSaved: '乜都冇儲存到。請改好標示咗嘅設定，再儲存一次。',
       title: '設定',
       subtitle: '嚟自設定檔嘅伺服器設定，同埋儲存喺資料庫嘅叢集設定。',
       readOnly: '你而家係以唯讀模式睇設定。只有系統管理員先可以改。',
@@ -1079,13 +1140,101 @@ const yueHant = {
         other: '呢個設定唔可以喺度編輯。'
       },
       groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '日誌', Auth: '驗證', Security: '保安', RequestHistory: '請求記錄', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '審計', Runtime: '執行階段' },
-      fields: {}
+      fields: {
+        Rest: {
+          ExternalBaseUrl: '外部 REST URL',
+          PublicBaseUrl: '畀執行用嘅內部 REST URL',
+          Ssl: 'REST TLS 加密',
+          Port: 'REST 連接埠',
+          Hostname: 'REST 綁定主機名稱'
+        },
+        Mcp: {
+          MaxToolWaitSeconds: 'MCP 工具最長等候時間（秒）',
+          PublicUrl: '畀執行用嘅內部 MCP URL',
+          Path: 'MCP 路徑',
+          Port: 'MCP 連接埠',
+          Hostname: 'MCP 綁定主機名稱',
+          Enable: '啟用 MCP 伺服器'
+        },
+        Database: {
+          MaxPoolSize: '連線池大小',
+          Schema: '資料庫架構',
+          Password: '資料庫密碼',
+          Username: '資料庫用戶',
+          DatabaseName: '資料庫名稱',
+          Port: '資料庫連接埠',
+          Host: '資料庫主機',
+          Filename: 'Sqlite 檔案',
+          Type: '資料庫類型'
+        },
+        Logging: {
+          MinimumSeverity: '最低日誌嚴重程度',
+          LogFilename: '日誌檔名',
+          LogDirectory: '日誌目錄',
+          FileLogging: '將日誌寫入檔案',
+          ConsoleLogging: '將日誌輸出去主控台'
+        },
+        Auth: {
+          RateLimitPerMinute: '每分鐘登入嘗試次數',
+          SignedRequestSkewSeconds: '簽署要求容許嘅時鐘誤差（秒）',
+          AdminApiKey: '管理員 API 金鑰',
+          TokenLifetimeMinutes: '工作階段有效時間（分鐘）',
+          SigningKey: '權杖簽署金鑰',
+          Issuer: '權杖簽發者'
+        },
+        Security: {
+          NodeSecretKey: '工作節點私密金鑰',
+          NodeAccessKey: '工作節點存取金鑰',
+          DefaultSecretKey: '預設私密金鑰',
+          DefaultAccessKey: '預設存取金鑰',
+          AdminPassword: '初始管理員密碼',
+          AdminEmail: '初始管理員電郵',
+          MasterKey: '機密加密主金鑰'
+        },
+        RequestHistory: {
+          MaxResponseBodyBytes: '記錄嘅回應內容上限（位元組）',
+          MaxRequestBodyBytes: '記錄嘅要求內容上限（位元組）',
+          RetentionDays: '要求歷史保留日數',
+          Enabled: '記錄要求歷史'
+        },
+        Telemetry: {
+          OtlpEndpoint: 'OTLP 端點',
+          OtlpEnable: '啟用 OTLP 匯出',
+          PrometheusPort: 'Prometheus 連接埠',
+          PrometheusEnable: '啟用 Prometheus 端點',
+          ServiceName: '遙測服務名稱',
+          Enabled: '啟用遙測'
+        },
+        Cluster: {
+          ExpectedReplicas: '控制平面預期副本數目'
+        },
+        Scheduling: {
+          EventPollMs: '事件輪詢間隔（毫秒）',
+          NodeHeartbeatTimeoutMs: '節點心跳逾時（毫秒）',
+          LeaseWaitMs: '租約長輪詢等候時間（毫秒）',
+          LeaseDurationMs: '執行租約時長（毫秒）'
+        },
+        Runs: {
+          EventRetentionDays: '執行事件保留日數',
+          RetentionDays: '執行保留日數',
+          MaxDelegationDepth: '最大委派深度',
+          DefaultTimeoutSeconds: '預設執行逾時（秒）'
+        },
+        Runtime: {
+          FailBlockedAfterSeconds: '受阻執行幾多秒之後當失敗'
+        },
+        Audit: {
+          RetentionDays: '審計保留日數'
+        }
+      }
     },
     analytics: {
+      deletedAgent: '已刪除嘅代理程式（{{id}}）',
+      deletedDeployment: '已刪除嘅部署（{{id}}）',
       title: '分析',
       subtitle: '你啲執行隨時間有幾快、幾貴、幾可靠。',
       loading: '載入緊分析...',
-      filters: { range: '範圍', from: '由', to: '至', agentId: '代理程式', harnessType: 'Harness', deploymentId: '部署', model: '模型', groupBy: '分組方式' },
+      filters: { ttft: 'TTFT 唔計委派等候', range: '範圍', from: '由', to: '至', agentId: '代理程式', harnessType: 'Harness', deploymentId: '部署', model: '模型', groupBy: '分組方式' },
       allAgents: '所有代理程式',
       allHarnesses: '所有 Harness',
       allDeployments: '所有部署',
@@ -1109,6 +1258,8 @@ const yueHant = {
       emptyBody: '冇嘢符合呢個範圍同篩選條件。可以擴闊範圍、清除篩選，或者調用一個代理程式。',
       noDataInChart: '揀咗嘅範圍入面，呢個圖表冇資料。',
       cards: {
+        delegationWait: '平均委派等候時間',
+        ttftExcludingDelegation: '平均 TTFT（唔計委派）',
         runs: '執行',
         runsNote: '{{succeeded}} 個成功，{{failed}} 個失敗',
         successRate: '成功率',
@@ -1124,7 +1275,7 @@ const yueHant = {
       },
       charts: {
         outcomes: { title: '執行結果', help: '每個時段按結束方式劃分嘅執行數量。' },
-        ttft: { title: '第一個 Token 時間', help: '由 Harness 啟動到模型第一次輸出，包括 CLI 啟動時間。' },
+        ttft: { helpExcluding: '由 Harness 啟動到模型第一個輸出嘅時間，唔計等委派執行嘅時間。', title: '第一個 Token 時間', help: '由 Harness 啟動到模型第一次輸出，包括 CLI 啟動時間。' },
         duration: { title: '串流同執行時間', help: '串流係由模型第一次到最後一次輸出；執行係由程序啟動到結束。' },
         queue: { title: '排隊時間', help: '由排隊到被工作節點租用嘅時間。' },
         tokens: { title: 'Token', help: '每個時段嘅輸入、輸出、快取同推理 Token。' },
@@ -1136,6 +1287,10 @@ const yueHant = {
       },
       groupedTitle: '{{chart}}：{{metric}}',
       metrics: {
+        delegationWaitMsAvg: '委派等候時間（平均）',
+        timeToFirstTokenExcludingDelegationMsP95: '唔計委派（p95）',
+        timeToFirstTokenExcludingDelegationMsP50: '唔計委派（p50）',
+        timeToFirstTokenExcludingDelegationMsAvg: '唔計委派（平均）',
         runs: '執行',
         succeeded: '成功',
         failed: '失敗',

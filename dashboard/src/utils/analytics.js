@@ -31,6 +31,10 @@ export const METRIC_KEYS = [
   'timeToFirstTokenMsAvg',
   'timeToFirstTokenMsP50',
   'timeToFirstTokenMsP95',
+  'timeToFirstTokenExcludingDelegationMsAvg',
+  'timeToFirstTokenExcludingDelegationMsP50',
+  'timeToFirstTokenExcludingDelegationMsP95',
+  'delegationWaitMsAvg',
   'streamingMsAvg',
   'executionMsAvg',
   'executionMsP95',
@@ -47,7 +51,7 @@ const COUNT_KEYS = new Set(['runs', 'succeeded', 'failed', 'cancelled', 'timedOu
  */
 export const ANALYTICS_CHARTS = [
   { id: 'outcomes', kind: 'stacked', format: 'count', metrics: ['succeeded', 'failed', 'cancelled', 'timedOut'], grouped: 'runs' },
-  { id: 'ttft', kind: 'line', format: 'ms', metrics: ['timeToFirstTokenMsAvg', 'timeToFirstTokenMsP50', 'timeToFirstTokenMsP95'], grouped: 'timeToFirstTokenMsAvg' },
+  { id: 'ttft', kind: 'line', format: 'ms', metrics: ['timeToFirstTokenMsAvg', 'timeToFirstTokenMsP50', 'timeToFirstTokenMsP95', 'timeToFirstTokenExcludingDelegationMsAvg'], grouped: 'timeToFirstTokenMsAvg' },
   { id: 'duration', kind: 'line', format: 'ms', metrics: ['streamingMsAvg', 'executionMsAvg', 'executionMsP95'], grouped: 'executionMsAvg' },
   { id: 'queue', kind: 'line', format: 'ms', metrics: ['queueMsAvg'], grouped: 'queueMsAvg' },
   { id: 'tokens', kind: 'stacked', format: 'count', metrics: ['inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens'], grouped: 'totalTokens' },
@@ -55,6 +59,22 @@ export const ANALYTICS_CHARTS = [
   { id: 'cost', kind: 'stacked', format: 'usd', metrics: ['costUsd'], grouped: 'costUsd' },
   { id: 'toolCalls', kind: 'stacked', format: 'count', metrics: ['toolCalls'], grouped: 'toolCalls' }
 ];
+
+/** TTFT modes (M1-08): `all` is time to first token as measured; `excluding` drops the wait on delegated runs. */
+export const TTFT_MODES = ['all', 'excluding'];
+
+/**
+ * The charts for a TTFT mode. In `excluding` mode the time to first token chart draws the excluding-delegation
+ * average, median, and p95 (and groups by the excluding average), so delegating agents compare like with like.
+ */
+export function chartsForTtftMode(mode) {
+  if (mode !== 'excluding') return ANALYTICS_CHARTS;
+  return ANALYTICS_CHARTS.map((c) =>
+    c.id === 'ttft'
+      ? { ...c, metrics: ['timeToFirstTokenExcludingDelegationMsAvg', 'timeToFirstTokenExcludingDelegationMsP50', 'timeToFirstTokenExcludingDelegationMsP95'], grouped: 'timeToFirstTokenExcludingDelegationMsAvg' }
+      : c
+  );
+}
 
 /** Fixed colors for the ungrouped metric series. Outcomes use status colors; everything else uses categorical slots. */
 export const METRIC_COLORS = {
@@ -65,6 +85,10 @@ export const METRIC_COLORS = {
   timeToFirstTokenMsAvg: 'var(--series-1)',
   timeToFirstTokenMsP50: 'var(--series-3)',
   timeToFirstTokenMsP95: 'var(--series-2)',
+  timeToFirstTokenExcludingDelegationMsAvg: 'var(--series-5)',
+  timeToFirstTokenExcludingDelegationMsP50: 'var(--series-3)',
+  timeToFirstTokenExcludingDelegationMsP95: 'var(--series-2)',
+  delegationWaitMsAvg: 'var(--series-6)',
   streamingMsAvg: 'var(--series-3)',
   executionMsAvg: 'var(--series-1)',
   executionMsP95: 'var(--series-2)',
@@ -102,7 +126,8 @@ export function parseAnalyticsParams(searchParams) {
   const get = (k) => (searchParams.get(k) || '').trim();
   const range = RANGE_IDS.includes(get('range')) ? get('range') : 'day';
   const groupBy = GROUP_BY.includes(get('groupBy')) ? get('groupBy') : 'none';
-  return { range, from: get('from'), to: get('to'), agentId: get('agentId'), harnessType: get('harnessType'), deploymentId: get('deploymentId'), model: get('model'), groupBy };
+  const ttft = TTFT_MODES.includes(get('ttft')) ? get('ttft') : 'all';
+  return { range, from: get('from'), to: get('to'), agentId: get('agentId'), harnessType: get('harnessType'), deploymentId: get('deploymentId'), model: get('model'), groupBy, ttft };
 }
 
 /** URL search parameters for analytics state. Defaults are omitted so URLs stay short. */
@@ -115,6 +140,7 @@ export function analyticsSearch(state) {
   }
   for (const k of FILTER_KEYS) if (state[k]) params.set(k, state[k]);
   if (state.groupBy && state.groupBy !== 'none') params.set('groupBy', state.groupBy);
+  if (state.ttft && state.ttft !== 'all') params.set('ttft', state.ttft);
   return params;
 }
 
@@ -247,6 +273,22 @@ export function normalizeDimensions(raw) {
     deployments: (Array.isArray(raw?.deployments) ? raw.deployments : []).filter((d) => d && d.id).map((d) => ({ id: d.id, name: d.name || d.id, agentId: d.agentId || '' })).sort(byName),
     models: (Array.isArray(raw?.models) ? raw.models : []).filter(Boolean).sort()
   };
+}
+
+/**
+ * Display label for a series (M1-24): harness enum names become their display names ("Claude Code"), and a missing
+ * model reads as the translated unknown-model label, for harness, harnessModel, and model groupings alike.
+ * `harnessLabel(type)` and `unknownLabel` come from the caller so this stays free of i18n.
+ */
+export function seriesDisplayLabel(series, groupBy, harnessLabel, unknownLabel) {
+  if (!series || series.metric || series.key === '__other') return series?.label;
+  if (groupBy === 'harness') return harnessLabel(series.key);
+  if (groupBy === 'model') return series.key === 'unknown' || !series.key ? unknownLabel : series.label;
+  if (groupBy === 'harnessModel') {
+    const { harness, model } = splitHarnessModel(series.key);
+    return `${harnessLabel(harness)} / ${model === 'unknown' ? unknownLabel : model}`;
+  }
+  return series.label;
 }
 
 /** Split a harnessModel series key (`harness|model`) into its parts; a missing model is `unknown`. */

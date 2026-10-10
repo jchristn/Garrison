@@ -23,6 +23,29 @@ const resourcePage = (title, singular, subtitle, emptyBody) => ({
 
 const en = {
   common: {
+    eventCodes: { StructuredOutputInvalid: 'Structured output invalid', RunBlocked: 'Run blocked', EventsDropped: 'Events dropped', HarnessExited: 'Harness exited', McpPreflightWarning: 'MCP preflight warning', McpPreflightPassed: 'MCP preflight passed', RepairAttemptStarted: 'Output repair started', WorkspacePrepared: 'Workspace prepared' },
+    fieldCodes: { ExpiryInPast: 'Choose a time in the future.', ParameterInvalid: 'This value is not valid for this parameter.', ParameterNotAllowed: 'This deployment does not let callers override this parameter.', SettingsFileReadOnly: 'The settings file is read-only, so this change cannot be saved.', OverriddenByEnvironment: 'An environment variable sets this value, so it cannot be changed here.', PathRequired: 'A setting path is required.', UnknownSetting: 'This server does not have this setting.', TooLong: 'This value is too long.', NotAllowedValue: 'Choose one of the allowed values.', NotABoolean: 'Choose true or false.', NotAnInteger: 'Enter a whole number.', OutOfRange: 'The value is outside the allowed range.' },
+    serverText: {
+      notApplied: 'Not applied because another document failed validation.',
+      wouldBeUnchanged: 'Already up to date; nothing would change.',
+      wouldBeUpdated: 'Would be updated.',
+      wouldBeCreated: 'Would be created.',
+      inUse: '{{what}} is still bound by these deployments: {{deployments}}. Remove the bindings first.',
+      noActiveDeployment: 'Agent {{agent}} has no active deployment with a weight above zero. Add a deployment or raise a deployment\'s weight, then try again.',
+      toolCallDenied: 'Tool call denied: {{id}}',
+      threadStarted: 'Thread started.',
+      runStartedModel: 'Run started ({{model}}).',
+      runStarted: 'Run started.',
+      sessionInitializedModel: 'Session initialized ({{model}}).',
+      sessionInitialized: 'Session initialized.',
+      harnessFailed: 'The harness reported a failure.',
+      exitedNoResult: 'Harness exited with code {{code}} without a final result.',
+      harnessExited: 'Harness exited: {{status}} ({{outcome}}).',
+      harnessExitedCode: 'Harness exited with code {{code}}: {{status}} ({{outcome}}).',
+      mcpPreflight: 'MCP preflight passed. Servers checked: {{count}}.',
+      repairAttempt: 'Structured output repair attempt {{attempt}}: resuming the harness session in {{path}}.',
+      workspacePrepared: 'Workspace prepared at {{path}}.'
+    },
     appName: 'Garrison',
     language: { label: 'Language' },
     theme: { switchToLight: 'Switch to light theme', switchToDark: 'Switch to dark theme' },
@@ -67,6 +90,7 @@ const en = {
       requiredPermission: 'Requires {{permission}} on {{resource}}.'
     },
     generic: {
+      deletedName: '{{name}} (deleted)',
       actions: 'Actions',
       active: 'Active',
       all: 'All',
@@ -97,6 +121,12 @@ const en = {
     units: { msShort: 'ms', sShort: 's', mShort: 'min', tokPerSec: 'tok/s' }
   },
   errorCodes: {
+    MessageIdConflict: 'This A2A message ID was already used with different content. Send the message with a new ID.',
+    IdempotencyKeyConflict: 'This idempotency key was already used for a different request. Use a new key.',
+    DeploymentDeleted: 'The deployment of this run was deleted, so the run cannot be retried. Invoke the agent again instead.',
+    AgentDeleted: 'The agent of this run was deleted, so the run cannot be retried.',
+    NoActiveDeployment: 'This agent has no active deployment with a weight above zero. Add a deployment or raise a deployment\'s weight.',
+    TenantNotFound: 'That tenant does not exist. Check the tenant ID.',
     NetworkError: 'Could not reach the server. Check the server URL and that the server is running.',
     AuthenticationRequired: 'Your session has expired. Sign in again.',
     InvalidCredentials: 'The tenant, email, password, or keys are incorrect.',
@@ -606,6 +636,9 @@ const en = {
       errors: { reservedPrefix: 'The builtin/ prefix is reserved.' }
     },
     promptTemplates: {
+      deleteBound_other: '"{{name}}" is bound by {{count}} deployments, so the server will refuse to delete it. Remove the binding from these deployments first:',
+      deleteBound_one: '"{{name}}" is bound by {{count}} deployment, so the server will refuse to delete it. Remove the binding from this deployment first:',
+      deleteUnbound: 'Delete "{{name}}" and all of its versions? No deployment binds it. This cannot be undone.',
       ...resourcePage('Prompt Templates', 'template', 'Every prompt and configuration file Garrison renders. Each save creates a version.', 'Create a template, or clone a built-in one.'),
       add: 'New template',
       columns: { name: 'Name', kind: 'Kind', currentVersion: 'Version', description: 'Description', isBuiltIn: 'Origin', id: 'ID', lastUpdateUtc: 'Updated' },
@@ -635,11 +668,12 @@ const en = {
       actions: { test: 'Test connection' }
     },
     secrets: {
+      errors: { expiryPast: 'Choose an expiry in the future, or leave it empty so the secret never expires.' },
       ...resourcePage('Secrets', 'secret', 'Encrypted credentials for harnesses and integrations. Values are write-only.', 'Add the API key or token your agents need, for example an Anthropic API key.'),
       notSet: 'Not set',
       columns: { name: 'Name', kind: 'Kind', valueLast4: 'Value', rotatedUtc: 'Last changed', expiresUtc: 'Expires', active: 'Active', id: 'ID' },
       fields: { name: 'Name', kind: 'Kind', description: 'Description', value: 'Value', newValue: 'New value', expiresUtc: 'Expires', active: 'Active' },
-      hints: { kind: 'Subscription tokens on shared servers may violate provider terms. Prefer API keys for shared deployments.' },
+      hints: { expiresUtc: 'Must be in the future. Leave empty for a secret that never expires.', kind: 'Subscription tokens on shared servers may violate provider terms. Prefer API keys for shared deployments.' },
       actions: { setValue: 'Set value', rotate: 'Rotate' }
     },
     workspaces: {
@@ -653,6 +687,9 @@ const en = {
       fields: { name: 'Name', kind: 'Kind', description: 'Description', active: 'Active' }
     },
     agents: {
+      deleteWithDeployments_other: 'Delete "{{name}}" and its {{count}} deployments? The deployments below are deleted too. This cannot be undone.',
+      deleteWithDeployments_one: 'Delete "{{name}}" and its {{count}} deployment? The deployment below is deleted too. This cannot be undone.',
+      deleteNoDeployments: 'Delete "{{name}}"? It has no deployments. This cannot be undone.',
       ...resourcePage('Agents', 'agent', 'Named capabilities exposed over REST, MCP, and A2A. Deployments decide how they run.', 'Add an agent, or apply the sample manifest from Configuration > Manifests.'),
       sections: { identity: 'Identity', exposure: 'Exposure', io: 'Input and output', delegation: 'Delegation' },
       columns: { name: 'Name', displayName: 'Display name', kind: 'Kind', exposure: 'Exposure', delegationMode: 'Delegation', tags: 'Tags', active: 'Active', id: 'ID', createdUtc: 'Created' },
@@ -685,6 +722,7 @@ const en = {
       errors: { dnsName: 'Use lowercase letters, digits, and hyphens, starting and ending with a letter or digit.' }
     },
     deployments: {
+      promptRoles: { Repair: 'Structured output repair', DelegatedTask: 'Task wrapper for delegated runs', Task: 'Task wrapper', System: 'System prompt' },
       ...resourcePage('Deployments', 'deployment', 'Bind an agent to a harness profile, prompts, secrets, MCP servers, placement, and limits.', 'Create a deployment to make an agent runnable.'),
       steps: { basics: 'Basics', harness: 'Harness', prompts: 'Prompts', resources: 'Resources', overrides: 'Overrides', placement: 'Placement and limits' },
       columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness profile', model: 'Model', weight: 'Weight', configVersion: 'Config version', active: 'Active', id: 'ID', createdUtc: 'Created' },
@@ -734,6 +772,9 @@ const en = {
         retryOnNodeLoss: 'Requeue when the node is lost'
       },
       hints: {
+        secretsKinds: 'The harness profile {{profile}} needs any secret of kind {{kinds}}. Bind one under any alias.',
+        secretsAliases: 'The harness profile {{profile}} reads secrets bound with these aliases: {{aliases}}.',
+        secretsNone: 'The harness profile {{profile}} does not read any secret, so no secret binding is needed.',
         promptBindings: 'Map prompt roles (System, Task, DelegatedTask, and any role the harness profile uses) to templates. Leave the version empty to follow the latest.',
         resourceBindings: 'Aliases become template variables, for example {{secret.anthropic}}.',
         weight: 'Requests without an explicit deployment are split across active deployments by weight.',
@@ -751,6 +792,8 @@ const en = {
     runs: {
       ...resourcePage('Runs', 'run', 'Every agent invocation with its status, node, duration, and outcome.', 'Invoke an agent to start a run.'),
       columns: {
+        delegationWaitMs: 'Delegation wait',
+        timeToFirstTokenExcludingDelegationMs: 'TTFT excl. delegation',
         id: 'Run',
         agentName: 'Agent',
         status: 'Status',
@@ -813,6 +856,9 @@ const en = {
   },
   views: {
     home: {
+      observabilitySetup: 'Set up observability',
+      observabilityNone: 'No observability services (Grafana, Prometheus, Tempo, or Loki) are configured for this deployment.',
+      observability: 'Observability',
       title: 'Home',
       subtitle: 'What your agents and worker nodes are doing right now.',
       lastLoaded: 'Updated {{time}}',
@@ -852,9 +898,10 @@ const en = {
       externalServicesNote: 'Bundled observability tools. Change default credentials before sharing this deployment.',
       externalServicesNone: 'No external services are configured for this deployment.',
       credentials: 'Default credentials',
-      services: { grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
+      services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
     invoke: {
+      noDeployment: 'This agent has no active deployment with a weight above zero, so an invoke would be refused. Add a deployment on the Deployments tab or raise a deployment\'s weight.',
       title: 'Invoke',
       subtitle: 'Send a message to an agent and watch the transcript stream.',
       request: 'Request',
@@ -875,6 +922,9 @@ const en = {
       applySample: 'Go to manifests'
     },
     runDetail: {
+      deploymentDeleted: 'The deployment this run used was deleted, so it cannot be retried. Invoke the agent {{agent}} again instead.',
+      templatesUsed: 'Templates used',
+      agentDeleted: 'The agent {{agent}} no longer exists, so this run cannot be retried. Its record, transcript, and telemetry stay available here.',
       title: 'Run',
       titleWithAgent: 'Run of {{agent}}',
       deployment: 'Deployment',
@@ -916,10 +966,13 @@ const en = {
       notFoundTitle: 'Run not found',
       notFoundBody: 'It may have been deleted, or it belongs to another tenant.',
       telemetry: {
+        delegationNote: 'This run waited {{wait}} on runs it delegated to. Time to first token is {{ttft}} including that wait and {{excluding}} without it, which is the figure to compare with agents that do not delegate.',
         title: 'Telemetry',
         phases: 'Run time by phase',
-        phase: { queue: 'Queue', startup: 'Startup to first token', streaming: 'Streaming', tail: 'After last token' },
+        phase: { delegation: 'Waiting on delegated runs', queue: 'Queue', startup: 'Startup to first token', streaming: 'Streaming', tail: 'After last token' },
         fields: {
+          delegationWaitMs: 'Delegation wait',
+          timeToFirstTokenExcludingDelegationMs: 'Time to first token excluding delegation',
           timeToFirstTokenMs: 'Time to first token',
           streamingMs: 'Streaming time',
           executionMs: 'Execution time',
@@ -961,6 +1014,10 @@ const en = {
       manageDeployments: 'Manage deployments'
     },
     templateEditor: {
+      cloneToEdit: 'Clone to edit',
+      builtInReadOnly: 'Built-in templates are read-only, so every field here is locked. Clone it to get an editable copy.',
+      renameHint: 'You can rename this template. Deployments keep their bindings because they refer to its ID, but templates that include it by name must be updated by hand.',
+      cloneDialog: { taken: 'A template named {{name}} already exists. Choose another name.', reserved: 'Names starting with builtin/ are reserved for built-in templates.', hint: 'You can rename the copy later on its page.', name: 'Name of the copy', body: 'The copy starts with the current content as version 1 and can be edited, renamed, and deleted.', title: 'Clone {{name}}' },
       newTitle: 'New prompt template',
       subtitle: 'Write the template, preview it with a sample context, and save.',
       builtInNote: 'Built-in templates are read-only. Clone to customize, or reset to restore the shipped content.',
@@ -998,6 +1055,8 @@ const en = {
       }
     },
     manifests: {
+      planned: 'Would be: {{result}}',
+      changes: { count_other: '{{count}} fields change.', count_one: '{{count}} field changes.', empty: '(empty)', after: 'After', before: 'Before', field: 'Field' },
       title: 'Manifests',
       subtitle: 'Apply configuration as code. Dry runs validate without writing.',
       applyTab: 'Apply',
@@ -1074,6 +1133,8 @@ const en = {
       noSpecBody: 'This server did not return a usable /openapi.json document, so the explorer cannot list operations.'
     },
     settings: {
+      errors: { allowed: 'Choose one of: {{values}}.', boolean: 'Choose true or false.', max: 'Enter {{max}} or less.', min: 'Enter {{min}} or more.', range: 'Enter a value from {{min}} to {{max}}.', integer: 'Enter a whole number.', number: 'Enter a number.' },
+      notSaved: 'Nothing was saved. Fix the highlighted settings and save again.',
       title: 'Settings',
       subtitle: 'Server settings from the settings file and cluster settings stored in the database.',
       readOnly: 'You are viewing settings read-only. Only system administrators can change them.',
@@ -1105,13 +1166,101 @@ const en = {
         other: 'This setting cannot be edited here.'
       },
       groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit', Runtime: 'Runtime' },
-      fields: {}
+      fields: {
+        Rest: {
+          ExternalBaseUrl: 'External REST URL',
+          PublicBaseUrl: 'Internal REST URL for runs',
+          Ssl: 'REST TLS',
+          Port: 'REST port',
+          Hostname: 'REST bind host name'
+        },
+        Mcp: {
+          MaxToolWaitSeconds: 'Maximum MCP tool wait (seconds)',
+          PublicUrl: 'Internal MCP URL for runs',
+          Path: 'MCP path',
+          Port: 'MCP port',
+          Hostname: 'MCP bind host name',
+          Enable: 'MCP server enabled'
+        },
+        Database: {
+          MaxPoolSize: 'Connection pool size',
+          Schema: 'Database schema',
+          Password: 'Database password',
+          Username: 'Database user',
+          DatabaseName: 'Database name',
+          Port: 'Database port',
+          Host: 'Database host',
+          Filename: 'Sqlite file',
+          Type: 'Database provider'
+        },
+        Logging: {
+          MinimumSeverity: 'Minimum log severity',
+          LogFilename: 'Log file name',
+          LogDirectory: 'Log directory',
+          FileLogging: 'Log to a file',
+          ConsoleLogging: 'Log to the console'
+        },
+        Auth: {
+          RateLimitPerMinute: 'Sign-in attempts per minute',
+          SignedRequestSkewSeconds: 'Signed request clock skew (seconds)',
+          AdminApiKey: 'Administrator API key',
+          TokenLifetimeMinutes: 'Session lifetime (minutes)',
+          SigningKey: 'Token signing key',
+          Issuer: 'Token issuer'
+        },
+        Security: {
+          NodeSecretKey: 'Worker node secret key',
+          NodeAccessKey: 'Worker node access key',
+          DefaultSecretKey: 'Default secret key',
+          DefaultAccessKey: 'Default access key',
+          AdminPassword: 'Initial administrator password',
+          AdminEmail: 'Initial administrator email',
+          MasterKey: 'Secret encryption master key'
+        },
+        RequestHistory: {
+          MaxResponseBodyBytes: 'Maximum captured response body (bytes)',
+          MaxRequestBodyBytes: 'Maximum captured request body (bytes)',
+          RetentionDays: 'Request history retention (days)',
+          Enabled: 'Capture request history'
+        },
+        Telemetry: {
+          OtlpEndpoint: 'OTLP endpoint',
+          OtlpEnable: 'OTLP export enabled',
+          PrometheusPort: 'Prometheus port',
+          PrometheusEnable: 'Prometheus endpoint enabled',
+          ServiceName: 'Telemetry service name',
+          Enabled: 'Telemetry enabled'
+        },
+        Cluster: {
+          ExpectedReplicas: 'Expected control plane replicas'
+        },
+        Scheduling: {
+          EventPollMs: 'Event polling interval (ms)',
+          NodeHeartbeatTimeoutMs: 'Node heartbeat timeout (ms)',
+          LeaseWaitMs: 'Lease long-poll wait (ms)',
+          LeaseDurationMs: 'Run lease duration (ms)'
+        },
+        Runs: {
+          EventRetentionDays: 'Run event retention (days)',
+          RetentionDays: 'Run retention (days)',
+          MaxDelegationDepth: 'Maximum delegation depth',
+          DefaultTimeoutSeconds: 'Default run timeout (seconds)'
+        },
+        Runtime: {
+          FailBlockedAfterSeconds: 'Fail blocked runs after (seconds)'
+        },
+        Audit: {
+          RetentionDays: 'Audit retention (days)'
+        }
+      }
     },
     analytics: {
+      deletedAgent: 'Deleted agent ({{id}})',
+      deletedDeployment: 'Deleted deployment ({{id}})',
       title: 'Analytics',
       subtitle: 'How fast, how costly, and how reliable your runs are over time.',
       loading: 'Loading analytics...',
-      filters: { range: 'Range', from: 'From', to: 'To', agentId: 'Agent', harnessType: 'Harness', deploymentId: 'Deployment', model: 'Model', groupBy: 'Group by' },
+      filters: { ttft: 'Exclude delegation wait from TTFT', range: 'Range', from: 'From', to: 'To', agentId: 'Agent', harnessType: 'Harness', deploymentId: 'Deployment', model: 'Model', groupBy: 'Group by' },
       allAgents: 'All agents',
       allHarnesses: 'All harnesses',
       allDeployments: 'All deployments',
@@ -1135,6 +1284,8 @@ const en = {
       emptyBody: 'Nothing matched the range and filters. Widen the range, clear a filter, or invoke an agent.',
       noDataInChart: 'No data for this chart in the selected range.',
       cards: {
+        delegationWait: 'Avg delegation wait',
+        ttftExcludingDelegation: 'Avg TTFT excluding delegation',
         runs: 'Runs',
         runsNote: '{{succeeded}} succeeded, {{failed}} failed',
         successRate: 'Success rate',
@@ -1150,7 +1301,7 @@ const en = {
       },
       charts: {
         outcomes: { title: 'Run outcomes', help: 'Runs per bucket by how they ended.' },
-        ttft: { title: 'Time to first token', help: 'Harness start to first model output. Includes CLI startup.' },
+        ttft: { helpExcluding: 'Harness start to first model output, without the time spent waiting on delegated runs.', title: 'Time to first token', help: 'Harness start to first model output. Includes CLI startup.' },
         duration: { title: 'Streaming and execution time', help: 'Streaming is first to last model output; execution is process start to exit.' },
         queue: { title: 'Queue time', help: 'Time from queued to leased by a worker node.' },
         tokens: { title: 'Tokens', help: 'Input, output, cached, and reasoning tokens per bucket.' },
@@ -1162,6 +1313,10 @@ const en = {
       },
       groupedTitle: '{{chart}}: {{metric}}',
       metrics: {
+        delegationWaitMsAvg: 'Delegation wait (avg)',
+        timeToFirstTokenExcludingDelegationMsP95: 'Excluding delegation (p95)',
+        timeToFirstTokenExcludingDelegationMsP50: 'Excluding delegation (p50)',
+        timeToFirstTokenExcludingDelegationMsAvg: 'Excluding delegation (avg)',
         runs: 'Runs',
         succeeded: 'Succeeded',
         failed: 'Failed',

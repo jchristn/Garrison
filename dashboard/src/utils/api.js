@@ -833,7 +833,10 @@ export class ApiError extends Error {
     this.status = status;
     this.code = obj?.code || (status === 0 ? 'NetworkError' : `Http${status}`);
     this.requestId = obj?.requestId || null;
-    this.fields = obj?.fields || null;
+    // Field errors: `fields` (most routes) or `errors` (settings, keyed by setting path). Both are { key: message }.
+    this.fields = obj?.fields || (obj?.errors && typeof obj.errors === 'object' && !Array.isArray(obj.errors) ? obj.errors : null);
+    // Machine codes per field (OutOfRange, NotAnInteger, ...), same keys as fields, for translation.
+    this.fieldCodes = obj?.fieldCodes && typeof obj.fieldCodes === 'object' ? obj.fieldCodes : null;
     this.requiredPermission = obj?.requiredPermission || null;
     this.resourceType = obj?.resourceType || null;
     this.body = body;

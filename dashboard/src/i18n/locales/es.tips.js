@@ -1,6 +1,8 @@
 // Spanish tooltip (tips.*) and relationship explainer (explainers.*) text. Merged into es.js. Mirrors en.tips.js key for key.
 
 const TELEMETRY = {
+  delegationWaitMs: 'Espera por delegación: cuánto esperó esta ejecución a las ejecuciones hijas que inició mediante Garrison (otros agentes a los que delegó), según las marcas de tiempo del servidor de esas ejecuciones. Cero o n/d si la ejecución no delegó nada.',
+  timeToFirstTokenExcludingDelegationMs: 'Tiempo hasta el primer token sin delegación: el tiempo hasta el primer token menos el tiempo que la ejecución esperó a las ejecuciones que delegó antes de su primera salida. Úsalo para comparar agentes que delegan con agentes que no lo hacen. Se mide con marcas de tiempo del servidor y nunca es negativo.',
   timeToFirstTokenMs: 'Tiempo hasta el primer token: desde que el nodo de trabajo inicia el proceso del harness hasta que el modelo produce su primera salida (texto o razonamiento). Incluye el arranque del harness, así que un inicio lento de la CLI se refleja aquí. Se mide en el nodo de trabajo con un reloj monotónico.',
   streamingMs: 'Tiempo de transmisión: desde la primera salida del modelo hasta la última. Es el tiempo durante el que el modelo estuvo realmente produciendo salida. Se mide en el nodo de trabajo con un reloj monotónico.',
   executionMs: 'Tiempo de ejecución: desde el inicio del proceso del harness hasta su salida, según lo mide el nodo de trabajo. Los servidores antiguos que no lo informan usan en su lugar las marcas de tiempo de inicio y finalización.',
@@ -27,6 +29,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  ids: { deleted: 'Este registro se eliminó. ID {{id}}. El botón de copiar copia el ID.', named: 'ID {{id}}. Usa el botón de copiar para copiar el ID para la API, los SDK o una solicitud de soporte.' },
   common: {
     fields: {
       name: 'Nombre único de este registro dentro del inquilino. Otros registros y manifiestos lo referencian por este nombre.',
@@ -203,6 +206,7 @@ const tips = {
     confirm: 'Realiza la acción descrita arriba.'
   },
   copy: {
+    id: 'Copia el ID del registro al portapapeles, para usarlo con la REST API, los SDK o los filtros.',
     value: 'Copia este valor al portapapeles.',
     block: 'Copia todo el bloque al portapapeles, listo para pegarlo en una terminal o un archivo.',
     done: 'Copiado al portapapeles.'
@@ -269,6 +273,7 @@ const tips = {
     panel: 'Cuánto tardó cada fase de esta ejecución y qué consumió. Las duraciones provienen de los relojes del nodo de trabajo y del servidor descritos en cada campo.',
     phases: 'En qué empleó su tiempo la ejecución, de izquierda a derecha: espera en la cola, arranque del harness hasta el primer token, transmisión de la salida y el resto de la ejecución.',
     phase: {
+      delegation: 'Tiempo antes de la primera salida del modelo en que la ejecución esperó a las ejecuciones hijas que delegó. No es el arranque del harness.',
       queue: 'Esperando en la cola a que un nodo de trabajo obtenga la concesión de la ejecución.',
       startup: 'Desde el inicio del proceso hasta la primera salida del modelo, incluidos el arranque del harness y la primera solicitud al modelo.',
       streaming: 'Desde la primera hasta la última salida del modelo.',
@@ -530,8 +535,9 @@ const tips = {
       actions: { clone: 'Crea una copia editable de este perfil en tu inquilino, con el sufijo -custom en el nombre.' }
     },
     promptTemplates: {
+      actions: { clone: 'Copia esta plantilla con un nombre nuevo que eliges y abre la copia en el editor.' },
       add: 'Escribe una nueva plantilla de prompt en el editor con vista previa en vivo. Cada guardado se convierte en una versión.',
-      name: 'Nombre de la plantilla. Los despliegues y otras plantillas la referencian por este nombre.',
+      name: 'Nombre de la plantilla, único en el inquilino. Los despliegues vinculan plantillas por ID, así que cambiar el nombre conserva sus vínculos; las inclusiones la referencian por nombre.',
       kind: 'Para qué se usa la plantilla: prompt del sistema, envoltorio de tarea, fragmento, descripción de herramienta o archivo de configuración.',
       currentVersion: 'La versión guardada más reciente. Los despliegues fijan una versión o siguen la más reciente.',
       description: 'Qué hace la plantilla y dónde se usa.'
@@ -792,6 +798,8 @@ const tips = {
   },
   views: {
     home: {
+      observabilityDocs: 'Abre la guía de telemetría en una pestaña nueva: cómo recoger las métricas de Garrison y conectar Grafana, Prometheus, Tempo o Loki.',
+      observability: 'Enlaces a las herramientas de métricas, paneles y trazas que esta instalación declara como configuradas. Los servicios sin configurar no se muestran.',
       kpis: {
         agents: 'Agentes definidos en este inquilino. Haz clic para abrir la lista de agentes.',
         deployments: 'Despliegues de todos los agentes. Cada uno es una forma en que puede ejecutarse un agente. Haz clic para abrirlos.',
@@ -812,6 +820,7 @@ const tips = {
         analytics: 'Consulta la velocidad de ejecución, los tokens, el coste y los resultados a lo largo del tiempo.'
       },
       services: {
+        loki: 'Abre Loki en una pestaña nueva para buscar en los registros de Garrison.',
         grafana: 'Abre en una pestaña nueva los paneles de Grafana con las métricas de Garrison.',
         prometheus: 'Abre en una pestaña nueva el servidor Prometheus que recopila las métricas de Garrison.',
         tempo: 'Abre Tempo en una pestaña nueva para explorar trazas.'
@@ -819,6 +828,9 @@ const tips = {
       serviceGeneric: 'Abre este servicio incluido en una pestaña nueva.'
     },
     runDetail: {
+      eventCode: 'Qué tipo de mensaje escribió Garrison aquí, en tu idioma. El texto de al lado es el mensaje original del servidor o del worker.',
+      openTemplate: 'Abre la plantilla {{name}}. Esta ejecución usó la versión {{version}}; la pestaña Versiones muestra ese contenido y la diferencia con el actual.',
+      templatesUsed: 'Las versiones exactas de las plantillas de prompt con las que se compiló esta ejecución. Haz clic en una para abrir la plantilla y comparar versiones.',
       live: 'Los eventos llegan en vivo desde el servidor a medida que el harness los produce.',
       viewJson: 'Muestra el registro completo de la ejecución como JSON, con todos los campos de telemetría.',
       deployment: 'El despliegue que se eligió para esta ejecución, por nombre o por peso de tráfico.',
@@ -882,6 +894,8 @@ const tips = {
       openRun: 'Abre la página completa de la ejecución con el resultado, la telemetría y Stderr.'
     },
     manifests: {
+      planned: 'Lo que haría aplicar este documento: crear el registro, actualizarlo o dejarlo igual. Una simulación solo valida y no cambia nada.',
+      changes: { after: 'El valor que establece el manifiesto. Los valores largos se cortan a 200 caracteres.', before: 'El valor guardado ahora. Los valores largos se cortan a 200 caracteres.', field: 'El ajuste de este registro que cambia el manifiesto, por ejemplo model o parameters.model.' },
       results: 'Qué hizo la aplicación con cada documento del manifiesto.',
       kind: 'El tipo de registro que describe el documento, como Agent o Deployment.',
       name: 'El nombre del registro según los metadatos del documento.',
@@ -902,9 +916,11 @@ const tips = {
       confirmApply: 'Escribe ahora el manifiesto en este inquilino.'
     },
     templateEditor: {
-      clone: 'Crea una copia editable de esta plantilla con el sufijo -custom.',
+      cloneName: 'Nombre de la copia. Funcionan bien minúsculas, dígitos, guiones y barras; el prefijo builtin/ está reservado.',
+      cloneConfirm: 'Crea la copia con este nombre y ábrela en el editor.',
+      clone: 'Crea una copia editable de esta plantilla. Eliges el nombre de la copia antes de crearla.',
       reset: 'Restaura esta plantilla integrada al contenido que trae Garrison.',
-      delete: 'Elimina esta plantilla. Los despliegues que la vinculan no podrán compilarse.',
+      delete: 'Elimina esta plantilla y sus versiones. El servidor lo rechaza mientras algún despliegue la vincule; la confirmación los enumera.',
       create: 'Crea la plantilla y su primera versión.',
       save: 'Guarda el contenido como una versión nueva. Los despliegues que siguen la versión más reciente la usan en las ejecuciones nuevas.',
       content: 'El texto de la plantilla. Usa {{variables}}, condiciones, bucles e inclusiones; la vista previa se actualiza mientras escribes.',
@@ -986,6 +1002,7 @@ const tips = {
       confirmExecute: 'Envía esta solicitud aunque pueda cambiar o eliminar datos.'
     },
     settings: {
+      settingPath: 'Ruta del ajuste: {{path}}. Usa este nombre en el archivo de ajustes y en la REST API de ajustes.',
       viewJson: 'Muestra la respuesta de configuración sin procesar.',
       restart: 'Reinicia esta réplica del plano de control para que se apliquen los ajustes que requieren reinicio.',
       save: 'Guarda todos los ajustes modificados. Los ajustes en vivo se aplican al instante; los demás esperan a un reinicio.',
@@ -1020,6 +1037,8 @@ const tips = {
   },
   analytics: {
     filters: {
+      ttft: 'Si lo marcas, el gráfico de tiempo hasta el primer token omite el tiempo que las ejecuciones esperaron a los agentes en los que delegaron, para comparar con justicia a los agentes que delegan con los que responden directamente.',
+      range: 'Ventana de tiempo de todos los gráficos y totales: la última hora, día, semana o 30 días, o un inicio y un fin personalizados.',
       from: 'Inicio del rango personalizado, en tu zona horaria local.',
       to: 'Fin del rango personalizado, en tu zona horaria local.',
       agentId: 'Cuenta solo las ejecuciones de este agente. La lista de despliegues se reduce a los suyos.',
@@ -1029,6 +1048,8 @@ const tips = {
       groupBy: 'Divide cada gráfico en una serie por agente, harness, modelo o par de harness y modelo, para poder compararlos.'
     },
     cards: {
+      delegationWait: 'Tiempo medio que las ejecuciones esperaron a las ejecuciones hijas que delegaron. n/d si ninguna ejecución del intervalo delegó.',
+      ttftExcludingDelegation: 'Tiempo medio hasta el primer token sin el tiempo de espera a los agentes delegados. La nota muestra el percentil 95.',
       runs: 'Ejecuciones solicitadas en el rango que coinciden con los filtros.',
       successRate: 'Ejecuciones correctas como proporción de las ejecuciones terminadas (correctas, fallidas, canceladas y con tiempo agotado).',
       ttft: 'Tiempo medio hasta el primer token en las ejecuciones que produjeron salida. La nota muestra el percentil 95.',
@@ -1052,6 +1073,10 @@ const tips = {
       usageCost: 'Coste informado a lo largo del tiempo, con un segmento apilado por cada par de harness y modelo. Pasa el cursor sobre una barra para ver el desglose.'
     },
     metrics: {
+      delegationWaitMsAvg: 'Tiempo medio que las ejecuciones esperaron a sus ejecuciones hijas delegadas. Haz clic para ocultar o mostrar esta línea.',
+      timeToFirstTokenExcludingDelegationMsP95: 'Percentil 95 del tiempo hasta el primer token sin la espera a ejecuciones delegadas. Haz clic para ocultar o mostrar esta línea.',
+      timeToFirstTokenExcludingDelegationMsP50: 'Mediana del tiempo hasta el primer token sin la espera a ejecuciones delegadas. Haz clic para ocultar o mostrar esta línea.',
+      timeToFirstTokenExcludingDelegationMsAvg: 'Tiempo medio hasta el primer token sin la espera a ejecuciones delegadas. Haz clic para ocultar o mostrar esta línea.',
       runs: 'Ejecuciones solicitadas en el intervalo.',
       succeeded: 'Ejecuciones que terminaron correctamente. Haz clic para ocultar o mostrar esta serie.',
       failed: 'Ejecuciones que fallaron. Haz clic para ocultar o mostrar esta serie.',

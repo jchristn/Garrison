@@ -113,7 +113,9 @@ describe('enum values render as translated labels (G-16)', () => {
       for (const mode of ['create', 'edit', 'view']) {
         walkFields(config.fields(blank, { ...ctx, mode, options: {} }), (f, name) => {
           if (f.type !== 'select' && f.type !== 'multiselect') return;
-          for (const o of f.options || []) {
+          // Row-dependent options (object list items) are resolved for an empty row and for each role or kind.
+          const opts = typeof f.options === 'function' ? [...f.options({}), ...f.options({ role: 'System', kind: 'McpServer' })] : f.options || [];
+          for (const o of opts) {
             const value = typeof o === 'object' ? o.value : o;
             if (!RAW.has(value)) continue;
             checked += 1;

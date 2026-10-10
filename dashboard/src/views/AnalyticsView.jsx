@@ -17,7 +17,8 @@ import { ENUMS } from '../utils/constants';
 import { errorMessage, isMissingEndpoint } from '../utils/errors';
 import { toLocalInput, toUtcIso } from '../utils/query';
 import {
-  ANALYTICS_CHARTS,
+  chartsForTtftMode,
+  seriesDisplayLabel,
   USAGE_CHARTS,
   GROUP_BY,
   FILTER_KEYS,
@@ -32,6 +33,7 @@ import {
 } from '../utils/analytics';
 import { exportFileName, toCsv } from '../utils/exporters';
 import { formatNumber, formatPercent, formatCurrency, formatDuration, formatDateTime } from '../i18n/formatters';
+import { enumLabel } from '../utils/enums';
 
 const PRESETS = [{ id: 'hour' }, { id: 'day' }, { id: 'week' }, { id: 'month' }, { id: 'custom' }];
 
@@ -124,7 +126,14 @@ export default function AnalyticsView() {
   const withSelected = (list, value, make) => (value && !list.some((x) => (x.id ?? x) === value) ? [...list, make(value)] : list);
   const agentOptions = withSelected(dims.agents, state.agentId, (id) => ({ id, name: id }));
   const harnessOptions = withSelected(dims.harnesses.length ? dims.harnesses : ENUMS.harnessType, state.harnessType, (h) => h);
-  const deploymentList = withSelected(deploymentOptions, state.deploymentId, (id) => ({ id, name: id }));
+  // A deployment the dimensions report without a name was deleted; say so instead of showing a bare ID (M1-20).
+  const deploymentList = withSelected(deploymentOptions, state.deploymentId, (id) => ({ id, name: id })).map((d) => (d.name === d.id ? { ...d, name: t('views.analytics.deletedDeployment', { id: d.id }) } : d));
+  const agentList = agentOptions.map((a) => (a.name === a.id ? { ...a, name: t('views.analytics.deletedAgent', { id: a.id }) } : a));
+  const harnessName = (h) => enumLabel(t, 'harnessType', h);
+  const unknownModel = t('views.analytics.unknownModel');
+  const labelSeries = (list, groupBy) => list.map((s) => ({ ...s, label: seriesDisplayLabel(s, groupBy, harnessName, unknownModel) }));
+  const excluding = state.ttft === 'excluding';
+  const charts = chartsForTtftMode(state.ttft);
   const modelOptions = withSelected(dims.models, state.model, (m) => m);
 
   const formatters = {
@@ -139,11 +148,19 @@ export default function AnalyticsView() {
   // Export context: file names carry the range and filters; PNG and SVG headers carry readable lines.
   const filterValues = Object.fromEntries(FILTER_KEYS.map((k) => [k, state[k]]).concat([['groupBy', grouped ? state.groupBy : '']]));
   const rangeLabel = state.range === 'custom' ? `${state.from || ''}_${state.to || ''}` : state.range;
+  // Export headers name agents and deployments rather than showing IDs (M1-20); file names keep the IDs.
+  const exportValue = (k, v) => {
+    if (k === 'harnessType') return enumLabel(t, 'harnessType', v);
+    if (k === 'groupBy') return t(`views.analytics.groupBy.${v}`);
+    if (k === 'agentId') return agentList.find((a) => a.id === v)?.name || v;
+    if (k === 'deploymentId') return deploymentList.find((d) => d.id === v)?.name || v;
+    return v;
+  };
   const exportLines = [
     data ? t('views.analytics.export.window', { from: formatDateTime(data.fromUtc, lng), to: formatDateTime(data.toUtc, lng) }) : '',
     ...Object.entries(filterValues)
       .filter(([, v]) => v)
-      .map(([k, v]) => `${t(`views.analytics.filters.${k}`)}: ${v}`)
+      .map(([k, v]) => `${t(`views.analytics.filters.${k}`)}: ${exportValue(k, v)}`)
   ].filter(Boolean);
   const exportInfo = (id, format, scope = filterValues) => ({ name: `analytics-${id}`, range: rangeLabel, filters: scope, lines: exportLines, unit: units[format], window: { fromUtc: data?.fromUtc, toUtc: data?.toUtc } });
 
@@ -161,6 +178,8 @@ export default function AnalyticsView() {
         { key: 'runs', value: formatNumber(totals.runs, {}, lng), note: t('views.analytics.cards.runsNote', { succeeded: formatNumber(totals.succeeded, {}, lng), failed: formatNumber(totals.failed, {}, lng) }) },
         { key: 'successRate', value: rate === null ? na : formatPercent(rate, lng), tone: rate !== null && rate < 0.9 ? 'warning' : 'success' },
         { key: 'ttft', value: msOrNa(totals.timeToFirstTokenMsAvg), note: t('views.analytics.cards.p95', { value: msOrNa(totals.timeToFirstTokenMsP95) }) },
+        { key: 'ttftExcludingDelegation', value: msOrNa(totals.timeToFirstTokenExcludingDelegationMsAvg), note: t('views.analytics.cards.p95', { value: msOrNa(totals.timeToFirstTokenExcludingDelegationMsP95) }) },
+        { key: 'delegationWait', value: msOrNa(totals.delegationWaitMsAvg) },
         { key: 'execution', value: msOrNa(totals.executionMsAvg), note: t('views.analytics.cards.p95', { value: msOrNa(totals.executionMsP95) }) },
         { key: 'queue', value: msOrNa(totals.queueMsAvg) },
         {
@@ -197,8 +216,8 @@ export default function AnalyticsView() {
       <Explainer topic="analytics" />
 
       <div className="panel analytics-filters" data-testid="analytics-filters">
-        <div className="field">
-          <span className="explorer-op-picker-label">{t('views.analytics.filters.range')}</span>
+        <div className="field analytics-range-field">
+          <span className="explorer-op-picker-label" {...tip(t('tips.analytics.filters.range'))}>{t('views.analytics.filters.range')}</span>
           <RangeTabs ranges={PRESETS} value={state.range} onChange={(range) => update({ range })} onRefresh={load} loading={loading} label={t('views.analytics.filters.range')} />
         </div>
         {state.range === 'custom' && (
@@ -211,7 +230,7 @@ export default function AnalyticsView() {
           'agentId',
           <select id="analytics-agentId" value={state.agentId} onChange={(e) => update({ agentId: e.target.value })} {...tip(t('tips.analytics.filters.agentId'))}>
             <option value="">{t('views.analytics.allAgents')}</option>
-            {agentOptions.map((a) => (
+            {agentList.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>
@@ -261,6 +280,12 @@ export default function AnalyticsView() {
             ))}
           </select>
         )}
+        <div className="field field-checkbox analytics-ttft-toggle">
+          <input id="analytics-ttft" type="checkbox" checked={excluding} onChange={(e) => update({ ttft: e.target.checked ? 'excluding' : 'all' })} data-testid="analytics-ttft-excluding" {...tip(t('tips.analytics.filters.ttft'))} />
+          <label htmlFor="analytics-ttft" {...tip(t('tips.analytics.filters.ttft'))}>
+            {t('views.analytics.filters.ttft')}
+          </label>
+        </div>
       </div>
 
       {built.error && (
@@ -293,15 +318,17 @@ export default function AnalyticsView() {
             ))}
           </div>
           <div className="analytics-charts">
-            {ANALYTICS_CHARTS.map((chart) => {
-              const { series, hidden } = chartSeries(data, chart, grouped, t('views.analytics.other'));
+            {charts.map((chart) => {
+              const raw = chartSeries(data, chart, grouped, t('views.analytics.other'));
+              const series = labelSeries(raw.series, state.groupBy);
+              const hidden = raw.hidden;
               return (
                 <div key={chart.id}>
                   <TimeSeriesChart
                     id={chart.id}
                     testId={`analytics-chart-${chart.id}`}
                     title={grouped ? t('views.analytics.groupedTitle', { chart: t(`views.analytics.charts.${chart.id}.title`), metric: t(`views.analytics.metrics.${chart.grouped}`) }) : t(`views.analytics.charts.${chart.id}.title`)}
-                    help={t(`views.analytics.charts.${chart.id}.help`)}
+                    help={chart.id === 'ttft' && excluding ? t('views.analytics.charts.ttft.helpExcluding') : t(`views.analytics.charts.${chart.id}.help`)}
                     titleTip={t(`tips.analytics.charts.${chart.id}`)}
                     kind={chart.kind}
                     times={data.times}
@@ -309,7 +336,7 @@ export default function AnalyticsView() {
                     format={formatters[chart.format]}
                     bucketSeconds={data.bucketSeconds}
                     legendTip={seriesTip(chart, state.groupBy)}
-                    exportInfo={exportInfo(chart.id, chart.format)}
+                    exportInfo={exportInfo(chart.id === 'ttft' && excluding ? 'ttft-excluding-delegation' : chart.id, chart.format)}
                   />
                   {hidden > 0 && <div className="analytics-chart-help">{t('views.analytics.hiddenGroups', { count: hidden })}</div>}
                 </div>
@@ -325,7 +352,7 @@ export default function AnalyticsView() {
               <p className="analytics-chart-help">{t('views.analytics.usage.help')}</p>
               <div className="analytics-charts">
                 {USAGE_CHARTS.map((chart) => {
-                  const { series } = chartSeries(usage, chart, true, t('views.analytics.other'));
+                  const series = labelSeries(chartSeries(usage, chart, true, t('views.analytics.other')).series, 'harnessModel');
                   return (
                     <TimeSeriesChart
                       key={chart.id}

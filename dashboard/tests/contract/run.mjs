@@ -43,7 +43,16 @@ const DUMP = process.env.GARRISON_CONTRACT_DUMP || '';
 const PENDING = {
   blockedReason: 'G-15',
   blockedRuns: 'G-15',
-  'enum:NoCapableWorker': 'G-15'
+  'enum:NoCapableWorker': 'G-15',
+  delegationWaitMs: 'P9.17 M1-08',
+  timeToFirstTokenExcludingDelegationMs: 'P9.17 M1-08',
+  delegationWaitMsAvg: 'P9.17 M1-08',
+  timeToFirstTokenExcludingDelegationMsAvg: 'P9.17 M1-08',
+  timeToFirstTokenExcludingDelegationMsP50: 'P9.17 M1-08',
+  timeToFirstTokenExcludingDelegationMsP95: 'P9.17 M1-08',
+  changes: 'P9.17 M1-14',
+  plannedResult: 'P9.17 M1-14',
+  code: 'P9.17 M1-24'
 };
 
 const children = [];

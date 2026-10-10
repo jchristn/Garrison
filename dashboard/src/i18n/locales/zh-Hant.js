@@ -6,6 +6,29 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const zhHant = {
   common: {
+    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件已捨棄', HarnessExited: 'Harness 已結束', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '已開始修復輸出', WorkspacePrepared: '工作區已就緒' },
+    fieldCodes: { ExpiryInPast: '請選擇未來的時間。', ParameterInvalid: '此值對這個參數無效。', ParameterNotAllowed: '此部署不允許呼叫端覆寫此參數。', SettingsFileReadOnly: '設定檔為唯讀，因此無法儲存此變更。', OverriddenByEnvironment: '此值由環境變數設定，因此無法在這裡變更。', PathRequired: '需要設定路徑。', UnknownSetting: '此伺服器沒有這項設定。', TooLong: '此值太長。', NotAllowedValue: '請選擇允許的值之一。', NotABoolean: '請選擇 true 或 false。', NotAnInteger: '請輸入整數。', OutOfRange: '值超出允許的範圍。' },
+    serverText: {
+      notApplied: '未套用，因為另一份文件未通過驗證。',
+      wouldBeUnchanged: '已是最新狀態，不會有任何變更。',
+      wouldBeUpdated: '將會更新。',
+      wouldBeCreated: '將會建立。',
+      inUse: '{{what}} 仍由這些部署繫結：{{deployments}}。請先移除繫結。',
+      noActiveDeployment: '代理程式 {{agent}} 沒有權重大於零的啟用部署。請新增部署或提高某個部署的權重，然後再試一次。',
+      toolCallDenied: '工具呼叫遭拒：{{id}}',
+      threadStarted: '執行緒已開始。',
+      runStartedModel: '執行已開始（{{model}}）。',
+      runStarted: '執行已開始。',
+      sessionInitializedModel: '工作階段已初始化（{{model}}）。',
+      sessionInitialized: '工作階段已初始化。',
+      harnessFailed: 'Harness 回報了失敗。',
+      exitedNoResult: 'Harness 以代碼 {{code}} 結束，沒有最終結果。',
+      harnessExited: 'Harness 已結束：{{status}}（{{outcome}}）。',
+      harnessExitedCode: 'Harness 已結束，代碼 {{code}}：{{status}}（{{outcome}}）。',
+      mcpPreflight: 'MCP 預檢已通過。已檢查的伺服器：{{count}}。',
+      repairAttempt: '結構化輸出修復第 {{attempt}} 次嘗試：在 {{path}} 繼續 Harness 工作階段。',
+      workspacePrepared: '工作區已在 {{path}} 準備完成。'
+    },
     appName: 'Garrison',
     language: { label: '語言' },
     theme: { switchToLight: '切換為淺色主題', switchToDark: '切換為深色主題' },
@@ -50,6 +73,7 @@ const zhHant = {
       requiredPermission: '需要 {{resource}} 的 {{permission}} 權限。'
     },
     generic: {
+      deletedName: '{{name}}（已刪除）',
       actions: '操作',
       active: '啟用',
       all: '全部',
@@ -80,6 +104,12 @@ const zhHant = {
     units: { msShort: '毫秒', sShort: '秒', mShort: '分鐘', tokPerSec: 'Token/秒' }
   },
   errorCodes: {
+    MessageIdConflict: '此 A2A 訊息 ID 已用於不同的內容。請使用新的 ID 傳送訊息。',
+    IdempotencyKeyConflict: '此冪等金鑰已用於另一個要求。請使用新的金鑰。',
+    DeploymentDeleted: '此執行的部署已刪除，因此無法重試此執行。請改為再次呼叫代理程式。',
+    AgentDeleted: '此執行的代理程式已刪除，因此無法重試此執行。',
+    NoActiveDeployment: '此代理程式沒有權重大於零的啟用部署。請新增部署或提高某個部署的權重。',
+    TenantNotFound: '該租用戶不存在。請檢查租用戶 ID。',
     NetworkError: '無法連線到伺服器。請檢查伺服器 URL，並確認伺服器正在執行。',
     AuthenticationRequired: '你的工作階段已過期，請重新登入。',
     InvalidCredentials: '租用戶、電子郵件、密碼或金鑰不正確。',
@@ -581,6 +611,9 @@ const zhHant = {
       errors: { reservedPrefix: 'builtin/ 前置詞為保留字。' }
     },
     promptTemplates: {
+      deleteBound_other: '「{{name}}」由 {{count}} 個部署繫結，因此伺服器會拒絕刪除。請先從下列部署移除繫結：',
+      deleteBound_one: '「{{name}}」由 {{count}} 個部署繫結，因此伺服器會拒絕刪除。請先從下列部署移除繫結：',
+      deleteUnbound: '要刪除「{{name}}」及其所有版本嗎？沒有部署繫結它。此操作無法復原。',
       ...rp('提示範本', 'Garrison 轉譯的每個提示與設定檔。每次儲存都會建立一個版本。', '新增提示範本', '建立提示範本', '編輯提示範本', '提示範本詳細資料', '刪除提示範本', '尚無提示範本', '建立範本，或複製內建範本。'),
       add: '新範本',
       columns: { name: '名稱', kind: '種類', currentVersion: '版本', description: '描述', isBuiltIn: '來源', id: 'ID', lastUpdateUtc: '更新時間' },
@@ -610,11 +643,12 @@ const zhHant = {
       actions: { test: '測試連線' }
     },
     secrets: {
+      errors: { expiryPast: '請選擇未來的到期時間，或留白讓祕密永不過期。' },
       ...rp('祕密', '供 Harness 與整合服務使用的加密憑證。值為唯寫。', '新增祕密', '建立祕密', '編輯祕密', '祕密詳細資料', '刪除祕密', '尚無祕密', '新增代理程式所需的 API 金鑰或權杖，例如 Anthropic API 金鑰。'),
       notSet: '未設定',
       columns: { name: '名稱', kind: '種類', valueLast4: '值', rotatedUtc: '上次變更', expiresUtc: '到期', active: '啟用', id: 'ID' },
       fields: { name: '名稱', kind: '種類', description: '描述', value: '值', newValue: '新值', expiresUtc: '到期', active: '啟用' },
-      hints: { kind: '在共用伺服器上使用訂閱權杖可能違反供應商的條款。共用部署請優先使用 API 金鑰。' },
+      hints: { expiresUtc: '必須是未來的時間。留白表示祕密永不過期。', kind: '在共用伺服器上使用訂閱權杖可能違反供應商的條款。共用部署請優先使用 API 金鑰。' },
       actions: { setValue: '設定值', rotate: '輪替' }
     },
     workspaces: {
@@ -628,6 +662,9 @@ const zhHant = {
       fields: { name: '名稱', kind: '種類', description: '描述', active: '啟用' }
     },
     agents: {
+      deleteWithDeployments_other: '要刪除「{{name}}」及其 {{count}} 個部署嗎？下方的部署也會一併刪除。此操作無法復原。',
+      deleteWithDeployments_one: '要刪除「{{name}}」及其 {{count}} 個部署嗎？下方的部署也會一併刪除。此操作無法復原。',
+      deleteNoDeployments: '要刪除「{{name}}」嗎？它沒有部署。此操作無法復原。',
       ...rp('代理程式', '透過 REST、MCP 與 A2A 公開的具名能力。部署決定它們如何執行。', '新增代理程式', '建立代理程式', '編輯代理程式', '代理程式詳細資料', '刪除代理程式', '尚無代理程式', '新增代理程式，或從「設定 > 清單」套用範例清單。'),
       sections: { identity: '識別', exposure: '公開方式', io: '輸入與輸出', delegation: '委派' },
       columns: { name: '名稱', displayName: '顯示名稱', kind: '種類', exposure: '公開方式', delegationMode: '委派', tags: '標記', active: '啟用', id: 'ID', createdUtc: '建立時間' },
@@ -660,6 +697,7 @@ const zhHant = {
       errors: { dnsName: '請使用小寫字母、數字與連字號，且開頭與結尾必須是字母或數字。' }
     },
     deployments: {
+      promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行的任務包裝', Task: '任務包裝', System: '系統提示' },
       ...rp('部署', '將代理程式繫結到 Harness 設定檔、提示、祕密、MCP 伺服器、排程放置與限制。', '新增部署', '建立部署', '編輯部署', '部署詳細資料', '刪除部署', '尚無部署', '建立部署，讓代理程式可以執行。'),
       steps: { basics: '基本資訊', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置與限制' },
       columns: { name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', weight: '權重', configVersion: '設定版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
@@ -709,6 +747,9 @@ const zhHant = {
         retryOnNodeLoss: '節點遺失時重新排入佇列'
       },
       hints: {
+        secretsKinds: 'Harness 設定檔 {{profile}} 需要任一類型為 {{kinds}} 的祕密。可用任何別名繫結。',
+        secretsAliases: 'Harness 設定檔 {{profile}} 會讀取以這些別名繫結的祕密：{{aliases}}。',
+        secretsNone: 'Harness 設定檔 {{profile}} 不讀取任何祕密，因此不需要繫結祕密。',
         promptBindings: '將提示角色（System、Task、DelegatedTask，以及 Harness 設定檔使用的任何角色）對應到範本。版本留空即可一律使用最新版本。',
         resourceBindings: '別名會成為範本變數，例如 {{secret.anthropic}}。',
         weight: '未明確指定部署的請求，會依權重分配到各個啟用中的部署。',
@@ -726,6 +767,8 @@ const zhHant = {
     runs: {
       ...rp('執行', '每一次代理程式呼叫，以及其狀態、節點、持續時間與結果。', '新增執行', '建立執行', '編輯執行', '執行詳細資料', '刪除執行', '尚無執行', '呼叫代理程式以開始執行。'),
       columns: {
+        delegationWaitMs: '委派等待時間',
+        timeToFirstTokenExcludingDelegationMs: 'TTFT（不含委派）',
         id: '執行',
         agentName: '代理程式',
         status: '狀態',
@@ -788,6 +831,9 @@ const zhHant = {
   },
   views: {
     home: {
+      observabilitySetup: '設定可觀測性',
+      observabilityNone: '此環境未設定任何可觀測性服務（Grafana、Prometheus、Tempo 或 Loki）。',
+      observability: '可觀測性',
       title: '首頁',
       subtitle: '你的代理程式與工作節點目前的動態。',
       lastLoaded: '更新於 {{time}}',
@@ -827,9 +873,10 @@ const zhHant = {
       externalServicesNote: '隨附的可觀測性工具。分享此部署前，請先變更預設憑證。',
       externalServicesNone: '此部署未設定任何外部服務。',
       credentials: '預設憑證',
-      services: { grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
+      services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
     invoke: {
+      noDeployment: '此代理程式沒有權重大於零的啟用部署，因此呼叫會遭拒。請在「部署」分頁新增部署，或提高某個部署的權重。',
       title: '呼叫',
       subtitle: '傳送訊息給代理程式，並即時觀看對話紀錄串流。',
       request: '請求',
@@ -850,6 +897,9 @@ const zhHant = {
       applySample: '前往清單'
     },
     runDetail: {
+      deploymentDeleted: '此執行使用的部署已刪除，因此無法重試。請改為再次呼叫代理程式 {{agent}}。',
+      templatesUsed: '使用的範本',
+      agentDeleted: '代理程式 {{agent}} 已不存在，因此無法重試此執行。它的記錄、對話紀錄與遙測仍可在此查看。',
       title: '執行',
       titleWithAgent: '{{agent}} 的執行',
       deployment: '部署',
@@ -891,10 +941,13 @@ const zhHant = {
       notFoundTitle: '找不到執行',
       notFoundBody: '它可能已被刪除，或屬於其他租用戶。',
       telemetry: {
+        delegationNote: '此執行等待委派執行 {{wait}}。第一個 Token 時間含此等待為 {{ttft}}，不含為 {{excluding}}；與不委派的代理程式比較時請用後者。',
         title: '遙測',
         phases: '各階段執行時間',
-        phase: { queue: '佇列', startup: '啟動至第一個 Token', streaming: '串流', tail: '最後一個 Token 之後' },
+        phase: { delegation: '等待委派執行', queue: '佇列', startup: '啟動至第一個 Token', streaming: '串流', tail: '最後一個 Token 之後' },
         fields: {
+          delegationWaitMs: '委派等待時間',
+          timeToFirstTokenExcludingDelegationMs: '第一個 Token 時間（不含委派）',
           timeToFirstTokenMs: '第一個 Token 時間',
           streamingMs: '串流時間',
           executionMs: '執行時間',
@@ -936,6 +989,10 @@ const zhHant = {
       manageDeployments: '管理部署'
     },
     templateEditor: {
+      cloneToEdit: '複製後編輯',
+      builtInReadOnly: '內建範本為唯讀，因此這裡的所有欄位都已鎖定。複製後即可取得可編輯的副本。',
+      renameHint: '你可以重新命名此範本。部署以 ID 參照，所以繫結不受影響；但以名稱引入它的範本需要手動更新。',
+      cloneDialog: { taken: '已有名為 {{name}} 的範本。請換一個名稱。', reserved: '以 builtin/ 開頭的名稱保留給內建範本使用。', hint: '之後可以在副本的頁面重新命名。', name: '副本名稱', body: '副本以目前內容作為第 1 版，之後可以編輯、重新命名和刪除。', title: '複製 {{name}}' },
       newTitle: '新提示範本',
       subtitle: '撰寫範本，以範例內容預覽後再儲存。',
       builtInNote: '內建範本為唯讀。請複製後再自訂，或重設以還原隨附的內容。',
@@ -973,6 +1030,8 @@ const zhHant = {
       }
     },
     manifests: {
+      planned: '預計結果：{{result}}',
+      changes: { count_other: '{{count}} 個欄位有變更。', count_one: '{{count}} 個欄位有變更。', empty: '（空白）', after: '變更後', before: '變更前', field: '欄位' },
       title: '清單',
       subtitle: '以程式碼形式套用設定。試執行只會驗證，不會寫入。',
       applyTab: '套用',
@@ -1049,6 +1108,8 @@ const zhHant = {
       noSpecBody: '此伺服器未傳回可用的 /openapi.json 文件，因此 API 探索器無法列出操作。'
     },
     settings: {
+      errors: { allowed: '請選擇下列其中一個值：{{values}}。', boolean: '請選擇 true 或 false。', max: '請輸入不大於 {{max}} 的值。', min: '請輸入不小於 {{min}} 的值。', range: '請輸入 {{min}} 到 {{max}} 之間的值。', integer: '請輸入整數。', number: '請輸入數字。' },
+      notSaved: '沒有儲存任何內容。請修正標示的設定，然後再儲存一次。',
       title: '設定',
       subtitle: '來自設定檔的伺服器設定，以及儲存在資料庫中的叢集設定。',
       readOnly: '你正以唯讀模式檢視設定。只有系統管理員可以變更。',
@@ -1080,13 +1141,101 @@ const zhHant = {
         other: '此設定無法在這裡編輯。'
       },
       groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '記錄', Auth: '驗證', Security: '安全性', RequestHistory: '請求歷程', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '稽核', Runtime: '執行階段' },
-      fields: {}
+      fields: {
+        Rest: {
+          ExternalBaseUrl: '外部 REST URL',
+          PublicBaseUrl: '供執行使用的內部 REST URL',
+          Ssl: 'REST TLS 加密',
+          Port: 'REST 連接埠',
+          Hostname: 'REST 繫結主機名稱'
+        },
+        Mcp: {
+          MaxToolWaitSeconds: 'MCP 工具最長等待時間（秒）',
+          PublicUrl: '供執行使用的內部 MCP URL',
+          Path: 'MCP 路徑',
+          Port: 'MCP 連接埠',
+          Hostname: 'MCP 繫結主機名稱',
+          Enable: '啟用 MCP 伺服器'
+        },
+        Database: {
+          MaxPoolSize: '連線集區大小',
+          Schema: '資料庫結構描述',
+          Password: '資料庫密碼',
+          Username: '資料庫使用者',
+          DatabaseName: '資料庫名稱',
+          Port: '資料庫連接埠',
+          Host: '資料庫主機',
+          Filename: 'Sqlite 檔案',
+          Type: '資料庫類型'
+        },
+        Logging: {
+          MinimumSeverity: '最低記錄嚴重性',
+          LogFilename: '記錄檔名稱',
+          LogDirectory: '記錄目錄',
+          FileLogging: '將記錄輸出到檔案',
+          ConsoleLogging: '將記錄輸出到主控台'
+        },
+        Auth: {
+          RateLimitPerMinute: '每分鐘登入嘗試次數',
+          SignedRequestSkewSeconds: '簽署要求允許的時鐘誤差（秒）',
+          AdminApiKey: '管理員 API 金鑰',
+          TokenLifetimeMinutes: '工作階段有效期（分鐘）',
+          SigningKey: '權杖簽署金鑰',
+          Issuer: '權杖簽發者'
+        },
+        Security: {
+          NodeSecretKey: '工作節點私密金鑰',
+          NodeAccessKey: '工作節點存取金鑰',
+          DefaultSecretKey: '預設私密金鑰',
+          DefaultAccessKey: '預設存取金鑰',
+          AdminPassword: '初始管理員密碼',
+          AdminEmail: '初始管理員電子郵件',
+          MasterKey: '祕密加密主金鑰'
+        },
+        RequestHistory: {
+          MaxResponseBodyBytes: '記錄的回應本文上限（位元組）',
+          MaxRequestBodyBytes: '記錄的要求本文上限（位元組）',
+          RetentionDays: '要求歷程保留天數',
+          Enabled: '記錄要求歷程'
+        },
+        Telemetry: {
+          OtlpEndpoint: 'OTLP 端點',
+          OtlpEnable: '啟用 OTLP 匯出',
+          PrometheusPort: 'Prometheus 連接埠',
+          PrometheusEnable: '啟用 Prometheus 端點',
+          ServiceName: '遙測服務名稱',
+          Enabled: '啟用遙測'
+        },
+        Cluster: {
+          ExpectedReplicas: '控制平面預期複本數'
+        },
+        Scheduling: {
+          EventPollMs: '事件輪詢間隔（毫秒）',
+          NodeHeartbeatTimeoutMs: '節點活動訊號逾時（毫秒）',
+          LeaseWaitMs: '租約長輪詢等待時間（毫秒）',
+          LeaseDurationMs: '執行租約時長（毫秒）'
+        },
+        Runs: {
+          EventRetentionDays: '執行事件保留天數',
+          RetentionDays: '執行保留天數',
+          MaxDelegationDepth: '最大委派深度',
+          DefaultTimeoutSeconds: '預設執行逾時（秒）'
+        },
+        Runtime: {
+          FailBlockedAfterSeconds: '受阻執行在幾秒後失敗'
+        },
+        Audit: {
+          RetentionDays: '稽核保留天數'
+        }
+      }
     },
     analytics: {
+      deletedAgent: '已刪除的代理程式（{{id}}）',
+      deletedDeployment: '已刪除的部署（{{id}}）',
       title: '分析',
       subtitle: '你的執行在一段時間內的速度、成本與可靠性。',
       loading: '正在載入分析...',
-      filters: { range: '範圍', from: '起', to: '迄', agentId: '代理程式', harnessType: 'Harness', deploymentId: '部署', model: '模型', groupBy: '分組依據' },
+      filters: { ttft: 'TTFT 不含委派等待', range: '範圍', from: '起', to: '迄', agentId: '代理程式', harnessType: 'Harness', deploymentId: '部署', model: '模型', groupBy: '分組依據' },
       allAgents: '所有代理程式',
       allHarnesses: '所有 Harness',
       allDeployments: '所有部署',
@@ -1110,6 +1259,8 @@ const zhHant = {
       emptyBody: '沒有符合範圍與篩選條件的項目。請擴大範圍、清除篩選條件，或呼叫代理程式。',
       noDataInChart: '所選範圍內沒有此圖表的資料。',
       cards: {
+        delegationWait: '平均委派等待時間',
+        ttftExcludingDelegation: '平均 TTFT（不含委派）',
         runs: '執行',
         runsNote: '成功 {{succeeded}} 個，失敗 {{failed}} 個',
         successRate: '成功率',
@@ -1125,7 +1276,7 @@ const zhHant = {
       },
       charts: {
         outcomes: { title: '執行結果', help: '每個時間區間內依結束方式分類的執行數。' },
-        ttft: { title: '第一個 Token 時間', help: '從 Harness 啟動到模型第一次輸出，包含 CLI 啟動時間。' },
+        ttft: { helpExcluding: '從 Harness 啟動到模型第一個輸出的時間，不含等待委派執行的時間。', title: '第一個 Token 時間', help: '從 Harness 啟動到模型第一次輸出，包含 CLI 啟動時間。' },
         duration: { title: '串流與執行時間', help: '串流時間是模型第一次到最後一次輸出的時間；執行時間是程序從啟動到結束的時間。' },
         queue: { title: '排隊時間', help: '從排入佇列到被工作節點租用的時間。' },
         tokens: { title: 'Token', help: '每個時間區間的輸入、輸出、快取與推理 Token。' },
@@ -1137,6 +1288,10 @@ const zhHant = {
       },
       groupedTitle: '{{chart}}：{{metric}}',
       metrics: {
+        delegationWaitMsAvg: '委派等待時間（平均）',
+        timeToFirstTokenExcludingDelegationMsP95: '不含委派（p95）',
+        timeToFirstTokenExcludingDelegationMsP50: '不含委派（p50）',
+        timeToFirstTokenExcludingDelegationMsAvg: '不含委派（平均）',
         runs: '執行',
         succeeded: '成功',
         failed: '失敗',

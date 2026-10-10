@@ -137,7 +137,8 @@ function FieldControl({ field, value, onChange, disabled, id }) {
         </div>
       );
     case 'datetime':
-      return <input id={id} {...tp} type="datetime-local" value={toLocalInput(value)} disabled={disabled} onChange={(e) => onChange(toUtcIso(e.target.value) ?? null)} />;
+      // futureOnly: the picker offers no past times (M1-27); validation still checks typed values.
+      return <input id={id} {...tp} type="datetime-local" value={toLocalInput(value)} min={field.futureOnly ? toLocalInput(new Date().toISOString()) : undefined} disabled={disabled} onChange={(e) => onChange(toUtcIso(e.target.value) ?? null)} />;
     case 'stringList':
       return (
         <textarea
@@ -155,7 +156,7 @@ function FieldControl({ field, value, onChange, disabled, id }) {
     case 'keyValue':
       return <KeyValueEditor value={value} onChange={onChange} disabled={disabled} keyLabel={field.keyLabel} valueLabel={field.valueLabel} fieldLabel={field.label} />;
     case 'objectList':
-      return <ObjectListEditor value={value} onChange={onChange} disabled={disabled} fields={field.fields || []} addLabel={field.addLabel} ordered={field.ordered} fieldLabel={field.label} />;
+      return <ObjectListEditor value={value} onChange={onChange} disabled={disabled} fields={field.fields || []} addLabel={field.addLabel} ordered={field.ordered} fieldLabel={field.label} rowAdjust={field.rowAdjust} />;
     default:
       return <input id={id} {...tp} type="text" value={value ?? ''} disabled={disabled} placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />;
   }
@@ -191,16 +192,29 @@ export function KeyValueEditor({ value, onChange, disabled, keyLabel, valueLabel
   );
 }
 
-/** Editable list of objects with typed sub-fields; supports reordering for ordered lists. */
-export function ObjectListEditor({ value, onChange, disabled, fields, addLabel, ordered = false, fieldLabel = '' }) {
+/**
+ * Editable list of objects with typed sub-fields; supports reordering for ordered lists. A sub-field's `options`
+ * and `default` may be functions of the row, and `rowAdjust(next, previous)` lets the parent keep related values in
+ * step (for example a binding's kind follows the resource the user picked). New rows pass through rowAdjust too.
+ */
+export function ObjectListEditor({ value, onChange, disabled, fields, addLabel, ordered = false, fieldLabel = '', rowAdjust }) {
   const { t } = useTranslation();
   const rows = Array.isArray(value) ? value : [];
-  const firstOption = (f) => {
-    const o = (f.options || [])[0];
+  const optionsFor = (f, row) => (typeof f.options === 'function' ? f.options(row) : f.options || []);
+  const firstOption = (f, row) => {
+    const o = optionsFor(f, row)[0];
     return o !== null && typeof o === 'object' ? o.value : o;
   };
-  const blank = () => Object.fromEntries(fields.map((f) => [f.name, f.type === 'checkbox' ? false : f.default ?? (f.type === 'select' && f.required ? firstOption(f) : '')]));
-  const update = (i, next) => onChange(rows.map((r, j) => (j === i ? next : r)));
+  const blank = () => {
+    const row = {};
+    for (const f of fields) {
+      if (f.type === 'checkbox') row[f.name] = false;
+      else if (typeof f.default === 'function') row[f.name] = f.default(row);
+      else row[f.name] = f.default ?? (f.type === 'select' && f.required ? firstOption(f, row) ?? '' : '');
+    }
+    return rowAdjust ? rowAdjust(row, null) : row;
+  };
+  const update = (i, next) => onChange(rows.map((r, j) => (j === i ? (rowAdjust ? rowAdjust(next, r) : next) : r)));
   const move = (i, d) => {
     const j = i + d;
     if (j < 0 || j >= rows.length) return;
@@ -216,7 +230,7 @@ export function ObjectListEditor({ value, onChange, disabled, fields, addLabel, 
           <div className="object-list-index monospace">{i + 1}</div>
           <div className="object-list-fields">
             {fields.map((f) => (
-              <FormField key={f.name} field={f} id={`ol-${i}-${f.name}`} value={r[f.name]} disabled={disabled} onChange={(v) => update(i, { ...r, [f.name]: v })} />
+              <FormField key={f.name} field={typeof f.options === 'function' ? { ...f, options: f.options(r) } : f} id={`ol-${i}-${f.name}`} value={r[f.name]} disabled={disabled} onChange={(v) => update(i, { ...r, [f.name]: v })} />
             ))}
           </div>
           <div className="object-list-actions">

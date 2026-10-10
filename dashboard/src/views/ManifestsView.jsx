@@ -5,7 +5,7 @@ import CodeBlock from '../components/CodeBlock';
 import ConfirmModal from '../components/ConfirmModal';
 import ResourceView from '../components/ResourceView';
 import Tabs from '../components/Tabs';
-import { Badge } from '../components/StatusBadge';
+import ManifestResults from '../components/ManifestResults';
 import { ErrorBanner } from '../components/States';
 import { UploadIcon, DownloadIcon } from '../components/Icons';
 import { useAuth } from '../context/AuthContext';
@@ -16,9 +16,8 @@ import { errorMessage } from '../utils/errors';
 import { formatRelativeTime } from '../i18n/formatters';
 import Explainer from '../components/Explainer';
 import { tip } from '../components/Tooltip';
-import { resourceTip, enumTip } from '../utils/tips';
+import { resourceTip } from '../utils/tips';
 
-const RESULT_TONE = { Created: 'success', Updated: 'info', Unchanged: 'neutral', Failed: 'danger', Validated: 'neutral' };
 
 const appliesConfig = {
   id: 'manifestApplies',
@@ -31,20 +30,16 @@ const appliesConfig = {
     { key: 'dryRun', tip: resourceTip(t, 'manifestApplies', 'dryRun'), label: t('resources.manifestApplies.columns.dryRun'), render: (r) => (r.dryRun ? t('common.boolean.yes') : t('common.boolean.no')) },
     { key: 'counts', tip: resourceTip(t, 'manifestApplies', 'counts'), label: t('resources.manifestApplies.columns.counts'), render: (r) => t('views.manifests.counts', { created: r.createdCount ?? 0, updated: r.updatedCount ?? 0, unchanged: r.unchangedCount ?? 0, failed: r.failedCount ?? 0 }) }
   ],
-  fields: (_d, { t }) => [
-    {
-      name: 'items',
-      type: 'objectList',
-      label: t('views.manifests.results'),
-      tip: t('tips.views.manifests.results'),
-      fields: [
-        { name: 'kind', type: 'text', label: t('views.manifests.kind'), tip: t('tips.views.manifests.kind') },
-        { name: 'name', type: 'text', label: t('views.manifests.name'), tip: t('tips.views.manifests.name') },
-        { name: 'result', type: 'text', label: t('views.manifests.result'), tip: t('tips.views.manifests.result') },
-        { name: 'message', type: 'text', label: t('views.manifests.message'), tip: t('tips.views.manifests.message') }
-      ]
-    }
-  ]
+  fields: () => [],
+  // Per-item results with field-level changes (M1-14).
+  viewExtra: (d, { t }) => (
+    <div className="flex-col gap-sm">
+      <h3 className="section-title" {...tip(t('tips.views.manifests.results'))}>
+        {t('views.manifests.results')}
+      </h3>
+      <ManifestResults items={d.items || []} testId="manifest-apply-items" />
+    </div>
+  )
 };
 
 /** Apply and export configuration as code: paste or upload YAML, dry run, apply, review per-document results. */
@@ -153,32 +148,7 @@ export default function ManifestsView() {
               {items.length === 0 ? (
                 <CodeBlock value={result} prettyJson />
               ) : (
-                <div className="table-scroll">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th scope="col" {...tip(t('tips.views.manifests.kind'))}>{t('views.manifests.kind')}</th>
-                        <th scope="col" {...tip(t('tips.views.manifests.name'))}>{t('views.manifests.name')}</th>
-                        <th scope="col" {...tip(t('tips.views.manifests.result'))}>{t('views.manifests.result')}</th>
-                        <th scope="col" {...tip(t('tips.views.manifests.message'))}>{t('views.manifests.message')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((it, i) => (
-                        <tr key={i}>
-                          <td>{it.kind}</td>
-                          <td>
-                            <code>{it.name}</code>
-                          </td>
-                          <td>
-                            <Badge tone={RESULT_TONE[it.result] || 'neutral'} tip={enumTip(t, 'manifestApplyResult', it.result)}>{t(`enums.manifestApplyResult.${it.result}`, { defaultValue: it.result })}</Badge>
-                          </td>
-                          <td>{it.message || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ManifestResults items={items} />
               )}
             </div>
           )}

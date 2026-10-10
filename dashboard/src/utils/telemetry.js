@@ -43,6 +43,9 @@ export function runTelemetry(run) {
     firstTokenUtc: r.firstTokenUtc || null,
     lastTokenUtc: r.lastTokenUtc || null,
     timeToFirstTokenMs: finiteOrNull(r.timeToFirstTokenMs),
+    // M1-08: time spent waiting on child runs this run delegated to, and TTFT without the wait before the first token.
+    delegationWaitMs: finiteOrNull(r.delegationWaitMs),
+    timeToFirstTokenExcludingDelegationMs: finiteOrNull(r.timeToFirstTokenExcludingDelegationMs),
     streamingMs,
     executionMs: reported(r, 'executionMs') ? finiteOrNull(r.executionMs) : r.completedUtc ? between(r.startedUtc, r.completedUtc) : null,
     queueMs: reported(r, 'queueMs') ? finiteOrNull(r.queueMs) : between(r.queuedUtc, r.leasedUtc),
@@ -78,19 +81,30 @@ export function formatUsd(value, locale, placeholder) {
   return value === null || value === undefined || Number.isNaN(value) ? placeholder : formatCurrency(value, locale);
 }
 
+/** Delegation wait that happened before the first token: TTFT minus TTFT excluding delegation, never negative. */
+export function delegationBeforeFirstToken(tel) {
+  if (tel.timeToFirstTokenMs === null || tel.timeToFirstTokenMs === undefined) return 0;
+  if (tel.timeToFirstTokenExcludingDelegationMs === null || tel.timeToFirstTokenExcludingDelegationMs === undefined) return 0;
+  return Math.max(0, tel.timeToFirstTokenMs - tel.timeToFirstTokenExcludingDelegationMs);
+}
+
 /**
- * Proportional phases for a run's time bar: queue, startup (process start to first token), streaming, and the
- * remainder of execution after the last token. Returns [] when there is nothing to draw.
+ * Proportional phases for a run's time bar: queue, startup (process start to first token, without delegation
+ * wait), delegation (time waiting on child runs before the first token), streaming, and the remainder of execution
+ * after the last token. Returns [] when there is nothing to draw.
  */
 export function runPhases(tel) {
   const queue = tel.queueMs ?? 0;
   const exec = tel.executionMs ?? 0;
-  const startup = tel.timeToFirstTokenMs !== null ? Math.min(tel.timeToFirstTokenMs, exec || tel.timeToFirstTokenMs) : 0;
+  const firstToken = tel.timeToFirstTokenMs !== null && tel.timeToFirstTokenMs !== undefined ? Math.min(tel.timeToFirstTokenMs, exec || tel.timeToFirstTokenMs) : 0;
+  const delegation = Math.min(firstToken, delegationBeforeFirstToken(tel));
+  const startup = firstToken - delegation;
   const streaming = tel.streamingMs ?? 0;
-  const tail = Math.max(0, exec - startup - streaming);
+  const tail = Math.max(0, exec - firstToken - streaming);
   const parts = [
     { key: 'queue', ms: queue },
     { key: 'startup', ms: startup },
+    { key: 'delegation', ms: delegation },
     { key: 'streaming', ms: streaming },
     { key: 'tail', ms: tail }
   ];

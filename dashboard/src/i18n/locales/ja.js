@@ -6,6 +6,29 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const ja = {
   common: {
+    eventCodes: { StructuredOutputInvalid: '構造化出力が無効', RunBlocked: '実行がブロック中', EventsDropped: 'イベントの破棄', HarnessExited: 'ハーネス終了', McpPreflightWarning: 'MCP 事前チェックの警告', McpPreflightPassed: 'MCP 事前チェック合格', RepairAttemptStarted: '出力の修復を開始', WorkspacePrepared: 'ワークスペース準備完了' },
+    fieldCodes: { ExpiryInPast: '未来の日時を選んでください。', ParameterInvalid: 'この値はこのパラメーターには無効です。', ParameterNotAllowed: 'このデプロイメントでは、呼び出し元がこのパラメーターを上書きすることは許可されていません。', SettingsFileReadOnly: '設定ファイルが読み取り専用のため、この変更は保存できません。', OverriddenByEnvironment: '環境変数がこの値を設定しているため、ここでは変更できません。', PathRequired: '設定パスが必要です。', UnknownSetting: 'このサーバーにはこの設定がありません。', TooLong: '値が長すぎます。', NotAllowedValue: '許可された値のいずれかを選んでください。', NotABoolean: 'true または false を選んでください。', NotAnInteger: '整数を入力してください。', OutOfRange: '値が許可された範囲外です。' },
+    serverText: {
+      notApplied: '別のドキュメントが検証に失敗したため、適用されませんでした。',
+      wouldBeUnchanged: 'すでに最新の状態です。変更はありません。',
+      wouldBeUpdated: '更新されます。',
+      wouldBeCreated: '作成されます。',
+      inUse: '{{what}} はまだ次のデプロイメントに結び付けられています: {{deployments}}。先に結び付けを外してください。',
+      noActiveDeployment: 'エージェント {{agent}} には、重みが 0 より大きい有効なデプロイメントがありません。デプロイメントを追加するか重みを上げてから、もう一度試してください。',
+      toolCallDenied: 'ツール呼び出しが拒否されました: {{id}}',
+      threadStarted: 'スレッドを開始しました。',
+      runStartedModel: '実行を開始しました ({{model}})。',
+      runStarted: '実行を開始しました。',
+      sessionInitializedModel: 'セッションを初期化しました ({{model}})。',
+      sessionInitialized: 'セッションを初期化しました。',
+      harnessFailed: 'ハーネスが失敗を報告しました。',
+      exitedNoResult: 'ハーネスが最終結果なしで終了コード {{code}} で終了しました。',
+      harnessExited: 'ハーネスが終了しました: {{status}} ({{outcome}})。',
+      harnessExitedCode: 'ハーネスが終了コード {{code}} で終了しました: {{status}} ({{outcome}})。',
+      mcpPreflight: 'MCP の事前チェックに合格しました。確認したサーバー: {{count}}。',
+      repairAttempt: '構造化出力の修復試行 {{attempt}}: {{path}} でハーネスのセッションを再開します。',
+      workspacePrepared: 'ワークスペースを {{path}} に準備しました。'
+    },
     appName: 'Garrison',
     language: { label: '言語' },
     theme: { switchToLight: 'ライトテーマに切り替え', switchToDark: 'ダークテーマに切り替え' },
@@ -50,6 +73,7 @@ const ja = {
       requiredPermission: '{{resource}} に対する {{permission}} 権限が必要です。'
     },
     generic: {
+      deletedName: '{{name}} (削除済み)',
       actions: '操作',
       active: '有効',
       all: 'すべて',
@@ -80,6 +104,12 @@ const ja = {
     units: { msShort: 'ミリ秒', sShort: '秒', mShort: '分', tokPerSec: 'トークン/秒' }
   },
   errorCodes: {
+    MessageIdConflict: 'この A2A メッセージ ID は別の内容ですでに使われています。新しい ID でメッセージを送ってください。',
+    IdempotencyKeyConflict: 'この冪等性キーは別のリクエストですでに使われています。新しいキーを使ってください。',
+    DeploymentDeleted: 'この実行のデプロイメントは削除されたため、実行を再試行できません。代わりにエージェントをもう一度呼び出してください。',
+    AgentDeleted: 'この実行のエージェントは削除されたため、実行を再試行できません。',
+    NoActiveDeployment: 'このエージェントには、重みが 0 より大きい有効なデプロイメントがありません。デプロイメントを追加するか、重みを上げてください。',
+    TenantNotFound: 'そのテナントは存在しません。テナント ID を確認してください。',
     NetworkError: 'サーバーに接続できません。サーバー URL とサーバーの稼働状況を確認してください。',
     AuthenticationRequired: 'セッションの有効期限が切れました。再度サインインしてください。',
     InvalidCredentials: 'テナント、メール、パスワード、またはキーが正しくありません。',
@@ -581,6 +611,9 @@ const ja = {
       errors: { reservedPrefix: 'builtin/ という接頭辞は予約されています。' }
     },
     promptTemplates: {
+      deleteBound_other: '「{{name}}」は {{count}} 件のデプロイメントに結び付けられているため、サーバーは削除を拒否します。先に次のデプロイメントから結び付けを外してください:',
+      deleteBound_one: '「{{name}}」は {{count}} 件のデプロイメントに結び付けられているため、サーバーは削除を拒否します。先に次のデプロイメントから結び付けを外してください:',
+      deleteUnbound: '「{{name}}」とそのすべてのバージョンを削除しますか? このテンプレートを結び付けているデプロイメントはありません。この操作は元に戻せません。',
       ...rp('プロンプトテンプレート', 'Garrison が生成するすべてのプロンプトと設定ファイル。保存するたびに新しいバージョンが作成されます。', '新しいテンプレート', 'テンプレートを作成', 'テンプレートを編集', 'テンプレートの詳細', 'テンプレートを削除', 'プロンプトテンプレートはまだありません', 'テンプレートを作成するか、組み込みテンプレートを複製してください。'),
       columns: { name: '名前', kind: '種類', currentVersion: 'バージョン', description: '説明', isBuiltIn: '由来', id: 'ID', lastUpdateUtc: '更新日時' },
       fields: { name: '名前', kind: '種類', description: '説明' }
@@ -609,11 +642,12 @@ const ja = {
       actions: { test: '接続をテスト' }
     },
     secrets: {
+      errors: { expiryPast: '有効期限には未来の日時を選ぶか、期限なしにするには空のままにしてください。' },
       ...rp('シークレット', 'ハーネスと連携のための暗号化された認証情報です。値は書き込み専用です。', 'シークレットを追加', 'シークレットを作成', 'シークレットを編集', 'シークレットの詳細', 'シークレットを削除', 'シークレットはまだありません', 'エージェントに必要な API キーやトークン (例: Anthropic API キー) を追加してください。'),
       notSet: '未設定',
       columns: { name: '名前', kind: '種類', valueLast4: '値', rotatedUtc: '最終変更', expiresUtc: '有効期限', active: '有効', id: 'ID' },
       fields: { name: '名前', kind: '種類', description: '説明', value: '値', newValue: '新しい値', expiresUtc: '有効期限', active: '有効' },
-      hints: { kind: '共有サーバーでサブスクリプショントークンを使うと、プロバイダーの規約に違反する場合があります。共有環境では API キーを推奨します。' },
+      hints: { expiresUtc: '未来の日時を指定してください。空のままにすると期限なしになります。', kind: '共有サーバーでサブスクリプショントークンを使うと、プロバイダーの規約に違反する場合があります。共有環境では API キーを推奨します。' },
       actions: { setValue: '値を設定', rotate: 'ローテーション' }
     },
     workspaces: {
@@ -627,6 +661,9 @@ const ja = {
       fields: { name: '名前', kind: '種類', description: '説明', active: '有効' }
     },
     agents: {
+      deleteWithDeployments_other: '「{{name}}」と {{count}} 件のデプロイメントを削除しますか? 下のデプロイメントも削除されます。この操作は元に戻せません。',
+      deleteWithDeployments_one: '「{{name}}」と {{count}} 件のデプロイメントを削除しますか? 下のデプロイメントも削除されます。この操作は元に戻せません。',
+      deleteNoDeployments: '「{{name}}」を削除しますか? デプロイメントはありません。この操作は元に戻せません。',
       ...rp('エージェント', 'REST、MCP、A2A で公開される名前付きの機能です。実行方法はデプロイメントで決まります。', 'エージェントを追加', 'エージェントを作成', 'エージェントを編集', 'エージェントの詳細', 'エージェントを削除', 'エージェントはまだありません', 'エージェントを追加するか、構成 > マニフェストでサンプルマニフェストを適用してください。'),
       sections: { identity: '識別情報', exposure: '公開設定', io: '入力と出力', delegation: '委任' },
       columns: { name: '名前', displayName: '表示名', kind: '種類', exposure: '公開', delegationMode: '委任', tags: 'タグ', active: '有効', id: 'ID', createdUtc: '作成日時' },
@@ -659,6 +696,7 @@ const ja = {
       errors: { dnsName: '英小文字、数字、ハイフンを使い、先頭と末尾は英字か数字にしてください。' }
     },
     deployments: {
+      promptRoles: { Repair: '構造化出力の修復', DelegatedTask: '委任された実行のタスクラッパー', Task: 'タスクのラッパー', System: 'システムプロンプト' },
       ...rp('デプロイメント', 'エージェントをハーネスプロファイル、プロンプト、シークレット、MCP サーバー、配置、制限に結び付けます。', 'デプロイメントを追加', 'デプロイメントを作成', 'デプロイメントを編集', 'デプロイメントの詳細', 'デプロイメントを削除', 'デプロイメントはまだありません', 'エージェントを実行できるようにデプロイメントを作成してください。'),
       steps: { basics: '基本', harness: 'ハーネス', prompts: 'プロンプト', resources: 'リソース', overrides: '上書き', placement: '配置と制限' },
       columns: { name: '名前', agentId: 'エージェント', harnessProfileId: 'ハーネスプロファイル', model: 'モデル', weight: '重み', configVersion: '構成バージョン', active: '有効', id: 'ID', createdUtc: '作成日時' },
@@ -708,6 +746,9 @@ const ja = {
         retryOnNodeLoss: 'ノード喪失時に再キュー'
       },
       hints: {
+        secretsKinds: 'ハーネスプロファイル {{profile}} には種類が {{kinds}} のシークレットが必要です。任意のエイリアスで 1 つ結び付けてください。',
+        secretsAliases: 'ハーネスプロファイル {{profile}} は次のエイリアスで結び付けられたシークレットを読み取ります: {{aliases}}。',
+        secretsNone: 'ハーネスプロファイル {{profile}} はシークレットを読み取らないため、シークレットの結び付けは不要です。',
         promptBindings: 'プロンプトのロール (System、Task、DelegatedTask、およびプロファイルが使うロール) をテンプレートに対応付けます。バージョンを空にすると常に最新版を使います。',
         resourceBindings: 'エイリアスはテンプレート変数になります。例: {{secret.anthropic}}。',
         weight: 'デプロイメントを指定しないリクエストは、有効なデプロイメントに重みに応じて振り分けられます。',
@@ -725,6 +766,8 @@ const ja = {
     runs: {
       ...rp('実行', 'すべてのエージェント呼び出しの状態、ノード、所要時間、結果です。', '実行を追加', '実行を作成', '実行を編集', '実行の詳細', '実行を削除', '実行はまだありません', 'エージェントを呼び出すと実行が開始されます。'),
       columns: {
+        delegationWaitMs: '委任の待機時間',
+        timeToFirstTokenExcludingDelegationMs: '委任を除く TTFT',
         id: '実行',
         agentName: 'エージェント',
         status: '状態',
@@ -786,6 +829,9 @@ const ja = {
   },
   views: {
     home: {
+      observabilitySetup: 'オブザーバビリティを設定する',
+      observabilityNone: 'この環境には、オブザーバビリティのサービス (Grafana、Prometheus、Tempo、Loki) が構成されていません。',
+      observability: 'オブザーバビリティ',
       title: 'ホーム',
       subtitle: 'エージェントとワーカーノードの現在の状況です。',
       lastLoaded: '{{time}} に更新',
@@ -825,9 +871,10 @@ const ja = {
       externalServicesNote: '同梱の監視ツールです。この環境を共有する前に既定の認証情報を変更してください。',
       externalServicesNone: 'この環境には外部サービスが構成されていません。',
       credentials: '既定の認証情報',
-      services: { grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
+      services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
     invoke: {
+      noDeployment: 'このエージェントには重みが 0 より大きい有効なデプロイメントがないため、呼び出しは拒否されます。デプロイメントタブで追加するか、重みを上げてください。',
       title: '呼び出し',
       subtitle: 'エージェントにメッセージを送り、実行の記録をリアルタイムで確認します。',
       request: 'リクエスト',
@@ -848,6 +895,9 @@ const ja = {
       applySample: 'マニフェストへ移動'
     },
     runDetail: {
+      deploymentDeleted: 'この実行が使ったデプロイメントは削除されたため、再試行できません。代わりにエージェント {{agent}} をもう一度呼び出してください。',
+      templatesUsed: '使用したテンプレート',
+      agentDeleted: 'エージェント {{agent}} はもう存在しないため、この実行は再試行できません。レコード、トランスクリプト、テレメトリは引き続きここで確認できます。',
       title: '実行',
       titleWithAgent: '{{agent}} の実行',
       deployment: 'デプロイメント',
@@ -889,10 +939,13 @@ const ja = {
       notFoundTitle: '実行が見つかりません',
       notFoundBody: '削除されたか、別のテナントに属している可能性があります。',
       telemetry: {
+        delegationNote: 'この実行は委任先の実行を {{wait}} 待ちました。最初のトークンまでの時間は、この待機を含めると {{ttft}}、除くと {{excluding}} です。委任しないエージェントと比べるには後者を使ってください。',
         title: 'テレメトリー',
         phases: 'フェーズ別の実行時間',
-        phase: { queue: 'キュー待ち', startup: '起動から最初のトークンまで', streaming: 'ストリーミング', tail: '最後のトークン以降' },
+        phase: { delegation: '委任先の実行を待機', queue: 'キュー待ち', startup: '起動から最初のトークンまで', streaming: 'ストリーミング', tail: '最後のトークン以降' },
         fields: {
+          delegationWaitMs: '委任の待機時間',
+          timeToFirstTokenExcludingDelegationMs: '委任を除いた最初のトークンまでの時間',
           timeToFirstTokenMs: '最初のトークンまでの時間',
           streamingMs: 'ストリーミング時間',
           executionMs: '実行時間',
@@ -934,6 +987,10 @@ const ja = {
       manageDeployments: 'デプロイメントを管理'
     },
     templateEditor: {
+      cloneToEdit: '複製して編集',
+      builtInReadOnly: '組み込みテンプレートは読み取り専用のため、ここのフィールドはすべてロックされています。編集可能なコピーを作るには複製してください。',
+      renameHint: 'このテンプレートの名前は変更できます。デプロイメントは ID で参照するため結び付けは保たれますが、名前でこのテンプレートをインクルードしているテンプレートは手動で更新する必要があります。',
+      cloneDialog: { taken: '{{name}} という名前のテンプレートはすでに存在します。別の名前を選んでください。', reserved: 'builtin/ で始まる名前は組み込みテンプレート用に予約されています。', hint: 'コピーの名前は、あとでそのページで変更できます。', name: 'コピーの名前', body: 'コピーは現在の内容をバージョン 1 として開始し、編集、名前の変更、削除ができます。', title: '{{name}} を複製' },
       newTitle: '新しいプロンプトテンプレート',
       subtitle: 'テンプレートを書き、サンプルコンテキストでプレビューして保存します。',
       builtInNote: '組み込みテンプレートは読み取り専用です。カスタマイズするには複製し、出荷時の内容に戻すにはリセットしてください。',
@@ -971,6 +1028,8 @@ const ja = {
       }
     },
     manifests: {
+      planned: '予定: {{result}}',
+      changes: { count_other: '{{count}} 個のフィールドが変わります。', count_one: '{{count}} 個のフィールドが変わります。', empty: '(空)', after: '変更後', before: '変更前', field: 'フィールド' },
       title: 'マニフェスト',
       subtitle: '構成をコードとして適用します。ドライランは書き込まずに検証します。',
       applyTab: '適用',
@@ -1047,6 +1106,8 @@ const ja = {
       noSpecBody: 'このサーバーが利用可能な /openapi.json を返さなかったため、操作を一覧表示できません。'
     },
     settings: {
+      errors: { allowed: '次のいずれかを選んでください: {{values}}。', boolean: 'true または false を選んでください。', max: '{{max}} 以下の値を入力してください。', min: '{{min}} 以上の値を入力してください。', range: '{{min}} から {{max}} までの値を入力してください。', integer: '整数を入力してください。', number: '数値を入力してください。' },
+      notSaved: '何も保存されていません。強調表示された設定を修正してから、もう一度保存してください。',
       title: '設定',
       subtitle: '設定ファイルのサーバー設定と、データベースに保存されたクラスター設定です。',
       readOnly: '設定を読み取り専用で表示しています。変更できるのはシステム管理者のみです。',
@@ -1078,13 +1139,101 @@ const ja = {
         other: 'この設定はここでは編集できません。'
       },
       groups: { General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査', Runtime: 'ランタイム' },
-      fields: {}
+      fields: {
+        Rest: {
+          ExternalBaseUrl: '外部 REST URL',
+          PublicBaseUrl: '実行用の内部 REST URL',
+          Ssl: 'REST の TLS',
+          Port: 'REST ポート',
+          Hostname: 'REST のバインドホスト名'
+        },
+        Mcp: {
+          MaxToolWaitSeconds: 'MCP ツールの最大待機時間 (秒)',
+          PublicUrl: '実行用の内部 MCP URL',
+          Path: 'MCP パス',
+          Port: 'MCP ポート',
+          Hostname: 'MCP のバインドホスト名',
+          Enable: 'MCP サーバーを有効化'
+        },
+        Database: {
+          MaxPoolSize: '接続プールのサイズ',
+          Schema: 'データベーススキーマ',
+          Password: 'データベースのパスワード',
+          Username: 'データベースユーザー',
+          DatabaseName: 'データベース名',
+          Port: 'データベースポート',
+          Host: 'データベースホスト',
+          Filename: 'Sqlite ファイル',
+          Type: 'データベースの種類'
+        },
+        Logging: {
+          MinimumSeverity: 'ログの最小重大度',
+          LogFilename: 'ログファイル名',
+          LogDirectory: 'ログディレクトリ',
+          FileLogging: 'ファイルにログを出力',
+          ConsoleLogging: 'コンソールにログを出力'
+        },
+        Auth: {
+          RateLimitPerMinute: '1 分あたりのサインイン試行回数',
+          SignedRequestSkewSeconds: '署名付きリクエストの許容時刻ずれ (秒)',
+          AdminApiKey: '管理者 API キー',
+          TokenLifetimeMinutes: 'セッションの有効期間 (分)',
+          SigningKey: 'トークンの署名鍵',
+          Issuer: 'トークンの発行者'
+        },
+        Security: {
+          NodeSecretKey: 'ワーカーノードのシークレットキー',
+          NodeAccessKey: 'ワーカーノードのアクセスキー',
+          DefaultSecretKey: '既定のシークレットキー',
+          DefaultAccessKey: '既定のアクセスキー',
+          AdminPassword: '初期管理者のパスワード',
+          AdminEmail: '初期管理者のメールアドレス',
+          MasterKey: 'シークレット暗号化のマスターキー'
+        },
+        RequestHistory: {
+          MaxResponseBodyBytes: '記録するレスポンス本文の上限 (バイト)',
+          MaxRequestBodyBytes: '記録するリクエスト本文の上限 (バイト)',
+          RetentionDays: 'リクエスト履歴の保持期間 (日)',
+          Enabled: 'リクエスト履歴を記録'
+        },
+        Telemetry: {
+          OtlpEndpoint: 'OTLP エンドポイント',
+          OtlpEnable: 'OTLP エクスポートを有効化',
+          PrometheusPort: 'Prometheus ポート',
+          PrometheusEnable: 'Prometheus エンドポイントを有効化',
+          ServiceName: 'テレメトリのサービス名',
+          Enabled: 'テレメトリを有効化'
+        },
+        Cluster: {
+          ExpectedReplicas: 'コントロールプレーンの想定レプリカ数'
+        },
+        Scheduling: {
+          EventPollMs: 'イベントのポーリング間隔 (ms)',
+          NodeHeartbeatTimeoutMs: 'ノードのハートビートタイムアウト (ms)',
+          LeaseWaitMs: 'リースのロングポーリング待機時間 (ms)',
+          LeaseDurationMs: '実行リースの期間 (ms)'
+        },
+        Runs: {
+          EventRetentionDays: '実行イベントの保持期間 (日)',
+          RetentionDays: '実行の保持期間 (日)',
+          MaxDelegationDepth: '委任の最大深さ',
+          DefaultTimeoutSeconds: '実行の既定タイムアウト (秒)'
+        },
+        Runtime: {
+          FailBlockedAfterSeconds: 'ブロックされた実行を失敗にするまでの時間 (秒)'
+        },
+        Audit: {
+          RetentionDays: '監査の保持期間 (日)'
+        }
+      }
     },
     analytics: {
+      deletedAgent: '削除済みのエージェント ({{id}})',
+      deletedDeployment: '削除済みのデプロイメント ({{id}})',
       title: '分析',
       subtitle: '実行の速度、コスト、信頼性の推移です。',
       loading: '分析を読み込み中...',
-      filters: { range: '期間', from: '開始', to: '終了', agentId: 'エージェント', harnessType: 'ハーネス', deploymentId: 'デプロイメント', model: 'モデル', groupBy: 'グループ化' },
+      filters: { ttft: 'TTFT から委任の待機時間を除く', range: '期間', from: '開始', to: '終了', agentId: 'エージェント', harnessType: 'ハーネス', deploymentId: 'デプロイメント', model: 'モデル', groupBy: 'グループ化' },
       allAgents: 'すべてのエージェント',
       allHarnesses: 'すべてのハーネス',
       allDeployments: 'すべてのデプロイメント',
@@ -1111,6 +1260,8 @@ const ja = {
       emptyBody: '期間とフィルターに一致するものはありません。期間を広げるか、フィルターを解除するか、エージェントを呼び出してください。',
       noDataInChart: '選択した期間には、このグラフのデータはありません。',
       cards: {
+        delegationWait: '委任の平均待機時間',
+        ttftExcludingDelegation: '委任を除いた平均 TTFT',
         runs: '実行',
         runsNote: '成功 {{succeeded}}、失敗 {{failed}}',
         successRate: '成功率',
@@ -1126,7 +1277,7 @@ const ja = {
       },
       charts: {
         outcomes: { title: '実行の結果', help: '区間ごとの実行数を終了の仕方別に示します。' },
-        ttft: { title: '最初のトークンまでの時間', help: 'ハーネスの起動から最初のモデル出力までの時間です。CLI の起動時間を含みます。' },
+        ttft: { helpExcluding: 'ハーネスの起動から最初のモデル出力までの時間です。委任先の実行を待った時間は含みません。', title: '最初のトークンまでの時間', help: 'ハーネスの起動から最初のモデル出力までの時間です。CLI の起動時間を含みます。' },
         duration: { title: 'ストリーミング時間と実行時間', help: 'ストリーミングはモデルの最初の出力から最後の出力まで、実行はプロセスの起動から終了までです。' },
         queue: { title: 'キュー待ち時間', help: 'キューに入ってからワーカーノードにリースされるまでの時間です。' },
         tokens: { title: 'トークン', help: '区間ごとの入力、出力、キャッシュ済み、推論トークンです。' },
@@ -1138,6 +1289,10 @@ const ja = {
       },
       groupedTitle: '{{chart}}: {{metric}}',
       metrics: {
+        delegationWaitMsAvg: '委任の待機時間 (平均)',
+        timeToFirstTokenExcludingDelegationMsP95: '委任を除く (p95)',
+        timeToFirstTokenExcludingDelegationMsP50: '委任を除く (p50)',
+        timeToFirstTokenExcludingDelegationMsAvg: '委任を除く (平均)',
         runs: '実行',
         succeeded: '成功',
         failed: '失敗',

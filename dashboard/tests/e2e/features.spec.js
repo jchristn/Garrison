@@ -50,13 +50,14 @@ test('run detail shows every telemetry field with an explanation', async ({ page
   await page.goto('/dashboard/runs/run_0001');
   const panel = page.getByTestId('run-telemetry');
   await expect(panel).toBeVisible();
-  for (const key of ['timeToFirstTokenMs', 'streamingMs', 'executionMs', 'queueMs', 'totalMs', 'outputTokensPerSecond', 'inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens', 'toolCallCount', 'costUsd', 'firstTokenUtc', 'lastTokenUtc']) {
+  for (const key of ['timeToFirstTokenMs', 'timeToFirstTokenExcludingDelegationMs', 'delegationWaitMs', 'streamingMs', 'executionMs', 'queueMs', 'totalMs', 'outputTokensPerSecond', 'inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens', 'toolCallCount', 'costUsd', 'firstTokenUtc', 'lastTokenUtc']) {
     const item = panel.locator(`[data-telemetry="${key}"]`);
     await expect(item, key).toBeVisible();
     expect((await item.locator('.detail-item-label').getAttribute('data-tip')).length, key).toBeGreaterThan(40);
   }
   await expect(panel.locator('[data-telemetry="timeToFirstTokenMs"] .detail-item-value')).toHaveText('1.21 s');
-  await expect(panel.locator('svg.telemetry-phases rect')).toHaveCount(4);
+  // run_0001 waited on a delegated run before its first token, so the bar has a delegation phase too (M1-08).
+  await expect(panel.locator('svg.telemetry-phases rect')).toHaveCount(5);
 });
 
 // ---------------------------------------------------------------- P5.45 explainers
@@ -141,9 +142,12 @@ test('analytics filters, group by, and custom range are synced to the URL', asyn
   await page.locator('#analytics-groupBy').selectOption('harness');
   await expect(page).toHaveURL(/groupBy=harness/);
   await expect(page.getByTestId('analytics-chart-ttft').locator('.chart-legend-toggle')).toHaveCount(2);
+  // Harness legends show display names, never enum names (M1-24).
+  await expect(page.getByTestId('analytics-chart-ttft').locator('.chart-legend')).toContainText('Claude Code');
+  await expect(page.getByTestId('analytics-chart-ttft').locator('.chart-legend')).not.toContainText('ClaudeCode');
   await page.getByTestId('analytics-chart-ttft').locator('.chart-legend-toggle').first().click();
   await expect(page.getByTestId('analytics-chart-ttft').locator('.chart-legend-toggle').first()).toHaveAttribute('aria-pressed', 'false');
-  await page.getByRole('tab', { name: 'Custom' }).click();
+  await page.getByRole('button', { name: 'Custom', exact: true }).click();
   await expect(page).toHaveURL(/range=custom&from=.*&to=/);
   await expect(page.locator('#analytics-from')).toBeVisible();
   await page.reload();
@@ -195,7 +199,7 @@ test('analytics charts export CSV, PNG, SVG, and JSON with descriptive names', a
   const csv = await exportAs(page, 'export-ttft', 'csv');
   expect(csv.name).toBe('garrison_analytics-ttft_week_agentid-agt_0001.csv');
   const lines = csv.body.toString('utf8').trim().split('\r\n');
-  expect(lines[0]).toBe('bucket_start_utc,Average,Median (p50),p95');
+  expect(lines[0]).toBe('bucket_start_utc,Average,Median (p50),p95,Excluding delegation (avg)');
   expect(lines.length).toBe(25);
   expect(lines[1]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z,\d+(\.\d+)?,/);
 
@@ -209,7 +213,7 @@ test('analytics charts export CSV, PNG, SVG, and JSON with descriptive names', a
   expect(svg.name).toMatch(/\.svg$/);
   const svgText = svg.body.toString('utf8');
   expect(svgText).toContain('Time to first token');
-  expect(svgText).toContain('Agent: agt_0001');
+  expect(svgText).toContain('Agent: echo-agent');
   expect(svgText).toContain('Median (p50)');
 
   const png = await exportAs(page, 'export-ttft', 'png');

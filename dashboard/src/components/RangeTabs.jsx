@@ -2,18 +2,20 @@ import { useTranslation } from 'react-i18next';
 import { RefreshIcon } from './Icons';
 import { tip } from './Tooltip';
 
-/** Segmented range control + optional refresh button. */
+/**
+ * Segmented range control + optional refresh button (M1-33). A group of toggle buttons (role button with
+ * aria-pressed), not tabs: picking a range filters the same content rather than switching panels.
+ */
 export default function RangeTabs({ ranges, value, onChange, onRefresh, loading, label }) {
   const { t } = useTranslation();
   return (
     <div className="chart-controls">
-      <div className="range-group" role="tablist" aria-label={label || t('components.chart.range')}>
+      <div className="range-group segmented" role="group" aria-label={label || t('components.chart.range')}>
         {ranges.map((r) => (
           <button
             key={r.id}
             type="button"
-            role="tab"
-            aria-selected={value === r.id}
+            aria-pressed={value === r.id}
             className={`range-btn ${value === r.id ? 'active' : ''}`}
             onClick={() => onChange(r.id)}
             {...tip(t(`tips.chart.ranges.${r.id}`))}

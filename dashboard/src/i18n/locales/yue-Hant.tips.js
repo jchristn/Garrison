@@ -2,6 +2,8 @@
 // Tooltips say what a control is and how it is used, never just the label again (D-030).
 
 const TELEMETRY = {
+  delegationWaitMs: '委派等候時間：呢個執行等佢經 Garrison 開嘅子執行（即係佢委派咗嘅其他代理程式）等咗幾耐，用嗰啲子執行嘅伺服器時間戳記計。如果執行冇委派過任何嘢，就係零或者不適用。',
+  timeToFirstTokenExcludingDelegationMs: '第一個 Token 時間（唔計委派）：第一個 Token 時間減去執行喺第一個輸出之前等委派執行嘅時間。可以用嚟公平噉比較會委派同唔會委派嘅代理程式。用伺服器時間戳記計，永遠唔會係負數。',
   timeToFirstTokenMs: '第一個 Token 時間：由工作節點啟動 Harness 程序開始，計到模型產生第一個輸出（文字或思考）為止。呢個時間包埋 Harness 啟動，所以 CLI 啟動得慢都會喺度反映出嚟。由工作節點用單調時鐘量度。',
   streamingMs: '串流時間：由模型第一個輸出計到最後一個輸出。即係模型實際用咗幾耐嚟產生輸出。由工作節點用單調時鐘量度。',
   executionMs: '執行時間：由 Harness 程序啟動到程序結束，由工作節點量度。舊版伺服器如果冇回報呢個數，就會改用開始同完成嘅時間戳記。',
@@ -28,6 +30,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  ids: { deleted: '呢條記錄已經刪咗。ID {{id}}。複製掣會複製呢個 ID。', named: 'ID {{id}}。撳複製掣就可以複製呢個 ID，畀 API、SDK 或者支援要求用。' },
   common: {
     fields: {
       name: '呢筆記錄喺租用戶入面嘅唯一名稱。其他記錄同清單都係用呢個名嚟引用佢。',
@@ -204,6 +207,7 @@ const tips = {
     confirm: '執行上面所講嘅操作。'
   },
   copy: {
+    id: '將記錄 ID 複製去剪貼簿，畀 REST API、SDK 或者篩選器用。',
     value: '將呢個數值複製到剪貼簿。',
     block: '將成段內容複製到剪貼簿，可以直接貼入終端機或者檔案。',
     done: '已經複製到剪貼簿。'
@@ -270,6 +274,7 @@ const tips = {
     panel: '呢個執行每個階段用咗幾耐、消耗咗啲乜。時長嚟自工作節點同伺服器嘅時鐘，每個欄位都有說明。',
     phases: '執行嘅時間花咗喺邊度，由左至右：喺隊列等候、Harness 啟動到第一個 Token、串流輸出，同埋其餘執行時間。',
     phase: {
+      delegation: '喺模型第一個輸出之前，執行等佢委派咗嘅子執行嘅時間。呢段唔係 Harness 啟動時間。',
       queue: '喺隊列等工作節點租用呢個執行。',
       startup: '由程序啟動到模型第一個輸出，包括 Harness 啟動同第一個模型請求。',
       streaming: '由模型第一個輸出到最後一個輸出。',
@@ -531,8 +536,9 @@ const tips = {
       actions: { clone: '喺你嘅租用戶複製一份可以編輯嘅設定檔，名稱會加上 -custom 後綴。' }
     },
     promptTemplates: {
+      actions: { clone: '用你揀嘅新名複製呢個範本，然後喺編輯器打開副本。' },
       add: '喺有即時預覽嘅編輯器寫一個新嘅提示範本。每次儲存都會變成一個版本。',
-      name: '範本名稱。部署同其他範本都係用呢個名嚟引用佢。',
+      name: '範本名稱，喺租用戶入面唔可以重複。部署用 ID 綁定範本，所以改名唔會影響綁定；引入就用名稱參照。',
       kind: '範本嘅用途：系統提示、任務包裝、片段、工具描述，或者設定檔。',
       currentVersion: '最新儲存嘅版本。部署可以固定一個版本，或者跟住最新版本。',
       description: '範本做咩，同埋喺邊度用到。'
@@ -793,6 +799,8 @@ const tips = {
   },
   views: {
     home: {
+      observabilityDocs: '喺新分頁打開遙測指南：點樣收集 Garrison 指標，同埋點樣連接 Grafana、Prometheus、Tempo 或者 Loki。',
+      observability: '連去呢個環境報告已經設定好嘅指標、儀表板同追蹤工具。未設定嘅服務唔會顯示。',
       kpis: {
         agents: '呢個租用戶定義咗嘅代理程式。撳一下打開「代理程式」列表。',
         deployments: '所有代理程式嘅部署。每個部署都係代理程式嘅一種運行方式。撳一下打開佢哋。',
@@ -813,6 +821,7 @@ const tips = {
         analytics: '睇執行速度、Token、成本同結果隨時間嘅變化。'
       },
       services: {
+        loki: '喺新分頁打開 Loki，搜尋 Garrison 日誌。',
         grafana: '喺新分頁打開顯示 Garrison 指標嘅 Grafana 儀表板。',
         prometheus: '喺新分頁打開收集 Garrison 指標嘅 Prometheus 伺服器。',
         tempo: '喺新分頁打開 Tempo 瀏覽追蹤記錄。'
@@ -820,6 +829,9 @@ const tips = {
       serviceGeneric: '喺新分頁打開呢個隨附嘅服務。'
     },
     runDetail: {
+      eventCode: '用你嘅語言顯示 Garrison 喺度寫咗咩類型嘅訊息。隔籬嘅文字係伺服器或者工作節點發出嘅原本訊息。',
+      openTemplate: '打開範本 {{name}}。呢個執行用咗第 {{version}} 版；「版本」分頁會顯示嗰個內容同埋佢同而家版本嘅分別。',
+      templatesUsed: '編譯呢個執行時用咗嘅提示範本確實版本。撳其中一個就可以打開嗰個範本比較版本。',
       live: '事件會喺 Harness 產生嗰陣由伺服器即時串流過嚟。',
       viewJson: '以 JSON 顯示完整嘅執行記錄，包括每個遙測欄位。',
       deployment: '呢個執行揀咗嘅部署，可能係指名揀，亦可能係按流量權重揀。',
@@ -883,6 +895,8 @@ const tips = {
       openRun: '打開完整嘅執行頁面，睇結果、遙測數據同 stderr。'
     },
     manifests: {
+      planned: '套用呢份文件會做嘅嘢：建立記錄、更新記錄，或者保持唔變。試行只會驗證，唔會改任何嘢。',
+      changes: { after: '清單會設定嘅值。太長嘅值會喺 200 個字元度截斷。', before: '而家儲存緊嘅值。太長嘅值會喺 200 個字元度截斷。', field: '清單會改嘅呢條記錄嘅設定，例如 model 或者 parameters.model。' },
       results: '套用對清單入面每份文件做咗啲乜。',
       kind: '文件描述嘅記錄類型，例如 Agent 或 Deployment。',
       name: '文件 metadata 入面嘅記錄名稱。',
@@ -903,9 +917,11 @@ const tips = {
       confirmApply: '即刻將清單寫入呢個租用戶。'
     },
     templateEditor: {
-      clone: '複製一份可以編輯嘅範本，名稱加上 -custom 後綴。',
+      cloneName: '副本個名。用細楷字母、數字、連字號同斜線都得；builtin/ 開頭係保留咗嘅。',
+      cloneConfirm: '用呢個名建立副本，再喺編輯器打開。',
+      clone: '整一份可以編輯嘅範本副本。建立之前可以揀副本個名。',
       reset: '將呢個內置範本還原做 Garrison 原本提供嘅內容。',
-      delete: '刪除呢個範本。綁定咗佢嘅部署會編譯失敗。',
+      delete: '刪除呢個範本同佢所有版本。只要有部署綁定緊佢，伺服器就會拒絕；確認對話框會列出嗰啲部署。',
       create: '建立範本同佢嘅第一個版本。',
       save: '將內容儲存成新版本。跟住最新版本嘅部署會喺新執行用佢。',
       content: '範本文字。可以用 {{variables}}、條件、迴圈同引入；你打字嗰陣預覽會即時更新。',
@@ -987,6 +1003,7 @@ const tips = {
       confirmExecute: '就算可能會修改或者刪除資料，都照樣傳送呢個請求。'
     },
     settings: {
+      settingPath: '設定路徑：{{path}}。喺設定檔同設定嘅 REST API 入面要用呢個名。',
       viewJson: '顯示設定嘅原始回應。',
       restart: '重新啟動呢個控制平面副本，等需要重新啟動嘅設定生效。',
       save: '儲存每個改咗嘅設定。即時設定會即刻生效；其他要等重新啟動。',
@@ -1021,6 +1038,8 @@ const tips = {
   },
   analytics: {
     filters: {
+      ttft: '剔咗之後，第一個 Token 時間圖表會唔計執行等委派代理程式嘅時間，咁會委派嘅代理程式就可以同直接回答嘅公平比較。',
+      range: '所有圖表同總數嘅時間範圍：最近一個鐘、一日、一個星期、30 日，或者自訂開始同結束時間。',
       from: '自訂範圍嘅開始，以你本地時區計。',
       to: '自訂範圍嘅結束，以你本地時區計。',
       agentId: '只計呢個代理程式嘅執行。部署列表會收窄到佢嘅部署。',
@@ -1030,6 +1049,8 @@ const tips = {
       groupBy: '將每個圖表按代理程式、Harness、模型，或者 Harness 同模型組合拆成獨立系列，方便比較。'
     },
     cards: {
+      delegationWait: '執行等佢委派咗嘅子執行嘅平均時間。如果範圍入面冇執行委派過，就係不適用。',
+      ttftExcludingDelegation: '唔計等委派代理程式時間嘅平均第一個 Token 時間。附註顯示第 95 百分位數。',
       runs: '範圍內符合篩選嘅已要求執行。',
       successRate: '成功執行佔已完成執行（成功、失敗、已取消同逾時）嘅比例。',
       ttft: '有產生輸出嘅執行嘅平均第一個 Token 時間。備註顯示第 95 百分位數。',
@@ -1053,6 +1074,10 @@ const tips = {
       usageCost: '回報成本隨時間嘅變化，每個 Harness 同模型組合係一段疊加。將滑鼠停喺棒形上面可以睇拆分。'
     },
     metrics: {
+      delegationWaitMsAvg: '執行等佢委派咗嘅子執行嘅平均時間。撳一下就可以隱藏或者顯示呢條線。',
+      timeToFirstTokenExcludingDelegationMsP95: '唔計委派等候嘅第一個 Token 時間第 95 百分位數。撳一下就可以隱藏或者顯示呢條線。',
+      timeToFirstTokenExcludingDelegationMsP50: '唔計委派等候嘅第一個 Token 時間中位數。撳一下就可以隱藏或者顯示呢條線。',
+      timeToFirstTokenExcludingDelegationMsAvg: '唔計委派等候嘅平均第一個 Token 時間。撳一下就可以隱藏或者顯示呢條線。',
       runs: '呢個區段入面要求嘅執行。',
       succeeded: '成功完成嘅執行。撳一下隱藏或者顯示呢個系列。',
       failed: '失敗嘅執行。撳一下隱藏或者顯示呢個系列。',

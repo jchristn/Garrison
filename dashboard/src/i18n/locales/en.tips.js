@@ -2,6 +2,8 @@
 // Tooltips say what a control is and how it is used, never just the label again (D-030).
 
 const TELEMETRY = {
+  delegationWaitMs: 'Delegation wait: how long this run waited on child runs it started through Garrison (other agents it delegated to), from the server timestamps of those child runs. Zero or n/a when the run delegated nothing.',
+  timeToFirstTokenExcludingDelegationMs: 'Time to first token excluding delegation: time to first token minus the time the run spent waiting on runs it delegated to before its first output. Use it to compare agents that delegate with agents that do not. Measured from server timestamps; never negative.',
   timeToFirstTokenMs: 'Time to first token: from the moment the worker starts the harness process until the model produces its first output (text or thinking). It includes harness startup, so a slow CLI start shows up here. Measured on the worker with a monotonic clock.',
   streamingMs: 'Streaming time: from the first model output to the last one. This is how long the model was actually producing output. Measured on the worker with a monotonic clock.',
   executionMs: 'Execution time: from harness process start to process exit, as measured by the worker. Older servers that do not report it fall back to the started and completed timestamps.',
@@ -28,6 +30,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  ids: { deleted: 'This record was deleted. ID {{id}}. The copy button copies the ID.', named: 'ID {{id}}. Use the copy button to copy the ID for the API, SDKs, or a support request.' },
   common: {
     fields: {
       name: 'Unique name for this record within the tenant. Other records and manifests refer to it by this name.',
@@ -204,6 +207,7 @@ const tips = {
     confirm: 'Carry out the action described above.'
   },
   copy: {
+    id: 'Copy the record ID to the clipboard, for use with the REST API, SDKs, or filters.',
     value: 'Copy this value to the clipboard.',
     block: 'Copy the whole block to the clipboard, ready to paste into a terminal or file.',
     done: 'Copied to the clipboard.'
@@ -270,6 +274,7 @@ const tips = {
     panel: 'How long each phase of this run took and what it consumed. Durations come from the worker and server clocks described on each field.',
     phases: 'Where the run spent its time, left to right: waiting in the queue, harness startup until the first token, streaming output, and the rest of execution.',
     phase: {
+      delegation: 'Time before the first model output that the run spent waiting on child runs it delegated to. It is not harness startup.',
       queue: 'Waiting in the queue for a worker node to lease the run.',
       startup: 'From process start to the first model output, including harness startup and the first model request.',
       streaming: 'From the first to the last model output.',
@@ -531,8 +536,9 @@ const tips = {
       actions: { clone: 'Make an editable copy of this profile in your tenant, named with a -custom suffix.' }
     },
     promptTemplates: {
+      actions: { clone: 'Copy this template under a new name you choose, then open the copy in the editor.' },
       add: 'Write a new prompt template in the editor with live preview. Each save becomes a version.',
-      name: 'Template name. Deployments and other templates refer to it by this name.',
+      name: 'Template name, unique in the tenant. Deployments bind templates by ID, so renaming a custom template keeps their bindings; includes refer to it by name.',
       kind: 'What the template is used for: system prompt, task wrapper, fragment, tool description, or config file.',
       currentVersion: 'The newest saved version. Deployments either pin a version or follow the newest.',
       description: 'What the template does and where it is used.'
@@ -793,6 +799,8 @@ const tips = {
   },
   views: {
     home: {
+      observabilityDocs: 'Open the telemetry guide in a new tab: how to scrape Garrison metrics and connect Grafana, Prometheus, Tempo, or Loki.',
+      observability: 'Links to the metrics, dashboard, and tracing tools this deployment reports as configured. Services that are not configured are not shown.',
       kpis: {
         agents: 'Agents defined in this tenant. Click to open the Agents list.',
         deployments: 'Deployments across every agent. Each one is a way an agent can run. Click to open them.',
@@ -813,6 +821,7 @@ const tips = {
         analytics: 'See run speed, tokens, cost, and outcomes over time.'
       },
       services: {
+        loki: 'Open Loki to search Garrison logs in a new tab.',
         grafana: 'Open Grafana dashboards for Garrison metrics in a new tab.',
         prometheus: 'Open the Prometheus server that scrapes Garrison metrics in a new tab.',
         tempo: 'Open Tempo to browse traces in a new tab.'
@@ -820,6 +829,9 @@ const tips = {
       serviceGeneric: 'Open this bundled service in a new tab.'
     },
     runDetail: {
+      eventCode: 'What kind of message Garrison wrote here, in your language. The text next to it is the original message from the server or worker.',
+      openTemplate: 'Open template {{name}}. This run used version {{version}}; its Versions tab shows that content and the diff to the current one.',
+      templatesUsed: 'The exact prompt template versions this run was compiled with. Click one to open that template and compare versions.',
       live: 'Events are streaming live from the server as the harness produces them.',
       viewJson: 'Show the complete run record as JSON, including every telemetry field.',
       deployment: 'The deployment that was selected for this run, by name or by traffic weight.',
@@ -883,6 +895,8 @@ const tips = {
       openRun: 'Open the full run page with result, telemetry, and stderr.'
     },
     manifests: {
+      planned: 'What applying this document would do: create the record, update it, or leave it unchanged. A dry run validates without changing anything.',
+      changes: { after: 'The value the manifest sets. Long values are cut at 200 characters.', before: 'The value stored now. Long values are cut at 200 characters.', field: 'The setting of this record that the manifest changes, for example model or parameters.model.' },
       results: 'What the apply did with each document in the manifest.',
       kind: 'The kind of record the document describes, such as Agent or Deployment.',
       name: 'The record name from the document metadata.',
@@ -903,9 +917,11 @@ const tips = {
       confirmApply: 'Write the manifest to this tenant now.'
     },
     templateEditor: {
-      clone: 'Make an editable copy of this template with a -custom suffix.',
+      cloneName: 'Name for the copy. Lowercase letters, digits, hyphens, and slashes work well; the builtin/ prefix is reserved.',
+      cloneConfirm: 'Create the copy with this name and open it in the editor.',
+      clone: 'Make an editable copy of this template. You choose the copy\'s name before it is created.',
       reset: 'Restore this built-in template to the content Garrison ships with.',
-      delete: 'Delete this template. Deployments that bind it will fail to compile.',
+      delete: 'Delete this template and its versions. The server refuses while any deployment binds it; the confirmation lists them.',
       create: 'Create the template and its first version.',
       save: 'Save the content as a new version. Deployments that follow the newest version pick it up for new runs.',
       content: 'The template text. Use {{variables}}, conditions, loops, and includes; the preview updates as you type.',
@@ -987,6 +1003,7 @@ const tips = {
       confirmExecute: 'Send this request even though it may change or delete data.'
     },
     settings: {
+      settingPath: 'Setting path: {{path}}. Use this name in the settings file and in the settings REST API.',
       viewJson: 'Show the raw settings response.',
       restart: 'Restart this control-plane replica so restart-required settings take effect.',
       save: 'Save every changed setting. Live settings apply at once; others wait for a restart.',
@@ -1021,6 +1038,8 @@ const tips = {
   },
   analytics: {
     filters: {
+      ttft: 'When checked, the time to first token chart leaves out the time runs spent waiting on agents they delegated to, so delegating agents compare fairly with agents that answer directly.',
+      range: 'Time window for every chart and total: the last hour, day, week, or 30 days, or a custom start and end.',
       from: 'Start of the custom range, in your local time zone.',
       to: 'End of the custom range, in your local time zone.',
       agentId: 'Count only runs of this agent. The deployment list narrows to its deployments.',
@@ -1030,6 +1049,8 @@ const tips = {
       groupBy: 'Split every chart into one series per agent, harness, model, or harness and model pair, so you can compare them.'
     },
     cards: {
+      delegationWait: 'Average time runs spent waiting on child runs they delegated to. n/a when no run in the range delegated.',
+      ttftExcludingDelegation: 'Average time to first token without the time runs waited on agents they delegated to. The note shows the 95th percentile.',
       runs: 'Runs requested in the range that match the filters.',
       successRate: 'Succeeded runs as a share of finished runs (succeeded, failed, cancelled, and timed out).',
       ttft: 'Average time to first token across runs that produced output. The note shows the 95th percentile.',
@@ -1053,6 +1074,10 @@ const tips = {
       usageCost: 'Reported cost over time, one stacked segment per harness and model pair. Hover a bar for the split.'
     },
     metrics: {
+      delegationWaitMsAvg: 'Mean time runs waited on child runs they delegated to. Click to hide or show this line.',
+      timeToFirstTokenExcludingDelegationMsP95: '95th percentile time to first token without the wait on delegated runs. Click to hide or show this line.',
+      timeToFirstTokenExcludingDelegationMsP50: 'Median time to first token without the wait on delegated runs. Click to hide or show this line.',
+      timeToFirstTokenExcludingDelegationMsAvg: 'Mean time to first token without the wait on delegated runs. Click to hide or show this line.',
       runs: 'Runs requested in the bucket.',
       succeeded: 'Runs that finished successfully. Click to hide or show this series.',
       failed: 'Runs that failed. Click to hide or show this series.',

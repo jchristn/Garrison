@@ -13,6 +13,7 @@ import { useToast } from '../context/ToastContext';
 import { TERMINAL_RUN_STATUSES } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
+import { translateServerText } from '../utils/serverText';
 import Explainer from '../components/Explainer';
 import { tip } from '../components/Tooltip';
 
@@ -27,6 +28,7 @@ export default function InvokeView() {
 
   const [agents, setAgents] = useState([]);
   const [deployments, setDeployments] = useState([]);
+  const [deploymentsFor, setDeploymentsFor] = useState(null);
   const [agentId, setAgentId] = useState(searchParams.get('agentId') || '');
   const [deploymentId, setDeploymentId] = useState(searchParams.get('deploymentId') || '');
   const [params, setParams] = useState({});
@@ -58,11 +60,19 @@ export default function InvokeView() {
     }
     apiClient
       .listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 })
-      .then((r) => setDeployments((r.items || []).filter((d) => d.agentId === agentId)))
-      .catch(() => setDeployments([]));
+      .then((r) => {
+        setDeployments((r.items || []).filter((d) => d.agentId === agentId));
+        setDeploymentsFor(agentId);
+      })
+      .catch(() => {
+        setDeployments([]);
+        setDeploymentsFor(null);
+      });
   }, [apiClient, tenantId, agentId]);
 
   const deployment = deployments.find((d) => d.id === deploymentId);
+  // M1-26: say up front when the agent has nothing to route to, instead of letting the invoke fail.
+  const noRoutableDeployment = deploymentsFor === agentId && !deployments.some((d) => d.active !== false && Number(d.weight) > 0);
   const overrides = deployment?.allowedRunOverrides || [];
 
   const stopStream = () => {
@@ -194,6 +204,11 @@ export default function InvokeView() {
               <textarea id="invoke-message" {...tip(t('tips.views.invoke.message'))} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('views.invoke.messagePlaceholder')} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()} />
               <div className="field-hint">{t('views.invoke.shortcut')}</div>
             </div>
+            {noRoutableDeployment && !deploymentId && (
+              <div className="warning-banner" role="status" data-testid="invoke-no-deployment">
+                {t('views.invoke.noDeployment')}
+              </div>
+            )}
             {error && <ErrorBanner message={errorMessage(t, error)} />}
             <div className="flex gap-sm">
               <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !message.trim() || active} data-testid="invoke-send" {...tip(t('tips.views.invoke.send'))}>
@@ -226,7 +241,7 @@ export default function InvokeView() {
                     <CodeBlock value={run.resultText} />
                   </>
                 )}
-                {run.errorMessage && <div className="error-banner">{run.errorMessage}</div>}
+                {run.errorMessage && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
               </>
             )}
           </section>

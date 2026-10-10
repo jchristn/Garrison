@@ -16,6 +16,10 @@ import { resourceTip, enumTip, optionalText } from '../utils/tips';
 import { enumLabel, enumOptions, enumList } from '../utils/enums';
 import { AgentRelationDiagram } from '../components/Explainer';
 import { tip } from '../components/Tooltip';
+import NamedId from '../components/NamedId';
+import CloneTemplateModal from '../components/CloneTemplateModal';
+import { PROMPT_ROLES, defaultTemplateFor, templatesForRole, profileSecretNeeds } from '../utils/deployments';
+import { formatList } from '../i18n/formatters';
 
 // ---------------------------------------------------------------- helpers
 //
@@ -64,6 +68,44 @@ function tenantApi(list, create, update, remove) {
     update: update ? (c, tenant, id, body) => c[update](tenant, id, body) : null,
     remove: remove ? (c, tenant, id) => c[remove](tenant, id) : null
   };
+}
+
+/** Names of records a delete affects, shown under the confirmation message. */
+function affectedList(names) {
+  return (
+    <ul className="plain-list confirm-list" data-testid="delete-affected">
+      {names.map((n) => (
+        <li key={n}>
+          <code>{n}</code>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Deployments that bind a prompt template, by name (M1-21). */
+export async function deploymentsBindingTemplate(apiClient, tenantId, templateId) {
+  const list = await safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }));
+  return list.filter((d) => (d.promptBindings || []).some((b) => b.templateId === templateId)).map((d) => d.name);
+}
+
+/** Delete confirmation text for a prompt template: bound templates cannot be deleted, so list who binds them. */
+export async function templateDeletePreview(t, apiClient, tenantId, template) {
+  const names = await deploymentsBindingTemplate(apiClient, tenantId, template.id);
+  if (!names.length) return { message: t('resources.promptTemplates.deleteUnbound', { name: template.name }), names };
+  return { message: t('resources.promptTemplates.deleteBound', { name: template.name, count: names.length }), details: affectedList(names), names };
+}
+
+/** Which secrets the chosen harness profile reads, as one translated sentence or two (M1-04). */
+function secretNeedsHint(t, i18n, profile) {
+  if (!profile) return t('resources.deployments.hints.resourceBindings');
+  const { aliases, kinds } = profileSecretNeeds(profile);
+  const lng = i18n?.language;
+  if (!aliases.length && !kinds.length) return t('resources.deployments.hints.secretsNone', { profile: profile.name });
+  const parts = [];
+  if (aliases.length) parts.push(t('resources.deployments.hints.secretsAliases', { profile: profile.name, aliases: formatList(aliases, lng) }));
+  if (kinds.length) parts.push(t('resources.deployments.hints.secretsKinds', { profile: profile.name, kinds: formatList(kinds.map((k) => enumLabel(t, 'secretKind', k)), lng, { style: 'long', type: 'disjunction' }) }));
+  return parts.join(' ');
 }
 
 // ---------------------------------------------------------------- administration
@@ -132,12 +174,13 @@ export const credentialsConfig = {
   explainer: 'credentials',
   api: tenantApi('listCredentials', 'createCredential', 'updateCredential', 'deleteCredential'),
   loadOptions: async ({ apiClient, tenantId }) => ({ users: await safeList(apiClient.listUsers(tenantId, { pageNumber: 1, pageSize: 1000 })) }),
+  loadLookups: async ({ apiClient, tenantId }) => ({ users: Object.fromEntries((await safeList(apiClient.listUsers(tenantId, { pageNumber: 1, pageSize: 1000 }))).map((u) => [u.id, u.email])) }),
   blank: () => ({ name: '', userId: '', authMode: 'Hybrid', expiresUtc: null, active: true }),
-  columns: ({ t, i18n }) => [
+  columns: ({ t, i18n, lookups }) => [
     nameCol('credentials', t),
     col('credentials', t, 'accessKey', (r) => <CopyableId value={r.accessKey} max={28} />, { cellClass: 'cell-id' }),
     col('credentials', t, 'secretKeyLast4', (r) => (r.secretKeyLast4 ? <code>****{r.secretKeyLast4}</code> : '-')),
-    col('credentials', t, 'userId', (r) => <CopyableId value={r.userId} />, { defaultHidden: true }),
+    col('credentials', t, 'userId', (r) => <NamedId id={r.userId} name={lookups?.users?.[r.userId]} />, { defaultHidden: true, csv: (r) => lookups?.users?.[r.userId] || r.userId }),
     col('credentials', t, 'lastUsedUtc', (r) => (r.lastUsedUtc ? formatRelativeTime(r.lastUsedUtc, i18n.language) : t('common.generic.never'))),
     col('credentials', t, 'expiresUtc', (r) => (r.expiresUtc ? formatDateTime(r.expiresUtc, i18n.language) : t('common.generic.never'))),
     activeCol('credentials', t),
@@ -255,9 +298,11 @@ function assignmentConfig(id, principalKey, api, loadPrincipals, principalLabel)
       principals: await loadPrincipals(ctx),
       roles: await safeList(ctx.apiClient.listRoles(ctx.tenantId, { pageNumber: 1, pageSize: 1000 }))
     }),
+    // Show who holds the role by name, with the ID on hover (M1-20).
+    loadLookups: async (ctx) => ({ principals: Object.fromEntries((await loadPrincipals(ctx)).map((p) => [p.id, principalLabel(p)])) }),
     blank: () => ({ [principalKey]: '', roleId: '', resourceScope: 'Tenant', resourceId: '', inheritsToChildren: true, active: true }),
-    columns: ({ t, i18n }) => [
-      col(id, t, principalKey, (r) => <CopyableId value={r[principalKey]} />, { pinned: true, cellClass: 'cell-id' }),
+    columns: ({ t, i18n, lookups }) => [
+      col(id, t, principalKey, (r) => <NamedId id={r[principalKey]} name={lookups?.principals?.[r[principalKey]]} />, { pinned: true, csv: (r) => lookups?.principals?.[r[principalKey]] || r[principalKey] }),
       col(id, t, 'roleName', (r) => <Badge tone="info" tip={t('tips.badges.role', { role: r.roleName || r.roleId || '-' })}>{r.roleName || r.roleId || '-'}</Badge>),
       col(id, t, 'resourceScope', (r) => enumLabel(t, 'resourceScope', r.resourceScope)),
       col(id, t, 'resourceId', (r) => (r.resourceId ? <CopyableId value={r.resourceId} /> : '-')),
@@ -498,13 +543,15 @@ export const secretsConfig = {
     field('secrets', t, 'kind', 'select', { required: true, options: enumOptions(t, 'secretKind') }),
     field('secrets', t, 'description', 'textarea'),
     field('secrets', t, 'value', 'password', { required: mode === 'create', showIf: () => mode === 'create' }),
-    field('secrets', t, 'expiresUtc', 'datetime'),
+    field('secrets', t, 'expiresUtc', 'datetime', { futureOnly: true }),
     field('secrets', t, 'active', 'checkbox')
   ],
   validate: (d, t) => {
     const e = {};
     if (!d.name) e.name = t('common.errors.required');
     if (!d.id && !d.value) e.value = t('common.errors.required');
+    // The server rejects an expiry in the past with 400 (M1-27); say so before saving.
+    if (d.expiresUtc && new Date(d.expiresUtc).getTime() <= Date.now()) e.expiresUtc = t('resources.secrets.errors.expiryPast');
     return e;
   },
   toBody: (d, mode) => {
@@ -700,7 +747,14 @@ export const agentsConfig = {
     }
     return e;
   },
-  detailPath: (r) => pathFor('agents', r.id)
+  detailPath: (r) => pathFor('agents', r.id),
+  // Deleting an agent deletes its deployments too; name them first (M1-06).
+  deletePreview: async (r, { apiClient, tenantId, t }) => {
+    const list = await safeList(apiClient.listDeployments(tenantId, { pageNumber: 1, pageSize: 1000 }));
+    const names = list.filter((d) => d.agentId === r.id).map((d) => d.name);
+    if (!names.length) return { message: t('resources.agents.deleteNoDeployments', { name: r.name }) };
+    return { message: t('resources.agents.deleteWithDeployments', { name: r.name, count: names.length }), details: affectedList(names) };
+  }
 };
 
 export const deploymentsConfig = {
@@ -722,6 +776,19 @@ export const deploymentsConfig = {
     ]);
     return { agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools };
   },
+  // Names for the Agent and Harness profile columns (M1-20).
+  loadLookups: async ({ apiClient, tenantId }) => {
+    const [agents, profiles] = await Promise.all([
+      safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
+      safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true }))
+    ]);
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])) };
+  },
+  // Once the pick lists load, start each prompt role on the built-in template of its kind (M1-03).
+  withOptions: (d, options) => ({
+    ...d,
+    promptBindings: (d.promptBindings || []).map((b) => (b.templateId ? b : { ...b, templateId: defaultTemplateFor(b.role, options.templates) }))
+  }),
   blank: () => ({
     name: '',
     description: '',
@@ -753,10 +820,10 @@ export const deploymentsConfig = {
     allowedRunOverrides: [],
     active: true
   }),
-  columns: ({ t, i18n }) => [
+  columns: ({ t, i18n, lookups }) => [
     nameCol('deployments', t),
-    col('deployments', t, 'agentId', (r) => (r.agentName ? <span {...tip(r.agentId)}>{r.agentName}</span> : <CopyableId value={r.agentId} />), { cellClass: 'cell-id' }),
-    col('deployments', t, 'harnessProfileId', (r) => <CopyableId value={r.harnessProfileId} />, { cellClass: 'cell-id' }),
+    col('deployments', t, 'agentId', (r) => <NamedId id={r.agentId} name={r.agentName || lookups?.agents?.[r.agentId]} />, { csv: (r) => r.agentName || lookups?.agents?.[r.agentId] || r.agentId }),
+    col('deployments', t, 'harnessProfileId', (r) => <NamedId id={r.harnessProfileId} name={lookups?.profiles?.[r.harnessProfileId]} />, { csv: (r) => lookups?.profiles?.[r.harnessProfileId] || r.harnessProfileId }),
     col('deployments', t, 'model', (r) => r.model || '-'),
     col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right' }),
     col('deployments', t, 'configVersion', (r) => r.configVersion, { cellClass: 'right', defaultHidden: true }),
@@ -764,7 +831,7 @@ export const deploymentsConfig = {
     idCol('deployments', t),
     createdCol('deployments', t, i18n)
   ],
-  fields: (_d, { t, options }) => {
+  fields: (d, { t, i18n, options }) => {
     const id = 'deployments';
     const sel = (list, label = (x) => x.name) => (list || []).map((x) => ({ value: x.id, label: label(x) }));
     return [
@@ -788,14 +855,49 @@ export const deploymentsConfig = {
       }),
       field(id, t, 'promptBindings', 'objectList', {
         step: 2,
+        // When the role changes and the template was the old role's default (or empty), follow the new role (M1-03).
+        rowAdjust: (next, prev) => {
+          if (!prev || next.role === prev.role) return next.templateId ? next : { ...next, templateId: defaultTemplateFor(next.role, options.templates) };
+          const wasDefault = !prev.templateId || prev.templateId === defaultTemplateFor(prev.role, options.templates);
+          return wasDefault ? { ...next, templateId: defaultTemplateFor(next.role, options.templates) } : next;
+        },
         fields: [
-          { name: 'role', type: 'text', label: t('resources.deployments.fields.promptRole'), required: true },
-          { name: 'templateId', type: 'select', label: t('resources.deployments.fields.template'), required: true, options: sel(options.templates) },
+          {
+            name: 'role',
+            type: 'select',
+            label: t('resources.deployments.fields.promptRole'),
+            required: true,
+            options: (row) => [...PROMPT_ROLES, ...(row?.role && !PROMPT_ROLES.includes(row.role) ? [row.role] : [])].map((r) => ({ value: r, label: t(`resources.deployments.promptRoles.${r}`, { defaultValue: r }) }))
+          },
+          {
+            name: 'templateId',
+            type: 'select',
+            label: t('resources.deployments.fields.template'),
+            required: true,
+            options: (row) => templatesForRole(row?.role, options.templates, row?.templateId).map((x) => ({ value: x.id, label: x.isBuiltIn ? `${x.name} (${t('common.generic.builtIn')})` : x.name }))
+          },
           { name: 'pinnedVersion', type: 'number', label: t('resources.deployments.fields.pinnedVersion'), min: 1 }
         ]
       }),
       field(id, t, 'resourceBindings', 'objectList', {
         step: 3,
+        hint: secretNeedsHint(t, i18n, (options.profiles || []).find((p) => p.id === d.harnessProfileId)),
+        // Kind always matches the resource the user picked; switching Kind clears a resource of the other kind (M1-04).
+        rowAdjust: (next, prev) => {
+          const secret = (options.secrets || []).some((x) => x.id === next.resourceId);
+          const mcp = (options.mcpServers || []).some((x) => x.id === next.resourceId);
+          if (!prev) {
+            const resourceId = (options.secrets || [])[0]?.id || (options.mcpServers || [])[0]?.id || '';
+            const kind = (options.secrets || []).some((x) => x.id === resourceId) ? 'Secret' : 'McpServer';
+            return { ...next, kind, resourceId };
+          }
+          if (next.resourceId !== prev.resourceId && (secret || mcp)) return { ...next, kind: secret ? 'Secret' : 'McpServer' };
+          if (next.kind !== prev.kind) {
+            const list = next.kind === 'Secret' ? options.secrets : options.mcpServers;
+            return (list || []).some((x) => x.id === next.resourceId) ? next : { ...next, resourceId: (list || [])[0]?.id || '' };
+          }
+          return next;
+        },
         fields: [
           { name: 'kind', type: 'select', label: t('resources.deployments.fields.bindingKind'), required: true, options: enumOptions(t, 'resourceBindingKind') },
           { name: 'alias', type: 'text', label: t('resources.deployments.fields.alias'), required: true },
@@ -804,7 +906,11 @@ export const deploymentsConfig = {
             type: 'select',
             label: t('resources.deployments.fields.resource'),
             required: true,
-            options: [...sel(options.secrets, (s) => `${t('enums.resourceBindingKind.Secret')}: ${s.name}`), ...sel(options.mcpServers, (m) => `${t('enums.resourceBindingKind.McpServer')}: ${m.name}`)]
+            options: (row) => {
+              const secrets = sel(options.secrets, (x) => `${t('enums.resourceBindingKind.Secret')}: ${x.name}`);
+              const servers = sel(options.mcpServers, (m) => `${t('enums.resourceBindingKind.McpServer')}: ${m.name}`);
+              return row?.kind === 'McpServer' ? [...servers, ...secrets] : [...secrets, ...servers];
+            }
           }
         ]
       }),
@@ -923,5 +1029,25 @@ export const promptTemplatesConfig = {
       {t('resources.promptTemplates.add')}
     </button>
   ),
-  detailPath: (r) => pathFor('promptTemplates', r.id)
+  detailPath: (r) => pathFor('promptTemplates', r.id),
+  deletePreview: (r, { apiClient, tenantId, t }) => templateDeletePreview(t, apiClient, tenantId, r),
+  rowActions: (r, ctx) => [
+    {
+      label: ctx.t('common.actions.clone'),
+      tip: actionTip(ctx.t, 'promptTemplates', 'clone'),
+      onClick: () =>
+        ctx.setExtraModal(
+          <CloneTemplateModal
+            template={r}
+            onClose={() => ctx.setExtraModal(null)}
+            onCloned={(created) => {
+              ctx.setExtraModal(null);
+              ctx.addToast({ type: 'success', message: ctx.t('common.toasts.cloned') });
+              if (created?.id) ctx.navigate(pathFor('promptTemplates', created.id));
+              else ctx.reload();
+            }}
+          />
+        )
+    }
+  ]
 };

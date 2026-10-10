@@ -6,6 +6,29 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const es = {
   common: {
+    eventCodes: { StructuredOutputInvalid: 'Salida estructurada no válida', RunBlocked: 'Ejecución bloqueada', EventsDropped: 'Eventos descartados', HarnessExited: 'Harness terminado', McpPreflightWarning: 'Aviso de comprobación previa de MCP', McpPreflightPassed: 'Comprobación previa de MCP superada', RepairAttemptStarted: 'Reparación de salida iniciada', WorkspacePrepared: 'Espacio de trabajo preparado' },
+    fieldCodes: { ExpiryInPast: 'Elige un momento en el futuro.', ParameterInvalid: 'Este valor no es válido para este parámetro.', ParameterNotAllowed: 'Este despliegue no permite que quien llama sobrescriba este parámetro.', SettingsFileReadOnly: 'El archivo de ajustes es de solo lectura, así que este cambio no se puede guardar.', OverriddenByEnvironment: 'Una variable de entorno fija este valor, así que no se puede cambiar aquí.', PathRequired: 'Hace falta la ruta del ajuste.', UnknownSetting: 'Este servidor no tiene este ajuste.', TooLong: 'Este valor es demasiado largo.', NotAllowedValue: 'Elige uno de los valores permitidos.', NotABoolean: 'Elige verdadero o falso.', NotAnInteger: 'Escribe un número entero.', OutOfRange: 'El valor está fuera del rango permitido.' },
+    serverText: {
+      notApplied: 'No se aplicó porque otro documento no superó la validación.',
+      wouldBeUnchanged: 'Ya está al día; no cambiaría nada.',
+      wouldBeUpdated: 'Se actualizaría.',
+      wouldBeCreated: 'Se crearía.',
+      inUse: '{{what}} sigue vinculado a estos despliegues: {{deployments}}. Quita antes los vínculos.',
+      noActiveDeployment: 'El agente {{agent}} no tiene ningún despliegue activo con peso mayor que cero. Añade un despliegue o sube el peso de uno y vuelve a intentarlo.',
+      toolCallDenied: 'Llamada a herramienta denegada: {{id}}',
+      threadStarted: 'Hilo iniciado.',
+      runStartedModel: 'Ejecución iniciada ({{model}}).',
+      runStarted: 'Ejecución iniciada.',
+      sessionInitializedModel: 'Sesión inicializada ({{model}}).',
+      sessionInitialized: 'Sesión inicializada.',
+      harnessFailed: 'El harness informó de un error.',
+      exitedNoResult: 'El harness terminó con el código {{code}} sin un resultado final.',
+      harnessExited: 'El harness terminó: {{status}} ({{outcome}}).',
+      harnessExitedCode: 'El harness terminó con el código {{code}}: {{status}} ({{outcome}}).',
+      mcpPreflight: 'Comprobación previa de MCP superada. Servidores comprobados: {{count}}.',
+      repairAttempt: 'Intento {{attempt}} de reparación de salida estructurada: se reanuda la sesión del harness en {{path}}.',
+      workspacePrepared: 'Espacio de trabajo preparado en {{path}}.'
+    },
     appName: 'Garrison',
     language: { label: 'Idioma' },
     theme: { switchToLight: 'Cambiar al tema claro', switchToDark: 'Cambiar al tema oscuro' },
@@ -50,6 +73,7 @@ const es = {
       requiredPermission: 'Requiere {{permission}} sobre {{resource}}.'
     },
     generic: {
+      deletedName: '{{name}} (eliminado)',
       actions: 'Acciones',
       active: 'Activo',
       all: 'Todos',
@@ -80,6 +104,12 @@ const es = {
     units: { msShort: 'ms', sShort: 's', mShort: 'min', tokPerSec: 'tok/s' }
   },
   errorCodes: {
+    MessageIdConflict: 'Este ID de mensaje A2A ya se usó con otro contenido. Envía el mensaje con un ID nuevo.',
+    IdempotencyKeyConflict: 'Esta clave de idempotencia ya se usó para otra solicitud. Usa una clave nueva.',
+    DeploymentDeleted: 'El despliegue de esta ejecución se eliminó, así que la ejecución no se puede reintentar. Invoca de nuevo al agente.',
+    AgentDeleted: 'El agente de esta ejecución se eliminó, así que la ejecución no se puede reintentar.',
+    NoActiveDeployment: 'Este agente no tiene ningún despliegue activo con peso mayor que cero. Añade un despliegue o sube el peso de uno.',
+    TenantNotFound: 'Ese inquilino no existe. Revisa el ID del inquilino.',
     NetworkError: 'No se pudo contactar con el servidor. Comprueba la URL del servidor y que esté en ejecución.',
     AuthenticationRequired: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
     InvalidCredentials: 'El inquilino, el correo electrónico, la contraseña o las claves son incorrectos.',
@@ -620,6 +650,10 @@ const es = {
       errors: { reservedPrefix: 'El prefijo builtin/ está reservado.' }
     },
     promptTemplates: {
+      deleteBound_many: '"{{name}}" está vinculada a {{count}} despliegues, así que el servidor rechazará eliminarla. Quita antes los vínculos de estos despliegues:',
+      deleteBound_other: '"{{name}}" está vinculada a {{count}} despliegues, así que el servidor rechazará eliminarla. Quita antes los vínculos de estos despliegues:',
+      deleteBound_one: '"{{name}}" está vinculada a {{count}} despliegue, así que el servidor rechazará eliminarla. Quita antes el vínculo de este despliegue:',
+      deleteUnbound: '¿Eliminar "{{name}}" y todas sus versiones? Ningún despliegue la vincula. Esta acción no se puede deshacer.',
       ...rp('Plantillas de prompt', 'Todos los prompts y archivos de configuración que genera Garrison. Cada guardado crea una versión.', 'Añadir plantilla', 'Crear plantilla', 'Editar plantilla', 'Detalles de la plantilla', 'Eliminar plantilla', 'Aún no hay plantillas de prompt', 'Crea una plantilla o clona una integrada.'),
       add: 'Nueva plantilla',
       columns: { name: 'Nombre', kind: 'Tipo', currentVersion: 'Versión', description: 'Descripción', isBuiltIn: 'Origen', id: 'ID', lastUpdateUtc: 'Actualizada' },
@@ -649,11 +683,12 @@ const es = {
       actions: { test: 'Probar conexión' }
     },
     secrets: {
+      errors: { expiryPast: 'Elige una caducidad en el futuro, o déjala vacía para que el secreto no caduque nunca.' },
       ...rp('Secretos', 'Credenciales cifradas para harnesses e integraciones. Los valores son de solo escritura.', 'Añadir secreto', 'Crear secreto', 'Editar secreto', 'Detalles del secreto', 'Eliminar secreto', 'Aún no hay secretos', 'Añade la clave de API o el token que necesitan tus agentes, por ejemplo una clave de API de Anthropic.'),
       notSet: 'Sin definir',
       columns: { name: 'Nombre', kind: 'Tipo', valueLast4: 'Valor', rotatedUtc: 'Último cambio', expiresUtc: 'Caduca', active: 'Activo', id: 'ID' },
       fields: { name: 'Nombre', kind: 'Tipo', description: 'Descripción', value: 'Valor', newValue: 'Nuevo valor', expiresUtc: 'Caduca', active: 'Activo' },
-      hints: { kind: 'Usar tokens de suscripción en servidores compartidos puede infringir las condiciones del proveedor. En despliegues compartidos, es preferible usar claves de API.' },
+      hints: { expiresUtc: 'Debe estar en el futuro. Déjala vacía para un secreto que no caduca.', kind: 'Usar tokens de suscripción en servidores compartidos puede infringir las condiciones del proveedor. En despliegues compartidos, es preferible usar claves de API.' },
       actions: { setValue: 'Definir valor', rotate: 'Rotar' }
     },
     workspaces: {
@@ -667,6 +702,10 @@ const es = {
       fields: { name: 'Nombre', kind: 'Tipo', description: 'Descripción', active: 'Activo' }
     },
     agents: {
+      deleteWithDeployments_many: '¿Eliminar "{{name}}" y sus {{count}} despliegues? Los despliegues de abajo también se eliminan. Esta acción no se puede deshacer.',
+      deleteWithDeployments_other: '¿Eliminar "{{name}}" y sus {{count}} despliegues? Los despliegues de abajo también se eliminan. Esta acción no se puede deshacer.',
+      deleteWithDeployments_one: '¿Eliminar "{{name}}" y su {{count}} despliegue? El despliegue de abajo también se elimina. Esta acción no se puede deshacer.',
+      deleteNoDeployments: '¿Eliminar "{{name}}"? No tiene despliegues. Esta acción no se puede deshacer.',
       ...rp('Agentes', 'Capacidades con nombre expuestas mediante REST, MCP y A2A. Los despliegues deciden cómo se ejecutan.', 'Añadir agente', 'Crear agente', 'Editar agente', 'Detalles del agente', 'Eliminar agente', 'Aún no hay agentes', 'Añade un agente o aplica el manifiesto de ejemplo desde Configuración > Manifiestos.'),
       sections: { identity: 'Identidad', exposure: 'Exposición', io: 'Entrada y salida', delegation: 'Delegación' },
       columns: { name: 'Nombre', displayName: 'Nombre visible', kind: 'Tipo', exposure: 'Exposición', delegationMode: 'Delegación', tags: 'Etiquetas', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
@@ -699,6 +738,7 @@ const es = {
       errors: { dnsName: 'Usa letras minúsculas, dígitos y guiones, empezando y terminando con una letra o un dígito.' }
     },
     deployments: {
+      promptRoles: { Repair: 'Reparación de salida estructurada', DelegatedTask: 'Envoltorio de tarea para ejecuciones delegadas', Task: 'Envoltorio de tarea', System: 'Prompt del sistema' },
       ...rp('Despliegues', 'Vincula un agente a un perfil de harness, prompts, secretos, servidores MCP, ubicación y límites.', 'Añadir despliegue', 'Crear despliegue', 'Editar despliegue', 'Detalles del despliegue', 'Eliminar despliegue', 'Aún no hay despliegues', 'Crea un despliegue para que un agente se pueda ejecutar.'),
       steps: { basics: 'Datos básicos', harness: 'Harness', prompts: 'Prompts', resources: 'Recursos', overrides: 'Sobrescrituras', placement: 'Ubicación y límites' },
       columns: { name: 'Nombre', agentId: 'Agente', harnessProfileId: 'Perfil de harness', model: 'Modelo', weight: 'Peso', configVersion: 'Versión de configuración', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
@@ -748,6 +788,9 @@ const es = {
         retryOnNodeLoss: 'Volver a encolar si se pierde el nodo'
       },
       hints: {
+        secretsKinds: 'El perfil de harness {{profile}} necesita cualquier secreto de tipo {{kinds}}. Vincula uno con cualquier alias.',
+        secretsAliases: 'El perfil de harness {{profile}} lee secretos vinculados con estos alias: {{aliases}}.',
+        secretsNone: 'El perfil de harness {{profile}} no lee ningún secreto, así que no hace falta vincular ninguno.',
         promptBindings: 'Asocia los roles de prompt (System, Task, DelegatedTask y cualquier rol que use el perfil de harness) a plantillas. Deja la versión vacía para seguir la más reciente.',
         resourceBindings: 'Los alias se convierten en variables de plantilla, por ejemplo {{secret.anthropic}}.',
         weight: 'Las solicitudes sin un despliegue explícito se reparten entre los despliegues activos según su peso.',
@@ -765,6 +808,8 @@ const es = {
     runs: {
       ...rp('Ejecuciones', 'Cada invocación de agente con su estado, nodo, duración y resultado.', 'Añadir ejecución', 'Crear ejecución', 'Editar ejecución', 'Detalles de la ejecución', 'Eliminar ejecución', 'Aún no hay ejecuciones', 'Invoca un agente para iniciar una ejecución.'),
       columns: {
+        delegationWaitMs: 'Espera por delegación',
+        timeToFirstTokenExcludingDelegationMs: 'TTFT sin delegación',
         id: 'Ejecución',
         agentName: 'Agente',
         status: 'Estado',
@@ -827,6 +872,9 @@ const es = {
   },
   views: {
     home: {
+      observabilitySetup: 'Configurar la observabilidad',
+      observabilityNone: 'Esta instalación no tiene configurado ningún servicio de observabilidad (Grafana, Prometheus, Tempo o Loki).',
+      observability: 'Observabilidad',
       title: 'Inicio',
       subtitle: 'Lo que están haciendo ahora mismo tus agentes y nodos de trabajo.',
       lastLoaded: 'Actualizado {{time}}',
@@ -866,9 +914,10 @@ const es = {
       externalServicesNote: 'Herramientas de observabilidad incluidas. Cambia las credenciales predeterminadas antes de compartir este despliegue.',
       externalServicesNone: 'No hay servicios externos configurados para este despliegue.',
       credentials: 'Credenciales predeterminadas',
-      services: { grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
+      services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
     invoke: {
+      noDeployment: 'Este agente no tiene ningún despliegue activo con peso mayor que cero, así que se rechazaría la invocación. Añade un despliegue en la pestaña Despliegues o sube el peso de uno.',
       title: 'Invocar',
       subtitle: 'Envía un mensaje a un agente y observa cómo se transmite la transcripción.',
       request: 'Solicitud',
@@ -889,6 +938,9 @@ const es = {
       applySample: 'Ir a manifiestos'
     },
     runDetail: {
+      deploymentDeleted: 'El despliegue que usó esta ejecución se eliminó, así que no se puede reintentar. Invoca de nuevo al agente {{agent}}.',
+      templatesUsed: 'Plantillas usadas',
+      agentDeleted: 'El agente {{agent}} ya no existe, así que esta ejecución no se puede reintentar. Su registro, transcripción y telemetría siguen disponibles aquí.',
       title: 'Ejecución',
       titleWithAgent: 'Ejecución de {{agent}}',
       deployment: 'Despliegue',
@@ -932,10 +984,13 @@ const es = {
       notFoundTitle: 'Ejecución no encontrada',
       notFoundBody: 'Puede que se haya eliminado o que pertenezca a otro inquilino.',
       telemetry: {
+        delegationNote: 'Esta ejecución esperó {{wait}} a ejecuciones que delegó. El tiempo hasta el primer token es {{ttft}} con esa espera y {{excluding}} sin ella; esta última cifra es la que se compara con agentes que no delegan.',
         title: 'Telemetría',
         phases: 'Tiempo de ejecución por fase',
-        phase: { queue: 'Cola', startup: 'Inicio hasta el primer token', streaming: 'Transmisión', tail: 'Tras el último token' },
+        phase: { delegation: 'Esperando ejecuciones delegadas', queue: 'Cola', startup: 'Inicio hasta el primer token', streaming: 'Transmisión', tail: 'Tras el último token' },
         fields: {
+          delegationWaitMs: 'Espera por delegación',
+          timeToFirstTokenExcludingDelegationMs: 'Tiempo hasta el primer token sin delegación',
           timeToFirstTokenMs: 'Tiempo hasta el primer token',
           streamingMs: 'Tiempo de transmisión',
           executionMs: 'Tiempo de ejecución',
@@ -978,6 +1033,10 @@ const es = {
       manageDeployments: 'Administrar despliegues'
     },
     templateEditor: {
+      cloneToEdit: 'Clonar para editar',
+      builtInReadOnly: 'Las plantillas integradas son de solo lectura, así que todos los campos están bloqueados. Clónala para obtener una copia editable.',
+      renameHint: 'Puedes renombrar esta plantilla. Los despliegues conservan sus vínculos porque usan su ID, pero las plantillas que la incluyen por nombre se deben actualizar a mano.',
+      cloneDialog: { taken: 'Ya existe una plantilla llamada {{name}}. Elige otro nombre.', reserved: 'Los nombres que empiezan por builtin/ están reservados para las plantillas integradas.', hint: 'Puedes renombrar la copia más tarde en su página.', name: 'Nombre de la copia', body: 'La copia empieza con el contenido actual como versión 1 y se puede editar, renombrar y eliminar.', title: 'Clonar {{name}}' },
       newTitle: 'Nueva plantilla de prompt',
       subtitle: 'Escribe la plantilla, previsualízala con un contexto de ejemplo y guárdala.',
       builtInNote: 'Las plantillas integradas son de solo lectura. Clónala para personalizarla, o restablécela para recuperar el contenido original.',
@@ -1016,6 +1075,8 @@ const es = {
       }
     },
     manifests: {
+      planned: 'Resultado previsto: {{result}}',
+      changes: { count_many: 'Cambian {{count}} campos.', count_other: 'Cambian {{count}} campos.', count_one: 'Cambia {{count}} campo.', empty: '(vacío)', after: 'Después', before: 'Antes', field: 'Campo' },
       title: 'Manifiestos',
       subtitle: 'Aplica la configuración como código. Las simulaciones validan sin escribir nada.',
       applyTab: 'Aplicar',
@@ -1092,6 +1153,8 @@ const es = {
       noSpecBody: 'Este servidor no devolvió un documento /openapi.json utilizable, así que el explorador no puede listar las operaciones.'
     },
     settings: {
+      errors: { allowed: 'Elige uno de estos valores: {{values}}.', boolean: 'Elige verdadero o falso.', max: 'Escribe {{max}} o menos.', min: 'Escribe {{min}} o más.', range: 'Escribe un valor entre {{min}} y {{max}}.', integer: 'Escribe un número entero.', number: 'Escribe un número.' },
+      notSaved: 'No se guardó nada. Corrige los ajustes marcados y vuelve a guardar.',
       title: 'Ajustes',
       subtitle: 'Ajustes del servidor procedentes del archivo de configuración y ajustes del clúster almacenados en la base de datos.',
       readOnly: 'Estás viendo los ajustes en modo de solo lectura. Solo los administradores del sistema pueden cambiarlos.',
@@ -1123,13 +1186,101 @@ const es = {
         other: 'Este ajuste no se puede editar aquí.'
       },
       groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Base de datos', Logging: 'Registro', Auth: 'Autenticación', Security: 'Seguridad', RequestHistory: 'Historial de solicitudes', Telemetry: 'Telemetría', Cluster: 'Clúster', Scheduling: 'Planificación', Runs: 'Ejecuciones', Audit: 'Auditoría', Runtime: 'Tiempo de ejecución' },
-      fields: {}
+      fields: {
+        Rest: {
+          ExternalBaseUrl: 'URL externa de REST',
+          PublicBaseUrl: 'URL interna de REST para las ejecuciones',
+          Ssl: 'TLS de REST',
+          Port: 'Puerto de REST',
+          Hostname: 'Nombre de host de escucha de REST'
+        },
+        Mcp: {
+          MaxToolWaitSeconds: 'Espera máxima de herramientas MCP (segundos)',
+          PublicUrl: 'URL interna de MCP para las ejecuciones',
+          Path: 'Ruta de MCP',
+          Port: 'Puerto de MCP',
+          Hostname: 'Nombre de host de escucha de MCP',
+          Enable: 'Servidor MCP activado'
+        },
+        Database: {
+          MaxPoolSize: 'Tamaño del grupo de conexiones',
+          Schema: 'Esquema de la base de datos',
+          Password: 'Contraseña de la base de datos',
+          Username: 'Usuario de la base de datos',
+          DatabaseName: 'Nombre de la base de datos',
+          Port: 'Puerto de la base de datos',
+          Host: 'Host de la base de datos',
+          Filename: 'Archivo de Sqlite',
+          Type: 'Proveedor de base de datos'
+        },
+        Logging: {
+          MinimumSeverity: 'Gravedad mínima de registro',
+          LogFilename: 'Nombre del archivo de registro',
+          LogDirectory: 'Directorio de registros',
+          FileLogging: 'Registrar en un archivo',
+          ConsoleLogging: 'Registrar en la consola'
+        },
+        Auth: {
+          RateLimitPerMinute: 'Intentos de inicio de sesión por minuto',
+          SignedRequestSkewSeconds: 'Desfase de reloj permitido en solicitudes firmadas (segundos)',
+          AdminApiKey: 'Clave de API de administrador',
+          TokenLifetimeMinutes: 'Duración de la sesión (minutos)',
+          SigningKey: 'Clave de firma de tokens',
+          Issuer: 'Emisor de tokens'
+        },
+        Security: {
+          NodeSecretKey: 'Clave secreta de los nodos de trabajo',
+          NodeAccessKey: 'Clave de acceso de los nodos de trabajo',
+          DefaultSecretKey: 'Clave secreta predeterminada',
+          DefaultAccessKey: 'Clave de acceso predeterminada',
+          AdminPassword: 'Contraseña del administrador inicial',
+          AdminEmail: 'Correo del administrador inicial',
+          MasterKey: 'Clave maestra de cifrado de secretos'
+        },
+        RequestHistory: {
+          MaxResponseBodyBytes: 'Cuerpo de respuesta máximo registrado (bytes)',
+          MaxRequestBodyBytes: 'Cuerpo de solicitud máximo registrado (bytes)',
+          RetentionDays: 'Retención del historial de solicitudes (días)',
+          Enabled: 'Registrar el historial de solicitudes'
+        },
+        Telemetry: {
+          OtlpEndpoint: 'Endpoint de OTLP',
+          OtlpEnable: 'Exportación OTLP activada',
+          PrometheusPort: 'Puerto de Prometheus',
+          PrometheusEnable: 'Endpoint de Prometheus activado',
+          ServiceName: 'Nombre del servicio de telemetría',
+          Enabled: 'Telemetría activada'
+        },
+        Cluster: {
+          ExpectedReplicas: 'Réplicas esperadas del plano de control'
+        },
+        Scheduling: {
+          EventPollMs: 'Intervalo de sondeo de eventos (ms)',
+          NodeHeartbeatTimeoutMs: 'Tiempo límite de latido de los nodos (ms)',
+          LeaseWaitMs: 'Espera de sondeo largo de concesiones (ms)',
+          LeaseDurationMs: 'Duración de la concesión de ejecuciones (ms)'
+        },
+        Runs: {
+          EventRetentionDays: 'Retención de eventos de ejecución (días)',
+          RetentionDays: 'Retención de ejecuciones (días)',
+          MaxDelegationDepth: 'Profundidad máxima de delegación',
+          DefaultTimeoutSeconds: 'Tiempo límite predeterminado de ejecución (segundos)'
+        },
+        Runtime: {
+          FailBlockedAfterSeconds: 'Hacer fallar ejecuciones bloqueadas tras (segundos)'
+        },
+        Audit: {
+          RetentionDays: 'Retención de auditoría (días)'
+        }
+      }
     },
     analytics: {
+      deletedAgent: 'Agente eliminado ({{id}})',
+      deletedDeployment: 'Despliegue eliminado ({{id}})',
       title: 'Analítica',
       subtitle: 'Rapidez, coste y fiabilidad de tus ejecuciones a lo largo del tiempo.',
       loading: 'Cargando analítica...',
-      filters: { range: 'Intervalo', from: 'Desde', to: 'Hasta', agentId: 'Agente', harnessType: 'Harness', deploymentId: 'Despliegue', model: 'Modelo', groupBy: 'Agrupar por' },
+      filters: { ttft: 'Excluir la espera por delegación del TTFT', range: 'Intervalo', from: 'Desde', to: 'Hasta', agentId: 'Agente', harnessType: 'Harness', deploymentId: 'Despliegue', model: 'Modelo', groupBy: 'Agrupar por' },
       allAgents: 'Todos los agentes',
       allHarnesses: 'Todos los harnesses',
       allDeployments: 'Todos los despliegues',
@@ -1153,6 +1304,8 @@ const es = {
       emptyBody: 'Nada coincide con el intervalo y los filtros. Amplía el intervalo, quita un filtro o invoca un agente.',
       noDataInChart: 'No hay datos para este gráfico en el intervalo seleccionado.',
       cards: {
+        delegationWait: 'Espera media por delegación',
+        ttftExcludingDelegation: 'TTFT medio sin delegación',
         runs: 'Ejecuciones',
         runsNote: '{{succeeded}} correctas, {{failed}} fallidas',
         successRate: 'Tasa de éxito',
@@ -1168,7 +1321,7 @@ const es = {
       },
       charts: {
         outcomes: { title: 'Resultados de las ejecuciones', help: 'Ejecuciones por intervalo según cómo terminaron.' },
-        ttft: { title: 'Tiempo hasta el primer token', help: 'Desde el inicio del harness hasta la primera salida del modelo. Incluye el arranque de la CLI.' },
+        ttft: { helpExcluding: 'Del arranque del harness a la primera salida del modelo, sin el tiempo de espera a las ejecuciones delegadas.', title: 'Tiempo hasta el primer token', help: 'Desde el inicio del harness hasta la primera salida del modelo. Incluye el arranque de la CLI.' },
         duration: { title: 'Tiempo de transmisión y de ejecución', help: 'La transmisión va de la primera a la última salida del modelo; la ejecución, del inicio del proceso a su salida.' },
         queue: { title: 'Tiempo en cola', help: 'Tiempo desde que entra en cola hasta que un nodo de trabajo obtiene la concesión.' },
         tokens: { title: 'Tokens', help: 'Tokens de entrada, salida, en caché y de razonamiento por intervalo.' },
@@ -1180,6 +1333,10 @@ const es = {
       },
       groupedTitle: '{{chart}}: {{metric}}',
       metrics: {
+        delegationWaitMsAvg: 'Espera por delegación (media)',
+        timeToFirstTokenExcludingDelegationMsP95: 'Sin delegación (p95)',
+        timeToFirstTokenExcludingDelegationMsP50: 'Sin delegación (p50)',
+        timeToFirstTokenExcludingDelegationMsAvg: 'Sin delegación (media)',
         runs: 'Ejecuciones',
         succeeded: 'Correctas',
         failed: 'Fallidas',

@@ -1,7 +1,16 @@
 // Normalizes API errors into localized, operator-facing messages.
 
+import { translateServerText, stripCodePrefix } from './serverText';
+
 /**
- * Localized message for an error. Prefers a translation for the stable error code, then the server message.
+ * Codes whose translation is generic ("The record was not found."). For these the server's own message is more
+ * useful (it names the record and the reason), so it wins when the server sent one (M1-22, M1-24).
+ */
+const GENERIC_CODES = new Set(['NotFound', 'Conflict', 'InUse', 'ValidationFailed', 'InvalidBody', 'Http400', 'Http404', 'Http409']);
+
+/**
+ * Localized message for an error. Order: a translation of a known server message pattern; the server's own message
+ * for generic codes (NotFound, Conflict, ...); a translation of the stable error code; the server message.
  * @param {Function} t i18next translate function.
  * @param {unknown} err Error (ApiError or any Error).
  * @returns {string}
@@ -9,13 +18,21 @@
 export function errorMessage(t, err) {
   if (!err) return t('common.errors.loadFailed');
   const code = err.code;
+  // Only a message from a JSON error body counts as server text; a bare status line ("Not Found") does not.
+  const bodyMessage = err.body && typeof err.body === 'object' ? err.body.message : null;
+  const serverText = typeof bodyMessage === 'string' && bodyMessage ? stripCodePrefix(bodyMessage, code) : '';
+  if (serverText) {
+    const known = translateServerText(t, serverText);
+    if (known !== serverText) return known;
+    if (GENERIC_CODES.has(code)) return serverText;
+  }
   if (code) {
     const key = `errorCodes.${code}`;
     const translated = t(key, { defaultValue: '' });
     if (translated && translated !== key) return translated;
   }
   if (err.status === 0) return t('errorCodes.NetworkError');
-  return err.message || t('common.errors.loadFailed');
+  return serverText || err.message || t('common.errors.loadFailed');
 }
 
 /**
@@ -34,4 +51,28 @@ export function errorDetail(t, err) {
 /** True when the error indicates the endpoint does not exist on this server yet. */
 export function isMissingEndpoint(err) {
   return err?.status === 404 && (err?.code === 'RouteNotFound' || err?.code === 'Http404');
+}
+
+/** Field codes the server attaches to 400 ValidationFailed (P9.17); `Invalid` has no translation of its own. */
+export const FIELD_CODES = ['OutOfRange', 'NotAnInteger', 'NotABoolean', 'NotAllowedValue', 'TooLong', 'UnknownSetting', 'PathRequired', 'OverriddenByEnvironment', 'SettingsFileReadOnly', 'ParameterNotAllowed', 'ParameterInvalid', 'ExpiryInPast'];
+
+/**
+ * Per-field messages from a validation error: each field's machine code (fieldCodes) translated, falling back to
+ * the server's message. `special(key, code)` may return a more specific translated message (for example a range
+ * with the field's minimum and maximum), or null to use the generic one.
+ * @returns {Object<string, string>|null}
+ */
+export function fieldErrorMessages(t, err, special) {
+  const fields = err?.fields;
+  if (!fields || typeof fields !== 'object') return null;
+  const out = {};
+  for (const [key, message] of Object.entries(fields)) {
+    const code = err.fieldCodes?.[key];
+    let text = null;
+    if (code && FIELD_CODES.includes(code)) {
+      text = (special && special(key, code)) || t(`common.fieldCodes.${code}`, { defaultValue: '' }) || null;
+    }
+    out[key] = text || message;
+  }
+  return out;
 }

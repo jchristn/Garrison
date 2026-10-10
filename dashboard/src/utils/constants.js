@@ -138,16 +138,6 @@ export function requestRangeToParams(rangeId, now = new Date()) {
   return { fromUtc: from.toISOString(), toUtc: now.toISOString(), bucketMinutes: range.bucketMinutes };
 }
 
-/**
- * Bundled external tools shown on the Home page. Entries render only when `enabled` is true; set them from your
- * deployment (for example when the observability component is installed).
- */
-export const EXTERNAL_SERVICES = [
-  { id: 'grafana', url: 'http://localhost:3000', username: 'admin', password: 'admin', enabled: true },
-  { id: 'prometheus', url: 'http://localhost:9090', enabled: true },
-  { id: 'tempo', url: 'http://localhost:3200', enabled: false }
-];
-
 /** Sample manifest applied by the setup wizard: a fake-harness agent that needs no credentials. */
 export const SAMPLE_MANIFEST = `apiVersion: garrison/v1
 kind: Agent

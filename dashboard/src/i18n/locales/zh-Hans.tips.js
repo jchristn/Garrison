@@ -1,6 +1,8 @@
 // Simplified Chinese tooltip (tips.*) and relationship explainer (explainers.*) text. Merged into zh-Hans.js. Mirrors en.tips.js key for key.
 
 const TELEMETRY = {
+  delegationWaitMs: '委派等待时间：此运行等待其通过 Garrison 启动的子运行（即它委派的其他智能体）的时长，根据这些子运行的服务器时间戳计算。如果运行没有委派任何内容，则为零或不适用。',
+  timeToFirstTokenExcludingDelegationMs: '首 Token 时间（不含委派）：首 Token 时间减去运行在首次输出前等待委派运行的时间。用它来公平比较会委派和不委派的智能体。基于服务器时间戳计算，绝不为负。',
   timeToFirstTokenMs: '首个 Token 时间：从工作节点启动 Harness 进程开始，到模型产生第一个输出（文本或思考）为止。其中包含 Harness 的启动时间，因此 CLI 启动缓慢会体现在这里。由工作节点使用单调时钟测量。',
   streamingMs: '流式输出时间：从模型的第一个输出到最后一个输出。这是模型实际生成输出的时长。由工作节点使用单调时钟测量。',
   executionMs: '执行时间：由工作节点测量的从 Harness 进程启动到进程退出的时长。不上报此值的旧版服务器会改用开始和完成时间戳计算。',
@@ -27,6 +29,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  ids: { deleted: '此记录已删除。ID {{id}}。复制按钮会复制此 ID。', named: 'ID {{id}}。使用复制按钮复制此 ID，用于 API、SDK 或支持请求。' },
   common: {
     fields: {
       name: '此记录在租户内的唯一名称。其他记录和清单通过这个名称引用它。',
@@ -203,6 +206,7 @@ const tips = {
     confirm: '执行上面描述的操作。'
   },
   copy: {
+    id: '将记录 ID 复制到剪贴板，供 REST API、SDK 或筛选器使用。',
     value: '将此值复制到剪贴板。',
     block: '将整个代码块复制到剪贴板，可直接粘贴到终端或文件中。',
     done: '已复制到剪贴板。'
@@ -269,6 +273,7 @@ const tips = {
     panel: '此运行各阶段的耗时以及资源消耗。时长来自各字段说明中所述的工作节点和服务器时钟。',
     phases: '运行的时间花在了哪里，从左到右依次为：在队列中等待、从 Harness 启动到首个 Token、流式输出，以及其余的执行时间。',
     phase: {
+      delegation: '在模型首次输出之前，运行等待其委派的子运行的时间。这不是 Harness 启动时间。',
       queue: '在队列中等待工作节点租用该运行。',
       startup: '从进程启动到模型首次输出，包括 Harness 启动和第一次模型请求。',
       streaming: '从模型第一次输出到最后一次输出。',
@@ -530,8 +535,9 @@ const tips = {
       actions: { clone: '在你的租户中创建此配置文件的可编辑副本，名称带 -custom 后缀。' }
     },
     promptTemplates: {
+      actions: { clone: '以你选择的新名称复制此模板，然后在编辑器中打开副本。' },
       add: '在带实时预览的编辑器中编写新的提示词模板。每次保存都会成为一个版本。',
-      name: '模板名称。部署和其他模板通过此名称引用它。',
+      name: '模板名称，在租户内唯一。部署按 ID 绑定模板，所以重命名后绑定不受影响；包含引用按名称引用它。',
       kind: '模板的用途：系统提示词、任务包装、片段、工具描述或配置文件。',
       currentVersion: '最新保存的版本。部署要么固定某个版本，要么跟随最新版本。',
       description: '模板的作用以及使用位置。'
@@ -792,6 +798,8 @@ const tips = {
   },
   views: {
     home: {
+      observabilityDocs: '在新标签页中打开遥测指南：如何采集 Garrison 指标并连接 Grafana、Prometheus、Tempo 或 Loki。',
+      observability: '指向此环境报告为已配置的指标、仪表板和追踪工具的链接。未配置的服务不会显示。',
       kpis: {
         agents: '此租户中定义的智能体。点击可打开智能体列表。',
         deployments: '所有智能体的部署。每个部署都是智能体的一种运行方式。点击可打开它们。',
@@ -812,6 +820,7 @@ const tips = {
         analytics: '查看运行速度、Token、成本和结果随时间的变化。'
       },
       services: {
+        loki: '在新标签页中打开 Loki，搜索 Garrison 日志。',
         grafana: '在新标签页中打开 Garrison 指标的 Grafana 仪表板。',
         prometheus: '在新标签页中打开抓取 Garrison 指标的 Prometheus 服务器。',
         tempo: '在新标签页中打开 Tempo 浏览链路追踪。'
@@ -819,6 +828,9 @@ const tips = {
       serviceGeneric: '在新标签页中打开此捆绑服务。'
     },
     runDetail: {
+      eventCode: '以你的语言显示 Garrison 在此写入的消息类型。旁边的文本是服务器或工作节点发出的原始消息。',
+      openTemplate: '打开模板 {{name}}。此运行使用了第 {{version}} 版；“版本”标签页会显示该内容及其与当前版本的差异。',
+      templatesUsed: '编译此运行时使用的提示词模板的确切版本。点击某一项可打开该模板并比较版本。',
       live: '事件正随着 Harness 的产生从服务器实时流式传输。',
       viewJson: '以 JSON 形式显示完整的运行记录，包括所有遥测字段。',
       deployment: '为此运行选中的部署，按名称指定或按流量权重选择。',
@@ -882,6 +894,8 @@ const tips = {
       openRun: '打开完整的运行页面，查看结果、遥测数据和 stderr。'
     },
     manifests: {
+      planned: '应用此文档会执行的操作：创建记录、更新记录或保持不变。试运行只做验证，不会更改任何内容。',
+      changes: { after: '清单要设置的值。过长的值会在 200 个字符处截断。', before: '当前存储的值。过长的值会在 200 个字符处截断。', field: '清单要更改的此记录的设置，例如 model 或 parameters.model。' },
       results: '应用操作对清单中每个文档的处理结果。',
       kind: '文档所描述的记录类型，例如 Agent 或 Deployment。',
       name: '文档元数据中的记录名称。',
@@ -902,9 +916,11 @@ const tips = {
       confirmApply: '立即将清单写入此租户。'
     },
     templateEditor: {
-      clone: '为此模板创建一个带 -custom 后缀的可编辑副本。',
+      cloneName: '副本名称。建议使用小写字母、数字、连字符和斜杠；builtin/ 前缀为保留前缀。',
+      cloneConfirm: '以此名称创建副本并在编辑器中打开。',
+      clone: '创建此模板的可编辑副本。创建前可以为副本命名。',
       reset: '将此内置模板恢复为 Garrison 自带的内容。',
-      delete: '删除此模板。绑定它的部署将无法编译。',
+      delete: '删除此模板及其所有版本。只要有部署绑定它，服务器就会拒绝；确认对话框会列出这些部署。',
       create: '创建模板及其第一个版本。',
       save: '将内容保存为新版本。跟随最新版本的部署会在新的运行中使用它。',
       content: '模板文本。可以使用 {{variables}}、条件、循环和包含；预览会随输入实时更新。',
@@ -986,6 +1002,7 @@ const tips = {
       confirmExecute: '即使此请求可能修改或删除数据，仍然发送它。'
     },
     settings: {
+      settingPath: '设置路径：{{path}}。在设置文件和设置 REST API 中使用此名称。',
       viewJson: '显示原始的设置响应。',
       restart: '重启此控制平面副本，使需要重启的设置生效。',
       save: '保存所有已更改的设置。实时设置会立即生效；其他设置需等待重启。',
@@ -1020,6 +1037,8 @@ const tips = {
   },
   analytics: {
     filters: {
+      ttft: '勾选后，首 Token 时间图表会去掉运行等待委派智能体的时间，从而公平比较会委派的智能体和直接回答的智能体。',
+      range: '所有图表和汇总的时间范围：最近一小时、一天、一周、30 天，或自定义的开始和结束时间。',
       from: '自定义范围的开始时间，按你的本地时区。',
       to: '自定义范围的结束时间，按你的本地时区。',
       agentId: '只统计此智能体的运行。部署列表会缩小为该智能体的部署。',
@@ -1029,6 +1048,8 @@ const tips = {
       groupBy: '将每个图表按智能体、Harness、模型或 Harness 与模型组合拆分为多个系列，便于比较。'
     },
     cards: {
+      delegationWait: '运行等待其委派子运行的平均时间。如果范围内没有运行进行委派，则为不适用。',
+      ttftExcludingDelegation: '不含等待委派智能体时间的平均首 Token 时间。备注显示第 95 百分位数。',
       runs: '在此范围内请求且符合筛选条件的运行。',
       successRate: '成功运行占已结束运行（成功、失败、已取消和已超时）的比例。',
       ttft: '产生了输出的运行的平均首个 Token 时间。备注中显示第 95 百分位数。',
@@ -1052,6 +1073,10 @@ const tips = {
       usageCost: '上报成本随时间的变化，每个 Harness 与模型组合为一个堆叠段。将鼠标悬停在柱形上可查看拆分。'
     },
     metrics: {
+      delegationWaitMsAvg: '运行等待其委派子运行的平均时间。点击可隐藏或显示此折线。',
+      timeToFirstTokenExcludingDelegationMsP95: '不含委派等待的首 Token 时间第 95 百分位数。点击可隐藏或显示此折线。',
+      timeToFirstTokenExcludingDelegationMsP50: '不含委派等待的首 Token 时间中位数。点击可隐藏或显示此折线。',
+      timeToFirstTokenExcludingDelegationMsAvg: '不含委派等待的平均首 Token 时间。点击可隐藏或显示此折线。',
       runs: '此区间内请求的运行。',
       succeeded: '成功完成的运行。点击可隐藏或显示此系列。',
       failed: '失败的运行。点击可隐藏或显示此系列。',

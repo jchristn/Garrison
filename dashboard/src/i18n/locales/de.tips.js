@@ -2,6 +2,8 @@
 // Mirrors en.tips.js key for key. Tooltips erklären, was ein Element ist und wie es verwendet wird (D-030).
 
 const TELEMETRY = {
+  delegationWaitMs: 'Delegationswartezeit: wie lange dieser Lauf auf Kindläufe gewartet hat, die er über Garrison gestartet hat (andere Agenten, an die er delegiert hat), gemessen an den Server-Zeitstempeln dieser Kindläufe. Null oder k. A., wenn der Lauf nichts delegiert hat.',
+  timeToFirstTokenExcludingDelegationMs: 'Zeit bis zum ersten Token ohne Delegation: die Zeit bis zum ersten Token abzüglich der Zeit, die der Lauf vor seiner ersten Ausgabe auf delegierte Läufe gewartet hat. Damit vergleichen Sie delegierende Agenten fair mit Agenten, die nicht delegieren. Gemessen mit Server-Zeitstempeln; nie negativ.',
   timeToFirstTokenMs: 'Zeit bis zum ersten Token: vom Start des Harness-Prozesses durch den Worker bis zur ersten Ausgabe des Modells (Text oder Überlegung). Der Start der Harness ist enthalten, ein langsamer CLI-Start zeigt sich also hier. Gemessen auf dem Worker mit einer monotonen Uhr.',
   streamingMs: 'Streaming-Zeit: von der ersten bis zur letzten Modellausgabe. So lange hat das Modell tatsächlich Ausgabe erzeugt. Gemessen auf dem Worker mit einer monotonen Uhr.',
   executionMs: 'Ausführungszeit: vom Start bis zum Ende des Harness-Prozesses, gemessen vom Worker. Ältere Server, die diesen Wert nicht melden, verwenden ersatzweise die Zeitstempel für Start und Abschluss.',
@@ -28,6 +30,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  ids: { deleted: 'Dieser Datensatz wurde gelöscht. ID {{id}}. Die Kopierschaltfläche kopiert die ID.', named: 'ID {{id}}. Mit der Kopierschaltfläche kopieren Sie die ID für die API, SDKs oder eine Supportanfrage.' },
   common: {
     fields: {
       name: 'Eindeutiger Name dieses Datensatzes innerhalb des Mandanten. Andere Datensätze und Manifeste verweisen über diesen Namen darauf.',
@@ -204,6 +207,7 @@ const tips = {
     confirm: 'Die oben beschriebene Aktion ausführen.'
   },
   copy: {
+    id: 'Die Datensatz-ID in die Zwischenablage kopieren, etwa für die REST API, SDKs oder Filter.',
     value: 'Diesen Wert in die Zwischenablage kopieren.',
     block: 'Den gesamten Block in die Zwischenablage kopieren, bereit zum Einfügen in ein Terminal oder eine Datei.',
     done: 'In die Zwischenablage kopiert.'
@@ -270,6 +274,7 @@ const tips = {
     panel: 'Wie lange jede Phase dieses Laufs gedauert hat und was sie verbraucht hat. Die Dauern stammen von den Uhren von Worker und Server, wie bei jedem Feld beschrieben.',
     phases: 'Wo der Lauf seine Zeit verbracht hat, von links nach rechts: Warten in der Warteschlange, Harness-Start bis zum ersten Token, Streaming der Ausgabe und der Rest der Ausführung.',
     phase: {
+      delegation: 'Zeit vor der ersten Modellausgabe, in der der Lauf auf delegierte Kindläufe gewartet hat. Das ist kein Harness-Start.',
       queue: 'Warten in der Warteschlange, bis ein Worker-Knoten den Lauf übernimmt.',
       startup: 'Vom Prozessstart bis zur ersten Modellausgabe, einschließlich Harness-Start und erster Modellanfrage.',
       streaming: 'Von der ersten bis zur letzten Modellausgabe.',
@@ -531,8 +536,9 @@ const tips = {
       actions: { clone: 'Eine bearbeitbare Kopie dieses Profils in Ihrem Mandanten erstellen, benannt mit dem Suffix -custom.' }
     },
     promptTemplates: {
+      actions: { clone: 'Diese Vorlage unter einem selbst gewählten Namen kopieren und die Kopie im Editor öffnen.' },
       add: 'Eine neue Prompt-Vorlage im Editor mit Live-Vorschau schreiben. Jedes Speichern wird zu einer Version.',
-      name: 'Vorlagenname. Bereitstellungen und andere Vorlagen verweisen über diesen Namen darauf.',
+      name: 'Name der Vorlage, eindeutig im Mandanten. Bereitstellungen binden Vorlagen über die ID, daher bleiben ihre Bindungen beim Umbenennen erhalten; Includes verweisen über den Namen.',
       kind: 'Wofür die Vorlage verwendet wird: System-Prompt, Aufgabenrahmen, Fragment, Werkzeugbeschreibung oder Konfigurationsdatei.',
       currentVersion: 'Die neueste gespeicherte Version. Bereitstellungen fixieren entweder eine Version oder folgen der neuesten.',
       description: 'Was die Vorlage tut und wo sie verwendet wird.'
@@ -793,6 +799,8 @@ const tips = {
   },
   views: {
     home: {
+      observabilityDocs: 'Die Telemetrie-Anleitung in einem neuen Tab öffnen: wie Sie Garrison-Metriken abrufen und Grafana, Prometheus, Tempo oder Loki anbinden.',
+      observability: 'Links zu den Metrik-, Dashboard- und Tracing-Werkzeugen, die diese Installation als konfiguriert meldet. Nicht konfigurierte Dienste werden nicht angezeigt.',
       kpis: {
         agents: 'In diesem Mandanten definierte Agenten. Klicken Sie, um die Liste der Agenten zu öffnen.',
         deployments: 'Bereitstellungen über alle Agenten. Jede ist eine Art, wie ein Agent laufen kann. Klicken Sie, um sie zu öffnen.',
@@ -813,6 +821,7 @@ const tips = {
         analytics: 'Geschwindigkeit, Token, Kosten und Ergebnisse von Läufen im Zeitverlauf ansehen.'
       },
       services: {
+        loki: 'Loki in einem neuen Tab öffnen, um Garrison-Protokolle zu durchsuchen.',
         grafana: 'Grafana-Dashboards für Garrison-Metriken in einem neuen Tab öffnen.',
         prometheus: 'Den Prometheus-Server, der Garrison-Metriken abfragt, in einem neuen Tab öffnen.',
         tempo: 'Tempo in einem neuen Tab öffnen, um Traces zu durchsuchen.'
@@ -820,6 +829,9 @@ const tips = {
       serviceGeneric: 'Diesen mitgelieferten Dienst in einem neuen Tab öffnen.'
     },
     runDetail: {
+      eventCode: 'Welche Art Meldung Garrison hier geschrieben hat, in Ihrer Sprache. Der Text daneben ist die Originalmeldung von Server oder Worker.',
+      openTemplate: 'Vorlage {{name}} öffnen. Dieser Lauf verwendete Version {{version}}; der Tab Versionen zeigt diesen Inhalt und den Unterschied zur aktuellen Version.',
+      templatesUsed: 'Die genauen Versionen der Prompt-Vorlagen, mit denen dieser Lauf kompiliert wurde. Klicken Sie eine an, um die Vorlage zu öffnen und Versionen zu vergleichen.',
       live: 'Ereignisse werden live vom Server gestreamt, sobald die Harness sie erzeugt.',
       viewJson: 'Den vollständigen Laufdatensatz als JSON anzeigen, einschließlich aller Telemetriefelder.',
       deployment: 'Die Bereitstellung, die für diesen Lauf gewählt wurde, per Name oder nach Verkehrsgewichtung.',
@@ -883,6 +895,8 @@ const tips = {
       openRun: 'Die vollständige Laufseite mit Ergebnis, Telemetrie und Stderr öffnen.'
     },
     manifests: {
+      planned: 'Was das Anwenden dieses Dokuments bewirken würde: den Datensatz erstellen, aktualisieren oder unverändert lassen. Eine Simulation prüft nur und ändert nichts.',
+      changes: { after: 'Der Wert, den das Manifest setzt. Lange Werte werden nach 200 Zeichen abgeschnitten.', before: 'Der aktuell gespeicherte Wert. Lange Werte werden nach 200 Zeichen abgeschnitten.', field: 'Die Einstellung dieses Datensatzes, die das Manifest ändert, zum Beispiel model oder parameters.model.' },
       results: 'Was die Anwendung mit jedem Dokument im Manifest getan hat.',
       kind: 'Die Art des Datensatzes, den das Dokument beschreibt, etwa Agent oder Deployment.',
       name: 'Der Name des Datensatzes aus den Metadaten des Dokuments.',
@@ -903,9 +917,11 @@ const tips = {
       confirmApply: 'Das Manifest jetzt in diesen Mandanten schreiben.'
     },
     templateEditor: {
-      clone: 'Eine bearbeitbare Kopie dieser Vorlage mit dem Suffix -custom erstellen.',
+      cloneName: 'Name der Kopie. Kleinbuchstaben, Ziffern, Bindestriche und Schrägstriche eignen sich gut; das Präfix builtin/ ist reserviert.',
+      cloneConfirm: 'Die Kopie mit diesem Namen erstellen und im Editor öffnen.',
+      clone: 'Eine bearbeitbare Kopie dieser Vorlage anlegen. Sie wählen den Namen der Kopie, bevor sie erstellt wird.',
       reset: 'Diese integrierte Vorlage auf den Inhalt zurücksetzen, mit dem Garrison ausgeliefert wird.',
-      delete: 'Diese Vorlage löschen. Bereitstellungen, die sie binden, lassen sich dann nicht mehr kompilieren.',
+      delete: 'Diese Vorlage mit allen Versionen löschen. Der Server lehnt ab, solange eine Bereitstellung sie bindet; die Bestätigung listet diese auf.',
       create: 'Die Vorlage und ihre erste Version erstellen.',
       save: 'Den Inhalt als neue Version speichern. Bereitstellungen, die der neuesten Version folgen, übernehmen sie für neue Läufe.',
       content: 'Der Vorlagentext. Verwenden Sie {{variables}}, Bedingungen, Schleifen und Einbindungen; die Vorschau aktualisiert sich beim Tippen.',
@@ -987,6 +1003,7 @@ const tips = {
       confirmExecute: 'Diese Anfrage senden, obwohl sie Daten ändern oder löschen kann.'
     },
     settings: {
+      settingPath: 'Einstellungspfad: {{path}}. Verwenden Sie diesen Namen in der Einstellungsdatei und in der REST API für Einstellungen.',
       viewJson: 'Die rohe Antwort der Einstellungen anzeigen.',
       restart: 'Dieses Replikat der Steuerungsebene neu starten, damit Einstellungen wirksam werden, die einen Neustart erfordern.',
       save: 'Alle geänderten Einstellungen speichern. Sofort wirksame Einstellungen gelten unmittelbar; andere warten auf einen Neustart.',
@@ -1021,6 +1038,8 @@ const tips = {
   },
   analytics: {
     filters: {
+      ttft: 'Wenn aktiviert, lässt das Diagramm zur Zeit bis zum ersten Token die Wartezeit auf delegierte Agenten weg, damit delegierende Agenten fair mit direkt antwortenden verglichen werden.',
+      range: 'Zeitfenster für alle Diagramme und Summen: die letzte Stunde, der letzte Tag, die letzte Woche, die letzten 30 Tage oder ein eigener Start und ein eigenes Ende.',
       from: 'Beginn des benutzerdefinierten Zeitraums, in Ihrer lokalen Zeitzone.',
       to: 'Ende des benutzerdefinierten Zeitraums, in Ihrer lokalen Zeitzone.',
       agentId: 'Nur Läufe dieses Agenten zählen. Die Liste der Bereitstellungen beschränkt sich dann auf seine Bereitstellungen.',
@@ -1030,6 +1049,8 @@ const tips = {
       groupBy: 'Jedes Diagramm in eine Reihe pro Agent, Harness, Modell oder Paar aus Harness und Modell aufteilen, damit Sie sie vergleichen können.'
     },
     cards: {
+      delegationWait: 'Mittlere Zeit, die Läufe auf delegierte Kindläufe gewartet haben. k. A., wenn im Zeitraum kein Lauf delegiert hat.',
+      ttftExcludingDelegation: 'Mittlere Zeit bis zum ersten Token ohne die Wartezeit auf delegierte Agenten. Die Notiz zeigt das 95. Perzentil.',
       runs: 'Im Zeitraum angeforderte Läufe, die den Filtern entsprechen.',
       successRate: 'Erfolgreiche Läufe als Anteil der beendeten Läufe (erfolgreich, fehlgeschlagen, abgebrochen und mit Zeitüberschreitung).',
       ttft: 'Mittlere Zeit bis zum ersten Token über alle Läufe mit Ausgabe. Die Notiz zeigt das 95. Perzentil.',
@@ -1053,6 +1074,10 @@ const tips = {
       usageCost: 'Gemeldete Kosten im Zeitverlauf, ein gestapeltes Segment pro Paar aus Harness und Modell. Fahren Sie mit der Maus über einen Balken für die Aufteilung.'
     },
     metrics: {
+      delegationWaitMsAvg: 'Mittlere Wartezeit der Läufe auf delegierte Kindläufe. Klicken, um die Linie aus- oder einzublenden.',
+      timeToFirstTokenExcludingDelegationMsP95: '95. Perzentil der Zeit bis zum ersten Token ohne Wartezeit auf delegierte Läufe. Klicken, um die Linie aus- oder einzublenden.',
+      timeToFirstTokenExcludingDelegationMsP50: 'Median der Zeit bis zum ersten Token ohne Wartezeit auf delegierte Läufe. Klicken, um die Linie aus- oder einzublenden.',
+      timeToFirstTokenExcludingDelegationMsAvg: 'Mittlere Zeit bis zum ersten Token ohne Wartezeit auf delegierte Läufe. Klicken, um die Linie aus- oder einzublenden.',
       runs: 'Im Intervall angeforderte Läufe.',
       succeeded: 'Erfolgreich beendete Läufe. Klicken Sie, um diese Reihe aus- oder einzublenden.',
       failed: 'Fehlgeschlagene Läufe. Klicken Sie, um diese Reihe aus- oder einzublenden.',

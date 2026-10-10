@@ -6,6 +6,29 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const zhHans = {
   common: {
+    eventCodes: { StructuredOutputInvalid: '结构化输出无效', RunBlocked: '运行受阻', EventsDropped: '事件已丢弃', HarnessExited: 'Harness 已退出', McpPreflightWarning: 'MCP 预检警告', McpPreflightPassed: 'MCP 预检通过', RepairAttemptStarted: '已开始修复输出', WorkspacePrepared: '工作区已就绪' },
+    fieldCodes: { ExpiryInPast: '请选择未来的时间。', ParameterInvalid: '此值对该参数无效。', ParameterNotAllowed: '此部署不允许调用方覆盖此参数。', SettingsFileReadOnly: '设置文件为只读，因此无法保存此更改。', OverriddenByEnvironment: '此值由环境变量设置，因此无法在此更改。', PathRequired: '需要设置路径。', UnknownSetting: '此服务器没有该设置。', TooLong: '此值过长。', NotAllowedValue: '请选择允许的值之一。', NotABoolean: '请选择 true 或 false。', NotAnInteger: '请输入整数。', OutOfRange: '值超出允许的范围。' },
+    serverText: {
+      notApplied: '未应用，因为另一个文档未通过验证。',
+      wouldBeUnchanged: '已是最新，不会有任何变更。',
+      wouldBeUpdated: '将被更新。',
+      wouldBeCreated: '将被创建。',
+      inUse: '{{what}} 仍被这些部署绑定：{{deployments}}。请先移除绑定。',
+      noActiveDeployment: '智能体 {{agent}} 没有权重大于零的活动部署。请添加部署或提高某个部署的权重，然后重试。',
+      toolCallDenied: '工具调用被拒绝：{{id}}',
+      threadStarted: '线程已开始。',
+      runStartedModel: '运行已开始（{{model}}）。',
+      runStarted: '运行已开始。',
+      sessionInitializedModel: '会话已初始化（{{model}}）。',
+      sessionInitialized: '会话已初始化。',
+      harnessFailed: 'Harness 报告了失败。',
+      exitedNoResult: 'Harness 以代码 {{code}} 退出，没有最终结果。',
+      harnessExited: 'Harness 已退出：{{status}}（{{outcome}}）。',
+      harnessExitedCode: 'Harness 已退出，代码 {{code}}：{{status}}（{{outcome}}）。',
+      mcpPreflight: 'MCP 预检已通过。已检查的服务器：{{count}}。',
+      repairAttempt: '结构化输出修复第 {{attempt}} 次尝试：在 {{path}} 中恢复 Harness 会话。',
+      workspacePrepared: '工作区已在 {{path}} 准备就绪。'
+    },
     appName: 'Garrison',
     language: { label: '语言' },
     theme: { switchToLight: '切换到浅色主题', switchToDark: '切换到深色主题' },
@@ -50,6 +73,7 @@ const zhHans = {
       requiredPermission: '需要对 {{resource}} 拥有 {{permission}} 权限。'
     },
     generic: {
+      deletedName: '{{name}}（已删除）',
       actions: '操作',
       active: '启用',
       all: '全部',
@@ -80,6 +104,12 @@ const zhHans = {
     units: { msShort: '毫秒', sShort: '秒', mShort: '分钟', tokPerSec: 'Token/秒' }
   },
   errorCodes: {
+    MessageIdConflict: '此 A2A 消息 ID 已用于不同的内容。请使用新的 ID 发送消息。',
+    IdempotencyKeyConflict: '此幂等键已用于另一个请求。请使用新的键。',
+    DeploymentDeleted: '此运行的部署已被删除，因此无法重试此运行。请改为再次调用智能体。',
+    AgentDeleted: '此运行的智能体已被删除，因此无法重试此运行。',
+    NoActiveDeployment: '此智能体没有权重大于零的活动部署。请添加部署或提高某个部署的权重。',
+    TenantNotFound: '该租户不存在。请检查租户 ID。',
     NetworkError: '无法连接到服务器。请检查服务器 URL，并确认服务器正在运行。',
     AuthenticationRequired: '你的会话已过期，请重新登录。',
     InvalidCredentials: '租户、电子邮件、密码或密钥不正确。',
@@ -581,6 +611,9 @@ const zhHans = {
       errors: { reservedPrefix: 'builtin/ 前缀为保留前缀。' }
     },
     promptTemplates: {
+      deleteBound_other: '“{{name}}”被 {{count}} 个部署绑定，因此服务器会拒绝删除。请先从以下部署中移除绑定：',
+      deleteBound_one: '“{{name}}”被 {{count}} 个部署绑定，因此服务器会拒绝删除。请先从以下部署中移除绑定：',
+      deleteUnbound: '删除“{{name}}”及其所有版本？没有部署绑定它。此操作无法撤销。',
       ...rp('提示词模板', 'Garrison 渲染的所有提示词和配置文件。每次保存都会创建一个新版本。', '添加模板', '创建模板', '编辑模板', '模板详情', '删除模板', '暂无提示词模板', '创建模板，或克隆内置模板。'),
       add: '新建模板',
       columns: { name: '名称', kind: '类别', currentVersion: '版本', description: '描述', isBuiltIn: '来源', id: 'ID', lastUpdateUtc: '更新时间' },
@@ -610,11 +643,12 @@ const zhHans = {
       actions: { test: '测试连接' }
     },
     secrets: {
+      errors: { expiryPast: '请选择未来的过期时间，或留空使机密永不过期。' },
       ...rp('机密', '供 Harness 和集成使用的加密凭据。值为只写。', '添加机密', '创建机密', '编辑机密', '机密详情', '删除机密', '暂无机密', '添加智能体所需的 API 密钥或令牌，例如 Anthropic API 密钥。'),
       notSet: '未设置',
       columns: { name: '名称', kind: '类别', valueLast4: '值', rotatedUtc: '上次更改', expiresUtc: '过期时间', active: '启用', id: 'ID' },
       fields: { name: '名称', kind: '类别', description: '描述', value: '值', newValue: '新值', expiresUtc: '过期时间', active: '启用' },
-      hints: { kind: '在共享服务器上使用订阅令牌可能违反提供商条款。共享部署请优先使用 API 密钥。' },
+      hints: { expiresUtc: '必须是未来的时间。留空表示机密永不过期。', kind: '在共享服务器上使用订阅令牌可能违反提供商条款。共享部署请优先使用 API 密钥。' },
       actions: { setValue: '设置值', rotate: '轮换' }
     },
     workspaces: {
@@ -628,6 +662,9 @@ const zhHans = {
       fields: { name: '名称', kind: '类别', description: '描述', active: '启用' }
     },
     agents: {
+      deleteWithDeployments_other: '删除“{{name}}”及其 {{count}} 个部署？下面的部署也会被删除。此操作无法撤销。',
+      deleteWithDeployments_one: '删除“{{name}}”及其 {{count}} 个部署？下面的部署也会被删除。此操作无法撤销。',
+      deleteNoDeployments: '删除“{{name}}”？它没有部署。此操作无法撤销。',
       ...rp('智能体', '通过 REST、MCP 和 A2A 公开的具名能力。由部署决定它们如何运行。', '添加智能体', '创建智能体', '编辑智能体', '智能体详情', '删除智能体', '暂无智能体', '添加智能体，或在“配置 > 清单”中应用示例清单。'),
       sections: { identity: '标识', exposure: '公开方式', io: '输入和输出', delegation: '委派' },
       columns: { name: '名称', displayName: '显示名称', kind: '类别', exposure: '公开方式', delegationMode: '委派', tags: '标记', active: '启用', id: 'ID', createdUtc: '创建时间' },
@@ -660,6 +697,7 @@ const zhHans = {
       errors: { dnsName: '请使用小写字母、数字和连字符，并以字母或数字开头和结尾。' }
     },
     deployments: {
+      promptRoles: { Repair: '结构化输出修复', DelegatedTask: '委派运行的任务包装', Task: '任务包装', System: '系统提示词' },
       ...rp('部署', '将智能体绑定到 Harness 配置文件、提示词、机密、MCP 服务器、调度放置和限制。', '添加部署', '创建部署', '编辑部署', '部署详情', '删除部署', '暂无部署', '创建部署，使智能体可以运行。'),
       steps: { basics: '基本信息', harness: 'Harness', prompts: '提示词', resources: '资源', overrides: '覆盖', placement: '调度放置和限制' },
       columns: { name: '名称', agentId: '智能体', harnessProfileId: 'Harness 配置文件', model: '模型', weight: '权重', configVersion: '配置版本', active: '启用', id: 'ID', createdUtc: '创建时间' },
@@ -709,6 +747,9 @@ const zhHans = {
         retryOnNodeLoss: '节点丢失时重新排队'
       },
       hints: {
+        secretsKinds: 'Harness 配置文件 {{profile}} 需要任意一个类型为 {{kinds}} 的机密。可用任意别名绑定。',
+        secretsAliases: 'Harness 配置文件 {{profile}} 读取以这些别名绑定的机密：{{aliases}}。',
+        secretsNone: 'Harness 配置文件 {{profile}} 不读取任何机密，因此无需绑定机密。',
         promptBindings: '将提示词角色（System、Task、DelegatedTask，以及 Harness 配置文件使用的任何角色）映射到模板。版本留空则始终使用最新版本。',
         resourceBindings: '别名会成为模板变量，例如 {{secret.anthropic}}。',
         weight: '未显式指定部署的请求会按权重分配到各个启用的部署。',
@@ -726,6 +767,8 @@ const zhHans = {
     runs: {
       ...rp('运行', '每次智能体调用的状态、节点、耗时和结果。', '添加运行', '创建运行', '编辑运行', '运行详情', '删除运行', '暂无运行', '调用智能体即可开始一次运行。'),
       columns: {
+        delegationWaitMs: '委派等待时间',
+        timeToFirstTokenExcludingDelegationMs: '首 Token 时间（不含委派）',
         id: '运行',
         agentName: '智能体',
         status: '状态',
@@ -788,6 +831,9 @@ const zhHans = {
   },
   views: {
     home: {
+      observabilitySetup: '设置可观测性',
+      observabilityNone: '此环境未配置任何可观测性服务（Grafana、Prometheus、Tempo 或 Loki）。',
+      observability: '可观测性',
       title: '首页',
       subtitle: '你的智能体和工作节点当前的状态。',
       lastLoaded: '更新于 {{time}}',
@@ -827,9 +873,10 @@ const zhHans = {
       externalServicesNote: '捆绑的可观测性工具。共享此部署前请更改默认凭据。',
       externalServicesNone: '此部署未配置任何外部服务。',
       credentials: '默认凭据',
-      services: { grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
+      services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
     invoke: {
+      noDeployment: '此智能体没有权重大于零的活动部署，因此调用会被拒绝。请在“部署”标签页中添加部署，或提高某个部署的权重。',
       title: '调用',
       subtitle: '向智能体发送消息，并实时查看对话记录。',
       request: '请求',
@@ -850,6 +897,9 @@ const zhHans = {
       applySample: '前往清单'
     },
     runDetail: {
+      deploymentDeleted: '此运行使用的部署已被删除，因此无法重试。请改为再次调用智能体 {{agent}}。',
+      templatesUsed: '使用的模板',
+      agentDeleted: '智能体 {{agent}} 已不存在，因此无法重试此运行。它的记录、对话记录和遥测仍可在此查看。',
       title: '运行',
       titleWithAgent: '{{agent}} 的运行',
       deployment: '部署',
@@ -891,10 +941,13 @@ const zhHans = {
       notFoundTitle: '未找到运行',
       notFoundBody: '它可能已被删除，或属于其他租户。',
       telemetry: {
+        delegationNote: '此运行等待委派运行 {{wait}}。首 Token 时间包含该等待为 {{ttft}}，不包含为 {{excluding}}；与不委派的智能体比较时请使用后者。',
         title: '遥测',
         phases: '各阶段运行时间',
-        phase: { queue: '排队', startup: '启动至首个 Token', streaming: '流式输出', tail: '最后一个 Token 之后' },
+        phase: { delegation: '等待委派运行', queue: '排队', startup: '启动至首个 Token', streaming: '流式输出', tail: '最后一个 Token 之后' },
         fields: {
+          delegationWaitMs: '委派等待时间',
+          timeToFirstTokenExcludingDelegationMs: '首 Token 时间（不含委派）',
           timeToFirstTokenMs: '首 Token 时间',
           streamingMs: '流式输出时间',
           executionMs: '执行时间',
@@ -936,6 +989,10 @@ const zhHans = {
       manageDeployments: '管理部署'
     },
     templateEditor: {
+      cloneToEdit: '克隆后编辑',
+      builtInReadOnly: '内置模板为只读，因此这里的所有字段都已锁定。克隆后即可获得可编辑的副本。',
+      renameHint: '可以重命名此模板。部署按 ID 引用它，所以绑定不受影响；但按名称包含它的模板需要手动更新。',
+      cloneDialog: { taken: '已存在名为 {{name}} 的模板。请换一个名称。', reserved: '以 builtin/ 开头的名称保留给内置模板。', hint: '之后可以在副本页面中重命名。', name: '副本名称', body: '副本以当前内容作为第 1 版，之后可以编辑、重命名和删除。', title: '克隆 {{name}}' },
       newTitle: '新建提示词模板',
       subtitle: '编写模板，使用示例上下文预览，然后保存。',
       builtInNote: '内置模板为只读。请克隆后自定义，或重置以恢复随产品提供的内容。',
@@ -973,6 +1030,8 @@ const zhHans = {
       }
     },
     manifests: {
+      planned: '预计结果：{{result}}',
+      changes: { count_other: '{{count}} 个字段有变更。', count_one: '{{count}} 个字段有变更。', empty: '（空）', after: '变更后', before: '变更前', field: '字段' },
       title: '清单',
       subtitle: '以代码形式应用配置。试运行只做验证，不写入数据。',
       applyTab: '应用',
@@ -1049,6 +1108,8 @@ const zhHans = {
       noSpecBody: '此服务器未返回可用的 /openapi.json 文档，因此浏览器无法列出操作。'
     },
     settings: {
+      errors: { allowed: '请选择以下值之一：{{values}}。', boolean: '请选择 true 或 false。', max: '请输入不大于 {{max}} 的值。', min: '请输入不小于 {{min}} 的值。', range: '请输入 {{min}} 到 {{max}} 之间的值。', integer: '请输入整数。', number: '请输入数字。' },
+      notSaved: '未保存任何内容。请修正标出的设置，然后重新保存。',
       title: '设置',
       subtitle: '来自设置文件的服务器设置，以及存储在数据库中的集群设置。',
       readOnly: '你正在以只读方式查看设置。只有系统管理员可以更改设置。',
@@ -1080,13 +1141,101 @@ const zhHans = {
         other: '此设置无法在此处编辑。'
       },
       groups: { General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计', Runtime: '运行时' },
-      fields: {}
+      fields: {
+        Rest: {
+          ExternalBaseUrl: '外部 REST URL',
+          PublicBaseUrl: '供运行使用的内部 REST URL',
+          Ssl: 'REST TLS 加密',
+          Port: 'REST 端口',
+          Hostname: 'REST 绑定主机名'
+        },
+        Mcp: {
+          MaxToolWaitSeconds: 'MCP 工具最长等待时间（秒）',
+          PublicUrl: '供运行使用的内部 MCP URL',
+          Path: 'MCP 路径',
+          Port: 'MCP 端口',
+          Hostname: 'MCP 绑定主机名',
+          Enable: '启用 MCP 服务器'
+        },
+        Database: {
+          MaxPoolSize: '连接池大小',
+          Schema: '数据库架构',
+          Password: '数据库密码',
+          Username: '数据库用户',
+          DatabaseName: '数据库名称',
+          Port: '数据库端口',
+          Host: '数据库主机',
+          Filename: 'Sqlite 文件',
+          Type: '数据库类型'
+        },
+        Logging: {
+          MinimumSeverity: '最低日志级别',
+          LogFilename: '日志文件名',
+          LogDirectory: '日志目录',
+          FileLogging: '输出日志到文件',
+          ConsoleLogging: '输出日志到控制台'
+        },
+        Auth: {
+          RateLimitPerMinute: '每分钟登录尝试次数',
+          SignedRequestSkewSeconds: '签名请求允许的时钟偏差（秒）',
+          AdminApiKey: '管理员 API 密钥',
+          TokenLifetimeMinutes: '会话有效期（分钟）',
+          SigningKey: '令牌签名密钥',
+          Issuer: '令牌签发者'
+        },
+        Security: {
+          NodeSecretKey: '工作节点私密密钥',
+          NodeAccessKey: '工作节点访问密钥',
+          DefaultSecretKey: '默认私密密钥',
+          DefaultAccessKey: '默认访问密钥',
+          AdminPassword: '初始管理员密码',
+          AdminEmail: '初始管理员邮箱',
+          MasterKey: '机密加密主密钥'
+        },
+        RequestHistory: {
+          MaxResponseBodyBytes: '记录的响应正文上限（字节）',
+          MaxRequestBodyBytes: '记录的请求正文上限（字节）',
+          RetentionDays: '请求历史保留天数',
+          Enabled: '记录请求历史'
+        },
+        Telemetry: {
+          OtlpEndpoint: 'OTLP 端点',
+          OtlpEnable: '启用 OTLP 导出',
+          PrometheusPort: 'Prometheus 端口',
+          PrometheusEnable: '启用 Prometheus 端点',
+          ServiceName: '遥测服务名称',
+          Enabled: '启用遥测'
+        },
+        Cluster: {
+          ExpectedReplicas: '控制平面预期副本数'
+        },
+        Scheduling: {
+          EventPollMs: '事件轮询间隔（毫秒）',
+          NodeHeartbeatTimeoutMs: '节点心跳超时（毫秒）',
+          LeaseWaitMs: '租约长轮询等待时间（毫秒）',
+          LeaseDurationMs: '运行租约时长（毫秒）'
+        },
+        Runs: {
+          EventRetentionDays: '运行事件保留天数',
+          RetentionDays: '运行保留天数',
+          MaxDelegationDepth: '最大委派深度',
+          DefaultTimeoutSeconds: '默认运行超时（秒）'
+        },
+        Runtime: {
+          FailBlockedAfterSeconds: '受阻运行在多少秒后失败'
+        },
+        Audit: {
+          RetentionDays: '审计保留天数'
+        }
+      }
     },
     analytics: {
+      deletedAgent: '已删除的智能体（{{id}}）',
+      deletedDeployment: '已删除的部署（{{id}}）',
       title: '分析',
       subtitle: '你的运行随时间变化的速度、成本和可靠性。',
       loading: '正在加载分析数据...',
-      filters: { range: '范围', from: '开始', to: '结束', agentId: '智能体', harnessType: 'Harness', deploymentId: '部署', model: '模型', groupBy: '分组方式' },
+      filters: { ttft: '首 Token 时间不含委派等待', range: '范围', from: '开始', to: '结束', agentId: '智能体', harnessType: 'Harness', deploymentId: '部署', model: '模型', groupBy: '分组方式' },
       allAgents: '所有智能体',
       allHarnesses: '所有 Harness',
       allDeployments: '所有部署',
@@ -1110,6 +1259,8 @@ const zhHans = {
       emptyBody: '没有符合范围和筛选条件的数据。请扩大范围、清除筛选条件，或调用智能体。',
       noDataInChart: '所选范围内此图表没有数据。',
       cards: {
+        delegationWait: '平均委派等待时间',
+        ttftExcludingDelegation: '平均首 Token 时间（不含委派）',
         runs: '运行',
         runsNote: '成功 {{succeeded}}，失败 {{failed}}',
         successRate: '成功率',
@@ -1125,7 +1276,7 @@ const zhHans = {
       },
       charts: {
         outcomes: { title: '运行结果', help: '每个时间段内按结束方式统计的运行数。' },
-        ttft: { title: '首 Token 时间', help: '从 Harness 启动到模型首次输出的时间，包含 CLI 启动时间。' },
+        ttft: { helpExcluding: '从 Harness 启动到模型首次输出的时间，不含等待委派运行的时间。', title: '首 Token 时间', help: '从 Harness 启动到模型首次输出的时间，包含 CLI 启动时间。' },
         duration: { title: '流式输出与执行时间', help: '流式输出时间是从模型首次输出到最后一次输出；执行时间是从进程启动到退出。' },
         queue: { title: '排队时间', help: '从进入队列到被工作节点租用的时间。' },
         tokens: { title: 'Token', help: '每个时间段内的输入、输出、缓存和推理 Token。' },
@@ -1137,6 +1288,10 @@ const zhHans = {
       },
       groupedTitle: '{{chart}}：{{metric}}',
       metrics: {
+        delegationWaitMsAvg: '委派等待时间（平均）',
+        timeToFirstTokenExcludingDelegationMsP95: '不含委派（p95）',
+        timeToFirstTokenExcludingDelegationMsP50: '不含委派（p50）',
+        timeToFirstTokenExcludingDelegationMsAvg: '不含委派（平均）',
         runs: '运行',
         succeeded: '成功',
         failed: '失败',

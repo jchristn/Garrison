@@ -6,6 +6,29 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const fr = {
   common: {
+    eventCodes: { StructuredOutputInvalid: 'Sortie structurée non valide', RunBlocked: 'Exécution bloquée', EventsDropped: 'Événements abandonnés', HarnessExited: 'Harness arrêté', McpPreflightWarning: 'Avertissement de vérification préalable MCP', McpPreflightPassed: 'Vérification préalable MCP réussie', RepairAttemptStarted: 'Réparation de la sortie lancée', WorkspacePrepared: 'Espace de travail préparé' },
+    fieldCodes: { ExpiryInPast: 'Choisissez un moment dans le futur.', ParameterInvalid: 'Cette valeur n\'est pas valide pour ce paramètre.', ParameterNotAllowed: 'Ce déploiement ne permet pas aux appelants de remplacer ce paramètre.', SettingsFileReadOnly: 'Le fichier de paramètres est en lecture seule ; cette modification ne peut donc pas être enregistrée.', OverriddenByEnvironment: 'Une variable d\'environnement définit cette valeur ; elle ne peut donc pas être modifiée ici.', PathRequired: 'Un chemin de paramètre est requis.', UnknownSetting: 'Ce serveur ne connaît pas ce paramètre.', TooLong: 'Cette valeur est trop longue.', NotAllowedValue: 'Choisissez l\'une des valeurs autorisées.', NotABoolean: 'Choisissez vrai ou faux.', NotAnInteger: 'Saisissez un nombre entier.', OutOfRange: 'La valeur est hors de la plage autorisée.' },
+    serverText: {
+      notApplied: 'Non appliqué, car un autre document n\'a pas passé la validation.',
+      wouldBeUnchanged: 'Déjà à jour ; rien ne changerait.',
+      wouldBeUpdated: 'Serait mis à jour.',
+      wouldBeCreated: 'Serait créé.',
+      inUse: '{{what}} est encore lié à ces déploiements : {{deployments}}. Retirez d\'abord les liaisons.',
+      noActiveDeployment: 'L\'agent {{agent}} n\'a aucun déploiement actif avec un poids supérieur à zéro. Ajoutez un déploiement ou augmentez un poids, puis réessayez.',
+      toolCallDenied: 'Appel d\'outil refusé : {{id}}',
+      threadStarted: 'Fil démarré.',
+      runStartedModel: 'Exécution démarrée ({{model}}).',
+      runStarted: 'Exécution démarrée.',
+      sessionInitializedModel: 'Session initialisée ({{model}}).',
+      sessionInitialized: 'Session initialisée.',
+      harnessFailed: 'Le harness a signalé un échec.',
+      exitedNoResult: 'Le harness s\'est arrêté avec le code {{code}} sans résultat final.',
+      harnessExited: 'Le harness s\'est arrêté : {{status}} ({{outcome}}).',
+      harnessExitedCode: 'Le harness s\'est arrêté avec le code {{code}} : {{status}} ({{outcome}}).',
+      mcpPreflight: 'Vérification préalable MCP réussie. Serveurs vérifiés : {{count}}.',
+      repairAttempt: 'Tentative {{attempt}} de réparation de la sortie structurée : reprise de la session du harness dans {{path}}.',
+      workspacePrepared: 'Espace de travail préparé dans {{path}}.'
+    },
     appName: 'Garrison',
     language: { label: 'Langue' },
     theme: { switchToLight: 'Passer au thème clair', switchToDark: 'Passer au thème sombre' },
@@ -50,6 +73,7 @@ const fr = {
       requiredPermission: 'Nécessite {{permission}} sur {{resource}}.'
     },
     generic: {
+      deletedName: '{{name}} (supprimé)',
       actions: 'Actions',
       active: 'Actif',
       all: 'Tous',
@@ -80,6 +104,12 @@ const fr = {
     units: { msShort: 'ms', sShort: 's', mShort: 'min', tokPerSec: 'jetons/s' }
   },
   errorCodes: {
+    MessageIdConflict: 'Cet ID de message A2A a déjà servi avec un autre contenu. Envoyez le message avec un nouvel ID.',
+    IdempotencyKeyConflict: 'Cette clé d\'idempotence a déjà servi pour une autre requête. Utilisez une nouvelle clé.',
+    DeploymentDeleted: 'Le déploiement de cette exécution a été supprimé ; l\'exécution ne peut donc pas être relancée. Invoquez plutôt l\'agent à nouveau.',
+    AgentDeleted: 'L\'agent de cette exécution a été supprimé ; l\'exécution ne peut donc pas être relancée.',
+    NoActiveDeployment: 'Cet agent n\'a aucun déploiement actif avec un poids supérieur à zéro. Ajoutez un déploiement ou augmentez un poids.',
+    TenantNotFound: 'Ce locataire n\'existe pas. Vérifiez l\'ID du locataire.',
     NetworkError: 'Impossible de joindre le serveur. Vérifiez l\'URL du serveur et que celui-ci est en cours d\'exécution.',
     AuthenticationRequired: 'Votre session a expiré. Reconnectez-vous.',
     InvalidCredentials: 'Le locataire, l\'e-mail, le mot de passe ou les clés sont incorrects.',
@@ -616,6 +646,10 @@ const fr = {
       errors: { reservedPrefix: 'Le préfixe builtin/ est réservé.' }
     },
     promptTemplates: {
+      deleteBound_many: '« {{name}} » est lié à {{count}} déploiements ; le serveur refusera donc de le supprimer. Retirez d\'abord les liaisons de ces déploiements :',
+      deleteBound_other: '« {{name}} » est lié à {{count}} déploiements ; le serveur refusera donc de le supprimer. Retirez d\'abord les liaisons de ces déploiements :',
+      deleteBound_one: '« {{name}} » est lié à {{count}} déploiement ; le serveur refusera donc de le supprimer. Retirez d\'abord la liaison de ce déploiement :',
+      deleteUnbound: 'Supprimer « {{name}} » et toutes ses versions ? Aucun déploiement ne le lie. Cette action est irréversible.',
       ...rp('Modèles de prompt', 'Chaque prompt et fichier de configuration générés par Garrison. Chaque enregistrement crée une version.', 'Ajouter un modèle', 'Créer un modèle', 'Modifier le modèle', 'Détails du modèle', 'Supprimer le modèle', 'Aucun modèle de prompt pour l\'instant', 'Créez un modèle ou clonez un modèle intégré.'),
       add: 'Nouveau modèle',
       columns: { name: 'Nom', kind: 'Type', currentVersion: 'Version', description: 'Description', isBuiltIn: 'Origine', id: 'ID', lastUpdateUtc: 'Mis à jour le' },
@@ -645,11 +679,12 @@ const fr = {
       actions: { test: 'Tester la connexion' }
     },
     secrets: {
+      errors: { expiryPast: 'Choisissez une expiration dans le futur, ou laissez le champ vide pour que le secret n\'expire jamais.' },
       ...rp('Secrets', 'Identifiants chiffrés pour les harness et les intégrations. Les valeurs sont en écriture seule.', 'Ajouter un secret', 'Créer un secret', 'Modifier le secret', 'Détails du secret', 'Supprimer le secret', 'Aucun secret pour l\'instant', 'Ajoutez la clé API ou le jeton dont vos agents ont besoin, par exemple une clé API Anthropic.'),
       notSet: 'Non défini',
       columns: { name: 'Nom', kind: 'Type', valueLast4: 'Valeur', rotatedUtc: 'Dernière modification', expiresUtc: 'Expiration', active: 'Actif', id: 'ID' },
       fields: { name: 'Nom', kind: 'Type', description: 'Description', value: 'Valeur', newValue: 'Nouvelle valeur', expiresUtc: 'Expiration', active: 'Actif' },
-      hints: { kind: 'Les jetons d\'abonnement utilisés sur des serveurs partagés peuvent enfreindre les conditions du fournisseur. Privilégiez les clés API pour les déploiements partagés.' },
+      hints: { expiresUtc: 'Doit être dans le futur. Laissez vide pour un secret sans expiration.', kind: 'Les jetons d\'abonnement utilisés sur des serveurs partagés peuvent enfreindre les conditions du fournisseur. Privilégiez les clés API pour les déploiements partagés.' },
       actions: { setValue: 'Définir la valeur', rotate: 'Renouveler' }
     },
     workspaces: {
@@ -663,6 +698,10 @@ const fr = {
       fields: { name: 'Nom', kind: 'Type', description: 'Description', active: 'Actif' }
     },
     agents: {
+      deleteWithDeployments_many: 'Supprimer « {{name}} » et ses {{count}} déploiements ? Les déploiements ci-dessous sont supprimés aussi. Cette action est irréversible.',
+      deleteWithDeployments_other: 'Supprimer « {{name}} » et ses {{count}} déploiements ? Les déploiements ci-dessous sont supprimés aussi. Cette action est irréversible.',
+      deleteWithDeployments_one: 'Supprimer « {{name}} » et son {{count}} déploiement ? Le déploiement ci-dessous est supprimé aussi. Cette action est irréversible.',
+      deleteNoDeployments: 'Supprimer « {{name}} » ? Il n\'a aucun déploiement. Cette action est irréversible.',
       ...rp('Agents', 'Capacités nommées exposées via REST, MCP et A2A. Les déploiements déterminent leur mode d\'exécution.', 'Ajouter un agent', 'Créer un agent', 'Modifier l\'agent', 'Détails de l\'agent', 'Supprimer l\'agent', 'Aucun agent pour l\'instant', 'Ajoutez un agent ou appliquez le manifeste d\'exemple depuis Configuration > Manifestes.'),
       sections: { identity: 'Identité', exposure: 'Exposition', io: 'Entrée et sortie', delegation: 'Délégation' },
       columns: { name: 'Nom', displayName: 'Nom d\'affichage', kind: 'Type', exposure: 'Exposition', delegationMode: 'Délégation', tags: 'Tags', active: 'Actif', id: 'ID', createdUtc: 'Créé le' },
@@ -695,6 +734,7 @@ const fr = {
       errors: { dnsName: 'Utilisez des lettres minuscules, des chiffres et des traits d\'union, en commençant et en terminant par une lettre ou un chiffre.' }
     },
     deployments: {
+      promptRoles: { Repair: 'Réparation de sortie structurée', DelegatedTask: 'Enveloppe de tâche pour les exécutions déléguées', Task: 'Enveloppe de tâche', System: 'Prompt système' },
       ...rp('Déploiements', 'Liez un agent à un profil de harness, des prompts, des secrets, des serveurs MCP, un placement et des limites.', 'Ajouter un déploiement', 'Créer un déploiement', 'Modifier le déploiement', 'Détails du déploiement', 'Supprimer le déploiement', 'Aucun déploiement pour l\'instant', 'Créez un déploiement pour rendre un agent exécutable.'),
       steps: { basics: 'Général', harness: 'Harness', prompts: 'Prompts', resources: 'Ressources', overrides: 'Remplacements', placement: 'Placement et limites' },
       columns: { name: 'Nom', agentId: 'Agent', harnessProfileId: 'Profil de harness', model: 'Modèle', weight: 'Poids', configVersion: 'Version de configuration', active: 'Actif', id: 'ID', createdUtc: 'Créé le' },
@@ -744,6 +784,9 @@ const fr = {
         retryOnNodeLoss: 'Remettre en file d\'attente en cas de perte du nœud'
       },
       hints: {
+        secretsKinds: 'Le profil de harness {{profile}} a besoin d\'un secret de type {{kinds}}. Liez-en un sous n\'importe quel alias.',
+        secretsAliases: 'Le profil de harness {{profile}} lit les secrets liés sous ces alias : {{aliases}}.',
+        secretsNone: 'Le profil de harness {{profile}} ne lit aucun secret ; aucune liaison de secret n\'est donc nécessaire.',
         promptBindings: 'Associez les rôles de prompt (System, Task, DelegatedTask et tout rôle utilisé par le profil de harness) à des modèles. Laissez la version vide pour suivre la plus récente.',
         resourceBindings: 'Les alias deviennent des variables de modèle, par exemple {{secret.anthropic}}.',
         weight: 'Les requêtes sans déploiement explicite sont réparties entre les déploiements actifs selon leur poids.',
@@ -761,6 +804,8 @@ const fr = {
     runs: {
       ...rp('Exécutions', 'Chaque invocation d\'agent avec son statut, son nœud, sa durée et son résultat.', 'Ajouter une exécution', 'Créer une exécution', 'Modifier l\'exécution', 'Détails de l\'exécution', 'Supprimer l\'exécution', 'Aucune exécution pour l\'instant', 'Invoquez un agent pour lancer une exécution.'),
       columns: {
+        delegationWaitMs: 'Attente de délégation',
+        timeToFirstTokenExcludingDelegationMs: 'TTFT hors délégation',
         id: 'Exécution',
         agentName: 'Agent',
         status: 'Statut',
@@ -823,6 +868,9 @@ const fr = {
   },
   views: {
     home: {
+      observabilitySetup: 'Configurer l\'observabilité',
+      observabilityNone: 'Aucun service d\'observabilité (Grafana, Prometheus, Tempo ou Loki) n\'est configuré pour cette installation.',
+      observability: 'Observabilité',
       title: 'Accueil',
       subtitle: 'Ce que font vos agents et vos nœuds worker en ce moment.',
       lastLoaded: 'Mis à jour {{time}}',
@@ -862,9 +910,10 @@ const fr = {
       externalServicesNote: 'Outils d\'observabilité fournis. Changez les identifiants par défaut avant de partager ce déploiement.',
       externalServicesNone: 'Aucun service externe n\'est configuré pour ce déploiement.',
       credentials: 'Identifiants par défaut',
-      services: { grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
+      services: { loki: 'Loki', grafana: 'Grafana', prometheus: 'Prometheus', tempo: 'Tempo' }
     },
     invoke: {
+      noDeployment: 'Cet agent n\'a aucun déploiement actif avec un poids supérieur à zéro ; un appel serait donc refusé. Ajoutez un déploiement dans l\'onglet Déploiements ou augmentez un poids.',
       title: 'Invoquer',
       subtitle: 'Envoyez un message à un agent et suivez la transcription en direct.',
       request: 'Requête',
@@ -885,6 +934,9 @@ const fr = {
       applySample: 'Aller aux manifestes'
     },
     runDetail: {
+      deploymentDeleted: 'Le déploiement utilisé par cette exécution a été supprimé ; elle ne peut donc pas être relancée. Invoquez à nouveau l\'agent {{agent}}.',
+      templatesUsed: 'Modèles utilisés',
+      agentDeleted: 'L\'agent {{agent}} n\'existe plus ; cette exécution ne peut donc pas être relancée. Son enregistrement, sa transcription et sa télémétrie restent disponibles ici.',
       title: 'Exécution',
       titleWithAgent: 'Exécution de {{agent}}',
       deployment: 'Déploiement',
@@ -928,10 +980,13 @@ const fr = {
       notFoundTitle: 'Exécution introuvable',
       notFoundBody: 'Elle a peut-être été supprimée, ou elle appartient à un autre locataire.',
       telemetry: {
+        delegationNote: 'Cette exécution a attendu {{wait}} des exécutions déléguées. Le délai avant le premier jeton est de {{ttft}} avec cette attente et de {{excluding}} sans elle ; c\'est ce second chiffre qui se compare aux agents qui ne délèguent pas.',
         title: 'Télémétrie',
         phases: 'Durée de l\'exécution par phase',
-        phase: { queue: 'File d\'attente', startup: 'Démarrage jusqu\'au premier jeton', streaming: 'Streaming', tail: 'Après le dernier jeton' },
+        phase: { delegation: 'Attente des exécutions déléguées', queue: 'File d\'attente', startup: 'Démarrage jusqu\'au premier jeton', streaming: 'Streaming', tail: 'Après le dernier jeton' },
         fields: {
+          delegationWaitMs: 'Attente de délégation',
+          timeToFirstTokenExcludingDelegationMs: 'Délai avant le premier jeton hors délégation',
           timeToFirstTokenMs: 'Délai avant le premier jeton',
           streamingMs: 'Durée du streaming',
           executionMs: 'Durée d\'exécution',
@@ -974,6 +1029,10 @@ const fr = {
       manageDeployments: 'Gérer les déploiements'
     },
     templateEditor: {
+      cloneToEdit: 'Cloner pour modifier',
+      builtInReadOnly: 'Les modèles intégrés sont en lecture seule ; tous les champs sont donc verrouillés. Clonez-le pour obtenir une copie modifiable.',
+      renameHint: 'Vous pouvez renommer ce modèle. Les déploiements gardent leurs liaisons, car ils utilisent son ID, mais les modèles qui l\'incluent par son nom doivent être mis à jour à la main.',
+      cloneDialog: { taken: 'Un modèle nommé {{name}} existe déjà. Choisissez un autre nom.', reserved: 'Les noms commençant par builtin/ sont réservés aux modèles intégrés.', hint: 'Vous pourrez renommer la copie plus tard sur sa page.', name: 'Nom de la copie', body: 'La copie démarre avec le contenu actuel comme version 1 et peut être modifiée, renommée et supprimée.', title: 'Cloner {{name}}' },
       newTitle: 'Nouveau modèle de prompt',
       subtitle: 'Rédigez le modèle, prévisualisez-le avec un contexte d\'exemple, puis enregistrez.',
       builtInNote: 'Les modèles intégrés sont en lecture seule. Clonez-les pour les personnaliser, ou réinitialisez-les pour restaurer le contenu d\'origine.',
@@ -1012,6 +1071,8 @@ const fr = {
       }
     },
     manifests: {
+      planned: 'Résultat prévu : {{result}}',
+      changes: { count_many: '{{count}} champs changent.', count_other: '{{count}} champs changent.', count_one: '{{count}} champ change.', empty: '(vide)', after: 'Après', before: 'Avant', field: 'Champ' },
       title: 'Manifestes',
       subtitle: 'Appliquez la configuration sous forme de code. Les simulations valident sans rien écrire.',
       applyTab: 'Appliquer',
@@ -1088,6 +1149,8 @@ const fr = {
       noSpecBody: 'Ce serveur n\'a pas renvoyé de document /openapi.json exploitable : l\'explorateur ne peut donc pas lister les opérations.'
     },
     settings: {
+      errors: { allowed: 'Choisissez l\'une de ces valeurs : {{values}}.', boolean: 'Choisissez vrai ou faux.', max: 'Saisissez {{max}} ou moins.', min: 'Saisissez {{min}} ou plus.', range: 'Saisissez une valeur de {{min}} à {{max}}.', integer: 'Saisissez un nombre entier.', number: 'Saisissez un nombre.' },
+      notSaved: 'Rien n\'a été enregistré. Corrigez les paramètres signalés puis enregistrez à nouveau.',
       title: 'Paramètres',
       subtitle: 'Paramètres du serveur issus du fichier de paramètres et paramètres du cluster stockés dans la base de données.',
       readOnly: 'Vous consultez les paramètres en lecture seule. Seuls les administrateurs système peuvent les modifier.',
@@ -1119,13 +1182,101 @@ const fr = {
         other: 'Ce paramètre ne peut pas être modifié ici.'
       },
       groups: { General: 'Général', Rest: 'REST', Mcp: 'MCP', Database: 'Base de données', Logging: 'Journalisation', Auth: 'Authentification', Security: 'Sécurité', RequestHistory: 'Historique des requêtes', Telemetry: 'Télémétrie', Cluster: 'Cluster', Scheduling: 'Planification', Runs: 'Exécutions', Audit: 'Audit', Runtime: 'Moteur d\'exécution' },
-      fields: {}
+      fields: {
+        Rest: {
+          ExternalBaseUrl: 'URL REST externe',
+          PublicBaseUrl: 'URL REST interne pour les exécutions',
+          Ssl: 'TLS pour REST',
+          Port: 'Port REST',
+          Hostname: 'Nom d\'hôte d\'écoute REST'
+        },
+        Mcp: {
+          MaxToolWaitSeconds: 'Attente maximale des outils MCP (secondes)',
+          PublicUrl: 'URL MCP interne pour les exécutions',
+          Path: 'Chemin MCP',
+          Port: 'Port MCP',
+          Hostname: 'Nom d\'hôte d\'écoute MCP',
+          Enable: 'Serveur MCP activé'
+        },
+        Database: {
+          MaxPoolSize: 'Taille du pool de connexions',
+          Schema: 'Schéma de la base de données',
+          Password: 'Mot de passe de la base de données',
+          Username: 'Utilisateur de la base de données',
+          DatabaseName: 'Nom de la base de données',
+          Port: 'Port de la base de données',
+          Host: 'Hôte de la base de données',
+          Filename: 'Fichier Sqlite',
+          Type: 'Fournisseur de base de données'
+        },
+        Logging: {
+          MinimumSeverity: 'Gravité minimale journalisée',
+          LogFilename: 'Nom du fichier journal',
+          LogDirectory: 'Répertoire des journaux',
+          FileLogging: 'Journaliser dans un fichier',
+          ConsoleLogging: 'Journaliser dans la console'
+        },
+        Auth: {
+          RateLimitPerMinute: 'Tentatives de connexion par minute',
+          SignedRequestSkewSeconds: 'Décalage d\'horloge toléré pour les requêtes signées (secondes)',
+          AdminApiKey: 'Clé d\'API administrateur',
+          TokenLifetimeMinutes: 'Durée de session (minutes)',
+          SigningKey: 'Clé de signature des jetons',
+          Issuer: 'Émetteur des jetons'
+        },
+        Security: {
+          NodeSecretKey: 'Clé secrète des nœuds worker',
+          NodeAccessKey: 'Clé d\'accès des nœuds worker',
+          DefaultSecretKey: 'Clé secrète par défaut',
+          DefaultAccessKey: 'Clé d\'accès par défaut',
+          AdminPassword: 'Mot de passe de l\'administrateur initial',
+          AdminEmail: 'E-mail de l\'administrateur initial',
+          MasterKey: 'Clé maîtresse de chiffrement des secrets'
+        },
+        RequestHistory: {
+          MaxResponseBodyBytes: 'Corps de réponse enregistré au maximum (octets)',
+          MaxRequestBodyBytes: 'Corps de requête enregistré au maximum (octets)',
+          RetentionDays: 'Conservation de l\'historique des requêtes (jours)',
+          Enabled: 'Enregistrer l\'historique des requêtes'
+        },
+        Telemetry: {
+          OtlpEndpoint: 'Point de terminaison OTLP',
+          OtlpEnable: 'Export OTLP activé',
+          PrometheusPort: 'Port Prometheus',
+          PrometheusEnable: 'Point de terminaison Prometheus activé',
+          ServiceName: 'Nom du service de télémétrie',
+          Enabled: 'Télémétrie activée'
+        },
+        Cluster: {
+          ExpectedReplicas: 'Réplicas attendus du plan de contrôle'
+        },
+        Scheduling: {
+          EventPollMs: 'Intervalle d\'interrogation des événements (ms)',
+          NodeHeartbeatTimeoutMs: 'Délai de pulsation des nœuds (ms)',
+          LeaseWaitMs: 'Attente de long polling des baux (ms)',
+          LeaseDurationMs: 'Durée du bail d\'exécution (ms)'
+        },
+        Runs: {
+          EventRetentionDays: 'Conservation des événements d\'exécution (jours)',
+          RetentionDays: 'Conservation des exécutions (jours)',
+          MaxDelegationDepth: 'Profondeur maximale de délégation',
+          DefaultTimeoutSeconds: 'Délai d\'exécution par défaut (secondes)'
+        },
+        Runtime: {
+          FailBlockedAfterSeconds: 'Faire échouer les exécutions bloquées après (secondes)'
+        },
+        Audit: {
+          RetentionDays: 'Conservation de l\'audit (jours)'
+        }
+      }
     },
     analytics: {
+      deletedAgent: 'Agent supprimé ({{id}})',
+      deletedDeployment: 'Déploiement supprimé ({{id}})',
       title: 'Analyses',
       subtitle: 'Rapidité, coût et fiabilité de vos exécutions au fil du temps.',
       loading: 'Chargement des analyses...',
-      filters: { range: 'Période', from: 'Du', to: 'Au', agentId: 'Agent', harnessType: 'Harness', deploymentId: 'Déploiement', model: 'Modèle', groupBy: 'Regrouper par' },
+      filters: { ttft: 'Exclure l\'attente de délégation du TTFT', range: 'Période', from: 'Du', to: 'Au', agentId: 'Agent', harnessType: 'Harness', deploymentId: 'Déploiement', model: 'Modèle', groupBy: 'Regrouper par' },
       allAgents: 'Tous les agents',
       allHarnesses: 'Tous les harness',
       allDeployments: 'Tous les déploiements',
@@ -1149,6 +1300,8 @@ const fr = {
       emptyBody: 'Rien ne correspond à la période et aux filtres. Élargissez la période, retirez un filtre ou invoquez un agent.',
       noDataInChart: 'Aucune donnée pour ce graphique sur la période sélectionnée.',
       cards: {
+        delegationWait: 'Attente moyenne de délégation',
+        ttftExcludingDelegation: 'TTFT moyen hors délégation',
         runs: 'Exécutions',
         runsNote: '{{succeeded}} réussies, {{failed}} échouées',
         successRate: 'Taux de réussite',
@@ -1164,7 +1317,7 @@ const fr = {
       },
       charts: {
         outcomes: { title: 'Résultats des exécutions', help: 'Exécutions par intervalle, selon leur issue.' },
-        ttft: { title: 'Délai avant le premier jeton', help: 'Du démarrage du harness à la première sortie du modèle. Inclut le démarrage de la CLI.' },
+        ttft: { helpExcluding: 'Du démarrage du harness à la première sortie du modèle, sans le temps d\'attente des exécutions déléguées.', title: 'Délai avant le premier jeton', help: 'Du démarrage du harness à la première sortie du modèle. Inclut le démarrage de la CLI.' },
         duration: { title: 'Durée de streaming et d\'exécution', help: 'Le streaming va de la première à la dernière sortie du modèle ; l\'exécution va du démarrage du processus à sa fin.' },
         queue: { title: 'Temps en file d\'attente', help: 'Temps écoulé entre la mise en file d\'attente et la prise à bail par un nœud worker.' },
         tokens: { title: 'Jetons', help: 'Jetons d\'entrée, de sortie, en cache et de raisonnement par intervalle.' },
@@ -1176,6 +1329,10 @@ const fr = {
       },
       groupedTitle: '{{chart}} : {{metric}}',
       metrics: {
+        delegationWaitMsAvg: 'Attente de délégation (moyenne)',
+        timeToFirstTokenExcludingDelegationMsP95: 'Hors délégation (p95)',
+        timeToFirstTokenExcludingDelegationMsP50: 'Hors délégation (p50)',
+        timeToFirstTokenExcludingDelegationMsAvg: 'Hors délégation (moyenne)',
         runs: 'Exécutions',
         succeeded: 'Réussies',
         failed: 'Échouées',
