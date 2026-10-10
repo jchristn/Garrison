@@ -80,10 +80,10 @@ Rules for keeping the plan honest:
 | 0 | Repository bootstrap | M1 | Complete | 14 / 14 |
 | 1 | Core foundation: settings, data layer, identity, RBAC, history, audit | M1 | Complete | 50 / 50 |
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
-| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 41 / 42 |
+| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 41 / 44 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
-| 5 | Dashboard | M1 | In progress | 41 / 42 |
-| 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 17 / 20 |
+| 5 | Dashboard | M1 | In progress | 41 / 49 |
+| 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 17 / 21 |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 34 / 37 |
 | 8 | Documentation and Postman | M1 | In progress | 16 / 17 |
 | 9 | MVP verification (milestone M1) | M1 | In progress | 14 / 16 |
@@ -176,7 +176,7 @@ The Garrison theme is used for product naming and documentation. API nouns stay 
 | D-014 | Settings are split. Node-local bootstrap settings (bind address, ports, database connection, logging) come from the settings JSON file and environment and are restart-required. Cluster runtime settings (scheduling, retention, limits, security policy, feature flags) live in the database, are edited from the Settings page, and apply live across all replicas. When the settings file is writable (development), the Settings page edits it as `BACKEND_ARCHITECTURE.md` requires; when it is mounted from a ConfigMap, those fields are shown read-only with their source. | A settings file cannot be the shared source of truth for N replicas mounted from a read-only ConfigMap. | Justified divergence, see section 5 |
 | D-015 | Run events are persisted to the database with a per-run monotonic sequence. Live streaming (SSE, WebSocket, A2A streaming) tails the database by sequence, which works across replicas without a broker. Phase 10 adds an optional notification backplane to cut latency. | Correct across replicas on day one, optimizable later. | Ideation |
 | D-016 | Images publish to Docker Hub as `jchristn77/garrison-server`, `jchristn77/garrison-worker`, and `jchristn77/garrison-dashboard`, multi-arch (amd64, arm64). `DOCKERHUB_README.md` is kept because images are published. | Matches the reference projects' publishing pattern. | Clutch build scripts |
-| D-017 | Dashboard locales: `en` (source), `de`, `ja`, plus the `zz` RTL/expansion pseudo-locale. | Matches Clutch and Hydra. | Requirements |
+| D-017 | Dashboard locales: `en` (source), `de`, `ja`, plus the `zz` RTL/expansion pseudo-locale for M1; the full set matches Armada: `es`, `fr`, `it`, `zh-Hans`, `zh-Hant`, `yue-Hant` follow (P5.48), marked beta until reviewed by a native speaker. | Matches Clutch and Hydra. | Requirements |
 | D-018 | The worker image bundles Node.js with pinned `@anthropic-ai/claude-code` and `@openai/codex`, and Mux built from a pinned commit of `jchristn/Mux` as a framework-dependent `Mux.Cli.dll` with a `/usr/local/bin/mux` wrapper (Aegon's method). Gemini CLI is optional behind a build argument. | Aegon proved this layout. | Aegon `docker/images/harness-base/Dockerfile` |
 | D-019 | Run success is decided by the parser's final event, never by the exit code alone. The exit code is recorded. | Aegon lesson: harnesses exit 0 on failure and non-zero after success in some cases. | Aegon `AEGON_PLAN.md` section 7 |
 | D-020 | MCP pre-flight is part of the execution spec. Before launching a harness, the worker verifies each required MCP server answers `tools/list` and exposes its required tools, because Claude Code, Gemini CLI, and Mux fail MCP authentication silently. | Aegon lesson. | Aegon `McpPreflight` |
@@ -188,6 +188,8 @@ The Garrison theme is used for product naming and documentation. API nouns stay 
 | D-026 | Garrison sets SyslogLogging `EnableConsole` only to turn the console off; the default stays on. The setter probes for a terminal (`UserInteractive`, `WindowHeight`), which fails in containers and silently drops all console output. | Changing SyslogLogging's probe would alter behavior for its existing users; an additive opt-in property can replace this later. | `src/Garrison.Server/Bootstrapper.cs`, `src/Garrison.Worker/Bootstrapper.cs` |
 | D-027 | A wildcard Prometheus hostname (`*`, `+`, `0.0.0.0`) binds to the machine host name (the pod IP in Kubernetes) and falls back to `127.0.0.1`. | The OpenTelemetry Prometheus listener cannot bind a wildcard: `*` and `+` fail URI parsing and `0.0.0.0` is rejected by the managed `HttpListener`. | `GarrisonTelemetry` |
 | D-028 | Docker Compose assets ship alongside Kubernetes (`docker/compose.yaml`, `docker/update.{sh,bat}`, `docker/factory/reset.{sh,bat}`), amending D-002. `update` rebuilds images from source by default (`--pull` uses published images), as the user asked; the requirements default is pull. The bootstrap container reuses the Kubernetes bootstrap script and sample manifests. | A single-machine stack with real harnesses is the fastest way to evaluate Garrison; one bootstrap script keeps both runtimes identical. | `docker/`, `docs/DOCKER.md` |
+| D-029 | Run timing is measured on the worker with a monotonic clock (time to first token, streaming time, execution time) and reported with the completion; the server computes queue time from its own timestamps. Analytics aggregate in the server process over a bounded window, so percentiles work the same on Sqlite and Postgresql. | Worker and server clocks can differ; durations measured on one clock are exact. SQL percentile functions differ by provider. | Section 10.6 |
+| D-030 | Every interactive or labeled dashboard element carries a useful, translated tooltip that explains what it is and how it is used (never a restatement of its label), enforced by an automated test over every route, tab, and form. | Operators learn the product from the UI itself. | P5.44 |
 
 ---
 
@@ -710,6 +712,49 @@ Each hosted or remote agent with A2A exposure gets a card at `/v1.0/a2a/{t}/{age
 
 ---
 
+### 10.6 Run telemetry and analytics contract
+
+Run fields (REST `Run`, SDK models, MCP `garrison_get_run` summary). Durations are milliseconds; null when not measurable.
+
+| Field | Meaning | Measured by |
+|---|---|---|
+| `firstTokenUtc`, `lastTokenUtc` | First and last model output event (assistant text or thinking) | Worker |
+| `timeToFirstTokenMs` | Harness process start to first model output (TTFT, includes harness startup) | Worker, monotonic |
+| `streamingMs` | First model output to last model output | Worker, monotonic |
+| `executionMs` | Harness process start to exit | Worker, monotonic |
+| `queueMs` | Queued to leased | Server |
+| `totalMs` | Queued to completed | Server |
+| `outputTokensPerSecond` | `outputTokens / (streamingMs / 1000)` when `streamingMs >= 100`, else null | Server |
+| `inputTokens`, `outputTokens`, `cachedTokens` | Existing usage fields | Parser |
+| `reasoningTokens` | Reasoning or thinking tokens when the harness reports them (Codex `reasoning_output_tokens`), else 0 | Parser |
+| `toolCallCount` | Tool call events in the run | Worker |
+
+`RunCompleteRequest` (node protocol) gains `firstTokenUtc`, `lastTokenUtc`, `timeToFirstTokenMs`, `streamingMs`, `executionMs`, `toolCallCount`, `reasoningTokens`. Schema migration version 2 adds the matching `runs` columns on Sqlite and Postgresql.
+
+Analytics endpoint: `GET /v1.0/api/tenants/{tenantId}/analytics/runs` (permission: Run, Read).
+
+| Query | Meaning | Default |
+|---|---|---|
+| `from`, `to` | ISO 8601 UTC range | last 24 hours |
+| `interval` | `minute`, `hour`, `day`, `week`, or `auto` (about 24 to 96 buckets) | `auto` |
+| `agentId`, `harnessType`, `deploymentId` | Filters (combinable) | none |
+| `groupBy` | `none`, `agent`, or `harness`: one series per group | `none` |
+
+Response:
+
+```json
+{
+  "fromUtc": "2026-10-09T00:00:00Z", "toUtc": "2026-10-10T00:00:00Z", "interval": "hour", "bucketSeconds": 3600,
+  "truncated": false,
+  "totals": { "...metrics" },
+  "series": [
+    { "key": "all", "label": "All runs", "buckets": [ { "startUtc": "2026-10-09T00:00:00Z", "...metrics" } ] }
+  ]
+}
+```
+
+Metrics object (every bucket and `totals`): `runs`, `succeeded`, `failed`, `cancelled`, `timedOut`, `inputTokens`, `outputTokens`, `cachedTokens`, `reasoningTokens`, `costUsd`, `toolCalls`, `timeToFirstTokenMsAvg`, `timeToFirstTokenMsP50`, `timeToFirstTokenMsP95`, `streamingMsAvg`, `executionMsAvg`, `executionMsP95`, `queueMsAvg`, `outputTokensPerSecondAvg`. Buckets are gap-filled (zero counts, null averages). Series keys are agent IDs or harness types; labels are agent names or harness types. At most 100,000 runs are aggregated per request (`truncated` reports when the cap was hit); ranges above 400 buckets return 400.
+
 ## 11. Security Model
 
 ### 11.1 Tenancy
@@ -1140,6 +1185,8 @@ Tests
 - [x] P3.9.4 Provider matrix green for Phase 3 schema on both providers.  | claude 2026-10-10 runtime suites green on both providers
 - [x] P3.10.1 Real-harness suite (skipped without credentials): Claude Code, Codex, and Mux each answer a one-line prompt through a worker.  | claude 2026-10-10 local real harnesses: Claude Code (haiku) and Codex answered OK; Mux 1.2.0 real CLI against a stub OpenAI endpoint; uses isolateHome=false clones to reuse local logins
 - [x] P3.11.1 Application metrics and spans in section 17 for server and worker.  | claude 2026-10-10 worker: Radiant in Garrison.Core (shared GarrisonTelemetry), garrison.worker.* leases, runs, run.duration, harness.tokens, harness.cost_usd, completion_reports, runs.active, slots.free; span "harness <type> exec" parented on spec.TraceParent; scraped from both workers in K3S
+- [ ] P3.12 Run timing telemetry per section 10.6: worker measures TTFT, streaming, and execution on a monotonic clock and counts tool calls; parsers report reasoning tokens where available; node protocol, migration 2 (Sqlite and Postgresql), server computes queue, total, and tokens per second; REST, MCP run summary, tests.
+- [ ] P3.13 Analytics endpoint per section 10.6 (time-bucketed, gap-filled, percentiles, filters, group by agent or harness), operation scope entry, tests on both providers, `REST_API.md`, Postman.
 - [x] P3.12.1 OpenAPI metadata on every Phase 3 route.  | claude 2026-10-10
 
 ### Phase 4: Protocol ingress
@@ -1210,6 +1257,13 @@ Quality
 - [x] P5.40 Dashboard `Dockerfile` (node build, nginx runtime), `nginx.conf` (SPA fallback, `/health`, caching), runtime `config.js` injection of the server URL.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
 - [~] P5.41 Accessibility pass (landmarks, labels, focus, color-independent status) and the dashboard handoff note (route inventory summary, references, missing capabilities, visual QA summary).  | claude 2026-10-10 dashboard stream; a11y pass done (landmarks, labels); handoff note not written
 - [x] P5.42 Consolidated navigation (NotDory and AssistantHub pattern): nine sidebar hubs with URL-synced tabs from `config/navConfig.js`, redirects from every old route, preserved deep links; Home KPIs read the server's status arrays (fixed "0 / NaN"); full-width 520px API request activity chart; acronym casing in all locales with a unit test; new logo and favicon.  | claude 2026-10-10 lint, 45 unit, 27 e2e, live 4/4 on K3S and Docker
+- [ ] P5.43 Runs telemetry: Runs table columns (TTFT, streaming, duration, queue, input, output, cached, reasoning tokens, tokens per second, cost; column picker defaults) and a Telemetry panel on Run detail with every section 10.6 field explained.
+- [ ] P5.44 Tooltips everywhere (D-030): a shared accessible Tooltip (hover and keyboard focus, portaled, delay) on every button, link, input, select, textarea, checkbox, label, column header, tab, badge, KPI card, chart control, and menu item; text in translation catalogs (`tips.*`) for every locale; an automated test visits every route, tab, and create/edit modal and fails on any element without a tooltip or whose tooltip only restates its label.
+- [ ] P5.45 Relationship explainers: Agents vs Deployments (an agent is the addressable identity; deployments are how it runs, one or more per agent with traffic weights), plus the same treatment for Harness profiles vs Deployments, Prompt templates and bindings, Secrets and aliases, MCP servers and bindings, Nodes vs Node pools, Users vs Credentials, Roles vs Permissions vs Assignments, Runs vs Queue; an info panel per tab and a short diagram on Agents.
+- [ ] P5.46 Analytics hub (sidebar, Monitoring or its own item): charts over time for TTFT (avg, p50, p95), streaming and execution time, queue time, tokens (input, output, cached, reasoning), tokens per second, cost, run outcomes, and tool calls; filter by agent, harness, and deployment; group by agent or harness; range presets and custom range; URL-synced filters.
+- [ ] P5.47 Docs and Playwright coverage for P5.43 to P5.46 (mocked and live).
+- [ ] P5.48 Additional locales matching Armada: `es`, `fr`, `it`, `zh-Hans`, `zh-Hant`, `yue-Hant` (beta label in the selector), complete catalogs including tooltips, CJK font hints, key-parity and placeholder tests, and a native-speaker review checklist in `docs/I18N.md`.
+- [ ] P5.49 RTL readiness beyond the `zz` pseudo-locale: audit with `dir="rtl"` across every route (logical CSS properties, icons that mirror, charts), documented so an RTL language such as Arabic or Hebrew can be added without code changes.
 
 ### Phase 6: SDKs
 
@@ -1231,6 +1285,7 @@ Quality
 - [x] P6.16 `.github/workflows/sdk.yaml` running the harnesses.  | claude 2026-10-10 SDK stream; .github/workflows/sdk.yaml (not yet run on GitHub)
 - [ ] P6.17 Worker uses `Garrison.Sdk` for the node protocol (dogfooding).
 - [x] P6.18 Each SDK's version mirrors the product version.  | claude 2026-10-10 0.1.0-alpha everywhere (Python 0.1.0a0, the PEP 440 form)
+- [ ] P6.21 SDKs: section 10.6 run fields and an analytics method in C#, Python, JavaScript/TypeScript, and Go, covered by each test harness.
 - [ ] P6.19 SDK interactive consoles (optional, Clutch pattern). **(post-M1)**
 - [ ] P6.20 Publish packages (NuGet, PyPI, npm, Go module tag). **(post-M1, requires approval)**
 
