@@ -796,7 +796,7 @@ const yueHant = {
       ...rp('節點', '租用同執行任務嘅工作節點。維護之前請先封鎖或者清空節點。', '新增節點', '建立節點', '編輯節點', '節點詳情', '刪除節點', '仲未有節點', '工作節點啟動嗰陣會自動登記。請部署 worker StatefulSet，或者喺本機運行 Garrison.Worker。'),
       columns: { name: '名稱', status: '狀態', capacity: '執行', harnesses: 'Harness', labels: '標籤', nodeVersion: '版本', lastHeartbeatUtc: '最後心跳', id: 'ID' },
       fields: { address: '地址', maxConcurrentRuns: '容量', activeRuns: '進行中嘅執行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '詳情' },
-      actions: { cordon: '封鎖', uncordon: '解除封鎖', drain: '清空', runs: '睇執行' },
+      actions: { cordon: '封鎖', uncordon: '解除封鎖', drain: '清空', runs: '睇執行', grafana: '喺 Grafana 打開' },
       toasts: { cordoned: '節點已封鎖。', uncordoned: '節點已解除封鎖。', draining: '節點清空緊。' }
     },
     audit: {
@@ -830,6 +830,10 @@ const yueHant = {
   },
   views: {
     home: {
+      observabilityState: { reachable: '連得到', unreachable: '連唔到', checking: '檢查緊', unknown: '狀態未知' },
+      observabilityVersion: '版本 {{version}}',
+      observabilityOpen: '打開 {{service}}',
+      kpisGrafana: '喺 Grafana 打開總覽',
       observabilitySetup: '設定可觀測性',
       observabilityNone: '呢個環境冇設定任何可觀測性服務（Grafana、Prometheus、Tempo 或者 Loki）。',
       observability: '可觀測性',
@@ -896,6 +900,9 @@ const yueHant = {
       applySample: '去清單'
     },
     runDetail: {
+      viewTrace: '睇追蹤',
+      viewLogs: '睇日誌',
+      traceId: '追蹤 ID',
       deploymentDeleted: '呢個執行用嘅部署已經刪咗，所以冇得重試。請再調用代理程式 {{agent}} 一次。',
       templatesUsed: '用咗嘅範本',
       agentDeleted: '代理程式 {{agent}} 已經唔存在，所以呢個執行冇得重試。佢嘅記錄、對話記錄同遙測仍然可以喺度睇。',
@@ -1057,6 +1064,7 @@ const yueHant = {
       counts: '{{created}} 個已建立，{{updated}} 個已更新，{{unchanged}} 個冇變更，{{failed}} 個失敗'
     },
     requests: {
+      grafana: 'Grafana 嘅 HTTP 儀表板',
       title: '請求記錄',
       subtitle: '擷取咗嘅 API 流量。可以深入睇任何請求，同埋管理保留期。',
       kpis: { total: '保留咗嘅請求', success: '成功', failure: '失敗', avgDuration: '平均時長' },
@@ -1139,8 +1147,18 @@ const yueHant = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。請喺你嘅清單入面改。',
         other: '呢個設定唔可以喺度編輯。'
       },
-      groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '日誌', Auth: '驗證', Security: '保安', RequestHistory: '請求記錄', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '審計', Runtime: '執行階段' },
+      groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '日誌', Auth: '驗證', Security: '保安', RequestHistory: '請求記錄', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '審計', Runtime: '執行階段', Observability: '可觀測性' },
       fields: {
+        Observability: {
+          GrafanaUrl: 'Grafana URL',
+          PrometheusUrl: 'Prometheus URL',
+          LokiUrl: 'Loki URL',
+          TempoUrl: 'Tempo URL',
+          GrafanaInternalUrl: 'Grafana 內部 URL',
+          PrometheusInternalUrl: 'Prometheus 內部 URL',
+          LokiInternalUrl: 'Loki 內部 URL',
+          TempoInternalUrl: 'Tempo 內部 URL'
+        },
         Rest: {
           ExternalBaseUrl: '外部 REST URL',
           PublicBaseUrl: '畀執行用嘅內部 REST URL',
@@ -1229,6 +1247,7 @@ const yueHant = {
       }
     },
     analytics: {
+      grafana: 'Grafana 嘅執行儀表板',
       deletedAgent: '已刪除嘅代理程式（{{id}}）',
       deletedDeployment: '已刪除嘅部署（{{id}}）',
       title: '分析',

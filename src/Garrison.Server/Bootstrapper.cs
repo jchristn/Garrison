@@ -107,7 +107,7 @@ namespace Garrison.Server
             });
             if (telemetry.PrometheusHostname != null)
             {
-                logging.Info("[Garrison] metrics listening on " + telemetry.PrometheusHostname + ":" + settings.Telemetry.PrometheusPort + settings.Telemetry.PrometheusPath);
+                logging.Info("[Garrison] metrics listening on " + telemetry.PrometheusHostname + ":" + settings.Telemetry.PrometheusPort + settings.Telemetry.PrometheusPath + (settings.Telemetry.ServeMetricsOnServicePort ? " (also served at /metrics on the REST port)" : String.Empty));
             }
 
             ServerContext context = new ServerContext(settings, logging, database, cipher, tokens, audit, authentication, authorization, telemetry, new OperationScopeMap());

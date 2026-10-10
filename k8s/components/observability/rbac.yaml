@@ -1,0 +1,62 @@
+# Prometheus discovers Garrison pods through the Kubernetes API; Alloy discovers them and reads their logs through
+# the API (no host paths, no DaemonSet). Both are limited to this namespace with a Role, not a ClusterRole.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garrison-prometheus
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garrison-alloy
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garrison-observability
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: garrison-prometheus
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: garrison-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: garrison-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: garrison-prometheus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: garrison-alloy
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: garrison-alloy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: garrison-alloy
+subjects:
+  - kind: ServiceAccount
+    name: garrison-alloy

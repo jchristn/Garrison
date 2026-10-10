@@ -5,8 +5,9 @@ REM ==========================================================================
 REM reset.bat - Reset the Garrison Docker stack to factory defaults.
 REM
 REM DESTRUCTIVE: removes the containers and every named volume (the Postgres
-REM database with all agents, runs, secrets, and users, and the worker
-REM workspaces), then rebuilds the images and starts a fresh stack that seeds
+REM database with all agents, runs, secrets, and users, the worker
+REM workspaces, and the observability data: Prometheus, Loki, Tempo, Grafana,
+REM and Alloy), then rebuilds the images and starts a fresh stack that seeds
 REM tenant default, admin@garrison / password, and the sample agents again.
 REM
 REM Usage:   reset.bat             reset, rebuild, and start
@@ -39,7 +40,8 @@ if not "%CONFIRM%"=="RESET" (
 pushd "%DOCKER_DIR%"
 
 echo [1/3] Stopping containers and removing volumes...
-docker compose down -v --remove-orphans || goto :fail
+REM The observability profile is named so its containers and volumes are removed too.
+docker compose -f compose.yaml --profile observability down -v --remove-orphans || goto :fail
 
 if "%START%"=="0" (
   popd

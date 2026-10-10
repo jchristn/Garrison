@@ -62,6 +62,10 @@ namespace Garrison.Core.Database.Ado
             v4.BuildVersion4();
             migrations.Add(new SchemaMigration(4, "Delegation wait telemetry, manifest field changes, and run event codes", v4._Statements, v4._Columns));
 
+            SchemaBuilder v5 = new SchemaBuilder(catalog, dialect);
+            v5.BuildVersion5();
+            migrations.Add(new SchemaMigration(5, "Run trace identifiers", v5._Statements, v5._Columns));
+
             return migrations;
         }
 
@@ -103,6 +107,13 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion5()
+        {
+            // runs: W3C trace the run was created and compiled in, for Grafana deep links (P13.16)
+            Column("runs", "traceid", "VARCHAR(32)");
+            Column("runs", "traceparent", "VARCHAR(64)");
         }
 
         private void BuildVersion4()

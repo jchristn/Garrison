@@ -1,0 +1,36 @@
+# Observability settings for the Garrison services. Use together with the observability profile:
+#
+#   docker compose -f compose.yaml -f compose.observability.yaml --profile observability up -d
+#
+# or ./update.sh --observability (update.bat --observability). The server and workers export traces over OTLP to
+# garrison-alloy, and the server learns where Grafana, Prometheus, Loki, and Tempo are: the browser-facing URLs on
+# 127.0.0.1 (the published ports) and the internal URLs it probes for the dashboard's observability cards.
+# To make this the default for plain `docker compose` commands, put these lines in .env:
+#   COMPOSE_FILE=compose.yaml:compose.observability.yaml     (use ; instead of : on Windows)
+#   COMPOSE_PROFILES=observability
+
+x-worker-observability: &worker-observability
+  GARRISON_WORKER_OTLP_ENABLE: 'true'
+  GARRISON_WORKER_OTLP_ENDPOINT: 'http://garrison-alloy:4317'
+
+services:
+  garrison-server:
+    environment:
+      GARRISON_OTLP_ENABLE: 'true'
+      GARRISON_OTLP_ENDPOINT: 'http://garrison-alloy:4317'
+      GARRISON_GRAFANA_URL: 'http://127.0.0.1:${GARRISON_GRAFANA_PORT:-3000}'
+      GARRISON_PROMETHEUS_URL: 'http://127.0.0.1:${GARRISON_PROMETHEUS_PORT:-9090}'
+      GARRISON_LOKI_URL: 'http://127.0.0.1:${GARRISON_LOKI_PORT:-3100}'
+      GARRISON_TEMPO_URL: 'http://127.0.0.1:${GARRISON_TEMPO_PORT:-3200}'
+      GARRISON_GRAFANA_INTERNAL_URL: 'http://garrison-grafana:3000'
+      GARRISON_PROMETHEUS_INTERNAL_URL: 'http://garrison-prometheus:9090'
+      GARRISON_LOKI_INTERNAL_URL: 'http://garrison-loki:3100'
+      GARRISON_TEMPO_INTERNAL_URL: 'http://garrison-tempo:3200'
+
+  garrison-worker-1:
+    environment:
+      <<: *worker-observability
+
+  garrison-worker-2:
+    environment:
+      <<: *worker-observability

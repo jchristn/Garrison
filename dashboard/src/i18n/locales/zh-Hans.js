@@ -797,7 +797,7 @@ const zhHans = {
       ...rp('节点', '租用并执行运行的工作节点。维护前请先封锁或排空节点。', '添加节点', '创建节点', '编辑节点', '节点详情', '删除节点', '暂无节点', '工作节点启动时会自动注册。请部署工作节点 StatefulSet，或在本地运行 Garrison.Worker。'),
       columns: { name: '名称', status: '状态', capacity: '运行数', harnesses: 'Harness', labels: '标签', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳', id: 'ID' },
       fields: { address: '地址', maxConcurrentRuns: '容量', activeRuns: '活动运行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '详细信息' },
-      actions: { cordon: '封锁', uncordon: '解除封锁', drain: '排空', runs: '查看运行' },
+      actions: { cordon: '封锁', uncordon: '解除封锁', drain: '排空', runs: '查看运行', grafana: '在 Grafana 中打开' },
       toasts: { cordoned: '节点已封锁。', uncordoned: '节点已解除封锁。', draining: '节点正在排空。' }
     },
     audit: {
@@ -831,6 +831,10 @@ const zhHans = {
   },
   views: {
     home: {
+      observabilityState: { reachable: '可访问', unreachable: '无法访问', checking: '检查中', unknown: '状态未知' },
+      observabilityVersion: '版本 {{version}}',
+      observabilityOpen: '打开 {{service}}',
+      kpisGrafana: '在 Grafana 中打开概览',
       observabilitySetup: '设置可观测性',
       observabilityNone: '此环境未配置任何可观测性服务（Grafana、Prometheus、Tempo 或 Loki）。',
       observability: '可观测性',
@@ -897,6 +901,9 @@ const zhHans = {
       applySample: '前往清单'
     },
     runDetail: {
+      viewTrace: '查看追踪',
+      viewLogs: '查看日志',
+      traceId: '追踪 ID',
       deploymentDeleted: '此运行使用的部署已被删除，因此无法重试。请改为再次调用智能体 {{agent}}。',
       templatesUsed: '使用的模板',
       agentDeleted: '智能体 {{agent}} 已不存在，因此无法重试此运行。它的记录、对话记录和遥测仍可在此查看。',
@@ -1058,6 +1065,7 @@ const zhHans = {
       counts: '创建 {{created}}，更新 {{updated}}，未更改 {{unchanged}}，失败 {{failed}}'
     },
     requests: {
+      grafana: 'Grafana 中的 HTTP 仪表板',
       title: '请求历史',
       subtitle: '已捕获的 API 流量。可深入查看任意请求并管理保留策略。',
       kpis: { total: '保留的请求', success: '成功', failure: '失败', avgDuration: '平均耗时' },
@@ -1140,8 +1148,18 @@ const zhHans = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。请在你的清单中修改。',
         other: '此设置无法在此处编辑。'
       },
-      groups: { General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计', Runtime: '运行时' },
+      groups: { General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计', Runtime: '运行时', Observability: '可观测性' },
       fields: {
+        Observability: {
+          GrafanaUrl: 'Grafana URL',
+          PrometheusUrl: 'Prometheus URL',
+          LokiUrl: 'Loki URL',
+          TempoUrl: 'Tempo URL',
+          GrafanaInternalUrl: 'Grafana 内部 URL',
+          PrometheusInternalUrl: 'Prometheus 内部 URL',
+          LokiInternalUrl: 'Loki 内部 URL',
+          TempoInternalUrl: 'Tempo 内部 URL'
+        },
         Rest: {
           ExternalBaseUrl: '外部 REST URL',
           PublicBaseUrl: '供运行使用的内部 REST URL',
@@ -1230,6 +1248,7 @@ const zhHans = {
       }
     },
     analytics: {
+      grafana: 'Grafana 中的运行仪表板',
       deletedAgent: '已删除的智能体（{{id}}）',
       deletedDeployment: '已删除的部署（{{id}}）',
       title: '分析',

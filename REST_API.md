@@ -166,6 +166,20 @@ Health check.
 curl -s -X GET "http://127.0.0.1:8700/v1.0/api/health"
 ```
 
+#### `GET /metrics`
+
+Prometheus metrics in text exposition format, relayed from the metrics listener (port 9464) so that `kubectl port-forward` to the REST port and in-pod requests to `127.0.0.1` work. Not under `/v1.0`, and not recorded in request history. Answers 404 when `Telemetry.ServeMetricsOnServicePort` is false and 503 (`MetricsUnavailable`) when the Prometheus listener is off or did not answer. Workers serve the same at `GET /metrics` on their health port (8710). See `docs/TELEMETRY.md`.
+
+| | |
+|---|---|
+| Permission | Anonymous |
+| Response | `text/plain; version=0.0.4` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/metrics"
+```
+
 ### Tokens
 
 #### `POST /v1.0/token`
@@ -1146,6 +1160,43 @@ Server version, endpoints, and feature flags.
 ```bash
 curl -s -X GET "http://127.0.0.1:8700/v1.0/api/server-info" \
   -H "Authorization: Bearer $TOKEN"
+```
+
+The response includes `observability`, which is always present: the browser-facing Grafana, Prometheus, Loki, and Tempo URLs from the `Observability.*` cluster settings, and the Grafana datasource and dashboard UIDs used for deep links. Anything not configured is `null`, and `datasources` and `dashboards` are `null` until a Grafana URL is set.
+
+```json
+"observability": {
+  "grafanaUrl": "https://grafana.example.com",
+  "prometheusUrl": null,
+  "lokiUrl": null,
+  "tempoUrl": null,
+  "datasources": { "prometheus": "garrison-prometheus", "loki": "garrison-loki", "tempo": "garrison-tempo" },
+  "dashboards": { "overview": "garrison-overview", "http": "garrison-http", "runs": "garrison-runs", "workers": "garrison-workers", "protocols": "garrison-protocols", "integrations": "garrison-integrations" }
+}
+```
+
+#### `GET /v1.0/api/observability/status`
+
+Reachability and version of the configured observability services, checked by the server (not the browser) against the `Observability.*InternalUrl` settings, or the browser URLs when those are empty. Always returns four entries, in the order `grafana`, `prometheus`, `loki`, `tempo`. A service is `configured` when its browser URL is set and `reachable` when its readiness check (Grafana `/api/health`, Prometheus `/-/ready`, Loki `/ready`, Tempo `/ready`) answered 2xx within 2 seconds. `version` comes from Grafana's health response and the build information endpoints of the others, and is `null` when unknown. Results are cached for 30 seconds and refreshed at once when a URL changes. The endpoint does not fail when a service is down.
+
+| | |
+|---|---|
+| Permission | Authenticated (any signed-in user) |
+| Response | `List<ObservabilityServiceStatus>` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/observability/status" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+[
+  { "service": "grafana", "configured": true, "reachable": true, "version": "11.3.0", "checkedUtc": "2026-10-10T12:00:00.000Z" },
+  { "service": "prometheus", "configured": true, "reachable": false, "version": null, "checkedUtc": "2026-10-10T12:00:00.000Z" },
+  { "service": "loki", "configured": false, "reachable": false, "version": null, "checkedUtc": "2026-10-10T12:00:00.000Z" },
+  { "service": "tempo", "configured": false, "reachable": false, "version": null, "checkedUtc": "2026-10-10T12:00:00.000Z" }
+]
 ```
 
 ### Harness Profiles
@@ -3014,7 +3065,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Run events.** `GET .../runs/{id}/events?afterSequence=0&limit=500` returns events with a sequence greater than `afterSequence`, in order, plus the run's current status. Poll with the last sequence you saw to follow a run.
 
-**Self-service.** `GET .../users/{id}` and `GET .../users/{id}/permissions` let a user read their own record and permissions without any role; reading someone else needs Read on User, or Admin on User for permissions. `GET .../credentials/{id}/permissions` answers for the credential making the call without any role, and otherwise needs Admin on Credential. `GET /v1.0/api/tenants` lists every tenant for system administrators and only the caller's tenant for everyone else. `GET /v1.0/api/server-info` is available to any authenticated caller.
+**Self-service.** `GET .../users/{id}` and `GET .../users/{id}/permissions` let a user read their own record and permissions without any role; reading someone else needs Read on User, or Admin on User for permissions. `GET .../credentials/{id}/permissions` answers for the credential making the call without any role, and otherwise needs Admin on Credential. `GET /v1.0/api/tenants` lists every tenant for system administrators and only the caller's tenant for everyone else. `GET /v1.0/api/server-info` and `GET /v1.0/api/observability/status` are available to any authenticated caller.
 
 **Built-in records.** Built-in harness profiles, prompt templates, roles, and permissions have no tenant, are visible to every tenant, and cannot be changed or deleted through these routes (409 `BuiltInImmutable` or `Protected`). Clone them to customize. `POST .../prompt-templates/{id}/reset` restores a built-in's seeded content in a tenant copy.
 
@@ -4122,6 +4173,31 @@ Administrative node change.
 | `maxConcurrentRuns` | `int?` | New capacity. |
 | `nodePoolId` | `string?` | New node pool. |
 
+#### `ObservabilityInfo`
+
+Observability endpoints in `ServerInfoResponse.observability`. Every field is always present; `null` means not configured.
+
+| Field | Type | Description |
+|---|---|---|
+| `grafanaUrl` | `string?` | Grafana URL (`Observability.GrafanaUrl`). |
+| `prometheusUrl` | `string?` | Prometheus URL (`Observability.PrometheusUrl`). |
+| `lokiUrl` | `string?` | Loki URL (`Observability.LokiUrl`). |
+| `tempoUrl` | `string?` | Tempo URL (`Observability.TempoUrl`). |
+| `datasources` | `ObservabilityDatasources?` | Grafana datasource UIDs: `prometheus` (`garrison-prometheus`), `loki` (`garrison-loki`), `tempo` (`garrison-tempo`). `null` when Grafana is not configured. |
+| `dashboards` | `ObservabilityDashboards?` | Grafana dashboard UIDs: `overview`, `http`, `runs`, `workers`, `protocols`, `integrations` (`garrison-overview` and so on). `null` when Grafana is not configured. |
+
+#### `ObservabilityServiceStatus`
+
+One entry of `GET /v1.0/api/observability/status`.
+
+| Field | Type | Description |
+|---|---|---|
+| `service` | `string` | `grafana`, `prometheus`, `loki`, or `tempo`. |
+| `configured` | `bool` | Whether the service's browser URL is set. |
+| `reachable` | `bool` | Whether the readiness check answered 2xx. Always false when not configured. |
+| `version` | `string?` | Version reported by the service, or `null` when unknown. Always present. |
+| `checkedUtc` | `DateTime` | When the check ran (UTC). |
+
 #### `OverviewResponse`
 
 Home page summary for a tenant.
@@ -4196,6 +4272,7 @@ One invocation of one deployment.
 | `repairAttempts` | `int` | Structured output repair attempts started (0 or 1). |
 | `sessionId` | `string?` | Harness session identifier. |
 | `servedModel` | `string?` | Model that served the run. |
+| `traceId` | `string?` | W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in; the server's `run:create`, `run:claim`, and `run:compile` spans and the worker's `harness <type> exec` span share it, and delegated runs join their parent's trace. Use it to open the trace in Tempo or search logs (`trace=<traceId>`). `null` for runs created before schema migration 5. Always present. See `docs/TELEMETRY.md`. |
 | `exitCode` | `int?` | Process exit code. |
 | `stderrTail` | `string?` | Stderr tail (scrubbed). |
 | `errorMessage` | `string?` | Error message. |
@@ -4725,6 +4802,7 @@ Server information for the dashboard.
 | `repositoryUrl` | `string` | Repository URL. |
 | `startedUtc` | `DateTime` | Process start (UTC). |
 | `features` | `List<string>` | Enabled feature flags. |
+| `observability` | `ObservabilityInfo` | Observability URLs and Grafana UIDs; always present, with `null` fields when not configured. |
 
 #### `SettingsSaveResponse`
 

@@ -28,6 +28,9 @@ import { enumTip } from '../utils/tips';
 import NamedId from '../components/NamedId';
 import { translateServerText } from '../utils/serverText';
 import { enumLabel } from '../utils/enums';
+import GrafanaLink from '../components/GrafanaLink';
+import { useGrafana } from '../hooks/useServerInfo';
+import { traceUrl, logsUrl } from '../utils/grafana';
 
 function Detail({ label, tip: tipText, children }) {
   return (
@@ -79,6 +82,7 @@ export default function RunDetailView({ recordId }) {
   const [deployment, setDeployment] = useState(null);
   const [agentState, setAgentState] = useState(null);
   const lastSeq = useRef(0);
+  const grafana = useGrafana();
 
   const loadRun = useCallback(() => {
     if (!apiClient || !recordId) return Promise.resolve(null);
@@ -225,6 +229,8 @@ export default function RunDetailView({ recordId }) {
         }
         actions={
           <>
+            <GrafanaLink size="md" href={traceUrl(grafana, run)} label={t('views.runDetail.viewTrace')} tipText={t('tips.views.runDetail.viewTrace')} testId="run-view-trace" />
+            <GrafanaLink size="md" href={logsUrl(grafana, run)} label={t('views.runDetail.viewLogs')} tipText={t('tips.views.runDetail.viewLogs')} testId="run-view-logs" />
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.runDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>
@@ -293,6 +299,7 @@ export default function RunDetailView({ recordId }) {
         <Detail label={t('views.runDetail.started')} tip={t('tips.views.runDetail.started')}>{run.startedUtc ? formatDateTime(run.startedUtc, i18n.language) : '-'}</Detail>
         <Detail label={t('views.runDetail.completed')} tip={t('tips.views.runDetail.completed')}>{run.completedUtc ? formatDateTime(run.completedUtc, i18n.language) : '-'}</Detail>
         <Detail label={t('views.runDetail.exitCode')} tip={t('tips.views.runDetail.exitCode')}>{run.exitCode}</Detail>
+        <Detail label={t('views.runDetail.traceId')} tip={t('tips.views.runDetail.traceId')}>{run.traceId ? <span data-testid="run-trace-id"><CopyableId value={run.traceId} max={40} /></span> : null}</Detail>
       </div>
 
       <RunTelemetryPanel run={run} />

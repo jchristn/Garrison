@@ -10,11 +10,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
 	garrison "github.com/jchristn/Garrison/sdk/go"
 )
+
+var traceIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 func main() {
 	args := []string{"http://127.0.0.1:8700", "access_garrison_default", "secret_garrison_default_change_me"}
@@ -143,6 +146,15 @@ func main() {
 		}
 		if finished.ToolCallCount < 0 {
 			return fmt.Errorf("toolCallCount %d", finished.ToolCallCount)
+		}
+		return nil
+	})
+	check("run trace id", func(ctx context.Context) error {
+		if finished == nil {
+			return errors.New("no finished run")
+		}
+		if finished.TraceID == nil || !traceIDPattern.MatchString(*finished.TraceID) {
+			return fmt.Errorf("traceId %v", finished.TraceID)
 		}
 		return nil
 	})

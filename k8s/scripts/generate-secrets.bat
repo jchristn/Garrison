@@ -3,6 +3,8 @@ rem Creates the Garrison Secrets with random values. Existing garrison-secrets a
 rem unless --force is given. Optional harness credentials are read from the environment:
 rem ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, OPENAI_API_KEY, MUX_BASE_URL, MUX_MODEL, MUX_API_KEY, MUX_ADAPTER_TYPE,
 rem and CODEX_AUTH_JSON_FILE (path to a Codex auth.json)
+rem garrison-grafana (Grafana admin for the observability overlays: user admin, password GARRISON_GRAFANA_PASSWORD,
+rem default password) is always created and kept unless --force is given.
 setlocal enabledelayedexpansion
 if "%GARRISON_NAMESPACE%"=="" set GARRISON_NAMESPACE=garrison
 set FORCE=0
@@ -41,6 +43,20 @@ if "%CREATE%"=="1" (
   for /f %%v in ('%RAND%48)"') do set NODE_SECRET=%%v
   kubectl -n %GARRISON_NAMESPACE% create secret generic garrison-node-credential --from-literal=access-key=access_!NODE_ACCESS! --from-literal=secret-key=secret_!NODE_SECRET! --dry-run=client -o yaml | kubectl apply -f - >nul
   echo [garrison] created secret garrison-node-credential
+)
+
+set CREATE=1
+kubectl -n %GARRISON_NAMESPACE% get secret garrison-grafana >nul 2>&1 && set CREATE=0
+if "%FORCE%"=="1" set CREATE=1
+if "%CREATE%"=="1" (
+  set GRAFANA_PASSWORD=%GARRISON_GRAFANA_PASSWORD%
+  if "!GRAFANA_PASSWORD!"=="" set GRAFANA_PASSWORD=password
+  kubectl -n %GARRISON_NAMESPACE% create secret generic garrison-grafana --from-literal=admin-user=admin --from-literal=admin-password=!GRAFANA_PASSWORD! --dry-run=client -o yaml | kubectl apply -f - >nul
+  echo [garrison] created secret garrison-grafana
+  echo [garrison]   Grafana ^(observability overlays^) user: admin   password: !GRAFANA_PASSWORD!
+  if "%GARRISON_GRAFANA_PASSWORD%"=="" echo [garrison] WARNING: using the default Grafana password. Set GARRISON_GRAFANA_PASSWORD before deploying anywhere shared.
+) else (
+  echo [garrison] secret garrison-grafana exists; keeping it ^(use --force to rotate^)
 )
 
 set ARGS=

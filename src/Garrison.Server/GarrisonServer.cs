@@ -216,8 +216,9 @@ namespace Garrison.Server
 
             _Context.Telemetry.Increment("garrison.http.requests", new RadiantTag("method", context.Request.Method.ToString()), new RadiantTag("status_class", (context.Response.StatusCode / 100) + "xx"));
 
+            // Prometheus scrapes of the relayed /metrics endpoint are not request history.
             IRequestObserver? observer = _Context.TryGet<IRequestObserver>();
-            if (observer != null)
+            if (observer != null && !String.Equals(context.Request.Url.RawWithoutQuery, "/metrics", StringComparison.Ordinal))
             {
                 try
                 {

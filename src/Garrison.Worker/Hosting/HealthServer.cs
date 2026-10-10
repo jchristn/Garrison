@@ -1,14 +1,17 @@
 namespace Garrison.Worker.Hosting
 {
     using System;
+    using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Telemetry;
     using WatsonWebserver;
     using WatsonWebserver.Core;
 
     /// <summary>
     /// Worker health listener for Kubernetes probes: GET /health/live (process up) and GET /health/ready (registered
-    /// and leasing). Thread-safe.
+    /// and leasing). When a metrics source is given, GET /metrics relays the Prometheus exposition from the metrics
+    /// listener so kubectl port-forward and in-pod 127.0.0.1 scrapes work (P13.18). Thread-safe.
     /// </summary>
     public class HealthServer : IDisposable
     {
@@ -16,6 +19,7 @@ namespace Garrison.Worker.Hosting
 
         private readonly Webserver _Server;
         private readonly Func<WorkerHealth> _Health;
+        private readonly Func<CancellationToken, Task<MetricsScrape?>>? _Metrics;
         private bool _Disposed = false;
 
         #endregion
@@ -30,8 +34,22 @@ namespace Garrison.Worker.Hosting
         /// <param name="health">Health snapshot provider.</param>
         /// <exception cref="ArgumentNullException">Thrown when health is null.</exception>
         public HealthServer(string hostname, int port, Func<WorkerHealth> health)
+            : this(hostname, port, health, null)
+        {
+        }
+
+        /// <summary>
+        /// Instantiate with a metrics source.
+        /// </summary>
+        /// <param name="hostname">Bind hostname.</param>
+        /// <param name="port">Port.</param>
+        /// <param name="health">Health snapshot provider.</param>
+        /// <param name="metrics">Returns the Prometheus exposition, or null when unavailable; null disables GET /metrics.</param>
+        /// <exception cref="ArgumentNullException">Thrown when health is null.</exception>
+        public HealthServer(string hostname, int port, Func<WorkerHealth> health, Func<CancellationToken, Task<MetricsScrape?>>? metrics)
         {
             _Health = health ?? throw new ArgumentNullException(nameof(health));
+            _Metrics = metrics;
             WebserverSettings settings = new WebserverSettings();
             settings.Hostname = hostname;
             settings.Port = port;
@@ -39,6 +57,7 @@ namespace Garrison.Worker.Hosting
             _Server.Routes.PreAuthentication.Static.Add(HttpMethod.GET, "/health/live", LiveAsync);
             _Server.Routes.PreAuthentication.Static.Add(HttpMethod.GET, "/health/ready", ReadyAsync);
             _Server.Routes.PreAuthentication.Static.Add(HttpMethod.GET, "/health", ReadyAsync);
+            if (_Metrics != null) _Server.Routes.PreAuthentication.Static.Add(HttpMethod.GET, "/metrics", MetricsAsync);
         }
 
         #endregion
@@ -102,6 +121,29 @@ namespace Garrison.Worker.Hosting
         {
             WorkerHealth health = _Health();
             await SendAsync(context, health.Ready ? 200 : 503, health).ConfigureAwait(false);
+        }
+
+        private async Task MetricsAsync(HttpContextBase context)
+        {
+            MetricsScrape? scrape = null;
+            try
+            {
+                scrape = await _Metrics!(context.Token).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                scrape = null;
+            }
+            if (scrape == null)
+            {
+                context.Response.StatusCode = 503;
+                context.Response.ContentType = "application/json";
+                await context.Response.Send("{\"error\":\"MetricsUnavailable\"}").ConfigureAwait(false);
+                return;
+            }
+            context.Response.StatusCode = 200;
+            context.Response.ContentType = scrape.ContentType;
+            await context.Response.Send(scrape.Body).ConfigureAwait(false);
         }
 
         private static async Task NotFoundAsync(HttpContextBase context)

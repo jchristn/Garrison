@@ -284,6 +284,12 @@ namespace Garrison.Sdk.Models
         public string? ServedModel { get; set; } = null;
 
         /// <summary>
+        /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, for
+        /// finding its spans in Tempo and its logs in Loki; null for runs created before trace IDs were recorded.
+        /// </summary>
+        public string? TraceId { get; set; } = null;
+
+        /// <summary>
         /// Process exit code.
         /// </summary>
         public int? ExitCode { get; set; } = null;

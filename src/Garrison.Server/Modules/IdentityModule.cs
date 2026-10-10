@@ -17,6 +17,7 @@ namespace Garrison.Server.Modules
         #region Private-Members
 
         private ClusterSettingsService? _Cluster = null;
+        private ObservabilityService? _Observability = null;
         private RequestHistoryCaptureService? _Capture = null;
         private RetentionService? _Retention = null;
         private SettingsService? _SettingsService = null;
@@ -50,6 +51,9 @@ namespace Garrison.Server.Modules
             await _Cluster.RefreshAsync(token).ConfigureAwait(false);
             context.Register(_Cluster);
 
+            _Observability = new ObservabilityService(_Cluster);
+            context.Register(_Observability);
+
             _SettingsService = new SettingsService(context.Settings, _Cluster, context.Logging);
             context.Register(_SettingsService);
             context.Register(new IdentityService(context.Database, context.Cipher, context.Audit, context.Authorization));
@@ -76,6 +80,7 @@ namespace Garrison.Server.Modules
             new RequestHistoryRoutes(context, context.Get<RequestHistoryCaptureService>()).Register(routes);
             new SettingsRoutes(context, context.Get<SettingsService>()).Register(routes);
             new ServerInfoRoutes(context, context.Get<RequestHistoryCaptureService>()).Register(routes);
+            new ObservabilityRoutes(context.Get<ObservabilityService>()).Register(routes);
         }
 
         /// <inheritdoc />
@@ -108,6 +113,7 @@ namespace Garrison.Server.Modules
             }
             _Capture?.Dispose();
             _SettingsService?.Dispose();
+            _Observability?.Dispose();
         }
 
         #endregion

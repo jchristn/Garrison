@@ -57,3 +57,46 @@ successThreshold: {{ .success }}
       key: db-password
 {{- end }}
 {{- end -}}
+
+{{/* Observability environment for the server: OTLP export to Alloy, browser-facing URLs for the dashboard, and
+in-cluster URLs the server probes. Empty unless observability.enabled. */}}
+{{- define "garrison.observabilityServerEnv" -}}
+{{- if .Values.observability.enabled }}
+- { name: GARRISON_OTLP_ENABLE, value: {{ .Values.observability.otlp.enabled | quote }} }
+- { name: GARRISON_OTLP_ENDPOINT, value: "http://garrison-alloy:4317" }
+- { name: GARRISON_GRAFANA_URL, value: {{ .Values.observability.urls.grafana | quote }} }
+- { name: GARRISON_PROMETHEUS_URL, value: {{ .Values.observability.urls.prometheus | quote }} }
+- { name: GARRISON_LOKI_URL, value: {{ .Values.observability.urls.loki | quote }} }
+- { name: GARRISON_TEMPO_URL, value: {{ .Values.observability.urls.tempo | quote }} }
+- { name: GARRISON_GRAFANA_INTERNAL_URL, value: "http://garrison-grafana:3000" }
+- { name: GARRISON_PROMETHEUS_INTERNAL_URL, value: "http://garrison-prometheus:9090" }
+- { name: GARRISON_LOKI_INTERNAL_URL, value: "http://garrison-loki:3100" }
+- { name: GARRISON_TEMPO_INTERNAL_URL, value: "http://garrison-tempo:3200" }
+{{- end }}
+{{- end -}}
+
+{{/* Restricted container security context shared by the observability containers. */}}
+{{- define "garrison.observabilityContainerSecurity" -}}
+allowPrivilegeEscalation: false
+readOnlyRootFilesystem: {{ . }}
+capabilities: { drop: ["ALL"] }
+{{- end -}}
+
+{{/* PersistentVolumeClaim for an observability component. */}}
+{{- define "garrison.observabilityPvc" -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .name }}
+  namespace: {{ include "garrison.namespace" .root }}
+  labels:
+    {{- include "garrison.labels" .root | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .values.storageClassName }}
+  storageClassName: {{ .values.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .values.storage }}
+{{- end -}}

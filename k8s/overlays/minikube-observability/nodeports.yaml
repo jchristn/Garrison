@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-grafana
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      nodePort: 30300
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-prometheus
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http
+      nodePort: 30909

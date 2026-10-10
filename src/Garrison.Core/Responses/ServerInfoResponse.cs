@@ -85,5 +85,11 @@ namespace Garrison.Core.Responses
         /// Enabled feature flags.
         /// </summary>
         public List<string> Features { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Observability endpoints (Grafana, Prometheus, Loki, Tempo) and Grafana UIDs for deep links. Always present;
+        /// fields are null when not configured.
+        /// </summary>
+        public ObservabilityInfo Observability { get; set; } = new ObservabilityInfo();
     }
 }

@@ -3,8 +3,9 @@
 #  reset.sh - reset the Garrison Docker stack to factory defaults.
 #
 #  DESTRUCTIVE: removes the containers and every named volume (the Postgres
-#  database with all agents, runs, secrets, and users, and the worker
-#  workspaces), then rebuilds the images and starts a fresh stack that seeds
+#  database with all agents, runs, secrets, and users, the worker
+#  workspaces, and the observability data: Prometheus, Loki, Tempo, Grafana,
+#  and Alloy), then rebuilds the images and starts a fresh stack that seeds
 #  tenant default, admin@garrison / password, and the sample agents again.
 #
 #  Usage:   ./reset.sh             reset, rebuild, and start
@@ -37,12 +38,13 @@ fi
 
 cd "${DOCKER_DIR}"
 
-echo "[1/3] Stopping containers and removing volumes..."
-docker compose down -v --remove-orphans
+echo "[1/3] Stopping containers and removing volumes (including observability data)..."
+# The observability profile is named so its containers and volumes are removed too.
+docker compose -f compose.yaml --profile observability down -v --remove-orphans
 
 if [ "${START}" = "0" ]; then
   echo
-  echo "Factory reset complete. Start the stack with: ${DOCKER_DIR}/update.sh"
+  echo "Factory reset complete. Start the stack with: ${DOCKER_DIR}/update.sh (add --observability for Grafana and friends)"
   exit 0
 fi
 

@@ -97,6 +97,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
         "garrison.agent": "docs-echo",
         "garrison.outcome": "Succeeded",
         "garrison.servedModel": "fake-model",
+        "garrison.traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
         "garrison.inputTokens": 12,
         "garrison.outputTokens": 7
       }
@@ -126,7 +127,7 @@ How the message becomes a run:
 | `Rejected` | `TASK_STATE_REJECTED` |
 | `Failed`, `TimedOut`, and anything else | `TASK_STATE_FAILED` |
 
-A completed task carries one artifact, `<runId>-result`, named `result`. It has a text part with the final answer and, when the agent produced structured output, a second data part with media type `application/json`. Failed and rejected tasks carry a status message made of the run's outcome and error message, in the form `<outcome>: <error>`. Every task has `garrison.agent`, `garrison.outcome`, `garrison.inputTokens`, `garrison.outputTokens`, `garrison.cachedTokens`, `garrison.reasoningTokens`, and `garrison.toolCallCount` in its metadata, and `garrison.servedModel` (the model the harness reported, or `null`). Once measured, it also has the run timing values `garrison.timeToFirstTokenMs`, `garrison.streamingMs`, `garrison.executionMs`, `garrison.queueMs`, `garrison.totalMs`, and `garrison.outputTokensPerSecond`, and once the run finishes `garrison.delegationWaitMs` and `garrison.timeToFirstTokenExcludingDelegationMs` (see `docs/TELEMETRY.md`).
+A completed task carries one artifact, `<runId>-result`, named `result`. It has a text part with the final answer and, when the agent produced structured output, a second data part with media type `application/json`. Failed and rejected tasks carry a status message made of the run's outcome and error message, in the form `<outcome>: <error>`. Every task has `garrison.agent`, `garrison.outcome`, `garrison.inputTokens`, `garrison.outputTokens`, `garrison.cachedTokens`, `garrison.reasoningTokens`, and `garrison.toolCallCount` in its metadata, and `garrison.servedModel` (the model the harness reported, or `null`), and `garrison.traceId` (the run's W3C trace ID, omitted for runs created before trace IDs were recorded). Once measured, it also has the run timing values `garrison.timeToFirstTokenMs`, `garrison.streamingMs`, `garrison.executionMs`, `garrison.queueMs`, `garrison.totalMs`, and `garrison.outputTokensPerSecond`, and once the run finishes `garrison.delegationWaitMs` and `garrison.timeToFirstTokenExcludingDelegationMs` (see `docs/TELEMETRY.md`).
 
 `GetTask` takes `{"id": "<runId>"}`. A task that belongs to a different agent is reported as not found (`-32001`), even when it exists.
 

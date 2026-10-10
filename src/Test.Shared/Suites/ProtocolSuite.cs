@@ -292,6 +292,8 @@ namespace Test.Shared.Suites
                 parent.Status = RunStatusEnum.Running;
                 parent.CallChain = lead.Name;
                 parent.CallerType = PrincipalTypeEnum.User;
+                parent.TraceParent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+                parent.TraceId = "4bf92f3577b34da6a3ce929d0e0e4736";
                 Garrison.Core.Models.User? admin = await cluster.Server.Server.Context.Database.Users.ReadByEmailAsync(tenant, "admin@garrison", token).ConfigureAwait(false);
                 parent.CallerId = admin?.Id;
                 parent = await cluster.Server.Server.Context.Database.Runs.CreateAsync(parent, token).ConfigureAwait(false);
@@ -311,6 +313,7 @@ namespace Test.Shared.Suites
                     Assert.Equal(parent.Id, child.ParentRunId, "Parent link");
                     Assert.Equal(1, child.Depth, "Depth");
                     Assert.Equal(RunKindEnum.Delegated, child.Kind, "Kind");
+                    Assert.Equal(parent.TraceId, child.TraceId, "Delegated runs join the parent run's trace");
 
                     TestResponse denied = await HttpTestHelpers.SendAsync(asRun, HttpMethod.Post, "/v1.0/api/tenants/" + tenant + "/agents/" + outsider.Id + "/invoke", request, token).ConfigureAwait(false);
                     Assert.Equal(409, denied.StatusCode, "Disallowed delegation status (" + denied.Body + ")");

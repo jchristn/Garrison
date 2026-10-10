@@ -150,6 +150,10 @@ type Run struct {
 	ToolCallCount int64 `json:"toolCallCount"`
 	// ServedModel is the model the harness reported serving the run; empty when not reported.
 	ServedModel string `json:"servedModel,omitempty"`
+	// TraceID is the W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and
+	// compiled in, for finding its spans in Tempo and its logs in Loki; nil for runs created before trace IDs were
+	// recorded.
+	TraceID *string `json:"traceId"`
 	// BlockedReason is computed by the server on read: NoReadyWorker, NoCapableWorker, or NoMatchingPool when the
 	// queued run cannot be handed to any worker right now; nil otherwise.
 	BlockedReason *string `json:"blockedReason"`

@@ -1,6 +1,8 @@
 @echo off
 rem Deploys Garrison to the current kubectl context (K3S). Use --build to build images and import them into the
 rem K3S container named by K3S_CONTAINER (K3S in Docker), or the k3d cluster named by K3D_CLUSTER. See deploy-k3s.sh for details.
+rem set OBSERVABILITY=1 to deploy overlays\k3s-observability (Prometheus, Loki, Tempo, Grafana, Alloy). Observability
+rem images are pulled by K3S; k3d image import them first if Docker already has them.
 setlocal
 if "%GARRISON_TAG%"=="" set GARRISON_TAG=v0.1.0-alpha
 set K8S=%~dp0..
@@ -29,8 +31,12 @@ if "%1"=="--build" (
 )
 :imported
 call "%~dp0generate-secrets.bat" || exit /b 1
-kubectl apply -k "%K8S%\overlays\k3s" || exit /b 1
+set OVERLAY=k3s
+if "%OBSERVABILITY%"=="1" set OVERLAY=k3s-observability
+echo [garrison] applying overlays\%OVERLAY%
+kubectl apply -k "%K8S%\overlays\%OVERLAY%" || exit /b 1
 call "%~dp0wait-rollout.bat" || exit /b 1
+if "%OBSERVABILITY%"=="1" echo [garrison] Grafana: run port-forward.bat, then open http://127.0.0.1:3000 ^(user admin, password from GARRISON_GRAFANA_PASSWORD, default password^)
 echo [garrison] add "127.0.0.1 garrison.local" to your hosts file, then open http://garrison.local
 echo [garrison] when K3S runs in Docker with -p 127.0.0.1:8080:80, use http://garrison.local:8080, or run port-forward.bat
 endlocal

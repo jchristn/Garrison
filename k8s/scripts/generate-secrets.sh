@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Creates the Garrison Secrets with random values. Existing garrison-secrets and garrison-node-credential are kept
-# unless --force is given (rotating them after first boot changes admin and node keys).
+# Creates the Garrison Secrets with random values. Existing garrison-secrets, garrison-node-credential, and
+# garrison-grafana are kept unless --force is given (rotating them after first boot changes admin and node keys).
+# garrison-grafana (Grafana admin, user admin, password GARRISON_GRAFANA_PASSWORD, default password) is always
+# created, even without the observability stack, so enabling it later needs no extra step. It is tiny and unused
+# until Grafana is deployed.
 # Optional harness credentials are read from the caller's environment and always refreshed:
 #   ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, OPENAI_API_KEY, MUX_BASE_URL, MUX_MODEL, MUX_API_KEY, MUX_ADAPTER_TYPE,
 #   and CODEX_AUTH_JSON_FILE (path to a Codex auth.json, for example ~/.codex/auth.json)
@@ -44,6 +47,21 @@ if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garri
   log "created secret garrison-node-credential"
 else
   log "secret garrison-node-credential exists; keeping it"
+fi
+
+if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garrison-grafana >/dev/null 2>&1; then
+  GRAFANA_PASSWORD="${GARRISON_GRAFANA_PASSWORD:-password}"
+  kubectl -n "${GARRISON_NAMESPACE}" create secret generic garrison-grafana \
+    --from-literal=admin-user=admin \
+    --from-literal=admin-password="${GRAFANA_PASSWORD}" \
+    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  log "created secret garrison-grafana"
+  log "  Grafana (observability overlays) user: admin   password: ${GRAFANA_PASSWORD}"
+  if [ -z "${GARRISON_GRAFANA_PASSWORD:-}" ]; then
+    log "WARNING: using the default Grafana password. Set GARRISON_GRAFANA_PASSWORD before deploying anywhere shared."
+  fi
+else
+  log "secret garrison-grafana exists; keeping it (use --force to rotate)"
 fi
 
 ARGS=()

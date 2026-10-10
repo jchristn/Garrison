@@ -3,6 +3,9 @@ namespace Garrison.Core.Telemetry
     using System;
     using System.Collections.Generic;
     using System.Net;
+    using System.Net.Http;
+    using System.Threading;
+    using System.Threading.Tasks;
     using Garrison.Core.Settings;
     using Radiant;
 
@@ -32,12 +35,35 @@ namespace Garrison.Core.Telemetry
         /// </summary>
         public string? PrometheusHostname { get; private set; } = null;
 
+        /// <summary>
+        /// URL of the Prometheus listener (http://host:port/path), or null when telemetry or the listener is off.
+        /// </summary>
+        public string? PrometheusUrl { get; private set; } = null;
+
+        /// <summary>
+        /// Timeout in milliseconds for <see cref="ScrapeAsync(CancellationToken)"/>. Minimum 100, maximum 60000,
+        /// default 5000.
+        /// </summary>
+        public int ScrapeTimeoutMs
+        {
+            get
+            {
+                return _ScrapeTimeoutMs;
+            }
+            set
+            {
+                _ScrapeTimeoutMs = Math.Clamp(value, 100, 60000);
+            }
+        }
+
         #endregion
 
         #region Private-Members
 
         private readonly RadiantHost? _Host;
         private readonly RadiantClient? _Client;
+        private readonly HttpClient _Http = new HttpClient();
+        private int _ScrapeTimeoutMs = 5000;
         private bool _Disposed = false;
 
         #endregion
@@ -64,6 +90,7 @@ namespace Garrison.Core.Telemetry
                     _Host = RadiantHost.Start(Build(settings, nodeId, hosts[i], diagnostic));
                     _Client = _Host.Client;
                     PrometheusHostname = settings.PrometheusEnable ? hosts[i] : null;
+                    PrometheusUrl = settings.PrometheusEnable ? "http://" + hosts[i] + ":" + settings.PrometheusPort + settings.PrometheusPath : null;
                     if (i > 0) diagnostic?.Invoke("telemetry: Prometheus listener bound to " + hosts[i] + " after " + hosts[i - 1] + " failed");
                     return;
                 }
@@ -155,6 +182,38 @@ namespace Garrison.Core.Telemetry
         }
 
         /// <summary>
+        /// Read the current Prometheus exposition from this process's own metrics listener, so another listener can
+        /// serve it (P13.18). Never throws for listener failures.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Exposition, or null when the listener is off or did not answer.</returns>
+        public async Task<MetricsScrape?> ScrapeAsync(CancellationToken token = default)
+        {
+            string? url = PrometheusUrl;
+            if (url == null || _Disposed) return null;
+            using (CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(token))
+            {
+                timeout.CancelAfter(_ScrapeTimeoutMs);
+                try
+                {
+                    using (HttpResponseMessage response = await _Http.GetAsync(url, timeout.Token).ConfigureAwait(false))
+                    {
+                        if (!response.IsSuccessStatusCode) return null;
+                        MetricsScrape scrape = new MetricsScrape();
+                        scrape.Body = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
+                        string? contentType = response.Content.Headers.ContentType?.ToString();
+                        if (!String.IsNullOrEmpty(contentType)) scrape.ContentType = contentType;
+                        return scrape;
+                    }
+                }
+                catch (Exception e) when (e is HttpRequestException || e is OperationCanceledException || e is InvalidOperationException || e is ObjectDisposedException)
+                {
+                    return null;
+                }
+            }
+        }
+
+        /// <summary>
         /// Dispose.
         /// </summary>
         public void Dispose()
@@ -174,7 +233,11 @@ namespace Garrison.Core.Telemetry
         protected virtual void Dispose(bool disposing)
         {
             if (_Disposed) return;
-            if (disposing) _Host?.Dispose();
+            if (disposing)
+            {
+                _Host?.Dispose();
+                _Http.Dispose();
+            }
             _Disposed = true;
         }
 

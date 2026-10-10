@@ -6,7 +6,7 @@
 // than 25 characters, or has one that only restates the element's visible text.
 
 import { test, expect } from '@playwright/test';
-import { installMocks } from './mocks.js';
+import { installMocks, respond, OBSERVABILITY_CONFIGURED } from './mocks.js';
 import { PAGES, pathFor } from '../../src/config/navConfig.js';
 
 const SELECTOR = 'button, a[href], input:not([type="hidden"]), select, textarea, th, [role="tab"], label, .kpi-card';
@@ -134,6 +134,13 @@ test.use({ actionTimeout: 15000 });
 
 test.beforeEach(async ({ page }) => {
   await installMocks(page);
+  // Configure every observability service so the audit also covers the Home cards and the Grafana deep links (P13.15).
+  await page.route(/\/v1\.0\/api\/server-info$/, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...respond('GET', new URL(route.request().url())), observability: OBSERVABILITY_CONFIGURED }) })
+  );
+  await page.route(/\/v1\.0\/api\/observability\/status$/, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['grafana', 'prometheus', 'loki', 'tempo'].map((service, i) => ({ service, configured: true, reachable: i !== 2, version: i === 2 ? null : '1.0.0', checkedUtc: '2026-10-09T12:00:00Z' }))) })
+  );
 });
 
 test('every interactive and labeled element has a useful tooltip', async ({ page }) => {

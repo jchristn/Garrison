@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: garrison
+
+# K3S plus the observability stack (components/observability): Prometheus, Loki, Tempo, Grafana, and Alloy.
+# Deploy with OBSERVABILITY=1 k8s/scripts/deploy-k3s.sh, or kubectl apply -k k8s/overlays/k3s-observability.
+# Grafana is reachable through k8s/scripts/port-forward.sh (http://127.0.0.1:3000) and through the Traefik
+# Ingress at http://grafana.garrison.local. The browser-facing URLs below assume the port-forward defaults; change
+# them here (or later in the dashboard's Settings page) if you reach the services another way.
+resources:
+  - ../k3s
+  - ingress.yaml
+
+components:
+  - ../../components/observability
+
+patches:
+  - path: observability-urls.yaml

@@ -1,0 +1,58 @@
+# Prometheus configuration for Garrison on Kubernetes (k8s/components/observability and the Helm chart, which
+# mirrors this file; CI diffs them).
+#
+# Garrison pods carry prometheus.io/scrape, prometheus.io/port, and prometheus.io/path annotations. Targets are
+# built from the pod IP and the annotated port: the server's REST port (8700) and the worker's health port (8710),
+# which serve /metrics relayed from the dedicated metrics listener (Telemetry.ServeMetricsOnServicePort). The
+# dedicated listeners (9464, 9465) bind the pod host name and answer only requests whose Host header is that name,
+# so a scrape by pod IP gets 404 there. Every series gets component (server, worker) and node (the pod name, which
+# is also the Garrison node name) so Grafana variables and dashboard deep links can filter on them.
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  # The OpenTelemetry Prometheus exporter can return dotted names when a scraper negotiates UTF-8 names, which
+  # Prometheus 3 does by default. Legacy validation keeps the underscore names the dashboards use.
+  metric_name_validation_scheme: legacy
+
+scrape_configs:
+  - job_name: garrison
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          own_namespace: true
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        regex: "true"
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_phase]
+        regex: Running
+        action: keep
+      # Pod discovery yields one target per container port; after the address rewrite below they are identical
+      # and Prometheus keeps one per pod.
+      - source_labels: [__meta_kubernetes_pod_container_init]
+        regex: "true"
+        action: drop
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.+);(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        regex: (.+)
+        target_label: __metrics_path__
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+        regex: garrison-(.+)
+        replacement: $1
+        target_label: component
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: node
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_label_garrison_io_pool]
+        target_label: pool
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["127.0.0.1:9090"]

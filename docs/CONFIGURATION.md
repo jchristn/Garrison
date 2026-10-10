@@ -120,7 +120,8 @@ Seeding happens only when the records do not exist yet. Changing these values la
 | `Telemetry.PrometheusEnable` | `true` | Restart | Serve a Prometheus scrape endpoint |
 | `Telemetry.PrometheusHostname`, `Telemetry.PrometheusPort`, `Telemetry.PrometheusPath` | `*`, `9464`, `/metrics` | Restart | Where it is served |
 | `Telemetry.OtlpEnable` | `false` | Restart | Export over OTLP. Environment: `GARRISON_OTLP_ENABLE` |
-| `Telemetry.OtlpEndpoint` | `http://127.0.0.1:4317` | Restart | OTLP collector. Environment: `GARRISON_OTLP_ENDPOINT` |
+| `Telemetry.OtlpEndpoint` | `http://127.0.0.1:4317` | Restart | OTLP collector (gRPC). Environment: `GARRISON_OTLP_ENDPOINT` |
+| `Telemetry.ServeMetricsOnServicePort` | `true` | Live | Also serve `GET /metrics` on the REST port, without authentication, relayed from the Prometheus listener, so `kubectl port-forward` and in-pod `127.0.0.1` scrapes work (see `docs/TELEMETRY.md`) |
 | `Cluster.ExpectedReplicas` | `1` | Restart | Control-plane replicas you intend to run. Above 1, Garrison refuses to start on Sqlite. Environment: `GARRISON_EXPECTED_REPLICAS` |
 | `Cluster.SettingsFileReadOnly` | `false` | Restart | The file is managed outside Garrison. Environment: `GARRISON_SETTINGS_READONLY` |
 | `NodeId` | the host name | Restart | This replica's identifier in logs and leader election. Environment: `GARRISON_NODE_ID` |
@@ -145,6 +146,23 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Audit.RetentionDays` | `365` | 1 to 3650 | How long audit records are kept |
 | `RequestHistory.Enabled` | `true` | | Capture HTTP requests |
 | `RequestHistory.RetentionDays` | `30` | 1 to 3650 | How long captured requests are kept |
+
+### Observability
+
+These cluster settings tell Garrison where Grafana, Prometheus, Loki, and Tempo are. They are empty (not configured) by default, accept only absolute `http` or `https` URLs (a trailing slash is removed), and apply live. Each has an environment variable; when the variable is set on the server it wins, the setting shows source `Environment`, and the settings API refuses to change it.
+
+| Key | Environment variable | Meaning |
+|---|---|---|
+| `Observability.GrafanaUrl` | `GARRISON_GRAFANA_URL` | Grafana URL as a browser reaches it. Enables the Grafana card and every deep link (trace, logs, dashboards) |
+| `Observability.PrometheusUrl` | `GARRISON_PROMETHEUS_URL` | Prometheus URL as a browser reaches it |
+| `Observability.LokiUrl` | `GARRISON_LOKI_URL` | Loki URL as a browser reaches it |
+| `Observability.TempoUrl` | `GARRISON_TEMPO_URL` | Tempo URL as a browser reaches it |
+| `Observability.GrafanaInternalUrl` | `GARRISON_GRAFANA_INTERNAL_URL` | URL the server uses to check Grafana, for example `http://garrison-grafana:3000`. Empty uses `Observability.GrafanaUrl` |
+| `Observability.PrometheusInternalUrl` | `GARRISON_PROMETHEUS_INTERNAL_URL` | URL the server uses to check Prometheus. Empty uses `Observability.PrometheusUrl` |
+| `Observability.LokiInternalUrl` | `GARRISON_LOKI_INTERNAL_URL` | URL the server uses to check Loki. Empty uses `Observability.LokiUrl` |
+| `Observability.TempoInternalUrl` | `GARRISON_TEMPO_INTERNAL_URL` | URL the server uses to check Tempo. Empty uses `Observability.TempoUrl` |
+
+A service counts as configured when its browser URL is set. The browser URLs appear in `GET /v1.0/api/server-info`, and `GET /v1.0/api/observability/status` reports whether each one answers (see `docs/TELEMETRY.md`).
 
 ## The settings API
 
@@ -184,7 +202,7 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `EnvironmentAllowlist` | `PATH`, `LANG`, `LC_ALL`, `TZ`, `USER`, temp directories, `DOTNET_ROOT`, certificate and proxy variables, and Windows system variables | Variables copied from the worker's own environment into each harness. Everything else starts empty |
 | `Probes` | `claude`, `codex`, `mux`, `gemini`, `garrison-fake-harness`, each with `--version` | Harness checks run at startup. An available harness adds the label `garrison.io/harness-<label>=true` |
 | `Logging.ConsoleLogging`, `Logging.MinimumSeverity` | `true`, `1` | Logging |
-| `Telemetry` | service `garrison-worker`, Prometheus on `*:9465/metrics`, OTLP off | Same fields as the server's `Telemetry` block. Environment: `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT` |
+| `Telemetry` | service `garrison-worker`, Prometheus on `*:9465/metrics`, OTLP off, `/metrics` also served on the health port | Same fields as the server's `Telemetry` block; `ServeMetricsOnServicePort` applies to the health listener. Environment: `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT` |
 
 The environment allowlist is a security boundary: credentials in the worker's environment never reach a harness unless you add them here. The supported way to give a harness a key is a Garrison secret mapped in the harness profile or deployment (see `docs/HARNESSES.md`).
 

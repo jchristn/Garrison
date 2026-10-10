@@ -764,6 +764,7 @@ const tips = {
         detail: '探測輸出，Harness 唔可用嗰陣好有用。'
       },
       actions: {
+        grafana: '喺新分頁打開 Grafana 嘅 Workers and Harnesses 儀表板，篩選到節點 {{node}}。',
         cordon: '唔再將新嘅執行送去呢個節點。已經喺上面嘅執行會照常完成。',
         uncordon: '畀呢個節點再次接受新嘅執行。',
         drain: '停止新嘅執行，等現有嘅完成，之後節點會變成閒置。關機之前用。',
@@ -799,6 +800,14 @@ const tips = {
   },
   views: {
     home: {
+      observabilityState: {
+        reachable: '伺服器喺過去 30 秒內經內部 URL 連到 {{service}}。',
+        unreachable: '伺服器經內部 URL 連唔到 {{service}}。睇下個服務有冇行緊，同埋內部 URL 設定係咪指向佢。',
+        checking: '問緊伺服器 {{service}} 連唔連得到。',
+        unknown: '伺服器冇報告 {{service}} 連唔連得到。狀態檢查失敗咗，或者呢部伺服器仲未支援。'
+      },
+      observabilityVersion: '{{service}} 喺伺服器健康檢查度報告嘅版本。',
+      kpisGrafana: '喺新分頁打開 Grafana 入面嘅 Garrison 總覽儀表板，睇呢啲數字隨時間點樣變。',
       observabilityDocs: '喺新分頁打開遙測指南：點樣收集 Garrison 指標，同埋點樣連接 Grafana、Prometheus、Tempo 或者 Loki。',
       observability: '連去呢個環境報告已經設定好嘅指標、儀表板同追蹤工具。未設定嘅服務唔會顯示。',
       kpis: {
@@ -829,6 +838,9 @@ const tips = {
       serviceGeneric: '喺新分頁打開呢個隨附嘅服務。'
     },
     runDetail: {
+      viewTrace: '喺新分頁用 Grafana Explore (Tempo) 打開呢個執行嘅追蹤。佢會顯示伺服器同工作節點上面嘅編譯、領取同 Harness 區段。',
+      viewLogs: '喺新分頁用 Grafana Explore (Loki) 打開伺服器同工作節點關於呢個執行嘅日誌，範圍限於呢個執行嘅時間。',
+      traceId: '編譯呢個執行嗰陣所屬追蹤嘅 W3C 追蹤 ID。可以喺 Tempo 搵，或者撳「睇追蹤」。喺開始記錄追蹤 ID 之前建立嘅執行係空嘅。',
       eventCode: '用你嘅語言顯示 Garrison 喺度寫咗咩類型嘅訊息。隔籬嘅文字係伺服器或者工作節點發出嘅原本訊息。',
       openTemplate: '打開範本 {{name}}。呢個執行用咗第 {{version}} 版；「版本」分頁會顯示嗰個內容同埋佢同而家版本嘅分別。',
       templatesUsed: '編譯呢個執行時用咗嘅提示範本確實版本。撳其中一個就可以打開嗰個範本比較版本。',
@@ -961,6 +973,7 @@ const tips = {
       rawJson: '顯示伺服器資訊嘅原始回應。'
     },
     requests: {
+      grafana: '喺新分頁打開 Grafana 嘅 HTTP 儀表板：根據 Prometheus 指標顯示請求速率、延遲同錯誤隨時間嘅變化。',
       kpis: {
         total: '伺服器喺所揀範圍同篩選之下保留喺歷史入面嘅請求。',
         success: '返回 2xx 或 3xx 狀態嘅請求。',
@@ -1020,6 +1033,7 @@ const tips = {
       sourceGeneric: '目前數值嚟自邊度。',
       testDatabase: '儲存之前，用上面嘅資料庫設定試吓連接。',
       groups: {
+        Observability: 'Grafana、Prometheus、Loki 同 Tempo 喺邊度。瀏覽器 URL 用喺首頁卡片同 Grafana 連結；伺服器用內部 URL 檢查連唔連得到。留空即係未設定。',
         Runtime: '控制平面點樣處理排緊隊嘅執行，包括執行喺失敗之前可以等幾耐先有工作節點做到。',
         Rest: 'REST API 點樣監聽：主機、連接埠、TLS 同公開地址。',
         Mcp: 'MCP 伺服器點樣監聽，同埋工具呼叫可以等幾耐。',
@@ -1037,6 +1051,7 @@ const tips = {
     }
   },
   analytics: {
+    grafana: '喺新分頁打開 Grafana 嘅 Runs and Scheduling 儀表板，時間範圍同呢頁一樣。',
     filters: {
       ttft: '剔咗之後，第一個 Token 時間圖表會唔計執行等委派代理程式嘅時間，咁會委派嘅代理程式就可以同直接回答嘅公平比較。',
       range: '所有圖表同總數嘅時間範圍：最近一個鐘、一日、一個星期、30 日，或者自訂開始同結束時間。',

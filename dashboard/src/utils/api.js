@@ -147,6 +147,11 @@ class ApiClient {
     return this._request('GET', '/v1.0/api/server-info');
   }
 
+  /** Reachability of the configured observability services, probed by the server and cached for 30 seconds. */
+  getObservabilityStatus() {
+    return this._request('GET', '/v1.0/api/observability/status');
+  }
+
   getSettings() {
     return this._request('GET', '/v1.0/api/settings');
   }

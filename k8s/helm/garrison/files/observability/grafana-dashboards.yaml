@@ -1,0 +1,17 @@
+# Grafana dashboard provider: every JSON file under the mounted directory lands in the Garrison folder.
+# Dashboard UIDs (garrison-overview, garrison-http, garrison-runs, garrison-workers, garrison-protocols,
+# garrison-integrations) are fixed in the JSON so the Garrison dashboard can deep link to them.
+apiVersion: 1
+
+providers:
+  - name: garrison
+    orgId: 1
+    folder: Garrison
+    folderUid: garrison
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 60
+    options:
+      path: /etc/grafana/dashboards/garrison
+      foldersFromFilesStructure: false

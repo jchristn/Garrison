@@ -1,0 +1,20 @@
+# Grafana on its own host so it can stay at the URL root. Add "127.0.0.1 grafana.garrison.local" to /etc/hosts.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: garrison-grafana
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: grafana.garrison.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: garrison-grafana
+                port:
+                  name: http

@@ -84,7 +84,9 @@ function run(i) {
     // Always serialized too: null when the agent has no output schema (the echo agent has none).
     outputSchemaValid: null,
     schemaValidationErrors: null,
-    repairAttempts: 0
+    repairAttempts: 0,
+    // P13.16: W3C trace ID (32 lowercase hex) of the trace the run was compiled in.
+    traceId: `4bf92f3577b34da6a3ce929d0e0e${pad(i)}`
   });
   if (!queued) {
     Object.assign(out, {
@@ -387,7 +389,10 @@ const SETTINGS = {
     { path: 'Database.Type', group: 'Database', description: 'Database provider.', type: 'enum', value: 'Sqlite', isSecret: false, isSet: true, source: 'File', applyMode: 'RestartRequired', editable: true, allowedValues: ['Sqlite', 'Postgresql'] },
     { path: 'Database.Password', group: 'Database', description: 'Database password.', type: 'secret', isSecret: true, isSet: true, value: '********', source: 'File', applyMode: 'RestartRequired', editable: true },
     { path: 'Scheduling.LeaseDurationMs', group: 'Scheduling', description: 'Run lease duration; heartbeats extend it.', type: 'int', value: '30000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 5000, maximum: 600000 },
-    { path: 'Runtime.FailBlockedAfterSeconds', group: 'Runtime', description: 'Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever.', type: 'int', value: '0', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 604800 }
+    { path: 'Runtime.FailBlockedAfterSeconds', group: 'Runtime', description: 'Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever.', type: 'int', value: '0', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 604800 },
+    // P13.13: observability URLs are cluster string settings; empty means not configured.
+    { path: 'Observability.GrafanaUrl', group: 'Observability', description: 'Browser-facing Grafana URL for the Home card and deep links, for example https://grafana.example.com. Empty means not configured.', type: 'string', value: '', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true },
+    { path: 'Observability.GrafanaInternalUrl', group: 'Observability', description: 'URL the server uses to probe Grafana for reachability. Empty uses the browser-facing URL.', type: 'string', value: '', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true }
   ]
 };
 
@@ -589,8 +594,25 @@ const SERVER_INFO = {
   routeCount: 214,
   repositoryUrl: 'https://github.com/jchristn/Garrison',
   startedUtc: iso(600),
-  features: ['mcp', 'a2a', 'request-history']
+  features: ['mcp', 'a2a', 'request-history'],
+  // P13.13: always present; URLs are null when not configured, datasources and dashboards null without Grafana.
+  observability: { grafanaUrl: null, prometheusUrl: null, lokiUrl: null, tempoUrl: null, datasources: null, dashboards: null }
 };
+
+/** GET /server-info observability block with every service configured (P13.14 tests). */
+export const OBSERVABILITY_CONFIGURED = {
+  grafanaUrl: 'http://localhost:3000/',
+  prometheusUrl: 'http://127.0.0.1:9090',
+  lokiUrl: 'http://127.0.0.1:3100',
+  tempoUrl: 'http://127.0.0.1:3200',
+  datasources: { prometheus: 'garrison-prometheus', loki: 'garrison-loki', tempo: 'garrison-tempo' },
+  dashboards: { overview: 'garrison-overview', http: 'garrison-http', runs: 'garrison-runs', workers: 'garrison-workers', protocols: 'garrison-protocols', integrations: 'garrison-integrations' }
+};
+
+/** GET /observability/status: always the four services, in order. Nothing is configured in the default mocks. */
+function observabilityStatus() {
+  return ['grafana', 'prometheus', 'loki', 'tempo'].map((service) => ({ service, configured: false, reachable: false, checkedUtc: iso(0) }));
+}
 
 /** JSON body for a request, or undefined when unhandled. Also used by the contract test (tests/contract/run.mjs). */
 export function respond(method, url) {
@@ -602,6 +624,7 @@ export function respond(method, url) {
   if (p.startsWith('/v1.0/token')) return {};
   if (p === '/v1.0/api/health') return { status: 'healthy', node: 'garrison-command-0', version: '0.1.0-alpha', database: 'ok', utc: iso(0) };
   if (p === '/v1.0/api/server-info') return SERVER_INFO;
+  if (p === '/v1.0/api/observability/status') return observabilityStatus();
   if (p === '/v1.0/api/settings') return method === 'GET' ? SETTINGS : { saved: true, restartRequired: true, appliedLive: [], pendingRestart: ['Rest.Port'], settings: SETTINGS };
   if (p.startsWith('/v1.0/api/settings')) return { success: true, message: 'ok' };
   if (p === '/v1.0/api/request-history/summary') return summary();

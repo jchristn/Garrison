@@ -1,0 +1,20 @@
+# Browser-facing observability URLs the server hands to the dashboard (server-info). These are the
+# k8s/scripts/port-forward.sh defaults (GRAFANA_PORT, PROMETHEUS_PORT, LOKI_PORT, TEMPO_PORT).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: server
+          env:
+            - name: GARRISON_GRAFANA_URL
+              value: http://127.0.0.1:3000
+            - name: GARRISON_PROMETHEUS_URL
+              value: http://127.0.0.1:9090
+            - name: GARRISON_LOKI_URL
+              value: http://127.0.0.1:3100
+            - name: GARRISON_TEMPO_URL
+              value: http://127.0.0.1:3200

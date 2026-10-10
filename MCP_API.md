@@ -88,6 +88,7 @@ A successful call returns one text content item holding a JSON object. The run t
   "finished": true,
   "result": "Echo: Hello from MCP",
   "servedModel": "fake-model",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "inputTokens": 12,
   "outputTokens": 7,
   "costUsd": 0.0001,
@@ -115,6 +116,7 @@ A successful call returns one text content item holding a JSON object. The run t
 | `finished` | Whether the run reached a terminal status |
 | `result` | The final text, when finished |
 | `servedModel` | The model the harness reported serving the run, for example `claude-sonnet-5-5`. Always present; `null` until the run reports it or when the harness reports none |
+| `traceId` | W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, for opening the run in Tempo or searching its logs (`trace=<traceId>`). Always present; `null` only for runs created before trace IDs were recorded (see `docs/TELEMETRY.md`) |
 | `structuredOutputJson` | Structured output as a JSON string, when the agent defines an output schema |
 | `outputSchemaValid` | Whether the final output validated against the agent's output schema. Omitted when the agent has no schema or nothing was validated (see "Structured output validation" in `REST_API.md`) |
 | `repairAttempts` | Structured output repairs started for the run: 0 or 1 |

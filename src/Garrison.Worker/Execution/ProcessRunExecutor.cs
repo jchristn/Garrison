@@ -10,6 +10,7 @@ namespace Garrison.Worker.Execution
     using Garrison.Core.Enums;
     using Garrison.Core.Protocol;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Telemetry;
     using Garrison.Harnesses;
     using Garrison.Harnesses.Execution;
     using Garrison.Harnesses.Parsers;
@@ -120,7 +121,7 @@ namespace Garrison.Worker.Execution
                     },
                     pid =>
                     {
-                        _Log?.Invoke("run " + assignment.RunId + " started process " + pid + " (" + spec.Executable + ")");
+                        _Log?.Invoke("run " + assignment.RunId + " started process " + pid + " (" + spec.Executable + ") " + RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
                         return reporter.StartedAsync(pid, token);
                     },
                     token).ConfigureAwait(false);
@@ -172,7 +173,7 @@ namespace Garrison.Worker.Execution
                 // Keep the directories when the control plane may ask for a repair in them; the worker host
                 // releases them once the run is finally reported.
                 bool keepForRepair = (spec.RetainForRepair && succeeded) || spec.RepairAttempt > 0;
-                if (!keepForRepair) Cleanup(directories, spec.Workspace.Retention, succeeded);
+                if (!keepForRepair) Cleanup(directories, spec.Workspace.Retention, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
             }
         }
 
@@ -181,7 +182,7 @@ namespace Garrison.Worker.Execution
         {
             if (assignment == null) throw new ArgumentNullException(nameof(assignment));
             ExecutionSpec spec = assignment.Spec ?? new ExecutionSpec();
-            Cleanup(new RunDirectories(_Options.WorkRoot, assignment.RunId), spec.Workspace.Retention, succeeded);
+            Cleanup(new RunDirectories(_Options.WorkRoot, assignment.RunId), spec.Workspace.Retention, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
         }
 
         #endregion
@@ -288,7 +289,7 @@ namespace Garrison.Worker.Execution
             return complete;
         }
 
-        private void Cleanup(RunDirectories directories, WorkspaceRetentionEnum retention, bool succeeded)
+        private void Cleanup(RunDirectories directories, WorkspaceRetentionEnum retention, bool succeeded, string logFields)
         {
             bool keepWorkspace = retention == WorkspaceRetentionEnum.Keep || (retention == WorkspaceRetentionEnum.KeepOnFailure && !succeeded);
             try
@@ -299,7 +300,7 @@ namespace Garrison.Worker.Execution
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {
-                _Log?.Invoke("cleanup of " + directories.Root + " failed: " + e.Message);
+                _Log?.Invoke("cleanup of " + directories.Root + " failed: " + e.Message + " " + logFields);
             }
         }
 

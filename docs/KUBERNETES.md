@@ -239,4 +239,39 @@ To remove Garrison and not reinstall it, `kubectl delete namespace garrison`. Fo
 
 ## Observability
 
-Every Garrison pod exposes Prometheus metrics and carries the standard `prometheus.io/*` scrape annotations: the server on port 9464 and workers on 9465. The bundled Prometheus, Grafana, Tempo, and Loki stack is planned as `k8s/components/observability` (Phase 13). Until then, point an existing Prometheus at the `garrison` namespace, and set `GARRISON_OTLP_ENABLE=true` with `GARRISON_OTLP_ENDPOINT` on the server to export traces to your collector.
+`k8s/components/observability` adds Prometheus, Loki, Tempo, Grafana with six Garrison dashboards, and Grafana Alloy to the `garrison` namespace. Two overlays include it, and the deploy scripts pick them with `OBSERVABILITY=1`:
+
+```bash
+OBSERVABILITY=1 k8s/scripts/deploy-k3s.sh --build       # overlays/k3s-observability
+OBSERVABILITY=1 k8s/scripts/deploy-minikube.sh           # overlays/minikube-observability
+OBSERVABILITY=1 k8s/scripts/update.sh k3s                # same as update.sh k3s-observability
+k8s/scripts/port-forward.sh                              # adds Grafana, Prometheus, Loki, and Tempo when present
+```
+
+On Windows, `set OBSERVABILITY=1` before `deploy-k3s.bat`, `deploy-minikube.bat`, or `update.bat`. With Helm, `--set observability.enabled=true` (the values files explain the per-cluster defaults).
+
+| Service | In the cluster | From your machine (port-forward.sh) | Version |
+|---|---|---|---|
+| Grafana | `garrison-grafana:3000` | http://127.0.0.1:3000 (`GRAFANA_PORT`), user `admin` | 13.0.2 |
+| Prometheus | `garrison-prometheus:9090` | http://127.0.0.1:9090 (`PROMETHEUS_PORT`) | 3.5.4 |
+| Loki | `garrison-loki:3100` | http://127.0.0.1:3100 (`LOKI_PORT`) | 3.5.5 |
+| Tempo | `garrison-tempo:3200` | http://127.0.0.1:3200 (`TEMPO_PORT`) | 2.6.1 |
+| Alloy (OTLP gRPC 4317, HTTP 4318) | `garrison-alloy` | not forwarded | 1.5.0 |
+
+The K3S overlay also routes `http://grafana.garrison.local` through Traefik (add it to `/etc/hosts` next to `garrison.local`), and the minikube overlay gives Grafana NodePort 30300 and Prometheus 30909.
+
+What the stack does:
+
+- **Metrics.** Prometheus discovers pods in its own namespace through the Kubernetes API and scrapes the ones annotated `prometheus.io/scrape: "true"` at the pod IP and the annotated port: the server's REST port (8700) and each worker's health port (8710), which relay `/metrics` from the dedicated metrics listener. Every series gets `component` (`server`, `worker`) and `node` (the pod name, which is also the Garrison node name). Retention is 3 days or 1 GiB.
+- **Traces.** The component sets `GARRISON_OTLP_ENABLE=true` and `GARRISON_OTLP_ENDPOINT=http://garrison-alloy:4317` on the server, and the `GARRISON_WORKER_OTLP_*` equivalents on workers. Alloy drops health-probe and scrape spans and forwards the rest to Tempo, so a run's `run:create`, `run:claim`, `run:compile`, and worker `harness <type> exec` spans arrive as one trace. Retention is 24 hours.
+- **Logs.** Alloy reads the server, worker, and dashboard container logs through the Kubernetes API (a namespaced Role grants `pods` and `pods/log`, no host paths) and ships them to Loki with the labels `app="garrison"`, `component`, `node`, and `level` (Garrison severities). `{app="garrison"} |= "<runId>"` finds a run's lines, and the `trace=` field links each line to its trace. Retention is 72 hours.
+- **Grafana.** Datasources `garrison-prometheus`, `garrison-loki`, and `garrison-tempo` with links from traces to logs and back, and the dashboards `garrison-overview`, `garrison-http`, `garrison-runs`, `garrison-workers`, `garrison-protocols`, and `garrison-integrations` in the `Garrison` folder. Everything is provisioned from files, so Grafana keeps no state of its own.
+- **The Garrison dashboard.** The overlays set the browser-facing URLs (`GARRISON_GRAFANA_URL`, `GARRISON_PROMETHEUS_URL`, `GARRISON_LOKI_URL`, `GARRISON_TEMPO_URL`) to the port-forward defaults above, and the in-cluster URLs the server probes (`GARRISON_*_INTERNAL_URL`) to the services. If you reach Grafana another way, change the URLs in the overlay (`observability-urls.yaml`) or in Helm's `observability.urls`.
+
+The Grafana admin password comes from Secret `garrison-grafana` (keys `admin-user` and `admin-password`). `generate-secrets.sh` always creates it, with the password from `GARRISON_GRAFANA_PASSWORD` (default `password`, with a warning), and keeps it on later runs unless you pass `--force`. Creating it even without the observability stack means turning the stack on later needs no extra step. Read it back with `kubectl -n garrison get secret garrison-grafana -o jsonpath='{.data.admin-password}' | base64 -d`.
+
+Resources are sized for a laptop cluster. Requests add up to 225m CPU and 640 MiB of memory, and limits to 4.5 CPU and 2.4 GiB. On a K3S test cluster with light traffic the five pods used about 600 MiB together (Grafana about 160 to 300 MiB, the others 70 to 130 MiB each). Prometheus, Loki, and Tempo each get a 2 GiB PersistentVolumeClaim on the default storage class; Grafana and Alloy use `emptyDir`. A factory reset deletes all of it with the namespace.
+
+`k8s/scripts/deploy-k3s.sh --build` with `OBSERVABILITY=1` also imports the five observability images when Docker already has them, so the cluster does not pull about 1 GB again.
+
+To use your own monitoring instead, skip the component: the annotations above work with any Prometheus that honors them, and setting `GARRISON_OTLP_ENABLE=true` and `GARRISON_OTLP_ENDPOINT` on the server (and the worker equivalents) sends traces to your collector. For a quick look without Prometheus, `kubectl -n garrison port-forward deploy/garrison-server 8700:8700`, then `curl -s http://127.0.0.1:8700/metrics`. The dedicated listeners (9464, 9465) answer only requests addressed to the pod host name, so neither port-forwarding them nor scraping them by pod IP works; `docs/TELEMETRY.md` explains the relay and how to turn it off.

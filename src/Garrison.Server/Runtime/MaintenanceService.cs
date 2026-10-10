@@ -268,7 +268,7 @@ namespace Garrison.Server.Runtime
                 if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
                 {
                     _Telemetry.Increment("garrison.lease.expirations", new RadiantTag("action", requeue ? "requeued" : "failed"));
-                    _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()));
+                    _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()) + " " + RunTracing.LogFields(run.Id, run.TraceId));
                     if (requeue) _Signals.QueueChanged.Signal();
                     else
                     {
@@ -429,7 +429,7 @@ namespace Garrison.Server.Runtime
             if (inserted == 0) return false;
             await _Database.Runs.UpdateLastEventSequenceAsync(current.Id, evt.Sequence, token).ConfigureAwait(false);
             _Telemetry.Increment("garrison.runs.blocked", new RadiantTag("reason", reason.ToString()));
-            _Logging.Info(_Header + "run " + current.Id + " is blocked (" + reason + "): " + evt.Text);
+            _Logging.Info(_Header + "run " + current.Id + " is blocked (" + reason + "): " + evt.Text + " " + RunTracing.LogFields(current.Id, current.TraceId));
             _Signals.Notify(current.Id);
             return true;
         }
@@ -448,7 +448,7 @@ namespace Garrison.Server.Runtime
             {
                 _Blocked.TryRemove(run.Id, out BlockedRunState? _);
                 _Telemetry.Increment("garrison.runs.blocked.failed", new RadiantTag("reason", reason.ToString()));
-                _Logging.Warn(_Header + "run " + run.Id + " failed after " + failAfterSeconds + " seconds blocked (" + reason + ")");
+                _Logging.Warn(_Header + "run " + run.Id + " failed after " + failAfterSeconds + " seconds blocked (" + reason + ") " + RunTracing.LogFields(run.Id, run.TraceId));
                 _Signals.Complete(run.Id);
             }
         }

@@ -763,6 +763,7 @@ const tips = {
         detail: '探測輸出，在 Harness 無法使用時很有幫助。'
       },
       actions: {
+        grafana: '在新分頁中開啟 Grafana 的 Workers and Harnesses 儀表板，並篩選到節點 {{node}}。',
         cordon: '停止將新的執行傳送到此節點。已在其上的執行會正常完成。',
         uncordon: '讓此節點再次接受新的執行。',
         drain: '停止接受新的執行並讓目前的執行完成，之後節點會進入閒置。請在關閉節點前使用。',
@@ -798,6 +799,14 @@ const tips = {
   },
   views: {
     home: {
+      observabilityState: {
+        reachable: '伺服器在最近 30 秒內透過內部 URL 連線到 {{service}}。',
+        unreachable: '伺服器無法透過內部 URL 連線到 {{service}}。請確認該服務正在執行，且內部 URL 設定指向它。',
+        checking: '正在詢問伺服器 {{service}} 是否可連線。',
+        unknown: '伺服器沒有回報 {{service}} 是否可連線。狀態檢查失敗，或此伺服器尚不支援此檢查。'
+      },
+      observabilityVersion: '{{service}} 在伺服器健康檢查中回報的版本。',
+      kpisGrafana: '在新分頁中開啟 Grafana 裡的 Garrison 總覽儀表板，查看這些數字隨時間的變化。',
       observabilityDocs: '在新分頁開啟遙測指南：如何收集 Garrison 指標並連接 Grafana、Prometheus、Tempo 或 Loki。',
       observability: '連到此環境回報為已設定的指標、儀表板與追蹤工具。未設定的服務不會顯示。',
       kpis: {
@@ -828,6 +837,9 @@ const tips = {
       serviceGeneric: '在新分頁中開啟此隨附的服務。'
     },
     runDetail: {
+      viewTrace: '在新分頁中以 Grafana Explore (Tempo) 開啟此執行的追蹤。它顯示伺服器與工作節點上的編譯、領取與 Harness 區段。',
+      viewLogs: '在新分頁中以 Grafana Explore (Loki) 開啟伺服器與工作節點上關於此執行的日誌行，範圍限於此執行的時間區間。',
+      traceId: '編譯此執行時所在追蹤的 W3C 追蹤 ID。可在 Tempo 中搜尋，或使用「檢視追蹤」。在開始記錄追蹤 ID 之前建立的執行為空。',
       eventCode: '以你的語言顯示 Garrison 在此寫入的訊息類型。旁邊的文字是伺服器或工作節點發出的原始訊息。',
       openTemplate: '開啟範本 {{name}}。此執行使用第 {{version}} 版；「版本」分頁會顯示該內容及其與目前版本的差異。',
       templatesUsed: '編譯此執行時使用的提示範本確切版本。按一下其中一個可開啟該範本並比較版本。',
@@ -960,6 +972,7 @@ const tips = {
       rawJson: '顯示伺服器資訊的原始回應。'
     },
     requests: {
+      grafana: '在新分頁中開啟 Grafana 的 HTTP 儀表板：根據 Prometheus 指標顯示請求速率、延遲與錯誤隨時間的變化。',
       kpis: {
         total: '伺服器在所選範圍與篩選條件下保留於歷程中的請求數。',
         success: '傳回 2xx 或 3xx 狀態的請求。',
@@ -1019,6 +1032,7 @@ const tips = {
       sourceGeneric: '目前值的來源。',
       testDatabase: '在儲存之前，先以上方的資料庫設定嘗試連線。',
       groups: {
+        Observability: 'Grafana、Prometheus、Loki 與 Tempo 的位置。瀏覽器 URL 用於首頁卡片與 Grafana 連結；伺服器以內部 URL 檢查是否可連線。空白表示未設定。',
         Runtime: '控制平面如何處理佇列中的執行，包括執行在失敗前可以等待可執行的工作節點多久。',
         Rest: 'REST API 的接聽方式：主機、連接埠、TLS 與公開位址。',
         Mcp: 'MCP 伺服器的接聽方式，以及工具呼叫可以等待多久。',
@@ -1036,6 +1050,7 @@ const tips = {
     }
   },
   analytics: {
+    grafana: '在新分頁中開啟 Grafana 的 Runs and Scheduling 儀表板，時間範圍與本頁相同。',
     filters: {
       ttft: '勾選後，第一個 Token 時間圖表會排除等待委派代理程式的時間，讓會委派的代理程式能與直接回答的代理程式公平比較。',
       range: '所有圖表與總計的時間範圍：最近一小時、一天、一週、30 天，或自訂的開始與結束時間。',

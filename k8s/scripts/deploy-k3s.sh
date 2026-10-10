@@ -14,6 +14,11 @@
 # Options:
 #   --build   build images locally with docker and import them into K3S: into the k3d cluster named by K3D_CLUSTER,
 #             into the container named by K3S_CONTAINER, or into a host K3S with sudo k3s ctr
+#
+# Environment:
+#   OBSERVABILITY=1   deploy overlays/k3s-observability instead of overlays/k3s: Prometheus, Loki, Tempo, Grafana with
+#                     the Garrison dashboards, and Alloy, with OTLP export enabled on the server and workers. With
+#                     --build, the observability images Docker already has are imported too.
 source "$(dirname "$0")/common.sh"
 need kubectl
 
@@ -43,11 +48,20 @@ if [ "${BUILD}" = "1" ]; then
   # (postgres:17 alone is about 160 MB); anything missing is pulled by K3S as usual.
   # Best effort: a pulled image can carry an index for platforms Docker never downloaded, so save only this one.
   platform="linux/$(docker version --format '{{.Server.Arch}}')"
-  for image in postgres:17 busybox:1.36 curlimages/curl:8.10.1; do
+  THIRD_PARTY="postgres:17 busybox:1.36 curlimages/curl:8.10.1"
+  [ "${OBSERVABILITY:-0}" = "1" ] && THIRD_PARTY="${THIRD_PARTY} $(observability_images | tr '\n' ' ')"
+  for image in ${THIRD_PARTY}; do
     docker image inspect "${image}" >/dev/null 2>&1 || continue
     if [ -n "${K3D_CLUSTER:-}" ]; then
-      k3d image import -c "${K3D_CLUSTER}" "${image}" >/dev/null 2>&1 \
-        && log "imported ${image}" || log "could not import ${image}; K3S will pull it"
+      # k3d image import imports with --all-platforms and silently skips multi-platform images whose other platforms
+      # Docker never downloaded, so stream this platform into each k3d node's containerd instead.
+      imported=0
+      for node in $(docker ps -q --filter "label=k3d.cluster=${K3D_CLUSTER}" --filter "label=k3d.role=server") \
+                  $(docker ps -q --filter "label=k3d.cluster=${K3D_CLUSTER}" --filter "label=k3d.role=agent"); do
+        docker save --platform "${platform}" "${image}" | docker exec -i "${node}" ctr -n k8s.io images import - >/dev/null 2>&1 \
+          && imported=1
+      done
+      [ "${imported}" = "1" ] && log "imported ${image}" || log "could not import ${image}; K3S will pull it"
     elif [ -n "${K3S_CONTAINER:-}" ]; then
       docker save --platform "${platform}" "${image}" | docker exec -i "${K3S_CONTAINER}" ctr images import - >/dev/null 2>&1 \
         && log "imported ${image}" || log "could not import ${image}; K3S will pull it"
@@ -59,9 +73,12 @@ if [ "${BUILD}" = "1" ]; then
 fi
 
 "${SCRIPT_DIR}/generate-secrets.sh"
-kubectl apply -k "${K8S_DIR}/overlays/k3s"
+OVERLAY="$(overlay_name k3s)"
+log "applying overlays/${OVERLAY}"
+kubectl apply -k "${K8S_DIR}/overlays/${OVERLAY}"
 wait_for_rollout
 
 log "sign in to tenant default as admin@garrison with GARRISON_ADMIN_PASSWORD (default: password)"
 log "add '127.0.0.1 garrison.local' (or your K3S node IP) to /etc/hosts, then open http://garrison.local"
 log "when K3S runs in Docker with -p 8080:80, use http://garrison.local:8080"
+print_observability

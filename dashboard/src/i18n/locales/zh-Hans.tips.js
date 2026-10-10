@@ -763,6 +763,7 @@ const tips = {
         detail: '探测输出，在 Harness 不可用时很有用。'
       },
       actions: {
+        grafana: '在新标签页中打开 Grafana 的 Workers and Harnesses 仪表板，并筛选到节点 {{node}}。',
         cordon: '停止向此节点发送新的运行。已在其上的运行会正常完成。',
         uncordon: '让此节点重新接受新的运行。',
         drain: '停止接收新的运行，让当前运行完成，之后节点进入空闲。请在关闭节点前使用。',
@@ -798,6 +799,14 @@ const tips = {
   },
   views: {
     home: {
+      observabilityState: {
+        reachable: '服务器在最近 30 秒内通过内部 URL 访问到了 {{service}}。',
+        unreachable: '服务器无法通过内部 URL 访问 {{service}}。请检查该服务是否在运行，以及内部 URL 设置是否指向它。',
+        checking: '正在询问服务器 {{service}} 是否可访问。',
+        unknown: '服务器没有报告 {{service}} 是否可访问。状态检查失败，或者此服务器尚不支持该检查。'
+      },
+      observabilityVersion: '{{service}} 在服务器健康检查中报告的版本。',
+      kpisGrafana: '在新标签页中打开 Grafana 里的 Garrison 概览仪表板，查看这些数字随时间的变化。',
       observabilityDocs: '在新标签页中打开遥测指南：如何采集 Garrison 指标并连接 Grafana、Prometheus、Tempo 或 Loki。',
       observability: '指向此环境报告为已配置的指标、仪表板和追踪工具的链接。未配置的服务不会显示。',
       kpis: {
@@ -828,6 +837,9 @@ const tips = {
       serviceGeneric: '在新标签页中打开此捆绑服务。'
     },
     runDetail: {
+      viewTrace: '在新标签页中用 Grafana Explore (Tempo) 打开此运行的追踪。它显示服务器和工作节点上的编译、领取和 Harness 跨度。',
+      viewLogs: '在新标签页中用 Grafana Explore (Loki) 打开服务器和工作节点上与此运行相关的日志行，范围限于此运行的时间段。',
+      traceId: '编译此运行时所在追踪的 W3C 追踪 ID。可在 Tempo 中搜索，或使用“查看追踪”。在开始记录追踪 ID 之前创建的运行为空。',
       eventCode: '以你的语言显示 Garrison 在此写入的消息类型。旁边的文本是服务器或工作节点发出的原始消息。',
       openTemplate: '打开模板 {{name}}。此运行使用了第 {{version}} 版；“版本”标签页会显示该内容及其与当前版本的差异。',
       templatesUsed: '编译此运行时使用的提示词模板的确切版本。点击某一项可打开该模板并比较版本。',
@@ -960,6 +972,7 @@ const tips = {
       rawJson: '显示服务器信息的原始响应。'
     },
     requests: {
+      grafana: '在新标签页中打开 Grafana 的 HTTP 仪表板：基于 Prometheus 指标的请求速率、延迟和错误随时间的变化。',
       kpis: {
         total: '服务器在所选时间范围和筛选条件下保留在历史记录中的请求。',
         success: '返回 2xx 或 3xx 状态的请求。',
@@ -1019,6 +1032,7 @@ const tips = {
       sourceGeneric: '当前值的来源。',
       testDatabase: '在保存之前，先尝试使用上面的数据库设置进行连接。',
       groups: {
+        Observability: 'Grafana、Prometheus、Loki 和 Tempo 的地址。浏览器 URL 用于首页卡片和 Grafana 链接；服务器使用内部 URL 检查可访问性。为空表示未配置。',
         Runtime: '控制平面如何处理排队的运行，包括运行在失败前可以等待可用工作节点多久。',
         Rest: 'REST API 的监听方式：主机、端口、TLS 和公开地址。',
         Mcp: 'MCP 服务器的监听方式，以及工具调用可以等待多久。',
@@ -1036,6 +1050,7 @@ const tips = {
     }
   },
   analytics: {
+    grafana: '在新标签页中打开 Grafana 的 Runs and Scheduling 仪表板，时间范围与本页相同。',
     filters: {
       ttft: '勾选后，首 Token 时间图表会去掉运行等待委派智能体的时间，从而公平比较会委派的智能体和直接回答的智能体。',
       range: '所有图表和汇总的时间范围：最近一小时、一天、一周、30 天，或自定义的开始和结束时间。',

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # DESTRUCTIVE: deletes the Garrison namespace including databases, workspaces, and secrets, then reinstalls the
 # chosen overlay with fresh secrets. Requires typing RESET.
-# Usage: k8s/scripts/factory-reset.sh [minikube|k3s|production]
+# Usage: k8s/scripts/factory-reset.sh [minikube|k3s|production|k3s-observability|minikube-observability]
+# OBSERVABILITY=1 selects the -observability variant of minikube and k3s.
 source "$(dirname "$0")/common.sh"
 need kubectl
-OVERLAY="${1:-k3s}"
+OVERLAY="$(overlay_name "${1:-k3s}")"
 [ -d "${K8S_DIR}/overlays/${OVERLAY}" ] || fail "unknown overlay ${OVERLAY}"
 
 printf 'This deletes namespace %s and ALL Garrison data in the current context (%s).\n' "${GARRISON_NAMESPACE}" "$(kubectl config current-context)"

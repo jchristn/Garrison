@@ -1,0 +1,61 @@
+# Grafana datasources for Garrison. The UIDs are part of the contract with the Garrison dashboard (deep links)
+# and the provisioned dashboards: garrison-prometheus, garrison-loki, garrison-tempo. The service names are the
+# same in Kubernetes and Docker Compose, so this one file serves both (the Helm chart mirrors it; CI diffs them).
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: garrison-prometheus
+    access: proxy
+    url: http://garrison-prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+
+  - name: Loki
+    type: loki
+    uid: garrison-loki
+    access: proxy
+    url: http://garrison-loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+      # Logs to traces: Garrison log lines about a run carry trace=<32 hex characters>.
+      derivedFields:
+        - name: TraceID
+          matcherType: regex
+          matcherRegex: "trace=([0-9a-f]{32})"
+          url: "$${__value.raw}"
+          datasourceUid: garrison-tempo
+          urlDisplayLabel: View trace
+
+  - name: Tempo
+    type: tempo
+    uid: garrison-tempo
+    access: proxy
+    url: http://garrison-tempo:3200
+    editable: false
+    jsonData:
+      # Traces to logs: find the Garrison log lines that mention the trace ID, from 5 minutes before the span
+      # to 5 minutes after it.
+      tracesToLogsV2:
+        datasourceUid: garrison-loki
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        filterByTraceID: false
+        filterBySpanID: false
+        customQuery: true
+        query: '{app="garrison"} |= "$${__trace.traceId}"'
+      tracesToMetrics:
+        datasourceUid: garrison-prometheus
+      serviceMap:
+        datasourceUid: garrison-prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      lokiSearch:
+        datasourceUid: garrison-loki

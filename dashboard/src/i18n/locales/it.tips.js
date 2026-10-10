@@ -763,6 +763,7 @@ const tips = {
         detail: 'Output del controllo, utile quando un harness non è disponibile.'
       },
       actions: {
+        grafana: 'Apri in una nuova scheda la dashboard Workers and Harnesses in Grafana, filtrata sul nodo {{node}}.',
         cordon: 'Smetti di inviare nuove esecuzioni a questo nodo. Quelle già presenti terminano normalmente.',
         uncordon: 'Consenti di nuovo a questo nodo di accettare nuove esecuzioni.',
         drain: 'Blocca le nuove esecuzioni e lascia terminare quelle correnti, poi il nodo resta inattivo. Usalo prima di spegnerlo.',
@@ -798,6 +799,14 @@ const tips = {
   },
   views: {
     home: {
+      observabilityState: {
+        reachable: 'Il server ha raggiunto {{service}} al suo URL interno negli ultimi 30 secondi.',
+        unreachable: 'Il server non è riuscito a raggiungere {{service}} al suo URL interno. Controlla che il servizio sia attivo e che l\'impostazione dell\'URL interno punti a esso.',
+        checking: 'Sto chiedendo al server se {{service}} è raggiungibile.',
+        unknown: 'Il server non ha indicato se {{service}} è raggiungibile. Il controllo non è riuscito oppure questo server non lo supporta ancora.'
+      },
+      observabilityVersion: 'Versione che {{service}} ha indicato al controllo di stato del server.',
+      kpisGrafana: 'Apri in una nuova scheda la dashboard di panoramica di Garrison in Grafana per vedere questi numeri nel tempo.',
       observabilityDocs: 'Apri la guida alla telemetria in una nuova scheda: come raccogliere le metriche di Garrison e collegare Grafana, Prometheus, Tempo o Loki.',
       observability: 'Collegamenti agli strumenti di metriche, dashboard e tracciamento che questa installazione dichiara configurati. I servizi non configurati non vengono mostrati.',
       kpis: {
@@ -828,6 +837,9 @@ const tips = {
       serviceGeneric: 'Apri questo servizio incluso in una nuova scheda.'
     },
     runDetail: {
+      viewTrace: 'Apri in una nuova scheda la traccia di questa esecuzione in Grafana Explore (Tempo). Mostra gli span di compilazione, acquisizione e harness sul server e sul nodo worker.',
+      viewLogs: 'Apri in una nuova scheda le righe di log del server e del worker su questa esecuzione in Grafana Explore (Loki), limitate all\'intervallo dell\'esecuzione.',
+      traceId: 'ID traccia W3C della traccia in cui è stata compilata questa esecuzione. Cercalo in Tempo oppure usa Visualizza traccia. Vuoto per le esecuzioni create prima che gli ID traccia venissero registrati.',
       eventCode: 'Che tipo di messaggio ha scritto qui Garrison, nella tua lingua. Il testo accanto è il messaggio originale del server o del worker.',
       openTemplate: 'Apri il modello {{name}}. Questa esecuzione ha usato la versione {{version}}; la scheda Versioni mostra quel contenuto e la differenza con quello attuale.',
       templatesUsed: 'Le versioni esatte dei modelli di prompt con cui è stata compilata questa esecuzione. Fai clic su una per aprire il modello e confrontare le versioni.',
@@ -960,6 +972,7 @@ const tips = {
       rawJson: 'Mostra la risposta grezza con le informazioni sul server.'
     },
     requests: {
+      grafana: 'Apri in una nuova scheda la dashboard HTTP in Grafana: frequenza delle richieste, latenza ed errori nel tempo dalle metriche di Prometheus.',
       kpis: {
         total: 'Richieste conservate dal server nella cronologia per l\'intervallo e i filtri selezionati.',
         success: 'Richieste che hanno restituito uno stato 2xx o 3xx.',
@@ -1019,6 +1032,7 @@ const tips = {
       sourceGeneric: 'Da dove proviene il valore attuale.',
       testDatabase: 'Prova a connetterti con le impostazioni del database qui sopra prima di salvarle.',
       groups: {
+        Observability: 'Dove si trovano Grafana, Prometheus, Loki e Tempo. Gli URL del browser alimentano le schede della Home e i collegamenti a Grafana; il server verifica la raggiungibilità con gli URL interni. Vuoto significa non configurato.',
         Runtime: 'Come il piano di controllo gestisce le esecuzioni in coda, compreso quanto un\'esecuzione può attendere un worker compatibile prima di fallire.',
         Rest: 'Come resta in ascolto la REST API: host, porta, TLS e indirizzo pubblico.',
         Mcp: 'Come resta in ascolto il server MCP e quanto possono attendere le chiamate agli strumenti.',
@@ -1036,6 +1050,7 @@ const tips = {
     }
   },
   analytics: {
+    grafana: 'Apri in una nuova scheda la dashboard Runs and Scheduling in Grafana con lo stesso intervallo di tempo di questa pagina.',
     filters: {
       ttft: 'Se selezionato, il grafico del tempo al primo token esclude il tempo passato ad attendere gli agenti delegati, così gli agenti che delegano si confrontano equamente con quelli che rispondono direttamente.',
       range: 'Finestra temporale di tutti i grafici e totali: l\'ultima ora, giorno, settimana o 30 giorni, oppure un inizio e una fine personalizzati.',

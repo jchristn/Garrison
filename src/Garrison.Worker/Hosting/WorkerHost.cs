@@ -195,9 +195,12 @@ namespace Garrison.Worker.Hosting
 
             if (startHealthServer)
             {
-                _Health = new HealthServer(_Settings.HealthHostname, _Settings.HealthPort, Health);
+                GarrisonTelemetry? telemetry = _Telemetry;
+                Func<CancellationToken, Task<MetricsScrape?>>? metrics = null;
+                if (telemetry != null && _Settings.Telemetry.ServeMetricsOnServicePort) metrics = token => telemetry.ScrapeAsync(token);
+                _Health = new HealthServer(_Settings.HealthHostname, _Settings.HealthPort, Health, metrics);
                 _Health.Start();
-                _Logging.Info(_Header + "health listening on " + _Settings.HealthHostname + ":" + _Settings.HealthPort);
+                _Logging.Info(_Header + "health listening on " + _Settings.HealthHostname + ":" + _Settings.HealthPort + (metrics != null && telemetry!.PrometheusUrl != null ? " (also serving /metrics)" : String.Empty));
             }
             _MainTask = Task.Run(() => MainAsync(_Stop.Token));
             return Task.CompletedTask;
@@ -414,12 +417,12 @@ namespace Garrison.Worker.Hosting
                 if (!_Runs.TryGetValue(runId, out ActiveRun? run)) return;
                 if (lost)
                 {
-                    _Logging.Warn(_Header + "lease for run " + runId + " was lost; killing the harness");
+                    _Logging.Warn(_Header + "lease for run " + runId + " was lost; killing the harness " + run.LogFields);
                     run.MarkLost();
                 }
                 else
                 {
-                    _Logging.Info(_Header + "cancelling run " + runId + " at the control plane's request");
+                    _Logging.Info(_Header + "cancelling run " + runId + " at the control plane's request " + run.LogFields);
                     run.Cancel();
                 }
             }
@@ -488,7 +491,7 @@ namespace Garrison.Worker.Hosting
             ActiveRun run = new ActiveRun(assignment);
             if (!_Runs.TryAdd(run.RunId, run))
             {
-                _Logging.Warn(_Header + "run " + run.RunId + " is already active; ignoring duplicate assignment");
+                _Logging.Warn(_Header + "run " + run.RunId + " is already active; ignoring duplicate assignment " + run.LogFields);
                 run.Dispose();
                 return false;
             }
@@ -500,14 +503,14 @@ namespace Garrison.Worker.Hosting
         private async Task ExecuteAsync(ActiveRun run)
         {
             string nodeId = _NodeId ?? String.Empty;
-            _Logging.Info(_Header + "executing run " + run.RunId + " (epoch " + run.Epoch + ", " + run.Assignment.Spec.HarnessType + ")");
+            _Logging.Info(_Header + "executing run " + run.RunId + " (epoch " + run.Epoch + ", " + run.Assignment.Spec.HarnessType + ") " + run.LogFields);
             RunEventShipper shipper = new RunEventShipper(_Client, nodeId, run.RunId, run.Epoch, _Settings.EventBatchSize, _Settings.MaxBufferedEvents, _Settings.EventFlushIntervalMs,
                 id =>
                 {
-                    _Logging.Warn(_Header + "control plane reports a stale lease for run " + id + "; killing the harness");
+                    _Logging.Warn(_Header + "control plane reports a stale lease for run " + id + "; killing the harness " + run.LogFields);
                     run.MarkLost();
                 },
-                message => _Logging.Debug(_Header + message),
+                message => _Logging.Debug(_Header + message + " " + run.LogFields),
                 run.Assignment.EventSequenceStart);
             string harness = run.Assignment.Spec.HarnessType.ToString();
             bool retained = run.Assignment.Spec.RetainForRepair;
@@ -530,12 +533,12 @@ namespace Garrison.Worker.Hosting
                         }
                         catch (OperationCanceledException)
                         {
-                            _Logging.Warn(_Header + "gave up delivering events for run " + run.RunId);
+                            _Logging.Warn(_Header + "gave up delivering events for run " + run.RunId + " " + run.LogFields);
                         }
 
                         if (run.Lost || shipper.Stale)
                         {
-                            _Logging.Info(_Header + "run " + run.RunId + " lost its lease; not reporting completion");
+                            _Logging.Info(_Header + "run " + run.RunId + " lost its lease; not reporting completion " + run.LogFields);
                             return;
                         }
 
@@ -543,18 +546,18 @@ namespace Garrison.Worker.Hosting
                         complete.Epoch = run.Epoch;
                         complete.RepairAttempt = repairAttempt;
                         complete.SupportsRepair = true;
-                        response = await ReportCompletionAsync(run.RunId, complete, retry.Token).ConfigureAwait(false);
+                        response = await ReportCompletionAsync(run, complete, retry.Token).ConfigureAwait(false);
                     }
 
                     if (response == null || response.Repair == null || response.RepairAttempt <= repairAttempt) return;
                     if (run.Lost || run.Cancellation.IsCancellationRequested)
                     {
-                        _Logging.Info(_Header + "run " + run.RunId + " was cancelled or lost before its structured output repair");
+                        _Logging.Info(_Header + "run " + run.RunId + " was cancelled or lost before its structured output repair " + run.LogFields);
                         return;
                     }
 
                     repairAttempt = response.RepairAttempt;
-                    _Logging.Info(_Header + "run " + run.RunId + " output failed schema validation; running repair attempt " + repairAttempt);
+                    _Logging.Info(_Header + "run " + run.RunId + " output failed schema validation; running repair attempt " + repairAttempt + " " + run.LogFields);
                     shipper.AdvanceSequence(response.EventSequenceStart);
                     RunAssignment repair = new RunAssignment();
                     repair.RunId = run.RunId;
@@ -575,7 +578,7 @@ namespace Garrison.Worker.Hosting
                     }
                     catch (Exception e)
                     {
-                        _Logging.Warn(_Header + "releasing the directories of run " + run.RunId + " failed: " + e.Message);
+                        _Logging.Warn(_Header + "releasing the directories of run " + run.RunId + " failed: " + e.Message + " " + run.LogFields);
                     }
                 }
                 await shipper.DisposeAsync().ConfigureAwait(false);
@@ -621,34 +624,35 @@ namespace Garrison.Worker.Hosting
             return complete;
         }
 
-        private async Task<RunCompleteResponse?> ReportCompletionAsync(string runId, RunCompleteRequest complete, CancellationToken token)
+        private async Task<RunCompleteResponse?> ReportCompletionAsync(ActiveRun run, RunCompleteRequest complete, CancellationToken token)
         {
+            string runId = run.RunId;
             int attempt = 0;
             while (true)
             {
                 try
                 {
                     RunCompleteResponse response = await _Client.CompleteAsync(runId, complete, token).ConfigureAwait(false);
-                    _Logging.Info(_Header + "run " + runId + " completed: " + complete.Status + " (" + complete.Outcome + ")" + (response?.Repair != null ? "; repair requested" : String.Empty));
+                    _Logging.Info(_Header + "run " + runId + " completed: " + complete.Status + " (" + complete.Outcome + ")" + (response?.Repair != null ? "; repair requested" : String.Empty) + " " + run.LogFields);
                     _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "accepted"));
                     return response;
                 }
                 catch (StaleLeaseException)
                 {
-                    _Logging.Warn(_Header + "completion for run " + runId + " rejected: stale lease");
+                    _Logging.Warn(_Header + "completion for run " + runId + " rejected: stale lease " + run.LogFields);
                     _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "stale"));
                     return null;
                 }
                 catch (NodeProtocolException e)
                 {
-                    _Logging.Warn(_Header + "completion report for run " + runId + " failed (retrying): " + e.Message);
+                    _Logging.Warn(_Header + "completion report for run " + runId + " failed (retrying): " + e.Message + " " + run.LogFields);
                     try
                     {
                         await Task.Delay(Backoff(attempt++), token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
-                        _Logging.Alert(_Header + "gave up reporting completion for run " + runId);
+                        _Logging.Alert(_Header + "gave up reporting completion for run " + runId + " " + run.LogFields);
                         _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "abandoned"));
                         return null;
                     }

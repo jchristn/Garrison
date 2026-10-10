@@ -146,6 +146,12 @@ namespace Garrison.Sdk.Test
                     Require(run.ToolCallCount >= 0, "toolCallCount " + run.ToolCallCount);
                 }).ConfigureAwait(false);
 
+                await CheckAsync("run trace id", async () =>
+                {
+                    Run run = await client.Runs.GetAsync(invokedRun?.Id ?? throw new InvalidOperationException("no invoked run"), token).ConfigureAwait(false);
+                    Require(run.TraceId != null && run.TraceId.Length == 32 && run.TraceId.All(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')), "traceId " + run.TraceId);
+                }).ConfigureAwait(false);
+
                 await CheckAsync("run analytics", async () =>
                 {
                     RunAnalyticsQuery query = new RunAnalyticsQuery();

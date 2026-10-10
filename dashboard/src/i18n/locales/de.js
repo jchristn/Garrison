@@ -819,7 +819,7 @@ const de = {
       ...rp('Knoten', 'Worker-Knoten, die Läufe übernehmen und ausführen. Sperren oder leeren Sie einen Knoten vor Wartungsarbeiten.', 'Knoten hinzufügen', 'Knoten erstellen', 'Knoten bearbeiten', 'Knotendetails', 'Knoten löschen', 'Noch keine Knoten', 'Worker-Knoten registrieren sich beim Start selbst. Stellen Sie das Worker-StatefulSet bereit oder starten Sie Garrison.Worker lokal.'),
       columns: { name: 'Name', status: 'Status', capacity: 'Läufe', harnesses: 'Harnesses', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Letzter Heartbeat', id: 'ID' },
       fields: { address: 'Adresse', maxConcurrentRuns: 'Kapazität', activeRuns: 'Aktive Läufe', capabilities: 'Fähigkeiten', detectedVersion: 'Version', available: 'Verfügbar', detail: 'Detail' },
-      actions: { cordon: 'Sperren', uncordon: 'Entsperren', drain: 'Leeren', runs: 'Läufe anzeigen' },
+      actions: { cordon: 'Sperren', uncordon: 'Entsperren', drain: 'Leeren', runs: 'Läufe anzeigen', grafana: 'In Grafana öffnen' },
       toasts: { cordoned: 'Knoten gesperrt.', uncordoned: 'Knoten entsperrt.', draining: 'Knoten wird geleert.' }
     },
     audit: {
@@ -852,6 +852,10 @@ const de = {
   },
   views: {
     home: {
+      observabilityState: { reachable: 'Erreichbar', unreachable: 'Nicht erreichbar', checking: 'Wird geprüft', unknown: 'Status unbekannt' },
+      observabilityVersion: 'Version {{version}}',
+      observabilityOpen: '{{service}} öffnen',
+      kpisGrafana: 'Übersicht in Grafana öffnen',
       observabilitySetup: 'Beobachtbarkeit einrichten',
       observabilityNone: 'Für diese Installation sind keine Beobachtbarkeitsdienste (Grafana, Prometheus, Tempo oder Loki) konfiguriert.',
       observability: 'Beobachtbarkeit',
@@ -918,6 +922,9 @@ const de = {
       applySample: 'Zu den Manifesten'
     },
     runDetail: {
+      viewTrace: 'Trace anzeigen',
+      viewLogs: 'Logs anzeigen',
+      traceId: 'Trace-ID',
       deploymentDeleted: 'Die Bereitstellung dieses Laufs wurde gelöscht, daher kann er nicht wiederholt werden. Rufen Sie stattdessen den Agenten {{agent}} erneut auf.',
       templatesUsed: 'Verwendete Vorlagen',
       agentDeleted: 'Der Agent {{agent}} existiert nicht mehr, daher kann dieser Lauf nicht wiederholt werden. Datensatz, Transkript und Telemetrie bleiben hier verfügbar.',
@@ -1079,6 +1086,7 @@ const de = {
       counts: '{{created}} erstellt, {{updated}} aktualisiert, {{unchanged}} unverändert, {{failed}} fehlgeschlagen'
     },
     requests: {
+      grafana: 'HTTP-Dashboard in Grafana',
       title: 'Anfrageverlauf',
       subtitle: 'Erfasster API-Verkehr. Jede Anfrage im Detail prüfen und Aufbewahrung verwalten.',
       kpis: { total: 'Gespeicherte Anfragen', success: 'Erfolgreich', failure: 'Fehler', avgDuration: 'Mittlere Dauer' },
@@ -1161,8 +1169,18 @@ const de = {
         ConfigMap: 'Von einer Kubernetes-ConfigMap verwaltet. Ändern Sie den Wert in Ihren Manifesten.',
         other: 'Diese Einstellung kann hier nicht bearbeitet werden.'
       },
-      groups: { General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit', Runtime: 'Laufzeit' },
+      groups: { General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit', Runtime: 'Laufzeit', Observability: 'Beobachtbarkeit' },
       fields: {
+        Observability: {
+          GrafanaUrl: 'Grafana-URL',
+          PrometheusUrl: 'Prometheus-URL',
+          LokiUrl: 'Loki-URL',
+          TempoUrl: 'Tempo-URL',
+          GrafanaInternalUrl: 'Interne Grafana-URL',
+          PrometheusInternalUrl: 'Interne Prometheus-URL',
+          LokiInternalUrl: 'Interne Loki-URL',
+          TempoInternalUrl: 'Interne Tempo-URL'
+        },
         Rest: {
           ExternalBaseUrl: 'Externe REST-URL',
           PublicBaseUrl: 'Interne REST-URL für Läufe',
@@ -1251,6 +1269,7 @@ const de = {
       }
     },
     analytics: {
+      grafana: 'Läufe-Dashboard in Grafana',
       deletedAgent: 'Gelöschter Agent ({{id}})',
       deletedDeployment: 'Gelöschte Bereitstellung ({{id}})',
       title: 'Analysen',

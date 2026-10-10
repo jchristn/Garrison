@@ -505,6 +505,7 @@ namespace Garrison.Server.Protocols
             summary.ReasoningTokens = run.ReasoningTokens;
             summary.ToolCallCount = run.ToolCallCount;
             summary.ServedModel = run.ServedModel;
+            summary.TraceId = run.TraceId;
             summary.TimeToFirstTokenMs = run.TimeToFirstTokenMs;
             summary.StreamingMs = run.StreamingMs;
             summary.ExecutionMs = run.ExecutionMs;

@@ -105,15 +105,43 @@ docker compose logs -f garrison-server                         # server log
 
 Then sign in to the dashboard. Fleet lists `garrison-worker-1` and `garrison-worker-2` as `Ready`, and Invoke runs any of the sample agents. The whole sequence, from `./update.sh` to seeing both workers, takes well under a minute once the images exist.
 
+## Observability
+
+The `observability` profile adds Prometheus, Loki, Tempo, Grafana with the six Garrison dashboards, and Grafana Alloy, the same components and versions as the Kubernetes stack (`docs/KUBERNETES.md`, Observability). `compose.observability.yaml` turns on OTLP trace export on the server and workers and tells the server where the services are, so the dashboard's Home page shows them and runs link to their traces and logs. Use both together:
+
+```bash
+cd docker
+./update.sh --observability          # Windows: update.bat --observability; combines with --pull
+# or, without rebuilding:
+docker compose -f compose.yaml -f compose.observability.yaml --profile observability up -d
+```
+
+| What | Default URL or value |
+|---|---|
+| Grafana | http://127.0.0.1:3000, user `admin`, password `GARRISON_GRAFANA_PASSWORD` (default `password`) |
+| Prometheus | http://127.0.0.1:9090 |
+| Loki | http://127.0.0.1:3100 |
+| Tempo | http://127.0.0.1:3200 |
+
+The ports are `GARRISON_GRAFANA_PORT`, `GARRISON_PROMETHEUS_PORT`, `GARRISON_LOKI_PORT`, and `GARRISON_TEMPO_PORT` in `.env`, and `update.sh --observability` checks them along with the others. To get the profile on every plain `docker compose` command, set `COMPOSE_FILE=compose.yaml:compose.observability.yaml` (`;` on Windows) and `COMPOSE_PROFILES=observability` in `.env`.
+
+How it is wired:
+
+- Prometheus scrapes `/metrics` on the server's REST port and each worker's health port (`docker/observability/prometheus.yaml`), labeling series with `component` and `node` (the container name). Add a target there if you add a worker.
+- Alloy reads the logs of this project's Garrison containers through the Docker socket (mounted read-only) and ships them to Loki with `app="garrison"`, `component`, `node`, and `level` (`docker/observability/config.alloy`). It also receives OTLP on 4317 and 4318 inside the Compose network and forwards traces to Tempo.
+- Loki, Tempo, the Grafana datasources and dashboard provider, and the dashboards themselves are mounted from `k8s/components/observability`, so Compose and Kubernetes run the same configuration.
+
+Retention is 3 days (or 1 GB) for metrics, 72 hours for logs, and 24 hours for traces. The five containers have memory limits that add up to 2.4 GB; with light traffic they use about 600 MB. Without `--observability`, `update.sh` stops these containers if an earlier run started them; their volumes stay until a factory reset.
+
 ## Stop, update, and reset
 
 | Command (from `docker/`) | What it does | Data |
 |---|---|---|
 | `docker compose stop` | Stops the containers; `docker compose start` brings them back | Kept |
 | `docker compose down` | Removes the containers and the network | Kept |
-| `./update.sh` (`update.bat`) | Rebuilds the images from source, `down`, `up -d`, status. `--pull` pulls the published images instead of building | Kept |
-| `./factory/reset.sh` (`.bat`) | After you type `RESET`: removes the containers and every volume, then rebuilds and starts a fresh stack. `--no-start` only removes | Deleted |
-| `docker compose down -v` | Removes containers and volumes without rebuilding | Deleted |
+| `./update.sh` (`update.bat`) | Rebuilds the images from source, `down`, `up -d`, status. `--pull` pulls the published images instead of building; `--observability` adds the observability profile | Kept |
+| `./factory/reset.sh` (`.bat`) | After you type `RESET`: removes the containers and every volume, including the observability data, then rebuilds and starts a fresh stack (without the observability profile; run `./update.sh --observability` afterwards to bring it back). `--no-start` only removes | Deleted |
+| `docker compose --profile observability down -v` | Removes containers and volumes, including the observability ones, without rebuilding | Deleted |
 
 Deleting the volumes removes the database (agents, runs, secrets, users) and the worker workspaces. The next start seeds tenant `default`, `admin@garrison`, and the sample agents again from your `.env`. To also reclaim the image space, `docker image rm jchristn77/garrison-server:v0.1.0-alpha jchristn77/garrison-worker:v0.1.0-alpha jchristn77/garrison-dashboard:v0.1.0-alpha`.
 

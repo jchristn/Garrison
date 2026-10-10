@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import GrafanaLink from '../components/GrafanaLink';
+import { useGrafana } from '../hooks/useServerInfo';
+import { dashboardUrl } from '../utils/grafana';
 import KpiCard from '../components/KpiCard';
 import Explainer from '../components/Explainer';
 import RangeTabs from '../components/RangeTabs';
@@ -51,6 +54,7 @@ export default function AnalyticsView() {
   const state = useMemo(() => parseAnalyticsParams(searchParams), [searchParams]);
   const [dims, setDims] = useState(() => normalizeDimensions({}));
   const [data, setData] = useState(null);
+  const grafana = useGrafana();
   const [usage, setUsage] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -212,7 +216,16 @@ export default function AnalyticsView() {
 
   return (
     <div>
-      <PageHeader title={t('views.analytics.title')} subtitle={t('views.analytics.subtitle')} actions={<AutoRefreshSelect value={refresh} onChange={setRefresh} />} />
+      <PageHeader
+        title={t('views.analytics.title')}
+        subtitle={t('views.analytics.subtitle')}
+        actions={
+          <>
+            <GrafanaLink size="md" href={dashboardUrl(grafana, 'runs', { from: data?.fromUtc, to: data?.toUtc })} label={t('views.analytics.grafana')} tipText={t('tips.analytics.grafana')} testId="analytics-grafana" />
+            <AutoRefreshSelect value={refresh} onChange={setRefresh} />
+          </>
+        }
+      />
       <Explainer topic="analytics" />
 
       <div className="panel analytics-filters" data-testid="analytics-filters">

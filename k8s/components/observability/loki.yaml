@@ -1,0 +1,100 @@
+# Loki: stores the Garrison pod logs shipped by Alloy (see config/loki.yaml). 72 hours of retention on a 2 GiB volume.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: garrison-loki
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-loki
+  labels:
+    app.kubernetes.io/name: garrison-loki
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-loki
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-loki
+        app.kubernetes.io/component: observability
+    spec:
+      serviceAccountName: garrison-observability
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: loki
+          image: grafana/loki:3.5.5
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/loki.yaml
+          ports:
+            - name: http
+              containerPort: 3100
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+              readOnly: true
+            - name: data
+              mountPath: /loki
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 5
+      volumes:
+        - name: config
+          configMap:
+            name: garrison-loki-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: garrison-loki
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-loki
+  labels:
+    app.kubernetes.io/name: garrison-loki
+spec:
+  selector:
+    app.kubernetes.io/name: garrison-loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http

@@ -1,7 +1,7 @@
 // Coverage for the M1 simulated user session fixes (P9.17, docs/testing/M1_SESSION.md) against mocked APIs.
 
 import { test, expect } from '@playwright/test';
-import { installMocks } from './mocks.js';
+import { installMocks, respond } from './mocks.js';
 
 async function login(page) {
   await page.goto('/');
@@ -92,8 +92,7 @@ test('M1-05 home shows a setup note instead of unconfigured observability servic
 
 test('M1-05 home links only the observability services the server reports', async ({ page }) => {
   await page.route(/\/v1\.0\/api\/server-info$/, async (route) => {
-    const res = await route.fetch();
-    const body = await res.json();
+    const body = respond('GET', new URL(route.request().url()));
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...body, observability: { grafanaUrl: 'http://localhost:3000' } }) });
   });
   await login(page);

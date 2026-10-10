@@ -60,6 +60,14 @@ namespace Garrison.Core.Settings
         /// </summary>
         public string OtlpEndpoint { get; set; } = "http://127.0.0.1:4317";
 
+        /// <summary>
+        /// Whether GET /metrics is also served from the process's main listener (the server's REST port 8700, or the
+        /// worker's health port 8710), relayed from the Prometheus listener. The Prometheus listener binds the pod
+        /// host name, so kubectl port-forward and in-pod 127.0.0.1 requests cannot reach it; the main listener binds all
+        /// interfaces. The relayed endpoint needs no authentication. Default true.
+        /// </summary>
+        public bool ServeMetricsOnServicePort { get; set; } = true;
+
         #endregion
 
         #region Private-Members

@@ -1,0 +1,514 @@
+{{- if .Values.observability.enabled }}
+{{- $ns := include "garrison.namespace" . }}
+{{- $o := .Values.observability }}
+# Observability stack. Mirrors k8s/components/observability; the configuration files come from files/observability.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garrison-prometheus
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garrison-alloy
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garrison-observability
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: garrison-prometheus
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+rules:
+  - { apiGroups: [""], resources: ["pods"], verbs: ["get", "list", "watch"] }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: garrison-prometheus
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: garrison-prometheus }
+subjects:
+  - { kind: ServiceAccount, name: garrison-prometheus, namespace: {{ $ns }} }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: garrison-alloy
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+rules:
+  - { apiGroups: [""], resources: ["pods"], verbs: ["get", "list", "watch"] }
+  - { apiGroups: [""], resources: ["pods/log"], verbs: ["get", "list", "watch"] }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: garrison-alloy
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: garrison-alloy }
+subjects:
+  - { kind: ServiceAccount, name: garrison-alloy, namespace: {{ $ns }} }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-prometheus-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  prometheus.yaml: |
+{{ .Files.Get "files/observability/prometheus.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-loki-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  loki.yaml: |
+{{ .Files.Get "files/observability/loki.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-tempo-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  tempo.yaml: |
+{{ .Files.Get "files/observability/tempo.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-alloy-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  config.alloy: |
+{{ .Files.Get "files/observability/config.alloy" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-grafana-datasources
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  datasources.yaml: |
+{{ .Files.Get "files/observability/grafana-datasources.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-grafana-dashboard-provider
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  dashboards.yaml: |
+{{ .Files.Get "files/observability/grafana-dashboards.yaml" | indent 4 }}
+{{- range $path, $_ := .Files.Glob "files/observability/dashboards/*.json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ base $path | trimSuffix ".json" | replace "garrison-" "garrison-grafana-dashboard-" }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" $ | nindent 4 }}
+data:
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+---
+{{ include "garrison.observabilityPvc" (dict "root" . "name" "garrison-prometheus" "values" $o.prometheus) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-prometheus
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-prometheus
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: garrison-prometheus }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: garrison-prometheus, app.kubernetes.io/component: observability }
+      annotations:
+        checksum/config: {{ .Files.Get "files/observability/prometheus.yaml" | sha256sum }}
+    spec:
+      serviceAccountName: garrison-prometheus
+      securityContext: { runAsNonRoot: true, runAsUser: 65534, runAsGroup: 65534, fsGroup: 65534 }
+      containers:
+        - name: prometheus
+          image: {{ $o.prometheus.image }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/prometheus/prometheus.yaml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time={{ $o.prometheus.retention }}
+            - --storage.tsdb.retention.size={{ $o.prometheus.retentionSize }}
+            - --web.enable-lifecycle
+          ports:
+            - { name: http, containerPort: 9090 }
+          volumeMounts:
+            - { name: config, mountPath: /etc/prometheus, readOnly: true }
+            - { name: data, mountPath: /prometheus }
+          resources:
+            {{- toYaml $o.prometheus.resources | nindent 12 }}
+          securityContext:
+            {{- include "garrison.observabilityContainerSecurity" true | nindent 12 }}
+          readinessProbe: { httpGet: { path: /-/ready, port: http }, periodSeconds: 10, failureThreshold: 3 }
+          livenessProbe: { httpGet: { path: /-/healthy, port: http }, initialDelaySeconds: 30, periodSeconds: 20, failureThreshold: 3 }
+      volumes:
+        - { name: config, configMap: { name: garrison-prometheus-config } }
+        - { name: data, persistentVolumeClaim: { claimName: garrison-prometheus } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-prometheus
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-prometheus
+spec:
+  type: {{ $o.prometheus.service.type }}
+  selector: { app.kubernetes.io/name: garrison-prometheus }
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http
+      {{- if and (eq $o.prometheus.service.type "NodePort") $o.prometheus.service.nodePort }}
+      nodePort: {{ $o.prometheus.service.nodePort }}
+      {{- end }}
+---
+{{ include "garrison.observabilityPvc" (dict "root" . "name" "garrison-loki" "values" $o.loki) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-loki
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-loki
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: garrison-loki }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: garrison-loki, app.kubernetes.io/component: observability }
+      annotations:
+        checksum/config: {{ .Files.Get "files/observability/loki.yaml" | sha256sum }}
+    spec:
+      serviceAccountName: garrison-observability
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001 }
+      containers:
+        - name: loki
+          image: {{ $o.loki.image }}
+          imagePullPolicy: IfNotPresent
+          args: ["-config.file=/etc/loki/loki.yaml"]
+          ports:
+            - { name: http, containerPort: 3100 }
+          volumeMounts:
+            - { name: config, mountPath: /etc/loki, readOnly: true }
+            - { name: data, mountPath: /loki }
+          resources:
+            {{- toYaml $o.loki.resources | nindent 12 }}
+          securityContext:
+            {{- include "garrison.observabilityContainerSecurity" true | nindent 12 }}
+          readinessProbe: { httpGet: { path: /ready, port: http }, initialDelaySeconds: 10, periodSeconds: 10, failureThreshold: 6 }
+          livenessProbe: { httpGet: { path: /ready, port: http }, initialDelaySeconds: 60, periodSeconds: 20, failureThreshold: 5 }
+      volumes:
+        - { name: config, configMap: { name: garrison-loki-config } }
+        - { name: data, persistentVolumeClaim: { claimName: garrison-loki } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-loki
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-loki
+spec:
+  selector: { app.kubernetes.io/name: garrison-loki }
+  ports:
+    - { name: http, port: 3100, targetPort: http }
+---
+{{ include "garrison.observabilityPvc" (dict "root" . "name" "garrison-tempo" "values" $o.tempo) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-tempo
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-tempo
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: garrison-tempo }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: garrison-tempo, app.kubernetes.io/component: observability }
+      annotations:
+        checksum/config: {{ .Files.Get "files/observability/tempo.yaml" | sha256sum }}
+    spec:
+      serviceAccountName: garrison-observability
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001 }
+      containers:
+        - name: tempo
+          image: {{ $o.tempo.image }}
+          imagePullPolicy: IfNotPresent
+          args: ["-config.file=/etc/tempo/tempo.yaml"]
+          ports:
+            - { name: http, containerPort: 3200 }
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+          volumeMounts:
+            - { name: config, mountPath: /etc/tempo, readOnly: true }
+            - { name: data, mountPath: /var/tempo }
+          resources:
+            {{- toYaml $o.tempo.resources | nindent 12 }}
+          securityContext:
+            {{- include "garrison.observabilityContainerSecurity" true | nindent 12 }}
+          readinessProbe: { httpGet: { path: /ready, port: http }, initialDelaySeconds: 10, periodSeconds: 10, failureThreshold: 6 }
+          livenessProbe: { httpGet: { path: /ready, port: http }, initialDelaySeconds: 60, periodSeconds: 20, failureThreshold: 5 }
+      volumes:
+        - { name: config, configMap: { name: garrison-tempo-config } }
+        - { name: data, persistentVolumeClaim: { claimName: garrison-tempo } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-tempo
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-tempo
+spec:
+  selector: { app.kubernetes.io/name: garrison-tempo }
+  ports:
+    - { name: http, port: 3200, targetPort: http }
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-alloy
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-alloy
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: garrison-alloy }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: garrison-alloy, app.kubernetes.io/component: observability }
+      annotations:
+        checksum/config: {{ .Files.Get "files/observability/config.alloy" | sha256sum }}
+    spec:
+      serviceAccountName: garrison-alloy
+      securityContext: { runAsNonRoot: true, runAsUser: 473, runAsGroup: 473, fsGroup: 473 }
+      containers:
+        - name: alloy
+          image: {{ $o.alloy.image }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --storage.path=/var/lib/alloy/data
+            - --stability.level=public-preview
+            - --disable-reporting
+          ports:
+            - { name: http, containerPort: 12345 }
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+          volumeMounts:
+            - { name: config, mountPath: /etc/alloy, readOnly: true }
+            - { name: data, mountPath: /var/lib/alloy/data }
+          resources:
+            {{- toYaml $o.alloy.resources | nindent 12 }}
+          securityContext:
+            {{- include "garrison.observabilityContainerSecurity" true | nindent 12 }}
+          readinessProbe: { httpGet: { path: /-/ready, port: http }, periodSeconds: 10, failureThreshold: 3 }
+          livenessProbe: { httpGet: { path: /-/healthy, port: http }, initialDelaySeconds: 30, periodSeconds: 20, failureThreshold: 3 }
+      volumes:
+        - { name: config, configMap: { name: garrison-alloy-config } }
+        - { name: data, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-alloy
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-alloy
+spec:
+  selector: { app.kubernetes.io/name: garrison-alloy }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
+    - { name: http, port: 12345, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-grafana
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-grafana
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: garrison-grafana }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: garrison-grafana, app.kubernetes.io/component: observability }
+      annotations:
+        checksum/datasources: {{ .Files.Get "files/observability/grafana-datasources.yaml" | sha256sum }}
+    spec:
+      serviceAccountName: garrison-observability
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 472, runAsGroup: 472, fsGroup: 472 }
+      containers:
+        - name: grafana
+          image: {{ $o.grafana.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 3000 }
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom: { secretKeyRef: { name: {{ $o.grafana.adminSecret }}, key: admin-user } }
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $o.grafana.adminSecret }}, key: admin-password } }
+            - { name: GF_SERVER_ROOT_URL, value: {{ default $o.urls.grafana $o.grafana.rootUrl | quote }} }
+            - { name: GF_USERS_ALLOW_SIGN_UP, value: "false" }
+            - { name: GF_ANALYTICS_REPORTING_ENABLED, value: "false" }
+            - { name: GF_ANALYTICS_CHECK_FOR_UPDATES, value: "false" }
+            - { name: GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES, value: "false" }
+            - { name: GF_NEWS_NEWS_FEED_ENABLED, value: "false" }
+            - { name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH, value: /etc/grafana/dashboards/garrison/garrison-overview.json }
+            - { name: GF_LOG_LEVEL, value: warn }
+            - { name: GF_PLUGINS_PREINSTALL_DISABLED, value: "true" }
+          volumeMounts:
+            - { name: datasources, mountPath: /etc/grafana/provisioning/datasources, readOnly: true }
+            - { name: dashboard-provider, mountPath: /etc/grafana/provisioning/dashboards, readOnly: true }
+            - { name: dashboards, mountPath: /etc/grafana/dashboards/garrison, readOnly: true }
+            - { name: data, mountPath: /var/lib/grafana }
+          resources:
+            {{- toYaml $o.grafana.resources | nindent 12 }}
+          securityContext:
+            {{- include "garrison.observabilityContainerSecurity" false | nindent 12 }}
+          readinessProbe: { httpGet: { path: /api/health, port: http }, periodSeconds: 10, failureThreshold: 3 }
+          livenessProbe: { httpGet: { path: /api/health, port: http }, initialDelaySeconds: 60, periodSeconds: 20, failureThreshold: 5 }
+      volumes:
+        - { name: datasources, configMap: { name: garrison-grafana-datasources } }
+        - { name: dashboard-provider, configMap: { name: garrison-grafana-dashboard-provider } }
+        - name: dashboards
+          projected:
+            sources:
+              {{- range $path, $_ := .Files.Glob "files/observability/dashboards/*.json" }}
+              - configMap: { name: {{ base $path | trimSuffix ".json" | replace "garrison-" "garrison-grafana-dashboard-" }} }
+              {{- end }}
+        - { name: data, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-grafana
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+    app.kubernetes.io/name: garrison-grafana
+spec:
+  type: {{ $o.grafana.service.type }}
+  selector: { app.kubernetes.io/name: garrison-grafana }
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      {{- if and (eq $o.grafana.service.type "NodePort") $o.grafana.service.nodePort }}
+      nodePort: {{ $o.grafana.service.nodePort }}
+      {{- end }}
+{{- if $o.grafana.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: garrison-grafana
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+  {{- with $o.grafana.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $o.grafana.ingress.className }}
+  ingressClassName: {{ $o.grafana.ingress.className }}
+  {{- end }}
+  {{- with $o.grafana.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ $o.grafana.ingress.host | quote }}
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: garrison-grafana, port: { name: http } } } }
+{{- end }}
+{{- end }}

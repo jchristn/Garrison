@@ -89,6 +89,7 @@ namespace Garrison.Server.Protocols
                 { "garrison.reasoningTokens", run.ReasoningTokens },
                 { "garrison.toolCallCount", run.ToolCallCount }
             };
+            if (!String.IsNullOrEmpty(run.TraceId)) task.Metadata["garrison.traceId"] = run.TraceId;
             if (run.TimeToFirstTokenMs.HasValue) task.Metadata["garrison.timeToFirstTokenMs"] = run.TimeToFirstTokenMs.Value;
             if (run.StreamingMs.HasValue) task.Metadata["garrison.streamingMs"] = run.StreamingMs.Value;
             if (run.ExecutionMs.HasValue) task.Metadata["garrison.executionMs"] = run.ExecutionMs.Value;

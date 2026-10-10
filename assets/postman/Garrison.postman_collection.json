@@ -322,7 +322,7 @@
                 "server-info"
               ]
             },
-            "description": "Version, endpoints (REST, MCP, A2A), and feature flags. Any authenticated caller may read it."
+            "description": "Version, endpoints (REST, MCP, A2A), feature flags, and `observability`: the Grafana, Prometheus, Loki, and Tempo URLs from the Observability.* cluster settings plus the Grafana datasource and dashboard UIDs, with null for anything not configured. Any authenticated caller may read it."
           },
           "event": [
             {
@@ -330,7 +330,81 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('observability block is present', function () {",
+                  "  const o = pm.response.json().observability;",
+                  "  pm.expect(o).to.be.an('object');",
+                  "  pm.expect(o).to.have.all.keys('grafanaUrl', 'prometheusUrl', 'lokiUrl', 'tempoUrl', 'datasources', 'dashboards');",
+                  "  if (o.grafanaUrl) { pm.expect(o.datasources.tempo).to.eql('garrison-tempo'); pm.expect(o.dashboards.workers).to.eql('garrison-workers'); }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Observability status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/observability/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "observability",
+                "status"
+              ]
+            },
+            "description": "Reachability and version of Grafana, Prometheus, Loki, and Tempo, checked by the server against the Observability.*InternalUrl settings (or the browser URLs). Always four entries in the order grafana, prometheus, loki, tempo; cached for 30 seconds. Any authenticated caller may read it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('one entry per service', function () {",
+                  "  const list = pm.response.json();",
+                  "  pm.expect(list.map(s => s.service)).to.eql(['grafana', 'prometheus', 'loki', 'tempo']);",
+                  "  list.forEach(s => { pm.expect(s).to.have.property('configured'); pm.expect(s).to.have.property('reachable'); pm.expect(s).to.have.property('version'); });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Metrics (relayed on the REST port)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Prometheus text exposition relayed from the metrics listener (9464), so kubectl port-forward and in-pod 127.0.0.1 scrapes work. No authentication. 503 when the Prometheus listener is off, 404 when Telemetry.ServeMetricsOnServicePort is false."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200, 404, or 503', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404, 503]); });",
+                  "if (pm.response.code === 200) { pm.test('exposition text', function () { pm.expect(pm.response.text()).to.include('# TYPE'); }); }"
                 ]
               }
             }

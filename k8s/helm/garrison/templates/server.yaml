@@ -21,7 +21,7 @@ spec:
         app.kubernetes.io/component: control-plane
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "9464"
+        prometheus.io/port: "8700"
         prometheus.io/path: /metrics
         checksum/settings: {{ .Files.Get "files/garrison.json" | sha256sum }}
     spec:
@@ -74,6 +74,7 @@ spec:
               value: {{ . | quote }}
             {{- end }}
             - { name: GARRISON_EXPECTED_REPLICAS, value: {{ .Values.server.expectedReplicas | quote }} }
+            {{- include "garrison.observabilityServerEnv" . | nindent 12 }}
             {{- with .Values.server.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

@@ -1,10 +1,12 @@
 @echo off
 rem DESTRUCTIVE: deletes the Garrison namespace and all data, then reinstalls. Requires typing RESET.
-rem Usage: factory-reset.bat [minikube^|k3s^|production]
+rem Usage: factory-reset.bat [minikube^|k3s^|production^|k3s-observability^|minikube-observability]
+rem set OBSERVABILITY=1 selects the -observability variant of minikube and k3s.
 setlocal
 if "%GARRISON_NAMESPACE%"=="" set GARRISON_NAMESPACE=garrison
 set OVERLAY=%1
 if "%OVERLAY%"=="" set OVERLAY=k3s
+if "%OBSERVABILITY%"=="1" if exist "%~dp0..\overlays\%OVERLAY%-observability" set OVERLAY=%OVERLAY%-observability
 echo This deletes namespace %GARRISON_NAMESPACE% and ALL Garrison data in the current kubectl context.
 set /p ANSWER=Type RESET to continue: 
 if not "%ANSWER%"=="RESET" (

@@ -5,3 +5,14 @@ ingress:
   host: garrison.local
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
+# Observability (Prometheus, Loki, Tempo, Grafana, Alloy): --set observability.enabled=true. Grafana is then also
+# served by Traefik at http://grafana.garrison.local.
+observability:
+  enabled: false
+  grafana:
+    ingress:
+      enabled: true
+      className: traefik
+      host: grafana.garrison.local
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: web

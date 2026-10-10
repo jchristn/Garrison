@@ -102,3 +102,68 @@ networkPolicies:
 smokeTest:
   enabled: false
   image: curlimages/curl:8.10.1
+
+# Observability stack (same as k8s/components/observability): Prometheus, Loki, Tempo, Grafana with the six
+# Garrison dashboards, and Grafana Alloy (OTLP receiver and pod log shipper). Grafana admin credentials come from
+# the Secret named by grafana.adminSecret (keys admin-user, admin-password; k8s/scripts/generate-secrets.sh
+# creates garrison-grafana). The files under files/observability mirror k8s/components/observability.
+observability:
+  enabled: false
+  otlp:
+    # Server and workers export traces to garrison-alloy:4317 (GARRISON_OTLP_ENABLE, GARRISON_WORKER_OTLP_ENABLE).
+    enabled: true
+  # Browser-facing URLs the server hands to the Garrison dashboard (server-info). The defaults match
+  # k8s/scripts/port-forward.sh. Set them to your ingress hosts when you expose the services another way.
+  urls:
+    grafana: http://127.0.0.1:3000
+    prometheus: http://127.0.0.1:9090
+    loki: http://127.0.0.1:3100
+    tempo: http://127.0.0.1:3200
+  grafana:
+    image: grafana/grafana-oss:13.0.2
+    adminSecret: garrison-grafana
+    # GF_SERVER_ROOT_URL. Empty uses urls.grafana.
+    rootUrl: ""
+    service:
+      type: ClusterIP
+      nodePort: null
+    ingress:
+      enabled: false
+      className: ""
+      host: grafana.garrison.local
+      annotations: {}
+      tls: []
+    resources:
+      requests: { cpu: 50m, memory: 192Mi }
+      limits: { cpu: "1", memory: 512Mi }
+  prometheus:
+    image: prom/prometheus:v3.5.4
+    retention: 3d
+    retentionSize: 1GB
+    storage: 2Gi
+    storageClassName: ""
+    service:
+      type: ClusterIP
+      nodePort: null
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: "1", memory: 512Mi }
+  loki:
+    image: grafana/loki:3.5.5
+    storage: 2Gi
+    storageClassName: ""
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: "1", memory: 512Mi }
+  tempo:
+    image: grafana/tempo:2.6.1
+    storage: 2Gi
+    storageClassName: ""
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { cpu: "1", memory: 512Mi }
+  alloy:
+    image: grafana/alloy:v1.5.0
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { cpu: 500m, memory: 384Mi }

@@ -764,6 +764,7 @@ const tips = {
         detail: 'Probe output, useful when a harness is unavailable.'
       },
       actions: {
+        grafana: 'Open the Workers and Harnesses dashboard in Grafana in a new tab, filtered to node {{node}}.',
         cordon: 'Stop sending new runs to this node. Runs already on it finish normally.',
         uncordon: 'Let this node accept new runs again.',
         drain: 'Stop new runs and let current ones finish, then the node goes idle. Use before shutting it down.',
@@ -799,6 +800,14 @@ const tips = {
   },
   views: {
     home: {
+      observabilityState: {
+        reachable: 'The server reached {{service}} at its internal URL in the last 30 seconds.',
+        unreachable: 'The server could not reach {{service}} at its internal URL. Check that the service is running and that the internal URL setting points at it.',
+        checking: 'Asking the server whether {{service}} is reachable.',
+        unknown: 'The server did not report whether {{service}} is reachable. The status check failed or this server does not support it yet.'
+      },
+      observabilityVersion: 'Version {{service}} reported to the server\'s health check.',
+      kpisGrafana: 'Open the Garrison overview dashboard in Grafana in a new tab to see these numbers over time.',
       observabilityDocs: 'Open the telemetry guide in a new tab: how to scrape Garrison metrics and connect Grafana, Prometheus, Tempo, or Loki.',
       observability: 'Links to the metrics, dashboard, and tracing tools this deployment reports as configured. Services that are not configured are not shown.',
       kpis: {
@@ -829,6 +838,9 @@ const tips = {
       serviceGeneric: 'Open this bundled service in a new tab.'
     },
     runDetail: {
+      viewTrace: 'Open this run\'s trace in Grafana Explore (Tempo) in a new tab. It shows the compile, claim, and harness spans across the server and the worker node.',
+      viewLogs: 'Open the server and worker log lines about this run in Grafana Explore (Loki) in a new tab, limited to the run\'s time range.',
+      traceId: 'W3C trace ID of the trace this run was compiled in. Search for it in Tempo, or use View trace. Empty for runs created before trace IDs were recorded.',
       eventCode: 'What kind of message Garrison wrote here, in your language. The text next to it is the original message from the server or worker.',
       openTemplate: 'Open template {{name}}. This run used version {{version}}; its Versions tab shows that content and the diff to the current one.',
       templatesUsed: 'The exact prompt template versions this run was compiled with. Click one to open that template and compare versions.',
@@ -961,6 +973,7 @@ const tips = {
       rawJson: 'Show the raw server info response.'
     },
     requests: {
+      grafana: 'Open the HTTP dashboard in Grafana in a new tab: request rates, latency, and errors over time from Prometheus metrics.',
       kpis: {
         total: 'Requests the server kept in its history for the selected range and filters.',
         success: 'Requests that returned a 2xx or 3xx status.',
@@ -1020,6 +1033,7 @@ const tips = {
       sourceGeneric: 'Where the current value comes from.',
       testDatabase: 'Try connecting with the database settings above before saving them.',
       groups: {
+        Observability: 'Where Grafana, Prometheus, Loki, and Tempo are. Browser URLs feed the Home cards and the Grafana links; internal URLs are what the server probes for reachability. Empty means not configured.',
         Runtime: 'How the control plane treats queued runs, including how long a run may wait for a capable worker before it fails.',
         Rest: 'How the REST API listens: host, port, TLS, and public address.',
         Mcp: 'How the MCP server listens and how long tool calls may wait.',
@@ -1037,6 +1051,7 @@ const tips = {
     }
   },
   analytics: {
+    grafana: 'Open the Runs and Scheduling dashboard in Grafana in a new tab for the same time range as this page.',
     filters: {
       ttft: 'When checked, the time to first token chart leaves out the time runs spent waiting on agents they delegated to, so delegating agents compare fairly with agents that answer directly.',
       range: 'Time window for every chart and total: the last hour, day, week, or 30 days, or a custom start and end.',

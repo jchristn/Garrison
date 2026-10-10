@@ -795,6 +795,11 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .external-url { font-family: var(--font-mono); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 .external-creds { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 .external-note { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: var(--spacing-sm); }
+.observability-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--spacing-sm); }
+.observability-card { gap: var(--spacing-xs); }
+.observability-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); }
+.grafana-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--spacing-sm); margin-block: var(--spacing-xs) var(--spacing-sm); }
+a.button { text-decoration: none; }
 .kpi-clickable { cursor: pointer; text-align: start; font: inherit; color: inherit; border: 1px solid var(--color-border); }
 .kpi-clickable:hover { border-color: var(--color-primary); }
 .kpi-clickable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }

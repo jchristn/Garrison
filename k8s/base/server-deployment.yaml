@@ -17,7 +17,7 @@ spec:
         app.kubernetes.io/component: control-plane
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "9464"
+        prometheus.io/port: "8700"
         prometheus.io/path: /metrics
     spec:
       serviceAccountName: garrison-server

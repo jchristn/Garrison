@@ -140,25 +140,37 @@ namespace Garrison.Server.Runtime
                     activeByDeployment[deployment.Id] = active + 1;
                 }
 
-                Stopwatch timer = Stopwatch.StartNew();
-                DateTime leaseExpires = DateTime.UtcNow.AddMilliseconds(_Options.LeaseDurationMs);
-                long? epoch = await _Database.Runs.TryClaimAsync(candidate.Id, node.Id, node.Name, leaseExpires, token).ConfigureAwait(false);
-                if (!epoch.HasValue)
+                // The claim and compile spans join the run's trace (recorded at creation), not the lease request's.
+                using (Activity? claim = RunTracing.Start("run:claim", candidate.TraceParent))
                 {
-                    _Telemetry.Increment("garrison.claims", new RadiantTag("result", "lost"));
-                    continue;
-                }
-                _Telemetry.Increment("garrison.claims", new RadiantTag("result", "won"));
+                    claim?.SetTag("garrison.run_id", candidate.Id);
+                    claim?.SetTag("garrison.node", node.Name);
+                    claim?.SetTag("garrison.harness", candidate.HarnessType.ToString());
 
-                RunAssignment? assignment = await PrepareAsync(candidate.TenantId, candidate.Id, node, epoch.Value, leaseExpires, token).ConfigureAwait(false);
-                _Telemetry.Record("garrison.compile.duration", timer.Elapsed.TotalSeconds, new RadiantTag("harness", candidate.HarnessType.ToString()));
-                if (assignment != null) assignments.Add(assignment);
+                    Stopwatch timer = Stopwatch.StartNew();
+                    DateTime leaseExpires = DateTime.UtcNow.AddMilliseconds(_Options.LeaseDurationMs);
+                    long? epoch = await _Database.Runs.TryClaimAsync(candidate.Id, node.Id, node.Name, leaseExpires, token).ConfigureAwait(false);
+                    if (!epoch.HasValue)
+                    {
+                        _Telemetry.Increment("garrison.claims", new RadiantTag("result", "lost"));
+                        claim?.SetTag("garrison.claim_result", "lost");
+                        continue;
+                    }
+                    _Telemetry.Increment("garrison.claims", new RadiantTag("result", "won"));
+                    claim?.SetTag("garrison.claim_result", "won");
+                    _Logging.Info(_Header + "run " + candidate.Id + " leased to " + node.Name + " (epoch " + epoch.Value + ") " + RunTracing.LogFields(candidate.Id, candidate.TraceId));
+
+                    RunAssignment? assignment = await PrepareAsync(candidate.TenantId, candidate.Id, node, epoch.Value, leaseExpires, claim, token).ConfigureAwait(false);
+                    _Telemetry.Record("garrison.compile.duration", timer.Elapsed.TotalSeconds, new RadiantTag("harness", candidate.HarnessType.ToString()));
+                    if (assignment != null) assignments.Add(assignment);
+                    else claim?.SetStatus(ActivityStatusCode.Error, "compile failed");
+                }
             }
 
             return assignments;
         }
 
-        private async Task<RunAssignment?> PrepareAsync(string tenantId, string runId, Node node, long epoch, DateTime leaseExpires, CancellationToken token)
+        private async Task<RunAssignment?> PrepareAsync(string tenantId, string runId, Node node, long epoch, DateTime leaseExpires, Activity? claim, CancellationToken token)
         {
             Run? run = await _Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false);
             if (run == null) return null;
@@ -177,7 +189,15 @@ namespace Garrison.Server.Runtime
                     runToken = await _Authentication.IssueForRunAsync(run, deadline, token).ConfigureAwait(false);
                 }
 
-                CompilationResult compiled = await _Compiler().CompileAsync(run, runToken, token).ConfigureAwait(false);
+                CompilationResult compiled;
+                using (Activity? compile = RunTracing.Start("run:compile", claim?.Id ?? run.TraceParent))
+                {
+                    compile?.SetTag("garrison.run_id", run.Id);
+                    compiled = await _Compiler().CompileAsync(run, runToken, token).ConfigureAwait(false);
+                }
+
+                // The worker parents its harness span on this, so the whole run shares one trace.
+                compiled.Spec.TraceParent = claim?.Id ?? run.TraceParent ?? compiled.Spec.TraceParent;
                 compiled.Spec.TimeoutSeconds = compiled.Spec.TimeoutSeconds > 0 ? compiled.Spec.TimeoutSeconds : timeoutSeconds;
 
                 RunTransition deadlineUpdate = new RunTransition();
@@ -206,7 +226,7 @@ namespace Garrison.Server.Runtime
             }
             catch (CompilationException e)
             {
-                _Logging.Warn(_Header + "run " + run.Id + " failed to compile: " + e.Code + " " + e.Message);
+                _Logging.Warn(_Header + "run " + run.Id + " failed to compile: " + e.Code + " " + e.Message + " " + RunTracing.LogFields(run.Id, run.TraceId));
                 RunTransition failed = new RunTransition();
                 failed.RunId = run.Id;
                 failed.FromStatuses.Add(RunStatusEnum.Leased);

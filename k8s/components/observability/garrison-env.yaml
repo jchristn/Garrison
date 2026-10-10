@@ -1,0 +1,40 @@
+# Server and worker settings added by the observability component: OTLP export to Alloy, and the in-cluster URLs
+# the server probes for GET /v1.0/api/observability/status. Browser-facing URLs (GARRISON_GRAFANA_URL and so on)
+# depend on how Grafana is reached, so the overlays set them (k8s/overlays/*-observability).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: server
+          env:
+            - name: GARRISON_OTLP_ENABLE
+              value: "true"
+            - name: GARRISON_OTLP_ENDPOINT
+              value: http://garrison-alloy:4317
+            - name: GARRISON_GRAFANA_INTERNAL_URL
+              value: http://garrison-grafana:3000
+            - name: GARRISON_PROMETHEUS_INTERNAL_URL
+              value: http://garrison-prometheus:9090
+            - name: GARRISON_LOKI_INTERNAL_URL
+              value: http://garrison-loki:3100
+            - name: GARRISON_TEMPO_INTERNAL_URL
+              value: http://garrison-tempo:3200
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garrison-worker
+spec:
+  template:
+    spec:
+      containers:
+        - name: worker
+          env:
+            - name: GARRISON_WORKER_OTLP_ENABLE
+              value: "true"
+            - name: GARRISON_WORKER_OTLP_ENDPOINT
+              value: http://garrison-alloy:4317

@@ -1,0 +1,64 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Observability stack for Garrison: Prometheus, Loki, Tempo, Grafana, and Grafana Alloy (OTLP receiver and log
+# shipper). Enabled by overlays/k3s-observability and overlays/minikube-observability, or OBSERVABILITY=1 with the
+# deploy scripts. Needs Secret garrison-grafana (k8s/scripts/generate-secrets.sh creates it).
+#
+# Files under config/ and dashboards/ are mirrored in k8s/helm/garrison/files/observability (CI diffs them), and
+# Docker Compose mounts config/loki.yaml, config/tempo.yaml, the Grafana provisioning files, and dashboards/ from here.
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: garrison
+    includeSelectors: false
+
+resources:
+  - rbac.yaml
+  - prometheus.yaml
+  - loki.yaml
+  - tempo.yaml
+  - alloy.yaml
+  - grafana.yaml
+
+configMapGenerator:
+  - name: garrison-prometheus-config
+    files:
+      - prometheus.yaml=config/prometheus.yaml
+  - name: garrison-loki-config
+    files:
+      - loki.yaml=config/loki.yaml
+  - name: garrison-tempo-config
+    files:
+      - tempo.yaml=config/tempo.yaml
+  - name: garrison-alloy-config
+    files:
+      - config.alloy=config/config.alloy
+  - name: garrison-grafana-datasources
+    files:
+      - datasources.yaml=config/grafana-datasources.yaml
+  - name: garrison-grafana-dashboard-provider
+    files:
+      - dashboards.yaml=config/grafana-dashboards.yaml
+  # One ConfigMap per dashboard keeps each object well under the 256 KiB kubectl apply annotation limit.
+  - name: garrison-grafana-dashboard-overview
+    files:
+      - garrison-overview.json=dashboards/garrison-overview.json
+  - name: garrison-grafana-dashboard-http
+    files:
+      - garrison-http.json=dashboards/garrison-http.json
+  - name: garrison-grafana-dashboard-runs
+    files:
+      - garrison-runs.json=dashboards/garrison-runs.json
+  - name: garrison-grafana-dashboard-workers
+    files:
+      - garrison-workers.json=dashboards/garrison-workers.json
+  - name: garrison-grafana-dashboard-protocols
+    files:
+      - garrison-protocols.json=dashboards/garrison-protocols.json
+  - name: garrison-grafana-dashboard-integrations
+    files:
+      - garrison-integrations.json=dashboards/garrison-integrations.json
+
+patches:
+  - path: garrison-env.yaml

@@ -20,6 +20,9 @@ import { HTTP_METHODS, DEFAULT_PAGE_SIZE, DEFAULT_AUTO_REFRESH, requestRangeToPa
 import { formatDateTime, formatRelativeTime, formatNumber, formatDuration, truncate } from '../i18n/formatters';
 import { tip } from '../components/Tooltip';
 import Explainer from '../components/Explainer';
+import GrafanaLink from '../components/GrafanaLink';
+import { useGrafana } from '../hooks/useServerInfo';
+import { dashboardUrl } from '../utils/grafana';
 
 const EMPTY_FILTERS = { method: '', statusCode: '', pathContains: '', fromUtc: '', toUtc: '', tenantId: '' };
 
@@ -44,6 +47,7 @@ export default function RequestHistoryView({ apiClient }) {
   const caps = principalCaps(principal);
 
   const [rangeId, setRangeId] = useState('day');
+  const grafana = useGrafana();
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState(() => ({
     ...EMPTY_FILTERS,
@@ -214,7 +218,11 @@ export default function RequestHistoryView({ apiClient }) {
 
   return (
     <div>
-      <PageHeader title={t('views.requests.title')} subtitle={t('views.requests.subtitle')} />
+      <PageHeader
+        title={t('views.requests.title')}
+        subtitle={t('views.requests.subtitle')}
+        actions={grafana && <GrafanaLink size="md" href={dashboardUrl(grafana, 'http')} label={t('views.requests.grafana')} tipText={t('tips.views.requests.grafana')} testId="requests-grafana" />}
+      />
       <Explainer topic="requests" />
 
       <div className="kpi-grid">

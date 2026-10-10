@@ -22,14 +22,17 @@ jobs:
           diff k8s/base/config/garrison-worker.json k8s/helm/garrison/files/garrison-worker.json
           diff k8s/components/smoke-test/smoke.yaml k8s/helm/garrison/files/smoke.yaml
           diff k8s/components/smoke-test/smoke.sh k8s/helm/garrison/files/smoke.sh
+          diff -r k8s/components/observability/config k8s/helm/garrison/files/observability --exclude=dashboards
+          diff -r k8s/components/observability/dashboards k8s/helm/garrison/files/observability/dashboards
       - name: Render overlays and chart
         run: |
           set -e
           mkdir -p rendered
-          for o in minikube k3s production smoke-test; do kubectl kustomize k8s/overlays/$o > rendered/kustomize-$o.yaml; done
+          for o in minikube k3s production smoke-test k3s-observability minikube-observability; do kubectl kustomize k8s/overlays/$o > rendered/kustomize-$o.yaml; done
           helm lint k8s/helm/garrison
           for v in values-minikube values-k3s values-production; do
             helm template garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/$v.yaml --set smokeTest.enabled=true > rendered/helm-$v.yaml
+            helm template garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/$v.yaml --set observability.enabled=true > rendered/helm-$v-observability.yaml
           done
       - name: Validate with kubeconform
         run: docker run --rm -v "$PWD/rendered:/r:ro" ghcr.io/yannh/kubeconform:latest -strict -summary -kubernetes-version 1.31.0 /r
@@ -37,6 +40,8 @@ jobs:
         run: |
           set -e
           docker compose -f docker/compose.yaml config -q
+          docker compose -f docker/compose.yaml --profile observability config -q
+          docker compose -f docker/compose.yaml -f docker/compose.observability.yaml --profile observability config -q
           bash -n docker/update.sh
           bash -n docker/factory/reset.sh
           diff docker/worker/garrison-worker.json k8s/base/config/garrison-worker.json

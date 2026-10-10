@@ -13,7 +13,7 @@ namespace Garrison.Server.Services
         public string Key { get; set; } = String.Empty;
 
         /// <summary>
-        /// Value type: int or bool.
+        /// Value type: int, bool, or string.
         /// </summary>
         public string Type { get; set; } = "int";
 
@@ -36,5 +36,16 @@ namespace Garrison.Server.Services
         /// Description.
         /// </summary>
         public string Description { get; set; } = String.Empty;
+
+        /// <summary>
+        /// For strings, whether the value must be empty or an absolute http or https URL. Default false.
+        /// </summary>
+        public bool IsUrl { get; set; } = false;
+
+        /// <summary>
+        /// Environment variable that overrides the stored value when set to a non-empty value, or null when the
+        /// setting has none. An overridden setting reports source Environment and cannot be changed through the API.
+        /// </summary>
+        public string? EnvironmentVariable { get; set; } = null;
     }
 }

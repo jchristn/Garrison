@@ -52,7 +52,9 @@ const PENDING = {
   timeToFirstTokenExcludingDelegationMsP95: 'P9.17 M1-08',
   changes: 'P9.17 M1-14',
   plannedResult: 'P9.17 M1-14',
-  code: 'P9.17 M1-24'
+  code: 'P9.17 M1-24',
+  traceId: 'P13.16',
+  observability: 'P13.13'
 };
 
 const children = [];
@@ -418,6 +420,7 @@ function routes(ids) {
     ['getTokenDetails', '/v1.0/token/details'],
     ['getServerInfo', '/v1.0/api/server-info'],
     ['getSettings', '/v1.0/api/settings'],
+    ['getObservabilityStatus', '/v1.0/api/observability/status'],
     ['getOverview', tp('overview')],
     ['getQueueSummary', tp('queue/summary')],
     ['getRunAnalytics', tp(`analytics/runs?${range}&interval=minute`)],

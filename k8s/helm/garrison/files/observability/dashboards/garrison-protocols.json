@@ -1,0 +1,1670 @@
+{
+ "uid": "garrison-protocols",
+ "title": "Garrison / Protocols",
+ "description": "MCP tool calls and sessions, A2A requests, and agent-to-agent delegation.",
+ "tags": [
+  "garrison"
+ ],
+ "timezone": "browser",
+ "editable": false,
+ "graphTooltip": 1,
+ "refresh": "30s",
+ "schemaVersion": 39,
+ "version": 1,
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "timepicker": {},
+ "fiscalYearStartMonth": 0,
+ "liveNow": false,
+ "annotations": {
+  "list": [
+   {
+    "builtIn": 1,
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "hide": true,
+    "iconColor": "rgba(0, 211, 255, 1)",
+    "name": "Annotations & Alerts",
+    "type": "dashboard"
+   }
+  ]
+ },
+ "links": [
+  {
+   "title": "Garrison dashboards",
+   "type": "dashboards",
+   "tags": [
+    "garrison"
+   ],
+   "asDropdown": true,
+   "includeVars": true,
+   "keepTime": true,
+   "targetBlank": false,
+   "icon": "external link"
+  }
+ ],
+ "templating": {
+  "list": [
+   {
+    "name": "node",
+    "label": "Server",
+    "description": "Control plane replica (node ID).",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "garrison-prometheus"
+    },
+    "query": {
+     "query": "label_values(up{job=\"garrison\", component=\"server\"}, node)",
+     "refId": "PrometheusVariableQueryEditor-VariableQuery",
+     "qryType": 1
+    },
+    "definition": "label_values(up{job=\"garrison\", component=\"server\"}, node)",
+    "refresh": 2,
+    "sort": 1,
+    "multi": true,
+    "includeAll": true,
+    "allValue": ".*",
+    "current": {
+     "selected": true,
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "options": [],
+    "regex": "",
+    "skipUrlSync": false,
+    "hide": 0
+   },
+   {
+    "name": "window",
+    "label": "Average over",
+    "type": "custom",
+    "query": "5m,15m,1h,6h",
+    "description": "Window for averages and percentiles. Runs are infrequent, so short windows leave gaps.",
+    "current": {
+     "selected": true,
+     "text": "15m",
+     "value": "15m"
+    },
+    "options": [
+     {
+      "selected": false,
+      "text": "5m",
+      "value": "5m"
+     },
+     {
+      "selected": true,
+      "text": "15m",
+      "value": "15m"
+     },
+     {
+      "selected": false,
+      "text": "1h",
+      "value": "1h"
+     },
+     {
+      "selected": false,
+      "text": "6h",
+      "value": "6h"
+     }
+    ],
+    "multi": false,
+    "includeAll": false,
+    "hide": 0,
+    "skipUrlSync": false
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "row",
+   "title": "Summary",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "stat",
+   "title": "MCP tool calls",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(increase(garrison_mcp_tool_calls_total{node=~\"$node\"}[$__range]))",
+     "legendFormat": "__auto",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "noValue": "0",
+     "decimals": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "orientation": "auto",
+    "wideLayout": true,
+    "showPercentChange": false
+   },
+   "id": 2,
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   }
+  },
+  {
+   "type": "stat",
+   "title": "MCP tool errors",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(increase(garrison_mcp_tool_results_total{result=\"error\", node=~\"$node\"}[$__range]))",
+     "legendFormat": "__auto",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     },
+     "mappings": [],
+     "noValue": "0",
+     "decimals": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "orientation": "auto",
+    "wideLayout": true,
+    "showPercentChange": false
+   },
+   "id": 3,
+   "gridPos": {
+    "x": 4,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   }
+  },
+  {
+   "type": "stat",
+   "title": "MCP sessions active",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(voltaic_server_sessions_active{job=\"garrison\", component=\"server\", node=~\"$node\"})",
+     "legendFormat": "__auto",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "orientation": "auto",
+    "wideLayout": true,
+    "showPercentChange": false
+   },
+   "id": 4,
+   "gridPos": {
+    "x": 8,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   }
+  },
+  {
+   "type": "stat",
+   "title": "A2A requests",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(increase(garrison_a2a_requests_total{node=~\"$node\"}[$__range]))",
+     "legendFormat": "__auto",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "noValue": "0",
+     "decimals": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "orientation": "auto",
+    "wideLayout": true,
+    "showPercentChange": false
+   },
+   "id": 5,
+   "gridPos": {
+    "x": 12,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Delegated runs",
+   "description": "Runs created by another run through garrison_invoke_agent.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(increase(garrison_runs_created_total{kind=\"Delegated\"}[$__range]))",
+     "legendFormat": "__auto",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "noValue": "0",
+     "decimals": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "orientation": "auto",
+    "wideLayout": true,
+    "showPercentChange": false
+   },
+   "id": 6,
+   "gridPos": {
+    "x": 16,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   }
+  },
+  {
+   "type": "stat",
+   "title": "garrison_invoke_agent calls",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(increase(garrison_mcp_tool_calls_total{tool=\"garrison_invoke_agent\", node=~\"$node\"}[$__range]))",
+     "legendFormat": "__auto",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "noValue": "0",
+     "decimals": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "justifyMode": "auto",
+    "textMode": "auto",
+    "orientation": "auto",
+    "wideLayout": true,
+    "showPercentChange": false
+   },
+   "id": 7,
+   "gridPos": {
+    "x": 20,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   }
+  },
+  {
+   "id": 8,
+   "type": "row",
+   "title": "MCP",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 5,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "Tool calls by tool (per minute)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (tool) (rate(garrison_mcp_tool_calls_total{node=~\"$node\"}[$__rate_interval])) * 60",
+     "legendFormat": "{{tool}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 1,
+      "fillOpacity": 60,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 9,
+   "gridPos": {
+    "x": 0,
+    "y": 6,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Tool results by tool and result (per minute)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (tool, result) (rate(garrison_mcp_tool_results_total{node=~\"$node\"}[$__rate_interval])) * 60",
+     "legendFormat": "{{tool}} {{result}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 1,
+      "fillOpacity": 60,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 10,
+   "gridPos": {
+    "x": 12,
+    "y": 6,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Average tool duration",
+   "description": "garrison_invoke_agent waits for the child run, so it is as long as that run.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (gen_ai_tool_name) (rate(voltaic_mcp_tool_duration_seconds_sum{job=\"garrison\", component=\"server\", node=~\"$node\"}[$window])) / sum by (gen_ai_tool_name) (rate(voltaic_mcp_tool_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\"}[$window]))",
+     "legendFormat": "{{gen_ai_tool_name}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 11,
+   "gridPos": {
+    "x": 0,
+    "y": 14,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "JSON-RPC requests by method",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (rpc_method) (rate(voltaic_rpc_server_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\"}[$__rate_interval]))",
+     "legendFormat": "{{rpc_method}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 12,
+   "gridPos": {
+    "x": 12,
+    "y": 14,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "MCP HTTP responses by status code",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (http_response_status_code) (rate(voltaic_http_server_request_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\"}[$__rate_interval]))",
+     "legendFormat": "{{http_response_status_code}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 13,
+   "gridPos": {
+    "x": 0,
+    "y": 22,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Sessions",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(voltaic_server_sessions_active{job=\"garrison\", component=\"server\", node=~\"$node\"})",
+     "legendFormat": "active",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(increase(voltaic_server_sessions_opened_total{job=\"garrison\", component=\"server\", node=~\"$node\"}[$__rate_interval]))",
+     "legendFormat": "opened",
+     "refId": "B",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum(increase(voltaic_server_sessions_closed_total{job=\"garrison\", component=\"server\", node=~\"$node\"}[$__rate_interval]))",
+     "legendFormat": "closed",
+     "refId": "C",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 14,
+   "gridPos": {
+    "x": 8,
+    "y": 22,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Rate limiting and input validation",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (voltaic_kind, voltaic_outcome) (increase(voltaic_mcp_rate_limit_decisions_total{job=\"garrison\", component=\"server\", node=~\"$node\"}[$__rate_interval]))",
+     "legendFormat": "rate limit {{voltaic_kind}} {{voltaic_outcome}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (voltaic_kind, voltaic_outcome) (increase(voltaic_mcp_schema_validations_total{job=\"garrison\", component=\"server\", node=~\"$node\"}[$__rate_interval]))",
+     "legendFormat": "schema {{voltaic_kind}} {{voltaic_outcome}}",
+     "refId": "B",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 1,
+      "fillOpacity": 60,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 15,
+   "gridPos": {
+    "x": 16,
+    "y": 22,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "id": 16,
+   "type": "row",
+   "title": "A2A",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 30,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "A2A requests by method (per minute)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (method) (rate(garrison_a2a_requests_total{node=~\"$node\"}[$__rate_interval])) * 60",
+     "legendFormat": "{{method}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 1,
+      "fillOpacity": 60,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 17,
+   "gridPos": {
+    "x": 0,
+    "y": 31,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "A2A responses by route and status code",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\", http_route=~\"/v1.0/a2a/.*\"}[$__rate_interval]))",
+     "legendFormat": "{{http_route}} {{http_response_status_code}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 18,
+   "gridPos": {
+    "x": 8,
+    "y": 31,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "A2A average latency by route",
+   "description": "message/send blocks until the run finishes unless the caller asks for a non-blocking task.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_sum{job=\"garrison\", component=\"server\", node=~\"$node\", http_route=~\"/v1.0/a2a/.*\"}[$window])) / sum by (http_route) (rate(http_server_request_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\", http_route=~\"/v1.0/a2a/.*\"}[$window]))",
+     "legendFormat": "{{http_route}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 19,
+   "gridPos": {
+    "x": 16,
+    "y": 31,
+    "w": 8,
+    "h": 8
+   }
+  },
+  {
+   "id": 20,
+   "type": "row",
+   "title": "Delegation",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 39,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "timeseries",
+   "title": "Runs created by kind (per minute)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (kind) (rate(garrison_runs_created_total[$__rate_interval])) * 60",
+     "legendFormat": "{{kind}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 1,
+      "fillOpacity": 60,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 21,
+   "gridPos": {
+    "x": 0,
+    "y": 40,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Delegated runs by harness (per minute)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "garrison-prometheus"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "garrison-prometheus"
+     },
+     "expr": "sum by (harness) (rate(garrison_runs_created_total{kind=\"Delegated\"}[$__rate_interval])) * 60",
+     "legendFormat": "{{harness}}",
+     "refId": "A",
+     "range": true,
+     "instant": false,
+     "editorMode": "code"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     },
+     "custom": {
+      "drawStyle": "bars",
+      "lineWidth": 1,
+      "fillOpacity": 60,
+      "showPoints": "never",
+      "spanNulls": true,
+      "pointSize": 4,
+      "lineInterpolation": "linear",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "axisPlacement": "auto",
+      "gradientMode": "none",
+      "barAlignment": 0,
+      "hideFrom": {
+       "legend": false,
+       "tooltip": false,
+       "viz": false
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [],
+     "min": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true,
+     "calcs": []
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "id": 22,
+   "gridPos": {
+    "x": 12,
+    "y": 40,
+    "w": 12,
+    "h": 8
+   }
+  },
+  {
+   "id": 23,
+   "type": "row",
+   "title": "Logs",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 48,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "type": "logs",
+   "title": "MCP and A2A logs",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "garrison-loki"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "loki",
+      "uid": "garrison-loki"
+     },
+     "expr": "{app=\"garrison\", component=\"server\", node=~\"$node\"} |~ \"(?i)(\\\\[mcp\\\\]|a2a)\"",
+     "refId": "A",
+     "queryType": "range",
+     "editorMode": "code"
+    }
+   ],
+   "options": {
+    "showTime": true,
+    "showLabels": false,
+    "showCommonLabels": false,
+    "wrapLogMessage": true,
+    "prettifyLogMessage": false,
+    "enableLogDetails": true,
+    "dedupStrategy": "none",
+    "sortOrder": "Descending",
+    "enableInfiniteScrolling": false
+   },
+   "id": 24,
+   "gridPos": {
+    "x": 0,
+    "y": 49,
+    "w": 24,
+    "h": 10
+   }
+  }
+ ]
+}

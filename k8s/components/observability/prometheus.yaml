@@ -1,0 +1,103 @@
+# Prometheus: scrapes the Garrison server and worker pods by pod IP (see config/prometheus.yaml). 3 days or 1 GiB
+# of data, whichever comes first, on a 2 GiB volume.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: garrison-prometheus
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-prometheus
+  labels:
+    app.kubernetes.io/name: garrison-prometheus
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-prometheus
+        app.kubernetes.io/component: observability
+    spec:
+      serviceAccountName: garrison-prometheus
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.5.4
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/prometheus/prometheus.yaml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=3d
+            - --storage.tsdb.retention.size=1GB
+            - --web.enable-lifecycle
+          ports:
+            - name: http
+              containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+              readOnly: true
+            - name: data
+              mountPath: /prometheus
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: garrison-prometheus-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: garrison-prometheus
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-prometheus
+  labels:
+    app.kubernetes.io/name: garrison-prometheus
+spec:
+  selector:
+    app.kubernetes.io/name: garrison-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http

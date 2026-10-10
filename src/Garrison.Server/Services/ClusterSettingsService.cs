@@ -63,6 +63,7 @@ namespace Garrison.Server.Services
         private readonly DatabaseDriverBase _Database;
         private readonly List<ClusterSettingDefinition> _Definitions;
         private readonly ConcurrentDictionary<string, string> _Values = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _Overrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private int _RefreshIntervalMs = 3000;
         private long _Version = 0;
         private string _Fingerprint = String.Empty;
@@ -79,7 +80,21 @@ namespace Garrison.Server.Services
         /// <param name="requestHistoryRetentionDefault">Default for RequestHistory.RetentionDays (from the settings file).</param>
         /// <exception cref="ArgumentNullException">Thrown when database is null.</exception>
         public ClusterSettingsService(DatabaseDriverBase database, bool requestHistoryEnabledDefault, int requestHistoryRetentionDefault)
+            : this(database, requestHistoryEnabledDefault, requestHistoryRetentionDefault, Environment.GetEnvironmentVariable)
         {
+        }
+
+        /// <summary>
+        /// Instantiate with an explicit environment lookup (used by tests).
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="requestHistoryEnabledDefault">Default for RequestHistory.Enabled (from the settings file).</param>
+        /// <param name="requestHistoryRetentionDefault">Default for RequestHistory.RetentionDays (from the settings file).</param>
+        /// <param name="environment">Returns the value of an environment variable, or null when it is not set.</param>
+        /// <exception cref="ArgumentNullException">Thrown when database or environment is null.</exception>
+        public ClusterSettingsService(DatabaseDriverBase database, bool requestHistoryEnabledDefault, int requestHistoryRetentionDefault, Func<string, string?> environment)
+        {
+            if (environment == null) throw new ArgumentNullException(nameof(environment));
             _Database = database ?? throw new ArgumentNullException(nameof(database));
             _Definitions = new List<ClusterSettingDefinition>
             {
@@ -94,8 +109,25 @@ namespace Garrison.Server.Services
                 Int("Runtime.FailBlockedAfterSeconds", 0, 0, 604800, "Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever."),
                 Int("Audit.RetentionDays", 365, 1, 3650, "Days audit records are retained."),
                 Bool("RequestHistory.Enabled", requestHistoryEnabledDefault, "Whether HTTP requests are captured."),
-                Int("RequestHistory.RetentionDays", requestHistoryRetentionDefault, 1, 3650, "Days captured requests are retained.")
+                Int("RequestHistory.RetentionDays", requestHistoryRetentionDefault, 1, 3650, "Days captured requests are retained."),
+                Url("Observability.GrafanaUrl", "GARRISON_GRAFANA_URL", "Grafana URL as reached from a browser, for example https://grafana.example.com. Used for the Home card and deep links. Empty means Grafana is not configured."),
+                Url("Observability.PrometheusUrl", "GARRISON_PROMETHEUS_URL", "Prometheus URL as reached from a browser. Empty means Prometheus is not configured."),
+                Url("Observability.LokiUrl", "GARRISON_LOKI_URL", "Loki URL as reached from a browser. Empty means Loki is not configured."),
+                Url("Observability.TempoUrl", "GARRISON_TEMPO_URL", "Tempo URL as reached from a browser. Empty means Tempo is not configured."),
+                Url("Observability.GrafanaInternalUrl", "GARRISON_GRAFANA_INTERNAL_URL", "Grafana URL the server probes for reachability, for example http://garrison-grafana:3000. Empty uses Observability.GrafanaUrl."),
+                Url("Observability.PrometheusInternalUrl", "GARRISON_PROMETHEUS_INTERNAL_URL", "Prometheus URL the server probes for reachability. Empty uses Observability.PrometheusUrl."),
+                Url("Observability.LokiInternalUrl", "GARRISON_LOKI_INTERNAL_URL", "Loki URL the server probes for reachability. Empty uses Observability.LokiUrl."),
+                Url("Observability.TempoInternalUrl", "GARRISON_TEMPO_INTERNAL_URL", "Tempo URL the server probes for reachability. Empty uses Observability.TempoUrl.")
             };
+
+            foreach (ClusterSettingDefinition definition in _Definitions)
+            {
+                if (String.IsNullOrEmpty(definition.EnvironmentVariable)) continue;
+                string? raw = environment(definition.EnvironmentVariable);
+                if (String.IsNullOrWhiteSpace(raw)) continue;
+                string? normalized = Normalize(definition.Key, raw, out string? _);
+                if (normalized != null) _Overrides[definition.Key] = normalized;
+            }
         }
 
         #endregion
@@ -121,6 +153,7 @@ namespace Garrison.Server.Services
         public string GetString(string key)
         {
             ClusterSettingDefinition definition = Find(key) ?? throw new ArgumentException("Unknown cluster setting '" + key + "'.", nameof(key));
+            if (_Overrides.TryGetValue(definition.Key, out string? overridden)) return overridden;
             if (_Values.TryGetValue(definition.Key, out string? value) && value != null) return value;
             return definition.DefaultValue;
         }
@@ -158,6 +191,16 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
+        /// Whether the effective value comes from the setting's environment variable.
+        /// </summary>
+        /// <param name="key">Key.</param>
+        /// <returns>True when overridden by the environment.</returns>
+        public bool IsOverridden(string key)
+        {
+            return _Overrides.ContainsKey(key);
+        }
+
+        /// <summary>
         /// Validate a candidate value.
         /// </summary>
         /// <param name="key">Key.</param>
@@ -175,7 +218,7 @@ namespace Garrison.Server.Services
         /// <param name="key">Key.</param>
         /// <param name="value">Value.</param>
         /// <param name="error">Validation error, or null when the value is valid.</param>
-        /// <param name="code">Machine code for the error (UnknownSetting, NotABoolean, NotAnInteger, OutOfRange), or empty when valid.</param>
+        /// <param name="code">Machine code for the error (UnknownSetting, NotABoolean, NotAnInteger, OutOfRange, TooLong, NotAUrl), or empty when valid.</param>
         /// <returns>Normalized value, or null with an error.</returns>
         public string? Normalize(string key, string? value, out string? error, out string code)
         {
@@ -187,6 +230,27 @@ namespace Garrison.Server.Services
                 error = "Unknown cluster setting.";
                 code = "UnknownSetting";
                 return null;
+            }
+            if (definition.Type == "string")
+            {
+                string text = (value ?? String.Empty).Trim();
+                if (text.Length > 2048)
+                {
+                    error = "Must be at most 2048 characters.";
+                    code = "TooLong";
+                    return null;
+                }
+                if (definition.IsUrl && text.Length > 0)
+                {
+                    if (!Uri.TryCreate(text, UriKind.Absolute, out Uri? uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                    {
+                        error = "Must be empty or an absolute http or https URL.";
+                        code = "NotAUrl";
+                        return null;
+                    }
+                    text = text.TrimEnd('/');
+                }
+                return text;
             }
             if (definition.Type == "bool")
             {
@@ -218,9 +282,14 @@ namespace Garrison.Server.Services
         /// <param name="updatedBy">Principal.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Task.</returns>
-        /// <exception cref="ValidationException">Thrown when the value is invalid.</exception>
+        /// <exception cref="ValidationException">Thrown when the value is invalid or the setting is overridden by the environment.</exception>
         public async Task SetAsync(string key, string? value, string? updatedBy, CancellationToken token = default)
         {
+            if (IsOverridden(key))
+            {
+                string message = "Overridden by an environment variable; change the environment instead.";
+                throw new ValidationException(message, new Dictionary<string, string> { { key, message } }, new Dictionary<string, string> { { key, "OverriddenByEnvironment" } });
+            }
             string? normalized = Normalize(key, value, out string? error, out string code);
             if (normalized == null) throw new ValidationException(error ?? "Invalid value.", new Dictionary<string, string> { { key, error ?? "Invalid value." } }, new Dictionary<string, string> { { key, code } });
             ClusterSettingDefinition definition = Find(key)!;
@@ -288,6 +357,20 @@ namespace Garrison.Server.Services
             d.Minimum = min;
             d.Maximum = max;
             d.Description = description;
+            return d;
+        }
+
+        private static ClusterSettingDefinition Url(string key, string environmentVariable, string description)
+        {
+            ClusterSettingDefinition d = new ClusterSettingDefinition();
+            d.Key = key;
+            d.Type = "string";
+            d.DefaultValue = String.Empty;
+            d.Minimum = 0;
+            d.Maximum = 2048;
+            d.Description = description + " Environment variable " + environmentVariable + " overrides it.";
+            d.IsUrl = true;
+            d.EnvironmentVariable = environmentVariable;
             return d;
         }
 

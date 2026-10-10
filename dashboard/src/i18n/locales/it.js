@@ -834,7 +834,7 @@ const it = {
       ...rp('Nodi', 'Nodi worker che prendono in lease ed eseguono le esecuzioni. Isola o svuota un nodo prima della manutenzione.', 'Aggiungi nodo', 'Crea nodo', 'Modifica nodo', 'Dettagli del nodo', 'Elimina nodo', 'Ancora nessun nodo', 'I nodi worker si registrano automaticamente all\'avvio. Distribuisci lo StatefulSet dei worker oppure avvia Garrison.Worker in locale.'),
       columns: { name: 'Nome', status: 'Stato', capacity: 'Esecuzioni', harnesses: 'Harness', labels: 'Etichette', nodeVersion: 'Versione', lastHeartbeatUtc: 'Ultimo heartbeat', id: 'ID' },
       fields: { address: 'Indirizzo', maxConcurrentRuns: 'Capacità', activeRuns: 'Esecuzioni attive', capabilities: 'Capacità harness', detectedVersion: 'Versione', available: 'Disponibile', detail: 'Dettaglio' },
-      actions: { cordon: 'Isola', uncordon: 'Annulla isolamento', drain: 'Svuota', runs: 'Visualizza esecuzioni' },
+      actions: { cordon: 'Isola', uncordon: 'Annulla isolamento', drain: 'Svuota', runs: 'Visualizza esecuzioni', grafana: 'Apri in Grafana' },
       toasts: { cordoned: 'Nodo isolato.', uncordoned: 'Isolamento del nodo annullato.', draining: 'Svuotamento del nodo in corso.' }
     },
     audit: {
@@ -868,6 +868,10 @@ const it = {
   },
   views: {
     home: {
+      observabilityState: { reachable: 'Raggiungibile', unreachable: 'Non raggiungibile', checking: 'Verifica in corso', unknown: 'Stato sconosciuto' },
+      observabilityVersion: 'Versione {{version}}',
+      observabilityOpen: 'Apri {{service}}',
+      kpisGrafana: 'Apri la panoramica in Grafana',
       observabilitySetup: 'Configura l\'osservabilità',
       observabilityNone: 'Per questa installazione non è configurato alcun servizio di osservabilità (Grafana, Prometheus, Tempo o Loki).',
       observability: 'Osservabilità',
@@ -934,6 +938,9 @@ const it = {
       applySample: 'Vai ai manifest'
     },
     runDetail: {
+      viewTrace: 'Visualizza traccia',
+      viewLogs: 'Visualizza log',
+      traceId: 'ID traccia',
       deploymentDeleted: 'La distribuzione usata da questa esecuzione è stata eliminata, quindi non può essere ripetuta. Invoca di nuovo l\'agente {{agent}}.',
       templatesUsed: 'Modelli usati',
       agentDeleted: 'L\'agente {{agent}} non esiste più, quindi questa esecuzione non può essere ripetuta. Record, trascrizione e telemetria restano disponibili qui.',
@@ -1099,6 +1106,7 @@ const it = {
       counts: '{{created}} creati, {{updated}} aggiornati, {{unchanged}} invariati, {{failed}} non riusciti'
     },
     requests: {
+      grafana: 'Dashboard HTTP in Grafana',
       title: 'Cronologia richieste',
       subtitle: 'Traffico API acquisito. Approfondisci qualsiasi richiesta e gestisci la conservazione.',
       kpis: { total: 'Richieste conservate', success: 'Riuscite', failure: 'Errori', avgDuration: 'Durata media' },
@@ -1181,8 +1189,18 @@ const it = {
         ConfigMap: 'Gestito da una ConfigMap di Kubernetes. Modificalo nei tuoi manifest.',
         other: 'Questa impostazione non può essere modificata qui.'
       },
-      groups: { General: 'Generale', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Autenticazione', Security: 'Sicurezza', RequestHistory: 'Cronologia richieste', Telemetry: 'Telemetria', Cluster: 'Cluster', Scheduling: 'Pianificazione', Runs: 'Esecuzioni', Audit: 'Audit', Runtime: 'Motore di esecuzione' },
+      groups: { General: 'Generale', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Autenticazione', Security: 'Sicurezza', RequestHistory: 'Cronologia richieste', Telemetry: 'Telemetria', Cluster: 'Cluster', Scheduling: 'Pianificazione', Runs: 'Esecuzioni', Audit: 'Audit', Runtime: 'Motore di esecuzione', Observability: 'Osservabilità' },
       fields: {
+        Observability: {
+          GrafanaUrl: 'URL di Grafana',
+          PrometheusUrl: 'URL di Prometheus',
+          LokiUrl: 'URL di Loki',
+          TempoUrl: 'URL di Tempo',
+          GrafanaInternalUrl: 'URL interno di Grafana',
+          PrometheusInternalUrl: 'URL interno di Prometheus',
+          LokiInternalUrl: 'URL interno di Loki',
+          TempoInternalUrl: 'URL interno di Tempo'
+        },
         Rest: {
           ExternalBaseUrl: 'URL REST esterno',
           PublicBaseUrl: 'URL REST interno per le esecuzioni',
@@ -1271,6 +1289,7 @@ const it = {
       }
     },
     analytics: {
+      grafana: 'Dashboard delle esecuzioni in Grafana',
       deletedAgent: 'Agente eliminato ({{id}})',
       deletedDeployment: 'Distribuzione eliminata ({{id}})',
       title: 'Analisi',

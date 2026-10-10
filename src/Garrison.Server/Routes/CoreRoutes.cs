@@ -8,6 +8,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Services;
     using WatsonWebserver.Core;
 
@@ -49,6 +50,7 @@ namespace Garrison.Server.Routes
         {
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             routes.Anonymous(HttpMethod.GET, "/v1.0/api/health", HealthAsync, "Health check", "Health", null, typeof(HealthResponse));
+            routes.Anonymous(HttpMethod.GET, "/metrics", MetricsAsync, "Prometheus metrics in text exposition format, relayed from the metrics listener (404 when Telemetry.ServeMetricsOnServicePort is false, 503 when the listener is off)", "Health");
             routes.Anonymous(HttpMethod.POST, "/v1.0/token", IssueAsync, "Issue a session token from user login or credential keys", "Tokens", typeof(TokenRequest), typeof(TokenResponse));
             routes.Authenticated(HttpMethod.GET, "/v1.0/token", ValidateAsync, "Validate the presented token", "Tokens");
             routes.Authenticated(HttpMethod.GET, "/v1.0/token/details", DetailsAsync, "Describe the authenticated principal", "Tokens", null, typeof(TokenDetailsResponse));
@@ -59,6 +61,24 @@ namespace Garrison.Server.Routes
         #endregion
 
         #region Private-Methods
+
+        private async Task MetricsAsync(HttpContextBase context)
+        {
+            if (!_Context.Settings.Telemetry.ServeMetricsOnServicePort)
+            {
+                await RouteHelpers.ErrorAsync(context, 404, "NotFound", "Metrics are not served on this port; set Telemetry.ServeMetricsOnServicePort to true or scrape the metrics listener.").ConfigureAwait(false);
+                return;
+            }
+            MetricsScrape? scrape = await _Context.Telemetry.ScrapeAsync(context.Token).ConfigureAwait(false);
+            if (scrape == null)
+            {
+                await RouteHelpers.ErrorAsync(context, 503, "MetricsUnavailable", "The Prometheus metrics listener is not enabled or did not answer.").ConfigureAwait(false);
+                return;
+            }
+            context.Response.StatusCode = 200;
+            context.Response.ContentType = scrape.ContentType;
+            await context.Response.Send(scrape.Body, context.Token).ConfigureAwait(false);
+        }
 
         private async Task HealthAsync(HttpContextBase context)
         {

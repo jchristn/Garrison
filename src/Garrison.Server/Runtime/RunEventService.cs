@@ -16,6 +16,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using Radiant;
+    using SyslogLogging;
 
     /// <summary>
     /// Fenced ingestion of worker reports (started, events, complete) and event reads. Thread-safe.
@@ -40,6 +41,22 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Logging for run lifecycle lines (each carries run=&lt;runId&gt; trace=&lt;traceId&gt;). Null disables them.
+        /// Default null; the runtime module sets it.
+        /// </summary>
+        public LoggingModule? Logging
+        {
+            get
+            {
+                return _Logging;
+            }
+            set
+            {
+                _Logging = value;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -48,6 +65,7 @@ namespace Garrison.Server.Runtime
         private readonly RunSignals _Signals;
         private readonly GarrisonTelemetry _Telemetry;
         private StructuredOutputService? _StructuredOutput = null;
+        private LoggingModule? _Logging = null;
 
         #endregion
 
@@ -347,6 +365,7 @@ namespace Garrison.Server.Runtime
 
             response.EventSequenceStart = await _StructuredOutput.AppendWarningAsync(run, request.RepairAttempt, check.Validation, null, token).ConfigureAwait(false);
             _Signals.Notify(run.Id);
+            _Logging?.Info("[Runs] run " + run.Id + " output failed schema validation; repair attempt " + repair.Attempt + " sent to node " + request.NodeId + " " + RunTracing.LogFields(run.Id, run.TraceId));
             return response;
         }
 
@@ -377,6 +396,7 @@ namespace Garrison.Server.Runtime
             if (run.TimeToFirstTokenMs.HasValue) _Telemetry.Record("garrison.run.stage.duration", run.TimeToFirstTokenMs.Value / 1000.0, new RadiantTag("stage", "first_token"), new RadiantTag("harness", run.HarnessType.ToString()));
             if (run.ReasoningTokens > 0) _Telemetry.Record("garrison.harness.tokens", run.ReasoningTokens, new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("direction", "reasoning"));
             _Signals.Complete(run.Id);
+            _Logging?.Info("[Runs] run " + run.Id + " finished " + run.Status + " (" + run.Outcome + ") on " + (run.LeaseNodeName ?? request.NodeId) + (run.TotalMs.HasValue ? " in " + run.TotalMs.Value + " ms" : String.Empty) + " " + RunTracing.LogFields(run.Id, run.TraceId));
 
             RunCompleteResponse response = new RunCompleteResponse();
             response.Message = run.Status + " (" + run.Outcome + ")";

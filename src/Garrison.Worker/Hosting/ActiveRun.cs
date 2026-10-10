@@ -3,6 +3,7 @@ namespace Garrison.Worker.Hosting
     using System;
     using System.Threading;
     using Garrison.Core.Protocol;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// A run currently held by this worker. Thread-safe for the members it exposes.
@@ -47,6 +48,22 @@ namespace Garrison.Worker.Hosting
         /// </summary>
         public DateTime StartedUtc { get; } = DateTime.UtcNow;
 
+        /// <summary>
+        /// W3C trace ID of the run (from the execution spec's traceparent), or null when the spec carries none.
+        /// </summary>
+        public string? TraceId { get; }
+
+        /// <summary>
+        /// Log fields identifying the run: run=&lt;runId&gt; trace=&lt;traceId&gt;.
+        /// </summary>
+        public string LogFields
+        {
+            get
+            {
+                return RunTracing.LogFields(RunId, TraceId);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -68,6 +85,7 @@ namespace Garrison.Worker.Hosting
             Assignment = assignment ?? throw new ArgumentNullException(nameof(assignment));
             RunId = assignment.RunId;
             Epoch = assignment.Epoch;
+            TraceId = RunTracing.TraceIdOf(assignment.Spec?.TraceParent);
         }
 
         #endregion

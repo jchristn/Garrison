@@ -106,6 +106,13 @@ namespace Garrison.Server.Protocols
         public string? ServedModel { get; set; } = null;
 
         /// <summary>
+        /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, for
+        /// finding its spans in Tempo; null for runs created before trace IDs were recorded. Always present in the JSON.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? TraceId { get; set; } = null;
+
+        /// <summary>
         /// Milliseconds from harness process start to the first model output; null when not measured.
         /// </summary>
         public long? TimeToFirstTokenMs { get; set; } = null;

@@ -796,7 +796,7 @@ const ja = {
       ...rp('ノード', '実行をリースして処理するワーカーノードです。メンテナンス前には隔離またはドレインしてください。', 'ノードを追加', 'ノードを作成', 'ノードを編集', 'ノードの詳細', 'ノードを削除', 'ノードはまだありません', 'ワーカーノードは起動時に自動で登録されます。ワーカーの StatefulSet をデプロイするか、Garrison.Worker をローカルで起動してください。'),
       columns: { name: '名前', status: '状態', capacity: '実行', harnesses: 'ハーネス', labels: 'ラベル', nodeVersion: 'バージョン', lastHeartbeatUtc: '最終ハートビート', id: 'ID' },
       fields: { address: 'アドレス', maxConcurrentRuns: '容量', activeRuns: '実行中', capabilities: '対応機能', detectedVersion: 'バージョン', available: '利用可能', detail: '詳細' },
-      actions: { cordon: '隔離', uncordon: '隔離を解除', drain: 'ドレイン', runs: '実行を表示' },
+      actions: { cordon: '隔離', uncordon: '隔離を解除', drain: 'ドレイン', runs: '実行を表示', grafana: 'Grafana で開く' },
       toasts: { cordoned: 'ノードを隔離しました。', uncordoned: 'ノードの隔離を解除しました。', draining: 'ノードをドレインしています。' }
     },
     audit: {
@@ -829,6 +829,10 @@ const ja = {
   },
   views: {
     home: {
+      observabilityState: { reachable: '到達可能', unreachable: '到達不可', checking: '確認中', unknown: '状態不明' },
+      observabilityVersion: 'バージョン {{version}}',
+      observabilityOpen: '{{service}} を開く',
+      kpisGrafana: '概要を Grafana で開く',
       observabilitySetup: 'オブザーバビリティを設定する',
       observabilityNone: 'この環境には、オブザーバビリティのサービス (Grafana、Prometheus、Tempo、Loki) が構成されていません。',
       observability: 'オブザーバビリティ',
@@ -895,6 +899,9 @@ const ja = {
       applySample: 'マニフェストへ移動'
     },
     runDetail: {
+      viewTrace: 'トレースを表示',
+      viewLogs: 'ログを表示',
+      traceId: 'トレース ID',
       deploymentDeleted: 'この実行が使ったデプロイメントは削除されたため、再試行できません。代わりにエージェント {{agent}} をもう一度呼び出してください。',
       templatesUsed: '使用したテンプレート',
       agentDeleted: 'エージェント {{agent}} はもう存在しないため、この実行は再試行できません。レコード、トランスクリプト、テレメトリは引き続きここで確認できます。',
@@ -1056,6 +1063,7 @@ const ja = {
       counts: '作成 {{created}}、更新 {{updated}}、変更なし {{unchanged}}、失敗 {{failed}}'
     },
     requests: {
+      grafana: 'Grafana の HTTP ダッシュボード',
       title: 'リクエスト履歴',
       subtitle: '記録された API トラフィックです。各リクエストを詳しく調べ、保持期間を管理できます。',
       kpis: { total: '保持中のリクエスト', success: '成功', failure: '失敗', avgDuration: '平均所要時間' },
@@ -1138,8 +1146,18 @@ const ja = {
         ConfigMap: 'Kubernetes の ConfigMap で管理されています。マニフェストで変更してください。',
         other: 'この設定はここでは編集できません。'
       },
-      groups: { General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査', Runtime: 'ランタイム' },
+      groups: { General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査', Runtime: 'ランタイム', Observability: 'オブザーバビリティ' },
       fields: {
+        Observability: {
+          GrafanaUrl: 'Grafana の URL',
+          PrometheusUrl: 'Prometheus の URL',
+          LokiUrl: 'Loki の URL',
+          TempoUrl: 'Tempo の URL',
+          GrafanaInternalUrl: 'Grafana の内部 URL',
+          PrometheusInternalUrl: 'Prometheus の内部 URL',
+          LokiInternalUrl: 'Loki の内部 URL',
+          TempoInternalUrl: 'Tempo の内部 URL'
+        },
         Rest: {
           ExternalBaseUrl: '外部 REST URL',
           PublicBaseUrl: '実行用の内部 REST URL',
@@ -1228,6 +1246,7 @@ const ja = {
       }
     },
     analytics: {
+      grafana: 'Grafana の実行ダッシュボード',
       deletedAgent: '削除済みのエージェント ({{id}})',
       deletedDeployment: '削除済みのデプロイメント ({{id}})',
       title: '分析',

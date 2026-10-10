@@ -5,6 +5,9 @@ import PageHeader from '../components/PageHeader';
 import ActivityChart from '../components/ActivityChart';
 import KpiCard from '../components/KpiCard';
 import ExternalServicesCard from '../components/ExternalServicesCard';
+import GrafanaLink from '../components/GrafanaLink';
+import { useGrafana } from '../hooks/useServerInfo';
+import { dashboardUrl } from '../utils/grafana';
 import { Badge } from '../components/StatusBadge';
 import { EmptyState } from '../components/States';
 import { SendIcon, BotIcon, FileCodeIcon, PlayIcon, ListIcon, CpuIcon, ChartIcon } from '../components/Icons';
@@ -55,6 +58,7 @@ export default function HomeView() {
   const [reqSummary, setReqSummary] = useState(null);
   const [reqLoading, setReqLoading] = useState(false);
   const [loadedAt, setLoadedAt] = useState(null);
+  const grafana = useGrafana();
 
   const loadOverview = useCallback(async () => {
     if (!apiClient) return;
@@ -132,6 +136,11 @@ export default function HomeView() {
           testId="kpi-nodes"
         />
       </div>
+      {grafana && (
+        <div className="grafana-links">
+          <GrafanaLink href={dashboardUrl(grafana, 'overview')} label={t('views.home.kpisGrafana')} tipText={t('tips.views.home.kpisGrafana')} testId="kpis-grafana" />
+        </div>
+      )}
 
       <div className="home-chart">
         <ActivityChart

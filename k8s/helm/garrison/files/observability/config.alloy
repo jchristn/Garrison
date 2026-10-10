@@ -1,0 +1,132 @@
+// Grafana Alloy for Garrison on Kubernetes (k8s/components/observability and the Helm chart, which mirrors this
+// file; CI diffs them).
+//
+// 1. OTLP receiver (gRPC 4317, HTTP 4318). The server and workers export traces here when GARRISON_OTLP_ENABLE /
+//    GARRISON_WORKER_OTLP_ENABLE are true; traces are batched and forwarded to Tempo. Prometheus already scrapes
+//    the same metrics from the pods, so OTLP metrics and logs are accepted and dropped rather than stored twice.
+// 2. Pod logs. Garrison pods in this namespace (server, workers, dashboard) are discovered through the Kubernetes
+//    API and their container logs are read through the API as well (no host paths), then shipped to Loki with the
+//    labels app="garrison", component (server, worker, dashboard), node (the pod name, which is also the Garrison
+//    node name), and level when the line has a Garrison severity.
+
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.filter.probes.input]
+  }
+}
+
+// Health probes and Prometheus scrapes would otherwise produce several traces a second that nobody reads.
+otelcol.processor.filter "probes" {
+  error_mode = "ignore"
+
+  traces {
+    span = [
+      "IsMatch(attributes[\"http.route\"], \"^(/v1\\\\.0/api/health|/health|/metrics)(/.*)?$\")",
+    ]
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "garrison-tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}
+
+discovery.kubernetes "pods" {
+  role = "pod"
+
+  namespaces {
+    own_namespace = true
+  }
+}
+
+discovery.relabel "garrison" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    regex         = "garrison-(server|worker|dashboard)"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_init"]
+    regex         = "true"
+    action        = "drop"
+  }
+
+  rule {
+    target_label = "app"
+    replacement  = "garrison"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    regex         = "garrison-(server|worker|dashboard)"
+    target_label  = "component"
+    replacement   = "$1"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "node"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "container"
+  }
+}
+
+loki.source.kubernetes "garrison" {
+  targets    = discovery.relabel.garrison.output
+  forward_to = [loki.process.garrison.receiver]
+}
+
+loki.process "garrison" {
+  // Garrison lines look like "2026-10-10 18:38:03 <node> Info [Component] message".
+  stage.regex {
+    expression = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2} \\S+ (?P<level>Debug|Info|Warn|Error|Alert|Critical|Emergency) "
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://garrison-loki:3100/loki/api/v1/push"
+  }
+}

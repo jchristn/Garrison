@@ -78,6 +78,11 @@ export interface Run extends Json {
   /** Model the harness reported serving the run; absent when the harness did not report one. */
   servedModel?: string | null;
   /**
+   * W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, for finding
+   * its spans in Tempo and its logs in Loki; null for runs created before trace IDs were recorded.
+   */
+  traceId?: string | null;
+  /**
    * Computed by the server on read: why the queued run cannot be handed to any worker right now, or null when it is
    * not Queued or some Ready worker could run it.
    */

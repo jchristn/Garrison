@@ -47,7 +47,7 @@ namespace Test.Shared.Suites
             {
                 Assert.True(await first.PingAsync(token).ConfigureAwait(false), "Ping failed after first initialization.");
                 firstVersion = first.SchemaVersion;
-                Assert.Equal(4, firstVersion, "Schema version after first initialization");
+                Assert.Equal(5, firstVersion, "Schema version after first initialization");
             }
             using (DatabaseDriverBase second = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
@@ -91,13 +91,14 @@ namespace Test.Shared.Suites
 
             using (DatabaseDriverBase upgraded = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(4, upgraded.SchemaVersion, "Schema version after upgrade");
+                Assert.Equal(5, upgraded.SchemaVersion, "Schema version after upgrade");
                 Run legacy = Assert.NotNull(await upgraded.Runs.ReadAsync("run_legacy", token).ConfigureAwait(false), "Legacy run");
                 Assert.Equal(20L, legacy.OutputTokens, "Existing columns survive");
                 Assert.Equal(0L, legacy.ReasoningTokens, "Reasoning tokens default to 0");
                 Assert.Equal(0, legacy.ToolCallCount, "Tool call count defaults to 0");
                 Assert.True(legacy.OutputSchemaValid == null && legacy.SchemaValidationErrors == null, "Schema validation fields are null for legacy runs.");
                 Assert.Equal(0, legacy.RepairAttempts, "Repair attempts default to 0");
+                Assert.True(legacy.TraceId == null && legacy.TraceParent == null, "Trace fields are null for legacy runs.");
                 Assert.True(legacy.TimeToFirstTokenMs == null && legacy.StreamingMs == null && legacy.ExecutionMs == null, "Worker timings are null for legacy runs.");
                 Assert.Equal(250L, legacy.QueueMs ?? -1, "Queue time derived from server timestamps");
                 Assert.Equal(4250L, legacy.TotalMs ?? -1, "Total time derived from server timestamps");
@@ -118,7 +119,7 @@ namespace Test.Shared.Suites
 
             using (DatabaseDriverBase again = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(4, again.SchemaVersion, "Schema version after a second upgrade pass");
+                Assert.Equal(5, again.SchemaVersion, "Schema version after a second upgrade pass");
             }
         }
 
@@ -133,8 +134,12 @@ namespace Test.Shared.Suites
                 run.DeploymentId = "dep_a";
                 run.Status = RunStatusEnum.Queued;
                 run.QueuedUtc = DateTime.UtcNow.AddSeconds(-5);
+                run.TraceId = "4BF92F3577B34DA6A3CE929D0E0E4736";
+                run.TraceParent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
                 run = await db.Runs.CreateAsync(run, token).ConfigureAwait(false);
                 Run fresh = Assert.NotNull(await db.Runs.ReadAsync(run.Id, token).ConfigureAwait(false), "Fresh run");
+                Assert.Equal("4bf92f3577b34da6a3ce929d0e0e4736", fresh.TraceId, "Trace ID round-trips in lowercase");
+                Assert.Equal("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", fresh.TraceParent, "Trace parent round-trips");
                 Assert.True(fresh.QueueMs == null && fresh.TotalMs == null && fresh.TimeToFirstTokenMs == null, "Timings are null before the run is leased.");
                 Assert.True(fresh.OutputTokensPerSecond == null, "Tokens per second is null without streaming time.");
 

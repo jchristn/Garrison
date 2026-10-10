@@ -1,0 +1,104 @@
+# Grafana Alloy: the OTLP collector (gRPC 4317, HTTP 4318) the server and workers export traces to, and the log
+# shipper that reads Garrison pod logs through the Kubernetes API and pushes them to Loki (see config/config.alloy).
+# loki.source.kubernetes is a public-preview component in Alloy 1.5, hence --stability.level=public-preview.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-alloy
+  labels:
+    app.kubernetes.io/name: garrison-alloy
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-alloy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-alloy
+        app.kubernetes.io/component: observability
+    spec:
+      serviceAccountName: garrison-alloy
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 473
+        runAsGroup: 473
+        fsGroup: 473
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.5.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --storage.path=/var/lib/alloy/data
+            - --stability.level=public-preview
+            - --disable-reporting
+          ports:
+            - name: http
+              containerPort: 12345
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/alloy/data
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: garrison-alloy-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-alloy
+  labels:
+    app.kubernetes.io/name: garrison-alloy
+spec:
+  selector:
+    app.kubernetes.io/name: garrison-alloy
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+    - name: http
+      port: 12345
+      targetPort: http

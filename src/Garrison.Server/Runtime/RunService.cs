@@ -2,6 +2,7 @@ namespace Garrison.Server.Runtime
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Security.Cryptography;
     using System.Text.RegularExpressions;
@@ -15,6 +16,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using Radiant;
+    using SyslogLogging;
 
     /// <summary>
     /// Creates, cancels, retries, and waits on runs. Thread-safe.
@@ -35,6 +37,22 @@ namespace Garrison.Server.Runtime
             RunStatusEnum.Rejected
         };
 
+        /// <summary>
+        /// Logging for run lifecycle lines (each carries run=&lt;runId&gt; trace=&lt;traceId&gt;). Null disables them.
+        /// Default null; the runtime module sets it.
+        /// </summary>
+        public LoggingModule? Logging
+        {
+            get
+            {
+                return _Logging;
+            }
+            set
+            {
+                _Logging = value;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -43,6 +61,7 @@ namespace Garrison.Server.Runtime
         private readonly RunSignals _Signals;
         private readonly RuntimeOptions _Options;
         private readonly GarrisonTelemetry _Telemetry;
+        private LoggingModule? _Logging = null;
 
         #endregion
 
@@ -159,7 +178,26 @@ namespace Garrison.Server.Runtime
 
             run.Status = RunStatusEnum.Queued;
             run.QueuedUtc = DateTime.UtcNow;
-            await _Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+
+            // One trace per run (P13.16): delegated runs join their parent run's trace; other runs join the current
+            // request span or start a new trace.
+            string? parentTraceParent = create.Parent?.TraceParent;
+            using (Activity? activity = RunTracing.Start("run:create", parentTraceParent))
+            {
+                run.TraceParent = RunTracing.TraceParentFor(activity, parentTraceParent);
+                run.TraceId = RunTracing.TraceIdOf(run.TraceParent);
+                if (activity != null)
+                {
+                    activity.SetTag("garrison.run_id", run.Id);
+                    activity.SetTag("garrison.agent", run.AgentName);
+                    activity.SetTag("garrison.harness", run.HarnessType.ToString());
+                    activity.SetTag("garrison.run_kind", run.Kind.ToString());
+                    if (!String.IsNullOrEmpty(run.ParentRunId)) activity.SetTag("garrison.parent_run_id", run.ParentRunId);
+                }
+                await _Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+            }
+
+            _Logging?.Info("[Runs] run " + run.Id + " queued for agent " + run.AgentName + " (" + run.Kind + ", " + run.HarnessType + (String.IsNullOrEmpty(run.ParentRunId) ? String.Empty : ", parent " + run.ParentRunId) + ") " + RunTracing.LogFields(run.Id, run.TraceId));
 
             _Telemetry.Increment("garrison.runs.created", new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("kind", run.Kind.ToString()));
             _Signals.QueueChanged.Signal();
@@ -200,6 +238,7 @@ namespace Garrison.Server.Runtime
             }
 
             _Signals.Notify(run.Id);
+            _Logging?.Info("[Runs] cancellation requested for run " + run.Id + " " + RunTracing.LogFields(run.Id, run.TraceId));
             Run? updated = await _Database.Runs.ReadAsync(run.TenantId, run.Id, token).ConfigureAwait(false);
             return updated ?? run;
         }

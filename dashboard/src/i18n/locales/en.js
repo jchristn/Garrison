@@ -822,7 +822,7 @@ const en = {
       ...resourcePage('Nodes', 'node', 'Worker nodes that lease and execute runs. Cordon or drain a node before maintenance.', 'Worker nodes register themselves when they start. Deploy the worker StatefulSet or run Garrison.Worker locally.'),
       columns: { name: 'Name', status: 'Status', capacity: 'Runs', harnesses: 'Harnesses', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Last heartbeat', id: 'ID' },
       fields: { address: 'Address', maxConcurrentRuns: 'Capacity', activeRuns: 'Active runs', capabilities: 'Capabilities', detectedVersion: 'Version', available: 'Available', detail: 'Detail' },
-      actions: { cordon: 'Cordon', uncordon: 'Uncordon', drain: 'Drain', runs: 'View runs' },
+      actions: { cordon: 'Cordon', uncordon: 'Uncordon', drain: 'Drain', runs: 'View runs', grafana: 'Open in Grafana' },
       toasts: { cordoned: 'Node cordoned.', uncordoned: 'Node uncordoned.', draining: 'Node is draining.' }
     },
     audit: {
@@ -856,6 +856,10 @@ const en = {
   },
   views: {
     home: {
+      observabilityState: { reachable: 'Reachable', unreachable: 'Unreachable', checking: 'Checking', unknown: 'Status unknown' },
+      observabilityVersion: 'Version {{version}}',
+      observabilityOpen: 'Open {{service}}',
+      kpisGrafana: 'Open the overview in Grafana',
       observabilitySetup: 'Set up observability',
       observabilityNone: 'No observability services (Grafana, Prometheus, Tempo, or Loki) are configured for this deployment.',
       observability: 'Observability',
@@ -922,6 +926,9 @@ const en = {
       applySample: 'Go to manifests'
     },
     runDetail: {
+      viewTrace: 'View trace',
+      viewLogs: 'View logs',
+      traceId: 'Trace ID',
       deploymentDeleted: 'The deployment this run used was deleted, so it cannot be retried. Invoke the agent {{agent}} again instead.',
       templatesUsed: 'Templates used',
       agentDeleted: 'The agent {{agent}} no longer exists, so this run cannot be retried. Its record, transcript, and telemetry stay available here.',
@@ -1083,6 +1090,7 @@ const en = {
       counts: '{{created}} created, {{updated}} updated, {{unchanged}} unchanged, {{failed}} failed'
     },
     requests: {
+      grafana: 'HTTP dashboard in Grafana',
       title: 'Request History',
       subtitle: 'Captured API traffic. Drill into any request and manage retention.',
       kpis: { total: 'Retained requests', success: 'Successful', failure: 'Failures', avgDuration: 'Avg duration' },
@@ -1165,8 +1173,18 @@ const en = {
         ConfigMap: 'Managed by a Kubernetes ConfigMap. Change it in your manifests.',
         other: 'This setting cannot be edited here.'
       },
-      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit', Runtime: 'Runtime' },
+      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit', Runtime: 'Runtime', Observability: 'Observability' },
       fields: {
+        Observability: {
+          GrafanaUrl: 'Grafana URL',
+          PrometheusUrl: 'Prometheus URL',
+          LokiUrl: 'Loki URL',
+          TempoUrl: 'Tempo URL',
+          GrafanaInternalUrl: 'Grafana internal URL',
+          PrometheusInternalUrl: 'Prometheus internal URL',
+          LokiInternalUrl: 'Loki internal URL',
+          TempoInternalUrl: 'Tempo internal URL'
+        },
         Rest: {
           ExternalBaseUrl: 'External REST URL',
           PublicBaseUrl: 'Internal REST URL for runs',
@@ -1255,6 +1273,7 @@ const en = {
       }
     },
     analytics: {
+      grafana: 'Runs dashboard in Grafana',
       deletedAgent: 'Deleted agent ({{id}})',
       deletedDeployment: 'Deleted deployment ({{id}})',
       title: 'Analytics',

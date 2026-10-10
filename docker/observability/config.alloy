@@ -1,0 +1,123 @@
+// Grafana Alloy for the Docker Compose observability profile.
+//
+// 1. OTLP receiver (gRPC 4317, HTTP 4318) for traces from the server and workers, forwarded to Tempo. OTLP metrics
+//    and logs are accepted and dropped: Prometheus scrapes the metrics, and logs are read from the containers.
+// 2. Container logs of this Compose project's Garrison services (server, workers, dashboard), read through the
+//    Docker socket and shipped to Loki with the labels app="garrison", component (server, worker, dashboard),
+//    node (the container name, which is also the Garrison node name), and level when the line has a Garrison
+//    severity. The labels match the Kubernetes configuration, so the dashboards and deep links work unchanged.
+
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.filter.probes.input]
+  }
+}
+
+// Health probes and Prometheus scrapes would otherwise produce several traces a second that nobody reads.
+otelcol.processor.filter "probes" {
+  error_mode = "ignore"
+
+  traces {
+    span = [
+      "IsMatch(attributes[\"http.route\"], \"^(/v1\\\\.0/api/health|/health|/metrics)(/.*)?$\")",
+    ]
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "garrison-tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=garrison"]
+  }
+}
+
+discovery.relabel "garrison" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "garrison-(server|worker-\\d+|dashboard)"
+    action        = "keep"
+  }
+
+  rule {
+    target_label = "app"
+    replacement  = "garrison"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "garrison-(server|worker|dashboard).*"
+    target_label  = "component"
+    replacement   = "$1"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "node"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "garrison" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.garrison.output
+  forward_to = [loki.process.garrison.receiver]
+}
+
+loki.process "garrison" {
+  // Garrison lines look like "2026-10-10 18:38:03 <node> Info [Component] message".
+  stage.regex {
+    expression = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2} \\S+ (?P<level>Debug|Info|Warn|Error|Alert|Critical|Emergency) "
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://garrison-loki:3100/loki/api/v1/push"
+  }
+}

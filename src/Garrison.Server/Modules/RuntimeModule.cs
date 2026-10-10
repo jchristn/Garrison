@@ -59,6 +59,8 @@ namespace Garrison.Server.Modules
             _Events = new RunEventService(context.Database, _Signals, context.Telemetry);
             _StructuredOutput = new StructuredOutputService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Options, context.Telemetry);
             _Events.StructuredOutput = _StructuredOutput;
+            _Runs.Logging = context.Logging;
+            _Events.Logging = context.Logging;
             _Analytics = new RunAnalyticsService(context.Database);
             _Nodes = new NodeService(context.Database, _Options, context.Audit);
             _Delegation = new DelegationPolicy(context.Database);

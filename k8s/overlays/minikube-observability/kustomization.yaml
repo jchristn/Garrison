@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: garrison
+
+# minikube plus the observability stack (components/observability): Prometheus, Loki, Tempo, Grafana, and Alloy.
+# Deploy with OBSERVABILITY=1 k8s/scripts/deploy-minikube.sh, or kubectl apply -k k8s/overlays/minikube-observability.
+# Grafana is a NodePort (30300) like the rest of the minikube overlay, and k8s/scripts/port-forward.sh forwards it
+# to http://127.0.0.1:3000, which is what the browser-facing URLs below assume (the NodePort URL is not reachable
+# with the Docker driver on macOS and Windows).
+resources:
+  - ../minikube
+
+components:
+  - ../../components/observability
+
+patches:
+  - path: observability-urls.yaml
+  - path: nodeports.yaml

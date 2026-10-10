@@ -20,3 +20,15 @@ workerPools:
       limits: { cpu: "4", memory: 4Gi }
     nodeSelector: {}
     tolerations: []
+# Observability (Prometheus, Loki, Tempo, Grafana, Alloy): --set observability.enabled=true. Grafana and
+# Prometheus get NodePorts like the other minikube services.
+observability:
+  enabled: false
+  grafana:
+    service:
+      type: NodePort
+      nodePort: 30300
+  prometheus:
+    service:
+      type: NodePort
+      nodePort: 30909

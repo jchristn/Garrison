@@ -1,0 +1,142 @@
+# Grafana: provisioned datasources (garrison-prometheus, garrison-loki, garrison-tempo) and the six Garrison
+# dashboards in the Garrison folder. Everything is provisioned, so Grafana keeps no state worth a volume.
+# Admin credentials come from Secret garrison-grafana (keys admin-user, admin-password), created by
+# k8s/scripts/generate-secrets.sh. GF_SERVER_ROOT_URL matches the port-forward default; overlays that expose
+# Grafana elsewhere patch it together with GARRISON_GRAFANA_URL.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-grafana
+  labels:
+    app.kubernetes.io/name: garrison-grafana
+    app.kubernetes.io/component: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-grafana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-grafana
+        app.kubernetes.io/component: observability
+    spec:
+      serviceAccountName: garrison-observability
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana-oss:13.0.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-grafana
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-grafana
+                  key: admin-password
+            - name: GF_SERVER_ROOT_URL
+              value: http://127.0.0.1:3000
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES
+              value: "false"
+            - name: GF_NEWS_NEWS_FEED_ENABLED
+              value: "false"
+            - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
+              value: /etc/grafana/dashboards/garrison/garrison-overview.json
+            - name: GF_LOG_LEVEL
+              value: warn
+            # Grafana 12+ tries to install bundled plugins at startup; the image directory is not writable here and
+            # the Garrison dashboards need only the built-in panels and datasources.
+            - name: GF_PLUGINS_PREINSTALL_DISABLED
+              value: "true"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+              readOnly: true
+            - name: dashboards
+              mountPath: /etc/grafana/dashboards/garrison
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/grafana
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 5
+      volumes:
+        - name: datasources
+          configMap:
+            name: garrison-grafana-datasources
+        - name: dashboard-provider
+          configMap:
+            name: garrison-grafana-dashboard-provider
+        - name: dashboards
+          projected:
+            sources:
+              - configMap:
+                  name: garrison-grafana-dashboard-overview
+              - configMap:
+                  name: garrison-grafana-dashboard-http
+              - configMap:
+                  name: garrison-grafana-dashboard-runs
+              - configMap:
+                  name: garrison-grafana-dashboard-workers
+              - configMap:
+                  name: garrison-grafana-dashboard-protocols
+              - configMap:
+                  name: garrison-grafana-dashboard-integrations
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-grafana
+  labels:
+    app.kubernetes.io/name: garrison-grafana
+spec:
+  selector:
+    app.kubernetes.io/name: garrison-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

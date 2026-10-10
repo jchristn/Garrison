@@ -47,3 +47,17 @@ ingress:
   tls:
     - hosts: [garrison.example.com]
       secretName: garrison-tls
+# Observability: most production clusters already run Prometheus, Grafana, Loki, and Tempo. Leave this off and point
+# your stack at the prometheus.io annotations, or enable it and set urls to your ingress hosts.
+observability:
+  enabled: false
+  urls:
+    grafana: https://grafana.garrison.example.com
+    prometheus: ""
+    loki: ""
+    tempo: ""
+  grafana:
+    ingress:
+      enabled: false
+      className: nginx
+      host: grafana.garrison.example.com

@@ -75,6 +75,11 @@ await check("run timing fields", async () => {
   require(typeof run.executionMs === "number" && run.executionMs >= 0, `executionMs ${run.executionMs}`);
   require((run.toolCallCount ?? 0) >= 0, `toolCallCount ${run.toolCallCount}`);
 });
+await check("run trace id", async () => {
+  const run = state.run;
+  require(run, "no finished run");
+  require(typeof run.traceId === "string" && /^[0-9a-f]{32}$/.test(run.traceId), `traceId ${run.traceId}`);
+});
 await check("stream events", async () => {
   const run = await client.runs.create({ input: "Stream this please", agentId: state.agent });
   let events = 0;

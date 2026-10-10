@@ -95,6 +95,7 @@ namespace Garrison.Server.Routes
             info.Features.Add("a2a");
             info.Features.Add("request-history");
             if (_Context.Telemetry.Active) info.Features.Add("telemetry");
+            info.Observability = _Context.Get<ObservabilityService>().Info();
             await RouteHelpers.JsonAsync(context, 200, info).ConfigureAwait(false);
         }
 

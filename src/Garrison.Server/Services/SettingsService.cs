@@ -133,10 +133,10 @@ namespace Garrison.Server.Services
                 f.Description = definition.Description;
                 f.Type = definition.Type;
                 f.Value = _Cluster.GetString(definition.Key);
-                f.IsSet = true;
-                f.Source = "Database";
+                f.IsSet = definition.Type != "string" || !String.IsNullOrEmpty(f.Value);
+                f.Source = _Cluster.IsOverridden(definition.Key) ? "Environment" : "Database";
                 f.ApplyMode = "Live";
-                f.Editable = true;
+                f.Editable = f.Source == "Database";
                 if (definition.Type == "int")
                 {
                     f.Minimum = definition.Minimum;
@@ -210,7 +210,12 @@ namespace Garrison.Server.Services
 
                     if (_Cluster.Find(item.Path) != null)
                     {
-                        if (_Cluster.Normalize(item.Path, item.Value, out string? clusterError, out string clusterCode) == null)
+                        if (_Cluster.IsOverridden(item.Path))
+                        {
+                            errors[item.Path] = "Overridden by an environment variable; change the environment instead.";
+                            codes[item.Path] = "OverriddenByEnvironment";
+                        }
+                        else if (_Cluster.Normalize(item.Path, item.Value, out string? clusterError, out string clusterCode) == null)
                         {
                             errors[item.Path] = clusterError ?? "Invalid value.";
                             codes[item.Path] = clusterCode;
@@ -420,6 +425,7 @@ namespace Garrison.Server.Services
             list.Add(Field("Telemetry.PrometheusPort", "int", false, "Prometheus listener port.", s => s.Telemetry.PrometheusPort.ToString(CultureInfo.InvariantCulture), (s, v) => s.Telemetry.PrometheusPort = ParseInt(v), 1L, 65535L, null));
             list.Add(Field("Telemetry.OtlpEnable", "bool", false, "Whether OTLP export is enabled.", s => Bool(s.Telemetry.OtlpEnable), (s, v) => s.Telemetry.OtlpEnable = ParseBool(v), null, null, null));
             list.Add(Field("Telemetry.OtlpEndpoint", "string", false, "OTLP endpoint.", s => s.Telemetry.OtlpEndpoint, (s, v) => s.Telemetry.OtlpEndpoint = v ?? String.Empty, null, null, null));
+            list.Add(Field("Telemetry.ServeMetricsOnServicePort", "bool", true, "Whether GET /metrics is also served on the REST port without authentication, relayed from the Prometheus listener, so kubectl port-forward and in-pod 127.0.0.1 scrapes work.", s => Bool(s.Telemetry.ServeMetricsOnServicePort), (s, v) => s.Telemetry.ServeMetricsOnServicePort = ParseBool(v), null, null, null));
             list.Add(Field("Cluster.ExpectedReplicas", "int", false, "Expected control-plane replicas (above 1 requires Postgresql).", s => s.Cluster.ExpectedReplicas.ToString(CultureInfo.InvariantCulture), (s, v) => s.Cluster.ExpectedReplicas = ParseInt(v), 1L, 1000L, null));
             return list;
         }

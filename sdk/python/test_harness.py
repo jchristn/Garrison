@@ -5,6 +5,7 @@ Usage: python test_harness.py [baseUrl] [accessKey] [secretKey]
 Requires a running server and a worker able to run the builtin/fake harness profile.
 """
 
+import re
 import sys
 import time
 import traceback
@@ -97,6 +98,8 @@ def t_run_metrics():
     require(ttft is not None and ttft >= 0, f"timeToFirstTokenMs {ttft}")
     require(execution is not None and execution >= 0, f"executionMs {execution}")
     require(run.get("toolCallCount", 0) >= 0, f"toolCallCount {run.get('toolCallCount')}")
+    trace_id = run.get("traceId")
+    require(isinstance(trace_id, str) and re.fullmatch(r"[0-9a-f]{32}", trace_id) is not None, f"traceId {trace_id}")
 
 
 def _window():

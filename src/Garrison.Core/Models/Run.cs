@@ -2,6 +2,7 @@ namespace Garrison.Core.Models
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
@@ -301,6 +302,38 @@ namespace Garrison.Core.Models
         public string? ServedModel { get; set; } = null;
 
         /// <summary>
+        /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, or null
+        /// for runs created before trace IDs were recorded. Server spans (run:create, run:claim, run:compile) and the
+        /// worker span (harness &lt;type&gt; exec) for the run share this trace. Always serialized, including when null.
+        /// </summary>
+        /// <exception cref="ArgumentException">Thrown when the value is not null and not 32 hexadecimal characters.</exception>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? TraceId
+        {
+            get
+            {
+                return _TraceId;
+            }
+            set
+            {
+                if (String.IsNullOrEmpty(value))
+                {
+                    _TraceId = null;
+                    return;
+                }
+                if (value.Length != 32 || !value.All(Uri.IsHexDigit)) throw new ArgumentException("TraceId must be 32 hexadecimal characters.", nameof(TraceId));
+                _TraceId = value.ToLowerInvariant();
+            }
+        }
+
+        /// <summary>
+        /// W3C traceparent of the span that created the run, used to parent the claim, compile, and harness spans. Not
+        /// serialized; written once when the run is created.
+        /// </summary>
+        [JsonIgnore]
+        public string? TraceParent { get; set; } = null;
+
+        /// <summary>
         /// Process exit code.
         /// </summary>
         public int? ExitCode { get; set; } = null;
@@ -538,6 +571,7 @@ namespace Garrison.Core.Models
         private string _DeploymentId = String.Empty;
         private int _Priority = 0;
         private int _RepairAttempts = 0;
+        private string? _TraceId = null;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<RunParameter> _Parameters = new List<RunParameter>();

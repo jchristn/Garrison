@@ -763,6 +763,7 @@ const tips = {
         detail: 'Sortie de la sonde, utile lorsqu\'un harness est indisponible.'
       },
       actions: {
+        grafana: 'Ouvrir le tableau de bord Workers and Harnesses dans Grafana dans un nouvel onglet, filtré sur le nœud {{node}}.',
         cordon: 'Cesser d\'envoyer de nouvelles exécutions à ce nœud. Les exécutions déjà présentes se terminent normalement.',
         uncordon: 'Autoriser à nouveau ce nœud à accepter de nouvelles exécutions.',
         drain: 'Bloquer les nouvelles exécutions et laisser les exécutions en cours se terminer, puis le nœud devient inactif. À utiliser avant de l\'arrêter.',
@@ -798,6 +799,14 @@ const tips = {
   },
   views: {
     home: {
+      observabilityState: {
+        reachable: 'Le serveur a joint {{service}} à son URL interne au cours des 30 dernières secondes.',
+        unreachable: 'Le serveur n\'a pas pu joindre {{service}} à son URL interne. Vérifiez que le service fonctionne et que le paramètre d\'URL interne pointe vers lui.',
+        checking: 'Le serveur est interrogé pour savoir si {{service}} est accessible.',
+        unknown: 'Le serveur n\'a pas indiqué si {{service}} est accessible. La vérification a échoué ou ce serveur ne la prend pas encore en charge.'
+      },
+      observabilityVersion: 'Version que {{service}} a indiquée lors de la vérification d\'état du serveur.',
+      kpisGrafana: 'Ouvrir le tableau de bord de vue d\'ensemble de Garrison dans Grafana dans un nouvel onglet pour suivre ces chiffres dans le temps.',
       observabilityDocs: 'Ouvrir le guide de télémétrie dans un nouvel onglet : comment collecter les métriques de Garrison et connecter Grafana, Prometheus, Tempo ou Loki.',
       observability: 'Liens vers les outils de métriques, de tableaux de bord et de traces que cette installation déclare configurés. Les services non configurés ne sont pas affichés.',
       kpis: {
@@ -828,6 +837,9 @@ const tips = {
       serviceGeneric: 'Ouvrir ce service fourni dans un nouvel onglet.'
     },
     runDetail: {
+      viewTrace: 'Ouvrir la trace de cette exécution dans Grafana Explore (Tempo) dans un nouvel onglet. Elle montre les spans de compilation, de prise en charge et du harness sur le serveur et le nœud worker.',
+      viewLogs: 'Ouvrir les lignes de journal du serveur et du worker concernant cette exécution dans Grafana Explore (Loki) dans un nouvel onglet, sur la période de l\'exécution.',
+      traceId: 'ID de trace W3C de la trace dans laquelle cette exécution a été compilée. Cherchez-le dans Tempo ou utilisez Voir la trace. Vide pour les exécutions créées avant l\'enregistrement des ID de trace.',
       eventCode: 'Le type de message que Garrison a écrit ici, dans votre langue. Le texte à côté est le message d\'origine du serveur ou du worker.',
       openTemplate: 'Ouvrir le modèle {{name}}. Cette exécution a utilisé la version {{version}} ; l\'onglet Versions montre ce contenu et l\'écart avec la version actuelle.',
       templatesUsed: 'Les versions exactes des modèles de prompt avec lesquelles cette exécution a été compilée. Cliquez sur l\'une d\'elles pour ouvrir le modèle et comparer les versions.',
@@ -960,6 +972,7 @@ const tips = {
       rawJson: 'Afficher la réponse brute des informations du serveur.'
     },
     requests: {
+      grafana: 'Ouvrir le tableau de bord HTTP dans Grafana dans un nouvel onglet : débit des requêtes, latence et erreurs dans le temps, d\'après les métriques Prometheus.',
       kpis: {
         total: 'Requêtes conservées par le serveur dans son historique pour la plage et les filtres sélectionnés.',
         success: 'Requêtes qui ont renvoyé un statut 2xx ou 3xx.',
@@ -1019,6 +1032,7 @@ const tips = {
       sourceGeneric: 'Provenance de la valeur actuelle.',
       testDatabase: 'Tester la connexion avec les paramètres de base de données ci-dessus avant de les enregistrer.',
       groups: {
+        Observability: 'Où se trouvent Grafana, Prometheus, Loki et Tempo. Les URL du navigateur alimentent les cartes de l\'accueil et les liens vers Grafana ; le serveur vérifie l\'accessibilité avec les URL internes. Vide signifie non configuré.',
         Runtime: 'Comment le plan de contrôle traite les exécutions en file d\'attente, notamment combien de temps une exécution peut attendre un worker compatible avant d\'échouer.',
         Rest: 'Comment l\'API REST écoute : hôte, port, TLS et adresse publique.',
         Mcp: 'Comment le serveur MCP écoute et combien de temps les appels d\'outils peuvent attendre.',
@@ -1036,6 +1050,7 @@ const tips = {
     }
   },
   analytics: {
+    grafana: 'Ouvrir le tableau de bord Runs and Scheduling dans Grafana dans un nouvel onglet, sur la même période que cette page.',
     filters: {
       ttft: 'Si la case est cochée, le graphique du délai avant le premier jeton omet le temps passé à attendre les agents délégués, pour comparer équitablement les agents qui délèguent à ceux qui répondent directement.',
       range: 'Fenêtre de temps de tous les graphiques et totaux : la dernière heure, le dernier jour, la dernière semaine, les 30 derniers jours, ou un début et une fin personnalisés.',

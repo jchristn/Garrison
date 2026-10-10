@@ -764,6 +764,7 @@ const tips = {
         detail: 'Ausgabe der Prüfung, hilfreich, wenn eine Harness nicht verfügbar ist.'
       },
       actions: {
+        grafana: 'Das Dashboard „Workers and Harnesses“ in Grafana in einem neuen Tab öffnen, gefiltert auf den Knoten {{node}}.',
         cordon: 'Keine neuen Läufe mehr an diesen Knoten senden. Bereits laufende Läufe enden normal.',
         uncordon: 'Diesen Knoten wieder neue Läufe annehmen lassen.',
         drain: 'Neue Läufe stoppen und aktuelle zu Ende laufen lassen, danach ist der Knoten untätig. Vor dem Herunterfahren verwenden.',
@@ -799,6 +800,14 @@ const tips = {
   },
   views: {
     home: {
+      observabilityState: {
+        reachable: 'Der Server hat {{service}} in den letzten 30 Sekunden über die interne URL erreicht.',
+        unreachable: 'Der Server konnte {{service}} über die interne URL nicht erreichen. Prüfen Sie, ob der Dienst läuft und die Einstellung für die interne URL auf ihn zeigt.',
+        checking: 'Der Server wird gefragt, ob {{service}} erreichbar ist.',
+        unknown: 'Der Server hat nicht gemeldet, ob {{service}} erreichbar ist. Die Statusprüfung ist fehlgeschlagen oder dieser Server unterstützt sie noch nicht.'
+      },
+      observabilityVersion: 'Version, die {{service}} bei der Integritätsprüfung des Servers gemeldet hat.',
+      kpisGrafana: 'Das Garrison-Übersichts-Dashboard in Grafana in einem neuen Tab öffnen, um diese Zahlen im Zeitverlauf zu sehen.',
       observabilityDocs: 'Die Telemetrie-Anleitung in einem neuen Tab öffnen: wie Sie Garrison-Metriken abrufen und Grafana, Prometheus, Tempo oder Loki anbinden.',
       observability: 'Links zu den Metrik-, Dashboard- und Tracing-Werkzeugen, die diese Installation als konfiguriert meldet. Nicht konfigurierte Dienste werden nicht angezeigt.',
       kpis: {
@@ -829,6 +838,9 @@ const tips = {
       serviceGeneric: 'Diesen mitgelieferten Dienst in einem neuen Tab öffnen.'
     },
     runDetail: {
+      viewTrace: 'Den Trace dieses Laufs in Grafana Explore (Tempo) in einem neuen Tab öffnen. Er zeigt die Spans für Kompilieren, Übernehmen und Harness auf Server und Worker-Knoten.',
+      viewLogs: 'Die Server- und Worker-Logzeilen zu diesem Lauf in Grafana Explore (Loki) in einem neuen Tab öffnen, begrenzt auf den Zeitraum des Laufs.',
+      traceId: 'W3C-Trace-ID des Traces, in dem dieser Lauf kompiliert wurde. Suchen Sie sie in Tempo oder nutzen Sie „Trace anzeigen“. Leer bei Läufen, die vor der Erfassung von Trace-IDs erstellt wurden.',
       eventCode: 'Welche Art Meldung Garrison hier geschrieben hat, in Ihrer Sprache. Der Text daneben ist die Originalmeldung von Server oder Worker.',
       openTemplate: 'Vorlage {{name}} öffnen. Dieser Lauf verwendete Version {{version}}; der Tab Versionen zeigt diesen Inhalt und den Unterschied zur aktuellen Version.',
       templatesUsed: 'Die genauen Versionen der Prompt-Vorlagen, mit denen dieser Lauf kompiliert wurde. Klicken Sie eine an, um die Vorlage zu öffnen und Versionen zu vergleichen.',
@@ -961,6 +973,7 @@ const tips = {
       rawJson: 'Die rohe Antwort der Serverinfo anzeigen.'
     },
     requests: {
+      grafana: 'Das HTTP-Dashboard in Grafana in einem neuen Tab öffnen: Anfrageraten, Latenz und Fehler im Zeitverlauf aus den Prometheus-Metriken.',
       kpis: {
         total: 'Anfragen, die der Server für den gewählten Zeitraum und die Filter in seinem Verlauf aufbewahrt hat.',
         success: 'Anfragen, die einen 2xx- oder 3xx-Status zurückgegeben haben.',
@@ -1020,6 +1033,7 @@ const tips = {
       sourceGeneric: 'Woher der aktuelle Wert stammt.',
       testDatabase: 'Vor dem Speichern versuchen, mit den obigen Datenbankeinstellungen eine Verbindung herzustellen.',
       groups: {
+        Observability: 'Wo Grafana, Prometheus, Loki und Tempo erreichbar sind. Browser-URLs speisen die Karten auf der Startseite und die Grafana-Links; interne URLs prüft der Server auf Erreichbarkeit. Leer bedeutet nicht konfiguriert.',
         Runtime: 'Wie die Steuerungsebene wartende Läufe behandelt, etwa wie lange ein Lauf auf einen passenden Worker warten darf, bevor er fehlschlägt.',
         Rest: 'Wie die REST-API lauscht: Host, Port, TLS und öffentliche Adresse.',
         Mcp: 'Wie der MCP-Server lauscht und wie lange Werkzeugaufrufe warten dürfen.',
@@ -1037,6 +1051,7 @@ const tips = {
     }
   },
   analytics: {
+    grafana: 'Das Dashboard „Runs and Scheduling“ in Grafana in einem neuen Tab öffnen, für denselben Zeitraum wie diese Seite.',
     filters: {
       ttft: 'Wenn aktiviert, lässt das Diagramm zur Zeit bis zum ersten Token die Wartezeit auf delegierte Agenten weg, damit delegierende Agenten fair mit direkt antwortenden verglichen werden.',
       range: 'Zeitfenster für alle Diagramme und Summen: die letzte Stunde, der letzte Tag, die letzte Woche, die letzten 30 Tage oder ein eigener Start und ein eigenes Ende.',
