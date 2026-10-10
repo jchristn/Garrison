@@ -86,7 +86,7 @@ Rules for keeping the plan honest:
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 17 / 20 |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 30 / 33 |
 | 8 | Documentation and Postman | M1 | In progress | 16 / 17 |
-| 9 | MVP verification (milestone M1) | M1 | In progress | 13 / 16 |
+| 9 | MVP verification (milestone M1) | M1 | In progress | 14 / 16 |
 | 10 | Control plane high availability and scale-out | M2 | Not started | 0 / 18 |
 | 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
 | 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 28 |
@@ -1313,7 +1313,7 @@ Scripts and validation
 - [x] P9.12 Same three agents invoked through REST, MCP (Voltaic client), and A2A (Voltaic client).  | claude 2026-10-10 K3S: claude-helper, codex-coder, and mux-helper each answered over REST, MCP (garrison_invoke_agent), and A2A SendMessage
 - [x] P9.13 Postman collection passes against the cluster through port-forward.  | claude 2026-10-10 Newman in Docker through port-forward to K3S: 196 requests, 218 assertions, 0 failures (Restart folder excluded)
 - [ ] P9.14 Lightweight simulated user session (README quick start followed literally, dashboard walkthrough, one SDK quick start) with findings recorded in `docs/testing/M1_SESSION.md` and surfaced to the user before fixes.
-- [ ] P9.15 CI workflows green on GitHub. **(requires push approval)**
+- [x] P9.15 CI workflows green on GitHub. **(requires push approval)**  | claude 2026-10-10 all five workflows green on b6b51ba (Tests net8.0 and net10.0, Dashboard, SDKs, Kubernetes with K3S smoke test, Text hygiene); first run caught a test race, fixed
 - [ ] P9.16 M1 sign-off: update the Progress Dashboard, `CHANGELOG.md`, and the decision log; record known gaps.
 
 ### Known gaps at M1 (recorded 2026-10-10)
