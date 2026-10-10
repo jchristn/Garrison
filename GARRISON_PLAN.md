@@ -1493,6 +1493,18 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 
 ### Phase 13: Observability stack and dashboards (M2)
 
+Contract shared by the infrastructure tasks (P13.1 to P13.11, P13.17) and the product tasks (P13.12 to P13.16, P13.18, P13.19):
+
+- Components: Prometheus (scrapes server and worker pods by pod IP using the `prometheus.io/*` annotations), Tempo (traces), Loki (logs), Grafana (UI), and Grafana Alloy as the collector: an OTLP receiver (gRPC 4317, HTTP 4318) forwarding traces to Tempo, plus log collection from Garrison pods (Kubernetes) or containers (Compose) into Loki with labels `app="garrison"`, `component` (`server`, `worker`, `dashboard`), and `node`. All images pinned.
+- Grafana datasource UIDs: `garrison-prometheus`, `garrison-loki`, `garrison-tempo`, with trace-to-logs and logs-to-trace links between Tempo and Loki. Dashboards in folder `Garrison` with UIDs `garrison-overview`, `garrison-http`, `garrison-runs`, `garrison-workers`, `garrison-protocols`, `garrison-integrations`. Dashboard variables `node`, `harness`, `agent` where they apply, so deep links can pass `var-node=...`.
+- Server and worker export OTLP to the collector when `Telemetry.OtlpEnable` is true (`GARRISON_OTLP_ENABLE`, `GARRISON_OTLP_ENDPOINT`; worker `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT`), set by the observability overlays and Compose profile.
+- Log lines that concern a run include `run=<runId>` and `trace=<traceId>` so `{app="garrison"} |= "<runId>"` finds them.
+- Cluster settings (browser-facing URLs, empty means not configured): `Observability.GrafanaUrl`, `Observability.PrometheusUrl`, `Observability.LokiUrl`, `Observability.TempoUrl`, with environment variables `GARRISON_GRAFANA_URL`, `GARRISON_PROMETHEUS_URL`, `GARRISON_LOKI_URL`, `GARRISON_TEMPO_URL`, plus internal URLs the server probes for reachability (`Observability.GrafanaInternalUrl` and so on, `GARRISON_GRAFANA_INTERNAL_URL` and so on; default to the browser URL).
+- `GET /v1.0/api/server-info` gains `observability`: `{ grafanaUrl, prometheusUrl, lokiUrl, tempoUrl, datasources: { prometheus, loki, tempo }, dashboards: { overview, http, runs, workers, protocols, integrations } }` (nulls when not configured). `GET /v1.0/api/observability/status` (any authenticated user) returns `[{ service, configured, reachable, version, checkedUtc }]` from server-side probes (Grafana `/api/health`, Prometheus `/-/ready`, Loki `/ready`, Tempo `/ready`), cached for 30 seconds.
+- Runs record `traceId` (32 hex characters, W3C) from the trace the run was compiled in; REST, MCP summary, SDK models.
+- Kubernetes: `k8s/components/observability`, enabled by new overlays `k8s/overlays/k3s-observability` and `k8s/overlays/minikube-observability` (and `OBSERVABILITY=1` in the deploy scripts); Helm value `observability.enabled`. Grafana admin credentials in Secret `garrison-grafana` created by `generate-secrets` (user `admin`, password from `GARRISON_GRAFANA_PASSWORD`, default `password`). `port-forward.sh` forwards Grafana to `127.0.0.1:${GRAFANA_PORT:-3000}` when present.
+- Compose: profile `observability` (`docker compose --profile observability up -d`, and `docker/update.sh --observability`), Grafana on `127.0.0.1:${GARRISON_GRAFANA_PORT:-3000}`, Prometheus `127.0.0.1:${GARRISON_PROMETHEUS_PORT:-9090}`.
+
 - [ ] P13.1 `components/observability`: Prometheus, Grafana, Tempo, Loki, OpenTelemetry Collector with pinned versions and probes.
 - [ ] P13.2 Prometheus scrape configuration for server and worker pods (annotations or ServiceMonitor option).
 - [ ] P13.3 Grafana provisioning (datasources with stable UIDs, dashboards provider into folder `Garrison`).
