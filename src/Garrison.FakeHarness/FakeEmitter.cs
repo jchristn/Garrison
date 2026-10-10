@@ -1,6 +1,7 @@
 namespace Garrison.FakeHarness
 {
     using System;
+    using System.Collections.Generic;
     using System.Text.Json;
     using System.Threading;
 
@@ -9,10 +10,25 @@ namespace Garrison.FakeHarness
     /// </summary>
     public class FakeEmitter
     {
+        #region Public-Members
+
+        /// <summary>
+        /// Session identifier reported in the stream.
+        /// </summary>
+        public string SessionId
+        {
+            get
+            {
+                return _SessionId;
+            }
+        }
+
+        #endregion
+
         #region Private-Members
 
         private readonly FakeOptions _Options;
-        private readonly string _SessionId = Guid.NewGuid().ToString();
+        private readonly string _SessionId;
 
         #endregion
 
@@ -22,9 +38,19 @@ namespace Garrison.FakeHarness
         /// Instantiate.
         /// </summary>
         /// <param name="options">Options.</param>
-        public FakeEmitter(FakeOptions options)
+        public FakeEmitter(FakeOptions options) : this(options, Guid.NewGuid().ToString())
+        {
+        }
+
+        /// <summary>
+        /// Instantiate with a known session identifier (used when resuming a session).
+        /// </summary>
+        /// <param name="options">Options.</param>
+        /// <param name="sessionId">Session identifier reported in the stream.</param>
+        public FakeEmitter(FakeOptions options, string sessionId)
         {
             _Options = options ?? throw new ArgumentNullException(nameof(options));
+            _SessionId = String.IsNullOrEmpty(sessionId) ? Guid.NewGuid().ToString() : sessionId;
         }
 
         #endregion
@@ -125,17 +151,29 @@ namespace Garrison.FakeHarness
                         Line(new { type = "stream_event", @event = new { type = "content_block_delta", index = 0, delta = new { type = "text_delta", text = chunk } } });
                         Delay();
                     }
-                    Line(new
+                    Dictionary<string, object?> result = new Dictionary<string, object?>();
+                    result["type"] = "result";
+                    result["subtype"] = fail ? "error_during_execution" : "success";
+                    result["is_error"] = fail;
+                    result["result"] = answer;
+                    result["session_id"] = _SessionId;
+                    result["total_cost_usd"] = 0.0001;
+                    result["usage"] = new { input_tokens = 12, output_tokens = 7, cache_read_input_tokens = 3, cache_creation_input_tokens = 0, output_tokens_details = new { thinking_tokens = 2 } };
+                    result["modelUsage"] = new Dictionary<string, object> { { "fake-model", new { outputTokens = 7, thinkingTokens = 2 } } };
+                    if (_Options.StructuredOutput && !fail)
                     {
-                        type = "result",
-                        subtype = fail ? "error_during_execution" : "success",
-                        is_error = fail,
-                        result = answer,
-                        session_id = _SessionId,
-                        total_cost_usd = 0.0001,
-                        usage = new { input_tokens = 12, output_tokens = 7, cache_read_input_tokens = 3, cache_creation_input_tokens = 0, output_tokens_details = new { thinking_tokens = 2 } },
-                        modelUsage = new System.Collections.Generic.Dictionary<string, object> { { "fake-model", new { outputTokens = 7, thinkingTokens = 2 } } }
-                    });
+                        try
+                        {
+                            using (JsonDocument structured = JsonDocument.Parse(answer))
+                            {
+                                result["structured_output"] = structured.RootElement.Clone();
+                            }
+                        }
+                        catch (JsonException)
+                        {
+                        }
+                    }
+                    Line(result);
                     break;
                 case "codex":
                     if (fail)

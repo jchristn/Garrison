@@ -4410,6 +4410,7 @@
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('timing telemetry is present', function () { var r = pm.response.json(); pm.expect(r).to.have.property('timeToFirstTokenMs'); pm.expect(r).to.have.property('executionMs'); pm.expect(r).to.have.property('queueMs'); pm.expect(r.toolCallCount).to.be.at.least(0); });",
+                  "pm.test('structured output validation fields are present', function () { var r = pm.response.json(); pm.expect(r).to.have.property('outputSchemaValid'); pm.expect(r).to.have.property('schemaValidationErrors'); pm.expect(r.repairAttempts).to.be.within(0, 1); });",
                   "pm.test('blockedReason is present and null for a run a worker took', function () { var r = pm.response.json(); pm.expect(r).to.have.property('blockedReason'); pm.expect(r.blockedReason).to.eql(null); });"
                 ]
               }

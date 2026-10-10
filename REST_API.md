@@ -2251,6 +2251,36 @@ The reason comes from a snapshot of node state that is reused for up to 3 second
 }
 ```
 
+##### Structured output validation (`outputSchemaValid`, `schemaValidationErrors`, `repairAttempts`)
+
+When the run's agent has an output schema (`outputSchemaJson`), the control plane validates the final output against it when a successful execution is reported. It validates the structured output the harness reported (Claude Code `structured_output`) when there is one, and otherwise parses the final `resultText` as JSON. A result that is one JSON document wrapped in a Markdown code fence (three backticks, optionally tagged `json`) is unwrapped first. Agents without an output schema skip validation.
+
+| Outcome of validation | What happens |
+|---|---|
+| Valid | The run succeeds. `outputSchemaValid` is `true` and `structuredOutputJson` holds the validated document as compact JSON, including when it came from `resultText`. |
+| Invalid, first time, resume possible | One repair attempt starts inside the same lease. The worker resumes the harness session in the run's directories with a prompt rendered from the deployment's `Repair` prompt binding, or from `builtin/structured-output-repair` when the deployment binds none. The run stays `Running`, `repairAttempts` becomes 1, and the repair's output is validated the same way. Its result, structured output, and session become the run's; usage, cost, tool calls, streaming time, and execution time are the sum of both executions. |
+| Invalid, no repair possible, or invalid again after the repair | The run fails with status `Failed`, outcome `SchemaValidationFailed`, and an `errorMessage` that names the first few validation errors and, when no repair ran, why. |
+
+A repair is possible when the deployment's harness profile has `supportsResume` set, the harness reported a session ID, no repair ran yet, cancellation was not requested, and the worker supports in-lease repairs. Every failed validation appends one `Warning` run event that lists the errors; its `rawEventJson` is a `SchemaValidationNotice` (`notice` is `SchemaValidationFailed`, plus `repairAttempt`, `source`, `errors`, `totalErrors`, `repairStarted`, and `noRepairReason`). The repair template version is added to the run's `templateVersions`.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `outputSchemaValid` | `bool?` | `true` when the final output validated, `false` when it did not, `null` when the agent has no output schema or no successful execution was validated. Always present. |
+| `schemaValidationErrors` | `string?` | The first few errors of the most recent failed validation, separated by `; `, each as `<location>: <message> (<keyword>)` with `(root)` for the document itself. `null` when the output validated or was not validated. Always present. |
+| `repairAttempts` | `int` | Structured output repairs started: 0 or 1. |
+
+```json
+{
+  "id": "run_mv2abe...",
+  "status": "Failed",
+  "outcome": "SchemaValidationFailed",
+  "repairAttempts": 1,
+  "outputSchemaValid": false,
+  "schemaValidationErrors": "/answer: Value is \"integer\" but should be \"string\" (type)",
+  "errorMessage": "Output does not match the agent's output schema after one repair attempt: /answer: Value is \"integer\" but should be \"string\" (type)."
+}
+```
+
 #### `DELETE /v1.0/api/tenants/{tenantId}/runs/{id}`
 
 Delete a finished run.
@@ -2822,17 +2852,19 @@ Report a run finished.
 |---|---|
 | Permission | Execute on `Node` |
 | Request body | `RunCompleteRequest` |
-| Response | `NodeAckResponse` |
+| Response | `RunCompleteResponse` |
 | Success | 200 |
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/runs/{runId}/complete" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"nodeId": "string", "epoch": 0, "status": "Pending", "outcome": "None", "exitCode": 0, "resultText": "string", "structuredOutputJson": "string", "sessionId": "string", "servedModel": "string", "stderrTail": "string", "errorMessage": "string", "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0, "costUsd": 0, "costEstimated": false, "reasoningTokens": 0, "firstTokenUtc": "2026-01-01T00:00:00Z", "lastTokenUtc": "2026-01-01T00:00:00Z", "timeToFirstTokenMs": 0, "streamingMs": 0, "executionMs": 0, "toolCallCount": 0, "completedUtc": "2026-01-01T00:00:00Z"}'
+  -d '{"nodeId": "string", "epoch": 0, "status": "Pending", "outcome": "None", "exitCode": 0, "resultText": "string", "structuredOutputJson": "string", "sessionId": "string", "servedModel": "string", "stderrTail": "string", "errorMessage": "string", "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0, "costUsd": 0, "costEstimated": false, "reasoningTokens": 0, "firstTokenUtc": "2026-01-01T00:00:00Z", "lastTokenUtc": "2026-01-01T00:00:00Z", "timeToFirstTokenMs": 0, "streamingMs": 0, "executionMs": 0, "toolCallCount": 0, "completedUtc": "2026-01-01T00:00:00Z", "repairAttempt": 0, "supportsRepair": true}'
 ```
 
 The timing fields (`firstTokenUtc`, `lastTokenUtc`, `timeToFirstTokenMs`, `streamingMs`, `executionMs`) are optional and may be `null`; the server stores them as reported (negative durations become 0) and computes `queueMs` and `totalMs` from its own clock.
+
+When a successful execution's output fails validation against the agent's output schema and a repair is possible, the response carries `repair` (an `ExecutionSpec`), `repairAttempt` (1), and `eventSequenceStart`. The run stays leased to the node: the worker numbers further events after `eventSequenceStart`, runs the repair in the same run directories, and reports completion again with `repairAttempt` set to 1. A repeated report for an execution the server already answered with a repair gets the same answer again. Workers that do not send `supportsRepair: true` never receive a repair.
 
 ### A2A
 
@@ -2929,7 +2961,7 @@ Workers authenticate with a credential that holds the `NodeAgent` role (by defau
 | `POST /v1.0/api/node/lease` | Long poll for up to `maxRuns` runs, waiting up to `waitMs`. Each assignment carries the run identifier, the epoch, the lease expiry, and the compiled `ExecutionSpec`. |
 | `POST /v1.0/api/node/runs/{runId}/started` | The harness started. Moves the run from Leased to Running. |
 | `POST /v1.0/api/node/runs/{runId}/events` | A batch of normalized events with worker-assigned sequences starting after the assignment's `eventSequenceStart` (1 for a run with no events yet). Re-sent sequences are ignored. |
-| `POST /v1.0/api/node/runs/{runId}/complete` | Terminal status, outcome, result, structured output, usage, cost, session identifier, served model, exit code, and stderr tail. |
+| `POST /v1.0/api/node/runs/{runId}/complete` | Terminal status, outcome, result, structured output, usage, cost, session identifier, served model, exit code, and stderr tail. The response may carry a structured output repair to run in the same lease (see the route above). |
 | `POST /v1.0/api/node/drain` | The worker is draining (body is a heartbeat). The node becomes Draining, or Offline when it holds no runs. |
 
 The `ExecutionSpec` is fully resolved: executable, argument list, environment, files, stdin, workspace instructions, parser, timeouts, MCP pre-flight checks, and values to scrub. Paths in it use the placeholders `$GARRISON_CONFIG_DIR`, `$GARRISON_WORKSPACE_DIR`, and `$GARRISON_HOME_DIR`, which the worker replaces with the run's directories. See `docs/HARNESSES.md`.
@@ -2958,7 +2990,7 @@ Named agent capability exposed by Garrison.
 | `skillDescriptionTemplateId` | `string?` | Template for the A2A skill description. |
 | `inputMode` | `AgentInputModeEnum` | Input mode. |
 | `inputSchemaJson` | `string?` | JSON Schema for structured input (unmanaged JSON). |
-| `outputSchemaJson` | `string?` | JSON Schema for structured output (unmanaged JSON). |
+| `outputSchemaJson` | `string?` | JSON Schema for structured output (unmanaged JSON). When set, each run's final output is validated against it, with one repair attempt when the harness can resume (see [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts)). |
 | `delegationMode` | `DelegationModeEnum` | Delegation mode. |
 | `delegationMaxDepth` | `int` | Maximum delegation depth below this agent. Minimum 0, maximum 10, default 2. |
 | `delegationAllowRecursion` | `bool` | Whether an agent may appear twice in a delegation chain. |
@@ -3167,6 +3199,8 @@ Fully resolved instructions for one harness invocation. Compiled by the control 
 | `mcpPreflight` | `List<ExecutionMcpCheck>` | MCP pre-flight checks. |
 | `scrubValues` | `List<string>` | Values to redact from stderr, events, and logs. |
 | `traceParent` | `string?` | W3C traceparent for span correlation. |
+| `retainForRepair` | `bool` | Whether the worker keeps the run directories after a successful execution because a structured output repair may follow (the agent has an output schema and the profile supports resume). Default false. |
+| `repairAttempt` | `int` | 0 for the original execution, 1 for a structured output repair, which reuses the original directories and skips workspace preparation. Default 0. |
 
 #### `HarnessTypeEnum`
 
@@ -3601,7 +3635,7 @@ Describes how to run one harness headless.
 | `maxOutputBytes` | `long` | Maximum stdout bytes before the run fails. Minimum 1024, maximum 1073741824, default 67108864. |
 | `stderrTailBytes` | `int` | Retained stderr tail size. Minimum 0, maximum 1048576, default 8000. |
 | `isolateHome` | `bool` | Whether each run gets its own HOME directory. |
-| `supportsResume` | `bool` | Whether the harness can resume a session. |
+| `supportsResume` | `bool` | Whether the harness can resume a session by ID. Required for the structured output repair; the profile's arguments must pass `run.resumeSessionId` (see `docs/HARNESSES.md`). |
 | `isBuiltIn` | `bool` | Whether the profile is seeded by the platform. |
 | `builtInKey` | `string?` | Stable built-in key. |
 | `active` | `bool` | Whether the record is active. |
@@ -4050,6 +4084,9 @@ One invocation of one deployment.
 | `cancelRequested` | `bool` | Whether cancellation was requested. |
 | `resultText` | `string?` | Final result text. |
 | `structuredOutputJson` | `string?` | Structured output (unmanaged JSON). |
+| `outputSchemaValid` | `bool?` | Whether the final output validated against the agent's output schema; `null` when not validated. Always present. See [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts). |
+| `schemaValidationErrors` | `string?` | First few errors of the most recent failed schema validation, or `null`. Always present. |
+| `repairAttempts` | `int` | Structured output repair attempts started (0 or 1). |
 | `sessionId` | `string?` | Harness session identifier. |
 | `servedModel` | `string?` | Model that served the run. |
 | `exitCode` | `int?` | Process exit code. |
@@ -4083,6 +4120,8 @@ One invocation of one deployment.
 `None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`
 
 `NoCapableWorker` means the run stayed queued with no Ready worker able to run it for longer than `Runtime.FailBlockedAfterSeconds`.
+
+`SchemaValidationFailed` means the final output did not validate against the agent's output schema, either after the one repair attempt or immediately when no repair was possible (for example the harness profile does not support resume). See [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts).
 
 #### `RunBlockedReasonEnum`
 
@@ -4403,6 +4442,20 @@ Worker report that a run finished.
 | `costUsd` | `double?` | Cost in USD. |
 | `costEstimated` | `bool` | Whether the cost is estimated. |
 | `completedUtc` | `DateTime` | Completion time (UTC). |
+| `repairAttempt` | `int` | Execution this report covers: 0 for the original execution, 1 for the structured output repair. Default 0. |
+| `supportsRepair` | `bool` | Whether the worker can run a structured output repair inside the same lease. Default false. |
+
+#### `RunCompleteResponse`
+
+Control plane answer to a completion report.
+
+| Field | Type | Description |
+|---|---|---|
+| `accepted` | `bool` | Whether the report was accepted. |
+| `message` | `string?` | Optional message. |
+| `repair` | `ExecutionSpec?` | Spec of the structured output repair to run in the same lease, or `null` when the run is finished. |
+| `repairAttempt` | `int` | Repair attempt the spec runs (1), or 0. |
+| `eventSequenceStart` | `long` | Last stored event sequence (including the validation warning); the repair's events follow it. 0 when there is no repair. |
 
 #### `RunCreateRequest`
 

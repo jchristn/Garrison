@@ -859,6 +859,13 @@ const yueHant = {
       caller: '呼叫者',
       parent: '上層執行',
       attempt: '嘗試次數',
+      outputSchema: '輸出結構',
+      outputSchemaStates: {
+        valid: '有效',
+        validAfterRepair: '修復一次之後有效',
+        invalid: '無效',
+        invalidAfterRepair: '修復一次之後仍然無效'
+      },
       started: '開始時間',
       completed: '完成時間',
       exitCode: '結束碼',

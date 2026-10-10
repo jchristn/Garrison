@@ -156,10 +156,10 @@ namespace Garrison.Worker.Protocol
         /// <param name="runId">Run identifier.</param>
         /// <param name="request">Request.</param>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>Acknowledgement.</returns>
-        public Task<NodeAckResponse> CompleteAsync(string runId, RunCompleteRequest request, CancellationToken token = default)
+        /// <returns>Response; carries a structured output repair spec when the control plane wants one.</returns>
+        public Task<RunCompleteResponse> CompleteAsync(string runId, RunCompleteRequest request, CancellationToken token = default)
         {
-            return PostAsync<NodeAckResponse>("/v1.0/api/node/runs/" + Uri.EscapeDataString(runId) + "/complete", request, runId, _CallTimeoutMs, token);
+            return PostAsync<RunCompleteResponse>("/v1.0/api/node/runs/" + Uri.EscapeDataString(runId) + "/complete", request, runId, _CallTimeoutMs, token);
         }
 
         /// <summary>

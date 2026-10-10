@@ -860,6 +860,13 @@ const zhHans = {
       caller: '调用方',
       parent: '父运行',
       attempt: '尝试次数',
+      outputSchema: '输出架构',
+      outputSchemaStates: {
+        valid: '有效',
+        validAfterRepair: '经过一次修复后有效',
+        invalid: '无效',
+        invalidAfterRepair: '经过一次修复后仍无效'
+      },
       started: '开始时间',
       completed: '完成时间',
       exitCode: '退出码',

@@ -147,7 +147,9 @@
       "docs-token-codex_full",
       "git-token-codex_full",
       "run-token-golden"
-    ]
+    ],
+    "retainForRepair": true,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

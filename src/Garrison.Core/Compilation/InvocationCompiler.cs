@@ -30,6 +30,16 @@ namespace Garrison.Core.Compilation
         public static readonly string Redacted = "[REDACTED]";
 
         /// <summary>
+        /// Deployment prompt role used for the structured output repair prompt.
+        /// </summary>
+        public static readonly string RepairRole = "Repair";
+
+        /// <summary>
+        /// Built-in template used for the Repair role when a deployment binds none.
+        /// </summary>
+        public static readonly string RepairTemplateName = Constants.BuiltInPrefix + "structured-output-repair";
+
+        /// <summary>
         /// Compiler options.
         /// </summary>
         public CompilerOptions Options
@@ -87,6 +97,26 @@ namespace Garrison.Core.Compilation
         }
 
         /// <summary>
+        /// Compile a structured output repair for a run. The task prompt comes from the deployment's Repair prompt
+        /// binding, or from the built-in <c>builtin/structured-output-repair</c> template when the deployment binds
+        /// none, and <c>run.resumeSessionId</c> is set so the harness profile's resume arguments apply.
+        /// </summary>
+        /// <param name="run">Run (with parameters loaded).</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="repair">Repair inputs.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Compilation result.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run or repair is null.</exception>
+        /// <exception cref="CompilationException">Thrown when the run cannot be compiled.</exception>
+        public async Task<CompilationResult> CompileRepairAsync(Run run, string? runToken, CompilationRepair repair, CancellationToken token = default)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            if (repair == null) throw new ArgumentNullException(nameof(repair));
+            CompilationInputs inputs = await LoadAsync(run.TenantId, run.DeploymentId, true, token).ConfigureAwait(false);
+            return Compile(inputs, run, runToken, repair);
+        }
+
+        /// <summary>
         /// Compile a preview for a deployment with secret values redacted.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
@@ -135,7 +165,21 @@ namespace Garrison.Core.Compilation
         /// <param name="token">Cancellation token.</param>
         /// <returns>Inputs.</returns>
         /// <exception cref="CompilationException">Thrown when a reference is missing or a template is invalid.</exception>
-        public async Task<CompilationInputs> LoadAsync(string tenantId, string deploymentId, CancellationToken token = default)
+        public Task<CompilationInputs> LoadAsync(string tenantId, string deploymentId, CancellationToken token = default)
+        {
+            return LoadAsync(tenantId, deploymentId, false, token);
+        }
+
+        /// <summary>
+        /// Load and validate everything a deployment references, optionally including the Repair prompt role.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="deploymentId">Deployment identifier.</param>
+        /// <param name="includeRepair">Whether to resolve the Repair role, falling back to the built-in repair template when the deployment binds none.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Inputs.</returns>
+        /// <exception cref="CompilationException">Thrown when a reference is missing or a template is invalid.</exception>
+        public async Task<CompilationInputs> LoadAsync(string tenantId, string deploymentId, bool includeRepair, CancellationToken token = default)
         {
             CompilationInputs inputs = new CompilationInputs();
             inputs.Tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
@@ -192,6 +236,19 @@ namespace Garrison.Core.Compilation
                 }
             }
 
+            if (includeRepair && !inputs.Prompts.ContainsKey(RepairRole))
+            {
+                PromptTemplate repair = await _Database.PromptTemplates.ReadByNameAsync(tenantId, RepairTemplateName, token).ConfigureAwait(false)
+                    ?? throw new CompilationException("ReferenceNotFound", "Prompt template " + RepairTemplateName + " for role " + RepairRole + " was not found.");
+                BoundPrompt bound = new BoundPrompt();
+                bound.Role = RepairRole;
+                bound.TemplateId = repair.Id;
+                bound.TemplateName = repair.Name;
+                bound.Version = repair.CurrentVersion;
+                bound.Content = repair.Content;
+                inputs.Prompts[RepairRole] = bound;
+            }
+
             await LoadIncludesAsync(tenantId, inputs, token).ConfigureAwait(false);
             return inputs;
         }
@@ -205,6 +262,20 @@ namespace Garrison.Core.Compilation
         /// <returns>Result.</returns>
         /// <exception cref="CompilationException">Thrown when compilation fails.</exception>
         public CompilationResult Compile(CompilationInputs inputs, Run run, string? runToken)
+        {
+            return Compile(inputs, run, runToken, null);
+        }
+
+        /// <summary>
+        /// Compile loaded inputs, optionally as a structured output repair.
+        /// </summary>
+        /// <param name="inputs">Inputs (loaded with the Repair role when repair is set).</param>
+        /// <param name="run">Run.</param>
+        /// <param name="runToken">Run token, or null.</param>
+        /// <param name="repair">Repair inputs, or null for the original execution.</param>
+        /// <returns>Result.</returns>
+        /// <exception cref="CompilationException">Thrown when compilation fails.</exception>
+        public CompilationResult Compile(CompilationInputs inputs, Run run, string? runToken, CompilationRepair? repair)
         {
             if (inputs == null) throw new ArgumentNullException(nameof(inputs));
             if (run == null) throw new ArgumentNullException(nameof(run));
@@ -223,7 +294,7 @@ namespace Garrison.Core.Compilation
             Dictionary<string, string> parameters = RunOverrideValidator.Effective(deployment, run.Parameters);
             bool delegationEnabled = agent.DelegationMode != DelegationModeEnum.None && !String.IsNullOrEmpty(runToken);
 
-            TemplateContext context = BaseContext(inputs, run, parameters, delegationEnabled);
+            TemplateContext context = BaseContext(inputs, run, parameters, delegationEnabled, repair);
             Dictionary<string, object?> secrets = SecretContext(inputs, scrub);
             context.Set("secret", secrets);
 
@@ -235,8 +306,13 @@ namespace Garrison.Core.Compilation
 
             string system = RenderPrompt(inputs, "System", context, includes, usedIncludes);
             string taskRole = (run.Depth > 0 || run.Kind == RunKindEnum.Delegated) && inputs.Prompts.ContainsKey("DelegatedTask") ? "DelegatedTask" : "Task";
+            if (repair != null)
+            {
+                if (!inputs.Prompts.ContainsKey(RepairRole)) throw new CompilationException("ReferenceNotFound", "No template is bound to role " + RepairRole + " for the structured output repair.");
+                taskRole = RepairRole;
+            }
             string task = inputs.Prompts.ContainsKey(taskRole) ? RenderPrompt(inputs, taskRole, context, includes, usedIncludes) : (run.InputText ?? String.Empty);
-            if (profile.SystemPromptDelivery == SystemPromptDeliveryEnum.PrependToPrompt && system.Length > 0)
+            if (repair == null && profile.SystemPromptDelivery == SystemPromptDeliveryEnum.PrependToPrompt && system.Length > 0)
             {
                 task = system + Environment.NewLine + Environment.NewLine + task;
             }
@@ -310,6 +386,8 @@ namespace Garrison.Core.Compilation
             spec.StderrTailBytes = profile.StderrTailBytes;
             spec.IsolateHome = profile.IsolateHome;
             spec.TraceParent = Activity.Current?.Id;
+            spec.RepairAttempt = repair?.Attempt ?? 0;
+            spec.RetainForRepair = repair == null && profile.SupportsResume && !String.IsNullOrWhiteSpace(agent.OutputSchemaJson);
 
             foreach (McpServerEntry server in servers)
             {
@@ -383,7 +461,7 @@ namespace Garrison.Core.Compilation
             }
         }
 
-        private TemplateContext BaseContext(CompilationInputs inputs, Run run, Dictionary<string, string> parameters, bool delegationEnabled)
+        private TemplateContext BaseContext(CompilationInputs inputs, Run run, Dictionary<string, string> parameters, bool delegationEnabled, CompilationRepair? repair)
         {
             Deployment deployment = inputs.Deployment;
             Agent agent = inputs.Agent;
@@ -455,7 +533,16 @@ namespace Garrison.Core.Compilation
             runMap["systemPromptPath"] = ExecutionPlaceholders.ConfigDir + "/system-prompt.md";
             List<string> chain = (run.CallChain ?? String.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
             runMap["callChain"] = chain.Cast<object?>().ToList();
+            runMap["resumeSessionId"] = repair?.SessionId;
             context.Set("run", runMap);
+
+            Dictionary<string, object?> repairMap = TemplateContext.NewMap();
+            repairMap["error"] = repair?.Error;
+            repairMap["schema"] = repair == null ? null : agentMap["outputSchema"];
+            repairMap["attempt"] = repair?.Attempt ?? 0;
+            repairMap["sessionId"] = repair?.SessionId;
+            repairMap["previousOutput"] = repair?.PreviousOutput;
+            context.Set("repair", repairMap);
 
             Dictionary<string, object?> inputMap = TemplateContext.NewMap();
             inputMap["message"] = run.InputText ?? String.Empty;

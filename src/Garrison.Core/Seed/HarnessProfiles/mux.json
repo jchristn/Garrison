@@ -111,7 +111,16 @@
       "template": "$GARRISON_CONFIG_DIR/last-message.txt"
     },
     {
-      "template": "--no-session-persistence"
+      "template": "--no-session-persistence",
+      "condition": "{{#unless agent.outputSchema}}true{{/unless}}"
+    },
+    {
+      "template": "--resume",
+      "condition": "{{run.resumeSessionId}}"
+    },
+    {
+      "template": "{{run.resumeSessionId}}",
+      "condition": "{{run.resumeSessionId}}"
     }
   ],
   "environment": [

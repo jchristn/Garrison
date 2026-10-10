@@ -54,6 +54,10 @@ namespace Garrison.Core.Database.Ado
             v2.BuildVersion2();
             migrations.Add(new SchemaMigration(2, "Run timing telemetry", v2._Statements, v2._Columns));
 
+            SchemaBuilder v3 = new SchemaBuilder(catalog, dialect);
+            v3.BuildVersion3();
+            migrations.Add(new SchemaMigration(3, "Structured output validation and repair", v3._Statements, v3._Columns));
+
             return migrations;
         }
 
@@ -95,6 +99,16 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion3()
+        {
+            SqlDialect d = _Dialect;
+
+            // runs: structured output validation against the agent's output schema and the repair attempt (P3.2.7)
+            Column("runs", "outputschemavalid", d.TypeBool);
+            Column("runs", "schemavalidationerrors", d.TypeText);
+            Column("runs", "repairattempts", d.TypeInt + " NOT NULL DEFAULT 0");
         }
 
         private void BuildVersion2()

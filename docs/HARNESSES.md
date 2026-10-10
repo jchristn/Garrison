@@ -43,7 +43,7 @@ claude -p --output-format stream-json --verbose [--include-partial-messages] --s
        --max-turns <maxTurns, default 20> [--max-budget-usd <maxBudgetUsd>]
        [--mcp-config $GARRISON_CONFIG_DIR/mcp.json] --strict-mcp-config
        --allowedTools <allowedTools, default Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,mcp__garrison>
-       [--json-schema <agent output schema>]
+       [--json-schema <agent output schema>] [--resume <session>]
 ```
 
 `--setting-sources ""` and `--strict-mcp-config` keep the harness from picking up user settings or MCP servers that happen to exist on the worker. Credentials come from a secret of kind `AnthropicApiKey` (as `ANTHROPIC_API_KEY`) or `ClaudeCodeOAuthToken` (as `CLAUDE_CODE_OAUTH_TOKEN`). Deployment parameters: `permissionMode`, `allowedTools`, `anthropicBaseUrl`, `mcpToolTimeoutMs` (default 600000), and `disablePartialMessages`.
@@ -58,7 +58,7 @@ codex exec --json --skip-git-repo-check --ignore-user-config
       -c project_doc_max_bytes=0 [-c model_reasoning_effort=<effort>]
       [-c model_instructions_file="$GARRISON_CONFIG_DIR/system-prompt.md"]
       --config=mcp_servers.<name>.url=... (and headers, required, tool_timeout_sec, approval mode, command, args, env)
-      [--output-schema $GARRISON_CONFIG_DIR/output-schema.json] -
+      [--output-schema $GARRISON_CONFIG_DIR/output-schema.json] [resume <session>] -
 ```
 
 `--ignore-user-config` and `project_doc_max_bytes=0` stop Codex from reading the worker's own configuration or an `AGENTS.md` in the workspace. MCP bearer tokens are never written into arguments: each header is passed by environment variable name (`env_http_headers`), and the worker sets those variables. Credentials come from a secret of kind `OpenAiApiKey` (as both `CODEX_API_KEY` and `OPENAI_API_KEY`) or `CodexAuthJson`, which is written to `$HOME/.codex/auth.json` with mode 600. Deployment parameters: `sandbox` and `openaiBaseUrl`.
@@ -74,7 +74,8 @@ mux --print --config-dir $GARRISON_CONFIG_DIR/mux -e garrison --output-format js
     [--system-prompt $GARRISON_CONFIG_DIR/system-prompt.md]
     [--mcp-config $GARRISON_CONFIG_DIR/mux-mcp.json --strict-mcp-config]
     [--output-schema $GARRISON_CONFIG_DIR/output-schema.json]
-    --output-last-message $GARRISON_CONFIG_DIR/last-message.txt --no-session-persistence
+    --output-last-message $GARRISON_CONFIG_DIR/last-message.txt
+    [--no-session-persistence (only when the agent has no output schema)] [--resume <session>]
 ```
 
 Mux talks to whatever model endpoint you point it at. The profile writes a private config directory with three files rendered from prompt templates: `endpoints.json` (`builtin/mux-endpoints`, one endpoint named `garrison` built from the deployment parameters `adapterType` (default `openai-compatible`), `baseUrl` (default `https://api.openai.com/v1`), and `timeoutMs`, plus the deployment model), `settings.json`, and `subagents.json`. The API key comes from a secret of kind `OpenAiApiKey`, exposed as `GARRISON_MUX_API_KEY` and referenced from `endpoints.json`, so it never appears in a file.
@@ -83,7 +84,7 @@ Mux talks to whatever model endpoint you point it at. The profile writes a priva
 
 ```text
 gemini -p "" -o stream-json --skip-trust --approval-mode <approvalMode, default yolo>
-       [-m <model>] [--allowed-mcp-server-names <names>]
+       [-m <model>] [--allowed-mcp-server-names <names>] [--resume <session>]
 ```
 
 Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` from `builtin/gemini-settings`, and the system prompt is passed as the file named by `GEMINI_SYSTEM_MD`. The key comes from a secret of kind `GeminiApiKey`. Gemini CLI is not in the worker image unless it is built with `INCLUDE_GEMINI=true`.
@@ -92,7 +93,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 
 `builtin/generic-jsonl` is a starting point for any CLI that reads a prompt on stdin and prints one JSON object per line. Set the `executable` parameter (and `argument1`, `argument2` if it needs them) on the deployment, or clone the profile and set the four field paths described under Parsers below. A secret of kind `GenericEnv` becomes `API_KEY`.
 
-`builtin/fake` runs `garrison-fake-harness`, which echoes the prompt in Claude Code's stream-json format without spending tokens. Its deployment parameters are `format` (`claude`, `codex`, `mux`, or `plain`), `delayMs`, `scenario`, and `exitCode`. Tests and the cluster smoke test use it.
+`builtin/fake` runs `garrison-fake-harness`, which echoes the prompt in Claude Code's stream-json format without spending tokens. Its deployment parameters are `format` (`claude`, `codex`, `mux`, or `plain`), `delayMs`, `scenario`, `exitCode`, `answer` (text to answer with instead of the echo), `resumeAnswer` (the answer when a session is resumed), and `structuredOutput` (`true` also reports the answer as Claude Code's `structured_output` when it is JSON). It supports resume: each session is kept under `$HOME/.garrison-fake/sessions`, so a resume only works in the same run home, like a real CLI. Tests and the cluster smoke test use it.
 
 ## Profile fields
 
@@ -115,6 +116,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 | `maxOutputBytes` | Stdout limit; the run fails with `OutputLimitExceeded` beyond it (default 64 MiB). |
 | `stderrTailBytes` | How much stderr to keep for diagnosis (default 8000). |
 | `isolateHome` | Give each run its own `HOME` (and `USERPROFILE`, and `CODEX_HOME` for Codex). On by default for every built-in. |
+| `supportsResume` | Whether the harness can resume a session by ID. Required for the structured output repair (see [Structured output validation and repair](#structured-output-validation-and-repair)); the profile's arguments must use `run.resumeSessionId`. On for `builtin/claude-code`, `builtin/codex`, `builtin/mux`, `builtin/gemini-cli`, and `builtin/fake`. |
 | `successExitCodes`, `probeArguments` | Exit codes that count as success, and the arguments used to check the harness is installed (`--version`). |
 | `credentialEnvironmentAllowlist` | The only environment variables allowed to reference a secret. When the list is not empty, an environment template (from the profile or a deployment override) that references a secret under any other name fails compilation with `SecretNotAllowed`. |
 
@@ -158,7 +160,8 @@ Every string in a profile is rendered with the Garrison template language (see `
 | `tenant` | `id`, `name` |
 | `agent` | `id`, `name`, `displayName`, `description`, `version`, `outputSchema`, `inputSchema` (compact JSON), `tags`, `skills`, `delegation` (`mode`, `maxDepth`, `allowRecursion`, `allowList`) |
 | `deployment` | `id`, `name`, `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd`, `timeoutSeconds`, `version`, `parameters` (deployment parameters merged with allowed run overrides) |
-| `run` | `id`, `kind`, `depth`, `attempt`, `parentRunId`, `rootRunId`, `deadlineUtc`, `callChain`, and the directory placeholders |
+| `run` | `id`, `kind`, `depth`, `attempt`, `parentRunId`, `rootRunId`, `deadlineUtc`, `callChain`, `resumeSessionId` (the session to resume during a structured output repair, otherwise empty), and the directory placeholders |
+| `repair` | During a structured output repair: `error`, `schema`, `previousOutput`, `attempt`, `sessionId`. Empty otherwise. See `docs/PROMPTS.md` |
 | `input` | `message`, `contentType`, `parameters` (map), `parameterList` (list of `name` and `value`) |
 | `caller` | `type`, `id`, `name`, `agentName` (the delegating agent, when there is one) |
 | `prompts` | `system` and `task`, the rendered prompts |
@@ -209,7 +212,7 @@ For each run the worker:
 3. Runs MCP pre-flight: each HTTP MCP server marked required, or with required tools, must answer `initialize` and `tools/list` within `McpPreflightTimeoutMs` and offer the required tools. If not, the run fails with `McpPreflightFailed` before the harness starts.
 4. Launches the process with the allowlisted environment plus the spec's variables, writes stdin, and parses stdout line by line into events, flushing them to the control plane in batches.
 5. Applies the deadline and cancellation by stopping the process tree, waiting `killGraceSeconds`, then killing it.
-6. Decides the outcome, reads the result, scrubs secrets, reports completion, and deletes `config/` and `home/` (and the workspace too, unless the workspace template keeps it).
+6. Decides the outcome, reads the result, scrubs secrets, reports completion, and deletes `config/` and `home/` (and the workspace too, unless the workspace template keeps it). When the spec has `retainForRepair` set, the directories stay until the control plane has answered the completion report, because the answer may be a structured output repair that resumes the session in them.
 
 Workers probe for `claude`, `codex`, `mux`, `gemini`, and `garrison-fake-harness` at startup and every `ProbeIntervalSeconds`. Each one found adds the label `garrison.io/harness-<label>=true` (`claude`, `codex`, `mux`, `gemini`, `fake`) and its harness type to the node's capabilities.
 
@@ -225,7 +228,30 @@ Workers probe for `claude`, `codex`, `mux`, `gemini`, and `garrison-fake-harness
 | `OutputLimitExceeded` | Stdout passed `maxOutputBytes` |
 | `TimedOut`, `Cancelled` | Deadline reached or cancelled |
 | `NodeLost`, `StaleLease` | The worker disappeared or lost its lease |
-| `CompileFailed`, `WorkspaceFailed`, `SchemaValidationFailed`, `Rejected`, `InternalError` | Failures before or around the harness |
+| `SchemaValidationFailed` | The output did not validate against the agent's output schema, after the one repair attempt or immediately when no repair was possible (decided by the control plane, see below) |
+| `CompileFailed`, `WorkspaceFailed`, `Rejected`, `InternalError` | Failures before or around the harness |
+
+### Structured output validation and repair
+
+When the agent has an output schema, the control plane validates the output of a successful execution against it as soon as the worker reports completion. The document validated is the structured output the parser found (Claude Code's `structured_output`) or, when there is none, the final result text parsed as JSON. Claude Code, Codex, and Mux also receive the schema natively (`--json-schema`, `--output-schema`), but Garrison does not rely on that.
+
+If validation fails, Garrison makes at most one repair attempt, and only when all of these hold:
+
+- the deployment's harness profile has `supportsResume` set and its arguments pass `run.resumeSessionId` to the harness;
+- the harness reported a session ID for the run;
+- the run was not cancelled, and the worker supports in-lease repairs (every current worker does).
+
+The repair runs inside the same lease, on the same worker, in the same `work/`, `home/`, and `config/` directories, because every built-in harness keeps its sessions under the run's home or config directory. The control plane answers the completion report with a second `ExecutionSpec` compiled with `run.resumeSessionId` set and the `Repair` prompt as the task prompt (`docs/PROMPTS.md`); the worker skips workspace preparation, rewrites the files, launches the harness again, and reports completion with `repairAttempt` 1. How each built-in resumes:
+
+| Profile | Resume arguments |
+|---|---|
+| `builtin/claude-code` | `--resume <session_id>` |
+| `builtin/codex` | `codex exec ... resume <thread_id> -` (the `exec resume` subcommand, prompt still on stdin) |
+| `builtin/mux` | `--resume <sessionId>`; sessions are persisted only for agents with an output schema |
+| `builtin/gemini-cli` | `--resume <session_id>` |
+| `builtin/fake` | `--resume <session>` |
+
+A profile without `supportsResume` (for example a clone with it turned off, or `builtin/generic-jsonl`) gets no repair: an invalid output fails the run at once with `SchemaValidationFailed`, and the error message says that the profile does not support resume. A cloned profile that sets `supportsResume` must also add resume arguments conditioned on `{{run.resumeSessionId}}`, or the repair prompt would start a fresh session without the original context.
 
 ### Quirks Garrison handles
 

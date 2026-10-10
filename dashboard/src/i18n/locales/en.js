@@ -885,6 +885,13 @@ const en = {
       caller: 'Caller',
       parent: 'Parent run',
       attempt: 'Attempt',
+      outputSchema: 'Output schema',
+      outputSchemaStates: {
+        valid: 'Valid',
+        validAfterRepair: 'Valid after one repair',
+        invalid: 'Invalid',
+        invalidAfterRepair: 'Invalid after one repair'
+      },
       started: 'Started',
       completed: 'Completed',
       exitCode: 'Exit code',

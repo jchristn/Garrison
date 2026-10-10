@@ -18,5 +18,14 @@ namespace Garrison.Worker.Execution
         /// <param name="token">Cancellation token; cancellation stops the harness and yields a Cancelled report.</param>
         /// <returns>Completion report (NodeId and Epoch are filled by the caller).</returns>
         Task<RunCompleteRequest> ExecuteAsync(RunAssignment assignment, IRunReporter reporter, CancellationToken token);
+
+        /// <summary>
+        /// Apply workspace retention to a run whose directories were kept for a possible structured output repair
+        /// (<see cref="Garrison.Core.Compilation.ExecutionSpec.RetainForRepair"/>). Called once the run is finally
+        /// reported. Safe to call when the directories are already gone.
+        /// </summary>
+        /// <param name="assignment">Original assignment of the run.</param>
+        /// <param name="succeeded">Whether the run's last execution succeeded.</param>
+        void Release(RunAssignment assignment, bool succeeded);
     }
 }

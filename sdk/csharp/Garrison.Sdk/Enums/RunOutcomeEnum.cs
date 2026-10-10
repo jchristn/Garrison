@@ -46,7 +46,8 @@ namespace Garrison.Sdk.Enums
         OutputLimitExceeded,
 
         /// <summary>
-        /// SchemaValidationFailed.
+        /// SchemaValidationFailed: the final output did not validate against the agent's output schema, after the one
+        /// repair attempt or at once when the harness profile cannot resume a session.
         /// </summary>
         SchemaValidationFailed,
 

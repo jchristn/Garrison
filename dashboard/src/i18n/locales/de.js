@@ -881,6 +881,13 @@ const de = {
       caller: 'Aufrufer',
       parent: 'Übergeordneter Lauf',
       attempt: 'Versuch',
+      outputSchema: 'Ausgabeschema',
+      outputSchemaStates: {
+        valid: 'Gültig',
+        validAfterRepair: 'Gültig nach einer Reparatur',
+        invalid: 'Ungültig',
+        invalidAfterRepair: 'Ungültig nach einer Reparatur'
+      },
       started: 'Gestartet',
       completed: 'Abgeschlossen',
       exitCode: 'Exit-Code',

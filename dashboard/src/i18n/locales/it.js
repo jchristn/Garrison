@@ -895,6 +895,13 @@ const it = {
       caller: 'Chiamante',
       parent: 'Esecuzione padre',
       attempt: 'Tentativo',
+      outputSchema: 'Schema di output',
+      outputSchemaStates: {
+        valid: 'Valido',
+        validAfterRepair: 'Valido dopo una correzione',
+        invalid: 'Non valido',
+        invalidAfterRepair: 'Non valido dopo una correzione'
+      },
       started: 'Avviata',
       completed: 'Completata',
       exitCode: 'Codice di uscita',

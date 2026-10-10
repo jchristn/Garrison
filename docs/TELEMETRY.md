@@ -26,6 +26,8 @@ Prometheus names are the OpenTelemetry names with dots replaced by underscores a
 | `garrison.http.requests` | counter | `method`, `status_class` (`2xx`, `4xx`, ...) | REST requests handled |
 | `garrison.runs.created` | counter | `harness`, `kind` | Runs created |
 | `garrison.runs.finished` | counter | `outcome`, `harness` | Runs that reached a terminal status |
+| `garrison.runs.schema_validations` | counter | `result` (`valid`, `invalid`), `execution` (`original`, `repair`), `harness` | Validations of run output against the agent's output schema |
+| `garrison.runs.repairs` | counter | `harness` | Structured output repair attempts started |
 | `garrison.run.stage.duration` | histogram, seconds | `stage` (`execution`, `queue`, `first_token`), `harness` | `execution`: start to completion; `queue`: queued to leased; `first_token`: harness start to first model output |
 | `garrison.harness.tokens` | histogram | `harness`, `direction` (`input`, `output`, `reasoning`) | Tokens per run, as reported by the harness |
 | `garrison.claims` | counter | `result` (`won`, `lost`, `limit`) | Lease claim attempts. `lost` means another node claimed the run first; `limit` means a deployment was at its concurrency limit |

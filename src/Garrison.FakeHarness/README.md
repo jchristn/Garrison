@@ -7,6 +7,7 @@ garrison-fake-harness --version
 garrison-fake-harness --format claude|codex|mux|plain [--scenario file] [--delay-ms N] [--fail]
                       [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
                       [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N]
+                      [--answer text] [--resume-answer text] [--resume sessionId] [--structured-output]
 ```
 
 | Option | Effect |
@@ -22,6 +23,10 @@ garrison-fake-harness --format claude|codex|mux|plain [--scenario file] [--delay
 | `--output-last-message file` | Also write the answer to a file, like `mux --output-last-message`. |
 | `--stderr text` | Write text to stderr before exiting. |
 | `--tool-calls N` | Emit N fake tool calls (`fake_tool`, each with a successful result) before the answer. Used to test tool call counting. |
+| `--answer text` | Answer with this text instead of the echo (after `--scenario`, which it overrides). Used to emit valid or invalid JSON for structured output tests. |
+| `--resume-answer text` | The answer to give when a session is resumed with `--resume`. Defaults to `--answer`. Used to fix (or not fix) the output on a structured output repair. |
+| `--resume sessionId` | Resume a session. Each run records its session as `$HOME/.garrison-fake/sessions/<id>.txt`; resuming reports the same session ID. An unknown session prints `No conversation found with session ID: <id>` to stderr and exits 1, so a resume only works in the same home directory, like a real CLI. |
+| `--structured-output` | In Claude format, also report the answer as `structured_output` in the result event when it parses as JSON, the way Claude Code does with `--json-schema`. |
 | `--think-ms N` | Pause between the thinking event and the first answer chunk. Default 20, so every run has a measurable time to first token and streaming time. |
 
 In the Claude, Codex, and Mux formats the answer is preceded by one thinking event (a `thinking_delta`, a `reasoning` item, or `assistant_thinking`), and the final usage reports 2 reasoning tokens (`output_tokens_details.thinking_tokens` for Claude, `reasoning_output_tokens` for Codex). Plain format has no thinking event.

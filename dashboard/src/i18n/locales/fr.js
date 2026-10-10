@@ -895,6 +895,13 @@ const fr = {
       caller: 'Appelant',
       parent: 'Exécution parente',
       attempt: 'Tentative',
+      outputSchema: 'Schéma de sortie',
+      outputSchemaStates: {
+        valid: 'Valide',
+        validAfterRepair: 'Valide après une correction',
+        invalid: 'Non valide',
+        invalidAfterRepair: 'Non valide après une correction'
+      },
       started: 'Démarrée le',
       completed: 'Terminée le',
       exitCode: 'Code de sortie',

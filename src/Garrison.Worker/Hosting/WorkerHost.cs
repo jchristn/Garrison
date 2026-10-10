@@ -510,58 +510,74 @@ namespace Garrison.Worker.Hosting
                 message => _Logging.Debug(_Header + message),
                 run.Assignment.EventSequenceStart);
             string harness = run.Assignment.Spec.HarnessType.ToString();
+            bool retained = run.Assignment.Spec.RetainForRepair;
+            bool lastSucceeded = false;
             try
             {
-                RunCompleteRequest complete;
-                Stopwatch stopwatch = Stopwatch.StartNew();
-                using (Activity? activity = StartHarnessActivity(run, harness))
+                RunAssignment current = run.Assignment;
+                int repairAttempt = 0;
+                while (true)
                 {
-                    try
+                    RunCompleteRequest complete = await ExecuteOnceAsync(run, current, shipper, harness).ConfigureAwait(false);
+                    lastSucceeded = complete.Status == RunStatusEnum.Succeeded;
+                    RunCompleteResponse? response;
+
+                    using (CancellationTokenSource retry = new CancellationTokenSource(TimeSpan.FromSeconds(_Settings.CompletionRetrySeconds)))
                     {
-                        complete = await _Executor.ExecuteAsync(run.Assignment, shipper, run.Cancellation.Token).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        complete = new RunCompleteRequest();
-                        complete.Status = RunStatusEnum.Failed;
-                        complete.Outcome = RunOutcomeEnum.InternalError;
-                        complete.ErrorMessage = "Executor failed: " + e.Message;
+                        try
+                        {
+                            await shipper.FlushAsync(retry.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            _Logging.Warn(_Header + "gave up delivering events for run " + run.RunId);
+                        }
+
+                        if (run.Lost || shipper.Stale)
+                        {
+                            _Logging.Info(_Header + "run " + run.RunId + " lost its lease; not reporting completion");
+                            return;
+                        }
+
+                        complete.NodeId = nodeId;
+                        complete.Epoch = run.Epoch;
+                        complete.RepairAttempt = repairAttempt;
+                        complete.SupportsRepair = true;
+                        response = await ReportCompletionAsync(run.RunId, complete, retry.Token).ConfigureAwait(false);
                     }
 
-                    if (activity != null)
+                    if (response == null || response.Repair == null || response.RepairAttempt <= repairAttempt) return;
+                    if (run.Lost || run.Cancellation.IsCancellationRequested)
                     {
-                        activity.SetTag("garrison.outcome", complete.Outcome.ToString());
-                        if (complete.ExitCode != null) activity.SetTag("process.exit_code", complete.ExitCode.Value);
-                        activity.SetStatus(complete.Status == RunStatusEnum.Succeeded ? ActivityStatusCode.Ok : ActivityStatusCode.Error, complete.ErrorMessage);
-                    }
-                }
-                stopwatch.Stop();
-                RecordRun(harness, complete, stopwatch.Elapsed.TotalSeconds);
-
-                using (CancellationTokenSource retry = new CancellationTokenSource(TimeSpan.FromSeconds(_Settings.CompletionRetrySeconds)))
-                {
-                    try
-                    {
-                        await shipper.FlushAsync(retry.Token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        _Logging.Warn(_Header + "gave up delivering events for run " + run.RunId);
-                    }
-
-                    if (run.Lost || shipper.Stale)
-                    {
-                        _Logging.Info(_Header + "run " + run.RunId + " lost its lease; not reporting completion");
+                        _Logging.Info(_Header + "run " + run.RunId + " was cancelled or lost before its structured output repair");
                         return;
                     }
 
-                    complete.NodeId = nodeId;
-                    complete.Epoch = run.Epoch;
-                    await ReportCompletionAsync(run.RunId, complete, retry.Token).ConfigureAwait(false);
+                    repairAttempt = response.RepairAttempt;
+                    _Logging.Info(_Header + "run " + run.RunId + " output failed schema validation; running repair attempt " + repairAttempt);
+                    shipper.AdvanceSequence(response.EventSequenceStart);
+                    RunAssignment repair = new RunAssignment();
+                    repair.RunId = run.RunId;
+                    repair.Epoch = run.Epoch;
+                    repair.LeaseExpiresUtc = current.LeaseExpiresUtc;
+                    repair.EventSequenceStart = response.EventSequenceStart;
+                    repair.Spec = response.Repair;
+                    current = repair;
                 }
             }
             finally
             {
+                if (retained)
+                {
+                    try
+                    {
+                        _Executor.Release(run.Assignment, lastSucceeded);
+                    }
+                    catch (Exception e)
+                    {
+                        _Logging.Warn(_Header + "releasing the directories of run " + run.RunId + " failed: " + e.Message);
+                    }
+                }
                 await shipper.DisposeAsync().ConfigureAwait(false);
                 using (await _RunLocks.LockAsync(run.RunId, CancellationToken.None).ConfigureAwait(false))
                 {
@@ -574,23 +590,54 @@ namespace Garrison.Worker.Hosting
             }
         }
 
-        private async Task ReportCompletionAsync(string runId, RunCompleteRequest complete, CancellationToken token)
+        private async Task<RunCompleteRequest> ExecuteOnceAsync(ActiveRun run, RunAssignment assignment, RunEventShipper shipper, string harness)
+        {
+            RunCompleteRequest complete;
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            using (Activity? activity = StartHarnessActivity(run, harness))
+            {
+                if (activity != null && assignment.Spec.RepairAttempt > 0) activity.SetTag("garrison.repair_attempt", assignment.Spec.RepairAttempt);
+                try
+                {
+                    complete = await _Executor.ExecuteAsync(assignment, shipper, run.Cancellation.Token).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    complete = new RunCompleteRequest();
+                    complete.Status = RunStatusEnum.Failed;
+                    complete.Outcome = RunOutcomeEnum.InternalError;
+                    complete.ErrorMessage = "Executor failed: " + e.Message;
+                }
+
+                if (activity != null)
+                {
+                    activity.SetTag("garrison.outcome", complete.Outcome.ToString());
+                    if (complete.ExitCode != null) activity.SetTag("process.exit_code", complete.ExitCode.Value);
+                    activity.SetStatus(complete.Status == RunStatusEnum.Succeeded ? ActivityStatusCode.Ok : ActivityStatusCode.Error, complete.ErrorMessage);
+                }
+            }
+            stopwatch.Stop();
+            RecordRun(harness, complete, stopwatch.Elapsed.TotalSeconds);
+            return complete;
+        }
+
+        private async Task<RunCompleteResponse?> ReportCompletionAsync(string runId, RunCompleteRequest complete, CancellationToken token)
         {
             int attempt = 0;
             while (true)
             {
                 try
                 {
-                    await _Client.CompleteAsync(runId, complete, token).ConfigureAwait(false);
-                    _Logging.Info(_Header + "run " + runId + " completed: " + complete.Status + " (" + complete.Outcome + ")");
+                    RunCompleteResponse response = await _Client.CompleteAsync(runId, complete, token).ConfigureAwait(false);
+                    _Logging.Info(_Header + "run " + runId + " completed: " + complete.Status + " (" + complete.Outcome + ")" + (response?.Repair != null ? "; repair requested" : String.Empty));
                     _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "accepted"));
-                    return;
+                    return response;
                 }
                 catch (StaleLeaseException)
                 {
                     _Logging.Warn(_Header + "completion for run " + runId + " rejected: stale lease");
                     _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "stale"));
-                    return;
+                    return null;
                 }
                 catch (NodeProtocolException e)
                 {
@@ -603,7 +650,7 @@ namespace Garrison.Worker.Hosting
                     {
                         _Logging.Alert(_Header + "gave up reporting completion for run " + runId);
                         _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "abandoned"));
-                        return;
+                        return null;
                     }
                 }
             }

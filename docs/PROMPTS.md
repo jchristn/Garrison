@@ -30,7 +30,7 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/delegated-task` | Task | Used instead of the task template when another agent is the caller |
 | `builtin/garrison-tools-instructions` | Fragment | How to use the Garrison MCP tools to delegate, the allowlist, and the depth limit |
 | `builtin/structured-output-instructions` | Fragment | Output schema instructions for harnesses that cannot enforce a schema themselves |
-| `builtin/structured-output-repair` | Task | Repair prompt for output that fails schema validation. Seeded for a later release; no run uses it yet |
+| `builtin/structured-output-repair` | Task | Repair prompt sent when a run's output fails validation against the agent's output schema (see [Structured output repair](#structured-output-repair)) |
 | `builtin/mcp-tool-description` | ToolDescription | Description of an agent offered as its own MCP tool |
 | `builtin/a2a-skill-description` | ToolDescription | Description of an agent's A2A skill |
 | `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the eight Garrison MCP tools (see `MCP_API.md`) |
@@ -69,6 +69,7 @@ A deployment's `promptBindings` map roles to templates:
 | `System` | `prompts.system`, delivered as the profile's `systemPromptDelivery` says | Bound to `builtin/default-system` when the deployment is created |
 | `Task` | `prompts.task`, delivered as the profile's `promptDelivery` says | Bound to `builtin/default-task` |
 | `DelegatedTask` | `prompts.task` for runs started by another agent | Bound to `builtin/delegated-task` |
+| `Repair` | The prompt of the structured output repair attempt | `builtin/structured-output-repair` is used |
 
 If a deployment ends up with no `Task` binding at all, the caller's message is sent as is.
 
@@ -80,6 +81,36 @@ If a deployment ends up with no `Task` binding at all, the caller's message is s
   ]
 }
 ```
+
+## Structured output repair
+
+When an agent has an output schema, the control plane validates the run's final output against it (the harness's structured output when it reports one, otherwise the final result text parsed as JSON). If validation fails and the deployment's harness profile supports resume (`supportsResume`), Garrison makes exactly one repair attempt: the worker resumes the harness session in the same run directories and sends a prompt rendered from the deployment's `Repair` binding, or from `builtin/structured-output-repair` when there is none. If the repaired output still fails, or no repair is possible, the run fails with outcome `SchemaValidationFailed`. `REST_API.md` ("Structured output validation") describes the run fields and events.
+
+The repair prompt is the whole prompt the resumed session receives; the system prompt and the original task are already part of the session. It renders with the usual variables plus these:
+
+| Variable | Contents |
+|---|---|
+| `repair.error` | The first few validation errors, separated by `; `, for example `(root): Required properties ["answer"] are not present (required)` or `(root): output is not valid JSON (...)` |
+| `repair.schema` | The agent's output schema as compact JSON (the same value as `agent.outputSchema`) |
+| `repair.previousOutput` | The output that failed validation |
+| `repair.attempt` | The repair attempt number, 1 |
+| `repair.sessionId` | The harness session being resumed (also `run.resumeSessionId`) |
+
+Outside a repair these variables are empty. This is the built-in repair prompt:
+
+```text
+Your previous answer could not be used because it does not validate against the required JSON Schema:
+{{repair.error}}
+
+Reply again with only the corrected JSON document. Do not add prose or code fences around it.
+{{#if repair.schema}}
+
+Required JSON Schema:
+{{repair.schema}}
+{{/if}}
+```
+
+To change it, clone the built-in and bind the clone to the `Repair` role. The template version used is added to the run's `templateVersions`.
 
 Configuration file templates are bound differently: harness profiles include them in file contents with `{{> name}}`. To change Claude Code's MCP configuration, clone `builtin/claude-code-mcp-config`, clone the profile, and point the profile's file at your template.
 
@@ -126,6 +157,7 @@ The variables available when a run is compiled (`tenant`, `agent`, `deployment`,
 | `agent.delegation.allowList`, `agent.delegation.maxDepth` | Delegation rules |
 | `deployment.parameters.<name>` | Deployment parameters, after allowed run overrides |
 | `caller.agentName`, `run.depth`, `run.callChain` | Who is asking, in a delegation chain |
+| `repair.error`, `repair.schema`, `repair.previousOutput` | Only during a structured output repair (see above) |
 | `garrison.delegationEnabled`, `garrison.mcpServerName` | Whether this run can delegate, and the MCP server name to tell it about |
 | `harness.type`, `harness.nativeSchema` | Which harness will run the prompt |
 
@@ -160,4 +192,4 @@ The dashboard's template editor calls the same endpoint as you type. To see ever
 
 - The Garrison MCP tool descriptions (`builtin/mcp-tool-garrison_*`) are read at startup by their built-in names, and tenant templates cannot use `builtin/` names, so these descriptions cannot be changed yet.
 - The A2A gateway's agent card substitutes only `{{agent.name}}` and `{{agent.description}}` in the agent's skill description template, instead of rendering it with the full language. `GET .../agents/{id}/card` renders it fully.
-- `builtin/structured-output-repair` and `builtin/mcp-tool-description` are seeded, but no run or endpoint uses them yet: output repair and agents offered as their own MCP tools (`exposeMcpTool`) are planned.
+- `builtin/mcp-tool-description` is seeded, but no endpoint uses it yet: agents offered as their own MCP tools (`exposeMcpTool`) are planned.

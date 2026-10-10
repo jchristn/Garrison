@@ -42,7 +42,9 @@
     "mcpPreflight": [],
     "scrubValues": [
       "credential-generic_jsonl_basic"
-    ]
+    ],
+    "retainForRepair": false,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

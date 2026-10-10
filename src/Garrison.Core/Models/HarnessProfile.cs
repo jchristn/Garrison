@@ -209,7 +209,8 @@ namespace Garrison.Core.Models
         public bool IsolateHome { get; set; } = true;
 
         /// <summary>
-        /// Whether the harness can resume a session.
+        /// Whether the harness can resume a session by ID. Required for the one structured output repair attempt; the
+        /// profile's arguments must pass <c>run.resumeSessionId</c> to the harness. Default false.
         /// </summary>
         public bool SupportsResume { get; set; } = false;
 

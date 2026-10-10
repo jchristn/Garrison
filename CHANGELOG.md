@@ -26,6 +26,7 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 - Pull-based scheduling with an atomic compare-and-set claim, fencing epochs, lease heartbeats, and long-poll leasing.
 - Leader election through a database lease, with a maintenance loop that requeues or fails runs whose node disappeared, enforces deadlines, marks silent nodes lost, and prunes old runs and events.
 - Run lifecycle with cancellation, retry, idempotency keys, events streamed over SSE and WebSocket, and delegation limited by allowlist, depth, and recursion rules.
+- Structured output validation: when an agent has an output schema, the control plane validates each run's final output against it (JsonSchema.Net), makes one repair attempt that resumes the harness session in the same lease with the `Repair` prompt template when the profile supports resume, and otherwise fails the run with `SchemaValidationFailed`. Runs carry `outputSchemaValid`, `schemaValidationErrors`, and `repairAttempts`.
 - Worker metrics (leases, runs, duration, tokens, cost, completion reports) and a span per harness execution that joins the run's trace.
 - Worker node with capability probes, an isolated workspace and home directory per run, MCP pre-flight, output parsers for every built-in harness, secret scrubbing, buffered event delivery that survives control-plane outages, and drain on shutdown.
 

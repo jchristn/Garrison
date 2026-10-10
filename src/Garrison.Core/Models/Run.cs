@@ -259,6 +259,38 @@ namespace Garrison.Core.Models
         public string? StructuredOutputJson { get; set; } = null;
 
         /// <summary>
+        /// Result of validating the final output against the agent's output schema: true when it validated, false
+        /// when it did not, null when the agent has no output schema or the run never produced a successful output.
+        /// Always serialized, including when null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public bool? OutputSchemaValid { get; set; } = null;
+
+        /// <summary>
+        /// The first few schema validation errors from the most recent failed validation, separated by "; ", or null
+        /// when the output validated or was not validated. Always serialized, including when null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? SchemaValidationErrors { get; set; } = null;
+
+        /// <summary>
+        /// Structured output repair attempts started for this run: 0 (none) or 1. A repair resumes the harness session
+        /// inside the same lease with the Repair prompt template.
+        /// </summary>
+        public int RepairAttempts
+        {
+            get
+            {
+                return _RepairAttempts;
+            }
+            set
+            {
+                if (value < 0) throw new ArgumentOutOfRangeException(nameof(RepairAttempts), "RepairAttempts cannot be negative.");
+                _RepairAttempts = value;
+            }
+        }
+
+        /// <summary>
         /// Harness session identifier.
         /// </summary>
         public string? SessionId { get; set; } = null;
@@ -488,6 +520,7 @@ namespace Garrison.Core.Models
         private string _AgentName = String.Empty;
         private string _DeploymentId = String.Empty;
         private int _Priority = 0;
+        private int _RepairAttempts = 0;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<RunParameter> _Parameters = new List<RunParameter>();

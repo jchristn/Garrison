@@ -76,6 +76,28 @@ namespace Garrison.FakeHarness
         /// </summary>
         public int ThinkMs { get; set; } = 20;
 
+        /// <summary>
+        /// Answer text used instead of the echo (for example a JSON document). Null keeps the echo.
+        /// </summary>
+        public string? Answer { get; set; } = null;
+
+        /// <summary>
+        /// Answer text used when a session is resumed with --resume. Null falls back to <see cref="Answer"/>.
+        /// </summary>
+        public string? ResumeAnswer { get; set; } = null;
+
+        /// <summary>
+        /// Session to resume. The fake harness keeps each session as a file under $HOME/.garrison-fake/sessions, so a
+        /// resume only works in the same home directory, like a real CLI. An unknown session fails with exit code 1.
+        /// </summary>
+        public string? Resume { get; set; } = null;
+
+        /// <summary>
+        /// Whether the Claude format result event also carries the answer as structured_output when it parses as
+        /// JSON, the way Claude Code reports output produced with --json-schema. Default false.
+        /// </summary>
+        public bool StructuredOutput { get; set; } = false;
+
         #endregion
 
         #region Public-Methods
@@ -129,6 +151,18 @@ namespace Garrison.FakeHarness
                         break;
                     case "--think-ms":
                         if (next != null) { options.ThinkMs = Math.Max(0, Int32.Parse(next, CultureInfo.InvariantCulture)); i++; }
+                        break;
+                    case "--answer":
+                        if (next != null) { options.Answer = next; i++; }
+                        break;
+                    case "--resume-answer":
+                        if (next != null) { options.ResumeAnswer = next; i++; }
+                        break;
+                    case "--resume":
+                        if (next != null) { options.Resume = next; i++; }
+                        break;
+                    case "--structured-output":
+                        options.StructuredOutput = true;
                         break;
                     case "--stderr":
                         if (next != null) { options.Stderr = next; i++; }

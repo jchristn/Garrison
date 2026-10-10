@@ -41,7 +41,9 @@
     "mcpPreflight": [],
     "scrubValues": [
       "credential-fake_basic"
-    ]
+    ],
+    "retainForRepair": false,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

@@ -228,6 +228,11 @@ export default function RunDetailView({ recordId }) {
           )}
         </Detail>
         <Detail label={t('views.runDetail.attempt')} tip={t('tips.views.runDetail.attempt')}>{`${run.attempt ?? 1} / ${run.maxAttempts ?? 1}`}</Detail>
+        {run.outputSchemaValid != null && (
+          <Detail label={t('views.runDetail.outputSchema')} tip={t('tips.views.runDetail.outputSchema')}>
+            {t(`views.runDetail.outputSchemaStates.${run.outputSchemaValid ? 'valid' : 'invalid'}${run.repairAttempts > 0 ? 'AfterRepair' : ''}`)}
+          </Detail>
+        )}
         <Detail label={t('resources.runs.columns.createdUtc')} tip={t('tips.views.runDetail.created')}>{formatDateTime(run.createdUtc, i18n.language)}</Detail>
         <Detail label={t('views.runDetail.started')} tip={t('tips.views.runDetail.started')}>{run.startedUtc ? formatDateTime(run.startedUtc, i18n.language) : '-'}</Detail>
         <Detail label={t('views.runDetail.completed')} tip={t('tips.views.runDetail.completed')}>{run.completedUtc ? formatDateTime(run.completedUtc, i18n.language) : '-'}</Detail>

@@ -15,6 +15,28 @@ func IsTerminal(status string) bool {
 	return false
 }
 
+// Run outcome codes (Run.Outcome). RunOutcomeSchemaValidationFailed means the final output did not validate
+// against the agent's output schema, after the one repair attempt or at once when the harness cannot resume.
+const (
+	RunOutcomeNone                   = "None"
+	RunOutcomeSucceeded              = "Succeeded"
+	RunOutcomeHarnessFailed          = "HarnessFailed"
+	RunOutcomeNotInstalled           = "NotInstalled"
+	RunOutcomeNotCredentialed        = "NotCredentialed"
+	RunOutcomeMcpPreflightFailed     = "McpPreflightFailed"
+	RunOutcomeNodeLost               = "NodeLost"
+	RunOutcomeOutputLimitExceeded    = "OutputLimitExceeded"
+	RunOutcomeSchemaValidationFailed = "SchemaValidationFailed"
+	RunOutcomeTimedOut               = "TimedOut"
+	RunOutcomeCancelled              = "Cancelled"
+	RunOutcomeStaleLease             = "StaleLease"
+	RunOutcomeCompileFailed          = "CompileFailed"
+	RunOutcomeWorkspaceFailed        = "WorkspaceFailed"
+	RunOutcomeRejected               = "Rejected"
+	RunOutcomeNoCapableWorker        = "NoCapableWorker"
+	RunOutcomeInternalError          = "InternalError"
+)
+
 // TokenResponse is returned by POST /v1.0/token.
 type TokenResponse struct {
 	Token         string `json:"token"`
@@ -125,6 +147,13 @@ type Run struct {
 	// BlockedReason is computed by the server on read: NoReadyWorker, NoCapableWorker, or NoMatchingPool when the
 	// queued run cannot be handed to any worker right now; nil otherwise.
 	BlockedReason *string `json:"blockedReason"`
+	// OutputSchemaValid reports whether the final output validated against the agent's output schema; nil when the
+	// agent has no output schema or nothing was validated.
+	OutputSchemaValid *bool `json:"outputSchemaValid"`
+	// SchemaValidationErrors holds the first few errors of the most recent failed schema validation; nil otherwise.
+	SchemaValidationErrors *string `json:"schemaValidationErrors"`
+	// RepairAttempts is the number of structured output repairs started (0 or 1). Default 0.
+	RepairAttempts int `json:"repairAttempts"`
 }
 
 // RunEvent is one normalized event emitted by a run.

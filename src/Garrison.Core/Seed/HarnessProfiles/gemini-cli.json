@@ -52,6 +52,14 @@
     {
       "template": "{{resources.mcpServerNames}}",
       "condition": "{{resources.hasMcpServers}}"
+    },
+    {
+      "template": "--resume",
+      "condition": "{{run.resumeSessionId}}"
+    },
+    {
+      "template": "{{run.resumeSessionId}}",
+      "condition": "{{run.resumeSessionId}}"
     }
   ],
   "environment": [

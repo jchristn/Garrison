@@ -65,7 +65,9 @@
     "mcpPreflight": [],
     "scrubValues": [
       "credential-codex_basic"
-    ]
+    ],
+    "retainForRepair": false,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

@@ -95,7 +95,9 @@
     "mcpPreflight": [],
     "scrubValues": [
       "credential-mux_basic"
-    ]
+    ],
+    "retainForRepair": false,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

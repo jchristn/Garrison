@@ -117,6 +117,14 @@
     {
       "template": "{{agent.outputSchema}}",
       "condition": "{{agent.outputSchema}}"
+    },
+    {
+      "template": "--resume",
+      "condition": "{{run.resumeSessionId}}"
+    },
+    {
+      "template": "{{run.resumeSessionId}}",
+      "condition": "{{run.resumeSessionId}}"
     }
   ],
   "environment": [

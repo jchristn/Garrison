@@ -53,6 +53,17 @@ namespace Garrison.Server.Protocols
         public string? StructuredOutputJson { get; set; } = null;
 
         /// <summary>
+        /// Whether the final output validated against the agent's output schema, or null (omitted) when it was not
+        /// validated.
+        /// </summary>
+        public bool? OutputSchemaValid { get; set; } = null;
+
+        /// <summary>
+        /// Structured output repair attempts started (0 or 1).
+        /// </summary>
+        public int RepairAttempts { get; set; } = 0;
+
+        /// <summary>
         /// Error message when failed.
         /// </summary>
         public string? Error { get; set; } = null;

@@ -31,8 +31,7 @@
       "--output-schema",
       "$GARRISON_CONFIG_DIR/output-schema.json",
       "--output-last-message",
-      "$GARRISON_CONFIG_DIR/last-message.txt",
-      "--no-session-persistence"
+      "$GARRISON_CONFIG_DIR/last-message.txt"
     ],
     "environment": [
       {
@@ -174,7 +173,9 @@
       "docs-token-mux_full",
       "git-token-mux_full",
       "run-token-golden"
-    ]
+    ],
+    "retainForRepair": true,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

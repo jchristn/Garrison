@@ -71,7 +71,9 @@
     "mcpPreflight": [],
     "scrubValues": [
       "credential-gemini_cli_basic"
-    ]
+    ],
+    "retainForRepair": false,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

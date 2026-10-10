@@ -135,7 +135,9 @@
       "git-token-gemini_cli_full",
       "Bearer run-token-golden",
       "run-token-golden"
-    ]
+    ],
+    "retainForRepair": true,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

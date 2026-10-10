@@ -1145,7 +1145,7 @@ Control plane
 - [x] P3.2.4 Long-poll lease with a per-replica wake signal (new runs created on this replica wake local waiters immediately; other replicas pick up on their next poll tick, default 500 ms).  | claude 2026-10-10 AsyncSignal wake + LeasePollMs
 - [x] P3.2.5 Run token minting at claim and revocation at completion.  | claude 2026-10-10 run tokens minted at claim, revoked at completion
 - [x] P3.2.6 Event ingestion: batch insert, sequence uniqueness, terminal event handling, run usage accumulation.  | claude 2026-10-10 InsertBatch ON CONFLICT DO NOTHING
-- [~] P3.2.7 Completion: outcome mapping, structured output validation against the agent's output schema, one repair retry using the repair template when the harness supports resume (otherwise fail with `SchemaValidationFailed`).  | claude 2026-10-10 completion mapping done; structured output validation and repair retry pending
+- [x] P3.2.7 Completion: outcome mapping, structured output validation against the agent's output schema, one repair retry using the repair template when the harness supports resume (otherwise fail with `SchemaValidationFailed`).  | claude 2026-10-10 JsonSchema.Net 8.0.5 (MIT; 9.x moved to a EULA, so pinned to 8.x); validation on completion; one repair as a second attempt in the same lease (directories retained, session resumed with the Repair binding or builtin/structured-output-repair); SchemaValidationFailed otherwise; outputSchemaValid, schemaValidationErrors, repairAttempts (migration 3); resume arguments in all built-in profiles; 210 tests
 - [x] P3.3.1 `ILeaseProvider` and `DatabaseLeaseProvider` (`coordination_leases`, epoch-fenced).  | claude 2026-10-10 CoordinationLease TryAcquire/Release
 - [x] P3.3.2 `LeaderElectionService` and maintenance loops in section 9.4.  | claude 2026-10-10 LeaderElectionService + MaintenanceService
 - [x] P3.3.3 Node liveness: heartbeat timeout moves nodes to `Lost`; lost-node runs handled by the reaper.  | claude 2026-10-10 lost nodes
@@ -1395,7 +1395,7 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [ ] G-2 Passwords are unsalted SHA-256. Move to a salted, slow hash (PBKDF2 or Argon2id) with transparent upgrade on login.
 - [ ] G-3 MCP tool descriptions resolve only `builtin/` template names, so tenants cannot override them. Allow a tenant template to shadow a built-in by name.
 - [ ] G-4 `A2ARoutes` and `AgentCardService` render agent cards differently (template rendering, security scheme key `garrison` vs `bearer`). Use one renderer.
-- [ ] G-5 Unused surface: `exposeMcpTool`, `builtin/mcp-tool-description`, `builtin/structured-output-repair` (see P3.2.7), and the `Rejected` run status are never used.
+- [ ] G-5 Unused surface: `exposeMcpTool`, `builtin/mcp-tool-description`, `builtin/structured-output-repair` (see P3.2.7), and the `Rejected` run status are never used. `builtin/structured-output-repair` is now used by P3.2.7.
 - [ ] G-6 Per-replica state: the signed-request nonce cache and token rate limiter are per replica, and per-deployment `maxConcurrentRuns` can be exceeded slightly under concurrent claims on several replicas.
 - [ ] G-7 DELETE returns 204 for identity and runtime resources and 200 with a body for configuration resources. Pick one.
 - [ ] G-8 SyslogLogging: add an opt-in to skip the console probe (D-026), then switch Garrison to it.

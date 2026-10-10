@@ -103,7 +103,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, agentname = @agentname, deploymentid = @deploymentid, deploymentversion = @deploymentversion, harnesstype = @harnesstype, nodepoolid = @nodepoolid, kind = @kind, status = @status, outcome = @outcome, priority = @priority, inputtext = @inputtext, inputcontenttype = @inputcontenttype, callertype = @callertype, callerid = @callerid, callername = @callername, parentrunid = @parentrunid, rootrunid = @rootrunid, depth = @depth, callchain = @callchain, idempotencykey = @idempotencykey, retryofrunid = @retryofrunid, attempt = @attempt, maxattempts = @maxattempts, leasenodeid = @leasenodeid, leasenodename = @leasenodename, leaseepoch = @leaseepoch, leaseexpiresutc = @leaseexpiresutc, queuedutc = @queuedutc, leasedutc = @leasedutc, startedutc = @startedutc, completedutc = @completedutc, deadlineutc = @deadlineutc, cancelrequested = @cancelrequested, resulttext = @resulttext, structuredoutputjson = @structuredoutputjson, sessionid = @sessionid, servedmodel = @servedmodel, exitcode = @exitcode, stderrtail = @stderrtail, errormessage = @errormessage, inputtokens = @inputtokens, outputtokens = @outputtokens, cachedtokens = @cachedtokens, costusd = @costusd, costestimated = @costestimated, reasoningtokens = @reasoningtokens, toolcallcount = @toolcallcount, firsttokenutc = @firsttokenutc, lasttokenutc = @lasttokenutc, ttftms = @ttftms, streamingms = @streamingms, executionms = @executionms, queuems = @queuems, totalms = @totalms, lasteventsequence = @lasteventsequence, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, agentname = @agentname, deploymentid = @deploymentid, deploymentversion = @deploymentversion, harnesstype = @harnesstype, nodepoolid = @nodepoolid, kind = @kind, status = @status, outcome = @outcome, priority = @priority, inputtext = @inputtext, inputcontenttype = @inputcontenttype, callertype = @callertype, callerid = @callerid, callername = @callername, parentrunid = @parentrunid, rootrunid = @rootrunid, depth = @depth, callchain = @callchain, idempotencykey = @idempotencykey, retryofrunid = @retryofrunid, attempt = @attempt, maxattempts = @maxattempts, leasenodeid = @leasenodeid, leasenodename = @leasenodename, leaseepoch = @leaseepoch, leaseexpiresutc = @leaseexpiresutc, queuedutc = @queuedutc, leasedutc = @leasedutc, startedutc = @startedutc, completedutc = @completedutc, deadlineutc = @deadlineutc, cancelrequested = @cancelrequested, resulttext = @resulttext, structuredoutputjson = @structuredoutputjson, sessionid = @sessionid, servedmodel = @servedmodel, exitcode = @exitcode, stderrtail = @stderrtail, errormessage = @errormessage, inputtokens = @inputtokens, outputtokens = @outputtokens, cachedtokens = @cachedtokens, costusd = @costusd, costestimated = @costestimated, reasoningtokens = @reasoningtokens, toolcallcount = @toolcallcount, outputschemavalid = @outputschemavalid, schemavalidationerrors = @schemavalidationerrors, repairattempts = @repairattempts, firsttokenutc = @firsttokenutc, lasttokenutc = @lasttokenutc, ttftms = @ttftms, streamingms = @streamingms, executionms = @executionms, queuems = @queuems, totalms = @totalms, lasteventsequence = @lasteventsequence, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -424,6 +424,7 @@ namespace Garrison.Core.Database.Ado
                 "UPDATE " + _Table + " SET status = @status, outcome = @outcome, completedutc = @completed, resulttext = @result, structuredoutputjson = @structured, " +
                 "sessionid = @session, servedmodel = @model, exitcode = @exitcode, stderrtail = @stderr, errormessage = @error, inputtokens = @input, outputtokens = @output, " +
                 "cachedtokens = @cached, costusd = @cost, costestimated = @estimated, reasoningtokens = @reasoningtokens, toolcallcount = @toolcallcount, " +
+                "outputschemavalid = @outputschemavalid, schemavalidationerrors = @schemavalidationerrors, repairattempts = @repairattempts, " +
                 "firsttokenutc = @firsttokenutc, lasttokenutc = @lasttokenutc, ttftms = @ttftms, streamingms = @streamingms, executionms = @executionms, " +
                 "queuems = @queuems, totalms = @totalms, leaseexpiresutc = NULL, lastupdateutc = @now " +
                 "WHERE id = @id AND leasenodeid = @node AND leaseepoch = @epoch AND status IN ('Leased', 'Running', 'Cancelling');",
@@ -448,6 +449,44 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "cost", run.CostUsd);
                     AdoDatabaseDriver.Add(command, "estimated", run.CostEstimated);
                     AddTelemetry(command, run);
+                    AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+                },
+                token).ConfigureAwait(false);
+            return affected == 1;
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> RecordRepairAsync(Run run, string nodeId, long epoch, CancellationToken token = default)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            if (String.IsNullOrEmpty(nodeId)) throw new ArgumentNullException(nameof(nodeId));
+
+            int affected = await _Driver.NonQueryAsync(
+                "UPDATE " + _Table + " SET status = 'Running', resulttext = @result, structuredoutputjson = @structured, sessionid = @session, servedmodel = @model, " +
+                "exitcode = @exitcode, stderrtail = @stderr, inputtokens = @input, outputtokens = @output, cachedtokens = @cached, costusd = @cost, costestimated = @estimated, " +
+                "reasoningtokens = @reasoningtokens, toolcallcount = @toolcallcount, outputschemavalid = @outputschemavalid, schemavalidationerrors = @schemavalidationerrors, " +
+                "repairattempts = @repairattempts, firsttokenutc = @firsttokenutc, lasttokenutc = @lasttokenutc, ttftms = @ttftms, streamingms = @streamingms, " +
+                "executionms = @executionms, queuems = @queuems, totalms = @totalms, deadlineutc = @deadline, lastupdateutc = @now " +
+                "WHERE id = @id AND leasenodeid = @node AND leaseepoch = @epoch AND status IN ('Leased', 'Running') AND cancelrequested = @false;",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", run.Id);
+                    AdoDatabaseDriver.Add(command, "node", nodeId);
+                    AdoDatabaseDriver.Add(command, "epoch", epoch);
+                    AdoDatabaseDriver.Add(command, "false", false);
+                    AdoDatabaseDriver.Add(command, "result", run.ResultText);
+                    AdoDatabaseDriver.Add(command, "structured", run.StructuredOutputJson);
+                    AdoDatabaseDriver.Add(command, "session", run.SessionId);
+                    AdoDatabaseDriver.Add(command, "model", run.ServedModel);
+                    AdoDatabaseDriver.Add(command, "exitcode", run.ExitCode);
+                    AdoDatabaseDriver.Add(command, "stderr", run.StderrTail);
+                    AdoDatabaseDriver.Add(command, "input", run.InputTokens);
+                    AdoDatabaseDriver.Add(command, "output", run.OutputTokens);
+                    AdoDatabaseDriver.Add(command, "cached", run.CachedTokens);
+                    AdoDatabaseDriver.Add(command, "cost", run.CostUsd);
+                    AdoDatabaseDriver.Add(command, "estimated", run.CostEstimated);
+                    AddTelemetry(command, run);
+                    AdoDatabaseDriver.Add(command, "deadline", run.DeadlineUtc);
                     AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
                 },
                 token).ConfigureAwait(false);
@@ -821,7 +860,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Run obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, nodepoolid, kind, status, outcome, priority, inputtext, inputcontenttype, callertype, callerid, callername, parentrunid, rootrunid, depth, callchain, idempotencykey, retryofrunid, attempt, maxattempts, leasenodeid, leasenodename, leaseepoch, leaseexpiresutc, queuedutc, leasedutc, startedutc, completedutc, deadlineutc, cancelrequested, resulttext, structuredoutputjson, sessionid, servedmodel, exitcode, stderrtail, errormessage, inputtokens, outputtokens, cachedtokens, costusd, costestimated, reasoningtokens, toolcallcount, firsttokenutc, lasttokenutc, ttftms, streamingms, executionms, queuems, totalms, lasteventsequence, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @deploymentversion, @harnesstype, @nodepoolid, @kind, @status, @outcome, @priority, @inputtext, @inputcontenttype, @callertype, @callerid, @callername, @parentrunid, @rootrunid, @depth, @callchain, @idempotencykey, @retryofrunid, @attempt, @maxattempts, @leasenodeid, @leasenodename, @leaseepoch, @leaseexpiresutc, @queuedutc, @leasedutc, @startedutc, @completedutc, @deadlineutc, @cancelrequested, @resulttext, @structuredoutputjson, @sessionid, @servedmodel, @exitcode, @stderrtail, @errormessage, @inputtokens, @outputtokens, @cachedtokens, @costusd, @costestimated, @reasoningtokens, @toolcallcount, @firsttokenutc, @lasttokenutc, @ttftms, @streamingms, @executionms, @queuems, @totalms, @lasteventsequence, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, nodepoolid, kind, status, outcome, priority, inputtext, inputcontenttype, callertype, callerid, callername, parentrunid, rootrunid, depth, callchain, idempotencykey, retryofrunid, attempt, maxattempts, leasenodeid, leasenodename, leaseepoch, leaseexpiresutc, queuedutc, leasedutc, startedutc, completedutc, deadlineutc, cancelrequested, resulttext, structuredoutputjson, sessionid, servedmodel, exitcode, stderrtail, errormessage, inputtokens, outputtokens, cachedtokens, costusd, costestimated, reasoningtokens, toolcallcount, outputschemavalid, schemavalidationerrors, repairattempts, firsttokenutc, lasttokenutc, ttftms, streamingms, executionms, queuems, totalms, lasteventsequence, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @deploymentversion, @harnesstype, @nodepoolid, @kind, @status, @outcome, @priority, @inputtext, @inputcontenttype, @callertype, @callerid, @callername, @parentrunid, @rootrunid, @depth, @callchain, @idempotencykey, @retryofrunid, @attempt, @maxattempts, @leasenodeid, @leasenodename, @leaseepoch, @leaseexpiresutc, @queuedutc, @leasedutc, @startedutc, @completedutc, @deadlineutc, @cancelrequested, @resulttext, @structuredoutputjson, @sessionid, @servedmodel, @exitcode, @stderrtail, @errormessage, @inputtokens, @outputtokens, @cachedtokens, @costusd, @costestimated, @reasoningtokens, @toolcallcount, @outputschemavalid, @schemavalidationerrors, @repairattempts, @firsttokenutc, @lasttokenutc, @ttftms, @streamingms, @executionms, @queuems, @totalms, @lasteventsequence, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -975,6 +1014,9 @@ namespace Garrison.Core.Database.Ado
 
         private static void AddTelemetry(DbCommand command, Run obj)
         {
+            AdoDatabaseDriver.Add(command, "outputschemavalid", obj.OutputSchemaValid);
+            AdoDatabaseDriver.Add(command, "schemavalidationerrors", obj.SchemaValidationErrors);
+            AdoDatabaseDriver.Add(command, "repairattempts", obj.RepairAttempts);
             AdoDatabaseDriver.Add(command, "reasoningtokens", obj.ReasoningTokens);
             AdoDatabaseDriver.Add(command, "toolcallcount", obj.ToolCallCount);
             AdoDatabaseDriver.Add(command, "firsttokenutc", obj.FirstTokenUtc);
@@ -988,6 +1030,9 @@ namespace Garrison.Core.Database.Ado
 
         private static void MapTelemetry(DbDataReader reader, Run obj)
         {
+            obj.OutputSchemaValid = AdoConverters.NullableBool(reader, "outputschemavalid");
+            obj.SchemaValidationErrors = AdoConverters.NullableStr(reader, "schemavalidationerrors");
+            obj.RepairAttempts = Math.Max(0, AdoConverters.Int(reader, "repairattempts"));
             obj.ReasoningTokens = AdoConverters.Long(reader, "reasoningtokens");
             obj.ToolCallCount = AdoConverters.Int(reader, "toolcallcount");
             obj.FirstTokenUtc = AdoConverters.NullableDate(reader, "firsttokenutc");

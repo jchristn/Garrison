@@ -79,7 +79,9 @@
     "mcpPreflight": [],
     "scrubValues": [
       "credential-claude_code_basic"
-    ]
+    ],
+    "retainForRepair": false,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

@@ -71,14 +71,16 @@ namespace Garrison.Worker.Execution
 
                 try
                 {
-                    await _Workspace.PrepareAsync(spec.Workspace, directories, environment, token).ConfigureAwait(false);
+                    // A structured output repair resumes the session in the workspace the original execution left.
+                    if (spec.RepairAttempt == 0) await _Workspace.PrepareAsync(spec.Workspace, directories, environment, token).ConfigureAwait(false);
                     foreach (ExecutionFile file in spec.Files) await FileMaterializer.WriteAsync(file, directories, token).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
                     return Fail(complete, RunOutcomeEnum.WorkspaceFailed, scrubber.Scrub("Workspace preparation failed: " + e.Message));
                 }
-                Lifecycle(reporter, "Workspace prepared at " + directories.Workspace + ".");
+                if (spec.RepairAttempt > 0) Lifecycle(reporter, "Structured output repair attempt " + spec.RepairAttempt + ": resuming the harness session in " + directories.Workspace + ".");
+                else Lifecycle(reporter, "Workspace prepared at " + directories.Workspace + ".");
 
                 if (spec.McpPreflight.Count > 0)
                 {
@@ -167,8 +169,19 @@ namespace Garrison.Worker.Execution
             }
             finally
             {
-                Cleanup(directories, spec.Workspace.Retention, succeeded);
+                // Keep the directories when the control plane may ask for a repair in them; the worker host
+                // releases them once the run is finally reported.
+                bool keepForRepair = (spec.RetainForRepair && succeeded) || spec.RepairAttempt > 0;
+                if (!keepForRepair) Cleanup(directories, spec.Workspace.Retention, succeeded);
             }
+        }
+
+        /// <inheritdoc />
+        public void Release(RunAssignment assignment, bool succeeded)
+        {
+            if (assignment == null) throw new ArgumentNullException(nameof(assignment));
+            ExecutionSpec spec = assignment.Spec ?? new ExecutionSpec();
+            Cleanup(new RunDirectories(_Options.WorkRoot, assignment.RunId), spec.Workspace.Retention, succeeded);
         }
 
         #endregion

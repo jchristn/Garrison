@@ -154,7 +154,9 @@
       "git-token-claude_code_full",
       "Bearer run-token-golden",
       "run-token-golden"
-    ]
+    ],
+    "retainForRepair": true,
+    "repairAttempt": 0
   },
   "templateVersions": [
     {

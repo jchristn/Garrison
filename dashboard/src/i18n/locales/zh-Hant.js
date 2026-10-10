@@ -860,6 +860,13 @@ const zhHant = {
       caller: '呼叫端',
       parent: '上層執行',
       attempt: '嘗試次數',
+      outputSchema: '輸出結構描述',
+      outputSchemaStates: {
+        valid: '有效',
+        validAfterRepair: '經過一次修復後有效',
+        invalid: '無效',
+        invalidAfterRepair: '經過一次修復後仍無效'
+      },
       started: '開始時間',
       completed: '完成時間',
       exitCode: '結束代碼',

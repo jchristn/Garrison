@@ -899,6 +899,13 @@ const es = {
       caller: 'Llamante',
       parent: 'Ejecución principal',
       attempt: 'Intento',
+      outputSchema: 'Esquema de salida',
+      outputSchemaStates: {
+        valid: 'Válido',
+        validAfterRepair: 'Válido tras una reparación',
+        invalid: 'No válido',
+        invalidAfterRepair: 'No válido tras una reparación'
+      },
       started: 'Iniciada',
       completed: 'Completada',
       exitCode: 'Código de salida',

@@ -157,6 +157,19 @@ namespace Garrison.Worker.Reporting
             }
         }
 
+        /// <summary>
+        /// Continue numbering events after a sequence the control plane already used (for example the validation
+        /// warning written before a structured output repair). Never moves the sequence backwards.
+        /// </summary>
+        /// <param name="sequence">Last used sequence.</param>
+        public void AdvanceSequence(long sequence)
+        {
+            lock (_Lock)
+            {
+                if (sequence > _Sequence) _Sequence = sequence;
+            }
+        }
+
         /// <inheritdoc />
         public async Task FlushAsync(CancellationToken token)
         {

@@ -258,6 +258,22 @@ namespace Garrison.Sdk.Models
         public string? StructuredOutputJson { get; set; } = null;
 
         /// <summary>
+        /// Whether the final output validated against the agent's output schema: true or false, or null when the agent
+        /// has no output schema or no successful output was validated.
+        /// </summary>
+        public bool? OutputSchemaValid { get; set; } = null;
+
+        /// <summary>
+        /// The first few errors of the most recent failed schema validation, separated by "; ", or null.
+        /// </summary>
+        public string? SchemaValidationErrors { get; set; } = null;
+
+        /// <summary>
+        /// Structured output repair attempts started for the run: 0 or 1. Default 0.
+        /// </summary>
+        public int RepairAttempts { get; set; } = 0;
+
+        /// <summary>
         /// Harness session identifier.
         /// </summary>
         public string? SessionId { get; set; } = null;

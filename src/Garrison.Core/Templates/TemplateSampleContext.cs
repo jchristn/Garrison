@@ -41,6 +41,7 @@ namespace Garrison.Core.Templates
             context.Set("run.workspaceDir", ExecutionPlaceholders.WorkspaceDir);
             context.Set("run.homeDir", ExecutionPlaceholders.HomeDir);
             context.Set("run.callChain", new List<object?> { "sample-agent" });
+            context.Set("run.resumeSessionId", null);
             context.Set("input.message", "Summarize the README in three bullet points.");
             context.Set("input.contentType", "text/plain");
             context.Set("input.parameters", TemplateContext.NewMap());
@@ -58,7 +59,11 @@ namespace Garrison.Core.Templates
             context.Set("harness.nativeSchema", true);
             context.Set("prompts.system", "Sample system prompt.");
             context.Set("prompts.task", "Sample task prompt.");
-            context.Set("repair.error", "The answer was not valid JSON.");
+            context.Set("repair.error", "(root): Required properties [\"answer\"] are not present (required)");
+            context.Set("repair.schema", "{\"type\":\"object\",\"properties\":{\"answer\":{\"type\":\"string\"}},\"required\":[\"answer\"]}");
+            context.Set("repair.attempt", 1);
+            context.Set("repair.sessionId", "sample-session");
+            context.Set("repair.previousOutput", "{\"reply\":\"Three bullet points.\"}");
             context.Set("now", DateTime.UtcNow);
             if (overrides.HasValue && overrides.Value.ValueKind == JsonValueKind.Object) Merge(context.Root, overrides.Value);
             return context;

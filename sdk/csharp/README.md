@@ -85,6 +85,8 @@ Nullable properties are null when the value could not be measured.
 
 `Run.BlockedReason` (`RunBlockedReasonEnum?`) is computed by the server when a run is read. It is null unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector). The tenant overview counts these runs as `OverviewResponse.BlockedRuns`. See "Blocked runs" in `REST_API.md`.
 
+When the agent has an output schema, the server validates each run's final output against it. `Run.OutputSchemaValid` (`bool?`) is true or false after validation and null when nothing was validated, `Run.SchemaValidationErrors` (`string?`) holds the first few errors of a failed validation, and `Run.RepairAttempts` (`int`, 0 or 1) counts the structured output repair Garrison makes when the harness can resume its session. A run whose output still does not validate fails with `RunOutcomeEnum.SchemaValidationFailed`. See "Structured output validation" in `REST_API.md`.
+
 ## Run analytics
 
 `Analytics.RunsAsync` returns totals and time-bucketed series of run counts, tokens, cost, latency percentiles, and throughput for the tenant.

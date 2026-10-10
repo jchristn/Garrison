@@ -136,5 +136,19 @@ namespace Garrison.Core.Compilation
         /// W3C traceparent for span correlation.
         /// </summary>
         public string? TraceParent { get; set; } = null;
+
+        /// <summary>
+        /// Whether the worker keeps the run's work, home, and config directories after a successful execution, because
+        /// the control plane may answer the completion report with a structured output repair that resumes the
+        /// harness session in the same directories. Set when the agent has an output schema and the harness profile
+        /// supports resume. The worker applies workspace retention once the run is finally reported. Default false.
+        /// </summary>
+        public bool RetainForRepair { get; set; } = false;
+
+        /// <summary>
+        /// Structured output repair attempt this spec runs: 0 for the original execution, 1 for the repair. A repair
+        /// reuses the directories of the original execution and skips workspace preparation. Default 0.
+        /// </summary>
+        public int RepairAttempt { get; set; } = 0;
     }
 }

@@ -13,6 +13,7 @@
   "defaultTimeoutSeconds": 300,
   "killGraceSeconds": 2,
   "isolateHome": true,
+  "supportsResume": true,
   "arguments": [
     {
       "template": "--format"
@@ -47,6 +48,34 @@
     {
       "template": "{{deployment.parameters.exitCode}}",
       "condition": "{{deployment.parameters.exitCode}}"
+    },
+    {
+      "template": "--answer",
+      "condition": "{{deployment.parameters.answer}}"
+    },
+    {
+      "template": "{{deployment.parameters.answer}}",
+      "condition": "{{deployment.parameters.answer}}"
+    },
+    {
+      "template": "--resume-answer",
+      "condition": "{{deployment.parameters.resumeAnswer}}"
+    },
+    {
+      "template": "{{deployment.parameters.resumeAnswer}}",
+      "condition": "{{deployment.parameters.resumeAnswer}}"
+    },
+    {
+      "template": "--structured-output",
+      "condition": "{{deployment.parameters.structuredOutput}}"
+    },
+    {
+      "template": "--resume",
+      "condition": "{{run.resumeSessionId}}"
+    },
+    {
+      "template": "{{run.resumeSessionId}}",
+      "condition": "{{run.resumeSessionId}}"
     }
   ],
   "environment": [],

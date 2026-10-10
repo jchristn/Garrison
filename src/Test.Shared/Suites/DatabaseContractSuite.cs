@@ -29,7 +29,7 @@ namespace Test.Shared.Suites
             string suiteId = "db-" + provider.ToString().ToLowerInvariant();
             List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-twice", "Migrations are idempotent (" + provider + ")", ct => MigrateTwiceAsync(provider, ct)));
-            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v1-upgrade", "A version 1 database upgrades to version 2 and keeps its runs (" + provider + ")", ct => UpgradeFromVersion1Async(provider, ct)));
+            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v1-upgrade", "A version 1 database upgrades to the latest version and keeps its runs (" + provider + ")", ct => UpgradeFromVersion1Async(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "run-telemetry-roundtrip", "Run timing telemetry round-trips through create, complete, and update (" + provider + ")", ct => RunTelemetryRoundTripAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "tenant-crud", "Tenant create, read, update, enumerate, delete (" + provider + ")", ct => TenantCrudAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "children-roundtrip", "Harness profile child rows round-trip in order (" + provider + ")", ct => ChildrenRoundTripAsync(provider, ct)));
@@ -47,7 +47,7 @@ namespace Test.Shared.Suites
             {
                 Assert.True(await first.PingAsync(token).ConfigureAwait(false), "Ping failed after first initialization.");
                 firstVersion = first.SchemaVersion;
-                Assert.Equal(2, firstVersion, "Schema version after first initialization");
+                Assert.Equal(3, firstVersion, "Schema version after first initialization");
             }
             using (DatabaseDriverBase second = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
@@ -91,26 +91,34 @@ namespace Test.Shared.Suites
 
             using (DatabaseDriverBase upgraded = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(2, upgraded.SchemaVersion, "Schema version after upgrade");
+                Assert.Equal(3, upgraded.SchemaVersion, "Schema version after upgrade");
                 Run legacy = Assert.NotNull(await upgraded.Runs.ReadAsync("run_legacy", token).ConfigureAwait(false), "Legacy run");
                 Assert.Equal(20L, legacy.OutputTokens, "Existing columns survive");
                 Assert.Equal(0L, legacy.ReasoningTokens, "Reasoning tokens default to 0");
                 Assert.Equal(0, legacy.ToolCallCount, "Tool call count defaults to 0");
+                Assert.True(legacy.OutputSchemaValid == null && legacy.SchemaValidationErrors == null, "Schema validation fields are null for legacy runs.");
+                Assert.Equal(0, legacy.RepairAttempts, "Repair attempts default to 0");
                 Assert.True(legacy.TimeToFirstTokenMs == null && legacy.StreamingMs == null && legacy.ExecutionMs == null, "Worker timings are null for legacy runs.");
                 Assert.Equal(250L, legacy.QueueMs ?? -1, "Queue time derived from server timestamps");
                 Assert.Equal(4250L, legacy.TotalMs ?? -1, "Total time derived from server timestamps");
 
                 legacy.ToolCallCount = 3;
+                legacy.OutputSchemaValid = false;
+                legacy.SchemaValidationErrors = "(root): example (required)";
+                legacy.RepairAttempts = 1;
                 legacy.StreamingMs = 1500;
                 await upgraded.Runs.UpdateAsync(legacy, token).ConfigureAwait(false);
                 Run updated = Assert.NotNull(await upgraded.Runs.ReadAsync("run_legacy", token).ConfigureAwait(false), "Updated legacy run");
                 Assert.Equal(3, updated.ToolCallCount, "New column writes after upgrade");
+                Assert.True(updated.OutputSchemaValid == false, "outputSchemaValid writes after upgrade");
+                Assert.Equal("(root): example (required)", updated.SchemaValidationErrors, "schemaValidationErrors writes after upgrade");
+                Assert.Equal(1, updated.RepairAttempts, "repairAttempts writes after upgrade");
                 Assert.Equal(1500L, updated.StreamingMs ?? -1, "Streaming after upgrade");
             }
 
             using (DatabaseDriverBase again = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(2, again.SchemaVersion, "Schema version after a second upgrade pass");
+                Assert.Equal(3, again.SchemaVersion, "Schema version after a second upgrade pass");
             }
         }
 

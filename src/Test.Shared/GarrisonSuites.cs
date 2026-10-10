@@ -32,6 +32,7 @@ namespace Test.Shared
                 suites.AddRange(WorkerSuite.Build());
                 suites.AddRange(ProtocolSuite.Build());
                 suites.AddRange(AnalyticsSuite.Build());
+                suites.AddRange(StructuredOutputSuite.Build());
                 return suites;
             }
         }

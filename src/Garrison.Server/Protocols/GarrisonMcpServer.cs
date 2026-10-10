@@ -424,6 +424,8 @@ namespace Garrison.Server.Protocols
             summary.Finished = RunService.IsTerminal(run.Status);
             summary.Result = run.ResultText;
             summary.StructuredOutputJson = run.StructuredOutputJson;
+            summary.OutputSchemaValid = run.OutputSchemaValid;
+            summary.RepairAttempts = run.RepairAttempts;
             summary.Error = run.ErrorMessage;
             summary.InputTokens = run.InputTokens;
             summary.OutputTokens = run.OutputTokens;

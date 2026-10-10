@@ -32,6 +32,7 @@ namespace Garrison.Server.Modules
         private RunSignals? _Signals = null;
         private RunService? _Runs = null;
         private RunEventService? _Events = null;
+        private StructuredOutputService? _StructuredOutput = null;
         private RunAnalyticsService? _Analytics = null;
         private NodeService? _Nodes = null;
         private SchedulerService? _Scheduler = null;
@@ -56,6 +57,8 @@ namespace Garrison.Server.Modules
             _Signals = new RunSignals();
             _Runs = new RunService(context.Database, _Signals, _Options, context.Telemetry);
             _Events = new RunEventService(context.Database, _Signals, context.Telemetry);
+            _StructuredOutput = new StructuredOutputService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Options, context.Telemetry);
+            _Events.StructuredOutput = _StructuredOutput;
             _Analytics = new RunAnalyticsService(context.Database);
             _Nodes = new NodeService(context.Database, _Options, context.Audit);
             _Delegation = new DelegationPolicy(context.Database);
@@ -70,6 +73,7 @@ namespace Garrison.Server.Modules
             context.Register(_Signals);
             context.Register(_Runs);
             context.Register(_Events);
+            context.Register(_StructuredOutput);
             context.Register(_Analytics);
             context.Register(_Nodes);
             context.Register(_Delegation);

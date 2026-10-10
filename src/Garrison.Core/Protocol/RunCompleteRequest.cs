@@ -131,5 +131,18 @@ namespace Garrison.Core.Protocol
         /// Completion time (UTC).
         /// </summary>
         public DateTime CompletedUtc { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Which execution this report covers: 0 for the original execution, 1 for the structured output repair the
+        /// control plane requested in its response to the previous report. Default 0.
+        /// </summary>
+        public int RepairAttempt { get; set; } = 0;
+
+        /// <summary>
+        /// Whether the worker can run a structured output repair inside the same lease when the control plane asks for
+        /// one in the completion response. Workers that do not set this never receive a repair; a schema failure then
+        /// fails the run with SchemaValidationFailed. Default false.
+        /// </summary>
+        public bool SupportsRepair { get; set; } = false;
     }
 }

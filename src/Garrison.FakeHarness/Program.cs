@@ -12,7 +12,8 @@ namespace Garrison.FakeHarness
     /// characters of the prompt, in Claude stream-json, Codex JSONL, Mux JSONL, or plain text format.
     /// Usage: garrison-fake-harness --version | --format claude|codex|mux|plain [--scenario file] [--delay-ms N]
     /// [--fail] [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
-    /// [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N].
+    /// [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N] [--answer text]
+    /// [--resume-answer text] [--resume sessionId] [--structured-output].
     /// </summary>
     public static class Program
     {
@@ -38,8 +39,24 @@ namespace Garrison.FakeHarness
             string prompt = Console.IsInputRedirected ? await Console.In.ReadToEndAsync().ConfigureAwait(false) : String.Empty;
             string answer = "Echo: " + (prompt.Length > 200 ? prompt.Substring(0, 200) : prompt).Trim();
             if (!String.IsNullOrEmpty(options.ScenarioFile) && File.Exists(options.ScenarioFile)) answer = File.ReadAllText(options.ScenarioFile).Trim();
+            if (options.Answer != null) answer = options.Answer;
 
-            FakeEmitter emitter = new FakeEmitter(options);
+            string? sessionDirectory = SessionDirectory();
+            string sessionId = Guid.NewGuid().ToString();
+            if (!String.IsNullOrEmpty(options.Resume))
+            {
+                string? sessionFile = SessionFile(sessionDirectory, options.Resume);
+                if (sessionFile == null || !File.Exists(sessionFile))
+                {
+                    Console.Error.WriteLine("No conversation found with session ID: " + options.Resume);
+                    return 1;
+                }
+                sessionId = options.Resume;
+                if (options.ResumeAnswer != null) answer = options.ResumeAnswer;
+            }
+            SaveTurn(sessionDirectory, sessionId, prompt);
+
+            FakeEmitter emitter = new FakeEmitter(options, sessionId);
             emitter.Start();
 
             if (options.Hang)
@@ -78,6 +95,35 @@ namespace Garrison.FakeHarness
             if (!String.IsNullOrEmpty(options.Stderr)) Console.Error.WriteLine(options.Stderr);
             if (options.ExitCode.HasValue) return options.ExitCode.Value;
             return options.Fail ? 1 : 0;
+        }
+
+        private static string? SessionDirectory()
+        {
+            string? home = Environment.GetEnvironmentVariable("HOME");
+            if (String.IsNullOrEmpty(home)) home = Environment.GetEnvironmentVariable("USERPROFILE");
+            if (String.IsNullOrEmpty(home)) return null;
+            return Path.Combine(home, ".garrison-fake", "sessions");
+        }
+
+        private static string? SessionFile(string? directory, string sessionId)
+        {
+            if (directory == null || sessionId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || sessionId.Contains("..", StringComparison.Ordinal)) return null;
+            return Path.Combine(directory, sessionId + ".txt");
+        }
+
+        private static void SaveTurn(string? directory, string sessionId, string prompt)
+        {
+            string? file = SessionFile(directory, sessionId);
+            if (directory == null || file == null) return;
+            try
+            {
+                Directory.CreateDirectory(directory);
+                File.AppendAllText(file, "--- turn " + DateTime.UtcNow.ToString("o") + Environment.NewLine + prompt + Environment.NewLine);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine("Could not record the session: " + e.Message);
+            }
         }
 
         private static string ToolName(string spec)

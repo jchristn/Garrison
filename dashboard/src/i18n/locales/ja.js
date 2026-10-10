@@ -858,6 +858,13 @@ const ja = {
       caller: '呼び出し元',
       parent: '親の実行',
       attempt: '試行',
+      outputSchema: '出力スキーマ',
+      outputSchemaStates: {
+        valid: '有効',
+        validAfterRepair: '1 回の修復後に有効',
+        invalid: '無効',
+        invalidAfterRepair: '1 回の修復後も無効'
+      },
       started: '開始',
       completed: '完了',
       exitCode: '終了コード',

@@ -93,6 +93,7 @@ A successful call returns one text content item holding a JSON object. The run t
   "cachedTokens": 3,
   "reasoningTokens": 2,
   "toolCallCount": 0,
+  "repairAttempts": 0,
   "timeToFirstTokenMs": 61,
   "streamingMs": 21,
   "executionMs": 88,
@@ -111,6 +112,8 @@ A successful call returns one text content item holding a JSON object. The run t
 | `finished` | Whether the run reached a terminal status |
 | `result` | The final text, when finished |
 | `structuredOutputJson` | Structured output as a JSON string, when the agent defines an output schema |
+| `outputSchemaValid` | Whether the final output validated against the agent's output schema. Omitted when the agent has no schema or nothing was validated (see "Structured output validation" in `REST_API.md`) |
+| `repairAttempts` | Structured output repairs started for the run: 0 or 1 |
 | `error` | Error message for failed runs |
 | `inputTokens`, `outputTokens`, `cachedTokens`, `reasoningTokens`, `costUsd` | Usage reported by the harness (`reasoningTokens` is 0 when the harness does not report it) |
 | `toolCallCount` | Tool call events in the run |

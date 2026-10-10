@@ -61,7 +61,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/drain", ResourceTypeEnum.Node, OperationTypeEnum.Execute, DrainAsync, "Report that a worker is draining", tag, typeof(NodeHeartbeatRequest), typeof(NodeAckResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/started", ResourceTypeEnum.Node, OperationTypeEnum.Execute, StartedAsync, "Report a run started", tag, typeof(RunStartedRequest), typeof(NodeAckResponse), "none");
             routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/events", ResourceTypeEnum.Node, OperationTypeEnum.Execute, EventsAsync, "Report run events", tag, typeof(RunEventsRequest), typeof(NodeAckResponse), "none");
-            routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/complete", ResourceTypeEnum.Node, OperationTypeEnum.Execute, CompleteAsync, "Report a run finished", tag, typeof(RunCompleteRequest), typeof(NodeAckResponse), "none");
+            routes.Scoped(HttpMethod.POST, "/v1.0/api/node/runs/{runId}/complete", ResourceTypeEnum.Node, OperationTypeEnum.Execute, CompleteAsync, "Report a run finished", tag, typeof(RunCompleteRequest), typeof(RunCompleteResponse), "none");
         }
 
         #endregion
@@ -118,8 +118,8 @@ namespace Garrison.Server.Routes
         private async Task CompleteAsync(HttpContextBase context)
         {
             RunCompleteRequest request = RouteHelpers.RequiredBody<RunCompleteRequest>(context);
-            await _Events.CompleteAsync(RouteHelpers.Param(context, "runId") ?? String.Empty, request, context.Token).ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(context, 200, new NodeAckResponse()).ConfigureAwait(false);
+            RunCompleteResponse response = await _Events.CompleteAsync(RouteHelpers.Param(context, "runId") ?? String.Empty, request, context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 200, response).ConfigureAwait(false);
         }
 
         private async Task<Node> RequireNodeAsync(string nodeId, HttpContextBase context)

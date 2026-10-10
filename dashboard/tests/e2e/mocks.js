@@ -80,7 +80,11 @@ function run(i) {
     requirements: [],
     templateVersions: [{ id: `rtv_${pad(i)}`, runId: `run_${pad(i)}`, templateId: 'tpl_builtin_default_task', templateName: 'builtin/default-task', version: 1 }],
     // The server always serializes blockedReason, null when the run is not Queued or a worker can take it.
-    blockedReason: queued ? BLOCKED[i] || null : null
+    blockedReason: queued ? BLOCKED[i] || null : null,
+    // Always serialized too: null when the agent has no output schema (the echo agent has none).
+    outputSchemaValid: null,
+    schemaValidationErrors: null,
+    repairAttempts: 0
   });
   if (!queued) {
     Object.assign(out, {

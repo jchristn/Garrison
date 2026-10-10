@@ -75,7 +75,29 @@ export interface Run extends Json {
    * not Queued or some Ready worker could run it.
    */
   blockedReason?: RunBlockedReason | null;
+  /**
+   * Whether the final output validated against the agent's output schema; null when the agent has no output schema or
+   * nothing was validated.
+   */
+  outputSchemaValid?: boolean | null;
+  /** The first few errors of the most recent failed schema validation, separated by "; "; null otherwise. */
+  schemaValidationErrors?: string | null;
+  /** Structured output repairs started for the run: 0 or 1. */
+  repairAttempts?: number;
 }
+
+/**
+ * Run outcome codes (Run.outcome). SchemaValidationFailed means the final output did not validate against the agent's
+ * output schema, after the one repair attempt or at once when the harness cannot resume.
+ */
+export const RUN_OUTCOMES = [
+  "None", "Succeeded", "HarnessFailed", "NotInstalled", "NotCredentialed", "McpPreflightFailed", "NodeLost",
+  "OutputLimitExceeded", "SchemaValidationFailed", "TimedOut", "Cancelled", "StaleLease", "CompileFailed",
+  "WorkspaceFailed", "Rejected", "NoCapableWorker", "InternalError"
+] as const;
+
+/** One of {@link RUN_OUTCOMES}. */
+export type RunOutcome = typeof RUN_OUTCOMES[number];
 
 /** Why a queued run cannot be handed to any worker right now. */
 export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool";

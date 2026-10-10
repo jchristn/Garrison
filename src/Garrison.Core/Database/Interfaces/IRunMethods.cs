@@ -121,6 +121,19 @@ namespace Garrison.Core.Database.Interfaces
         Task<bool> CompleteAsync(Run run, string nodeId, long epoch, CancellationToken token = default);
 
         /// <summary>
+        /// Record the first execution of a run whose structured output failed schema validation and start its repair
+        /// attempt: stores the interim result, session, usage, timing, validation fields, repair attempt count, and the
+        /// new deadline while the run stays active. Fenced by node and epoch; applies only while the run is Leased or
+        /// Running (not Cancelling).
+        /// </summary>
+        /// <param name="run">Run carrying the interim fields and the new deadline.</param>
+        /// <param name="nodeId">Reporting node.</param>
+        /// <param name="epoch">Fencing epoch.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when accepted.</returns>
+        Task<bool> RecordRepairAsync(Run run, string nodeId, long epoch, CancellationToken token = default);
+
+        /// <summary>
         /// Extend a run lease held by a node at an epoch.
         /// </summary>
         /// <param name="runId">Run identifier.</param>
