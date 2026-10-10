@@ -84,7 +84,7 @@ Rules for keeping the plan honest:
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
 | 5 | Dashboard | M1 | Complete | 51 / 51 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
-| 7 | Container images and Kubernetes assets | M1 | In progress | 36 / 38 |
+| 7 | Container images and Kubernetes assets | M1 | In progress | 37 / 38 |
 | 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
 | 10 | Control plane high availability and scale-out | M2 | Complete | 18 / 18 |
@@ -1334,7 +1334,7 @@ Scripts and validation
 - [x] P7.25 Deploy to K3S (in Docker) locally: 1 server, 2 workers, dashboard, Postgres; smoke test passes. -> annotate with command and timings.  | claude 2026-10-10 k3s in Docker (rancher/k3s), images imported with ctr; kubectl apply -k k8s/overlays/k3s then k8s/scripts/smoke-test.sh; all pods Ready in about 2 min, smoke run 0.06 s. Fixed: overlays lacked namespace (Postgres landed in default)
 - [x] P7.26 Deploy to minikube locally (when minikube is available): same checks.  | claude 2026-10-10 minikube 1.39.0 (Docker driver, 3 GB) installed: Kustomize overlay and Helm chart each deployed in about 30 s; smoke test passed; examples/validate.sh 25/25 with Claude Code, Codex, and Mux for both
 - [x] P7.27 Worker scale-out check: scale the StatefulSet to 4, observe registration, scale back to 2, observe drain and no lost runs.  | claude 2026-10-10 K3S: scaled to 4, all registered Ready; 12 runs spread over worker-0..3, all Succeeded; scaled to 2, worker-2/-3 drained to Offline, no lost runs
-- [ ] P7.28 Control plane scale check (post-M1, Phase 10 owns HA): scale server to 2 replicas with Postgres and confirm claims, events, and SSE work through either replica.
+- [x] P7.28 Control plane scale check (post-M1, Phase 10 owns HA): scale server to 2 replicas with Postgres and confirm claims, events, and SSE work through either replica.  | claude 2026-10-10 main K3S cluster at 2 server replicas on PostgreSQL: validate.sh 25/25 through replica A; token from A accepted on B; SSE on B streamed all 9 events of a run created on A; MCP session from A served tools/list on B
 - [x] P7.29 `docs/KUBERNETES.md`.  | k8s stream docs/KUBERNETES.md
 - [x] P7.30 Image tags in overlays and chart default to the product version, never `latest`.  | k8s stream v0.1.0-alpha tags
 - [x] P7.31 Resource requests and limits documented per workload.  | k8s stream
