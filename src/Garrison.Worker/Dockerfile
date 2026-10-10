@@ -3,7 +3,10 @@
 #   docker build -f src/Garrison.Worker/Dockerfile -t jchristn77/garrison-worker:<tag> .
 # Harness versions are pinned with build arguments and recorded in image labels.
 
-ARG MUX_REF=33672f948c5b7efa2adb6502d5444d167610240e
+# Mux 1.3.0 (commit 60fd88a). Built from source until Mux publishes release archives
+# (mux-<version>-linux-<arch>.tar.gz); switch to the archive for the pinned version then.
+ARG MUX_REF=60fd88aeed706e13c2ae20689fb56b887d327bf4
+ARG MUX_VERSION=1.3.0
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
@@ -21,6 +24,7 @@ RUN git clone https://github.com/jchristn/Mux.git . \
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0
 ARG MUX_REF
+ARG MUX_VERSION
 ARG GARRISON_VERSION=0.1.0-alpha
 ARG NODE_MAJOR=22
 ARG CLAUDE_CODE_VERSION=2.1.296
@@ -33,6 +37,7 @@ LABEL org.opencontainers.image.title="garrison-worker" \
       org.opencontainers.image.licenses="MIT" \
       io.garrison.harness.claude-code="${CLAUDE_CODE_VERSION}" \
       io.garrison.harness.codex="${CODEX_VERSION}" \
+      io.garrison.harness.mux="${MUX_VERSION}" \
       io.garrison.harness.mux-ref="${MUX_REF}" \
       io.garrison.harness.gemini-cli="${INCLUDE_GEMINI}:${GEMINI_CLI_VERSION}"
 
@@ -57,6 +62,7 @@ COPY --from=mux /out/mux/ /opt/mux/
 RUN printf '#!/bin/sh\nexec dotnet /opt/mux/Mux.Cli.dll "$@"\n' > /usr/local/bin/mux \
  && printf '#!/bin/sh\nexec dotnet /opt/garrison/fake/garrison-fake-harness.dll "$@"\n' > /usr/local/bin/garrison-fake-harness \
  && chmod 755 /usr/local/bin/mux /usr/local/bin/garrison-fake-harness \
+ && mux --version | grep -q "${MUX_VERSION}" \
  && groupadd --gid 10001 garrison \
  && useradd --uid 10001 --gid 10001 --create-home --home-dir /home/garrison garrison \
  && mkdir -p /workspaces \

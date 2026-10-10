@@ -182,6 +182,8 @@ services:
       MUX_MODEL: '${MUX_MODEL:-}'
       MUX_API_KEY: '${MUX_API_KEY:-}'
       MUX_ADAPTER_TYPE: '${MUX_ADAPTER_TYPE:-}'
+      MUX_CONTEXT_WINDOW: '${MUX_CONTEXT_WINDOW:-}'
+      MUX_MAX_TOKENS: '${MUX_MAX_TOKENS:-}'
     volumes:
       - ../k8s/base/scripts/bootstrap.sh:/scripts/bootstrap.sh:ro
       - ../k8s/base/manifests:/manifests:ro

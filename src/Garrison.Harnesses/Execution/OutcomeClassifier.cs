@@ -8,7 +8,8 @@ namespace Garrison.Harnesses.Execution
 
     /// <summary>
     /// Classifies a finished harness run (Aegon order): cancelled, timed out, not installed, output limit, parser
-    /// failure, success per policy, credential heuristics from stderr, otherwise failed. The exit code is recorded but
+    /// failure, success per policy, credential failures reported in the stream, credential heuristics from stderr,
+    /// otherwise failed. The exit code is recorded but
     /// decides success only when the success policy involves it (or the parser is PlainText). Thread-safe.
     /// </summary>
     public static class OutcomeClassifier
@@ -69,6 +70,10 @@ namespace Garrison.Harnesses.Execution
             if (process.OutputLimitExceeded) return Make(RunStatusEnum.Failed, RunOutcomeEnum.OutputLimitExceeded, "Harness output exceeded " + spec.MaxOutputBytes + " bytes.");
 
             bool exitOk = process.ExitCode.HasValue && (spec.SuccessExitCodes.Count == 0 ? process.ExitCode.Value == 0 : spec.SuccessExitCodes.Contains(process.ExitCode.Value));
+
+            // A harness that rejected its own output against the output schema exited non-zero for that reason alone.
+            // Let the control plane validate the output so it can repair it in the same session.
+            if (state.HarnessRejectedOutputSchema && process.ExitCode.HasValue) exitOk = true;
             SuccessPolicyEnum policy = spec.Parser == OutputParserEnum.PlainText ? SuccessPolicyEnum.ExitCode : spec.SuccessPolicy;
 
             bool success;
@@ -86,6 +91,11 @@ namespace Garrison.Harnesses.Execution
             }
 
             if (success) return Make(RunStatusEnum.Succeeded, RunOutcomeEnum.Succeeded, null);
+
+            if (state.CredentialFailure != null)
+            {
+                return Make(RunStatusEnum.Failed, RunOutcomeEnum.NotCredentialed, "Harness is not credentialed: " + state.CredentialFailure);
+            }
 
             string stderrLower = (process.StderrTail ?? String.Empty).ToLowerInvariant();
             if (_CredentialMarkers.Any(m => stderrLower.Contains(m, StringComparison.Ordinal)))

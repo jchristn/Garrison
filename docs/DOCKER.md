@@ -61,6 +61,7 @@ Set any of these in `.env` before starting. The bootstrap container stores each 
 | `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) or `ANTHROPIC_API_KEY` | Claude Code |
 | `OPENAI_API_KEY`, or `CODEX_AUTH_JSON_FILE` with the absolute path of a Codex `auth.json` | Codex |
 | `MUX_BASE_URL`, `MUX_MODEL`, `MUX_ADAPTER_TYPE` (`openai-compatible` or `ollama`), `MUX_API_KEY` | Mux |
+| `MUX_CONTEXT_WINDOW`, `MUX_MAX_TOKENS` (optional whole numbers) | Mux: the model's context window and the most tokens one response may generate. They become the `contextWindow` and `maxTokens` parameters of `mux-helper-default`. Leave them unset and Mux falls back to a 32,768-token window, which is much smaller than most current models offer, and Garrison adds a warning event to every Mux run. |
 
 Compose does not expand `~`, so write `CODEX_AUTH_JSON_FILE=/Users/you/.codex/auth.json`. The values stay in `.env`, which git ignores and the Docker build context excludes; harness credentials never become environment variables on the workers.
 

@@ -209,6 +209,7 @@ namespace Test.Shared.Suites
                     JsonElement tools = await client.CallAsync<JsonElement>("tools/list", new { }).ConfigureAwait(false);
                     List<string> names = tools.GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString() ?? String.Empty).ToList();
                     Assert.True(names.Contains("garrison_invoke_agent"), "tools/list is missing garrison_invoke_agent: " + String.Join(", ", names));
+                    Assert.True(tools.GetProperty("tools").EnumerateArray().All(t => t.GetProperty("inputSchema").GetProperty("properties").TryGetProperty("tenantId", out JsonElement _)), "System administrators see tenantId on every tool (G-19)");
 
                     JsonElement listed = await client.CallAsync<JsonElement>("tools/call", new { name = "garrison_list_agents", arguments = new { tenantId = cluster.Server.TenantId } }, 60000).ConfigureAwait(false);
                     Assert.True(ToolText(listed).Contains("mcp-echo"), "garrison_list_agents did not include the agent: " + ToolText(listed));
@@ -315,6 +316,44 @@ namespace Test.Shared.Suites
                     Assert.Equal(409, denied.StatusCode, "Disallowed delegation status (" + denied.Body + ")");
                     TestResponse admin403 = await HttpTestHelpers.SendAsync(asRun, HttpMethod.Get, "/v1.0/api/tenants/" + tenant + "/users", null, token).ConfigureAwait(false);
                     Assert.True(admin403.StatusCode == 403 || admin403.StatusCode == 404, "Run tokens must not reach administration (got " + admin403.StatusCode + ").");
+                }
+
+                // G-19: run-token MCP sessions do not see administrator-only arguments, a stray tenantId is ignored, and
+                // a wrong deploymentId tells the model to omit it.
+                using (McpHttpClient client = new McpHttpClient())
+                {
+                    client.SetRequestHeader("Authorization", "Bearer " + runToken);
+                    await client.ConnectStreamableAsync(cluster.Server.McpUrl, "/mcp").ConfigureAwait(false);
+                    JsonElement tools = await client.CallAsync<JsonElement>("tools/list", new { }).ConfigureAwait(false);
+                    List<JsonElement> listed = tools.GetProperty("tools").EnumerateArray().ToList();
+                    Assert.True(listed.Count >= 8, "Run token sees the tools");
+                    foreach (JsonElement tool in listed)
+                    {
+                        JsonElement properties = tool.GetProperty("inputSchema").GetProperty("properties");
+                        Assert.True(!properties.TryGetProperty("tenantId", out JsonElement _), "Run token must not see tenantId on " + tool.GetProperty("name").GetString());
+                    }
+                    JsonElement invokeTool = listed.Single(t => t.GetProperty("name").GetString() == "garrison_invoke_agent");
+                    Assert.True((invokeTool.GetProperty("description").GetString() ?? String.Empty).Contains("omit", StringComparison.OrdinalIgnoreCase), "invoke description tells the model to omit optional fields");
+                    Assert.True((invokeTool.GetProperty("inputSchema").GetProperty("properties").GetProperty("deploymentId").GetProperty("description").GetString() ?? String.Empty).Contains("Omit it", StringComparison.Ordinal), "deploymentId says to omit it");
+
+                    JsonElement invoked = await client.CallAsync<JsonElement>("tools/call", new { name = "garrison_invoke_agent", arguments = new { tenantId = "global", agent = "helper", input = "Delegated over MCP", waitSeconds = 60 } }, 90000).ConfigureAwait(false);
+                    string text = ToolText(invoked);
+                    using (JsonDocument summary = JsonDocument.Parse(text))
+                    {
+                        Assert.Equal("Succeeded", summary.RootElement.GetProperty("status").GetString(), "A stray tenantId from a run token is ignored (" + text + ")");
+                    }
+
+                    string wrongDeployment;
+                    try
+                    {
+                        JsonElement result = await client.CallAsync<JsonElement>("tools/call", new { name = "garrison_invoke_agent", arguments = new { agent = "helper", input = "x", deploymentId = "helper" } }, 90000).ConfigureAwait(false);
+                        wrongDeployment = result.GetProperty("content")[0].GetProperty("text").GetString() ?? String.Empty;
+                    }
+                    catch (Exception e) when (e is not TestAssertionException)
+                    {
+                        wrongDeployment = e.Message;
+                    }
+                    Assert.True(wrongDeployment.Contains("NotFound: ", StringComparison.Ordinal) && wrongDeployment.Contains("Omit deploymentId to use the agent's default routing.", StringComparison.Ordinal), "Deployment not found text: " + wrongDeployment);
                 }
             }
         }

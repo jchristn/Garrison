@@ -9,8 +9,14 @@ These files feed the parser suite (`src/Test.Shared/Suites/ParserSuite.cs`). Eac
 | `claude/error-max-turns.jsonl` | Hand-written | Tool use, tool result, and a final `error_max_turns` result with `is_error: true`. |
 | `codex/success.jsonl` | Recorded | `echo "Reply with exactly: OK" \| codex exec --json --skip-git-repo-check -s read-only -` with codex-cli 0.159.3 on 2026-10-09. |
 | `codex/failed.jsonl` | Hand-written | Command execution and MCP tool call items followed by `turn.failed`. |
-| `mux/success.jsonl` | Hand-written | Built from the Mux JSONL contract version 2 (`src/Mux.Core/Agent/AgentEventSerializer.cs`); Mux was not installed when the fixtures were created. |
-| `mux/failed.jsonl` | Hand-written | `tool_call_denied` error and a `max_iterations_reached` completion. |
+| `mux/success.jsonl` | Hand-written | Mux 1.2.0 shape, built from the Mux JSONL contract version 2 (`src/Mux.Core/Agent/AgentEventSerializer.cs`); Mux was not installed when the fixtures were created. |
+| `mux/failed.jsonl` | Hand-written | Mux 1.2.0 shape: `tool_call_denied` error and a `max_iterations_reached` completion. |
+| `mux/v1.3.0-success.jsonl` | Recorded | Mux 1.3.0 (commit `60fd88a`) against gpt-oss:20b (Ollama adapter) on 2026-10-10, with the `builtin/mux` arguments for an agent with an output schema plus `--session-id run_g20test01`. Includes a `remember` tool call, `contextWindowSource: default`, and the 1.3.0 `usage` fields. |
+| `mux/v1.3.0-llm-401.jsonl` | Recorded | Mux 1.3.0 with a wrong API key: an `llm_error` 401 and `run_completed` status `failed` (exit 1). |
+| `mux/v1.3.0-config-unresolved-env.jsonl` | Recorded | Mux 1.3.0 with an endpoint `apiKey` that references an unset variable: one `config_unresolved_env` error and no run events (exit 1). |
+| `mux/v1.3.0-schema-violation.jsonl` | Recorded | Mux 1.3.0 against a local stub OpenAI-compatible endpoint that answers plain text, with `--output-schema`: `run_completed` status `completed`, then `schema_validation_failed` (exit 1). |
+
+The Mux recordings had their working directory, config directory, and endpoint host rewritten to `/work`, `/config/mux`, and `http://ollama:11434/v1`.
 | `gemini/success.jsonl` | Hand-written | Shape taken from Aegon's `GeminiStreamParser`; Gemini CLI was not installed. |
 
 ## Re-recording

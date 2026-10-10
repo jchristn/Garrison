@@ -10,6 +10,9 @@ spec:
   parameters:
     baseUrl: __MUX_BASE_URL__
     adapterType: __MUX_ADAPTER_TYPE__
+    # Optional. The bootstrap removes these lines when MUX_CONTEXT_WINDOW or MUX_MAX_TOKENS is not set.
+    contextWindow: "__MUX_CONTEXT_WINDOW__"
+    maxTokens: "__MUX_MAX_TOKENS__"
   prompts:
     System: builtin/default-system
     Task: builtin/default-task

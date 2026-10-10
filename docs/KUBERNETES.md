@@ -19,7 +19,8 @@ Everything lives under `k8s/`:
 
 | Option | Pick it when | You need | First deploy |
 |---|---|---|---|
-| K3S in Docker | You want a real cluster on a laptop without installing one | Docker, `kubectl`, `openssl` | 5 to 25 minutes: the image build, plus K3S pulling Postgres and two small images on a slow link |
+| k3d (K3S in Docker) | You want a real cluster on macOS or Windows, where K3S does not run natively | Docker, `kubectl`, `openssl`, k3d (`brew install k3d`) | 1 to 10 minutes: cluster start, the image build, and the import |
+| K3S in Docker, by hand | The same without installing k3d | Docker, `kubectl`, `openssl` | 5 to 25 minutes: the image build, plus K3S pulling Postgres and two small images on a slow link |
 | K3S on a host | You run K3S already, on a VM or a small server | `kubectl` pointed at it, Docker, `sudo` for `k3s ctr` | about the same |
 | minikube | You already use minikube | minikube, `kubectl`, `openssl`, 4 CPUs and 8 GB for the VM by default | similar; images build inside minikube |
 | Production overlay or Helm | A shared cluster with a managed PostgreSQL and an ingress controller | `kubectl` (and `helm` for the chart), published images or your own registry | depends on the cluster |
@@ -63,6 +64,16 @@ k8s/scripts/deploy-minikube.sh
 
 The script starts minikube when it is not running (with `MINIKUBE_CPUS`, default 4, and `MINIKUBE_MEMORY`, default `8g`), builds all three images straight into minikube's image store (so nothing is pulled), generates secrets, applies `overlays/minikube`, waits for every rollout and for the bootstrap Job, and prints the URLs. The dashboard is on NodePort 30880, the REST API on 30870, and MCP on 30871 at the address `minikube ip` reports. Set `SKIP_BUILD=1` to reuse images you already built.
 
+If you already built the images with Docker (for example with `docker/update.sh` or `deploy-k3s.sh --build`), loading them is much faster than building inside minikube:
+
+```bash
+minikube start --driver=docker --cpus=4 --memory=3g
+for i in server worker dashboard; do minikube image load jchristn77/garrison-$i:v0.1.0-alpha; done
+SKIP_BUILD=1 k8s/scripts/deploy-minikube.sh
+```
+
+Verified with minikube 1.39.0 on the Docker driver with 3 GB, alongside another cluster: every pod Ready in about 30 seconds, `examples/validate.sh` 25 of 25 with Claude Code, Codex, and Mux. The Helm chart passes the same check on minikube (`helm install garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/values-minikube.yaml` after `generate-secrets.sh`).
+
 Two things catch people on macOS and Windows. With minikube's Docker driver, the `minikube ip` address is not reachable from the host, so the NodePort URLs time out; use `k8s/scripts/port-forward.sh` (or `minikube service -n garrison garrison-dashboard`) instead. And the default 8 GB does not fit inside a Docker Desktop that only has 8 GB itself; start with `MINIKUBE_MEMORY=6g` or give Docker more.
 
 ## K3S
@@ -75,7 +86,17 @@ k8s/scripts/deploy-k3s.sh --build
 
 `--build` builds the images with Docker and imports them with `sudo k3s ctr images import`. Without it, the overlay pulls `jchristn77/garrison-*` images at the tag pinned in `k8s/base/kustomization.yaml`.
 
-K3S also runs happily inside Docker, which is the quickest way to try Garrison on a laptop without installing anything. From the repository root:
+K3S itself only runs on Linux. On macOS and Windows it runs inside Docker, and k3d is the standard tool for that:
+
+```bash
+brew install k3d                     # or see https://k3d.io for other platforms
+k3d cluster create garrison --api-port 127.0.0.1:6550 -p "127.0.0.1:8080:80@loadbalancer"
+K3D_CLUSTER=garrison k8s/scripts/deploy-k3s.sh --build
+```
+
+k3d switches `kubectl` to the new cluster. With `K3D_CLUSTER` set, the script imports images with `k3d image import`. The ingress answers on `http://127.0.0.1:8080` with the host header `garrison.local` (add `127.0.0.1 garrison.local` to your hosts file and open `http://garrison.local:8080`), or use `k8s/scripts/port-forward.sh`. Pick other host ports if 6550 or 8080 is taken. Remove the cluster with `k3d cluster delete garrison`. Verified with k3d 5.9.0 (K3S 1.35.5): `examples/validate.sh` 25 of 25.
+
+Without k3d, you can run the K3S container yourself. From the repository root:
 
 ```bash
 docker run -d --name garrison-k3s --privileged -p 127.0.0.1:6443:6443 -p 127.0.0.1:8080:80 rancher/k3s:v1.31.4-k3s1 server

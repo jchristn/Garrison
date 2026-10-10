@@ -150,6 +150,13 @@ namespace Test.Shared.Suites
                     Assert.True(original.Spec.RetainForRepair, profile + ": original execution keeps its directories for a possible repair");
                     Assert.Equal(0, original.Spec.RepairAttempt, profile + ": original repair attempt");
                     Assert.True(!original.Spec.Arguments.Contains("sess-123"), profile + ": no resume on the original execution");
+                    if (profile == "mux")
+                    {
+                        // Mux print mode only persists a session when a session flag is given (G-20).
+                        int sessionFlag = original.Spec.Arguments.IndexOf("--session-id");
+                        Assert.True(sessionFlag > 0 && original.Spec.Arguments[sessionFlag + 1] == run.Id, "mux: the original execution persists its session under the run id: " + String.Join(" ", original.Spec.Arguments));
+                        Assert.True(!original.Spec.Arguments.Contains("--no-session-persistence"), "mux: the session is persisted");
+                    }
 
                     CompilationRepair repair = new CompilationRepair();
                     repair.SessionId = "sess-123";
@@ -171,6 +178,7 @@ namespace Test.Shared.Suites
                     {
                         Assert.Equal("--resume", flag, profile + ": resume flag");
                     }
+                    if (profile == "mux") Assert.True(!spec.Arguments.Contains("--session-id"), "mux: the repair resumes instead of naming a new session");
 
                     string prompt = spec.Stdin ?? String.Empty;
                     Assert.True(prompt.Contains("Required properties", StringComparison.Ordinal), profile + ": repair prompt carries repair.error: " + prompt);

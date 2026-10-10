@@ -39,6 +39,8 @@ namespace Garrison.Server.Protocols
         private McpHttpServer? _Server = null;
         private CancellationTokenSource? _Cts = null;
         private Task? _ServerTask = null;
+        private List<ToolDefinition> _PublicTools = new List<ToolDefinition>();
+        private List<ToolDefinition> _AdministratorTools = new List<ToolDefinition>();
         private bool _Disposed = false;
 
         #endregion
@@ -105,15 +107,30 @@ namespace Garrison.Server.Protocols
             _Server.AuthenticationHandler = AuthenticateAsync;
             _Server.Log += (_, message) => _Context.Logging.Debug(_Header + message);
 
+            List<ToolDefinition> publicTools = new List<ToolDefinition>();
+            List<ToolDefinition> administratorTools = new List<ToolDefinition>();
             foreach (McpToolDefinition tool in McpToolCatalog.All())
             {
                 string description = descriptions.TryGetValue(tool.Name, out string? rendered) ? rendered : tool.DefaultDescription;
                 McpToolDefinition captured = tool;
+                using (JsonDocument schema = JsonDocument.Parse(tool.AdministratorInputSchemaJson))
+                {
+                    // Arguments are validated against the administrator schema, so a caller that sends tenantId anyway
+                    // is accepted; DispatchAsync ignores it for anyone bound to a tenant.
+                    _Server.RegisterTool(tool.Name, description, schema.RootElement.Clone(), (RpcParameters? args, RpcCallContext? call, CancellationToken ct) => DispatchAsync(captured, args, call, ct));
+                    administratorTools.Add(Definition(tool.Name, description, schema.RootElement.Clone()));
+                }
                 using (JsonDocument schema = JsonDocument.Parse(tool.InputSchemaJson))
                 {
-                    _Server.RegisterTool(tool.Name, description, schema.RootElement.Clone(), (RpcParameters? args, RpcCallContext? call, CancellationToken ct) => DispatchAsync(captured, args, call, ct));
+                    publicTools.Add(Definition(tool.Name, description, schema.RootElement.Clone()));
                 }
             }
+            _PublicTools = publicTools;
+            _AdministratorTools = administratorTools;
+
+            // Voltaic lists the same tools to every session, so tools/list is answered here per caller: only system
+            // administrators see the administrator-only tenantId argument (G-19).
+            _Server.RegisterMethod("tools/list", (RpcParameters? args, RpcCallContext? call, CancellationToken ct) => Task.FromResult<object>(ListTools(PrincipalClaims.Decode(call?.Claims))));
 
             _ServerTask = _Server.StartAsync(_Cts.Token);
             await Task.Delay(100, token).ConfigureAwait(false);
@@ -144,6 +161,19 @@ namespace Garrison.Server.Protocols
         {
             Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Whether the caller may see administrator-only tool arguments: system administrators that are not acting
+        /// through a run token.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <returns>True for system administrators.</returns>
+        public static bool SeesAdministratorArguments(RequestContext ctx)
+        {
+            if (ctx == null) return false;
+            if (!ctx.IsAuthenticated || ctx.PrincipalType == PrincipalTypeEnum.Run) return false;
+            return ctx.IsAdmin || ctx.PrincipalType == PrincipalTypeEnum.Administrator;
         }
 
         #endregion
@@ -197,9 +227,40 @@ namespace Garrison.Server.Protocols
                     version.CreatedBy = "garrison";
                     await _Context.Database.PromptTemplateVersions.CreateAsync(version, token).ConfigureAwait(false);
                 }
+                else if (template.IsBuiltIn && template.TenantId == null && template.Content != tool.DefaultDescription)
+                {
+                    // Built-in descriptions are protected, so a difference means the release changed the text.
+                    template.Content = tool.DefaultDescription;
+                    template.CurrentVersion = template.CurrentVersion + 1;
+                    await _Context.Database.PromptTemplates.UpdateAsync(template, token).ConfigureAwait(false);
+                    PromptTemplateVersion version = new PromptTemplateVersion();
+                    version.TemplateId = template.Id;
+                    version.Version = template.CurrentVersion;
+                    version.Content = template.Content;
+                    version.ChangeNote = "Built-in refreshed from the release.";
+                    version.CreatedBy = "garrison";
+                    await _Context.Database.PromptTemplateVersions.CreateAsync(version, token).ConfigureAwait(false);
+                }
                 descriptions[tool.Name] = template.Content;
             }
             return descriptions;
+        }
+
+        private McpListToolsResult ListTools(RequestContext ctx)
+        {
+            McpListToolsResult result = new McpListToolsResult();
+            result.Tools = new List<ToolDefinition>(SeesAdministratorArguments(ctx) ? _AdministratorTools : _PublicTools);
+            result.CacheScope = "private";
+            return result;
+        }
+
+        private static ToolDefinition Definition(string name, string description, JsonElement schema)
+        {
+            ToolDefinition definition = new ToolDefinition();
+            definition.Name = name;
+            definition.Description = description;
+            definition.InputSchema = schema;
+            return definition;
         }
 
         private async Task<AuthenticationResult> AuthenticateAsync(HttpListenerRequest request)

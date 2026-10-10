@@ -23,9 +23,15 @@ namespace Garrison.Server.Protocols
         public string DefaultDescription { get; set; } = String.Empty;
 
         /// <summary>
-        /// JSON Schema for the tool input.
+        /// JSON Schema for the tool input as most callers see it in tools/list: without administrator-only arguments.
         /// </summary>
         public string InputSchemaJson { get; set; } = "{\"type\":\"object\",\"properties\":{}}";
+
+        /// <summary>
+        /// JSON Schema for the tool input including administrator-only arguments (tenantId). Shown in tools/list only
+        /// to system administrators, and registered with the MCP server so arguments are validated against it.
+        /// </summary>
+        public string AdministratorInputSchemaJson { get; set; } = "{\"type\":\"object\",\"properties\":{}}";
 
         /// <summary>
         /// Resource type the tool requires.

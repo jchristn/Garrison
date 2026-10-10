@@ -10,6 +10,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Compilation;
     using Garrison.Core.Enums;
     using Garrison.Core.Protocol;
+    using Garrison.Harnesses.Probing;
     using Garrison.Worker.Execution;
     using Garrison.Worker.Hosting;
     using Garrison.Worker.Reporting;
@@ -49,7 +50,8 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("worker-executor", "retention", "Executor: workspace retention policies and secret directory cleanup", RetentionAsync),
                 new TestCaseDescriptor("worker-executor", "tool-call-count", "Executor: tool call events are counted", ToolCallCountAsync),
                 new TestCaseDescriptor("worker-executor", "timing-without-output", "Executor: timing on a killed harness and on a harness that never started", TimingOnFailureAsync),
-                new TestCaseDescriptor("worker-executor", "mcp-preflight", "Executor: unreachable required MCP server fails before launch", McpPreflightAsync)
+                new TestCaseDescriptor("worker-executor", "mcp-preflight", "Executor: unreachable required MCP server fails before launch", McpPreflightAsync),
+                new TestCaseDescriptor("worker-executor", "mux-probe-version", "Probe: Mux 1.3.0 --version output (\"mux v1.3.0\") reports version 1.3.0", MuxProbeVersionAsync)
             };
 
             List<TestCaseDescriptor> host = new List<TestCaseDescriptor>
@@ -367,6 +369,20 @@ namespace Test.Shared.Suites
             settings.Probes = new List<HarnessProbeSettings> { probe };
             settings.Logging.ConsoleLogging = Environment.GetEnvironmentVariable("GARRISON_TEST_LOGS") == "true";
             return settings;
+        }
+
+        private static async Task MuxProbeVersionAsync(CancellationToken token)
+        {
+            HarnessProbeSettings mux = WorkerSettings.DefaultProbes().Single(p => p.HarnessType == HarnessTypeEnum.Mux);
+            Assert.Equal("mux", mux.Executable, "Default Mux probe executable");
+            Assert.Equal("--version", mux.Arguments.Single(), "Default Mux probe argument");
+            if (OperatingSystem.IsWindows()) return;
+
+            // Mux 1.3.0 prints "mux v1.3.0"; the probe must report the bare version.
+            HarnessProbe probe = new HarnessProbe();
+            NodeCapabilityReport report = await probe.ProbeAsync(HarnessTypeEnum.Mux, "/bin/sh", new List<string> { "-c", "echo mux v1.3.0" }, new Dictionary<string, string>(), token).ConfigureAwait(false);
+            Assert.True(report.Available, "Probe available: " + report.Detail);
+            Assert.Equal("1.3.0", report.Version, "Probe version");
         }
 
         private static LoggingModule Quiet(WorkerSettings settings)

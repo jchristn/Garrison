@@ -141,6 +141,11 @@ namespace Test.Shared.Suites
             {
                 deployment.Parameters.Add(new DeploymentParameter { Name = "baseUrl", Value = "http://ollama:11434/v1" });
                 deployment.Parameters.Add(new DeploymentParameter { Name = "adapterType", Value = "openai-compatible" });
+                if (full)
+                {
+                    deployment.Parameters.Add(new DeploymentParameter { Name = "contextWindow", Value = "131072" });
+                    deployment.Parameters.Add(new DeploymentParameter { Name = "maxTokens", Value = "16384" });
+                }
             }
 
             if (full)

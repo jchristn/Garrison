@@ -8,6 +8,9 @@
       "apiKey": "${GARRISON_MUX_API_KEY}",
       "isDefault": true,
       "timeoutMs": {{deployment.parameters.timeoutMs | default: "600000"}},
+{{#if deployment.parameters.maxTokens}}
+      "maxTokens": {{deployment.parameters.maxTokens}},
+{{/if}}
       "autoApproveTools": true
     }
   ]

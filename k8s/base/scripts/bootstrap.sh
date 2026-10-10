@@ -93,9 +93,26 @@ else
 fi
 
 if [ -n "${MUX_OK}" ]; then
+  # MUX_CONTEXT_WINDOW and MUX_MAX_TOKENS are optional whole numbers; an unset or invalid value drops the parameter
+  # so Mux uses the endpoint's own value or its default.
+  MUX_WINDOW_SED="/__MUX_CONTEXT_WINDOW__/d"
+  case "${MUX_CONTEXT_WINDOW:-}" in
+    "") ;;
+    *[!0-9]*) log "ignoring MUX_CONTEXT_WINDOW='${MUX_CONTEXT_WINDOW}': not a whole number" ;;
+    *) MUX_WINDOW_SED="s#__MUX_CONTEXT_WINDOW__#${MUX_CONTEXT_WINDOW}#g" ;;
+  esac
+  MUX_TOKENS_SED="/__MUX_MAX_TOKENS__/d"
+  case "${MUX_MAX_TOKENS:-}" in
+    "") ;;
+    *[!0-9]*) log "ignoring MUX_MAX_TOKENS='${MUX_MAX_TOKENS}': not a whole number" ;;
+    *) MUX_TOKENS_SED="s#__MUX_MAX_TOKENS__#${MUX_MAX_TOKENS}#g" ;;
+  esac
   sed -e "s#__MUX_BASE_URL__#${MUX_BASE_URL}#g" \
       -e "s#__MUX_MODEL__#${MUX_MODEL:-gpt-4o-mini}#g" \
       -e "s#__MUX_ADAPTER_TYPE__#${MUX_ADAPTER_TYPE:-openai-compatible}#g" \
+      -e "${MUX_WINDOW_SED}" \
+      -e "${MUX_TOKENS_SED}" \
+      -e "/bootstrap removes these lines/d" \
       "${MANIFESTS}/deployment-mux.yaml" > "${WORK}/deployment-mux.yaml"
   apply_manifest "${WORK}/deployment-mux.yaml" || failures=$((failures + 1))
 else

@@ -284,7 +284,7 @@ namespace Garrison.Server.Runtime
             if (!String.IsNullOrEmpty(create.DeploymentId))
             {
                 Deployment? chosen = await _Database.Deployments.ReadAsync(create.TenantId, create.DeploymentId, token).ConfigureAwait(false);
-                if (chosen == null || chosen.AgentId != create.Agent.Id) throw new NotFoundException("Deployment " + create.DeploymentId + " was not found for agent " + create.Agent.Name + ".");
+                if (chosen == null || chosen.AgentId != create.Agent.Id) throw new NotFoundException("Deployment " + create.DeploymentId + " was not found for agent " + create.Agent.Name + ". Omit deploymentId to use the agent's default routing.");
                 if (!chosen.Active) throw new ConflictException("DeploymentInactive", "Deployment " + chosen.Name + " is inactive.");
                 return chosen;
             }

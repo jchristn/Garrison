@@ -18,7 +18,7 @@ Source, documentation, and issues: https://github.com/jchristn/Garrison
 | `jchristn77/garrison-worker` | Worker node with Claude Code, Codex, Mux, and the fake test harness installed (Gemini CLI optional at build time) | 8710 (health), 9465 (Prometheus) |
 | `jchristn77/garrison-dashboard` | React operator console served by nginx, proxying `/v1.0` to the server | 80 |
 
-All images are built for `linux/amd64` and `linux/arm64`, run as UID 10001 (except the dashboard's nginx), and carry `latest` plus a version tag such as `v0.1.0-alpha`. The worker image records the bundled harness versions in labels (`io.garrison.harness.claude-code`, `io.garrison.harness.codex`, `io.garrison.harness.mux-ref`, `io.garrison.harness.gemini-cli`).
+All images are built for `linux/amd64` and `linux/arm64`, run as UID 10001 (except the dashboard's nginx), and carry `latest` plus a version tag such as `v0.1.0-alpha`. The worker image records the bundled harness versions in labels (`io.garrison.harness.claude-code`, `io.garrison.harness.codex`, `io.garrison.harness.mux`, `io.garrison.harness.mux-ref`, `io.garrison.harness.gemini-cli`). The current worker bundles Claude Code 2.1.296, Codex 0.159.3, and Mux 1.3.0.
 
 ## Kubernetes
 

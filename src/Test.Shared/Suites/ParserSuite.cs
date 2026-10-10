@@ -40,6 +40,13 @@ namespace Test.Shared.Suites
                 Case("parsers", "mux-success", "Mux JSONL: assistant text concatenation, tools, usage", MuxSuccess),
                 Case("parsers", "mux-failed", "Mux JSONL: max iterations is a failure", MuxFailed),
                 Case("parsers", "mux-llm-error", "Mux JSONL: completed_with_errors plus a non-zero exit is a failure", MuxLlmError),
+                Case("parsers", "mux-1.2.0-compat", "Mux 1.2.0 JSONL: no contextWindowSource warning, mcp.supported fallback, empty session id ignored", Mux120Compat),
+                Case("parsers", "mux-1.3.0-success", "Mux 1.3.0 JSONL (recorded): session id, tools, usage, default context window warning", Mux130Success),
+                Case("parsers", "mux-1.3.0-usage", "Mux 1.3.0 JSONL: cachedTokens, reasoningTokens, costUsd, mcp.enabled", Mux130Usage),
+                Case("parsers", "mux-1.3.0-failed-401", "Mux 1.3.0 JSONL (recorded): status failed after a 401 is NotCredentialed with the error detail", Mux130Failed401),
+                Case("parsers", "mux-1.3.0-unresolved-env", "Mux 1.3.0 JSONL (recorded): config_unresolved_env before the run is NotCredentialed", Mux130UnresolvedEnv),
+                Case("parsers", "mux-1.3.0-failed-other", "Mux 1.3.0 JSONL: status failed without a credential error is HarnessFailed with the last error", Mux130FailedOther),
+                Case("parsers", "mux-1.3.0-schema-violation", "Mux 1.3.0 JSONL (recorded): Mux's own schema rejection defers to Garrison's validation and repair", Mux130SchemaViolation),
                 Case("parsers", "gemini-success", "Gemini stream-json: served model from result stats", GeminiSuccess),
                 Case("parsers", "generic-jsonl", "Generic JSONL: dotted path mappings", GenericJsonl),
                 Case("parsers", "plain-text", "Plain text: every line is assistant text", PlainText),
@@ -313,8 +320,130 @@ namespace Test.Shared.Suites
             ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
             HarnessOutcome failed = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, state);
             Assert.Equal(RunStatusEnum.Failed, failed.Status, "Exit code 1 after an LLM error must fail");
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, failed.Outcome, "A 401 from the model is NotCredentialed");
             HarnessOutcome ok = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, state);
             Assert.Equal(RunStatusEnum.Succeeded, ok.Status, "completed_with_errors with exit 0 still succeeds (tool errors the model recovered from)");
+        }
+
+        private static void Mux120Compat()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.MuxJsonl, "mux/success.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(!events.Any(e => e.EventType == RunEventTypeEnum.Warning), "Mux 1.2.0 has no contextWindowSource, so no warning");
+            Assert.Equal("ms-1", state.SessionId, "Session id");
+            Assert.Equal(0L, state.CachedTokens, "No cachedTokens in 1.2.0");
+            Assert.True(state.CostUsd == null, "No costUsd in 1.2.0");
+
+            HarnessRunState stateless = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                "{\"contractVersion\":2,\"eventType\":\"run_started\",\"sessionId\":\"\",\"model\":\"m\",\"mcp\":{\"supported\":true,\"configured\":true,\"serverCount\":1}}",
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"sessionId\":\"\",\"status\":\"completed\"}"
+            });
+            Assert.True(stateless.SessionId == null, "An empty sessionId (stateless print run) is not a session");
+            Assert.True(stateless.Drain().Any(e => e.EventType == RunEventTypeEnum.Lifecycle && e.Text != null && e.Text.Contains("MCP enabled with 1 server")), "mcp.supported is the fallback for mcp.enabled");
+
+            IHarnessOutputParser parser = ParserFactory.Create(OutputParserEnum.MuxJsonl, null, new[] { "garrison" });
+            HarnessRunState noMcp = new HarnessRunState();
+            parser.ParseLine("{\"contractVersion\":2,\"eventType\":\"run_started\",\"model\":\"m\",\"mcp\":{\"supported\":false,\"configured\":false,\"serverCount\":0}}", noMcp);
+            Assert.True(noMcp.DetectedFailure != null && noMcp.DetectedFailure.Contains("garrison"), "A required MCP server with MCP disabled fails the run");
+        }
+
+        private static void Mux130Success()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.MuxJsonl, "mux/v1.3.0-success.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(state.SawSuccess && state.SawFinalResult, "Expected success.");
+            Assert.True(state.DetectedFailure == null, "Unexpected failure: " + state.DetectedFailure);
+            Assert.Equal("run_g20test01", state.SessionId, "Session id from --session-id");
+            Assert.Equal("gpt-oss:20b", state.ServedModel, "Model");
+            Assert.Equal("{\"answer\":\"noted\",\"color\":\"blue\"}", state.FinalText, "Final text");
+            Assert.Equal(6449L, state.InputTokens, "Input tokens");
+            Assert.Equal(694L, state.OutputTokens, "Output tokens");
+            Assert.Equal(0L, state.CachedTokens, "Cached tokens");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolName == "remember" && e.Success == true), "Tool result");
+            RunEventReport? warning = events.FirstOrDefault(e => e.EventType == RunEventTypeEnum.Warning);
+            Assert.True(warning != null && warning.Text != null && warning.Text.Contains("32768") && warning.Text.Contains("contextWindow"), "Default context window warning");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Lifecycle && e.Text != null && e.Text.Contains("MCP not enabled")), "mcp.enabled false is reported");
+
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, state).Status, "Succeeded");
+        }
+
+        private static void Mux130Usage()
+        {
+            HarnessRunState state = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                "{\"contractVersion\":2,\"eventType\":\"run_started\",\"sessionId\":\"s1\",\"model\":\"gpt-5.5-mini\",\"contextWindow\":131072,\"contextWindowSource\":\"endpoint\",\"mcp\":{\"enabled\":true,\"supported\":false,\"configured\":true,\"serverCount\":2}}",
+                "{\"contractVersion\":2,\"eventType\":\"assistant_text\",\"text\":\"OK\"}",
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"sessionId\":\"s1\",\"status\":\"completed\",\"usage\":{\"inputTokens\":1234,\"outputTokens\":567,\"cachedTokens\":512,\"reasoningTokens\":64,\"totalTokens\":1801,\"estimatedTokens\":1750,\"costUsd\":0.008237}}"
+            });
+            List<RunEventReport> events = state.Drain();
+            Assert.Equal(1234L, state.InputTokens, "Input tokens");
+            Assert.Equal(567L, state.OutputTokens, "Output tokens");
+            Assert.Equal(512L, state.CachedTokens, "Cached tokens");
+            Assert.Equal(64L, state.ReasoningTokens, "Reasoning tokens");
+            Assert.True(state.CostUsd.HasValue && Math.Abs(state.CostUsd.Value - 0.008237) < 0.0000001, "Cost");
+            Assert.True(!events.Any(e => e.EventType == RunEventTypeEnum.Warning), "contextWindowSource endpoint produces no warning");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Lifecycle && e.Text != null && e.Text.Contains("MCP enabled with 2 servers")), "mcp.enabled wins over the deprecated supported");
+
+            HarnessRunState cli = ParseLines(OutputParserEnum.MuxJsonl, new[] { "{\"contractVersion\":2,\"eventType\":\"run_started\",\"contextWindow\":131072,\"contextWindowSource\":\"cli\"}" });
+            Assert.True(!cli.Drain().Any(e => e.EventType == RunEventTypeEnum.Warning), "contextWindowSource cli produces no warning");
+        }
+
+        private static void Mux130Failed401()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.MuxJsonl, "mux/v1.3.0-llm-401.jsonl");
+            Assert.True(!state.SawSuccess && state.SawFinalResult, "status failed is not success");
+            Assert.True(state.CredentialFailure != null && state.CredentialFailure.Contains("401"), "A 401 from the model request is a credential failure");
+            Assert.True(state.DetectedFailure != null && state.DetectedFailure.Contains("401"), "Failure detail is the last error message: " + state.DetectedFailure);
+            Assert.True(state.SessionId == null, "Empty session id");
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, state);
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, outcome.Outcome, "Outcome");
+            Assert.True(outcome.ErrorMessage != null && outcome.ErrorMessage.Contains("401"), "Message carries the error detail");
+        }
+
+        private static void Mux130UnresolvedEnv()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.MuxJsonl, "mux/v1.3.0-config-unresolved-env.jsonl");
+            Assert.True(!state.SawFinalResult, "No run_completed before the run starts");
+            Assert.True(state.CredentialFailure != null, "config_unresolved_env is a credential configuration failure");
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, state);
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, outcome.Outcome, "Outcome");
+            Assert.True(outcome.ErrorMessage != null && outcome.ErrorMessage.Contains("GARRISON_MUX_API_KEY_MISSING"), "Message names the variable");
+        }
+
+        private static void Mux130FailedOther()
+        {
+            HarnessRunState state = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                "{\"contractVersion\":2,\"eventType\":\"run_started\",\"model\":\"m\"}",
+                "{\"contractVersion\":2,\"eventType\":\"tool_call_completed\",\"toolCallId\":\"c1\",\"toolName\":\"web_retrieve\",\"result\":{\"success\":false,\"content\":\"HTTP 401 from example.com\"}}",
+                "{\"contractVersion\":2,\"eventType\":\"error\",\"code\":\"tool_error\",\"errorCode\":\"tool_error\",\"failureCategory\":\"runtime\",\"message\":\"web_retrieve failed with status 401\"}",
+                "{\"contractVersion\":2,\"eventType\":\"error\",\"code\":\"llm_stream_error\",\"errorCode\":\"llm_stream_error\",\"failureCategory\":\"backend\",\"message\":\"The response stream ended early.\"}",
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"status\":\"failed\"}"
+            });
+            Assert.True(state.CredentialFailure == null, "A tool's 401 is not a Mux credential failure");
+            Assert.Equal("Mux run failed: The response stream ended early.", state.DetectedFailure, "Last error message is the detail");
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            HarnessOutcome outcome = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, state);
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, outcome.Outcome, "Outcome");
+            Assert.Equal("Mux run failed: The response stream ended early.", outcome.ErrorMessage, "Message");
+        }
+
+        private static void Mux130SchemaViolation()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.MuxJsonl, "mux/v1.3.0-schema-violation.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(state.HarnessRejectedOutputSchema, "schema_validation_failed is recorded");
+            Assert.True(state.DetectedFailure == null, "Not a harness failure");
+            Assert.Equal("run_stub1", state.SessionId, "Session id kept for the repair");
+            Assert.Equal("hello, this is not JSON", state.BestText(), "Output text is kept for validation");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Warning && e.Text != null && e.Text.Contains("--output-schema")), "Warning event");
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.MuxJsonl, SuccessPolicy = SuccessPolicyEnum.FinalEventAndExitCode };
+            Assert.Equal(RunStatusEnum.Succeeded, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 1 }, state).Status, "Exit 1 from the schema check alone defers to Garrison");
+            Assert.Equal(RunStatusEnum.Failed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = null, TimedOut = false }, state).Status, "No exit code is still a failure");
         }
 
         private static void MuxFailed()

@@ -1,6 +1,6 @@
 @echo off
 rem Deploys Garrison to the current kubectl context (K3S). Use --build to build images and import them into the
-rem K3S container named by K3S_CONTAINER (K3S in Docker). See deploy-k3s.sh for details.
+rem K3S container named by K3S_CONTAINER (K3S in Docker), or the k3d cluster named by K3D_CLUSTER. See deploy-k3s.sh for details.
 setlocal
 if "%GARRISON_TAG%"=="" set GARRISON_TAG=v0.1.0-alpha
 set K8S=%~dp0..
@@ -9,8 +9,14 @@ if "%1"=="--build" (
   docker build -t jchristn77/garrison-server:%GARRISON_TAG% -f "%REPO%\src\Garrison.Server\Dockerfile" "%REPO%" || exit /b 1
   docker build -t jchristn77/garrison-worker:%GARRISON_TAG% -f "%REPO%\src\Garrison.Worker\Dockerfile" "%REPO%" || exit /b 1
   docker build -t jchristn77/garrison-dashboard:%GARRISON_TAG% "%REPO%\dashboard" || exit /b 1
+  if not "%K3D_CLUSTER%"=="" (
+    for %%i in (garrison-server garrison-worker garrison-dashboard) do (
+      k3d image import -c %K3D_CLUSTER% jchristn77/%%i:%GARRISON_TAG% || exit /b 1
+    )
+    goto :imported
+  )
   if "%K3S_CONTAINER%"=="" (
-    echo [garrison] set K3S_CONTAINER to the K3S container name to import images
+    echo [garrison] set K3D_CLUSTER to the k3d cluster name, or K3S_CONTAINER to the K3S container name, to import images
     exit /b 1
   )
   for %%i in (garrison-server garrison-worker garrison-dashboard) do (
@@ -21,6 +27,7 @@ if "%1"=="--build" (
     del /q "%TEMP%\%%i.tar"
   )
 )
+:imported
 call "%~dp0generate-secrets.bat" || exit /b 1
 kubectl apply -k "%K8S%\overlays\k3s" || exit /b 1
 call "%~dp0wait-rollout.bat" || exit /b 1

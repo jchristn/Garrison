@@ -70,15 +70,43 @@ Codex output does not stream: `codex exec --json` prints each agent message only
 ```text
 mux --print --config-dir $GARRISON_CONFIG_DIR/mux -e garrison --output-format jsonl
     [--yolo] [--approval-policy <approvalPolicy>] --sandbox <sandbox, default workspace-write>
-    -w $GARRISON_WORKSPACE_DIR [-m <model>] --max-turns <maxTurns, default 20>
+    -w $GARRISON_WORKSPACE_DIR [-m <model>] [--context-window <contextWindow>]
+    --max-turns <maxTurns, default 20>
     [--system-prompt $GARRISON_CONFIG_DIR/system-prompt.md]
     [--mcp-config $GARRISON_CONFIG_DIR/mux-mcp.json --strict-mcp-config]
     [--output-schema $GARRISON_CONFIG_DIR/output-schema.json]
     --output-last-message $GARRISON_CONFIG_DIR/last-message.txt
-    [--no-session-persistence (only when the agent has no output schema)] [--resume <session>]
+    [--no-session-persistence (only when the agent has no output schema)]
+    [--session-id <run id> (agents with an output schema, first execution only)] [--resume <session>]
 ```
 
-Mux talks to whatever model endpoint you point it at. The profile writes a private config directory with three files rendered from prompt templates: `endpoints.json` (`builtin/mux-endpoints`, one endpoint named `garrison` built from the deployment parameters `adapterType` (default `openai-compatible`), `baseUrl` (default `https://api.openai.com/v1`), and `timeoutMs`, plus the deployment model), `settings.json`, and `subagents.json`. The API key comes from a secret of kind `OpenAiApiKey`, exposed as `GARRISON_MUX_API_KEY` and referenced from `endpoints.json`, so it never appears in a file.
+The worker image bundles Mux 1.3.0, built from source at commit `60fd88a` (the `MUX_REF` and `MUX_VERSION` build arguments). The parser also reads Mux 1.2.0 output, so a worker with an older `mux` on its `PATH` still works, minus the 1.3.0 extras below.
+
+Mux talks to whatever model endpoint you point it at. The profile writes a private config directory with three files rendered from prompt templates: `endpoints.json` (`builtin/mux-endpoints`, one endpoint named `garrison` built from the deployment parameters `adapterType` (default `openai-compatible`), `baseUrl` (default `https://api.openai.com/v1`), `timeoutMs`, and `maxTokens`, plus the deployment model), `settings.json`, and `subagents.json`. The API key comes from a secret of kind `OpenAiApiKey`, exposed as `GARRISON_MUX_API_KEY` and referenced from `endpoints.json`, so it never appears in a file.
+
+Deployment parameters:
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `baseUrl` | `https://api.openai.com/v1` | The model endpoint's base URL. |
+| `adapterType` | `openai-compatible` | `openai-compatible`, `openai`, `ollama`, or `vllm`. Mux applies the adapter's own tool-call settings. |
+| `timeoutMs` | `600000` | Per-request timeout in milliseconds. |
+| `contextWindow` | unset | The model's context window in tokens, passed as `--context-window` (Mux 1.3.0 or later). Mux accepts 1024 to 1048576. Unset, Mux uses its built-in 32,768, which leaves about 19,700 tokens for input; Garrison then adds a `Warning` event to the run saying so. Set it to what the endpoint really serves (for example `131072` for gpt-oss on Ollama with a matching `num_ctx`). |
+| `maxTokens` | unset | The most tokens one response may generate, written as the endpoint's `maxTokens`. Mux clamps it to 1024 to 131072 and uses 8192 when it is unset. It is also reserved out of the context window. |
+| `approvalPolicy` | unset (`--yolo`) | `auto` or `deny` instead of approving every tool call. |
+| `sandbox` | `workspace-write` | `none`, `read-only`, or `workspace-write`. |
+
+Both numbers are whole numbers written into the command line or `endpoints.json` as they are, so a value that is not a number makes the run fail. Docker Compose and the Kubernetes bootstrap set them on the sample `mux-helper` from `MUX_CONTEXT_WINDOW` and `MUX_MAX_TOKENS` when those are set (`docs/DOCKER.md`).
+
+What Garrison reads from the Mux JSONL stream:
+
+- `run_completed.status`: `completed` and `completed_with_errors` are success, as long as Mux also exits 0. `failed` (Mux 1.3.0: the model never answered, for example after a 401 or a dropped stream), `max_iterations_reached`, and `budget_exceeded` fail the run, and the message of the last `error` event becomes the run's error.
+- Credential failures: a model request that failed with 401, and the 1.3.0 error `config_unresolved_env` (the endpoint references an environment variable that is not set, usually because no `OpenAiApiKey` secret is bound), end the run as `NotCredentialed`.
+- `usage`: `inputTokens`, `outputTokens`, and from 1.3.0 `cachedTokens`, `reasoningTokens`, and `costUsd` (only when Mux has a price for the model).
+- `run_started.contextWindowSource` (1.3.0): `default` produces the warning described above.
+- `run_started.mcp.enabled` (1.3.0, falling back to the deprecated `mcp.supported`): when the run requires MCP servers and Mux reports MCP as not enabled, the run fails.
+- `sessionId`: Mux print mode keeps no session unless asked, so for agents with an output schema the profile passes `--session-id <run id>`; that is the session a structured output repair resumes.
+- Mux checks `--output-schema` itself and exits 1 with `schema_validation_failed` when the answer does not match. Garrison treats that as an answer to validate, not as a harness failure, so the usual repair (below) can still run in the same session.
 
 ### Gemini CLI
 
@@ -223,7 +251,7 @@ Workers probe for `claude`, `codex`, `mux`, `gemini`, and `garrison-fake-harness
 | `Succeeded` | The success policy was met |
 | `HarnessFailed` | The harness reported failure, exited badly, or never produced a final result |
 | `NotInstalled` | The executable was not found |
-| `NotCredentialed` | Stderr matched a known authentication failure (`invalid api key`, `not logged in`, `401 unauthorized`, and similar) |
+| `NotCredentialed` | Stderr matched a known authentication failure (`invalid api key`, `not logged in`, `401 unauthorized`, and similar), or the harness reported one in its output stream (Mux: a 401 from the model, or `config_unresolved_env`) |
 | `McpPreflightFailed` | A required MCP server or tool was missing |
 | `OutputLimitExceeded` | Stdout passed `maxOutputBytes` |
 | `TimedOut`, `Cancelled` | Deadline reached or cancelled |
@@ -247,11 +275,22 @@ The repair runs inside the same lease, on the same worker, in the same `work/`, 
 |---|---|
 | `builtin/claude-code` | `--resume <session_id>` |
 | `builtin/codex` | `codex exec ... resume <thread_id> -` (the `exec resume` subcommand, prompt still on stdin) |
-| `builtin/mux` | `--resume <sessionId>`; sessions are persisted only for agents with an output schema |
+| `builtin/mux` | `--resume <sessionId>`; the original execution passes `--session-id <run id>` so Mux persists the session, which it does only for agents with an output schema |
 | `builtin/gemini-cli` | `--resume <session_id>` |
 | `builtin/fake` | `--resume <session>` |
 
 A profile without `supportsResume` (for example a clone with it turned off, or `builtin/generic-jsonl`) gets no repair: an invalid output fails the run at once with `SchemaValidationFailed`, and the error message says that the profile does not support resume. A cloned profile that sets `supportsResume` must also add resume arguments conditioned on `{{run.resumeSessionId}}`, or the repair prompt would start a fresh session without the original context.
+
+#### Verified with real CLIs
+
+Resume and native output schemas were checked on 2026-10-10 against the real CLIs, run with the exact arguments the built-in profiles compile to (MCP servers left out). Each check stored a code word in the first turn under an output schema, resumed the session with the profile's resume arguments, and asked for the word back; a fresh session without the resume arguments answered "unknown". A second resume used a schema with a field the prompt never mentioned, to confirm the schema still applies on a resumed turn. Every answer was schema-valid JSON.
+
+| Harness | Version | Resume | Output schema |
+|---|---|---|---|
+| Claude Code | 2.1.296 (`--model haiku`) | `--resume <session_id>` remembered the word | `--json-schema`: valid `structured_output` on the first and the resumed turn |
+| Codex | codex-cli 0.159.3 | `exec ... resume <thread_id> -` remembered the word, with `--output-schema` still given before `resume` | `--output-schema`: valid final message on the first and the resumed turn |
+| Mux | 1.3.0 (commit `60fd88a`), gpt-oss:20b on Ollama | `--resume <sessionId>` remembered the word once the first execution ran with `--session-id`; without it Mux reported an empty `sessionId` and kept nothing, so the profile now passes `--session-id <run id>` | `--output-schema`: valid `--output-last-message` file on the first and the resumed turn; a non-matching answer (forced with a stub endpoint) exits 1 with `schema_validation_failed` and keeps the session |
+| Gemini CLI | not installed on the verification machine | not verified | not verified |
 
 ### Quirks Garrison handles
 

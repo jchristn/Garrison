@@ -84,6 +84,22 @@ namespace Garrison.Harnesses
         public string? DetectedFailure { get; set; } = null;
 
         /// <summary>
+        /// Detail of a credential failure reported in the stream (the harness could not authenticate to its model
+        /// provider or could not resolve its credential configuration, for example a Mux 401 or config_unresolved_env),
+        /// or null. It does not fail a run on its own; when the run fails, the outcome is NotCredentialed with this
+        /// detail.
+        /// </summary>
+        public string? CredentialFailure { get; set; } = null;
+
+        /// <summary>
+        /// Whether the harness rejected its own output against the output schema it was given and exited non-zero
+        /// only for that reason (Mux schema_validation_failed). The outcome classifier then treats the exit code as
+        /// successful, so the control plane validates the output itself and can repair it in the same session.
+        /// Default false.
+        /// </summary>
+        public bool HarnessRejectedOutputSchema { get; set; } = false;
+
+        /// <summary>
         /// Number of lines that could not be parsed.
         /// </summary>
         public int UnparsedLines { get; set; } = 0;

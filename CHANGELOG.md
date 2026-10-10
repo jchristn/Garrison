@@ -31,12 +31,13 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 - Analytics API (`GET .../analytics/runs` and `.../dimensions`): gap-filled time buckets with averages and p50/p95, filters by agent, harness, deployment, and model, and grouping by agent, harness, model, or harness and model.
 - Queued runs that no worker can take report why (`blockedReason`: no Ready worker, no worker with the harness, or no matching pool), with a one-time warning event and an optional fail-after setting.
 - Claude Code output streams token by token (`--include-partial-messages`); Mux streams natively.
+- Mux 1.3.0 support (1.2.0 output still parses): the `failed` run status with the last error as the run's error, `NotCredentialed` for a model 401 or `config_unresolved_env`, cached and reasoning tokens and cost from `usage`, a warning when Mux falls back to its default context window, the `contextWindow` and `maxTokens` deployment parameters (also `MUX_CONTEXT_WINDOW` and `MUX_MAX_TOKENS` for the sample agent), and `--session-id` for agents with an output schema so the structured output repair can resume the session. Resume and native output schemas were verified against real Claude Code, Codex, and Mux.
 - Worker metrics (leases, runs, duration, tokens, cost, completion reports) and a span per harness execution that joins the run's trace.
 - Worker node with capability probes, an isolated workspace and home directory per run, MCP pre-flight, output parsers for every built-in harness, secret scrubbing, buffered event delivery that survives control-plane outages, and drain on shutdown.
 
 ### Protocols
 
-- MCP server on Voltaic with agent discovery, invocation, and run tracking tools whose descriptions are prompt templates.
+- MCP server on Voltaic with agent discovery, invocation, and run tracking tools whose descriptions are prompt templates. Only system administrators see the `tenantId` argument; run-token sessions and other callers act in their own tenant, and the descriptions tell models to leave optional arguments out.
 - A2A gateway with one agent card per agent and JSON-RPC send, stream, get, list, cancel, and subscribe. Cards advertise `Rest.ExternalBaseUrl`; reusing a `messageId` with different content returns 409.
 - Agents can be addressed by name or ID on every agent route, with authorization checked against the resolved agent.
 

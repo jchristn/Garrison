@@ -9,7 +9,7 @@
   { "key": "a2a-skill-description", "kind": "ToolDescription", "description": "Description of an agent's A2A skill." },
   { "key": "claude-code-mcp-config", "kind": "ConfigFile", "description": "Claude Code --mcp-config JSON file." },
   { "key": "mux-mcp-config", "kind": "ConfigFile", "description": "Mux --mcp-config JSON file (bearer tokens referenced from the environment)." },
-  { "key": "mux-endpoints", "kind": "ConfigFile", "description": "Mux endpoints.json rendered from deployment parameters (adapterType, baseUrl) and model." },
+  { "key": "mux-endpoints", "kind": "ConfigFile", "description": "Mux endpoints.json rendered from deployment parameters (adapterType, baseUrl, timeoutMs, maxTokens) and model." },
   { "key": "mux-settings", "kind": "ConfigFile", "description": "Mux settings.json for headless runs." },
   { "key": "mux-subagents", "kind": "ConfigFile", "description": "Mux subagents.json (no subagents)." },
   { "key": "gemini-settings", "kind": "ConfigFile", "description": "Gemini CLI settings.json with MCP servers." }

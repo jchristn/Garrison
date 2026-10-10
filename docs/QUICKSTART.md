@@ -101,7 +101,7 @@ The fourth agent runs on Mux, which talks to any OpenAI-compatible or Ollama end
 2. **Agents**, **Add agent**: name `researcher`, display name `Researcher`, a one-line description. Under Exposure, keep **Expose over A2A** and tick **Expose as its own MCP tool**. Leave Delegation at `None`. Save.
 3. **Agents**, Deployments tab, **Add deployment**. The form has six steps:
    - Basics: name `researcher-mux`, Agent `researcher`.
-   - Harness: Harness profile `builtin/mux`, Model your model name (for example `gpt-oss:20b`), Maximum turns `8`. Under Parameters, **Add item** twice: `baseUrl` with the endpoint URL and `adapterType` with `ollama` or `openai-compatible`.
+   - Harness: Harness profile `builtin/mux`, Model your model name (for example `gpt-oss:20b`), Maximum turns `8`. Under Parameters, **Add item** twice: `baseUrl` with the endpoint URL and `adapterType` with `ollama` or `openai-compatible`. If you know the model's context window, add a third item, `contextWindow` (for example `131072`); otherwise Mux assumes 32,768 tokens and each run carries a warning saying so.
    - Prompts: keep the defaults.
    - Resources: under Resource bindings, **Add item**, Kind `Secret`, Alias `mux`, Resource "Secret: mux-credential".
    - Overrides: nothing.

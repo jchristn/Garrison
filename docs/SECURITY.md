@@ -132,6 +132,7 @@ An agent can only delegate when its `delegationMode` is not `None`. The run toke
 - cannot invoke itself or an agent already in the chain unless recursion is allowed;
 - cannot go deeper than the agent's `delegationMaxDepth` or the cluster's `Runs.MaxDelegationDepth`;
 - sees only runs in its own delegation tree;
+- always acts in its run's tenant: the MCP tool schemas it is shown have no `tenantId` argument (only system administrators see one), and a `tenantId` it sends anyway is ignored;
 - carries the permissions of the human or credential that started the chain as a ceiling, so delegation never escalates.
 
 Violations fail the invocation with `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, or `DelegationDepthExceeded`.
