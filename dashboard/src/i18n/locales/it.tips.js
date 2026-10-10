@@ -1042,6 +1042,7 @@ const tips = {
         Security: 'Chiave master di cifratura e account di bootstrap.',
         RequestHistory: 'Se le richieste API vengono registrate e quanta parte di ogni corpo viene conservata.',
         Telemetry: 'Esportazione di metriche e tracce.',
+        Archive: 'Dove vengono archiviate esecuzioni ed eventi prima che la conservazione li elimini.',
         Cluster: 'Quante repliche del piano di controllo sono previste.',
         Scheduling: 'Durata dei lease e timeout degli heartbeat per i nodi worker.',
         Runs: 'Valori predefiniti delle esecuzioni e per quanto tempo vengono conservati esecuzioni ed eventi.',

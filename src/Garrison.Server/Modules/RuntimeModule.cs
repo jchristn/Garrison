@@ -4,6 +4,8 @@ namespace Garrison.Server.Modules
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
+    using Garrison.Core.Models;
+    using Garrison.Server.Backplane;
     using Garrison.Server.Routes;
     using Garrison.Server.Runtime;
     using Garrison.Server.Services;
@@ -43,6 +45,9 @@ namespace Garrison.Server.Modules
         private BlockedRunService? _Blocked = null;
         private CancellationTokenSource? _SettingsCts = null;
         private Task? _SettingsLoop = null;
+        private IEventBackplane? _Backplane = null;
+        private ClusterSettingsService? _Cluster = null;
+        private RunGaugeService? _Gauges = null;
 
         #endregion
 
@@ -55,21 +60,30 @@ namespace Garrison.Server.Modules
 
             _Options = new RuntimeOptions();
             _Signals = new RunSignals();
+            _Backplane = context.TryGet<IEventBackplane>();
+            _Signals.Backplane = _Backplane;
             _Runs = new RunService(context.Database, _Signals, _Options, context.Telemetry);
             _Events = new RunEventService(context.Database, _Signals, context.Telemetry);
             _StructuredOutput = new StructuredOutputService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Options, context.Telemetry);
             _Events.StructuredOutput = _StructuredOutput;
             _Runs.Logging = context.Logging;
+            _Runs.ShutdownToken = context.Stopping;
             _Events.Logging = context.Logging;
             _Analytics = new RunAnalyticsService(context.Database);
             _Nodes = new NodeService(context.Database, _Options, context.Audit);
             _Delegation = new DelegationPolicy(context.Database);
             _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation);
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
+            _Scheduler.ShutdownToken = context.Stopping;
             _Leader = new LeaderElectionService(context.Database, _Options, context.Logging, context.NodeId);
             _Blocked = new BlockedRunService(context.Database);
             _Maintenance = new MaintenanceService(context.Database, _Leader, _Signals, _Options, context.Telemetry, context.Logging);
             _Maintenance.BlockedRuns = _Blocked;
+            if (context.Settings.Archive.Enabled)
+            {
+                _Maintenance.Archiver = new RunArchiver(context.Database, context.Settings.Archive.Directory!, context.Logging);
+                context.Logging.Info("[Runtime] retention archives runs and events to " + context.Settings.Archive.Directory);
+            }
 
             context.Register(_Options);
             context.Register(_Signals);
@@ -84,6 +98,8 @@ namespace Garrison.Server.Modules
             context.Register<ILeaderState>(_Leader);
             context.Register(_Maintenance);
             context.Register(_Blocked);
+            _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
+            context.Register(_Gauges);
             return Task.CompletedTask;
         }
 
@@ -105,10 +121,18 @@ namespace Garrison.Server.Modules
         /// <inheritdoc />
         public Task StartAsync(ServerContext context, CancellationToken token)
         {
+            if (_Backplane != null)
+            {
+                _Backplane.MessageReceived += OnBackplaneMessage;
+                _Backplane.Resynchronized += OnBackplaneResynchronized;
+            }
+
             ClusterSettingsService? cluster = context.TryGet<ClusterSettingsService>();
             if (cluster != null)
             {
+                _Cluster = cluster;
                 ApplyClusterSettings(cluster);
+                cluster.Changed += OnClusterSettingsChanged;
                 _Maintenance!.RunRetention = true;
                 _Maintenance.RunRetentionDays = () => cluster.GetInt("Runs.RetentionDays");
                 _Maintenance.EventRetentionDays = () => cluster.GetInt("Runs.EventRetentionDays");
@@ -121,12 +145,19 @@ namespace Garrison.Server.Modules
 
             _Leader!.Start(token);
             _Maintenance!.Start(token);
+            _Gauges?.Start(token);
             return Task.CompletedTask;
         }
 
         /// <inheritdoc />
         public async Task StopAsync(CancellationToken token)
         {
+            if (_Backplane != null)
+            {
+                _Backplane.MessageReceived -= OnBackplaneMessage;
+                _Backplane.Resynchronized -= OnBackplaneResynchronized;
+            }
+            if (_Cluster != null) _Cluster.Changed -= OnClusterSettingsChanged;
             _SettingsCts?.Cancel();
             if (_SettingsLoop != null)
             {
@@ -139,6 +170,8 @@ namespace Garrison.Server.Modules
                 }
             }
             _SettingsCts?.Dispose();
+            if (_Gauges != null) await _Gauges.StopAsync().ConfigureAwait(false);
+            _Gauges?.Dispose();
             if (_Maintenance != null) await _Maintenance.StopAsync().ConfigureAwait(false);
             if (_Leader != null) await _Leader.StopAsync(token).ConfigureAwait(false);
             _Maintenance?.Dispose();
@@ -148,6 +181,21 @@ namespace Garrison.Server.Modules
         #endregion
 
         #region Private-Methods
+
+        private void OnBackplaneMessage(object? sender, BackplaneMessage message)
+        {
+            _Signals?.ApplyRemote(message);
+        }
+
+        private void OnBackplaneResynchronized(object? sender, EventArgs e)
+        {
+            _Signals?.SignalAll();
+        }
+
+        private void OnClusterSettingsChanged(object? sender, EventArgs e)
+        {
+            if (_Cluster != null) ApplyClusterSettings(_Cluster);
+        }
 
         private void ApplyClusterSettings(ClusterSettingsService cluster)
         {

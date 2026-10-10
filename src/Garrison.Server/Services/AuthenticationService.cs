@@ -31,7 +31,6 @@ namespace Garrison.Server.Services
         private readonly SecretCipher _Cipher;
         private readonly ServerSettings _Settings;
         private readonly AuditService _Audit;
-        private readonly NonceCache _Nonces = new NonceCache();
 
         #endregion
 
@@ -167,7 +166,11 @@ namespace Garrison.Server.Services
                     {
                         return await FailAsync(ctx, AuthSchemeEnum.AccessKeySignature, AuthResultEnum.Invalid, "Signature mismatch.", token).ConfigureAwait(false);
                     }
-                    if (!_Nonces.TryUse(accessKey + ":" + nonce))
+                    // Nonces are shared by every replica (P10.2), so a captured request cannot be replayed on another
+                    // one. A request is accepted while its date is within the skew either side of now, so a nonce must
+                    // be remembered for twice the skew after its first use.
+                    DateTime nonceExpires = DateTime.UtcNow.AddSeconds(2 * _Settings.Auth.SignedRequestSkewSeconds + 5);
+                    if (!await _Database.Nonces.TryUseAsync(accessKey + ":" + nonce, nonceExpires, token).ConfigureAwait(false))
                     {
                         return await FailAsync(ctx, AuthSchemeEnum.AccessKeySignature, AuthResultEnum.Invalid, "Nonce was already used.", token).ConfigureAwait(false);
                     }

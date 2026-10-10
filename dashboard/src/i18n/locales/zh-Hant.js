@@ -1148,7 +1148,7 @@ const zhHant = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。請在你的清單中變更。',
         other: '此設定無法在這裡編輯。'
       },
-      groups: { General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '記錄', Auth: '驗證', Security: '安全性', RequestHistory: '請求歷程', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '稽核', Runtime: '執行階段', Observability: '可觀測性' },
+      groups: { Archive: '封存', General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '記錄', Auth: '驗證', Security: '安全性', RequestHistory: '請求歷程', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '稽核', Runtime: '執行階段', Observability: '可觀測性' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana URL',
@@ -1168,6 +1168,8 @@ const zhHant = {
           Hostname: 'REST 繫結主機名稱'
         },
         Mcp: {
+          InternalPort: '內部 MCP 連接埠',
+          SessionIdleTimeoutSeconds: 'MCP 工作階段閒置逾時（秒）',
           MaxToolWaitSeconds: 'MCP 工具最長等待時間（秒）',
           PublicUrl: '供執行使用的內部 MCP URL',
           Path: 'MCP 路徑',
@@ -1176,6 +1178,10 @@ const zhHant = {
           Enable: '啟用 MCP 伺服器'
         },
         Database: {
+          MinPoolSize: '連線集區最小連線數',
+          ConnectionTimeoutSeconds: '等待連線逾時（秒）',
+          CommandTimeoutSeconds: '命令逾時（秒）',
+          ConnectionIdleLifetimeSeconds: '閒置連線保留時間（秒）',
           MaxPoolSize: '連線集區大小',
           Schema: '資料庫結構描述',
           Password: '資料庫密碼',
@@ -1224,7 +1230,12 @@ const zhHant = {
           ServiceName: '遙測服務名稱',
           Enabled: '啟用遙測'
         },
+        Archive: {
+          Directory: '封存目錄'
+        },
         Cluster: {
+          Backplane: '事件背板',
+          BackplanePollMs: '背板輪詢間隔（毫秒）',
           ExpectedReplicas: '控制平面預期複本數'
         },
         Scheduling: {

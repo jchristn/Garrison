@@ -1193,7 +1193,7 @@ const es = {
         ConfigMap: 'Gestionado por un ConfigMap de Kubernetes. Cámbialo en tus manifiestos.',
         other: 'Este ajuste no se puede editar aquí.'
       },
-      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Base de datos', Logging: 'Registro', Auth: 'Autenticación', Security: 'Seguridad', RequestHistory: 'Historial de solicitudes', Telemetry: 'Telemetría', Cluster: 'Clúster', Scheduling: 'Planificación', Runs: 'Ejecuciones', Audit: 'Auditoría', Runtime: 'Tiempo de ejecución', Observability: 'Observabilidad' },
+      groups: { Archive: 'Archivo', General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Base de datos', Logging: 'Registro', Auth: 'Autenticación', Security: 'Seguridad', RequestHistory: 'Historial de solicitudes', Telemetry: 'Telemetría', Cluster: 'Clúster', Scheduling: 'Planificación', Runs: 'Ejecuciones', Audit: 'Auditoría', Runtime: 'Tiempo de ejecución', Observability: 'Observabilidad' },
       fields: {
         Observability: {
           GrafanaUrl: 'URL de Grafana',
@@ -1213,6 +1213,8 @@ const es = {
           Hostname: 'Nombre de host de escucha de REST'
         },
         Mcp: {
+          InternalPort: 'Puerto MCP interno',
+          SessionIdleTimeoutSeconds: 'Tiempo de inactividad de las sesiones MCP (segundos)',
           MaxToolWaitSeconds: 'Espera máxima de herramientas MCP (segundos)',
           PublicUrl: 'URL interna de MCP para las ejecuciones',
           Path: 'Ruta de MCP',
@@ -1221,6 +1223,10 @@ const es = {
           Enable: 'Servidor MCP activado'
         },
         Database: {
+          MinPoolSize: 'Conexiones mínimas del pool',
+          ConnectionTimeoutSeconds: 'Espera de conexión (segundos)',
+          CommandTimeoutSeconds: 'Tiempo límite de los comandos (segundos)',
+          ConnectionIdleLifetimeSeconds: 'Vida de las conexiones inactivas (segundos)',
           MaxPoolSize: 'Tamaño del grupo de conexiones',
           Schema: 'Esquema de la base de datos',
           Password: 'Contraseña de la base de datos',
@@ -1269,7 +1275,12 @@ const es = {
           ServiceName: 'Nombre del servicio de telemetría',
           Enabled: 'Telemetría activada'
         },
+        Archive: {
+          Directory: 'Directorio de archivo'
+        },
         Cluster: {
+          Backplane: 'Backplane de eventos',
+          BackplanePollMs: 'Intervalo de sondeo del backplane (ms)',
           ExpectedReplicas: 'Réplicas esperadas del plano de control'
         },
         Scheduling: {

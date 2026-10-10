@@ -10,7 +10,10 @@ namespace Garrison.Core.Responses
     public class HealthResponse
     {
         /// <summary>
-        /// healthy or degraded.
+        /// Readiness: healthy, degraded (the database is unreachable), migrating (the database schema is older than this
+        /// build expects, for example while another replica applies migrations), starting (the replica is still
+        /// migrating or seeding), or draining (the replica is shutting down). Only healthy answers 200. Liveness
+        /// answers alive, starting, or draining, always with 200.
         /// </summary>
         public string Status { get; set; } = "healthy";
 
@@ -25,9 +28,24 @@ namespace Garrison.Core.Responses
         public string Version { get; set; } = String.Empty;
 
         /// <summary>
-        /// Database status: ok or unreachable.
+        /// Database status: ok, unreachable, or unchecked (liveness and startup answers).
         /// </summary>
         public string Database { get; set; } = "ok";
+
+        /// <summary>
+        /// Highest migration applied to the database, or 0 when it could not be read.
+        /// </summary>
+        public int SchemaVersion { get; set; } = 0;
+
+        /// <summary>
+        /// Migration version this build requires.
+        /// </summary>
+        public int ExpectedSchemaVersion { get; set; } = 0;
+
+        /// <summary>
+        /// Event backplane this replica uses (Local, Polling, or PostgresNotify), or null.
+        /// </summary>
+        public string? Backplane { get; set; } = null;
 
         /// <summary>
         /// Server time (UTC).

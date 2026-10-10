@@ -47,7 +47,7 @@ namespace Test.Shared.Suites
             {
                 Assert.True(await first.PingAsync(token).ConfigureAwait(false), "Ping failed after first initialization.");
                 firstVersion = first.SchemaVersion;
-                Assert.Equal(5, firstVersion, "Schema version after first initialization");
+                Assert.Equal(SchemaBuilder.LatestVersion, firstVersion, "Schema version after first initialization");
             }
             using (DatabaseDriverBase second = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
@@ -91,7 +91,7 @@ namespace Test.Shared.Suites
 
             using (DatabaseDriverBase upgraded = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(5, upgraded.SchemaVersion, "Schema version after upgrade");
+                Assert.Equal(SchemaBuilder.LatestVersion, upgraded.SchemaVersion, "Schema version after upgrade");
                 Run legacy = Assert.NotNull(await upgraded.Runs.ReadAsync("run_legacy", token).ConfigureAwait(false), "Legacy run");
                 Assert.Equal(20L, legacy.OutputTokens, "Existing columns survive");
                 Assert.Equal(0L, legacy.ReasoningTokens, "Reasoning tokens default to 0");
@@ -119,7 +119,7 @@ namespace Test.Shared.Suites
 
             using (DatabaseDriverBase again = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
-                Assert.Equal(5, again.SchemaVersion, "Schema version after a second upgrade pass");
+                Assert.Equal(SchemaBuilder.LatestVersion, again.SchemaVersion, "Schema version after a second upgrade pass");
             }
         }
 

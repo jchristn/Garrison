@@ -109,6 +109,19 @@ namespace Garrison.Core.Services
         /// <returns>Task.</returns>
         public async Task SeedAsync(CancellationToken token = default)
         {
+            // Replicas starting together seed one at a time, so creating a built-in twice cannot race (P10.9).
+            await using (DatabaseLockHandle startupLock = await _Database.AcquireStartupLockAsync(token).ConfigureAwait(false))
+            {
+                await SeedLockedAsync(token).ConfigureAwait(false);
+            }
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private async Task SeedLockedAsync(CancellationToken token)
+        {
             foreach (BuiltInPromptDefinition definition in PromptCatalog())
             {
                 await SeedPromptAsync(definition, token).ConfigureAwait(false);
@@ -129,10 +142,6 @@ namespace Garrison.Core.Services
                 }
             }
         }
-
-        #endregion
-
-        #region Private-Methods
 
         private async Task SeedPromptAsync(BuiltInPromptDefinition definition, CancellationToken token)
         {

@@ -1042,6 +1042,7 @@ const tips = {
         Security: 'Clé maîtresse de chiffrement et comptes d\'amorçage.',
         RequestHistory: 'Indique si les requêtes API sont capturées et quelle part de chaque corps est conservée.',
         Telemetry: 'Export des métriques et des traces.',
+        Archive: 'Où les exécutions et les événements sont archivés avant que la rétention ne les supprime.',
         Cluster: 'Nombre de réplicas du plan de contrôle attendus.',
         Scheduling: 'Durées des baux et délais d\'expiration des signaux de vie pour les nœuds worker.',
         Runs: 'Valeurs par défaut des exécutions et durée de conservation des exécutions et des événements.',

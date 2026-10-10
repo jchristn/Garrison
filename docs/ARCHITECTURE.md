@@ -9,11 +9,12 @@ Garrison is a control plane for headless agent harnesses. It accepts requests to
                                        |
                  +---------------------+----------------------+
                  |  REST + SSE + WebSocket + A2A  :8700        |
-                 |  MCP (Voltaic)                 :8701        |   control plane ("Command")
+                 |  MCP (proxy -> Voltaic loopback) :8701      |   control plane ("Command")
                  |  Prometheus                    :9464        |   N stateless replicas
                  +---------------------+----------------------+
                                        |
                               Sqlite or PostgreSQL
+                  (state, leases, and the event backplane: LISTEN/NOTIFY or a polled table)
                                        ^
                  +---------------------+----------------------+
                  |  register, heartbeat, lease (long poll),   |   workers ("Post")
@@ -34,7 +35,7 @@ Garrison is a control plane for headless agent harnesses. It accepts requests to
 | Dashboard | `dashboard/` | React operator console over the REST and WebSocket APIs |
 | SDKs | `sdk/` | C#, Python, JavaScript and TypeScript, and Go clients |
 
-The control plane is assembled from four modules, each registering its routes and services: identity (tenants, users, credentials, roles, permissions, assignments, sessions, audit, request history, settings), configuration (harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, agents, deployments, manifests), runtime (runs, nodes, node pools, the scheduler, the node protocol, maintenance, WebSocket), and protocols (MCP and A2A). All HTTP is served by Watson 7, and MCP by Voltaic on its own port.
+The control plane is assembled from four modules, each registering its routes and services: identity (tenants, users, credentials, roles, permissions, assignments, sessions, audit, request history, settings), configuration (harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, agents, deployments, manifests), runtime (runs, nodes, node pools, the scheduler, the node protocol, maintenance, WebSocket), and protocols (MCP and A2A). All HTTP is served by Watson 7. MCP is answered by Voltaic on a loopback port behind a small Garrison relay on the MCP port, which maps cluster-wide MCP session identifiers to Voltaic's in-process sessions so that any replica can serve any MCP session.
 
 ## The life of a run
 
@@ -42,7 +43,7 @@ The control plane is assembled from four modules, each registering its routes an
 2. **Deployment selection.** The invoker picks one of the agent's active deployments, at random by weight unless the caller named one, and validates the run parameters against the deployment's allowed overrides. Delegated calls are checked against the delegation rules here.
 3. **Queued.** The run is written as `Queued`, with its requirements (harness type, node pool, node labels) copied from the deployment. If the caller sent an idempotency key that matches a run from the last 24 hours, that run is returned instead.
    While a run is queued, every read explains whether anyone can take it: `blockedReason` is `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), or `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool, tenant dedication, or node selector), and `null` otherwise. It is computed from a node snapshot reused for a few seconds, never stored, and the tenant overview counts such runs as `blockedRuns`.
-4. **Claimed.** A worker's long-poll lease request finds candidate runs it is eligible for and claims one with a single compare-and-set update that also increments the run's fencing epoch. Only one claim can succeed.
+4. **Claimed.** A worker's long-poll lease request finds candidate runs it is eligible for (harness, node pool, and tenant dedication are filtered in SQL) and claims one with a single compare-and-set update that also increments the run's fencing epoch. Only one claim can succeed. When the deployment has `maxConcurrentRuns`, claims for that deployment are serialized in the database and the update counts its active runs, so the limit is exact across replicas. A long poll waiting on one replica is woken through the event backplane when a run is queued on another.
 5. **Compiled.** The claiming replica loads the deployment, profile, agent, prompt bindings, MCP servers, secrets, and workspace, issues a run token if the agent may delegate, and renders everything into an `ExecutionSpec`: executable, argument list, environment, files, stdin, parser, result source, success policy, timeouts, MCP checks, and the values to scrub. The template versions used are recorded on the run. A compile failure fails the run with `CompileFailed`.
 6. **Leased.** The spec goes back to the worker in the lease response, with the epoch and lease expiry.
 7. **Running.** The worker creates the run's directories, writes files, runs MCP pre-flight, starts the process, and reports `started`. It parses stdout into normalized events (text, tool calls, usage, results) and sends them in batches. Heartbeats extend the lease and carry back cancellation requests.
@@ -77,7 +78,9 @@ A run's `outcome` explains a `Failed` status: `HarnessFailed`, `NotInstalled`, `
 
 **Fencing over trust.** Leases expire and epochs increase on every claim, so correctness never depends on a worker noticing it lost a run. A stale worker's reports are refused.
 
-**The database is the bus.** Events, status, settings, sessions, and leases go through the database rather than an in-memory bus, so any replica can serve any client. In-process signals only make the common case faster.
+**The database is the bus.** Events, status, settings, sessions, leases, signed-request nonces, rate limit counters, and MCP sessions go through the database rather than an in-memory bus, so any replica can serve any client. An event backplane (PostgreSQL LISTEN/NOTIFY by default, or a polled table) carries small hints between replicas: a run changed, work was queued, settings or permissions changed, an MCP session closed. Hints only make waiters look at the database sooner; every waiter still re-reads the database on its own interval, so a lost hint costs latency, never correctness. `docs/SCALING.md` lists every piece of in-memory state and why it is safe.
+
+**One migrator.** Replicas take a database startup lock (a PostgreSQL advisory lock) before migrating and seeding, so replicas starting together never race; the others wait, answering liveness but not readiness, until the schema is current.
 
 **Multi-tenant from the start.** Every tenant-owned row carries a tenant identifier, every query filters on the authenticated tenant, and cross-tenant reads answer 404.
 

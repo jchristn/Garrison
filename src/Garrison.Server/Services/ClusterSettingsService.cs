@@ -8,12 +8,15 @@ namespace Garrison.Server.Services
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
+    using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Services;
+    using Garrison.Server.Backplane;
 
     /// <summary>
     /// Cluster runtime settings stored in the cluster_settings table (plan D-014). Values are cached and refreshed
-    /// on an interval so every replica applies changes within a few seconds. Thread-safe.
+    /// on an interval so every replica applies changes within a few seconds; a change also publishes SettingsChanged on
+    /// the backplane so other replicas reload at once. Thread-safe.
     /// </summary>
     public class ClusterSettingsService
     {
@@ -44,6 +47,17 @@ namespace Garrison.Server.Services
                 return Interlocked.Read(ref _Version);
             }
         }
+
+        /// <summary>
+        /// Backplane used to tell other replicas to reload after <see cref="SetAsync"/>. Null (the default) relies on the
+        /// refresh interval alone.
+        /// </summary>
+        public IEventBackplane? Backplane { get; set; } = null;
+
+        /// <summary>
+        /// Raised after the cached values change (a local set or a refresh that saw a change).
+        /// </summary>
+        public event EventHandler? Changed;
 
         /// <summary>
         /// Setting definitions.
@@ -296,6 +310,8 @@ namespace Garrison.Server.Services
             await _Database.ClusterSettings.UpsertAsync(definition.Key, normalized, updatedBy, token).ConfigureAwait(false);
             _Values[definition.Key] = normalized;
             Interlocked.Increment(ref _Version);
+            RaiseChanged();
+            Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.SettingsChanged, definition.Key));
         }
 
         /// <summary>
@@ -315,6 +331,7 @@ namespace Garrison.Server.Services
             {
                 _Fingerprint = fingerprint;
                 Interlocked.Increment(ref _Version);
+                RaiseChanged();
             }
         }
 
@@ -347,6 +364,20 @@ namespace Garrison.Server.Services
         #endregion
 
         #region Private-Methods
+
+        private void RaiseChanged()
+        {
+            EventHandler? handler = Changed;
+            if (handler == null) return;
+            try
+            {
+                handler(this, EventArgs.Empty);
+            }
+            catch (Exception)
+            {
+                // A subscriber's failure must not fail the settings change itself.
+            }
+        }
 
         private static ClusterSettingDefinition Int(string key, int defaultValue, long min, long max, string description)
         {

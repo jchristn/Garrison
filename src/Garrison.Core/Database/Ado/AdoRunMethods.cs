@@ -3,6 +3,7 @@ namespace Garrison.Core.Database.Ado
     using System;
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database.Interfaces;
@@ -55,12 +56,47 @@ namespace Garrison.Core.Database.Ado
             obj.CreatedUtc = DateTime.UtcNow;
             obj.LastUpdateUtc = obj.CreatedUtc;
 
+            bool idempotent = !String.IsNullOrEmpty(obj.IdempotencyKey);
+            string? lockSql = _Driver.Dialect.TransactionLockStatement();
+            Run? existing = null;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
+                existing = null;
+                if (idempotent)
+                {
+                    // Retries with the same key can reach different replicas at the same moment; serialize them on the key
+                    // so exactly one inserts and the others get its run.
+                    if (lockSql != null)
+                    {
+                        long key = AdoDatabaseDriver.LockKey("run-idempotency:" + _Table + ":" + obj.TenantId + ":" + (obj.CallerId ?? String.Empty) + ":" + obj.IdempotencyKey);
+                        await AdoDatabaseDriver.ExecuteAsync(connection, transaction, lockSql, command => AdoDatabaseDriver.Add(command, "key", key), ct).ConfigureAwait(false);
+                    }
+                    List<Run> found = await AdoDatabaseDriver.QueryAsync(connection, transaction,
+                        "SELECT * FROM " + _Table + " WHERE tenantid = @tenantid AND idempotencykey = @key AND " + (obj.CallerId == null ? "callerid IS NULL" : "callerid = @caller") + " AND createdutc > @since ORDER BY createdutc DESC;",
+                        command =>
+                        {
+                            AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
+                            AdoDatabaseDriver.Add(command, "key", obj.IdempotencyKey);
+                            if (obj.CallerId != null) AdoDatabaseDriver.Add(command, "caller", obj.CallerId);
+                            AdoDatabaseDriver.Add(command, "since", DateTime.UtcNow.AddHours(-24));
+                        },
+                        Map,
+                        ct).ConfigureAwait(false);
+                    if (found.Count > 0)
+                    {
+                        existing = found[0];
+                        return;
+                    }
+                }
                 await InsertRowAsync(connection, transaction, obj, ct).ConfigureAwait(false);
                 await InsertChildrenAsync(connection, transaction, obj, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
 
+            if (existing != null)
+            {
+                await LoadChildrenAsync(existing, token).ConfigureAwait(false);
+                return existing;
+            }
             return obj;
         }
 
@@ -176,8 +212,11 @@ namespace Garrison.Core.Database.Ado
             if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
 
             int affected = 0;
+            // Events go with the run; leaving them would orphan rows until event retention caught up.
+            string events = _Driver.Table("run_events");
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
                 affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -327,18 +366,44 @@ namespace Garrison.Core.Database.Ado
         public async Task<List<Run>> ListClaimCandidatesAsync(List<HarnessTypeEnum> harnessTypes, int limit, CancellationToken token = default)
         {
             if (harnessTypes == null) throw new ArgumentNullException(nameof(harnessTypes));
-            if (harnessTypes.Count == 0) return new List<Run>();
+            ClaimCandidateFilter filter = new ClaimCandidateFilter();
+            filter.HarnessTypes = harnessTypes;
+            filter.IgnoreNodePool = true;
+            filter.Limit = limit;
+            return await ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
+        }
 
-            List<string> names = new List<string>();
-            for (int i = 0; i < harnessTypes.Count; i++) names.Add("@h" + i);
-            string sql = "SELECT * FROM " + _Table + " WHERE status = 'Queued' AND harnesstype IN (" + String.Join(", ", names) + ") ORDER BY priority DESC, createdutc ASC" + _Driver.Dialect.LimitOffsetClause() + ";";
+        /// <inheritdoc />
+        public async Task<List<Run>> ListClaimCandidatesAsync(ClaimCandidateFilter filter, CancellationToken token = default)
+        {
+            if (filter == null) throw new ArgumentNullException(nameof(filter));
+            if (filter.HarnessTypes.Count == 0) return new List<Run>();
+
+            List<string> harnessNames = new List<string>();
+            for (int i = 0; i < filter.HarnessTypes.Count; i++) harnessNames.Add("@h" + i);
+            List<string> clauses = new List<string>();
+            clauses.Add("status = 'Queued'");
+            clauses.Add("harnesstype IN (" + String.Join(", ", harnessNames) + ")");
+            if (!filter.IgnoreNodePool)
+            {
+                if (String.IsNullOrEmpty(filter.NodePoolId)) clauses.Add("(nodepoolid IS NULL OR nodepoolid = '')");
+                else clauses.Add("(nodepoolid IS NULL OR nodepoolid = '' OR nodepoolid = @pool)");
+            }
+            List<string> tenants = filter.AllowedTenantIds == null ? new List<string>() : filter.AllowedTenantIds.Where(t => !String.IsNullOrEmpty(t)).Distinct().ToList();
+            List<string> tenantNames = new List<string>();
+            for (int i = 0; i < tenants.Count; i++) tenantNames.Add("@t" + i);
+            if (tenants.Count > 0) clauses.Add("tenantid IN (" + String.Join(", ", tenantNames) + ")");
+
+            string sql = "SELECT * FROM " + _Table + " WHERE " + String.Join(" AND ", clauses) + " ORDER BY priority DESC, createdutc ASC" + _Driver.Dialect.LimitOffsetClause() + ";";
             List<Run> runs = await _Driver.QueryAsync(sql, command =>
             {
-                for (int i = 0; i < harnessTypes.Count; i++) AdoDatabaseDriver.Add(command, "h" + i, harnessTypes[i].ToString());
-                AdoDatabaseDriver.Add(command, "max", Math.Clamp(limit, 1, 500));
+                for (int i = 0; i < filter.HarnessTypes.Count; i++) AdoDatabaseDriver.Add(command, "h" + i, filter.HarnessTypes[i].ToString());
+                if (!filter.IgnoreNodePool && !String.IsNullOrEmpty(filter.NodePoolId)) AdoDatabaseDriver.Add(command, "pool", filter.NodePoolId);
+                for (int i = 0; i < tenants.Count; i++) AdoDatabaseDriver.Add(command, "t" + i, tenants[i]);
+                AdoDatabaseDriver.Add(command, "max", filter.Limit);
                 AdoDatabaseDriver.Add(command, "skip", 0);
             }, Map, token).ConfigureAwait(false);
-            foreach (Run run in runs) await LoadChildrenAsync(run, token).ConfigureAwait(false);
+            await LoadRequirementsAsync(runs, token).ConfigureAwait(false);
             return runs;
         }
 
@@ -364,6 +429,96 @@ namespace Garrison.Core.Database.Ado
 
             object? epoch = await _Driver.ScalarAsync("SELECT leaseepoch FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", runId), token).ConfigureAwait(false);
             return epoch == null ? null : Convert.ToInt64(epoch);
+        }
+
+        /// <inheritdoc />
+        public async Task<ClaimResult> TryClaimWithinLimitAsync(string runId, string nodeId, string nodeName, DateTime leaseExpiresUtc, string deploymentId, int maxConcurrentRuns, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+            if (String.IsNullOrEmpty(nodeId)) throw new ArgumentNullException(nameof(nodeId));
+            if (String.IsNullOrEmpty(deploymentId)) throw new ArgumentNullException(nameof(deploymentId));
+
+            ClaimResult result = new ClaimResult();
+            if (maxConcurrentRuns <= 0)
+            {
+                result.Epoch = await TryClaimAsync(runId, nodeId, nodeName, leaseExpiresUtc, token).ConfigureAwait(false);
+                return result;
+            }
+
+            string? lockSql = _Driver.Dialect.TransactionLockStatement();
+            long lockKey = AdoDatabaseDriver.LockKey("deployment-claims:" + _Table + ":" + deploymentId);
+            string claimSql =
+                "UPDATE " + _Table + " SET status = 'Leased', leasenodeid = @node, leasenodename = @nodename, leaseepoch = leaseepoch + 1, leaseexpiresutc = @expires, leasedutc = @now, lastupdateutc = @now " +
+                "WHERE id = @id AND status = 'Queued' AND (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')) < @max;";
+
+            await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
+            {
+                result = new ClaimResult();
+
+                // Serialize claims for this deployment so the count below sees every committed claim (READ COMMITTED takes
+                // a new snapshot per statement, after the lock is granted). Sqlite already has a single writer.
+                if (lockSql != null) await AdoDatabaseDriver.ExecuteAsync(connection, transaction, lockSql, command => AdoDatabaseDriver.Add(command, "key", lockKey), ct).ConfigureAwait(false);
+
+                DateTime now = DateTime.UtcNow;
+                int affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, claimSql, command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", runId);
+                    AdoDatabaseDriver.Add(command, "node", nodeId);
+                    AdoDatabaseDriver.Add(command, "nodename", nodeName);
+                    AdoDatabaseDriver.Add(command, "expires", leaseExpiresUtc);
+                    AdoDatabaseDriver.Add(command, "now", now);
+                    AdoDatabaseDriver.Add(command, "deploymentid", deploymentId);
+                    AdoDatabaseDriver.Add(command, "max", maxConcurrentRuns);
+                }, ct).ConfigureAwait(false);
+
+                List<ClaimProbeRow> rows = await AdoDatabaseDriver.QueryAsync(connection, transaction,
+                    "SELECT status, leaseepoch FROM " + _Table + " WHERE id = @id;",
+                    command => AdoDatabaseDriver.Add(command, "id", runId),
+                    reader =>
+                    {
+                        ClaimProbeRow row = new ClaimProbeRow();
+                        row.Status = AdoConverters.Str(reader, "status");
+                        row.Epoch = AdoConverters.Long(reader, "leaseepoch");
+                        return row;
+                    },
+                    ct).ConfigureAwait(false);
+
+                if (affected == 1 && rows.Count > 0) result.Epoch = rows[0].Epoch;
+                else if (rows.Count > 0 && rows[0].Status == "Queued") result.LimitReached = true;
+            }, token).ConfigureAwait(false);
+            return result;
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Run>> ListFinishedBeforeAsync(DateTime olderThanUtc, int limit, CancellationToken token = default)
+        {
+            List<Run> runs = await _Driver.QueryAsync(
+                "SELECT * FROM " + _Table + " WHERE status IN ('Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected') AND completedutc < @cutoff ORDER BY completedutc ASC" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "cutoff", olderThanUtc);
+                    AdoDatabaseDriver.Add(command, "max", Math.Clamp(limit, 1, 1000));
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                },
+                Map,
+                token).ConfigureAwait(false);
+            foreach (Run run in runs) await LoadChildrenAsync(run, token).ConfigureAwait(false);
+            return runs;
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> PurgeAsync(string id, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            string events = _Driver.Table("run_events");
+            int affected = 0;
+            await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
+            {
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
+                affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+            }, token).ConfigureAwait(false);
+            return affected > 0;
         }
 
         /// <inheritdoc />
@@ -672,6 +827,22 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<StatusCount>> CountUnfinishedAsync(CancellationToken token = default)
+        {
+            return await _Driver.QueryAsync(
+                "SELECT status, COUNT(*) AS total FROM " + _Table + " WHERE status IN ('Pending', 'Queued', 'Leased', 'Running', 'Cancelling') GROUP BY status;",
+                null,
+                reader =>
+                {
+                    StatusCount count = new StatusCount();
+                    count.Status = AdoConverters.Str(reader, "status");
+                    count.Count = AdoConverters.Long(reader, "total");
+                    return count;
+                },
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<QueueSummaryRow>> QueueSummaryAsync(string? tenantId, CancellationToken token = default)
         {
             string where = " WHERE status IN ('Queued', 'Leased', 'Running')" + (String.IsNullOrEmpty(tenantId) ? String.Empty : " AND tenantid = @tenantid");
@@ -737,16 +908,7 @@ namespace Garrison.Core.Database.Ado
                 reader => AdoConverters.Str(reader, "id"),
                 token).ConfigureAwait(false);
 
-            string events = _Driver.Table("run_events");
-            foreach (string id in ids)
-            {
-                await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
-                {
-                    await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
-                    await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
-                    await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
-                }, token).ConfigureAwait(false);
-            }
+            foreach (string id in ids) await PurgeAsync(id, token).ConfigureAwait(false);
             return ids.Count;
         }
 

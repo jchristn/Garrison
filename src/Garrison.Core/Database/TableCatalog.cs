@@ -99,6 +99,10 @@ namespace Garrison.Core.Database
                 "manifest_applies",
                 "manifest_apply_items",
                 "manifest_apply_changes",
+                "request_nonces",
+                "rate_limit_buckets",
+                "mcp_sessions",
+                "backplane_messages",
         };
 
         private readonly SqlDialect _Dialect;

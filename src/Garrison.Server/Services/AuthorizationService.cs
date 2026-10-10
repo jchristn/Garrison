@@ -11,12 +11,13 @@ namespace Garrison.Server.Services
     using Garrison.Core.Models;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Server.Backplane;
 
     /// <summary>
     /// Authorization per AUTHENTICATION.md: bypass order (system administrator, IsAdmin, IsTenantAdmin), expanded
     /// RBAC grants with explicit deny, resource scope and inheritance, credential owner ceiling, and the run principal
     /// ceiling used for delegation. Denials and privileged bypasses are audited. Grants are cached per principal and
-    /// invalidated by <see cref="Invalidate"/> and a time-to-live. Thread-safe.
+    /// invalidated by <see cref="Invalidate"/> (on every replica, through the backplane) and a time-to-live. Thread-safe.
     /// </summary>
     public class AuthorizationService
     {
@@ -36,6 +37,12 @@ namespace Garrison.Server.Services
                 _CacheSeconds = Math.Clamp(value, 0, 3600);
             }
         }
+
+        /// <summary>
+        /// Backplane used by <see cref="Invalidate"/> to drop the caches of other replicas. Null (the default) leaves
+        /// them to expire after <see cref="CacheSeconds"/>.
+        /// </summary>
+        public IEventBackplane? Backplane { get; set; } = null;
 
         #endregion
 
@@ -264,9 +271,19 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
-        /// Drop every cached grant set. Call after any change to roles, permissions, assignments, users, or credentials.
+        /// Drop every cached grant set here and, through the backplane, on every other replica. Call after any change to
+        /// roles, permissions, assignments, users, or credentials.
         /// </summary>
         public void Invalidate()
+        {
+            _Cache.Clear();
+            Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.PermissionsChanged, null));
+        }
+
+        /// <summary>
+        /// Drop every cached grant set on this replica only (a PermissionsChanged message from another replica).
+        /// </summary>
+        public void InvalidateLocal()
         {
             _Cache.Clear();
         }

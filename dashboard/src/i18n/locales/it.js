@@ -1189,7 +1189,7 @@ const it = {
         ConfigMap: 'Gestito da una ConfigMap di Kubernetes. Modificalo nei tuoi manifest.',
         other: 'Questa impostazione non può essere modificata qui.'
       },
-      groups: { General: 'Generale', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Autenticazione', Security: 'Sicurezza', RequestHistory: 'Cronologia richieste', Telemetry: 'Telemetria', Cluster: 'Cluster', Scheduling: 'Pianificazione', Runs: 'Esecuzioni', Audit: 'Audit', Runtime: 'Motore di esecuzione', Observability: 'Osservabilità' },
+      groups: { Archive: 'Archivio', General: 'Generale', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Autenticazione', Security: 'Sicurezza', RequestHistory: 'Cronologia richieste', Telemetry: 'Telemetria', Cluster: 'Cluster', Scheduling: 'Pianificazione', Runs: 'Esecuzioni', Audit: 'Audit', Runtime: 'Motore di esecuzione', Observability: 'Osservabilità' },
       fields: {
         Observability: {
           GrafanaUrl: 'URL di Grafana',
@@ -1209,6 +1209,8 @@ const it = {
           Hostname: 'Nome host di ascolto REST'
         },
         Mcp: {
+          InternalPort: 'Porta MCP interna',
+          SessionIdleTimeoutSeconds: 'Inattività delle sessioni MCP (secondi)',
           MaxToolWaitSeconds: 'Attesa massima degli strumenti MCP (secondi)',
           PublicUrl: 'URL MCP interno per le esecuzioni',
           Path: 'Percorso MCP',
@@ -1217,6 +1219,10 @@ const it = {
           Enable: 'Server MCP attivo'
         },
         Database: {
+          MinPoolSize: 'Connessioni minime nel pool',
+          ConnectionTimeoutSeconds: 'Attesa di una connessione (secondi)',
+          CommandTimeoutSeconds: 'Timeout dei comandi (secondi)',
+          ConnectionIdleLifetimeSeconds: 'Durata delle connessioni inattive (secondi)',
           MaxPoolSize: 'Dimensione del pool di connessioni',
           Schema: 'Schema del database',
           Password: 'Password del database',
@@ -1265,7 +1271,12 @@ const it = {
           ServiceName: 'Nome del servizio di telemetria',
           Enabled: 'Telemetria attiva'
         },
+        Archive: {
+          Directory: 'Directory di archivio'
+        },
         Cluster: {
+          Backplane: 'Backplane degli eventi',
+          BackplanePollMs: 'Intervallo di polling del backplane (ms)',
           ExpectedReplicas: 'Repliche previste del piano di controllo'
         },
         Scheduling: {

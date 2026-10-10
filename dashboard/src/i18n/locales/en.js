@@ -1173,7 +1173,7 @@ const en = {
         ConfigMap: 'Managed by a Kubernetes ConfigMap. Change it in your manifests.',
         other: 'This setting cannot be edited here.'
       },
-      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit', Runtime: 'Runtime', Observability: 'Observability' },
+      groups: { Archive: 'Archive', General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit', Runtime: 'Runtime', Observability: 'Observability' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana URL',
@@ -1193,6 +1193,8 @@ const en = {
           Hostname: 'REST bind host name'
         },
         Mcp: {
+          InternalPort: 'Internal MCP port',
+          SessionIdleTimeoutSeconds: 'MCP session idle timeout (seconds)',
           MaxToolWaitSeconds: 'Maximum MCP tool wait (seconds)',
           PublicUrl: 'Internal MCP URL for runs',
           Path: 'MCP path',
@@ -1201,6 +1203,10 @@ const en = {
           Enable: 'MCP server enabled'
         },
         Database: {
+          MinPoolSize: 'Minimum pooled connections',
+          ConnectionTimeoutSeconds: 'Connection wait timeout (seconds)',
+          CommandTimeoutSeconds: 'Command timeout (seconds)',
+          ConnectionIdleLifetimeSeconds: 'Idle connection lifetime (seconds)',
           MaxPoolSize: 'Connection pool size',
           Schema: 'Database schema',
           Password: 'Database password',
@@ -1249,7 +1255,12 @@ const en = {
           ServiceName: 'Telemetry service name',
           Enabled: 'Telemetry enabled'
         },
+        Archive: {
+          Directory: 'Archive directory'
+        },
         Cluster: {
+          Backplane: 'Event backplane',
+          BackplanePollMs: 'Backplane polling interval (ms)',
           ExpectedReplicas: 'Expected control plane replicas'
         },
         Scheduling: {

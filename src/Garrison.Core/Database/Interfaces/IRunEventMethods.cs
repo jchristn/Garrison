@@ -95,5 +95,23 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Rows deleted.</returns>
         Task<int> PruneAsync(DateTime olderThanUtc, CancellationToken token = default);
+
+        /// <summary>
+        /// Events recorded before a cutoff, oldest first (retention and archival).
+        /// </summary>
+        /// <param name="olderThanUtc">Cutoff.</param>
+        /// <param name="limit">Maximum events (1 to 10000).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Events.</returns>
+        Task<List<RunEvent>> ListOlderThanAsync(DateTime olderThanUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Delete events by identifier.
+        /// </summary>
+        /// <param name="ids">Event identifiers.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Events deleted.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ids is null.</exception>
+        Task<int> DeleteManyAsync(List<string> ids, CancellationToken token = default);
     }
 }

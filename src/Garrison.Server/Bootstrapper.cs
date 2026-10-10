@@ -72,7 +72,50 @@ namespace Garrison.Server
 
             settings.Validate();
 
+            // Until the real listener starts, liveness answers 200 and readiness 503, so a replica waiting for another
+            // replica's migrations (or running them) is neither killed nor sent traffic (P10.9).
+            StartupHealthListener startupHealth = new StartupHealthListener(settings.Rest.Hostname, settings.Rest.Port, settings.EffectiveNodeId);
+            startupHealth.Start();
+            try
+            {
+                return await StartCoreAsync(settings, logging, startupHealth, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                startupHealth.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Build logging from settings.
+        /// </summary>
+        /// <param name="settings">Logging settings.</param>
+        /// <returns>Logging module.</returns>
+        public static LoggingModule BuildLogging(Garrison.Server.Settings.LoggingSettings settings)
+        {
+            LoggingModule logging = new LoggingModule();
+            // Only call the setter to turn the console off. Setting EnableConsole to true makes SyslogLogging probe for a
+            // terminal (UserInteractive and WindowHeight), which fails in containers and silently disables console output,
+            // so kubectl logs would show nothing. The LoggingModule default is already true and skips the probe.
+            if (!settings.ConsoleLogging) logging.Settings.EnableConsole = false;
+            logging.Settings.MinimumSeverity = (Severity)settings.MinimumSeverity;
+            if (settings.FileLogging)
+            {
+                logging.Settings.FileLogging = FileLoggingMode.FileWithDate;
+                logging.Settings.LogFilename = settings.LogDirectory + settings.LogFilename;
+            }
+            return logging;
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private static async Task<GarrisonServer> StartCoreAsync(ServerSettings settings, LoggingModule logging, StartupHealthListener startupHealth, CancellationToken token)
+        {
+            logging.Info("[Garrison] waiting for the database startup lock (migrations run under it, one replica at a time)");
             DatabaseDriverBase database = await DatabaseDriverFactory.CreateAndInitializeAsync(settings.Database, token).ConfigureAwait(false);
+            if (database.MigrationsApplied > 0) logging.Info("[Garrison] applied " + database.MigrationsApplied + " schema migrations");
             if (settings.Database.Type == DatabaseTypeEnum.Sqlite)
             {
                 logging.Info("[Garrison] database initialized (Sqlite at " + settings.Database.Filename + ", schema version " + database.SchemaVersion + ")");
@@ -114,34 +157,10 @@ namespace Garrison.Server
             context.DefaultTenantId = defaultTenant.Id;
 
             GarrisonServer server = new GarrisonServer(context);
+            server.BeforeListen = startupHealth.Stop;
             await server.StartAsync(token).ConfigureAwait(false);
             return server;
         }
-
-        /// <summary>
-        /// Build logging from settings.
-        /// </summary>
-        /// <param name="settings">Logging settings.</param>
-        /// <returns>Logging module.</returns>
-        public static LoggingModule BuildLogging(Garrison.Server.Settings.LoggingSettings settings)
-        {
-            LoggingModule logging = new LoggingModule();
-            // Only call the setter to turn the console off. Setting EnableConsole to true makes SyslogLogging probe for a
-            // terminal (UserInteractive and WindowHeight), which fails in containers and silently disables console output,
-            // so kubectl logs would show nothing. The LoggingModule default is already true and skips the probe.
-            if (!settings.ConsoleLogging) logging.Settings.EnableConsole = false;
-            logging.Settings.MinimumSeverity = (Severity)settings.MinimumSeverity;
-            if (settings.FileLogging)
-            {
-                logging.Settings.FileLogging = FileLoggingMode.FileWithDate;
-                logging.Settings.LogFilename = settings.LogDirectory + settings.LogFilename;
-            }
-            return logging;
-        }
-
-        #endregion
-
-        #region Private-Methods
 
         private static async Task<int> RunAsync(string[] args, CancellationToken shutdown)
         {

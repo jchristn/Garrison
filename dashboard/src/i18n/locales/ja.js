@@ -1146,7 +1146,7 @@ const ja = {
         ConfigMap: 'Kubernetes の ConfigMap で管理されています。マニフェストで変更してください。',
         other: 'この設定はここでは編集できません。'
       },
-      groups: { General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査', Runtime: 'ランタイム', Observability: 'オブザーバビリティ' },
+      groups: { Archive: 'アーカイブ', General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査', Runtime: 'ランタイム', Observability: 'オブザーバビリティ' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana の URL',
@@ -1166,6 +1166,8 @@ const ja = {
           Hostname: 'REST のバインドホスト名'
         },
         Mcp: {
+          InternalPort: '内部 MCP ポート',
+          SessionIdleTimeoutSeconds: 'MCP セッションのアイドルタイムアウト (秒)',
           MaxToolWaitSeconds: 'MCP ツールの最大待機時間 (秒)',
           PublicUrl: '実行用の内部 MCP URL',
           Path: 'MCP パス',
@@ -1174,6 +1176,10 @@ const ja = {
           Enable: 'MCP サーバーを有効化'
         },
         Database: {
+          MinPoolSize: 'プール接続の最小数',
+          ConnectionTimeoutSeconds: '接続待ちタイムアウト (秒)',
+          CommandTimeoutSeconds: 'コマンドタイムアウト (秒)',
+          ConnectionIdleLifetimeSeconds: 'アイドル接続の保持時間 (秒)',
           MaxPoolSize: '接続プールのサイズ',
           Schema: 'データベーススキーマ',
           Password: 'データベースのパスワード',
@@ -1222,7 +1228,12 @@ const ja = {
           ServiceName: 'テレメトリのサービス名',
           Enabled: 'テレメトリを有効化'
         },
+        Archive: {
+          Directory: 'アーカイブディレクトリ'
+        },
         Cluster: {
+          Backplane: 'イベントバックプレーン',
+          BackplanePollMs: 'バックプレーンのポーリング間隔 (ms)',
           ExpectedReplicas: 'コントロールプレーンの想定レプリカ数'
         },
         Scheduling: {

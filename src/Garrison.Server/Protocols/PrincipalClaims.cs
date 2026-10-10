@@ -37,6 +37,18 @@ namespace Garrison.Server.Protocols
         }
 
         /// <summary>
+        /// The principal string an MCP session is bound to: principal type and identifier.
+        /// </summary>
+        /// <param name="ctx">Authenticated context.</param>
+        /// <returns>Principal.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx is null.</exception>
+        public static string Principal(RequestContext ctx)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            return ctx.PrincipalType + ":" + (ctx.PrincipalId ?? "admin");
+        }
+
+        /// <summary>
         /// Decode claims into an authenticated context.
         /// </summary>
         /// <param name="claims">Claims.</param>

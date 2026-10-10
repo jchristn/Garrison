@@ -25,6 +25,12 @@ namespace Garrison.Core.Database
         public int SchemaVersion { get; protected set; } = 0;
 
         /// <summary>
+        /// Number of migrations this driver instance applied during <see cref="InitializeAsync"/>. With several replicas
+        /// starting against one database, exactly one of them applies each migration; the others report 0.
+        /// </summary>
+        public int MigrationsApplied { get; protected set; } = 0;
+
+        /// <summary>
         /// Tenant methods.
         /// </summary>
         public ITenantMethods Tenants { get; protected set; } = null!;
@@ -159,6 +165,26 @@ namespace Garrison.Core.Database
         /// </summary>
         public IManifestApplyMethods ManifestApplies { get; protected set; } = null!;
 
+        /// <summary>
+        /// Signed-request nonce methods.
+        /// </summary>
+        public IRequestNonceMethods Nonces { get; protected set; } = null!;
+
+        /// <summary>
+        /// Rate limit bucket methods.
+        /// </summary>
+        public IRateLimitBucketMethods RateLimits { get; protected set; } = null!;
+
+        /// <summary>
+        /// Cluster MCP session methods.
+        /// </summary>
+        public IMcpSessionMethods McpSessions { get; protected set; } = null!;
+
+        /// <summary>
+        /// Polling backplane message methods.
+        /// </summary>
+        public IBackplaneMessageMethods BackplaneMessages { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members
@@ -175,6 +201,23 @@ namespace Garrison.Core.Database
         /// <param name="token">Cancellation token.</param>
         /// <returns>Task.</returns>
         public abstract Task InitializeAsync(CancellationToken token = default);
+
+        /// <summary>
+        /// Take the database-wide startup lock, waiting while another replica holds it. Migrations and built-in seeding
+        /// run under it so that replicas starting together never race. On Postgresql it is a session advisory lock on a
+        /// dedicated connection, released when the handle is disposed or the process dies; on Sqlite it is a
+        /// process-wide lock per database file.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Handle; dispose to release.</returns>
+        public abstract Task<DatabaseLockHandle> AcquireStartupLockAsync(CancellationToken token = default);
+
+        /// <summary>
+        /// Read the highest applied migration version from the database (not the cached <see cref="SchemaVersion"/>).
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Version, or 0 when no migration was applied.</returns>
+        public abstract Task<int> ReadSchemaVersionAsync(CancellationToken token = default);
 
         /// <summary>
         /// Verify connectivity.

@@ -2,7 +2,7 @@
 
 Garrison runs its own Model Context Protocol server, built on Voltaic, so any MCP client can discover Garrison agents, invoke them, and follow their runs. The same server is how agents running inside Garrison call other agents: every run that is allowed to delegate gets this server in its MCP configuration, already authenticated with a run token.
 
-The server speaks MCP streamable HTTP (protocol version `2025-06-18`) on its own listener, separate from the REST port.
+The server speaks MCP streamable HTTP (protocol version `2025-06-18`) on its own listener, separate from the REST port. Garrison serves that port itself and relays each request to Voltaic on a loopback port, mapping cluster-wide session identifiers to Voltaic's in-process sessions, so any replica can serve any session.
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -13,12 +13,14 @@ The server speaks MCP streamable HTTP (protocol version `2025-06-18`) on its own
 | `Mcp.PublicUrl` | none | Internal base URL workers use to reach this server, for example `http://garrison-server:8701`. It is handed to runs, not shown to outside clients. When unset, runs are pointed at `http://127.0.0.1:<Mcp.Port>`, which only works when the worker shares the host. |
 | `Mcp.MaxMessageSize` | `16777216` | Largest accepted message in bytes |
 | `Mcp.MaxToolWaitSeconds` | `90` | Upper bound for `waitSeconds` on `garrison_invoke_agent` |
+| `Mcp.SessionIdleTimeoutSeconds` | `3600` | Idle time after which an MCP session expires on every replica |
+| `Mcp.InternalPort` | `0` | Loopback port of the internal Voltaic endpoint behind the public port; 0 picks a free port |
 
 `docs/CONFIGURATION.md` lists the matching environment variables.
 
 ## Connecting
 
-Send the same credentials you would send to REST: a bearer session token, `x-access-key` and `x-secret-key`, or `x-api-key`. Signed requests are not supported here, because the signature covers a request body the MCP authentication step does not see. Requests without valid credentials get `401` with `WWW-Authenticate: Bearer error="invalid_token"`.
+Send the same credentials you would send to REST: a bearer session token, `x-access-key` and `x-secret-key`, `x-api-key`, or a signed request (the signature covers the JSON-RPC body, and each nonce is accepted once across all replicas). Requests without valid credentials get `401` with `WWW-Authenticate: Bearer error="invalid_token"`.
 
 ```bash
 TOKEN=$(curl -s -X POST http://127.0.0.1:8700/v1.0/token \
@@ -33,13 +35,13 @@ curl -s -i -X POST http://127.0.0.1:8701/mcp \
 
 ```text
 HTTP/1.1 200 OK
-MCP-Session-Id: 52df1c78-fff0-4d40-b0e8-69db86f648df
+MCP-Session-Id: mcs_mv2u...
 Content-Type: application/json
 
 {"jsonrpc":"2.0","result":{"protocolVersion":"2025-06-18","capabilities":{...},"serverInfo":{"name":"Garrison","version":"0.1.0-alpha"}},"id":1}
 ```
 
-Send the returned `MCP-Session-Id` header on later requests. Most clients handle all of this for you. With Claude Code, for example:
+Send the returned `MCP-Session-Id` header on later requests. Session identifiers start with `mcs_` and are valid on every control-plane replica, so MCP needs no sticky sessions behind a load balancer: a replica that has not seen a session yet checks it in the database, confirms it belongs to the same principal, and takes it over. A session expires after `Mcp.SessionIdleTimeoutSeconds` (3600) without use, and `DELETE /mcp` with the header ends it everywhere. Another principal presenting the identifier gets 404. Server-sent event streams are resumable with `Last-Event-ID` on the replica that started them; after moving to another replica a client opens a new stream. Most clients handle all of this for you. With Claude Code, for example:
 
 ```bash
 claude mcp add --transport http garrison http://127.0.0.1:8701/mcp \

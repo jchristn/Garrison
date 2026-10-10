@@ -1042,6 +1042,7 @@ const tips = {
         Security: '加密主密钥和初始引导账户。',
         RequestHistory: '是否捕获 API 请求，以及每个请求体保留多少内容。',
         Telemetry: '指标和链路追踪导出。',
+        Archive: '保留策略删除运行和事件之前，将其归档到的位置。',
         Cluster: '预期的控制平面副本数量。',
         Scheduling: '工作节点的租约时长和心跳超时。',
         Runs: '运行的默认值，以及运行和事件的保留时长。',

@@ -1043,6 +1043,7 @@ const tips = {
         Security: 'Hauptschlüssel für die Verschlüsselung und Bootstrap-Konten.',
         RequestHistory: 'Ob API-Anfragen erfasst werden und wie viel von jedem Inhalt aufbewahrt wird.',
         Telemetry: 'Export von Metriken und Tracing.',
+        Archive: 'Wohin Läufe und Ereignisse archiviert werden, bevor die Aufbewahrung sie löscht.',
         Cluster: 'Wie viele Replikate der Steuerungsebene erwartet werden.',
         Scheduling: 'Lease-Dauern und Heartbeat-Zeitlimits für Worker-Knoten.',
         Runs: 'Standardwerte für Läufe und wie lange Läufe und Ereignisse aufbewahrt werden.',

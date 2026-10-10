@@ -5,7 +5,7 @@ Garrison has three layers of configuration, and it helps to know which one a val
 | Layer | Where it lives | Scope | How it changes |
 |---|---|---|---|
 | Node settings | A JSON file per process, overridden by environment variables | One control-plane or worker process | Edit the file or the environment, or use the settings API for the control plane; most need a restart |
-| Cluster settings | The database | Every control-plane replica | Settings API or dashboard; applied live, within about three seconds, on every replica |
+| Cluster settings | The database | Every control-plane replica | Settings API or dashboard; applied live on every replica, at once through the event backplane and within about three seconds at worst |
 | Tenant configuration | The database | One tenant | REST, manifests, or dashboard: harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, agents, deployments |
 
 This page covers the first two. Tenant configuration is covered in `docs/HARNESSES.md`, `docs/PROMPTS.md`, `docs/MANIFESTS.md`, and `REST_API.md`.
@@ -56,6 +56,8 @@ Garrison keeps two REST URLs because they answer different questions. `Rest.Publ
 | `Mcp.PublicUrl` | none | Restart | Base URL (no path) that harnesses on workers use to reach MCP for delegation. Defaults to `http://127.0.0.1:<port>`, which only works when the worker shares the host. Environment: `GARRISON_MCP_PUBLIC_URL` |
 | `Mcp.MaxMessageSize` | `16777216` | Restart | Largest MCP message in bytes, 65536 to 268435456 |
 | `Mcp.MaxToolWaitSeconds` | `90` | Live | Longest a synchronous MCP invoke or A2A `SendMessage` waits, 1 to 600 |
+| `Mcp.SessionIdleTimeoutSeconds` | `3600` | Live | Idle time after which an MCP session expires on every replica, 60 to 604800 |
+| `Mcp.InternalPort` | `0` | Restart | Loopback port of the internal Voltaic endpoint. Garrison serves `Mcp.Port` itself and relays to this port so that MCP sessions work on every replica (see `docs/SCALING.md`). 0 picks a free port at startup; set it only if something on the host needs a fixed port |
 
 ### Database
 
@@ -73,10 +75,14 @@ Garrison supports Sqlite and PostgreSQL. Sqlite is fine for one control-plane re
 | `Database.Schema` | none | PostgreSQL schema. Environment: `GARRISON_DB_SCHEMA` |
 | `Database.TablePrefix` | none | Prefix for every table name |
 | `Database.ManageSchema` | `true` | Create and migrate tables at startup. When false, Garrison only checks that they exist, for environments where a DBA runs migrations |
-| `Database.MaxPoolSize` | `100` | Connection pool size, 1 to 1000 |
+| `Database.MaxPoolSize` | `100` | Most pooled connections per replica, 1 to 1000. Environment: `GARRISON_DB_MAX_POOL_SIZE` |
+| `Database.MinPoolSize` | `0` | Connections each replica keeps open while idle (PostgreSQL), 0 to 1000. Environment: `GARRISON_DB_MIN_POOL_SIZE` |
+| `Database.ConnectionTimeoutSeconds` | `15` | How long to wait for a pooled connection before failing (PostgreSQL), 1 to 600. Environment: `GARRISON_DB_CONNECTION_TIMEOUT` |
+| `Database.CommandTimeoutSeconds` | `30` | How long one command may run (PostgreSQL), 0 (no limit) to 3600. Environment: `GARRISON_DB_COMMAND_TIMEOUT` |
+| `Database.ConnectionIdleLifetimeSeconds` | `300` | How long an idle pooled connection is kept (PostgreSQL), 1 to 3600 |
 | `Database.AdditionalOptions` | none | Appended verbatim to the provider connection string, for example `SSL Mode=Require` |
 
-All database settings need a restart.
+All database settings need a restart. Size the pool so that replicas times `Database.MaxPoolSize`, plus one listen connection per replica for the PostgreSQL backplane and one short-lived connection per replica during startup, stays below the server's `max_connections`; `docs/SCALING.md` has the arithmetic.
 
 ### Auth
 
@@ -87,7 +93,7 @@ All database settings need a restart.
 | `Auth.TokenLifetimeMinutes` | `480` | Restart | Session token lifetime, 1 to 10080 |
 | `Auth.AdminApiKey` | `garrisonadmin` | Live | System administrator key for `x-api-key`. Environment: `GARRISON_ADMIN_API_KEY` |
 | `Auth.SignedRequestSkewSeconds` | `300` | Live | Allowed clock difference for signed requests, 10 to 3600 |
-| `Auth.RateLimitPerMinute` | `60` | Live | Token requests allowed per source address per minute |
+| `Auth.RateLimitPerMinute` | `60` | Live | Token requests allowed per source address per minute, counted in the database across all replicas |
 
 ### Security
 
@@ -124,6 +130,9 @@ Seeding happens only when the records do not exist yet. Changing these values la
 | `Telemetry.ServeMetricsOnServicePort` | `true` | Live | Also serve `GET /metrics` on the REST port, without authentication, relayed from the Prometheus listener, so `kubectl port-forward` and in-pod `127.0.0.1` scrapes work (see `docs/TELEMETRY.md`) |
 | `Cluster.ExpectedReplicas` | `1` | Restart | Control-plane replicas you intend to run. Above 1, Garrison refuses to start on Sqlite. Environment: `GARRISON_EXPECTED_REPLICAS` |
 | `Cluster.SettingsFileReadOnly` | `false` | Restart | The file is managed outside Garrison. Environment: `GARRISON_SETTINGS_READONLY` |
+| `Cluster.Backplane` | `Auto` | Restart | How replicas tell each other about run changes, new work, and cache invalidations: `Auto` (PostgreSQL LISTEN/NOTIFY on PostgreSQL, `Local` on Sqlite), `Local` (none), `Polling` (a table every replica polls; works on both providers), or `PostgresNotify`. Environment: `GARRISON_BACKPLANE` |
+| `Cluster.BackplanePollMs` | `250` | Restart | Poll interval of the `Polling` backplane, 50 to 10000 |
+| `Archive.Directory` | none | Restart | Directory that receives JSON Lines archives of runs and events before retention deletes them; empty deletes without archiving. With several replicas, mount one shared volume at this path in each. Environment: `GARRISON_ARCHIVE_DIRECTORY` |
 | `NodeId` | the host name | Restart | This replica's identifier in logs and leader election. Environment: `GARRISON_NODE_ID` |
 
 `RequestHistory.Enabled` and `RequestHistory.RetentionDays` can be set in the file, but only as the starting values of the cluster settings of the same name.
@@ -141,7 +150,7 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Runs.DefaultTimeoutSeconds` | `1800` | 5 to 86400 | Run deadline when neither the deployment nor the profile sets one |
 | `Runs.MaxDelegationDepth` | `3` | 0 to 10 | Deepest allowed chain of agents calling agents |
 | `Runs.RetentionDays` | `30` | 1 to 3650 | How long finished runs are kept |
-| `Runs.EventRetentionDays` | `14` | 1 to 3650 | How long run events are kept |
+| `Runs.EventRetentionDays` | `14` | 1 to 3650 | How long run events are kept. With `Archive.Directory` set, removed runs and events are archived first (see `docs/SCALING.md`) |
 | `Runtime.FailBlockedAfterSeconds` | `0` | 0 to 604800 | How long a queued run may wait while no Ready worker can run it (its `blockedReason` is not null) before the leader fails it with outcome `NoCapableWorker`. The clock starts when the leader first sees the run blocked. `0` means wait forever |
 | `Audit.RetentionDays` | `365` | 1 to 3650 | How long audit records are kept |
 | `RequestHistory.Enabled` | `true` | | Capture HTTP requests |

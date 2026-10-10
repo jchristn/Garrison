@@ -16,11 +16,13 @@ namespace Garrison.Core.Database.Interfaces
     public interface IRunMethods
     {
         /// <summary>
-        /// Create a Run, including child rows.
+        /// Create a Run, including child rows. When the run carries an idempotency key and a run with the same tenant,
+        /// caller, and key was created in the last 24 hours, nothing is inserted and that run is returned instead; the
+        /// check and the insert are atomic across replicas.
         /// </summary>
         /// <param name="obj">Record to create.</param>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>The created record.</returns>
+        /// <returns>The created record, or the existing run with the same idempotency key.</returns>
         Task<Run> CreateAsync(Run obj, CancellationToken token = default);
 
         /// <summary>
@@ -92,6 +94,51 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>The new epoch when this caller won the claim; null when another caller did.</returns>
         Task<long?> TryClaimAsync(string runId, string nodeId, string nodeName, DateTime leaseExpiresUtc, CancellationToken token = default);
+
+        /// <summary>
+        /// Queued runs a node may claim, highest priority first and oldest first within a priority. Harness type, the
+        /// node's pool, and the pool's tenant dedication are applied in SQL; label requirements are loaded for the
+        /// caller to check. Parameters and template versions are not loaded.
+        /// </summary>
+        /// <param name="filter">Candidate filter.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Candidates with requirements loaded.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when filter is null.</exception>
+        Task<List<Run>> ListClaimCandidatesAsync(ClaimCandidateFilter filter, CancellationToken token = default);
+
+        /// <summary>
+        /// Atomically claim a queued run only while its deployment has fewer than maxConcurrentRuns active (Leased,
+        /// Running, or Cancelling) runs. Claims for the same deployment are serialized in the database (a transaction
+        /// lock on Postgresql, the single writer on Sqlite), so the limit is exact across replicas.
+        /// </summary>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="nodeId">Claiming node identifier.</param>
+        /// <param name="nodeName">Claiming node name.</param>
+        /// <param name="leaseExpiresUtc">Lease expiry.</param>
+        /// <param name="deploymentId">The run's deployment.</param>
+        /// <param name="maxConcurrentRuns">The deployment's limit; 0 or less means unlimited.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Claim result.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null or empty.</exception>
+        Task<ClaimResult> TryClaimWithinLimitAsync(string runId, string nodeId, string nodeName, DateTime leaseExpiresUtc, string deploymentId, int maxConcurrentRuns, CancellationToken token = default);
+
+        /// <summary>
+        /// Finished runs completed before a cutoff, oldest first, with child rows loaded (retention and archival).
+        /// </summary>
+        /// <param name="olderThanUtc">Cutoff.</param>
+        /// <param name="limit">Maximum runs (1 to 1000).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs.</returns>
+        Task<List<Run>> ListFinishedBeforeAsync(DateTime olderThanUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Delete a run with its child rows and its events in one transaction.
+        /// </summary>
+        /// <param name="id">Run identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when the run was deleted.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when id is null or empty.</exception>
+        Task<bool> PurgeAsync(string id, CancellationToken token = default);
 
         /// <summary>
         /// Count runs of a deployment that are leased, running, or cancelling.
@@ -201,6 +248,14 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Counts.</returns>
         Task<List<StatusCount>> CountByStatusAsync(string? tenantId, DateTime? sinceUtc, CancellationToken token = default);
+
+        /// <summary>
+        /// Count runs in the unfinished statuses (Pending, Queued, Leased, Running, Cancelling) across all tenants.
+        /// Uses the status indexes, so it stays cheap however many finished runs are retained.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Counts per status; statuses with no runs are absent.</returns>
+        Task<List<StatusCount>> CountUnfinishedAsync(CancellationToken token = default);
 
         /// <summary>
         /// Active run counts grouped by agent and harness.

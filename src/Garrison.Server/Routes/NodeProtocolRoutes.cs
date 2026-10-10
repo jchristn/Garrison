@@ -85,6 +85,13 @@ namespace Garrison.Server.Routes
 
         private async Task LeaseAsync(HttpContextBase context)
         {
+            if (_Context.IsDraining)
+            {
+                // The replica is shutting down: send the worker elsewhere (it backs off and retries, normally reaching
+                // another replica) instead of answering empty long polls in a tight loop.
+                await RouteHelpers.ErrorAsync(context, 503, "Draining", "This control-plane replica is shutting down. Retry the lease; another replica will answer.").ConfigureAwait(false);
+                return;
+            }
             NodeLeaseRequest request = RouteHelpers.RequiredBody<NodeLeaseRequest>(context);
             Node node = await RequireNodeAsync(request.NodeId, context).ConfigureAwait(false);
             NodeLeaseResponse response = await _Scheduler.LeaseAsync(node, request, context.Token).ConfigureAwait(false);

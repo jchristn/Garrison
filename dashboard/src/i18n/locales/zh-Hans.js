@@ -1148,7 +1148,7 @@ const zhHans = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。请在你的清单中修改。',
         other: '此设置无法在此处编辑。'
       },
-      groups: { General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计', Runtime: '运行时', Observability: '可观测性' },
+      groups: { Archive: '归档', General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计', Runtime: '运行时', Observability: '可观测性' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana URL',
@@ -1168,6 +1168,8 @@ const zhHans = {
           Hostname: 'REST 绑定主机名'
         },
         Mcp: {
+          InternalPort: '内部 MCP 端口',
+          SessionIdleTimeoutSeconds: 'MCP 会话空闲超时（秒）',
           MaxToolWaitSeconds: 'MCP 工具最长等待时间（秒）',
           PublicUrl: '供运行使用的内部 MCP URL',
           Path: 'MCP 路径',
@@ -1176,6 +1178,10 @@ const zhHans = {
           Enable: '启用 MCP 服务器'
         },
         Database: {
+          MinPoolSize: '连接池最小连接数',
+          ConnectionTimeoutSeconds: '等待连接超时（秒）',
+          CommandTimeoutSeconds: '命令超时（秒）',
+          ConnectionIdleLifetimeSeconds: '空闲连接保留时间（秒）',
           MaxPoolSize: '连接池大小',
           Schema: '数据库架构',
           Password: '数据库密码',
@@ -1224,7 +1230,12 @@ const zhHans = {
           ServiceName: '遥测服务名称',
           Enabled: '启用遥测'
         },
+        Archive: {
+          Directory: '归档目录'
+        },
         Cluster: {
+          Backplane: '事件背板',
+          BackplanePollMs: '背板轮询间隔（毫秒）',
           ExpectedReplicas: '控制平面预期副本数'
         },
         Scheduling: {

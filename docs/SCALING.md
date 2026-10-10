@@ -20,13 +20,15 @@ Use node pools and labels to separate kinds of work: a pool of Claude Code worke
 | Runs per deployment | `maxConcurrentRuns` on the deployment (0 means unlimited) |
 | Work per lease call | Up to 64 runs per lease request, bounded by the worker's free slots |
 
-The per-deployment limit is checked when a run is claimed. With several control-plane replicas claiming at the same moment it can be exceeded by a run or two; treat it as a throttle, not a hard quota.
+The per-deployment limit is exact, however many replicas and workers claim at once. Claims for a deployment that has a limit are serialized in the database (a transaction-scoped PostgreSQL advisory lock; Sqlite has a single writer anyway), and the claiming `UPDATE` itself counts the deployment's `Leased`, `Running`, and `Cancelling` runs. A claim that would exceed the limit changes nothing and the run stays queued.
+
+Node pools dedicated to tenants are enforced at claim time: a worker in a pool that lists tenants only receives those tenants' runs, and a run pinned to a pool only goes to that pool's workers. Both conditions are applied in the candidate query, so a dedicated worker never starves behind a backlog of runs it may not take.
 
 ## Control plane
 
-Each replica is stateless apart from a few in-memory caches, so any replica can serve any request. Run events, run status, cluster settings, sessions, and leases live in the database, and streaming endpoints (SSE, WebSocket, A2A streaming) read from it, so a client can follow a run on a different replica from the one that created it.
+Any replica can serve any request. Run events, run status, cluster settings, sessions, leases, signed-request nonces, rate limit counters, and MCP sessions live in the database, and streaming endpoints (SSE, WebSocket, A2A streaming) read from it, so a client can follow a run on a different replica from the one that created it, and a worker can long-poll any replica.
 
-More than one replica needs PostgreSQL. Garrison refuses to start on Sqlite when `Cluster.ExpectedReplicas` is above 1, because Sqlite cannot be shared safely between processes on different hosts.
+More than one replica needs PostgreSQL. Garrison refuses to start on Sqlite when `Cluster.ExpectedReplicas` is above 1, because Sqlite cannot be shared safely between processes on different hosts. Running several replicas on one Sqlite file is not supported, even on one host: the startup lock and the single-writer claim serialization only cover one process.
 
 ### How replicas coordinate
 
@@ -34,19 +36,72 @@ More than one replica needs PostgreSQL. Garrison refuses to start on Sqlite when
 |---|---|
 | Two workers want the same run | Claiming is one `UPDATE ... WHERE status = 'Queued'`. Exactly one succeeds; the loser moves on to the next candidate |
 | A worker that was thought dead comes back | Each claim increments the run's fencing epoch. Every event, heartbeat, and completion carries the epoch, and a stale one is rejected with `StaleLease`, telling the worker to stop the harness |
-| Requeueing, deadlines, lost nodes, retention | Done by one leader, elected through a database lease (15 seconds, renewed every pass). If the leader dies, another replica takes over within the lease time |
-| Settings | Cluster settings are in the database; every replica reloads them about every 3 seconds |
+| Deployment `maxConcurrentRuns` | Exact: claims for the deployment are serialized in the database and the claim counts active runs |
+| Requeueing, deadlines, lost nodes, retention, cleanup of expired shared state | Done by one leader, elected through a database lease (15 seconds, renewed every pass). If the leader dies, another replica takes over within the lease time |
+| Schema migrations and built-in seeding | Run under a database startup lock (a PostgreSQL session advisory lock on its own connection, released when the work ends or the process dies). The first replica migrates; the others wait, then find nothing to do. A row in `coordination_leases` cannot be used here, because that table is itself created by the migrations, and a session lock cannot outlive a crashed migrator |
+| Settings | Cluster settings are in the database. A change publishes `SettingsChanged` on the backplane and every replica reloads at once; each also reloads every 3 seconds regardless |
+| Permissions | Grant caches (15 seconds) are dropped on every replica when roles, permissions, assignments, users, or credentials change |
 | Revocation | Sessions are database rows, so revoking a token takes effect on every replica |
-| New work | A replica wakes its own waiting long polls immediately when a run is queued. Long polls on other replicas notice within `LeasePollMs` (500 ms) |
+| New work | Queuing a run wakes waiting long polls on every replica through the backplane. Without a message, a long poll still re-checks every `LeasePollMs` (500 ms) |
+| Run events | Event ingestion on any replica wakes that run's SSE, A2A, and synchronous-invoke waiters on every replica. Without a message, they re-read every `4 x Scheduling.EventPollMs` (1 second) |
+| Signed-request replay | Nonces are stored in `request_nonces` until twice `Auth.SignedRequestSkewSeconds` has passed, so a captured request cannot be replayed on any replica |
+| Token rate limit | `Auth.RateLimitPerMinute` is counted in `rate_limit_buckets`, so the limit is the same however many replicas run |
+| MCP sessions | Session identifiers (`mcs_...`) name rows in `mcp_sessions`, so any replica serves any session (below) |
+| Idempotent run creation | Creates with the same `Idempotency-Key` are serialized on the key in the database, so retries that reach two replicas at once create one run |
 
-### Things that are still per replica
+### The event backplane
 
-- **MCP sessions.** The MCP server keeps session state in memory, and a request with a session identifier the replica does not know answers 404 `Session not found`. With more than one replica, MCP traffic needs session affinity. In Kubernetes, set `sessionAffinity: ClientIP` on the service that carries port 8701, or route MCP through an ingress with sticky sessions. Without it, MCP clients and agent delegation fail intermittently. The shipped manifests do not set affinity yet.
-- **Signed-request nonces.** Each replica remembers the nonces it has seen, so a captured signed request could be replayed once on each other replica within the skew window. Use TLS.
-- **Token rate limiting.** `Auth.RateLimitPerMinute` is counted per replica, so the effective limit is that number times the replica count.
-- **Settings files.** Node settings written through the settings API go to that replica's file. Use a ConfigMap and environment variables for clustered deployments.
+Replicas tell each other about changes through a small backplane, chosen with `Cluster.Backplane` (`GARRISON_BACKPLANE`):
 
-REST, A2A, SSE, and WebSocket traffic need no affinity.
+| Mode | How it works | When to use it |
+|---|---|---|
+| `Auto` (default) | `PostgresNotify` on PostgreSQL, `Local` on Sqlite | Almost always |
+| `PostgresNotify` | Each replica keeps one unpooled `LISTEN` connection; publishing is `pg_notify` on a pooled connection. The channel name is derived from the database, schema, and table prefix, so separate installations sharing a server stay apart | PostgreSQL, lowest latency |
+| `Polling` | Messages are rows in `backplane_messages`; each replica polls every `Cluster.BackplanePollMs` (250 ms). The leader deletes rows older than 5 minutes | Connection poolers that do not support `LISTEN` (for example PgBouncer in transaction mode) |
+| `Local` | Nothing leaves the process | One replica |
+
+Messages are hints, never the only path: run changes, new work, settings and permission invalidations, and MCP session closures. Every waiter re-reads the database on its own interval, so a dropped message costs latency and nothing else. Publishing never blocks a request; messages are coalesced (one per kind and subject) every 10 ms. After the `LISTEN` connection is re-established, or after the polling backplane recovers from a database error, each replica wakes every waiter and drops its caches, because messages may have been missed in between.
+
+### MCP sessions across replicas
+
+Voltaic, which implements MCP, keeps sessions in process memory, rejects a session identifier it did not issue, and has no hook for adopting one. So Garrison answers the public MCP port itself and relays each request to Voltaic on a loopback port (`Mcp.InternalPort`, a free port by default). On `initialize`, the relay stores the session in `mcp_sessions` (principal, requested protocol version, client name and version) and returns its own identifier. When a request names a session this replica has not seen (opened on another replica, or before a restart), the relay checks the row, confirms the caller is the same principal, replays the `initialize` handshake against its own Voltaic endpoint, and maps the two. A session expires after `Mcp.SessionIdleTimeoutSeconds` (3600) without use, and `DELETE` ends it on every replica. The relay authenticates each request once and passes the principal to Voltaic with a per-process secret, so a signed request's nonce is used once.
+
+Two things do not carry across replicas: the client capabilities sent with `initialize` (Garrison never calls back into an MCP client, so it does not store them), and resumption of an SSE stream with `Last-Event-ID` (a client that moves to another replica opens a new stream). Neither affects Garrison's tools. MCP needs no session affinity, so the `sessionAffinity: ClientIP` workaround is unnecessary.
+
+### In-memory state, replica by replica
+
+Every piece of state a replica keeps in memory, and why it is safe with several replicas:
+
+| State | Where | Treatment |
+|---|---|---|
+| Signed-request nonces | `request_nonces` table | Shared. One upsert per signed request; the leader deletes expired rows every minute |
+| Token rate limit counters | `rate_limit_buckets` table | Shared. One upsert per token request, exact across replicas. Chosen over dividing the limit by the replica count, which goes wrong as soon as the autoscaler changes the count or the load balancer is uneven; token requests are rare enough for a database write |
+| MCP sessions | Voltaic memory, keyed by `mcp_sessions` rows | Shared through the table and the relay above |
+| Grant cache (`AuthorizationService`) | Per replica, 15 seconds | Invalidated on every replica through `PermissionsChanged`; the time to live bounds a lost message |
+| Cluster settings cache | Per replica | Reloaded on `SettingsChanged` and every 3 seconds |
+| Runtime options derived from settings | Per replica | Re-applied whenever the settings cache changes |
+| Run signals (SSE, A2A streaming, synchronous REST and MCP invoke waits) | Per replica, one entry per watched run | Woken locally and through the backplane; an entry exists only while someone waits on it; waiters re-read the database every second regardless |
+| Queue signal (lease long polls) | Per replica | Woken locally and through `QueueChanged`; long polls re-check every 500 ms regardless |
+| WebSocket subscriptions | Per connection | Each connection polls the database about once a second, so it is correct on any replica |
+| Blocked-run node snapshot | Per replica, 3 seconds | Read-only advice (`blockedReason`); a few seconds of staleness is acceptable |
+| Blocked-run notices | Leader only | A new leader rebuilds them from the `RunBlocked` events already written, so notices are not repeated |
+| Observability status | Per replica, 30 seconds, keyed by the settings | Per replica by design: it reports what this replica can reach |
+| Run gauges (`garrison_runs_queued`, `garrison_runs_active`) | Per replica, refreshed every 10 seconds | Every replica reports the same cluster-wide counts; aggregate with `max`, not `sum` |
+| Request history capture queue | Per replica, flushed to the database in the background | Entries not yet flushed are lost if the replica crashes; a graceful shutdown flushes them |
+| Leader state | Per replica | By design; fenced by the lease epoch |
+| Template parse cache | Per process, keyed by template text | Content-addressed, so never stale |
+| MCP tool descriptions | Loaded at startup | They come from protected built-in templates that only change with a release, and every replica loads the same text |
+| Operation scope map and routes | Per process | Identical on every replica |
+| Harness profiles, prompt templates, agents, deployments, secrets | Not cached | The compiler reads them from the database for every claimed run |
+| Settings file | Per replica | Node settings written through the settings API go to that replica's file. Use a ConfigMap and environment variables for clustered deployments |
+
+REST, A2A, SSE, WebSocket, MCP, and node protocol traffic need no affinity.
+
+### Startup, readiness, and shutdown
+
+A starting replica first answers on its REST port with a small startup listener: `GET /v1.0/api/health/live` answers 200 and everything else 503 (`starting`) while it waits for the startup lock, migrates, and seeds. Then the real listener takes the port. Readiness (`GET /v1.0/api/health` or `/v1.0/api/health/ready`) answers 200 only when the database answers, its schema is at least the version this build needs, and the replica is not draining. Point the readiness probe at `/v1.0/api/health/ready` and the liveness probe at `/v1.0/api/health/live`, so a long migration or a database outage never restarts a pod.
+
+On SIGTERM a replica drains: readiness answers 503 (`draining`) at once, waiting lease long polls return empty so their workers re-poll another replica, SSE streams send `server.draining` and close (an `EventSource` reconnects elsewhere and resumes with `Last-Event-ID`), A2A streams, WebSockets, and synchronous waits end, and in-flight requests get up to 15 seconds. Then background work and the listeners stop. The whole sequence fits a 30-second termination grace period.
 
 ### What limits a replica
 
@@ -54,14 +109,28 @@ Most control-plane work is small: authentication, authorization (role grants are
 
 - **Compiling runs.** Each claimed run is compiled into an execution spec: templates rendered, secrets decrypted, a run token issued. Watch `garrison_compile_duration_seconds`.
 - **Event ingestion.** Workers send events in batches (100 events or every 250 ms per run by default). Very chatty harnesses multiplied by many concurrent runs means many small database writes.
-- **Streaming subscribers.** Every SSE or WebSocket subscriber polls the database (`Scheduling.EventPollMs`, 250 ms, for SSE; about once a second for WebSocket). Hundreds of dashboards watching hundreds of runs add up; raise the poll interval if the database becomes the bottleneck.
+- **Streaming subscribers.** An SSE subscriber reads the database when the backplane says its run changed, and at least every `4 x Scheduling.EventPollMs` (1 second); a WebSocket subscriber polls about once a second. Hundreds of dashboards watching hundreds of runs add up; raise the poll interval if the database becomes the bottleneck.
 - **Long polls.** Each worker holds one lease request open for up to `LeaseWaitMs` (20 seconds). That is one connection per worker per replica it happens to reach, which is cheap.
 
-The production overlay's HPA scales the server between 2 and 10 replicas on CPU, and can also scale on request rate and active runs through Prometheus Adapter (`docs/KUBERNETES.md`, "Autoscaling"). Remember the MCP affinity note above before relying on it.
+The production overlay's HPA scales the server between 2 and 10 replicas on CPU, and can also scale on request rate and active runs through Prometheus Adapter (`docs/KUBERNETES.md`, "Autoscaling"). `garrison_runs_queued` and `garrison_runs_active` are also exported by every replica as cluster-wide gauges; take the `max` across pods, not the sum.
 
 ## Database
 
-PostgreSQL carries all coordination, so it is the component to size first. The busiest tables are runs and run events. Retention keeps them bounded: finished runs are deleted after `Runs.RetentionDays` (30) and events after `Runs.EventRetentionDays` (14); request history and audit have their own retention. Lower these if the tables grow faster than you want, and raise `Database.MaxPoolSize` (100 per replica) only together with PostgreSQL's `max_connections`.
+PostgreSQL carries all coordination, so it is the component to size first.
+
+### Connections
+
+Each replica opens at most `Database.MaxPoolSize` pooled connections (100 by default, `GARRISON_DB_MAX_POOL_SIZE`), plus one unpooled `LISTEN` connection for the `PostgresNotify` backplane and, briefly at startup, one for the startup lock. Keep `replicas x (MaxPoolSize + 2)` below PostgreSQL's `max_connections`, minus what other clients need. Most requests hold a connection for one query, so a pool of 20 to 50 per replica is usually plenty, and a smaller pool with `Database.ConnectionTimeoutSeconds` (15) fails fast instead of piling up waiters. `Database.MinPoolSize` keeps warm connections, and `Database.CommandTimeoutSeconds` (30) bounds any single statement. Behind PgBouncer in transaction mode, use `Cluster.Backplane` `Polling`, because `LISTEN` needs a session.
+
+### Read path
+
+The busiest tables are runs and run events. Run lists filter by tenant with status, agent, or time and order by creation time; each of those has an index, as do delegation trees (`rootrunid`), the leader's scans of expired leases, deadlines, and finished runs, and event retention (`createdutc`). Events are read by run and sequence through the unique `(runid, sequence)` index, a page at a time (`limit` up to 5000, with `hasMore`). Run lists return run rows without their child rows (parameters, requirements, template versions); a single run read loads them. Claim candidates load only their label requirements, in one query per batch.
+
+### Retention and archival
+
+Retention keeps the tables bounded: finished runs are deleted after `Runs.RetentionDays` (30) with their events, and events after `Runs.EventRetentionDays` (14); request history and audit have their own retention. The leader runs retention once an hour. Lower these if the tables grow faster than you want.
+
+Set `Archive.Directory` (`GARRISON_ARCHIVE_DIRECTORY`) to keep what retention removes. Before deleting, the leader appends each run, with its parameters, requirements, template versions, and events, as one line of `garrison-runs-yyyyMMdd.jsonl`, and each event of a still-retained run as one line of `garrison-events-yyyyMMdd.jsonl` (UTC dates). A record is deleted only after its line is written and flushed, so a full disk delays retention instead of losing data. Whichever replica leads writes the archive, so with several replicas mount one shared (ReadWriteMany) volume at the same path in each. Artifact stores do not carry a location yet, so they cannot receive archives; copy the files to object storage with your usual tooling.
 
 ## Timing settings
 

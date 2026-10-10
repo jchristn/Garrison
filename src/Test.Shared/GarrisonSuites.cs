@@ -35,6 +35,8 @@ namespace Test.Shared
                 suites.AddRange(StructuredOutputSuite.Build());
                 suites.AddRange(FindingsSuite.Build());
                 suites.AddRange(ObservabilitySuite.Build());
+                suites.AddRange(ScaleOutSuite.Build());
+                suites.AddRange(MultiReplicaSuite.Build());
                 return suites;
             }
         }

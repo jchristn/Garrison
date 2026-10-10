@@ -128,6 +128,70 @@ namespace Garrison.Core.Database
         }
 
         /// <summary>
+        /// Minimum connections the Postgresql pool keeps open per replica. Minimum 0, maximum 1000, default 0. Values
+        /// above <see cref="MaxPoolSize"/> are lowered to it when the connection string is built.
+        /// </summary>
+        public int MinPoolSize
+        {
+            get
+            {
+                return _MinPoolSize;
+            }
+            set
+            {
+                _MinPoolSize = Math.Clamp(value, 0, 1000);
+            }
+        }
+
+        /// <summary>
+        /// Seconds to wait for a free pooled connection (or a new one) before failing. Minimum 1, maximum 600, default 15.
+        /// Postgresql only.
+        /// </summary>
+        public int ConnectionTimeoutSeconds
+        {
+            get
+            {
+                return _ConnectionTimeoutSeconds;
+            }
+            set
+            {
+                _ConnectionTimeoutSeconds = Math.Clamp(value, 1, 600);
+            }
+        }
+
+        /// <summary>
+        /// Seconds a single command may run before it is cancelled. Minimum 0 (no limit), maximum 3600, default 30.
+        /// Postgresql only.
+        /// </summary>
+        public int CommandTimeoutSeconds
+        {
+            get
+            {
+                return _CommandTimeoutSeconds;
+            }
+            set
+            {
+                _CommandTimeoutSeconds = Math.Clamp(value, 0, 3600);
+            }
+        }
+
+        /// <summary>
+        /// Seconds an idle pooled connection is kept before it is closed. Minimum 1, maximum 3600, default 300.
+        /// Postgresql only.
+        /// </summary>
+        public int ConnectionIdleLifetimeSeconds
+        {
+            get
+            {
+                return _ConnectionIdleLifetimeSeconds;
+            }
+            set
+            {
+                _ConnectionIdleLifetimeSeconds = Math.Clamp(value, 1, 3600);
+            }
+        }
+
+        /// <summary>
         /// Additional provider connection string options, appended verbatim.
         /// </summary>
         public string? AdditionalOptions { get; set; } = null;
@@ -142,6 +206,10 @@ namespace Garrison.Core.Database
         private string _DatabaseName = "garrison";
         private string _Username = "postgres";
         private int _MaxPoolSize = 100;
+        private int _MinPoolSize = 0;
+        private int _ConnectionTimeoutSeconds = 15;
+        private int _CommandTimeoutSeconds = 30;
+        private int _ConnectionIdleLifetimeSeconds = 300;
 
         #endregion
 
@@ -176,6 +244,30 @@ namespace Garrison.Core.Database
                 "Username=" + _Username + ";" +
                 "Password=" + Password + ";" +
                 "Maximum Pool Size=" + _MaxPoolSize + ";" +
+                "Minimum Pool Size=" + Math.Min(_MinPoolSize, _MaxPoolSize) + ";" +
+                "Timeout=" + _ConnectionTimeoutSeconds + ";" +
+                "Command Timeout=" + _CommandTimeoutSeconds + ";" +
+                "Connection Idle Lifetime=" + _ConnectionIdleLifetimeSeconds + ";" +
+                AppendOptions();
+        }
+
+        /// <summary>
+        /// Build an Npgsql connection string for one long-lived, unpooled connection (the LISTEN connection of the
+        /// Postgresql notification backplane). It does not take a slot from the pool, and TCP keepalives detect a dead
+        /// peer.
+        /// </summary>
+        /// <returns>Connection string.</returns>
+        public string ToPostgresqlListenerConnectionString()
+        {
+            return
+                "Host=" + _Host + ";" +
+                "Port=" + _Port + ";" +
+                "Database=" + _DatabaseName + ";" +
+                "Username=" + _Username + ";" +
+                "Password=" + Password + ";" +
+                "Pooling=false;" +
+                "Timeout=" + _ConnectionTimeoutSeconds + ";" +
+                "Keepalive=30;" +
                 AppendOptions();
         }
 

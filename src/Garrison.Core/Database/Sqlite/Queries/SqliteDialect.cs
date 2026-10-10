@@ -66,6 +66,15 @@ namespace Garrison.Core.Database.Sqlite.Queries
             }
         }
 
+        /// <inheritdoc />
+        public override string TypeAutoIncrementPrimaryKey
+        {
+            get
+            {
+                return "INTEGER PRIMARY KEY AUTOINCREMENT";
+            }
+        }
+
         #endregion
 
         #region Public-Methods

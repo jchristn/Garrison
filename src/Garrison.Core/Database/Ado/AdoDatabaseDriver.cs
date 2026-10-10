@@ -118,6 +118,10 @@ namespace Garrison.Core.Database.Ado
             CoordinationLeases = new AdoCoordinationLeaseMethods(this);
             ClusterSettings = new AdoClusterSettingMethods(this);
             ManifestApplies = new AdoManifestApplyMethods(this);
+            Nonces = new AdoRequestNonceMethods(this);
+            RateLimits = new AdoRateLimitBucketMethods(this);
+            McpSessions = new AdoMcpSessionMethods(this);
+            BackplaneMessages = new AdoBackplaneMessageMethods(this);
         }
 
         #endregion
@@ -129,14 +133,48 @@ namespace Garrison.Core.Database.Ado
         {
             _Settings.Validate();
 
-            if (!String.IsNullOrEmpty(_Settings.Schema))
+            // Replicas starting together wait here; the first applies the migrations and the rest find nothing to do
+            // (P10.9). The lock also covers schema creation, which Postgresql does not make safe under concurrency.
+            await using (DatabaseLockHandle startupLock = await AcquireStartupLockAsync(token).ConfigureAwait(false))
             {
-                string? schemaSql = _Dialect.CreateSchemaStatement(_Settings.Schema!);
-                if (!String.IsNullOrEmpty(schemaSql)) await NonQueryAsync(schemaSql!, null, token).ConfigureAwait(false);
-            }
+                if (!String.IsNullOrEmpty(_Settings.Schema))
+                {
+                    string? schemaSql = _Dialect.CreateSchemaStatement(_Settings.Schema!);
+                    if (!String.IsNullOrEmpty(schemaSql)) await NonQueryAsync(schemaSql!, null, token).ConfigureAwait(false);
+                }
 
-            if (_Settings.ManageSchema) await ApplyMigrationsAsync(token).ConfigureAwait(false);
-            else await VerifyTablesAsync(token).ConfigureAwait(false);
+                if (_Settings.ManageSchema) await ApplyMigrationsAsync(token).ConfigureAwait(false);
+                else await VerifyTablesAsync(token).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc />
+        public override async Task<int> ReadSchemaVersionAsync(CancellationToken token = default)
+        {
+            object? result = await ScalarAsync("SELECT MAX(version) FROM " + _Catalog.Reference("schema_migrations") + ";", null, token).ConfigureAwait(false);
+            return result == null ? 0 : Convert.ToInt32(result);
+        }
+
+        /// <summary>
+        /// A stable 64-bit key for a lock name, for database locks keyed by integers (Postgresql advisory locks).
+        /// </summary>
+        /// <param name="name">Lock name.</param>
+        /// <returns>Key.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when name is null or empty.</exception>
+        public static long LockKey(string name)
+        {
+            if (String.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(name));
+            return BitConverter.ToInt64(hash, 0);
+        }
+
+        /// <summary>
+        /// Name of the startup lock for this database, schema, and table prefix.
+        /// </summary>
+        /// <returns>Lock name.</returns>
+        public string StartupLockName()
+        {
+            return "garrison-startup:" + (_Catalog.Schema ?? String.Empty) + ":" + _Catalog.Prefix;
         }
 
         /// <inheritdoc />
@@ -474,6 +512,7 @@ namespace Garrison.Core.Database.Ado
                         }, ct).ConfigureAwait(false);
                 }, token).ConfigureAwait(false);
                 applied.Add(migration.Version);
+                MigrationsApplied++;
             }
 
             SchemaVersion = applied.Count > 0 ? applied.Max() : 0;

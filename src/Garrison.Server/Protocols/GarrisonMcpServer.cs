@@ -4,6 +4,7 @@ namespace Garrison.Server.Protocols
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
+    using System.Net.Sockets;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -25,10 +26,37 @@ namespace Garrison.Server.Protocols
     /// <summary>
     /// Garrison's MCP server on Voltaic (own listener, D-013). Authenticates with the same schemes as REST plus run
     /// tokens, authorizes every tool through the authorization service, and exposes agent discovery, invocation, and
-    /// run tracking tools (plan section 10.2).
+    /// run tracking tools (plan section 10.2). Voltaic listens on a loopback port; the public MCP port is served by
+    /// <see cref="McpClusterProxy"/>, which makes MCP sessions work on every replica (G-1).
     /// </summary>
     public class GarrisonMcpServer : IDisposable
     {
+        #region Public-Members
+
+        /// <summary>
+        /// The public MCP endpoint, or null before start or when MCP is disabled.
+        /// </summary>
+        public McpClusterProxy? Proxy
+        {
+            get
+            {
+                return _Proxy;
+            }
+        }
+
+        /// <summary>
+        /// Loopback port of the internal Voltaic endpoint, or 0 before start.
+        /// </summary>
+        public int InternalPort
+        {
+            get
+            {
+                return _InternalPort;
+            }
+        }
+
+        #endregion
+
         #region Private-Members
 
         private readonly ServerContext _Context;
@@ -41,6 +69,9 @@ namespace Garrison.Server.Protocols
         private Task? _ServerTask = null;
         private List<ToolDefinition> _PublicTools = new List<ToolDefinition>();
         private List<ToolDefinition> _AdministratorTools = new List<ToolDefinition>();
+        private McpClusterProxy? _Proxy = null;
+        private int _InternalPort = 0;
+        private readonly string _ProxySecret = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
         private bool _Disposed = false;
 
         #endregion
@@ -98,8 +129,11 @@ namespace Garrison.Server.Protocols
             Dictionary<string, string> descriptions = await LoadDescriptionsAsync(token).ConfigureAwait(false);
 
             _Cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            _Server = new McpHttpServer(_Context.Settings.Mcp.Hostname, _Context.Settings.Mcp.Port, "/rpc", "/events", false, _Context.Settings.Mcp.Path);
+            _InternalPort = _Context.Settings.Mcp.InternalPort > 0 ? _Context.Settings.Mcp.InternalPort : FreeLoopbackPort();
+            _Server = new McpHttpServer("127.0.0.1", _InternalPort, "/rpc", "/events", false, _Context.Settings.Mcp.Path);
             _Server.EnableLegacyEndpoints = false;
+            _Server.SessionTimeoutSeconds = Math.Max(10, _Context.Settings.Mcp.SessionIdleTimeoutSeconds);
+            _Server.ClientIdentifier = ProxiedClient;
             _Server.ServerName = "Garrison";
             _Server.ServerVersion = Constants.ProductVersion;
             _Server.MaxMessageSize = _Context.Settings.Mcp.MaxMessageSize;
@@ -134,8 +168,11 @@ namespace Garrison.Server.Protocols
 
             _ServerTask = _Server.StartAsync(_Cts.Token);
             await Task.Delay(100, token).ConfigureAwait(false);
-            if (_ServerTask.IsFaulted) throw new InvalidOperationException("MCP server failed to start on port " + _Context.Settings.Mcp.Port + ": " + _ServerTask.Exception?.GetBaseException().Message);
-            _Context.Logging.Info(_Header + "listening on " + _Context.Settings.Mcp.Hostname + ":" + _Context.Settings.Mcp.Port + _Context.Settings.Mcp.Path);
+            if (_ServerTask.IsFaulted) throw new InvalidOperationException("MCP server failed to start on internal port " + _InternalPort + ": " + _ServerTask.Exception?.GetBaseException().Message);
+
+            _Proxy = new McpClusterProxy(_Context, _InternalPort, _ProxySecret, localId => _Server?.RemoveSession(localId));
+            _Proxy.Start();
+            _Context.Logging.Info(_Header + "listening on " + _Context.Settings.Mcp.Hostname + ":" + _Context.Settings.Mcp.Port + _Context.Settings.Mcp.Path + " (internal endpoint 127.0.0.1:" + _InternalPort + ")");
         }
 
         /// <summary>
@@ -145,6 +182,7 @@ namespace Garrison.Server.Protocols
         {
             try
             {
+                _Proxy?.Stop();
                 _Cts?.Cancel();
                 _Server?.Stop();
             }
@@ -190,6 +228,7 @@ namespace Garrison.Server.Protocols
             if (disposing)
             {
                 Stop();
+                _Proxy?.Dispose();
                 _Server?.Dispose();
                 _Cts?.Dispose();
             }
@@ -265,13 +304,60 @@ namespace Garrison.Server.Protocols
 
         private async Task<AuthenticationResult> AuthenticateAsync(HttpListenerRequest request)
         {
+            // Requests relayed by the cluster proxy were authenticated there once (so signed-request nonces are used
+            // once); the per-process secret proves the headers came from it.
+            string? proxySecret = request.Headers[McpClusterProxy.ProxySecretHeader];
+            if (proxySecret != null)
+            {
+                if (!PasswordHasher.FixedTimeEquals(proxySecret, _ProxySecret)) return AuthenticationResult.BearerChallenge(null, "invalid_token", "Authentication is required.");
+                string? principal = request.Headers[McpClusterProxy.ProxyPrincipalHeader];
+                string? encoded = request.Headers[McpClusterProxy.ProxyClaimsHeader];
+                if (String.IsNullOrEmpty(principal) || String.IsNullOrEmpty(encoded)) return AuthenticationResult.BearerChallenge(null, "invalid_token", "Authentication is required.");
+                Dictionary<string, string>? claims = null;
+                try
+                {
+                    claims = Serializer.Deserialize<Dictionary<string, string>>(System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encoded)));
+                }
+                catch (Exception e) when (e is FormatException || e is JsonException || e is NotSupportedException)
+                {
+                    claims = null;
+                }
+                if (claims == null) return AuthenticationResult.BearerChallenge(null, "invalid_token", "Authentication is required.");
+                AuthenticationResult proxied = new AuthenticationResult();
+                proxied.IsAuthenticated = true;
+                proxied.Principal = principal;
+                proxied.Claims = claims;
+                return proxied;
+            }
+
             RequestContext ctx = await _Context.Authentication.ResolveAsync(request.Headers, request.HttpMethod, request.Url?.AbsolutePath ?? "/", request.Url?.Query?.TrimStart('?'), null, request.RemoteEndPoint?.Address?.ToString(), CancellationToken.None).ConfigureAwait(false);
             if (!ctx.IsAuthenticated) return AuthenticationResult.BearerChallenge(null, "invalid_token", "Authentication is required.");
             AuthenticationResult result = new AuthenticationResult();
             result.IsAuthenticated = true;
-            result.Principal = ctx.PrincipalType + ":" + (ctx.PrincipalId ?? "admin");
+            result.Principal = PrincipalClaims.Principal(ctx);
             result.Claims = PrincipalClaims.Encode(ctx);
             return result;
+        }
+
+        private string? ProxiedClient(HttpListenerRequest request)
+        {
+            string? proxySecret = request.Headers[McpClusterProxy.ProxySecretHeader];
+            if (proxySecret == null || !PasswordHasher.FixedTimeEquals(proxySecret, _ProxySecret)) return null;
+            return request.Headers[McpClusterProxy.ProxyClientHeader];
+        }
+
+        private static int FreeLoopbackPort()
+        {
+            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            try
+            {
+                return ((IPEndPoint)listener.LocalEndpoint).Port;
+            }
+            finally
+            {
+                listener.Stop();
+            }
         }
 
         private async Task<object> DispatchAsync(McpToolDefinition tool, RpcParameters? args, RpcCallContext? call, CancellationToken token)

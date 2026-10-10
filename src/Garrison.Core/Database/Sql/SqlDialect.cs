@@ -81,6 +81,11 @@ namespace Garrison.Core.Database.Sql
         /// </summary>
         public abstract string TypeTimestamp { get; }
 
+        /// <summary>
+        /// Column definition for a 64-bit primary key the database assigns in ascending order on insert.
+        /// </summary>
+        public abstract string TypeAutoIncrementPrimaryKey { get; }
+
         #endregion
 
         #region Public-Methods
@@ -191,6 +196,16 @@ namespace Garrison.Core.Database.Sql
         /// <param name="schema">Schema.</param>
         /// <returns>DDL or null.</returns>
         public virtual string? CreateSchemaStatement(string schema)
+        {
+            return null;
+        }
+
+        /// <summary>
+        /// Statement that takes a transaction-scoped exclusive lock on a 64-bit key held in parameter @key, released
+        /// when the transaction ends; null when the provider serializes writers already (Sqlite).
+        /// </summary>
+        /// <returns>Statement or null.</returns>
+        public virtual string? TransactionLockStatement()
         {
             return null;
         }

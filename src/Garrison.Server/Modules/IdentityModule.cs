@@ -3,6 +3,9 @@ namespace Garrison.Server.Modules
     using System;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Models;
+    using Garrison.Server.Backplane;
     using Garrison.Server.Routes;
     using Garrison.Server.Services;
 
@@ -24,6 +27,8 @@ namespace Garrison.Server.Modules
         private CancellationTokenSource? _Stopping = null;
         private Task? _ClusterLoop = null;
         private Task? _RetentionLoop = null;
+        private IEventBackplane? _Backplane = null;
+        private ServerContext? _Context = null;
 
         #endregion
 
@@ -47,7 +52,12 @@ namespace Garrison.Server.Modules
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
 
+            _Context = context;
+            _Backplane = context.TryGet<IEventBackplane>();
+            context.Authorization.Backplane = _Backplane;
+
             _Cluster = new ClusterSettingsService(context.Database, context.Settings.RequestHistory.Enabled, context.Settings.RequestHistory.RetentionDays);
+            _Cluster.Backplane = _Backplane;
             await _Cluster.RefreshAsync(token).ConfigureAwait(false);
             context.Register(_Cluster);
 
@@ -87,6 +97,11 @@ namespace Garrison.Server.Modules
         public Task StartAsync(ServerContext context, CancellationToken token)
         {
             _Stopping = CancellationTokenSource.CreateLinkedTokenSource(token);
+            if (_Backplane != null)
+            {
+                _Backplane.MessageReceived += OnBackplaneMessage;
+                _Backplane.Resynchronized += OnBackplaneResynchronized;
+            }
             _Capture!.Start();
             _ClusterLoop = Task.Run(() => _Cluster!.RunAsync(message => context.Logging.Warn("[Identity] " + message), _Stopping.Token));
             _RetentionLoop = Task.Run(() => _Retention!.RunAsync(_Stopping.Token));
@@ -96,6 +111,11 @@ namespace Garrison.Server.Modules
         /// <inheritdoc />
         public async Task StopAsync(CancellationToken token)
         {
+            if (_Backplane != null)
+            {
+                _Backplane.MessageReceived -= OnBackplaneMessage;
+                _Backplane.Resynchronized -= OnBackplaneResynchronized;
+            }
             if (_Capture != null) await _Capture.StopAsync(token).ConfigureAwait(false);
             if (_Stopping != null)
             {
@@ -114,6 +134,43 @@ namespace Garrison.Server.Modules
             _Capture?.Dispose();
             _SettingsService?.Dispose();
             _Observability?.Dispose();
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private void OnBackplaneMessage(object? sender, BackplaneMessage message)
+        {
+            if (message.Kind == BackplaneMessageKindEnum.PermissionsChanged) _Context?.Authorization.InvalidateLocal();
+            else if (message.Kind == BackplaneMessageKindEnum.SettingsChanged) RefreshSettingsInBackground();
+        }
+
+        private void OnBackplaneResynchronized(object? sender, EventArgs e)
+        {
+            _Context?.Authorization.InvalidateLocal();
+            RefreshSettingsInBackground();
+        }
+
+        private void RefreshSettingsInBackground()
+        {
+            ClusterSettingsService? cluster = _Cluster;
+            CancellationToken token = _Stopping?.Token ?? CancellationToken.None;
+            if (cluster == null) return;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await cluster.RefreshAsync(token).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    _Context?.Logging.Warn("[Identity] cluster settings refresh after a backplane message failed: " + e.Message);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            });
         }
 
         #endregion

@@ -622,7 +622,7 @@ export function respond(method, url) {
   if (p === '/v1.0/token' && method === 'GET') return { valid: true };
   if (p === '/v1.0/token/details') return PRINCIPAL;
   if (p.startsWith('/v1.0/token')) return {};
-  if (p === '/v1.0/api/health') return { status: 'healthy', node: 'garrison-command-0', version: '0.1.0-alpha', database: 'ok', utc: iso(0) };
+  if (p === '/v1.0/api/health') return { status: 'healthy', node: 'garrison-command-0', version: '0.1.0-alpha', database: 'ok', schemaVersion: 6, expectedSchemaVersion: 6, backplane: 'PostgresNotify', utc: iso(0) };
   if (p === '/v1.0/api/server-info') return SERVER_INFO;
   if (p === '/v1.0/api/observability/status') return observabilityStatus();
   if (p === '/v1.0/api/settings') return method === 'GET' ? SETTINGS : { saved: true, restartRequired: true, appliedLive: [], pendingRestart: ['Rest.Port'], settings: SETTINGS };

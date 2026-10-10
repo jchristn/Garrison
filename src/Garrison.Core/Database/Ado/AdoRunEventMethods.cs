@@ -257,6 +257,42 @@ namespace Garrison.Core.Database.Ado
                 token).ConfigureAwait(false);
         }
 
+        /// <inheritdoc />
+        public async Task<List<RunEvent>> ListOlderThanAsync(DateTime olderThanUtc, int limit, CancellationToken token = default)
+        {
+            return await _Driver.QueryAsync(
+                "SELECT * FROM " + _Table + " WHERE createdutc < @cutoff ORDER BY createdutc ASC" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "cutoff", olderThanUtc);
+                    AdoDatabaseDriver.Add(command, "max", Math.Clamp(limit, 1, 10000));
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                },
+                Map,
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> DeleteManyAsync(List<string> ids, CancellationToken token = default)
+        {
+            if (ids == null) throw new ArgumentNullException(nameof(ids));
+            int deleted = 0;
+            for (int offset = 0; offset < ids.Count; offset += 500)
+            {
+                List<string> chunk = ids.GetRange(offset, Math.Min(500, ids.Count - offset));
+                List<string> names = new List<string>();
+                for (int i = 0; i < chunk.Count; i++) names.Add("@e" + i);
+                deleted += await _Driver.NonQueryAsync(
+                    "DELETE FROM " + _Table + " WHERE id IN (" + String.Join(", ", names) + ");",
+                    command =>
+                    {
+                        for (int i = 0; i < chunk.Count; i++) AdoDatabaseDriver.Add(command, "e" + i, chunk[i]);
+                    },
+                    token).ConfigureAwait(false);
+            }
+            return deleted;
+        }
+
         #endregion
 
         #region Private-Methods

@@ -87,7 +87,7 @@ Rules for keeping the plan honest:
 | 7 | Container images and Kubernetes assets | M1 | In progress | 36 / 38 |
 | 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
-| 10 | Control plane high availability and scale-out | M2 | Not started | 0 / 18 |
+| 10 | Control plane high availability and scale-out | M2 | In progress | 14 / 18 |
 | 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
 | 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 29 |
 | 13 | Observability stack and dashboards | M2 | Complete | 19 / 19 |
@@ -1401,12 +1401,12 @@ Scripts and validation
 
 Found during M1 integration and not yet fixed. Each is actionable; annotate like any task.
 
-- [ ] G-1 MCP sessions live in one server replica's memory; with more than one replica an unknown session ID returns 404. Add a shared session store or document `sessionAffinity: ClientIP` on the MCP Service (production overlay and Helm).
+- [x] G-1 MCP sessions live in one server replica's memory; with more than one replica an unknown session ID returns 404. Add a shared session store or document `sessionAffinity: ClientIP` on the MCP Service (production overlay and Helm).  | claude 2026-10-10 Garrison fronts MCP and relays to Voltaic; mcp_sessions table lets any replica serve a session, no sticky routing
 - [ ] G-2 Passwords are unsalted SHA-256. Move to a salted, slow hash (PBKDF2 or Argon2id) with transparent upgrade on login.
 - [ ] G-3 MCP tool descriptions resolve only `builtin/` template names, so tenants cannot override them. Allow a tenant template to shadow a built-in by name.
 - [ ] G-4 `A2ARoutes` and `AgentCardService` render agent cards differently (template rendering, security scheme key `garrison` vs `bearer`). Use one renderer.
 - [ ] G-5 Unused surface: `exposeMcpTool`, `builtin/mcp-tool-description`, `builtin/structured-output-repair` (see P3.2.7), and the `Rejected` run status are never used. `builtin/structured-output-repair` is now used by P3.2.7.
-- [ ] G-6 Per-replica state: the signed-request nonce cache and token rate limiter are per replica, and per-deployment `maxConcurrentRuns` can be exceeded slightly under concurrent claims on several replicas.
+- [x] G-6 Per-replica state: the signed-request nonce cache and token rate limiter are per replica, and per-deployment `maxConcurrentRuns` can be exceeded slightly under concurrent claims on several replicas.  | claude 2026-10-10 claims for a limited deployment serialized in the database; maxConcurrentRuns exact across replicas; nonces and rate limits shared
 - [ ] G-7 DELETE returns 204 for identity and runtime resources and 200 with a body for configuration resources. Pick one.
 - [ ] G-8 SyslogLogging: add an opt-in to skip the console probe (D-026), then switch Garrison to it.
 - [x] G-9 Codex agent not yet verified in the cluster (P9.9); needs `OPENAI_API_KEY` or a Codex `auth.json`.  | claude 2026-10-10 done, see P9.9
@@ -1425,23 +1425,23 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 
 ### Phase 10: Control plane high availability and scale-out (M2)
 
-- [ ] P10.1 Multi-replica correctness review: no in-memory state that must be shared (rate limiter, nonce cache, permission cache, SSE waiters); move shared pieces to the database or make them per-replica-safe.
-- [ ] P10.2 Signed-request nonce cache shared through the database with TTL.
-- [ ] P10.3 Authentication rate limiting shared or documented as per-replica with adjusted limits.
-- [ ] P10.4 `IEventBackplane` with `PollingBackplane` (default) and `PostgresNotifyBackplane` (LISTEN/NOTIFY) for run events, new-run wakeups, and cache invalidation.
-- [ ] P10.5 Lease long-poll wakeups across replicas through the backplane.
-- [ ] P10.6 HPA on CPU plus custom metric (`garrison_runs_active` or request rate) through Prometheus Adapter (documented, optional).
-- [ ] P10.7 PDBs, anti-affinity, topology spread for server and workers.
+- [x] P10.1 Multi-replica correctness review: no in-memory state that must be shared (rate limiter, nonce cache, permission cache, SSE waiters); move shared pieces to the database or make them per-replica-safe.  | claude 2026-10-10 state inventory table in docs/SCALING.md; every cache, waiter, and session shared, invalidated, or documented per replica
+- [x] P10.2 Signed-request nonce cache shared through the database with TTL.  | claude 2026-10-10 request_nonces table (migration 6), leader cleanup
+- [x] P10.3 Authentication rate limiting shared or documented as per-replica with adjusted limits.  | claude 2026-10-10 shared rate_limit_buckets table (not per replica)
+- [x] P10.4 `IEventBackplane` with `PollingBackplane` (default) and `PostgresNotifyBackplane` (LISTEN/NOTIFY) for run events, new-run wakeups, and cache invalidation.  | claude 2026-10-10 IEventBackplane: Local, Polling, PostgresNotify (LISTEN/NOTIFY); Cluster.Backplane Auto; hints only, waiters still re-read the database
+- [x] P10.5 Lease long-poll wakeups across replicas through the backplane.  | claude 2026-10-10 lease long polls woken across replicas (worker on B claims a run created on A in under 3 s in tests)
+- [x] P10.6 HPA on CPU plus custom metric (`garrison_runs_active` or request rate) through Prometheus Adapter (documented, optional).  | claude 2026-10-10 production HPA tuned; optional hpa-custom-metrics component and Helm switches
+- [x] P10.7 PDBs, anti-affinity, topology spread for server and workers.  | claude 2026-10-10 soft spread in base, surge-first server rollout, production zone spread and one-at-a-time PDBs, Helm parity
 - [ ] P10.8 Rolling upgrade test: upgrade server while runs are in flight, zero failed runs.
-- [ ] P10.9 Migration safety: migrations run once under a coordination lease before the server reports ready; other replicas wait.
-- [ ] P10.10 Database connection pool sizing guidance and settings.
-- [ ] P10.11 Read path optimization: covering indexes, run list projections, event pagination.
-- [ ] P10.12 Run and event retention and archival.
+- [x] P10.9 Migration safety: migrations run once under a coordination lease before the server reports ready; other replicas wait.  | claude 2026-10-10 migrations under a Postgres advisory lock; startup listener answers live 200 and ready 503 until migrated; probes use /v1.0/api/health/live and /ready
+- [x] P10.10 Database connection pool sizing guidance and settings.  | claude 2026-10-10 GARRISON_DB_MAX_POOL_SIZE and related settings, sizing guidance; Postgres driver clears its pools on dispose
+- [x] P10.11 Read path optimization: covering indexes, run list projections, event pagination.  | claude 2026-10-10 migration 6 indexes for run lists, delegation trees, leader scans, event retention; label requirements loaded per claim batch
+- [x] P10.12 Run and event retention and archival.  | claude 2026-10-10 archival to a JSON Lines directory before deletion (Archive.Directory)
 - [ ] P10.13 Load test: 3 server replicas, 10 workers with the fake harness, 1000 concurrent runs; record claim latency and throughput.
 - [ ] P10.14 Chaos test: kill server and worker pods at random during load; zero stuck runs.
-- [ ] P10.15 Multiple worker pools (StatefulSets) with distinct labels and harness sets in Helm and Kustomize.
-- [ ] P10.16 Node pools dedicated to tenants enforced at claim.
-- [ ] P10.17 Backup and restore guidance per database provider.
+- [x] P10.15 Multiple worker pools (StatefulSets) with distinct labels and harness sets in Helm and Kustomize.  | claude 2026-10-10 worker-pools component, k3s-worker-pools overlay, Helm pools always carry their pool label
+- [x] P10.16 Node pools dedicated to tenants enforced at claim.  | claude 2026-10-10 pool and tenant filtered in SQL at claim so dedicated workers do not starve; test
+- [x] P10.17 Backup and restore guidance per database provider.  | claude 2026-10-10 docs/BACKUP.md and a nightly pg_dump component, verified with a restore
 - [ ] P10.18 `docs/SCALING.md` updated with measured numbers.
 
 ### Phase 11: Pod-per-run isolation executor (M2)

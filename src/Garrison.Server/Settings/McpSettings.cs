@@ -95,6 +95,39 @@ namespace Garrison.Server.Settings
             }
         }
 
+        /// <summary>
+        /// Loopback port of the internal MCP endpoint (Voltaic). The public port is served by Garrison, which maps
+        /// cluster session identifiers to sessions on this endpoint so that any replica can serve any session (G-1).
+        /// 0 (the default) picks a free port at startup. Minimum 0, maximum 65535.
+        /// </summary>
+        public int InternalPort
+        {
+            get
+            {
+                return _InternalPort;
+            }
+            set
+            {
+                _InternalPort = Math.Clamp(value, 0, 65535);
+            }
+        }
+
+        /// <summary>
+        /// Seconds an MCP session may stay idle before it expires on every replica. Minimum 60, maximum 604800, default
+        /// 3600.
+        /// </summary>
+        public int SessionIdleTimeoutSeconds
+        {
+            get
+            {
+                return _SessionIdleTimeoutSeconds;
+            }
+            set
+            {
+                _SessionIdleTimeoutSeconds = Math.Clamp(value, 60, 604800);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -104,6 +137,8 @@ namespace Garrison.Server.Settings
         private string _Path = "/mcp";
         private int _MaxMessageSize = 16777216;
         private int _MaxToolWaitSeconds = 90;
+        private int _InternalPort = 0;
+        private int _SessionIdleTimeoutSeconds = 3600;
 
         #endregion
     }

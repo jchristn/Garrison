@@ -37,7 +37,7 @@ Run tokens are sessions too. They are issued when a run is leased (only for agen
 
 ### Signed requests and replay
 
-A signed request carries an HMAC-SHA256 signature over the method, path, query, tenant, date, nonce, and body hash, so the secret key never crosses the wire. The date must be within `Auth.SignedRequestSkewSeconds` (300) of the server clock, and nonces are remembered for the replay window. The nonce cache is per replica in this release, so with several control-plane replicas a captured request could be replayed once against each other replica within the window. Use TLS regardless.
+A signed request carries an HMAC-SHA256 signature over the method, path, query, tenant, date, nonce, and body hash, so the secret key never crosses the wire. The date must be within `Auth.SignedRequestSkewSeconds` (300) of the server clock, and nonces are remembered for the replay window. Nonces are stored in the database until twice the skew has passed, so a captured request is refused as a replay by every control-plane replica, not only the one that first accepted it. Use TLS regardless.
 
 ### Stored secrets
 
@@ -53,7 +53,7 @@ Secret values never appear in API responses, manifest exports, logs, the compile
 
 ### Rate limiting
 
-Token issuance is limited per source address (`Auth.RateLimitPerMinute`, 60), answering 429 `RateLimited` beyond it. Other routes are not rate limited.
+Token issuance is limited per source address (`Auth.RateLimitPerMinute`, 60), answering 429 `RateLimited` beyond it. The counter lives in the database, so the limit holds across all control-plane replicas. Behind a proxy or load balancer the source address is the address the server sees, so all clients behind one proxy share a budget. Other routes are not rate limited.
 
 ## Authorization
 

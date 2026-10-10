@@ -2,6 +2,7 @@ namespace Garrison.Server
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Threading;
     using Garrison.Core.Database;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
@@ -85,10 +86,34 @@ namespace Garrison.Server
             }
         }
 
+        /// <summary>
+        /// Cancelled when the replica starts shutting down. Long polls, streams, and synchronous waits watch it and end
+        /// early so the replica drains quickly.
+        /// </summary>
+        public CancellationToken Stopping
+        {
+            get
+            {
+                return _Shutdown.Token;
+            }
+        }
+
+        /// <summary>
+        /// Whether the replica is shutting down (readiness then answers 503).
+        /// </summary>
+        public bool IsDraining
+        {
+            get
+            {
+                return _Shutdown.IsCancellationRequested;
+            }
+        }
+
         #endregion
 
         #region Private-Members
 
+        private readonly CancellationTokenSource _Shutdown = new CancellationTokenSource();
         private readonly ConcurrentDictionary<Type, object> _Services = new ConcurrentDictionary<Type, object>();
 
         #endregion
@@ -137,6 +162,20 @@ namespace Garrison.Server
         {
             if (service == null) throw new ArgumentNullException(nameof(service));
             _Services[typeof(T)] = service;
+        }
+
+        /// <summary>
+        /// Begin shutting down: cancel <see cref="Stopping"/>. Safe to call more than once.
+        /// </summary>
+        public void BeginShutdown()
+        {
+            try
+            {
+                _Shutdown.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 3).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 6).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -724,20 +724,8 @@ CREATE TABLE IF NOT EXISTS "runs" (
     active INTEGER NOT NULL,
     isprotected INTEGER NOT NULL,
     createdutc TEXT NOT NULL,
-    lastupdateutc TEXT NOT NULL,
-    firsttokenutc TEXT,
-    lasttokenutc TEXT,
-    ttftms BIGINT,
-    streamingms BIGINT,
-    executionms BIGINT,
-    queuems BIGINT,
-    totalms BIGINT,
-    toolcallcount INTEGER NOT NULL DEFAULT 0,
-    reasoningtokens BIGINT NOT NULL DEFAULT 0,
-    outputschemavalid INTEGER,
-    schemavalidationerrors TEXT,
-    repairattempts INTEGER NOT NULL DEFAULT 0
-);
+    lastupdateutc TEXT NOT NULL
+, firsttokenutc TEXT, lasttokenutc TEXT, ttftms BIGINT, streamingms BIGINT, executionms BIGINT, queuems BIGINT, totalms BIGINT, toolcallcount INTEGER NOT NULL DEFAULT 0, reasoningtokens BIGINT NOT NULL DEFAULT 0, outputschemavalid INTEGER, schemavalidationerrors TEXT, repairattempts INTEGER NOT NULL DEFAULT 0, delegationwaitms BIGINT, ttftexcldelegationms BIGINT, traceid VARCHAR(32), traceparent VARCHAR(64));
 CREATE INDEX "idx_runs_tenant" ON "runs" ("tenantid");
 CREATE INDEX "idx_runs_claim" ON "runs" ("status", "harnesstype", "priority", "createdutc");
 CREATE INDEX "idx_runs_tenantstatus" ON "runs" ("tenantid", "status");
@@ -786,7 +774,7 @@ CREATE TABLE IF NOT EXISTS "run_events" (
     outputtokens BIGINT,
     raweventjson TEXT,
     createdutc TEXT NOT NULL
-);
+, code VARCHAR(64));
 CREATE INDEX "idx_run_events_tenant" ON "run_events" ("tenantid");
 CREATE UNIQUE INDEX "idx_run_events_runsequence" ON "run_events" ("runid", "sequence");
 CREATE TABLE IF NOT EXISTS "coordination_leases" (
@@ -835,5 +823,55 @@ CREATE TABLE IF NOT EXISTS "manifest_apply_items" (
     result VARCHAR(64) NOT NULL,
     resourceid VARCHAR(64),
     message TEXT
-);
+, plannedresult VARCHAR(64));
 CREATE INDEX "idx_manifest_apply_items_parent" ON "manifest_apply_items" ("manifestapplyid");
+CREATE TABLE IF NOT EXISTS "manifest_apply_changes" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    manifestapplyid VARCHAR(64) NOT NULL,
+    manifestapplyitemid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64),
+    position INTEGER NOT NULL,
+    field VARCHAR(512) NOT NULL,
+    beforevalue TEXT,
+    aftervalue TEXT
+);
+CREATE INDEX "idx_manifest_apply_changes_parent" ON "manifest_apply_changes" ("manifestapplyid");
+CREATE TABLE IF NOT EXISTS "request_nonces" (
+    noncekey VARCHAR(512) NOT NULL PRIMARY KEY,
+    expiresutc TEXT NOT NULL,
+    createdutc TEXT NOT NULL
+);
+CREATE INDEX "idx_request_nonces_expires" ON "request_nonces" ("expiresutc");
+CREATE TABLE IF NOT EXISTS "rate_limit_buckets" (
+    bucketkey VARCHAR(512) NOT NULL PRIMARY KEY,
+    hits INTEGER NOT NULL,
+    expiresutc TEXT NOT NULL
+);
+CREATE INDEX "idx_rate_limit_buckets_expires" ON "rate_limit_buckets" ("expiresutc");
+CREATE TABLE IF NOT EXISTS "mcp_sessions" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    principal VARCHAR(512) NOT NULL,
+    protocolversion VARCHAR(64) NOT NULL,
+    clientname VARCHAR(256),
+    clientversion VARCHAR(128),
+    createdutc TEXT NOT NULL,
+    lastseenutc TEXT NOT NULL,
+    expiresutc TEXT NOT NULL
+);
+CREATE INDEX "idx_mcp_sessions_expires" ON "mcp_sessions" ("expiresutc");
+CREATE TABLE IF NOT EXISTS "backplane_messages" (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind VARCHAR(64) NOT NULL,
+    subject VARCHAR(256),
+    origin VARCHAR(128) NOT NULL,
+    createdutc TEXT NOT NULL
+);
+CREATE INDEX "idx_backplane_messages_created" ON "backplane_messages" ("createdutc");
+CREATE INDEX "idx_runs_tenantstatuscreated" ON "runs" ("tenantid", "status", "createdutc");
+CREATE INDEX "idx_runs_tenantagentcreated" ON "runs" ("tenantid", "agentid", "createdutc");
+CREATE INDEX "idx_runs_root" ON "runs" ("rootrunid");
+CREATE INDEX "idx_runs_leaseexpires" ON "runs" ("status", "leaseexpiresutc");
+CREATE INDEX "idx_runs_deadline" ON "runs" ("status", "deadlineutc");
+CREATE INDEX "idx_runs_completed" ON "runs" ("status", "completedutc");
+CREATE INDEX "idx_run_events_created" ON "run_events" ("createdutc");
+CREATE INDEX "idx_authsessions_expires" ON "authsessions" ("expiresutc");

@@ -479,6 +479,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a cluster MCP session identifier (prefix mcs_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewMcpSessionId()
+        {
+            return _Generator.GenerateKSortable("mcs_", _RandomLength);
+        }
+
+        /// <summary>
         /// Generate an identifier for a scalar child row.
         /// </summary>
         /// <returns>Identifier.</returns>

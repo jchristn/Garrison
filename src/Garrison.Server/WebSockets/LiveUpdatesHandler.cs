@@ -82,7 +82,20 @@ namespace Garrison.Server.WebSockets
         /// <returns>Task.</returns>
         public async Task HandleAsync(HttpContextBase http, WebSocketSession session)
         {
-            CancellationToken token = http.Token;
+            // The socket closes when the client leaves or when the replica starts draining; the dashboard reconnects
+            // (to another replica) by itself.
+            using (CancellationTokenSource lifetime = CancellationTokenSource.CreateLinkedTokenSource(http.Token, _Context.Stopping))
+            {
+                await HandleSessionAsync(http, session, lifetime.Token).ConfigureAwait(false);
+            }
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private async Task HandleSessionAsync(HttpContextBase http, WebSocketSession session, CancellationToken token)
+        {
             RequestContext? ctx = null;
             string? queryToken = QueryValue(http.Request.Url.RawWithQuery, "token");
             if (!String.IsNullOrEmpty(queryToken)) ctx = await AuthenticateAsync(queryToken, http.Request.Source.IpAddress, token).ConfigureAwait(false);
@@ -167,9 +180,6 @@ namespace Garrison.Server.WebSockets
             }
         }
 
-        #endregion
-
-        #region Private-Methods
 
         private async Task<RequestContext?> AuthenticateAsync(string? token, string? sourceIp, CancellationToken cancel)
         {

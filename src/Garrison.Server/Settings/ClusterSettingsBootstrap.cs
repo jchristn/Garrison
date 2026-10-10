@@ -2,6 +2,7 @@ namespace Garrison.Server.Settings
 {
     using System;
     using System.Collections.Generic;
+    using Garrison.Server.Backplane;
 
     /// <summary>
     /// Cluster topology settings read at startup.
@@ -30,11 +31,33 @@ namespace Garrison.Server.Settings
         /// </summary>
         public bool SettingsFileReadOnly { get; set; } = false;
 
+        /// <summary>
+        /// Event backplane between replicas (P10.4). Auto (the default) uses PostgresNotify on Postgresql and Local on
+        /// Sqlite. Polling works on both providers. Override with GARRISON_BACKPLANE.
+        /// </summary>
+        public BackplaneModeEnum Backplane { get; set; } = BackplaneModeEnum.Auto;
+
+        /// <summary>
+        /// Poll interval of the Polling backplane in milliseconds. Minimum 50, maximum 10000, default 250.
+        /// </summary>
+        public int BackplanePollMs
+        {
+            get
+            {
+                return _BackplanePollMs;
+            }
+            set
+            {
+                _BackplanePollMs = Math.Clamp(value, 50, 10000);
+            }
+        }
+
         #endregion
 
         #region Private-Members
 
         private int _ExpectedReplicas = 1;
+        private int _BackplanePollMs = 250;
 
         #endregion
     }

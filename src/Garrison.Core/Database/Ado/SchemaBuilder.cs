@@ -66,7 +66,25 @@ namespace Garrison.Core.Database.Ado
             v5.BuildVersion5();
             migrations.Add(new SchemaMigration(5, "Run trace identifiers", v5._Statements, v5._Columns));
 
+            SchemaBuilder v6 = new SchemaBuilder(catalog, dialect);
+            v6.BuildVersion6();
+            migrations.Add(new SchemaMigration(6, "Multi-replica state (nonces, rate limits, MCP sessions, backplane) and read path indexes", v6._Statements, v6._Columns));
+
             return migrations;
+        }
+
+        /// <summary>
+        /// Highest migration version this build knows. A database at a lower version is not ready for this build.
+        /// </summary>
+        public static int LatestVersion
+        {
+            get
+            {
+                SqlDialect dialect = new Garrison.Core.Database.Sqlite.Queries.SqliteDialect();
+                int latest = 0;
+                foreach (SchemaMigration migration in Build(new TableCatalog(null, null, dialect), dialect)) latest = Math.Max(latest, migration.Version);
+                return latest;
+            }
         }
 
         /// <summary>
@@ -107,6 +125,57 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion6()
+        {
+            SqlDialect d = _Dialect;
+
+            // request_nonces: signed-request nonces shared by every replica until they expire (P10.2)
+            Table("request_nonces",
+                "noncekey VARCHAR(512) NOT NULL PRIMARY KEY",
+                "expiresutc " + d.TypeTimestamp + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("request_nonces", "expires", false, "expiresutc");
+
+            // rate_limit_buckets: fixed-window counters shared by every replica (P10.3)
+            Table("rate_limit_buckets",
+                "bucketkey VARCHAR(512) NOT NULL PRIMARY KEY",
+                "hits " + d.TypeInt + " NOT NULL",
+                "expiresutc " + d.TypeTimestamp + " NOT NULL");
+            Index("rate_limit_buckets", "expires", false, "expiresutc");
+
+            // mcp_sessions: cluster MCP sessions, so any replica can serve a session another replica opened (G-1)
+            Table("mcp_sessions",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "principal VARCHAR(512) NOT NULL",
+                "protocolversion VARCHAR(64) NOT NULL",
+                "clientname VARCHAR(256)",
+                "clientversion VARCHAR(128)",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastseenutc " + d.TypeTimestamp + " NOT NULL",
+                "expiresutc " + d.TypeTimestamp + " NOT NULL");
+            Index("mcp_sessions", "expires", false, "expiresutc");
+
+            // backplane_messages: wake-ups and cache invalidations for the polling backplane (P10.4)
+            Table("backplane_messages",
+                "seq " + d.TypeAutoIncrementPrimaryKey,
+                "kind VARCHAR(64) NOT NULL",
+                "subject VARCHAR(256)",
+                "origin VARCHAR(128) NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("backplane_messages", "created", false, "createdutc");
+
+            // read path (P10.11): run lists filtered by status or agent and ordered by creation, delegation trees,
+            // leader scans of leases, deadlines, and retention, and event retention
+            Index("runs", "tenantstatuscreated", false, "tenantid", "status", "createdutc");
+            Index("runs", "tenantagentcreated", false, "tenantid", "agentid", "createdutc");
+            Index("runs", "root", false, "rootrunid");
+            Index("runs", "leaseexpires", false, "status", "leaseexpiresutc");
+            Index("runs", "deadline", false, "status", "deadlineutc");
+            Index("runs", "completed", false, "status", "completedutc");
+            Index("run_events", "created", false, "createdutc");
+            Index("authsessions", "expires", false, "expiresutc");
         }
 
         private void BuildVersion5()

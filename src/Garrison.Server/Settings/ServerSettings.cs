@@ -9,6 +9,7 @@ namespace Garrison.Server.Settings
     using Garrison.Core.Enums;
     using Garrison.Core.Serialization;
     using Garrison.Core.Settings;
+    using Garrison.Server.Backplane;
 
     /// <summary>
     /// Control-plane node settings loaded from the settings file and overridden by environment variables.
@@ -72,6 +73,11 @@ namespace Garrison.Server.Settings
         /// Cluster topology settings.
         /// </summary>
         public ClusterSettingsBootstrap Cluster { get; set; } = new ClusterSettingsBootstrap();
+
+        /// <summary>
+        /// Archival of runs and events removed by retention.
+        /// </summary>
+        public ArchiveSettings Archive { get; set; } = new ArchiveSettings();
 
         /// <summary>
         /// Path the settings were loaded from.
@@ -162,6 +168,10 @@ namespace Garrison.Server.Settings
             Str("GARRISON_DB_USERNAME", "Database.Username", v => Database.Username = v);
             Str("GARRISON_DB_PASSWORD", "Database.Password", v => Database.Password = v);
             Str("GARRISON_DB_SCHEMA", "Database.Schema", v => Database.Schema = v);
+            Int("GARRISON_DB_MAX_POOL_SIZE", "Database.MaxPoolSize", v => Database.MaxPoolSize = v);
+            Int("GARRISON_DB_MIN_POOL_SIZE", "Database.MinPoolSize", v => Database.MinPoolSize = v);
+            Int("GARRISON_DB_CONNECTION_TIMEOUT", "Database.ConnectionTimeoutSeconds", v => Database.ConnectionTimeoutSeconds = v);
+            Int("GARRISON_DB_COMMAND_TIMEOUT", "Database.CommandTimeoutSeconds", v => Database.CommandTimeoutSeconds = v);
             Str("GARRISON_AUTH_SIGNING_KEY", "Auth.SigningKey", v => Auth.SigningKey = v);
             Str("GARRISON_ADMIN_API_KEY", "Auth.AdminApiKey", v => Auth.AdminApiKey = v);
             Str("GARRISON_MASTER_KEY", "Security.MasterKey", v => Security.MasterKey = v);
@@ -177,6 +187,8 @@ namespace Garrison.Server.Settings
             Int("GARRISON_MCP_PORT", "Mcp.Port", v => Mcp.Port = v);
             Str("GARRISON_MCP_PUBLIC_URL", "Mcp.PublicUrl", v => Mcp.PublicUrl = v);
             Int("GARRISON_EXPECTED_REPLICAS", "Cluster.ExpectedReplicas", v => Cluster.ExpectedReplicas = v);
+            Backplane("GARRISON_BACKPLANE", "Cluster.Backplane", v => Cluster.Backplane = v);
+            Str("GARRISON_ARCHIVE_DIRECTORY", "Archive.Directory", v => Archive.Directory = v);
             Bool("GARRISON_SETTINGS_READONLY", "Cluster.SettingsFileReadOnly", v => Cluster.SettingsFileReadOnly = v);
             Bool("GARRISON_TELEMETRY_ENABLE", "Telemetry.Enabled", v => Telemetry.Enabled = v);
             Bool("GARRISON_OTLP_ENABLE", "Telemetry.OtlpEnable", v => Telemetry.OtlpEnable = v);
@@ -197,6 +209,14 @@ namespace Garrison.Server.Settings
             if (Rest.Port == Mcp.Port && Mcp.Enable)
             {
                 throw new InvalidOperationException("Rest.Port and Mcp.Port must differ (Voltaic hosts MCP on its own listener).");
+            }
+            if (Mcp.Enable && Mcp.InternalPort != 0 && (Mcp.InternalPort == Mcp.Port || Mcp.InternalPort == Rest.Port))
+            {
+                throw new InvalidOperationException("Mcp.InternalPort must differ from Mcp.Port and Rest.Port, or be 0 to pick a free port.");
+            }
+            if (Database.Type == DatabaseTypeEnum.Sqlite && Cluster.Backplane == BackplaneModeEnum.PostgresNotify)
+            {
+                throw new InvalidOperationException("Cluster.Backplane PostgresNotify requires Postgresql. Use Auto, Local, or Polling with Sqlite.");
             }
         }
 
@@ -224,6 +244,14 @@ namespace Garrison.Server.Settings
         {
             string? value = Environment.GetEnvironmentVariable(variable);
             if (String.IsNullOrEmpty(value) || !Boolean.TryParse(value, out bool parsed)) return;
+            apply(parsed);
+            EnvironmentOverrides.Add(path);
+        }
+
+        private void Backplane(string variable, string path, Action<BackplaneModeEnum> apply)
+        {
+            string? value = Environment.GetEnvironmentVariable(variable);
+            if (String.IsNullOrEmpty(value) || !System.Enum.TryParse<BackplaneModeEnum>(value, true, out BackplaneModeEnum parsed)) return;
             apply(parsed);
             EnvironmentOverrides.Add(path);
         }

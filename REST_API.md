@@ -154,7 +154,7 @@ Each route below lists the permission it needs as an operation on a resource typ
 
 #### `GET /v1.0/api/health`
 
-Health check.
+Readiness. Answers 200 with `status` `healthy` when the database answers, its schema is at the version this build needs, and the replica is not shutting down. Otherwise it answers 503 with `status` `degraded` (database unreachable), `migrating` (the schema is behind, for example while another replica applies migrations), `starting` (this replica is still waiting for the startup lock, migrating, or seeding), or `draining` (the replica received SIGTERM and is finishing in-flight work). Use it, or `/v1.0/api/health/ready`, as the readiness probe.
 
 | | |
 |---|---|
@@ -164,6 +164,34 @@ Health check.
 
 ```bash
 curl -s -X GET "http://127.0.0.1:8700/v1.0/api/health"
+```
+
+#### `GET /v1.0/api/health/ready`
+
+Readiness, the same as `GET /v1.0/api/health`.
+
+| | |
+|---|---|
+| Permission | Anonymous |
+| Response | `HealthResponse` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/health/ready"
+```
+
+#### `GET /v1.0/api/health/live`
+
+Liveness. Answers 200 whenever the process is up, including while it waits for another replica's migrations, migrates, seeds (`status` `starting`), or drains (`status` `draining`). It does not touch the database, so a slow migration or a database outage never gets a replica restarted. Use it as the liveness probe.
+
+| | |
+|---|---|
+| Permission | Anonymous |
+| Response | `HealthResponse` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/health/live"
 ```
 
 #### `GET /metrics`
@@ -2226,7 +2254,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{agentId}
 
 An agent with no active deployment whose weight is above zero cannot run: the call returns 409 `NoActiveDeployment` with a message that says so. Create a deployment for the agent (or activate one) first. A 404 means the agent itself does not exist.
 
-An `Idempotency-Key` header makes retries safe: the same key with the same agent and input returns the run it created (within 24 hours). The same key with different input returns 409 `IdempotencyKeyConflict` naming the existing run; use a new key for a new request.
+An `Idempotency-Key` header makes retries safe: the same key with the same agent and input returns the run it created (within 24 hours), even when the retries reach different replicas at the same moment. The same key with different input returns 409 `IdempotencyKeyConflict` naming the existing run; use a new key for a new request.
 
 #### `POST /v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test`
 
@@ -2920,7 +2948,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/heartbeat" \
 
 #### `POST /v1.0/api/node/lease`
 
-Lease runs (long poll).
+Lease runs (long poll). Any replica can answer: a run queued on another replica wakes the wait through the event backplane. While the replica is shutting down, a waiting long poll returns with no assignments and new lease requests get 503 `Draining`, so the worker retries against another replica.
 
 | | |
 |---|---|
@@ -3079,13 +3107,14 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 ## Server-sent events
 
-`GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` streams a run as `text/event-stream`. Pass `afterSequence` to resume.
+`GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` streams a run as `text/event-stream`. Pass `afterSequence` to resume; a `Last-Event-ID` header (which `EventSource` sends when it reconnects) works the same way and wins when it is higher. Any replica can serve a stream, whichever replica created the run or runs its worker.
 
 | Event | Data |
 |---|---|
 | `run.event` | One `RunEvent`; the SSE `id` is its sequence |
 | `run.status` | `{"status":"Running"}`, sent about every 15 seconds while the run is active |
 | `run.completed` | The finished `Run`; the stream then closes |
+| `server.draining` | `{}`; the replica is shutting down and closes the stream. Reconnect (to any replica) with `Last-Event-ID` to continue |
 
 ```text
 id: 1
@@ -3854,10 +3883,13 @@ Health check result.
 
 | Field | Type | Description |
 |---|---|---|
-| `status` | `string` | healthy or degraded. |
+| `status` | `string` | Readiness: healthy, degraded, migrating, starting, or draining (only healthy answers 200). Liveness: alive, starting, or draining. |
 | `node` | `string` | Node identifier. |
 | `version` | `string` | Product version. |
-| `database` | `string` | Database status: ok or unreachable. |
+| `database` | `string` | Database status: ok, unreachable, or unchecked (liveness and startup answers). |
+| `schemaVersion` | `int` | Highest migration applied to the database, or 0 when it was not read. |
+| `expectedSchemaVersion` | `int` | Migration version this build requires. |
+| `backplane` | `string?` | Event backplane of this replica: Local, Polling, or PostgresNotify. |
 | `utc` | `DateTime` | Server time (UTC). |
 
 #### `InvokeRequest`

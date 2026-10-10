@@ -115,11 +115,11 @@ spec:
             allowPrivilegeEscalation: false
             capabilities: { drop: ["ALL"] }
           startupProbe:
-            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8700/v1.0/api/health" "failure" 24 "success" 1) | nindent 12 }}
+            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8700/v1.0/api/health/live" "failure" 24 "success" 1) | nindent 12 }}
           readinessProbe:
-            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8700/v1.0/api/health" "failure" 2 "success" 2) | nindent 12 }}
+            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8700/v1.0/api/health/ready" "failure" 2 "success" 2) | nindent 12 }}
           livenessProbe:
-            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8700/v1.0/api/health" "failure" 2 "success" 1) | nindent 12 }}
+            {{- include "garrison.probe" (dict "url" "http://127.0.0.1:8700/v1.0/api/health/live" "failure" 2 "success" 1) | nindent 12 }}
           lifecycle:
             preStop:
               exec: { command: ["sleep", "5"] }

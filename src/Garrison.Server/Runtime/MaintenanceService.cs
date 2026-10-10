@@ -18,9 +18,11 @@ namespace Garrison.Server.Runtime
 
     /// <summary>
     /// Leader-only maintenance: reclaims runs whose lease expired (requeue or fail with NodeLost), enforces run
-    /// deadlines as a backstop, marks silent nodes Lost (plan section 9.4), and explains queued runs that no Ready
+    /// deadlines as a backstop, marks silent nodes Lost (plan section 9.4), explains queued runs that no Ready
     /// worker can run (one Warning run event per reason, and an optional failure after
-    /// <see cref="RuntimeOptions.FailBlockedAfterSeconds"/>). Thread-safe.
+    /// <see cref="RuntimeOptions.FailBlockedAfterSeconds"/>), applies run and event retention (archiving first when an
+    /// <see cref="Archiver"/> is set), and deletes expired shared state (signed-request nonces, rate limit buckets, MCP
+    /// sessions, and old backplane messages). Thread-safe.
     /// </summary>
     public class MaintenanceService : IDisposable
     {
@@ -53,6 +55,53 @@ namespace Garrison.Server.Runtime
             set
             {
                 _RetentionIntervalMs = Math.Clamp(value, 60000, 86400000);
+            }
+        }
+
+        /// <summary>
+        /// Archiver for runs and events removed by retention. Null (the default) deletes without archiving.
+        /// </summary>
+        public RunArchiver? Archiver { get; set; } = null;
+
+        /// <summary>
+        /// Interval between cleanups of expired shared state, in milliseconds. Minimum 1000, maximum 3600000, default
+        /// 60000.
+        /// </summary>
+        public int CleanupIntervalMs
+        {
+            get
+            {
+                return _CleanupIntervalMs;
+            }
+            set
+            {
+                _CleanupIntervalMs = Math.Clamp(value, 1000, 3600000);
+            }
+        }
+
+        /// <summary>
+        /// Minutes polling backplane messages are kept. Minimum 1, maximum 1440, default 5.
+        /// </summary>
+        public int BackplaneRetentionMinutes
+        {
+            get
+            {
+                return _BackplaneRetentionMinutes;
+            }
+            set
+            {
+                _BackplaneRetentionMinutes = Math.Clamp(value, 1, 1440);
+            }
+        }
+
+        /// <summary>
+        /// Maintenance passes this replica ran as the leader since it started.
+        /// </summary>
+        public long LeaderPasses
+        {
+            get
+            {
+                return Interlocked.Read(ref _LeaderPasses);
             }
         }
 
@@ -95,6 +144,10 @@ namespace Garrison.Server.Runtime
         private DateTime _LastRetentionUtc = DateTime.MinValue;
         private int _BlockedCheckIntervalMs = 5000;
         private DateTime _LastBlockedCheckUtc = DateTime.MinValue;
+        private int _CleanupIntervalMs = 60000;
+        private int _BackplaneRetentionMinutes = 5;
+        private DateTime _LastCleanupUtc = DateTime.MinValue;
+        private long _LeaderPasses = 0;
         private readonly SemaphoreSlim _BlockedLock = new SemaphoreSlim(1, 1);
         private readonly ConcurrentDictionary<string, BlockedRunState> _Blocked = new ConcurrentDictionary<string, BlockedRunState>(StringComparer.Ordinal);
 
@@ -167,6 +220,52 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Apply run and event retention once, archiving first when an <see cref="Archiver"/> is set. Used by the leader
+        /// loop and by tests.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs and events removed.</returns>
+        public async Task<int> ApplyRetentionAsync(CancellationToken token = default)
+        {
+            DateTime runCutoff = DateTime.UtcNow.AddDays(-Math.Max(1, RunRetentionDays()));
+            DateTime eventCutoff = DateTime.UtcNow.AddDays(-Math.Max(1, EventRetentionDays()));
+            int runs;
+            int events;
+            RunArchiver? archiver = Archiver;
+            if (archiver != null)
+            {
+                runs = await archiver.ArchiveRunsAsync(runCutoff, token).ConfigureAwait(false);
+                events = await archiver.ArchiveEventsAsync(eventCutoff, token).ConfigureAwait(false);
+                if (runs + events > 0) _Logging.Info(_Header + "retention archived and removed " + runs + " runs and " + events + " events to " + archiver.Directory);
+            }
+            else
+            {
+                runs = await _Database.Runs.PruneFinishedAsync(runCutoff, token).ConfigureAwait(false);
+                events = await _Database.RunEvents.PruneAsync(eventCutoff, token).ConfigureAwait(false);
+                if (runs + events > 0) _Logging.Info(_Header + "retention pruned " + runs + " runs and " + events + " events");
+            }
+            return runs + events;
+        }
+
+        /// <summary>
+        /// Delete expired signed-request nonces, rate limit buckets, and MCP sessions, and old backplane messages. Used
+        /// by the leader loop and by tests.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Rows deleted.</returns>
+        public async Task<int> CleanupSharedStateAsync(CancellationToken token = default)
+        {
+            DateTime now = DateTime.UtcNow;
+            int deleted = 0;
+            deleted += await _Database.Nonces.PruneExpiredAsync(now, token).ConfigureAwait(false);
+            deleted += await _Database.RateLimits.PruneExpiredAsync(now, token).ConfigureAwait(false);
+            deleted += await _Database.McpSessions.PruneExpiredAsync(now, token).ConfigureAwait(false);
+            deleted += await _Database.BackplaneMessages.PruneAsync(now.AddMinutes(-_BackplaneRetentionMinutes), token).ConfigureAwait(false);
+            if (deleted > 0) _Logging.Debug(_Header + "cleanup removed " + deleted + " expired nonces, rate limit buckets, MCP sessions, and backplane messages");
+            return deleted;
+        }
+
+        /// <summary>
         /// Dispose.
         /// </summary>
         public void Dispose()
@@ -217,10 +316,14 @@ namespace Garrison.Server.Runtime
                         if (RunRetention && (DateTime.UtcNow - _LastRetentionUtc).TotalMilliseconds >= _RetentionIntervalMs)
                         {
                             _LastRetentionUtc = DateTime.UtcNow;
-                            int runs = await _Database.Runs.PruneFinishedAsync(DateTime.UtcNow.AddDays(-Math.Max(1, RunRetentionDays())), token).ConfigureAwait(false);
-                            int events = await _Database.RunEvents.PruneAsync(DateTime.UtcNow.AddDays(-Math.Max(1, EventRetentionDays())), token).ConfigureAwait(false);
-                            if (runs + events > 0) _Logging.Info(_Header + "retention pruned " + runs + " runs and " + events + " events");
+                            await ApplyRetentionAsync(token).ConfigureAwait(false);
                         }
+                        if ((DateTime.UtcNow - _LastCleanupUtc).TotalMilliseconds >= _CleanupIntervalMs)
+                        {
+                            _LastCleanupUtc = DateTime.UtcNow;
+                            await CleanupSharedStateAsync(token).ConfigureAwait(false);
+                        }
+                        Interlocked.Increment(ref _LeaderPasses);
                     }
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
@@ -269,7 +372,7 @@ namespace Garrison.Server.Runtime
                 {
                     _Telemetry.Increment("garrison.lease.expirations", new RadiantTag("action", requeue ? "requeued" : "failed"));
                     _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()) + " " + RunTracing.LogFields(run.Id, run.TraceId));
-                    if (requeue) _Signals.QueueChanged.Signal();
+                    if (requeue) _Signals.NotifyQueue();
                     else
                     {
                         await _Database.Sessions.RevokeByRunAsync(run.Id, "Run lease expired.", token).ConfigureAwait(false);

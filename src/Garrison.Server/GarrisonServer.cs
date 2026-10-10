@@ -6,6 +6,7 @@ namespace Garrison.Server
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core;
+    using Garrison.Server.Backplane;
     using Garrison.Server.Modules;
     using Garrison.Server.Routes;
     using Garrison.Server.Services;
@@ -45,6 +46,51 @@ namespace Garrison.Server
         }
 
         /// <summary>
+        /// Event backplane connecting this replica to the others.
+        /// </summary>
+        public IEventBackplane Backplane
+        {
+            get
+            {
+                return _Backplane;
+            }
+        }
+
+        /// <summary>
+        /// Milliseconds <see cref="StopAsync"/> waits for in-flight requests after it starts draining. Long polls, SSE and
+        /// WebSocket streams, and synchronous waits end as soon as draining starts, so this mostly covers ordinary
+        /// requests. Minimum 0, maximum 120000, default 15000 (inside a 30-second pod grace period).
+        /// </summary>
+        public int ShutdownGraceMs
+        {
+            get
+            {
+                return _ShutdownGraceMs;
+            }
+            set
+            {
+                _ShutdownGraceMs = Math.Clamp(value, 0, 120000);
+            }
+        }
+
+        /// <summary>
+        /// Requests currently being handled.
+        /// </summary>
+        public int InFlightRequests
+        {
+            get
+            {
+                return _InFlight.Count;
+            }
+        }
+
+        /// <summary>
+        /// Invoked just before the REST listener starts (the bootstrapper uses it to stop its startup health listener).
+        /// Null by default.
+        /// </summary>
+        public Action? BeforeListen { get; set; } = null;
+
+        /// <summary>
         /// Route registrar (exposes the operation scope map).
         /// </summary>
         public RouteRegistrar Routes
@@ -63,9 +109,14 @@ namespace Garrison.Server
         private readonly Webserver _Server;
         private readonly RouteRegistrar _Routes;
         private readonly List<IServerModule> _Modules;
+        private readonly IEventBackplane _Backplane;
+        private readonly bool _OwnsBackplane = false;
         private readonly CancellationTokenSource _Stopping = new CancellationTokenSource();
         private readonly string _Header = "[GarrisonServer] ";
         private string _CorsOrigin = "*";
+        private int _ShutdownGraceMs = 15000;
+        private int _StopRequested = 0;
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime> _InFlight = new System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime>();
         private bool _Disposed = false;
 
         #endregion
@@ -97,6 +148,16 @@ namespace Garrison.Server
             _Server = new Webserver(settings, DefaultRouteAsync);
             context.Register(_Server);
 
+            IEventBackplane? backplane = context.TryGet<IEventBackplane>();
+            if (backplane == null)
+            {
+                string instanceId = context.NodeId + ":" + Guid.NewGuid().ToString("N").Substring(0, 8);
+                backplane = BackplaneFactory.Create(context.Settings.Cluster.Backplane, context.Database, instanceId, context.Settings.Cluster.BackplanePollMs, context.Logging);
+                context.Register<IEventBackplane>(backplane);
+                _OwnsBackplane = true;
+            }
+            _Backplane = backplane;
+
             _Routes = new RouteRegistrar(_Server, context.Authorization, context.Database, context.Scopes, context.Logging);
             if (context.Settings.Rest.CorsOrigins.Count > 0) _CorsOrigin = String.Join(" ", context.Settings.Rest.CorsOrigins);
         }
@@ -123,6 +184,10 @@ namespace Garrison.Server
             new CoreRoutes(_Context).Register(_Routes);
             foreach (IServerModule module in _Modules) module.RegisterRoutes(_Context, _Routes);
 
+            await _Backplane.StartAsync(_Stopping.Token).ConfigureAwait(false);
+            _Context.Logging.Info(_Header + "backplane " + _Backplane.Name + " started as " + _Backplane.InstanceId);
+
+            BeforeListen?.Invoke();
             _Server.Start();
             _Context.Logging.Info(_Header + "listening on " + _Context.Settings.Rest.Hostname + ":" + _Context.Settings.Rest.Port + " with " + _Context.Scopes.All().Count + " routes");
 
@@ -133,12 +198,30 @@ namespace Garrison.Server
         }
 
         /// <summary>
-        /// Stop background work and the listener.
+        /// Drain (readiness off, long polls and streams end, in-flight requests get <see cref="ShutdownGraceMs"/>), then stop background work and the listener. Calls after the first return at once.
         /// </summary>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Task.</returns>
         public async Task StopAsync(CancellationToken token = default)
         {
+            if (Interlocked.Exchange(ref _StopRequested, 1) == 1) return;
+
+            // Drain: readiness turns 503, long polls and streams end, and in-flight requests get a grace period before
+            // background work and the listener stop.
+            _Context.BeginShutdown();
+            _Context.Logging.Info(_Header + "draining (" + _InFlight.Count + " requests in flight)");
+            DateTime graceEnds = DateTime.UtcNow.AddMilliseconds(_ShutdownGraceMs);
+            while (!_InFlight.IsEmpty && DateTime.UtcNow < graceEnds && !token.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(50, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
             _Stopping.Cancel();
             foreach (IServerModule module in Enumerable.Reverse(_Modules))
             {
@@ -152,6 +235,14 @@ namespace Garrison.Server
                 }
             }
             _Server.Stop();
+            try
+            {
+                await _Backplane.StopAsync(token).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                _Context.Logging.Warn(_Header + "error stopping the backplane: " + e.Message);
+            }
         }
 
         /// <summary>
@@ -178,6 +269,7 @@ namespace Garrison.Server
             {
                 _Stopping.Dispose();
                 if (_Server is IDisposable disposable) disposable.Dispose();
+                if (_OwnsBackplane) _Backplane.Dispose();
             }
             _Disposed = true;
         }
@@ -190,6 +282,7 @@ namespace Garrison.Server
         {
             _Server.Routes.AuthenticateRequest = _Context.Authentication.AuthenticateRequestAsync;
             _Server.Routes.Preflight = PreflightAsync;
+            _Server.Routes.PreRouting = PreRoutingAsync;
             _Server.Routes.PostRouting = PostRoutingAsync;
             _Server.UseOpenApi(openApi =>
             {
@@ -207,8 +300,15 @@ namespace Garrison.Server
             await context.Response.Send().ConfigureAwait(false);
         }
 
+        private Task PreRoutingAsync(HttpContextBase context)
+        {
+            _InFlight[context.Request.Guid] = DateTime.UtcNow;
+            return Task.CompletedTask;
+        }
+
         private async Task PostRoutingAsync(HttpContextBase context)
         {
+            _InFlight.TryRemove(context.Request.Guid, out DateTime _);
             context.Timestamp.End = DateTime.UtcNow;
             AddCors(context);
 

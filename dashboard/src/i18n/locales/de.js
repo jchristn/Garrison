@@ -1169,7 +1169,7 @@ const de = {
         ConfigMap: 'Von einer Kubernetes-ConfigMap verwaltet. Ändern Sie den Wert in Ihren Manifesten.',
         other: 'Diese Einstellung kann hier nicht bearbeitet werden.'
       },
-      groups: { General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit', Runtime: 'Laufzeit', Observability: 'Beobachtbarkeit' },
+      groups: { Archive: 'Archiv', General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit', Runtime: 'Laufzeit', Observability: 'Beobachtbarkeit' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana-URL',
@@ -1189,6 +1189,8 @@ const de = {
           Hostname: 'REST-Bindungshostname'
         },
         Mcp: {
+          InternalPort: 'Interner MCP-Port',
+          SessionIdleTimeoutSeconds: 'Leerlaufzeit von MCP-Sitzungen (Sekunden)',
           MaxToolWaitSeconds: 'Maximale Wartezeit für MCP-Tools (Sekunden)',
           PublicUrl: 'Interne MCP-URL für Läufe',
           Path: 'MCP-Pfad',
@@ -1197,6 +1199,10 @@ const de = {
           Enable: 'MCP-Server aktiviert'
         },
         Database: {
+          MinPoolSize: 'Mindestanzahl gepoolter Verbindungen',
+          ConnectionTimeoutSeconds: 'Wartezeit auf eine Verbindung (Sekunden)',
+          CommandTimeoutSeconds: 'Befehls-Timeout (Sekunden)',
+          ConnectionIdleLifetimeSeconds: 'Lebensdauer ungenutzter Verbindungen (Sekunden)',
           MaxPoolSize: 'Größe des Verbindungspools',
           Schema: 'Datenbankschema',
           Password: 'Datenbankpasswort',
@@ -1245,7 +1251,12 @@ const de = {
           ServiceName: 'Telemetrie-Dienstname',
           Enabled: 'Telemetrie aktiviert'
         },
+        Archive: {
+          Directory: 'Archivverzeichnis'
+        },
         Cluster: {
+          Backplane: 'Ereignis-Backplane',
+          BackplanePollMs: 'Abfrageintervall der Backplane (ms)',
           ExpectedReplicas: 'Erwartete Replikate der Steuerungsebene'
         },
         Scheduling: {

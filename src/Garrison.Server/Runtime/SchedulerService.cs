@@ -25,6 +25,16 @@ namespace Garrison.Server.Runtime
     /// </summary>
     public class SchedulerService
     {
+        #region Public-Members
+
+        /// <summary>
+        /// Cancelled when the replica starts shutting down; waiting lease long-polls then return empty at once so the
+        /// worker re-polls another replica. Default <see cref="CancellationToken.None"/>.
+        /// </summary>
+        public CancellationToken ShutdownToken { get; set; } = CancellationToken.None;
+
+        #endregion
+
         #region Private-Members
 
         private readonly DatabaseDriverBase _Database;
@@ -80,12 +90,15 @@ namespace Garrison.Server.Runtime
             if (request == null) throw new ArgumentNullException(nameof(request));
 
             NodeLeaseResponse response = new NodeLeaseResponse();
-            if (node.Status != NodeStatusEnum.Ready) return response;
+            if (node.Status != NodeStatusEnum.Ready || ShutdownToken.IsCancellationRequested) return response;
 
             int maxRuns = Math.Clamp(request.MaxRuns, 1, 64);
             int waitMs = Math.Clamp(request.WaitMs, 0, Math.Min(60000, _Options.LeaseWaitMs));
             DateTime deadline = DateTime.UtcNow.AddMilliseconds(waitMs);
 
+            // Read the queue signal's version before looking for work, so a run queued (on any replica) while this
+            // claim pass runs wakes the wait below at once instead of being slept through.
+            long seen = _Signals.QueueChanged.Version;
             while (true)
             {
                 token.ThrowIfCancellationRequested();
@@ -95,7 +108,18 @@ namespace Garrison.Server.Runtime
 
                 int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
                 if (remaining <= 0) return response;
-                await _Signals.QueueChanged.WaitAsync(Math.Min(remaining, _Options.LeasePollMs), token).ConfigureAwait(false);
+                using (CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(token, ShutdownToken))
+                {
+                    try
+                    {
+                        await _Signals.QueueChanged.WaitAsync(seen, Math.Min(remaining, _Options.LeasePollMs), wait.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested && !token.IsCancellationRequested)
+                    {
+                        return response;
+                    }
+                }
+                seen = _Signals.QueueChanged.Version;
             }
         }
 
@@ -109,10 +133,17 @@ namespace Garrison.Server.Runtime
             List<HarnessTypeEnum> harnessTypes = node.Capabilities.Where(c => c.Available).Select(c => c.HarnessType).Distinct().ToList();
             if (harnessTypes.Count == 0 || maxRuns <= 0) return assignments;
 
-            List<Run> candidates = await _Database.Runs.ListClaimCandidatesAsync(harnessTypes, Math.Max(maxRuns * 4, 16), token).ConfigureAwait(false);
+            // Pool and tenant dedication are applied in SQL, so a dedicated node is never starved by a backlog of runs it
+            // may not take (P10.16); label requirements are checked below.
+            NodePool? pool = String.IsNullOrEmpty(node.NodePoolId) ? null : await _Database.NodePools.ReadAsync(node.NodePoolId, token).ConfigureAwait(false);
+            ClaimCandidateFilter filter = new ClaimCandidateFilter();
+            filter.HarnessTypes = harnessTypes;
+            filter.NodePoolId = node.NodePoolId;
+            filter.AllowedTenantIds = pool != null && pool.Tenants.Count > 0 ? pool.Tenants : null;
+            filter.Limit = Math.Max(maxRuns * 4, 16);
+            List<Run> candidates = await _Database.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
             if (candidates.Count == 0) return assignments;
 
-            NodePool? pool = String.IsNullOrEmpty(node.NodePoolId) ? null : await _Database.NodePools.ReadAsync(node.NodePoolId, token).ConfigureAwait(false);
             Dictionary<string, long> activeByDeployment = new Dictionary<string, long>(StringComparer.Ordinal);
             Dictionary<string, Deployment?> deployments = new Dictionary<string, Deployment?>(StringComparer.Ordinal);
 
@@ -126,18 +157,21 @@ namespace Garrison.Server.Runtime
                     deployment = await _Database.Deployments.ReadAsync(candidate.DeploymentId, token).ConfigureAwait(false);
                     deployments[candidate.DeploymentId] = deployment;
                 }
-                if (deployment != null && deployment.MaxConcurrentRuns > 0)
+                int limit = deployment != null ? deployment.MaxConcurrentRuns : 0;
+                if (limit > 0)
                 {
-                    if (!activeByDeployment.TryGetValue(deployment.Id, out long active))
+                    // A cheap pre-check skips deployments that are visibly full; the claim below enforces the limit
+                    // exactly, across replicas (G-6).
+                    if (!activeByDeployment.TryGetValue(candidate.DeploymentId, out long active))
                     {
-                        active = await _Database.Runs.CountActiveByDeploymentAsync(deployment.Id, token).ConfigureAwait(false);
+                        active = await _Database.Runs.CountActiveByDeploymentAsync(candidate.DeploymentId, token).ConfigureAwait(false);
+                        activeByDeployment[candidate.DeploymentId] = active;
                     }
-                    if (active >= deployment.MaxConcurrentRuns)
+                    if (active >= limit)
                     {
                         _Telemetry.Increment("garrison.claims", new RadiantTag("result", "limit"));
                         continue;
                     }
-                    activeByDeployment[deployment.Id] = active + 1;
                 }
 
                 // The claim and compile spans join the run's trace (recorded at creation), not the lease request's.
@@ -149,18 +183,27 @@ namespace Garrison.Server.Runtime
 
                     Stopwatch timer = Stopwatch.StartNew();
                     DateTime leaseExpires = DateTime.UtcNow.AddMilliseconds(_Options.LeaseDurationMs);
-                    long? epoch = await _Database.Runs.TryClaimAsync(candidate.Id, node.Id, node.Name, leaseExpires, token).ConfigureAwait(false);
-                    if (!epoch.HasValue)
+                    ClaimResult result = await _Database.Runs.TryClaimWithinLimitAsync(candidate.Id, node.Id, node.Name, leaseExpires, candidate.DeploymentId, limit, token).ConfigureAwait(false);
+                    if (result.LimitReached)
+                    {
+                        activeByDeployment[candidate.DeploymentId] = limit;
+                        _Telemetry.Increment("garrison.claims", new RadiantTag("result", "limit"));
+                        claim?.SetTag("garrison.claim_result", "limit");
+                        continue;
+                    }
+                    if (!result.Claimed)
                     {
                         _Telemetry.Increment("garrison.claims", new RadiantTag("result", "lost"));
                         claim?.SetTag("garrison.claim_result", "lost");
                         continue;
                     }
+                    long epoch = result.Epoch ?? 0;
+                    if (limit > 0) activeByDeployment[candidate.DeploymentId] = activeByDeployment[candidate.DeploymentId] + 1;
                     _Telemetry.Increment("garrison.claims", new RadiantTag("result", "won"));
                     claim?.SetTag("garrison.claim_result", "won");
-                    _Logging.Info(_Header + "run " + candidate.Id + " leased to " + node.Name + " (epoch " + epoch.Value + ") " + RunTracing.LogFields(candidate.Id, candidate.TraceId));
+                    _Logging.Info(_Header + "run " + candidate.Id + " leased to " + node.Name + " (epoch " + epoch + ") " + RunTracing.LogFields(candidate.Id, candidate.TraceId));
 
-                    RunAssignment? assignment = await PrepareAsync(candidate.TenantId, candidate.Id, node, epoch.Value, leaseExpires, claim, token).ConfigureAwait(false);
+                    RunAssignment? assignment = await PrepareAsync(candidate.TenantId, candidate.Id, node, epoch, leaseExpires, claim, token).ConfigureAwait(false);
                     _Telemetry.Record("garrison.compile.duration", timer.Elapsed.TotalSeconds, new RadiantTag("harness", candidate.HarnessType.ToString()));
                     if (assignment != null) assignments.Add(assignment);
                     else claim?.SetStatus(ActivityStatusCode.Error, "compile failed");

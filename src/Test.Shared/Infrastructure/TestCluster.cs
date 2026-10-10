@@ -75,9 +75,27 @@ namespace Test.Shared.Infrastructure
         /// <returns>Worker.</returns>
         public async Task<WorkerHost> AddWorkerAsync(string name, CancellationToken token = default)
         {
+            WorkerHost worker = await StartWorkerAsync(Server.BaseUrl, name, null, token).ConfigureAwait(false);
+            Workers.Add(worker);
+            return worker;
+        }
+
+        /// <summary>
+        /// Start a worker against any control-plane URL (for example one replica of a multi-replica test) and wait until
+        /// it registers. The caller disposes it.
+        /// </summary>
+        /// <param name="serverUrl">Control-plane REST base URL.</param>
+        /// <param name="name">Node name.</param>
+        /// <param name="configure">Optional settings customization.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Worker.</returns>
+        /// <exception cref="TestAssertionException">Thrown when the worker does not register within 20 seconds.</exception>
+        public static async Task<WorkerHost> StartWorkerAsync(string serverUrl, string name, Action<WorkerSettings>? configure, CancellationToken token = default)
+        {
+            EnsureFakeHarnessOnPath();
             WorkerSettings settings = new WorkerSettings();
             settings.Telemetry.Enabled = false;
-            settings.ServerUrl = Server.BaseUrl;
+            settings.ServerUrl = serverUrl;
             settings.NodeName = name;
             settings.WorkRoot = Path.Combine(Path.GetTempPath(), "garrison-test-work", Guid.NewGuid().ToString("N"));
             settings.MaxConcurrentRuns = 4;
@@ -90,12 +108,12 @@ namespace Test.Shared.Infrastructure
             settings.Probes = WorkerSettings.DefaultProbes().Where(p => p.Label == "fake").ToList();
             settings.Logging.ConsoleLogging = Environment.GetEnvironmentVariable("GARRISON_TEST_LOGS") == "true";
             settings.EnvironmentAllowlist = new List<string> { "PATH", "DOTNET_ROOT", "TMPDIR", "LANG" };
+            configure?.Invoke(settings);
 
             LoggingModule logging = new LoggingModule();
             logging.Settings.EnableConsole = settings.Logging.ConsoleLogging;
             WorkerHost worker = new WorkerHost(settings, logging);
             await worker.StartAsync(false).ConfigureAwait(false);
-            Workers.Add(worker);
 
             DateTime deadline = DateTime.UtcNow.AddSeconds(20);
             while (!worker.Registered || !worker.Leasing)

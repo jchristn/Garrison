@@ -35,7 +35,95 @@
                 "health"
               ]
             },
-            "description": "Anonymous liveness and database check. Answers 200 when the server can reach its database.",
+            "description": "Anonymous readiness check (same as /v1.0/api/health/ready). Answers 200 when the database answers, its schema is current, and the replica is not draining; 503 otherwise.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('database ok', function () { pm.expect(pm.response.json().database).to.eql('ok'); });"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('suffix', Date.now().toString(36));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Liveness (no authentication)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/health/live",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "health",
+                "live"
+              ]
+            },
+            "description": "Always 200 while the process runs, including during migrations and draining. Use it as the liveness probe.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('alive', function () { pm.expect(pm.response.json().status).to.eql('alive'); });"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('suffix', Date.now().toString(36));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Readiness (no authentication)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/health/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "health",
+                "ready"
+              ]
+            },
+            "description": "200 only when the database answers, the schema is current, and the replica is not draining. Use it as the readiness probe.",
             "auth": {
               "type": "noauth"
             }

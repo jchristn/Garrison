@@ -1043,6 +1043,7 @@ const tips = {
         Security: '加密主金鑰同初始帳戶。',
         RequestHistory: '會唔會擷取 API 請求，同埋每個內容保留幾多。',
         Telemetry: '指標同追蹤匯出。',
+        Archive: '保留期刪除執行同事件之前，將佢哋封存嘅位置。',
         Cluster: '預期有幾多個控制平面副本。',
         Scheduling: '工作節點嘅租約長度同心跳逾時。',
         Runs: '執行預設值，同埋執行同事件保留幾耐。',

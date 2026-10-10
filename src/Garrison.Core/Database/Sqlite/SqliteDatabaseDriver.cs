@@ -1,6 +1,7 @@
 namespace Garrison.Core.Database.Sqlite
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Data.Common;
     using System.IO;
     using System.Threading;
@@ -46,6 +47,7 @@ namespace Garrison.Core.Database.Sqlite
 
         #region Private-Members
 
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _StartupLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.Ordinal);
         private readonly SemaphoreSlim _WriteLock = new SemaphoreSlim(1, 1);
         private int _BusyTimeoutMs = 5000;
         private bool _Disposed = false;
@@ -74,6 +76,21 @@ namespace Garrison.Core.Database.Sqlite
         public override DbConnection CreateConnection()
         {
             return new SqliteConnection(Settings.ToSqliteConnectionString());
+        }
+
+        /// <inheritdoc />
+        public override async Task<DatabaseLockHandle> AcquireStartupLockAsync(CancellationToken token = default)
+        {
+            // Sqlite supports one control-plane process, so a lock per database file inside this process is enough; it
+            // keeps in-process test servers sharing a file from racing.
+            string name = Path.GetFullPath(Settings.Filename) + "|" + StartupLockName();
+            SemaphoreSlim gate = _StartupLocks.GetOrAdd(name, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(token).ConfigureAwait(false);
+            return new DatabaseLockHandle(() =>
+            {
+                gate.Release();
+                return Task.CompletedTask;
+            });
         }
 
         #endregion

@@ -11,6 +11,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Services;
+    using Garrison.Server.Backplane;
     using Garrison.Server.Settings;
     using SyslogLogging;
 
@@ -389,6 +390,8 @@ namespace Garrison.Server.Services
             list.Add(Field("Mcp.Port", "int", false, "MCP port.", s => s.Mcp.Port.ToString(CultureInfo.InvariantCulture), (s, v) => s.Mcp.Port = ParseInt(v), 1L, 65535L, null));
             list.Add(Field("Mcp.Path", "string", false, "MCP path.", s => s.Mcp.Path, (s, v) => s.Mcp.Path = v ?? "/mcp", null, null, null));
             list.Add(Field("Mcp.PublicUrl", "string", false, "Internal MCP base URL (no path) handed to harnesses on workers for delegation, for example http://garrison-server:8701.", s => s.Mcp.PublicUrl, (s, v) => s.Mcp.PublicUrl = Empty(v), null, null, null));
+            list.Add(Field("Mcp.InternalPort", "int", false, "Loopback port of the internal MCP endpoint behind the public MCP port. 0 picks a free port at startup.", s => s.Mcp.InternalPort.ToString(CultureInfo.InvariantCulture), (s, v) => s.Mcp.InternalPort = ParseInt(v), 0L, 65535L, null));
+            list.Add(Field("Mcp.SessionIdleTimeoutSeconds", "int", true, "Seconds an MCP session may stay idle before it expires on every replica.", s => s.Mcp.SessionIdleTimeoutSeconds.ToString(CultureInfo.InvariantCulture), (s, v) => s.Mcp.SessionIdleTimeoutSeconds = ParseInt(v), 60L, 604800L, null));
             list.Add(Field("Mcp.MaxToolWaitSeconds", "int", true, "Maximum seconds a synchronous invoke tool waits.", s => s.Mcp.MaxToolWaitSeconds.ToString(CultureInfo.InvariantCulture), (s, v) => s.Mcp.MaxToolWaitSeconds = ParseInt(v), 1L, 600L, null));
             list.Add(Field("Database.Type", "enum", false, "Database provider.", s => s.Database.Type.ToString(), (s, v) => s.Database.Type = Enum.Parse<DatabaseTypeEnum>(v ?? "Sqlite", true), null, null, new List<string>(Enum.GetNames(typeof(DatabaseTypeEnum)))));
             list.Add(Field("Database.Filename", "string", false, "Sqlite database file.", s => s.Database.Filename, (s, v) => s.Database.Filename = v ?? String.Empty, null, null, null));
@@ -398,7 +401,11 @@ namespace Garrison.Server.Services
             list.Add(Field("Database.Username", "string", false, "Database username.", s => s.Database.Username, (s, v) => s.Database.Username = v ?? String.Empty, null, null, null));
             list.Add(Field("Database.Password", "secret", false, "Database password.", s => s.Database.Password, (s, v) => s.Database.Password = v, null, null, null));
             list.Add(Field("Database.Schema", "string", false, "Postgresql schema.", s => s.Database.Schema, (s, v) => s.Database.Schema = Empty(v), null, null, null));
-            list.Add(Field("Database.MaxPoolSize", "int", false, "Connection pool size.", s => s.Database.MaxPoolSize.ToString(CultureInfo.InvariantCulture), (s, v) => s.Database.MaxPoolSize = ParseInt(v), 1L, 1000L, null));
+            list.Add(Field("Database.MaxPoolSize", "int", false, "Maximum pooled connections per replica. Replicas times this must stay below the Postgresql max_connections.", s => s.Database.MaxPoolSize.ToString(CultureInfo.InvariantCulture), (s, v) => s.Database.MaxPoolSize = ParseInt(v), 1L, 1000L, null));
+            list.Add(Field("Database.MinPoolSize", "int", false, "Connections each replica keeps open while idle (Postgresql).", s => s.Database.MinPoolSize.ToString(CultureInfo.InvariantCulture), (s, v) => s.Database.MinPoolSize = ParseInt(v), 0L, 1000L, null));
+            list.Add(Field("Database.ConnectionTimeoutSeconds", "int", false, "Seconds to wait for a pooled connection before failing (Postgresql).", s => s.Database.ConnectionTimeoutSeconds.ToString(CultureInfo.InvariantCulture), (s, v) => s.Database.ConnectionTimeoutSeconds = ParseInt(v), 1L, 600L, null));
+            list.Add(Field("Database.CommandTimeoutSeconds", "int", false, "Seconds one database command may run, 0 for no limit (Postgresql).", s => s.Database.CommandTimeoutSeconds.ToString(CultureInfo.InvariantCulture), (s, v) => s.Database.CommandTimeoutSeconds = ParseInt(v), 0L, 3600L, null));
+            list.Add(Field("Database.ConnectionIdleLifetimeSeconds", "int", false, "Seconds an idle pooled connection is kept before it is closed (Postgresql).", s => s.Database.ConnectionIdleLifetimeSeconds.ToString(CultureInfo.InvariantCulture), (s, v) => s.Database.ConnectionIdleLifetimeSeconds = ParseInt(v), 1L, 3600L, null));
             list.Add(Field("Logging.ConsoleLogging", "bool", false, "Log to the console.", s => Bool(s.Logging.ConsoleLogging), (s, v) => s.Logging.ConsoleLogging = ParseBool(v), null, null, null));
             list.Add(Field("Logging.FileLogging", "bool", false, "Log to a file.", s => Bool(s.Logging.FileLogging), (s, v) => s.Logging.FileLogging = ParseBool(v), null, null, null));
             list.Add(Field("Logging.LogDirectory", "string", false, "Log directory.", s => s.Logging.LogDirectory, (s, v) => s.Logging.LogDirectory = v ?? "logs/", null, null, null));
@@ -409,7 +416,7 @@ namespace Garrison.Server.Services
             list.Add(Field("Auth.TokenLifetimeMinutes", "int", false, "Session token lifetime in minutes.", s => s.Auth.TokenLifetimeMinutes.ToString(CultureInfo.InvariantCulture), (s, v) => s.Auth.TokenLifetimeMinutes = ParseInt(v), 1L, 10080L, null));
             list.Add(Field("Auth.AdminApiKey", "secret", true, "System administrator API key.", s => s.Auth.AdminApiKey, (s, v) => s.Auth.AdminApiKey = v ?? String.Empty, null, null, null));
             list.Add(Field("Auth.SignedRequestSkewSeconds", "int", true, "Allowed clock skew for signed requests.", s => s.Auth.SignedRequestSkewSeconds.ToString(CultureInfo.InvariantCulture), (s, v) => s.Auth.SignedRequestSkewSeconds = ParseInt(v), 10L, 3600L, null));
-            list.Add(Field("Auth.RateLimitPerMinute", "int", true, "Authentication attempts per source IP per minute.", s => s.Auth.RateLimitPerMinute.ToString(CultureInfo.InvariantCulture), (s, v) => s.Auth.RateLimitPerMinute = ParseInt(v), 1L, 100000L, null));
+            list.Add(Field("Auth.RateLimitPerMinute", "int", true, "Authentication attempts per source IP per minute, counted across all replicas.", s => s.Auth.RateLimitPerMinute.ToString(CultureInfo.InvariantCulture), (s, v) => s.Auth.RateLimitPerMinute = ParseInt(v), 1L, 100000L, null));
             list.Add(Field("Security.MasterKey", "secret", false, "Master key for secret encryption.", s => s.Security.MasterKey, (s, v) => s.Security.MasterKey = v ?? String.Empty, null, null, null));
             list.Add(Field("Security.AdminEmail", "string", false, "Seeded administrator email (first boot only).", s => s.Security.AdminEmail, (s, v) => s.Security.AdminEmail = v ?? String.Empty, null, null, null));
             list.Add(Field("Security.AdminPassword", "secret", false, "Seeded administrator password (first boot only).", s => s.Security.AdminPassword, (s, v) => s.Security.AdminPassword = v ?? String.Empty, null, null, null));
@@ -427,6 +434,9 @@ namespace Garrison.Server.Services
             list.Add(Field("Telemetry.OtlpEndpoint", "string", false, "OTLP endpoint.", s => s.Telemetry.OtlpEndpoint, (s, v) => s.Telemetry.OtlpEndpoint = v ?? String.Empty, null, null, null));
             list.Add(Field("Telemetry.ServeMetricsOnServicePort", "bool", true, "Whether GET /metrics is also served on the REST port without authentication, relayed from the Prometheus listener, so kubectl port-forward and in-pod 127.0.0.1 scrapes work.", s => Bool(s.Telemetry.ServeMetricsOnServicePort), (s, v) => s.Telemetry.ServeMetricsOnServicePort = ParseBool(v), null, null, null));
             list.Add(Field("Cluster.ExpectedReplicas", "int", false, "Expected control-plane replicas (above 1 requires Postgresql).", s => s.Cluster.ExpectedReplicas.ToString(CultureInfo.InvariantCulture), (s, v) => s.Cluster.ExpectedReplicas = ParseInt(v), 1L, 1000L, null));
+            list.Add(Field("Cluster.Backplane", "enum", false, "Event backplane between replicas: Auto (PostgresNotify on Postgresql, Local on Sqlite), Local, Polling, or PostgresNotify.", s => s.Cluster.Backplane.ToString(), (s, v) => s.Cluster.Backplane = Enum.Parse<BackplaneModeEnum>(v ?? "Auto", true), null, null, new List<string>(Enum.GetNames(typeof(BackplaneModeEnum)))));
+            list.Add(Field("Cluster.BackplanePollMs", "int", false, "Poll interval of the Polling backplane in milliseconds.", s => s.Cluster.BackplanePollMs.ToString(CultureInfo.InvariantCulture), (s, v) => s.Cluster.BackplanePollMs = ParseInt(v), 50L, 10000L, null));
+            list.Add(Field("Archive.Directory", "string", false, "Directory that receives JSON Lines archives of runs and events before retention deletes them. Empty deletes without archiving.", s => s.Archive.Directory, (s, v) => s.Archive.Directory = Empty(v), null, null, null));
             return list;
         }
 

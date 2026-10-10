@@ -66,6 +66,19 @@ namespace Garrison.Core.Services
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
 
+            // Replicas starting together seed one at a time, so creating a built-in twice cannot race (P10.9).
+            await using (DatabaseLockHandle startupLock = await _Database.AcquireStartupLockAsync(token).ConfigureAwait(false))
+            {
+                return await SeedLockedAsync(options, token).ConfigureAwait(false);
+            }
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private async Task<Tenant> SeedLockedAsync(SeedOptions options, CancellationToken token)
+        {
             await SeedBuiltInRolesAsync(token).ConfigureAwait(false);
 
             Tenant? tenant = await _Database.Tenants.ReadByNameAsync(Constants.DefaultTenantName, token).ConfigureAwait(false);
@@ -118,10 +131,6 @@ namespace Garrison.Core.Services
 
             return tenant;
         }
-
-        #endregion
-
-        #region Private-Methods
 
         private async Task SeedBuiltInRolesAsync(CancellationToken token)
         {

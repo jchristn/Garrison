@@ -1042,6 +1042,7 @@ const tips = {
         Security: '加密主金鑰與初始帳戶。',
         RequestHistory: '是否擷取 API 請求，以及每個本文要保留多少內容。',
         Telemetry: '指標與追蹤資料匯出。',
+        Archive: '保留原則刪除執行和事件之前，將其封存到的位置。',
         Cluster: '預期的控制平面副本數量。',
         Scheduling: '工作節點的租約長度與心跳逾時。',
         Runs: '執行的預設值，以及執行與事件的保留時間。',

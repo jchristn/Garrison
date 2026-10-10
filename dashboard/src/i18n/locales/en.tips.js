@@ -1043,6 +1043,7 @@ const tips = {
         Security: 'Encryption master key and bootstrap accounts.',
         RequestHistory: 'Whether API requests are captured and how much of each body is kept.',
         Telemetry: 'Metrics and tracing export.',
+        Archive: 'Where runs and events are archived before retention deletes them.',
         Cluster: 'How many control-plane replicas are expected.',
         Scheduling: 'Lease lengths and heartbeat timeouts for worker nodes.',
         Runs: 'Run defaults and how long runs and events are retained.',

@@ -56,7 +56,7 @@ namespace Garrison.Server.Settings
         }
 
         /// <summary>
-        /// Authentication attempts allowed per source IP per minute on token routes. Minimum 1, maximum 100000, default 60.
+        /// Authentication attempts allowed per source IP per minute on token routes, counted in the database across all replicas. Minimum 1, maximum 100000, default 60.
         /// </summary>
         public int RateLimitPerMinute
         {

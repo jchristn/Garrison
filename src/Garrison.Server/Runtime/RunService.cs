@@ -26,6 +26,12 @@ namespace Garrison.Server.Runtime
         #region Public-Members
 
         /// <summary>
+        /// Cancelled when the replica starts shutting down; synchronous waits then return the run as it is.
+        /// Default <see cref="CancellationToken.None"/>.
+        /// </summary>
+        public CancellationToken ShutdownToken { get; set; } = CancellationToken.None;
+
+        /// <summary>
         /// Statuses that end a run.
         /// </summary>
         public static readonly HashSet<RunStatusEnum> TerminalStatuses = new HashSet<RunStatusEnum>
@@ -109,15 +115,7 @@ namespace Garrison.Server.Runtime
             if (!String.IsNullOrEmpty(create.IdempotencyKey))
             {
                 Run? existing = await _Database.Runs.ReadByIdempotencyKeyAsync(create.TenantId, create.CallerId, create.IdempotencyKey, token).ConfigureAwait(false);
-                if (existing != null)
-                {
-                    // Same key and same content is a safe retry; the same key with different content is a mistake.
-                    bool sameContent = existing.AgentId == create.Agent.Id && String.Equals(existing.InputText ?? String.Empty, create.Input ?? String.Empty, StringComparison.Ordinal);
-                    if (sameContent) return existing;
-                    string shown = create.IdempotencyKey.StartsWith("a2a:", StringComparison.Ordinal) ? create.IdempotencyKey.Substring(4) : create.IdempotencyKey;
-                    throw new IdempotencyConflictException(shown, existing.Id,
-                        "Idempotency key " + shown + " was already used for run " + existing.Id + " with different content. Use a new key for a new request; resend identical content to get the existing run.");
-                }
+                if (existing != null) return IdempotentRetry(create, existing);
             }
 
             Deployment deployment = await SelectDeploymentAsync(create, token).ConfigureAwait(false);
@@ -194,13 +192,16 @@ namespace Garrison.Server.Runtime
                     activity.SetTag("garrison.run_kind", run.Kind.ToString());
                     if (!String.IsNullOrEmpty(run.ParentRunId)) activity.SetTag("garrison.parent_run_id", run.ParentRunId);
                 }
-                await _Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+                Run stored = await _Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+
+                // A retry with the same key that raced this one (possibly on another replica) created the run first.
+                if (!String.Equals(stored.Id, run.Id, StringComparison.Ordinal)) return IdempotentRetry(create, stored);
             }
 
             _Logging?.Info("[Runs] run " + run.Id + " queued for agent " + run.AgentName + " (" + run.Kind + ", " + run.HarnessType + (String.IsNullOrEmpty(run.ParentRunId) ? String.Empty : ", parent " + run.ParentRunId) + ") " + RunTracing.LogFields(run.Id, run.TraceId));
 
             _Telemetry.Increment("garrison.runs.created", new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("kind", run.Kind.ToString()));
-            _Signals.QueueChanged.Signal();
+            _Signals.NotifyQueue();
             return run;
         }
 
@@ -293,14 +294,28 @@ namespace Garrison.Server.Runtime
         public async Task<Run?> WaitAsync(string tenantId, string runId, int waitSeconds, CancellationToken token = default)
         {
             DateTime deadline = DateTime.UtcNow.AddSeconds(Math.Clamp(waitSeconds, 0, 600));
-            AsyncSignal signal = _Signals.For(runId);
-            while (true)
+            using (RunSignalSubscription signal = _Signals.Subscribe(runId))
             {
-                Run? run = await _Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false);
-                if (run == null || TerminalStatuses.Contains(run.Status)) return run;
-                int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
-                if (remaining <= 0) return run;
-                await signal.WaitAsync(Math.Min(remaining, _Options.EventPollMs * 4), token).ConfigureAwait(false);
+                while (true)
+                {
+                    Run? run = await _Database.Runs.ReadAsync(tenantId, runId, token).ConfigureAwait(false);
+                    if (run == null || TerminalStatuses.Contains(run.Status)) return run;
+                    int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
+                    if (remaining <= 0) return run;
+                    if (ShutdownToken.IsCancellationRequested) return run;
+                    using (CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(token, ShutdownToken))
+                    {
+                        try
+                        {
+                            await signal.WaitAsync(Math.Min(remaining, _Options.EventPollMs * 4), wait.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested && !token.IsCancellationRequested)
+                        {
+                            // The replica is draining: answer with the run as it is; the caller polls it elsewhere.
+                            return run;
+                        }
+                    }
+                }
             }
         }
 
@@ -317,6 +332,17 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private static Run IdempotentRetry(RunCreateContext create, Run existing)
+        {
+            // Same key and same content is a safe retry; the same key with different content is a mistake.
+            bool sameContent = existing.AgentId == create.Agent.Id && String.Equals(existing.InputText ?? String.Empty, create.Input ?? String.Empty, StringComparison.Ordinal);
+            if (sameContent) return existing;
+            string key = create.IdempotencyKey ?? String.Empty;
+            string shown = key.StartsWith("a2a:", StringComparison.Ordinal) ? key.Substring(4) : key;
+            throw new IdempotencyConflictException(shown, existing.Id,
+                "Idempotency key " + shown + " was already used for run " + existing.Id + " with different content. Use a new key for a new request; resend identical content to get the existing run.");
+        }
 
         private async Task<Deployment> SelectDeploymentAsync(RunCreateContext create, CancellationToken token)
         {

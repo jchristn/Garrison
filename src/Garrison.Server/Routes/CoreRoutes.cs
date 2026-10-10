@@ -21,6 +21,7 @@ namespace Garrison.Server.Routes
 
         private readonly ServerContext _Context;
         private readonly AuthRateLimiter _RateLimiter;
+        private readonly int _ExpectedSchemaVersion = Garrison.Core.Database.Ado.SchemaBuilder.LatestVersion;
 
         #endregion
 
@@ -34,7 +35,7 @@ namespace Garrison.Server.Routes
         public CoreRoutes(ServerContext context)
         {
             _Context = context ?? throw new ArgumentNullException(nameof(context));
-            _RateLimiter = new AuthRateLimiter(() => _Context.Settings.Auth.RateLimitPerMinute);
+            _RateLimiter = new AuthRateLimiter(_Context.Database, () => _Context.Settings.Auth.RateLimitPerMinute);
         }
 
         #endregion
@@ -49,7 +50,9 @@ namespace Garrison.Server.Routes
         public void Register(RouteRegistrar routes)
         {
             if (routes == null) throw new ArgumentNullException(nameof(routes));
-            routes.Anonymous(HttpMethod.GET, "/v1.0/api/health", HealthAsync, "Health check", "Health", null, typeof(HealthResponse));
+            routes.Anonymous(HttpMethod.GET, "/v1.0/api/health", HealthAsync, "Readiness: 200 when the database answers, the schema is current, and the replica is not draining; 503 otherwise", "Health", null, typeof(HealthResponse));
+            routes.Anonymous(HttpMethod.GET, "/v1.0/api/health/ready", HealthAsync, "Readiness (same as /v1.0/api/health)", "Health", null, typeof(HealthResponse));
+            routes.Anonymous(HttpMethod.GET, "/v1.0/api/health/live", LiveAsync, "Liveness: 200 while the process runs, including during startup migrations and draining", "Health", null, typeof(HealthResponse));
             routes.Anonymous(HttpMethod.GET, "/metrics", MetricsAsync, "Prometheus metrics in text exposition format, relayed from the metrics listener (404 when Telemetry.ServeMetricsOnServicePort is false, 503 when the listener is off)", "Health");
             routes.Anonymous(HttpMethod.POST, "/v1.0/token", IssueAsync, "Issue a session token from user login or credential keys", "Tokens", typeof(TokenRequest), typeof(TokenResponse));
             routes.Authenticated(HttpMethod.GET, "/v1.0/token", ValidateAsync, "Validate the presented token", "Tokens");
@@ -80,26 +83,53 @@ namespace Garrison.Server.Routes
             await context.Response.Send(scrape.Body, context.Token).ConfigureAwait(false);
         }
 
+        private async Task LiveAsync(HttpContextBase context)
+        {
+            HealthResponse health = new HealthResponse();
+            health.Node = _Context.NodeId;
+            health.Version = Constants.ProductVersion;
+            health.Status = _Context.IsDraining ? "draining" : "alive";
+            health.Database = "unchecked";
+            health.ExpectedSchemaVersion = _ExpectedSchemaVersion;
+            await RouteHelpers.JsonAsync(context, 200, health).ConfigureAwait(false);
+        }
+
         private async Task HealthAsync(HttpContextBase context)
         {
             HealthResponse health = new HealthResponse();
             health.Node = _Context.NodeId;
             health.Version = Constants.ProductVersion;
+            health.ExpectedSchemaVersion = _ExpectedSchemaVersion;
+            health.Backplane = _Context.TryGet<Garrison.Server.Backplane.IEventBackplane>()?.Name;
             try
             {
-                health.Database = await _Context.Database.PingAsync(context.Token).ConfigureAwait(false) ? "ok" : "unreachable";
+                // Reading the applied version doubles as the connectivity check. A replica stays not-ready while the
+                // schema is behind this build (P10.9); a newer schema is fine because migrations only add.
+                // Operators who manage the schema themselves may not keep schema_migrations, so only connectivity counts.
+                if (_Context.Settings.Database.ManageSchema)
+                {
+                    health.SchemaVersion = await _Context.Database.ReadSchemaVersionAsync(context.Token).ConfigureAwait(false);
+                    health.Database = "ok";
+                }
+                else
+                {
+                    health.Database = await _Context.Database.PingAsync(context.Token).ConfigureAwait(false) ? "ok" : "unreachable";
+                }
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
                 health.Database = "unreachable";
             }
-            health.Status = health.Database == "ok" ? "healthy" : "degraded";
+            if (_Context.IsDraining) health.Status = "draining";
+            else if (health.Database != "ok") health.Status = "degraded";
+            else if (_Context.Settings.Database.ManageSchema && health.SchemaVersion < health.ExpectedSchemaVersion) health.Status = "migrating";
+            else health.Status = "healthy";
             await RouteHelpers.JsonAsync(context, health.Status == "healthy" ? 200 : 503, health).ConfigureAwait(false);
         }
 
         private async Task IssueAsync(HttpContextBase context)
         {
-            if (!_RateLimiter.TryAcquire(context.Request.Source.IpAddress))
+            if (!await _RateLimiter.TryAcquireAsync(context.Request.Source.IpAddress, context.Token).ConfigureAwait(false))
             {
                 await RouteHelpers.ErrorAsync(context, 429, "RateLimited", "Too many authentication attempts. Try again in a minute.").ConfigureAwait(false);
                 return;

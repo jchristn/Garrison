@@ -14,6 +14,12 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 - RBAC with built-in and custom roles, permissions over resource types and operations, tenant and resource scoped assignments, explicit deny, credential owner ceilings, effective-permission inspection, and audit records for denials and privileged changes.
 - Settings API that separates node-local file settings from cluster runtime settings stored in the database, with restart-required metadata and a restart endpoint.
 
+- Multiple control-plane replicas behave like one (Phase 10): signed-request nonces, the token rate limit, and MCP sessions are shared through the database; an event backplane (Postgresql LISTEN/NOTIFY, or a polled table) wakes SSE, A2A, invoke, and lease long-poll waiters and invalidates settings and permission caches on every replica; deployment `maxConcurrentRuns` is exact under concurrent claims; idempotent run creation is atomic across replicas; tenant-dedicated node pools are filtered in the claim query. See `docs/SCALING.md`.
+- MCP sessions work on every replica without sticky routing: Garrison serves the public MCP port and relays to Voltaic on a loopback port, replaying a session's handshake on a replica that has not seen it.
+- Migrations and built-in seeding run under a database startup lock, one replica at a time. `GET /v1.0/api/health/live` (always 200 while the process runs) and `GET /v1.0/api/health/ready` (same as `/v1.0/api/health`: 503 while migrating, starting, degraded, or draining) split liveness from readiness.
+- Graceful shutdown drains: readiness turns off, long polls, SSE (`server.draining`), A2A, WebSocket, and synchronous waits end, and in-flight requests get 15 seconds.
+- Connection pool settings (`Database.MinPoolSize`, `ConnectionTimeoutSeconds`, `CommandTimeoutSeconds`, `ConnectionIdleLifetimeSeconds`, and `GARRISON_DB_MAX_POOL_SIZE`), read-path indexes (migration 6), optional JSON Lines archival of runs and events before retention deletes them (`Archive.Directory`), and cluster-wide `garrison_runs_queued` and `garrison_runs_active` gauges.
+
 ### Configuration
 
 - Harness profiles that describe a headless invocation as data, with built-in profiles for Claude Code, Codex, Mux, Gemini CLI, a generic JSON-lines CLI, and a fake harness.
