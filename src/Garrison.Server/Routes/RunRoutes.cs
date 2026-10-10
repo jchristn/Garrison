@@ -29,6 +29,7 @@ namespace Garrison.Server.Routes
         private readonly RuntimeOptions _Options;
         private readonly RunSignals _Signals;
         private readonly AgentInvoker _Invoker;
+        private readonly BlockedRunService _Blocked;
         private RouteRegistrar? _Routes = null;
 
         #endregion
@@ -44,9 +45,11 @@ namespace Garrison.Server.Routes
         /// <param name="options">Runtime options.</param>
         /// <param name="signals">Run signals.</param>
         /// <param name="invoker">Agent invoker.</param>
+        /// <param name="blocked">Blocked-run evaluator (fills blockedReason on reads).</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public RunRoutes(ServerContext context, RunService runs, RunEventService events, RuntimeOptions options, RunSignals signals, AgentInvoker invoker)
+        public RunRoutes(ServerContext context, RunService runs, RunEventService events, RuntimeOptions options, RunSignals signals, AgentInvoker invoker, BlockedRunService blocked)
         {
+            _Blocked = blocked ?? throw new ArgumentNullException(nameof(blocked));
             _Invoker = invoker ?? throw new ArgumentNullException(nameof(invoker));
             _Context = context ?? throw new ArgumentNullException(nameof(context));
             _Runs = runs ?? throw new ArgumentNullException(nameof(runs));
@@ -93,6 +96,7 @@ namespace Garrison.Server.Routes
             string agentId = RouteHelpers.Param(context, "agentId") ?? String.Empty;
             InvokeRequest request = RouteHelpers.Body<InvokeRequest>(context) ?? new InvokeRequest();
             Agent agent = await ResolveAgentAsync(tenantId, agentId, null, context).ConfigureAwait(false);
+            if (agent.Id != agentId && _Routes != null && !await _Routes.RequireAsync(context, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id).ConfigureAwait(false)) return;
             await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, RunKindEnum.Invoke).ConfigureAwait(false);
         }
 
@@ -130,6 +134,7 @@ namespace Garrison.Server.Routes
             options.Wait = RouteHelpers.QueryBool(context, "wait") ?? wait;
             options.WaitSeconds = RouteHelpers.QueryInt(context, "waitSeconds") ?? waitSeconds;
             Run run = await _Invoker.InvokeAsync(RouteHelpers.Context(context), tenantId, agent, options, context.Token).ConfigureAwait(false);
+            await _Blocked.AnnotateAsync(run, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, RunService.IsTerminal(run.Status) ? 200 : 202, run).ConfigureAwait(false);
         }
 
@@ -153,12 +158,14 @@ namespace Garrison.Server.Routes
             filter.MaxResults = query.MaxResults;
             filter.Ordering = query.Ordering;
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false);
+            await _Blocked.AnnotateManyAsync(page.Objects, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, page).ConfigureAwait(false);
         }
 
         private async Task ReadAsync(HttpContextBase context)
         {
             Run run = await RequireRunAsync(context).ConfigureAwait(false);
+            await _Blocked.AnnotateAsync(run, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, run).ConfigureAwait(false);
         }
 
@@ -166,6 +173,7 @@ namespace Garrison.Server.Routes
         {
             Run run = await RequireRunAsync(context).ConfigureAwait(false);
             Run updated = await _Runs.CancelAsync(run, context.Token).ConfigureAwait(false);
+            await _Blocked.AnnotateAsync(updated, context.Token).ConfigureAwait(false);
             await _Context.Audit.WriteAsync(RouteHelpers.Context(context), AuditEventTypeEnum.RunCancelled, "Run", run.Id, "Cancellation requested.", run.TenantId, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, updated).ConfigureAwait(false);
         }
@@ -178,6 +186,7 @@ namespace Garrison.Server.Routes
             RunCreateContext caller = new RunCreateContext();
             ApplyCaller(ctx, caller);
             Run retried = await _Runs.RetryAsync(run, caller.CallerType, caller.CallerId, caller.CallerName, context.Token).ConfigureAwait(false);
+            await _Blocked.AnnotateAsync(retried, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 201, retried).ConfigureAwait(false);
         }
 
@@ -247,7 +256,9 @@ namespace Garrison.Server.Routes
             filter.ParentRunId = run.Id;
             filter.MaxResults = 1000;
             filter.Ordering = EnumerationOrderEnum.CreatedAscending;
-            await RouteHelpers.JsonAsync(context, 200, await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            EnumerationResult<Run> children = await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false);
+            await _Blocked.AnnotateManyAsync(children.Objects, context.Token).ConfigureAwait(false);
+            await RouteHelpers.JsonAsync(context, 200, children).ConfigureAwait(false);
         }
 
         private async Task DeleteAsync(HttpContextBase context)

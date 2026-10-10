@@ -9,6 +9,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
+    using Garrison.Server.Runtime;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -19,6 +20,7 @@ namespace Garrison.Server.Routes
         #region Private-Members
 
         private readonly ServerContext _Context;
+        private readonly BlockedRunService _Blocked;
 
         #endregion
 
@@ -28,10 +30,12 @@ namespace Garrison.Server.Routes
         /// Instantiate.
         /// </summary>
         /// <param name="context">Server context.</param>
-        /// <exception cref="ArgumentNullException">Thrown when context is null.</exception>
-        public OverviewRoutes(ServerContext context)
+        /// <param name="blocked">Blocked-run evaluator.</param>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        public OverviewRoutes(ServerContext context, BlockedRunService blocked)
         {
             _Context = context ?? throw new ArgumentNullException(nameof(context));
+            _Blocked = blocked ?? throw new ArgumentNullException(nameof(blocked));
         }
 
         #endregion
@@ -68,6 +72,7 @@ namespace Garrison.Server.Routes
 
             List<StatusCount> active = await _Context.Database.Runs.CountByStatusAsync(tenantId, null, context.Token).ConfigureAwait(false);
             overview.Queued = active.Where(s => s.Status == RunStatusEnum.Queued.ToString()).Sum(s => s.Count);
+            overview.BlockedRuns = overview.Queued > 0 ? await _Blocked.CountBlockedAsync(tenantId, context.Token).ConfigureAwait(false) : 0;
             overview.Active = active.Where(s => s.Status == RunStatusEnum.Leased.ToString() || s.Status == RunStatusEnum.Running.ToString() || s.Status == RunStatusEnum.Cancelling.ToString()).Sum(s => s.Count);
 
             EnumerationQuery nodesQuery = new EnumerationQuery();

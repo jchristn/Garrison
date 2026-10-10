@@ -2,6 +2,7 @@ namespace Garrison.Server.Protocols
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json.Serialization;
     using Garrison.Core.Enums;
 
     /// <summary>
@@ -28,6 +29,13 @@ namespace Garrison.Server.Protocols
         /// Outcome code.
         /// </summary>
         public string Outcome { get; set; } = String.Empty;
+
+        /// <summary>
+        /// Why the queued run cannot be handed to any worker right now (NoReadyWorker, NoCapableWorker, or
+        /// NoMatchingPool), or null when it is not Queued or some Ready worker can run it. Computed on read.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? BlockedReason { get; set; } = null;
 
         /// <summary>
         /// Whether the run finished.

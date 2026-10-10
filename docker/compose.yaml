@@ -92,9 +92,13 @@ services:
       GARRISON_DEFAULT_SECRET_KEY: '${GARRISON_DEFAULT_SECRET_KEY:-secret_garrison_default_change_me}'
       GARRISON_NODE_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:-access_garrison_node}'
       GARRISON_NODE_SECRET_KEY: '${GARRISON_NODE_SECRET_KEY:-secret_garrison_node_change_me}'
-      # Agents on the workers call back into Garrison (delegation) through these, so they use the service name.
+      # Internal URLs: agents on the workers call back into Garrison (delegation) through these, so they use the
+      # service name. They are never shown in A2A agent cards.
       GARRISON_MCP_PUBLIC_URL: 'http://garrison-server:8701'
       GARRISON_PUBLIC_BASE_URL: 'http://garrison-server:8700'
+      # External URL: what A2A agent cards and server info advertise to people and clients outside the Compose
+      # network. Defaults to the REST port published on the host.
+      GARRISON_EXTERNAL_BASE_URL: '${GARRISON_EXTERNAL_BASE_URL:-http://127.0.0.1:${GARRISON_REST_PORT:-8700}}'
       GARRISON_EXPECTED_REPLICAS: '1'
     volumes:
       - ./server/garrison.json:/etc/garrison/garrison.json:ro

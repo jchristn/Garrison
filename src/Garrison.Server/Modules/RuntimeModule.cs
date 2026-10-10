@@ -39,6 +39,7 @@ namespace Garrison.Server.Modules
         private AgentInvoker? _Invoker = null;
         private LeaderElectionService? _Leader = null;
         private MaintenanceService? _Maintenance = null;
+        private BlockedRunService? _Blocked = null;
         private CancellationTokenSource? _SettingsCts = null;
         private Task? _SettingsLoop = null;
 
@@ -61,7 +62,9 @@ namespace Garrison.Server.Modules
             _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation);
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
             _Leader = new LeaderElectionService(context.Database, _Options, context.Logging, context.NodeId);
+            _Blocked = new BlockedRunService(context.Database);
             _Maintenance = new MaintenanceService(context.Database, _Leader, _Signals, _Options, context.Telemetry, context.Logging);
+            _Maintenance.BlockedRuns = _Blocked;
 
             context.Register(_Options);
             context.Register(_Signals);
@@ -74,6 +77,7 @@ namespace Garrison.Server.Modules
             context.Register(_Scheduler);
             context.Register<ILeaderState>(_Leader);
             context.Register(_Maintenance);
+            context.Register(_Blocked);
             return Task.CompletedTask;
         }
 
@@ -82,13 +86,13 @@ namespace Garrison.Server.Modules
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (routes == null) throw new ArgumentNullException(nameof(routes));
-            new RunRoutes(context, _Runs!, _Events!, _Options!, _Signals!, _Invoker!).Register(routes);
+            new RunRoutes(context, _Runs!, _Events!, _Options!, _Signals!, _Invoker!, _Blocked!).Register(routes);
             new AnalyticsRoutes(_Analytics!).Register(routes);
             new NodeProtocolRoutes(context, _Nodes!, _Scheduler!, _Events!).Register(routes);
             new NodeRoutes(context).Register(routes);
-            new OverviewRoutes(context).Register(routes);
+            new OverviewRoutes(context, _Blocked!).Register(routes);
             WatsonWebserver.Webserver server = context.Get<WatsonWebserver.Webserver>();
-            Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!);
+            Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
             server.WebSocket("/v1.0/ws", live.HandleAsync);
         }
 
@@ -147,6 +151,7 @@ namespace Garrison.Server.Modules
             _Options.NodeHeartbeatTimeoutMs = cluster.GetInt("Scheduling.NodeHeartbeatTimeoutMs");
             _Options.EventPollMs = cluster.GetInt("Scheduling.EventPollMs");
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
+            _Options.FailBlockedAfterSeconds = cluster.GetInt("Runtime.FailBlockedAfterSeconds");
         }
 
         private async Task RefreshLoopAsync(ClusterSettingsService cluster, CancellationToken token)

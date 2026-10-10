@@ -749,6 +749,72 @@ namespace Garrison.Core.Database.Ado
                 token).ConfigureAwait(false);
         }
 
+        /// <inheritdoc />
+        public async Task<List<Run>> ListQueuedAsync(string? tenantId, int limit, CancellationToken token = default)
+        {
+            bool scoped = !String.IsNullOrEmpty(tenantId);
+            List<Run> runs = await _Driver.QueryAsync(
+                "SELECT * FROM " + _Table + " WHERE status = 'Queued'" + (scoped ? " AND tenantid = @tenantid" : String.Empty) + " ORDER BY createdutc ASC" + _Driver.Dialect.LimitOffsetClause() + ";",
+                command =>
+                {
+                    if (scoped) AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                    AdoDatabaseDriver.Add(command, "max", Math.Clamp(limit, 1, 100000));
+                    AdoDatabaseDriver.Add(command, "skip", 0);
+                },
+                Map,
+                token).ConfigureAwait(false);
+            if (runs.Count == 0) return runs;
+
+            List<RunRequirement> requirements = await _Driver.QueryAsync(
+                "SELECT q.* FROM " + _RequirementsTable + " q INNER JOIN " + _Table + " r ON r.id = q.runid WHERE r.status = 'Queued'" + (scoped ? " AND r.tenantid = @tenantid" : String.Empty) + " ORDER BY q.id ASC;",
+                command =>
+                {
+                    if (scoped) AdoDatabaseDriver.Add(command, "tenantid", tenantId);
+                },
+                MapRequirements,
+                token).ConfigureAwait(false);
+
+            Dictionary<string, Run> byId = new Dictionary<string, Run>(StringComparer.Ordinal);
+            foreach (Run run in runs) byId[run.Id] = run;
+            foreach (RunRequirement requirement in requirements)
+            {
+                if (byId.TryGetValue(requirement.RunId, out Run? owner)) owner.Requirements.Add(requirement);
+            }
+            return runs;
+        }
+
+        /// <inheritdoc />
+        public async Task LoadRequirementsAsync(List<Run> runs, CancellationToken token = default)
+        {
+            if (runs == null) throw new ArgumentNullException(nameof(runs));
+            Dictionary<string, Run> byId = new Dictionary<string, Run>(StringComparer.Ordinal);
+            foreach (Run run in runs)
+            {
+                if (run == null) continue;
+                run.Requirements = new List<RunRequirement>();
+                byId[run.Id] = run;
+            }
+            List<string> ids = new List<string>(byId.Keys);
+            for (int offset = 0; offset < ids.Count; offset += 500)
+            {
+                List<string> chunk = ids.GetRange(offset, Math.Min(500, ids.Count - offset));
+                List<string> names = new List<string>();
+                for (int i = 0; i < chunk.Count; i++) names.Add("@r" + i);
+                List<RunRequirement> requirements = await _Driver.QueryAsync(
+                    "SELECT * FROM " + _RequirementsTable + " WHERE runid IN (" + String.Join(", ", names) + ") ORDER BY id ASC;",
+                    command =>
+                    {
+                        for (int i = 0; i < chunk.Count; i++) AdoDatabaseDriver.Add(command, "r" + i, chunk[i]);
+                    },
+                    MapRequirements,
+                    token).ConfigureAwait(false);
+                foreach (RunRequirement requirement in requirements)
+                {
+                    if (byId.TryGetValue(requirement.RunId, out Run? owner)) owner.Requirements.Add(requirement);
+                }
+            }
+        }
+
         #endregion
 
         #region Private-Methods

@@ -60,6 +60,8 @@ The stream ends after `run.completed`. `Runs.Events` polls and `Runs.WaitForComp
 - `OutputTokensPerSecond` (`*float64`).
 - `ReasoningTokens`, `ToolCallCount` (`int64`, default 0), alongside `InputTokens`, `OutputTokens`, `CachedTokens`, and `CostUSD`.
 
+`Run.BlockedReason` (`*string`) is computed by the server when a run is read. It is nil unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector). The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
+
 ## Run analytics
 
 `client.Analytics.Runs(ctx, garrison.AnalyticsQuery{...})` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns a `*garrison.RunAnalytics` with `Totals` and one or more `Series`, each holding time `Buckets` (`StartUTC` plus the same metrics as `Totals`). Query fields are optional: `From` and `To` (ISO 8601 UTC), `Interval` (`minute`, `hour`, `day`, `week`, or `auto`), `AgentID`, `HarnessType`, `DeploymentID`, `Model` (served model; `unknown` matches runs without a recorded model), and `GroupBy` (`none`, `agent`, `harness`, `model`, or `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-4-5`) and its label is `Harness / model`. `BucketSeconds` in the response is the authoritative bucket size.

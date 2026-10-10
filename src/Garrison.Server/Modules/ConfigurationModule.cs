@@ -52,7 +52,7 @@ namespace Garrison.Server.Modules
             options.ApiBaseUrl = ApiBaseUrl(context);
             _Compiler = new InvocationCompiler(context.Database, context.Cipher, options);
             _Manifests = new ManifestService(context.Database, context.Cipher);
-            _Cards = new AgentCardService(context.Database, () => ApiBaseUrl(context));
+            _Cards = new AgentCardService(context.Database, () => ExternalUrls.RestBaseUrl(context, null));
 
             context.Register(_Compiler);
             context.Register(_Manifests);
@@ -94,9 +94,9 @@ namespace Garrison.Server.Modules
 
         private static string ApiBaseUrl(ServerContext context)
         {
-            if (!String.IsNullOrWhiteSpace(context.Settings.Rest.PublicBaseUrl)) return context.Settings.Rest.PublicBaseUrl!.TrimEnd('/');
-            string host = context.Settings.Rest.Hostname == "*" || context.Settings.Rest.Hostname == "0.0.0.0" ? "127.0.0.1" : context.Settings.Rest.Hostname;
-            return (context.Settings.Rest.Ssl ? "https://" : "http://") + host + ":" + context.Settings.Rest.Port;
+            // Internal URL handed to runs. Rest.PublicBaseUrl is the internal setting; Rest.ExternalBaseUrl is for people.
+            if (!String.IsNullOrWhiteSpace(context.Settings.Rest.PublicBaseUrl)) return context.Settings.Rest.PublicBaseUrl!.Trim().TrimEnd('/');
+            return ExternalUrls.BindBaseUrl(context);
         }
 
         #endregion

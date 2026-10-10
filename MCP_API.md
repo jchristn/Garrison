@@ -10,7 +10,7 @@ The server speaks MCP streamable HTTP (protocol version `2025-06-18`) on its own
 | `Mcp.Hostname` | `*` | Interface to bind |
 | `Mcp.Port` | `8701` | Listener port |
 | `Mcp.Path` | `/mcp` | Endpoint path |
-| `Mcp.PublicUrl` | none | Base URL workers use to reach this server, for example `http://garrison-server:8701`. When unset, runs are pointed at `http://127.0.0.1:<Mcp.Port>`, which only works when the worker shares the host. |
+| `Mcp.PublicUrl` | none | Internal base URL workers use to reach this server, for example `http://garrison-server:8701`. It is handed to runs, not shown to outside clients. When unset, runs are pointed at `http://127.0.0.1:<Mcp.Port>`, which only works when the worker shares the host. |
 | `Mcp.MaxMessageSize` | `16777216` | Largest accepted message in bytes |
 | `Mcp.MaxToolWaitSeconds` | `90` | Upper bound for `waitSeconds` on `garrison_invoke_agent` |
 
@@ -84,6 +84,7 @@ A successful call returns one text content item holding a JSON object. The run t
   "agent": "docs-echo",
   "status": "Succeeded",
   "outcome": "Succeeded",
+  "blockedReason": null,
   "finished": true,
   "result": "Echo: Hello from MCP",
   "inputTokens": 12,
@@ -106,6 +107,7 @@ A successful call returns one text content item holding a JSON object. The run t
 |---|---|
 | `runId`, `agent` | The run and the agent's name |
 | `status`, `outcome` | Run status and, when finished, the outcome (see `REST_API.md`) |
+| `blockedReason` | Always present. `null` unless the run is `Queued` and no Ready worker can run it, in which case it is `NoReadyWorker`, `NoCapableWorker`, or `NoMatchingPool` (see "Blocked runs" in `REST_API.md`). Computed when the summary is built |
 | `finished` | Whether the run reached a terminal status |
 | `result` | The final text, when finished |
 | `structuredOutputJson` | Structured output as a JSON string, when the agent defines an output schema |
@@ -117,7 +119,7 @@ A successful call returns one text content item holding a JSON object. The run t
 
 `garrison_list_agents` returns `{"agents":[...],"totalRecords":n}`, where each agent has `id`, `name`, `description`, `inputMode`, and `skills`. `garrison_get_agent` returns one such agent, adding `displayName`, `inputSchemaJson`, and `outputSchemaJson` when they are set. `garrison_list_runs` returns `{"runs":[...],"totalRecords":n}` of run summaries. `garrison_get_run_events` returns the same body as `GET .../runs/{id}/events`, without the raw harness output.
 
-When `garrison_invoke_agent` stops waiting before the run finishes, the summary has `finished: false` and the current status. Follow it with `garrison_get_run` or `garrison_get_run_events`.
+When `garrison_invoke_agent` stops waiting before the run finishes, the summary has `finished: false` and the current status. Follow it with `garrison_get_run` or `garrison_get_run_events`. If `blockedReason` is not null, no worker can take the run yet; waiting longer only helps once a suitable worker registers.
 
 ### Errors
 

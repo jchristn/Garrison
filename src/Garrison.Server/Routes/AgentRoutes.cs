@@ -21,6 +21,7 @@ namespace Garrison.Server.Routes
 
         private readonly ServerContext _Server;
         private readonly AgentCardService _Cards;
+        private RouteRegistrar? _Routes = null;
         private static readonly string _Base = "/v1.0/api/tenants/{tenantId}/agents";
 
         #endregion
@@ -47,15 +48,17 @@ namespace Garrison.Server.Routes
         /// Register routes.
         /// </summary>
         /// <param name="routes">Registrar.</param>
+        /// <exception cref="ArgumentNullException">Thrown when routes is null.</exception>
         public void Register(RouteRegistrar routes)
         {
+            _Routes = routes ?? throw new ArgumentNullException(nameof(routes));
             routes.Scoped(HttpMethod.GET, _Base, ResourceTypeEnum.Agent, OperationTypeEnum.Read, ListAsync, "List agents", "Agents", null, typeof(EnumerationResult<Agent>));
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.Agent, OperationTypeEnum.Create, CreateAsync, "Create an agent", "Agents", typeof(Agent), typeof(Agent));
             routes.Scoped(HttpMethod.POST, _Base + "/register", ResourceTypeEnum.Agent, OperationTypeEnum.Create, RegisterAsync, "Self-register an agent (idempotent by name)", "Agents", typeof(Agent), typeof(Agent));
-            routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Read, ReadAsync, "Read an agent", "Agents", null, typeof(Agent));
-            routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Update, UpdateAsync, "Update an agent", "Agents", typeof(Agent), typeof(Agent));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Delete, DeleteAsync, "Delete an agent and its deployments", "Agents", null, typeof(DeleteResponse));
-            routes.Scoped(HttpMethod.GET, _Base + "/{id}/card", ResourceTypeEnum.Agent, OperationTypeEnum.Read, CardAsync, "Read the agent's A2A agent card", "Agents", null, typeof(AgentCard));
+            routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Read, ReadAsync, "Read an agent by identifier or name", "Agents", null, typeof(Agent));
+            routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Update, UpdateAsync, "Update an agent by identifier or name", "Agents", typeof(Agent), typeof(Agent));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Delete, DeleteAsync, "Delete an agent (by identifier or name) and its deployments", "Agents", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.GET, _Base + "/{id}/card", ResourceTypeEnum.Agent, OperationTypeEnum.Read, CardAsync, "Read the agent's A2A agent card (by identifier or name)", "Agents", null, typeof(AgentCard));
         }
 
         #endregion
@@ -110,13 +113,16 @@ namespace Garrison.Server.Routes
 
         private async Task ReadAsync(HttpContextBase http)
         {
-            await RouteHelpers.JsonAsync(http, 200, await LoadAsync(http).ConfigureAwait(false)).ConfigureAwait(false);
+            Agent? agent = await LoadAsync(http, OperationTypeEnum.Read).ConfigureAwait(false);
+            if (agent == null) return;
+            await RouteHelpers.JsonAsync(http, 200, agent).ConfigureAwait(false);
         }
 
         private async Task UpdateAsync(HttpContextBase http)
         {
             string tenantId = RouteHelpers.Tenant(http);
-            Agent existing = await LoadAsync(http).ConfigureAwait(false);
+            Agent? existing = await LoadAsync(http, OperationTypeEnum.Update).ConfigureAwait(false);
+            if (existing == null) return;
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Agent " + existing.Name);
             Agent agent = RouteHelpers.RequiredBody<Agent>(http);
             agent.Id = existing.Id;
@@ -134,7 +140,8 @@ namespace Garrison.Server.Routes
         private async Task DeleteAsync(HttpContextBase http)
         {
             string tenantId = RouteHelpers.Tenant(http);
-            Agent existing = await LoadAsync(http).ConfigureAwait(false);
+            Agent? existing = await LoadAsync(http, OperationTypeEnum.Delete).ConfigureAwait(false);
+            if (existing == null) return;
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Agent " + existing.Name);
             DeleteResponse response = new DeleteResponse();
             List<Deployment> deployments = await _Server.Database.Deployments.ListByAgentAsync(tenantId, existing.Id, http.Token).ConfigureAwait(false);
@@ -149,14 +156,23 @@ namespace Garrison.Server.Routes
 
         private async Task CardAsync(HttpContextBase http)
         {
-            Agent agent = await LoadAsync(http).ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, await _Cards.BuildCardAsync(RouteHelpers.Tenant(http), agent, http.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            Agent? agent = await LoadAsync(http, OperationTypeEnum.Read).ConfigureAwait(false);
+            if (agent == null) return;
+            string baseUrl = ExternalUrls.RestBaseUrl(_Server, http);
+            await RouteHelpers.JsonAsync(http, 200, await _Cards.BuildCardAsync(RouteHelpers.Tenant(http), agent, baseUrl, http.Token).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
-        private async Task<Agent> LoadAsync(HttpContextBase http)
+        private async Task<Agent?> LoadAsync(HttpContextBase http, OperationTypeEnum operation)
         {
-            Agent? agent = await _Server.Database.Agents.ReadAsync(RouteHelpers.Tenant(http), RouteHelpers.Param(http, "id")!, http.Token).ConfigureAwait(false);
-            return agent ?? throw new NotFoundException("Agent not found.");
+            string tenantId = RouteHelpers.Tenant(http);
+            string idOrName = RouteHelpers.Param(http, "id") ?? String.Empty;
+            Agent? agent = await _Server.Database.Agents.ReadAsync(tenantId, idOrName, http.Token).ConfigureAwait(false);
+            if (agent == null && !String.IsNullOrEmpty(idOrName)) agent = await _Server.Database.Agents.ReadByNameAsync(tenantId, idOrName, http.Token).ConfigureAwait(false);
+            if (agent == null) throw new NotFoundException("Agent " + idOrName + " not found.");
+
+            // Resolved by name: the route was authorized against the name, so check resource-scoped grants against the ID.
+            if (agent.Id != idOrName && _Routes != null && !await _Routes.RequireAsync(http, tenantId, ResourceTypeEnum.Agent, operation, agent.Id).ConfigureAwait(false)) return null;
+            return agent;
         }
 
         #endregion

@@ -122,6 +122,9 @@ spec:
                 secretKeyRef:
                   name: garrison-node-credential
                   key: secret-key
+            # Internal URLs handed to runs so harnesses on workers can call back (delegation). Never shown in A2A
+            # agent cards. Cards and server info use GARRISON_EXTERNAL_BASE_URL when set (see the production overlay)
+            # and otherwise the Host header of each request, so port-forwards and ingresses both advertise correctly.
             - name: GARRISON_MCP_PUBLIC_URL
               value: http://garrison-server.garrison.svc.cluster.local:8701
             - name: GARRISON_PUBLIC_BASE_URL

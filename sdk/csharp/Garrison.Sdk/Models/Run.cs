@@ -363,6 +363,12 @@ namespace Garrison.Sdk.Models
         public long LastEventSequence { get; set; } = 0;
 
         /// <summary>
+        /// Read-only, computed by the server on read: why this queued run cannot be handed to any worker right now, or
+        /// null when the run is not Queued or some Ready worker could run it. Never sent to the server.
+        /// </summary>
+        public RunBlockedReasonEnum? BlockedReason { get; set; } = null;
+
+        /// <summary>
         /// Whether the record is active.
         /// </summary>
         public bool Active { get; set; } = true;

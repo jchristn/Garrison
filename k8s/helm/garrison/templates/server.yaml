@@ -69,6 +69,10 @@ spec:
               value: {{ default (printf "http://%s:8701" (include "garrison.serverHost" .)) .Values.server.mcpPublicUrl | quote }}
             - name: GARRISON_PUBLIC_BASE_URL
               value: {{ default (printf "http://%s:8700" (include "garrison.serverHost" .)) .Values.server.publicBaseUrl | quote }}
+            {{- with .Values.server.externalBaseUrl }}
+            - name: GARRISON_EXTERNAL_BASE_URL
+              value: {{ . | quote }}
+            {{- end }}
             - { name: GARRISON_EXPECTED_REPLICAS, value: {{ .Values.server.expectedReplicas | quote }} }
             {{- with .Values.server.extraEnv }}
             {{- toYaml . | nindent 12 }}

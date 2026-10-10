@@ -41,6 +41,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "mcp-tools", "MCP list and invoke through the Voltaic client (" + provider + ")", ct => McpAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "a2a", "A2A card, send, and stream through the Voltaic client (" + provider + ")", ct => A2AAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "delegation", "Run tokens delegate to allowed agents only (" + provider + ")", ct => DelegationAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "blocked-runs", "Runs no worker can take report blockedReason over REST and MCP, count on the overview, get a warning event, and fail after the configured wait (" + provider + ")", ct => BlockedRunsAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "End to end (" + provider + ")", cases));
             }
             return suites;
@@ -315,6 +316,79 @@ namespace Test.Shared.Suites
                     TestResponse admin403 = await HttpTestHelpers.SendAsync(asRun, HttpMethod.Get, "/v1.0/api/tenants/" + tenant + "/users", null, token).ConfigureAwait(false);
                     Assert.True(admin403.StatusCode == 403 || admin403.StatusCode == 404, "Run tokens must not reach administration (got " + admin403.StatusCode + ").");
                 }
+            }
+        }
+
+        private static async Task BlockedRunsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                string tenant = cluster.Server.TenantId;
+                string runs = "/v1.0/api/tenants/" + tenant + "/runs";
+                Garrison.Server.Runtime.BlockedRunService blocked = cluster.Server.Server.Context.Get<Garrison.Server.Runtime.BlockedRunService>();
+                blocked.Invalidate();
+
+                Agent echo = await cluster.CreateAgentAsync("blocked-echo", "builtin/fake", null, token).ConfigureAwait(false);
+                Agent coder = await cluster.CreateAgentAsync("blocked-coder", "builtin/codex", null, token).ConfigureAwait(false);
+                Agent pinned = await cluster.CreateAgentAsync("blocked-pinned", "builtin/fake", null, token, d => d.NodeSelector.Add(new DeploymentNodeSelector { Key = "zone", Value = "mars" })).ConfigureAwait(false);
+
+                Run done = await InvokeAsync(cluster, echo, "Runs fine", true, token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.Succeeded, done.Status, "capable run succeeds");
+                TestResponse doneRaw = await HttpTestHelpers.SendAsync(cluster.Server.AdminClient, HttpMethod.Get, runs + "/" + done.Id, null, token).ConfigureAwait(false);
+                Assert.True(doneRaw.Body.Contains("\"blockedReason\":null", StringComparison.Ordinal), "blockedReason is always present and null for finished runs: " + doneRaw.Body);
+
+                Run codex = await InvokeAsync(cluster, coder, "Nobody runs Codex here", false, token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.Queued, codex.Status, "Codex run waits");
+                Assert.Equal(RunBlockedReasonEnum.NoCapableWorker, codex.BlockedReason ?? (RunBlockedReasonEnum)(-1), "invoke response carries blockedReason");
+                Run pinnedRun = await InvokeAsync(cluster, pinned, "Nobody is on Mars", false, token).ConfigureAwait(false);
+                Assert.Equal(RunBlockedReasonEnum.NoMatchingPool, pinnedRun.BlockedReason ?? (RunBlockedReasonEnum)(-1), "node selector mismatch");
+
+                TestResponse raw = await HttpTestHelpers.SendAsync(cluster.Server.AdminClient, HttpMethod.Get, runs + "/" + codex.Id, null, token).ConfigureAwait(false);
+                Assert.True(raw.Body.Contains("\"blockedReason\":\"NoCapableWorker\"", StringComparison.Ordinal), "REST read: " + raw.Body);
+                Garrison.Core.Enumeration.EnumerationResult<Run> listed = await HttpTestHelpers.SendAsync<Garrison.Core.Enumeration.EnumerationResult<Run>>(cluster.Server.AdminClient, HttpMethod.Get, runs + "?status=Queued", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(RunBlockedReasonEnum.NoCapableWorker, listed.Objects.Single(r => r.Id == codex.Id).BlockedReason ?? (RunBlockedReasonEnum)(-1), "REST list");
+                Assert.Equal(RunBlockedReasonEnum.NoMatchingPool, listed.Objects.Single(r => r.Id == pinnedRun.Id).BlockedReason ?? (RunBlockedReasonEnum)(-1), "REST list pinned");
+
+                Garrison.Core.Responses.OverviewResponse overview = await HttpTestHelpers.SendAsync<Garrison.Core.Responses.OverviewResponse>(cluster.Server.AdminClient, HttpMethod.Get, "/v1.0/api/tenants/" + tenant + "/overview", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(2L, overview.BlockedRuns, "overview blockedRuns");
+                Assert.Equal(2L, overview.Queued, "overview queued");
+
+                using (McpHttpClient client = new McpHttpClient())
+                {
+                    client.SetRequestHeader("x-api-key", cluster.Server.Settings.Auth.AdminApiKey);
+                    client.SetRequestHeader("x-tenant-id", tenant);
+                    await client.ConnectStreamableAsync(cluster.Server.McpUrl, "/mcp").ConfigureAwait(false);
+                    JsonElement got = await client.CallAsync<JsonElement>("tools/call", new { name = "garrison_get_run", arguments = new { tenantId = tenant, runId = codex.Id } }, 60000).ConfigureAwait(false);
+                    Garrison.Server.Protocols.McpRunSummary summary = Serializer.Deserialize<Garrison.Server.Protocols.McpRunSummary>(ToolText(got)) ?? throw new TestAssertionException("Empty MCP summary.");
+                    Assert.Equal("NoCapableWorker", summary.BlockedReason, "MCP run summary blockedReason");
+                }
+
+                Garrison.Server.Runtime.MaintenanceService maintenance = cluster.Server.Server.Context.Get<Garrison.Server.Runtime.MaintenanceService>();
+                await maintenance.RunOnceAsync(token).ConfigureAwait(false);
+                await maintenance.RunOnceAsync(token).ConfigureAwait(false);
+                Garrison.Core.Responses.RunEventsResponse events = await HttpTestHelpers.SendAsync<Garrison.Core.Responses.RunEventsResponse>(cluster.Server.AdminClient, HttpMethod.Get, runs + "/" + codex.Id + "/events", null, 200, token).ConfigureAwait(false);
+                List<RunEvent> warnings = events.Events.Where(e => e.EventType == RunEventTypeEnum.Warning).ToList();
+                Assert.Equal(1, warnings.Count, "exactly one warning event");
+                Assert.True((warnings[0].Text ?? String.Empty).Contains("Codex harness", StringComparison.Ordinal), "warning text: " + warnings[0].Text);
+
+                Garrison.Core.Requests.SettingsUpdateRequest update = new Garrison.Core.Requests.SettingsUpdateRequest();
+                update.Values.Add(new Garrison.Core.Requests.SettingValue { Path = "Runtime.FailBlockedAfterSeconds", Value = "1" });
+                await HttpTestHelpers.SendAsync<Garrison.Core.Responses.SettingsSaveResponse>(cluster.Server.AdminClient, HttpMethod.Put, "/v1.0/api/settings", update, 200, token).ConfigureAwait(false);
+                Garrison.Server.Runtime.RuntimeOptions options = cluster.Server.Server.Context.Get<Garrison.Server.Runtime.RuntimeOptions>();
+                DateTime applyDeadline = DateTime.UtcNow.AddSeconds(15);
+                while (options.FailBlockedAfterSeconds != 1 && DateTime.UtcNow < applyDeadline) await Task.Delay(100, token).ConfigureAwait(false);
+                Assert.Equal(1, options.FailBlockedAfterSeconds, "cluster setting applied to the runtime");
+
+                await Task.Delay(1200, token).ConfigureAwait(false);
+                await maintenance.RunOnceAsync(token).ConfigureAwait(false);
+                Run failed = await HttpTestHelpers.SendAsync<Run>(cluster.Server.AdminClient, HttpMethod.Get, runs + "/" + codex.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.Failed, failed.Status, "blocked run failed");
+                Assert.Equal(RunOutcomeEnum.NoCapableWorker, failed.Outcome, "outcome NoCapableWorker");
+                Assert.True(failed.BlockedReason == null, "finished runs are not blocked");
+                Assert.True(!String.IsNullOrEmpty(failed.ErrorMessage), "failure explains itself");
+
+                Garrison.Core.Responses.OverviewResponse after = await HttpTestHelpers.SendAsync<Garrison.Core.Responses.OverviewResponse>(cluster.Server.AdminClient, HttpMethod.Get, "/v1.0/api/tenants/" + tenant + "/overview", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(0L, after.BlockedRuns, "overview blockedRuns after failing");
             }
         }
 

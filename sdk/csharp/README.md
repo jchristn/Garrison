@@ -81,6 +81,10 @@ Finished runs carry timing and usage fields in addition to `InputTokens`, `Outpu
 
 Nullable properties are null when the value could not be measured.
 
+## Blocked runs
+
+`Run.BlockedReason` (`RunBlockedReasonEnum?`) is computed by the server when a run is read. It is null unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector). The tenant overview counts these runs as `OverviewResponse.BlockedRuns`. See "Blocked runs" in `REST_API.md`.
+
 ## Run analytics
 
 `Analytics.RunsAsync` returns totals and time-bucketed series of run counts, tokens, cost, latency percentiles, and throughput for the tenant.

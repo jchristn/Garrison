@@ -29,7 +29,7 @@ namespace Garrison.Server.Services
         /// Instantiate.
         /// </summary>
         /// <param name="database">Database.</param>
-        /// <param name="apiBaseUrl">Callback returning the public REST base URL.</param>
+        /// <param name="apiBaseUrl">Callback returning the external REST base URL used when no request-specific URL is given.</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
         public AgentCardService(DatabaseDriverBase database, Func<string> apiBaseUrl)
         {
@@ -49,7 +49,22 @@ namespace Garrison.Server.Services
         /// <returns>URL.</returns>
         public string A2AUrl(string tenantId, Agent agent)
         {
-            return _ApiBaseUrl().TrimEnd('/') + "/v1.0/a2a/" + tenantId + "/" + agent.Name;
+            return A2AUrl(tenantId, agent, _ApiBaseUrl());
+        }
+
+        /// <summary>
+        /// A2A endpoint URL of an agent under a given external base URL.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agent">Agent.</param>
+        /// <param name="baseUrl">External REST base URL, for example https://garrison.example.com.</param>
+        /// <returns>URL.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when agent or baseUrl is null.</exception>
+        public string A2AUrl(string tenantId, Agent agent, string baseUrl)
+        {
+            if (agent == null) throw new ArgumentNullException(nameof(agent));
+            if (baseUrl == null) throw new ArgumentNullException(nameof(baseUrl));
+            return baseUrl.TrimEnd('/') + "/v1.0/a2a/" + tenantId + "/" + agent.Name;
         }
 
         /// <summary>
@@ -62,7 +77,22 @@ namespace Garrison.Server.Services
         /// <exception cref="ArgumentNullException">Thrown when agent is null.</exception>
         public async Task<AgentCard> BuildCardAsync(string tenantId, Agent agent, CancellationToken token = default)
         {
+            return await BuildCardAsync(tenantId, agent, _ApiBaseUrl(), token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Build an agent card whose interface URL uses a given external base URL.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="agent">Agent.</param>
+        /// <param name="baseUrl">External REST base URL, for example https://garrison.example.com.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Card.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when agent or baseUrl is null.</exception>
+        public async Task<AgentCard> BuildCardAsync(string tenantId, Agent agent, string baseUrl, CancellationToken token = default)
+        {
             if (agent == null) throw new ArgumentNullException(nameof(agent));
+            if (baseUrl == null) throw new ArgumentNullException(nameof(baseUrl));
             string description = await RenderAsync(tenantId, agent, agent.SkillDescriptionTemplateId, "builtin/a2a-skill-description", token).ConfigureAwait(false);
 
             AgentCard card = new AgentCard();
@@ -70,7 +100,7 @@ namespace Garrison.Server.Services
             card.Description = String.IsNullOrWhiteSpace(description) ? (agent.Description ?? agent.Name) : description.Trim();
             card.Version = String.IsNullOrEmpty(agent.AgentVersion) ? Constants.ProductVersion : agent.AgentVersion!;
             AgentInterface endpoint = new AgentInterface();
-            endpoint.Url = A2AUrl(tenantId, agent);
+            endpoint.Url = A2AUrl(tenantId, agent, baseUrl);
             endpoint.ProtocolBinding = "JSONRPC";
             card.SupportedInterfaces.Add(endpoint);
             card.Capabilities.Streaming = true;

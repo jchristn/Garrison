@@ -22,7 +22,7 @@ The server reads `garrison.json` from its working directory, or the path in `GAR
 
 ```json
 {
-  "Rest": { "Hostname": "*", "Port": 8700, "Ssl": false, "PublicBaseUrl": "https://garrison.example.com" },
+  "Rest": { "Hostname": "*", "Port": 8700, "Ssl": false, "PublicBaseUrl": "http://garrison-server:8700", "ExternalBaseUrl": "https://garrison.example.com" },
   "Mcp": { "Enable": true, "Hostname": "*", "Port": 8701, "Path": "/mcp", "PublicUrl": "http://garrison-server:8701" },
   "Database": { "Type": "Postgresql", "Host": "postgres", "Port": 5432, "DatabaseName": "garrison", "Username": "garrison" },
   "Auth": { "TokenLifetimeMinutes": 480 },
@@ -40,7 +40,10 @@ Keep secrets (`Auth.SigningKey`, `Auth.AdminApiKey`, `Security.*` keys, `Databas
 | `Rest.Hostname` | `*` | Restart | Bind address; `*` means every interface |
 | `Rest.Port` | `8700` | Restart | REST, A2A, and WebSocket port. Environment: `GARRISON_REST_PORT` |
 | `Rest.Ssl` | `false` | Restart | Serve TLS on the listener. Usually TLS ends at the ingress instead |
-| `Rest.PublicBaseUrl` | none | Live | The URL clients use to reach Garrison. Used in A2A agent cards. Environment: `GARRISON_PUBLIC_BASE_URL` |
+| `Rest.PublicBaseUrl` | none | Restart | Internal URL handed to runs (the `garrison.apiUrl` template variable) so harnesses on workers can call back, for example `http://garrison-server:8700`. Never shown in A2A agent cards. Defaults to the bind address (`http://127.0.0.1:<port>` when bound to every interface). The name is kept for compatibility. Environment: `GARRISON_PUBLIC_BASE_URL` |
+| `Rest.ExternalBaseUrl` | none | Live | External URL that people and clients outside the cluster use, for example `https://garrison.example.com`. Used in A2A agent cards and server info. When unset, Garrison uses the scheme (`X-Forwarded-Proto` when present) and `Host` header of each request. Environment: `GARRISON_EXTERNAL_BASE_URL` |
+
+Garrison keeps two REST URLs because they answer different questions. `Rest.PublicBaseUrl` (with `Mcp.PublicUrl`) is where workers inside the cluster or Compose network reach the server, so it is usually a service name. `Rest.ExternalBaseUrl` is what an A2A agent card fetched from outside should advertise, so it is usually your ingress host. Earlier builds used `Rest.PublicBaseUrl` for both, so cards fetched from outside showed the internal host.
 
 ### Mcp
 
@@ -138,6 +141,7 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Runs.MaxDelegationDepth` | `3` | 0 to 10 | Deepest allowed chain of agents calling agents |
 | `Runs.RetentionDays` | `30` | 1 to 3650 | How long finished runs are kept |
 | `Runs.EventRetentionDays` | `14` | 1 to 3650 | How long run events are kept |
+| `Runtime.FailBlockedAfterSeconds` | `0` | 0 to 604800 | How long a queued run may wait while no Ready worker can run it (its `blockedReason` is not null) before the leader fails it with outcome `NoCapableWorker`. The clock starts when the leader first sees the run blocked. `0` means wait forever |
 | `Audit.RetentionDays` | `365` | 1 to 3650 | How long audit records are kept |
 | `RequestHistory.Enabled` | `true` | | Capture HTTP requests |
 | `RequestHistory.RetentionDays` | `30` | 1 to 3650 | How long captured requests are kept |

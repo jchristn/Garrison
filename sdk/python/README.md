@@ -64,6 +64,8 @@ Run dictionaries carry timing and usage fields alongside `inputTokens`, `outputT
 
 The server omits fields it cannot measure, so read them with `run.get(...)`.
 
+`run["blockedReason"]` is computed by the server when a run is read. It is `None` unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector). The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
+
 ## Run analytics
 
 ```python

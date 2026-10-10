@@ -90,9 +90,11 @@ namespace Garrison.Worker.Reporting
         /// <param name="flushIntervalMs">Flush interval in milliseconds.</param>
         /// <param name="onStale">Called once with the run identifier when the lease is stale.</param>
         /// <param name="log">Optional log callback.</param>
+        /// <param name="sequenceStart">Highest event sequence already recorded for the run (from the assignment); events are numbered after it. Minimum 0, default 0.</param>
         /// <exception cref="ArgumentNullException">Thrown when client is null.</exception>
-        public RunEventShipper(NodeProtocolClient client, string nodeId, string runId, long epoch, int batchSize, int maxBuffered, int flushIntervalMs, Action<string>? onStale, Action<string>? log)
+        public RunEventShipper(NodeProtocolClient client, string nodeId, string runId, long epoch, int batchSize, int maxBuffered, int flushIntervalMs, Action<string>? onStale, Action<string>? log, long sequenceStart = 0)
         {
+            _Sequence = Math.Max(0, sequenceStart);
             _Client = client ?? throw new ArgumentNullException(nameof(client));
             _NodeId = nodeId;
             _RunId = runId;

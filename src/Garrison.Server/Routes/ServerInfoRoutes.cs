@@ -48,14 +48,14 @@ namespace Garrison.Server.Routes
         }
 
         /// <summary>
-        /// Public REST base URL derived from settings.
+        /// External REST base URL shown to people: Rest.ExternalBaseUrl, else the request's scheme and host, else the bind address.
         /// </summary>
         /// <param name="context">Server context.</param>
+        /// <param name="http">HTTP context of the request being answered, or null.</param>
         /// <returns>URL without a trailing slash.</returns>
-        public static string RestUrl(ServerContext context)
+        public static string RestUrl(ServerContext context, HttpContextBase? http)
         {
-            if (!String.IsNullOrEmpty(context.Settings.Rest.PublicBaseUrl)) return context.Settings.Rest.PublicBaseUrl.TrimEnd('/');
-            return (context.Settings.Rest.Ssl ? "https://" : "http://") + Host(context.Settings.Rest.Hostname) + ":" + context.Settings.Rest.Port;
+            return ExternalUrls.RestBaseUrl(context, http);
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Garrison.Server.Routes
             info.Product = Constants.ProductName;
             info.Version = Constants.ProductVersion;
             info.NodeId = _Context.NodeId;
-            info.RestUrl = RestUrl(_Context);
+            info.RestUrl = RestUrl(_Context, context);
             info.McpUrl = McpUrl(_Context);
             info.A2AUrl = info.RestUrl + "/v1.0/a2a";
             info.OpenApiUrl = info.RestUrl + "/openapi.json";

@@ -1,20 +1,26 @@
 namespace Garrison.Server.Runtime
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Linq;
+    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
+    using Garrison.Core.Serialization;
     using Garrison.Core.Telemetry;
     using Radiant;
     using SyslogLogging;
 
     /// <summary>
     /// Leader-only maintenance: reclaims runs whose lease expired (requeue or fail with NodeLost), enforces run
-    /// deadlines as a backstop, and marks silent nodes Lost (plan section 9.4). Thread-safe.
+    /// deadlines as a backstop, marks silent nodes Lost (plan section 9.4), and explains queued runs that no Ready
+    /// worker can run (one Warning run event per reason, and an optional failure after
+    /// <see cref="RuntimeOptions.FailBlockedAfterSeconds"/>). Thread-safe.
     /// </summary>
     public class MaintenanceService : IDisposable
     {
@@ -50,6 +56,27 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Blocked-run evaluator. When null (the default), blocked queued runs are not explained or failed.
+        /// </summary>
+        public BlockedRunService? BlockedRuns { get; set; } = null;
+
+        /// <summary>
+        /// Interval between blocked-run passes in the leader loop, in milliseconds. Minimum 1000, maximum 300000, default
+        /// 5000. <see cref="RunOnceAsync"/> always runs a pass.
+        /// </summary>
+        public int BlockedCheckIntervalMs
+        {
+            get
+            {
+                return _BlockedCheckIntervalMs;
+            }
+            set
+            {
+                _BlockedCheckIntervalMs = Math.Clamp(value, 1000, 300000);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -66,6 +93,10 @@ namespace Garrison.Server.Runtime
         private bool _Disposed = false;
         private int _RetentionIntervalMs = 3600000;
         private DateTime _LastRetentionUtc = DateTime.MinValue;
+        private int _BlockedCheckIntervalMs = 5000;
+        private DateTime _LastBlockedCheckUtc = DateTime.MinValue;
+        private readonly SemaphoreSlim _BlockedLock = new SemaphoreSlim(1, 1);
+        private readonly ConcurrentDictionary<string, BlockedRunState> _Blocked = new ConcurrentDictionary<string, BlockedRunState>(StringComparer.Ordinal);
 
         #endregion
 
@@ -132,6 +163,7 @@ namespace Garrison.Server.Runtime
             await ReapExpiredLeasesAsync(token).ConfigureAwait(false);
             await EnforceDeadlinesAsync(token).ConfigureAwait(false);
             await MarkLostNodesAsync(token).ConfigureAwait(false);
+            await CheckBlockedRunsAsync(token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -154,7 +186,11 @@ namespace Garrison.Server.Runtime
         protected virtual void Dispose(bool disposing)
         {
             if (_Disposed) return;
-            if (disposing) _Cts?.Dispose();
+            if (disposing)
+            {
+                _Cts?.Dispose();
+                _BlockedLock.Dispose();
+            }
             _Disposed = true;
         }
 
@@ -170,7 +206,14 @@ namespace Garrison.Server.Runtime
                 {
                     if (_Leader.IsLeader)
                     {
-                        await RunOnceAsync(token).ConfigureAwait(false);
+                        await ReapExpiredLeasesAsync(token).ConfigureAwait(false);
+                        await EnforceDeadlinesAsync(token).ConfigureAwait(false);
+                        await MarkLostNodesAsync(token).ConfigureAwait(false);
+                        if ((DateTime.UtcNow - _LastBlockedCheckUtc).TotalMilliseconds >= _BlockedCheckIntervalMs)
+                        {
+                            _LastBlockedCheckUtc = DateTime.UtcNow;
+                            await CheckBlockedRunsAsync(token).ConfigureAwait(false);
+                        }
                         if (RunRetention && (DateTime.UtcNow - _LastRetentionUtc).TotalMilliseconds >= _RetentionIntervalMs)
                         {
                             _LastRetentionUtc = DateTime.UtcNow;
@@ -267,6 +310,145 @@ namespace Garrison.Server.Runtime
                 {
                     _Logging.Warn(_Header + "node " + node.Name + " missed heartbeats and is now Lost");
                 }
+            }
+        }
+
+        private async Task CheckBlockedRunsAsync(CancellationToken token)
+        {
+            BlockedRunService? blocked = BlockedRuns;
+            if (blocked == null) return;
+
+            await _BlockedLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                List<Run> queued = await _Database.Runs.ListQueuedAsync(null, blocked.MaxQueuedRunsScanned, token).ConfigureAwait(false);
+                HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+                if (queued.Count > 0)
+                {
+                    PlacementSnapshot snapshot = await blocked.SnapshotAsync(true, token).ConfigureAwait(false);
+                    int failAfterSeconds = _Options.FailBlockedAfterSeconds;
+                    foreach (Run run in queued)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        seen.Add(run.Id);
+                        RunBlockedReasonEnum? reason = BlockedRunService.Evaluate(snapshot, run);
+                        if (reason == null)
+                        {
+                            if (_Blocked.TryGetValue(run.Id, out BlockedRunState? clear)) clear.BlockedSinceUtc = null;
+                            continue;
+                        }
+
+                        if (!_Blocked.TryGetValue(run.Id, out BlockedRunState? state))
+                        {
+                            state = await LoadBlockedStateAsync(run, token).ConfigureAwait(false);
+                            _Blocked[run.Id] = state;
+                        }
+                        if (state.BlockedSinceUtc == null) state.BlockedSinceUtc = DateTime.UtcNow;
+
+                        if (!state.Notified.Contains(reason.Value))
+                        {
+                            if (await AppendBlockedWarningAsync(run, reason.Value, token).ConfigureAwait(false)) state.Notified.Add(reason.Value);
+                        }
+
+                        if (failAfterSeconds > 0 && (DateTime.UtcNow - state.BlockedSinceUtc.Value).TotalSeconds >= failAfterSeconds)
+                        {
+                            await FailBlockedAsync(run, reason.Value, failAfterSeconds, token).ConfigureAwait(false);
+                        }
+                    }
+                }
+
+                foreach (string id in _Blocked.Keys.ToList())
+                {
+                    if (!seen.Contains(id)) _Blocked.TryRemove(id, out BlockedRunState? _);
+                }
+            }
+            finally
+            {
+                _BlockedLock.Release();
+            }
+        }
+
+        private async Task<BlockedRunState> LoadBlockedStateAsync(Run run, CancellationToken token)
+        {
+            BlockedRunState state = new BlockedRunState();
+            if (run.LastEventSequence <= 0) return state;
+
+            DateTime queuedUtc = run.QueuedUtc ?? run.CreatedUtc;
+            long after = 0;
+            for (int page = 0; page < 20; page++)
+            {
+                List<RunEvent> events = await _Database.RunEvents.ListAfterAsync(run.Id, after, 500, token).ConfigureAwait(false);
+                foreach (RunEvent evt in events)
+                {
+                    after = Math.Max(after, evt.Sequence);
+                    BlockedRunNotice? notice = ReadNotice(evt);
+                    if (notice == null || notice.BlockedReason == null) continue;
+                    state.Notified.Add(notice.BlockedReason.Value);
+                    if (evt.TimestampUtc >= queuedUtc && (state.BlockedSinceUtc == null || evt.TimestampUtc < state.BlockedSinceUtc.Value)) state.BlockedSinceUtc = evt.TimestampUtc;
+                }
+                if (events.Count < 500) break;
+            }
+            return state;
+        }
+
+        private static BlockedRunNotice? ReadNotice(RunEvent evt)
+        {
+            if (evt.EventType != RunEventTypeEnum.Warning || String.IsNullOrEmpty(evt.RawEventJson)) return null;
+            try
+            {
+                BlockedRunNotice? notice = Serializer.Deserialize<BlockedRunNotice>(evt.RawEventJson);
+                if (notice == null || !String.Equals(notice.Notice, BlockedRunNotice.KindName, StringComparison.Ordinal)) return null;
+                return notice;
+            }
+            catch (Exception e) when (e is JsonException || e is NotSupportedException || e is ArgumentException)
+            {
+                return null;
+            }
+        }
+
+        private async Task<bool> AppendBlockedWarningAsync(Run run, RunBlockedReasonEnum reason, CancellationToken token)
+        {
+            Run? current = await _Database.Runs.ReadAsync(run.Id, token).ConfigureAwait(false);
+            if (current == null || current.Status != RunStatusEnum.Queued) return false;
+
+            BlockedRunNotice notice = new BlockedRunNotice();
+            notice.Notice = BlockedRunNotice.KindName;
+            notice.BlockedReason = reason;
+
+            RunEvent evt = new RunEvent();
+            evt.TenantId = current.TenantId;
+            evt.RunId = current.Id;
+            evt.Sequence = current.LastEventSequence + 1;
+            evt.EventType = RunEventTypeEnum.Warning;
+            evt.TimestampUtc = DateTime.UtcNow;
+            evt.Text = BlockedRunService.Describe(current, reason);
+            evt.RawEventJson = Serializer.Serialize(notice);
+
+            int inserted = await _Database.RunEvents.InsertBatchAsync(new List<RunEvent> { evt }, token).ConfigureAwait(false);
+            if (inserted == 0) return false;
+            await _Database.Runs.UpdateLastEventSequenceAsync(current.Id, evt.Sequence, token).ConfigureAwait(false);
+            _Telemetry.Increment("garrison.runs.blocked", new RadiantTag("reason", reason.ToString()));
+            _Logging.Info(_Header + "run " + current.Id + " is blocked (" + reason + "): " + evt.Text);
+            _Signals.Notify(current.Id);
+            return true;
+        }
+
+        private async Task FailBlockedAsync(Run run, RunBlockedReasonEnum reason, int failAfterSeconds, CancellationToken token)
+        {
+            RunTransition transition = new RunTransition();
+            transition.RunId = run.Id;
+            transition.FromStatuses.Add(RunStatusEnum.Queued);
+            transition.ToStatus = RunStatusEnum.Failed;
+            transition.Outcome = RunOutcomeEnum.NoCapableWorker;
+            transition.ErrorMessage = "No Ready worker could run this run for " + failAfterSeconds + " seconds: " + BlockedRunService.Cause(run, reason) + " (" + reason + "). Runs fail after this wait because the cluster setting Runtime.FailBlockedAfterSeconds is " + failAfterSeconds + ".";
+            transition.ClearLease = true;
+            transition.SetCompleted = true;
+            if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
+            {
+                _Blocked.TryRemove(run.Id, out BlockedRunState? _);
+                _Telemetry.Increment("garrison.runs.blocked.failed", new RadiantTag("reason", reason.ToString()));
+                _Logging.Warn(_Header + "run " + run.Id + " failed after " + failAfterSeconds + " seconds blocked (" + reason + ")");
+                _Signals.Complete(run.Id);
             }
         }
 

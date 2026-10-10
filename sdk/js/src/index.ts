@@ -70,7 +70,15 @@ export interface Run extends Json {
   outputTokensPerSecond?: number | null;
   /** Model the harness reported serving the run; absent when the harness did not report one. */
   servedModel?: string | null;
+  /**
+   * Computed by the server on read: why the queued run cannot be handed to any worker right now, or null when it is
+   * not Queued or some Ready worker could run it.
+   */
+  blockedReason?: RunBlockedReason | null;
 }
+
+/** Why a queued run cannot be handed to any worker right now. */
+export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool";
 
 export interface RunEvent extends Json {
   id: string; runId: string; sequence: number; eventType: string; timestampUtc: string; text?: string;

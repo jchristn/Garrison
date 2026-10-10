@@ -230,5 +230,23 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Runs.</returns>
         Task<List<Run>> ListPastDeadlineAsync(DateTime nowUtc, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Queued runs, oldest first, with their placement requirements loaded (parameters and template versions are not
+        /// loaded). Used to work out which queued runs no worker can take.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier, or null for every tenant.</param>
+        /// <param name="limit">Maximum rows. Minimum 1, maximum 100000.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs.</returns>
+        Task<List<Run>> ListQueuedAsync(string? tenantId, int limit, CancellationToken token = default);
+
+        /// <summary>
+        /// Replace the placement requirements of each given run with the stored ones, in one query per 500 runs.
+        /// </summary>
+        /// <param name="runs">Runs.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        Task LoadRequirementsAsync(List<Run> runs, CancellationToken token = default);
     }
 }

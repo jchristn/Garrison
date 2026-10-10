@@ -119,7 +119,7 @@ namespace Garrison.Server.Runtime
             foreach (Run candidate in candidates)
             {
                 if (assignments.Count >= maxRuns) break;
-                if (!Eligible(node, pool, candidate)) continue;
+                if (!PlacementRules.MatchesPlacement(node, pool, candidate)) continue;
 
                 if (!deployments.TryGetValue(candidate.DeploymentId, out Deployment? deployment))
                 {
@@ -156,18 +156,6 @@ namespace Garrison.Server.Runtime
             }
 
             return assignments;
-        }
-
-        private static bool Eligible(Node node, NodePool? pool, Run run)
-        {
-            if (!String.IsNullOrEmpty(run.NodePoolId) && run.NodePoolId != node.NodePoolId) return false;
-            if (pool != null && pool.Tenants.Count > 0 && !pool.Tenants.Contains(run.TenantId)) return false;
-            foreach (RunRequirement requirement in run.Requirements)
-            {
-                NodeLabel? label = node.Labels.FirstOrDefault(l => String.Equals(l.Key, requirement.Key, StringComparison.Ordinal));
-                if (label == null || !String.Equals(label.Value, requirement.Value, StringComparison.Ordinal)) return false;
-            }
-            return true;
         }
 
         private async Task<RunAssignment?> PrepareAsync(string tenantId, string runId, Node node, long epoch, DateTime leaseExpires, CancellationToken token)
@@ -211,6 +199,7 @@ namespace Garrison.Server.Runtime
                 assignment.RunId = run.Id;
                 assignment.Epoch = epoch;
                 assignment.LeaseExpiresUtc = leaseExpires;
+                assignment.EventSequenceStart = run.LastEventSequence;
                 assignment.Spec = compiled.Spec;
                 _Signals.Notify(run.Id);
                 return assignment;

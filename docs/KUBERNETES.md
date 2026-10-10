@@ -112,7 +112,7 @@ curl -s --resolve garrison.local:8080:127.0.0.1 http://garrison.local:8080/v1.0/
 
 Sign in as `admin@garrison` in tenant `default` with the password `generate-secrets.sh` printed (`password` unless you set `GARRISON_ADMIN_PASSWORD`). From there, `docs/QUICKSTART.md` builds a set of agents that delegate to each other and checks them with `examples/validate.sh`.
 
-A note on A2A agent cards: the base sets `GARRISON_PUBLIC_BASE_URL` to the in-cluster service address, because runs inside the cluster use it too. Cards fetched through a port-forward therefore advertise `http://garrison-server.garrison.svc.cluster.local:8700/...`. Clients outside the cluster should call `http://127.0.0.1:8700/v1.0/a2a/<tenant>/<agent>` (or your ingress host) directly.
+A note on A2A agent cards: cards advertise the external URL, not the in-cluster address runs use. The base leaves `GARRISON_EXTERNAL_BASE_URL` unset, so a card shows whatever host the caller used: `http://127.0.0.1:8700/...` through a port-forward, `http://garrison.local/...` through the K3S Ingress. The production overlay and `values-production.yaml` set it to `https://garrison.example.com`; change that to your Ingress host.
 
 ## Checking that it works
 
@@ -178,7 +178,7 @@ The control plane scales the same way on PostgreSQL. Replicas are interchangeabl
 
 The server reads `garrison.json` from the `garrison-server-settings` ConfigMap and runs with `GARRISON_SETTINGS_READONLY=true`, so the Settings page shows file-backed values as read-only with their source. Cluster runtime settings (scheduling, retention, limits) are stored in the database and stay editable from the dashboard. Workers read `garrison-worker.json` from `garrison-worker-settings`, and every value can be overridden with a `GARRISON_WORKER_*` environment variable on the StatefulSet.
 
-The server tells harnesses where to find Garrison's MCP endpoint through `GARRISON_MCP_PUBLIC_URL`. The base sets it to the in-cluster service name, which is right for workers in the same cluster.
+The server tells harnesses where to find Garrison through two internal URLs, `GARRISON_MCP_PUBLIC_URL` (MCP) and `GARRISON_PUBLIC_BASE_URL` (REST). The base sets both to the in-cluster service name, which is right for workers in the same cluster. They never appear in A2A agent cards. What cards and server info advertise to the outside comes from `GARRISON_EXTERNAL_BASE_URL` (Helm: `server.externalBaseUrl`), or from each request's `Host` header when it is unset.
 
 ## Updating
 

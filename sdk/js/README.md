@@ -65,6 +65,8 @@ Finished runs carry timing and usage metrics. Nullable fields are omitted by the
 | `reasoningTokens` | `number` (default 0) | Reasoning tokens reported by the harness. |
 | `toolCallCount` | `number` (default 0) | Tool calls made by the run. |
 
+`run.blockedReason` (`RunBlockedReason | null`) is computed by the server when a run is read. It is `null` unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector). The tenant overview counts these runs as `blockedRuns`. See "Blocked runs" in `REST_API.md`.
+
 ## Run analytics
 
 `analytics.runs(query)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns totals plus time-bucketed series. Every query field is optional: `from`, `to` (ISO 8601 UTC strings or `Date`), `interval` (`minute`, `hour`, `day`, `week`, `auto`), `agentId`, `harnessType`, `deploymentId`, `model` (served model; `"unknown"` matches runs without a recorded model), and `groupBy` (`none`, `agent`, `harness`, `model`, `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-4-5`) and its label is `Harness / model`.

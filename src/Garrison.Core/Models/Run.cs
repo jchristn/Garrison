@@ -386,6 +386,14 @@ namespace Garrison.Core.Models
         public long LastEventSequence { get; set; } = 0;
 
         /// <summary>
+        /// Computed, read-only on the API: why this queued run cannot be handed to any worker right now, or null when
+        /// the run is not Queued or some Ready node could run it. Filled from current node state when the run is read
+        /// over REST or MCP; never stored. Always serialized, including when null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public RunBlockedReasonEnum? BlockedReason { get; set; } = null;
+
+        /// <summary>
         /// Whether the record is active.
         /// </summary>
         public bool Active { get; set; } = true;

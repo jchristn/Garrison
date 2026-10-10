@@ -48,6 +48,8 @@ docker run -d --name garrison-server --network garrison \
   -p 127.0.0.1:8700:8700 -p 127.0.0.1:8701:8701 \
   -e GARRISON_DB_FILENAME=/app/data/garrison.db \
   -e GARRISON_MCP_PUBLIC_URL=http://garrison-server:8701 \
+  -e GARRISON_PUBLIC_BASE_URL=http://garrison-server:8700 \
+  -e GARRISON_EXTERNAL_BASE_URL=http://127.0.0.1:8700 \
   jchristn77/garrison-server:latest
 
 docker run -d --name garrison-worker-0 --network garrison \
@@ -79,8 +81,9 @@ Mount a volume at `/app/data` on the server to keep the Sqlite database. Multipl
 | `GARRISON_DB_HOST`, `GARRISON_DB_PORT`, `GARRISON_DB_DATABASE`, `GARRISON_DB_USERNAME`, `GARRISON_DB_PASSWORD`, `GARRISON_DB_SCHEMA` | PostgreSQL connection | `127.0.0.1`, `5432`, `garrison`, `postgres`, none, none |
 | `GARRISON_REST_PORT` | REST port | `8700` |
 | `GARRISON_MCP_PORT` | MCP port | `8701` |
-| `GARRISON_PUBLIC_BASE_URL` | Base URL advertised in A2A cards | derived from the request |
-| `GARRISON_MCP_PUBLIC_URL` | MCP URL handed to harnesses for delegation | `http://127.0.0.1:<MCP port>` |
+| `GARRISON_EXTERNAL_BASE_URL` | External REST URL advertised in A2A agent cards and server info | the scheme and `Host` of each request |
+| `GARRISON_PUBLIC_BASE_URL` | Internal REST URL handed to runs (the `garrison.apiUrl` template variable); never shown in cards | `http://127.0.0.1:<REST port>` |
+| `GARRISON_MCP_PUBLIC_URL` | Internal MCP URL handed to harnesses for delegation | `http://127.0.0.1:<MCP port>` |
 | `GARRISON_ADMIN_API_KEY` | Administrator API key | `garrisonadmin` |
 | `GARRISON_AUTH_SIGNING_KEY` | Session token key | a placeholder; set it |
 | `GARRISON_MASTER_KEY` | Secret encryption key | a placeholder; set it |

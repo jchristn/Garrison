@@ -161,6 +161,23 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Seconds a queued run may stay blocked (no Ready worker can run it) before the leader fails it with outcome
+        /// NoCapableWorker. 0 never fails blocked runs. Minimum 0, maximum 604800 (7 days), default 0. Refreshed from the
+        /// cluster setting Runtime.FailBlockedAfterSeconds.
+        /// </summary>
+        public int FailBlockedAfterSeconds
+        {
+            get
+            {
+                return _FailBlockedAfterSeconds;
+            }
+            set
+            {
+                _FailBlockedAfterSeconds = Math.Clamp(value, 0, 604800);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -175,6 +192,7 @@ namespace Garrison.Server.Runtime
         private int _DeadlineGraceSeconds = 120;
         private int _MaintenanceIntervalMs = 2000;
         private int _LeaderLeaseMs = 15000;
+        private int _FailBlockedAfterSeconds = 0;
 
         #endregion
     }

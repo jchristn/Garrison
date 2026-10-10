@@ -3744,6 +3744,40 @@
           ]
         },
         {
+          "name": "Read agent by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentName}}"
+              ]
+            },
+            "description": "Reads an agent by name instead of identifier. An identifier match takes precedence over a name match."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same agent as by identifier', function () { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('agentId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Update agent",
           "request": {
             "method": "PUT",
@@ -4375,7 +4409,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('timing telemetry is present', function () { var r = pm.response.json(); pm.expect(r).to.have.property('timeToFirstTokenMs'); pm.expect(r).to.have.property('executionMs'); pm.expect(r).to.have.property('queueMs'); pm.expect(r.toolCallCount).to.be.at.least(0); });"
+                  "pm.test('timing telemetry is present', function () { var r = pm.response.json(); pm.expect(r).to.have.property('timeToFirstTokenMs'); pm.expect(r).to.have.property('executionMs'); pm.expect(r).to.have.property('queueMs'); pm.expect(r.toolCallCount).to.be.at.least(0); });",
+                  "pm.test('blockedReason is present and null for a run a worker took', function () { var r = pm.response.json(); pm.expect(r).to.have.property('blockedReason'); pm.expect(r.blockedReason).to.eql(null); });"
                 ]
               }
             }
@@ -5027,7 +5062,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('overview counts blocked runs', function () { var o = pm.response.json(); pm.expect(o.blockedRuns).to.be.a('number'); pm.expect(o.blockedRuns).to.be.at.most(o.queued); });"
                 ]
               }
             }

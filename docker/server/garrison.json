@@ -5,6 +5,7 @@
     "Port": 8700,
     "Ssl": false,
     "PublicBaseUrl": null,
+    "ExternalBaseUrl": null,
     "CorsOrigins": []
   },
   "Mcp": {

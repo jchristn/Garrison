@@ -39,6 +39,8 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "lease-reaper", "Expired leases requeue with attempts left and fail with NodeLost otherwise (" + provider + ")", ct => ReaperAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "leader-election", "Only one holder leads; leadership moves after expiry with a higher epoch (" + provider + ")", ct => LeaderAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "events-idempotent", "Re-sent event batches are ignored by sequence (" + provider + ")", ct => EventsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "blocked-reasons", "Queued runs report NoReadyWorker, NoCapableWorker, and NoMatchingPool from node state (" + provider + ")", ct => BlockedReasonsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "blocked-maintenance", "The leader explains blocked runs once per reason and fails them after Runtime.FailBlockedAfterSeconds (" + provider + ")", ct => BlockedMaintenanceAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "delegation-policy", "Delegation allowlist, cycle, and depth rules (" + provider + ")", ct => DelegationAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Runtime (" + provider + ")", cases));
             }
@@ -191,6 +193,171 @@ namespace Test.Shared.Suites
                 List<RunEvent> after = await db.RunEvents.ListAfterAsync(run.Id, 2, 100, token).ConfigureAwait(false);
                 Assert.Equal(3, after.Count, "Events after 2");
                 Assert.Equal(3L, after[0].Sequence, "First sequence after 2");
+            }
+        }
+
+        private static Node NewNode(string name, NodeStatusEnum status, string? poolId, params HarnessTypeEnum[] harnesses)
+        {
+            Node node = new Node();
+            node.Name = name;
+            node.Status = status;
+            node.NodePoolId = poolId;
+            node.LastHeartbeatUtc = DateTime.UtcNow;
+            foreach (HarnessTypeEnum harness in harnesses) node.Capabilities.Add(new NodeCapability { NodeId = node.Id, HarnessType = harness, Available = true });
+            return node;
+        }
+
+        private static async Task BlockedReasonsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                BlockedRunService blocked = new BlockedRunService(db);
+                blocked.SnapshotTtlMs = 0;
+
+                Run codex = NewRun("ten_a", "dep_a");
+                codex.HarnessType = HarnessTypeEnum.Codex;
+                codex = await db.Runs.CreateAsync(codex, token).ConfigureAwait(false);
+
+                Assert.Equal(RunBlockedReasonEnum.NoReadyWorker, (await blocked.AnnotateAsync(codex, token).ConfigureAwait(false))!.BlockedReason, "no nodes at all");
+                await db.Nodes.CreateAsync(NewNode("draining-codex", NodeStatusEnum.Draining, null, HarnessTypeEnum.Codex), token).ConfigureAwait(false);
+                Assert.Equal(RunBlockedReasonEnum.NoReadyWorker, (await blocked.AnnotateAsync(codex, token).ConfigureAwait(false))!.BlockedReason, "only non-Ready nodes");
+
+                await db.Nodes.CreateAsync(NewNode("generic-only", NodeStatusEnum.Ready, null, HarnessTypeEnum.Generic), token).ConfigureAwait(false);
+                Assert.Equal(RunBlockedReasonEnum.NoCapableWorker, (await blocked.AnnotateAsync(codex, token).ConfigureAwait(false))!.BlockedReason, "Ready node without the harness");
+                Assert.True(BlockedRunService.Describe(codex, RunBlockedReasonEnum.NoCapableWorker).Contains("Codex harness", StringComparison.Ordinal), "description names the harness");
+
+                NodePool gpu = await db.NodePools.CreateAsync(new NodePool { Name = "gpu" }, token).ConfigureAwait(false);
+                NodePool other = await db.NodePools.CreateAsync(new NodePool { Name = "other" }, token).ConfigureAwait(false);
+                NodePool dedicated = new NodePool { Name = "dedicated" };
+                dedicated.Tenants.Add("ten_other");
+                dedicated = await db.NodePools.CreateAsync(dedicated, token).ConfigureAwait(false);
+                await db.Nodes.CreateAsync(NewNode("codex-gpu", NodeStatusEnum.Ready, gpu.Id, HarnessTypeEnum.Codex), token).ConfigureAwait(false);
+                await db.Nodes.CreateAsync(NewNode("codex-dedicated", NodeStatusEnum.Ready, dedicated.Id, HarnessTypeEnum.Codex), token).ConfigureAwait(false);
+
+                Run inOtherPool = NewRun("ten_a", "dep_a");
+                inOtherPool.HarnessType = HarnessTypeEnum.Codex;
+                inOtherPool.NodePoolId = other.Id;
+                inOtherPool = await db.Runs.CreateAsync(inOtherPool, token).ConfigureAwait(false);
+
+                Run withSelector = NewRun("ten_a", "dep_a");
+                withSelector.HarnessType = HarnessTypeEnum.Codex;
+                withSelector.Requirements.Add(new RunRequirement { Key = "zone", Value = "mars" });
+                withSelector = await db.Runs.CreateAsync(withSelector, token).ConfigureAwait(false);
+
+                Run inGpuPool = NewRun("ten_a", "dep_a");
+                inGpuPool.HarnessType = HarnessTypeEnum.Codex;
+                inGpuPool.NodePoolId = gpu.Id;
+                inGpuPool = await db.Runs.CreateAsync(inGpuPool, token).ConfigureAwait(false);
+
+                Run dedicatedOnly = NewRun("ten_a", "dep_a");
+                dedicatedOnly.HarnessType = HarnessTypeEnum.Codex;
+                dedicatedOnly.NodePoolId = dedicated.Id;
+                dedicatedOnly = await db.Runs.CreateAsync(dedicatedOnly, token).ConfigureAwait(false);
+
+                Run running = NewRun("ten_a", "dep_a");
+                running.HarnessType = HarnessTypeEnum.ClaudeCode;
+                running.Status = RunStatusEnum.Running;
+                running = await db.Runs.CreateAsync(running, token).ConfigureAwait(false);
+
+                Run otherTenant = NewRun("ten_b", "dep_b");
+                otherTenant.HarnessType = HarnessTypeEnum.Mux;
+                otherTenant = await db.Runs.CreateAsync(otherTenant, token).ConfigureAwait(false);
+
+                RunFilter filter = new RunFilter();
+                filter.TenantId = "ten_a";
+                filter.MaxResults = 100;
+                List<Run> page = (await db.Runs.EnumerateAsync(filter, token).ConfigureAwait(false)).Objects;
+                await blocked.AnnotateManyAsync(page, token).ConfigureAwait(false);
+                Dictionary<string, RunBlockedReasonEnum?> reasons = page.ToDictionary(r => r.Id, r => r.BlockedReason);
+                Assert.True(reasons[codex.Id] == null, "a capable Ready node with no constraints unblocks the run (got " + reasons[codex.Id] + ")");
+                Assert.Equal(RunBlockedReasonEnum.NoMatchingPool, reasons[inOtherPool.Id] ?? (RunBlockedReasonEnum)(-1), "node pool mismatch");
+                Assert.Equal(RunBlockedReasonEnum.NoMatchingPool, reasons[withSelector.Id] ?? (RunBlockedReasonEnum)(-1), "node selector mismatch");
+                Assert.True(reasons[inGpuPool.Id] == null, "matching pool is not blocked");
+                Assert.Equal(RunBlockedReasonEnum.NoMatchingPool, reasons[dedicatedOnly.Id] ?? (RunBlockedReasonEnum)(-1), "pool dedicated to another tenant");
+                Assert.True(reasons[running.Id] == null, "non-queued runs are never blocked");
+
+                List<Run> blockedA = await blocked.ListBlockedAsync("ten_a", token).ConfigureAwait(false);
+                Assert.Equal(3, blockedA.Count, "blocked runs in ten_a");
+                Assert.Equal(3L, await blocked.CountBlockedAsync("ten_a", token).ConfigureAwait(false), "blocked count in ten_a");
+                Assert.Equal(1L, await blocked.CountBlockedAsync("ten_b", token).ConfigureAwait(false), "blocked count in ten_b");
+                Assert.Equal(RunBlockedReasonEnum.NoCapableWorker, (await blocked.AnnotateAsync(otherTenant, token).ConfigureAwait(false))!.BlockedReason, "Mux has no capable node");
+
+                List<Run> queued = await db.Runs.ListQueuedAsync("ten_a", 100, token).ConfigureAwait(false);
+                Assert.Equal(5, queued.Count, "queued runs in ten_a");
+                Assert.Equal(1, queued.Single(r => r.Id == withSelector.Id).Requirements.Count, "requirements loaded with queued runs");
+
+                blocked.SnapshotTtlMs = 60000;
+                await blocked.SnapshotAsync(true, token).ConfigureAwait(false);
+                await db.Nodes.CreateAsync(NewNode("mux-node", NodeStatusEnum.Ready, null, HarnessTypeEnum.Mux), token).ConfigureAwait(false);
+                Assert.Equal(RunBlockedReasonEnum.NoCapableWorker, (await blocked.AnnotateAsync(otherTenant, token).ConfigureAwait(false))!.BlockedReason, "cached snapshot is reused");
+                blocked.Invalidate();
+                Assert.True((await blocked.AnnotateAsync(otherTenant, token).ConfigureAwait(false))!.BlockedReason == null, "invalidated snapshot sees the new node");
+            }
+        }
+
+        private static async Task BlockedMaintenanceAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                BlockedRunService blocked = new BlockedRunService(db);
+                blocked.SnapshotTtlMs = 0;
+                Node generic = await db.Nodes.CreateAsync(NewNode("generic-worker", NodeStatusEnum.Ready, null, HarnessTypeEnum.Generic), token).ConfigureAwait(false);
+
+                Run codex = NewRun("ten_a", "dep_a");
+                codex.HarnessType = HarnessTypeEnum.Codex;
+                codex = await db.Runs.CreateAsync(codex, token).ConfigureAwait(false);
+                Run fine = await db.Runs.CreateAsync(NewRun("ten_a", "dep_a"), token).ConfigureAwait(false);
+
+                RuntimeOptions options = new RuntimeOptions();
+                FixedLeader leader = new FixedLeader();
+                using (GarrisonTelemetry telemetry = new GarrisonTelemetry(new TelemetrySettings { Enabled = false }, "test", null))
+                {
+                    using (MaintenanceService maintenance = new MaintenanceService(db, leader, new RunSignals(), options, telemetry, QuietLogging()))
+                    {
+                        maintenance.BlockedRuns = blocked;
+                        await maintenance.RunOnceAsync(token).ConfigureAwait(false);
+                        await maintenance.RunOnceAsync(token).ConfigureAwait(false);
+                    }
+
+                    List<RunEvent> events = await db.RunEvents.ListAfterAsync(codex.Id, 0, 100, token).ConfigureAwait(false);
+                    Assert.Equal(1, events.Count, "one warning per reason");
+                    Assert.Equal(RunEventTypeEnum.Warning, events[0].EventType, "event type");
+                    Assert.Equal("No Ready worker reports the Codex harness. The run waits until one registers.", events[0].Text, "event text");
+                    Assert.Equal(0, (await db.RunEvents.ListAfterAsync(fine.Id, 0, 100, token).ConfigureAwait(false)).Count, "runs a worker can take get no warning");
+                    Run afterWarning = Assert.NotNull(await db.Runs.ReadAsync(codex.Id, token).ConfigureAwait(false), "Run");
+                    Assert.Equal(events[0].Sequence, afterWarning.LastEventSequence, "last event sequence advances");
+                    Assert.Equal(RunStatusEnum.Queued, afterWarning.Status, "still queued without fail-after");
+
+                    // A new leader (fresh in-memory state) does not repeat the warning, but a new reason gets its own.
+                    using (MaintenanceService successor = new MaintenanceService(db, leader, new RunSignals(), options, telemetry, QuietLogging()))
+                    {
+                        successor.BlockedRuns = blocked;
+                        await successor.RunOnceAsync(token).ConfigureAwait(false);
+                        Assert.Equal(1, (await db.RunEvents.ListAfterAsync(codex.Id, 0, 100, token).ConfigureAwait(false)).Count, "successor does not repeat the warning");
+
+                        await db.Nodes.SetStatusAsync(generic.Id, NodeStatusEnum.Cordoned, token).ConfigureAwait(false);
+                        await successor.RunOnceAsync(token).ConfigureAwait(false);
+                        await successor.RunOnceAsync(token).ConfigureAwait(false);
+                        List<RunEvent> second = await db.RunEvents.ListAfterAsync(codex.Id, 0, 100, token).ConfigureAwait(false);
+                        Assert.Equal(2, second.Count, "a new reason adds one warning");
+                        Assert.True((second[1].Text ?? String.Empty).StartsWith("No worker node is Ready", StringComparison.Ordinal), "NoReadyWorker text: " + second[1].Text);
+                        Assert.Equal(1, (await db.RunEvents.ListAfterAsync(fine.Id, 0, 100, token).ConfigureAwait(false)).Count, "the generic run is now blocked too");
+
+                        options.FailBlockedAfterSeconds = 1;
+                        await successor.RunOnceAsync(token).ConfigureAwait(false);
+                        await Task.Delay(1200, token).ConfigureAwait(false);
+                        await db.Nodes.SetStatusAsync(generic.Id, NodeStatusEnum.Ready, token).ConfigureAwait(false);
+                        await successor.RunOnceAsync(token).ConfigureAwait(false);
+                    }
+
+                    Run failed = Assert.NotNull(await db.Runs.ReadAsync(codex.Id, token).ConfigureAwait(false), "Failed run");
+                    Assert.Equal(RunStatusEnum.Failed, failed.Status, "blocked run fails after the configured wait");
+                    Assert.Equal(RunOutcomeEnum.NoCapableWorker, failed.Outcome, "outcome");
+                    Assert.True(failed.CompletedUtc.HasValue, "completed time set");
+                    Assert.True((failed.ErrorMessage ?? String.Empty).Contains("Runtime.FailBlockedAfterSeconds", StringComparison.Ordinal) && (failed.ErrorMessage ?? String.Empty).Contains("Codex", StringComparison.Ordinal), "error message: " + failed.ErrorMessage);
+                    Run unblocked = Assert.NotNull(await db.Runs.ReadAsync(fine.Id, token).ConfigureAwait(false), "Unblocked run");
+                    Assert.Equal(RunStatusEnum.Queued, unblocked.Status, "a run that became runnable again is not failed");
+                }
             }
         }
 

@@ -46,9 +46,21 @@ namespace Garrison.Server.Settings
         public bool Ssl { get; set; } = false;
 
         /// <summary>
-        /// Public base URL advertised to clients and harnesses, for example https://garrison.example.com. Null derives it from the bind address.
+        /// Internal REST base URL handed to runs (the garrison.apiUrl template variable) so harnesses on workers can call
+        /// back, for example http://garrison-server:8700 inside a cluster or Compose network. Not used in A2A cards or
+        /// anything shown to people; see <see cref="ExternalBaseUrl"/>. Null derives it from the bind address
+        /// (http://127.0.0.1:Port when bound to all interfaces). Environment: GARRISON_PUBLIC_BASE_URL. The name is kept
+        /// for compatibility. Changes require a restart.
         /// </summary>
         public string? PublicBaseUrl { get; set; } = null;
+
+        /// <summary>
+        /// External REST base URL that people and clients outside the cluster use, for example
+        /// https://garrison.example.com. Used in A2A agent cards and server info. Null uses the scheme
+        /// (X-Forwarded-Proto when present) and Host header of each request. Environment: GARRISON_EXTERNAL_BASE_URL.
+        /// Applies live.
+        /// </summary>
+        public string? ExternalBaseUrl { get; set; } = null;
 
         /// <summary>
         /// Allowed CORS origins. Empty means any origin (development default).

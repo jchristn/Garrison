@@ -91,6 +91,7 @@ namespace Garrison.Server.Services
                 Int("Runs.MaxDelegationDepth", 3, 0, 10, "Maximum agent-to-agent delegation depth."),
                 Int("Runs.RetentionDays", 30, 1, 3650, "Days finished runs are retained."),
                 Int("Runs.EventRetentionDays", 14, 1, 3650, "Days run events are retained."),
+                Int("Runtime.FailBlockedAfterSeconds", 0, 0, 604800, "Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever."),
                 Int("Audit.RetentionDays", 365, 1, 3650, "Days audit records are retained."),
                 Bool("RequestHistory.Enabled", requestHistoryEnabledDefault, "Whether HTTP requests are captured."),
                 Int("RequestHistory.RetentionDays", requestHistoryRetentionDefault, 1, 3650, "Days captured requests are retained.")

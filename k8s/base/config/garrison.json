@@ -1,6 +1,6 @@
 {
   "NodeId": null,
-  "Rest": { "Hostname": "*", "Port": 8700, "Ssl": false, "PublicBaseUrl": null, "CorsOrigins": [] },
+  "Rest": { "Hostname": "*", "Port": 8700, "Ssl": false, "PublicBaseUrl": null, "ExternalBaseUrl": null, "CorsOrigins": [] },
   "Mcp": { "Enable": true, "Hostname": "*", "Port": 8701, "Path": "/mcp", "PublicUrl": null, "MaxMessageSize": 16777216, "MaxToolWaitSeconds": 90 },
   "Database": {
     "Type": "Postgresql",

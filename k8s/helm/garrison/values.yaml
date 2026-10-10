@@ -36,9 +36,13 @@ server:
   service:
     type: ClusterIP
     nodePorts: { http: null, mcp: null }
-  # URLs harnesses on workers use to reach Garrison. Empty derives the in-cluster service DNS name.
+  # Internal URLs harnesses on workers use to reach Garrison (delegation). Empty derives the in-cluster service DNS
+  # name. Never shown in A2A agent cards.
   publicBaseUrl: ""
   mcpPublicUrl: ""
+  # External URL advertised in A2A agent cards and server info, for example https://garrison.example.com. Empty uses
+  # the Host header of each request (GARRISON_EXTERNAL_BASE_URL is not set).
+  externalBaseUrl: ""
   extraEnv: []
   hpa:
     enabled: false

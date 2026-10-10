@@ -1869,9 +1869,9 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/register"
   -d '{"name": "remote-helper", "kind": "Remote", "remoteProtocol": "A2A", "remoteEndpointUrl": "https://agents.example/helper", "registrationTtlSeconds": 300}'
 ```
 
-#### `GET /v1.0/api/tenants/{tenantId}/agents/{id}`
+#### `GET /v1.0/api/tenants/{tenantId}/agents/{idOrName}`
 
-Read an agent.
+Read an agent by identifier or name. An identifier match wins over a name match. Unknown values return 404.
 
 | | |
 |---|---|
@@ -1880,13 +1880,13 @@ Read an agent.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/claude-helper" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-#### `PUT /v1.0/api/tenants/{tenantId}/agents/{id}`
+#### `PUT /v1.0/api/tenants/{tenantId}/agents/{idOrName}`
 
-Update an agent.
+Update an agent, addressed by identifier or name (identifier first).
 
 | | |
 |---|---|
@@ -1902,9 +1902,9 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
   -d '{"name": "string", "displayName": "string", "description": "string", "kind": "Hosted", "agentVersion": "string", "exposeA2A": false, "exposeMcpTool": false, "mcpToolName": "string", "toolDescriptionTemplateId": "string", "skillDescriptionTemplateId": "string", "inputMode": "Text", "inputSchemaJson": "string", "outputSchemaJson": "string", "delegationMode": "None", "delegationMaxDepth": 0, "delegationAllowRecursion": false, "remoteProtocol": "A2A", "remoteEndpointUrl": "string", "remoteCredentialSecretId": "string", "lastRegisteredUtc": "2026-01-01T00:00:00Z", "registrationTtlSeconds": 0, "active": false, "skills": [{}], "tags": ["string"], "delegationAllowList": ["string"]}'
 ```
 
-#### `DELETE /v1.0/api/tenants/{tenantId}/agents/{id}`
+#### `DELETE /v1.0/api/tenants/{tenantId}/agents/{idOrName}`
 
-Delete an agent and its deployments.
+Delete an agent and its deployments, addressed by identifier or name (identifier first).
 
 | | |
 |---|---|
@@ -1917,9 +1917,9 @@ curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-#### `GET /v1.0/api/tenants/{tenantId}/agents/{id}/card`
+#### `GET /v1.0/api/tenants/{tenantId}/agents/{idOrName}/card`
 
-Read the agent's A2A agent card.
+Read the agent's A2A agent card, addressed by identifier or name (identifier first). The interface URL uses `Rest.ExternalBaseUrl`, or the request's scheme and `Host` when that is unset; see `A2A_API.md`.
 
 | | |
 |---|---|
@@ -1928,7 +1928,7 @@ Read the agent's A2A agent card.
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}/card" \
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/claude-helper/card" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -2229,6 +2229,28 @@ Runs that finished before schema migration 2, or that ended without a worker rep
 }
 ```
 
+##### Blocked runs (`blockedReason`)
+
+Every `Run` returned by REST (invoke, create, read, list, children, cancel, retry) carries `blockedReason`, a read-only field computed when the run is read. It is never stored, it cannot be set, and unlike other null fields it is always present in the JSON, as `null` when there is nothing to report.
+
+| Value | Meaning |
+|---|---|
+| `null` | The run is not `Queued`, or at least one Ready node could run it. It may still be waiting for capacity or a deployment concurrency limit. |
+| `NoReadyWorker` | No node is Ready at all. |
+| `NoCapableWorker` | Ready nodes exist, but none reports the run's harness as available. |
+| `NoMatchingPool` | Ready nodes report the harness, but none matches the deployment's node pool, the pool's tenant dedication, or the deployment's node selector labels. |
+
+The reason comes from a snapshot of node state that is reused for up to 3 seconds, so it can lag a node registering or going away by that long. The control plane leader also checks queued runs every 5 seconds. The first time it finds a run blocked for a given reason it appends one `Warning` run event that explains it, for example `No Ready worker reports the Codex harness. The run waits until one registers.` Each reason is explained at most once per run. When the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 (the default 0 waits forever), a run that stays blocked that long fails with status `Failed`, outcome `NoCapableWorker`, and an `errorMessage` that names the reason. The overview counts blocked runs in `blockedRuns`.
+
+```json
+{
+  "id": "run_mv2abd...",
+  "status": "Queued",
+  "harnessType": "Codex",
+  "blockedReason": "NoCapableWorker"
+}
+```
+
 #### `DELETE /v1.0/api/tenants/{tenantId}/runs/{id}`
 
 Delete a finished run.
@@ -2463,7 +2485,7 @@ Response:
 
 #### `GET /v1.0/api/tenants/{tenantId}/overview`
 
-Tenant overview for the Home page.
+Tenant overview for the Home page. `queued` counts every queued run; `blockedRuns` counts the queued runs whose `blockedReason` is not null (no Ready worker can run them right now). See [Blocked runs](#blocked-runs-blockedreason).
 
 | | |
 |---|---|
@@ -2857,6 +2879,8 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 ## Notes on specific routes
 
+**Addressing agents.** Every route under `.../agents/{idOrName}` (read, update, delete, card, and invoke) accepts the agent's identifier or its name, resolved within the tenant. An identifier match takes precedence over an agent whose name happens to equal it. When a name is used, resource-scoped permissions are checked against the resolved agent's identifier.
+
 **Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors.
 
 **Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
@@ -2904,7 +2928,7 @@ Workers authenticate with a credential that holds the `NodeAgent` role (by defau
 | `POST /v1.0/api/node/heartbeat` | Report held leases and free capacity. Extends held leases and returns runs to cancel (`cancelRunIds`), leases the node lost (`lostRunIds`), and whether to drain. |
 | `POST /v1.0/api/node/lease` | Long poll for up to `maxRuns` runs, waiting up to `waitMs`. Each assignment carries the run identifier, the epoch, the lease expiry, and the compiled `ExecutionSpec`. |
 | `POST /v1.0/api/node/runs/{runId}/started` | The harness started. Moves the run from Leased to Running. |
-| `POST /v1.0/api/node/runs/{runId}/events` | A batch of normalized events with worker-assigned sequences starting at 1. Re-sent sequences are ignored. |
+| `POST /v1.0/api/node/runs/{runId}/events` | A batch of normalized events with worker-assigned sequences starting after the assignment's `eventSequenceStart` (1 for a run with no events yet). Re-sent sequences are ignored. |
 | `POST /v1.0/api/node/runs/{runId}/complete` | Terminal status, outcome, result, structured output, usage, cost, session identifier, served model, exit code, and stderr tail. |
 | `POST /v1.0/api/node/drain` | The worker is draining (body is a heartbeat). The node becomes Draining, or Offline when it holds no runs. |
 
@@ -3893,6 +3917,7 @@ A leased run with its compiled execution spec.
 | `runId` | `string` | Run identifier. |
 | `epoch` | `long` | Fencing epoch; include it in every run-scoped call. |
 | `leaseExpiresUtc` | `DateTime` | Lease expiry (UTC). |
+| `eventSequenceStart` | `long` | Highest event sequence already recorded for the run (for example a control-plane warning written while it was queued). The worker numbers its events after it. |
 | `spec` | `Garrison.Core.Compilation.ExecutionSpec` | Compiled execution spec. |
 
 #### `NodePool`
@@ -3968,6 +3993,7 @@ Home page summary for a tenant.
 | `runsByStatus` | `List<StatusCount>` | Runs in the last 24 hours by status. |
 | `nodesByStatus` | `List<StatusCount>` | Nodes by status. |
 | `queued` | `long` | Runs waiting for a node. |
+| `blockedRuns` | `long` | Queued runs that no Ready worker can run right now (runs whose `blockedReason` is not null). |
 | `active` | `long` | Runs leased or running. |
 | `recentFailures` | `List<Garrison.Core.Models.Run>` | Most recent failed or timed-out runs. |
 | `generatedUtc` | `DateTime` | When the summary was generated (UTC). |
@@ -4035,6 +4061,7 @@ One invocation of one deployment.
 | `costUsd` | `double?` | Cost in USD. |
 | `costEstimated` | `bool` | Whether the cost is an estimate. |
 | `lastEventSequence` | `long` | Highest event sequence received. |
+| `blockedReason` | `RunBlockedReasonEnum?` | Read-only and computed on read: why the queued run cannot be handed to any worker right now, or `null`. Always present. See [Blocked runs](#blocked-runs-blockedreason). |
 | `active` | `bool` | Whether the record is active. |
 | `isProtected` | `bool` | Whether the record is protected from deletion. |
 | `createdUtc` | `DateTime` | Creation timestamp (UTC). |
@@ -4053,7 +4080,13 @@ One invocation of one deployment.
 
 #### `RunOutcomeEnum`
 
-`None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `InternalError`
+`None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`
+
+`NoCapableWorker` means the run stayed queued with no Ready worker able to run it for longer than `Runtime.FailBlockedAfterSeconds`.
+
+#### `RunBlockedReasonEnum`
+
+`NoReadyWorker`, `NoCapableWorker`, `NoMatchingPool`
 
 #### `RunParameter`
 

@@ -41,6 +41,7 @@ The control plane is assembled from four modules, each registering its routes an
 1. **Request.** A caller invokes an agent through `POST .../agents/{id}/invoke`, the MCP tool `garrison_invoke_agent`, or the A2A method `SendMessage`. All three go through the same invoker. The caller is authenticated, and Execute on Agent is checked.
 2. **Deployment selection.** The invoker picks one of the agent's active deployments, at random by weight unless the caller named one, and validates the run parameters against the deployment's allowed overrides. Delegated calls are checked against the delegation rules here.
 3. **Queued.** The run is written as `Queued`, with its requirements (harness type, node pool, node labels) copied from the deployment. If the caller sent an idempotency key that matches a run from the last 24 hours, that run is returned instead.
+   While a run is queued, every read explains whether anyone can take it: `blockedReason` is `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), or `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool, tenant dedication, or node selector), and `null` otherwise. It is computed from a node snapshot reused for a few seconds, never stored, and the tenant overview counts such runs as `blockedRuns`.
 4. **Claimed.** A worker's long-poll lease request finds candidate runs it is eligible for and claims one with a single compare-and-set update that also increments the run's fencing epoch. Only one claim can succeed.
 5. **Compiled.** The claiming replica loads the deployment, profile, agent, prompt bindings, MCP servers, secrets, and workspace, issues a run token if the agent may delegate, and renders everything into an `ExecutionSpec`: executable, argument list, environment, files, stdin, parser, result source, success policy, timeouts, MCP checks, and the values to scrub. The template versions used are recorded on the run. A compile failure fails the run with `CompileFailed`.
 6. **Leased.** The spec goes back to the worker in the lease response, with the epoch and lease expiry.
@@ -48,7 +49,7 @@ The control plane is assembled from four modules, each registering its routes an
 8. **Finished.** When the process exits, the worker classifies the outcome, reads the result, scrubs secrets, reports `complete`, and cleans up. The control plane stores the result, usage, cost, served model, exit code, and stderr tail, revokes the run token, and wakes anyone waiting.
 9. **Delivered.** A waiting invoke returns the run. Streaming clients receive the final event over SSE, WebSocket, or A2A streaming.
 
-Meanwhile the leader's maintenance loop (every 2 seconds) requeues or fails runs whose lease expired, enforces deadlines as a backstop to the worker, marks silent nodes `Lost`, and prunes old records.
+Meanwhile the leader's maintenance loop (every 2 seconds) requeues or fails runs whose lease expired, enforces deadlines as a backstop to the worker, marks silent nodes `Lost`, and prunes old records. Every 5 seconds it also looks for blocked queued runs: the first time a run is blocked for a given reason it appends one `Warning` run event saying why (the event carries a marker in its raw JSON so a new leader does not repeat it), and when the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 it fails runs that stay blocked that long with outcome `NoCapableWorker`. Because the control plane can write events before a worker sees the run, each lease tells the worker which sequence to number its events after (`eventSequenceStart`).
 
 ### Run states
 
@@ -57,6 +58,7 @@ Pending -> Queued -> Leased -> Running -> Succeeded | Failed | TimedOut | Cancel
               ^         |          |
               +---------+----------+   lease expired with attempts left (requeue)
            Queued/Leased/Running -> Cancelling -> Cancelled
+           Queued -> Failed (outcome NoCapableWorker, only when Runtime.FailBlockedAfterSeconds > 0)
 ```
 
 `Rejected` exists in the status list for future admission control; nothing sets it in this release.

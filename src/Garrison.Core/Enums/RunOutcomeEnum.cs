@@ -81,6 +81,12 @@ namespace Garrison.Core.Enums
         Rejected,
 
         /// <summary>
+        /// The run stayed queued with no Ready worker able to run it for longer than the cluster setting
+        /// Runtime.FailBlockedAfterSeconds allows.
+        /// </summary>
+        NoCapableWorker,
+
+        /// <summary>
         /// InternalError.
         /// </summary>
         InternalError

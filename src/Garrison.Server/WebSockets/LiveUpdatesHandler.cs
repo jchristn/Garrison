@@ -49,6 +49,7 @@ namespace Garrison.Server.WebSockets
 
         private readonly ServerContext _Context;
         private readonly RunEventService _Events;
+        private readonly BlockedRunService _Blocked;
         private int _PollMs = 1000;
 
         #endregion
@@ -60,9 +61,11 @@ namespace Garrison.Server.WebSockets
         /// </summary>
         /// <param name="context">Server context.</param>
         /// <param name="events">Run event service.</param>
+        /// <param name="blocked">Blocked-run evaluator (fills blockedReason on pushed runs).</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public LiveUpdatesHandler(ServerContext context, RunEventService events)
+        public LiveUpdatesHandler(ServerContext context, RunEventService events, BlockedRunService blocked)
         {
+            _Blocked = blocked ?? throw new ArgumentNullException(nameof(blocked));
             _Context = context ?? throw new ArgumentNullException(nameof(context));
             _Events = events ?? throw new ArgumentNullException(nameof(events));
         }
@@ -225,6 +228,8 @@ namespace Garrison.Server.WebSockets
             filter.MaxResults = 25;
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
             string fingerprint = String.Join("|", page.Objects.Select(r => r.Id + ":" + r.Status + ":" + r.LastEventSequence));
+            await _Blocked.AnnotateManyAsync(page.Objects, token).ConfigureAwait(false);
+            fingerprint += "|" + String.Join(",", page.Objects.Where(r => r.BlockedReason != null).Select(r => r.Id + ":" + r.BlockedReason));
             if (fingerprint == state.Fingerprint) return;
             state.Fingerprint = fingerprint;
             await SendAsync(session, sendLock, new { type = "runs.changed", runs = page.Objects }, token).ConfigureAwait(false);

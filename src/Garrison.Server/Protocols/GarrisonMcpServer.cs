@@ -239,14 +239,14 @@ namespace Garrison.Server.Protocols
                         result = await InvokeAsync(ctx, tenantId, args, false, token).ConfigureAwait(false);
                         break;
                     case "garrison_get_run":
-                        result = Summarize(await RequireRunAsync(ctx, tenantId, args, OperationTypeEnum.Read, token).ConfigureAwait(false));
+                        result = await SummarizeAsync(await RequireRunAsync(ctx, tenantId, args, OperationTypeEnum.Read, token).ConfigureAwait(false), token).ConfigureAwait(false);
                         break;
                     case "garrison_get_run_events":
                         result = await EventsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_cancel_run":
                         Run toCancel = await RequireRunAsync(ctx, tenantId, args, OperationTypeEnum.Update, token).ConfigureAwait(false);
-                        result = Summarize(await _Runs.CancelAsync(toCancel, token).ConfigureAwait(false));
+                        result = await SummarizeAsync(await _Runs.CancelAsync(toCancel, token).ConfigureAwait(false), token).ConfigureAwait(false);
                         break;
                     case "garrison_list_runs":
                         result = await ListRunsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
@@ -322,7 +322,7 @@ namespace Garrison.Server.Protocols
             long requested = args?.GetInt64("waitSeconds") ?? _Context.Settings.Mcp.MaxToolWaitSeconds;
             options.WaitSeconds = (int)Math.Clamp(requested, 0, _Context.Settings.Mcp.MaxToolWaitSeconds);
             Run run = await _Invoker.InvokeAsync(ctx, tenantId, agent, options, token).ConfigureAwait(false);
-            return Summarize(run);
+            return await SummarizeAsync(run, token).ConfigureAwait(false);
         }
 
         private async Task<object> EventsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
@@ -348,6 +348,8 @@ namespace Garrison.Server.Protocols
             if (ctx.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(ctx.RunId)) filter.RootRunId = await RootOfAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
             McpRunList list = new McpRunList();
+            BlockedRunService? blocked = _Context.TryGet<BlockedRunService>();
+            if (blocked != null) await blocked.AnnotateManyAsync(page.Objects, token).ConfigureAwait(false);
             list.Runs = page.Objects.Select(Summarize).ToList();
             list.TotalRecords = page.TotalRecords;
             return list;
@@ -404,6 +406,13 @@ namespace Garrison.Server.Protocols
             return summary;
         }
 
+        private async Task<McpRunSummary> SummarizeAsync(Run run, CancellationToken token)
+        {
+            BlockedRunService? blocked = _Context.TryGet<BlockedRunService>();
+            if (blocked != null) await blocked.AnnotateAsync(run, token).ConfigureAwait(false);
+            return Summarize(run);
+        }
+
         private static McpRunSummary Summarize(Run run)
         {
             McpRunSummary summary = new McpRunSummary();
@@ -411,6 +420,7 @@ namespace Garrison.Server.Protocols
             summary.Agent = run.AgentName;
             summary.Status = run.Status.ToString();
             summary.Outcome = run.Outcome.ToString();
+            summary.BlockedReason = run.BlockedReason?.ToString();
             summary.Finished = RunService.IsTerminal(run.Status);
             summary.Result = run.ResultText;
             summary.StructuredOutputJson = run.StructuredOutputJson;

@@ -122,6 +122,9 @@ type Run struct {
 	ToolCallCount int64 `json:"toolCallCount"`
 	// ServedModel is the model the harness reported serving the run; empty when not reported.
 	ServedModel string `json:"servedModel,omitempty"`
+	// BlockedReason is computed by the server on read: NoReadyWorker, NoCapableWorker, or NoMatchingPool when the
+	// queued run cannot be handed to any worker right now; nil otherwise.
+	BlockedReason *string `json:"blockedReason"`
 }
 
 // RunEvent is one normalized event emitted by a run.

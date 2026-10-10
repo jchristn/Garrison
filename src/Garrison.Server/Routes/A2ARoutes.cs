@@ -306,10 +306,7 @@ namespace Garrison.Server.Routes
 
         private string BaseUrl(HttpContextBase context)
         {
-            if (!String.IsNullOrEmpty(_Context.Settings.Rest.PublicBaseUrl)) return _Context.Settings.Rest.PublicBaseUrl.TrimEnd('/');
-            string? host = context.Request.Headers["Host"];
-            string scheme = _Context.Settings.Rest.Ssl ? "https" : "http";
-            return scheme + "://" + (String.IsNullOrEmpty(host) ? "127.0.0.1:" + _Context.Settings.Rest.Port : host);
+            return ExternalUrls.RestBaseUrl(_Context, context);
         }
 
         private static T Parse<T>(JsonElement parameters) where T : new()

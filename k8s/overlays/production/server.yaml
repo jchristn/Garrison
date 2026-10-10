@@ -72,6 +72,9 @@ spec:
                   key: password
             - name: GARRISON_EXPECTED_REPLICAS
               value: "3"
+            # What A2A agent cards advertise. Match the Ingress host.
+            - name: GARRISON_EXTERNAL_BASE_URL
+              value: https://garrison.example.com
           resources:
             requests:
               cpu: 500m

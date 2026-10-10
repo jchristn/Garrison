@@ -6,6 +6,8 @@ database:
 server:
   replicas: 3
   expectedReplicas: 3
+  # What A2A agent cards advertise. Match ingress.host.
+  externalBaseUrl: https://garrison.example.com
   resources:
     requests: { cpu: 500m, memory: 512Mi }
     limits: { cpu: "4", memory: 2Gi }

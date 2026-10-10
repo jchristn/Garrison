@@ -507,7 +507,8 @@ namespace Garrison.Worker.Hosting
                     _Logging.Warn(_Header + "control plane reports a stale lease for run " + id + "; killing the harness");
                     run.MarkLost();
                 },
-                message => _Logging.Debug(_Header + message));
+                message => _Logging.Debug(_Header + message),
+                run.Assignment.EventSequenceStart);
             string harness = run.Assignment.Spec.HarnessType.ToString();
             try
             {

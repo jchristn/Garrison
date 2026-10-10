@@ -41,6 +41,8 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "deployments", "Deployments validate references, default prompt bindings, version on update, and preview (" + provider + ")", ct => DeploymentsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifests", "Manifests dry-run, apply, re-apply unchanged, export, and reject bad references (" + provider + ")", ct => ManifestsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "agents", "Agent self-registration is idempotent and the A2A card renders (" + provider + ")", ct => AgentsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "agents-by-name", "Agent read, card, update, and delete accept a name; IDs take precedence (" + provider + ")", ct => AgentsByNameAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "external-urls", "A2A cards use the external URL or request host while runs get the internal URL (" + provider + ")", ct => ExternalUrlsAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Configuration API (" + provider + ")", cases));
             }
             return suites;
@@ -236,6 +238,113 @@ namespace Test.Shared.Suites
                 Assert.True(card.Body.Contains("/v1.0/a2a/" + host.TenantId + "/remote-helper", StringComparison.Ordinal), "card URL");
                 TestResponse badName = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "Bad Name" }, token).ConfigureAwait(false);
                 Assert.Equal(400, badName.StatusCode, "invalid agent name");
+            }
+        }
+
+        private static async Task AgentsByNameAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                Agent alpha = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "alpha-agent", Description = "Alpha." }, 201, token).ConfigureAwait(false);
+
+                Agent byName = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/alpha-agent", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(alpha.Id, byName.Id, "read by name");
+                Agent byId = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + alpha.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(alpha.Id, byId.Id, "read by ID");
+                TestResponse missing = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/agents/no-such-agent", null, token).ConfigureAwait(false);
+                Assert.Equal(404, missing.StatusCode, "unknown name");
+
+                TestResponse card = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/agents/alpha-agent/card", null, token).ConfigureAwait(false);
+                Assert.Equal(200, card.StatusCode, "card by name");
+                Assert.True(card.Body.Contains("/v1.0/a2a/" + host.TenantId + "/alpha-agent", StringComparison.Ordinal), "card by name URL");
+
+                byName.Description = "Alpha, updated by name.";
+                Agent updated = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Put, T(host) + "/agents/alpha-agent", byName, 200, token).ConfigureAwait(false);
+                Assert.Equal(alpha.Id, updated.Id, "update by name keeps the ID");
+                Assert.Equal("Alpha, updated by name.", updated.Description, "update by name");
+
+                // An agent whose name equals another agent's ID: the ID wins.
+                Agent shadow = new Agent();
+                shadow.TenantId = host.TenantId;
+                shadow.Name = alpha.Id;
+                shadow = await host.Server.Context.Database.Agents.CreateAsync(shadow, token).ConfigureAwait(false);
+                Agent precedence = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + alpha.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(alpha.Id, precedence.Id, "ID takes precedence over a name");
+                Agent shadowRead = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + shadow.Id, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(alpha.Id, shadowRead.Name, "shadow agent still readable by its own ID");
+
+                DeleteResponse deleted = await HttpTestHelpers.SendAsync<DeleteResponse>(host.AdminClient, HttpMethod.Delete, T(host) + "/agents/alpha-agent", null, 200, token).ConfigureAwait(false);
+                Assert.True(deleted.Deleted, "delete by name");
+                TestResponse gone = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/agents/alpha-agent", null, token).ConfigureAwait(false);
+                Assert.Equal(404, gone.StatusCode, "deleted agent is gone");
+
+                await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "tenant-local" }, 201, token).ConfigureAwait(false);
+                Tenant second = await HttpTestHelpers.SendAsync<Tenant>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Second " + Guid.NewGuid().ToString("N").Substring(0, 6) }, 201, token).ConfigureAwait(false);
+                TestResponse crossTenant = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, "/v1.0/api/tenants/" + second.Id + "/agents/tenant-local", null, token).ConfigureAwait(false);
+                Assert.Equal(404, crossTenant.StatusCode, "names resolve within the tenant only");
+            }
+        }
+
+        private static async Task ExternalUrlsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            Action<Garrison.Server.Settings.ServerSettings> configure = s =>
+            {
+                s.Rest.PublicBaseUrl = "http://garrison-server:8700";
+                s.Mcp.PublicUrl = "http://garrison-server:8701";
+            };
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, configure, token).ConfigureAwait(false))
+            {
+                Agent agent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "url-agent", ExposeA2A = true, DelegationMode = DelegationModeEnum.Any }, 201, token).ConfigureAwait(false);
+
+                // No external URL set: cards follow the request's Host header (and X-Forwarded-Proto), never the internal URL.
+                string viaHost = await GetWithHostAsync(host, T(host) + "/agents/url-agent/card", "garrison.example.com:9443", null, token).ConfigureAwait(false);
+                Assert.True(viaHost.Contains("\"http://garrison.example.com:9443/v1.0/a2a/" + host.TenantId + "/url-agent\"", StringComparison.Ordinal), "card follows the Host header: " + viaHost);
+                Assert.True(!viaHost.Contains("garrison-server", StringComparison.Ordinal), "card must not advertise the internal URL");
+                string forwarded = await GetWithHostAsync(host, "/v1.0/a2a/" + host.TenantId + "/url-agent/.well-known/agent-card.json", "agents.example.org", "https", token).ConfigureAwait(false);
+                Assert.True(forwarded.Contains("https://agents.example.org/v1.0/a2a/" + host.TenantId + "/url-agent", StringComparison.Ordinal), "A2A card honors X-Forwarded-Proto: " + forwarded);
+
+                // External URL set: cards and server info use it regardless of the Host header.
+                host.Settings.Rest.ExternalBaseUrl = "https://garrison.example.com/";
+                string external = await GetWithHostAsync(host, T(host) + "/agents/url-agent/card", "10.0.0.5:8700", null, token).ConfigureAwait(false);
+                Assert.True(external.Contains("https://garrison.example.com/v1.0/a2a/" + host.TenantId + "/url-agent", StringComparison.Ordinal), "card uses Rest.ExternalBaseUrl: " + external);
+                string a2aCard = await GetWithHostAsync(host, "/v1.0/a2a/" + host.TenantId + "/url-agent/.well-known/agent-card.json", "10.0.0.5:8700", null, token).ConfigureAwait(false);
+                Assert.True(a2aCard.Contains("https://garrison.example.com/v1.0/a2a/" + host.TenantId + "/url-agent", StringComparison.Ordinal), "A2A card uses Rest.ExternalBaseUrl: " + a2aCard);
+                ServerInfoResponse info = await HttpTestHelpers.SendAsync<ServerInfoResponse>(host.AdminClient, HttpMethod.Get, "/v1.0/api/server-info", null, 200, token).ConfigureAwait(false);
+                Assert.Equal("https://garrison.example.com", info.RestUrl, "server info uses the external URL");
+
+                // Compiled runs still get the internal URLs.
+                PromptTemplate template = new PromptTemplate();
+                template.Name = "url-task";
+                template.Kind = PromptTemplateKindEnum.Task;
+                template.Content = "API {{garrison.apiUrl}} MCP {{garrison.mcpUrl}} INPUT {{input.text}}";
+                PromptTemplate createdTemplate = await HttpTestHelpers.SendAsync<PromptTemplate>(host.AdminClient, HttpMethod.Post, T(host) + "/prompt-templates", template, 201, token).ConfigureAwait(false);
+                HarnessProfile fake = (await host.Server.Context.Database.HarnessProfiles.ReadByNameAsync(host.TenantId, "builtin/fake", token).ConfigureAwait(false))!;
+                Deployment deployment = new Deployment();
+                deployment.Name = "url-agent-default";
+                deployment.AgentId = agent.Id;
+                deployment.HarnessProfileId = fake.Id;
+                deployment.PromptBindings.Add(new DeploymentPromptBinding { Role = "Task", TemplateId = createdTemplate.Id });
+                Deployment created = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", deployment, 201, token).ConfigureAwait(false);
+                TestResponse preview = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/deployments/" + created.Id + "/compile-preview", new CompilePreviewRequest { Input = "Hi" }, token).ConfigureAwait(false);
+                Assert.Equal(200, preview.StatusCode, "compile preview: " + preview.Body);
+                Assert.True(preview.Body.Contains("API http://garrison-server:8700", StringComparison.Ordinal), "runs get the internal REST URL: " + preview.Body);
+                Assert.True(preview.Body.Contains("MCP http://garrison-server:8701/mcp", StringComparison.Ordinal), "runs get the internal MCP URL: " + preview.Body);
+                Assert.True(!preview.Body.Contains("garrison.example.com", StringComparison.Ordinal), "runs must not get the external URL");
+            }
+        }
+
+        private static async Task<string> GetWithHostAsync(TestServerHost host, string path, string hostHeader, string? forwardedProto, CancellationToken token)
+        {
+            using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, path))
+            {
+                request.Headers.Host = hostHeader;
+                if (forwardedProto != null) request.Headers.Add("X-Forwarded-Proto", forwardedProto);
+                using (HttpResponseMessage response = await host.AdminClient.SendAsync(request, token).ConfigureAwait(false))
+                {
+                    string body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                    if ((int)response.StatusCode != 200) throw new TestAssertionException("GET " + path + " returned " + (int)response.StatusCode + ": " + body);
+                    return body;
+                }
             }
         }
 

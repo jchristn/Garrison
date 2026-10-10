@@ -40,6 +40,11 @@ namespace Garrison.Core.Responses
         public long Queued { get; set; } = 0;
 
         /// <summary>
+        /// Queued runs that no Ready worker can run right now (runs whose blockedReason is not null).
+        /// </summary>
+        public long BlockedRuns { get; set; } = 0;
+
+        /// <summary>
         /// Runs leased or running.
         /// </summary>
         public long Active { get; set; } = 0;
