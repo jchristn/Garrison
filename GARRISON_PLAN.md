@@ -1444,6 +1444,13 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [x] P10.16 Node pools dedicated to tenants enforced at claim.  | claude 2026-10-10 pool and tenant filtered in SQL at claim so dedicated workers do not starve; test
 - [x] P10.17 Backup and restore guidance per database provider.  | claude 2026-10-10 docs/BACKUP.md and a nightly pg_dump component, verified with a restore
 - [x] P10.18 `docs/SCALING.md` updated with measured numbers.  | claude 2026-10-10 docs/SCALING.md Measured results table
+- [ ] P10.19 Control-plane nodes visible like worker nodes (user request 2026-10-10). Contract:
+  - Each server replica registers and heartbeats a `control_nodes` row (migration 7): `id` (the replica's node ID), `name`, `hostname`, `address`, `version`, `schemaVersion`, `backplane`, `status` (`Starting`, `Ready`, `Draining`, `Offline`), `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams` (SSE and WebSocket), `heldLongPolls`. Heartbeat every 5 seconds; a replica sets `Draining` on SIGTERM and `Offline` on clean exit; the leader marks rows silent for 30 seconds `Offline` and deletes rows offline longer than 24 hours.
+  - `isLeader` is computed from the coordination lease; responses also carry `leaderEpoch` for the leader.
+  - `GET /v1.0/api/control-nodes` and `GET /v1.0/api/control-nodes/{id}` with the same permission as worker nodes (Node, Read); `respondingNodeId` on both, so a client sees which replica answered.
+  - Overview gains `controlNodesByStatus` (`[{ status, count }]`) and `leaderNodeId`.
+  - Metric `garrison_control_nodes` gauge by `status`.
+  - Dashboard: Fleet hub gets a Control plane tab (status, leader badge, version, schema version, uptime, heartbeat age, activity, Grafana link); Home shows "Control plane ready x / y" next to worker nodes and lists both kinds in the nodes panel; tooltips and all 9 locales.
 
 ### Phase 11: Pod-per-run isolation executor (M2)
 
