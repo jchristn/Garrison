@@ -42,6 +42,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends nodejs \
  && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
  && if [ "${INCLUDE_GEMINI}" = "true" ]; then npm install -g "@google/gemini-cli@${GEMINI_CLI_VERSION}"; fi \
+ # Both CLIs ship their native binaries as optional npm dependencies, which npm skips without failing when a
+ # download breaks. Run them here so a partial install fails the build instead of producing a worker without harnesses.
+ && claude --version \
+ && codex --version \
+ && if [ "${INCLUDE_GEMINI}" = "true" ]; then gemini --version; fi \
  && npm cache clean --force \
  && rm -rf /var/lib/apt/lists/*
 

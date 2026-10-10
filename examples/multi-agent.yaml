@@ -1,0 +1,102 @@
+# Garrison quick start: three agents on three harnesses, one of which may delegate to the other two.
+#
+#   planner  Claude Code   may call coder and echo through Garrison's MCP server
+#   coder    Codex         a coding agent
+#   echo     fake harness  needs no credentials; echoes its prompt, handy for checking the plumbing
+#
+# The two Secret documents declare names and kinds only. Set their values once, before or after applying
+# (docs/QUICKSTART.md shows both the dashboard and the curl route). Later applies leave stored values alone.
+#
+# Apply (Docker defaults shown; use your own URL and credentials):
+#   curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/apply" \
+#     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/yaml" --data-binary @examples/multi-agent.yaml
+#
+# Applying twice changes nothing. Nothing here is deleted by a later apply; remove records through the API or dashboard.
+
+# Claude Code credential. With an Anthropic API key instead of a subscription token, change kind to AnthropicApiKey.
+apiVersion: garrison/v1
+kind: Secret
+metadata:
+  name: claude-credential
+  description: Claude Code credential for the quick start agents
+spec:
+  kind: ClaudeCodeOAuthToken
+---
+# Codex credential: the contents of a Codex auth.json (ChatGPT sign-in). With an OpenAI API key, change kind to OpenAiApiKey.
+apiVersion: garrison/v1
+kind: Secret
+metadata:
+  name: codex-credential
+  description: Codex credential for the quick start agents
+spec:
+  kind: CodexAuthJson
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: planner
+  description: Breaks a request into steps and hands coding work to other agents
+spec:
+  displayName: Planner
+  exposure: { a2a: true, mcpTool: true }
+  # Without a mode, a non-empty allow list means AllowList. researcher is the Mux agent the quick start
+  # creates in the dashboard; naming an agent that does not exist yet is fine.
+  delegation:
+    allow: [coder, echo, researcher]
+    maxDepth: 1
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: coder
+  description: Writes and explains code
+spec:
+  displayName: Coder
+  exposure: { a2a: true, mcpTool: true }
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: echo
+  description: Repeats its input; runs on the fake harness and costs nothing
+spec:
+  displayName: Echo
+  exposure: { a2a: true, mcpTool: true }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: planner-claude
+spec:
+  agent: planner
+  harnessProfile: builtin/claude-code
+  model: sonnet
+  maxTurns: 8
+  timeoutSeconds: 300
+  resources:
+    secrets:
+      - { alias: anthropic, secret: claude-credential }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: coder-codex
+spec:
+  agent: coder
+  harnessProfile: builtin/codex
+  maxTurns: 8
+  timeoutSeconds: 300
+  resources:
+    secrets:
+      - { alias: codex, secret: codex-credential }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: echo-fake
+spec:
+  agent: echo
+  harnessProfile: builtin/fake
+  timeoutSeconds: 60
+  parameters:
+    format: claude

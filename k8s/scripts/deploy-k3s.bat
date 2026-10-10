@@ -17,10 +17,13 @@ if "%1"=="--build" (
     docker save jchristn77/%%i:%GARRISON_TAG% -o "%TEMP%\%%i.tar" || exit /b 1
     docker cp "%TEMP%\%%i.tar" %K3S_CONTAINER%:/tmp/%%i.tar || exit /b 1
     docker exec %K3S_CONTAINER% ctr images import /tmp/%%i.tar || exit /b 1
+    docker exec %K3S_CONTAINER% rm -f /tmp/%%i.tar
+    del /q "%TEMP%\%%i.tar"
   )
 )
 call "%~dp0generate-secrets.bat" || exit /b 1
 kubectl apply -k "%K8S%\overlays\k3s" || exit /b 1
 call "%~dp0wait-rollout.bat" || exit /b 1
 echo [garrison] add "127.0.0.1 garrison.local" to your hosts file, then open http://garrison.local
+echo [garrison] when K3S runs in Docker with -p 127.0.0.1:8080:80, use http://garrison.local:8080, or run port-forward.bat
 endlocal

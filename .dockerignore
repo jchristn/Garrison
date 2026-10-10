@@ -12,6 +12,10 @@ sdk/js/node_modules/
 **/__pycache__/
 **/.venv/
 
+# Local settings and credentials (docker/.env holds harness credentials)
+.env
+**/.env
+
 # Local runtime state
 **/logs/
 **/data/

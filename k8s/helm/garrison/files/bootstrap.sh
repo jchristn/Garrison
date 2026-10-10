@@ -17,7 +17,7 @@ json_escape() {
 }
 
 log "waiting for ${API}/v1.0/api/health"
-until curl -fsS -o /dev/null "${API}/v1.0/api/health"; do sleep 3; done
+until curl -fs -o /dev/null "${API}/v1.0/api/health"; do sleep 3; done
 log "server healthy"
 
 # upsert_secret <name> <kind> <value>

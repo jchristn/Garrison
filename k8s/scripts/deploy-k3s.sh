@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Deploys Garrison to the current kubectl context (K3S on a host, or K3S running in Docker).
 #
-# K3S in Docker (no host install needed):
-#   docker run -d --name garrison-k3s --privileged -p 6443:6443 -p 8080:80 rancher/k3s:v1.31.4-k3s1 server
-#   docker cp garrison-k3s:/etc/rancher/k3s/k3s.yaml ./k3s.yaml && export KUBECONFIG=$PWD/k3s.yaml
+# K3S in Docker (no host install needed; docs/KUBERNETES.md has the full recipe, including other ports):
+#   docker run -d --name garrison-k3s --privileged -p 127.0.0.1:6443:6443 -p 127.0.0.1:8080:80 rancher/k3s:v1.31.4-k3s1 server
+#   until docker exec garrison-k3s test -s /etc/rancher/k3s/k3s.yaml; do sleep 2; done
+#   docker cp garrison-k3s:/etc/rancher/k3s/k3s.yaml ~/.kube/garrison-k3s.yaml && export KUBECONFIG=~/.kube/garrison-k3s.yaml
 #   K3S_CONTAINER=garrison-k3s k8s/scripts/deploy-k3s.sh --build
 #
 # Options:
@@ -32,6 +33,20 @@ if [ "${BUILD}" = "1" ]; then
   docker build -t "jchristn77/garrison-worker:${GARRISON_TAG}" -f "${REPO_DIR}/src/Garrison.Worker/Dockerfile" "${REPO_DIR}"
   docker build -t "jchristn77/garrison-dashboard:${GARRISON_TAG}" "${REPO_DIR}/dashboard"
   for image in garrison-server garrison-worker garrison-dashboard; do import_image "jchristn77/${image}:${GARRISON_TAG}"; done
+  # Third-party images the manifests use. Importing the ones Docker already has saves K3S from pulling them
+  # (postgres:17 alone is about 160 MB); anything missing is pulled by K3S as usual.
+  # Best effort: a pulled image can carry an index for platforms Docker never downloaded, so save only this one.
+  platform="linux/$(docker version --format '{{.Server.Arch}}')"
+  for image in postgres:17 busybox:1.36 curlimages/curl:8.10.1; do
+    docker image inspect "${image}" >/dev/null 2>&1 || continue
+    if [ -n "${K3S_CONTAINER:-}" ]; then
+      docker save --platform "${platform}" "${image}" | docker exec -i "${K3S_CONTAINER}" ctr images import - >/dev/null 2>&1 \
+        && log "imported ${image}" || log "could not import ${image}; K3S will pull it"
+    else
+      docker save --platform "${platform}" "${image}" | sudo k3s ctr images import - >/dev/null 2>&1 \
+        && log "imported ${image}" || log "could not import ${image}; K3S will pull it"
+    fi
+  done
 fi
 
 "${SCRIPT_DIR}/generate-secrets.sh"

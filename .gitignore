@@ -45,7 +45,9 @@ workspaces/
 *.db-shm
 *.db-journal
 
-# Kubernetes local overrides and rendered output
+# Kubernetes local overrides, rendered output, and kubeconfig files copied out of local clusters
+k3s.yaml
+*.kubeconfig
 k8s/**/secrets.local.yaml
 k8s/**/*.rendered.yaml
 k8s/helm/garrison/charts/

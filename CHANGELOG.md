@@ -39,3 +39,4 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 - Container images for the server, worker (with Claude Code, Codex, Mux, and the fake harness), and dashboard.
 - Kubernetes assets: Kustomize base, overlays for minikube, K3S, and production, a PostgreSQL component, a smoke test, a Helm chart, and deployment scripts.
 - React operator console, SDKs for C#, Python, JavaScript and TypeScript, and Go, a Postman collection, and API documentation.
+- A quick start (`docs/QUICKSTART.md`) with a multi-agent sample manifest (`examples/multi-agent.yaml`) and a validation script (`examples/validate.sh`, `validate.bat`) that checks REST, MCP, A2A, streaming, delegation, telemetry, and analytics and prints PASS or FAIL per check.

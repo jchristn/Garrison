@@ -30,6 +30,15 @@ Documents refer to each other by name, never by identifier, so the same manifest
 
 ## Applying
 
+The examples on this page send a session token in `$TOKEN`:
+
+```bash
+TOKEN=$(curl -s -X POST http://127.0.0.1:8700/v1.0/token -H "Content-Type: application/json" \
+  -d '{"email":"admin@garrison","password":"password"}' | jq -r .token)
+```
+
+The dashboard does the same under Configuration, Manifests tab: upload or paste a manifest, then **Dry run** and **Apply**.
+
 ```bash
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/apply?dryRun=true" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/yaml" \
@@ -126,7 +135,7 @@ spec:
   kind: AnthropicApiKey
 ```
 
-`kind` is one of `AnthropicApiKey`, `ClaudeCodeOAuthToken`, `OpenAiApiKey`, `CodexAuthJson`, `GeminiApiKey`, `GenericEnv`, `GenericFile`, `BearerToken`, `BasicAuth`, or `GitCredential`. `value` (only with `allowSecretValues=true`) and `expiresUtc` are optional. The usual pattern is to declare secrets without values in the manifest and set the values once through the API or dashboard; later applies leave the stored value alone.
+`kind` is one of `AnthropicApiKey`, `ClaudeCodeOAuthToken`, `OpenAiApiKey`, `CodexAuthJson`, `GeminiApiKey`, `GenericEnv`, `GenericFile`, `BearerToken`, `BasicAuth`, or `GitCredential`. `value` (only with `allowSecretValues=true`) and `expiresUtc` are optional. The usual pattern is to declare secrets without values in the manifest and set the values once through the API or dashboard; later applies leave the stored value alone. In the dashboard, that is Configuration, Secrets, then the secret's **Set value** action. Through the API, create the secret with its value before applying (`POST .../secrets` with `name`, `kind`, and `value`), or set it afterwards with `PUT .../secrets/{id}/value` and `{"value":"..."}`. `docs/QUICKSTART.md` walks through both, with a complete multi-agent manifest in `examples/multi-agent.yaml`.
 
 ### PromptTemplate
 

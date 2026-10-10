@@ -53,78 +53,67 @@ The control plane compiles each run into a fully resolved execution spec: comman
 | `sdk/` | C#, Python, JavaScript/TypeScript, and Go SDKs |
 | `docker/` | Docker Compose stack, update and factory reset scripts |
 | `k8s/` | Kustomize base, components, overlays, Helm chart, scripts |
-| `docs/` | Architecture, configuration, harnesses, prompts, manifests, Docker, Kubernetes, security |
+| `docs/` | Quick start, architecture, configuration, harnesses, prompts, manifests, Docker, Kubernetes, security |
+| `examples/` | A multi-agent sample manifest and a script that validates an install end to end |
 
 ## Getting started
 
-### On a laptop (Sqlite, no cluster)
+Pick the runtime you already have. Docker Compose is the quickest way to see Garrison work: one command, nothing to install beyond Docker. Kubernetes is where Garrison is meant to run for real. Building from source is for working on Garrison itself. Every route ends in the same place: a control plane, two workers, the dashboard, and a tenant called `default` you sign in to as `admin@garrison` with password `password`. Change that password before anyone else can reach the stack.
 
-You need the .NET 10 SDK. Harness CLIs are optional; the fake harness is enough to see the whole loop work.
+Harness credentials are optional at this point. Without them the fake harness still runs end to end; with them, the stack creates three sample agents (`claude-helper` on Claude Code, `codex-coder` on Codex, and `mux-helper` on Mux) the first time it starts.
 
-```bash
-dotnet build src/Garrison.sln
+### Docker Compose
 
-# Terminal 1: control plane on 127.0.0.1:8700 (REST) and :8701 (MCP)
-cd src/Garrison.Server && dotnet run -f net10.0
-
-# Terminal 2: one worker
-cd src/Garrison.Worker && dotnet run -f net10.0
-```
-
-On first start the server seeds a `Default` tenant (`default`), the administrator `admin@garrison` with password `password`, an administrator credential `access_garrison_default` / `secret_garrison_default_change_me`, and the worker credential the worker uses by default. Every one of these comes from settings or environment variables; change them before anything leaves your laptop.
-
-Get a token and look around:
+You need Docker with Compose v2, about 5 GB of free disk for the images and build cache, and 4 GB of memory for Docker. The first build downloads a lot (Node.js, Claude Code, Codex, Mux and its NuGet packages, three .NET base images), so it takes anywhere from about 8 minutes on a fast connection to 20 on a slow one; later builds take seconds.
 
 ```bash
-curl -s -X POST http://127.0.0.1:8700/v1.0/token \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@garrison","password":"password"}'
-
-curl -s http://127.0.0.1:8700/v1.0/api/nodes -H "x-api-key: garrisonadmin"
-curl -s http://127.0.0.1:8700/v1.0/api/harness-profiles/builtin -H "x-api-key: garrisonadmin"
-```
-
-Create an agent on the fake harness and invoke it. The fake harness has to be on the worker's `PATH`; the worker image already includes it, and locally you can point a small wrapper at `src/Garrison.FakeHarness`.
-
-```bash
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/agents \
-  -H "x-api-key: garrisonadmin" -H "Content-Type: application/json" \
-  -d '{"name":"echo","description":"Echoes its input"}'
-# use the returned agent id, and the id of builtin/fake from the built-in profile list
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/deployments \
-  -H "x-api-key: garrisonadmin" -H "Content-Type: application/json" \
-  -d '{"agentId":"<agent id>","name":"echo-default","harnessProfileId":"<builtin/fake id>"}'
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/agents/<agent id>/invoke \
-  -H "x-api-key: garrisonadmin" -H "Content-Type: application/json" \
-  -d '{"input":"Hello, Garrison","wait":true}'
-```
-
-The dashboard lives in `dashboard/`: `npm install && npm run dev`, then open the printed URL and sign in with the administrator account. Every control in it carries a tooltip that explains what it does, each configuration page opens with a short note on how its records relate to agents and deployments, and the Analytics page charts time to first token, execution and queue time, tokens, cost, outcomes, and tool calls over time by agent, harness, deployment, and model. Every chart exports as CSV, JSON, PNG, or SVG.
-
-### With Docker Compose
-
-One server, two workers, the dashboard, and Postgres on a single machine:
-
-```bash
-cd docker
-cp .env.example .env      # optional: ports, keys, and harness credentials (Claude, Codex, Mux)
+git clone https://github.com/jchristn/Garrison && cd Garrison/docker
+cp .env.example .env      # ports, keys, and optional harness credentials (Claude, Codex, Mux)
 ./update.sh               # builds the images and starts the stack; Windows: update.bat
 ```
 
-Open http://127.0.0.1:8080 and sign in to tenant `default` as `admin@garrison` with password `password`. `docker/factory/reset.sh` deletes all data and starts fresh. `docs/DOCKER.md` has the details.
+Then open http://127.0.0.1:8080. The stack uses ports 8700 (REST and A2A), 8701 (MCP), 8080 (dashboard), and 5433 (Postgres) on 127.0.0.1. If any of them is taken, `update.sh` says which before it builds anything; set other ports in `.env` and run it again. `docs/DOCKER.md` covers credentials, what a healthy stack looks like, and how to stop, update, and reset it.
 
-### On Kubernetes
+### Kubernetes
 
-The `k8s/` directory holds a Kustomize base with overlays for minikube, K3S, and production clusters, a Helm chart that mirrors it, and scripts that generate secrets, deploy, update, smoke-test, and factory-reset. The default topology is one control-plane replica, two worker replicas, the dashboard, and an in-cluster PostgreSQL.
+Use K3S in Docker if you just want a cluster on a laptop, minikube if you already use it, or the production overlay or Helm chart for a real cluster. All of them need `kubectl`; the local options also need Docker to build the images.
 
 ```bash
-k8s/scripts/generate-secrets.sh           # random keys; optional harness credentials from your environment
-k8s/scripts/deploy-minikube.sh            # or deploy-k3s.sh
+k8s/scripts/deploy-k3s.sh --build         # or deploy-minikube.sh; both build the images and generate secrets
 k8s/scripts/smoke-test.sh                 # invokes a fake-harness agent and checks it succeeds
-k8s/scripts/port-forward.sh               # server, MCP, and dashboard on 127.0.0.1
+k8s/scripts/port-forward.sh               # REST, MCP, and dashboard on 127.0.0.1:8700, 8701, and 8080
 ```
 
-`docs/KUBERNETES.md` walks through minikube, K3S on a host or in Docker, the production overlay, Helm, scaling, and upgrades.
+`docs/KUBERNETES.md` explains which option to choose, how to run K3S inside Docker, how to pass harness credentials, how to find the generated administrator keys, and how to scale, update, and tear down.
+
+### From source
+
+You need the .NET 10 SDK, and Node.js for the dashboard (CI uses Node 22). Each process runs in its own terminal, starting from the repository root:
+
+```bash
+dotnet build src/Garrison.sln
+cd src/Garrison.Server && dotnet run -f net10.0     # Sqlite; REST and A2A on 127.0.0.1:8700, MCP on 8701
+cd src/Garrison.Worker && dotnet run -f net10.0     # one worker; a second needs its own GARRISON_WORKER_NODE_NAME and GARRISON_WORKER_HEALTH_PORT
+cd dashboard && npm install && npm run dev          # dashboard; open the URL it prints
+```
+
+A worker can only run harnesses it finds on its `PATH`, so install the CLIs you want to use (`claude`, `codex`, `mux`) on the machine first. `docs/DEVELOPMENT.md` has the details, including how to put the fake harness on the `PATH`.
+
+### Your first agents
+
+`docs/QUICKSTART.md` picks up from any running stack. It stores your harness credentials as secrets, applies `examples/multi-agent.yaml` (agents on Claude Code, Codex, and the fake harness, one allowed to delegate to the others), adds a Mux agent through the dashboard, calls each of them over REST, MCP, and A2A, and finds the delegated run in the run tree and the numbers on the Analytics page. `examples/validate.sh` (Windows: `examples\validate.bat`) checks all of it and prints PASS or FAIL per check.
+
+The shortest possible check, once a stack is up:
+
+```bash
+TOKEN=$(curl -s -X POST http://127.0.0.1:8700/v1.0/token -H "Content-Type: application/json" \
+  -d '{"email":"admin@garrison","password":"password"}' | jq -r .token)
+curl -s http://127.0.0.1:8700/v1.0/api/nodes -H "Authorization: Bearer $TOKEN" | jq -r '.objects[] | "\(.name) \(.status)"'
+```
+
+Both workers should be listed as `Ready`. Most examples in these documents use a session token like this one. Some use `x-api-key`, the platform administrator API key: `garrisonadmin` on a source build or Docker unless you set `GARRISON_ADMIN_API_KEY`, and a random value on Kubernetes (`docs/KUBERNETES.md` shows how to read it).
+
+The dashboard explains itself as you go. Every control carries a tooltip, each configuration page opens with a short note on how its records relate to agents and deployments, and the Analytics page charts time to first token, execution and queue time, tokens, cost, outcomes, and tool calls by agent, harness, deployment, and model.
 
 ## Harnesses
 
