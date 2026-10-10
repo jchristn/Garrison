@@ -83,6 +83,10 @@ namespace Test.Shared.Suites
                 Run[] finished = await Task.WhenAll(runs).ConfigureAwait(false);
                 Assert.True(finished.All(r => r.Status == RunStatusEnum.Succeeded), "All runs should succeed: " + String.Join(", ", finished.Select(r => r.Status + "/" + r.Outcome)));
                 Assert.True(finished.Select(r => r.LeaseNodeName).Distinct().Count() >= 1, "Runs should record their nodes.");
+                // A worker counts a run after it reports completion, so a waiting caller can see the run finish
+                // slightly before the counter moves. Allow a short grace period.
+                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                while (cluster.Workers.Sum(w => w.CompletedRuns) < 8 && DateTime.UtcNow < deadline) await Task.Delay(50, token).ConfigureAwait(false);
                 Assert.Equal(8L, cluster.Workers.Sum(w => w.CompletedRuns), "Completed runs across workers");
             }
         }
