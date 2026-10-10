@@ -1330,6 +1330,7 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [ ] G-8 SyslogLogging: add an opt-in to skip the console probe (D-026), then switch Garrison to it.
 - [x] G-9 Codex agent not yet verified in the cluster (P9.9); needs `OPENAI_API_KEY` or a Codex `auth.json`.  | claude 2026-10-10 done, see P9.9
 - [ ] G-10 Codex runs report no served model (`servedModel` is null); the Codex parser should take it from the session or turn events when present.
+- [ ] G-11 `kubectl port-forward` to the metrics ports (9464, 9465) does not work: the listener binds the pod host name (D-027) and port-forward connects to `127.0.0.1` inside the pod. Scraping by pod IP works. Fix by serving `/metrics` from the existing REST or health listener, or by a Radiant option for multiple prefixes.
 
 ### Phase 10: Control plane high availability and scale-out (M2)
 
