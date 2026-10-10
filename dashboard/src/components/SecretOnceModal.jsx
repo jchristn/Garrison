@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import CopyButton from './CopyButton';
+import { tip } from './Tooltip';
 
 /** Shows a newly issued secret exactly once, with copy controls and a warning. */
 export default function SecretOnceModal({ accessKey, secretKey, onClose }) {
@@ -11,7 +12,7 @@ export default function SecretOnceModal({ accessKey, secretKey, onClose }) {
       onClose={onClose}
       title={t('components.secretOnce.title')}
       footer={
-        <button type="button" className="button-primary" onClick={onClose}>
+        <button type="button" className="button-primary" onClick={onClose} {...tip(t('tips.secretOnce.done'))}>
           {t('components.secretOnce.done')}
         </button>
       }
@@ -19,7 +20,7 @@ export default function SecretOnceModal({ accessKey, secretKey, onClose }) {
       <div className="warning-banner">{t('components.secretOnce.warning')}</div>
       {accessKey && (
         <div className="field">
-          <label>{t('components.secretOnce.accessKey')}</label>
+          <label {...tip(t('tips.secretOnce.accessKey'))}>{t('components.secretOnce.accessKey')}</label>
           <div className="secret-row">
             <code>{accessKey}</code>
             <CopyButton value={accessKey} />
@@ -27,7 +28,7 @@ export default function SecretOnceModal({ accessKey, secretKey, onClose }) {
         </div>
       )}
       <div className="field">
-        <label>{t('components.secretOnce.secretKey')}</label>
+        <label {...tip(t('tips.secretOnce.secretKey'))}>{t('components.secretOnce.secretKey')}</label>
         <div className="secret-row">
           <code data-testid="secret-value">{secretKey || '-'}</code>
           {secretKey && <CopyButton value={secretKey} />}

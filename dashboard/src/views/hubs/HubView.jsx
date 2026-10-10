@@ -32,7 +32,7 @@ export default function HubView({ hubKey, apiClient }) {
           return {
             id: page.slug,
             label: t(`nav.items.${page.id}.label`),
-            title: t(`nav.items.${page.id}.tip`),
+            tip: t(`tips.nav.tabs.${page.id}`),
             render: () => (
               <HubProvider value={EMBEDDED}>
                 <View key={page.id} apiClient={apiClient} />

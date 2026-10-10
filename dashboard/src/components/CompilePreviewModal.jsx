@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import CodeBlock from './CodeBlock';
 import { ErrorBanner } from './States';
+import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { errorMessage } from '../utils/errors';
 
@@ -38,18 +39,18 @@ export default function CompilePreviewModal({ tenantId, deployment, onClose }) {
       headerMeta={deployment.name}
       footer={
         <>
-          <button type="button" className="button-secondary" onClick={onClose}>
+          <button type="button" className="button-secondary" onClick={onClose} {...tip(t('tips.modal.close'))}>
             {t('common.actions.close')}
           </button>
-          <button type="button" className="button-primary" onClick={run} disabled={busy}>
+          <button type="button" className="button-primary" onClick={run} disabled={busy} {...tip(t('tips.compilePreview.compile'))}>
             {busy ? t('components.compilePreview.compiling') : t('components.compilePreview.compile')}
           </button>
         </>
       }
     >
       <div className="field">
-        <label htmlFor="preview-input">{t('components.compilePreview.input')}</label>
-        <textarea id="preview-input" rows={3} value={input} onChange={(e) => setInput(e.target.value)} />
+        <label htmlFor="preview-input" {...tip(t('tips.compilePreview.input'))}>{t('components.compilePreview.input')}</label>
+        <textarea id="preview-input" {...tip(t('tips.compilePreview.input'))} rows={3} value={input} onChange={(e) => setInput(e.target.value)} />
       </div>
       {error && <ErrorBanner message={errorMessage(t, error)} />}
       {spec && (

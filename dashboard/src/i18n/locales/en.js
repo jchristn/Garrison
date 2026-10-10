@@ -1,5 +1,7 @@
 // English source catalog for the Garrison dashboard. Every other locale mirrors these keys.
 
+import { tips, explainers } from './en.tips.js';
+
 // Lowercase a title for use mid-sentence, keeping acronyms (MCP, API, A2A, ID, URL) intact.
 const midSentence = (text) =>
   text
@@ -75,6 +77,7 @@ const en = {
       loading: 'Loading...',
       never: 'Never',
       none: 'None',
+      notAvailable: 'n/a',
       saving: 'Saving...'
     },
     relativeTime: { now: 'just now' },
@@ -91,7 +94,7 @@ const en = {
       deleted: 'Deleted.',
       saved: 'Saved.'
     },
-    units: { msShort: 'ms', sShort: 's', mShort: 'min' }
+    units: { msShort: 'ms', sShort: 's', mShort: 'min', tokPerSec: 'tok/s' }
   },
   errorCodes: {
     NetworkError: 'Could not reach the server. Check the server URL and that the server is running.',
@@ -220,6 +223,7 @@ const en = {
       home: { label: 'Home', tip: 'Fleet and run health at a glance' },
       invoke: { label: 'Invoke', tip: 'Try an agent interactively' },
       runs: { label: 'Runs', tip: 'Runs and the scheduling queue' },
+      analytics: { label: 'Analytics', tip: 'Run speed, tokens, cost, and outcomes over time' },
       agents: { label: 'Agents', tip: 'Agents and the deployments that run them' },
       configuration: { label: 'Configuration', tip: 'Harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, and manifests' },
       fleet: { label: 'Fleet', tip: 'Worker nodes and node pools' },
@@ -232,6 +236,7 @@ const en = {
       invoke: { label: 'Invoke', tip: 'Try an agent interactively' },
       runs: { label: 'Runs', tip: 'Find, inspect, cancel, and retry runs' },
       queue: { label: 'Queue', tip: 'Scheduling pressure by agent and harness' },
+      analytics: { label: 'Analytics', tip: 'Run speed, tokens, cost, and outcomes over time' },
       nodes: { label: 'Nodes', tip: 'Worker nodes and their harness capabilities' },
       nodePools: { label: 'Node Pools', tip: 'Group nodes and dedicate them to tenants' },
       agents: { label: 'Agents', tip: 'Agents exposed over REST, MCP, and A2A' },
@@ -309,7 +314,8 @@ const en = {
       total: 'Total',
       avgDuration: 'Avg duration',
       noData: 'No activity in this range.',
-      ranges: { hour: 'Last hour', day: 'Last day', week: 'Last week', month: 'Last month' }
+      range: 'Time range',
+      ranges: { hour: 'Last hour', day: 'Last day', week: 'Last week', month: 'Last month', custom: 'Custom' }
     },
     compilePreview: {
       title: 'Compile preview',
@@ -324,6 +330,8 @@ const en = {
     },
     confirm: { title: 'Please confirm', message: 'Are you sure you want to continue?' },
     diff: { before: 'Before', after: 'After' },
+    explainer: { about: 'About {{topic}}', dismiss: 'Hide this explanation' },
+    export: { label: 'Export', csv: 'CSV (data)', png: 'PNG image', svg: 'SVG image', json: 'JSON (data)', failed: 'Export failed. {{message}}', tableTitle: 'table {{table}}' },
     filters: {
       allTenants: 'All tenants',
       clear: 'Clear filters',
@@ -551,7 +559,6 @@ const en = {
     },
     secrets: {
       ...resourcePage('Secrets', 'secret', 'Encrypted credentials for harnesses and integrations. Values are write-only.', 'Add the API key or token your agents need, for example an Anthropic API key.'),
-      intro: 'Secret values are encrypted at rest and never returned by the API. Bind them to deployments with an alias, then reference {{secret.alias}} in harness environments and files.',
       notSet: 'Not set',
       columns: { name: 'Name', kind: 'Kind', valueLast4: 'Value', rotatedUtc: 'Last changed', expiresUtc: 'Expires', active: 'Active', id: 'ID' },
       fields: { name: 'Name', kind: 'Kind', description: 'Description', value: 'Value', newValue: 'New value', expiresUtc: 'Expires', active: 'Active' },
@@ -673,9 +680,18 @@ const en = {
         outcome: 'Outcome',
         harnessType: 'Harness',
         leaseNodeName: 'Node',
-        duration: 'Duration',
-        tokens: 'Tokens',
+        timeToFirstTokenMs: 'TTFT',
+        streamingMs: 'Streaming',
+        executionMs: 'Duration',
+        queueMs: 'Queue time',
+        totalMs: 'Total time',
+        inputTokens: 'Input tokens',
+        outputTokens: 'Output tokens',
+        cachedTokens: 'Cached tokens',
+        reasoningTokens: 'Reasoning tokens',
+        outputTokensPerSecond: 'Tokens/s',
         costUsd: 'Cost',
+        toolCallCount: 'Tool calls',
         depth: 'Depth',
         createdUtc: 'Created'
       },
@@ -752,7 +768,8 @@ const en = {
         applyManifest: 'Apply a manifest',
         inspectRuns: 'Inspect runs',
         nodes: 'Check worker nodes',
-        apiExplorer: 'Open the API Explorer'
+        apiExplorer: 'Open the API Explorer',
+        analytics: 'View run analytics'
       },
       externalServices: 'External services',
       externalServicesNote: 'Bundled observability tools. Change default credentials before sharing this deployment.',
@@ -813,7 +830,28 @@ const en = {
       noChildren: 'This run did not delegate to other agents.',
       confirmCancel: 'Cancel this run? The harness process is stopped on its node.',
       notFoundTitle: 'Run not found',
-      notFoundBody: 'It may have been deleted, or it belongs to another tenant.'
+      notFoundBody: 'It may have been deleted, or it belongs to another tenant.',
+      telemetry: {
+        title: 'Telemetry',
+        phases: 'Run time by phase',
+        phase: { queue: 'Queue', startup: 'Startup to first token', streaming: 'Streaming', tail: 'After last token' },
+        fields: {
+          timeToFirstTokenMs: 'Time to first token',
+          streamingMs: 'Streaming time',
+          executionMs: 'Execution time',
+          queueMs: 'Queue time',
+          totalMs: 'Total time',
+          outputTokensPerSecond: 'Output tokens per second',
+          inputTokens: 'Input tokens',
+          outputTokens: 'Output tokens',
+          cachedTokens: 'Cached tokens',
+          reasoningTokens: 'Reasoning tokens',
+          toolCallCount: 'Tool calls',
+          costUsd: 'Cost',
+          firstTokenUtc: 'First token at',
+          lastTokenUtc: 'Last token at'
+        }
+      }
     },
     queue: {
       title: 'Queue',
@@ -834,7 +872,9 @@ const en = {
       traffic: 'Traffic share',
       noDeploymentsTitle: 'No deployments',
       noDeploymentsBody: 'Create a deployment to bind this agent to a harness.',
-      noRuns: 'This agent has not run yet.'
+      noRuns: 'This agent has not run yet.',
+      selectionNote: 'Each invocation without an explicit deployment goes to one active deployment, chosen at random in proportion to its weight.',
+      manageDeployments: 'Manage deployments'
     },
     templateEditor: {
       newTitle: 'New prompt template',
@@ -924,6 +964,9 @@ const en = {
       queryParams: 'Query parameters',
       headers: 'Headers',
       addHeader: 'Add header',
+      headerName: 'Header name',
+      headerValue: 'Value of header {{name}}',
+      removeHeader: 'Remove header {{name}}',
       body: 'Request body',
       resolvedUrl: 'Resolved URL',
       copyUrl: 'Copy URL',
@@ -979,6 +1022,89 @@ const en = {
       },
       groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit' },
       fields: {}
+    },
+    analytics: {
+      title: 'Analytics',
+      subtitle: 'How fast, how costly, and how reliable your runs are over time.',
+      loading: 'Loading analytics...',
+      filters: { range: 'Range', from: 'From', to: 'To', agentId: 'Agent', harnessType: 'Harness', deploymentId: 'Deployment', model: 'Model', groupBy: 'Group by' },
+      allAgents: 'All agents',
+      allHarnesses: 'All harnesses',
+      allDeployments: 'All deployments',
+      allModels: 'All models',
+      unknownModel: 'Unknown model',
+      groupBy: { none: 'No grouping', agent: 'Agent', harness: 'Harness', model: 'Model', harnessModel: 'Harness and model' },
+      export: { window: 'Time range: {{from}} to {{to}}' },
+      usage: { title: 'Usage by harness and model', help: 'Tokens and cost over time for every harness and model combination in the range, plus a breakdown table.' },
+      breakdown: {
+        title: 'Harness by model breakdown',
+        columns: { harness: 'Harness', model: 'Model', runs: 'Runs', inputTokens: 'Input tokens', outputTokens: 'Output tokens', cachedTokens: 'Cached tokens', reasoningTokens: 'Reasoning tokens', costUsd: 'Cost', timeToFirstTokenMsAvg: 'Avg TTFT' }
+      },
+      rangeError: {
+        incomplete: 'Choose both a start and an end time for the custom range.',
+        reversed: 'The start of the custom range must be before its end.'
+      },
+      truncated: 'This range holds more runs than the server aggregates in one request, so the numbers cover only part of it. Narrow the range or add filters for exact figures.',
+      unavailableTitle: 'Analytics is not available on this server yet',
+      unavailableBody: 'This server does not expose the run analytics endpoint. Upgrade the server to see charts here.',
+      emptyTitle: 'No runs in this range',
+      emptyBody: 'Nothing matched the range and filters. Widen the range, clear a filter, or invoke an agent.',
+      noDataInChart: 'No data for this chart in the selected range.',
+      cards: {
+        runs: 'Runs',
+        runsNote: '{{succeeded}} succeeded, {{failed}} failed',
+        successRate: 'Success rate',
+        ttft: 'Avg time to first token',
+        execution: 'Avg execution time',
+        queue: 'Avg queue time',
+        tokens: 'Tokens',
+        tokensNote: '{{input}} in, {{output}} out',
+        throughput: 'Avg output speed',
+        cost: 'Cost',
+        toolCalls: 'Tool calls',
+        p95: 'p95 {{value}}'
+      },
+      charts: {
+        outcomes: { title: 'Run outcomes', help: 'Runs per bucket by how they ended.' },
+        ttft: { title: 'Time to first token', help: 'Harness start to first model output. Includes CLI startup.' },
+        duration: { title: 'Streaming and execution time', help: 'Streaming is first to last model output; execution is process start to exit.' },
+        queue: { title: 'Queue time', help: 'Time from queued to leased by a worker node.' },
+        tokens: { title: 'Tokens', help: 'Input, output, cached, and reasoning tokens per bucket.' },
+        throughput: { title: 'Output tokens per second', help: 'Output tokens divided by streaming time, averaged per bucket.' },
+        cost: { title: 'Cost', help: 'Reported cost in US dollars per bucket.' },
+        toolCalls: { title: 'Tool calls', help: 'Tool call events per bucket.' },
+        usageTokens: { title: 'Tokens by harness and model', help: 'Input plus output tokens per bucket, stacked by harness and model.' },
+        usageCost: { title: 'Cost by harness and model', help: 'Reported cost per bucket, stacked by harness and model.' }
+      },
+      groupedTitle: '{{chart}}: {{metric}}',
+      metrics: {
+        runs: 'Runs',
+        succeeded: 'Succeeded',
+        failed: 'Failed',
+        cancelled: 'Cancelled',
+        timedOut: 'Timed out',
+        inputTokens: 'Input',
+        outputTokens: 'Output',
+        cachedTokens: 'Cached',
+        reasoningTokens: 'Reasoning',
+        totalTokens: 'Input plus output tokens',
+        costUsd: 'Cost',
+        toolCalls: 'Tool calls',
+        timeToFirstTokenMsAvg: 'Average',
+        timeToFirstTokenMsP50: 'Median (p50)',
+        timeToFirstTokenMsP95: 'p95',
+        streamingMsAvg: 'Streaming (avg)',
+        executionMsAvg: 'Execution (avg)',
+        executionMsP95: 'Execution (p95)',
+        queueMsAvg: 'Average queue time',
+        outputTokensPerSecondAvg: 'Average tokens per second'
+      },
+      other: 'Other',
+      hiddenGroups_one: '{{count}} less busy group is not shown.',
+      hiddenGroups_other: '{{count}} less busy groups are not shown.',
+      legend: 'Series in {{chart}}',
+      dataTable: 'Data table',
+      bucketStart: 'Bucket start'
     },
     serverInfo: {
       title: 'Server Info',
@@ -1037,7 +1163,9 @@ const en = {
       configure: { title: 'Configuration', body: 'Harness profiles, prompt templates, MCP servers, and secrets control exactly what runs. Agents and deployments have their own hub.' },
       observe: { title: 'Monitoring', body: 'Request history, audit, and the API Explorer help you verify and debug.' }
     }
-  }
+  },
+  tips,
+  explainers
 };
 
 export default en;

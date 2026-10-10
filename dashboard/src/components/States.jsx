@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { RefreshIcon } from './Icons';
+import { tip } from './Tooltip';
 
 /** Centered loading block. */
 export function LoadingState({ label }) {
@@ -30,7 +31,7 @@ export function ErrorBanner({ message, onRetry }) {
     <div className="error-banner">
       <span>{message || t('common.errors.loadFailed')}</span>
       {onRetry && (
-        <button type="button" className="button-secondary button-sm" onClick={onRetry}>
+        <button type="button" className="button-secondary button-sm" onClick={onRetry} {...tip(t('tips.actions.retryLoad'))}>
           <RefreshIcon /> {t('common.actions.retry')}
         </button>
       )}

@@ -55,3 +55,30 @@ test('lists the registered worker nodes', async ({ page }) => {
   await page.goto(pathFor('nodes'));
   await expect(page.locator('table tbody tr').first()).toBeVisible();
 });
+
+test('analytics loads charts, or explains that the server predates the analytics endpoint', async ({ page }) => {
+  await login(page);
+  await page.goto(pathFor('analytics'));
+  await expect(page.locator('.page-header-title').first()).toHaveText('Analytics');
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('.loading-spinner')).toHaveCount(0);
+  const unavailable = page.getByText('Analytics is not available on this server yet');
+  if (await unavailable.count()) return;
+  await expect(page.getByTestId('analytics-filters')).toBeVisible();
+  const empty = page.getByTestId('analytics-empty');
+  if (await empty.count()) return;
+  await expect(page.getByTestId('analytics-totals')).toBeVisible();
+  await expect(page.getByTestId('analytics-chart-ttft').locator('svg[role="img"]')).toBeVisible();
+});
+
+test('run detail shows the telemetry panel', async ({ page }) => {
+  await login(page);
+  await page.goto(pathFor('runs'));
+  const first = page.locator('table tbody tr').first();
+  if (!(await first.count())) return;
+  await first.click();
+  await expect(page.getByTestId('run-telemetry')).toBeVisible();
+  await expect(page.locator('[data-telemetry="timeToFirstTokenMs"]')).toBeVisible();
+  // A finished run has a stored transcript; the event list must load it.
+  await expect(page.getByText(/^[1-9]\d* events?$/)).toBeVisible();
+});

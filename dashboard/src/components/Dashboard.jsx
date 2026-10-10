@@ -13,6 +13,7 @@ import LegacyRedirect from './LegacyRedirect';
 import { EmptyState } from './States';
 import { useTranslation } from 'react-i18next';
 import HubView from '../views/hubs/HubView';
+import { tip } from './Tooltip';
 import { PAGE_VIEWS, DETAIL_VIEWS } from '../views/hubs/hubPanels';
 
 /**
@@ -113,7 +114,7 @@ export default function Dashboard() {
 
   return (
     <div className={cls.join(' ')}>
-      <a className="skip-link" href="#main-content">
+      <a className="skip-link" href="#main-content" {...tip(t('tips.nav.skipToContent'))}>
         {t('nav.skipToContent')}
       </a>
       <Sidebar onNavigateMobile={() => setMobileNavOpen(false)} />

@@ -6,6 +6,7 @@ import { NAV_SECTIONS, DASHBOARD_BASE, hubIsActive } from '../config/navConfig';
 import { allowed } from '../utils/principal';
 import { APP_VERSION } from '../utils/constants';
 import * as Icons from './Icons';
+import { tip } from './Tooltip';
 
 /** A hub is visible when its standalone page, or at least one of its tabs, is allowed. */
 function hubVisible(hub, principal) {
@@ -58,7 +59,7 @@ export default function Sidebar({ onNavigateMobile }) {
                       e.preventDefault();
                       go(path);
                     }}
-                    title={t(`nav.hubs.${hub.key}.tip`)}
+                    {...tip(t(`tips.nav.hubs.${hub.key}`))}
                     data-nav={hub.key}
                   >
                     {Icon && <Icon size={18} />}
@@ -71,11 +72,11 @@ export default function Sidebar({ onNavigateMobile }) {
         })}
       </nav>
       <div className="sidebar-footer">
-        <button type="button" className="sidebar-utility" onClick={() => setWizardOpen(true)} title={t('nav.setupTip')}>
+        <button type="button" className="sidebar-utility" onClick={() => setWizardOpen(true)} {...tip(t('tips.nav.setup'))}>
           <Icons.WandIcon size={16} />
           <span>{t('nav.setup')}</span>
         </button>
-        <button type="button" className="sidebar-utility" onClick={() => setTourOpen(true)} title={t('nav.tourTip')}>
+        <button type="button" className="sidebar-utility" onClick={() => setTourOpen(true)} {...tip(t('tips.nav.tour'))}>
           <Icons.HelpIcon size={16} />
           <span>{t('nav.tour')}</span>
         </button>

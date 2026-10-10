@@ -12,13 +12,15 @@ import { useToast } from '../context/ToastContext';
 import ApiClient from '../utils/api';
 import { normalizeSettings, groupSettings, clampSetting } from '../utils/settings';
 import { errorMessage } from '../utils/errors';
+import { tip } from '../components/Tooltip';
+import { optionalText } from '../utils/tips';
 
-function SecretInput({ id, value, isSet, onChange, disabled, t }) {
+function SecretInput({ id, value, isSet, onChange, disabled, t, tipText }) {
   const [reveal, setReveal] = useState(false);
   return (
     <div className="password-wrap">
-      <input id={id} type={reveal ? 'text' : 'password'} value={value ?? ''} disabled={disabled} placeholder={isSet ? t('views.settings.secretSet') : t('views.settings.secretNotSet')} onChange={(e) => onChange(e.target.value)} autoComplete="new-password" />
-      <button type="button" className="icon-button" onClick={() => setReveal((v) => !v)} aria-label={reveal ? t('common.actions.hide') : t('common.actions.reveal')} title={reveal ? t('common.actions.hide') : t('common.actions.reveal')}>
+      <input id={id} {...tip(tipText)} type={reveal ? 'text' : 'password'} value={value ?? ''} disabled={disabled} placeholder={isSet ? t('views.settings.secretSet') : t('views.settings.secretNotSet')} onChange={(e) => onChange(e.target.value)} autoComplete="new-password" />
+      <button type="button" className="icon-button" onClick={() => setReveal((v) => !v)} aria-label={reveal ? t('common.actions.hide') : t('common.actions.reveal')} {...tip(t(reveal ? 'tips.form.hide' : 'tips.form.reveal'))}>
         {reveal ? <EyeOffIcon /> : <EyeIcon />}
       </button>
     </div>
@@ -160,16 +162,16 @@ export default function SettingsView() {
         actions={
           <>
             <LanguageSelector />
-            <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)}>
+            <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.settings.viewJson'))}>
               {t('common.actions.viewJson')}
             </button>
             {canEdit && (
-              <button type="button" className="button-danger" onClick={() => setConfirmRestart(true)} disabled={restarting} data-testid="restart-server">
+              <button type="button" className="button-danger" onClick={() => setConfirmRestart(true)} disabled={restarting} data-testid="restart-server" {...tip(t('tips.views.settings.restart'))}>
                 {t('views.settings.restart')}
               </button>
             )}
             {canEdit && (
-              <button type="button" className="button-primary" onClick={save} disabled={!dirty || saving || restarting} data-testid="save-settings">
+              <button type="button" className="button-primary" onClick={save} disabled={!dirty || saving || restarting} data-testid="save-settings" {...tip(t('tips.views.settings.save'))}>
                 {saving ? t('common.generic.saving') : t('common.actions.save')}
               </button>
             )}
@@ -187,28 +189,31 @@ export default function SettingsView() {
 
       {groups.map((g) => (
         <fieldset key={g.name} className="panel settings-group">
-          <legend className="section-title">{t(`views.settings.groups.${g.name}`, { defaultValue: g.name })}</legend>
+          <legend className="section-title" {...tip(t(`tips.views.settings.groups.${g.name}`, { defaultValue: t('tips.views.settings.groupGeneric', { group: g.name }) }))}>{t(`views.settings.groups.${g.name}`, { defaultValue: g.name })}</legend>
           <div className="form-grid">
             {g.fields.map((f) => {
               const id = `setting-${f.path}`;
               const value = f.path in edits ? edits[f.path] : f.isSecret ? '' : f.value;
               const disabled = !canEdit || !f.editable || restarting;
               const label = t(`views.settings.fields.${f.path}`, { defaultValue: f.label || f.path });
+              const fieldTip = [f.description || t('tips.views.settings.fieldGeneric', { path: f.path }), t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart'), optionalText(t, `tips.views.settings.source.${f.source}`)]
+                .filter(Boolean)
+                .join(' ');
               return (
                 <div key={f.path} className={`field ${errors[f.path] ? 'has-error' : ''} ${f.type === 'list' ? 'span-full' : ''}`}>
-                  <label htmlFor={id} className="settings-label">
+                  <label htmlFor={id} className="settings-label" {...tip(fieldTip)}>
                     <span>{label}</span>
                     <span className="settings-badges">
-                      <Badge tone={f.applyMode === 'Live' ? 'success' : 'warning'}>{f.applyMode === 'Live' ? t('views.settings.live') : t('views.settings.restartRequired')}</Badge>
-                      <Badge>{t(`views.settings.sources.${f.source}`, { defaultValue: f.source })}</Badge>
+                      <Badge tone={f.applyMode === 'Live' ? 'success' : 'warning'} tip={t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart')}>{f.applyMode === 'Live' ? t('views.settings.live') : t('views.settings.restartRequired')}</Badge>
+                      <Badge tip={t(`tips.views.settings.source.${f.source}`, { defaultValue: t('tips.views.settings.sourceGeneric') })}>{t(`views.settings.sources.${f.source}`, { defaultValue: f.source })}</Badge>
                     </span>
                   </label>
                   {f.type === 'boolean' ? (
-                    <input id={id} type="checkbox" checked={!!value} disabled={disabled} onChange={(e) => setValue(f, e.target.checked)} />
+                    <input id={id} {...tip(fieldTip)} type="checkbox" checked={!!value} disabled={disabled} onChange={(e) => setValue(f, e.target.checked)} />
                   ) : f.isSecret ? (
-                    <SecretInput id={id} value={value} isSet={f.isSet} disabled={disabled} onChange={(v) => setValue(f, v)} t={t} />
+                    <SecretInput id={id} value={value} isSet={f.isSet} disabled={disabled} onChange={(v) => setValue(f, v)} t={t} tipText={fieldTip} />
                   ) : f.options ? (
-                    <select id={id} value={value ?? ''} disabled={disabled} onChange={(e) => setValue(f, e.target.value)}>
+                    <select id={id} {...tip(fieldTip)} value={value ?? ''} disabled={disabled} onChange={(e) => setValue(f, e.target.value)}>
                       {f.options.map((o) => (
                         <option key={o} value={o}>
                           {o}
@@ -216,11 +221,11 @@ export default function SettingsView() {
                       ))}
                     </select>
                   ) : f.type === 'number' || f.type === 'integer' ? (
-                    <input id={id} type="number" min={f.min ?? undefined} max={f.max ?? undefined} value={value ?? ''} disabled={disabled} onChange={(e) => setValue(f, e.target.value === '' ? '' : Number(e.target.value))} />
+                    <input id={id} {...tip(fieldTip)} type="number" min={f.min ?? undefined} max={f.max ?? undefined} value={value ?? ''} disabled={disabled} onChange={(e) => setValue(f, e.target.value === '' ? '' : Number(e.target.value))} />
                   ) : f.type === 'list' ? (
-                    <textarea id={id} className="monospace" rows={3} value={(Array.isArray(value) ? value : []).join('\n')} disabled={disabled} onChange={(e) => setValue(f, e.target.value.split('\n'))} />
+                    <textarea id={id} {...tip(fieldTip)} className="monospace" rows={3} value={(Array.isArray(value) ? value : []).join('\n')} disabled={disabled} onChange={(e) => setValue(f, e.target.value.split('\n'))} />
                   ) : (
-                    <input id={id} type="text" value={value ?? ''} disabled={disabled} onChange={(e) => setValue(f, e.target.value)} />
+                    <input id={id} {...tip(fieldTip)} type="text" value={value ?? ''} disabled={disabled} onChange={(e) => setValue(f, e.target.value)} />
                   )}
                   {(f.min !== undefined && f.min !== null) || (f.max !== undefined && f.max !== null) ? <div className="field-hint">{t('views.settings.range', { min: f.min ?? '-', max: f.max ?? '-' })}</div> : null}
                   {!f.editable && <div className="field-hint">{t(`views.settings.lockedBy.${f.source}`, { defaultValue: t('views.settings.lockedBy.other') })}</div>}
@@ -231,7 +236,7 @@ export default function SettingsView() {
           </div>
           {g.name === 'Database' && canEdit && (
             <div className="settings-panel-actions">
-              <button type="button" className="button-secondary button-sm" onClick={testDb} disabled={dbTest?.busy}>
+              <button type="button" className="button-secondary button-sm" onClick={testDb} disabled={dbTest?.busy} {...tip(t('tips.views.settings.testDatabase'))}>
                 {dbTest?.busy ? t('views.settings.testing') : t('views.settings.testDatabase')}
               </button>
               {dbTest && !dbTest.busy && <Badge tone={dbTest.ok ? 'success' : 'danger'}>{dbTest.ok ? t('views.settings.dbOk') : dbTest.message || t('views.settings.dbFailed')}</Badge>}
@@ -240,7 +245,7 @@ export default function SettingsView() {
         </fieldset>
       ))}
 
-      <ConfirmModal open={confirmRestart} danger title={t('views.settings.restartConfirmTitle')} message={t('views.settings.restartConfirmMessage')} confirmLabel={t('views.settings.restart')} onConfirm={restart} onCancel={() => setConfirmRestart(false)} />
+      <ConfirmModal open={confirmRestart} danger title={t('views.settings.restartConfirmTitle')} message={t('views.settings.restartConfirmMessage')} confirmLabel={t('views.settings.restart')} confirmTip={t('tips.views.settings.restart')} onConfirm={restart} onCancel={() => setConfirmRestart(false)} />
       <JsonViewerModal open={jsonOpen} value={raw} onClose={() => setJsonOpen(false)} />
     </div>
   );

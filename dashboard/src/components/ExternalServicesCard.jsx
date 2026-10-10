@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import CopyButton from './CopyButton';
+import { tip } from './Tooltip';
 import { EXTERNAL_SERVICES } from '../utils/constants';
 
 /** Links to bundled observability tools with browser-reachable URLs and default credentials. */
@@ -21,7 +22,7 @@ export default function ExternalServicesCard() {
               <li key={s.id} className="external-item">
                 <div className="external-name">{t(`views.home.services.${s.id}`, { defaultValue: s.id })}</div>
                 <div className="external-url">
-                  <a href={s.url} target="_blank" rel="noopener noreferrer">
+                  <a href={s.url} target="_blank" rel="noopener noreferrer" {...tip(t(`tips.views.home.services.${s.id}`, { defaultValue: t('tips.views.home.serviceGeneric') }))}>
                     <code>{s.url}</code>
                   </a>
                   <CopyButton value={s.url} />

@@ -6,6 +6,7 @@ import { ToastProvider } from './context/ToastContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import LegacyRedirect from './components/LegacyRedirect';
+import { TooltipLayer } from './components/Tooltip';
 import { LEGACY_REDIRECTS, DASHBOARD_BASE } from './config/navConfig';
 
 function AppLoading() {
@@ -75,6 +76,7 @@ export default function App() {
         <BrowserRouter>
           <AppRoutes />
         </BrowserRouter>
+        <TooltipLayer />
       </ToastProvider>
     </AuthProvider>
   );

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { STORAGE_KEYS } from '../utils/constants';
+import { tip } from './Tooltip';
 
 const STEPS = [
   { id: 'sidebar', selector: '[data-tour="sidebar"]' },
@@ -49,20 +50,20 @@ export default function Tour() {
         <h3>{t(`tour.steps.${step.id}.title`)}</h3>
         <p>{t(`tour.steps.${step.id}.body`)}</p>
         <div className="tour-actions">
-          <button type="button" className="button-ghost button-sm" onClick={finish}>
+          <button type="button" className="button-ghost button-sm" onClick={finish} {...tip(t('tips.tour.skip'))}>
             {t('tour.skip')}
           </button>
           {index > 0 && (
-            <button type="button" className="button-secondary button-sm" onClick={() => setIndex((i) => i - 1)}>
+            <button type="button" className="button-secondary button-sm" onClick={() => setIndex((i) => i - 1)} {...tip(t('tips.tour.back'))}>
               {t('common.actions.back')}
             </button>
           )}
           {index < STEPS.length - 1 ? (
-            <button type="button" className="button-primary button-sm" onClick={() => setIndex((i) => i + 1)}>
+            <button type="button" className="button-primary button-sm" onClick={() => setIndex((i) => i + 1)} {...tip(t('tips.tour.next'))}>
               {t('common.actions.next')}
             </button>
           ) : (
-            <button type="button" className="button-primary button-sm" onClick={finish}>
+            <button type="button" className="button-primary button-sm" onClick={finish} {...tip(t('tips.tour.done'))}>
               {t('tour.done')}
             </button>
           )}

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { AUTO_REFRESH_OPTIONS } from '../utils/constants';
+import { tip } from './Tooltip';
 
 /**
  * Auto-refresh interval selector. `value` is a number of seconds (0 = None).
@@ -8,10 +9,11 @@ import { AUTO_REFRESH_OPTIONS } from '../utils/constants';
 export default function AutoRefreshSelect({ value, onChange }) {
   const { t } = useTranslation();
   return (
-    <label className="auto-refresh-select" title={t('components.autoRefresh.label')}>
+    <label className="auto-refresh-select" {...tip(t('tips.table.autoRefresh'))}>
       <span className="auto-refresh-label">{t('components.autoRefresh.label')}</span>
       <select
         aria-label={t('components.autoRefresh.label')}
+        {...tip(t('tips.table.autoRefresh'))}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
       >

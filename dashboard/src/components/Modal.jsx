@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { XIcon } from './Icons';
+import { tip } from './Tooltip';
 
 /**
  * Base modal. Renders via portal. Closes on ESC and backdrop click, locks body
@@ -46,7 +47,7 @@ export default function Modal({ open, onClose, title, headerMeta, children, foot
             className="icon-button"
             onClick={onClose}
             aria-label={t('common.actions.close')}
-            title={t('common.actions.close')}
+            {...tip(t('tips.modal.dismiss'))}
           >
             <XIcon />
           </button>

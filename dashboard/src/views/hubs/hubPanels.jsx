@@ -3,6 +3,7 @@ import InvokeView from '../InvokeView';
 import RunsView from '../RunsView';
 import RunDetailView from '../RunDetailView';
 import QueueView from '../QueueView';
+import AnalyticsView from '../AnalyticsView';
 import NodesView from '../NodesView';
 import NodePoolsView from '../NodePoolsView';
 import AgentsView from '../AgentsView';
@@ -36,6 +37,7 @@ export const PAGE_VIEWS = {
   invoke: InvokeView,
   runs: RunsView,
   queue: QueueView,
+  analytics: AnalyticsView,
   nodes: NodesView,
   nodePools: NodePoolsView,
   agents: AgentsView,

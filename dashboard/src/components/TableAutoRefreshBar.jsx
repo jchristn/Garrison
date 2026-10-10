@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import AutoRefreshSelect from './AutoRefreshSelect';
 import { RefreshIcon } from './Icons';
+import { tip } from './Tooltip';
 import { formatNumber } from '../i18n/formatters';
 
 /**
@@ -39,7 +40,7 @@ export default function TableAutoRefreshBar({
             disabled={disabled}
             onClick={onRefresh}
             aria-label={t('components.table.refresh')}
-            title={t('components.table.refresh')}
+            {...tip(t('tips.table.refresh'))}
           >
             <RefreshIcon />
           </button>

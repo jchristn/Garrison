@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { LoadingState } from './States';
+import { tip } from './Tooltip';
 
 const INTERACTIVE = 'a, button, input, select, textarea, label, [role="menu"], [role="menuitem"], [data-ignore-row-click]';
 
 /**
- * Presentation table. columns: [{ key, label, cellClass?, headerClass?, render?(item), sortable?, serverSort? }].
+ * Presentation table. columns: [{ key, label, tip?, cellClass?, headerClass?, render?(item), sortable?, serverSort? }].
+ * `tip` is the column header tooltip: what the column shows and how it is measured.
  * Row clicks are ignored when the target is an interactive element. Optional row selection checkboxes.
  */
 export default function DataTable({
@@ -23,7 +25,8 @@ export default function DataTable({
 }) {
   const { t } = useTranslation();
 
-  if (loading) {
+  // Only the first load shows a spinner. Refreshes keep the rows on screen so open menus and focus survive.
+  if (loading && items.length === 0) {
     return (
       <div className="table-scroll">
         <LoadingState label={t('components.table.loading')} />
@@ -43,13 +46,13 @@ export default function DataTable({
   };
 
   return (
-    <div className="table-scroll">
+    <div className="table-scroll" aria-busy={loading || undefined}>
       <table className="data-table">
         <thead>
           <tr>
             {selectable && (
-              <th scope="col" className="select-cell">
-                <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label={t('components.table.selectAll')} />
+              <th scope="col" className="select-cell" {...tip(t('tips.table.selectAll'))}>
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label={t('components.table.selectAll')} {...tip(t('tips.table.selectAll'))} />
               </th>
             )}
             {columns.map((col) => {
@@ -60,10 +63,11 @@ export default function DataTable({
                   key={col.key}
                   scope="col"
                   className={`${sortable ? 'sortable' : ''} ${col.headerClass || ''}`}
+                  {...tip(col.tip)}
                   aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : sortable ? 'none' : undefined}
                 >
                   {sortable ? (
-                    <button type="button" className="th-sort" onClick={() => onSort(col.key)} title={col.serverSort === false ? t('components.table.sortPageOnly') : t('components.table.sortBy', { column: col.label })}>
+                    <button type="button" className="th-sort" onClick={() => onSort(col.key)} {...tip(t(col.serverSort === false ? 'tips.table.sortPageOnly' : 'tips.table.sortServer', { tip: col.tip || col.label }))}>
                       {col.label}
                       <span className="sort-indicator" aria-hidden="true">{active ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
                     </button>
@@ -89,7 +93,7 @@ export default function DataTable({
                 <tr key={id} className={onRowClick ? 'clickable' : ''} onClick={(e) => handleRowClick(e, item)}>
                   {selectable && (
                     <td className="select-cell" data-ignore-row-click>
-                      <input type="checkbox" checked={selected.includes(id)} onChange={() => toggleOne(id)} aria-label={t('components.table.selectRow')} />
+                      <input type="checkbox" checked={selected.includes(id)} onChange={() => toggleOne(id)} aria-label={t('components.table.selectRow')} {...tip(t('tips.table.selectRow'))} />
                     </td>
                   )}
                   {columns.map((col) => (

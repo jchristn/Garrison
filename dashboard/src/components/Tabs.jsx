@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TAB_PARAM } from '../config/navConfig';
+import { tip } from './Tooltip';
 
 /** Arrow, Home, and End key handling shared by both tab strips (roving tabindex). */
 function useTabKeys(keys, activeKey, select, listRef) {
@@ -45,7 +46,7 @@ function TabStrip({ tabs, activeKey, onSelect, label, idPrefix, className = '' }
             tabIndex={selected ? 0 : -1}
             className={`tab ${selected ? 'active' : ''}`}
             onClick={() => onSelect(tab.id)}
-            title={tab.title}
+            {...tip(tab.tip || tab.title)}
             data-tab-key={tab.id}
           >
             {tab.label}
@@ -56,7 +57,7 @@ function TabStrip({ tabs, activeKey, onSelect, label, idPrefix, className = '' }
   );
 }
 
-/** Accessible, locally controlled tab strip. tabs: [{ id, label }]. */
+/** Accessible, locally controlled tab strip. tabs: [{ id, label, tip }]. */
 export default function Tabs({ tabs, active, onChange, label }) {
   return <TabStrip tabs={tabs} activeKey={active} onSelect={onChange} label={label} />;
 }
@@ -67,7 +68,7 @@ export default function Tabs({ tabs, active, onChange, label }) {
  * mounted. Other query parameters survive a tab switch only when they belong to the same tab, so a
  * filter for one tab never leaks into another. An unknown or hidden `?tab=` falls back to the first tab.
  *
- * tabs: [{ id, label, title?, render: () => ReactNode }] (already filtered for visibility).
+ * tabs: [{ id, label, tip?, render: () => ReactNode }] (already filtered for visibility).
  */
 export function UrlTabs({ tabs, label, idPrefix = 'hub' }) {
   const [searchParams, setSearchParams] = useSearchParams();

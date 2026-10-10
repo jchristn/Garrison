@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeOffIcon, PlusIcon, TrashIcon } from './Icons';
 import { toLocalInput, toUtcIso } from '../utils/query';
+import { tip } from './Tooltip';
 
 /**
- * Declarative form renderer. field: { name, type, label, hint?, options?, required?, min?, max?, rows?,
+ * Declarative form renderer. field: { name, type, label, tip?, hint?, options?, required?, min?, max?, rows?,
  * placeholder?, showIf?(data), readOnly?, fields? (objectList), span? }.
  * Types: text, textarea, code, number, checkbox, select, password, datetime, stringList, keyValue, objectList,
  * multiselect, json.
@@ -34,7 +35,7 @@ export function FormField({ field, value, onChange, error, disabled, id }) {
   if (field.type === 'section') {
     return (
       <div className="form-section span-full">
-        <div className="form-section-title">{field.label}</div>
+        <div className="form-section-title" {...tip(field.tip)}>{field.label}</div>
         {field.hint && <div className="field-hint">{field.hint}</div>}
       </div>
     );
@@ -43,15 +44,15 @@ export function FormField({ field, value, onChange, error, disabled, id }) {
   if (field.type === 'checkbox') {
     return (
       <div className={`field field-checkbox ${wide ? 'span-full' : ''}`}>
-        <input id={id} type="checkbox" checked={!!value} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-        <label htmlFor={id}>{field.label}</label>
+        <input id={id} type="checkbox" checked={!!value} disabled={disabled} onChange={(e) => onChange(e.target.checked)} {...tip(field.tip)} />
+        <label htmlFor={id} {...tip(field.tip)}>{field.label}</label>
         {field.hint && <div className="field-hint">{field.hint}</div>}
       </div>
     );
   }
   return (
     <div className={`field ${wide ? 'span-full' : ''} ${error ? 'has-error' : ''}`}>
-      <label htmlFor={id}>
+      <label htmlFor={id} {...tip(field.tip)}>
         {field.label}
         {field.required && <span className="required-mark" aria-hidden="true"> *</span>}
       </label>
@@ -69,16 +70,18 @@ export function FormField({ field, value, onChange, error, disabled, id }) {
 function FieldControl({ field, value, onChange, disabled, id }) {
   const { t } = useTranslation();
   const [reveal, setReveal] = useState(false);
+  const tp = tip(field.tip);
   switch (field.type) {
     case 'textarea':
-      return <textarea id={id} rows={field.rows || 4} value={value ?? ''} disabled={disabled} placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />;
+      return <textarea id={id} {...tp} rows={field.rows || 4} value={value ?? ''} disabled={disabled} placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />;
     case 'code':
     case 'json':
-      return <textarea id={id} className="monospace code-input" rows={field.rows || 8} spellCheck={false} value={value ?? ''} disabled={disabled} placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />;
+      return <textarea id={id} {...tp} className="monospace code-input" rows={field.rows || 8} spellCheck={false} value={value ?? ''} disabled={disabled} placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />;
     case 'number':
       return (
         <input
           id={id}
+          {...tp}
           type="number"
           value={value ?? ''}
           min={field.min}
@@ -90,7 +93,7 @@ function FieldControl({ field, value, onChange, disabled, id }) {
       );
     case 'select':
       return (
-        <select id={id} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
+        <select id={id} {...tp} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
           {!field.required && <option value="">{t('common.generic.none')}</option>}
           {(field.options || []).map((o) => {
             const opt = typeof o === 'object' ? o : { value: o, label: field.optionLabel ? field.optionLabel(o) : o };
@@ -108,9 +111,10 @@ function FieldControl({ field, value, onChange, disabled, id }) {
           {(field.options || []).map((o) => {
             const list = Array.isArray(value) ? value : [];
             return (
-              <label key={o} className="checkbox-chip">
+              <label key={o} className="checkbox-chip" {...tip(t('tips.form.option', { option: o, field: field.label }))}>
                 <input
                   type="checkbox"
+                  {...tip(t('tips.form.option', { option: o, field: field.label }))}
                   disabled={disabled}
                   checked={list.includes(o)}
                   onChange={() => onChange(list.includes(o) ? list.filter((x) => x !== o) : [...list, o])}
@@ -124,18 +128,19 @@ function FieldControl({ field, value, onChange, disabled, id }) {
     case 'password':
       return (
         <div className="password-wrap">
-          <input id={id} type={reveal ? 'text' : 'password'} value={value ?? ''} disabled={disabled} autoComplete="new-password" placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />
-          <button type="button" className="icon-button" onClick={() => setReveal((v) => !v)} aria-label={reveal ? t('common.actions.hide') : t('common.actions.reveal')} title={reveal ? t('common.actions.hide') : t('common.actions.reveal')}>
+          <input id={id} {...tp} type={reveal ? 'text' : 'password'} value={value ?? ''} disabled={disabled} autoComplete="new-password" placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />
+          <button type="button" className="icon-button" onClick={() => setReveal((v) => !v)} aria-label={reveal ? t('common.actions.hide') : t('common.actions.reveal')} {...tip(t(reveal ? 'tips.form.hide' : 'tips.form.reveal'))}>
             {reveal ? <EyeOffIcon /> : <EyeIcon />}
           </button>
         </div>
       );
     case 'datetime':
-      return <input id={id} type="datetime-local" value={toLocalInput(value)} disabled={disabled} onChange={(e) => onChange(toUtcIso(e.target.value) ?? null)} />;
+      return <input id={id} {...tp} type="datetime-local" value={toLocalInput(value)} disabled={disabled} onChange={(e) => onChange(toUtcIso(e.target.value) ?? null)} />;
     case 'stringList':
       return (
         <textarea
           id={id}
+          {...tp}
           className="monospace"
           rows={field.rows || 4}
           value={(Array.isArray(value) ? value : []).join('\n')}
@@ -146,16 +151,16 @@ function FieldControl({ field, value, onChange, disabled, id }) {
         />
       );
     case 'keyValue':
-      return <KeyValueEditor value={value} onChange={onChange} disabled={disabled} keyLabel={field.keyLabel} valueLabel={field.valueLabel} />;
+      return <KeyValueEditor value={value} onChange={onChange} disabled={disabled} keyLabel={field.keyLabel} valueLabel={field.valueLabel} fieldLabel={field.label} />;
     case 'objectList':
-      return <ObjectListEditor value={value} onChange={onChange} disabled={disabled} fields={field.fields || []} addLabel={field.addLabel} ordered={field.ordered} />;
+      return <ObjectListEditor value={value} onChange={onChange} disabled={disabled} fields={field.fields || []} addLabel={field.addLabel} ordered={field.ordered} fieldLabel={field.label} />;
     default:
-      return <input id={id} type="text" value={value ?? ''} disabled={disabled} placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />;
+      return <input id={id} {...tp} type="text" value={value ?? ''} disabled={disabled} placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />;
   }
 }
 
 /** Editable list of { key, value } pairs (or an object map when asObject is set). */
-export function KeyValueEditor({ value, onChange, disabled, keyLabel, valueLabel }) {
+export function KeyValueEditor({ value, onChange, disabled, keyLabel, valueLabel, fieldLabel = '' }) {
   const { t } = useTranslation();
   const isObject = value && !Array.isArray(value) && typeof value === 'object';
   const rows = isObject ? Object.entries(value).map(([key, v]) => ({ key, value: v })) : Array.isArray(value) ? value : [];
@@ -170,14 +175,14 @@ export function KeyValueEditor({ value, onChange, disabled, keyLabel, valueLabel
     <div className="kv-editor">
       {rows.map((r, i) => (
         <div className="kv-row" key={i}>
-          <input aria-label={keyLabel || t('components.form.key')} placeholder={keyLabel || t('components.form.key')} value={r.key ?? ''} disabled={disabled} onChange={(e) => emit(rows.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))} />
-          <input aria-label={valueLabel || t('components.form.value')} placeholder={valueLabel || t('components.form.value')} value={r.value ?? ''} disabled={disabled} onChange={(e) => emit(rows.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} />
-          <button type="button" className="icon-button" disabled={disabled} onClick={() => emit(rows.filter((_, j) => j !== i))} aria-label={t('common.actions.remove')} title={t('common.actions.remove')}>
+          <input {...tip(t('tips.form.key', { field: fieldLabel }))} aria-label={keyLabel || t('components.form.key')} placeholder={keyLabel || t('components.form.key')} value={r.key ?? ''} disabled={disabled} onChange={(e) => emit(rows.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))} />
+          <input {...tip(t('tips.form.value', { field: fieldLabel }))} aria-label={valueLabel || t('components.form.value')} placeholder={valueLabel || t('components.form.value')} value={r.value ?? ''} disabled={disabled} onChange={(e) => emit(rows.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} />
+          <button type="button" className="icon-button" disabled={disabled} onClick={() => emit(rows.filter((_, j) => j !== i))} aria-label={t('common.actions.remove')} {...tip(t('tips.form.removeRow'))}>
             <TrashIcon size={14} />
           </button>
         </div>
       ))}
-      <button type="button" className="button-secondary button-sm" disabled={disabled} onClick={() => emit([...rows, { key: '', value: '' }])}>
+      <button type="button" className="button-secondary button-sm" disabled={disabled} onClick={() => emit([...rows, { key: '', value: '' }])} {...tip(t('tips.form.addRow', { field: fieldLabel }))}>
         <PlusIcon size={14} /> {t('components.form.addRow')}
       </button>
     </div>
@@ -185,7 +190,7 @@ export function KeyValueEditor({ value, onChange, disabled, keyLabel, valueLabel
 }
 
 /** Editable list of objects with typed sub-fields; supports reordering for ordered lists. */
-export function ObjectListEditor({ value, onChange, disabled, fields, addLabel, ordered = false }) {
+export function ObjectListEditor({ value, onChange, disabled, fields, addLabel, ordered = false, fieldLabel = '' }) {
   const { t } = useTranslation();
   const rows = Array.isArray(value) ? value : [];
   const blank = () => Object.fromEntries(fields.map((f) => [f.name, f.type === 'checkbox' ? false : f.default ?? (f.type === 'select' && f.required ? (f.options || [])[0] : '')]));
@@ -211,21 +216,21 @@ export function ObjectListEditor({ value, onChange, disabled, fields, addLabel, 
           <div className="object-list-actions">
             {ordered && (
               <>
-                <button type="button" className="icon-button" disabled={disabled || i === 0} onClick={() => move(i, -1)} aria-label={t('components.form.moveUp')} title={t('components.form.moveUp')}>
+                <button type="button" className="icon-button" disabled={disabled || i === 0} onClick={() => move(i, -1)} aria-label={t('components.form.moveUp')} {...tip(t('tips.form.moveUp'))}>
                   {'↑'}
                 </button>
-                <button type="button" className="icon-button" disabled={disabled || i === rows.length - 1} onClick={() => move(i, 1)} aria-label={t('components.form.moveDown')} title={t('components.form.moveDown')}>
+                <button type="button" className="icon-button" disabled={disabled || i === rows.length - 1} onClick={() => move(i, 1)} aria-label={t('components.form.moveDown')} {...tip(t('tips.form.moveDown'))}>
                   {'↓'}
                 </button>
               </>
             )}
-            <button type="button" className="icon-button" disabled={disabled} onClick={() => onChange(rows.filter((_, j) => j !== i))} aria-label={t('common.actions.remove')} title={t('common.actions.remove')}>
+            <button type="button" className="icon-button" disabled={disabled} onClick={() => onChange(rows.filter((_, j) => j !== i))} aria-label={t('common.actions.remove')} {...tip(t('tips.form.removeItem'))}>
               <TrashIcon size={14} />
             </button>
           </div>
         </div>
       ))}
-      <button type="button" className="button-secondary button-sm" disabled={disabled} onClick={() => onChange([...rows, blank()])}>
+      <button type="button" className="button-secondary button-sm" disabled={disabled} onClick={() => onChange([...rows, blank()])} {...tip(t('tips.form.addItem', { field: fieldLabel }))}>
         <PlusIcon size={14} /> {addLabel || t('components.form.addItem')}
       </button>
     </div>

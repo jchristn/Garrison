@@ -5,6 +5,7 @@ import { GITHUB_URL } from '../utils/constants';
 import { roleKey } from '../utils/principal';
 import LanguageSelector from './LanguageSelector';
 import CopyButton from './CopyButton';
+import { tip } from './Tooltip';
 import { MenuIcon, SunIcon, MoonIcon, GithubIcon, LogoutIcon, RefreshIcon } from './Icons';
 
 /** Top bar: server, tenant, principal, role, health, and live status on the left; utilities on the right. */
@@ -18,18 +19,18 @@ export default function Topbar({ onToggleSidebar, health, live }) {
     <header className="dashboard-header" data-tour="topbar">
       <div className="topbar">
         <div className="topbar-left">
-          <button type="button" className="icon-button" onClick={onToggleSidebar} aria-label={t('nav.collapseSidebar')} title={t('nav.collapseSidebar')}>
+          <button type="button" className="icon-button" onClick={onToggleSidebar} aria-label={t('nav.collapseSidebar')} {...tip(t('tips.topbar.toggleSidebar'))}>
             <MenuIcon />
           </button>
-          <span className="topbar-chip topbar-server" title={`${t('topbar.server')}: ${serverUrl}`}>
-            <span className={`health-dot ${healthState}`} role="img" aria-label={t(`topbar.health.${healthState}`)} title={t(`topbar.health.${healthState}`)} />
+          <span className="topbar-chip topbar-server" {...tip(t('tips.topbar.server', { url: serverUrl }))}>
+            <span className={`health-dot ${healthState}`} role="img" aria-label={t(`topbar.health.${healthState}`)} {...tip(t(`tips.topbar.health.${healthState}`))} />
             <code className="topbar-truncate">{serverUrl}</code>
-            <CopyButton value={serverUrl} title={t('topbar.copyServer')} />
+            <CopyButton value={serverUrl} title={t('topbar.copyServer')} tipText={t('tips.topbar.copyServer')} />
           </span>
           {isSystemAdmin && tenants.length > 0 ? (
-            <label className="topbar-chip topbar-tenant">
+            <label className="topbar-chip topbar-tenant" {...tip(t('tips.topbar.switchTenant'))}>
               <span className="text-muted">{t('topbar.tenant')}</span>
-              <select value={tenantId} onChange={(e) => setTenantId(e.target.value)} aria-label={t('topbar.switchTenant')}>
+              <select value={tenantId} onChange={(e) => setTenantId(e.target.value)} aria-label={t('topbar.switchTenant')} {...tip(t('tips.topbar.switchTenant'))}>
                 {tenants.map((tn) => (
                   <option key={tn.id} value={tn.id}>
                     {tn.name}
@@ -38,18 +39,18 @@ export default function Topbar({ onToggleSidebar, health, live }) {
               </select>
             </label>
           ) : (
-            <span className="topbar-chip" title={tenantId}>
+            <span className="topbar-chip" {...tip(t('tips.topbar.tenant', { tenant: tenantId }))}>
               <span className="text-muted">{t('topbar.tenant')}</span>
               <code className="topbar-truncate">{tenantId}</code>
             </span>
           )}
           {principal?.principalName && (
-            <span className="topbar-chip topbar-hide-narrow" title={principal.principalName}>
+            <span className="topbar-chip topbar-hide-narrow" {...tip(t('tips.topbar.principal', { name: principal.principalName }))}>
               <code className="topbar-truncate">{principal.principalName}</code>
             </span>
           )}
-          <span className="topbar-chip role topbar-hide-mobile">{t(roleKey(principal))}</span>
-          <span className={`topbar-chip live-chip ${live ? 'on' : ''}`} title={live ? t('topbar.liveOn') : t('topbar.liveOff')}>
+          <span className="topbar-chip role topbar-hide-mobile" {...tip(t('tips.topbar.role'))}>{t(roleKey(principal))}</span>
+          <span className={`topbar-chip live-chip ${live ? 'on' : ''}`} {...tip(t(live ? 'tips.topbar.liveOn' : 'tips.topbar.liveOff'))}>
             <RefreshIcon size={12} />
             <span className="topbar-hide-narrow">{live ? t('topbar.live') : t('topbar.polling')}</span>
           </span>
@@ -57,7 +58,7 @@ export default function Topbar({ onToggleSidebar, health, live }) {
 
         <div className="topbar-right">
           <LanguageSelector compact />
-          <a className="icon-button" href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label={t('common.actions.openGithub')} title={t('common.actions.openGithub')}>
+          <a className="icon-button" href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label={t('common.actions.openGithub')} {...tip(t('tips.topbar.github'))}>
             <GithubIcon />
           </a>
           <button
@@ -65,12 +66,12 @@ export default function Topbar({ onToggleSidebar, health, live }) {
             className="icon-button"
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? t('common.theme.switchToLight') : t('common.theme.switchToDark')}
-            title={theme === 'dark' ? t('common.theme.switchToLight') : t('common.theme.switchToDark')}
+            {...tip(t(theme === 'dark' ? 'tips.topbar.themeLight' : 'tips.topbar.themeDark'))}
             data-testid="theme-toggle"
           >
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
-          <button type="button" className="icon-button" onClick={logout} aria-label={t('common.actions.logout')} title={t('common.actions.logout')} data-testid="logout">
+          <button type="button" className="icon-button" onClick={logout} aria-label={t('common.actions.logout')} {...tip(t('tips.topbar.logout'))} data-testid="logout">
             <LogoutIcon />
           </button>
         </div>

@@ -15,8 +15,8 @@ export default function AssignmentsView() {
         active={tab}
         onChange={setTab}
         tabs={[
-          { id: 'userAssignments', label: t('resources.userAssignments.title') },
-          { id: 'credentialAssignments', label: t('resources.credentialAssignments.title') }
+          { id: 'userAssignments', label: t('resources.userAssignments.title'), tip: t('tips.nav.subtabs.userAssignments') },
+          { id: 'credentialAssignments', label: t('resources.credentialAssignments.title'), tip: t('tips.nav.subtabs.credentialAssignments') }
         ]}
       />
       {tab === 'userAssignments' ? <ResourceView key="userAssignments" config={userAssignmentsConfig} /> : <ResourceView key="credentialAssignments" config={credentialAssignmentsConfig} />}

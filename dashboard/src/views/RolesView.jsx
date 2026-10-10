@@ -15,8 +15,8 @@ export default function RolesView() {
         active={tab}
         onChange={setTab}
         tabs={[
-          { id: 'roles', label: t('resources.roles.title') },
-          { id: 'permissions', label: t('resources.permissions.title') }
+          { id: 'roles', label: t('resources.roles.title'), tip: t('tips.nav.subtabs.roles') },
+          { id: 'permissions', label: t('resources.permissions.title'), tip: t('tips.nav.subtabs.permissions') }
         ]}
       />
       {tab === 'roles' ? <ResourceView key="roles" config={rolesConfig} /> : <ResourceView key="permissions" config={permissionsConfig} />}

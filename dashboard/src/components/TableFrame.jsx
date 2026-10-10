@@ -3,6 +3,9 @@ import TablePagination from './TablePagination';
 import DataTable from './DataTable';
 import ColumnPicker from './ColumnPicker';
 import useColumnPrefs from '../hooks/useColumnPrefs';
+import { tip } from './Tooltip';
+import ExportMenu from './ExportMenu';
+import { exportFileName, tableCsv } from '../utils/exporters';
 
 /**
  * Above-table control bar (pagination, page size, refresh, auto-refresh, Select Columns) plus the table, a bulk
@@ -53,6 +56,9 @@ export default function TableFrame({
           rightSlot={
             <>
               {rightSlot}
+              {items && items.length > 0 && (
+                <ExportMenu title={t('components.export.tableTitle', { table: tableId })} testId={`export-table-${tableId}`} fileName={(ext) => exportFileName(tableId || 'table', `page-${pageNumber || 1}`, {}, ext)} csv={() => tableCsv(visibleColumns, items)} />
+              )}
               <ColumnPicker columns={columns} hidden={hidden} onToggle={toggle} />
             </>
           }
@@ -64,7 +70,7 @@ export default function TableFrame({
       {selectable && selected.length > 0 && (
         <div className="bulk-bar" role="region" aria-label={t('components.table.bulkActions')}>
           <span>{t('components.table.selected', { count: selected.length })}</span>
-          <button type="button" className="button-secondary button-sm" onClick={() => onSelectChange?.([])}>
+          <button type="button" className="button-secondary button-sm" onClick={() => onSelectChange?.([])} {...tip(t('tips.table.clearSelection'))}>
             {t('components.table.clearSelection')}
           </button>
           {bulkActions}

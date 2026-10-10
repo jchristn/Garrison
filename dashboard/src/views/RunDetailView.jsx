@@ -17,12 +17,20 @@ import { useToast } from '../context/ToastContext';
 import { TERMINAL_RUN_STATUSES, ENUMS } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
-import { formatDateTime, formatDuration, formatNumber, formatCurrency, elapsedMs } from '../i18n/formatters';
+import { formatDateTime, formatNumber } from '../i18n/formatters';
+import { runTelemetry, formatMs, formatUsd } from '../utils/telemetry';
+import RunTelemetryPanel from '../components/RunTelemetryPanel';
+import ExportMenu from '../components/ExportMenu';
+import { exportFileName, toCsv } from '../utils/exporters';
+import { tip } from '../components/Tooltip';
+import { enumTip } from '../utils/tips';
 
-function Detail({ label, children }) {
+function Detail({ label, tip: tipText, children }) {
   return (
     <div className="detail-item">
-      <div className="detail-item-label">{label}</div>
+      <div className="detail-item-label" {...tip(tipText)}>
+        {label}
+      </div>
       <div className="detail-item-value">{children ?? '-'}</div>
     </div>
   );
@@ -68,12 +76,18 @@ export default function RunDetailView({ recordId }) {
     setEvents((prev) => [...prev, ...list].sort((a, b) => a.sequence - b.sequence));
   }, []);
 
-  const pollEvents = useCallback(() => {
-    if (!apiClient || !recordId) return Promise.resolve();
-    return apiClient
-      .listRunEvents(tenantId, recordId, lastSeq.current, 500)
-      .then((r) => appendEvents(r.items || []))
-      .catch(() => {});
+  const pollEvents = useCallback(async () => {
+    if (!apiClient || !recordId) return;
+    try {
+      // Page through every stored event; long runs can have more than one page.
+      for (let page = 0; page < 200; page += 1) {
+        const r = await apiClient.listRunEvents(tenantId, recordId, lastSeq.current, 500);
+        appendEvents(r.items || []);
+        if (!r.hasMore || !(r.items || []).length) break;
+      }
+    } catch {
+      // Polling is best-effort; the next poll or the live stream catches up.
+    }
   }, [apiClient, tenantId, recordId, appendEvents]);
 
   useEffect(() => {
@@ -150,6 +164,8 @@ export default function RunDetailView({ recordId }) {
     );
   }
   if (!run) return <LoadingState />;
+  const tel = runTelemetry(run);
+  const na = t('common.generic.notAvailable');
 
   return (
     <div>
@@ -157,21 +173,21 @@ export default function RunDetailView({ recordId }) {
         title={t('views.runDetail.titleWithAgent', { agent: run.agentName })}
         subtitle={
           <span className="inline-meta">
-            <CopyableId value={run.id} max={40} /> <RunStatus status={run.status} t={t} /> {live && <span className="pill pill-info">{t('topbar.live')}</span>}
+            <CopyableId value={run.id} max={40} /> <RunStatus status={run.status} t={t} /> {live && <span className="pill pill-info" {...tip(t('tips.views.runDetail.live'))}>{t('topbar.live')}</span>}
           </span>
         }
         actions={
           <>
-            <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)}>
+            <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.runDetail.viewJson'))}>
               <CodeIcon /> {t('common.actions.viewJson')}
             </button>
             {!terminal && (
-              <button type="button" className="button-danger" onClick={() => setConfirmCancel(true)}>
+              <button type="button" className="button-danger" onClick={() => setConfirmCancel(true)} {...tip(t('tips.resources.runs.actions.cancel'))}>
                 <StopIcon size={14} /> {t('resources.runs.actions.cancel')}
               </button>
             )}
             {terminal && (
-              <button type="button" className="button-secondary" onClick={retry}>
+              <button type="button" className="button-secondary" onClick={retry} {...tip(t('tips.resources.runs.actions.retry'))}>
                 <RetryIcon size={14} /> {t('resources.runs.actions.retry')}
               </button>
             )}
@@ -180,23 +196,42 @@ export default function RunDetailView({ recordId }) {
       />
 
       <div className="panel detail-grid run-summary">
-        <Detail label={t('resources.runs.columns.outcome')}>{run.outcome && run.outcome !== 'None' ? t(`enums.runOutcome.${run.outcome}`, { defaultValue: run.outcome }) : '-'}</Detail>
-        <Detail label={t('resources.runs.columns.harnessType')}>{run.harnessType}</Detail>
-        <Detail label={t('resources.runs.columns.leaseNodeName')}>{run.leaseNodeName}</Detail>
-        <Detail label={t('views.runDetail.deployment')}>{run.deploymentId ? <CopyableId value={run.deploymentId} /> : '-'}</Detail>
-        <Detail label={t('views.runDetail.model')}>{run.servedModel}</Detail>
-        <Detail label={t('resources.runs.columns.duration')}>{run.startedUtc ? formatDuration(elapsedMs(run.startedUtc, run.completedUtc), i18n.language) : '-'}</Detail>
-        <Detail label={t('views.runDetail.tokensLabel')}>{t('views.runDetail.tokens', { input: formatNumber(run.inputTokens || 0), output: formatNumber(run.outputTokens || 0) })}</Detail>
-        <Detail label={t('resources.runs.columns.costUsd')}>{run.costUsd != null ? `${formatCurrency(run.costUsd, i18n.language)}${run.costEstimated ? ` (${t('views.runDetail.estimated')})` : ''}` : '-'}</Detail>
-        <Detail label={t('views.runDetail.caller')}>{run.callerName || run.callerId}</Detail>
-        <Detail label={t('resources.runs.columns.depth')}>{run.depth ?? 0}</Detail>
-        <Detail label={t('views.runDetail.parent')}>{run.parentRunId ? <a href={pathFor('runs', run.parentRunId)} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', run.parentRunId)); }}>{run.parentRunId}</a> : '-'}</Detail>
-        <Detail label={t('views.runDetail.attempt')}>{`${run.attempt ?? 1} / ${run.maxAttempts ?? 1}`}</Detail>
-        <Detail label={t('resources.runs.columns.createdUtc')}>{formatDateTime(run.createdUtc, i18n.language)}</Detail>
-        <Detail label={t('views.runDetail.started')}>{run.startedUtc ? formatDateTime(run.startedUtc, i18n.language) : '-'}</Detail>
-        <Detail label={t('views.runDetail.completed')}>{run.completedUtc ? formatDateTime(run.completedUtc, i18n.language) : '-'}</Detail>
-        <Detail label={t('views.runDetail.exitCode')}>{run.exitCode}</Detail>
+        <Detail label={t('resources.runs.columns.outcome')} tip={t('tips.resources.runs.outcome')}>
+          {run.outcome && run.outcome !== 'None' ? <span {...tip(enumTip(t, 'runOutcome', run.outcome))}>{t(`enums.runOutcome.${run.outcome}`, { defaultValue: run.outcome })}</span> : '-'}
+        </Detail>
+        <Detail label={t('resources.runs.columns.harnessType')} tip={t('tips.resources.runs.harnessType')}>{t(`enums.harnessType.${run.harnessType}`, { defaultValue: run.harnessType })}</Detail>
+        <Detail label={t('resources.runs.columns.leaseNodeName')} tip={t('tips.resources.runs.leaseNodeName')}>{run.leaseNodeName}</Detail>
+        <Detail label={t('views.runDetail.deployment')} tip={t('tips.views.runDetail.deployment')}>{run.deploymentId ? <CopyableId value={run.deploymentId} /> : '-'}</Detail>
+        <Detail label={t('views.runDetail.model')} tip={t('tips.views.runDetail.model')}>{run.servedModel || '-'}</Detail>
+        <Detail label={t('resources.runs.columns.executionMs')} tip={t('tips.telemetry.executionMs')}>{formatMs(tel.executionMs, i18n.language, na)}</Detail>
+        <Detail label={t('views.runDetail.tokensLabel')} tip={t('tips.views.runDetail.tokens')}>{t('views.runDetail.tokens', { input: formatNumber(run.inputTokens || 0), output: formatNumber(run.outputTokens || 0) })}</Detail>
+        <Detail label={t('resources.runs.columns.costUsd')} tip={t('tips.telemetry.costUsd')}>{`${formatUsd(tel.costUsd, i18n.language, na)}${tel.costUsd !== null && run.costEstimated ? ` (${t('views.runDetail.estimated')})` : ''}`}</Detail>
+        <Detail label={t('views.runDetail.caller')} tip={t('tips.views.runDetail.caller')}>{run.callerName || run.callerId}</Detail>
+        <Detail label={t('resources.runs.columns.depth')} tip={t('tips.resources.runs.depth')}>{run.depth ?? 0}</Detail>
+        <Detail label={t('views.runDetail.parent')} tip={t('tips.views.runDetail.parent')}>
+          {run.parentRunId ? (
+            <a
+              href={pathFor('runs', run.parentRunId)}
+              {...tip(t('tips.views.runDetail.openParent'))}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(pathFor('runs', run.parentRunId));
+              }}
+            >
+              {run.parentRunId}
+            </a>
+          ) : (
+            '-'
+          )}
+        </Detail>
+        <Detail label={t('views.runDetail.attempt')} tip={t('tips.views.runDetail.attempt')}>{`${run.attempt ?? 1} / ${run.maxAttempts ?? 1}`}</Detail>
+        <Detail label={t('resources.runs.columns.createdUtc')} tip={t('tips.views.runDetail.created')}>{formatDateTime(run.createdUtc, i18n.language)}</Detail>
+        <Detail label={t('views.runDetail.started')} tip={t('tips.views.runDetail.started')}>{run.startedUtc ? formatDateTime(run.startedUtc, i18n.language) : '-'}</Detail>
+        <Detail label={t('views.runDetail.completed')} tip={t('tips.views.runDetail.completed')}>{run.completedUtc ? formatDateTime(run.completedUtc, i18n.language) : '-'}</Detail>
+        <Detail label={t('views.runDetail.exitCode')} tip={t('tips.views.runDetail.exitCode')}>{run.exitCode}</Detail>
       </div>
+
+      <RunTelemetryPanel run={run} />
 
       {run.errorMessage && <div className="error-banner">{run.errorMessage}</div>}
 
@@ -205,11 +240,11 @@ export default function RunDetailView({ recordId }) {
         active={tab}
         onChange={setTab}
         tabs={[
-          { id: 'transcript', label: t('views.runDetail.transcript') },
-          { id: 'result', label: t('views.runDetail.result') },
-          { id: 'input', label: t('views.runDetail.input') },
-          { id: 'stderr', label: t('views.runDetail.stderr') },
-          { id: 'children', label: t('views.runDetail.children', { count: children.length }) }
+          { id: 'transcript', label: t('views.runDetail.transcript'), tip: t('tips.views.runDetail.tabs.transcript') },
+          { id: 'result', label: t('views.runDetail.result'), tip: t('tips.views.runDetail.tabs.result') },
+          { id: 'input', label: t('views.runDetail.input'), tip: t('tips.views.runDetail.tabs.input') },
+          { id: 'stderr', label: t('views.runDetail.stderr'), tip: t('tips.views.runDetail.tabs.stderr') },
+          { id: 'children', label: t('views.runDetail.children', { count: children.length }), tip: t('tips.views.runDetail.tabs.children') }
         ]}
       />
 
@@ -217,9 +252,9 @@ export default function RunDetailView({ recordId }) {
         {tab === 'transcript' && (
           <>
             <div className="timeline-toolbar">
-              <label className="filter-select">
+              <label className="filter-select" {...tip(t('tips.views.runDetail.eventFilter'))}>
                 <span>{t('views.runDetail.eventFilter')}</span>
-                <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+                <select value={filter} onChange={(e) => setFilter(e.target.value)} {...tip(t('tips.views.runDetail.eventFilter'))}>
                   <option value="all">{t('common.generic.all')}</option>
                   {ENUMS.runEventType.map((ty) => (
                     <option key={ty} value={ty}>
@@ -229,6 +264,20 @@ export default function RunDetailView({ recordId }) {
                 </select>
               </label>
               <span className="text-muted">{t('views.runDetail.eventCount', { count: events.length })}</span>
+              {events.length > 0 && (
+                <ExportMenu
+                  title={t('views.runDetail.transcript')}
+                  testId="export-transcript"
+                  fileName={(ext) => exportFileName('run-transcript', run.id, { filter: filter === 'all' ? '' : filter }, ext)}
+                  csv={() =>
+                    toCsv(
+                      ['sequence', 'timestamp_utc', 'event_type', 'tool_name', 'success', 'input_tokens', 'output_tokens', 'text'],
+                      events.filter((e) => filter === 'all' || e.eventType === filter).map((e) => [e.sequence, e.timestampUtc ? new Date(e.timestampUtc).toISOString() : null, e.eventType, e.toolName, e.success, e.inputTokens, e.outputTokens, e.text])
+                    )
+                  }
+                  json={() => JSON.stringify({ runId: run.id, agent: run.agentName, filter, exportedUtc: new Date().toISOString(), events: events.filter((e) => filter === 'all' || e.eventType === filter) }, null, 2)}
+                />
+              )}
             </div>
             <RunTimeline events={events} filter={filter} />
           </>
@@ -270,7 +319,7 @@ export default function RunDetailView({ recordId }) {
             <ul className="plain-list">
               {children.map((c) => (
                 <li key={c.id}>
-                  <a href={pathFor('runs', c.id)} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', c.id)); }}>
+                  <a href={pathFor('runs', c.id)} {...tip(t('tips.views.runDetail.openChild'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', c.id)); }}>
                     {c.agentName}
                   </a>{' '}
                   <RunStatus status={c.status} t={t} /> <code className="text-muted">{c.id}</code>
@@ -280,7 +329,7 @@ export default function RunDetailView({ recordId }) {
           ))}
       </div>
 
-      <ConfirmModal open={confirmCancel} danger title={t('resources.runs.actions.cancel')} message={t('views.runDetail.confirmCancel')} confirmLabel={t('resources.runs.actions.cancel')} onConfirm={cancel} onCancel={() => setConfirmCancel(false)} />
+      <ConfirmModal open={confirmCancel} danger title={t('resources.runs.actions.cancel')} message={t('views.runDetail.confirmCancel')} confirmLabel={t('resources.runs.actions.cancel')} confirmTip={t('tips.resources.runs.actions.cancel')} onConfirm={cancel} onCancel={() => setConfirmCancel(false)} />
       <JsonViewerModal open={jsonOpen} value={run} onClose={() => setJsonOpen(false)} />
     </div>
   );

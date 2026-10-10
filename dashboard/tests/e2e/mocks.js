@@ -35,7 +35,7 @@ const FACTORIES = {
   'workspace-templates': (i) => base('wst', i, { kind: 'GitRepository', gitUrl: 'https://github.com/jchristn/Garrison.git', retention: 'Delete' }),
   'artifact-stores': (i) => base('as', i, { kind: 'Local', description: 'Local disk' }),
   agents: (i) => base('agt', i, { name: i === 1 ? 'echo-agent' : `agent-${i}`, displayName: `Agent ${i}`, kind: 'Hosted', exposeA2A: true, exposeMcpTool: i % 2 === 0, delegationMode: 'None', tags: ['sample'] }),
-  deployments: (i) => base('dep', i, { name: `deployment-${i}`, agentId: 'agt_0001', harnessProfileId: 'hp_0001', model: 'sonnet', weight: 100, configVersion: 3 }),
+  deployments: (i) => base('dep', i, { name: `deployment-${i}`, agentId: i <= 2 ? 'agt_0001' : `agt_000${i}`, harnessProfileId: 'hp_0001', model: i === 2 ? 'gpt-oss:20b' : 'sonnet', weight: i === 1 ? 300 : 100, active: i !== 3, configVersion: 3 }),
   'node-pools': (i) => base('np', i, { description: 'Pool', tenants: [] }),
   runs: (i) => base('run', i, {
     agentId: 'agt_0001',
@@ -49,7 +49,20 @@ const FACTORIES = {
     completedUtc: iso(i * 7 - 1),
     inputTokens: 1200 + i,
     outputTokens: 340 + i,
+    cachedTokens: 800 + i,
+    reasoningTokens: i % 2 ? 0 : 64,
     costUsd: 0.0123 * i,
+    queuedUtc: iso(i * 7 + 0.05),
+    leasedUtc: iso(i * 7 + 0.04),
+    firstTokenUtc: iso(i * 7 - 0.02),
+    lastTokenUtc: iso(i * 7 - 0.8),
+    timeToFirstTokenMs: 1200 + i * 10,
+    streamingMs: i % 6 === 3 ? null : 46000 + i,
+    executionMs: 60000 + i,
+    queueMs: 600 + i,
+    totalMs: 61000 + i,
+    outputTokensPerSecond: i % 6 === 3 ? null : (340 + i) / ((46000 + i) / 1000),
+    toolCallCount: i % 4,
     depth: 0,
     input: 'Say hello',
     resultText: 'Hello from the fake harness.'
@@ -95,12 +108,12 @@ function enumerate(collection, url) {
 
 const SETTINGS = {
   fields: [
-    { path: 'Server.Port', group: 'Server', value: 8700, type: 'Number', min: 1, max: 65535, source: 'File', applyMode: 'RestartRequired' },
-    { path: 'Server.Hostname', group: 'Server', value: '127.0.0.1', type: 'String', source: 'Environment', applyMode: 'RestartRequired' },
+    { path: 'Server.Port', group: 'Server', description: 'REST port.', value: 8700, type: 'Number', min: 1, max: 65535, source: 'File', applyMode: 'RestartRequired' },
+    { path: 'Server.Hostname', group: 'Server', description: 'REST bind hostname (* for all interfaces).', value: '127.0.0.1', type: 'String', source: 'Environment', applyMode: 'RestartRequired' },
     { path: 'Logging.MinimumSeverity', group: 'Logging', value: 'Info', type: 'String', options: ['Debug', 'Info', 'Warn', 'Error'], source: 'File', applyMode: 'Live' },
     { path: 'Database.Type', group: 'Database', value: 'Sqlite', type: 'String', options: ['Sqlite', 'Postgresql'], source: 'File', applyMode: 'RestartRequired' },
     { path: 'Database.Password', group: 'Database', isSecret: true, isSet: true, type: 'String', source: 'File', applyMode: 'RestartRequired' },
-    { path: 'Scheduler.LeaseSeconds', group: 'Scheduler', value: 60, type: 'Number', min: 10, max: 3600, source: 'Database', applyMode: 'Live' }
+    { path: 'Scheduler.LeaseSeconds', group: 'Scheduler', description: 'How long a node holds a run lease between renewals.', value: 60, type: 'Number', min: 10, max: 3600, source: 'Database', applyMode: 'Live' }
   ],
   restartPending: false
 };
@@ -124,6 +137,103 @@ function summary() {
   const buckets = [];
   for (let i = 0; i < 24; i++) buckets.push({ bucketStartUtc: iso(i * 60), successCount: 10 + (i % 5), failureCount: i % 3, averageDurationMs: 20 + i });
   return { totalCount: 400, totalSuccess: 360, totalFailure: 40, averageDurationMs: 24, buckets };
+}
+
+const ANALYTICS_GROUPS = {
+  agent: [
+    { key: 'agt_0001', label: 'echo-agent', scale: 1 },
+    { key: 'agt_0002', label: 'agent-2', scale: 0.5 }
+  ],
+  harness: [
+    { key: 'ClaudeCode', label: 'ClaudeCode', scale: 1 },
+    { key: 'Mux', label: 'Mux', scale: 0.4 }
+  ],
+  model: [
+    { key: 'claude-sonnet-5-5', label: 'claude-sonnet-5-5', scale: 1 },
+    { key: 'gpt-oss:20b', label: 'gpt-oss:20b', scale: 0.4 }
+  ],
+  harnessModel: [
+    { key: 'ClaudeCode|claude-sonnet-5-5', label: 'ClaudeCode / claude-sonnet-5-5', scale: 1 },
+    { key: 'Mux|gpt-oss:20b', label: 'Mux / gpt-oss:20b', scale: 0.4 },
+    { key: 'Codex|unknown', label: 'Codex / unknown', scale: 0.2 }
+  ]
+};
+
+export const DIMENSIONS = {
+  agents: [
+    { id: 'agt_0001', name: 'echo-agent' },
+    { id: 'agt_0002', name: 'agent-2' }
+  ],
+  harnesses: ['ClaudeCode', 'Codex', 'Mux'],
+  deployments: [
+    { id: 'dep_0001', name: 'deployment-1', agentId: 'agt_0001' },
+    { id: 'dep_0002', name: 'deployment-2', agentId: 'agt_0001' }
+  ],
+  models: ['claude-sonnet-5-5', 'gpt-oss:20b', 'unknown']
+};
+
+function analyticsMetrics(i, scale) {
+  const runs = Math.round((8 + (i % 5)) * scale);
+  const failed = i % 4 === 0 ? 1 : 0;
+  const cancelled = i % 7 === 0 ? 1 : 0;
+  const timedOut = i % 9 === 0 ? 1 : 0;
+  const quiet = i % 11 === 5;
+  return {
+    runs: quiet ? 0 : runs,
+    succeeded: quiet ? 0 : Math.max(0, runs - failed - cancelled - timedOut),
+    failed: quiet ? 0 : failed,
+    cancelled: quiet ? 0 : cancelled,
+    timedOut: quiet ? 0 : timedOut,
+    inputTokens: quiet ? 0 : runs * 2100,
+    outputTokens: quiet ? 0 : runs * 340,
+    cachedTokens: quiet ? 0 : runs * 900,
+    reasoningTokens: quiet ? 0 : runs * 40,
+    costUsd: quiet ? 0 : Number((runs * 0.0123).toFixed(4)),
+    toolCalls: quiet ? 0 : runs * 2,
+    timeToFirstTokenMsAvg: quiet ? null : 1100 + (i % 6) * 90,
+    timeToFirstTokenMsP50: quiet ? null : 1000 + (i % 6) * 80,
+    timeToFirstTokenMsP95: quiet ? null : 2400 + (i % 6) * 150,
+    streamingMsAvg: quiet ? null : 4200 + (i % 8) * 200,
+    executionMsAvg: quiet ? null : 6100 + (i % 8) * 250,
+    executionMsP95: quiet ? null : 11000 + (i % 8) * 400,
+    queueMsAvg: quiet ? null : 150 + (i % 5) * 40,
+    outputTokensPerSecondAvg: quiet ? null : 70 + (i % 9) * 3
+  };
+}
+
+function sumMetrics(list) {
+  const out = {};
+  for (const m of list) for (const [k, v] of Object.entries(m)) if (/^(runs|succeeded|failed|cancelled|timedOut|inputTokens|outputTokens|cachedTokens|reasoningTokens|costUsd|toolCalls)$/.test(k)) out[k] = (out[k] || 0) + v;
+  const avg = (k) => {
+    const vals = list.map((m) => m[k]).filter((v) => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  for (const k of ['timeToFirstTokenMsAvg', 'timeToFirstTokenMsP50', 'timeToFirstTokenMsP95', 'streamingMsAvg', 'executionMsAvg', 'executionMsP95', 'queueMsAvg', 'outputTokensPerSecondAvg']) out[k] = avg(k);
+  return out;
+}
+
+/** GET /analytics/runs: 24 buckets across the requested range, one series per group when grouping. */
+export function analytics(url) {
+  const to = url.searchParams.get('to') ? Date.parse(url.searchParams.get('to')) : NOW;
+  const from = url.searchParams.get('from') ? Date.parse(url.searchParams.get('from')) : to - 24 * 3600 * 1000;
+  const count = 24;
+  const bucketMs = Math.max(60000, Math.floor((to - from) / count));
+  const groupBy = url.searchParams.get('groupBy') || 'none';
+  const groups = ANALYTICS_GROUPS[groupBy] || [{ key: 'all', label: 'All runs', scale: 1 }];
+  const series = groups.map((g) => ({
+    key: g.key,
+    label: g.label,
+    buckets: Array.from({ length: count }, (_, i) => ({ startUtc: new Date(from + i * bucketMs).toISOString(), ...analyticsMetrics(i, g.scale) }))
+  }));
+  return {
+    fromUtc: new Date(from).toISOString(),
+    toUtc: new Date(to).toISOString(),
+    interval: 'auto',
+    bucketSeconds: Math.round(bucketMs / 1000),
+    truncated: false,
+    totals: sumMetrics(series.flatMap((s) => s.buckets)),
+    series
+  };
 }
 
 const EVENTS = [
@@ -158,11 +268,18 @@ function respond(method, url) {
     const parts = m[1].split('/');
     const collection = parts[0];
     if (collection === 'overview') return { agents: 6, deployments: 6, runsLast24Hours: 137, runsByStatus: [{ status: 'Running', count: 2 }, { status: 'Queued', count: 3 }, { status: 'Succeeded', count: 120 }, { status: 'Failed', count: 12 }], nodesByStatus: [{ status: 'Ready', count: 2 }, { status: 'Cordoned', count: 1 }], queued: 3, active: 2, generatedUtc: new Date().toISOString(), nodes: [1, 2, 3].map(FACTORIES.nodes), recentFailures: [2, 8].map((i) => ({ ...FACTORIES.runs(i), status: 'Failed', outcome: 'HarnessFailed' })) };
+    if (collection === 'analytics' && parts[1] === 'runs' && parts[2] === 'dimensions') return DIMENSIONS;
+    if (collection === 'analytics' && parts[1] === 'runs') return analytics(url);
     if (collection === 'queue') return [{ agentName: 'echo-agent', harnessType: 'ClaudeCode', queued: 3, leased: 1, running: 2 }];
     if (collection === 'manifests' && parts[1] === 'applies') return parts.length === 2 ? enumerate('manifest-applies', url) : FACTORIES['manifest-applies'](1);
     if (collection === 'manifests' && parts[1] === 'export') return 'apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: echo-agent\n';
     if (collection === 'manifests') return { items: [{ kind: 'Agent', name: 'echo-agent', result: 'Created' }, { kind: 'Deployment', name: 'echo-agent-default', result: 'Created' }] };
-    if (collection === 'runs' && parts[2] === 'events') return { objects: EVENTS, totalRecords: EVENTS.length, skip: 0, maxResults: 100, endOfResults: true };
+    if (collection === 'runs' && parts[2] === 'events') {
+      // Same shape as the server: { runId, status, events, lastSequence, hasMore }.
+      const after = Number(url.searchParams.get('afterSequence') || 0);
+      const events = EVENTS.filter((e) => e.sequence > after);
+      return { runId: parts[1], status: 'Succeeded', events, lastSequence: events.length ? events[events.length - 1].sequence : after, hasMore: false };
+    }
     if (collection === 'runs' && parts[2] === 'children') return { objects: [], totalRecords: 0, skip: 0, maxResults: 100, endOfResults: true };
     if (collection === 'agents' && parts[2] === 'invoke') return { ...FACTORIES.runs(1), id: 'run_0001', status: 'Running' };
     if (collection === 'prompt-templates' && parts[1] === 'render') return { rendered: 'You are echo-agent. Task: hello', missingVariables: [] };

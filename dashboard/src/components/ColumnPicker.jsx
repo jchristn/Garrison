@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ColumnsIcon } from './Icons';
+import { tip } from './Tooltip';
 
 /** "Select Columns" control. Pinned columns are listed but cannot be hidden. */
 export default function ColumnPicker({ columns, hidden, onToggle }) {
@@ -11,6 +12,7 @@ export default function ColumnPicker({ columns, hidden, onToggle }) {
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
   const options = columns.filter((c) => c.key !== 'actions' && c.key !== 'select');
+  const columnTip = (c) => t(c.pinned ? 'tips.table.columnPinned' : 'tips.table.columnToggle', { column: c.label, tip: c.tip || '' }).trim();
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -43,7 +45,7 @@ export default function ColumnPicker({ columns, hidden, onToggle }) {
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={t('components.table.selectColumns')}
-        title={t('components.table.selectColumns')}
+        {...tip(t('tips.table.selectColumns'))}
         onClick={() => setOpen((v) => !v)}
         data-testid="column-picker"
       >
@@ -51,11 +53,11 @@ export default function ColumnPicker({ columns, hidden, onToggle }) {
       </button>
       {open &&
         createPortal(
-          <div ref={menuRef} className="column-picker" style={{ top: pos.top, left: pos.left }} role="dialog" aria-label={t('components.table.selectColumns')}>
+          <div ref={menuRef} className="column-picker" style={{ top: pos.top, left: pos.left, maxHeight: `calc(100vh - ${Math.round(pos.top) + 12}px)`, overflowY: 'auto' }} role="dialog" aria-label={t('components.table.selectColumns')}>
             <div className="column-picker-title">{t('components.table.selectColumns')}</div>
             {options.map((c) => (
-              <label key={c.key} className="column-picker-item">
-                <input type="checkbox" checked={c.pinned || !hidden.includes(c.key)} disabled={!!c.pinned} onChange={() => onToggle(c.key)} />
+              <label key={c.key} className="column-picker-item" {...tip(columnTip(c))}>
+                <input type="checkbox" checked={c.pinned || !hidden.includes(c.key)} disabled={!!c.pinned} onChange={() => onToggle(c.key)} {...tip(columnTip(c))} />
                 <span>{c.label}</span>
                 {c.pinned && <span className="text-muted column-picker-pinned">{t('components.table.pinned')}</span>}
               </label>

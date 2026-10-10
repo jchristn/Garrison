@@ -12,7 +12,7 @@ export function errorMessage(t, err) {
   if (code) {
     const key = `errorCodes.${code}`;
     const translated = t(key, { defaultValue: '' });
-    if (translated) return translated;
+    if (translated && translated !== key) return translated;
   }
   if (err.status === 0) return t('errorCodes.NetworkError');
   return err.message || t('common.errors.loadFailed');

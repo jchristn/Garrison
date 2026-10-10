@@ -99,7 +99,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/agents/<agent id>
   -d '{"input":"Hello, Garrison","wait":true}'
 ```
 
-The dashboard lives in `dashboard/`: `npm install && npm run dev`, then open the printed URL and sign in with the administrator account.
+The dashboard lives in `dashboard/`: `npm install && npm run dev`, then open the printed URL and sign in with the administrator account. Every control in it carries a tooltip that explains what it does, each configuration page opens with a short note on how its records relate to agents and deployments, and the Analytics page charts time to first token, execution and queue time, tokens, cost, outcomes, and tool calls over time by agent, harness, deployment, and model. Every chart exports as CSV, JSON, PNG, or SVG.
 
 ### With Docker Compose
 

@@ -14,7 +14,11 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
-import { formatRelativeTime } from '../i18n/formatters';
+import { formatRelativeTime, formatNumber, formatPercent } from '../i18n/formatters';
+import Explainer from '../components/Explainer';
+import { tip } from '../components/Tooltip';
+import { enumTip } from '../utils/tips';
+import { trafficShares } from '../utils/deployments';
 
 /** One agent end to end: identity, exposure, delegation, deployments with weights, A2A card, and recent runs. */
 export default function AgentDetailView({ recordId }) {
@@ -24,6 +28,7 @@ export default function AgentDetailView({ recordId }) {
   const navigate = useNavigate();
   const [agent, setAgent] = useState(null);
   const [deployments, setDeployments] = useState([]);
+  const [profiles, setProfiles] = useState({});
   const [runs, setRuns] = useState([]);
   const [card, setCard] = useState(null);
   const [cardError, setCardError] = useState(null);
@@ -39,6 +44,10 @@ export default function AgentDetailView({ recordId }) {
       .then((r) => setDeployments((r.items || []).filter((d) => d.agentId === recordId)))
       .catch(() => setDeployments([]));
     apiClient
+      .listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })
+      .then((r) => setProfiles(Object.fromEntries((r.items || []).map((p) => [p.id, p]))))
+      .catch(() => setProfiles({}));
+    apiClient
       .listRuns(tenantId, { pageNumber: 1, pageSize: 25, agentId: recordId })
       .then((r) => setRuns(r.items || []))
       .catch(() => setRuns([]));
@@ -50,7 +59,8 @@ export default function AgentDetailView({ recordId }) {
   if (error && !agent) return <ErrorBanner message={errorMessage(t, error)} onRetry={load} />;
   if (!agent) return <LoadingState />;
 
-  const totalWeight = deployments.filter((d) => d.active).reduce((s, d) => s + (d.weight || 0), 0);
+  const shares = trafficShares(deployments);
+  const na = t('common.generic.notAvailable');
 
   return (
     <div>
@@ -58,16 +68,19 @@ export default function AgentDetailView({ recordId }) {
         title={agent.displayName || agent.name}
         subtitle={
           <span className="inline-meta">
-            <code>{agent.name}</code> <Badge tone={agent.kind === 'Remote' ? 'warning' : 'info'}>{t(`enums.agentKind.${agent.kind}`, { defaultValue: agent.kind })}</Badge>
-            <ActiveBadge active={agent.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} />
+            <code {...tip(t('tips.views.agentDetail.name'))}>{agent.name}</code>{' '}
+            <Badge tone={agent.kind === 'Remote' ? 'warning' : 'info'} tip={enumTip(t, 'agentKind', agent.kind)}>
+              {t(`enums.agentKind.${agent.kind}`, { defaultValue: agent.kind })}
+            </Badge>
+            <ActiveBadge active={agent.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} tip={t(agent.active ? 'tips.badges.active' : 'tips.badges.inactive')} />
           </span>
         }
         actions={
           <>
-            <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)}>
+            <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.agentDetail.viewJson'))}>
               {t('common.actions.viewJson')}
             </button>
-            <button type="button" className="button-primary" onClick={() => navigate(pathFor('invoke', null, { agentId: agent.id }))}>
+            <button type="button" className="button-primary" onClick={() => navigate(pathFor('invoke', null, { agentId: agent.id }))} {...tip(t('tips.views.agentDetail.invoke'))}>
               <SendIcon size={14} /> {t('views.agentDetail.invoke')}
             </button>
           </>
@@ -75,40 +88,41 @@ export default function AgentDetailView({ recordId }) {
       />
       <div className="panel detail-grid">
         <div className="detail-item detail-item-span">
-          <div className="detail-item-label">{t('resources.agents.fields.description')}</div>
+          <div className="detail-item-label" {...tip(t('tips.resources.agents.description'))}>{t('resources.agents.fields.description')}</div>
           <div className="detail-item-value">{agent.description || '-'}</div>
         </div>
         <div className="detail-item">
-          <div className="detail-item-label">{t('resources.agents.columns.id')}</div>
+          <div className="detail-item-label" {...tip(t('tips.views.agentDetail.id'))}>{t('resources.agents.columns.id')}</div>
           <div className="detail-item-value">
             <CopyableId value={agent.id} />
           </div>
         </div>
         <div className="detail-item">
-          <div className="detail-item-label">{t('resources.agents.columns.exposure')}</div>
+          <div className="detail-item-label" {...tip(t('tips.resources.agents.exposure'))}>{t('resources.agents.columns.exposure')}</div>
           <div className="detail-item-value">{[agent.exposeA2A ? 'A2A' : null, agent.exposeMcpTool ? `MCP (${agent.mcpToolName || agent.name})` : null].filter(Boolean).join(', ') || '-'}</div>
         </div>
         <div className="detail-item">
-          <div className="detail-item-label">{t('resources.agents.fields.delegationMode')}</div>
+          <div className="detail-item-label" {...tip(t('tips.resources.agents.delegationMode'))}>{t('resources.agents.fields.delegationMode')}</div>
           <div className="detail-item-value">
             {t(`enums.delegationMode.${agent.delegationMode}`, { defaultValue: agent.delegationMode })}
             {agent.delegationMode === 'AllowList' && ` (${(agent.delegationAllowList || []).join(', ') || '-'})`}
           </div>
         </div>
         <div className="detail-item">
-          <div className="detail-item-label">{t('resources.agents.fields.inputMode')}</div>
+          <div className="detail-item-label" {...tip(t('tips.resources.agents.inputMode'))}>{t('resources.agents.fields.inputMode')}</div>
           <div className="detail-item-value">{agent.inputMode}</div>
         </div>
       </div>
       {deployments.filter((d) => d.active).length === 0 && <div className="warning-banner">{t('views.agentDetail.noActiveDeployment')}</div>}
+      <Explainer topic="agentDetail" />
       <Tabs
         label={agent.name}
         active={tab}
         onChange={setTab}
         tabs={[
-          { id: 'deployments', label: t('views.agentDetail.deployments', { count: deployments.length }) },
-          { id: 'runs', label: t('views.agentDetail.recentRuns') },
-          { id: 'card', label: t('views.agentDetail.card') }
+          { id: 'deployments', label: t('views.agentDetail.deployments', { count: deployments.length }), tip: t('tips.views.agentDetail.tabs.deployments') },
+          { id: 'runs', label: t('views.agentDetail.recentRuns'), tip: t('tips.views.agentDetail.tabs.runs') },
+          { id: 'card', label: t('views.agentDetail.card'), tip: t('tips.views.agentDetail.tabs.card') }
         ]}
       />
       <div className="panel">
@@ -118,44 +132,62 @@ export default function AgentDetailView({ recordId }) {
               title={t('views.agentDetail.noDeploymentsTitle')}
               body={t('views.agentDetail.noDeploymentsBody')}
               action={
-                <button type="button" className="button-primary" onClick={() => navigate(pathFor('deployments'))}>
+                <button type="button" className="button-primary" onClick={() => navigate(pathFor('deployments'))} {...tip(t('tips.views.agentDetail.addDeployment'))}>
                   {t('resources.deployments.add')}
                 </button>
               }
             />
           ) : (
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">{t('resources.deployments.columns.name')}</th>
-                    <th scope="col">{t('resources.deployments.columns.harnessProfileId')}</th>
-                    <th scope="col">{t('resources.deployments.columns.model')}</th>
-                    <th scope="col" className="right">
-                      {t('views.agentDetail.traffic')}
-                    </th>
-                    <th scope="col">{t('resources.deployments.columns.active')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deployments.map((d) => (
-                    <tr key={d.id}>
-                      <td>
-                        <strong>{d.name}</strong>
-                      </td>
-                      <td>
-                        <CopyableId value={d.harnessProfileId} />
-                      </td>
-                      <td>{d.model || '-'}</td>
-                      <td className="right">{d.active && totalWeight > 0 ? `${Math.round(((d.weight || 0) / totalWeight) * 100)}%` : '0%'}</td>
-                      <td>
-                        <ActiveBadge active={d.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} />
-                      </td>
+            <>
+              <p className="text-muted agent-deployments-note">{t('views.agentDetail.selectionNote')}</p>
+              <div className="table-scroll">
+                <table className="data-table" data-testid="agent-deployments">
+                  <thead>
+                    <tr>
+                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.name'))}>{t('resources.deployments.columns.name')}</th>
+                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.harness'))}>{t('resources.deployments.columns.harnessProfileId')}</th>
+                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.model'))}>{t('resources.deployments.columns.model')}</th>
+                      <th scope="col" className="right" {...tip(t('tips.views.agentDetail.columns.weight'))}>
+                        {t('resources.deployments.columns.weight')}
+                      </th>
+                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.traffic'))}>{t('views.agentDetail.traffic')}</th>
+                      <th scope="col" {...tip(t('tips.views.agentDetail.columns.active'))}>{t('resources.deployments.columns.active')}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {deployments.map((d) => {
+                      const share = shares[d.id] || 0;
+                      const profile = profiles[d.harnessProfileId];
+                      return (
+                        <tr key={d.id} data-deployment={d.name}>
+                          <td>
+                            <strong>{d.name}</strong>
+                            {d.description && <div className="text-muted">{d.description}</div>}
+                          </td>
+                          <td>{profile ? <span {...tip(d.harnessProfileId)}>{profile.name}</span> : <CopyableId value={d.harnessProfileId} />}</td>
+                          <td>{d.model || na}</td>
+                          <td className="right" data-cell="weight">{formatNumber(d.weight ?? 0)}</td>
+                          <td data-cell="share">
+                            <span className="weight-bar" aria-hidden="true">
+                              <span style={{ width: `${Math.round(share * 100)}%` }} />
+                            </span>
+                            {formatPercent(share, i18n.language, { digits: 0 })}
+                          </td>
+                          <td>
+                            <ActiveBadge active={d.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} tip={t(d.active ? 'tips.badges.deploymentActive' : 'tips.badges.deploymentInactive')} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex gap-sm" style={{ marginTop: 'var(--spacing-sm)' }}>
+                <button type="button" className="button-secondary button-sm" onClick={() => navigate(pathFor('deployments'))} {...tip(t('tips.views.agentDetail.manageDeployments'))}>
+                  {t('views.agentDetail.manageDeployments')}
+                </button>
+              </div>
+            </>
           ))}
         {tab === 'runs' &&
           (runs.length === 0 ? (
@@ -164,7 +196,7 @@ export default function AgentDetailView({ recordId }) {
             <ul className="plain-list">
               {runs.map((r) => (
                 <li key={r.id}>
-                  <a href={pathFor('runs', r.id)} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
+                  <a href={pathFor('runs', r.id)} {...tip(t('tips.views.agentDetail.openRun'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
                     <code>{r.id}</code>
                   </a>{' '}
                   <RunStatus status={r.status} t={t} /> <span className="text-muted">{formatRelativeTime(r.createdUtc, i18n.language)}</span>

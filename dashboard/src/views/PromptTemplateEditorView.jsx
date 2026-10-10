@@ -9,6 +9,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import JsonViewerModal from '../components/JsonViewerModal';
 import Modal from '../components/Modal';
 import Tabs from '../components/Tabs';
+import Explainer from '../components/Explainer';
 import { LoadingState, ErrorBanner } from '../components/States';
 import { Badge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +21,8 @@ import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { extractVariables } from '../utils/templates';
 import { formatDateTime } from '../i18n/formatters';
+import { tip } from '../components/Tooltip';
+import { resourceTip } from '../utils/tips';
 
 const SAMPLE_CONTEXT = {
   tenant: { id: 'default', name: 'Default' },
@@ -153,9 +156,9 @@ export default function PromptTemplateEditorView({ recordId }) {
   if (!isNew && !template && !error) return <LoadingState />;
 
   const fields = [
-    { name: 'name', type: 'text', label: t('resources.promptTemplates.fields.name'), required: true, readOnly: readOnly || !isNew },
-    { name: 'kind', type: 'select', label: t('resources.promptTemplates.fields.kind'), required: true, options: ENUMS.promptTemplateKind, readOnly },
-    { name: 'description', type: 'text', label: t('resources.promptTemplates.fields.description'), readOnly, span: 'full' }
+    { name: 'name', type: 'text', label: t('resources.promptTemplates.fields.name'), tip: resourceTip(t, 'promptTemplates', 'name'), required: true, readOnly: readOnly || !isNew },
+    { name: 'kind', type: 'select', label: t('resources.promptTemplates.fields.kind'), tip: resourceTip(t, 'promptTemplates', 'kind'), required: true, options: ENUMS.promptTemplateKind, optionLabel: (v) => t(`enums.promptTemplateKind.${v}`, { defaultValue: v }), readOnly },
+    { name: 'description', type: 'text', label: t('resources.promptTemplates.fields.description'), tip: resourceTip(t, 'promptTemplates', 'description'), readOnly, span: 'full' }
   ];
 
   return (
@@ -167,7 +170,7 @@ export default function PromptTemplateEditorView({ recordId }) {
             t('views.templateEditor.subtitle')
           ) : (
             <span className="inline-meta">
-              <Badge tone={readOnly ? 'info' : 'neutral'}>{readOnly ? t('common.generic.builtIn') : t('common.generic.custom')}</Badge> v{template?.currentVersion ?? 1}
+              <Badge tone={readOnly ? 'info' : 'neutral'} tip={t(readOnly ? 'tips.badges.builtIn' : 'tips.badges.custom')}>{readOnly ? t('common.generic.builtIn') : t('common.generic.custom')}</Badge> v{template?.currentVersion ?? 1}
               {readOnly && <span className="text-muted"> {t('views.templateEditor.builtInNote')}</span>}
             </span>
           )
@@ -175,27 +178,27 @@ export default function PromptTemplateEditorView({ recordId }) {
         actions={
           <>
             {!isNew && (
-              <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)}>
+              <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.actions.viewJson'))}>
                 {t('common.actions.viewJson')}
               </button>
             )}
             {!isNew && (
-              <button type="button" className="button-secondary" onClick={clone}>
+              <button type="button" className="button-secondary" onClick={clone} {...tip(t('tips.views.templateEditor.clone'))}>
                 {t('common.actions.clone')}
               </button>
             )}
             {readOnly && (
-              <button type="button" className="button-secondary" onClick={() => setConfirm({ type: 'reset' })}>
+              <button type="button" className="button-secondary" onClick={() => setConfirm({ type: 'reset' })} {...tip(t('tips.views.templateEditor.reset'))}>
                 {t('views.templateEditor.reset')}
               </button>
             )}
             {!isNew && !readOnly && (
-              <button type="button" className="button-danger" onClick={() => setConfirm({ type: 'delete' })}>
+              <button type="button" className="button-danger" onClick={() => setConfirm({ type: 'delete' })} {...tip(t('tips.views.templateEditor.delete'))}>
                 {t('common.actions.delete')}
               </button>
             )}
             {!readOnly && (
-              <button type="button" className="button-primary" onClick={save} disabled={busy} data-testid="template-save">
+              <button type="button" className="button-primary" onClick={save} disabled={busy} data-testid="template-save" {...tip(t(isNew ? 'tips.views.templateEditor.create' : 'tips.views.templateEditor.save'))}>
                 {busy ? t('common.generic.saving') : t('common.actions.save')}
               </button>
             )}
@@ -203,6 +206,7 @@ export default function PromptTemplateEditorView({ recordId }) {
         }
       />
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
+      <Explainer topic="promptTemplates" />
 
       <div className="panel">
         <FormFields fields={fields} data={form} onChange={setForm} idPrefix="tpl" />
@@ -210,14 +214,14 @@ export default function PromptTemplateEditorView({ recordId }) {
 
       <div className="editor-layout">
         <section className="panel editor-main" aria-label={t('views.templateEditor.content')}>
-          <label htmlFor="tpl-content" className="section-title">
+          <label htmlFor="tpl-content" className="section-title" {...tip(t('tips.views.templateEditor.content'))}>
             {t('views.templateEditor.content')}
           </label>
-          <textarea id="tpl-content" className="monospace template-textarea" spellCheck={false} value={form.content} readOnly={readOnly} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={20} />
+          <textarea id="tpl-content" {...tip(t('tips.views.templateEditor.content'))} className="monospace template-textarea" spellCheck={false} value={form.content} readOnly={readOnly} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={20} />
           {!readOnly && !isNew && (
             <div className="field">
-              <label htmlFor="tpl-note">{t('views.templateEditor.changeNote')}</label>
-              <input id="tpl-note" value={form.changeNote} onChange={(e) => setForm({ ...form, changeNote: e.target.value })} />
+              <label htmlFor="tpl-note" {...tip(t('tips.views.templateEditor.changeNote'))}>{t('views.templateEditor.changeNote')}</label>
+              <input id="tpl-note" {...tip(t('tips.views.templateEditor.changeNote'))} value={form.changeNote} onChange={(e) => setForm({ ...form, changeNote: e.target.value })} />
             </div>
           )}
           <div className="field-hint">{t('views.templateEditor.syntaxHint')}</div>
@@ -243,16 +247,16 @@ export default function PromptTemplateEditorView({ recordId }) {
         active={tab}
         onChange={setTab}
         tabs={[
-          { id: 'preview', label: t('views.templateEditor.preview') },
-          { id: 'versions', label: t('views.templateEditor.versions', { count: versions.length }) }
+          { id: 'preview', label: t('views.templateEditor.preview'), tip: t('tips.views.templateEditor.tabs.preview') },
+          { id: 'versions', label: t('views.templateEditor.versions', { count: versions.length }), tip: t('tips.views.templateEditor.tabs.versions') }
         ]}
       />
       <div className="panel">
         {tab === 'preview' && (
           <div className="preview-layout">
             <div className="field">
-              <label htmlFor="tpl-context">{t('views.templateEditor.sampleContext')}</label>
-              <textarea id="tpl-context" className="monospace" rows={14} spellCheck={false} value={contextText} onChange={(e) => setContextText(e.target.value)} />
+              <label htmlFor="tpl-context" {...tip(t('tips.views.templateEditor.sampleContext'))}>{t('views.templateEditor.sampleContext')}</label>
+              <textarea id="tpl-context" {...tip(t('tips.views.templateEditor.sampleContext'))} className="monospace" rows={14} spellCheck={false} value={contextText} onChange={(e) => setContextText(e.target.value)} />
             </div>
             <div>
               <div className="section-title">{t('views.templateEditor.rendered')}</div>
@@ -269,11 +273,11 @@ export default function PromptTemplateEditorView({ recordId }) {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th scope="col">{t('views.templateEditor.version')}</th>
-                    <th scope="col">{t('views.templateEditor.note')}</th>
-                    <th scope="col">{t('views.templateEditor.author')}</th>
-                    <th scope="col">{t('resources.promptTemplates.columns.lastUpdateUtc')}</th>
-                    <th scope="col" className="right">
+                    <th scope="col" {...tip(t('tips.views.templateEditor.columns.version'))}>{t('views.templateEditor.version')}</th>
+                    <th scope="col" {...tip(t('tips.views.templateEditor.columns.note'))}>{t('views.templateEditor.note')}</th>
+                    <th scope="col" {...tip(t('tips.views.templateEditor.columns.author'))}>{t('views.templateEditor.author')}</th>
+                    <th scope="col" {...tip(t('tips.views.templateEditor.columns.saved'))}>{t('resources.promptTemplates.columns.lastUpdateUtc')}</th>
+                    <th scope="col" className="right" {...tip(t('tips.table.actionsColumn'))}>
                       {t('common.generic.actions')}
                     </th>
                   </tr>
@@ -286,11 +290,11 @@ export default function PromptTemplateEditorView({ recordId }) {
                       <td>{v.createdBy || '-'}</td>
                       <td>{formatDateTime(v.createdUtc, i18n.language)}</td>
                       <td className="actions-cell">
-                        <button type="button" className="button-ghost button-sm" onClick={() => setDiffVersion(v)}>
+                        <button type="button" className="button-ghost button-sm" onClick={() => setDiffVersion(v)} {...tip(t('tips.views.templateEditor.diff'))}>
                           {t('views.templateEditor.diff')}
                         </button>
                         {!readOnly && v.version !== template?.currentVersion && (
-                          <button type="button" className="button-ghost button-sm" onClick={() => setConfirm({ type: 'restore', version: v.version })}>
+                          <button type="button" className="button-ghost button-sm" onClick={() => setConfirm({ type: 'restore', version: v.version })} {...tip(t('tips.views.templateEditor.restore'))}>
                             {t('views.templateEditor.restore')}
                           </button>
                         )}

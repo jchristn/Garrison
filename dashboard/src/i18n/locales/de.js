@@ -1,5 +1,7 @@
 // German catalog for the Garrison dashboard. Mirrors every key in en.js.
 
+import { tips, explainers } from './de.tips.js';
+
 const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody) => ({ title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody });
 
 const de = {
@@ -58,6 +60,7 @@ const de = {
       loading: 'Wird geladen...',
       never: 'Nie',
       none: 'Keine',
+      notAvailable: 'k. A.',
       saving: 'Wird gespeichert...'
     },
     relativeTime: { now: 'gerade eben' },
@@ -74,7 +77,7 @@ const de = {
       deleted: 'Gelöscht.',
       saved: 'Gespeichert.'
     },
-    units: { msShort: 'ms', sShort: 's', mShort: 'Min.' }
+    units: { msShort: 'ms', sShort: 's', mShort: 'Min.', tokPerSec: 'Tok./s' }
   },
   errorCodes: {
     NetworkError: 'Der Server ist nicht erreichbar. Prüfen Sie die Server-URL und ob der Server läuft.',
@@ -203,6 +206,7 @@ const de = {
       home: { label: 'Startseite', tip: 'Zustand von Flotte und Läufen auf einen Blick' },
       invoke: { label: 'Aufrufen', tip: 'Einen Agenten interaktiv ausprobieren' },
       runs: { label: 'Läufe', tip: 'Läufe und die Warteschlange' },
+      analytics: { label: 'Analysen', tip: 'Geschwindigkeit, Token, Kosten und Ergebnisse von Läufen im Zeitverlauf' },
       agents: { label: 'Agenten', tip: 'Agenten und die Bereitstellungen, die sie ausführen' },
       configuration: { label: 'Konfiguration', tip: 'Harness-Profile, Prompt-Vorlagen, MCP-Server, Geheimnisse, Arbeitsbereiche, Artefaktspeicher und Manifeste' },
       fleet: { label: 'Flotte', tip: 'Worker-Knoten und Knotenpools' },
@@ -215,6 +219,7 @@ const de = {
       invoke: { label: 'Aufrufen', tip: 'Einen Agenten interaktiv ausprobieren' },
       runs: { label: 'Läufe', tip: 'Läufe finden, prüfen, abbrechen und wiederholen' },
       queue: { label: 'Warteschlange', tip: 'Planungsdruck nach Agent und Harness' },
+      analytics: { label: 'Analysen', tip: 'Geschwindigkeit, Token, Kosten und Ergebnisse von Läufen im Zeitverlauf' },
       nodes: { label: 'Knoten', tip: 'Worker-Knoten und ihre Harness-Fähigkeiten' },
       nodePools: { label: 'Knotenpools', tip: 'Knoten gruppieren und Mandanten zuordnen' },
       agents: { label: 'Agenten', tip: 'Über REST, MCP und A2A bereitgestellte Agenten' },
@@ -292,7 +297,8 @@ const de = {
       total: 'Gesamt',
       avgDuration: 'Mittlere Dauer',
       noData: 'Keine Aktivität in diesem Zeitraum.',
-      ranges: { hour: 'Letzte Stunde', day: 'Letzter Tag', week: 'Letzte Woche', month: 'Letzter Monat' }
+      range: 'Zeitraum',
+      ranges: { hour: 'Letzte Stunde', day: 'Letzter Tag', week: 'Letzte Woche', month: 'Letzter Monat', custom: 'Benutzerdefiniert' }
     },
     compilePreview: {
       title: 'Kompilierungsvorschau',
@@ -307,6 +313,8 @@ const de = {
     },
     confirm: { title: 'Bitte bestätigen', message: 'Möchten Sie wirklich fortfahren?' },
     diff: { before: 'Vorher', after: 'Nachher' },
+    explainer: { about: 'Über {{topic}}', dismiss: 'Diese Erklärung ausblenden' },
+    export: { label: 'Exportieren', csv: 'CSV (Daten)', png: 'PNG-Bild', svg: 'SVG-Bild', json: 'JSON (Daten)', failed: 'Export fehlgeschlagen. {{message}}', tableTitle: 'Tabelle {{table}}' },
     filters: {
       allTenants: 'Alle Mandanten',
       clear: 'Filter zurücksetzen',
@@ -533,7 +541,6 @@ const de = {
     },
     secrets: {
       ...rp('Geheimnisse', 'Verschlüsselte Zugangsdaten für Harnesses und Integrationen. Werte sind nur schreibbar.', 'Geheimnis hinzufügen', 'Geheimnis erstellen', 'Geheimnis bearbeiten', 'Geheimnisdetails', 'Geheimnis löschen', 'Noch keine Geheimnisse', 'Fügen Sie den API-Schlüssel oder das Token hinzu, das Ihre Agenten benötigen, etwa einen Anthropic-API-Schlüssel.'),
-      intro: 'Geheime Werte werden verschlüsselt gespeichert und nie von der API zurückgegeben. Binden Sie sie mit einem Alias an Bereitstellungen und referenzieren Sie {{secret.alias}} in Harness-Umgebungen und Dateien.',
       notSet: 'Nicht gesetzt',
       columns: { name: 'Name', kind: 'Art', valueLast4: 'Wert', rotatedUtc: 'Zuletzt geändert', expiresUtc: 'Läuft ab', active: 'Aktiv', id: 'ID' },
       fields: { name: 'Name', kind: 'Art', description: 'Beschreibung', value: 'Wert', newValue: 'Neuer Wert', expiresUtc: 'Läuft ab', active: 'Aktiv' },
@@ -655,9 +662,18 @@ const de = {
         outcome: 'Ergebnis',
         harnessType: 'Harness',
         leaseNodeName: 'Knoten',
-        duration: 'Dauer',
-        tokens: 'Token',
+        timeToFirstTokenMs: 'TTFT',
+        streamingMs: 'Streaming',
+        executionMs: 'Dauer',
+        queueMs: 'Wartezeit',
+        totalMs: 'Gesamtzeit',
+        inputTokens: 'Eingabe-Token',
+        outputTokens: 'Ausgabe-Token',
+        cachedTokens: 'Cache-Token',
+        reasoningTokens: 'Reasoning-Token',
+        outputTokensPerSecond: 'Token/s',
         costUsd: 'Kosten',
+        toolCallCount: 'Werkzeugaufrufe',
         depth: 'Tiefe',
         createdUtc: 'Erstellt'
       },
@@ -733,7 +749,8 @@ const de = {
         applyManifest: 'Manifest anwenden',
         inspectRuns: 'Läufe untersuchen',
         nodes: 'Worker-Knoten prüfen',
-        apiExplorer: 'API-Explorer öffnen'
+        apiExplorer: 'API-Explorer öffnen',
+        analytics: 'Laufanalysen anzeigen'
       },
       externalServices: 'Externe Dienste',
       externalServicesNote: 'Mitgelieferte Beobachtungswerkzeuge. Ändern Sie die Standardzugangsdaten, bevor Sie diese Umgebung teilen.',
@@ -794,7 +811,28 @@ const de = {
       noChildren: 'Dieser Lauf hat keine anderen Agenten aufgerufen.',
       confirmCancel: 'Diesen Lauf abbrechen? Der Harness-Prozess wird auf seinem Knoten beendet.',
       notFoundTitle: 'Lauf nicht gefunden',
-      notFoundBody: 'Er wurde möglicherweise gelöscht oder gehört zu einem anderen Mandanten.'
+      notFoundBody: 'Er wurde möglicherweise gelöscht oder gehört zu einem anderen Mandanten.',
+      telemetry: {
+        title: 'Telemetrie',
+        phases: 'Laufzeit nach Phase',
+        phase: { queue: 'Warteschlange', startup: 'Start bis zum ersten Token', streaming: 'Streaming', tail: 'Nach dem letzten Token' },
+        fields: {
+          timeToFirstTokenMs: 'Zeit bis zum ersten Token',
+          streamingMs: 'Streaming-Zeit',
+          executionMs: 'Ausführungszeit',
+          queueMs: 'Wartezeit',
+          totalMs: 'Gesamtzeit',
+          outputTokensPerSecond: 'Ausgabe-Token pro Sekunde',
+          inputTokens: 'Eingabe-Token',
+          outputTokens: 'Ausgabe-Token',
+          cachedTokens: 'Cache-Token',
+          reasoningTokens: 'Reasoning-Token',
+          toolCallCount: 'Werkzeugaufrufe',
+          costUsd: 'Kosten',
+          firstTokenUtc: 'Erstes Token um',
+          lastTokenUtc: 'Letztes Token um'
+        }
+      }
     },
     queue: {
       title: 'Warteschlange',
@@ -815,7 +853,9 @@ const de = {
       traffic: 'Verkehrsanteil',
       noDeploymentsTitle: 'Keine Bereitstellungen',
       noDeploymentsBody: 'Erstellen Sie eine Bereitstellung, um diesen Agenten an eine Harness zu binden.',
-      noRuns: 'Dieser Agent wurde noch nicht ausgeführt.'
+      noRuns: 'Dieser Agent wurde noch nicht ausgeführt.',
+      selectionNote: 'Jeder Aufruf ohne explizite Bereitstellung geht an eine aktive Bereitstellung, die zufällig im Verhältnis zu ihrer Gewichtung gewählt wird.',
+      manageDeployments: 'Bereitstellungen verwalten'
     },
     templateEditor: {
       newTitle: 'Neue Prompt-Vorlage',
@@ -905,6 +945,9 @@ const de = {
       queryParams: 'Abfrageparameter',
       headers: 'Header',
       addHeader: 'Header hinzufügen',
+      headerName: 'Header-Name',
+      headerValue: 'Wert des Headers {{name}}',
+      removeHeader: 'Header {{name}} entfernen',
       body: 'Anfragetext',
       resolvedUrl: 'Aufgelöste URL',
       copyUrl: 'URL kopieren',
@@ -960,6 +1003,102 @@ const de = {
       },
       groups: { General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit' },
       fields: {}
+    },
+    analytics: {
+      title: 'Analysen',
+      subtitle: 'Wie schnell, wie teuer und wie zuverlässig Ihre Läufe im Zeitverlauf sind.',
+      loading: 'Analysen werden geladen...',
+      filters: { range: 'Zeitraum', from: 'Von', to: 'Bis', agentId: 'Agent', harnessType: 'Harness', deploymentId: 'Bereitstellung', model: 'Modell', groupBy: 'Gruppieren nach' },
+      allAgents: 'Alle Agenten',
+      allHarnesses: 'Alle Harnesses',
+      allDeployments: 'Alle Bereitstellungen',
+      allModels: 'Alle Modelle',
+      unknownModel: 'Unbekanntes Modell',
+      groupBy: { none: 'Keine Gruppierung', agent: 'Agent', harness: 'Harness', model: 'Modell', harnessModel: 'Harness und Modell' },
+      export: { window: 'Zeitraum: {{from}} bis {{to}}' },
+      usage: {
+        title: 'Verbrauch nach Harness und Modell',
+        help: 'Token und Kosten im Zeitverlauf für jede Kombination aus Harness und Modell im Zeitraum, dazu eine Aufschlüsselungstabelle.'
+      },
+      breakdown: {
+        title: 'Aufschlüsselung nach Harness und Modell',
+        columns: {
+          harness: 'Harness',
+          model: 'Modell',
+          runs: 'Läufe',
+          inputTokens: 'Eingabe-Token',
+          outputTokens: 'Ausgabe-Token',
+          cachedTokens: 'Cache-Token',
+          reasoningTokens: 'Reasoning-Token',
+          costUsd: 'Kosten',
+          timeToFirstTokenMsAvg: 'Mittlere TTFT'
+        }
+      },
+      rangeError: {
+        incomplete: 'Wählen Sie für den benutzerdefinierten Zeitraum sowohl eine Start- als auch eine Endzeit.',
+        reversed: 'Der Beginn des benutzerdefinierten Zeitraums muss vor seinem Ende liegen.'
+      },
+      truncated: 'Dieser Zeitraum enthält mehr Läufe, als der Server in einer Anfrage aggregiert. Die Zahlen decken daher nur einen Teil ab. Grenzen Sie den Zeitraum ein oder setzen Sie Filter, um genaue Werte zu erhalten.',
+      unavailableTitle: 'Analysen sind auf diesem Server noch nicht verfügbar',
+      unavailableBody: 'Dieser Server stellt den Endpunkt für Laufanalysen nicht bereit. Aktualisieren Sie den Server, um hier Diagramme zu sehen.',
+      emptyTitle: 'Keine Läufe in diesem Zeitraum',
+      emptyBody: 'Nichts entspricht dem Zeitraum und den Filtern. Erweitern Sie den Zeitraum, entfernen Sie einen Filter oder rufen Sie einen Agenten auf.',
+      noDataInChart: 'Keine Daten für dieses Diagramm im gewählten Zeitraum.',
+      cards: {
+        runs: 'Läufe',
+        runsNote: '{{succeeded}} erfolgreich, {{failed}} fehlgeschlagen',
+        successRate: 'Erfolgsquote',
+        ttft: 'Mittlere Zeit bis zum ersten Token',
+        execution: 'Mittlere Ausführungszeit',
+        queue: 'Mittlere Wartezeit',
+        tokens: 'Token',
+        tokensNote: '{{input}} ein, {{output}} aus',
+        throughput: 'Mittlere Ausgabegeschwindigkeit',
+        cost: 'Kosten',
+        toolCalls: 'Werkzeugaufrufe',
+        p95: 'p95 {{value}}'
+      },
+      charts: {
+        outcomes: { title: 'Ergebnisse der Läufe', help: 'Läufe pro Intervall, nach Art ihres Endes.' },
+        ttft: { title: 'Zeit bis zum ersten Token', help: 'Vom Harness-Start bis zur ersten Modellausgabe. Enthält den CLI-Start.' },
+        duration: { title: 'Streaming- und Ausführungszeit', help: 'Streaming reicht von der ersten bis zur letzten Modellausgabe, Ausführung vom Prozessstart bis zum Prozessende.' },
+        queue: { title: 'Wartezeit', help: 'Zeit von der Einreihung bis zur Zuweisung an einen Worker-Knoten.' },
+        tokens: { title: 'Token', help: 'Eingabe-, Ausgabe-, Cache- und Reasoning-Token pro Intervall.' },
+        throughput: { title: 'Ausgabe-Token pro Sekunde', help: 'Ausgabe-Token geteilt durch die Streaming-Zeit, gemittelt pro Intervall.' },
+        cost: { title: 'Kosten', help: 'Gemeldete Kosten in US-Dollar pro Intervall.' },
+        toolCalls: { title: 'Werkzeugaufrufe', help: 'Werkzeugaufruf-Ereignisse pro Intervall.' },
+        usageTokens: { title: 'Token nach Harness und Modell', help: 'Eingabe- plus Ausgabe-Token pro Intervall, gestapelt nach Harness und Modell.' },
+        usageCost: { title: 'Kosten nach Harness und Modell', help: 'Gemeldete Kosten pro Intervall, gestapelt nach Harness und Modell.' }
+      },
+      groupedTitle: '{{chart}}: {{metric}}',
+      metrics: {
+        runs: 'Läufe',
+        succeeded: 'Erfolgreich',
+        failed: 'Fehlgeschlagen',
+        cancelled: 'Abgebrochen',
+        timedOut: 'Zeitüberschreitung',
+        inputTokens: 'Eingabe',
+        outputTokens: 'Ausgabe',
+        cachedTokens: 'Cache',
+        reasoningTokens: 'Reasoning',
+        totalTokens: 'Eingabe- plus Ausgabe-Token',
+        costUsd: 'Kosten',
+        toolCalls: 'Werkzeugaufrufe',
+        timeToFirstTokenMsAvg: 'Mittelwert',
+        timeToFirstTokenMsP50: 'Median (p50)',
+        timeToFirstTokenMsP95: 'p95',
+        streamingMsAvg: 'Streaming (Mittel)',
+        executionMsAvg: 'Ausführung (Mittel)',
+        executionMsP95: 'Ausführung (p95)',
+        queueMsAvg: 'Mittlere Wartezeit',
+        outputTokensPerSecondAvg: 'Mittlere Token pro Sekunde'
+      },
+      other: 'Sonstige',
+      hiddenGroups_one: '{{count}} weniger aktive Gruppe wird nicht angezeigt.',
+      hiddenGroups_other: '{{count}} weniger aktive Gruppen werden nicht angezeigt.',
+      legend: 'Reihen in {{chart}}',
+      dataTable: 'Datentabelle',
+      bucketStart: 'Intervallbeginn'
     },
     serverInfo: {
       title: 'Serverinfo',
@@ -1018,7 +1157,9 @@ const de = {
       configure: { title: 'Konfiguration', body: 'Harness-Profile, Prompt-Vorlagen, MCP-Server und Geheimnisse bestimmen genau, was ausgeführt wird. Agenten und Bereitstellungen haben einen eigenen Bereich.' },
       observe: { title: 'Überwachung', body: 'Anfrageverlauf, Audit und API-Explorer helfen beim Prüfen und bei der Fehlersuche.' }
     }
-  }
+  },
+  tips,
+  explainers
 };
 
 export default de;

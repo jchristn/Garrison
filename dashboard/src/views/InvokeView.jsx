@@ -13,6 +13,8 @@ import { useToast } from '../context/ToastContext';
 import { TERMINAL_RUN_STATUSES } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
+import Explainer from '../components/Explainer';
+import { tip } from '../components/Tooltip';
 
 /** Interactive invoke: pick an agent and deployment, set allowed parameters, send a message, and stream the transcript. */
 export default function InvokeView() {
@@ -132,6 +134,7 @@ export default function InvokeView() {
   return (
     <div>
       <PageHeader title={t('views.invoke.title')} subtitle={t('views.invoke.subtitle')} />
+      <Explainer topic="invoke" />
       {loadError && <ErrorBanner message={errorMessage(t, loadError)} />}
       {!loadError && agents.length === 0 ? (
         <div className="table-frame">
@@ -139,7 +142,7 @@ export default function InvokeView() {
             title={t('views.invoke.noAgentsTitle')}
             body={t('views.invoke.noAgentsBody')}
             action={
-              <button type="button" className="button-primary" onClick={() => navigate(pathFor('manifests'))}>
+              <button type="button" className="button-primary" onClick={() => navigate(pathFor('manifests'))} {...tip(t('tips.views.invoke.applySample'))}>
                 {t('views.invoke.applySample')}
               </button>
             }
@@ -149,8 +152,8 @@ export default function InvokeView() {
         <div className="invoke-layout">
           <section className="panel invoke-form" aria-label={t('views.invoke.request')}>
             <div className="field">
-              <label htmlFor="invoke-agent">{t('views.invoke.agent')}</label>
-              <select id="invoke-agent" value={agentId} onChange={(e) => { setAgentId(e.target.value); setDeploymentId(''); setParams({}); }}>
+              <label htmlFor="invoke-agent" {...tip(t('tips.views.invoke.agent'))}>{t('views.invoke.agent')}</label>
+              <select id="invoke-agent" {...tip(t('tips.views.invoke.agent'))} value={agentId} onChange={(e) => { setAgentId(e.target.value); setDeploymentId(''); setParams({}); }}>
                 {agents.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.displayName || a.name}
@@ -159,8 +162,8 @@ export default function InvokeView() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="invoke-deployment">{t('views.invoke.deployment')}</label>
-              <select id="invoke-deployment" value={deploymentId} onChange={(e) => { setDeploymentId(e.target.value); setParams({}); }}>
+              <label htmlFor="invoke-deployment" {...tip(t('tips.views.invoke.deployment'))}>{t('views.invoke.deployment')}</label>
+              <select id="invoke-deployment" {...tip(t('tips.views.invoke.deployment'))} value={deploymentId} onChange={(e) => { setDeploymentId(e.target.value); setParams({}); }}>
                 <option value="">{t('views.invoke.weighted')}</option>
                 {deployments.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -171,9 +174,9 @@ export default function InvokeView() {
             </div>
             {overrides.map((o) => (
               <div className="field" key={o.name}>
-                <label htmlFor={`param-${o.name}`}>{o.name}</label>
+                <label htmlFor={`param-${o.name}`} {...tip(t('tips.views.invoke.parameter', { name: o.name }))}>{o.name}</label>
                 {o.validation === 'Enum' ? (
-                  <select id={`param-${o.name}`} value={params[o.name] || ''} onChange={(e) => setParams({ ...params, [o.name]: e.target.value })}>
+                  <select id={`param-${o.name}`} {...tip(t('tips.views.invoke.parameter', { name: o.name }))} value={params[o.name] || ''} onChange={(e) => setParams({ ...params, [o.name]: e.target.value })}>
                     <option value="">{t('views.invoke.default')}</option>
                     {(o.pattern || '').split(',').map((v) => v.trim()).filter(Boolean).map((v) => (
                       <option key={v} value={v}>
@@ -182,22 +185,22 @@ export default function InvokeView() {
                     ))}
                   </select>
                 ) : (
-                  <input id={`param-${o.name}`} value={params[o.name] || ''} placeholder={t('views.invoke.default')} onChange={(e) => setParams({ ...params, [o.name]: e.target.value })} />
+                  <input id={`param-${o.name}`} {...tip(t('tips.views.invoke.parameter', { name: o.name }))} value={params[o.name] || ''} placeholder={t('views.invoke.default')} onChange={(e) => setParams({ ...params, [o.name]: e.target.value })} />
                 )}
               </div>
             ))}
             <div className="field">
-              <label htmlFor="invoke-message">{t('views.invoke.message')}</label>
-              <textarea id="invoke-message" rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('views.invoke.messagePlaceholder')} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()} />
+              <label htmlFor="invoke-message" {...tip(t('tips.views.invoke.message'))}>{t('views.invoke.message')}</label>
+              <textarea id="invoke-message" {...tip(t('tips.views.invoke.message'))} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('views.invoke.messagePlaceholder')} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()} />
               <div className="field-hint">{t('views.invoke.shortcut')}</div>
             </div>
             {error && <ErrorBanner message={errorMessage(t, error)} />}
             <div className="flex gap-sm">
-              <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !message.trim() || active} data-testid="invoke-send">
+              <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !message.trim() || active} data-testid="invoke-send" {...tip(t('tips.views.invoke.send'))}>
                 <SendIcon size={14} /> {busy ? t('views.invoke.sending') : t('views.invoke.send')}
               </button>
               {active && (
-                <button type="button" className="button-danger" onClick={cancel}>
+                <button type="button" className="button-danger" onClick={cancel} {...tip(t('tips.resources.runs.actions.cancel'))}>
                   <StopIcon size={14} /> {t('resources.runs.actions.cancel')}
                 </button>
               )}
@@ -212,7 +215,7 @@ export default function InvokeView() {
                   <span>
                     <RunStatus status={run.status} t={t} /> <code className="text-muted">{run.id}</code>
                   </span>
-                  <button type="button" className="button-secondary button-sm" onClick={() => navigate(pathFor('runs', run.id))}>
+                  <button type="button" className="button-secondary button-sm" onClick={() => navigate(pathFor('runs', run.id))} {...tip(t('tips.views.invoke.openRun'))}>
                     {t('views.invoke.openRun')}
                   </button>
                 </div>

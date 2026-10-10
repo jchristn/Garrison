@@ -453,3 +453,11 @@ export function PoolIcon({ size = 18 }) {
     </svg>
   );
 }
+export function InfoIcon({ size = 18 }) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6M12 7.5h.01" />
+    </svg>
+  );
+}

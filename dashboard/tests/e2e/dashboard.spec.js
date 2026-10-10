@@ -54,7 +54,7 @@ test('sidebar shows the consolidated hubs', async ({ page }) => {
   await login(page);
   const items = page.locator('.sidebar-item');
   await expect(items).toHaveCount(HUBS.length);
-  expect(HUBS.length).toBeLessThanOrEqual(9);
+  expect(HUBS.length).toBeLessThanOrEqual(10);
   await expect(page.locator('.sidebar-group-label')).toHaveText(['Operate', 'Platform', 'Administration']);
 });
 

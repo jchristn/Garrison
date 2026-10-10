@@ -18,6 +18,8 @@ import { errorMessage } from '../utils/errors';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { HTTP_METHODS, DEFAULT_PAGE_SIZE, DEFAULT_AUTO_REFRESH, requestRangeToParams } from '../utils/constants';
 import { formatDateTime, formatRelativeTime, formatNumber, formatDuration, truncate } from '../i18n/formatters';
+import { tip } from '../components/Tooltip';
+import Explainer from '../components/Explainer';
 
 const EMPTY_FILTERS = { method: '', statusCode: '', pathContains: '', fromUtc: '', toUtc: '', tenantId: '' };
 
@@ -164,41 +166,43 @@ export default function RequestHistoryView({ apiClient }) {
 
   const kpis = useMemo(
     () => [
-      { label: t('views.requests.kpis.total'), value: formatNumber(summary?.totalCount ?? 0) },
-      { label: t('views.requests.kpis.success'), value: formatNumber(summary?.totalSuccess ?? 0) },
-      { label: t('views.requests.kpis.failure'), value: formatNumber(summary?.totalFailure ?? 0) },
-      { label: t('views.requests.kpis.avgDuration'), value: formatDuration(summary?.averageDurationMs ?? 0, i18n.language) }
+      { key: 'total', label: t('views.requests.kpis.total'), value: formatNumber(summary?.totalCount ?? 0) },
+      { key: 'success', label: t('views.requests.kpis.success'), value: formatNumber(summary?.totalSuccess ?? 0) },
+      { key: 'failure', label: t('views.requests.kpis.failure'), value: formatNumber(summary?.totalFailure ?? 0) },
+      { key: 'avgDuration', label: t('views.requests.kpis.avgDuration'), value: formatDuration(summary?.averageDurationMs ?? 0, i18n.language) }
     ],
     [summary, t, i18n.language]
   );
 
   const filterFields = [
-    { key: 'method', label: t('components.filters.method'), type: 'select', options: [{ value: '', label: t('common.generic.any') }, ...HTTP_METHODS.map((m) => ({ value: m, label: m }))] },
-    { key: 'statusCode', label: t('components.filters.status'), type: 'text', placeholder: t('components.filters.statusPlaceholder') },
-    { key: 'pathContains', label: t('components.filters.path'), type: 'text', placeholder: t('components.filters.pathPlaceholder') },
-    { key: 'fromUtc', label: t('components.filters.from'), type: 'datetime' },
-    { key: 'toUtc', label: t('components.filters.to'), type: 'datetime' },
-    ...(caps.isSystemAdmin ? [{ key: 'tenantId', label: t('components.filters.tenant'), type: 'text', placeholder: 'default' }] : [])
+    { key: 'method', label: t('components.filters.method'), tip: t('tips.filters.method'), type: 'select', options: [{ value: '', label: t('common.generic.any') }, ...HTTP_METHODS.map((m) => ({ value: m, label: m }))] },
+    { key: 'statusCode', label: t('components.filters.status'), tip: t('tips.filters.statusCode'), type: 'text', placeholder: t('components.filters.statusPlaceholder') },
+    { key: 'pathContains', label: t('components.filters.path'), tip: t('tips.filters.pathContains'), type: 'text', placeholder: t('components.filters.pathPlaceholder') },
+    { key: 'fromUtc', label: t('components.filters.from'), tip: t('tips.filters.fromUtc'), type: 'datetime' },
+    { key: 'toUtc', label: t('components.filters.to'), tip: t('tips.filters.toUtc'), type: 'datetime' },
+    ...(caps.isSystemAdmin ? [{ key: 'tenantId', label: t('components.filters.tenant'), tip: t('tips.filters.tenantId'), type: 'text', placeholder: 'default' }] : [])
   ];
 
   const columns = [
-    { key: 'createdUtc', pinned: true, label: t('views.requests.columns.time'), render: (r) => <span title={formatDateTime(r.createdUtc, i18n.language)}>{formatRelativeTime(r.createdUtc, i18n.language)}</span> },
-    { key: 'method', label: t('views.requests.columns.method'), render: (r) => <MethodPill method={r.method} /> },
-    { key: 'path', label: t('views.requests.columns.path'), render: (r) => <code className="monospace" title={r.path}>{truncate(r.path, 48)}</code> },
-    { key: 'statusCode', label: t('views.requests.columns.status'), render: (r) => <StatusBadge code={r.statusCode} /> },
-    { key: 'durationMs', label: t('views.requests.columns.duration'), cellClass: 'right', render: (r) => formatDuration(r.durationMs, i18n.language) },
-    { key: 'principalName', label: t('views.requests.columns.principal'), render: (r) => r.principalName || '-' },
+    { key: 'createdUtc', pinned: true, tip: t('tips.views.requests.columns.time'), label: t('views.requests.columns.time'), render: (r) => <span {...tip(formatDateTime(r.createdUtc, i18n.language))}>{formatRelativeTime(r.createdUtc, i18n.language)}</span> },
+    { key: 'method', tip: t('tips.views.requests.columns.method'), label: t('views.requests.columns.method'), render: (r) => <MethodPill method={r.method} /> },
+    { key: 'path', tip: t('tips.views.requests.columns.path'), label: t('views.requests.columns.path'), render: (r) => <code className="monospace" {...tip(r.path)}>{truncate(r.path, 48)}</code> },
+    { key: 'statusCode', tip: t('tips.views.requests.columns.status'), label: t('views.requests.columns.status'), render: (r) => <StatusBadge code={r.statusCode} /> },
+    { key: 'durationMs', tip: t('tips.views.requests.columns.duration'), label: t('views.requests.columns.duration'), cellClass: 'right', render: (r) => formatDuration(r.durationMs, i18n.language) },
+    { key: 'principalName', tip: t('tips.views.requests.columns.principal'), label: t('views.requests.columns.principal'), render: (r) => r.principalName || '-' },
     {
       key: 'actions',
       label: t('common.generic.actions'),
+      tip: t('tips.table.actionsColumn'),
       headerClass: 'right',
       cellClass: 'actions-cell',
       render: (r) => (
         <ActionMenu
+          label={`${r.method} ${r.path}`}
           items={[
-            { label: t('common.actions.viewDetails'), onClick: () => setDetailId(r.id) },
-            { label: t('common.actions.viewJson'), onClick: () => setDetailId(r.id) },
-            { label: t('common.actions.delete'), danger: true, onClick: () => setDeleteTarget(r) }
+            { label: t('common.actions.viewDetails'), tip: t('tips.views.requests.viewDetails'), onClick: () => setDetailId(r.id) },
+            { label: t('common.actions.viewJson'), tip: t('tips.views.requests.viewJson'), onClick: () => setDetailId(r.id) },
+            { label: t('common.actions.delete'), tip: t('tips.views.requests.deleteOne'), danger: true, onClick: () => setDeleteTarget(r) }
           ]}
         />
       )
@@ -211,10 +215,11 @@ export default function RequestHistoryView({ apiClient }) {
   return (
     <div>
       <PageHeader title={t('views.requests.title')} subtitle={t('views.requests.subtitle')} />
+      <Explainer topic="requests" />
 
       <div className="kpi-grid">
         {kpis.map((k) => (
-          <div className="kpi-card" key={k.label}>
+          <div className="kpi-card" key={k.label} {...tip(t(`tips.views.requests.kpis.${k.key}`))}>
             <div className="kpi-label">{k.label}</div>
             <div className="kpi-value">{k.value}</div>
           </div>
@@ -230,6 +235,8 @@ export default function RequestHistoryView({ apiClient }) {
           onBucketClick={onBucketClick}
           loading={chartLoading}
           title={t('views.home.requestActivity')}
+          exportName="request-history-activity"
+          exportFilters={{ method: filters.method, status: filters.statusCode, path: filters.pathContains, from: toUtcIso(filters.fromUtc), to: toUtcIso(filters.toUtc), tenant: filters.tenantId }}
         />
       </div>
 
@@ -261,7 +268,7 @@ export default function RequestHistoryView({ apiClient }) {
           onAutoRefreshChange={setAutoRefreshSeconds}
           rightSlot={
             hasFilters && page.totalCount > 0 ? (
-              <button type="button" className="button-danger button-sm" onClick={() => setBulkOpen(true)}>
+              <button type="button" className="button-danger button-sm" onClick={() => setBulkOpen(true)} {...tip(t('tips.views.requests.bulkDeleteAll'))}>
                 <TrashIcon size={14} /> {t('views.requests.bulkDeleteAll')}
               </button>
             ) : null
@@ -276,6 +283,7 @@ export default function RequestHistoryView({ apiClient }) {
         title={t('views.requests.deleteOneTitle')}
         message={t('views.requests.deleteOneMessage', { id: deleteTarget?.id })}
         confirmLabel={t('common.actions.delete')}
+        confirmTip={t('tips.views.requests.deleteOne')}
         onConfirm={deleteOne}
         onCancel={() => setDeleteTarget(null)}
       />
@@ -285,6 +293,7 @@ export default function RequestHistoryView({ apiClient }) {
         title={t('views.requests.bulkDeleteTitle')}
         message={t('views.requests.bulkDeleteMessage', { count: page.totalCount })}
         confirmLabel={t('views.requests.bulkDeleteAll')}
+        confirmTip={t('tips.views.requests.bulkDeleteAll')}
         onConfirm={bulkDelete}
         onCancel={() => setBulkOpen(false)}
       />

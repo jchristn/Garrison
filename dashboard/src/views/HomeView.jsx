@@ -7,7 +7,7 @@ import KpiCard from '../components/KpiCard';
 import ExternalServicesCard from '../components/ExternalServicesCard';
 import { Badge } from '../components/StatusBadge';
 import { EmptyState } from '../components/States';
-import { SendIcon, BotIcon, FileCodeIcon, PlayIcon, ListIcon, CpuIcon } from '../components/Icons';
+import { SendIcon, BotIcon, FileCodeIcon, PlayIcon, ListIcon, CpuIcon, ChartIcon } from '../components/Icons';
 import { RunStatus } from './runConfigs';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -15,6 +15,8 @@ import { requestRangeToParams, nodeStatusTone } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { formatNumber, formatRelativeTime, formatTime } from '../i18n/formatters';
 import { overviewKpis } from '../utils/overview';
+import { tip } from '../components/Tooltip';
+import { enumTip } from '../utils/tips';
 
 /** Build the overview from list endpoints when /overview is unavailable. */
 async function fallbackOverview(apiClient, tenantId) {
@@ -105,21 +107,22 @@ export default function HomeView() {
             <strong>{t('views.home.getStartedTitle')}</strong>
             <p className="text-muted">{t('views.home.getStartedBody')}</p>
           </div>
-          <button type="button" className="button-primary" onClick={() => setWizardOpen(true)}>
+          <button type="button" className="button-primary" onClick={() => setWizardOpen(true)} {...tip(t('tips.nav.setup'))}>
             {t('views.home.runSetup')}
           </button>
         </div>
       )}
 
       <div className="kpi-grid" data-tour="kpis">
-        <KpiCard label={t('views.home.kpis.agents')} value={val(kpis.agents)} onClick={() => navigate(pathFor('agents'))} testId="kpi-agents" />
-        <KpiCard label={t('views.home.kpis.deployments')} value={val(kpis.deployments)} onClick={() => navigate(pathFor('deployments'))} testId="kpi-deployments" />
-        <KpiCard label={t('views.home.kpis.activeRuns')} value={val(kpis.active)} onClick={() => navigate(pathFor('runs', null, { status: 'Running' }))} tone="info" testId="kpi-active" />
-        <KpiCard label={t('views.home.kpis.queued')} value={val(kpis.queued)} onClick={() => navigate(pathFor('queue'))} testId="kpi-queued" />
-        <KpiCard label={t('views.home.kpis.succeeded')} value={val(kpis.succeeded)} note={t('views.home.kpis.last24h')} onClick={() => navigate(pathFor('runs', null, { status: 'Succeeded' }))} tone="success" testId="kpi-succeeded" />
-        <KpiCard label={t('views.home.kpis.failed')} value={val(kpis.failed)} note={t('views.home.kpis.last24h')} onClick={() => navigate(pathFor('runs', null, { status: 'Failed' }))} tone={kpis.failed ? 'danger' : undefined} testId="kpi-failed" />
+        <KpiCard label={t('views.home.kpis.agents')} tip={t('tips.views.home.kpis.agents')} value={val(kpis.agents)} onClick={() => navigate(pathFor('agents'))} testId="kpi-agents" />
+        <KpiCard label={t('views.home.kpis.deployments')} tip={t('tips.views.home.kpis.deployments')} value={val(kpis.deployments)} onClick={() => navigate(pathFor('deployments'))} testId="kpi-deployments" />
+        <KpiCard label={t('views.home.kpis.activeRuns')} tip={t('tips.views.home.kpis.activeRuns')} value={val(kpis.active)} onClick={() => navigate(pathFor('runs', null, { status: 'Running' }))} tone="info" testId="kpi-active" />
+        <KpiCard label={t('views.home.kpis.queued')} tip={t('tips.views.home.kpis.queued')} value={val(kpis.queued)} onClick={() => navigate(pathFor('queue'))} testId="kpi-queued" />
+        <KpiCard label={t('views.home.kpis.succeeded')} tip={t('tips.views.home.kpis.succeeded')} value={val(kpis.succeeded)} note={t('views.home.kpis.last24h')} onClick={() => navigate(pathFor('runs', null, { status: 'Succeeded' }))} tone="success" testId="kpi-succeeded" />
+        <KpiCard label={t('views.home.kpis.failed')} tip={t('tips.views.home.kpis.failed')} value={val(kpis.failed)} note={t('views.home.kpis.last24h')} onClick={() => navigate(pathFor('runs', null, { status: 'Failed' }))} tone={kpis.failed ? 'danger' : undefined} testId="kpi-failed" />
         <KpiCard
           label={t('views.home.kpis.nodes')}
+          tip={t('tips.views.home.kpis.nodes')}
           value={kpis.nodesTotal === null ? '-' : `${formatNumber(kpis.nodesReady)} / ${formatNumber(kpis.nodesTotal)}`}
           note={t('views.home.kpis.nodesNote')}
           onClick={() => navigate(pathFor('nodes'))}
@@ -153,7 +156,7 @@ export default function HomeView() {
                 <li key={n.id}>
                   <span className={`health-dot ${n.status === 'Ready' ? 'healthy' : n.status === 'Lost' || n.status === 'Offline' ? 'unhealthy' : 'unknown'}`} aria-hidden="true" />
                   <strong>{n.name}</strong>
-                  <Badge tone={nodeStatusTone(n.status)}>{t(`enums.nodeStatus.${n.status}`, { defaultValue: n.status })}</Badge>
+                  <Badge tone={nodeStatusTone(n.status)} tip={enumTip(t, 'nodeStatus', n.status)}>{t(`enums.nodeStatus.${n.status}`, { defaultValue: n.status })}</Badge>
                   <span className="text-muted">
                     {t('views.home.nodeLoad', { active: n.activeRuns ?? 0, max: n.maxConcurrentRuns ?? 0 })}
                   </span>
@@ -173,7 +176,7 @@ export default function HomeView() {
             <ul className="plain-list">
               {overview.recentFailures.map((r) => (
                 <li key={r.id}>
-                  <a href={pathFor('runs', r.id)} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
+                  <a href={pathFor('runs', r.id)} {...tip(t('tips.views.home.openFailure'))} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
                     <strong>{r.agentName}</strong>
                   </a>{' '}
                   <RunStatus status={r.status} t={t} /> <span className="text-muted">{r.outcome && t(`enums.runOutcome.${r.outcome}`, { defaultValue: r.outcome })}</span>{' '}
@@ -190,23 +193,26 @@ export default function HomeView() {
           {t('views.home.cta.title')}
         </h2>
         <div className="cta-grid">
-          <button type="button" className="cta-card" onClick={() => navigate(pathFor('invoke'))}>
+          <button type="button" className="cta-card" onClick={() => navigate(pathFor('invoke'))} {...tip(t('tips.views.home.cta.invoke'))}>
             <SendIcon /> <span>{t('views.home.cta.invoke')}</span>
           </button>
-          <button type="button" className="cta-card" onClick={() => navigate(pathFor('agents'))}>
+          <button type="button" className="cta-card" onClick={() => navigate(pathFor('agents'))} {...tip(t('tips.views.home.cta.addAgent'))}>
             <BotIcon /> <span>{t('views.home.cta.addAgent')}</span>
           </button>
-          <button type="button" className="cta-card" onClick={() => navigate(pathFor('manifests'))}>
+          <button type="button" className="cta-card" onClick={() => navigate(pathFor('manifests'))} {...tip(t('tips.views.home.cta.applyManifest'))}>
             <FileCodeIcon /> <span>{t('views.home.cta.applyManifest')}</span>
           </button>
-          <button type="button" className="cta-card" onClick={() => navigate(pathFor('runs'))}>
+          <button type="button" className="cta-card" onClick={() => navigate(pathFor('runs'))} {...tip(t('tips.views.home.cta.inspectRuns'))}>
             <ListIcon /> <span>{t('views.home.cta.inspectRuns')}</span>
           </button>
-          <button type="button" className="cta-card" onClick={() => navigate(pathFor('nodes'))}>
+          <button type="button" className="cta-card" onClick={() => navigate(pathFor('nodes'))} {...tip(t('tips.views.home.cta.nodes'))}>
             <CpuIcon /> <span>{t('views.home.cta.nodes')}</span>
           </button>
-          <button type="button" className="cta-card" onClick={() => navigate(pathFor('explorer'))}>
+          <button type="button" className="cta-card" onClick={() => navigate(pathFor('explorer'))} {...tip(t('tips.views.home.cta.apiExplorer'))}>
             <PlayIcon /> <span>{t('views.home.cta.apiExplorer')}</span>
+          </button>
+          <button type="button" className="cta-card" onClick={() => navigate(pathFor('analytics'))} {...tip(t('tips.views.home.cta.analytics'))}>
+            <ChartIcon /> <span>{t('views.home.cta.analytics')}</span>
           </button>
         </div>
       </section>

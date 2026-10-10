@@ -4,6 +4,7 @@ import Modal from './Modal';
 import CodeBlock from './CodeBlock';
 import { LoadingState, ErrorBanner } from './States';
 import { Badge } from './StatusBadge';
+import { tip } from './Tooltip';
 import { errorMessage } from '../utils/errors';
 
 /** Effective permissions for a user or credential, with a hasPermission matrix when provided. */
@@ -32,11 +33,11 @@ export default function EffectivePermissionsModal({ load, title, onClose }) {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th scope="col">{t('components.permissions.source')}</th>
-                    <th scope="col">{t('components.permissions.type')}</th>
-                    <th scope="col">{t('components.permissions.resources')}</th>
-                    <th scope="col">{t('components.permissions.operations')}</th>
-                    <th scope="col">{t('components.permissions.scope')}</th>
+                    <th scope="col" {...tip(t('tips.permissions.source'))}>{t('components.permissions.source')}</th>
+                    <th scope="col" {...tip(t('tips.permissions.type'))}>{t('components.permissions.type')}</th>
+                    <th scope="col" {...tip(t('tips.permissions.resources'))}>{t('components.permissions.resources')}</th>
+                    <th scope="col" {...tip(t('tips.permissions.operations'))}>{t('components.permissions.operations')}</th>
+                    <th scope="col" {...tip(t('tips.permissions.scope'))}>{t('components.permissions.scope')}</th>
                   </tr>
                 </thead>
                 <tbody>

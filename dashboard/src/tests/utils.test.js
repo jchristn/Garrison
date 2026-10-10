@@ -175,7 +175,7 @@ describe('principal and routes', () => {
   });
   it('keeps the sidebar small and redirects every pre-hub route', () => {
     expect(HUBS.length).toBeGreaterThanOrEqual(7);
-    expect(HUBS.length).toBeLessThanOrEqual(9);
+    expect(HUBS.length).toBeLessThanOrEqual(10);
     const hubSlugs = new Set(HUBS.map((h) => h.slug));
     for (const p of PAGES) {
       const covered = hubSlugs.has(p.slug) || LEGACY_REDIRECTS.some((r) => r.from === p.slug);

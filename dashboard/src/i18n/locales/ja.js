@@ -1,5 +1,7 @@
 // Japanese catalog for the Garrison dashboard. Mirrors every key in en.js.
 
+import { tips, explainers } from './ja.tips.js';
+
 const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody) => ({ title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody });
 
 const ja = {
@@ -58,6 +60,7 @@ const ja = {
       loading: '読み込み中...',
       never: 'なし',
       none: 'なし',
+      notAvailable: '該当なし',
       saving: '保存中...'
     },
     relativeTime: { now: 'たった今' },
@@ -74,7 +77,7 @@ const ja = {
       deleted: '削除しました。',
       saved: '保存しました。'
     },
-    units: { msShort: 'ミリ秒', sShort: '秒', mShort: '分' }
+    units: { msShort: 'ミリ秒', sShort: '秒', mShort: '分', tokPerSec: 'トークン/秒' }
   },
   errorCodes: {
     NetworkError: 'サーバーに接続できません。サーバー URL とサーバーの稼働状況を確認してください。',
@@ -203,6 +206,7 @@ const ja = {
       home: { label: 'ホーム', tip: 'フリートと実行の状態を一目で確認' },
       invoke: { label: '呼び出し', tip: 'エージェントを対話的に試す' },
       runs: { label: '実行', tip: '実行とスケジューリングキュー' },
+      analytics: { label: '分析', tip: '実行速度、トークン、コスト、結果の推移' },
       agents: { label: 'エージェント', tip: 'エージェントとそれを実行するデプロイメント' },
       configuration: { label: '構成', tip: 'ハーネスプロファイル、プロンプトテンプレート、MCP サーバー、シークレット、ワークスペース、成果物ストア、マニフェスト' },
       fleet: { label: 'フリート', tip: 'ワーカーノードとノードプール' },
@@ -215,6 +219,7 @@ const ja = {
       invoke: { label: '呼び出し', tip: 'エージェントを対話的に試す' },
       runs: { label: '実行', tip: '実行の検索、確認、キャンセル、再試行' },
       queue: { label: 'キュー', tip: 'エージェントとハーネスごとのスケジューリング状況' },
+      analytics: { label: '分析', tip: '実行速度、トークン、コスト、結果の推移' },
       nodes: { label: 'ノード', tip: 'ワーカーノードとハーネス対応状況' },
       nodePools: { label: 'ノードプール', tip: 'ノードをグループ化してテナントに割り当て' },
       agents: { label: 'エージェント', tip: 'REST、MCP、A2A で公開されるエージェント' },
@@ -292,7 +297,8 @@ const ja = {
       total: '合計',
       avgDuration: '平均所要時間',
       noData: 'この期間のアクティビティはありません。',
-      ranges: { hour: '過去 1 時間', day: '過去 1 日', week: '過去 1 週間', month: '過去 1 か月' }
+      range: '期間',
+      ranges: { hour: '過去 1 時間', day: '過去 1 日', week: '過去 1 週間', month: '過去 1 か月', custom: 'カスタム' }
     },
     compilePreview: {
       title: 'コンパイルプレビュー',
@@ -307,6 +313,8 @@ const ja = {
     },
     confirm: { title: '確認してください', message: '続行してもよろしいですか?' },
     diff: { before: '変更前', after: '変更後' },
+    explainer: { about: '{{topic}} について', dismiss: 'この説明を隠す' },
+    export: { label: 'エクスポート', csv: 'CSV (データ)', png: 'PNG 画像', svg: 'SVG 画像', json: 'JSON (データ)', failed: 'エクスポートに失敗しました。{{message}}', tableTitle: '表 {{table}}' },
     filters: {
       allTenants: 'すべてのテナント',
       clear: 'フィルターをクリア',
@@ -533,7 +541,6 @@ const ja = {
     },
     secrets: {
       ...rp('シークレット', 'ハーネスと連携のための暗号化された認証情報です。値は書き込み専用です。', 'シークレットを追加', 'シークレットを作成', 'シークレットを編集', 'シークレットの詳細', 'シークレットを削除', 'シークレットはまだありません', 'エージェントに必要な API キーやトークン (例: Anthropic API キー) を追加してください。'),
-      intro: 'シークレットの値は保存時に暗号化され、API から返されることはありません。エイリアスでデプロイメントに結び付け、ハーネスの環境変数やファイルで {{secret.alias}} として参照します。',
       notSet: '未設定',
       columns: { name: '名前', kind: '種類', valueLast4: '値', rotatedUtc: '最終変更', expiresUtc: '有効期限', active: '有効', id: 'ID' },
       fields: { name: '名前', kind: '種類', description: '説明', value: '値', newValue: '新しい値', expiresUtc: '有効期限', active: '有効' },
@@ -655,9 +662,18 @@ const ja = {
         outcome: '結果',
         harnessType: 'ハーネス',
         leaseNodeName: 'ノード',
-        duration: '所要時間',
-        tokens: 'トークン',
+        timeToFirstTokenMs: 'TTFT',
+        streamingMs: 'ストリーミング',
+        executionMs: '所要時間',
+        queueMs: 'キュー待ち時間',
+        totalMs: '合計時間',
+        inputTokens: '入力トークン',
+        outputTokens: '出力トークン',
+        cachedTokens: 'キャッシュ済みトークン',
+        reasoningTokens: '推論トークン',
+        outputTokensPerSecond: 'トークン/秒',
         costUsd: 'コスト',
+        toolCallCount: 'ツール呼び出し',
         depth: '深さ',
         createdUtc: '作成日時'
       },
@@ -733,7 +749,8 @@ const ja = {
         applyManifest: 'マニフェストを適用',
         inspectRuns: '実行を確認',
         nodes: 'ワーカーノードを確認',
-        apiExplorer: 'API エクスプローラーを開く'
+        apiExplorer: 'API エクスプローラーを開く',
+        analytics: '実行の分析を表示'
       },
       externalServices: '外部サービス',
       externalServicesNote: '同梱の監視ツールです。この環境を共有する前に既定の認証情報を変更してください。',
@@ -794,7 +811,28 @@ const ja = {
       noChildren: 'この実行は他のエージェントに委任していません。',
       confirmCancel: 'この実行をキャンセルしますか? ノード上のハーネスプロセスが停止されます。',
       notFoundTitle: '実行が見つかりません',
-      notFoundBody: '削除されたか、別のテナントに属している可能性があります。'
+      notFoundBody: '削除されたか、別のテナントに属している可能性があります。',
+      telemetry: {
+        title: 'テレメトリー',
+        phases: 'フェーズ別の実行時間',
+        phase: { queue: 'キュー待ち', startup: '起動から最初のトークンまで', streaming: 'ストリーミング', tail: '最後のトークン以降' },
+        fields: {
+          timeToFirstTokenMs: '最初のトークンまでの時間',
+          streamingMs: 'ストリーミング時間',
+          executionMs: '実行時間',
+          queueMs: 'キュー待ち時間',
+          totalMs: '合計時間',
+          outputTokensPerSecond: '1 秒あたりの出力トークン数',
+          inputTokens: '入力トークン',
+          outputTokens: '出力トークン',
+          cachedTokens: 'キャッシュ済みトークン',
+          reasoningTokens: '推論トークン',
+          toolCallCount: 'ツール呼び出し',
+          costUsd: 'コスト',
+          firstTokenUtc: '最初のトークンの日時',
+          lastTokenUtc: '最後のトークンの日時'
+        }
+      }
     },
     queue: {
       title: 'キュー',
@@ -815,7 +853,9 @@ const ja = {
       traffic: 'トラフィック比率',
       noDeploymentsTitle: 'デプロイメントはありません',
       noDeploymentsBody: 'このエージェントをハーネスに結び付けるデプロイメントを作成してください。',
-      noRuns: 'このエージェントはまだ実行されていません。'
+      noRuns: 'このエージェントはまだ実行されていません。',
+      selectionNote: 'デプロイメントを明示的に指定しない呼び出しは、有効なデプロイメントの 1 つに送られます。どのデプロイメントになるかは、重みに比例してランダムに選ばれます。',
+      manageDeployments: 'デプロイメントを管理'
     },
     templateEditor: {
       newTitle: '新しいプロンプトテンプレート',
@@ -904,6 +944,9 @@ const ja = {
       pathParams: 'パスパラメーター',
       queryParams: 'クエリパラメーター',
       headers: 'ヘッダー',
+      headerName: 'ヘッダー名',
+      headerValue: 'ヘッダー {{name}} の値',
+      removeHeader: 'ヘッダー {{name}} を削除',
       addHeader: 'ヘッダーを追加',
       body: 'リクエスト本文',
       resolvedUrl: '解決された URL',
@@ -960,6 +1003,92 @@ const ja = {
       },
       groups: { General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査' },
       fields: {}
+    },
+    analytics: {
+      title: '分析',
+      subtitle: '実行の速度、コスト、信頼性の推移です。',
+      loading: '分析を読み込み中...',
+      filters: { range: '期間', from: '開始', to: '終了', agentId: 'エージェント', harnessType: 'ハーネス', deploymentId: 'デプロイメント', model: 'モデル', groupBy: 'グループ化' },
+      allAgents: 'すべてのエージェント',
+      allHarnesses: 'すべてのハーネス',
+      allDeployments: 'すべてのデプロイメント',
+      allModels: 'すべてのモデル',
+      unknownModel: '不明なモデル',
+      groupBy: { none: 'グループ化なし', agent: 'エージェント', harness: 'ハーネス', model: 'モデル', harnessModel: 'ハーネスとモデル' },
+      export: { window: '期間: {{from}} から {{to}}' },
+      usage: {
+        title: 'ハーネスとモデル別の使用量',
+        help: '期間内のハーネスとモデルの組み合わせごとのトークンとコストの推移と、内訳の表です。'
+      },
+      breakdown: {
+        title: 'ハーネスとモデル別の内訳',
+        columns: { harness: 'ハーネス', model: 'モデル', runs: '実行', inputTokens: '入力トークン', outputTokens: '出力トークン', cachedTokens: 'キャッシュ済みトークン', reasoningTokens: '推論トークン', costUsd: 'コスト', timeToFirstTokenMsAvg: '平均 TTFT' }
+      },
+      rangeError: {
+        incomplete: 'カスタム期間の開始日時と終了日時の両方を選択してください。',
+        reversed: 'カスタム期間の開始は終了より前である必要があります。'
+      },
+      truncated: 'この期間の実行数が、サーバーが 1 回のリクエストで集計できる数を超えているため、数値は期間の一部のみを反映しています。正確な数値を得るには、期間を狭めるかフィルターを追加してください。',
+      unavailableTitle: 'このサーバーではまだ分析を利用できません',
+      unavailableBody: 'このサーバーは実行分析のエンドポイントを公開していません。ここにグラフを表示するにはサーバーを更新してください。',
+      emptyTitle: 'この期間の実行はありません',
+      emptyBody: '期間とフィルターに一致するものはありません。期間を広げるか、フィルターを解除するか、エージェントを呼び出してください。',
+      noDataInChart: '選択した期間には、このグラフのデータはありません。',
+      cards: {
+        runs: '実行',
+        runsNote: '成功 {{succeeded}}、失敗 {{failed}}',
+        successRate: '成功率',
+        ttft: '最初のトークンまでの平均時間',
+        execution: '平均実行時間',
+        queue: '平均キュー待ち時間',
+        tokens: 'トークン',
+        tokensNote: '入力 {{input}}、出力 {{output}}',
+        throughput: '平均出力速度',
+        cost: 'コスト',
+        toolCalls: 'ツール呼び出し',
+        p95: 'p95 {{value}}'
+      },
+      charts: {
+        outcomes: { title: '実行の結果', help: '区間ごとの実行数を終了の仕方別に示します。' },
+        ttft: { title: '最初のトークンまでの時間', help: 'ハーネスの起動から最初のモデル出力までの時間です。CLI の起動時間を含みます。' },
+        duration: { title: 'ストリーミング時間と実行時間', help: 'ストリーミングはモデルの最初の出力から最後の出力まで、実行はプロセスの起動から終了までです。' },
+        queue: { title: 'キュー待ち時間', help: 'キューに入ってからワーカーノードにリースされるまでの時間です。' },
+        tokens: { title: 'トークン', help: '区間ごとの入力、出力、キャッシュ済み、推論トークンです。' },
+        throughput: { title: '1 秒あたりの出力トークン数', help: '出力トークン数をストリーミング時間で割り、区間ごとに平均した値です。' },
+        cost: { title: 'コスト', help: '区間ごとに報告されたコスト (米ドル) です。' },
+        toolCalls: { title: 'ツール呼び出し', help: '区間ごとのツール呼び出しイベントの数です。' },
+        usageTokens: { title: 'ハーネスとモデル別のトークン', help: '区間ごとの入力トークンと出力トークンの合計を、ハーネスとモデル別に積み上げて表示します。' },
+        usageCost: { title: 'ハーネスとモデル別のコスト', help: '区間ごとに報告されたコストを、ハーネスとモデル別に積み上げて表示します。' }
+      },
+      groupedTitle: '{{chart}}: {{metric}}',
+      metrics: {
+        runs: '実行',
+        succeeded: '成功',
+        failed: '失敗',
+        cancelled: 'キャンセル済み',
+        timedOut: 'タイムアウト',
+        inputTokens: '入力',
+        outputTokens: '出力',
+        cachedTokens: 'キャッシュ済み',
+        reasoningTokens: '推論',
+        totalTokens: '入力と出力のトークン合計',
+        costUsd: 'コスト',
+        toolCalls: 'ツール呼び出し',
+        timeToFirstTokenMsAvg: '平均',
+        timeToFirstTokenMsP50: '中央値 (p50)',
+        timeToFirstTokenMsP95: 'p95',
+        streamingMsAvg: 'ストリーミング (平均)',
+        executionMsAvg: '実行 (平均)',
+        executionMsP95: '実行 (p95)',
+        queueMsAvg: '平均キュー待ち時間',
+        outputTokensPerSecondAvg: '1 秒あたりの平均トークン数'
+      },
+      other: 'その他',
+      hiddenGroups_one: '利用の少ない {{count}} 個のグループは表示されていません。',
+      hiddenGroups_other: '利用の少ない {{count}} 個のグループは表示されていません。',
+      legend: '{{chart}} の系列',
+      dataTable: 'データ表',
+      bucketStart: '区間の開始'
     },
     serverInfo: {
       title: 'サーバー情報',
@@ -1018,7 +1147,9 @@ const ja = {
       configure: { title: '構成', body: 'ハーネスプロファイル、プロンプトテンプレート、MCP サーバー、シークレットが実行内容を決めます。エージェントとデプロイメントには専用のハブがあります。' },
       observe: { title: '監視', body: 'リクエスト履歴、監査、API エクスプローラーで確認とデバッグを行えます。' }
     }
-  }
+  },
+  tips,
+  explainers
 };
 
 export default ja;

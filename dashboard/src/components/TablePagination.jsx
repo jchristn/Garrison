@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../i18n/formatters';
 import { PAGE_SIZE_OPTIONS } from '../utils/constants';
 import AutoRefreshSelect from './AutoRefreshSelect';
+import { tip } from './Tooltip';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -66,11 +67,12 @@ export default function TablePagination({
           <AutoRefreshSelect value={autoRefreshSeconds ?? 0} onChange={onAutoRefreshChange} />
         )}
         {onPageSizeChange && (
-          <label className="table-pagination-size">
+          <label className="table-pagination-size" {...tip(t('tips.table.pageSize'))}>
             <span>{t('components.table.pageSize')}</span>
             <select
               value={pageSize}
               disabled={disabled}
+              {...tip(t('tips.table.pageSize'))}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
             >
               {PAGE_SIZE_OPTIONS.map((s) => (
@@ -87,7 +89,7 @@ export default function TablePagination({
           disabled={!canPrev}
           onClick={() => go(1)}
           aria-label={t('components.table.first')}
-          title={t('components.table.first')}
+          {...tip(t('tips.table.first'))}
         >
           <ChevronsLeftIcon />
         </button>
@@ -97,7 +99,7 @@ export default function TablePagination({
           disabled={!canPrev}
           onClick={() => go(pageNumber - 1)}
           aria-label={t('components.table.prev')}
-          title={t('components.table.prev')}
+          {...tip(t('tips.table.prev'))}
         >
           <ChevronLeftIcon />
         </button>
@@ -110,6 +112,7 @@ export default function TablePagination({
             onBlur={commitJump}
             onKeyDown={(e) => e.key === 'Enter' && commitJump()}
             aria-label={t('components.table.jump')}
+            {...tip(t('tips.table.jump', { total: totalPages }))}
           />
           <span>{t('components.table.pageOf', { page: pageNumber, total: totalPages })}</span>
         </div>
@@ -119,7 +122,7 @@ export default function TablePagination({
           disabled={!canNext}
           onClick={() => go(pageNumber + 1)}
           aria-label={t('components.table.next')}
-          title={t('components.table.next')}
+          {...tip(t('tips.table.next'))}
         >
           <ChevronRightIcon />
         </button>
@@ -129,7 +132,7 @@ export default function TablePagination({
           disabled={!canNext}
           onClick={() => go(totalPages)}
           aria-label={t('components.table.last')}
-          title={t('components.table.last')}
+          {...tip(t('tips.table.last'))}
         >
           <ChevronsRightIcon />
         </button>
@@ -140,7 +143,7 @@ export default function TablePagination({
             disabled={disabled}
             onClick={onRefresh}
             aria-label={t('components.table.refresh')}
-            title={t('components.table.refresh')}
+            {...tip(t('tips.table.refresh'))}
           >
             <RefreshIcon />
           </button>

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
 import { FormField } from './FormFields';
 import CodeBlock from './CodeBlock';
+import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -92,31 +93,31 @@ export default function SetupWizard() {
       headerMeta={t('wizard.stepOf', { step: step + 1, total: STEPS.length })}
       footer={
         <>
-          <button type="button" className="button-ghost" onClick={() => close(true)}>
+          <button type="button" className="button-ghost" onClick={() => close(true)} {...tip(t('tips.wizard.skip'))}>
             {t('wizard.skip')}
           </button>
           {step > 0 && (
-            <button type="button" className="button-secondary" onClick={() => setStep((s) => s - 1)} disabled={busy}>
+            <button type="button" className="button-secondary" onClick={() => setStep((s) => s - 1)} disabled={busy} {...tip(t('tips.wizard.back'))}>
               {t('common.actions.back')}
             </button>
           )}
           {current === 'welcome' && (
-            <button type="button" className="button-primary" onClick={() => setStep(1)}>
+            <button type="button" className="button-primary" onClick={() => setStep(1)} {...tip(t('tips.wizard.start'))}>
               {t('wizard.start')}
             </button>
           )}
           {current === 'secret' && (
-            <button type="button" className="button-primary" onClick={saveSecret} disabled={busy}>
+            <button type="button" className="button-primary" onClick={saveSecret} disabled={busy} {...tip(t(secret.value ? 'tips.wizard.saveSecret' : 'tips.wizard.skipStep'))}>
               {secret.value ? t('wizard.saveSecret') : t('wizard.skipStep')}
             </button>
           )}
           {current === 'manifest' && (
-            <button type="button" className="button-primary" onClick={applyManifest} disabled={busy}>
+            <button type="button" className="button-primary" onClick={applyManifest} disabled={busy} {...tip(t('tips.wizard.apply'))}>
               {t('views.manifests.apply')}
             </button>
           )}
           {current === 'invoke' && (
-            <button type="button" className="button-primary" onClick={testInvoke} disabled={busy}>
+            <button type="button" className="button-primary" onClick={testInvoke} disabled={busy} {...tip(t('tips.wizard.invoke'))}>
               {t('wizard.invoke')}
             </button>
           )}
@@ -143,22 +144,22 @@ export default function SetupWizard() {
       {current === 'secret' && (
         <div className="wizard-body form-grid">
           <p className="span-full">{t('wizard.secretBody')}</p>
-          <FormField id="wiz-secret-name" field={{ name: 'name', type: 'text', label: t('resources.secrets.fields.name'), required: true }} value={secret.name} onChange={(v) => setSecret({ ...secret, name: v })} />
-          <FormField id="wiz-secret-kind" field={{ name: 'kind', type: 'select', label: t('resources.secrets.fields.kind'), required: true, options: ENUMS.secretKind }} value={secret.kind} onChange={(v) => setSecret({ ...secret, kind: v })} />
-          <FormField id="wiz-secret-value" field={{ name: 'value', type: 'password', label: t('resources.secrets.fields.value'), span: 'full' }} value={secret.value} onChange={(v) => setSecret({ ...secret, value: v })} />
+          <FormField id="wiz-secret-name" field={{ name: 'name', type: 'text', label: t('resources.secrets.fields.name'), required: true, tip: t('tips.wizard.secretName') }} value={secret.name} onChange={(v) => setSecret({ ...secret, name: v })} />
+          <FormField id="wiz-secret-kind" field={{ name: 'kind', type: 'select', label: t('resources.secrets.fields.kind'), required: true, options: ENUMS.secretKind, optionLabel: (v) => t(`enums.secretKind.${v}`, { defaultValue: v }), tip: t('tips.resources.secrets.kind') }} value={secret.kind} onChange={(v) => setSecret({ ...secret, kind: v })} />
+          <FormField id="wiz-secret-value" field={{ name: 'value', type: 'password', label: t('resources.secrets.fields.value'), span: 'full', tip: t('tips.resources.secrets.value') }} value={secret.value} onChange={(v) => setSecret({ ...secret, value: v })} />
         </div>
       )}
       {current === 'manifest' && (
         <div className="wizard-body">
           <p>{t('wizard.manifestBody')}</p>
-          <textarea className="monospace template-textarea" rows={14} value={manifest} onChange={(e) => setManifest(e.target.value)} aria-label={t('views.manifests.document')} />
+          <textarea className="monospace template-textarea" rows={14} value={manifest} onChange={(e) => setManifest(e.target.value)} aria-label={t('views.manifests.document')} {...tip(t('tips.wizard.manifest'))} />
         </div>
       )}
       {current === 'invoke' && (
         <div className="wizard-body">
           <p>{t('wizard.invokeBody')}</p>
           {result && <CodeBlock value={result} prettyJson />}
-          <FormField id="wiz-message" field={{ name: 'message', type: 'textarea', label: t('views.invoke.message') }} value={message} onChange={setMessage} />
+          <FormField id="wiz-message" field={{ name: 'message', type: 'textarea', label: t('views.invoke.message'), tip: t('tips.wizard.message') }} value={message} onChange={setMessage} />
         </div>
       )}
     </Modal>

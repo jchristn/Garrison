@@ -13,7 +13,8 @@ export const STORAGE_KEYS = {
   apiExplorerHistory: 'garrison_api_explorer_history',
   setupDismissed: 'garrison_setup_dismissed',
   tourDone: 'garrison_tour_done',
-  sidebarCollapsed: 'garrison_sidebar_collapsed'
+  sidebarCollapsed: 'garrison_sidebar_collapsed',
+  explainers: 'garrison_explainers_hidden'
 };
 
 export const GITHUB_URL = 'https://github.com/jchristn/Garrison';

@@ -11,6 +11,8 @@ import useAutoRefresh from '../hooks/useAutoRefresh';
 import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { formatNumber } from '../i18n/formatters';
+import Explainer from '../components/Explainer';
+import { tip } from '../components/Tooltip';
 
 /** Derive queue counts from a page of active runs when the summary endpoint is unavailable. */
 function summarizeRuns(runs) {
@@ -77,14 +79,15 @@ export default function QueueView() {
   return (
     <div>
       <PageHeader title={t('views.queue.title')} subtitle={t('views.queue.subtitle')} actions={<AutoRefreshSelect value={refresh} onChange={setRefresh} />} />
+      <Explainer topic="queue" />
       {error && <ErrorBanner message={errorMessage(t, error)} onRetry={load} />}
       {!summary && !error && <LoadingState />}
       {summary && (
         <>
           <div className="kpi-grid">
-            <KpiCard label={t('views.queue.queued')} value={formatNumber(summary.queued)} onClick={() => navigate(pathFor('runs', null, { status: 'Queued' }))} />
-            <KpiCard label={t('views.queue.leased')} value={formatNumber(summary.leased)} onClick={() => navigate(pathFor('runs', null, { status: 'Leased' }))} />
-            <KpiCard label={t('views.queue.running')} value={formatNumber(summary.running)} onClick={() => navigate(pathFor('runs', null, { status: 'Running' }))} />
+            <KpiCard label={t('views.queue.queued')} tip={t('tips.views.queue.queued')} value={formatNumber(summary.queued)} onClick={() => navigate(pathFor('runs', null, { status: 'Queued' }))} />
+            <KpiCard label={t('views.queue.leased')} tip={t('tips.views.queue.leased')} value={formatNumber(summary.leased)} onClick={() => navigate(pathFor('runs', null, { status: 'Leased' }))} />
+            <KpiCard label={t('views.queue.running')} tip={t('tips.views.queue.running')} value={formatNumber(summary.running)} onClick={() => navigate(pathFor('runs', null, { status: 'Running' }))} />
           </div>
           {summary.groups.length === 0 ? (
             <div className="table-frame">
@@ -96,15 +99,15 @@ export default function QueueView() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th scope="col">{t('resources.runs.columns.agentName')}</th>
-                      <th scope="col">{t('resources.runs.columns.harnessType')}</th>
-                      <th scope="col" className="right">
+                      <th scope="col" {...tip(t('tips.views.queue.agent'))}>{t('resources.runs.columns.agentName')}</th>
+                      <th scope="col" {...tip(t('tips.views.queue.harness'))}>{t('resources.runs.columns.harnessType')}</th>
+                      <th scope="col" className="right" {...tip(t('tips.views.queue.queued'))}>
                         {t('views.queue.queued')}
                       </th>
-                      <th scope="col" className="right">
+                      <th scope="col" className="right" {...tip(t('tips.views.queue.leased'))}>
                         {t('views.queue.leased')}
                       </th>
-                      <th scope="col" className="right">
+                      <th scope="col" className="right" {...tip(t('tips.views.queue.running'))}>
                         {t('views.queue.running')}
                       </th>
                     </tr>

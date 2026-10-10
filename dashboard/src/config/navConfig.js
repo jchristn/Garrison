@@ -34,6 +34,7 @@ export const NAV_SECTIONS = [
           { id: 'queue', slug: 'queue' }
         ]
       },
+      { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },
       {
         key: 'agents',
         slug: 'agents',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
+import { tip } from './Tooltip';
 
 /** Confirmation dialog. Set `danger` for destructive actions. */
 export default function ConfirmModal({
@@ -10,6 +11,8 @@ export default function ConfirmModal({
   confirmLabel,
   cancelLabel,
   danger = false,
+  confirmTip,
+  cancelTip,
   onConfirm,
   onCancel
 }) {
@@ -33,7 +36,7 @@ export default function ConfirmModal({
       title={title || t('components.confirm.title')}
       footer={
         <>
-          <button type="button" className="button-secondary" onClick={onCancel} disabled={busy}>
+          <button type="button" className="button-secondary" onClick={onCancel} disabled={busy} {...tip(cancelTip || t('tips.confirm.cancel'))}>
             {cancelLabel || t('common.actions.cancel')}
           </button>
           <button
@@ -41,6 +44,7 @@ export default function ConfirmModal({
             className={danger ? 'button-danger' : 'button-primary'}
             onClick={handleConfirm}
             disabled={busy}
+            {...tip(confirmTip || t(danger ? 'tips.confirm.danger' : 'tips.confirm.confirm'))}
           >
             {confirmLabel || t('common.actions.confirm')}
           </button>

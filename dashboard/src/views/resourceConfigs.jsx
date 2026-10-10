@@ -12,29 +12,43 @@ import { ENUMS } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 import { errorMessage } from '../utils/errors';
+import { resourceTip, enumTip, optionalText } from '../utils/tips';
+import { AgentRelationDiagram } from '../components/Explainer';
+import { tip } from '../components/Tooltip';
 
 // ---------------------------------------------------------------- helpers
+//
+// Every field and column carries a tooltip from tips.resources.<id>.<name> (falling back to
+// tips.common.fields.<name>). Sub-fields of list editors use tips.resources.<id>.<parent>Items.<name>.
 
 function field(id, t, name, type, extra = {}) {
-  const hint = t(`resources.${id}.hints.${name}`, { defaultValue: '' });
-  return { name, type, label: t(`resources.${id}.fields.${name}`), hint: hint || undefined, ...extra };
+  const hint = optionalText(t, `resources.${id}.hints.${name}`);
+  const out = { name, type, label: t(`resources.${id}.fields.${name}`), hint: hint || undefined, tip: resourceTip(t, id, name), ...extra };
+  if (Array.isArray(out.fields)) out.fields = out.fields.map((f) => ({ ...f, tip: f.tip || resourceTip(t, id, `${name}Items.${f.name}`) }));
+  return out;
 }
 
 function section(id, t, name, step) {
-  return { name: `section_${name}`, type: 'section', label: t(`resources.${id}.sections.${name}`), step };
+  return { name: `section_${name}`, type: 'section', label: t(`resources.${id}.sections.${name}`), tip: resourceTip(t, id, `sections.${name}`), step };
 }
 
 function col(id, t, key, render, extra = {}) {
-  return { key, label: t(`resources.${id}.columns.${key}`), render, ...extra };
+  return { key, label: t(`resources.${id}.columns.${key}`), tip: resourceTip(t, id, key), render, ...extra };
 }
 
 const idCol = (id, t) => col(id, t, 'id', (r) => <CopyableId value={r.id} />, { cellClass: 'cell-id', defaultHidden: true });
 const nameCol = (id, t) => col(id, t, 'name', (r) => <strong>{r.name}</strong>, { sortable: true, pinned: true });
 const createdCol = (id, t, i18n) =>
-  col(id, t, 'createdUtc', (r) => <span title={formatDateTime(r.createdUtc, i18n.language)}>{formatRelativeTime(r.createdUtc, i18n.language)}</span>, { sortable: true });
-const activeCol = (id, t) => col(id, t, 'active', (r) => <ActiveBadge active={r.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} />);
-const builtInCol = (id, t) => col(id, t, 'isBuiltIn', (r) => (r.isBuiltIn ? <Badge tone="info">{t('common.generic.builtIn')}</Badge> : <Badge>{t('common.generic.custom')}</Badge>));
+  col(id, t, 'createdUtc', (r) => <span {...tip(formatDateTime(r.createdUtc, i18n.language))}>{formatRelativeTime(r.createdUtc, i18n.language)}</span>, { sortable: true });
+const activeCol = (id, t) =>
+  col(id, t, 'active', (r) => <ActiveBadge active={r.active} activeLabel={t('common.generic.active')} inactiveLabel={t('common.generic.inactive')} tip={t(r.active ? 'tips.badges.active' : 'tips.badges.inactive')} />);
+const builtInCol = (id, t) =>
+  col(id, t, 'isBuiltIn', (r) =>
+    r.isBuiltIn ? <Badge tone="info" tip={t('tips.badges.builtIn')}>{t('common.generic.builtIn')}</Badge> : <Badge tip={t('tips.badges.custom')}>{t('common.generic.custom')}</Badge>
+  );
 const enumLabel = (t, group, value) => (value ? t(`enums.${group}.${value}`, { defaultValue: value }) : '-');
+const enumBadge = (t, group, value, tone = 'neutral') => (value ? <Badge tone={tone} tip={enumTip(t, group, value)}>{enumLabel(t, group, value)}</Badge> : '-');
+const actionTip = (t, id, name) => t(`tips.resources.${id}.actions.${name}`);
 
 const notBuiltIn = (r) => !r?.isBuiltIn;
 
@@ -56,6 +70,7 @@ function tenantApi(list, create, update, remove) {
 
 export const tenantsConfig = {
   id: 'tenants',
+  explainer: 'tenants',
   api: {
     list: (c, _t, p) => c.listTenants(p),
     create: (c, _t, b) => c.createTenant(b),
@@ -71,14 +86,15 @@ export const tenantsConfig = {
 
 export const usersConfig = {
   id: 'users',
+  explainer: 'users',
   api: tenantApi('listUsers', 'createUser', 'updateUser', 'deleteUser'),
   blank: () => ({ email: '', password: '', firstName: '', lastName: '', isAdmin: false, isTenantAdmin: false, active: true }),
   toForm: (r) => ({ ...r, password: '' }),
   columns: ({ t, i18n }) => [
     col('users', t, 'email', (r) => <strong>{r.email}</strong>, { pinned: true }),
-    col('users', t, 'name', (r) => [r.firstName, r.lastName].filter(Boolean).join(' ') || '-'),
+    col('users', t, 'name', (r) => [r.firstName, r.lastName].filter(Boolean).join(' ') || '-', { csv: (r) => [r.firstName, r.lastName].filter(Boolean).join(' ') }),
     idCol('users', t),
-    col('users', t, 'role', (r) => <Badge tone={r.isAdmin || r.isTenantAdmin ? 'info' : 'neutral'}>{t(r.isAdmin ? 'roles.systemAdmin' : r.isTenantAdmin ? 'roles.tenantAdmin' : 'roles.user')}</Badge>),
+    col('users', t, 'role', (r) => <Badge tone={r.isAdmin || r.isTenantAdmin ? 'info' : 'neutral'} tip={t(r.isAdmin ? 'tips.badges.systemAdmin' : r.isTenantAdmin ? 'tips.badges.tenantAdmin' : 'tips.badges.user')}>{t(r.isAdmin ? 'roles.systemAdmin' : r.isTenantAdmin ? 'roles.tenantAdmin' : 'roles.user')}</Badge>),
     activeCol('users', t),
     createdCol('users', t, i18n)
   ],
@@ -105,6 +121,7 @@ export const usersConfig = {
   rowActions: (r, ctx) => [
     {
       label: ctx.t('resources.users.actions.permissions'),
+      tip: actionTip(ctx.t, 'users', 'permissions'),
       onClick: () => ctx.setExtraModal(<EffectivePermissionsModal load={() => ctx.apiClient.getUserPermissions(ctx.tenantId, r.id)} title={r.email} onClose={() => ctx.setExtraModal(null)} />)
     }
   ]
@@ -112,6 +129,7 @@ export const usersConfig = {
 
 export const credentialsConfig = {
   id: 'credentials',
+  explainer: 'credentials',
   api: tenantApi('listCredentials', 'createCredential', 'updateCredential', 'deleteCredential'),
   loadOptions: async ({ apiClient, tenantId }) => ({ users: await safeList(apiClient.listUsers(tenantId, { pageNumber: 1, pageSize: 1000 })) }),
   blank: () => ({ name: '', userId: '', authMode: 'Hybrid', expiresUtc: null, active: true }),
@@ -151,6 +169,7 @@ export const credentialsConfig = {
   rowActions: (r, ctx) => [
     {
       label: ctx.t('resources.credentials.actions.rotate'),
+      tip: actionTip(ctx.t, 'credentials', 'rotate'),
       onClick: async () => {
         try {
           const result = await ctx.apiClient.rotateCredential(ctx.tenantId, r.id);
@@ -163,6 +182,7 @@ export const credentialsConfig = {
     },
     {
       label: ctx.t('resources.users.actions.permissions'),
+      tip: actionTip(ctx.t, 'credentials', 'permissions'),
       onClick: () => ctx.setExtraModal(<EffectivePermissionsModal load={() => ctx.apiClient.getCredentialPermissions(ctx.tenantId, r.id)} title={r.name} onClose={() => ctx.setExtraModal(null)} />)
     }
   ]
@@ -170,6 +190,7 @@ export const credentialsConfig = {
 
 export const rolesConfig = {
   id: 'roles',
+  explainer: 'roles',
   api: tenantApi('listRoles', 'createRole', 'updateRole', 'deleteRole'),
   isEditable: notBuiltIn,
   blank: () => ({ name: '', description: '', active: true }),
@@ -180,6 +201,7 @@ export const rolesConfig = {
   rowActions: (r, ctx) => [
     {
       label: ctx.t('common.actions.clone'),
+      tip: actionTip(ctx.t, 'roles', 'clone'),
       hidden: !r.isBuiltIn,
       onClick: async () => {
         try {
@@ -196,12 +218,13 @@ export const rolesConfig = {
 
 export const permissionsConfig = {
   id: 'permissions',
+  explainer: 'roles',
   api: tenantApi('listPermissions', 'createPermission', 'updatePermission', 'deletePermission'),
   isEditable: notBuiltIn,
   blank: () => ({ name: '', permissionType: 'Permit', resourceTypes: [], operationTypes: [], active: true }),
   columns: ({ t }) => [
     nameCol('permissions', t),
-    col('permissions', t, 'permissionType', (r) => <Badge tone={r.permissionType === 'Deny' ? 'danger' : 'success'}>{enumLabel(t, 'permissionType', r.permissionType)}</Badge>),
+    col('permissions', t, 'permissionType', (r) => enumBadge(t, 'permissionType', r.permissionType, r.permissionType === 'Deny' ? 'danger' : 'success')),
     col('permissions', t, 'resourceTypes', (r) => (r.resourceTypes || []).join(', ') || '-'),
     col('permissions', t, 'operationTypes', (r) => (r.operationTypes || []).join(', ') || '-'),
     builtInCol('permissions', t),
@@ -226,6 +249,7 @@ export const permissionsConfig = {
 function assignmentConfig(id, principalKey, api, loadPrincipals, principalLabel) {
   return {
     id,
+    explainer: 'assignments',
     api,
     loadOptions: async (ctx) => ({
       principals: await loadPrincipals(ctx),
@@ -234,7 +258,7 @@ function assignmentConfig(id, principalKey, api, loadPrincipals, principalLabel)
     blank: () => ({ [principalKey]: '', roleId: '', resourceScope: 'Tenant', resourceId: '', inheritsToChildren: true, active: true }),
     columns: ({ t, i18n }) => [
       col(id, t, principalKey, (r) => <CopyableId value={r[principalKey]} />, { pinned: true, cellClass: 'cell-id' }),
-      col(id, t, 'roleName', (r) => <Badge tone="info">{r.roleName || r.roleId || '-'}</Badge>),
+      col(id, t, 'roleName', (r) => <Badge tone="info" tip={t('tips.badges.role', { role: r.roleName || r.roleId || '-' })}>{r.roleName || r.roleId || '-'}</Badge>),
       col(id, t, 'resourceScope', (r) => enumLabel(t, 'resourceScope', r.resourceScope)),
       col(id, t, 'resourceId', (r) => (r.resourceId ? <CopyableId value={r.resourceId} /> : '-')),
       activeCol(id, t),
@@ -279,6 +303,7 @@ export const credentialAssignmentsConfig = assignmentConfig(
 
 export const harnessProfilesConfig = {
   id: 'harnessProfiles',
+  explainer: 'harnessProfiles',
   api: tenantApi('listHarnessProfiles', 'createHarnessProfile', 'updateHarnessProfile', 'deleteHarnessProfile'),
   isEditable: notBuiltIn,
   filters: [{ name: 'harnessType', label: (t) => t('resources.harnessProfiles.fields.harnessType'), options: ENUMS.harnessType }],
@@ -310,7 +335,7 @@ export const harnessProfilesConfig = {
   }),
   columns: ({ t, i18n }) => [
     nameCol('harnessProfiles', t),
-    col('harnessProfiles', t, 'harnessType', (r) => <Badge tone="info">{enumLabel(t, 'harnessType', r.harnessType)}</Badge>),
+    col('harnessProfiles', t, 'harnessType', (r) => enumBadge(t, 'harnessType', r.harnessType, 'info')),
     col('harnessProfiles', t, 'executable', (r) => <code>{r.executable}</code>),
     col('harnessProfiles', t, 'outputParser', (r) => r.outputParser),
     builtInCol('harnessProfiles', t),
@@ -390,6 +415,7 @@ export const harnessProfilesConfig = {
   rowActions: (r, ctx) => [
     {
       label: ctx.t('common.actions.clone'),
+      tip: actionTip(ctx.t, 'harnessProfiles', 'clone'),
       onClick: async () => {
         try {
           await ctx.apiClient.cloneHarnessProfile(ctx.tenantId, r.id, { name: `${r.name.replace(/^builtin\//, '')}-custom` });
@@ -405,12 +431,13 @@ export const harnessProfilesConfig = {
 
 export const mcpServersConfig = {
   id: 'mcpServers',
+  explainer: 'mcpServers',
   api: tenantApi('listMcpServers', 'createMcpServer', 'updateMcpServer', 'deleteMcpServer'),
   blank: () => ({ name: '', description: '', transport: 'Http', url: '', path: '/mcp', command: '', arguments: [], environment: [], headers: [], requiredTools: [], toolTimeoutSeconds: 600, required: true, active: true }),
   columns: ({ t, i18n }) => [
     nameCol('mcpServers', t),
-    col('mcpServers', t, 'transport', (r) => <Badge>{t(`enums.mcpTransport.${r.transport}`, { defaultValue: r.transport })}</Badge>),
-    col('mcpServers', t, 'endpoint', (r) => <code>{r.transport === 'Stdio' ? r.command : `${r.url || ''}${r.path || ''}`}</code>),
+    col('mcpServers', t, 'transport', (r) => enumBadge(t, 'mcpTransport', r.transport)),
+    col('mcpServers', t, 'endpoint', (r) => <code>{r.transport === 'Stdio' ? r.command : `${r.url || ''}${r.path || ''}`}</code>, { csv: (r) => (r.transport === 'Stdio' ? r.command : `${r.url || ''}${r.path || ''}`) }),
     col('mcpServers', t, 'required', (r) => (r.required ? t('common.boolean.yes') : t('common.boolean.no'))),
     activeCol('mcpServers', t),
     idCol('mcpServers', t),
@@ -446,20 +473,20 @@ export const mcpServersConfig = {
     return e;
   },
   rowActions: (r, ctx) => [
-    { label: ctx.t('resources.mcpServers.actions.test'), onClick: () => ctx.setExtraModal(<McpTestModal load={() => ctx.apiClient.testMcpServer(ctx.tenantId, r.id)} name={r.name} onClose={() => ctx.setExtraModal(null)} />) }
+    { label: ctx.t('resources.mcpServers.actions.test'), tip: actionTip(ctx.t, 'mcpServers', 'test'), onClick: () => ctx.setExtraModal(<McpTestModal load={() => ctx.apiClient.testMcpServer(ctx.tenantId, r.id)} name={r.name} onClose={() => ctx.setExtraModal(null)} />) }
   ]
 };
 
 export const secretsConfig = {
   id: 'secrets',
+  explainer: 'secrets',
   api: tenantApi('listSecrets', 'createSecret', 'updateSecret', 'deleteSecret'),
   filters: [{ name: 'kind', label: (t) => t('resources.secrets.fields.kind'), options: ENUMS.secretKind, enumGroup: 'secretKind' }],
   blank: () => ({ name: '', description: '', kind: 'GenericEnv', value: '', expiresUtc: null, active: true }),
   toForm: (r) => ({ ...r, value: '' }),
-  intro: ({ t }) => t('resources.secrets.intro'),
   columns: ({ t, i18n }) => [
     nameCol('secrets', t),
-    col('secrets', t, 'kind', (r) => <Badge tone="info">{enumLabel(t, 'secretKind', r.kind)}</Badge>),
+    col('secrets', t, 'kind', (r) => enumBadge(t, 'secretKind', r.kind, 'info')),
     col('secrets', t, 'valueLast4', (r) => (r.valueLast4 ? <code>****{r.valueLast4}</code> : <span className="text-muted">{t('resources.secrets.notSet')}</span>)),
     col('secrets', t, 'rotatedUtc', (r) => (r.rotatedUtc ? formatRelativeTime(r.rotatedUtc, i18n.language) : '-')),
     col('secrets', t, 'expiresUtc', (r) => (r.expiresUtc ? formatDateTime(r.expiresUtc, i18n.language) : t('common.generic.never'))),
@@ -489,11 +516,14 @@ export const secretsConfig = {
   rowActions: (r, ctx) => [
     {
       label: ctx.t('resources.secrets.actions.setValue'),
+      tip: actionTip(ctx.t, 'secrets', 'setValue'),
       onClick: () =>
         ctx.setExtraModal(
           <ValuePromptModal
             title={ctx.t('resources.secrets.actions.setValue')}
             label={ctx.t('resources.secrets.fields.value')}
+            tip={resourceTip(ctx.t, 'secrets', 'value')}
+            saveTip={ctx.t('tips.resources.secrets.saveValue')}
             secret
             onSubmit={async (value) => {
               await ctx.apiClient.setSecretValue(ctx.tenantId, r.id, value);
@@ -506,11 +536,14 @@ export const secretsConfig = {
     },
     {
       label: ctx.t('resources.secrets.actions.rotate'),
+      tip: actionTip(ctx.t, 'secrets', 'rotate'),
       onClick: () =>
         ctx.setExtraModal(
           <ValuePromptModal
             title={ctx.t('resources.secrets.actions.rotate')}
             label={ctx.t('resources.secrets.fields.newValue')}
+            tip={resourceTip(ctx.t, 'secrets', 'newValue')}
+            saveTip={ctx.t('tips.resources.secrets.saveValue')}
             secret
             onSubmit={async (value) => {
               await ctx.apiClient.rotateSecret(ctx.tenantId, r.id, value);
@@ -526,12 +559,13 @@ export const secretsConfig = {
 
 export const workspacesConfig = {
   id: 'workspaces',
+  explainer: 'workspaces',
   api: tenantApi('listWorkspaceTemplates', 'createWorkspaceTemplate', 'updateWorkspaceTemplate', 'deleteWorkspaceTemplate'),
   loadOptions: async ({ apiClient, tenantId }) => ({ secrets: await safeList(apiClient.listSecrets(tenantId, { pageNumber: 1, pageSize: 1000 })) }),
   blank: () => ({ name: '', description: '', kind: 'Empty', gitUrl: '', gitRef: '', gitDepth: 1, gitCredentialSecretId: null, retention: 'Delete', files: [], active: true }),
   columns: ({ t, i18n }) => [
     nameCol('workspaces', t),
-    col('workspaces', t, 'kind', (r) => <Badge>{enumLabel(t, 'workspaceKind', r.kind)}</Badge>),
+    col('workspaces', t, 'kind', (r) => enumBadge(t, 'workspaceKind', r.kind)),
     col('workspaces', t, 'gitUrl', (r) => (r.gitUrl ? <code>{r.gitUrl}</code> : '-')),
     col('workspaces', t, 'retention', (r) => enumLabel(t, 'workspaceRetention', r.retention)),
     activeCol('workspaces', t),
@@ -566,9 +600,10 @@ export const workspacesConfig = {
 
 export const artifactStoresConfig = {
   id: 'artifactStores',
+  explainer: 'artifactStores',
   api: tenantApi('listArtifactStores', 'createArtifactStore', 'updateArtifactStore', 'deleteArtifactStore'),
   blank: () => ({ name: '', description: '', kind: 'Database', active: true }),
-  columns: ({ t, i18n }) => [nameCol('artifactStores', t), col('artifactStores', t, 'kind', (r) => <Badge>{r.kind}</Badge>), col('artifactStores', t, 'description', (r) => r.description || '-'), activeCol('artifactStores', t), idCol('artifactStores', t), createdCol('artifactStores', t, i18n)],
+  columns: ({ t, i18n }) => [nameCol('artifactStores', t), col('artifactStores', t, 'kind', (r) => enumBadge(t, 'artifactStoreKind', r.kind)), col('artifactStores', t, 'description', (r) => r.description || '-'), activeCol('artifactStores', t), idCol('artifactStores', t), createdCol('artifactStores', t, i18n)],
   fields: (_d, { t }) => [
     field('artifactStores', t, 'name', 'text', { required: true }),
     field('artifactStores', t, 'kind', 'select', { required: true, options: ENUMS.artifactStoreKind }),
@@ -580,6 +615,8 @@ export const artifactStoresConfig = {
 
 export const agentsConfig = {
   id: 'agents',
+  explainer: 'agents',
+  explainerDiagram: () => <AgentRelationDiagram />,
   api: tenantApi('listAgents', 'createAgent', 'updateAgent', 'deleteAgent'),
   filters: [{ name: 'kind', label: (t) => t('resources.agents.fields.kind'), options: ENUMS.agentKind, enumGroup: 'agentKind' }],
   loadOptions: async ({ apiClient, tenantId }) => ({ agents: await safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })) }),
@@ -606,8 +643,8 @@ export const agentsConfig = {
   columns: ({ t, i18n }) => [
     nameCol('agents', t),
     col('agents', t, 'displayName', (r) => r.displayName || '-'),
-    col('agents', t, 'kind', (r) => <Badge tone={r.kind === 'Remote' ? 'warning' : 'info'}>{enumLabel(t, 'agentKind', r.kind)}</Badge>),
-    col('agents', t, 'exposure', (r) => [r.exposeA2A ? 'A2A' : null, r.exposeMcpTool ? 'MCP' : null].filter(Boolean).join(', ') || '-'),
+    col('agents', t, 'kind', (r) => enumBadge(t, 'agentKind', r.kind, r.kind === 'Remote' ? 'warning' : 'info')),
+    col('agents', t, 'exposure', (r) => [r.exposeA2A ? 'A2A' : null, r.exposeMcpTool ? 'MCP' : null].filter(Boolean).join(', ') || '-', { csv: (r) => [r.exposeA2A ? 'A2A' : null, r.exposeMcpTool ? 'MCP' : null].filter(Boolean).join(' ') }),
     col('agents', t, 'delegationMode', (r) => enumLabel(t, 'delegationMode', r.delegationMode)),
     col('agents', t, 'tags', (r) => (r.tags || []).join(', ') || '-', { defaultHidden: true }),
     activeCol('agents', t),
@@ -668,6 +705,8 @@ export const agentsConfig = {
 
 export const deploymentsConfig = {
   id: 'deployments',
+  explainer: 'deployments',
+  explainerDiagram: () => <AgentRelationDiagram />,
   api: tenantApi('listDeployments', 'createDeployment', 'updateDeployment', 'deleteDeployment'),
   steps: ['basics', 'harness', 'prompts', 'resources', 'overrides', 'placement'],
   loadOptions: async ({ apiClient, tenantId }) => {
@@ -716,7 +755,7 @@ export const deploymentsConfig = {
   }),
   columns: ({ t, i18n }) => [
     nameCol('deployments', t),
-    col('deployments', t, 'agentId', (r) => (r.agentName ? <span title={r.agentId}>{r.agentName}</span> : <CopyableId value={r.agentId} />), { cellClass: 'cell-id' }),
+    col('deployments', t, 'agentId', (r) => (r.agentName ? <span {...tip(r.agentId)}>{r.agentName}</span> : <CopyableId value={r.agentId} />), { cellClass: 'cell-id' }),
     col('deployments', t, 'harnessProfileId', (r) => <CopyableId value={r.harnessProfileId} />, { cellClass: 'cell-id' }),
     col('deployments', t, 'model', (r) => r.model || '-'),
     col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right' }),
@@ -829,13 +868,14 @@ export const deploymentsConfig = {
     return e;
   },
   rowActions: (r, ctx) => [
-    { label: ctx.t('resources.deployments.actions.compilePreview'), onClick: () => ctx.setExtraModal(<CompilePreviewModal tenantId={ctx.tenantId} deployment={r} onClose={() => ctx.setExtraModal(null)} />) },
-    { label: ctx.t('resources.deployments.actions.test'), onClick: () => ctx.navigate(pathFor('invoke', null, { agentId: r.agentId, deploymentId: r.id })) }
+    { label: ctx.t('resources.deployments.actions.compilePreview'), tip: actionTip(ctx.t, 'deployments', 'compilePreview'), onClick: () => ctx.setExtraModal(<CompilePreviewModal tenantId={ctx.tenantId} deployment={r} onClose={() => ctx.setExtraModal(null)} />) },
+    { label: ctx.t('resources.deployments.actions.test'), tip: actionTip(ctx.t, 'deployments', 'test'), onClick: () => ctx.navigate(pathFor('invoke', null, { agentId: r.agentId, deploymentId: r.id })) }
   ]
 };
 
 export const nodePoolsConfig = {
   id: 'nodePools',
+  explainer: 'nodePools',
   api: {
     list: (c, _t, p) => c.listNodePools(p),
     create: (c, _t, b) => c.createNodePool(b),
@@ -858,6 +898,7 @@ export const nodePoolsConfig = {
 
 export const promptTemplatesConfig = {
   id: 'promptTemplates',
+  explainer: 'promptTemplates',
   api: {
     list: (c, tenant, p) => c.listPromptTemplates(tenant, p),
     create: null,
@@ -869,7 +910,7 @@ export const promptTemplatesConfig = {
   isEditable: notBuiltIn,
   columns: ({ t, i18n }) => [
     nameCol('promptTemplates', t),
-    col('promptTemplates', t, 'kind', (r) => <Badge>{enumLabel(t, 'promptTemplateKind', r.kind)}</Badge>),
+    col('promptTemplates', t, 'kind', (r) => enumBadge(t, 'promptTemplateKind', r.kind)),
     col('promptTemplates', t, 'currentVersion', (r) => `v${r.currentVersion ?? 1}`, { cellClass: 'right' }),
     col('promptTemplates', t, 'description', (r) => r.description || '-', { defaultHidden: true }),
     builtInCol('promptTemplates', t),
@@ -878,7 +919,7 @@ export const promptTemplatesConfig = {
   ],
   fields: () => [],
   headerActions: ({ t, navigate }) => (
-    <button type="button" className="button-primary" onClick={() => navigate(pathFor('promptTemplates', 'new'))} data-testid="add-template">
+    <button type="button" className="button-primary" onClick={() => navigate(pathFor('promptTemplates', 'new'))} data-testid="add-template" {...tip(t('tips.resources.promptTemplates.add'))}>
       {t('resources.promptTemplates.add')}
     </button>
   ),

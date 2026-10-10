@@ -162,6 +162,19 @@ class ApiClient {
     return this._request('GET', this._t(tenantId, 'queue/summary'));
   }
 
+  /**
+   * Run analytics over time (plan section 10.6). query: { from, to, interval, agentId, harnessType,
+   * deploymentId, groupBy }. Returns { fromUtc, toUtc, interval, bucketSeconds, truncated, totals, series }.
+   */
+  getRunAnalytics(tenantId, query = {}) {
+    return this._request('GET', this._t(tenantId, 'analytics/runs'), { query });
+  }
+
+  /** Distinct agents, harnesses, deployments, and served models seen in a range. query: { from, to }. */
+  getRunAnalyticsDimensions(tenantId, query = {}) {
+    return this._request('GET', this._t(tenantId, 'analytics/runs/dimensions'), { query });
+  }
+
   // ------------------------------------------------------------------ tenants
 
   listTenants(params) {
@@ -648,8 +661,14 @@ class ApiClient {
     return this._request('DELETE', this._t(tenantId, `runs/${enc(id)}`));
   }
 
-  listRunEvents(tenantId, id, afterSequence = 0, limit = 500) {
-    return this._list(this._t(tenantId, `runs/${enc(id)}/events`), { afterSequence, limit });
+  /**
+   * Run events after a sequence number. The server answers { runId, status, events, lastSequence, hasMore };
+   * the result is { items, lastSequence, hasMore }.
+   */
+  async listRunEvents(tenantId, id, afterSequence = 0, limit = 500) {
+    const res = await this._request('GET', this._t(tenantId, `runs/${enc(id)}/events`), { query: { afterSequence, limit } });
+    const items = Array.isArray(res?.events) ? res.events : Array.isArray(res?.objects) ? res.objects : [];
+    return { items, lastSequence: res?.lastSequence ?? null, hasMore: Boolean(res?.hasMore) };
   }
 
   listRunChildren(tenantId, id) {

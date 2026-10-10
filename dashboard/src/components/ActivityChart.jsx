@@ -7,6 +7,9 @@ import useAutoRefresh from '../hooks/useAutoRefresh';
 import RangeTabs from './RangeTabs';
 import AutoRefreshSelect from './AutoRefreshSelect';
 import ChartTooltip from './ChartTooltip';
+import { tip } from './Tooltip';
+import ExportMenu from './ExportMenu';
+import { exportFileName, toCsv, buildChartSvg } from '../utils/exporters';
 
 // The SVG is drawn in CSS pixels at the measured container width, so text stays crisp and the
 // chart reflows with the layout. Height is fixed per breakpoint rather than tied to the width.
@@ -76,10 +79,13 @@ export default function ActivityChart({
   tenants = null,
   tenantId = '',
   onTenantChange = null,
-  tenantAllowAll = true
+  tenantAllowAll = true,
+  exportName = 'api-request-activity',
+  exportFilters = {}
 }) {
   const { t, i18n } = useTranslation();
   const bodyRef = useRef(null);
+  const svgRef = useRef(null);
   const W = useMeasuredWidth(bodyRef);
   const H = chartHeight(W);
   const PLOT_W = Math.max(1, W - PAD_LEFT - PAD_RIGHT);
@@ -124,7 +130,7 @@ export default function ActivityChart({
               value={tenantId}
               onChange={(e) => onTenantChange(e.target.value)}
               aria-label={t('components.filters.tenant')}
-              title={t('components.filters.tenant')}
+              {...tip(t('tips.chart.tenant'))}
             >
               {tenantAllowAll && <option value="">{t('components.filters.allTenants')}</option>}
               {tenants.map((tn) => (
@@ -136,6 +142,33 @@ export default function ActivityChart({
           )}
           <RangeTabs ranges={ranges} value={rangeId} onChange={onRangeChange} onRefresh={onRefresh} loading={loading} />
           <AutoRefreshSelect value={autoSecs} onChange={setAutoSecs} />
+          {buckets.length > 0 && (
+            <ExportMenu
+              title={title || t('views.home.requestActivity')}
+              testId={`export-${exportName}`}
+              fileName={(ext) => exportFileName(exportName, rangeId, { tenant: tenantId, ...exportFilters }, ext)}
+              csv={() => toCsv(['bucket_start_utc', 'bucket_end_utc', 'success', 'failure', 'total', 'average_duration_ms'], buckets.map((b) => [b.bucketStartUtc, b.bucketEndUtc, b.successCount, b.failureCount, b.successCount + b.failureCount, b.averageDurationMs]))}
+              json={() =>
+                JSON.stringify(
+                  { chart: exportName, title: title || t('views.home.requestActivity'), range: rangeId, filters: { tenant: tenantId || null, ...exportFilters }, exportedUtc: new Date().toISOString(), totals: { total: summary?.totalCount ?? 0, success: summary?.totalSuccess ?? 0, failure: summary?.totalFailure ?? 0 }, buckets },
+                  null,
+                  2
+                )
+              }
+              svg={() =>
+                svgRef.current
+                  ? buildChartSvg(svgRef.current, {
+                      title: title || t('views.home.requestActivity'),
+                      lines: [`${t(`components.chart.ranges.${rangeId}`)}: ${buckets[0]?.bucketStartUtc} / ${buckets[buckets.length - 1]?.bucketEndUtc}`, ...Object.entries({ tenant: tenantId, ...exportFilters }).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`)],
+                      legend: [
+                        { label: t('components.chart.success'), color: 'var(--color-success)' },
+                        { label: t('components.chart.failure'), color: 'var(--color-danger)' }
+                      ]
+                    })
+                  : ''
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -144,7 +177,7 @@ export default function ActivityChart({
         <div className="chart-empty" style={{ minHeight: Math.round(H / 2) }}>{t('components.chart.noData')}</div>
       ) : (
         <div className="chart-canvas">
-          <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} preserveAspectRatio="xMidYMid meet" role="img" aria-label={title || t('views.home.requestActivity')}>
+          <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width={W} height={H} preserveAspectRatio="xMidYMid meet" role="img" aria-label={title || t('views.home.requestActivity')}>
             {/* Y grid + labels */}
             {ticks.map((tick) => {
               const y = PAD_TOP + PLOT_H - (tick / axisMax) * PLOT_H;
