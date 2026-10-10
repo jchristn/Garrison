@@ -2,6 +2,7 @@ namespace Garrison.Core.Telemetry
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics.Metrics;
     using System.Net;
     using System.Net.Http;
     using System.Threading;
@@ -170,6 +171,25 @@ namespace Garrison.Core.Telemetry
         /// <param name="observe">Value callback.</param>
         /// <param name="unit">Unit.</param>
         public void Gauge(string name, Func<double> observe, string unit)
+        {
+            if (_Client == null) return;
+            try
+            {
+                _Client.RegisterGauge(name, observe, unit);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        /// <summary>
+        /// Register an observable gauge that reports one measurement per entity, each with its own tags (for example one
+        /// value per status).
+        /// </summary>
+        /// <param name="name">Metric name.</param>
+        /// <param name="observe">Callback returning the measurements; keep it fast and non-throwing.</param>
+        /// <param name="unit">Unit.</param>
+        public void Gauge(string name, Func<IEnumerable<Measurement<double>>> observe, string unit)
         {
             if (_Client == null) return;
             try

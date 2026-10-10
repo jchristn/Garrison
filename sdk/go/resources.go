@@ -134,6 +134,27 @@ func (g *GlobalResource) Action(ctx context.Context, id, action string, out any)
 	return g.c.Do(ctx, http.MethodPost, g.path+"/"+url.PathEscape(id)+"/"+action, nil, nil, out)
 }
 
+// ControlNodesClient reads control-plane replicas (control nodes). Read-only: each replica maintains its own record.
+type ControlNodesClient struct{ c *Client }
+
+// List returns a page of control nodes and the node ID of the replica that answered.
+func (n *ControlNodesClient) List(ctx context.Context, opts *ListOptions) (*ControlNodeList, error) {
+	var out ControlNodeList
+	if err := n.c.Do(ctx, http.MethodGet, "/v1.0/api/control-nodes", opts.values(), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Get reads one control node by its node ID.
+func (n *ControlNodesClient) Get(ctx context.Context, id string) (*ControlNode, error) {
+	var out ControlNode
+	if err := n.c.Do(ctx, http.MethodGet, "/v1.0/api/control-nodes/"+url.PathEscape(id), nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // ManifestsClient applies and exports declarative manifests.
 type ManifestsClient struct{ c *Client }
 

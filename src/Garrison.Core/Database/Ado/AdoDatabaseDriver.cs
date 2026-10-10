@@ -122,6 +122,7 @@ namespace Garrison.Core.Database.Ado
             RateLimits = new AdoRateLimitBucketMethods(this);
             McpSessions = new AdoMcpSessionMethods(this);
             BackplaneMessages = new AdoBackplaneMessageMethods(this);
+            ControlNodes = new AdoControlNodeMethods(this);
         }
 
         #endregion

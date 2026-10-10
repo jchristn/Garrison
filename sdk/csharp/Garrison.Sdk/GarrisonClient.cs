@@ -145,6 +145,11 @@ namespace Garrison.Sdk
         public NodesClient Nodes { get; }
 
         /// <summary>
+        /// Control-plane replicas (control nodes).
+        /// </summary>
+        public ControlNodesClient ControlNodes { get; }
+
+        /// <summary>
         /// Node pools.
         /// </summary>
         public NodePoolsClient NodePools { get; }
@@ -202,6 +207,7 @@ namespace Garrison.Sdk
             Runs = new RunsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);
+            ControlNodes = new ControlNodesClient(Transport);
             NodePools = new NodePoolsClient(Transport);
             RequestHistory = new RequestHistoryClient(Transport);
             Audit = new AuditClient(Transport);

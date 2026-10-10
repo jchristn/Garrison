@@ -89,6 +89,7 @@ Every piece of state a replica keeps in memory, and why it is safe with several 
 | Run gauges (`garrison_runs_queued`, `garrison_runs_active`) | Per replica, refreshed every 10 seconds | Every replica reports the same cluster-wide counts; aggregate with `max`, not `sum` |
 | Request history capture queue | Per replica, flushed to the database in the background | Entries not yet flushed are lost if the replica crashes; a graceful shutdown flushes them |
 | Leader state | Per replica | By design; fenced by the lease epoch |
+| Control node activity counters (open streams, held long polls, requests in flight) | Per replica | By design: each replica writes its own counters into its own `control_nodes` row on every heartbeat |
 | Template parse cache | Per process, keyed by template text | Content-addressed, so never stale |
 | MCP tool descriptions | Loaded at startup | They come from protected built-in templates that only change with a release, and every replica loads the same text |
 | Operation scope map and routes | Per process | Identical on every replica |
@@ -102,6 +103,23 @@ REST, A2A, SSE, WebSocket, MCP, and node protocol traffic need no affinity.
 A starting replica first answers on its REST port with a small startup listener: `GET /v1.0/api/health/live` answers 200 and everything else 503 (`starting`) while it waits for the startup lock, migrates, and seeds. Then the real listener takes the port. Readiness (`GET /v1.0/api/health` or `/v1.0/api/health/ready`) answers 200 only when the database answers, its schema is at least the version this build needs, and the replica is not draining. Point the readiness probe at `/v1.0/api/health/ready` and the liveness probe at `/v1.0/api/health/live`, so a long migration or a database outage never restarts a pod.
 
 On SIGTERM a replica drains: readiness answers 503 (`draining`) at once, waiting lease long polls return empty so their workers re-poll another replica, SSE streams send `server.draining` and close (an `EventSource` reconnects elsewhere and resumes with `Last-Event-ID`), A2A streams, WebSockets, and synchronous waits end, and in-flight requests get up to 15 seconds. Then background work and the listeners stop. The whole sequence fits a 30-second termination grace period.
+
+### Seeing the replicas: control nodes
+
+Every replica keeps one row in `control_nodes` (migration 7) about itself, the way a worker keeps its row in `nodes`, so an operator can see the control plane next to the workers. `GET /v1.0/api/control-nodes` lists the rows (Read on `Node`, the same permission as worker nodes; see `REST_API.md`), and the overview adds `controlNodesByStatus` and `leaderNodeId`.
+
+| Column | What it shows |
+|---|---|
+| `id`, `name` | The replica's node ID: `GARRISON_NODE_ID`, which the Kubernetes manifests set to the pod name, otherwise the host name |
+| `hostname`, `address` | Where the replica runs: host name, and IP address with the REST port |
+| `version`, `schemaVersion` | The server build, and the schema version it found at startup. During a rolling upgrade, old and new replicas show different versions side by side |
+| `backplane` | `Local`, `Polling`, or `PostgresNotify`, after `Auto` is resolved |
+| `status` | `Starting` from the moment the database is migrated until the listener serves; `Ready` while serving; `Draining` as soon as SIGTERM arrives; `Offline` after a clean exit, or when the leader finds the row silent for `ControlPlane.OfflineAfterMs` (30 seconds) |
+| `startedUtc`, `lastHeartbeatUtc` | Process start (uptime) and the last heartbeat. Rows are heartbeated every `ControlPlane.HeartbeatIntervalMs` (5 seconds) |
+| `activeRequests`, `openStreams`, `heldLongPolls` | At the last heartbeat: HTTP requests in flight, open SSE streams and WebSocket connections, and worker lease long polls being held. A replica that is about to drain with many open streams will push that many reconnects to the others |
+| `isLeader`, `leaderEpoch` | Not stored: computed from the `garrison-leader` row in `coordination_leases` when the response is built, so exactly one row shows `isLeader` while a replica holds an unexpired lease, whichever replica answers |
+
+Every response also carries `respondingNodeId`, the replica that answered, which makes it easy to see the load balancer spreading requests. The leader deletes rows that have been `Offline` for `ControlPlane.OfflineRetentionHours` (24), so pods replaced by a rollout disappear a day later. A heartbeat rewrites the whole row, so a replica the leader marked `Offline` during a long pause comes back as `Ready` on its next heartbeat. Prometheus gets the same picture as `garrison_control_nodes` by `status`; like the run gauges, every replica reports the cluster-wide counts.
 
 ### What limits a replica
 
@@ -142,6 +160,8 @@ All of these are cluster settings and apply live.
 | `Scheduling.NodeHeartbeatTimeoutMs` | 20000 | Same, for whole nodes | Same |
 | `Scheduling.LeaseWaitMs` | 20000 | Fewer lease requests from idle workers | Faster reaction when a replica's wake-up is missed |
 | `Scheduling.EventPollMs` | 250 | Less database load from streams | Lower streaming latency |
+| `ControlPlane.HeartbeatIntervalMs` | 5000 | Fewer control node writes | Fresher activity counters |
+| `ControlPlane.OfflineAfterMs` | 30000 | Fewer false `Offline` rows on a slow database | A crashed replica shows `Offline` sooner |
 
 Workers heartbeat every 5 seconds by default, and the server's registration response tells them the heartbeat interval and lease wait to use.
 

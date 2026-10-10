@@ -9,6 +9,7 @@ namespace Garrison.Server
     using Garrison.Server.Backplane;
     using Garrison.Server.Modules;
     using Garrison.Server.Routes;
+    using Garrison.Server.Runtime;
     using Garrison.Server.Services;
     using Radiant;
     using WatsonWebserver;
@@ -85,6 +86,17 @@ namespace Garrison.Server
         }
 
         /// <summary>
+        /// This replica's control node registration and heartbeat (P10.19).
+        /// </summary>
+        public ControlNodeService ControlNode
+        {
+            get
+            {
+                return _ControlNode;
+            }
+        }
+
+        /// <summary>
         /// Invoked just before the REST listener starts (the bootstrapper uses it to stop its startup health listener).
         /// Null by default.
         /// </summary>
@@ -110,6 +122,7 @@ namespace Garrison.Server
         private readonly RouteRegistrar _Routes;
         private readonly List<IServerModule> _Modules;
         private readonly IEventBackplane _Backplane;
+        private readonly ControlNodeService _ControlNode;
         private readonly bool _OwnsBackplane = false;
         private readonly CancellationTokenSource _Stopping = new CancellationTokenSource();
         private readonly string _Header = "[GarrisonServer] ";
@@ -158,6 +171,10 @@ namespace Garrison.Server
             }
             _Backplane = backplane;
 
+            _ControlNode = new ControlNodeService(context, _Backplane.Name);
+            _ControlNode.ActiveRequests = () => _InFlight.Count;
+            context.Register(_ControlNode);
+
             _Routes = new RouteRegistrar(_Server, context.Authorization, context.Database, context.Scopes, context.Logging);
             if (context.Settings.Rest.CorsOrigins.Count > 0) _CorsOrigin = String.Join(" ", context.Settings.Rest.CorsOrigins);
         }
@@ -174,6 +191,9 @@ namespace Garrison.Server
         public async Task StartAsync(CancellationToken token = default)
         {
             ConfigureServer();
+
+            // The control node row shows Starting until the replica serves, then Ready (P10.19).
+            await _ControlNode.RegisterAsync(token).ConfigureAwait(false);
 
             foreach (IServerModule module in _Modules)
             {
@@ -195,6 +215,10 @@ namespace Garrison.Server
             {
                 await module.StartAsync(_Context, _Stopping.Token).ConfigureAwait(false);
             }
+
+            RuntimeOptions? options = _Context.TryGet<RuntimeOptions>();
+            if (options != null) _ControlNode.HeartbeatIntervalMs = () => options.ControlNodeHeartbeatMs;
+            await _ControlNode.StartAsync(_Stopping.Token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -210,6 +234,7 @@ namespace Garrison.Server
             // background work and the listener stop.
             _Context.BeginShutdown();
             _Context.Logging.Info(_Header + "draining (" + _InFlight.Count + " requests in flight)");
+            await _ControlNode.MarkDrainingAsync(token).ConfigureAwait(false);
             DateTime graceEnds = DateTime.UtcNow.AddMilliseconds(_ShutdownGraceMs);
             while (!_InFlight.IsEmpty && DateTime.UtcNow < graceEnds && !token.IsCancellationRequested)
             {
@@ -243,6 +268,9 @@ namespace Garrison.Server
             {
                 _Context.Logging.Warn(_Header + "error stopping the backplane: " + e.Message);
             }
+
+            // A clean stop leaves the control node row Offline; the leader deletes it after the retention period.
+            await _ControlNode.StopAsync(token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -268,6 +296,7 @@ namespace Garrison.Server
             if (disposing)
             {
                 _Stopping.Dispose();
+                _ControlNode.Dispose();
                 if (_Server is IDisposable disposable) disposable.Dispose();
                 if (_OwnsBackplane) _Backplane.Dispose();
             }

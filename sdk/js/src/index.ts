@@ -32,6 +32,36 @@ export interface EnumerationQuery {
 
 export interface TokenResponse { token: string; expiresUtc: string; tenantId?: string; sessionId: string; principalType: string; }
 
+/** Control-plane replica status. */
+export type ControlNodeStatus = "Starting" | "Ready" | "Draining" | "Offline";
+
+/** A control-plane replica (control node). isLeader and leaderEpoch come from the coordination lease. */
+export interface ControlNode extends Json {
+  id: string;
+  name: string;
+  hostname?: string;
+  address?: string;
+  version?: string;
+  schemaVersion: number;
+  backplane?: string;
+  status: ControlNodeStatus;
+  startedUtc: string;
+  lastHeartbeatUtc: string;
+  activeRequests: number;
+  openStreams: number;
+  heldLongPolls: number;
+  isLeader: boolean;
+  /** Present on the leader only. */
+  leaderEpoch?: number;
+  /** Node ID of the replica that answered; present on single-record reads. */
+  respondingNodeId?: string;
+}
+
+/** A page of control nodes, with the node ID of the replica that answered. */
+export interface ControlNodeListResponse extends EnumerationResult<ControlNode> {
+  respondingNodeId: string;
+}
+
 export interface Agent extends Json {
   id: string; tenantId: string; name: string; displayName?: string; description?: string; kind?: string;
   delegationMode?: string; skills?: Json[]; tags?: string[];
@@ -565,6 +595,13 @@ export class Nodes extends GlobalResource {
   drain(id: string): Promise<Json> { return this.t.request("POST", `${this.path}/${seg(id)}/drain`); }
 }
 
+/** Control-plane replicas (control nodes). Read-only: each replica maintains its own record. */
+export class ControlNodes {
+  constructor(private readonly t: Transport) {}
+  list(query?: EnumerationQuery): Promise<ControlNodeListResponse> { return this.t.request("GET", "/v1.0/api/control-nodes", query as any); }
+  get(id: string): Promise<ControlNode> { return this.t.request("GET", `/v1.0/api/control-nodes/${seg(id)}`); }
+}
+
 export class RequestHistory {
   constructor(private readonly t: Transport) {}
   list(filter: Json = {}): Promise<Json> { return this.t.request("GET", "/v1.0/api/request-history", filter); }
@@ -613,6 +650,7 @@ export class GarrisonClient {
   readonly runs: Runs;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
+  readonly controlNodes: ControlNodes;
   readonly nodePools: GlobalResource;
   readonly requestHistory: RequestHistory;
   readonly audit: Audit;
@@ -640,6 +678,7 @@ export class GarrisonClient {
     this.runs = new Runs(t);
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");
+    this.controlNodes = new ControlNodes(t);
     this.nodePools = new GlobalResource(t, "/v1.0/api/node-pools");
     this.requestHistory = new RequestHistory(t);
     this.audit = new Audit(t);

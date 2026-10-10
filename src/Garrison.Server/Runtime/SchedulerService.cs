@@ -33,6 +33,11 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public CancellationToken ShutdownToken { get; set; } = CancellationToken.None;
 
+        /// <summary>
+        /// Activity counters that record lease long polls while they wait, or null (the default) to not count them.
+        /// </summary>
+        public ControlNodeActivity? Activity { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -99,27 +104,42 @@ namespace Garrison.Server.Runtime
             // Read the queue signal's version before looking for work, so a run queued (on any replica) while this
             // claim pass runs wakes the wait below at once instead of being slept through.
             long seen = _Signals.QueueChanged.Version;
-            while (true)
+            ControlNodeActivity? activity = Activity;
+            bool holding = false;
+            try
             {
-                token.ThrowIfCancellationRequested();
-                List<RunAssignment> claimed = await ClaimAsync(node, maxRuns - response.Assignments.Count, token).ConfigureAwait(false);
-                response.Assignments.AddRange(claimed);
-                if (response.Assignments.Count > 0) return response;
-
-                int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
-                if (remaining <= 0) return response;
-                using (CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(token, ShutdownToken))
+                while (true)
                 {
-                    try
+                    token.ThrowIfCancellationRequested();
+                    List<RunAssignment> claimed = await ClaimAsync(node, maxRuns - response.Assignments.Count, token).ConfigureAwait(false);
+                    response.Assignments.AddRange(claimed);
+                    if (response.Assignments.Count > 0) return response;
+
+                    int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
+                    if (remaining <= 0) return response;
+                    if (!holding && activity != null)
                     {
-                        await _Signals.QueueChanged.WaitAsync(seen, Math.Min(remaining, _Options.LeasePollMs), wait.Token).ConfigureAwait(false);
+                        // Counted only once the request actually waits (reported in the control node heartbeat).
+                        activity.LongPollStarted();
+                        holding = true;
                     }
-                    catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested && !token.IsCancellationRequested)
+                    using (CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(token, ShutdownToken))
                     {
-                        return response;
+                        try
+                        {
+                            await _Signals.QueueChanged.WaitAsync(seen, Math.Min(remaining, _Options.LeasePollMs), wait.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested && !token.IsCancellationRequested)
+                        {
+                            return response;
+                        }
                     }
+                    seen = _Signals.QueueChanged.Version;
                 }
-                seen = _Signals.QueueChanged.Version;
+            }
+            finally
+            {
+                if (holding && activity != null) activity.LongPollEnded();
             }
         }
 

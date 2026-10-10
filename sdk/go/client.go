@@ -102,6 +102,7 @@ type Client struct {
 	Runs                       *RunsClient
 	Analytics                  *AnalyticsClient
 	Nodes                      *GlobalResource
+	ControlNodes               *ControlNodesClient
 	NodePools                  *GlobalResource
 }
 
@@ -131,6 +132,7 @@ func NewClient(baseURL string) *Client {
 	c.Runs = &RunsClient{c: c, PollInterval: 500 * time.Millisecond}
 	c.Analytics = &AnalyticsClient{c: c}
 	c.Nodes = &GlobalResource{c: c, path: "/v1.0/api/nodes"}
+	c.ControlNodes = &ControlNodesClient{c: c}
 	c.NodePools = &GlobalResource{c: c, path: "/v1.0/api/node-pools"}
 	return c
 }

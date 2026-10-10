@@ -152,6 +152,9 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Runs.RetentionDays` | `30` | 1 to 3650 | How long finished runs are kept |
 | `Runs.EventRetentionDays` | `14` | 1 to 3650 | How long run events are kept. With `Archive.Directory` set, removed runs and events are archived first (see `docs/SCALING.md`) |
 | `Runtime.FailBlockedAfterSeconds` | `0` | 0 to 604800 | How long a queued run may wait while no Ready worker can run it (its `blockedReason` is not null) before the leader fails it with outcome `NoCapableWorker`. The clock starts when the leader first sees the run blocked. `0` means wait forever |
+| `ControlPlane.HeartbeatIntervalMs` | `5000` | 1000 to 60000 | How often each control-plane replica heartbeats its row in `control_nodes` (status, activity counters) |
+| `ControlPlane.OfflineAfterMs` | `30000` | 5000 to 600000 | Silence after which the leader marks a control-plane replica `Offline`. Keep it several heartbeat intervals long |
+| `ControlPlane.OfflineRetentionHours` | `24` | 1 to 8760 | How long an `Offline` control-plane replica stays listed (counted from its last heartbeat) before the leader deletes its row |
 | `Audit.RetentionDays` | `365` | 1 to 3650 | How long audit records are kept |
 | `RequestHistory.Enabled` | `true` | | Capture HTTP requests |
 | `RequestHistory.RetentionDays` | `30` | 1 to 3650 | How long captured requests are kept |

@@ -47,6 +47,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "polling-backplane", "The polling backplane delivers between two instances, not to the sender (" + provider + ")", ct => PollingBackplaneAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "idempotent-create", "Concurrent creates with one idempotency key insert one run (" + provider + ")", ct => IdempotentCreateAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "retention-archive", "Retention archives runs with their events and old events to JSON Lines before deleting them (" + provider + ")", ct => ArchiveAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "control-nodes", "Control node rows upsert, enumerate, count by status, go Offline when silent, and are deleted after the Offline retention (" + provider + ")", ct => ControlNodesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "shared-state-cleanup", "The leader's cleanup removes expired nonces, buckets, sessions, and old backplane messages (" + provider + ")", ct => CleanupAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Scale-out data layer (" + provider + ")", cases));
             }
@@ -457,6 +458,80 @@ namespace Test.Shared.Suites
                 }
                 Assert.True(!await db.Nonces.TryUseAsync("live-nonce", now.AddMinutes(10), token).ConfigureAwait(false), "Live nonces survive cleanup");
                 Assert.Equal(0, (await db.BackplaneMessages.ListAfterAsync(0, 10, token).ConfigureAwait(false)).Count, "Old backplane messages removed");
+            }
+        }
+
+        private static ControlNode NewControlNode(string id, ControlNodeStatusEnum status, DateTime heartbeatUtc)
+        {
+            ControlNode node = new ControlNode();
+            node.Id = id;
+            node.Name = id;
+            node.Hostname = "host-" + id;
+            node.Address = "127.0.0.1:8700";
+            node.Version = "0.1.0-alpha";
+            node.SchemaVersion = SchemaBuilder.LatestVersion;
+            node.Backplane = "Local";
+            node.Status = status;
+            node.StartedUtc = heartbeatUtc.AddMinutes(-5);
+            node.LastHeartbeatUtc = heartbeatUtc;
+            node.ActiveRequests = 3;
+            node.OpenStreams = 2;
+            node.HeldLongPolls = 1;
+            return node;
+        }
+
+        private static async Task ControlNodesAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                DateTime now = DateTime.UtcNow;
+                await db.ControlNodes.UpsertAsync(NewControlNode("cn-live", ControlNodeStatusEnum.Starting, now), token).ConfigureAwait(false);
+                ControlNode live = NewControlNode("cn-live", ControlNodeStatusEnum.Ready, now);
+                live.ActiveRequests = 7;
+                await db.ControlNodes.UpsertAsync(live, token).ConfigureAwait(false);
+                await db.ControlNodes.UpsertAsync(NewControlNode("cn-silent", ControlNodeStatusEnum.Ready, now.AddMinutes(-2)), token).ConfigureAwait(false);
+                await db.ControlNodes.UpsertAsync(NewControlNode("cn-gone", ControlNodeStatusEnum.Offline, now.AddHours(-30)), token).ConfigureAwait(false);
+                await db.ControlNodes.UpsertAsync(NewControlNode("cn-draining", ControlNodeStatusEnum.Ready, now), token).ConfigureAwait(false);
+                Assert.True(await db.ControlNodes.SetStatusAsync("cn-draining", ControlNodeStatusEnum.Draining, now, token).ConfigureAwait(false), "Set status");
+
+                ControlNode read = Assert.NotNull(await db.ControlNodes.ReadAsync("cn-live", token).ConfigureAwait(false), "Live control node");
+                Assert.Equal(ControlNodeStatusEnum.Ready, read.Status, "Upsert replaces the status");
+                Assert.Equal(7, read.ActiveRequests, "Upsert replaces the activity");
+                Assert.Equal(2, read.OpenStreams, "Open streams");
+                Assert.Equal(1, read.HeldLongPolls, "Held long polls");
+                Assert.Equal("host-cn-live", read.Hostname ?? String.Empty, "Hostname");
+                Assert.Equal(SchemaBuilder.LatestVersion, read.SchemaVersion, "Schema version");
+                Assert.Equal(DateTimeKind.Utc, read.LastHeartbeatUtc.Kind, "Heartbeat kind");
+                Assert.True(Math.Abs((read.LastHeartbeatUtc - now).TotalSeconds) < 1, "Heartbeat round-trips");
+
+                Garrison.Core.Enumeration.EnumerationQuery query = new Garrison.Core.Enumeration.EnumerationQuery();
+                query.Ordering = EnumerationOrderEnum.NameAscending;
+                Garrison.Core.Enumeration.EnumerationResult<ControlNode> page = await db.ControlNodes.EnumerateAsync(query, token).ConfigureAwait(false);
+                Assert.Equal(4L, page.TotalRecords, "Total control nodes");
+                Assert.Equal("cn-draining,cn-gone,cn-live,cn-silent", String.Join(",", page.Objects.Select(n => n.Id)), "Name ordering");
+                query.Search = "SILENT";
+                Assert.Equal(1L, (await db.ControlNodes.EnumerateAsync(query, token).ConfigureAwait(false)).TotalRecords, "Search by name");
+
+                List<string> marked = await db.ControlNodes.MarkSilentOfflineAsync(now.AddSeconds(-30), token).ConfigureAwait(false);
+                Assert.Equal("cn-silent", String.Join(",", marked), "Only the silent row goes Offline");
+                ControlNode silent = Assert.NotNull(await db.ControlNodes.ReadAsync("cn-silent", token).ConfigureAwait(false), "Silent control node");
+                Assert.Equal(ControlNodeStatusEnum.Offline, silent.Status, "Silent row status");
+                Assert.Equal(0, silent.ActiveRequests + silent.OpenStreams + silent.HeldLongPolls, "An Offline row reports no activity");
+
+                Dictionary<string, long> counts = (await db.ControlNodes.CountByStatusAsync(token).ConfigureAwait(false)).ToDictionary(c => c.Status, c => c.Count);
+                Assert.Equal(1L, counts["Ready"], "Ready count");
+                Assert.Equal(1L, counts["Draining"], "Draining count");
+                Assert.Equal(2L, counts["Offline"], "Offline count");
+
+                // The leader's cleanup deletes rows Offline for longer than the retention (24 hours by default) only.
+                using (GarrisonTelemetry telemetry = new GarrisonTelemetry(new TelemetrySettings { Enabled = false }, "test", null))
+                using (MaintenanceService maintenance = new MaintenanceService(db, new FixedLeader(), new RunSignals(), new RuntimeOptions(), telemetry, QuietLogging()))
+                {
+                    await maintenance.CleanupSharedStateAsync(token).ConfigureAwait(false);
+                }
+                Assert.True(await db.ControlNodes.ReadAsync("cn-gone", token).ConfigureAwait(false) == null, "A row Offline for 30 hours is deleted");
+                Assert.True(await db.ControlNodes.ReadAsync("cn-silent", token).ConfigureAwait(false) != null, "A row Offline for 2 minutes is kept");
+                Assert.True(await db.ControlNodes.DeleteAsync("cn-silent", token).ConfigureAwait(false), "Delete");
             }
         }
     }

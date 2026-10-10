@@ -8,6 +8,7 @@ namespace Garrison.Server
     using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Routes;
+    using Garrison.Server.Runtime;
     using Garrison.Server.Services;
     using Garrison.Server.Settings;
     using SyslogLogging;
@@ -97,6 +98,11 @@ namespace Garrison.Server
                 return _Shutdown.Token;
             }
         }
+
+        /// <summary>
+        /// Activity counters (open streams, held long polls) reported in this replica's control node heartbeat.
+        /// </summary>
+        public ControlNodeActivity Activity { get; } = new ControlNodeActivity();
 
         /// <summary>
         /// Whether the replica is shutting down (readiness then answers 503).

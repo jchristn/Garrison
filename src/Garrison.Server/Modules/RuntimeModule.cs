@@ -75,6 +75,7 @@ namespace Garrison.Server.Modules
             _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation);
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
             _Scheduler.ShutdownToken = context.Stopping;
+            _Scheduler.Activity = context.Activity;
             _Leader = new LeaderElectionService(context.Database, _Options, context.Logging, context.NodeId);
             _Blocked = new BlockedRunService(context.Database);
             _Maintenance = new MaintenanceService(context.Database, _Leader, _Signals, _Options, context.Telemetry, context.Logging);
@@ -112,6 +113,7 @@ namespace Garrison.Server.Modules
             new AnalyticsRoutes(_Analytics!).Register(routes);
             new NodeProtocolRoutes(context, _Nodes!, _Scheduler!, _Events!).Register(routes);
             new NodeRoutes(context).Register(routes);
+            new ControlNodeRoutes(context).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             WatsonWebserver.Webserver server = context.Get<WatsonWebserver.Webserver>();
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
@@ -206,6 +208,9 @@ namespace Garrison.Server.Modules
             _Options.EventPollMs = cluster.GetInt("Scheduling.EventPollMs");
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
             _Options.FailBlockedAfterSeconds = cluster.GetInt("Runtime.FailBlockedAfterSeconds");
+            _Options.ControlNodeHeartbeatMs = cluster.GetInt("ControlPlane.HeartbeatIntervalMs");
+            _Options.ControlNodeOfflineAfterMs = cluster.GetInt("ControlPlane.OfflineAfterMs");
+            _Options.ControlNodeOfflineRetentionHours = cluster.GetInt("ControlPlane.OfflineRetentionHours");
         }
 
         private async Task RefreshLoopAsync(ClusterSettingsService cluster, CancellationToken token)

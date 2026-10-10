@@ -5800,6 +5800,85 @@
       ]
     },
     {
+      "name": "Control Nodes",
+      "description": "Control-plane replicas (Command). Each replica registers and heartbeats its own row, so these routes are read-only. Needs Read on Node, like worker nodes. Every response names the replica that answered in `respondingNodeId`.",
+      "item": [
+        {
+          "name": "List control nodes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/control-nodes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "control-nodes"
+              ]
+            },
+            "description": "Lists control-plane replicas with status, version, schema version, backplane, heartbeat, activity, and the leader flag computed from the coordination lease."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('respondingNodeId is set', function () { pm.expect(body.respondingNodeId).to.be.a('string').and.not.empty; });",
+                  "pm.test('at least one replica is Ready', function () { pm.expect(body.objects.filter(n => n.status === 'Ready').length).to.be.above(0); });",
+                  "pm.test('exactly one replica leads', function () { pm.expect(body.objects.filter(n => n.isLeader === true).length).to.eql(1); });",
+                  "pm.test('the leader carries its epoch', function () { const leader = body.objects.find(n => n.isLeader === true); pm.expect(leader.leaderEpoch).to.be.above(0); });",
+                  "pm.test('the answering replica is listed', function () { pm.expect(body.objects.map(n => n.id)).to.include(body.respondingNodeId); });",
+                  "pm.collectionVariables.set('controlNodeId', body.respondingNodeId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read control node",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/control-nodes/{{controlNodeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "control-nodes",
+                "{{controlNodeId}}"
+              ]
+            },
+            "description": "Reads one control-plane replica by node ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const node = pm.response.json();",
+                  "pm.test('id matches', function () { pm.expect(node.id).to.eql(pm.collectionVariables.get('controlNodeId')); });",
+                  "pm.test('status is a control node status', function () { pm.expect(['Starting', 'Ready', 'Draining', 'Offline']).to.include(node.status); });",
+                  "pm.test('respondingNodeId is set', function () { pm.expect(node.respondingNodeId).to.be.a('string').and.not.empty; });",
+                  "pm.test('activity counters are numbers', function () { pm.expect(node.activeRequests).to.be.a('number'); pm.expect(node.openStreams).to.be.a('number'); pm.expect(node.heldLongPolls).to.be.a('number'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Node Protocol",
       "description": "The calls a worker makes, performed here by hand as a pretend node named `postman-node-...`. It registers with the label the node-protocol deployment requires, leases the queued run, reports it started, sends events, and completes it. Authenticated with the node credential.",
       "item": [
@@ -9360,6 +9439,10 @@
     },
     {
       "key": "nodeId",
+      "value": ""
+    },
+    {
+      "key": "controlNodeId",
       "value": ""
     },
     {

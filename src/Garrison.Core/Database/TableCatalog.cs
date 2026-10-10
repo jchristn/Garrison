@@ -103,6 +103,7 @@ namespace Garrison.Core.Database
                 "rate_limit_buckets",
                 "mcp_sessions",
                 "backplane_messages",
+                "control_nodes",
         };
 
         private readonly SqlDialect _Dialect;

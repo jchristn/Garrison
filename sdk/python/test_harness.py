@@ -198,6 +198,21 @@ def t_list_runs():
     require(all(r["agentId"] == state["agent"] for r in page["objects"]), "foreign runs")
 
 
+def t_control_nodes():
+    page = client.control_nodes.list()
+    assert page.get("respondingNodeId"), "respondingNodeId empty"
+    nodes = page["objects"]
+    assert any(n["status"] == "Ready" for n in nodes), f"no Ready control node among {len(nodes)}"
+    leaders = [n for n in nodes if n.get("isLeader")]
+    assert len(leaders) == 1, f"leaders {len(leaders)}"
+    read = client.control_nodes.get(nodes[0]["id"])
+    assert read["id"] == nodes[0]["id"], f"read id {read['id']}"
+    assert read.get("respondingNodeId") == page["respondingNodeId"], f"read respondingNodeId {read.get('respondingNodeId')}"
+    overview = client.overview()
+    assert any(c["status"] == "Ready" and c["count"] >= 1 for c in overview.get("controlNodesByStatus", [])), "overview controlNodesByStatus"
+    assert overview.get("leaderNodeId"), "overview leaderNodeId empty"
+
+
 def t_cleanup():
     if "deployment" in state:
         client.deployments.delete(state["deployment"])
@@ -220,7 +235,8 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("run analytics grouped by harness and model", t_analytics_harness_model),
                  ("run analytics dimensions", t_analytics_dimensions), ("run analytics filtered by model", t_analytics_model),
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
-                 ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs), ("cleanup", t_cleanup)]:
+                 ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs), ("control nodes", t_control_nodes),
+                 ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

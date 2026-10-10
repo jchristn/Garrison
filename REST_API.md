@@ -2689,7 +2689,7 @@ Response:
 
 #### `GET /v1.0/api/tenants/{tenantId}/overview`
 
-Tenant overview for the Home page. `queued` counts every queued run; `blockedRuns` counts the queued runs whose `blockedReason` is not null (no Ready worker can run them right now). See [Blocked runs](#blocked-runs-blockedreason).
+Tenant overview for the Home page. `queued` counts every queued run; `blockedRuns` counts the queued runs whose `blockedReason` is not null (no Ready worker can run them right now). See [Blocked runs](#blocked-runs-blockedreason). `nodesByStatus` counts worker nodes and `controlNodesByStatus` counts control-plane replicas, each as `[{ "status": "Ready", "count": 2 }]`; both are cluster-wide. `leaderNodeId` names the replica that holds the maintenance leader lease, and is omitted when no replica holds an unexpired lease.
 
 | | |
 |---|---|
@@ -2905,6 +2905,100 @@ Delete an empty node pool.
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/node-pools/{id}" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Control Nodes
+
+Control nodes are the control-plane replicas (Command). Each replica registers its own row when it starts and heartbeats it every 5 seconds (`ControlPlane.HeartbeatIntervalMs`), so these routes are read-only. A row moves through `Starting` (initializing), `Ready` (serving), `Draining` (shutdown has begun: readiness answers 503 and streams and long polls are ending), and `Offline` (stopped cleanly, or silent for 30 seconds, `ControlPlane.OfflineAfterMs`, and marked by the leader). The leader deletes rows that have been `Offline` for 24 hours (`ControlPlane.OfflineRetentionHours`).
+
+| Field | Meaning |
+|---|---|
+| `id`, `name` | The replica's node ID (`GARRISON_NODE_ID`, the pod name in Kubernetes) |
+| `hostname`, `address` | Host name, and IP address with the REST port |
+| `version`, `schemaVersion` | Server version, and the database schema version the replica found at startup |
+| `backplane` | Event backplane the replica runs (`Local`, `Polling`, `PostgresNotify`) |
+| `status` | `Starting`, `Ready`, `Draining`, or `Offline` |
+| `startedUtc`, `lastHeartbeatUtc` | Process start and last heartbeat |
+| `activeRequests`, `openStreams`, `heldLongPolls` | At the last heartbeat: HTTP requests in flight, open SSE streams and WebSocket connections, and worker lease long polls being held |
+| `isLeader`, `leaderEpoch` | Computed from the coordination lease when the response is built: whether the replica holds the maintenance leader lease, and its fencing epoch (leader only) |
+| `respondingNodeId` | Node ID of the replica that answered (top level of the list, and on a single read) |
+
+#### `GET /v1.0/api/control-nodes`
+
+List control-plane replicas. Supports the [enumeration](#enumeration) query parameters; `search` matches the name, and the default ordering is newest start first.
+
+| | |
+|---|---|
+| Permission | Read on `Node` |
+| Response | `ControlNodeListResponse` (`EnumerationResult<ControlNode>` plus `respondingNodeId`) |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/control-nodes" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "respondingNodeId": "garrison-server-7d9f8c6b5-k2x4p",
+  "success": true,
+  "maxResults": 25,
+  "skip": 0,
+  "totalRecords": 2,
+  "recordsRemaining": 0,
+  "endOfResults": true,
+  "timestampUtc": "2026-10-10T22:09:09.328739Z",
+  "objects": [
+    {
+      "id": "garrison-server-7d9f8c6b5-k2x4p",
+      "name": "garrison-server-7d9f8c6b5-k2x4p",
+      "hostname": "garrison-server-7d9f8c6b5-k2x4p",
+      "address": "10.42.0.17:8700",
+      "version": "0.1.0-alpha",
+      "schemaVersion": 7,
+      "backplane": "PostgresNotify",
+      "status": "Ready",
+      "startedUtc": "2026-10-10T22:08:58.159396Z",
+      "lastHeartbeatUtc": "2026-10-10T22:09:08.362554Z",
+      "activeRequests": 1,
+      "openStreams": 2,
+      "heldLongPolls": 3,
+      "isLeader": true,
+      "leaderEpoch": 4
+    },
+    {
+      "id": "garrison-server-7d9f8c6b5-q8w2n",
+      "name": "garrison-server-7d9f8c6b5-q8w2n",
+      "hostname": "garrison-server-7d9f8c6b5-q8w2n",
+      "address": "10.42.0.18:8700",
+      "version": "0.1.0-alpha",
+      "schemaVersion": 7,
+      "backplane": "PostgresNotify",
+      "status": "Ready",
+      "startedUtc": "2026-10-10T22:08:57.902114Z",
+      "lastHeartbeatUtc": "2026-10-10T22:09:07.977031Z",
+      "activeRequests": 0,
+      "openStreams": 0,
+      "heldLongPolls": 1,
+      "isLeader": false
+    }
+  ]
+}
+```
+
+#### `GET /v1.0/api/control-nodes/{id}`
+
+Read a control-plane replica by node ID. The record carries `respondingNodeId`. Returns 404 when no replica has that ID.
+
+| | |
+|---|---|
+| Permission | Read on `Node` |
+| Response | `ControlNode` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/control-nodes/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 

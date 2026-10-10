@@ -86,6 +86,10 @@ namespace Garrison.Server.Routes
                 return count;
             }).ToList();
 
+            overview.ControlNodesByStatus = await _Context.Database.ControlNodes.CountByStatusAsync(context.Token).ConfigureAwait(false);
+            CoordinationLease? lease = await LeaderElectionService.ReadCurrentLeaseAsync(_Context.Database, context.Token).ConfigureAwait(false);
+            overview.LeaderNodeId = lease == null ? null : LeaderElectionService.NodeIdFromHolder(lease.Holder);
+
             List<Run> failures = new List<Run>();
             foreach (RunStatusEnum status in new[] { RunStatusEnum.Failed, RunStatusEnum.TimedOut })
             {

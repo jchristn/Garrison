@@ -289,6 +289,21 @@ namespace Garrison.Sdk.Test
                     Require(runs.Objects.All(r => r.AgentId == agentId), "foreign runs returned");
                 }).ConfigureAwait(false);
 
+                await CheckAsync("control nodes", async () =>
+                {
+                    ControlNodeListResponse list = await client.ControlNodes.ListAsync(null, token).ConfigureAwait(false);
+                    Require(!String.IsNullOrEmpty(list.RespondingNodeId), "respondingNodeId empty");
+                    Require(list.Objects.Any(n => n.Status == ControlNodeStatusEnum.Ready), "no Ready control node among " + list.Objects.Count);
+                    Require(list.Objects.Count(n => n.IsLeader) == 1, "leaders " + list.Objects.Count(n => n.IsLeader));
+                    ControlNode first = list.Objects[0];
+                    ControlNode read = await client.ControlNodes.GetAsync(first.Id, token).ConfigureAwait(false);
+                    Require(read.Id == first.Id, "read id " + read.Id);
+                    Require(read.RespondingNodeId == list.RespondingNodeId, "read respondingNodeId " + read.RespondingNodeId);
+                    OverviewResponse overview = await client.OverviewAsync(token).ConfigureAwait(false);
+                    Require(overview.ControlNodesByStatus.Any(c => c.Status == "Ready" && c.Count >= 1), "overview controlNodesByStatus");
+                    Require(!String.IsNullOrEmpty(overview.LeaderNodeId), "overview leaderNodeId empty");
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (deploymentId != null) await client.Deployments.DeleteAsync(deploymentId, token).ConfigureAwait(false);

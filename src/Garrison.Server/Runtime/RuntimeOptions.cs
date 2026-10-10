@@ -178,6 +178,56 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Interval at which this replica heartbeats its control node row, in milliseconds. Minimum 1000, maximum 60000,
+        /// default 5000. Refreshed from the cluster setting ControlPlane.HeartbeatIntervalMs.
+        /// </summary>
+        public int ControlNodeHeartbeatMs
+        {
+            get
+            {
+                return _ControlNodeHeartbeatMs;
+            }
+            set
+            {
+                _ControlNodeHeartbeatMs = Math.Clamp(value, 1000, 60000);
+            }
+        }
+
+        /// <summary>
+        /// A control node row with no heartbeat for this long is marked Offline by the leader, in milliseconds. Keep it
+        /// several heartbeat intervals long. Minimum 5000, maximum 600000, default 30000. Refreshed from the cluster
+        /// setting ControlPlane.OfflineAfterMs.
+        /// </summary>
+        public int ControlNodeOfflineAfterMs
+        {
+            get
+            {
+                return _ControlNodeOfflineAfterMs;
+            }
+            set
+            {
+                _ControlNodeOfflineAfterMs = Math.Clamp(value, 5000, 600000);
+            }
+        }
+
+        /// <summary>
+        /// Hours an Offline control node row is kept (counted from its last heartbeat) before the leader deletes it.
+        /// Minimum 1, maximum 8760 (one year), default 24. Refreshed from the cluster setting
+        /// ControlPlane.OfflineRetentionHours.
+        /// </summary>
+        public int ControlNodeOfflineRetentionHours
+        {
+            get
+            {
+                return _ControlNodeOfflineRetentionHours;
+            }
+            set
+            {
+                _ControlNodeOfflineRetentionHours = Math.Clamp(value, 1, 8760);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -193,6 +243,9 @@ namespace Garrison.Server.Runtime
         private int _MaintenanceIntervalMs = 2000;
         private int _LeaderLeaseMs = 15000;
         private int _FailBlockedAfterSeconds = 0;
+        private int _ControlNodeHeartbeatMs = 5000;
+        private int _ControlNodeOfflineAfterMs = 30000;
+        private int _ControlNodeOfflineRetentionHours = 24;
 
         #endregion
     }

@@ -54,6 +54,7 @@ Prometheus names are the OpenTelemetry names with dots replaced by underscores a
 | `garrison.mcp.tool.calls` | counter | `tool` | MCP tool calls |
 | `garrison.mcp.tool.results` | counter | `tool`, `result` (`ok`, `error`) | MCP tool outcomes |
 | `garrison.a2a.requests` | counter | `method` | A2A JSON-RPC requests |
+| `garrison.control_nodes` | gauge | `status` (`Starting`, `Ready`, `Draining`, `Offline`) | Control-plane replicas by status, refreshed on each control node heartbeat (5 seconds). Every replica reports the same cluster-wide counts, so aggregate with `max`, not `sum` |
 
 The scrape also includes .NET runtime and process metrics (`dotnet_*`, `process_*`), HTTP server metrics (`http_server_request_duration_seconds` and friends), and metrics from the libraries Garrison is built on (`watson_*` for the REST listener, `voltaic_*` for MCP).
 
@@ -66,6 +67,7 @@ The scrape also includes .NET runtime and process metrics (`dotnet_*`, `process_
 | Is there contention for work? | The `lost` share of `garrison_claims_total`. Some is normal with many workers |
 | Is a deployment throttled? | `garrison_claims_total{result="limit"}` |
 | How expensive are runs? | `garrison_harness_tokens` by harness, and `costUsd` on runs |
+| Are all control-plane replicas up? | `max(garrison_control_nodes{status="Ready"})` against the expected replica count, and `GET /v1.0/api/control-nodes` for which one is missing |
 | Is the API healthy? | `garrison_http_requests_total` by `status_class`, `http_server_request_duration_seconds` |
 
 ### Worker metrics

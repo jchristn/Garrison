@@ -18,11 +18,12 @@ namespace Garrison.Server.Runtime
 
     /// <summary>
     /// Leader-only maintenance: reclaims runs whose lease expired (requeue or fail with NodeLost), enforces run
-    /// deadlines as a backstop, marks silent nodes Lost (plan section 9.4), explains queued runs that no Ready
+    /// deadlines as a backstop, marks silent nodes Lost (plan section 9.4) and silent control-plane replicas Offline
+    /// (P10.19), explains queued runs that no Ready
     /// worker can run (one Warning run event per reason, and an optional failure after
     /// <see cref="RuntimeOptions.FailBlockedAfterSeconds"/>), applies run and event retention (archiving first when an
     /// <see cref="Archiver"/> is set), and deletes expired shared state (signed-request nonces, rate limit buckets, MCP
-    /// sessions, and old backplane messages). Thread-safe.
+    /// sessions, old backplane messages, and old Offline control nodes). Thread-safe.
     /// </summary>
     public class MaintenanceService : IDisposable
     {
@@ -216,6 +217,7 @@ namespace Garrison.Server.Runtime
             await ReapExpiredLeasesAsync(token).ConfigureAwait(false);
             await EnforceDeadlinesAsync(token).ConfigureAwait(false);
             await MarkLostNodesAsync(token).ConfigureAwait(false);
+            await MarkOfflineControlNodesAsync(token).ConfigureAwait(false);
             await CheckBlockedRunsAsync(token).ConfigureAwait(false);
         }
 
@@ -248,8 +250,9 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Delete expired signed-request nonces, rate limit buckets, and MCP sessions, and old backplane messages. Used
-        /// by the leader loop and by tests.
+        /// Delete expired signed-request nonces, rate limit buckets, and MCP sessions, old backplane messages, and control
+        /// node rows Offline for longer than <see cref="RuntimeOptions.ControlNodeOfflineRetentionHours"/>. Used by the
+        /// leader loop and by tests.
         /// </summary>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Rows deleted.</returns>
@@ -261,7 +264,8 @@ namespace Garrison.Server.Runtime
             deleted += await _Database.RateLimits.PruneExpiredAsync(now, token).ConfigureAwait(false);
             deleted += await _Database.McpSessions.PruneExpiredAsync(now, token).ConfigureAwait(false);
             deleted += await _Database.BackplaneMessages.PruneAsync(now.AddMinutes(-_BackplaneRetentionMinutes), token).ConfigureAwait(false);
-            if (deleted > 0) _Logging.Debug(_Header + "cleanup removed " + deleted + " expired nonces, rate limit buckets, MCP sessions, and backplane messages");
+            deleted += await _Database.ControlNodes.DeleteOfflineAsync(now.AddHours(-_Options.ControlNodeOfflineRetentionHours), token).ConfigureAwait(false);
+            if (deleted > 0) _Logging.Debug(_Header + "cleanup removed " + deleted + " expired nonces, rate limit buckets, MCP sessions, backplane messages, and old Offline control nodes");
             return deleted;
         }
 
@@ -308,6 +312,7 @@ namespace Garrison.Server.Runtime
                         await ReapExpiredLeasesAsync(token).ConfigureAwait(false);
                         await EnforceDeadlinesAsync(token).ConfigureAwait(false);
                         await MarkLostNodesAsync(token).ConfigureAwait(false);
+                        await MarkOfflineControlNodesAsync(token).ConfigureAwait(false);
                         if ((DateTime.UtcNow - _LastBlockedCheckUtc).TotalMilliseconds >= _BlockedCheckIntervalMs)
                         {
                             _LastBlockedCheckUtc = DateTime.UtcNow;
@@ -413,6 +418,15 @@ namespace Garrison.Server.Runtime
                 {
                     _Logging.Warn(_Header + "node " + node.Name + " missed heartbeats and is now Lost");
                 }
+            }
+        }
+
+        private async Task MarkOfflineControlNodesAsync(CancellationToken token)
+        {
+            List<string> marked = await _Database.ControlNodes.MarkSilentOfflineAsync(DateTime.UtcNow.AddMilliseconds(-_Options.ControlNodeOfflineAfterMs), token).ConfigureAwait(false);
+            foreach (string id in marked)
+            {
+                _Logging.Warn(_Header + "control-plane replica " + id + " missed heartbeats and is now Offline");
             }
         }
 

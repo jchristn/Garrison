@@ -35,6 +35,8 @@ Garrison is a control plane for headless agent harnesses. It accepts requests to
 | Dashboard | `dashboard/` | React operator console over the REST and WebSocket APIs |
 | SDKs | `sdk/` | C#, Python, JavaScript and TypeScript, and Go clients |
 
+Each control-plane replica registers itself in `control_nodes` and heartbeats it every 5 seconds with its status (`Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, and activity (requests in flight, open streams, held long polls), the way workers heartbeat their `nodes` rows. `GET /v1.0/api/control-nodes` shows both kinds of node side by side with the workers, marks the replica that holds the leader lease, and names the replica that answered (`respondingNodeId`). See `docs/SCALING.md`.
+
 The control plane is assembled from four modules, each registering its routes and services: identity (tenants, users, credentials, roles, permissions, assignments, sessions, audit, request history, settings), configuration (harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, agents, deployments, manifests), runtime (runs, nodes, node pools, the scheduler, the node protocol, maintenance, WebSocket), and protocols (MCP and A2A). All HTTP is served by Watson 7. MCP is answered by Voltaic on a loopback port behind a small Garrison relay on the MCP port, which maps cluster-wide MCP session identifiers to Voltaic's in-process sessions so that any replica can serve any MCP session.
 
 ## The life of a run
@@ -50,7 +52,7 @@ The control plane is assembled from four modules, each registering its routes an
 8. **Finished.** When the process exits, the worker classifies the outcome, reads the result, scrubs secrets, reports `complete`, and cleans up. The control plane stores the result, usage, cost, served model, exit code, and stderr tail, revokes the run token, and wakes anyone waiting.
 9. **Delivered.** A waiting invoke returns the run. Streaming clients receive the final event over SSE, WebSocket, or A2A streaming.
 
-Meanwhile the leader's maintenance loop (every 2 seconds) requeues or fails runs whose lease expired, enforces deadlines as a backstop to the worker, marks silent nodes `Lost`, and prunes old records. Every 5 seconds it also looks for blocked queued runs: the first time a run is blocked for a given reason it appends one `Warning` run event saying why (the event carries a marker in its raw JSON so a new leader does not repeat it), and when the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 it fails runs that stay blocked that long with outcome `NoCapableWorker`. Because the control plane can write events before a worker sees the run, each lease tells the worker which sequence to number its events after (`eventSequenceStart`).
+Meanwhile the leader's maintenance loop (every 2 seconds) requeues or fails runs whose lease expired, enforces deadlines as a backstop to the worker, marks silent nodes `Lost` and silent control-plane replicas `Offline`, and prunes old records. Every 5 seconds it also looks for blocked queued runs: the first time a run is blocked for a given reason it appends one `Warning` run event saying why (the event carries a marker in its raw JSON so a new leader does not repeat it), and when the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 it fails runs that stay blocked that long with outcome `NoCapableWorker`. Because the control plane can write events before a worker sees the run, each lease tells the worker which sequence to number its events after (`eventSequenceStart`).
 
 ### Run states
 
@@ -101,10 +103,11 @@ Tenant
  +- Run (parameters, requirements, template versions) --- RunEvent
  +- AuditRecord, ManifestApply
 NodePool (optional tenant dedication) --- Node (labels, capabilities)
+ControlNode (one per control-plane replica, keyed by its node ID)
 RequestHistoryEntry, ClusterSetting, CoordinationLease, AuthSession
 ```
 
-Identifiers are K-sortable strings with a type prefix (`agt_`, `run_`, `nod_`, and so on), so they sort by creation time and say what they refer to.
+Identifiers are K-sortable strings with a type prefix (`agt_`, `run_`, `nod_`, and so on), so they sort by creation time and say what they refer to. Control nodes are the exception: a replica's row is keyed by its node ID (the pod name in Kubernetes), so a restarted process with the same name reuses its row.
 
 ## Surfaces
 

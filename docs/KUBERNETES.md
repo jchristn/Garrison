@@ -206,7 +206,7 @@ kubectl -n garrison scale statefulset/garrison-worker --replicas=6
 
 Scaling down is safe. A worker that receives SIGTERM stops leasing new runs and waits for its running harnesses to finish, for up to the 900-second termination grace period. Raise `terminationGracePeriodSeconds` if your runs take longer.
 
-The control plane scales the same way on PostgreSQL. Replicas are interchangeable because workers pull work and never need to be reached by the server, so REST, A2A, and event streams need no session affinity (`docs/SCALING.md` covers MCP). Set `GARRISON_EXPECTED_REPLICAS` to match so the startup checks know the deployment is clustered.
+The control plane scales the same way on PostgreSQL. Replicas are interchangeable because workers pull work and never need to be reached by the server, so REST, A2A, and event streams need no session affinity (`docs/SCALING.md` covers MCP). Set `GARRISON_EXPECTED_REPLICAS` to match so the startup checks know the deployment is clustered. Each server pod registers itself under its pod name as a control node; `GET /v1.0/api/control-nodes` lists them with their status, version, and which one leads (`docs/SCALING.md`).
 
 Both the Kustomize base and the chart roll the server out with `maxSurge: 1` and `maxUnavailable: 0`: a new replica has to pass its readiness probe before an old one is told to stop, so an upgrade never drops below the current replica count. Each old replica gets five seconds (`preStop`) to leave the Service endpoints before SIGTERM, and 30 seconds in total to finish.
 

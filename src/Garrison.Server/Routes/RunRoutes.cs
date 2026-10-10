@@ -221,63 +221,71 @@ namespace Garrison.Server.Routes
             context.Response.Headers.Add("X-Accel-Buffering", "no");
             context.Response.ServerSentEvents = true;
 
-            using (RunSignalSubscription signal = _Signals.Subscribe(run.Id))
+            _Context.Activity.StreamOpened();
+            try
             {
-                DateTime lastKeepAlive = DateTime.UtcNow;
-                while (!context.Token.IsCancellationRequested)
+                using (RunSignalSubscription signal = _Signals.Subscribe(run.Id))
                 {
-                    if (_Context.IsDraining)
+                    DateTime lastKeepAlive = DateTime.UtcNow;
+                    while (!context.Token.IsCancellationRequested)
                     {
-                        // The replica is shutting down: end the stream; an EventSource reconnects to another replica and
-                        // resumes after Last-Event-ID.
-                        await context.Response.SendEvent(new ServerSentEvent { Event = "server.draining", Data = "{}" }, true, context.Token).ConfigureAwait(false);
-                        return;
-                    }
-                    Run? current = await _Context.Database.Runs.ReadAsync(run.TenantId, run.Id, context.Token).ConfigureAwait(false);
-                    if (current == null) break;
-                    RunEventsResponse batch = await _Events.ReadAsync(current, after, 500, context.Token).ConfigureAwait(false);
-                    foreach (RunEvent evt in batch.Events)
-                    {
-                        ServerSentEvent message = new ServerSentEvent();
-                        message.Id = evt.Sequence.ToString();
-                        message.Event = "run.event";
-                        message.Data = Serializer.Serialize(evt);
-                        await context.Response.SendEvent(message, false, context.Token).ConfigureAwait(false);
-                        after = evt.Sequence;
-                    }
-
-                    if (RunService.IsTerminal(current.Status) && !batch.HasMore)
-                    {
-                        ServerSentEvent done = new ServerSentEvent();
-                        done.Event = "run.completed";
-                        done.Data = Serializer.Serialize(current);
-                        await context.Response.SendEvent(done, true, context.Token).ConfigureAwait(false);
-                        return;
-                    }
-
-                    if ((DateTime.UtcNow - lastKeepAlive).TotalSeconds >= 15)
-                    {
-                        ServerSentEvent status = new ServerSentEvent();
-                        status.Event = "run.status";
-                        status.Data = "{\"status\":\"" + current.Status + "\"}";
-                        await context.Response.SendEvent(status, false, context.Token).ConfigureAwait(false);
-                        lastKeepAlive = DateTime.UtcNow;
-                    }
-
-                    if (!batch.HasMore)
-                    {
-                        using (CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(context.Token, _Context.Stopping))
+                        if (_Context.IsDraining)
                         {
-                            try
+                            // The replica is shutting down: end the stream; an EventSource reconnects to another replica and
+                            // resumes after Last-Event-ID.
+                            await context.Response.SendEvent(new ServerSentEvent { Event = "server.draining", Data = "{}" }, true, context.Token).ConfigureAwait(false);
+                            return;
+                        }
+                        Run? current = await _Context.Database.Runs.ReadAsync(run.TenantId, run.Id, context.Token).ConfigureAwait(false);
+                        if (current == null) break;
+                        RunEventsResponse batch = await _Events.ReadAsync(current, after, 500, context.Token).ConfigureAwait(false);
+                        foreach (RunEvent evt in batch.Events)
+                        {
+                            ServerSentEvent message = new ServerSentEvent();
+                            message.Id = evt.Sequence.ToString();
+                            message.Event = "run.event";
+                            message.Data = Serializer.Serialize(evt);
+                            await context.Response.SendEvent(message, false, context.Token).ConfigureAwait(false);
+                            after = evt.Sequence;
+                        }
+
+                        if (RunService.IsTerminal(current.Status) && !batch.HasMore)
+                        {
+                            ServerSentEvent done = new ServerSentEvent();
+                            done.Event = "run.completed";
+                            done.Data = Serializer.Serialize(current);
+                            await context.Response.SendEvent(done, true, context.Token).ConfigureAwait(false);
+                            return;
+                        }
+
+                        if ((DateTime.UtcNow - lastKeepAlive).TotalSeconds >= 15)
+                        {
+                            ServerSentEvent status = new ServerSentEvent();
+                            status.Event = "run.status";
+                            status.Data = "{\"status\":\"" + current.Status + "\"}";
+                            await context.Response.SendEvent(status, false, context.Token).ConfigureAwait(false);
+                            lastKeepAlive = DateTime.UtcNow;
+                        }
+
+                        if (!batch.HasMore)
+                        {
+                            using (CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(context.Token, _Context.Stopping))
                             {
-                                await signal.WaitAsync(_Options.EventPollMs * 4, wait.Token).ConfigureAwait(false);
-                            }
-                            catch (OperationCanceledException) when (_Context.IsDraining && !context.Token.IsCancellationRequested)
-                            {
+                                try
+                                {
+                                    await signal.WaitAsync(_Options.EventPollMs * 4, wait.Token).ConfigureAwait(false);
+                                }
+                                catch (OperationCanceledException) when (_Context.IsDraining && !context.Token.IsCancellationRequested)
+                                {
+                                }
                             }
                         }
                     }
                 }
+            }
+            finally
+            {
+                _Context.Activity.StreamClosed();
             }
         }
 

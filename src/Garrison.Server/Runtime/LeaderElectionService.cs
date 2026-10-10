@@ -5,6 +5,7 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core;
     using Garrison.Core.Database;
+    using Garrison.Core.Models;
     using SyslogLogging;
 
     /// <summary>
@@ -115,6 +116,35 @@ namespace Garrison.Server.Runtime
                 }
             }
             Interlocked.Exchange(ref _Epoch, 0);
+        }
+
+        /// <summary>
+        /// Read the leader lease from the database and return it when a replica holds it and it has not expired, so any
+        /// replica can tell which replica leads (P10.19).
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The held, unexpired lease, or null when no replica leads.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when database is null.</exception>
+        public static async Task<CoordinationLease?> ReadCurrentLeaseAsync(DatabaseDriverBase database, CancellationToken token = default)
+        {
+            if (database == null) throw new ArgumentNullException(nameof(database));
+            CoordinationLease? lease = await database.CoordinationLeases.ReadByNameAsync(Constants.LeaderLeaseName, token).ConfigureAwait(false);
+            if (lease == null || String.IsNullOrEmpty(lease.Holder) || lease.Epoch <= 0) return null;
+            if (!lease.ExpiresUtc.HasValue || lease.ExpiresUtc.Value <= DateTime.UtcNow) return null;
+            return lease;
+        }
+
+        /// <summary>
+        /// Node ID part of a lease holder identity (holders are the node ID, a colon, and a per-process suffix).
+        /// </summary>
+        /// <param name="holder">Holder identity, or null.</param>
+        /// <returns>Node ID, or null when holder is null or empty.</returns>
+        public static string? NodeIdFromHolder(string? holder)
+        {
+            if (String.IsNullOrEmpty(holder)) return null;
+            int colon = holder.LastIndexOf(':');
+            return colon > 0 ? holder.Substring(0, colon) : holder;
         }
 
         /// <summary>

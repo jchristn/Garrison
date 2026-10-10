@@ -70,6 +70,10 @@ namespace Garrison.Core.Database.Ado
             v6.BuildVersion6();
             migrations.Add(new SchemaMigration(6, "Multi-replica state (nonces, rate limits, MCP sessions, backplane) and read path indexes", v6._Statements, v6._Columns));
 
+            SchemaBuilder v7 = new SchemaBuilder(catalog, dialect);
+            v7.BuildVersion7();
+            migrations.Add(new SchemaMigration(7, "Control-plane replicas (control nodes)", v7._Statements, v7._Columns));
+
             return migrations;
         }
 
@@ -125,6 +129,28 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion7()
+        {
+            SqlDialect d = _Dialect;
+
+            // control_nodes: one row per control-plane replica, registered and heartbeated by the replica itself (P10.19)
+            Table("control_nodes",
+                "id VARCHAR(256) NOT NULL PRIMARY KEY",
+                "name VARCHAR(256) NOT NULL",
+                "hostname VARCHAR(256)",
+                "address VARCHAR(256)",
+                "version VARCHAR(64)",
+                "schemaversion " + d.TypeInt + " NOT NULL",
+                "backplane VARCHAR(64)",
+                "status VARCHAR(64) NOT NULL",
+                "startedutc " + d.TypeTimestamp + " NOT NULL",
+                "lastheartbeatutc " + d.TypeTimestamp + " NOT NULL",
+                "activerequests " + d.TypeInt + " NOT NULL",
+                "openstreams " + d.TypeInt + " NOT NULL",
+                "heldlongpolls " + d.TypeInt + " NOT NULL");
+            Index("control_nodes", "statusheartbeat", false, "status", "lastheartbeatutc");
         }
 
         private void BuildVersion6()

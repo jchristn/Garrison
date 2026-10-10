@@ -84,9 +84,17 @@ namespace Garrison.Server.WebSockets
         {
             // The socket closes when the client leaves or when the replica starts draining; the dashboard reconnects
             // (to another replica) by itself.
-            using (CancellationTokenSource lifetime = CancellationTokenSource.CreateLinkedTokenSource(http.Token, _Context.Stopping))
+            _Context.Activity.StreamOpened();
+            try
             {
-                await HandleSessionAsync(http, session, lifetime.Token).ConfigureAwait(false);
+                using (CancellationTokenSource lifetime = CancellationTokenSource.CreateLinkedTokenSource(http.Token, _Context.Stopping))
+                {
+                    await HandleSessionAsync(http, session, lifetime.Token).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _Context.Activity.StreamClosed();
             }
         }
 

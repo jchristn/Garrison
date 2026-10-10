@@ -374,6 +374,35 @@ func main() {
 		}
 		return nil
 	})
+	check("control nodes", func(ctx context.Context) error {
+		page, err := client.ControlNodes.List(ctx, nil)
+		if err != nil {
+			return err
+		}
+		if page.RespondingNodeID == "" {
+			return errors.New("respondingNodeId empty")
+		}
+		ready, leaders := 0, 0
+		for _, n := range page.Objects {
+			if n.Status == garrison.ControlNodeStatusReady {
+				ready++
+			}
+			if n.IsLeader {
+				leaders++
+			}
+		}
+		if ready < 1 || leaders != 1 {
+			return fmt.Errorf("ready %d leaders %d", ready, leaders)
+		}
+		read, err := client.ControlNodes.Get(ctx, page.Objects[0].ID)
+		if err != nil {
+			return err
+		}
+		if read.ID != page.Objects[0].ID || read.RespondingNodeID == nil || *read.RespondingNodeID != page.RespondingNodeID {
+			return fmt.Errorf("read %s responding %v", read.ID, read.RespondingNodeID)
+		}
+		return nil
+	})
 	check("cleanup", func(ctx context.Context) error {
 		if deploymentID != "" {
 			if err := client.Deployments.Delete(ctx, deploymentID); err != nil {

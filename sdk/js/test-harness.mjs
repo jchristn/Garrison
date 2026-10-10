@@ -162,6 +162,20 @@ await check("run analytics rejects from >= to", async () => {
   }
   throw new Error("expected 400");
 });
+await check("control nodes", async () => {
+  const page = await client.controlNodes.list();
+  require(page.respondingNodeId, "respondingNodeId empty");
+  require(page.objects.some((n) => n.status === "Ready"), `no Ready control node among ${page.objects.length}`);
+  const leaders = page.objects.filter((n) => n.isLeader).length;
+  require(leaders === 1, `leaders ${leaders}`);
+  const read = await client.controlNodes.get(page.objects[0].id);
+  require(read.id === page.objects[0].id, `read id ${read.id}`);
+  require(read.respondingNodeId === page.respondingNodeId, `read respondingNodeId ${read.respondingNodeId}`);
+  const overview = await client.overview();
+  require((overview.controlNodesByStatus || []).some((c) => c.status === "Ready" && c.count >= 1), "overview controlNodesByStatus");
+  require(overview.leaderNodeId, "overview leaderNodeId empty");
+});
+
 await check("cleanup", async () => {
   if (state.deployment) await client.deployments.delete(state.deployment);
   if (state.agent) await client.agents.delete(state.agent);

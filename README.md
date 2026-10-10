@@ -109,9 +109,10 @@ The shortest possible check, once a stack is up:
 TOKEN=$(curl -s -X POST http://127.0.0.1:8700/v1.0/token -H "Content-Type: application/json" \
   -d '{"email":"admin@garrison","password":"password"}' | jq -r .token)
 curl -s http://127.0.0.1:8700/v1.0/api/nodes -H "Authorization: Bearer $TOKEN" | jq -r '.objects[] | "\(.name) \(.status)"'
+curl -s http://127.0.0.1:8700/v1.0/api/control-nodes -H "Authorization: Bearer $TOKEN" | jq -r '.objects[] | "\(.name) \(.status) leader=\(.isLeader)"'
 ```
 
-Both workers should be listed as `Ready`. Most examples in these documents use a session token like this one. Some use `x-api-key`, the platform administrator API key: `garrisonadmin` on a source build or Docker unless you set `GARRISON_ADMIN_API_KEY`, and a random value on Kubernetes (`docs/KUBERNETES.md` shows how to read it).
+Both workers should be listed as `Ready`, and so should the control plane (one `Ready` control node, the leader). Most examples in these documents use a session token like this one. Some use `x-api-key`, the platform administrator API key: `garrisonadmin` on a source build or Docker unless you set `GARRISON_ADMIN_API_KEY`, and a random value on Kubernetes (`docs/KUBERNETES.md` shows how to read it).
 
 The dashboard explains itself as you go. Every control carries a tooltip, each configuration page opens with a short note on how its records relate to agents and deployments, and the Analytics page charts time to first token, execution and queue time, tokens, cost, outcomes, and tool calls by agent, harness, deployment, and model.
 

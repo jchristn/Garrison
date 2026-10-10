@@ -35,6 +35,16 @@ namespace Garrison.Sdk.Responses
         public List<StatusCount> NodesByStatus { get; set; } = new List<StatusCount>();
 
         /// <summary>
+        /// Control-plane replicas (control nodes) by status (Starting, Ready, Draining, Offline). Cluster-wide.
+        /// </summary>
+        public List<StatusCount> ControlNodesByStatus { get; set; } = new List<StatusCount>();
+
+        /// <summary>
+        /// Node ID of the control-plane replica holding the maintenance leader lease, or null when no replica leads.
+        /// </summary>
+        public string? LeaderNodeId { get; set; } = null;
+
+        /// <summary>
         /// Runs waiting for a node.
         /// </summary>
         public long Queued { get; set; } = 0;

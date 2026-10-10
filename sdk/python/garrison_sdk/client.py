@@ -441,6 +441,25 @@ class Nodes(Global):
         return self._t.request("POST", f"{self._path}/{_seg(id)}/drain")
 
 
+class ControlNodes:
+    """Control-plane replicas (control nodes). Read-only: each replica maintains its own record.
+
+    Records carry id, name, hostname, address, version, schemaVersion, backplane, status (Starting, Ready, Draining,
+    Offline), startedUtc, lastHeartbeatUtc, activeRequests, openStreams, heldLongPolls, isLeader, and leaderEpoch (leader
+    only). Both calls carry respondingNodeId, the node ID of the replica that answered.
+    """
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+        self._path = "/v1.0/api/control-nodes"
+
+    def list(self, max_results: Optional[int] = None, skip: Optional[int] = None, search: Optional[str] = None) -> Dict[str, Any]:
+        return self._t.request("GET", self._path, _enum(max_results, skip, None, search))
+
+    def get(self, id: str) -> Dict[str, Any]:
+        return self._t.request("GET", f"{self._path}/{_seg(id)}")
+
+
 class RequestHistory:
     def __init__(self, transport: Transport):
         self._t = transport
@@ -525,6 +544,7 @@ class GarrisonClient:
         self.runs = Runs(t)
         self.analytics = Analytics(t)
         self.nodes = Nodes(t, "/v1.0/api/nodes")
+        self.control_nodes = ControlNodes(t)
         self.node_pools = Global(t, "/v1.0/api/node-pools")
         self.request_history = RequestHistory(t)
         self.audit = Audit(t)

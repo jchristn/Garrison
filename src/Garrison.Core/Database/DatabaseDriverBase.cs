@@ -185,6 +185,11 @@ namespace Garrison.Core.Database
         /// </summary>
         public IBackplaneMessageMethods BackplaneMessages { get; protected set; } = null!;
 
+        /// <summary>
+        /// Control-plane replica (control node) methods.
+        /// </summary>
+        public IControlNodeMethods ControlNodes { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

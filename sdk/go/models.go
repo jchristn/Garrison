@@ -58,6 +58,41 @@ type EnumerationResult[T any] struct {
 	Objects          []T    `json:"objects"`
 }
 
+// Control-plane replica (control node) statuses.
+const (
+	ControlNodeStatusStarting = "Starting"
+	ControlNodeStatusReady    = "Ready"
+	ControlNodeStatusDraining = "Draining"
+	ControlNodeStatusOffline  = "Offline"
+)
+
+// ControlNode is a control-plane replica. IsLeader and LeaderEpoch come from the coordination lease; LeaderEpoch is
+// set on the leader only, and RespondingNodeID on single-record reads.
+type ControlNode struct {
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	Hostname         string  `json:"hostname,omitempty"`
+	Address          string  `json:"address,omitempty"`
+	Version          string  `json:"version,omitempty"`
+	SchemaVersion    int     `json:"schemaVersion"`
+	Backplane        string  `json:"backplane,omitempty"`
+	Status           string  `json:"status"`
+	StartedUTC       string  `json:"startedUtc"`
+	LastHeartbeatUTC string  `json:"lastHeartbeatUtc"`
+	ActiveRequests   int     `json:"activeRequests"`
+	OpenStreams      int     `json:"openStreams"`
+	HeldLongPolls    int     `json:"heldLongPolls"`
+	IsLeader         bool    `json:"isLeader"`
+	LeaderEpoch      *int64  `json:"leaderEpoch,omitempty"`
+	RespondingNodeID *string `json:"respondingNodeId,omitempty"`
+}
+
+// ControlNodeList is a page of control nodes with the node ID of the replica that answered.
+type ControlNodeList struct {
+	EnumerationResult[ControlNode]
+	RespondingNodeID string `json:"respondingNodeId"`
+}
+
 // ListOptions are common enumeration parameters. Zero values are omitted.
 type ListOptions struct {
 	MaxResults     int

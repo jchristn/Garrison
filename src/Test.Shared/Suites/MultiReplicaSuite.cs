@@ -54,8 +54,10 @@ namespace Test.Shared.Suites
                     cases.Add(new TestCaseDescriptor(id, "rate-limit-shared", "The token rate limit counts attempts on every replica together (" + provider + ")", ct => RateLimitAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "max-concurrent-runs", "maxConcurrentRuns holds under concurrent claims through two replicas (" + provider + ")", ct => MaxConcurrentAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "settings-invalidation", "A cluster setting changed on replica A applies on B well before B's refresh interval (" + provider + ")", ct => SettingsInvalidationAsync(provider, ct)));
+                    cases.Add(new TestCaseDescriptor(id, "control-nodes", "Two replicas list each other Ready with exactly one leader, answer with their own respondingNodeId, and a stopped or silent replica turns Offline (" + provider + ")", ct => ControlNodesAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "idempotent-invoke", "Invokes with one Idempotency-Key sent to two replicas at once create one run (" + provider + ")", ct => IdempotentInvokeAsync(provider, ct)));
                 }
+                cases.Add(new TestCaseDescriptor(id, "control-node-lifecycle", "A replica's control node row is Ready with its activity (streams, long polls), Draining once shutdown begins, and Offline after a clean stop (" + provider + ")", ct => ControlNodeLifecycleAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "drain", "Stopping a replica turns readiness off, ends SSE streams, and finishes promptly; liveness stays 200 (" + provider + ")", ct => DrainAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Multiple replicas (" + provider + ")", cases));
             }
@@ -462,6 +464,156 @@ namespace Test.Shared.Suites
                     await host.Server.StopAsync(token).ConfigureAwait(false);
                     Assert.True(timer.ElapsedMilliseconds < 20000, "Stop took " + timer.ElapsedMilliseconds + " ms.");
                 }
+            }
+        }
+
+        private static async Task<ControlNodeListResponse> ListControlNodesAsync(TestServerHost replica, CancellationToken token)
+        {
+            return await HttpTestHelpers.SendAsync<ControlNodeListResponse>(replica.AdminClient, HttpMethod.Get, "/v1.0/api/control-nodes?ordering=NameAscending", null, 200, token).ConfigureAwait(false);
+        }
+
+        private static async Task<ControlNode> WaitForControlNodeAsync(TestServerHost replica, string nodeId, Func<ControlNode, bool> condition, int timeoutMs, string what, CancellationToken token)
+        {
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            ControlNode? last = null;
+            while (true)
+            {
+                last = await replica.Server.Context.Database.ControlNodes.ReadAsync(nodeId, token).ConfigureAwait(false);
+                if (last != null && condition(last)) return last;
+                if (DateTime.UtcNow >= deadline) break;
+                await Task.Delay(100, token).ConfigureAwait(false);
+            }
+            throw new TestAssertionException(what + ": control node " + nodeId + " is " + (last == null ? "missing" : last.Status + " (streams " + last.OpenStreams + ", long polls " + last.HeldLongPolls + ")"));
+        }
+
+        private static async Task ControlNodesAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestReplicaCluster cluster = await TestReplicaCluster.StartAsync(provider, 2, BackplaneModeEnum.Auto, null, token).ConfigureAwait(false))
+            {
+                TestServerHost a = cluster.Replicas[0];
+                TestServerHost b = cluster.Replicas[1];
+
+                // Both replicas appear Ready, and exactly one of them is the leader.
+                DateTime deadline = DateTime.UtcNow.AddSeconds(20);
+                ControlNodeListResponse list = await ListControlNodesAsync(a, token).ConfigureAwait(false);
+                while (DateTime.UtcNow < deadline && !(list.Objects.Count(n => n.Status == ControlNodeStatusEnum.Ready) == 2 && list.Objects.Count(n => n.IsLeader) == 1))
+                {
+                    await Task.Delay(200, token).ConfigureAwait(false);
+                    list = await ListControlNodesAsync(a, token).ConfigureAwait(false);
+                }
+                Assert.Equal("replica-a,replica-b", String.Join(",", list.Objects.Select(n => n.Id)), "Control nodes listed");
+                Assert.Equal(2, list.Objects.Count(n => n.Status == ControlNodeStatusEnum.Ready), "Ready control nodes");
+                Assert.Equal(1, list.Objects.Count(n => n.IsLeader), "Leaders among the control nodes");
+                ControlNode leader = list.Objects.Single(n => n.IsLeader);
+                ControlNode follower = list.Objects.Single(n => !n.IsLeader);
+                Assert.True(leader.LeaderEpoch.HasValue && leader.LeaderEpoch.Value > 0, "The leader carries its epoch");
+                Assert.True(!follower.LeaderEpoch.HasValue, "A follower carries no epoch");
+                TestServerHost leaderHost = cluster.Replicas.Single(r => r.Settings.NodeId == leader.Id);
+                Assert.True(leaderHost.Server.Context.Get<ILeaderState>().IsLeader, "The listed leader holds the lease");
+                Assert.Equal(leaderHost.Server.Context.Get<ILeaderState>().Epoch, leader.LeaderEpoch!.Value, "Leader epoch");
+                foreach (ControlNode node in list.Objects)
+                {
+                    Assert.Equal("PostgresNotify", node.Backplane ?? String.Empty, "Backplane of " + node.Id);
+                    Assert.Equal(SchemaBuilder.LatestVersion, node.SchemaVersion, "Schema version of " + node.Id);
+                    Assert.Equal(Garrison.Core.Constants.ProductVersion, node.Version ?? String.Empty, "Version of " + node.Id);
+                    Assert.True(!String.IsNullOrEmpty(node.Address) && !String.IsNullOrEmpty(node.Hostname), "Address and hostname of " + node.Id);
+                    Assert.True((DateTime.UtcNow - node.LastHeartbeatUtc).TotalSeconds < 15, "Recent heartbeat of " + node.Id);
+                }
+
+                // Each replica says which replica answered.
+                Assert.Equal("replica-a", list.RespondingNodeId, "List answered by A");
+                ControlNodeListResponse fromB = await ListControlNodesAsync(b, token).ConfigureAwait(false);
+                Assert.Equal("replica-b", fromB.RespondingNodeId, "List answered by B");
+                Assert.Equal(2L, fromB.TotalRecords, "B lists both replicas");
+                ControlNode readOnA = await HttpTestHelpers.SendAsync<ControlNode>(a.AdminClient, HttpMethod.Get, "/v1.0/api/control-nodes/replica-b", null, 200, token).ConfigureAwait(false);
+                ControlNode readOnB = await HttpTestHelpers.SendAsync<ControlNode>(b.AdminClient, HttpMethod.Get, "/v1.0/api/control-nodes/replica-b", null, 200, token).ConfigureAwait(false);
+                Assert.Equal("replica-a", readOnA.RespondingNodeId ?? String.Empty, "Read answered by A");
+                Assert.Equal("replica-b", readOnB.RespondingNodeId ?? String.Empty, "Read answered by B");
+                Assert.Equal(leader.Id == "replica-b", readOnA.IsLeader, "Read carries the leader flag");
+                TestResponse missing = await HttpTestHelpers.SendAsync(a.AdminClient, HttpMethod.Get, "/v1.0/api/control-nodes/replica-zz", null, token).ConfigureAwait(false);
+                Assert.Equal(404, missing.StatusCode, "Unknown control node");
+
+                OverviewResponse overview = await HttpTestHelpers.SendAsync<OverviewResponse>(b.AdminClient, HttpMethod.Get, "/v1.0/api/tenants/" + cluster.TenantId + "/overview", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(2L, overview.ControlNodesByStatus.Where(c => c.Status == "Ready").Sum(c => c.Count), "Overview Ready control nodes");
+                Assert.Equal(leader.Id, overview.LeaderNodeId ?? String.Empty, "Overview leader");
+
+                // A silent replica (crashed without a clean stop) turns Offline once it misses heartbeats for 30 seconds.
+                ControlNode ghost = new ControlNode();
+                ghost.Id = "replica-ghost";
+                ghost.Name = "replica-ghost";
+                ghost.Status = ControlNodeStatusEnum.Ready;
+                ghost.StartedUtc = DateTime.UtcNow.AddMinutes(-10);
+                ghost.LastHeartbeatUtc = DateTime.UtcNow.AddSeconds(-45);
+                await a.Server.Context.Database.ControlNodes.UpsertAsync(ghost, token).ConfigureAwait(false);
+                await WaitForControlNodeAsync(a, "replica-ghost", n => n.Status == ControlNodeStatusEnum.Offline, 15000, "The leader marks a silent replica Offline", token).ConfigureAwait(false);
+
+                // A replica that stops cleanly is Offline at once, as seen from the other replica.
+                await b.Server.StopAsync(token).ConfigureAwait(false);
+                ControlNode stopped = await HttpTestHelpers.SendAsync<ControlNode>(a.AdminClient, HttpMethod.Get, "/v1.0/api/control-nodes/replica-b", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(ControlNodeStatusEnum.Offline, stopped.Status, "A stopped replica");
+                Assert.True(!stopped.IsLeader, "A stopped replica does not lead");
+
+                // The remaining replica leads within the leader lease.
+                deadline = DateTime.UtcNow.AddSeconds(30);
+                ControlNodeListResponse after = await ListControlNodesAsync(a, token).ConfigureAwait(false);
+                while (DateTime.UtcNow < deadline && !after.Objects.Any(n => n.Id == "replica-a" && n.IsLeader))
+                {
+                    await Task.Delay(250, token).ConfigureAwait(false);
+                    after = await ListControlNodesAsync(a, token).ConfigureAwait(false);
+                }
+                Assert.True(after.Objects.Any(n => n.Id == "replica-a" && n.IsLeader && n.Status == ControlNodeStatusEnum.Ready), "Replica A leads after B stops");
+                Assert.Equal(1, after.Objects.Count(n => n.IsLeader), "Leaders after B stops");
+            }
+        }
+
+        private static async Task ControlNodeLifecycleAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestReplicaCluster cluster = await TestReplicaCluster.StartAsync(provider, 1, BackplaneModeEnum.Auto, null, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Replicas[0];
+                string nodeId = host.Settings.NodeId!;
+                ControlNode ready = await WaitForControlNodeAsync(host, nodeId, n => n.Status == ControlNodeStatusEnum.Ready, 5000, "Ready after start", token).ConfigureAwait(false);
+                Assert.Equal(host.Server.Backplane.Name, ready.Backplane ?? String.Empty, "Backplane");
+
+                ControlNodeListResponse list = await ListControlNodesAsync(host, token).ConfigureAwait(false);
+                Assert.Equal(nodeId, list.RespondingNodeId, "Responding node");
+                DateTime deadline = DateTime.UtcNow.AddSeconds(20);
+                while (DateTime.UtcNow < deadline && !list.Objects.Any(n => n.IsLeader))
+                {
+                    await Task.Delay(200, token).ConfigureAwait(false);
+                    list = await ListControlNodesAsync(host, token).ConfigureAwait(false);
+                }
+                Assert.True(list.Objects.Single(n => n.Id == nodeId).IsLeader, "A single replica leads");
+
+                // An open SSE stream is reported (the run stays queued: no worker is attached yet).
+                Agent agent = await cluster.CreateAgentAsync(0, "control-node-agent", null, token).ConfigureAwait(false);
+                Run run = await InvokeAsync(host, cluster.TenantId, agent, "hold a stream open", false, token).ConfigureAwait(false);
+                using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, RunsPath(cluster) + "/" + run.Id + "/events/stream"))
+                using (HttpResponseMessage response = await host.AdminClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false))
+                {
+                    deadline = DateTime.UtcNow.AddSeconds(10);
+                    while (DateTime.UtcNow < deadline && host.Server.Context.Activity.OpenStreams < 1) await Task.Delay(50, token).ConfigureAwait(false);
+                    await host.Server.ControlNode.HeartbeatAsync(token).ConfigureAwait(false);
+                    await WaitForControlNodeAsync(host, nodeId, n => n.OpenStreams >= 1, 1000, "An open SSE stream is reported", token).ConfigureAwait(false);
+                }
+
+                // An idle worker holds a lease long poll on this replica.
+                await cluster.AddWorkerAsync(0, null, token).ConfigureAwait(false);
+                deadline = DateTime.UtcNow.AddSeconds(15);
+                while (DateTime.UtcNow < deadline && host.Server.Context.Activity.HeldLongPolls < 1) await Task.Delay(100, token).ConfigureAwait(false);
+                await host.Server.ControlNode.HeartbeatAsync(token).ConfigureAwait(false);
+                await WaitForControlNodeAsync(host, nodeId, n => n.HeldLongPolls >= 1, 1000, "A held long poll is reported", token).ConfigureAwait(false);
+
+                // Shutdown begins: the row turns Draining without waiting for the next heartbeat.
+                host.Server.Context.BeginShutdown();
+                await WaitForControlNodeAsync(host, nodeId, n => n.Status == ControlNodeStatusEnum.Draining, 3000, "Draining once shutdown begins", token).ConfigureAwait(false);
+                ControlNode draining = await HttpTestHelpers.SendAsync<ControlNode>(host.AdminClient, HttpMethod.Get, "/v1.0/api/control-nodes/" + nodeId, null, 200, token).ConfigureAwait(false);
+                Assert.Equal(ControlNodeStatusEnum.Draining, draining.Status, "Draining through the API");
+
+                await host.Server.StopAsync(token).ConfigureAwait(false);
+                ControlNode offline = await WaitForControlNodeAsync(host, nodeId, n => n.Status == ControlNodeStatusEnum.Offline, 1000, "Offline after a clean stop", token).ConfigureAwait(false);
+                Assert.Equal(0, offline.ActiveRequests + offline.OpenStreams + offline.HeldLongPolls, "An Offline replica reports no activity");
+                Assert.Equal(ControlNodeStatusEnum.Offline, host.Server.ControlNode.Status, "Status the replica last wrote");
             }
         }
     }

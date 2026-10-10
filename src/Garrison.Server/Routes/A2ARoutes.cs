@@ -257,49 +257,57 @@ namespace Garrison.Server.Routes
             context.Response.Headers.Add("X-Accel-Buffering", "no");
             context.Response.ServerSentEvents = true;
 
-            StreamResponse first = new StreamResponse();
-            first.Task = A2AMapper.Task(run, false);
-            await SendStreamEventAsync(context, id, first, false).ConfigureAwait(false);
-
-            TaskState lastState = A2AMapper.State(run.Status);
-            using (RunSignalSubscription signal = _Signals.Subscribe(run.Id))
+            _Context.Activity.StreamOpened();
+            try
             {
-                while (!context.Token.IsCancellationRequested)
+                StreamResponse first = new StreamResponse();
+                first.Task = A2AMapper.Task(run, false);
+                await SendStreamEventAsync(context, id, first, false).ConfigureAwait(false);
+
+                TaskState lastState = A2AMapper.State(run.Status);
+                using (RunSignalSubscription signal = _Signals.Subscribe(run.Id))
                 {
-                    Run? current = await _Context.Database.Runs.ReadAsync(tenantId, run.Id, context.Token).ConfigureAwait(false);
-                    if (current == null) break;
-                    TaskState state = A2AMapper.State(current.Status);
-                    bool terminal = RunService.IsTerminal(current.Status);
-
-                    if (terminal && current.Status == RunStatusEnum.Succeeded)
+                    while (!context.Token.IsCancellationRequested)
                     {
-                        StreamResponse artifact = new StreamResponse();
-                        artifact.ArtifactUpdate = new TaskArtifactUpdateEvent { TaskId = current.Id, ContextId = A2AMapper.Task(current, false).ContextId, Artifact = A2AMapper.ResultArtifact(current), Append = false, LastChunk = true };
-                        await SendStreamEventAsync(context, id, artifact, false).ConfigureAwait(false);
-                    }
+                        Run? current = await _Context.Database.Runs.ReadAsync(tenantId, run.Id, context.Token).ConfigureAwait(false);
+                        if (current == null) break;
+                        TaskState state = A2AMapper.State(current.Status);
+                        bool terminal = RunService.IsTerminal(current.Status);
 
-                    if (state != lastState || terminal)
-                    {
-                        StreamResponse update = new StreamResponse();
-                        update.StatusUpdate = new TaskStatusUpdateEvent { TaskId = current.Id, ContextId = A2AMapper.Task(current, false).ContextId, Status = A2AMapper.Status(current) };
-                        await SendStreamEventAsync(context, id, update, terminal).ConfigureAwait(false);
-                        lastState = state;
-                    }
-
-                    if (terminal) return;
-                    if (_Context.IsDraining) return;
-                    using (CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(context.Token, _Context.Stopping))
-                    {
-                        try
+                        if (terminal && current.Status == RunStatusEnum.Succeeded)
                         {
-                            await signal.WaitAsync(_Options.EventPollMs * 4, wait.Token).ConfigureAwait(false);
+                            StreamResponse artifact = new StreamResponse();
+                            artifact.ArtifactUpdate = new TaskArtifactUpdateEvent { TaskId = current.Id, ContextId = A2AMapper.Task(current, false).ContextId, Artifact = A2AMapper.ResultArtifact(current), Append = false, LastChunk = true };
+                            await SendStreamEventAsync(context, id, artifact, false).ConfigureAwait(false);
                         }
-                        catch (OperationCanceledException) when (_Context.IsDraining && !context.Token.IsCancellationRequested)
+
+                        if (state != lastState || terminal)
                         {
-                            return;
+                            StreamResponse update = new StreamResponse();
+                            update.StatusUpdate = new TaskStatusUpdateEvent { TaskId = current.Id, ContextId = A2AMapper.Task(current, false).ContextId, Status = A2AMapper.Status(current) };
+                            await SendStreamEventAsync(context, id, update, terminal).ConfigureAwait(false);
+                            lastState = state;
+                        }
+
+                        if (terminal) return;
+                        if (_Context.IsDraining) return;
+                        using (CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(context.Token, _Context.Stopping))
+                        {
+                            try
+                            {
+                                await signal.WaitAsync(_Options.EventPollMs * 4, wait.Token).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException) when (_Context.IsDraining && !context.Token.IsCancellationRequested)
+                            {
+                                return;
+                            }
                         }
                     }
                 }
+            }
+            finally
+            {
+                _Context.Activity.StreamClosed();
             }
         }
 

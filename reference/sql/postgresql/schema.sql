@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 6).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 7).
 -- Tables are shown in the refschema schema; replace it with your schema or remove the prefix.
 \restrict yl5vROEtJr1v59YEMFHGBJloJxy3sU1hBcluggg7Ccq9mOJu8PihpQfkqABk48I
 CREATE SCHEMA refschema;
@@ -136,6 +136,21 @@ CREATE TABLE refschema.cluster_settings (
     updatedby character varying(256),
     createdutc timestamp with time zone NOT NULL,
     lastupdateutc timestamp with time zone NOT NULL
+);
+CREATE TABLE refschema.control_nodes (
+    id character varying(256) NOT NULL,
+    name character varying(256) NOT NULL,
+    hostname character varying(256),
+    address character varying(256),
+    version character varying(64),
+    schemaversion integer NOT NULL,
+    backplane character varying(64),
+    status character varying(64) NOT NULL,
+    startedutc timestamp with time zone NOT NULL,
+    lastheartbeatutc timestamp with time zone NOT NULL,
+    activerequests integer NOT NULL,
+    openstreams integer NOT NULL,
+    heldlongpolls integer NOT NULL
 );
 CREATE TABLE refschema.coordination_leases (
     id character varying(64) NOT NULL,
@@ -815,6 +830,8 @@ ALTER TABLE ONLY refschema.backplane_messages
     ADD CONSTRAINT backplane_messages_pkey PRIMARY KEY (seq);
 ALTER TABLE ONLY refschema.cluster_settings
     ADD CONSTRAINT cluster_settings_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY refschema.control_nodes
+    ADD CONSTRAINT control_nodes_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY refschema.coordination_leases
     ADD CONSTRAINT coordination_leases_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY refschema.credentials
@@ -945,6 +962,7 @@ CREATE INDEX idx_authsessions_tenant ON refschema.authsessions USING btree (tena
 CREATE UNIQUE INDEX idx_authsessions_tokenid ON refschema.authsessions USING btree (tokenid);
 CREATE INDEX idx_backplane_messages_created ON refschema.backplane_messages USING btree (createdutc);
 CREATE UNIQUE INDEX idx_cluster_settings_key ON refschema.cluster_settings USING btree (settingkey);
+CREATE INDEX idx_control_nodes_statusheartbeat ON refschema.control_nodes USING btree (status, lastheartbeatutc);
 CREATE UNIQUE INDEX idx_coordination_leases_name ON refschema.coordination_leases USING btree (name);
 CREATE UNIQUE INDEX idx_credentials_accesskey ON refschema.credentials USING btree (accesskey);
 CREATE INDEX idx_credentials_tenant ON refschema.credentials USING btree (tenantid);

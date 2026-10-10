@@ -20,7 +20,7 @@ All four SDKs are version `0.1.0-alpha` and cover the same surface:
 - Runs: invoke (with or without waiting), create, cancel, retry, list, poll events, and stream events over server-sent events. Runs carry timing and usage fields (`timeToFirstTokenMs`, `streamingMs`, `executionMs`, `queueMs`, `totalMs`, `delegationWaitMs`, `timeToFirstTokenExcludingDelegationMs`, `outputTokensPerSecond`, `firstTokenUtc`, `lastTokenUtc`, `reasoningTokens`, `toolCallCount`) alongside token counts and cost.
 - Run analytics: totals and time-bucketed series of run counts, tokens, cost, latency, and throughput, optionally filtered by agent, harness, deployment, or served model and grouped by agent, harness, model, or harness and model (`GET /v1.0/api/tenants/{tenantId}/analytics/runs`), plus the distinct filter values among runs in a range (`GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions`).
 - Declarative manifests: apply (including dry run, with per-field `changes` for updated items), export, and apply history.
-- Platform resources: tenants, nodes, node pools, settings, request history, and audit (C#, Python, and JavaScript; Go exposes tenants, nodes, and node pools plus a generic `Do` for the rest).
+- Platform resources: tenants, nodes, control nodes (control-plane replicas, read-only), node pools, settings, request history, and audit (C#, Python, and JavaScript; Go exposes tenants, nodes, control nodes, and node pools plus a generic `Do` for the rest).
 
 ## Running every harness
 

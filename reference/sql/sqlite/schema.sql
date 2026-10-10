@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 6).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 7).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -875,3 +875,19 @@ CREATE INDEX "idx_runs_deadline" ON "runs" ("status", "deadlineutc");
 CREATE INDEX "idx_runs_completed" ON "runs" ("status", "completedutc");
 CREATE INDEX "idx_run_events_created" ON "run_events" ("createdutc");
 CREATE INDEX "idx_authsessions_expires" ON "authsessions" ("expiresutc");
+CREATE TABLE IF NOT EXISTS "control_nodes" (
+    id VARCHAR(256) NOT NULL PRIMARY KEY,
+    name VARCHAR(256) NOT NULL,
+    hostname VARCHAR(256),
+    address VARCHAR(256),
+    version VARCHAR(64),
+    schemaversion INTEGER NOT NULL,
+    backplane VARCHAR(64),
+    status VARCHAR(64) NOT NULL,
+    startedutc TEXT NOT NULL,
+    lastheartbeatutc TEXT NOT NULL,
+    activerequests INTEGER NOT NULL,
+    openstreams INTEGER NOT NULL,
+    heldlongpolls INTEGER NOT NULL
+);
+CREATE INDEX "idx_control_nodes_statusheartbeat" ON "control_nodes" ("status", "lastheartbeatutc");
