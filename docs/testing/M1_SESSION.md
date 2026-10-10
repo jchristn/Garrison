@@ -427,7 +427,12 @@ Recommendations are the agent's; the user decides.
 
 ## Decisions
 
-To be recorded here after the user triages the findings above.
+Made by the user on 2026-10-10:
+
+- Fix all 33 findings now, including the polish items.
+- M1-08: keep time to first token as the true first model output, and also record the time a run spends waiting on runs it delegated to, plus time to first token excluding that wait, so charts can compare like with like.
+- M1-10: reusing an A2A `messageId` with the same content returns the existing task (safe retries); reusing it with different content is rejected with 409 Conflict and a clear message.
+- M1-27: a secret whose expiry is already in the past is rejected with 400 on create and update.
 
 ## Left in place
 

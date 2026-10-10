@@ -1385,6 +1385,13 @@ Scripts and validation
 - [x] P9.13 Postman collection passes against the cluster through port-forward.  | claude 2026-10-10 Newman in Docker through port-forward to K3S: 196 requests, 218 assertions, 0 failures (Restart folder excluded)
 - [x] P9.14 Lightweight simulated user session (after P8.18 to P8.22) (README quick start followed literally, dashboard walkthrough, one SDK quick start) with findings recorded in `docs/testing/M1_SESSION.md` and surfaced to the user before fixes.  | claude 2026-10-10 docs/testing/M1_SESSION.md: three personas (platform engineer in the dashboard via Playwright, agent developer with the Python SDK, integrating developer running doc examples); 33 findings (0 blocker, 2 major, 17 minor, 14 polish), surfaced to the user for triage before fixes
 - [x] P9.15 CI workflows green on GitHub. **(requires push approval)**  | claude 2026-10-10 all five workflows green on b6b51ba (Tests net8.0 and net10.0, Dashboard, SDKs, Kubernetes with K3S smoke test, Text hygiene); first run caught a test race, fixed
+- [ ] P9.17 Fix all 33 findings in `docs/testing/M1_SESSION.md` (user decision 2026-10-10). Contract for the fixes that span server and dashboard:
+  - M1-08: run fields `delegationWaitMs` (time the run spent waiting on child runs it started, from server timestamps) and `timeToFirstTokenExcludingDelegationMs` (time to first token minus delegation wait that happened before the first token, never negative); analytics metrics `delegationWaitMsAvg`, `timeToFirstTokenExcludingDelegationMsAvg`, `timeToFirstTokenExcludingDelegationMsP50`, `timeToFirstTokenExcludingDelegationMsP95`.
+  - M1-10: A2A `SendMessage` with a reused `messageId` and identical content returns the existing task; different content returns 409 Conflict (JSON-RPC error with a clear message).
+  - M1-27: secrets with `expiresUtc` in the past return 400 on create and update.
+  - M1-01: settings updates validate every value against its metadata (range, allowed values, type) and return 400 with `errors` as an object keyed by setting path; nothing is clamped silently.
+  - M1-14: manifest dry runs and applies report, per item, `changes`: a list of `{ field, before, after }` (values as strings, truncated to 200 characters) for Updated items.
+  - M1-12: MCP and A2A run summaries include `servedModel`.
 - [ ] P9.16 M1 sign-off: update the Progress Dashboard, `CHANGELOG.md`, and the decision log; record known gaps.
 
 ### Known gaps at M1 (recorded 2026-10-10)
