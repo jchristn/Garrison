@@ -12,7 +12,7 @@ namespace Garrison.FakeHarness
     /// characters of the prompt, in Claude stream-json, Codex JSONL, Mux JSONL, or plain text format.
     /// Usage: garrison-fake-harness --version | --format claude|codex|mux|plain [--scenario file] [--delay-ms N]
     /// [--fail] [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
-    /// [--output-last-message file] [--stderr text].
+    /// [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N].
     /// </summary>
     public static class Program
     {
@@ -48,6 +48,7 @@ namespace Garrison.FakeHarness
             }
 
             for (int i = 0; i < options.LargeOutputLines; i++) emitter.Filler(i);
+            for (int i = 0; i < options.ToolCalls; i++) emitter.ToolCall("fake_tool", "ok " + (i + 1), true);
 
             if (!String.IsNullOrEmpty(options.McpCall))
             {

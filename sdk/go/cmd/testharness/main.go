@@ -25,6 +25,7 @@ func main() {
 	suffix := hex.EncodeToString(b)
 	client := garrison.NewClient(baseURL)
 	var tenant, fakeID, agentID, deploymentID string
+	var finished *garrison.Run
 	passed := 0
 	var failures []string
 
@@ -114,6 +115,22 @@ func main() {
 		if !strings.HasPrefix(run.ResultText, "Echo:") {
 			return fmt.Errorf("result %q", run.ResultText)
 		}
+		finished = run
+		return nil
+	})
+	check("run timing fields", func(ctx context.Context) error {
+		if finished == nil {
+			return errors.New("no finished run")
+		}
+		if finished.TimeToFirstTokenMs == nil || *finished.TimeToFirstTokenMs < 0 {
+			return fmt.Errorf("timeToFirstTokenMs %v", finished.TimeToFirstTokenMs)
+		}
+		if finished.ExecutionMs == nil || *finished.ExecutionMs < 0 {
+			return fmt.Errorf("executionMs %v", finished.ExecutionMs)
+		}
+		if finished.ToolCallCount < 0 {
+			return fmt.Errorf("toolCallCount %d", finished.ToolCallCount)
+		}
 		return nil
 	})
 	check("stream events", func(ctx context.Context) error {
@@ -186,6 +203,60 @@ func main() {
 			if r.AgentID != agentID {
 				return errors.New("foreign runs")
 			}
+		}
+		return nil
+	})
+	check("analytics runs", func(ctx context.Context) error {
+		now := time.Now().UTC()
+		result, err := client.Analytics.Runs(ctx, garrison.AnalyticsQuery{
+			From:     now.Add(-time.Hour).Format(time.RFC3339),
+			To:       now.Add(time.Minute).Format(time.RFC3339),
+			Interval: "minute",
+		})
+		if err != nil {
+			return err
+		}
+		if result.Totals.Runs < 1 {
+			return fmt.Errorf("totals.runs %d", result.Totals.Runs)
+		}
+		if len(result.Series) == 0 {
+			return errors.New("no series")
+		}
+		for _, series := range result.Series {
+			if len(series.Buckets) == 0 {
+				return fmt.Errorf("series %s has no buckets", series.Key)
+			}
+			for _, bucket := range series.Buckets {
+				if bucket.StartUTC == "" {
+					return fmt.Errorf("series %s bucket missing startUtc", series.Key)
+				}
+			}
+		}
+		return nil
+	})
+	check("analytics runs grouped by harness", func(ctx context.Context) error {
+		now := time.Now().UTC()
+		result, err := client.Analytics.Runs(ctx, garrison.AnalyticsQuery{
+			From:    now.Add(-time.Hour).Format(time.RFC3339),
+			To:      now.Add(time.Minute).Format(time.RFC3339),
+			GroupBy: "harness",
+		})
+		if err != nil {
+			return err
+		}
+		if len(result.Series) == 0 {
+			return errors.New("no series")
+		}
+		return nil
+	})
+	check("analytics rejects from >= to", func(ctx context.Context) error {
+		now := time.Now().UTC().Format(time.RFC3339)
+		_, err := client.Analytics.Runs(ctx, garrison.AnalyticsQuery{From: now, To: now})
+		if err == nil {
+			return errors.New("expected HTTP 400, got success")
+		}
+		if !garrison.IsStatus(err, http.StatusBadRequest) {
+			return fmt.Errorf("expected HTTP 400, got %v", err)
 		}
 		return nil
 	})

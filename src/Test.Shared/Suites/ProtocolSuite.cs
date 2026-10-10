@@ -61,16 +61,41 @@ namespace Test.Shared.Suites
         {
             await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
             {
-                Agent agent = await cluster.CreateAgentAsync("echo", "builtin/fake", null, token).ConfigureAwait(false);
+                Agent agent = await cluster.CreateAgentAsync("echo", "builtin/fake", null, token, d => d.Parameters.Add(new DeploymentParameter { Name = "delayMs", Value = "100" })).ConfigureAwait(false);
                 Run run = await InvokeAsync(cluster, agent, "Hello from the test suite", true, token).ConfigureAwait(false);
                 Assert.Equal(RunStatusEnum.Succeeded, run.Status, "Status (" + run.Outcome + ": " + run.ErrorMessage + ")");
+                AssertTelemetry(run);
                 Assert.True((run.ResultText ?? String.Empty).StartsWith("Echo:", StringComparison.Ordinal), "Result was '" + run.ResultText + "'.");
                 Assert.True(run.InputTokens > 0 || run.OutputTokens > 0, "Usage should be recorded.");
                 Assert.True(!String.IsNullOrEmpty(run.LeaseNodeName), "Lease node should be recorded.");
 
                 Run read = await HttpTestHelpers.SendAsync<Run>(cluster.Server.AdminClient, HttpMethod.Get, "/v1.0/api/tenants/" + cluster.Server.TenantId + "/runs/" + run.Id, null, 200, token).ConfigureAwait(false);
+                AssertTelemetry(read);
+                Assert.True(read.OutputTokensPerSecond.HasValue && read.OutputTokensPerSecond.Value > 0, "Tokens per second with at least 100 ms of streaming (streaming " + read.StreamingMs + " ms).");
+
+                string window = "from=" + Uri.EscapeDataString(DateTime.UtcNow.AddHours(-1).ToString("o")) + "&to=" + Uri.EscapeDataString(DateTime.UtcNow.AddMinutes(1).ToString("o"));
+                Garrison.Core.Responses.RunAnalyticsResponse analytics = await HttpTestHelpers.SendAsync<Garrison.Core.Responses.RunAnalyticsResponse>(cluster.Server.AdminClient, HttpMethod.Get, "/v1.0/api/tenants/" + cluster.Server.TenantId + "/analytics/runs?" + window + "&groupBy=agent", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(1L, analytics.Totals.Runs, "Analytics count the run");
+                Assert.Equal(1L, analytics.Totals.Succeeded, "Analytics count the success");
+                Assert.Equal(read.TimeToFirstTokenMs ?? -1, (long)(analytics.Totals.TimeToFirstTokenMsP50 ?? -2), "Analytics TTFT p50 equals the run's TTFT");
+                Assert.Equal(agent.Id, analytics.Series.Single().Key, "Analytics series per agent");
                 if (Environment.GetEnvironmentVariable("GARRISON_TEST_STRICT_TEMPLATES") != "false") Assert.True(read.TemplateVersions.Count > 0, "Template versions should be recorded on the run.");
             }
+        }
+
+        private static void AssertTelemetry(Run run)
+        {
+            long ttft = run.TimeToFirstTokenMs ?? -1;
+            long streaming = run.StreamingMs ?? -1;
+            long execution = run.ExecutionMs ?? -1;
+            Assert.True(ttft > 0, "timeToFirstTokenMs should be populated (was " + ttft + ").");
+            Assert.True(streaming > 0, "streamingMs should be populated and non-zero (was " + streaming + ").");
+            Assert.True(execution >= ttft + streaming, "executionMs (" + execution + ") should cover TTFT plus streaming.");
+            Assert.True(run.FirstTokenUtc.HasValue && run.LastTokenUtc.HasValue && run.LastTokenUtc.Value >= run.FirstTokenUtc.Value, "firstTokenUtc and lastTokenUtc should be populated.");
+            Assert.True(run.QueueMs.HasValue && run.QueueMs.Value >= 0, "queueMs should be populated.");
+            Assert.True(run.TotalMs.HasValue && run.TotalMs.Value >= (run.QueueMs ?? 0), "totalMs should be populated and cover queueMs.");
+            Assert.Equal(2L, run.ReasoningTokens, "reasoningTokens from the fake harness");
+            Assert.Equal(0, run.ToolCallCount, "toolCallCount");
         }
 
         private static async Task TwoWorkersAsync(DatabaseTypeEnum provider, CancellationToken token)
@@ -194,6 +219,9 @@ namespace Test.Shared.Suites
                         Assert.Equal("Succeeded", summary.RootElement.GetProperty("status").GetString(), "MCP run status (" + text + ")");
                         Assert.True((summary.RootElement.GetProperty("result").GetString() ?? String.Empty).StartsWith("Echo:", StringComparison.Ordinal), "MCP result: " + text);
                     }
+                    Garrison.Server.Protocols.McpRunSummary typed = Serializer.Deserialize<Garrison.Server.Protocols.McpRunSummary>(text) ?? throw new TestAssertionException("Empty MCP summary.");
+                    Assert.True((typed.TimeToFirstTokenMs ?? -1) > 0 && typed.ExecutionMs.HasValue && typed.TotalMs.HasValue, "MCP run summary carries timing telemetry: " + text);
+                    Assert.Equal(2L, typed.ReasoningTokens, "MCP run summary reasoning tokens");
                 }
             }
         }

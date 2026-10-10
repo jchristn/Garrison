@@ -35,7 +35,7 @@ CommonJS works too: `const { GarrisonClient } = require("@garrison/sdk");`.
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `nodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `analytics`, `nodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 ## Streaming run events
 
@@ -48,6 +48,37 @@ for await (const item of client.runs.stream(queued.id)) {
 ```
 
 The iterator ends after `run.completed`. `runs.events` polls, and `runs.waitForCompletion` waits for a terminal status.
+
+## Run timing and usage fields
+
+Finished runs carry timing and usage metrics. Nullable fields are omitted by the server when they cannot be measured, so treat them as optional.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `firstTokenUtc`, `lastTokenUtc` | `string` (ISO 8601 UTC) or absent | First and last model output event. |
+| `timeToFirstTokenMs` | `number` or absent | Start to first output event. |
+| `streamingMs` | `number` or absent | First to last output event. |
+| `executionMs` | `number` or absent | Start to completion. |
+| `queueMs` | `number` or absent | Creation to start. |
+| `totalMs` | `number` or absent | Creation to completion. |
+| `outputTokensPerSecond` | `number` or absent | Output throughput while streaming. |
+| `reasoningTokens` | `number` (default 0) | Reasoning tokens reported by the harness. |
+| `toolCallCount` | `number` (default 0) | Tool calls made by the run. |
+
+## Run analytics
+
+`analytics.runs(query)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns totals plus time-bucketed series. Every query field is optional: `from`, `to` (ISO 8601 UTC strings or `Date`), `interval` (`minute`, `hour`, `day`, `week`, `auto`), `agentId`, `harnessType`, `deploymentId`, and `groupBy` (`none`, `agent`, `harness`).
+
+```ts
+const now = Date.now();
+const report = await client.analytics.runs({ from: new Date(now - 86400000), to: new Date(now), interval: "hour", groupBy: "agent" });
+console.log(report.totals.runs, report.totals.costUsd, report.bucketSeconds);
+for (const series of report.series) {
+  for (const bucket of series.buckets) console.log(series.label, bucket.startUtc, bucket.runs, bucket.timeToFirstTokenMsP95);
+}
+```
+
+`bucketSeconds` is the authoritative bucket size. `truncated` is true when the 100,000-run cap was hit. Averages and percentiles are `null` when a bucket has no samples. The server returns 400 when `from` is not before `to`, when the range needs more than 400 buckets, or when a parameter is invalid.
 
 ## Errors
 

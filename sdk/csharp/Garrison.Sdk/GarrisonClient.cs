@@ -135,6 +135,11 @@ namespace Garrison.Sdk
         public RunsClient Runs { get; }
 
         /// <summary>
+        /// Analytics.
+        /// </summary>
+        public AnalyticsClient Analytics { get; }
+
+        /// <summary>
         /// Worker nodes.
         /// </summary>
         public NodesClient Nodes { get; }
@@ -195,6 +200,7 @@ namespace Garrison.Sdk
             ArtifactStores = new ArtifactStoresClient(Transport);
             Manifests = new ManifestsClient(Transport);
             Runs = new RunsClient(Transport);
+            Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);
             NodePools = new NodePoolsClient(Transport);
             RequestHistory = new RequestHistoryClient(Transport);

@@ -80,12 +80,12 @@ Rules for keeping the plan honest:
 | 0 | Repository bootstrap | M1 | Complete | 14 / 14 |
 | 1 | Core foundation: settings, data layer, identity, RBAC, history, audit | M1 | Complete | 50 / 50 |
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
-| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 41 / 44 |
+| 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 43 / 44 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
 | 5 | Dashboard | M1 | In progress | 41 / 49 |
-| 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 17 / 21 |
+| 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 34 / 37 |
-| 8 | Documentation and Postman | M1 | In progress | 16 / 17 |
+| 8 | Documentation and Postman | M1 | In progress | 16 / 22 |
 | 9 | MVP verification (milestone M1) | M1 | In progress | 14 / 16 |
 | 10 | Control plane high availability and scale-out | M2 | Not started | 0 / 18 |
 | 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
@@ -1185,8 +1185,8 @@ Tests
 - [x] P3.9.4 Provider matrix green for Phase 3 schema on both providers.  | claude 2026-10-10 runtime suites green on both providers
 - [x] P3.10.1 Real-harness suite (skipped without credentials): Claude Code, Codex, and Mux each answer a one-line prompt through a worker.  | claude 2026-10-10 local real harnesses: Claude Code (haiku) and Codex answered OK; Mux 1.2.0 real CLI against a stub OpenAI endpoint; uses isolateHome=false clones to reuse local logins
 - [x] P3.11.1 Application metrics and spans in section 17 for server and worker.  | claude 2026-10-10 worker: Radiant in Garrison.Core (shared GarrisonTelemetry), garrison.worker.* leases, runs, run.duration, harness.tokens, harness.cost_usd, completion_reports, runs.active, slots.free; span "harness <type> exec" parented on spec.TraceParent; scraped from both workers in K3S
-- [ ] P3.12 Run timing telemetry per section 10.6: worker measures TTFT, streaming, and execution on a monotonic clock and counts tool calls; parsers report reasoning tokens where available; node protocol, migration 2 (Sqlite and Postgresql), server computes queue, total, and tokens per second; REST, MCP run summary, tests.
-- [ ] P3.13 Analytics endpoint per section 10.6 (time-bucketed, gap-filled, percentiles, filters, group by agent or harness), operation scope entry, tests on both providers, `REST_API.md`, Postman.
+- [x] P3.12 Run timing telemetry per section 10.6: worker measures TTFT, streaming, and execution on a monotonic clock and counts tool calls; parsers report reasoning tokens where available; node protocol, migration 2 (Sqlite and Postgresql), server computes queue, total, and tokens per second; REST, MCP run summary, tests.  | claude 2026-10-10 worker Stopwatch timing (HarnessTiming), migration 2 on Sqlite and Postgresql (upgrades v1 in place), reasoning tokens from Codex, Claude, Mux; K3S live: Claude TTFT 1.6 s, 96 tok/s; Mux TTFT 11 s; Codex streams 0 ms (single message, G-12)
+- [x] P3.13 Analytics endpoint per section 10.6 (time-bucketed, gap-filled, percentiles, filters, group by agent or harness), operation scope entry, tests on both providers, `REST_API.md`, Postman.  | claude 2026-10-10 AnalyticsRoutes and RunAnalyticsService; auto interval picks at most 96 buckets; selected by createdUtc; nearest-rank percentiles; 7 cases per provider; live on K3S grouped by harness
 - [x] P3.12.1 OpenAPI metadata on every Phase 3 route.  | claude 2026-10-10
 
 ### Phase 4: Protocol ingress
@@ -1285,7 +1285,7 @@ Quality
 - [x] P6.16 `.github/workflows/sdk.yaml` running the harnesses.  | claude 2026-10-10 SDK stream; .github/workflows/sdk.yaml (not yet run on GitHub)
 - [ ] P6.17 Worker uses `Garrison.Sdk` for the node protocol (dogfooding).
 - [x] P6.18 Each SDK's version mirrors the product version.  | claude 2026-10-10 0.1.0-alpha everywhere (Python 0.1.0a0, the PEP 440 form)
-- [ ] P6.21 SDKs: section 10.6 run fields and an analytics method in C#, Python, JavaScript/TypeScript, and Go, covered by each test harness.
+- [x] P6.21 SDKs: section 10.6 run fields and an analytics method in C#, Python, JavaScript/TypeScript, and Go, covered by each test harness.  | claude 2026-10-10 C# client.Analytics.RunsAsync, Python client.analytics.runs, JS client.analytics.runs, Go client.Analytics.Runs; harnesses 15/15 each
 - [ ] P6.19 SDK interactive consoles (optional, Clutch pattern). **(post-M1)**
 - [ ] P6.20 Publish packages (NuGet, PyPI, npm, Go module tag). **(post-M1, requires approval)**
 
@@ -1359,6 +1359,11 @@ Scripts and validation
 - [x] P8.15 Run the Postman collection with Newman (in a container) against a local server. -> all requests pass.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
 - [x] P8.16 Em-dash check passes across the repository.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
 - [ ] P8.17 Documentation examples executed as written (part of P9.14).
+- [ ] P8.18 New-user documentation review: walk the README and linked docs as a first-time user with no context, on a clean machine (fresh clone, no images, no prior settings), and record every point of friction, missing prerequisite, unexplained term, and wrong or stale command in `docs/testing/NEW_USER_REVIEW.md` before changing anything. Covers P8.19 to P8.21.
+- [ ] P8.19 Path 1, Docker: from the README alone, reach a running stack (server, two workers, dashboard), sign in, and see both workers, in under 10 minutes excluding the first image build. Needs: prerequisites (Docker version, disk and memory, build time), where credentials go (`.env`), ports and what to do when one is taken, how to stop, update, and reset, and what "healthy" looks like.
+- [ ] P8.20 Path 2, Kubernetes: the same outcome on minikube, K3S (host and in Docker), and an existing cluster, from the README plus `docs/KUBERNETES.md`. Needs: which option to pick and why, prerequisites per option (kubectl, Helm optional), image build or pull, secrets and harness credentials, port-forward versus ingress, the URLs and credentials to use, and how to check, scale, update, and tear down.
+- [ ] P8.21 Path 3, first configuration: from a running stack, add harness credentials, create two or more agents with deployments (at least two harnesses, one agent allowed to delegate to another) using both the dashboard and a manifest, then validate: invoke each over REST, MCP, and A2A, watch a run stream, confirm delegation in the run tree, and check telemetry and analytics. Ship it as a copy-paste quick start (`docs/QUICKSTART.md`) with a sample manifest in `examples/` and a script that runs the validation and prints pass or fail.
+- [ ] P8.22 Fix every finding from P8.18 to P8.21 in the README and docs (README stays an overview with one short path per runtime and links to the details), then repeat the walkthrough and record the second pass, including timings, in `docs/testing/NEW_USER_REVIEW.md`. P9.14 uses the result.
 
 ### Phase 9: MVP verification (milestone M1)
 
@@ -1375,7 +1380,7 @@ Scripts and validation
 - [x] P9.11 Delegation demonstrated: Claude agent invokes the Codex agent through Garrison MCP.  | claude 2026-10-10 Claude to Codex through Garrison MCP: child run Delegated, depth 1, callChain claude-helper,codex-coder on the other worker, answer "s[::-1]" relayed. Also Claude to Mux ("Paris")
 - [x] P9.12 Same three agents invoked through REST, MCP (Voltaic client), and A2A (Voltaic client).  | claude 2026-10-10 K3S: claude-helper, codex-coder, and mux-helper each answered over REST, MCP (garrison_invoke_agent), and A2A SendMessage
 - [x] P9.13 Postman collection passes against the cluster through port-forward.  | claude 2026-10-10 Newman in Docker through port-forward to K3S: 196 requests, 218 assertions, 0 failures (Restart folder excluded)
-- [ ] P9.14 Lightweight simulated user session (README quick start followed literally, dashboard walkthrough, one SDK quick start) with findings recorded in `docs/testing/M1_SESSION.md` and surfaced to the user before fixes.
+- [ ] P9.14 Lightweight simulated user session (after P8.18 to P8.22) (README quick start followed literally, dashboard walkthrough, one SDK quick start) with findings recorded in `docs/testing/M1_SESSION.md` and surfaced to the user before fixes.
 - [x] P9.15 CI workflows green on GitHub. **(requires push approval)**  | claude 2026-10-10 all five workflows green on b6b51ba (Tests net8.0 and net10.0, Dashboard, SDKs, Kubernetes with K3S smoke test, Text hygiene); first run caught a test race, fixed
 - [ ] P9.16 M1 sign-off: update the Progress Dashboard, `CHANGELOG.md`, and the decision log; record known gaps.
 

@@ -309,6 +309,78 @@ namespace Garrison.Core.Models
         public bool CostEstimated { get; set; } = false;
 
         /// <summary>
+        /// Reasoning or thinking tokens when the harness reports them (for example Codex reasoning_output_tokens or
+        /// Claude Code thinking tokens); otherwise 0.
+        /// </summary>
+        public long ReasoningTokens { get; set; } = 0;
+
+        /// <summary>
+        /// Tool call events observed in the run, counted by the worker. Default 0.
+        /// </summary>
+        public int ToolCallCount { get; set; } = 0;
+
+        /// <summary>
+        /// Time of the first model output event (assistant text or thinking), measured by the worker. Null when not
+        /// measurable.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public DateTime? FirstTokenUtc { get; set; } = null;
+
+        /// <summary>
+        /// Time of the last model output event (assistant text or thinking), measured by the worker. Null when not
+        /// measurable.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public DateTime? LastTokenUtc { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from harness process start to the first model output (TTFT, includes harness startup),
+        /// measured by the worker on a monotonic clock. Null when not measurable.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public long? TimeToFirstTokenMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from the first to the last model output, measured by the worker on a monotonic clock. Null
+        /// when not measurable.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public long? StreamingMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from harness process start to process exit, measured by the worker on a monotonic clock.
+        /// Null when not measurable.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public long? ExecutionMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from queued to leased, computed by the server from its own timestamps. Null until leased.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public long? QueueMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from queued to completed, computed by the server from its own timestamps. Null until the run
+        /// finishes.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public long? TotalMs { get; set; } = null;
+
+        /// <summary>
+        /// Output tokens per second of streaming: OutputTokens divided by StreamingMs in seconds, rounded to two
+        /// decimals. Null when StreamingMs is null or below 100 milliseconds. Computed; not stored.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public double? OutputTokensPerSecond
+        {
+            get
+            {
+                return ComputeOutputTokensPerSecond(OutputTokens, StreamingMs);
+            }
+        }
+
+        /// <summary>
         /// Highest event sequence received.
         /// </summary>
         public long LastEventSequence { get; set; } = 0;
@@ -413,6 +485,35 @@ namespace Garrison.Core.Models
         private List<RunParameter> _Parameters = new List<RunParameter>();
         private List<RunRequirement> _Requirements = new List<RunRequirement>();
         private List<RunTemplateVersion> _TemplateVersions = new List<RunTemplateVersion>();
+
+        #endregion
+
+        #region Public-Methods
+
+        /// <summary>
+        /// Output tokens per second of streaming: outputTokens divided by streamingMs in seconds, rounded to two
+        /// decimals.
+        /// </summary>
+        /// <param name="outputTokens">Output tokens.</param>
+        /// <param name="streamingMs">Streaming milliseconds, or null.</param>
+        /// <returns>Rate, or null when streamingMs is null or below 100 milliseconds.</returns>
+        public static double? ComputeOutputTokensPerSecond(long outputTokens, long? streamingMs)
+        {
+            if (!streamingMs.HasValue || streamingMs.Value < 100) return null;
+            return Math.Round(outputTokens / (streamingMs.Value / 1000.0), 2);
+        }
+
+        /// <summary>
+        /// Milliseconds between two timestamps, never negative.
+        /// </summary>
+        /// <param name="fromUtc">Start, or null.</param>
+        /// <param name="toUtc">End, or null.</param>
+        /// <returns>Milliseconds, or null when either timestamp is null.</returns>
+        public static long? ElapsedMs(DateTime? fromUtc, DateTime? toUtc)
+        {
+            if (!fromUtc.HasValue || !toUtc.HasValue) return null;
+            return Math.Max(0, (long)(toUtc.Value - fromUtc.Value).TotalMilliseconds);
+        }
 
         #endregion
     }

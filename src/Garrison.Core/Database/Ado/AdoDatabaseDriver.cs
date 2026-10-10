@@ -446,6 +446,19 @@ namespace Garrison.Core.Database.Ado
 
                 await ExecuteInTransactionAsync(async (connection, transaction, ct) =>
                 {
+                    foreach (SchemaColumnAddition column in migration.Columns)
+                    {
+                        string table = _Catalog.RawName(column.Table);
+                        List<int> present = await QueryAsync(connection, transaction, _Dialect.ColumnExistsProbe(_Catalog.Schema), command =>
+                        {
+                            Add(command, "table", table);
+                            Add(command, "column", column.Column);
+                            if (!String.IsNullOrEmpty(_Catalog.Schema)) Add(command, "schema", _Catalog.Schema);
+                        }, reader => 1, ct).ConfigureAwait(false);
+                        if (present.Count > 0) continue;
+                        await ExecuteAsync(connection, transaction, _Dialect.AddColumn(_Catalog.Schema, table, column.Column, column.Definition), null, ct).ConfigureAwait(false);
+                    }
+
                     foreach (string statement in migration.Statements)
                     {
                         await ExecuteAsync(connection, transaction, statement, null, ct).ConfigureAwait(false);

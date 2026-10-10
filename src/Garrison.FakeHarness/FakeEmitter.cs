@@ -118,6 +118,8 @@ namespace Garrison.FakeHarness
             {
                 case "claude":
                     Line(new { type = "stream_event", @event = new { type = "message_start" } });
+                    Line(new { type = "stream_event", @event = new { type = "content_block_delta", index = 0, delta = new { type = "thinking_delta", thinking = "Considering the request." } } });
+                    Think();
                     foreach (string chunk in chunks)
                     {
                         Line(new { type = "stream_event", @event = new { type = "content_block_delta", index = 0, delta = new { type = "text_delta", text = chunk } } });
@@ -131,8 +133,8 @@ namespace Garrison.FakeHarness
                         result = answer,
                         session_id = _SessionId,
                         total_cost_usd = 0.0001,
-                        usage = new { input_tokens = 12, output_tokens = 7, cache_read_input_tokens = 3, cache_creation_input_tokens = 0 },
-                        modelUsage = new System.Collections.Generic.Dictionary<string, object> { { "fake-model", new { outputTokens = 7 } } }
+                        usage = new { input_tokens = 12, output_tokens = 7, cache_read_input_tokens = 3, cache_creation_input_tokens = 0, output_tokens_details = new { thinking_tokens = 2 } },
+                        modelUsage = new System.Collections.Generic.Dictionary<string, object> { { "fake-model", new { outputTokens = 7, thinkingTokens = 2 } } }
                     });
                     break;
                 case "codex":
@@ -142,11 +144,15 @@ namespace Garrison.FakeHarness
                     }
                     else
                     {
+                        Line(new { type = "item.completed", item = new { id = "rs_1", type = "reasoning", text = "Considering the request." } });
+                        Think();
                         Line(new { type = "item.completed", item = new { id = "msg_1", type = "agent_message", text = answer } });
-                        Line(new { type = "turn.completed", usage = new { input_tokens = 12, cached_input_tokens = 3, output_tokens = 7 } });
+                        Line(new { type = "turn.completed", usage = new { input_tokens = 12, cached_input_tokens = 3, output_tokens = 7, reasoning_output_tokens = 2 } });
                     }
                     break;
                 case "mux":
+                    Line(new { contractVersion = 2, eventType = "assistant_thinking", timestampUtc = DateTime.UtcNow, text = "Considering the request." });
+                    Think();
                     foreach (string chunk in chunks)
                     {
                         Line(new { contractVersion = 2, eventType = "assistant_text", timestampUtc = DateTime.UtcNow, text = chunk });
@@ -169,6 +175,11 @@ namespace Garrison.FakeHarness
         {
             Console.Out.WriteLine(JsonSerializer.Serialize(value));
             Console.Out.Flush();
+        }
+
+        private void Think()
+        {
+            if (_Options.ThinkMs > 0) Thread.Sleep(_Options.ThinkMs);
         }
 
         private void Delay()

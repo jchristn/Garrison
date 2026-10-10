@@ -9,6 +9,7 @@ import sys
 import time
 import traceback
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from garrison_sdk import GarrisonClient, GarrisonError
 
@@ -80,6 +81,47 @@ def t_invoke():
     run = client.agents.invoke(state["agent"], "Hello from the Python SDK", wait=True, wait_seconds=90)
     require(run["status"] == "Succeeded", f"status {run['status']} {run.get('errorMessage')}")
     require((run.get("resultText") or "").startswith("Echo:"), f"result {run.get('resultText')}")
+    state["run"] = run["id"]
+
+
+def t_run_metrics():
+    run = client.runs.get(state["run"])
+    ttft = run.get("timeToFirstTokenMs")
+    execution = run.get("executionMs")
+    require(ttft is not None and ttft >= 0, f"timeToFirstTokenMs {ttft}")
+    require(execution is not None and execution >= 0, f"executionMs {execution}")
+    require(run.get("toolCallCount", 0) >= 0, f"toolCallCount {run.get('toolCallCount')}")
+
+
+def _window():
+    now = datetime.now(timezone.utc)
+    return now - timedelta(hours=1), now + timedelta(minutes=1)
+
+
+def t_analytics():
+    start, end = _window()
+    result = client.analytics.runs(from_=start, to=end, interval="minute")
+    require(result["totals"]["runs"] >= 1, f"totals.runs {result['totals']['runs']}")
+    require(len(result["series"]) >= 1, "no series")
+    for series in result["series"]:
+        require(len(series["buckets"]) > 0, f"series {series['key']} has no buckets")
+        require(all(b.get("startUtc") for b in series["buckets"]), f"series {series['key']} bucket without startUtc")
+
+
+def t_analytics_group():
+    start, end = _window()
+    result = client.analytics.runs(from_=start, to=end, interval="auto", group_by="harness")
+    require(len(result["series"]) >= 1, "no series")
+
+
+def t_analytics_invalid():
+    start, end = _window()
+    try:
+        client.analytics.runs(from_=end, to=start)
+    except GarrisonError as e:
+        require(e.status_code == 400, f"status {e.status_code}")
+        return
+    raise AssertionError("expected 400 for from >= to")
 
 
 def t_stream():
@@ -128,7 +170,9 @@ def t_cleanup():
 
 for name, fn in [("health", t_health), ("token auth", t_token), ("signed request auth", t_signed),
                  ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create),
-                 ("invoke with wait", t_invoke), ("stream events", t_stream), ("cancel run", t_cancel),
+                 ("invoke with wait", t_invoke), ("run timing metrics", t_run_metrics),
+                 ("run analytics", t_analytics), ("run analytics grouped by harness", t_analytics_group),
+                 ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
                  ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs), ("cleanup", t_cleanup)]:
     check(name, fn)
 

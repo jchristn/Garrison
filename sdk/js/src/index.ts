@@ -47,6 +47,27 @@ export interface Run extends Json {
   id: string; tenantId: string; agentId: string; agentName: string; deploymentId: string; status: string; outcome: string;
   inputText?: string; resultText?: string; errorMessage?: string; inputTokens: number; outputTokens: number;
   costUsd?: number; createdUtc: string; startedUtc?: string; completedUtc?: string; depth: number; parentRunId?: string;
+  cachedTokens?: number;
+  /** Total reasoning tokens reported by the harness (0 when not reported). */
+  reasoningTokens?: number;
+  /** Number of tool calls the run made (0 when none). */
+  toolCallCount?: number;
+  /** UTC timestamp of the first model output event; absent when the run produced no output. */
+  firstTokenUtc?: string | null;
+  /** UTC timestamp of the last model output event; absent when the run produced no output. */
+  lastTokenUtc?: string | null;
+  /** Milliseconds from start to the first output event; absent when not measurable. */
+  timeToFirstTokenMs?: number | null;
+  /** Milliseconds between the first and last output events; absent when not measurable. */
+  streamingMs?: number | null;
+  /** Milliseconds from harness process start to exit; absent when not measurable. */
+  executionMs?: number | null;
+  /** Milliseconds from creation to start; absent when not measurable. */
+  queueMs?: number | null;
+  /** Milliseconds from queued to completed (server clock); absent when not measurable. */
+  totalMs?: number | null;
+  /** Output tokens per second while streaming; absent when not measurable. */
+  outputTokensPerSecond?: number | null;
 }
 
 export interface RunEvent extends Json {
@@ -64,6 +85,62 @@ export interface RunFilter {
   status?: string; agentId?: string; deploymentId?: string; harnessType?: string; nodeId?: string; parentRunId?: string;
   rootRunId?: string; outcome?: string; callerId?: string; fromUtc?: string | Date; toUtc?: string | Date;
   maxResults?: number; skip?: number; ordering?: string;
+}
+
+/** Bucket size for run analytics. */
+export type AnalyticsInterval = "minute" | "hour" | "day" | "week" | "auto";
+
+/** Series grouping for run analytics. */
+export type AnalyticsGroupBy = "none" | "agent" | "harness";
+
+/** Query for GET /v1.0/api/tenants/{tenantId}/analytics/runs. Every field is optional. */
+export interface RunAnalyticsQuery {
+  /** Range start (ISO 8601 UTC). */
+  from?: string | Date;
+  /** Range end (ISO 8601 UTC); must be after from. */
+  to?: string | Date;
+  interval?: AnalyticsInterval;
+  agentId?: string;
+  harnessType?: string;
+  deploymentId?: string;
+  groupBy?: AnalyticsGroupBy;
+}
+
+/** Aggregated run metrics for a bucket or for the whole range. Averages and percentiles are null without samples. */
+export interface RunAnalyticsMetrics {
+  runs: number; succeeded: number; failed: number; cancelled: number; timedOut: number;
+  inputTokens: number; outputTokens: number; cachedTokens: number; reasoningTokens: number; toolCalls: number;
+  costUsd: number;
+  timeToFirstTokenMsAvg: number | null; timeToFirstTokenMsP50: number | null; timeToFirstTokenMsP95: number | null;
+  streamingMsAvg: number | null; executionMsAvg: number | null; executionMsP95: number | null;
+  queueMsAvg: number | null; outputTokensPerSecondAvg: number | null;
+}
+
+/** One time bucket of run metrics. */
+export interface RunAnalyticsBucket extends RunAnalyticsMetrics {
+  /** Bucket start (ISO 8601 UTC). */
+  startUtc: string;
+}
+
+/** One series: "all" for groupBy none, an agent ID for agent, a harness type for harness. */
+export interface RunAnalyticsSeries {
+  key: string;
+  label: string;
+  buckets: RunAnalyticsBucket[];
+}
+
+/** Response from the run analytics endpoint. */
+export interface RunAnalytics {
+  fromUtc: string;
+  toUtc: string;
+  /** minute, hour, day, week, or auto when the chosen bucket matches none of those. */
+  interval: string;
+  /** Authoritative bucket size in seconds. */
+  bucketSeconds: number;
+  /** True when the 100,000-run cap was hit. */
+  truncated: boolean;
+  totals: RunAnalyticsMetrics;
+  series: RunAnalyticsSeries[];
 }
 
 export class GarrisonError extends Error {
@@ -358,6 +435,13 @@ export class Runs {
   }
 }
 
+/** Tenant analytics. */
+export class Analytics {
+  constructor(private readonly t: Transport) {}
+  /** Aggregate run metrics over time. Rejects with GarrisonError (400) when from is not before to, the range needs more than 400 buckets, or a parameter is invalid. */
+  runs(query: RunAnalyticsQuery = {}): Promise<RunAnalytics> { return this.t.request("GET", this.t.tenantPath("/analytics/runs"), query as any); }
+}
+
 /** Platform-level collection (tenants, nodes, node pools). */
 export class GlobalResource<T = Json> {
   constructor(protected readonly t: Transport, protected readonly path: string) {}
@@ -420,6 +504,7 @@ export class GarrisonClient {
   readonly artifactStores: Resource;
   readonly manifests: Manifests;
   readonly runs: Runs;
+  readonly analytics: Analytics;
   readonly nodes: Nodes;
   readonly nodePools: GlobalResource;
   readonly requestHistory: RequestHistory;
@@ -446,6 +531,7 @@ export class GarrisonClient {
     this.artifactStores = new Resource(t, "artifact-stores");
     this.manifests = new Manifests(t);
     this.runs = new Runs(t);
+    this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");
     this.nodePools = new GlobalResource(t, "/v1.0/api/node-pools");
     this.requestHistory = new RequestHistory(t);

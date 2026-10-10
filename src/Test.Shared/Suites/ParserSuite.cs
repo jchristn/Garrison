@@ -43,7 +43,9 @@ namespace Test.Shared.Suites
                 Case("parsers", "generic-jsonl", "Generic JSONL: dotted path mappings", GenericJsonl),
                 Case("parsers", "plain-text", "Plain text: every line is assistant text", PlainText),
                 Case("parsers", "non-json-lines", "JSON parsers turn non-JSON lines into stdout events", NonJsonLines),
-                Case("parsers", "raw-event-truncation", "Raw events are truncated to the configured size", RawTruncation)
+                Case("parsers", "raw-event-truncation", "Raw events are truncated to the configured size", RawTruncation),
+                Case("parsers", "reasoning-tokens", "Reasoning tokens from Codex, Claude, and Mux usage; 0 when absent", ReasoningTokens),
+                Case("parsers", "timing", "Harness timing: TTFT, streaming, execution, and tool calls on a monotonic clock", Timing)
             };
 
             List<TestCaseDescriptor> outcomes = new List<TestCaseDescriptor>
@@ -110,6 +112,90 @@ namespace Test.Shared.Suites
             Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.AssistantText && e.Text == "OK"), "Expected an assistant text event.");
             Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Result), "Expected a result event.");
             Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Usage), "Expected a usage event.");
+        }
+
+        private static void ReasoningTokens()
+        {
+            Assert.Equal(0L, Parse(OutputParserEnum.CodexJsonl, "codex/success.jsonl").ReasoningTokens, "Codex fixture reports 0 reasoning tokens");
+            Assert.Equal(0L, Parse(OutputParserEnum.ClaudeStreamJson, "claude/success.jsonl").ReasoningTokens, "Claude fixture reports 0 thinking tokens");
+            Assert.Equal(0L, Parse(OutputParserEnum.MuxJsonl, "mux/success.jsonl").ReasoningTokens, "Mux reports no reasoning tokens");
+
+            HarnessRunState codex = ParseLines(OutputParserEnum.CodexJsonl, new[]
+            {
+                "{\"type\":\"thread.started\",\"thread_id\":\"t1\"}",
+                "{\"type\":\"item.completed\",\"item\":{\"id\":\"m1\",\"type\":\"agent_message\",\"text\":\"OK\"}}",
+                "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"cached_input_tokens\":10,\"output_tokens\":20,\"reasoning_output_tokens\":64}}"
+            });
+            Assert.Equal(64L, codex.ReasoningTokens, "Codex reasoning_output_tokens");
+            Assert.Equal(84L, codex.OutputTokens, "Codex output tokens include reasoning");
+
+            HarnessRunState claude = ParseLines(OutputParserEnum.ClaudeStreamJson, new[]
+            {
+                "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"OK\",\"usage\":{\"input_tokens\":5,\"output_tokens\":50,\"output_tokens_details\":{\"thinking_tokens\":31}}}"
+            });
+            Assert.Equal(31L, claude.ReasoningTokens, "Claude usage thinking_tokens");
+
+            HarnessRunState claudeModels = ParseLines(OutputParserEnum.ClaudeStreamJson, new[]
+            {
+                "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"OK\",\"usage\":{\"output_tokens\":50},\"modelUsage\":{\"a\":{\"outputTokens\":40,\"thinkingTokens\":12},\"b\":{\"outputTokens\":10,\"thinkingTokens\":3}}}"
+            });
+            Assert.Equal(15L, claudeModels.ReasoningTokens, "Claude modelUsage thinkingTokens summed");
+
+            HarnessRunState mux = ParseLines(OutputParserEnum.MuxJsonl, new[]
+            {
+                "{\"contractVersion\":2,\"eventType\":\"run_completed\",\"status\":\"completed\",\"usage\":{\"inputTokens\":10,\"outputTokens\":4,\"reasoningTokens\":7}}"
+            });
+            Assert.Equal(7L, mux.ReasoningTokens, "Mux usage reasoningTokens when present");
+        }
+
+        private static void Timing()
+        {
+            HarnessTiming timing = new HarnessTiming();
+            RunEventReport text = new RunEventReport();
+            text.EventType = RunEventTypeEnum.AssistantText;
+            timing.Observe(text);
+            Assert.True(timing.TimeToFirstTokenMs == null, "Output before start is ignored.");
+
+            timing.Start();
+            Thread.Sleep(30);
+            RunEventReport thinking = new RunEventReport();
+            thinking.EventType = RunEventTypeEnum.Thinking;
+            timing.Observe(thinking);
+            RunEventReport tool = new RunEventReport();
+            tool.EventType = RunEventTypeEnum.ToolCall;
+            timing.Observe(tool);
+            timing.Observe(tool);
+            RunEventReport result = new RunEventReport();
+            result.EventType = RunEventTypeEnum.ToolResult;
+            timing.Observe(result);
+            Thread.Sleep(30);
+            timing.Observe(text);
+            Thread.Sleep(10);
+            timing.MarkExited();
+            timing.Observe(text);
+
+            long ttft = timing.TimeToFirstTokenMs ?? -1;
+            long streaming = timing.StreamingMs ?? -1;
+            long execution = timing.ExecutionMs ?? -1;
+            Assert.True(ttft >= 25, "TTFT should cover the delay before the first output (was " + ttft + ").");
+            Assert.True(streaming >= 25, "Streaming should cover first to last output (was " + streaming + ").");
+            Assert.True(execution >= ttft + streaming, "Execution covers TTFT plus streaming (was " + execution + ").");
+            Assert.Equal(2, timing.ToolCallCount, "Tool calls");
+            DateTime firstToken = timing.FirstTokenUtc ?? DateTime.MinValue;
+            DateTime lastToken = timing.LastTokenUtc ?? DateTime.MinValue;
+            Assert.True(firstToken > DateTime.MinValue && lastToken >= firstToken, "First token precedes last token.");
+            Assert.Equal(streaming, (long)(lastToken - firstToken).TotalMilliseconds, "Timestamps agree with the monotonic durations");
+
+            RunCompleteRequest complete = new RunCompleteRequest();
+            timing.ApplyTo(complete);
+            Assert.Equal(ttft, complete.TimeToFirstTokenMs ?? -1, "Applied TTFT");
+            Assert.Equal(2, complete.ToolCallCount, "Applied tool calls");
+
+            HarnessTiming silent = new HarnessTiming();
+            silent.Start();
+            silent.MarkExited();
+            Assert.True(silent.TimeToFirstTokenMs == null && silent.StreamingMs == null && silent.FirstTokenUtc == null, "No model output means null TTFT and streaming.");
+            Assert.True(silent.ExecutionMs.HasValue, "Execution is measured even without model output.");
         }
 
         private static void ClaudeMcpFailed()

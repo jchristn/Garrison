@@ -173,13 +173,25 @@ namespace Garrison.Harnesses.Parsers
                 state.InputTokens = (JsonPath.Long(usage, "input_tokens") ?? 0) + (JsonPath.Long(usage, "cache_creation_input_tokens") ?? 0);
                 state.CachedTokens = JsonPath.Long(usage, "cache_read_input_tokens") ?? 0;
                 state.OutputTokens = JsonPath.Long(usage, "output_tokens") ?? 0;
+                if (JsonPath.TryGet(usage, "output_tokens_details", out JsonElement details))
+                {
+                    state.ReasoningTokens = JsonPath.Long(details, "thinking_tokens") ?? JsonPath.Long(details, "reasoning_tokens") ?? state.ReasoningTokens;
+                }
             }
 
             if (JsonPath.TryGet(root, "modelUsage", out JsonElement modelUsage) && modelUsage.ValueKind == JsonValueKind.Object)
             {
                 long best = -1;
+                long thinking = 0;
+                bool sawThinking = false;
                 foreach (JsonProperty model in modelUsage.EnumerateObject())
                 {
+                    long? modelThinking = JsonPath.Long(model.Value, "thinkingTokens");
+                    if (modelThinking.HasValue)
+                    {
+                        thinking += modelThinking.Value;
+                        sawThinking = true;
+                    }
                     long output = JsonPath.Long(model.Value, "outputTokens") ?? 0;
                     if (output > best)
                     {
@@ -187,6 +199,7 @@ namespace Garrison.Harnesses.Parsers
                         state.ServedModel = model.Name;
                     }
                 }
+                if (sawThinking && thinking > state.ReasoningTokens) state.ReasoningTokens = thinking;
             }
 
             if (!state.SawSuccess)

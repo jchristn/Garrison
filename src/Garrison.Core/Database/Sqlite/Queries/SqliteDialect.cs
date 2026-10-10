@@ -102,6 +102,12 @@ namespace Garrison.Core.Database.Sqlite.Queries
         }
 
         /// <inheritdoc />
+        public override string ColumnExistsProbe(string? schema)
+        {
+            return "SELECT 1 FROM pragma_table_info(@table) WHERE name = @column LIMIT 1;";
+        }
+
+        /// <inheritdoc />
         public override bool IsTransientConflict(Exception exception)
         {
             if (exception is SqliteException sqlite) return sqlite.SqliteErrorCode == 5 || sqlite.SqliteErrorCode == 6;

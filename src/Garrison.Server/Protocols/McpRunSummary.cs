@@ -65,6 +65,51 @@ namespace Garrison.Server.Protocols
         public double? CostUsd { get; set; } = null;
 
         /// <summary>
+        /// Cached input tokens.
+        /// </summary>
+        public long CachedTokens { get; set; } = 0;
+
+        /// <summary>
+        /// Reasoning or thinking tokens, when the harness reports them; otherwise 0.
+        /// </summary>
+        public long ReasoningTokens { get; set; } = 0;
+
+        /// <summary>
+        /// Tool call events in the run.
+        /// </summary>
+        public int ToolCallCount { get; set; } = 0;
+
+        /// <summary>
+        /// Milliseconds from harness process start to the first model output; null when not measured.
+        /// </summary>
+        public long? TimeToFirstTokenMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from the first to the last model output; null when not measured.
+        /// </summary>
+        public long? StreamingMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from harness process start to exit; null when not measured.
+        /// </summary>
+        public long? ExecutionMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from queued to leased; null until leased.
+        /// </summary>
+        public long? QueueMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from queued to completed; null until finished.
+        /// </summary>
+        public long? TotalMs { get; set; } = null;
+
+        /// <summary>
+        /// Output tokens per second of streaming; null when streaming lasted under 100 milliseconds.
+        /// </summary>
+        public double? OutputTokensPerSecond { get; set; } = null;
+
+        /// <summary>
         /// Created (UTC).
         /// </summary>
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;

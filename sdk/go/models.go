@@ -93,12 +93,33 @@ type Run struct {
 	ErrorMessage string   `json:"errorMessage"`
 	InputTokens  int64    `json:"inputTokens"`
 	OutputTokens int64    `json:"outputTokens"`
+	CachedTokens int64    `json:"cachedTokens"`
 	CostUSD      *float64 `json:"costUsd"`
 	Depth        int      `json:"depth"`
 	ParentRunID  string   `json:"parentRunId"`
 	CreatedUTC   string   `json:"createdUtc"`
 	StartedUTC   string   `json:"startedUtc"`
 	CompletedUTC string   `json:"completedUtc"`
+	// FirstTokenUTC is the ISO 8601 UTC time of the first model output event; nil when absent.
+	FirstTokenUTC *string `json:"firstTokenUtc,omitempty"`
+	// LastTokenUTC is the ISO 8601 UTC time of the last model output event; nil when absent.
+	LastTokenUTC *string `json:"lastTokenUtc,omitempty"`
+	// TimeToFirstTokenMs is milliseconds from start to the first output event; nil when not measurable.
+	TimeToFirstTokenMs *int64 `json:"timeToFirstTokenMs,omitempty"`
+	// StreamingMs is milliseconds from the first to the last output event; nil when not measurable.
+	StreamingMs *int64 `json:"streamingMs,omitempty"`
+	// ExecutionMs is milliseconds from harness process start to exit; nil when not measurable.
+	ExecutionMs *int64 `json:"executionMs,omitempty"`
+	// QueueMs is milliseconds from creation to start; nil when not measurable.
+	QueueMs *int64 `json:"queueMs,omitempty"`
+	// TotalMs is milliseconds from queued to completed (server clock); nil when not measurable.
+	TotalMs *int64 `json:"totalMs,omitempty"`
+	// OutputTokensPerSecond is output tokens divided by streaming time; nil when not measurable.
+	OutputTokensPerSecond *float64 `json:"outputTokensPerSecond,omitempty"`
+	// ReasoningTokens is the reasoning token count reported by the harness. Default 0.
+	ReasoningTokens int64 `json:"reasoningTokens"`
+	// ToolCallCount is the number of tool calls the run made. Default 0.
+	ToolCallCount int64 `json:"toolCallCount"`
 }
 
 // RunEvent is one normalized event emitted by a run.
@@ -164,4 +185,74 @@ type ManifestApply struct {
 	DryRun      bool            `json:"dryRun"`
 	FailedCount int             `json:"failedCount"`
 	Items       json.RawMessage `json:"items"`
+}
+
+// AnalyticsQuery filters GET .../analytics/runs. Empty fields are omitted.
+type AnalyticsQuery struct {
+	// From is the inclusive range start as an ISO 8601 UTC string. Server default when empty.
+	From string
+	// To is the exclusive range end as an ISO 8601 UTC string. Server default when empty.
+	To string
+	// Interval is minute, hour, day, week, or auto.
+	Interval string
+	// AgentID limits results to one agent.
+	AgentID string
+	// HarnessType limits results to one harness type.
+	HarnessType string
+	// DeploymentID limits results to one deployment.
+	DeploymentID string
+	// GroupBy is none, agent, or harness.
+	GroupBy string
+}
+
+// AnalyticsMetrics are the aggregate run metrics reported for totals and for every bucket.
+// Nullable averages and percentiles are nil when there are no samples.
+type AnalyticsMetrics struct {
+	Runs                     int64    `json:"runs"`
+	Succeeded                int64    `json:"succeeded"`
+	Failed                   int64    `json:"failed"`
+	Cancelled                int64    `json:"cancelled"`
+	TimedOut                 int64    `json:"timedOut"`
+	InputTokens              int64    `json:"inputTokens"`
+	OutputTokens             int64    `json:"outputTokens"`
+	CachedTokens             int64    `json:"cachedTokens"`
+	ReasoningTokens          int64    `json:"reasoningTokens"`
+	ToolCalls                int64    `json:"toolCalls"`
+	CostUSD                  float64  `json:"costUsd"`
+	TimeToFirstTokenMsAvg    *float64 `json:"timeToFirstTokenMsAvg"`
+	TimeToFirstTokenMsP50    *float64 `json:"timeToFirstTokenMsP50"`
+	TimeToFirstTokenMsP95    *float64 `json:"timeToFirstTokenMsP95"`
+	StreamingMsAvg           *float64 `json:"streamingMsAvg"`
+	ExecutionMsAvg           *float64 `json:"executionMsAvg"`
+	ExecutionMsP95           *float64 `json:"executionMsP95"`
+	QueueMsAvg               *float64 `json:"queueMsAvg"`
+	OutputTokensPerSecondAvg *float64 `json:"outputTokensPerSecondAvg"`
+}
+
+// AnalyticsBucket is one time bucket of a series; StartUTC is the bucket start.
+type AnalyticsBucket struct {
+	StartUTC string `json:"startUtc"`
+	AnalyticsMetrics
+}
+
+// AnalyticsSeries is one series. Key is "all", an agent ID, or a harness type depending on GroupBy;
+// Label is "All runs", the agent name, or the harness type.
+type AnalyticsSeries struct {
+	Key     string            `json:"key"`
+	Label   string            `json:"label"`
+	Buckets []AnalyticsBucket `json:"buckets"`
+}
+
+// RunAnalytics is the response of GET .../analytics/runs.
+type RunAnalytics struct {
+	FromUTC string `json:"fromUtc"`
+	ToUTC   string `json:"toUtc"`
+	// Interval is minute, hour, day, week, or auto when the chosen bucket is not one of those.
+	Interval string `json:"interval"`
+	// BucketSeconds is the authoritative bucket size.
+	BucketSeconds int64 `json:"bucketSeconds"`
+	// Truncated is true when the server's 100,000-run cap was hit.
+	Truncated bool              `json:"truncated"`
+	Totals    AnalyticsMetrics  `json:"totals"`
+	Series    []AnalyticsSeries `json:"series"`
 }

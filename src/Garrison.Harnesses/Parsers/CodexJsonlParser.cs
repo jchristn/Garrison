@@ -54,10 +54,12 @@ namespace Garrison.Harnesses.Parsers
                     {
                         long input = JsonPath.Long(usage, "input_tokens") ?? 0;
                         long cached = JsonPath.Long(usage, "cached_input_tokens") ?? 0;
-                        long output = (JsonPath.Long(usage, "output_tokens") ?? 0) + (JsonPath.Long(usage, "reasoning_output_tokens") ?? 0);
+                        long reasoning = JsonPath.Long(usage, "reasoning_output_tokens") ?? 0;
+                        long output = (JsonPath.Long(usage, "output_tokens") ?? 0) + reasoning;
                         state.InputTokens += input;
                         state.CachedTokens += cached;
                         state.OutputTokens += output;
+                        state.ReasoningTokens += reasoning;
                         state.Emit(Usage(input, output, raw));
                     }
                     state.SawFinalResult = true;

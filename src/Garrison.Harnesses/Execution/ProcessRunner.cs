@@ -71,6 +71,7 @@ namespace Garrison.Harnesses.Execution
                     return result;
                 }
 
+                request.Timing?.Start();
                 result.StartedUtc = DateTime.UtcNow;
                 result.ProcessId = process.Id;
                 if (onStarted != null) await onStarted(process.Id).ConfigureAwait(false);
@@ -88,12 +89,17 @@ namespace Garrison.Harnesses.Execution
                     Task stopTask = Task.Delay(Timeout.Infinite, stopAll.Token);
                     Task first = await Task.WhenAny(exitTask, stopTask).ConfigureAwait(false);
 
-                    if (first != exitTask)
+                    if (first == exitTask)
+                    {
+                        request.Timing?.MarkExited();
+                    }
+                    else
                     {
                         if (token.IsCancellationRequested) result.Cancelled = true;
                         else if (outputLimit.IsCancellationRequested) result.OutputLimitExceeded = true;
                         else result.TimedOut = true;
                         await StopAsync(process, request.KillGraceSeconds).ConfigureAwait(false);
+                        if (process.HasExited) request.Timing?.MarkExited();
                     }
 
                     try

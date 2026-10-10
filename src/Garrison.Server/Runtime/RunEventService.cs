@@ -147,6 +147,18 @@ namespace Garrison.Server.Runtime
             run.CachedTokens = request.CachedTokens;
             run.CostUsd = request.CostUsd;
             run.CostEstimated = request.CostEstimated;
+            run.ReasoningTokens = Math.Max(0, request.ReasoningTokens);
+            run.ToolCallCount = Math.Max(0, request.ToolCallCount);
+            run.FirstTokenUtc = request.FirstTokenUtc;
+            run.LastTokenUtc = request.LastTokenUtc;
+            run.TimeToFirstTokenMs = NonNegative(request.TimeToFirstTokenMs);
+            run.StreamingMs = NonNegative(request.StreamingMs);
+            run.ExecutionMs = NonNegative(request.ExecutionMs);
+
+            // Queue and total time come from this server's clock only; the worker's clock may differ.
+            DateTime receivedUtc = DateTime.UtcNow;
+            run.QueueMs = Run.ElapsedMs(run.QueuedUtc, run.LeasedUtc);
+            run.TotalMs = Run.ElapsedMs(run.QueuedUtc, receivedUtc);
 
             if (!await _Database.Runs.CompleteAsync(run, request.NodeId, request.Epoch, token).ConfigureAwait(false))
             {
@@ -158,6 +170,9 @@ namespace Garrison.Server.Runtime
             if (run.InputTokens > 0) _Telemetry.Record("garrison.harness.tokens", run.InputTokens, new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("direction", "input"));
             if (run.OutputTokens > 0) _Telemetry.Record("garrison.harness.tokens", run.OutputTokens, new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("direction", "output"));
             if (run.StartedUtc.HasValue && run.CompletedUtc.HasValue) _Telemetry.Record("garrison.run.stage.duration", (run.CompletedUtc.Value - run.StartedUtc.Value).TotalSeconds, new RadiantTag("stage", "execution"), new RadiantTag("harness", run.HarnessType.ToString()));
+            if (run.QueueMs.HasValue) _Telemetry.Record("garrison.run.stage.duration", run.QueueMs.Value / 1000.0, new RadiantTag("stage", "queue"), new RadiantTag("harness", run.HarnessType.ToString()));
+            if (run.TimeToFirstTokenMs.HasValue) _Telemetry.Record("garrison.run.stage.duration", run.TimeToFirstTokenMs.Value / 1000.0, new RadiantTag("stage", "first_token"), new RadiantTag("harness", run.HarnessType.ToString()));
+            if (run.ReasoningTokens > 0) _Telemetry.Record("garrison.harness.tokens", run.ReasoningTokens, new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("direction", "reasoning"));
             _Signals.Complete(run.Id);
             return run;
         }
@@ -187,6 +202,12 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private static long? NonNegative(long? value)
+        {
+            if (!value.HasValue) return null;
+            return Math.Max(0, value.Value);
+        }
 
         private async Task<Run> RequireLeaseAsync(string runId, string nodeId, long epoch, CancellationToken token)
         {

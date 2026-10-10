@@ -6,7 +6,7 @@ A deterministic stand-in for Claude Code, Codex, and Mux. It reads the prompt fr
 garrison-fake-harness --version
 garrison-fake-harness --format claude|codex|mux|plain [--scenario file] [--delay-ms N] [--fail]
                       [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
-                      [--output-last-message file] [--stderr text]
+                      [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N]
 ```
 
 | Option | Effect |
@@ -21,6 +21,10 @@ garrison-fake-harness --format claude|codex|mux|plain [--scenario file] [--delay
 | `--mcp-call url,token,tool,argsjson` | Call an MCP tool (bearer token) and append its result to the answer. Used for delegation tests. |
 | `--output-last-message file` | Also write the answer to a file, like `mux --output-last-message`. |
 | `--stderr text` | Write text to stderr before exiting. |
+| `--tool-calls N` | Emit N fake tool calls (`fake_tool`, each with a successful result) before the answer. Used to test tool call counting. |
+| `--think-ms N` | Pause between the thinking event and the first answer chunk. Default 20, so every run has a measurable time to first token and streaming time. |
+
+In the Claude, Codex, and Mux formats the answer is preceded by one thinking event (a `thinking_delta`, a `reasoning` item, or `assistant_thinking`), and the final usage reports 2 reasoning tokens (`output_tokens_details.thinking_tokens` for Claude, `reasoning_output_tokens` for Codex). Plain format has no thinking event.
 
 Unknown arguments are ignored, so a harness profile can pass extra flags.
 

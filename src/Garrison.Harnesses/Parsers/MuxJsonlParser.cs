@@ -77,6 +77,7 @@ namespace Garrison.Harnesses.Parsers
                     {
                         state.InputTokens = JsonPath.Long(usage, "inputTokens") ?? 0;
                         state.OutputTokens = JsonPath.Long(usage, "outputTokens") ?? 0;
+                        state.ReasoningTokens = JsonPath.Long(usage, "reasoningTokens") ?? 0;
                         state.Emit(Usage(state.InputTokens, state.OutputTokens, null));
                     }
                     state.SessionId = JsonPath.Str(root, "sessionId") ?? state.SessionId;

@@ -32,6 +32,7 @@ namespace Garrison.Server.Modules
         private RunSignals? _Signals = null;
         private RunService? _Runs = null;
         private RunEventService? _Events = null;
+        private RunAnalyticsService? _Analytics = null;
         private NodeService? _Nodes = null;
         private SchedulerService? _Scheduler = null;
         private DelegationPolicy? _Delegation = null;
@@ -54,6 +55,7 @@ namespace Garrison.Server.Modules
             _Signals = new RunSignals();
             _Runs = new RunService(context.Database, _Signals, _Options, context.Telemetry);
             _Events = new RunEventService(context.Database, _Signals, context.Telemetry);
+            _Analytics = new RunAnalyticsService(context.Database);
             _Nodes = new NodeService(context.Database, _Options, context.Audit);
             _Delegation = new DelegationPolicy(context.Database);
             _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation);
@@ -65,6 +67,7 @@ namespace Garrison.Server.Modules
             context.Register(_Signals);
             context.Register(_Runs);
             context.Register(_Events);
+            context.Register(_Analytics);
             context.Register(_Nodes);
             context.Register(_Delegation);
             context.Register(_Invoker);
@@ -80,6 +83,7 @@ namespace Garrison.Server.Modules
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             new RunRoutes(context, _Runs!, _Events!, _Options!, _Signals!, _Invoker!).Register(routes);
+            new AnalyticsRoutes(_Analytics!).Register(routes);
             new NodeProtocolRoutes(context, _Nodes!, _Scheduler!, _Events!).Register(routes);
             new NodeRoutes(context).Register(routes);
             new OverviewRoutes(context).Register(routes);

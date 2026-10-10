@@ -26,8 +26,8 @@ Prometheus names are the OpenTelemetry names with dots replaced by underscores a
 | `garrison.http.requests` | counter | `method`, `status_class` (`2xx`, `4xx`, ...) | REST requests handled |
 | `garrison.runs.created` | counter | `harness`, `kind` | Runs created |
 | `garrison.runs.finished` | counter | `outcome`, `harness` | Runs that reached a terminal status |
-| `garrison.run.stage.duration` | histogram, seconds | `stage` (`execution`), `harness` | Time from start to completion |
-| `garrison.harness.tokens` | histogram | `harness`, `direction` (`input`, `output`) | Tokens per run, as reported by the harness |
+| `garrison.run.stage.duration` | histogram, seconds | `stage` (`execution`, `queue`, `first_token`), `harness` | `execution`: start to completion; `queue`: queued to leased; `first_token`: harness start to first model output |
+| `garrison.harness.tokens` | histogram | `harness`, `direction` (`input`, `output`, `reasoning`) | Tokens per run, as reported by the harness |
 | `garrison.claims` | counter | `result` (`won`, `lost`, `limit`) | Lease claim attempts. `lost` means another node claimed the run first; `limit` means a deployment was at its concurrency limit |
 | `garrison.compile.duration` | histogram, seconds | `harness` | Time to compile a claimed run into an execution spec |
 | `garrison.event.batch.size` | histogram | | Events per batch received from workers |
@@ -58,13 +58,43 @@ Workers publish their own metrics through the same pipeline, configured by the `
 | `garrison.worker.leases` | counter | `result` (`assigned`, `empty`, `error`) | Lease requests and what came back |
 | `garrison.worker.runs` | counter | `harness`, `outcome` | Runs this worker finished |
 | `garrison.worker.run.duration` | histogram, seconds | `harness` | Run duration on the worker |
-| `garrison.worker.harness.tokens` | histogram | `harness`, `direction` (`input`, `output`, `cached`) | Tokens per run |
+| `garrison.worker.run.ttft` | histogram, seconds | `harness` | Harness process start to first model output |
+| `garrison.worker.run.streaming` | histogram, seconds | `harness` | First to last model output |
+| `garrison.worker.harness.tokens` | histogram | `harness`, `direction` (`input`, `output`, `cached`, `reasoning`) | Tokens per run |
 | `garrison.worker.harness.cost_usd` | histogram | `harness` | Reported cost per run |
 | `garrison.worker.completion_reports` | counter | `result` (`accepted`, `stale`, `abandoned`) | Completion reports, including ones refused for a lost lease or given up after `CompletionRetrySeconds` |
 | `garrison.worker.runs.active` | gauge | | Runs in progress |
 | `garrison.worker.slots.free` | gauge | | Free run slots |
 
 The worker's state is also visible through the control plane (node status, capacity, active runs, and last heartbeat in `GET /v1.0/api/nodes`, the dashboard, and the `nodes` WebSocket channel) and from its health endpoint, `GET /health/ready` on port 8710.
+
+## Run timing
+
+Every run records how long it waited, how long the harness took to start producing output, and how long it streamed. The values are on the `Run` returned by the REST API, in the MCP run summary, in A2A task metadata, and in the SDK run models, and they feed the analytics endpoint (`GET /v1.0/api/tenants/{tenantId}/analytics/runs`, described in `REST_API.md`) behind the dashboard's charts.
+
+```
+queued --> leased --> process start --> first output --> last output --> exit --> completion received
+|<- queueMs ->|
+                      |<- timeToFirstTokenMs ->|<-- streamingMs -->|
+                      |<----------------- executionMs ------------------->|
+|<------------------------------------- totalMs ------------------------------------------>|
+```
+
+| Field | What it measures | Where and how |
+|---|---|---|
+| `timeToFirstTokenMs` | From the moment the harness process starts to its first model output, meaning the first assistant text or thinking event the parser produces. It includes the CLI's own startup, MCP server connections, and the model's first-token latency, so it is what a user waiting on the run experiences, not the model's raw latency. | Worker, on a monotonic clock (`Stopwatch`) started right after the process launches. A line counts when the worker reads it from stdout. |
+| `streamingMs` | From the first model output to the last. 0 when there was only one output event (for example a harness that prints its whole answer at once). | Worker, same clock. |
+| `executionMs` | From process start to process exit, including a kill after a deadline or cancellation. | Worker, same clock. |
+| `firstTokenUtc`, `lastTokenUtc` | Wall-clock times of the first and last model output. | Worker: the process start time plus the monotonic offsets, so they agree exactly with the durations. |
+| `queueMs` | From queued to leased by a worker. A run that is requeued after its worker disappears starts a new queue period. | Server, from its own `queuedUtc` and `leasedUtc`. |
+| `totalMs` | From queued to the moment the server received the completion. | Server clock only. |
+| `outputTokensPerSecond` | `outputTokens / (streamingMs / 1000)`. Only defined when `streamingMs` is at least 100, because shorter windows give meaningless rates. Harnesses that report usage only at the end, or emit their answer as one event, often have no rate. | Computed by the server when the run is read. |
+| `reasoningTokens` | Reasoning or thinking tokens: Codex `reasoning_output_tokens` (also included in `outputTokens`, as before), Claude Code `usage.output_tokens_details.thinking_tokens` or the sum of `modelUsage.*.thinkingTokens`, Mux `usage.reasoningTokens` when present. 0 when the harness does not report them. | Parser. |
+| `toolCallCount` | Tool call events the parser produced (MCP tools, shell commands, web searches, and so on). | Worker. |
+
+Durations measured by the worker never mix clocks, so they are exact even when the worker's and server's clocks disagree. Durations the server computes use only server timestamps for the same reason. A value that could not be measured is `null`: a harness that never started has no timings, one that was killed before it produced output has `executionMs` but no `timeToFirstTokenMs`, and runs that finished before schema migration 2 have only `queueMs` and `totalMs`, derived from their stored timestamps.
+
+The analytics endpoint aggregates up to 100,000 runs per request in the server process, so averages and percentiles (nearest rank) come out the same on Sqlite and Postgresql.
 
 ## Traces
 

@@ -49,6 +49,7 @@ namespace Garrison.Sdk.Test
                 string? tenantId = null;
                 string? agentId = null;
                 string? deploymentId = null;
+                Run? invokedRun = null;
 
                 await CheckAsync("health", async () =>
                 {
@@ -111,6 +112,59 @@ namespace Garrison.Sdk.Test
                     Run run = await client.Agents.InvokeAsync(agentId ?? throw new InvalidOperationException("no agent"), request, token).ConfigureAwait(false);
                     Require(run.Status == RunStatusEnum.Succeeded, "status " + run.Status + " " + run.ErrorMessage);
                     Require((run.ResultText ?? String.Empty).StartsWith("Echo:", StringComparison.Ordinal), "result " + run.ResultText);
+                    invokedRun = run;
+                }).ConfigureAwait(false);
+
+                await CheckAsync("run timing fields", async () =>
+                {
+                    Run run = await client.Runs.GetAsync(invokedRun?.Id ?? throw new InvalidOperationException("no invoked run"), token).ConfigureAwait(false);
+                    Require(run.TimeToFirstTokenMs.HasValue && run.TimeToFirstTokenMs.Value >= 0, "timeToFirstTokenMs " + run.TimeToFirstTokenMs);
+                    Require(run.ExecutionMs.HasValue && run.ExecutionMs.Value >= 0, "executionMs " + run.ExecutionMs);
+                    Require(run.ToolCallCount >= 0, "toolCallCount " + run.ToolCallCount);
+                }).ConfigureAwait(false);
+
+                await CheckAsync("run analytics", async () =>
+                {
+                    RunAnalyticsQuery query = new RunAnalyticsQuery();
+                    query.From = DateTime.UtcNow.AddHours(-1);
+                    query.To = DateTime.UtcNow.AddMinutes(1);
+                    query.Interval = AnalyticsIntervalEnum.Minute;
+                    RunAnalyticsResponse analytics = await client.Analytics.RunsAsync(query, token).ConfigureAwait(false);
+                    Require(analytics.Totals.Runs >= 1, "totals.runs " + analytics.Totals.Runs);
+                    Require(analytics.Series.Count > 0, "no series");
+                    foreach (RunAnalyticsSeries series in analytics.Series)
+                    {
+                        Require(series.Buckets.Count > 0, "series " + series.Key + " has no buckets");
+                        Require(series.Buckets.All(b => b.StartUtc != default(DateTime)), "bucket without startUtc in " + series.Key);
+                    }
+                }).ConfigureAwait(false);
+
+                await CheckAsync("run analytics grouped by harness", async () =>
+                {
+                    RunAnalyticsQuery query = new RunAnalyticsQuery();
+                    query.From = DateTime.UtcNow.AddHours(-1);
+                    query.To = DateTime.UtcNow.AddMinutes(1);
+                    query.Interval = AnalyticsIntervalEnum.Auto;
+                    query.GroupBy = AnalyticsGroupByEnum.Harness;
+                    RunAnalyticsResponse analytics = await client.Analytics.RunsAsync(query, token).ConfigureAwait(false);
+                    Require(analytics.Series.Count > 0, "no series");
+                }).ConfigureAwait(false);
+
+                await CheckAsync("run analytics rejects from >= to", async () =>
+                {
+                    RunAnalyticsQuery query = new RunAnalyticsQuery();
+                    query.From = DateTime.UtcNow;
+                    query.To = query.From.Value.AddHours(-1);
+                    bool rejected = false;
+                    try
+                    {
+                        await client.Analytics.RunsAsync(query, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 400)
+                    {
+                        rejected = true;
+                    }
+                    Require(rejected, "expected 400");
                 }).ConfigureAwait(false);
 
                 await CheckAsync("stream events", async () =>

@@ -89,6 +89,14 @@ A successful call returns one text content item holding a JSON object. The run t
   "inputTokens": 12,
   "outputTokens": 7,
   "costUsd": 0.0001,
+  "cachedTokens": 3,
+  "reasoningTokens": 2,
+  "toolCallCount": 0,
+  "timeToFirstTokenMs": 61,
+  "streamingMs": 21,
+  "executionMs": 88,
+  "queueMs": 9,
+  "totalMs": 104,
   "createdUtc": "2026-10-10T01:57:36.591804Z",
   "completedUtc": "2026-10-10T01:57:36.674182Z"
 }
@@ -102,7 +110,9 @@ A successful call returns one text content item holding a JSON object. The run t
 | `result` | The final text, when finished |
 | `structuredOutputJson` | Structured output as a JSON string, when the agent defines an output schema |
 | `error` | Error message for failed runs |
-| `inputTokens`, `outputTokens`, `costUsd` | Usage reported by the harness |
+| `inputTokens`, `outputTokens`, `cachedTokens`, `reasoningTokens`, `costUsd` | Usage reported by the harness (`reasoningTokens` is 0 when the harness does not report it) |
+| `toolCallCount` | Tool call events in the run |
+| `timeToFirstTokenMs`, `streamingMs`, `executionMs`, `queueMs`, `totalMs`, `outputTokensPerSecond` | Run timing, with the same meaning as the REST run fields (see "Run timing and usage fields" in `REST_API.md` and `docs/TELEMETRY.md`). Omitted when not measured |
 | `createdUtc`, `completedUtc` | Timestamps |
 
 `garrison_list_agents` returns `{"agents":[...],"totalRecords":n}`, where each agent has `id`, `name`, `description`, `inputMode`, and `skills`. `garrison_get_agent` returns one such agent, adding `displayName`, `inputSchemaJson`, and `outputSchemaJson` when they are set. `garrison_list_runs` returns `{"runs":[...],"totalRecords":n}` of run summaries. `garrison_get_run_events` returns the same body as `GET .../runs/{id}/events`, without the raw harness output.

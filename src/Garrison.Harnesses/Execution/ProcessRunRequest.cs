@@ -53,5 +53,11 @@ namespace Garrison.Harnesses.Execution
         /// Retained stderr tail size in characters.
         /// </summary>
         public int StderrTailBytes { get; set; } = 8000;
+
+        /// <summary>
+        /// Optional timing recorder. When set, the runner marks the process start right after launch and the process
+        /// exit as soon as it is observed. Null disables timing.
+        /// </summary>
+        public HarnessTiming? Timing { get; set; } = null;
     }
 }

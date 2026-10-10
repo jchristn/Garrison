@@ -649,6 +649,9 @@ namespace Garrison.Worker.Hosting
             if (complete.InputTokens > 0) _Telemetry.Add("garrison.worker.harness.tokens", complete.InputTokens, harnessTag, new RadiantTag("direction", "input"));
             if (complete.OutputTokens > 0) _Telemetry.Add("garrison.worker.harness.tokens", complete.OutputTokens, harnessTag, new RadiantTag("direction", "output"));
             if (complete.CachedTokens > 0) _Telemetry.Add("garrison.worker.harness.tokens", complete.CachedTokens, harnessTag, new RadiantTag("direction", "cached"));
+            if (complete.ReasoningTokens > 0) _Telemetry.Add("garrison.worker.harness.tokens", complete.ReasoningTokens, harnessTag, new RadiantTag("direction", "reasoning"));
+            if (complete.TimeToFirstTokenMs.HasValue) _Telemetry.Record("garrison.worker.run.ttft", complete.TimeToFirstTokenMs.Value / 1000.0, harnessTag);
+            if (complete.StreamingMs.HasValue) _Telemetry.Record("garrison.worker.run.streaming", complete.StreamingMs.Value / 1000.0, harnessTag);
             if (complete.CostUsd != null && complete.CostUsd.Value > 0) _Telemetry.Add("garrison.worker.harness.cost_usd", complete.CostUsd.Value, harnessTag);
         }
 

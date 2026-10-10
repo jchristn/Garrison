@@ -303,6 +303,56 @@ namespace Garrison.Sdk.Models
         public double? CostUsd { get; set; } = null;
 
         /// <summary>
+        /// Reasoning (thinking) tokens reported by the harness. Default 0.
+        /// </summary>
+        public long ReasoningTokens { get; set; } = 0;
+
+        /// <summary>
+        /// Number of tool calls the harness made during the run. Default 0.
+        /// </summary>
+        public int ToolCallCount { get; set; } = 0;
+
+        /// <summary>
+        /// Time of the first model output event (UTC). Null when the run produced no model output.
+        /// </summary>
+        public DateTime? FirstTokenUtc { get; set; } = null;
+
+        /// <summary>
+        /// Time of the last model output event (UTC). Null when the run produced no model output.
+        /// </summary>
+        public DateTime? LastTokenUtc { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from harness process start to the first model output event (includes harness startup). Null when not measurable.
+        /// </summary>
+        public long? TimeToFirstTokenMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds between the first and last model output events. Null when not measurable.
+        /// </summary>
+        public long? StreamingMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from harness process start to process exit. Null when not measurable.
+        /// </summary>
+        public long? ExecutionMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds spent queued before the run was leased. Null when not measurable.
+        /// </summary>
+        public long? QueueMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from queued to completed, measured by the server. Null until the run finishes.
+        /// </summary>
+        public long? TotalMs { get; set; } = null;
+
+        /// <summary>
+        /// Output tokens per second over the streaming window. Null when not measurable.
+        /// </summary>
+        public double? OutputTokensPerSecond { get; set; } = null;
+
+        /// <summary>
         /// Whether the cost is an estimate.
         /// </summary>
         public bool CostEstimated { get; set; } = false;

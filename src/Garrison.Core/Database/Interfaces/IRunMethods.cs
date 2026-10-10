@@ -167,6 +167,20 @@ namespace Garrison.Core.Database.Interfaces
         Task<EnumerationResult<Run>> EnumerateAsync(RunFilter filter, CancellationToken token = default);
 
         /// <summary>
+        /// List runs for analytics, newest first, populating only identity, status, timestamp, usage, and timing
+        /// fields (children, input, and result text are not loaded). Uses the filter's TenantId (required), AgentId,
+        /// DeploymentId, HarnessType, FromUtc (inclusive), and ToUtc (exclusive), all compared against the creation
+        /// time; other filter fields are ignored.
+        /// </summary>
+        /// <param name="filter">Filter; TenantId is required.</param>
+        /// <param name="limit">Maximum rows. Minimum 1.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Runs, newest first.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when filter is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when the filter has no tenant.</exception>
+        Task<List<Run>> ListForAnalyticsAsync(RunFilter filter, int limit, CancellationToken token = default);
+
+        /// <summary>
         /// Count runs by status.
         /// </summary>
         /// <param name="tenantId">Tenant identifier, or null for all tenants.</param>

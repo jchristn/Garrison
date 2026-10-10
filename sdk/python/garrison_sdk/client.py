@@ -8,7 +8,7 @@ import json
 import secrets
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Union
 from urllib.parse import quote, urlencode
 
 import requests
@@ -369,6 +369,31 @@ class Runs:
             time.sleep(poll_interval)
 
 
+class Analytics:
+    """Tenant analytics. Responses are dictionaries with the server's camelCase field names."""
+
+    INTERVALS = ("minute", "hour", "day", "week", "auto")
+    GROUP_BY = ("none", "agent", "harness")
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def runs(self, from_: Optional[Union[datetime, str]] = None, to: Optional[Union[datetime, str]] = None,
+             interval: Optional[str] = None, agent_id: Optional[str] = None, harness_type: Optional[str] = None,
+             deployment_id: Optional[str] = None, group_by: Optional[str] = None) -> Dict[str, Any]:
+        """Run analytics over a time range: GET /v1.0/api/tenants/{tenantId}/analytics/runs.
+
+        from_ and to accept a datetime (converted to UTC) or an ISO 8601 UTC string. interval is minute, hour,
+        day, week, or auto. group_by is none, agent, or harness. Omitted parameters use the server defaults.
+        Returns {fromUtc, toUtc, interval, bucketSeconds, truncated, totals, series: [{key, label, buckets}]}.
+        Raises GarrisonError (400) when from_ >= to, when the range needs more than 400 buckets, or when a
+        parameter is invalid.
+        """
+        return self._t.request("GET", self._t.tenant_path("/analytics/runs"), {
+            "from": from_, "to": to, "interval": interval, "agentId": agent_id, "harnessType": harness_type,
+            "deploymentId": deployment_id, "groupBy": group_by})
+
+
 class Global:
     """Platform-level collection (tenants, nodes, node pools)."""
 
@@ -485,6 +510,7 @@ class GarrisonClient:
         self.artifact_stores = Resource(t, "artifact-stores")
         self.manifests = Manifests(t)
         self.runs = Runs(t)
+        self.analytics = Analytics(t)
         self.nodes = Nodes(t, "/v1.0/api/nodes")
         self.node_pools = Global(t, "/v1.0/api/node-pools")
         self.request_history = RequestHistory(t)

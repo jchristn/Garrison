@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migration 1).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 and 2).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -724,7 +724,16 @@ CREATE TABLE IF NOT EXISTS "runs" (
     active INTEGER NOT NULL,
     isprotected INTEGER NOT NULL,
     createdutc TEXT NOT NULL,
-    lastupdateutc TEXT NOT NULL
+    lastupdateutc TEXT NOT NULL,
+    firsttokenutc TEXT,
+    lasttokenutc TEXT,
+    ttftms BIGINT,
+    streamingms BIGINT,
+    executionms BIGINT,
+    queuems BIGINT,
+    totalms BIGINT,
+    toolcallcount INTEGER NOT NULL DEFAULT 0,
+    reasoningtokens BIGINT NOT NULL DEFAULT 0
 );
 CREATE INDEX "idx_runs_tenant" ON "runs" ("tenantid");
 CREATE INDEX "idx_runs_claim" ON "runs" ("status", "harnesstype", "priority", "createdutc");

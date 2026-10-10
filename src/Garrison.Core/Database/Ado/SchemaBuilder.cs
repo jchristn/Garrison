@@ -16,6 +16,7 @@ namespace Garrison.Core.Database.Ado
         private readonly TableCatalog _Catalog;
         private readonly SqlDialect _Dialect;
         private readonly List<string> _Statements = new List<string>();
+        private readonly List<SchemaColumnAddition> _Columns = new List<SchemaColumnAddition>();
 
         #endregion
 
@@ -48,6 +49,10 @@ namespace Garrison.Core.Database.Ado
             SchemaBuilder v1 = new SchemaBuilder(catalog, dialect);
             v1.BuildVersion1();
             migrations.Add(new SchemaMigration(1, "Initial schema", v1._Statements));
+
+            SchemaBuilder v2 = new SchemaBuilder(catalog, dialect);
+            v2.BuildVersion2();
+            migrations.Add(new SchemaMigration(2, "Run timing telemetry", v2._Statements, v2._Columns));
 
             return migrations;
         }
@@ -85,6 +90,27 @@ namespace Garrison.Core.Database.Ado
             foreach (string column in columns) quoted.Add(_Dialect.Quote(column));
             string name = "idx_" + _Catalog.RawName(rawTable) + "_" + suffix;
             _Statements.Add(_Dialect.CreateIndex(name, _Catalog.Schema, _Catalog.RawName(rawTable), String.Join(", ", quoted), unique));
+        }
+
+        private void Column(string rawTable, string column, string definition)
+        {
+            _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion2()
+        {
+            SqlDialect d = _Dialect;
+
+            // runs: timing telemetry (plan section 10.6)
+            Column("runs", "firsttokenutc", d.TypeTimestamp);
+            Column("runs", "lasttokenutc", d.TypeTimestamp);
+            Column("runs", "ttftms", d.TypeBigInt);
+            Column("runs", "streamingms", d.TypeBigInt);
+            Column("runs", "executionms", d.TypeBigInt);
+            Column("runs", "queuems", d.TypeBigInt);
+            Column("runs", "totalms", d.TypeBigInt);
+            Column("runs", "toolcallcount", d.TypeInt + " NOT NULL DEFAULT 0");
+            Column("runs", "reasoningtokens", d.TypeBigInt + " NOT NULL DEFAULT 0");
         }
 
         private void BuildVersion1()

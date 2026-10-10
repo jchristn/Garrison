@@ -35,7 +35,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `analytics`, `nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
 
 ## Streaming run events
 
@@ -49,6 +49,35 @@ for item in client.runs.stream(run["id"]):
 ```
 
 The iterator ends after `run.completed`. `runs.events` polls, and `runs.wait_for_completion` waits for a terminal status.
+
+## Run metrics
+
+Run dictionaries carry timing and usage fields alongside `inputTokens`, `outputTokens`, `cachedTokens`, and `costUsd`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `firstTokenUtc`, `lastTokenUtc` | ISO 8601 UTC string or absent | First and last model output event. |
+| `timeToFirstTokenMs`, `streamingMs`, `executionMs`, `queueMs`, `totalMs` | int or absent | Durations in milliseconds. |
+| `outputTokensPerSecond` | float or absent | Output throughput. |
+| `reasoningTokens` | int, default 0 | Reasoning tokens reported by the harness. |
+| `toolCallCount` | int, default 0 | Tool calls made during the run. |
+
+The server omits fields it cannot measure, so read them with `run.get(...)`.
+
+## Run analytics
+
+```python
+from datetime import datetime, timedelta, timezone
+
+now = datetime.now(timezone.utc)
+result = client.analytics.runs(from_=now - timedelta(days=1), to=now, interval="hour", group_by="agent")
+print(result["totals"]["runs"], result["totals"]["costUsd"])
+for series in result["series"]:
+    for bucket in series["buckets"]:
+        print(series["label"], bucket["startUtc"], bucket["runs"], bucket["timeToFirstTokenMsP95"])
+```
+
+`analytics.runs(from_=None, to=None, interval=None, agent_id=None, harness_type=None, deployment_id=None, group_by=None)` accepts `datetime` values or ISO 8601 UTC strings for `from_` and `to`. `interval` is `minute`, `hour`, `day`, `week`, or `auto`; `group_by` is `none`, `agent`, or `harness`. The response carries `fromUtc`, `toUtc`, `interval`, `bucketSeconds` (authoritative bucket size), `truncated` (true when the 100,000 run cap was hit), `totals`, and `series` (each with `key`, `label`, and `buckets`). Totals and buckets share the same metrics: counts by outcome, token totals, `toolCalls`, `costUsd`, and latency averages and percentiles that are `None` when there are no samples. A range where `from_ >= to`, one that needs more than 400 buckets, or an invalid parameter raises `GarrisonError` with status 400.
 
 ## Manifests
 

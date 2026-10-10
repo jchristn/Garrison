@@ -65,6 +65,17 @@ namespace Garrison.FakeHarness
         /// </summary>
         public string? Stderr { get; set; } = null;
 
+        /// <summary>
+        /// Number of fake tool calls (each with a successful result) to emit before the answer. Default 0.
+        /// </summary>
+        public int ToolCalls { get; set; } = 0;
+
+        /// <summary>
+        /// Pause in milliseconds between the thinking event and the first answer chunk, so a run always has a
+        /// measurable streaming time. Minimum 0, default 20.
+        /// </summary>
+        public int ThinkMs { get; set; } = 20;
+
         #endregion
 
         #region Public-Methods
@@ -112,6 +123,12 @@ namespace Garrison.FakeHarness
                         break;
                     case "--output-last-message":
                         if (next != null) { options.OutputLastMessage = next; i++; }
+                        break;
+                    case "--tool-calls":
+                        if (next != null) { options.ToolCalls = Math.Max(0, Int32.Parse(next, CultureInfo.InvariantCulture)); i++; }
+                        break;
+                    case "--think-ms":
+                        if (next != null) { options.ThinkMs = Math.Max(0, Int32.Parse(next, CultureInfo.InvariantCulture)); i++; }
                         break;
                     case "--stderr":
                         if (next != null) { options.Stderr = next; i++; }

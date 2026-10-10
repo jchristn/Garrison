@@ -284,3 +284,32 @@ func (r *RunsClient) WaitForCompletion(ctx context.Context, id string) (*Run, er
 		}
 	}
 }
+
+// AnalyticsClient reports aggregate tenant analytics.
+type AnalyticsClient struct {
+	c *Client
+}
+
+// Runs returns run metrics bucketed over time. The server returns HTTP 400 (as *Error) when From is not
+// before To, when the range needs more than 400 buckets, or for an invalid interval, groupBy, harness type,
+// or date.
+func (a *AnalyticsClient) Runs(ctx context.Context, query AnalyticsQuery) (*RunAnalytics, error) {
+	q := url.Values{}
+	set := func(k, v string) {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	set("from", query.From)
+	set("to", query.To)
+	set("interval", query.Interval)
+	set("agentId", query.AgentID)
+	set("harnessType", query.HarnessType)
+	set("deploymentId", query.DeploymentID)
+	set("groupBy", query.GroupBy)
+	var out RunAnalytics
+	if err := a.c.Do(ctx, http.MethodGet, a.c.TenantPath("/analytics/runs"), q, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}

@@ -52,6 +52,14 @@ await check("invoke with wait", async () => {
   const run = await client.agents.invoke(state.agent, "Hello from the JavaScript SDK", { wait: true, waitSeconds: 90 });
   require(run.status === "Succeeded", `status ${run.status} ${run.errorMessage ?? ""}`);
   require((run.resultText ?? "").startsWith("Echo:"), `result ${run.resultText}`);
+  state.run = run;
+});
+await check("run timing fields", async () => {
+  const run = state.run;
+  require(run, "no finished run");
+  require(typeof run.timeToFirstTokenMs === "number" && run.timeToFirstTokenMs >= 0, `timeToFirstTokenMs ${run.timeToFirstTokenMs}`);
+  require(typeof run.executionMs === "number" && run.executionMs >= 0, `executionMs ${run.executionMs}`);
+  require((run.toolCallCount ?? 0) >= 0, `toolCallCount ${run.toolCallCount}`);
 });
 await check("stream events", async () => {
   const run = await client.runs.create({ input: "Stream this please", agentId: state.agent });
@@ -81,6 +89,31 @@ await check("list runs by agent", async () => {
   const page = await client.runs.list({ agentId: state.agent });
   require(page.totalRecords >= 3, `total ${page.totalRecords}`);
   require(page.objects.every((r) => r.agentId === state.agent), "foreign runs");
+});
+await check("run analytics", async () => {
+  const now = Date.now();
+  const result = await client.analytics.runs({ from: new Date(now - 3600000), to: new Date(now + 60000), interval: "minute" });
+  require(result.totals.runs >= 1, `totals.runs ${result.totals.runs}`);
+  require(result.series.length >= 1, "no series");
+  for (const series of result.series) {
+    require(series.buckets.length > 0, `series ${series.key} has no buckets`);
+    require(series.buckets.every((b) => b.startUtc), `series ${series.key} bucket without startUtc`);
+  }
+});
+await check("run analytics by harness", async () => {
+  const now = Date.now();
+  const result = await client.analytics.runs({ from: new Date(now - 3600000), to: new Date(now + 60000), interval: "auto", groupBy: "harness" });
+  require(result.series.length >= 1, "no series");
+});
+await check("run analytics rejects from >= to", async () => {
+  const now = new Date();
+  try {
+    await client.analytics.runs({ from: now, to: now });
+  } catch (e) {
+    require(e instanceof GarrisonError && e.statusCode === 400, `unexpected error ${e.message}`);
+    return;
+  }
+  throw new Error("expected 400");
 });
 await check("cleanup", async () => {
   if (state.deployment) await client.deployments.delete(state.deployment);

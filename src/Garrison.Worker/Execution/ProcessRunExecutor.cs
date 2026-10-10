@@ -60,6 +60,7 @@ namespace Garrison.Worker.Execution
             SecretScrubber scrubber = new SecretScrubber(CollectSecrets(spec));
             RunDirectories directories = new RunDirectories(_Options.WorkRoot, assignment.RunId);
             RunCompleteRequest complete = new RunCompleteRequest();
+            HarnessTiming timing = new HarnessTiming();
             bool succeeded = false;
 
             try
@@ -102,13 +103,18 @@ namespace Garrison.Worker.Execution
                 request.KillGraceSeconds = spec.KillGraceSeconds;
                 request.MaxOutputBytes = spec.MaxOutputBytes;
                 request.StderrTailBytes = spec.StderrTailBytes;
+                request.Timing = timing;
 
                 ProcessRunResult process = await _Runner.RunAsync(
                     request,
                     line =>
                     {
                         parser.ParseLine(line, state);
-                        foreach (RunEventReport report in state.Drain()) EmitScrubbed(reporter, scrubber, report);
+                        foreach (RunEventReport report in state.Drain())
+                        {
+                            timing.Observe(report);
+                            EmitScrubbed(reporter, scrubber, report);
+                        }
                     },
                     pid =>
                     {
@@ -134,6 +140,8 @@ namespace Garrison.Worker.Execution
                 complete.OutputTokens = state.OutputTokens;
                 complete.CachedTokens = state.CachedTokens;
                 complete.CostUsd = state.CostUsd;
+                complete.ReasoningTokens = state.ReasoningTokens;
+                timing.ApplyTo(complete);
                 complete.CompletedUtc = DateTime.UtcNow;
                 succeeded = complete.Status == RunStatusEnum.Succeeded;
 
@@ -145,6 +153,7 @@ namespace Garrison.Worker.Execution
                 complete.Status = RunStatusEnum.Cancelled;
                 complete.Outcome = RunOutcomeEnum.Cancelled;
                 complete.ErrorMessage = "Run was cancelled.";
+                timing.ApplyTo(complete);
                 complete.CompletedUtc = DateTime.UtcNow;
                 return complete;
             }

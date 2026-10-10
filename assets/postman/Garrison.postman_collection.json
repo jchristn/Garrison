@@ -4374,7 +4374,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('timing telemetry is present', function () { var r = pm.response.json(); pm.expect(r).to.have.property('timeToFirstTokenMs'); pm.expect(r).to.have.property('executionMs'); pm.expect(r).to.have.property('queueMs'); pm.expect(r.toolCallCount).to.be.at.least(0); });"
                 ]
               }
             }
@@ -4421,6 +4422,197 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run analytics (last hour, by agent)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/analytics/runs?from={{analyticsFrom}}&to={{analyticsTo}}&interval=minute&groupBy=agent",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "analytics",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{analyticsFrom}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{analyticsTo}}"
+                },
+                {
+                  "key": "interval",
+                  "value": "minute"
+                },
+                {
+                  "key": "groupBy",
+                  "value": "agent"
+                }
+              ]
+            },
+            "description": "Time-bucketed run analytics for the tenant (permission: Run, Read). Runs are selected by creation time in [from, to). interval is minute, hour, day, week, or auto (about 24 to 96 buckets; the default). groupBy is none, agent, or harness. agentId, harnessType, and deploymentId filter and can be combined. Buckets are gap-filled: counts and sums are 0 and averages are null in empty buckets. The pre-request script sets analyticsFrom and analyticsTo to the last hour."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var now = new Date();",
+                  "pm.collectionVariables.set('analyticsFrom', new Date(now.getTime() - 3600000).toISOString());",
+                  "pm.collectionVariables.set('analyticsTo', new Date(now.getTime() + 60000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('minute buckets', function () { pm.expect(json.interval).to.eql('minute'); pm.expect(json.bucketSeconds).to.eql(60); });",
+                  "pm.test('totals count the runs from this collection', function () { pm.expect(json.totals.runs).to.be.above(0); });",
+                  "pm.test('one series per agent with gap-filled buckets', function () { pm.expect(json.series.length).to.be.above(0); pm.expect(json.series[0].buckets.length).to.be.within(60, 62); pm.expect(json.series[0].buckets[0]).to.have.property('startUtc'); });",
+                  "pm.test('metrics carry timing fields', function () { pm.expect(json.totals).to.have.property('timeToFirstTokenMsP95'); pm.expect(json.totals).to.have.property('outputTokensPerSecondAvg'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run analytics for one agent and harness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/analytics/runs?from={{analyticsFrom}}&to={{analyticsTo}}&agentId={{agentId}}&harnessType=Generic&groupBy=harness",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "analytics",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{analyticsFrom}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{analyticsTo}}"
+                },
+                {
+                  "key": "agentId",
+                  "value": "{{agentId}}"
+                },
+                {
+                  "key": "harnessType",
+                  "value": "Generic"
+                },
+                {
+                  "key": "groupBy",
+                  "value": "harness"
+                }
+              ]
+            },
+            "description": "Combines the agentId and harnessType filters and groups by harness type. The fake harness runs as Generic. Uses auto interval, so bucketSeconds is chosen for the range."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var now = new Date();",
+                  "pm.collectionVariables.set('analyticsFrom', new Date(now.getTime() - 3600000).toISOString());",
+                  "pm.collectionVariables.set('analyticsTo', new Date(now.getTime() + 60000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('auto interval stays within 24 to 96 buckets', function () { json.series.forEach(function (s) { pm.expect(s.buckets.length).to.be.within(24, 97); }); });",
+                  "pm.test('series keyed by harness type', function () { json.series.forEach(function (s) { pm.expect(s.key).to.eql('Generic'); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run analytics rejects an empty range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/analytics/runs?from={{analyticsTo}}&to={{analyticsFrom}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "analytics",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{analyticsTo}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{analyticsFrom}}"
+                }
+              ]
+            },
+            "description": "from must be earlier than to. The same 400 comes back for a range needing more than 400 buckets, an unknown interval or groupBy, or an unknown harness type."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var now = new Date();",
+                  "pm.collectionVariables.set('analyticsFrom', new Date(now.getTime() - 3600000).toISOString());",
+                  "pm.collectionVariables.set('analyticsTo', new Date(now.getTime() + 60000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('validation error', function () { pm.expect(pm.response.json().code).to.eql('ValidationFailed'); });"
                 ]
               }
             }
@@ -8250,6 +8442,14 @@
     },
     {
       "key": "requestHistoryId",
+      "value": ""
+    },
+    {
+      "key": "analyticsFrom",
+      "value": ""
+    },
+    {
+      "key": "analyticsTo",
       "value": ""
     }
   ]

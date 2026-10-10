@@ -2198,6 +2198,37 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+##### Run timing and usage fields
+
+Every `Run` (and every run in a list) carries these telemetry fields. Durations are milliseconds. A field that could not be measured is `null`.
+
+| Field | Meaning | Measured by |
+|---|---|---|
+| `firstTokenUtc`, `lastTokenUtc` | First and last model output event (assistant text or thinking) | Worker |
+| `timeToFirstTokenMs` | Harness process start to first model output (includes harness startup) | Worker, monotonic clock |
+| `streamingMs` | First model output to last model output | Worker, monotonic clock |
+| `executionMs` | Harness process start to process exit | Worker, monotonic clock |
+| `queueMs` | Queued to leased | Server timestamps |
+| `totalMs` | Queued to the server receiving the completion | Server timestamps |
+| `outputTokensPerSecond` | `outputTokens / (streamingMs / 1000)`, two decimals, when `streamingMs` is at least 100; otherwise `null` | Server |
+| `inputTokens`, `outputTokens`, `cachedTokens` | Usage reported by the harness | Parser |
+| `reasoningTokens` | Reasoning or thinking tokens when the harness reports them (Codex `reasoning_output_tokens`, Claude Code `thinking_tokens`), otherwise 0 | Parser |
+| `toolCallCount` | Tool call events in the run | Worker |
+
+Runs that finished before schema migration 2, or that ended without a worker report (cancelled while queued, failed by the lease reaper), have `null` worker timings; their `queueMs` and `totalMs` are derived from the stored timestamps. See `docs/TELEMETRY.md` for how each value is measured.
+
+```json
+{
+  "id": "run_mv2abc...",
+  "status": "Succeeded",
+  "inputTokens": 12, "outputTokens": 7, "cachedTokens": 3, "reasoningTokens": 2,
+  "toolCallCount": 0,
+  "firstTokenUtc": "2026-10-09T18:02:11.412Z", "lastTokenUtc": "2026-10-09T18:02:11.655Z",
+  "timeToFirstTokenMs": 184, "streamingMs": 243, "executionMs": 466,
+  "queueMs": 41, "totalMs": 590, "outputTokensPerSecond": 28.81
+}
+```
+
 #### `DELETE /v1.0/api/tenants/{tenantId}/runs/{id}`
 
 Delete a finished run.
@@ -2284,6 +2315,91 @@ List runs delegated by a run.
 ```bash
 curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/children" \
   -H "Authorization: Bearer $TOKEN"
+```
+
+### Analytics
+
+#### `GET /v1.0/api/tenants/{tenantId}/analytics/runs`
+
+Time-bucketed run analytics: counts, tokens, cost, and timing averages and percentiles.
+
+| | |
+|---|---|
+| Permission | Read on `Run` |
+| Response | `RunAnalyticsResponse` |
+| Success | 200 |
+| Errors | 400 when `from` is not earlier than `to`, the range needs more than 400 buckets, or a parameter is invalid |
+
+| Query | Meaning | Default |
+|---|---|---|
+| `from`, `to` | ISO 8601 UTC range. A run is included when its creation time is in `[from, to)` | the last 24 hours |
+| `interval` | `minute`, `hour`, `day`, `week`, or `auto` | `auto` |
+| `agentId`, `harnessType`, `deploymentId` | Filters; combine them freely (`harnessType` is case-insensitive, for example `ClaudeCode`, `Codex`, `Mux`, `Generic`) | none |
+| `groupBy` | `none`, `agent`, or `harness`: one series per group | `none` |
+
+How the response is built:
+
+- Buckets are aligned to UTC multiples of the bucket size (days start at midnight UTC, weeks on Monday), so the first bucket can start before `from`. Every bucket in the range is returned, including empty ones: counts and sums are 0 and averages and percentiles are `null`.
+- `auto` picks the smallest size from 1, 5, 10, 15, and 30 minutes; 1, 2, 3, 6, and 12 hours; 1 and 2 days; then whole weeks that gives at most 96 buckets (about 24 to 96 for most ranges). `interval` in the response is `minute`, `hour`, `day`, or `week` when the size matches one of those, and `auto` otherwise; `bucketSeconds` is always the exact size.
+- Series keys are `all` (label `All runs`) without grouping, agent IDs (label: the agent's name on its newest run) for `groupBy=agent`, and harness types for `groupBy=harness`. Series are ordered by run count, largest first. `totals` covers every series.
+- At most 100,000 runs are aggregated per request, newest first; `truncated` is `true` when the cap was hit, in which case the oldest runs in the range are left out.
+- Aggregation happens in the server process, so the numbers are the same on Sqlite and Postgresql. Percentiles use the nearest-rank method (the smallest value with at least p percent of samples at or below it). Averages are rounded to one decimal place, `outputTokensPerSecondAvg` to two, and `costUsd` to six.
+
+Metrics, present in `totals` and in every bucket:
+
+| Field | Meaning |
+|---|---|
+| `runs` | Runs created in the bucket, in any status |
+| `succeeded`, `failed`, `cancelled`, `timedOut` | Runs by terminal status (`failed` includes `Rejected`; queued and running runs count only toward `runs`) |
+| `inputTokens`, `outputTokens`, `cachedTokens`, `reasoningTokens`, `costUsd`, `toolCalls` | Sums |
+| `timeToFirstTokenMsAvg`, `timeToFirstTokenMsP50`, `timeToFirstTokenMsP95` | Time to first token over runs that have it |
+| `streamingMsAvg` | Average streaming time |
+| `executionMsAvg`, `executionMsP95` | Process start to exit |
+| `queueMsAvg` | Queued to leased |
+| `outputTokensPerSecondAvg` | Average of the per-run `outputTokensPerSecond` over runs where it is defined |
+
+```bash
+curl -s -G "http://127.0.0.1:8700/v1.0/api/tenants/default/analytics/runs" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "from=2026-10-09T00:00:00Z" --data-urlencode "to=2026-10-10T00:00:00Z" \
+  --data-urlencode "interval=hour" --data-urlencode "groupBy=agent"
+```
+
+Response (abbreviated to one series and one bucket):
+
+```json
+{
+  "fromUtc": "2026-10-09T00:00:00Z",
+  "toUtc": "2026-10-10T00:00:00Z",
+  "interval": "hour",
+  "bucketSeconds": 3600,
+  "truncated": false,
+  "totals": {
+    "runs": 5, "succeeded": 2, "failed": 1, "cancelled": 1, "timedOut": 1,
+    "inputTokens": 100, "outputTokens": 1510, "cachedTokens": 10, "reasoningTokens": 5,
+    "costUsd": 0.03, "toolCalls": 3,
+    "timeToFirstTokenMsAvg": 400, "timeToFirstTokenMsP50": 200, "timeToFirstTokenMsP95": 1000,
+    "streamingMsAvg": 1016.7, "executionMsAvg": 4750, "executionMsP95": 10000,
+    "queueMsAvg": 100, "outputTokensPerSecondAvg": 500
+  },
+  "series": [
+    {
+      "key": "agt_mv2abc...",
+      "label": "helper",
+      "buckets": [
+        {
+          "startUtc": "2026-10-09T00:00:00Z",
+          "runs": 2, "succeeded": 1, "failed": 1, "cancelled": 0, "timedOut": 0,
+          "inputTokens": 100, "outputTokens": 510, "cachedTokens": 10, "reasoningTokens": 5,
+          "costUsd": 0.01, "toolCalls": 3,
+          "timeToFirstTokenMsAvg": 200, "timeToFirstTokenMsP50": 100, "timeToFirstTokenMsP95": 300,
+          "streamingMsAvg": 525, "executionMsAvg": 3000, "executionMsP95": 4000,
+          "queueMsAvg": 100, "outputTokensPerSecondAvg": 500
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Overview
@@ -2634,8 +2750,10 @@ Report a run finished.
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/runs/{runId}/complete" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"nodeId": "string", "epoch": 0, "status": "Pending", "outcome": "None", "exitCode": 0, "resultText": "string", "structuredOutputJson": "string", "sessionId": "string", "servedModel": "string", "stderrTail": "string", "errorMessage": "string", "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0, "costUsd": 0, "costEstimated": false, "completedUtc": "2026-01-01T00:00:00Z"}'
+  -d '{"nodeId": "string", "epoch": 0, "status": "Pending", "outcome": "None", "exitCode": 0, "resultText": "string", "structuredOutputJson": "string", "sessionId": "string", "servedModel": "string", "stderrTail": "string", "errorMessage": "string", "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0, "costUsd": 0, "costEstimated": false, "reasoningTokens": 0, "firstTokenUtc": "2026-01-01T00:00:00Z", "lastTokenUtc": "2026-01-01T00:00:00Z", "timeToFirstTokenMs": 0, "streamingMs": 0, "executionMs": 0, "toolCallCount": 0, "completedUtc": "2026-01-01T00:00:00Z"}'
 ```
+
+The timing fields (`firstTokenUtc`, `lastTokenUtc`, `timeToFirstTokenMs`, `streamingMs`, `executionMs`) are optional and may be `null`; the server stores them as reported (negative durations become 0) and computes `queueMs` and `totalMs` from its own clock.
 
 ### A2A
 

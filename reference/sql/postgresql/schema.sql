@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migration 1).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 and 2).
 -- Tables are shown in the refschema schema; replace it with your schema or remove the prefix.
 \restrict Ngc1ynqz82xCzePAwWJBY9OVtHtJ1PGRQmIrUCdkVVpoxWPpQNcSOEcpHHh7TFv
 CREATE SCHEMA refschema;
@@ -639,7 +639,16 @@ CREATE TABLE refschema.runs (
     active boolean NOT NULL,
     isprotected boolean NOT NULL,
     createdutc timestamp with time zone NOT NULL,
-    lastupdateutc timestamp with time zone NOT NULL
+    lastupdateutc timestamp with time zone NOT NULL,
+    firsttokenutc timestamp with time zone,
+    lasttokenutc timestamp with time zone,
+    ttftms bigint,
+    streamingms bigint,
+    executionms bigint,
+    queuems bigint,
+    totalms bigint,
+    toolcallcount integer DEFAULT 0 NOT NULL,
+    reasoningtokens bigint DEFAULT 0 NOT NULL
 );
 CREATE TABLE refschema.schema_migrations (
     version integer NOT NULL,

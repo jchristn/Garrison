@@ -113,8 +113,9 @@ namespace Test.Shared.Infrastructure
         /// <param name="harnessProfileName">Harness profile name, default builtin/fake.</param>
         /// <param name="configure">Optional agent customization.</param>
         /// <param name="token">Cancellation token.</param>
+        /// <param name="configureDeployment">Optional deployment customization (for example parameters).</param>
         /// <returns>Agent.</returns>
-        public async Task<Agent> CreateAgentAsync(string agentName, string harnessProfileName = "builtin/fake", Action<Agent>? configure = null, CancellationToken token = default)
+        public async Task<Agent> CreateAgentAsync(string agentName, string harnessProfileName = "builtin/fake", Action<Agent>? configure = null, CancellationToken token = default, Action<Deployment>? configureDeployment = null)
         {
             string tenant = Server.TenantId;
             Agent agent = new Agent();
@@ -131,6 +132,7 @@ namespace Test.Shared.Infrastructure
             deployment.Name = agentName + "-default";
             deployment.HarnessProfileId = profile.Id;
             deployment.TimeoutSeconds = 120;
+            configureDeployment?.Invoke(deployment);
             await HttpTestHelpers.SendAsync<Deployment>(Server.AdminClient, HttpMethod.Post, "/v1.0/api/tenants/" + tenant + "/deployments", deployment, 201, token).ConfigureAwait(false);
             return created;
         }

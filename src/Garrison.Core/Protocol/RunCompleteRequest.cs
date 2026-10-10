@@ -90,6 +90,44 @@ namespace Garrison.Core.Protocol
         public bool CostEstimated { get; set; } = false;
 
         /// <summary>
+        /// Reasoning or thinking tokens, when the harness reports them; otherwise 0.
+        /// </summary>
+        public long ReasoningTokens { get; set; } = 0;
+
+        /// <summary>
+        /// Time of the first model output event (assistant text or thinking), derived from the worker's monotonic
+        /// clock anchored at process start. Null when the harness produced no model output.
+        /// </summary>
+        public DateTime? FirstTokenUtc { get; set; } = null;
+
+        /// <summary>
+        /// Time of the last model output event (assistant text or thinking). Null when the harness produced no
+        /// model output.
+        /// </summary>
+        public DateTime? LastTokenUtc { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from harness process start to the first model output, including harness startup. Null when
+        /// not measurable.
+        /// </summary>
+        public long? TimeToFirstTokenMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from the first to the last model output. Null when not measurable.
+        /// </summary>
+        public long? StreamingMs { get; set; } = null;
+
+        /// <summary>
+        /// Milliseconds from harness process start to process exit. Null when the process did not start.
+        /// </summary>
+        public long? ExecutionMs { get; set; } = null;
+
+        /// <summary>
+        /// Number of tool call events in the run. Minimum 0.
+        /// </summary>
+        public int ToolCallCount { get; set; } = 0;
+
+        /// <summary>
         /// Completion time (UTC).
         /// </summary>
         public DateTime CompletedUtc { get; set; } = DateTime.UtcNow;

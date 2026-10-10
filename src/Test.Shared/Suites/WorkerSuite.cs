@@ -47,6 +47,8 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("worker-executor", "scrubbing", "Executor: secret values are scrubbed from stderr, result, and events", ScrubbingAsync),
                 new TestCaseDescriptor("worker-executor", "environment", "Executor: environment starts empty plus allowlist and spec values; HOME is isolated", EnvironmentAsync),
                 new TestCaseDescriptor("worker-executor", "retention", "Executor: workspace retention policies and secret directory cleanup", RetentionAsync),
+                new TestCaseDescriptor("worker-executor", "tool-call-count", "Executor: tool call events are counted", ToolCallCountAsync),
+                new TestCaseDescriptor("worker-executor", "timing-without-output", "Executor: timing on a killed harness and on a harness that never started", TimingOnFailureAsync),
                 new TestCaseDescriptor("worker-executor", "mcp-preflight", "Executor: unreachable required MCP server fails before launch", McpPreflightAsync)
             };
 
@@ -142,6 +144,44 @@ namespace Test.Shared.Suites
             Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Lifecycle), "Lifecycle events expected.");
             Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.AssistantText), "Assistant text expected.");
             if (parser != OutputParserEnum.PlainText) Assert.True(complete.OutputTokens > 0, "Usage expected.");
+
+            long ttft = complete.TimeToFirstTokenMs ?? -1;
+            long streaming = complete.StreamingMs ?? -1;
+            long execution = complete.ExecutionMs ?? -1;
+            Assert.True(ttft > 0, "TTFT should be measured (was " + ttft + ").");
+            Assert.True(streaming >= 0, "Streaming should be measured (was " + streaming + ").");
+            Assert.True(execution >= ttft + streaming, "Execution (" + execution + ") covers TTFT (" + ttft + ") plus streaming (" + streaming + ").");
+            Assert.True(complete.FirstTokenUtc.HasValue && complete.LastTokenUtc.HasValue && complete.LastTokenUtc.Value >= complete.FirstTokenUtc.Value, "First and last token times.");
+            Assert.Equal(0, complete.ToolCallCount, "No tool calls");
+            if (parser != OutputParserEnum.PlainText)
+            {
+                Assert.True(streaming >= 15, "The fake harness pauses after thinking, so streaming is measurable (was " + streaming + ").");
+                Assert.Equal(2L, complete.ReasoningTokens, "Reasoning tokens reported by the fake harness");
+            }
+        }
+
+        private static async Task ToolCallCountAsync(CancellationToken token)
+        {
+            RunAssignment assignment = Assignment("claude", OutputParserEnum.ClaudeStreamJson, "count my tools", "--tool-calls", "3");
+            RunCompleteRequest complete = await Executor().ExecuteAsync(assignment, new InMemoryRunReporter(), token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.Succeeded, complete.Status, "Status (" + complete.ErrorMessage + ")");
+            Assert.Equal(3, complete.ToolCallCount, "Tool calls counted by the worker");
+            Assert.True(complete.ExecutionMs.HasValue, "Execution measured");
+        }
+
+        private static async Task TimingOnFailureAsync(CancellationToken token)
+        {
+            RunAssignment assignment = Assignment("claude", OutputParserEnum.ClaudeStreamJson, "x", "--hang");
+            assignment.Spec.TimeoutSeconds = 2;
+            RunCompleteRequest complete = await Executor().ExecuteAsync(assignment, new InMemoryRunReporter(), token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.TimedOut, complete.Status, "Status");
+            Assert.True(complete.TimeToFirstTokenMs == null, "A harness that never produced model output has no TTFT.");
+            Assert.True((complete.ExecutionMs ?? 0) >= 1500, "Execution covers the time until the harness was killed (was " + complete.ExecutionMs + ").");
+
+            RunAssignment missing = Assignment("claude", OutputParserEnum.ClaudeStreamJson, "x");
+            missing.Spec.Executable = "garrison-executable-that-does-not-exist";
+            RunCompleteRequest notInstalled = await Executor().ExecuteAsync(missing, new InMemoryRunReporter(), token).ConfigureAwait(false);
+            Assert.True(notInstalled.ExecutionMs == null && notInstalled.TimeToFirstTokenMs == null, "No timing when the process never started.");
         }
 
         private static async Task FailureAsync(CancellationToken token)

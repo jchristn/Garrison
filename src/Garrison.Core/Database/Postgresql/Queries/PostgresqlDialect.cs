@@ -97,6 +97,19 @@ namespace Garrison.Core.Database.Postgresql.Queries
         }
 
         /// <inheritdoc />
+        public override string ColumnExistsProbe(string? schema)
+        {
+            if (String.IsNullOrEmpty(schema)) return "SELECT 1 FROM information_schema.columns WHERE table_name = @table AND column_name = @column AND table_schema = current_schema() LIMIT 1;";
+            return "SELECT 1 FROM information_schema.columns WHERE table_name = @table AND column_name = @column AND table_schema = @schema LIMIT 1;";
+        }
+
+        /// <inheritdoc />
+        public override string AddColumn(string? schema, string rawTableName, string column, string definition)
+        {
+            return "ALTER TABLE " + QualifiedReference(schema, rawTableName) + " ADD COLUMN IF NOT EXISTS " + column + " " + definition + ";";
+        }
+
+        /// <inheritdoc />
         public override string? CreateSchemaStatement(string schema)
         {
             if (String.IsNullOrEmpty(schema)) return null;

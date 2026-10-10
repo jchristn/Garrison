@@ -158,6 +158,27 @@ namespace Garrison.Core.Database.Sql
         }
 
         /// <summary>
+        /// Build an ALTER TABLE statement that adds a column.
+        /// </summary>
+        /// <param name="schema">Schema, or null.</param>
+        /// <param name="rawTableName">Prefixed table name.</param>
+        /// <param name="column">Column name.</param>
+        /// <param name="definition">Column type and constraints.</param>
+        /// <returns>DDL statement.</returns>
+        public virtual string AddColumn(string? schema, string rawTableName, string column, string definition)
+        {
+            return "ALTER TABLE " + QualifiedReference(schema, rawTableName) + " ADD COLUMN " + column + " " + definition + ";";
+        }
+
+        /// <summary>
+        /// Query returning a row when a column exists, with parameters @table, @column, and (when a schema is set)
+        /// @schema.
+        /// </summary>
+        /// <param name="schema">Schema, or null.</param>
+        /// <returns>Probe SQL.</returns>
+        public abstract string ColumnExistsProbe(string? schema);
+
+        /// <summary>
         /// Query returning one row when a table exists, using parameters named name and (optionally) schema.
         /// </summary>
         /// <param name="schema">Optional schema.</param>

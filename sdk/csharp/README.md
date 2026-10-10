@@ -45,9 +45,9 @@ using (GarrisonClient client = new GarrisonClient("http://127.0.0.1:8700"))
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Nodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Analytics`, `Nodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
-Models, enums, and request types live in `Garrison.Sdk.Models`, `Garrison.Sdk.Enums`, and `Garrison.Sdk.Requests`. They mirror the server contracts.
+Models, enums, request types, and response types live in `Garrison.Sdk.Models`, `Garrison.Sdk.Enums`, `Garrison.Sdk.Requests`, and `Garrison.Sdk.Responses`. They mirror the server contracts.
 
 ## Streaming run events
 
@@ -62,6 +62,45 @@ await foreach (RunStreamEvent item in client.Runs.StreamAsync(queued.Id))
 ```
 
 The stream ends after `run.completed`. `Runs.GetEventsAsync` polls instead, and `Runs.WaitForCompletionAsync` polls until the run reaches a terminal status.
+
+## Run timing and usage
+
+Finished runs carry timing and usage fields in addition to `InputTokens`, `OutputTokens`, `CachedTokens`, and `CostUsd`:
+
+| Property | Type | Meaning |
+|---|---|---|
+| `FirstTokenUtc`, `LastTokenUtc` | `DateTime?` | First and last model output event (UTC). |
+| `TimeToFirstTokenMs` | `long?` | Process start to the first model output event. |
+| `StreamingMs` | `long?` | First to last model output event. |
+| `ExecutionMs` | `long?` | Start to completion. |
+| `QueueMs` | `long?` | Time spent queued before the run was leased. |
+| `TotalMs` | `long?` | Creation to completion. |
+| `OutputTokensPerSecond` | `double?` | Output tokens over the streaming window. |
+| `ReasoningTokens` | `long` | Reasoning tokens (default 0). |
+| `ToolCallCount` | `int` | Tool calls made during the run (default 0). |
+
+Nullable properties are null when the value could not be measured.
+
+## Run analytics
+
+`Analytics.RunsAsync` returns totals and time-bucketed series of run counts, tokens, cost, latency percentiles, and throughput for the tenant.
+
+```csharp
+RunAnalyticsQuery query = new RunAnalyticsQuery();
+query.From = DateTime.UtcNow.AddDays(-1);
+query.To = DateTime.UtcNow;
+query.Interval = AnalyticsIntervalEnum.Hour;
+query.GroupBy = AnalyticsGroupByEnum.Agent;
+
+RunAnalyticsResponse analytics = await client.Analytics.RunsAsync(query);
+Console.WriteLine("runs: " + analytics.Totals.Runs + ", p95 TTFT: " + analytics.Totals.TimeToFirstTokenMsP95);
+foreach (RunAnalyticsSeries series in analytics.Series)
+{
+    foreach (RunAnalyticsBucket bucket in series.Buckets) Console.WriteLine(series.Label + " " + bucket.StartUtc + " " + bucket.Runs);
+}
+```
+
+Every query member is optional. `Interval` is `Auto`, `Minute`, `Hour`, `Day`, or `Week`; `GroupBy` is `None`, `Agent`, or `Harness`; `AgentId`, `DeploymentId`, and `HarnessType` filter the runs. `BucketSeconds` in the response is the authoritative bucket size, and `Truncated` is true when the server hit its 100,000-run cap. The server returns 400 (thrown as `GarrisonException`) when `From` is not earlier than `To`, when the range needs more than 400 buckets, or when a parameter is invalid.
 
 ## Manifests
 

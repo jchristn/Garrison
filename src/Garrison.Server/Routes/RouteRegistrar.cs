@@ -103,7 +103,8 @@ namespace Garrison.Server.Routes
         /// <param name="requestBody">Optional request body type.</param>
         /// <param name="response">Optional response type.</param>
         /// <param name="resourceParameter">Path parameter holding the target resource identifier. Default id.</param>
-        public void Scoped(HttpMethod method, string path, ResourceTypeEnum resourceType, OperationTypeEnum operation, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null, string resourceParameter = "id")
+        /// <param name="queryParameters">Optional query parameters described in OpenAPI; when present, a 400 response is documented too.</param>
+        public void Scoped(HttpMethod method, string path, ResourceTypeEnum resourceType, OperationTypeEnum operation, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null, string resourceParameter = "id", List<OpenApiParameterMetadata>? queryParameters = null)
         {
             Record(method, path, resourceType, operation, RouteAuthorizationEnum.Scoped, summary, tag);
             Func<HttpContextBase, Task> wrapped = async context =>
@@ -119,7 +120,13 @@ namespace Garrison.Server.Routes
                 }
                 await InvokeAsync(context, handler).ConfigureAwait(false);
             };
-            Add(method, path, wrapped, Metadata(path, summary, tag, requestBody, response, true));
+            OpenApiRouteMetadata metadata = Metadata(path, summary, tag, requestBody, response, true);
+            if (queryParameters != null && queryParameters.Count > 0)
+            {
+                foreach (OpenApiParameterMetadata parameter in queryParameters) metadata.WithParameter(parameter);
+                metadata.WithResponse(400, OpenApiResponseMetadata.Json("Invalid query parameters.", OpenApiSchemaFactory.For(typeof(ErrorResponse))));
+            }
+            Add(method, path, wrapped, metadata);
         }
 
         /// <summary>

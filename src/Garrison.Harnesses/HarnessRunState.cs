@@ -59,6 +59,11 @@ namespace Garrison.Harnesses
         public long CachedTokens { get; set; } = 0;
 
         /// <summary>
+        /// Reasoning or thinking tokens, when the harness reports them separately; otherwise 0.
+        /// </summary>
+        public long ReasoningTokens { get; set; } = 0;
+
+        /// <summary>
         /// Cost in USD, when the harness reports it.
         /// </summary>
         public double? CostUsd { get; set; } = null;

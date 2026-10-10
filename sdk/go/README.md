@@ -32,7 +32,7 @@ Every call takes a `context.Context`.
 
 ## Resources
 
-`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Manifests` and `Runs` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
+`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Manifests`, `Runs`, and `Analytics` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
 
 ## Streaming run events
 
@@ -50,6 +50,38 @@ err := client.Runs.Stream(ctx, queued.ID, 0, func(item garrison.RunStreamItem) b
 ```
 
 The stream ends after `run.completed`. `Runs.Events` polls and `Runs.WaitForCompletion` waits for a terminal status.
+
+## Run timing and usage fields
+
+`garrison.Run` carries timing and usage measurements. Pointer fields are nil when the server could not measure them (the server omits them from JSON):
+
+- `FirstTokenUTC`, `LastTokenUTC` (`*string`): ISO 8601 UTC times of the first and last model output event.
+- `TimeToFirstTokenMs`, `StreamingMs`, `ExecutionMs`, `QueueMs`, `TotalMs` (`*int64`): durations in milliseconds.
+- `OutputTokensPerSecond` (`*float64`).
+- `ReasoningTokens`, `ToolCallCount` (`int64`, default 0), alongside `InputTokens`, `OutputTokens`, `CachedTokens`, and `CostUSD`.
+
+## Run analytics
+
+`client.Analytics.Runs(ctx, garrison.AnalyticsQuery{...})` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns a `*garrison.RunAnalytics` with `Totals` and one or more `Series`, each holding time `Buckets` (`StartUTC` plus the same metrics as `Totals`). Query fields are optional: `From` and `To` (ISO 8601 UTC), `Interval` (`minute`, `hour`, `day`, `week`, or `auto`), `AgentID`, `HarnessType`, `DeploymentID`, and `GroupBy` (`none`, `agent`, or `harness`). `BucketSeconds` in the response is the authoritative bucket size.
+
+```go
+now := time.Now().UTC()
+stats, err := client.Analytics.Runs(ctx, garrison.AnalyticsQuery{
+	From:     now.Add(-24 * time.Hour).Format(time.RFC3339),
+	To:       now.Format(time.RFC3339),
+	Interval: "hour",
+	GroupBy:  "agent",
+})
+if err != nil {
+	return err
+}
+fmt.Println(stats.Totals.Runs, stats.Totals.CostUSD)
+for _, series := range stats.Series {
+	fmt.Println(series.Label, len(series.Buckets))
+}
+```
+
+The server returns HTTP 400 when `From` is not before `To`, when the range needs more than 400 buckets, or for an invalid interval, group, harness type, or date.
 
 ## Errors
 

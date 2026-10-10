@@ -418,6 +418,15 @@ namespace Garrison.Server.Protocols
             summary.InputTokens = run.InputTokens;
             summary.OutputTokens = run.OutputTokens;
             summary.CostUsd = run.CostUsd;
+            summary.CachedTokens = run.CachedTokens;
+            summary.ReasoningTokens = run.ReasoningTokens;
+            summary.ToolCallCount = run.ToolCallCount;
+            summary.TimeToFirstTokenMs = run.TimeToFirstTokenMs;
+            summary.StreamingMs = run.StreamingMs;
+            summary.ExecutionMs = run.ExecutionMs;
+            summary.QueueMs = run.QueueMs;
+            summary.TotalMs = run.TotalMs;
+            summary.OutputTokensPerSecond = run.OutputTokensPerSecond;
             summary.CreatedUtc = run.CreatedUtc;
             summary.CompletedUtc = run.CompletedUtc;
             return summary;
