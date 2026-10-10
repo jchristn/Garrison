@@ -36,7 +36,7 @@ Built-in profiles cannot be edited. Clone one (`POST .../harness-profiles/{id}/c
 ### Claude Code
 
 ```text
-claude -p --output-format stream-json --verbose --setting-sources "" --disable-slash-commands
+claude -p --output-format stream-json --verbose [--include-partial-messages] --setting-sources "" --disable-slash-commands
        --permission-mode <permissionMode, default acceptEdits>
        [--system-prompt-file $GARRISON_CONFIG_DIR/system-prompt.md]
        [--model <model>] [--fallback-model <fallbackModel>] [--effort <effort>]
@@ -46,7 +46,9 @@ claude -p --output-format stream-json --verbose --setting-sources "" --disable-s
        [--json-schema <agent output schema>]
 ```
 
-`--setting-sources ""` and `--strict-mcp-config` keep the harness from picking up user settings or MCP servers that happen to exist on the worker. Credentials come from a secret of kind `AnthropicApiKey` (as `ANTHROPIC_API_KEY`) or `ClaudeCodeOAuthToken` (as `CLAUDE_CODE_OAUTH_TOKEN`). Deployment parameters: `permissionMode`, `allowedTools`, `anthropicBaseUrl`, and `mcpToolTimeoutMs` (default 600000).
+`--setting-sources ""` and `--strict-mcp-config` keep the harness from picking up user settings or MCP servers that happen to exist on the worker. Credentials come from a secret of kind `AnthropicApiKey` (as `ANTHROPIC_API_KEY`) or `ClaudeCodeOAuthToken` (as `CLAUDE_CODE_OAUTH_TOKEN`). Deployment parameters: `permissionMode`, `allowedTools`, `anthropicBaseUrl`, `mcpToolTimeoutMs` (default 600000), and `disablePartialMessages`.
+
+`--include-partial-messages` makes Claude Code print text as it is generated, so runs stream token by token in Invoke and over SSE. Each chunk becomes an `AssistantText` event. Set `disablePartialMessages` to `true` on a deployment to drop the flag, which reduces the number of stored events; text then arrives one message at a time.
 
 ### Codex
 
@@ -60,6 +62,8 @@ codex exec --json --skip-git-repo-check --ignore-user-config
 ```
 
 `--ignore-user-config` and `project_doc_max_bytes=0` stop Codex from reading the worker's own configuration or an `AGENTS.md` in the workspace. MCP bearer tokens are never written into arguments: each header is passed by environment variable name (`env_http_headers`), and the worker sets those variables. Credentials come from a secret of kind `OpenAiApiKey` (as both `CODEX_API_KEY` and `OPENAI_API_KEY`) or `CodexAuthJson`, which is written to `$HOME/.codex/auth.json` with mode 600. Deployment parameters: `sandbox` and `openaiBaseUrl`.
+
+Codex output does not stream: `codex exec --json` prints each agent message only when it is complete, so a short answer arrives in one piece at the end of the run. Streaming needs Codex's experimental `app-server` protocol, which is planned (P12.2a in `GARRISON_PLAN.md`).
 
 ### Mux
 

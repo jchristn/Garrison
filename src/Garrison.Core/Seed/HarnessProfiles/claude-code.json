@@ -29,6 +29,10 @@
       "template": "--verbose"
     },
     {
+      "template": "--include-partial-messages",
+      "condition": "{{#unless deployment.parameters.disablePartialMessages}}true{{/unless}}"
+    },
+    {
       "template": "--setting-sources"
     },
     {

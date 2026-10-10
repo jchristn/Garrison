@@ -89,8 +89,8 @@ Rules for keeping the plan honest:
 | 9 | MVP verification (milestone M1) | M1 | In progress | 14 / 16 |
 | 10 | Control plane high availability and scale-out | M2 | Not started | 0 / 18 |
 | 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
-| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 28 |
-| 13 | Observability stack and dashboards | M2 | Not started | 0 / 12 |
+| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 29 |
+| 13 | Observability stack and dashboards | M2 | Not started | 0 / 19 |
 | 14 | Benchmarking | M3 | Not started | 0 / 14 |
 | 15 | Hardening, simulated user testing, and 1.0 release | M4 | Not started | 0 / 20 |
 
@@ -967,6 +967,8 @@ Meters and activity sources subscribed by Radiant: `Watson`, `Garrison`, `Garris
 
 Spans: `run:compile`, `run:claim`, `stage:<name>` on the worker, `harness <type> exec`, `mcp <tool>`, `a2a <method>`, `db <operation>` for hot queries. The worker propagates `traceparent` from the lease response so a run's server and worker spans form one trace.
 
+Observability stack (Phase 13): Prometheus scrapes the server and worker pods, Tempo receives traces over OTLP (through an OpenTelemetry Collector), Loki receives the server and worker logs, and Grafana ships provisioned datasources and dashboards. The Garrison dashboard links into all four: service cards on Home, and deep links from runs (trace, logs), nodes, KPIs, and request history (P13.12 to P13.19).
+
 ---
 
 ## 18. Work Breakdown
@@ -1331,6 +1333,7 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [x] G-9 Codex agent not yet verified in the cluster (P9.9); needs `OPENAI_API_KEY` or a Codex `auth.json`.  | claude 2026-10-10 done, see P9.9
 - [ ] G-10 Codex runs report no served model (`servedModel` is null); the Codex parser should take it from the session or turn events when present.
 - [ ] G-11 `kubectl port-forward` to the metrics ports (9464, 9465) does not work: the listener binds the pod host name (D-027) and port-forward connects to `127.0.0.1` inside the pod. Scraping by pod IP works. Fix by serving `/metrics` from the existing REST or health listener, or by a Radiant option for multiple prefixes.
+- [ ] G-12 Codex output does not stream in Invoke: `codex exec --json` emits each agent message only when complete. Claude Code streams since `--include-partial-messages` was added to `builtin/claude-code`; Mux streams natively. Tracked by P12.2a.
 
 ### Phase 10: Control plane high availability and scale-out (M2)
 
@@ -1373,6 +1376,7 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 
 - [ ] P12.1 Conversations: `Conversation` entity, A2A `contextId`, harness session resume (`--resume`, `codex exec resume`, Mux `--resume`), node affinity for workspace locality, fallback when the affinity node is lost.
 - [ ] P12.2 Workspace snapshots to an artifact store for cross-node resume.
+- [ ] P12.2a Codex streaming: drive Codex through `codex app-server` (JSON-RPC over stdio) as a new interactive delivery mode, mapping agent message deltas to `AssistantText` events, so Codex output streams like Claude Code and Mux. `codex exec --json` (0.159.3) emits each agent message only when it completes. The same driver serves P12.1 multi-turn conversations.
 - [ ] P12.3 Permission approvals: Claude `--permission-prompt-tool` through Garrison MCP, `Approval` entity, dashboard approvals inbox, rules (allow, deny, ask) per deployment, timeouts (Armada pattern).
 - [ ] P12.4 Remote agents: invoke self-registered A2A agents and MCP tools from a worker executor (`RemoteA2A`, `RemoteMcp`), health checks and TTL expiry for registrations.
 - [ ] P12.5 Triggers: scheduled runs (cron), webhook triggers with signed payloads.
@@ -1414,6 +1418,13 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [ ] P13.10 Loki log shipping from server and worker (structured logs with trace IDs).
 - [ ] P13.11 Helm values for observability.
 - [ ] P13.12 External services card fed by server settings (URLs and default credentials per deployment).
+- [ ] P13.13 Cluster settings for the observability endpoints: `Observability.GrafanaUrl`, `PrometheusUrl`, `LokiUrl`, `TempoUrl` (browser-facing URLs), plus Grafana dashboard UIDs; exposed read-only to any authenticated user through `GET /v1.0/api/server-info` so the dashboard never hard-codes them.
+- [ ] P13.14 Dashboard Home: an Observability section with one card per service (Grafana, Prometheus, Loki, Tempo) showing reachability (probed by the server, not the browser), version, and an "Open" link; cards are hidden when a URL is not configured, with a single "Configure observability" link to Settings instead.
+- [ ] P13.15 Dashboard deep links: Run detail links to its trace in Tempo (by trace ID recorded on the run) and its logs in Loki (`{app="garrison"} |= "<runId>"`); Nodes links to the Grafana "Workers and Harnesses" dashboard filtered to the node; Home KPIs link to the matching Grafana panels; Request History links to the HTTP dashboard.
+- [ ] P13.16 Record the W3C trace ID on every run (`runs.traceid` column, API, SDK models) so P13.15 deep links work without searching.
+- [ ] P13.17 Kubernetes: the observability component exposes Grafana (and optionally Prometheus) through the overlay ingress and `port-forward.sh`; Grafana admin credentials come from a generated secret and are shown by `generate-secrets` like the Garrison admin credentials.
+- [ ] P13.18 Fix metrics port-forwarding (G-11) so `kubectl port-forward` and in-pod `127.0.0.1` scrapes work alongside pod-IP scraping.
+- [ ] P13.19 Docs (`docs/TELEMETRY.md`, `docs/KUBERNETES.md`) and Playwright coverage for the observability cards and deep links, including the "not configured" state.
 
 ### Phase 14: Benchmarking (M3)
 

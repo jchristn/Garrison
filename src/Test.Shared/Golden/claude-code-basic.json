@@ -11,6 +11,7 @@
       "--output-format",
       "stream-json",
       "--verbose",
+      "--include-partial-messages",
       "--setting-sources",
       "",
       "--disable-slash-commands",

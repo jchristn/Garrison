@@ -33,6 +33,7 @@ namespace Test.Shared.Suites
                 Case("parsers", "claude-success", "Claude stream-json: recorded success", ClaudeSuccess),
                 Case("parsers", "claude-mcp-failed", "Claude stream-json: failed MCP server fails the run despite exit 0", ClaudeMcpFailed),
                 Case("parsers", "claude-max-turns", "Claude stream-json: error result with tool use", ClaudeMaxTurns),
+                Case("parsers", "claude-partial", "Claude stream-json: partial messages stream text once and keep tool input", ClaudePartialMessages),
                 Case("parsers", "codex-success", "Codex JSONL: recorded success with usage", CodexSuccess),
                 Case("parsers", "codex-failed", "Codex JSONL: turn.failed with tool items", CodexFailed),
                 Case("parsers", "mux-success", "Mux JSONL: assistant text concatenation, tools, usage", MuxSuccess),
@@ -123,6 +124,25 @@ namespace Test.Shared.Suites
             HarnessOutcome outcome = OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.ClaudeStreamJson }, new ProcessRunResult { ExitCode = 0 }, state);
             Assert.Equal(RunStatusEnum.Failed, outcome.Status, "Status");
             Assert.Equal(RunOutcomeEnum.HarnessFailed, outcome.Outcome, "Outcome");
+        }
+
+        private static void ClaudePartialMessages()
+        {
+            HarnessRunState state = ParseLines(OutputParserEnum.ClaudeStreamJson, new[]
+            {
+                "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"s1\",\"model\":\"claude-sonnet-5-5\"}",
+                "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Hel\"}}}",
+                "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"lo\"}}}",
+                "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_start\",\"content_block\":{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Bash\"}}}",
+                "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Hello\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}",
+                "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"Hello\"}"
+            });
+            List<RunEventReport> events = state.Drain();
+            List<RunEventReport> text = events.Where(e => e.EventType == RunEventTypeEnum.AssistantText).ToList();
+            Assert.Equal(2, text.Count, "One text event per delta, none repeated from the full message");
+            Assert.Equal("Hello", String.Concat(text.Select(e => e.Text)), "Streamed text");
+            RunEventReport call = Assert.NotNull(events.SingleOrDefault(e => e.EventType == RunEventTypeEnum.ToolCall), "Exactly one tool call");
+            Assert.True((call.Text ?? String.Empty).Contains("ls", StringComparison.Ordinal), "Tool call keeps its input");
         }
 
         private static void ClaudeMaxTurns()

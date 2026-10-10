@@ -111,7 +111,6 @@ namespace Garrison.Harnesses.Parsers
                 string? id = JsonPath.Str(block, "id");
                 string? name = JsonPath.Str(block, "name");
                 if (id != null && name != null) _ToolNames[id] = name;
-                state.Emit(ToolCall(name, id, null, raw));
             }
         }
 
@@ -137,7 +136,7 @@ namespace Garrison.Harnesses.Parsers
                     string? id = JsonPath.Str(part, "id");
                     string? name = JsonPath.Str(part, "name");
                     if (id != null && name != null) _ToolNames[id] = name;
-                    if (!_SawStreamEvents) state.Emit(ToolCall(name, id, JsonPath.Str(part, "input"), raw));
+                    state.Emit(ToolCall(name, id, JsonPath.Str(part, "input"), raw));
                 }
             }
         }
