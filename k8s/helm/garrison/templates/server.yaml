@@ -11,6 +11,8 @@ spec:
   {{- if not .Values.server.hpa.enabled }}
   replicas: {{ .Values.server.replicas }}
   {{- end }}
+  strategy:
+    {{- toYaml .Values.server.strategy | nindent 4 }}
   selector:
     matchLabels:
       app.kubernetes.io/name: garrison-server
@@ -36,6 +38,32 @@ spec:
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
+      {{- with .Values.server.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.server.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $antiAffinity := include "garrison.serverAntiAffinity" . }}
+      {{- if or .Values.server.affinity $antiAffinity }}
+      affinity:
+        {{- if .Values.server.affinity }}
+        {{- toYaml .Values.server.affinity | nindent 8 }}
+        {{- else }}
+        {{- $antiAffinity | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.server.topologySpreadConstraints }}
+      {{- $constraints := list }}
+      {{- range $c := . }}
+      {{- $constraints = append $constraints (merge (deepCopy $c) (dict "labelSelector" (dict "matchLabels" (dict "app.kubernetes.io/name" "garrison-server")))) }}
+      {{- end }}
+      topologySpreadConstraints:
+        {{- toYaml $constraints | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.server.terminationGracePeriodSeconds }}
       initContainers:
         - name: wait-for-database
           image: busybox:1.36
@@ -147,6 +175,31 @@ spec:
       resource:
         name: cpu
         target: { type: Utilization, averageUtilization: {{ .Values.server.hpa.targetCpuUtilization }} }
+    {{- with .Values.server.hpa.customMetrics.requestsPerSecond }}
+    {{- if .enabled }}
+    # Served by Prometheus Adapter (k8s/components/hpa-custom-metrics/prometheus-adapter-values.yaml).
+    - type: Pods
+      pods:
+        metric: { name: {{ .metricName }} }
+        target: { type: AverageValue, averageValue: {{ .averageValue | quote }} }
+    {{- end }}
+    {{- end }}
+    {{- with .Values.server.hpa.customMetrics.runsActive }}
+    {{- if .enabled }}
+    # Served by Prometheus Adapter (k8s/components/hpa-custom-metrics/prometheus-adapter-values.yaml).
+    - type: External
+      external:
+        metric: { name: {{ .metricName }} }
+        target: { type: AverageValue, averageValue: {{ .averageValue | quote }} }
+    {{- end }}
+    {{- end }}
+    {{- with .Values.server.hpa.extraMetrics }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.server.hpa.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}
 {{- if .Values.server.pdb.enabled }}
 ---
@@ -155,8 +208,15 @@ kind: PodDisruptionBudget
 metadata:
   name: garrison-server
   namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
 spec:
+  {{- if .Values.server.pdb.minAvailable }}
   minAvailable: {{ .Values.server.pdb.minAvailable }}
+  {{- else }}
+  maxUnavailable: {{ .Values.server.pdb.maxUnavailable | default 1 }}
+  {{- end }}
+  unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels: { app.kubernetes.io/name: garrison-server }
 {{- end }}

@@ -1,0 +1,63 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Two worker pools with different harness sets:
+#
+#   pool     StatefulSet           harnesses probed                    labels reported to Garrison
+#   default  garrison-worker       Claude Code, Codex, Gemini, fake    garrison.io/pool=default, garrison.io/harness-*
+#   mux      garrison-worker-mux   Mux, fake                           garrison.io/pool=mux, garrison.io/harness-*
+#
+# Each worker reports only the harnesses its probes find, and the scheduler leases a run only to a worker that
+# reports the run's harness, so Claude and Codex deployments land on the default pool and Mux deployments on the mux
+# pool with no further configuration. To pin a deployment to a pool explicitly (for example two pools that both run
+# Claude Code, one per team), give the deployment a node selector on the pool label:
+#
+#   apiVersion: garrison/v1
+#   kind: Deployment
+#   metadata: { name: claude-team-a }
+#   spec:
+#     agent: assistant
+#     harnessProfile: builtin/claude-code
+#     nodeSelector:
+#       garrison.io/pool: default
+#
+# or set the deployment's node pool (nodePoolId, REST API or dashboard) to the pool that workers create when they
+# register with GARRISON_WORKER_NODE_POOL. docs/KUBERNETES.md, "Worker pools", has more.
+#
+# Both pools keep app.kubernetes.io/name=garrison-worker, so network policies, Prometheus scraping, and Grafana treat
+# them alike; garrison.io/pool tells them apart. The base StatefulSet's selector (immutable on existing installs)
+# selects on the name only and therefore also matches the mux pods. Kubernetes resolves that through owner
+# references, so it works, but do not add a third pool by copying the base selector: always include
+# garrison.io/pool, as worker-mux.yaml does. With overlays/production, give each pool its own disruption budget
+# (a pod matched by two budgets cannot be evicted): pdb-mux.yaml covers the mux pool, and pdb-patch.yaml narrows an
+# existing garrison-worker budget to the default pool (a no-op on overlays without one).
+resources:
+  - worker-mux.yaml
+  - pdb-mux.yaml
+
+configMapGenerator:
+  # Base pool: same ConfigMap name, contents replaced with probes that leave Mux out.
+  - name: garrison-worker-settings
+    behavior: merge
+    files:
+      - garrison-worker.json=config/garrison-worker-default.json
+  - name: garrison-worker-settings-mux
+    files:
+      - garrison-worker.json=config/garrison-worker-mux.json
+
+patches:
+  # Base pool: its headless service selects only its own pods.
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: garrison-worker
+      spec:
+        selector:
+          garrison.io/pool: default
+  - path: pdb-patch.yaml
+    target:
+      group: policy
+      version: v1
+      kind: PodDisruptionBudget
+      name: garrison-worker

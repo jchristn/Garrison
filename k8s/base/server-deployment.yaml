@@ -7,6 +7,12 @@ metadata:
     app.kubernetes.io/component: control-plane
 spec:
   replicas: 1
+  # Surge a new pod before an old one leaves, so a rolling upgrade never drops below the current replica count.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: garrison-server
@@ -28,6 +34,15 @@ spec:
         runAsGroup: 10001
         fsGroup: 10001
       terminationGracePeriodSeconds: 30
+      # Soft preferences only, so a single-node dev cluster schedules every replica. overlays/production adds zone
+      # spread and anti-affinity; make them hard (DoNotSchedule, required) only when you have the nodes for it.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: garrison-server
       initContainers:
         - name: wait-for-database
           image: busybox:1.36

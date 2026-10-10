@@ -1,0 +1,196 @@
+# Second worker pool: Mux workers. Same image and settings as the base pool except the probes (Mux and the fake
+# harness only, from config/garrison-worker-mux.json), the pool name and labels, and the placement preference.
+# Runs reach this pool by harness capability (only this pool reports Mux), by node selector
+# (garrison.io/pool: mux), or by node pool (the pool named mux, created when the first of these workers registers).
+#
+# Different images per pool: the base pool keeps jchristn77/garrison-worker. To run this pool on a slimmer or
+# GPU-enabled image, change the image below to another repository and tag. While both pools share the repository
+# name, an images: entry in your overlay retags both.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garrison-worker-mux
+  labels:
+    app.kubernetes.io/name: garrison-worker
+    app.kubernetes.io/component: worker
+    garrison.io/pool: mux
+spec:
+  serviceName: garrison-worker-mux
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-worker
+      garrison.io/pool: mux
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: garrison-worker
+        app.kubernetes.io/component: worker
+        # Keep equal to GARRISON_WORKER_NODE_POOL.
+        garrison.io/pool: mux
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8710"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: garrison-worker
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      # Workers drain on SIGTERM: they stop leasing and wait for running harnesses before exiting.
+      terminationGracePeriodSeconds: 900
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: garrison-worker
+              garrison.io/pool: mux
+      # Prefer nodes labeled for this pool (kubectl label node <node> garrison.io/node-pool=mux). Soft, so a
+      # single-node cluster still schedules it. For a dedicated, tainted node pool, replace this with a hard
+      # nodeSelector and add the matching toleration:
+      #   nodeSelector: { garrison.io/node-pool: mux }
+      #   tolerations: [{ key: garrison.io/node-pool, operator: Equal, value: mux, effect: NoSchedule }]
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: garrison.io/node-pool
+                    operator: In
+                    values: ["mux"]
+      initContainers:
+        - name: wait-for-server
+          image: curlimages/curl:8.10.1
+          command:
+            - sh
+            - -c
+            - |
+              echo "waiting for garrison-server health"
+              until curl -fsS -o /dev/null http://garrison-server:8700/v1.0/api/health; do sleep 2; done
+              echo "garrison-server healthy"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: worker
+          # Tagged here because the base images: block does not reach resources added by a component. An images:
+          # entry in your overlay still overrides it.
+          image: jchristn77/garrison-worker:v0.1.0-alpha
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: health
+              containerPort: 8710
+            - name: metrics
+              containerPort: 9465
+          env:
+            - name: GARRISON_WORKER_SETTINGS_FILE
+              value: /etc/garrison/garrison-worker.json
+            - name: GARRISON_WORKER_SERVER_URL
+              value: http://garrison-server:8700
+            - name: GARRISON_WORKER_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: GARRISON_WORKER_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-node-credential
+                  key: access-key
+            - name: GARRISON_WORKER_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garrison-node-credential
+                  key: secret-key
+            - name: GARRISON_WORKER_MAX_CONCURRENT_RUNS
+              value: "4"
+            - name: GARRISON_WORKER_WORK_ROOT
+              value: /workspaces
+            - name: GARRISON_WORKER_HEALTH_PORT
+              value: "8710"
+            - name: GARRISON_WORKER_LABELS
+              value: garrison.io/pool=mux
+            - name: GARRISON_WORKER_NODE_POOL
+              value: mux
+          volumeMounts:
+            - name: settings
+              mountPath: /etc/garrison
+              readOnly: true
+            - name: workspaces
+              mountPath: /workspaces
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8710/health/live"]
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 24
+            successThreshold: 1
+          readinessProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8710/health/ready"]
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+            successThreshold: 2
+          livenessProbe:
+            exec:
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8710/health/live"]
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 2
+            successThreshold: 1
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
+      volumes:
+        - name: settings
+          configMap:
+            name: garrison-worker-settings-mux
+  volumeClaimTemplates:
+    - metadata:
+        name: workspaces
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+# Headless service for the Mux pool's StatefulSet.
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-worker-mux
+  labels:
+    app.kubernetes.io/name: garrison-worker
+    garrison.io/pool: mux
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: garrison-worker
+    garrison.io/pool: mux
+  ports:
+    - name: health
+      port: 8710
+      targetPort: health
+    - name: metrics
+      port: 9465
+      targetPort: metrics

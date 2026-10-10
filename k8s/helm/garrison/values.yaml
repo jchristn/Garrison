@@ -44,22 +44,83 @@ server:
   # the Host header of each request (GARRISON_EXTERNAL_BASE_URL is not set).
   externalBaseUrl: ""
   extraEnv: []
+  # Rolling update: surge one new pod before an old one leaves, so an upgrade never drops below the replica count.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  terminationGracePeriodSeconds: 30
+  nodeSelector: {}
+  tolerations: []
+  # Placement. The defaults are soft so a single-node dev cluster schedules every replica; on a cluster with at
+  # least as many nodes as replicas, set podAntiAffinity: hard and whenUnsatisfiable: DoNotSchedule.
+  # podAntiAffinity: soft (prefer one replica per host), hard (require it), or none. Ignored when affinity is set.
+  podAntiAffinity: soft
+  affinity: {}
+  # labelSelector defaults to the server pods when omitted.
+  topologySpreadConstraints:
+    - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway }
   hpa:
     enabled: false
     minReplicas: 2
     maxReplicas: 10
     targetCpuUtilization: 70
+    # Optional metrics served by Prometheus Adapter (install it with
+    # k8s/components/hpa-custom-metrics/prometheus-adapter-values.yaml first). The HPA takes the largest replica
+    # count any metric asks for. Without the adapter, leave these off: a missing metric stops scale-down.
+    customMetrics:
+      # Average REST requests per second per server pod.
+      requestsPerSecond:
+        enabled: false
+        metricName: garrison_http_requests_per_second
+        averageValue: "50"
+      # Runs executing on all workers in the namespace, per server replica.
+      runsActive:
+        enabled: false
+        metricName: garrison_runs_active
+        averageValue: "100"
+    # Any other autoscaling/v2 metric entries, appended as is.
+    extraMetrics: []
+    # Scale up quickly, down slowly: each replica holds worker long polls and event streams.
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 30
+        policies: [{ type: Pods, value: 2, periodSeconds: 60 }]
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies: [{ type: Pods, value: 1, periodSeconds: 120 }]
+  # Off by default: with one replica a budget would block node drains. Set maxUnavailable (default 1) or
+  # minAvailable; maxUnavailable lets a drain progress whenever at least two replicas run.
   pdb:
     enabled: false
-    minAvailable: 1
+    maxUnavailable: 1
+    minAvailable: null
 
-# Each pool becomes its own StatefulSet named garrison-worker-<name> (the pool named "default" keeps the
-# name garrison-worker so it matches the Kustomize base).
+# Each pool becomes its own StatefulSet named garrison-worker-<name> (the pool named "default" keeps the name
+# garrison-worker so it matches the Kustomize base), with its own headless Service and disruption budget.
+#
+# Per pool:
+#   name                 Pool name: the pod label garrison.io/pool, GARRISON_WORKER_NODE_POOL (Garrison creates the
+#                        node pool on first registration), and the first worker label garrison.io/pool=<name>.
+#   labels               Extra worker labels, a map or "k=v,k=v" string, appended to garrison.io/pool=<name>
+#                        (a later key wins). Deployments select workers with nodeSelector on these labels.
+#   harnesses            Optional list of claude, codex, mux, gemini, fake: probe only these, so the pool advertises
+#                        only these harness types. Empty probes everything the image has.
+#   probes               Optional full probe entries ({ harnessType, executable, arguments, label }) for custom CLIs,
+#                        added after harnesses. Either one gives the pool its own settings ConfigMap.
+#   image                Optional image name under image.registry with image.tag (for example garrison-worker-mux),
+#                        or a full reference containing "/" used as is. Default garrison-worker.
+#   nodeSelector, tolerations, affinity
+#                        Kubernetes placement for the pool's pods, for example a dedicated node pool.
+#   topologySpreadConstraints
+#                        Default workerDefaults.topologySpreadConstraints. labelSelector defaults to this pool's pods.
+#   pdb                  Overrides workerPdb for this pool ({ enabled, maxUnavailable }).
+#   extraEnv, podLabels  Extra container environment and pod labels.
 workerPools:
   - name: default
     replicas: 2
     maxConcurrentRuns: 4
-    labels: "garrison.io/pool=default"
+    labels: ""
+    harnesses: []
     storage: 10Gi
     storageClassName: ""
     terminationGracePeriodSeconds: 900
@@ -68,7 +129,14 @@ workerPools:
       limits: { cpu: "4", memory: 4Gi }
     nodeSelector: {}
     tolerations: []
+    affinity: {}
 
+workerDefaults:
+  # Soft: spread each pool across hosts when there are several, schedule anyway on one node.
+  topologySpreadConstraints:
+    - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway }
+
+# Default disruption budget for every pool (one budget per pool). Pools can override it with their own pdb.
 workerPdb:
   enabled: false
   maxUnavailable: 1

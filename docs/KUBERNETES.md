@@ -9,11 +9,17 @@ Everything lives under `k8s/`:
 | `k8s/base` | The workloads, services, network policies, the bootstrap Job, and the sample agent manifests. No secrets and no database. |
 | `k8s/components/postgres` | An in-cluster PostgreSQL 17 StatefulSet for installs that do not have a database yet. |
 | `k8s/components/smoke-test` | A fake-harness agent and a Job that invokes it end to end. |
+| `k8s/components/observability` | Prometheus, Loki, Tempo, Grafana, and Alloy (see "Observability"). |
+| `k8s/components/worker-pools` | A second worker StatefulSet (a Mux pool) next to the default pool, each with its own harness set. |
+| `k8s/components/hpa-custom-metrics` | Optional HPA metrics (request rate, active runs) served by Prometheus Adapter. |
+| `k8s/components/postgres-backup` | A nightly `pg_dump` CronJob writing to a PersistentVolumeClaim (`docs/BACKUP.md`). |
 | `k8s/overlays/minikube` | Base plus Postgres, NodePort services, and smaller resource requests. |
 | `k8s/overlays/k3s` | Base plus Postgres and a Traefik Ingress for `garrison.local`. |
 | `k8s/overlays/production` | External database, three control-plane replicas with an HPA, disruption budgets, spread, and an ingress-nginx Ingress with TLS. |
+| `k8s/overlays/k3s-worker-pools`, `k8s/overlays/production-custom-metrics` | Examples that add the worker-pools and custom-metrics components to an overlay. |
 | `k8s/helm/garrison` | A Helm chart that renders the same resources. |
 | `k8s/scripts` | Deploy, update, reset, smoke-test, and port-forward helpers, each as a `.sh` and `.bat` pair. |
+| `k8s/tests` | Scale, rolling-upgrade, and chaos tests on a throwaway k3d cluster (`docs/SCALING.md`). |
 
 ## Which option to use
 
@@ -170,7 +176,7 @@ kubectl -n garrison logs statefulset/garrison-worker | grep harness   # which ha
 
 The production Ingress routes `/mcp` to the server's MCP listener and everything else as in the K3S overlay, so MCP clients use `https://<your host>/mcp`. If A2A clients outside the cluster discover agents through their cards, see the note on agent cards under "Reaching the stack".
 
-The overlay runs three control-plane replicas spread across nodes, an HPA between two and ten replicas on CPU, a disruption budget that keeps one server up, and four workers with 50 GiB workspaces. Ingress buffering is off and timeouts are an hour, because run events stream over SSE and workers long-poll for leases.
+The overlay runs three control-plane replicas spread across zones and nodes, an HPA between two and ten replicas on CPU, disruption budgets that let a drain take one server and one worker at a time, and four workers with 50 GiB workspaces. "Autoscaling" and "Placement and disruption budgets" below explain the choices and how to tighten them. Ingress buffering is off and timeouts are an hour, because run events stream over SSE and workers long-poll for leases.
 
 Multiple control-plane replicas need PostgreSQL. The server refuses to start on SQLite when `GARRISON_EXPECTED_REPLICAS` is greater than one.
 
@@ -186,7 +192,7 @@ helm test garrison -n garrison
 
 The chart does not build or import images. On a local cluster, run `deploy-k3s.sh --build` or `deploy-minikube.sh` once first (or build and import the images yourself), or the pods pull `jchristn77/garrison-*` from Docker Hub.
 
-`values-minikube.yaml`, `values-k3s.yaml`, and `values-production.yaml` match the overlays. The most useful values are `image.tag`, `database.mode` (`embedded` or `external`), `server.hpa`, `ingress`, and `workerPools`. Each entry in `workerPools` becomes its own StatefulSet with its own labels, concurrency, storage, node selector, and tolerations, which is how you put GPU-backed Mux workers in one pool and Claude Code workers in another. The bootstrap Job runs as a post-install and post-upgrade hook.
+`values-minikube.yaml`, `values-k3s.yaml`, and `values-production.yaml` match the overlays, and `values-worker-pools.yaml` adds a second worker pool on top of any of them (see "Worker pools"). The most useful values are `image.tag`, `database.mode` (`embedded` or `external`), `server.hpa`, `ingress`, and `workerPools`. Each entry in `workerPools` becomes its own StatefulSet with its own labels, concurrency, storage, node selector, and tolerations, which is how you put GPU-backed Mux workers in one pool and Claude Code workers in another. The bootstrap Job runs as a post-install and post-upgrade hook.
 
 The chart keeps copies of the sample manifests, settings, and scripts under `files/`. CI diffs them against `k8s/base` and `k8s/components`, so change both places together.
 
@@ -200,7 +206,85 @@ kubectl -n garrison scale statefulset/garrison-worker --replicas=6
 
 Scaling down is safe. A worker that receives SIGTERM stops leasing new runs and waits for its running harnesses to finish, for up to the 900-second termination grace period. Raise `terminationGracePeriodSeconds` if your runs take longer.
 
-The control plane scales the same way on PostgreSQL. Replicas are interchangeable because workers pull work and never need to be reached by the server, so there is no session affinity to configure. Set `GARRISON_EXPECTED_REPLICAS` to match so the startup checks know the deployment is clustered.
+The control plane scales the same way on PostgreSQL. Replicas are interchangeable because workers pull work and never need to be reached by the server, so REST, A2A, and event streams need no session affinity (`docs/SCALING.md` covers MCP). Set `GARRISON_EXPECTED_REPLICAS` to match so the startup checks know the deployment is clustered.
+
+Both the Kustomize base and the chart roll the server out with `maxSurge: 1` and `maxUnavailable: 0`: a new replica has to pass its readiness probe before an old one is told to stop, so an upgrade never drops below the current replica count. Each old replica gets five seconds (`preStop`) to leave the Service endpoints before SIGTERM, and 30 seconds in total to finish.
+
+### Autoscaling
+
+The production overlay and `values-production.yaml` scale the server between two and ten replicas at 70% CPU. Scaling up is quick (up to two pods a minute after 30 seconds above target) and scaling down is slow (one pod every two minutes after five minutes below target), because every replica that goes away makes its worker long polls and SSE subscribers reconnect. CPU needs metrics-server, which most managed clusters run.
+
+CPU is a lagging signal for a control plane that spends much of its time waiting on the database, so two more metrics are available through [Prometheus Adapter](https://github.com/kubernetes-sigs/prometheus-adapter). Both are optional; nothing in the base install needs the adapter.
+
+| Metric | API | Meaning | Default target |
+|---|---|---|---|
+| `garrison_http_requests_per_second` | `custom.metrics.k8s.io` (Pods) | REST requests per second per server pod, from `garrison_http_requests_total` | 50 per pod |
+| `garrison_runs_active` | `external.metrics.k8s.io` | Runs executing on all workers in the namespace, from the workers' `garrison_worker_runs_active` | 100 per server replica |
+
+To turn them on:
+
+1. Run a Prometheus that scrapes Garrison and keeps the `namespace` and `pod` labels. `k8s/components/observability` does; so does any Prometheus that honors the `prometheus.io/*` annotations with the usual relabeling.
+2. Install the adapter with the values file from the component. It points at `garrison-prometheus`; change `prometheus.url` for your own Prometheus.
+   ```bash
+   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+   helm install garrison-metrics prometheus-community/prometheus-adapter -n garrison \
+     -f k8s/components/hpa-custom-metrics/prometheus-adapter-values.yaml
+   kubectl get --raw "/apis/custom.metrics.k8s.io/v1beta1/namespaces/garrison/pods/*/garrison_http_requests_per_second"
+   kubectl get --raw "/apis/external.metrics.k8s.io/v1beta1/namespaces/garrison/garrison_runs_active"
+   ```
+3. Add `components/hpa-custom-metrics` to your production overlay (`overlays/production-custom-metrics` is the example), or with Helm set `server.hpa.customMetrics.requestsPerSecond.enabled=true` and `server.hpa.customMetrics.runsActive.enabled=true`.
+4. Watch `kubectl -n garrison describe hpa garrison-server`. The HPA takes the highest replica count any metric asks for.
+
+Install the adapter before you add the metrics. An HPA that cannot read one of its metrics still scales up on the others but refuses to scale down, so a forgotten adapter shows up as a control plane stuck at its high-water mark. Only one adapter can serve each metrics API in a cluster; if you already run one (or KEDA, which registers the external API), add the two rules from `prometheus-adapter-values.yaml` to it instead. The targets are starting points: measure with `k8s/tests/loadtest.sh` and set them from your own numbers.
+
+### Placement and disruption budgets
+
+Every placement rule that ships is a preference, not a requirement, so a single-node minikube or K3S cluster schedules everything. The base spreads servers and workers across hosts (`topologySpreadConstraints` on `kubernetes.io/hostname` with `ScheduleAnyway`). The production overlay adds zone spread, pod anti-affinity that keeps server replicas on different hosts, and a weaker preference that keeps workers off hosts that run a server so a busy harness cannot starve the API. In Helm the same knobs are `server.podAntiAffinity` (`soft`, `hard`, or `none`), `server.topologySpreadConstraints`, `workerDefaults.topologySpreadConstraints`, and each pool's `affinity`.
+
+Once a cluster has at least as many nodes (and zones) as server replicas, harden the server rules: `podAntiAffinity: hard` and `whenUnsatisfiable: DoNotSchedule` in Helm, or the `required...` and `DoNotSchedule` forms in your overlay. Hard rules on a cluster that is too small leave replicas Pending, which is worse than two replicas sharing a node.
+
+Disruption budgets apply to voluntary disruptions such as node drains and cluster upgrades. The server budget is `maxUnavailable: 1` rather than `minAvailable: 1`: with the HPA at its minimum of two replicas, a drain can always proceed, and it never takes two at once. The worker budget is also `maxUnavailable: 1`, and since an evicted worker drains its harnesses for up to fifteen minutes, draining a node full of workers is slow by design. Both budgets set `unhealthyPodEvictionPolicy: AlwaysAllow`, so a pod that never became ready cannot block a drain. Budgets are off in the chart's default values, because a budget on a single replica makes `kubectl drain` wait forever; `values-production.yaml` turns them on. A pod covered by two budgets cannot be evicted at all, which is why each worker pool gets its own (see "Worker pools").
+
+### Worker pools
+
+A worker pool is a StatefulSet of workers that share a harness set, a set of labels, and a Garrison node pool. Pools are how you keep GPU-backed Mux workers apart from Claude Code workers, give one team its own capacity, or put workers with different credentials or images on different Kubernetes node pools.
+
+Three things decide where a run goes, and a pool can use any of them:
+
+| Mechanism | Worker side | Deployment side |
+|---|---|---|
+| Harness capability | The probes in the worker's settings decide which harnesses it reports; a pool that does not probe `mux` never gets Mux runs | Nothing to do: the scheduler only leases a run to a worker that reports the run's harness |
+| Labels | `GARRISON_WORKER_LABELS` (`garrison.io/pool=<pool>` plus anything else, for example `tier=gpu`) | `nodeSelector` in the deployment, for example `garrison.io/pool: mux` |
+| Node pool | `GARRISON_WORKER_NODE_POOL`; Garrison creates the node pool when the first worker registers with that name | The deployment's node pool (`nodePoolId`, set through the REST API or the dashboard) |
+
+With Kustomize, `components/worker-pools` turns the base into two pools: `garrison-worker` (pool `default`, probing Claude Code, Codex, Gemini, and the fake harness) and `garrison-worker-mux` (pool `mux`, probing Mux and the fake harness). The Mux pool prefers Kubernetes nodes labeled `garrison.io/node-pool=mux` and comments show the hard selector and toleration for a dedicated, tainted node pool. `overlays/k3s-worker-pools` applies it on K3S:
+
+```bash
+kubectl apply -k k8s/overlays/k3s-worker-pools
+kubectl label node <node> garrison.io/node-pool=mux        # optional; the pool runs anywhere without it
+```
+
+With Helm, each entry in `workerPools` is a pool: `name` becomes the pool name, the pod label `garrison.io/pool`, and the first worker label; `labels` adds more; `harnesses` (a list of `claude`, `codex`, `mux`, `gemini`, `fake`) or `probes` limit what it advertises; `image` swaps the image; `nodeSelector`, `tolerations`, and `affinity` place it. `values-worker-pools.yaml` is the two-pool example. Every pool keeps `app.kubernetes.io/name=garrison-worker`, so network policies, Prometheus (which records the pool as the `pool` label), and the Grafana dashboards treat all pools alike.
+
+To send a deployment to a pool explicitly, select its labels in the manifest:
+
+```yaml
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: mux-gpu
+spec:
+  agent: assistant
+  harnessProfile: builtin/mux
+  nodeSelector:
+    garrison.io/pool: mux
+```
+
+A queued run that no pool can take says why: its `blockedReason` is `NoCapableWorker` when no Ready worker reports the harness, and `NoMatchingPool` when capable workers exist but none matches the node pool or selector.
+
+### Backups
+
+`docs/BACKUP.md` covers backups and restores for PostgreSQL (in-cluster and managed) and Sqlite, including the nightly `pg_dump` CronJob in `components/postgres-backup`. Read the part about the master key before you need it: a database restored without the key it was written with keeps every record and loses every secret.
 
 ## Configuration
 

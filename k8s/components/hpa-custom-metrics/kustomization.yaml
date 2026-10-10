@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Optional: scale the control plane on request rate and active runs in addition to CPU, through Prometheus Adapter.
+# Nothing here installs the adapter. Before adding this component to an overlay:
+#   1. Run Prometheus that scrapes Garrison (components/observability, or your own with the prometheus.io
+#      annotations) and keeps the namespace and pod labels.
+#   2. Install Prometheus Adapter with prometheus-adapter-values.yaml from this directory:
+#        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#        helm install garrison-metrics prometheus-community/prometheus-adapter -n garrison \
+#          -f k8s/components/hpa-custom-metrics/prometheus-adapter-values.yaml
+#   3. Check the metrics exist (docs/KUBERNETES.md, "Autoscaling"), then add this component to the overlay that
+#      already has the garrison-server HPA (overlays/production does).
+# Without the adapter, the HPA reports FailedGetPodsMetric/FailedGetExternalMetric for these two metrics. It still
+# scales up on CPU, but it never scales down while a metric is missing, so install the adapter first.
+patches:
+  - path: hpa-patch.yaml
+    target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+      name: garrison-server

@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Nightly pg_dump of the Garrison database to a PersistentVolumeClaim, with a check that each dump is readable and
+# pruning of old dumps. docs/BACKUP.md explains restores and what else to keep (above all the master key).
+#
+# Works as is with components/postgres (in-cluster Postgres, password from garrison-secrets). For an external or
+# managed database (overlays/production), patch the CronJob's PG* variables to read Secret garrison-db; the comment
+# in cronjob.yaml shows how. A PVC in the same cluster is not an off-site backup: copy the dumps somewhere else too.
+resources:
+  - pvc.yaml
+  - cronjob.yaml
+  - networkpolicy.yaml

@@ -1,3 +1,6 @@
+# CPU-based autoscaling for the control plane. Needs metrics-server (most managed clusters ship it).
+# To also scale on request rate or active runs through Prometheus Adapter, add components/hpa-custom-metrics to
+# your overlay (it patches this HPA; see docs/KUBERNETES.md, "Autoscaling").
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -16,3 +19,18 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+  # Scale up quickly, scale down slowly: each replica holds worker long polls and SSE streams, and removing one
+  # makes those clients reconnect.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120

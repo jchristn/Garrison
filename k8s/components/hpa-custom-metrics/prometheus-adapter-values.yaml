@@ -1,0 +1,47 @@
+# Values for the prometheus-community/prometheus-adapter Helm chart, serving two Garrison metrics to the HPA:
+#
+#   custom.metrics.k8s.io   pods/garrison_http_requests_per_second   REST requests per second per server pod
+#   external.metrics.k8s.io garrison_runs_active                     runs executing on all workers in a namespace
+#
+# helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+# helm install garrison-metrics prometheus-community/prometheus-adapter -n garrison -f prometheus-adapter-values.yaml
+#
+# The URL points at the Prometheus from k8s/components/observability. For your own Prometheus, change url and port;
+# the queries only need the series to carry namespace and pod labels (the shipped scrape config adds both).
+# Only one adapter can serve custom.metrics.k8s.io and external.metrics.k8s.io per cluster. If your cluster already
+# runs one (KEDA also registers external.metrics.k8s.io), add the rules below to that adapter instead.
+prometheus:
+  url: http://garrison-prometheus.garrison.svc
+  port: 9090
+
+replicas: 1
+resources:
+  requests: { cpu: 25m, memory: 64Mi }
+  limits: { cpu: 500m, memory: 256Mi }
+
+rules:
+  # The chart's default rules expose every series Prometheus has; Garrison needs only these.
+  default: false
+  custom:
+    # garrison_http_requests_total from server pods (component="server" is set by the scrape config), as a per-pod
+    # rate over two minutes.
+    - seriesQuery: 'garrison_http_requests_total{namespace!="",pod!="",component="server"}'
+      resources:
+        overrides:
+          namespace: { resource: namespace }
+          pod: { resource: pod }
+      name:
+        matches: "^garrison_http_requests_total$"
+        as: "garrison_http_requests_per_second"
+      metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>,component="server"}[2m])) by (<<.GroupBy>>)'
+  external:
+    # The workers' active-run gauges summed per namespace. The HPA divides by the server replica count when the
+    # target type is AverageValue.
+    - seriesQuery: 'garrison_worker_runs_active{namespace!=""}'
+      resources:
+        overrides:
+          namespace: { resource: namespace }
+      name:
+        matches: "^garrison_worker_runs_active$"
+        as: "garrison_runs_active"
+      metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (namespace)'

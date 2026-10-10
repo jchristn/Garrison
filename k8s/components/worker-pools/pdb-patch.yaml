@@ -1,0 +1,5 @@
+# Applied only when the overlay has a garrison-worker PodDisruptionBudget (overlays/production): narrow it to the
+# default pool. The mux pool's own budget is pdb-mux.yaml.
+- op: add
+  path: /spec/selector/matchLabels/garrison.io~1pool
+  value: default

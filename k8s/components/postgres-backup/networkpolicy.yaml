@@ -1,0 +1,17 @@
+# components/postgres admits only the server on 5432. Network policies add up, so this one admits the backup Job too.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-postgres-backup
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: garrison-postgres-backup
+      ports:
+        - port: 5432

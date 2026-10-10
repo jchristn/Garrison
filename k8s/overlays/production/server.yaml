@@ -6,9 +6,12 @@ spec:
   replicas: 3
   template:
     spec:
+      # Spread replicas across zones and hosts, and prefer never to put two on one host. All soft, so a small
+      # cluster still schedules three replicas; switch to DoNotSchedule / requiredDuringScheduling once you have at
+      # least as many nodes (and zones) as replicas. The hostname constraint comes from the base.
       topologySpreadConstraints:
         - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
+          topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: ScheduleAnyway
           labelSelector:
             matchLabels:

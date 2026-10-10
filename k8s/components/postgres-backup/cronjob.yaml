@@ -1,0 +1,85 @@
+# pg_dump in custom format (-Fc: compressed, restorable table by table with pg_restore), written to a temporary
+# name and renamed only after pg_restore --list has read it back, so a half-written dump never looks complete.
+# Dumps older than GARRISON_BACKUP_KEEP_DAYS are deleted.
+#
+# External database: replace PGHOST, PGPORT, PGDATABASE, PGUSER, and PGPASSWORD with secretKeyRef entries for
+# Secret garrison-db (keys host, port, database, username, password), and allow egress to the database if your
+# cluster restricts it. Use a pg_dump major version at least as new as the server's (postgres:17 here).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: garrison-postgres-backup
+  labels:
+    app.kubernetes.io/name: garrison-postgres-backup
+spec:
+  schedule: "17 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: garrison-postgres-backup
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+          containers:
+            - name: pg-dump
+              image: postgres:17
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+                  out="/backups/garrison-${stamp}.dump"
+                  echo "dumping ${PGDATABASE} from ${PGHOST}:${PGPORT} to ${out}"
+                  pg_dump --format=custom --no-owner --no-privileges --file="${out}.partial"
+                  pg_restore --list "${out}.partial" > /dev/null
+                  mv "${out}.partial" "${out}"
+                  echo "ok: $(du -h "${out}" | cut -f1) $(pg_restore --list "${out}" | grep -c 'TABLE DATA') tables"
+                  find /backups -name 'garrison-*.dump' -mtime +"${GARRISON_BACKUP_KEEP_DAYS}" -print -delete
+                  find /backups -name 'garrison-*.dump.partial' -mmin +120 -print -delete
+              env:
+                - name: PGHOST
+                  value: garrison-postgres
+                - name: PGPORT
+                  value: "5432"
+                - name: PGDATABASE
+                  value: garrison
+                - name: PGUSER
+                  value: garrison
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: garrison-secrets
+                      key: db-password
+                - name: GARRISON_BACKUP_KEEP_DAYS
+                  value: "14"
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: garrison-postgres-backups

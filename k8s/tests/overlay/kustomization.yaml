@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Scale-test install (k8s/tests): the base with in-cluster Postgres, the server on NodePort 30870 (k3d maps it to
+# 127.0.0.1:18870), small resource requests so 3 servers and 4 workers fit a laptop, workers that drain in two
+# minutes instead of fifteen, and a connection pool that fits Postgres's max_connections with several replicas.
+# k8s/tests/deploy.sh wraps this overlay with the replica counts, image tag, and worker concurrency, so apply it
+# through that script rather than directly.
+namespace: garrison
+
+resources:
+  - ../../base
+
+components:
+  - ../../components/postgres
+
+configMapGenerator:
+  # Same as base/config/garrison.json except Database.MaxPoolSize 40: 3 replicas x 40 stays well under the
+  # max_connections of 300 set below. Scale both together for more replicas (P10.10 covers sizing).
+  - name: garrison-server-settings
+    behavior: replace
+    files:
+      - garrison.json=garrison.json
+
+patches:
+  - path: server.yaml
+  - path: worker.yaml
+  - path: postgres.yaml

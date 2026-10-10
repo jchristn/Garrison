@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garrison-worker
+spec:
+  template:
+    spec:
+      # Fake-harness runs take seconds, so a two-minute drain is plenty and keeps rolling and chaos tests short.
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: worker
+          resources:
+            # Each fake-harness run is a small dotnet process (about 40 MiB), so the limit covers the worker plus
+            # GARRISON_WORKER_MAX_CONCURRENT_RUNS of them with room to spare.
+            requests:
+              cpu: 50m
+              memory: 160Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: workspaces
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

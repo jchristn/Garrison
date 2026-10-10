@@ -1,0 +1,13 @@
+# Disruption budget for the Mux pool: one worker at a time. Harmless on a dev cluster (it never blocks a drain of a
+# pool with one replica that is draining anyway), and it keeps the pools independent under overlays/production.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: garrison-worker-mux
+spec:
+  maxUnavailable: 1
+  unhealthyPodEvictionPolicy: AlwaysAllow
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-worker
+      garrison.io/pool: mux

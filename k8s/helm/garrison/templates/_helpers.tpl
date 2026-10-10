@@ -100,3 +100,25 @@ spec:
     requests:
       storage: {{ .values.storage }}
 {{- end -}}
+
+{{/* Server pod anti-affinity from server.podAntiAffinity: soft (preferred, the default), hard (required), or none. */}}
+{{- define "garrison.serverAntiAffinity" -}}
+{{- $mode := .Values.server.podAntiAffinity | default "none" -}}
+{{- if eq $mode "soft" -}}
+podAntiAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        topologyKey: kubernetes.io/hostname
+        labelSelector:
+          matchLabels: { app.kubernetes.io/name: garrison-server }
+{{- else if eq $mode "hard" -}}
+podAntiAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    - topologyKey: kubernetes.io/hostname
+      labelSelector:
+        matchLabels: { app.kubernetes.io/name: garrison-server }
+{{- else if ne $mode "none" -}}
+{{- fail (printf "server.podAntiAffinity must be soft, hard, or none (got %q)" $mode) -}}
+{{- end -}}
+{{- end -}}

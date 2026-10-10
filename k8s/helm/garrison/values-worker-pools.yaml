@@ -1,0 +1,49 @@
+# Two worker pools with different harness sets (the Helm form of k8s/components/worker-pools). Combine with a
+# cluster values file:
+#   helm install garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/values-k3s.yaml \
+#     -f k8s/helm/garrison/values-worker-pools.yaml
+#
+# Runs reach a pool by harness capability (only the mux pool reports Mux; only the default pool reports Claude Code
+# and Codex), by a deployment nodeSelector on the worker labels (garrison.io/pool: mux, or tier: gpu below), or by
+# the deployment's node pool (Garrison creates pools default and mux when the workers register).
+# Helm replaces lists rather than merging them, so this file lists every pool.
+workerPools:
+  - name: default
+    replicas: 2
+    maxConcurrentRuns: 4
+    harnesses: [claude, codex, gemini, fake]
+    labels: ""
+    storage: 10Gi
+    storageClassName: ""
+    terminationGracePeriodSeconds: 900
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: "4", memory: 4Gi }
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+  - name: mux
+    replicas: 1
+    maxConcurrentRuns: 2
+    harnesses: [mux, fake]
+    # Reported to Garrison as garrison.io/pool=mux,tier=gpu; a deployment with nodeSelector { tier: gpu } runs here.
+    labels: { tier: gpu }
+    storage: 10Gi
+    storageClassName: ""
+    terminationGracePeriodSeconds: 900
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: "4", memory: 4Gi }
+    # Prefer nodes labeled garrison.io/node-pool=mux (kubectl label node <node> garrison.io/node-pool=mux). Soft, so a
+    # single-node cluster still schedules it. For a dedicated tainted node pool use a hard selector and toleration:
+    #   nodeSelector: { garrison.io/node-pool: mux }
+    #   tolerations: [{ key: garrison.io/node-pool, operator: Equal, value: mux, effect: NoSchedule }]
+    nodeSelector: {}
+    tolerations: []
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - { key: garrison.io/node-pool, operator: In, values: ["mux"] }

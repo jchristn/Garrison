@@ -57,7 +57,7 @@ Most control-plane work is small: authentication, authorization (role grants are
 - **Streaming subscribers.** Every SSE or WebSocket subscriber polls the database (`Scheduling.EventPollMs`, 250 ms, for SSE; about once a second for WebSocket). Hundreds of dashboards watching hundreds of runs add up; raise the poll interval if the database becomes the bottleneck.
 - **Long polls.** Each worker holds one lease request open for up to `LeaseWaitMs` (20 seconds). That is one connection per worker per replica it happens to reach, which is cheap.
 
-The production overlay's HPA scales the server between 2 and 10 replicas on CPU. Remember the MCP affinity note above before relying on it.
+The production overlay's HPA scales the server between 2 and 10 replicas on CPU, and can also scale on request rate and active runs through Prometheus Adapter (`docs/KUBERNETES.md`, "Autoscaling"). Remember the MCP affinity note above before relying on it.
 
 ## Database
 
@@ -85,3 +85,43 @@ Workers heartbeat every 5 seconds by default, and the server's registration resp
 | A control-plane replica crashes | Clients and workers retry against another replica. If it was the leader, another replica takes over maintenance within the leader lease |
 | The database is unavailable | The control plane cannot accept or hand out work. Workers keep running what they have and retry |
 | A run hangs | The worker kills it at the deadline. If the worker cannot, the leader fails the run after the deadline plus a grace period |
+
+## Scale and resilience tests
+
+`k8s/tests` holds the tests that back the numbers on this page. They run against a throwaway k3d cluster with its own kubeconfig (`k8s/tests/.work/kubeconfig`), so they never touch your default kubeconfig or another cluster you have running, and the cluster's node container is capped (`NODE_MEMORY`, 4 GB by default) so it cannot starve other containers. Every worker runs only the fake harness, so the tests cost no tokens and measure Garrison rather than a model.
+
+| Script | Plan item | What it does | Passes when |
+|---|---|---|---|
+| `cluster-up.sh` | | Creates k3d cluster `garrison-scale` (API on 127.0.0.1:6560, the server's NodePort on 127.0.0.1:18870) and imports the images. `BUILD=1` builds them from your checkout first, tagged `scaletest-local` | |
+| `deploy.sh` | | `SERVERS` replicas on PostgreSQL, `WORKERS` workers with `WORKER_CONCURRENCY` slots each, small resource requests; waits for every worker to be Ready. Re-run to resize | |
+| `loadtest.sh` | P10.13 | Starts `RUNS` runs at once and follows them to the end | Every run Succeeded |
+| `rolling-upgrade-test.sh` | P10.8 | Starts the load, then restarts the server Deployment (or sets `UPGRADE_TAG`) once a third of the runs exist; `ROLL_WORKERS=1` rolls the workers too | Every run Succeeded and no run creation failed |
+| `chaos-test.sh` | P10.14 | Starts the load, then kills a random server or worker pod every `CHAOS_INTERVAL` seconds for `CHAOS_DURATION` seconds (forcefully by default, like a crash) | No run is stuck: each one ends Succeeded, or Failed with `NodeLost` or `StaleLease` after its attempts ran out, within `TIMEOUT_SECONDS` |
+| `run-all.sh` | | All of the above in order, then deletes the cluster unless `KEEP_CLUSTER=1` | All three pass |
+| `cluster-down.sh` | | Deletes the cluster | |
+| `local-dry-run.sh` | | The load generator against a local server (Sqlite) and worker processes, no Kubernetes; `RESTART_SERVER_AFTER=<seconds>` restarts the server mid-run | Every run Succeeded |
+
+```bash
+k8s/tests/cluster-up.sh            # or BUILD=1 k8s/tests/cluster-up.sh to test your working tree
+k8s/tests/deploy.sh                # 3 servers, 4 workers x 4 slots
+k8s/tests/loadtest.sh              # 300 runs of about 3 seconds
+k8s/tests/rolling-upgrade-test.sh
+k8s/tests/chaos-test.sh
+k8s/tests/cluster-down.sh
+```
+
+The defaults (3 servers, 4 workers with 4 slots, 300 runs) fit a laptop whose Docker VM has about 8 GB that it shares with other containers. The plan's full test is 3 servers, 10 workers, and 1000 concurrent runs. On a machine with 16 GB or more for Docker:
+
+```bash
+NODE_MEMORY=12g AGENTS=2 k8s/tests/cluster-up.sh
+SERVERS=3 WORKERS=10 k8s/tests/deploy.sh
+RUNS=1000 TIMEOUT_SECONDS=1800 k8s/tests/loadtest.sh
+RUNS=1000 TIMEOUT_SECONDS=1800 k8s/tests/rolling-upgrade-test.sh
+RUNS=1000 TIMEOUT_SECONDS=1800 CHAOS_DURATION=300 k8s/tests/chaos-test.sh
+```
+
+`AGENTS=2` adds two k3d agent nodes so the spread and anti-affinity rules have somewhere to put replicas; each node gets `NODE_MEMORY`. `deploy.sh` and the three tests also run against another cluster: set `KUBECONFIG_FILE` and `CONTEXT` to reach it and `BASE_URL` to wherever this machine reaches the server's REST port (the test overlay exposes NodePort 30870). They never fall back to your current context.
+
+The load generator (`k8s/tests/loadgen`, a C# console that uses the SDK) applies a `loadtest-echo` agent on the fake harness with `maxAttempts` 3 and `retryOnNodeLoss`, creates every run with an idempotency key (so a creation retried after a dropped connection never makes a duplicate), and follows the runs through the run list. It writes one CSV row per run under `k8s/tests/results/` with the server's timestamps, claim latency (queued to leased), attempt count, worker, and outcome, and appends one row per test to `k8s/tests/results/summary.csv` with claim latency percentiles, run time percentiles, throughput, failures by outcome, and the verdict. When a test fails, the script also saves pod listings, events, and server and worker logs next to the CSV.
+
+Read claim latency with the backlog in mind. When `RUNS` is larger than the cluster's slots (`WORKERS` times `WORKER_CONCURRENCY`, 16 by default), most of a run's wait is its place in the queue, and the percentiles describe the backlog. For the scheduler's own overhead, run with `RUNS` at or below the slot count; for throughput, keep the backlog.

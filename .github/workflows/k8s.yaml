@@ -13,6 +13,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: azure/setup-kubectl@v4
       - uses: azure/setup-helm@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
       - name: Chart files mirror the Kustomize base
         run: |
           set -e
@@ -28,14 +33,35 @@ jobs:
         run: |
           set -e
           mkdir -p rendered
-          for o in minikube k3s production smoke-test k3s-observability minikube-observability; do kubectl kustomize k8s/overlays/$o > rendered/kustomize-$o.yaml; done
-          helm lint k8s/helm/garrison
+          for o in minikube k3s production smoke-test k3s-observability minikube-observability k3s-worker-pools production-custom-metrics; do kubectl kustomize k8s/overlays/$o > rendered/kustomize-$o.yaml; done
+          # Components without an overlay of their own, rendered on top of an overlay (paths must be relative).
+          mkdir -p k8s/.ci
+          printf 'resources: [../overlays/k3s]\ncomponents: [../components/postgres-backup]\n' > k8s/.ci/kustomization.yaml
+          kubectl kustomize k8s/.ci > rendered/kustomize-k3s-postgres-backup.yaml
+          printf 'resources: [../overlays/production]\ncomponents: [../components/worker-pools]\n' > k8s/.ci/kustomization.yaml
+          kubectl kustomize k8s/.ci > rendered/kustomize-production-worker-pools.yaml
+          rm -rf k8s/.ci
+          # Scale-test install (k8s/tests/overlay wrapped by deploy.sh), at the laptop and the full plan sizes.
+          DRY_RUN=1 bash k8s/tests/deploy.sh && cp k8s/tests/.work/deploy/rendered.yaml rendered/tests-default.yaml
+          DRY_RUN=1 SERVERS=3 WORKERS=10 WORKER_CONCURRENCY=8 bash k8s/tests/deploy.sh && cp k8s/tests/.work/deploy/rendered.yaml rendered/tests-full.yaml
           for v in values-minikube values-k3s values-production; do
+            helm lint k8s/helm/garrison -f k8s/helm/garrison/$v.yaml
+            helm lint k8s/helm/garrison -f k8s/helm/garrison/$v.yaml -f k8s/helm/garrison/values-worker-pools.yaml
             helm template garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/$v.yaml --set smokeTest.enabled=true > rendered/helm-$v.yaml
             helm template garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/$v.yaml --set observability.enabled=true > rendered/helm-$v-observability.yaml
+            helm template garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/$v.yaml -f k8s/helm/garrison/values-worker-pools.yaml > rendered/helm-$v-worker-pools.yaml
           done
+          helm lint k8s/helm/garrison
+          helm template garrison k8s/helm/garrison -n garrison -f k8s/helm/garrison/values-production.yaml \
+            --set server.hpa.customMetrics.requestsPerSecond.enabled=true --set server.hpa.customMetrics.runsActive.enabled=true \
+            --set server.podAntiAffinity=hard > rendered/helm-values-production-custom-metrics.yaml
       - name: Validate with kubeconform
         run: docker run --rm -v "$PWD/rendered:/r:ro" ghcr.io/yannh/kubeconform:latest -strict -summary -kubernetes-version 1.31.0 /r
+      - name: Scale-test scripts and load generator
+        run: |
+          set -e
+          for f in k8s/tests/*.sh; do bash -n "$f"; done
+          dotnet build k8s/tests/loadgen -f net10.0 -nologo
       - name: Validate Docker Compose
         run: |
           set -e

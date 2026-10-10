@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Load generator for the Phase 10 scale tests (k8s/tests). Not part of src/Garrison.sln; k8s/tests/loadtest.sh
+       builds and runs it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>Garrison.LoadGen</RootNamespace>
+    <AssemblyName>garrison-loadgen</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\sdk\csharp\Garrison.Sdk\Garrison.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,19 +1,32 @@
+# Disruption budgets for voluntary disruptions (node drains, cluster upgrades). They do not slow a rolling update
+# of the Deployment itself; the Deployment's maxSurge 1 / maxUnavailable 0 strategy covers that.
+#
+# Server: maxUnavailable 1 rather than minAvailable, so a drain can always make progress when the HPA has scaled
+# down to its minimum of two, and never more than one replica is evicted at a time.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: garrison-server
 spec:
-  minAvailable: 1
+  maxUnavailable: 1
+  # Evict a pod that is not Ready yet (for example stuck waiting for the database) even when the budget is spent,
+  # so a broken replica never blocks a drain.
+  unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels:
       app.kubernetes.io/name: garrison-server
 ---
+# Workers: one at a time. An evicted worker stops leasing and drains its running harnesses for up to
+# terminationGracePeriodSeconds (900), so a drain of a node that hosts several workers proceeds one worker at a
+# time and capacity drops by one worker at most. With several pools (components/worker-pools), give each pool its
+# own budget by adding garrison.io/pool to the selector.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: garrison-worker
 spec:
   maxUnavailable: 1
+  unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels:
       app.kubernetes.io/name: garrison-worker

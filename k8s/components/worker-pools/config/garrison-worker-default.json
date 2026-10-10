@@ -1,0 +1,20 @@
+{
+  "ServerUrl": "http://garrison-server:8700",
+  "NodeName": null,
+  "Labels": { "garrison.io/pool": "default" },
+  "MaxConcurrentRuns": 4,
+  "WorkRoot": "/workspaces",
+  "HealthPort": 8710,
+  "HeartbeatIntervalMs": 5000,
+  "LeaseWaitMs": 20000,
+  "EventFlushIntervalMs": 250,
+  "EventBatchSize": 100,
+  "EnvironmentAllowlist": ["PATH", "LANG", "TZ", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"],
+  "Telemetry": { "Enabled": true, "ServiceName": "garrison-worker", "PrometheusEnable": true, "PrometheusPort": 9465 },
+  "Probes": [
+    {"HarnessType": "ClaudeCode", "Executable": "claude", "Arguments": ["--version"], "Label": "claude"},
+    {"HarnessType": "Codex", "Executable": "codex", "Arguments": ["--version"], "Label": "codex"},
+    {"HarnessType": "GeminiCli", "Executable": "gemini", "Arguments": ["--version"], "Label": "gemini"},
+    {"HarnessType": "Generic", "Executable": "garrison-fake-harness", "Arguments": ["--version"], "Label": "fake"}
+  ]
+}

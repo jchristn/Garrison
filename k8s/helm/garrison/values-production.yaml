@@ -18,7 +18,20 @@ server:
     targetCpuUtilization: 70
   pdb:
     enabled: true
-    minAvailable: 1
+    maxUnavailable: 1
+  # Soft spread across zones and hosts plus soft anti-affinity, as in overlays/production. Switch to hard
+  # (podAntiAffinity: hard, whenUnsatisfiable: DoNotSchedule) once you have as many nodes and zones as replicas.
+  podAntiAffinity: soft
+  topologySpreadConstraints:
+    - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: ScheduleAnyway }
+    - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway }
+  # To also scale on request rate and active runs, install Prometheus Adapter
+  # (k8s/components/hpa-custom-metrics/prometheus-adapter-values.yaml) and enable
+  # server.hpa.customMetrics.requestsPerSecond and server.hpa.customMetrics.runsActive.
+workerDefaults:
+  topologySpreadConstraints:
+    - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: ScheduleAnyway }
+    - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway }
 workerPdb:
   enabled: true
   maxUnavailable: 1
@@ -26,7 +39,8 @@ workerPools:
   - name: default
     replicas: 4
     maxConcurrentRuns: 4
-    labels: "garrison.io/pool=default"
+    labels: ""
+    harnesses: []
     storage: 50Gi
     storageClassName: ""
     terminationGracePeriodSeconds: 900
@@ -35,6 +49,15 @@ workerPools:
       limits: { cpu: "8", memory: 8Gi }
     nodeSelector: {}
     tolerations: []
+    # Prefer hosts without a control-plane replica, so a busy harness never starves the API.
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels: { app.kubernetes.io/name: garrison-server }
 ingress:
   enabled: true
   className: nginx

@@ -1,5 +1,56 @@
+{{- /*
+Worker pools. Each entry in workerPools becomes its own StatefulSet, headless Service, optional settings ConfigMap,
+and optional PodDisruptionBudget. The pool named "default" keeps the name garrison-worker so it matches the
+Kustomize base. Every pool's pods carry app.kubernetes.io/name=garrison-worker (network policies, Prometheus,
+Grafana) and garrison.io/pool=<name> (selectors, per-pool budgets, the Prometheus pool label).
+
+What the worker reports to Garrison:
+  node pool  GARRISON_WORKER_NODE_POOL = <name>; the control plane creates the node pool on first registration
+  labels     GARRISON_WORKER_LABELS = garrison.io/pool=<name>, then the pool's labels (a later key wins)
+  harnesses  whatever the probes find; harnesses or probes limit them per pool (otherwise the image's defaults)
+*/ -}}
+{{- $harnessProbes := dict "claude" (dict "HarnessType" "ClaudeCode" "Executable" "claude" "Label" "claude") "codex" (dict "HarnessType" "Codex" "Executable" "codex" "Label" "codex") "mux" (dict "HarnessType" "Mux" "Executable" "mux" "Label" "mux") "gemini" (dict "HarnessType" "GeminiCli" "Executable" "gemini" "Label" "gemini") "fake" (dict "HarnessType" "Generic" "Executable" "garrison-fake-harness" "Label" "fake") }}
 {{- range $pool := .Values.workerPools }}
 {{- $name := ternary "garrison-worker" (printf "garrison-worker-%s" $pool.name) (eq $pool.name "default") }}
+{{- $labels := printf "garrison.io/pool=%s" $pool.name }}
+{{- if kindIs "map" $pool.labels }}
+{{- range $k, $v := $pool.labels }}
+{{- $labels = printf "%s,%s=%s" $labels $k (toString $v) }}
+{{- end }}
+{{- else if $pool.labels }}
+{{- $labels = printf "%s,%s" $labels $pool.labels }}
+{{- end }}
+{{- $probes := list }}
+{{- range $h := ($pool.harnesses | default list) }}
+{{- if not (hasKey $harnessProbes $h) }}
+{{- fail (printf "workerPools[%s].harnesses: unknown harness %q (use claude, codex, mux, gemini, fake, or probes)" $pool.name $h) }}
+{{- end }}
+{{- $probes = append $probes (merge (dict "Arguments" (list "--version")) (get $harnessProbes $h)) }}
+{{- end }}
+{{- range $p := ($pool.probes | default list) }}
+{{- $probes = append $probes $p }}
+{{- end }}
+{{- $settingsName := "garrison-worker-settings" }}
+{{- $settingsJson := $.Files.Get "files/garrison-worker.json" }}
+{{- if $probes }}
+{{- $settingsName = printf "garrison-worker-%s-settings" $pool.name }}
+{{- $settings := fromJson $settingsJson }}
+{{- $_ := set $settings "Probes" $probes }}
+{{- $_ := set $settings "Labels" (dict "garrison.io/pool" $pool.name) }}
+{{- $settingsJson = toPrettyJson $settings }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $settingsName }}
+  namespace: {{ include "garrison.namespace" $ }}
+  labels:
+    {{- include "garrison.labels" $ | nindent 4 }}
+    garrison.io/pool: {{ $pool.name }}
+data:
+  garrison-worker.json: |
+{{ $settingsJson | indent 4 }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -25,10 +76,14 @@ spec:
         app.kubernetes.io/name: garrison-worker
         app.kubernetes.io/component: worker
         garrison.io/pool: {{ $pool.name }}
+        {{- with $pool.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8710"
         prometheus.io/path: /metrics
+        checksum/settings: {{ $settingsJson | sha256sum }}
     spec:
       serviceAccountName: garrison-worker
       automountServiceAccountToken: false
@@ -41,7 +96,7 @@ spec:
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
-      terminationGracePeriodSeconds: {{ $pool.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ $pool.terminationGracePeriodSeconds | default 900 }}
       {{- with $pool.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -50,13 +105,30 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with $pool.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $spread := $pool.topologySpreadConstraints | default $.Values.workerDefaults.topologySpreadConstraints }}
+      {{- with $spread }}
+      {{- $constraints := list }}
+      {{- range $c := . }}
+      {{- $constraints = append $constraints (merge (deepCopy $c) (dict "labelSelector" (dict "matchLabels" (dict "app.kubernetes.io/name" "garrison-worker" "garrison.io/pool" $pool.name)))) }}
+      {{- end }}
+      topologySpreadConstraints:
+        {{- toYaml $constraints | nindent 8 }}
+      {{- end }}
       initContainers:
         - name: wait-for-server
           image: {{ $.Values.bootstrap.image }}
           command: ["sh", "-c", "until curl -fsS -o /dev/null http://garrison-server:8700/v1.0/api/health; do sleep 2; done"]
       containers:
         - name: worker
-          image: {{ include "garrison.image" (dict "root" $ "name" "garrison-worker") }}
+          {{- if and $pool.image (contains "/" $pool.image) }}
+          image: {{ $pool.image }}
+          {{- else }}
+          image: {{ include "garrison.image" (dict "root" $ "name" ($pool.image | default "garrison-worker")) }}
+          {{- end }}
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:
             - { name: health, containerPort: 8710 }
@@ -73,11 +145,14 @@ spec:
             - { name: GARRISON_WORKER_MAX_CONCURRENT_RUNS, value: {{ $pool.maxConcurrentRuns | quote }} }
             - { name: GARRISON_WORKER_WORK_ROOT, value: /workspaces }
             - { name: GARRISON_WORKER_HEALTH_PORT, value: "8710" }
-            - { name: GARRISON_WORKER_LABELS, value: {{ $pool.labels | quote }} }
+            - { name: GARRISON_WORKER_LABELS, value: {{ $labels | quote }} }
             - { name: GARRISON_WORKER_NODE_POOL, value: {{ $pool.name | quote }} }
             {{- if $.Values.observability.enabled }}
             - { name: GARRISON_WORKER_OTLP_ENABLE, value: {{ $.Values.observability.otlp.enabled | quote }} }
             - { name: GARRISON_WORKER_OTLP_ENDPOINT, value: "http://garrison-alloy:4317" }
+            {{- end }}
+            {{- with $pool.extraEnv }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
           volumeMounts:
             - { name: settings, mountPath: /etc/garrison, readOnly: true }
@@ -98,7 +173,7 @@ spec:
               exec: { command: ["sleep", "5"] }
       volumes:
         - name: settings
-          configMap: { name: garrison-worker-settings }
+          configMap: { name: {{ $settingsName }} }
   volumeClaimTemplates:
     - metadata:
         name: workspaces
@@ -119,6 +194,7 @@ metadata:
   labels:
     {{- include "garrison.labels" $ | nindent 4 }}
     app.kubernetes.io/name: garrison-worker
+    garrison.io/pool: {{ $pool.name }}
 spec:
   clusterIP: None
   selector:
@@ -127,16 +203,24 @@ spec:
   ports:
     - { name: health, port: 8710, targetPort: health }
     - { name: metrics, port: 9465, targetPort: metrics }
-{{- end }}
-{{- if .Values.workerPdb.enabled }}
+{{- $pdb := merge (deepCopy ($pool.pdb | default dict)) $.Values.workerPdb }}
+{{- if $pdb.enabled }}
 ---
+# One budget per pool: a pod matched by two budgets cannot be evicted at all.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: garrison-worker
-  namespace: {{ include "garrison.namespace" . }}
+  name: {{ $name }}
+  namespace: {{ include "garrison.namespace" $ }}
+  labels:
+    {{- include "garrison.labels" $ | nindent 4 }}
+    garrison.io/pool: {{ $pool.name }}
 spec:
-  maxUnavailable: {{ .Values.workerPdb.maxUnavailable }}
+  maxUnavailable: {{ $pdb.maxUnavailable }}
+  unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
-    matchLabels: { app.kubernetes.io/name: garrison-worker }
+    matchLabels:
+      app.kubernetes.io/name: garrison-worker
+      garrison.io/pool: {{ $pool.name }}
+{{- end }}
 {{- end }}

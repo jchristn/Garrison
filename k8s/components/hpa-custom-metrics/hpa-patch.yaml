@@ -1,0 +1,27 @@
+# JSON patch appended to the garrison-server HPA's metrics. The HPA takes the largest replica count any metric asks
+# for, so these only ever add replicas on top of what CPU asks for.
+#
+# garrison_http_requests_per_second (Pods): average REST requests per second per server pod. 50 is a starting
+#   point for the shipped resource requests; measure your own (k8s/tests/loadtest.sh) and adjust.
+# garrison_runs_active (External): runs executing on all workers in the HPA's namespace, divided by the replica count. 100 means one
+#   control-plane replica per 100 running harnesses (event ingestion and lease renewals grow with running runs).
+- op: add
+  path: /spec/metrics/-
+  value:
+    type: Pods
+    pods:
+      metric:
+        name: garrison_http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "50"
+- op: add
+  path: /spec/metrics/-
+  value:
+    type: External
+    external:
+      metric:
+        name: garrison_runs_active
+      target:
+        type: AverageValue
+        averageValue: "100"
