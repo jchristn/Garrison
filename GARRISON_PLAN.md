@@ -82,11 +82,11 @@ Rules for keeping the plan honest:
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
 | 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 44 / 45 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
-| 5 | Dashboard | M1 | In progress | 50 / 51 |
+| 5 | Dashboard | M1 | Complete | 51 / 51 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 34 / 37 |
-| 8 | Documentation and Postman | M1 | In progress | 21 / 22 |
-| 9 | MVP verification (milestone M1) | M1 | In progress | 14 / 16 |
+| 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
+| 9 | MVP verification (milestone M1) | M1 | In progress | 15 / 16 |
 | 10 | Control plane high availability and scale-out | M2 | Not started | 0 / 18 |
 | 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
 | 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 29 |
@@ -1361,7 +1361,7 @@ Scripts and validation
 - [x] P8.14 Postman environment `assets/postman/Garrison.postman_environment.json` with `127.0.0.1` defaults.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
 - [x] P8.15 Run the Postman collection with Newman (in a container) against a local server. -> all requests pass.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
 - [x] P8.16 Em-dash check passes across the repository.  | claude 2026-10-10 docs stream; verified against code and a live server; P8.15 Newman 196 requests, 218 assertions, 0 failures; P8.16 check-em-dash clean
-- [ ] P8.17 Documentation examples executed as written (part of P9.14).
+- [x] P8.17 Documentation examples executed as written (part of P9.14).  | claude 2026-10-10 about 80 documentation examples executed: README 4/4, QUICKSTART 17/18, REST about 44/48, MCP 19/19, A2A 20/20; examples/validate.sh 25/25; mismatches recorded as M1 findings
 - [x] P8.18 New-user documentation review: walk the README and linked docs as a first-time user with no context, on a clean machine (fresh clone, no images, no prior settings), and record every point of friction, missing prerequisite, unexplained term, and wrong or stale command in `docs/testing/NEW_USER_REVIEW.md` before changing anything. Covers P8.19 to P8.21.  | claude 2026-10-10 docs/testing/NEW_USER_REVIEW.md first pass: findings for README, Docker, Kubernetes, and first configuration recorded before fixes
 - [x] P8.19 Path 1, Docker: from the README alone, reach a running stack (server, two workers, dashboard), sign in, and see both workers, in under 10 minutes excluding the first image build. Needs: prerequisites (Docker version, disk and memory, build time), where credentials go (`.env`), ports and what to do when one is taken, how to stop, update, and reset, and what "healthy" looks like.  | claude 2026-10-10 update.sh checks ports before building and prints the real URLs; DOCKER.md prerequisites, ports, credentials, healthy stack, stop/update/reset; warm start 13 s; .env excluded from the build context
 - [x] P8.20 Path 2, Kubernetes: the same outcome on minikube, K3S (host and in Docker), and an existing cluster, from the README plus `docs/KUBERNETES.md`. Needs: which option to pick and why, prerequisites per option (kubectl, Helm optional), image build or pull, secrets and harness credentials, port-forward versus ingress, the URLs and credentials to use, and how to check, scale, update, and tear down.  | claude 2026-10-10 KUBERNETES.md rewritten: choosing a runtime, K3S in Docker (kubeconfig wait, loopback ports), minikube on macOS, existing clusters, Helm; deploy-k3s imports Postgres and curl; port-forward ports configurable; K3S deploy 49 s. minikube, Helm, and production reviewed on paper only
@@ -1383,7 +1383,7 @@ Scripts and validation
 - [x] P9.11 Delegation demonstrated: Claude agent invokes the Codex agent through Garrison MCP.  | claude 2026-10-10 Claude to Codex through Garrison MCP: child run Delegated, depth 1, callChain claude-helper,codex-coder on the other worker, answer "s[::-1]" relayed. Also Claude to Mux ("Paris")
 - [x] P9.12 Same three agents invoked through REST, MCP (Voltaic client), and A2A (Voltaic client).  | claude 2026-10-10 K3S: claude-helper, codex-coder, and mux-helper each answered over REST, MCP (garrison_invoke_agent), and A2A SendMessage
 - [x] P9.13 Postman collection passes against the cluster through port-forward.  | claude 2026-10-10 Newman in Docker through port-forward to K3S: 196 requests, 218 assertions, 0 failures (Restart folder excluded)
-- [ ] P9.14 Lightweight simulated user session (after P8.18 to P8.22) (README quick start followed literally, dashboard walkthrough, one SDK quick start) with findings recorded in `docs/testing/M1_SESSION.md` and surfaced to the user before fixes.
+- [x] P9.14 Lightweight simulated user session (after P8.18 to P8.22) (README quick start followed literally, dashboard walkthrough, one SDK quick start) with findings recorded in `docs/testing/M1_SESSION.md` and surfaced to the user before fixes.  | claude 2026-10-10 docs/testing/M1_SESSION.md: three personas (platform engineer in the dashboard via Playwright, agent developer with the Python SDK, integrating developer running doc examples); 33 findings (0 blocker, 2 major, 17 minor, 14 polish), surfaced to the user for triage before fixes
 - [x] P9.15 CI workflows green on GitHub. **(requires push approval)**  | claude 2026-10-10 all five workflows green on b6b51ba (Tests net8.0 and net10.0, Dashboard, SDKs, Kubernetes with K3S smoke test, Text hygiene); first run caught a test race, fixed
 - [ ] P9.16 M1 sign-off: update the Progress Dashboard, `CHANGELOG.md`, and the decision log; record known gaps.
 
