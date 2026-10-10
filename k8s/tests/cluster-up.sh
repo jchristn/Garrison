@@ -35,7 +35,7 @@ else
     ${agent_args[@]+"${agent_args[@]}"} \
     --api-port "127.0.0.1:${API_PORT}" \
     --no-lb \
-    -p "127.0.0.1:${HTTP_PORT}:30870@server:0" \
+    -p "127.0.0.1:${HTTP_PORT}:30870@server:0:direct" \
     --k3s-arg "--disable=traefik@server:*" \
     --k3s-arg "--disable=servicelb@server:*" \
     --k3s-arg "--disable=metrics-server@server:*" \

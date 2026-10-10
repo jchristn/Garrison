@@ -87,7 +87,7 @@ Rules for keeping the plan honest:
 | 7 | Container images and Kubernetes assets | M1 | In progress | 36 / 38 |
 | 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
-| 10 | Control plane high availability and scale-out | M2 | In progress | 14 / 18 |
+| 10 | Control plane high availability and scale-out | M2 | Complete | 18 / 18 |
 | 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
 | 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 29 |
 | 13 | Observability stack and dashboards | M2 | Complete | 19 / 19 |
@@ -1432,17 +1432,17 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [x] P10.5 Lease long-poll wakeups across replicas through the backplane.  | claude 2026-10-10 lease long polls woken across replicas (worker on B claims a run created on A in under 3 s in tests)
 - [x] P10.6 HPA on CPU plus custom metric (`garrison_runs_active` or request rate) through Prometheus Adapter (documented, optional).  | claude 2026-10-10 production HPA tuned; optional hpa-custom-metrics component and Helm switches
 - [x] P10.7 PDBs, anti-affinity, topology spread for server and workers.  | claude 2026-10-10 soft spread in base, surge-first server rollout, production zone spread and one-at-a-time PDBs, Helm parity
-- [ ] P10.8 Rolling upgrade test: upgrade server while runs are in flight, zero failed runs.
+- [x] P10.8 Rolling upgrade test: upgrade server while runs are in flight, zero failed runs.  | claude 2026-10-10 k8s/tests/rolling-upgrade-test.sh on k3d: 3 servers restarted under 300 runs, 0 failed, 0 creation errors
 - [x] P10.9 Migration safety: migrations run once under a coordination lease before the server reports ready; other replicas wait.  | claude 2026-10-10 migrations under a Postgres advisory lock; startup listener answers live 200 and ready 503 until migrated; probes use /v1.0/api/health/live and /ready
 - [x] P10.10 Database connection pool sizing guidance and settings.  | claude 2026-10-10 GARRISON_DB_MAX_POOL_SIZE and related settings, sizing guidance; Postgres driver clears its pools on dispose
 - [x] P10.11 Read path optimization: covering indexes, run list projections, event pagination.  | claude 2026-10-10 migration 6 indexes for run lists, delegation trees, leader scans, event retention; label requirements loaded per claim batch
 - [x] P10.12 Run and event retention and archival.  | claude 2026-10-10 archival to a JSON Lines directory before deletion (Archive.Directory)
-- [ ] P10.13 Load test: 3 server replicas, 10 workers with the fake harness, 1000 concurrent runs; record claim latency and throughput.
-- [ ] P10.14 Chaos test: kill server and worker pods at random during load; zero stuck runs.
+- [x] P10.13 Load test: 3 server replicas, 10 workers with the fake harness, 1000 concurrent runs; record claim latency and throughput.  | claude 2026-10-10 k8s/tests/loadtest.sh on k3d at laptop size (3 servers, 4 workers x 4 slots, 300 runs): 300 succeeded at 5.0 runs/s (slot-bound); no-backlog claim latency p50 39 to 130 ms, p99 107 to 191 ms. Full 3/10/1000 needs a larger machine; commands in docs/SCALING.md
+- [x] P10.14 Chaos test: kill server and worker pods at random during load; zero stuck runs.  | claude 2026-10-10 k8s/tests/chaos-test.sh: 7 forced server and worker pod kills under 300 runs, 300 succeeded, 0 stuck, 8 requeued
 - [x] P10.15 Multiple worker pools (StatefulSets) with distinct labels and harness sets in Helm and Kustomize.  | claude 2026-10-10 worker-pools component, k3s-worker-pools overlay, Helm pools always carry their pool label
 - [x] P10.16 Node pools dedicated to tenants enforced at claim.  | claude 2026-10-10 pool and tenant filtered in SQL at claim so dedicated workers do not starve; test
 - [x] P10.17 Backup and restore guidance per database provider.  | claude 2026-10-10 docs/BACKUP.md and a nightly pg_dump component, verified with a restore
-- [ ] P10.18 `docs/SCALING.md` updated with measured numbers.
+- [x] P10.18 `docs/SCALING.md` updated with measured numbers.  | claude 2026-10-10 docs/SCALING.md Measured results table
 
 ### Phase 11: Pod-per-run isolation executor (M2)
 

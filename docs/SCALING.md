@@ -193,4 +193,18 @@ RUNS=1000 TIMEOUT_SECONDS=1800 CHAOS_DURATION=300 k8s/tests/chaos-test.sh
 
 The load generator (`k8s/tests/loadgen`, a C# console that uses the SDK) applies a `loadtest-echo` agent on the fake harness with `maxAttempts` 3 and `retryOnNodeLoss`, creates every run with an idempotency key (so a creation retried after a dropped connection never makes a duplicate), and follows the runs through the run list. It writes one CSV row per run under `k8s/tests/results/` with the server's timestamps, claim latency (queued to leased), attempt count, worker, and outcome, and appends one row per test to `k8s/tests/results/summary.csv` with claim latency percentiles, run time percentiles, throughput, failures by outcome, and the verdict. When a test fails, the script also saves pod listings, events, and server and worker logs next to the CSV.
 
+### Measured results
+
+Measured on 2026-10-10 on a laptop: a k3d cluster capped at 4 GB in a Docker VM with 8 GB that also ran another Garrison cluster with the observability stack. 3 server replicas on PostgreSQL 17, 4 workers with 4 slots each (16 slots), fake harness.
+
+| Test | Runs | Run length | Outcome | Claim latency p50 / p99 | Throughput |
+|---|---|---|---|---|---|
+| Scheduler overhead, no backlog | 16 | 3 s | 16 succeeded | 130 ms / 191 ms | 4.9 runs/s |
+| Scheduler overhead, no backlog | 16 | 0.5 s | 16 succeeded | 39 ms / 107 ms | 22.7 runs/s |
+| Load (P10.13) | 300 at once | 3 s | 300 succeeded | 28.3 s / 56.0 s (backlog) | 5.0 runs/s |
+| Rolling upgrade (P10.8): all 3 servers restarted mid-load | 300 at once | 5 s | 300 succeeded, 0 failed, 0 creation errors | 46.1 s / 91.9 s (backlog) | 3.1 runs/s |
+| Chaos (P10.14): 7 forced kills of server and worker pods, 15 s apart | 300 at once | 5 s | 300 succeeded, 0 stuck, 8 requeued after a worker died | 42.4 s / 92.8 s (backlog) | 3.1 runs/s |
+
+With no backlog, the control plane adds about 40 to 190 ms between a run being queued and a worker leasing it, and runs finished 140 to 230 ms after their harness time. Under load, throughput sat at the slot limit (16 slots divided by the run length), so the workers, not the control plane, were the bottleneck: add workers or slots to go faster. The plan's full size (3 servers, 10 workers, 1000 runs) needs more memory than this laptop's Docker VM; use the commands above on a larger machine and add the results here.
+
 Read claim latency with the backlog in mind. When `RUNS` is larger than the cluster's slots (`WORKERS` times `WORKER_CONCURRENCY`, 16 by default), most of a run's wait is its place in the queue, and the percentiles describe the backlog. For the scheduler's own overhead, run with `RUNS` at or below the slot count; for throughput, keep the backlog.
