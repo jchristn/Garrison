@@ -61,6 +61,10 @@ if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
 elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
   upsert_secret anthropic-api-key AnthropicApiKey "${ANTHROPIC_API_KEY}" && CLAUDE_SECRET=anthropic-api-key
 fi
+# CODEX_AUTH_JSON_FILE is an alternative to CODEX_AUTH_JSON for runtimes that mount the file (Docker Compose).
+if [ -z "${CODEX_AUTH_JSON:-}" ] && [ -n "${CODEX_AUTH_JSON_FILE:-}" ] && [ -s "${CODEX_AUTH_JSON_FILE}" ]; then
+  CODEX_AUTH_JSON="$(cat "${CODEX_AUTH_JSON_FILE}")"
+fi
 CODEX_SECRET=""
 if [ -n "${OPENAI_API_KEY:-}" ]; then
   upsert_secret openai-api-key OpenAiApiKey "${OPENAI_API_KEY}" && CODEX_SECRET=openai-api-key

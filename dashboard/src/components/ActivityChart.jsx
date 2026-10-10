@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { REQUEST_RANGES, DEFAULT_AUTO_REFRESH } from '../utils/constants';
 import { normalizeBuckets } from '../utils/chart';
@@ -8,14 +8,42 @@ import RangeTabs from './RangeTabs';
 import AutoRefreshSelect from './AutoRefreshSelect';
 import ChartTooltip from './ChartTooltip';
 
-const W = 1000;
-const H = 276;
+// The SVG is drawn in CSS pixels at the measured container width, so text stays crisp and the
+// chart reflows with the layout. Height is fixed per breakpoint rather than tied to the width.
+const DEFAULT_W = 1000;
+const TALL_H = 520;
+const SHORT_H = 320;
+const NARROW_BREAKPOINT = 720;
 const PAD_TOP = 16;
 const PAD_RIGHT = 20;
-const PAD_BOTTOM = 68;
-const PAD_LEFT = 48;
-const PLOT_W = W - PAD_LEFT - PAD_RIGHT;
-const PLOT_H = H - PAD_TOP - PAD_BOTTOM;
+const PAD_BOTTOM = 40;
+const PAD_LEFT = 52;
+
+function chartHeight(width) {
+  return width >= NARROW_BREAKPOINT ? TALL_H : SHORT_H;
+}
+
+/** Track an element's content width with ResizeObserver (falls back to the default width). */
+function useMeasuredWidth(ref) {
+  const [width, setWidth] = useState(DEFAULT_W);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const measure = () => {
+      const w = Math.round(el.getBoundingClientRect().width);
+      if (w > 0) setWidth(w);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return width;
+}
 
 const AXIS_LABELS = { hour: 12, day: 12, week: 7, month: 12 };
 
@@ -51,6 +79,11 @@ export default function ActivityChart({
   tenantAllowAll = true
 }) {
   const { t, i18n } = useTranslation();
+  const bodyRef = useRef(null);
+  const W = useMeasuredWidth(bodyRef);
+  const H = chartHeight(W);
+  const PLOT_W = Math.max(1, W - PAD_LEFT - PAD_RIGHT);
+  const PLOT_H = H - PAD_TOP - PAD_BOTTOM;
   const [hover, setHover] = useState(null); // { index, x, y }
   const [autoSecs, setAutoSecs] = useState(DEFAULT_AUTO_REFRESH);
   useAutoRefresh(onRefresh, autoSecs);
@@ -62,7 +95,7 @@ export default function ActivityChart({
   const axisMax = ticks[ticks.length - 1];
   const labelIdx = axisLabelIndices(buckets.length, rangeId);
   const groupW = buckets.length > 0 ? PLOT_W / buckets.length : PLOT_W;
-  const barW = Math.max(2, Math.min(28, groupW * 0.72));
+  const barW = Math.max(2, Math.min(48, groupW * 0.72));
 
   const ranges = Object.values(REQUEST_RANGES);
   const hovered = hover != null ? buckets[hover.index] : null;
@@ -106,11 +139,12 @@ export default function ActivityChart({
         </div>
       </div>
 
+      <div className="chart-body" ref={bodyRef}>
       {buckets.length === 0 ? (
-        <div className="chart-empty">{t('components.chart.noData')}</div>
+        <div className="chart-empty" style={{ minHeight: Math.round(H / 2) }}>{t('components.chart.noData')}</div>
       ) : (
         <div className="chart-canvas">
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" role="img">
+          <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} preserveAspectRatio="xMidYMid meet" role="img" aria-label={title || t('views.home.requestActivity')}>
             {/* Y grid + labels */}
             {ticks.map((tick) => {
               const y = PAD_TOP + PLOT_H - (tick / axisMax) * PLOT_H;
@@ -173,7 +207,7 @@ export default function ActivityChart({
                   key={`x${i}`}
                   className="chart-svg-text"
                   x={PAD_LEFT + i * groupW + groupW / 2}
-                  y={H - 44}
+                  y={H - PAD_BOTTOM + 20}
                   textAnchor="middle"
                 >
                   {formatAxisTick(b.bucketStartUtc, rangeId, i18n.language)}
@@ -212,6 +246,7 @@ export default function ActivityChart({
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

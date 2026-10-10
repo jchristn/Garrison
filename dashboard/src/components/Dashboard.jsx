@@ -2,77 +2,38 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
-import { routeBySlug } from '../utils/routes';
+import { findHub, hubBySlug, detailPageBySlug, pageBySlug, DASHBOARD_BASE } from '../config/navConfig';
 import { allowed } from '../utils/principal';
 import { STORAGE_KEYS } from '../utils/constants';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import SetupWizard from './SetupWizard';
 import Tour from './Tour';
+import LegacyRedirect from './LegacyRedirect';
 import { EmptyState } from './States';
 import { useTranslation } from 'react-i18next';
-import HomeView from '../views/HomeView';
-import InvokeView from '../views/InvokeView';
-import RunsView from '../views/RunsView';
-import RunDetailView from '../views/RunDetailView';
-import QueueView from '../views/QueueView';
-import NodesView from '../views/NodesView';
-import NodePoolsView from '../views/NodePoolsView';
-import AgentsView from '../views/AgentsView';
-import AgentDetailView from '../views/AgentDetailView';
-import DeploymentsView from '../views/DeploymentsView';
-import HarnessProfilesView from '../views/HarnessProfilesView';
-import PromptTemplatesView from '../views/PromptTemplatesView';
-import PromptTemplateEditorView from '../views/PromptTemplateEditorView';
-import McpServersView from '../views/McpServersView';
-import SecretsView from '../views/SecretsView';
-import WorkspacesView from '../views/WorkspacesView';
-import ArtifactStoresView from '../views/ArtifactStoresView';
-import ManifestsView from '../views/ManifestsView';
-import RequestHistoryView from '../views/RequestHistoryView';
-import AuditView from '../views/AuditView';
-import ApiExplorerView from '../views/ApiExplorerView';
-import TenantsView from '../views/TenantsView';
-import UsersView from '../views/UsersView';
-import CredentialsView from '../views/CredentialsView';
-import RolesView from '../views/RolesView';
-import AssignmentsView from '../views/AssignmentsView';
-import SettingsView from '../views/SettingsView';
-import ServerInfoView from '../views/ServerInfoView';
+import HubView from '../views/hubs/HubView';
+import { PAGE_VIEWS, DETAIL_VIEWS } from '../views/hubs/hubPanels';
 
-const VIEWS = {
-  home: HomeView,
-  invoke: InvokeView,
-  runs: RunsView,
-  queue: QueueView,
-  nodes: NodesView,
-  nodePools: NodePoolsView,
-  agents: AgentsView,
-  deployments: DeploymentsView,
-  harnessProfiles: HarnessProfilesView,
-  promptTemplates: PromptTemplatesView,
-  mcpServers: McpServersView,
-  secrets: SecretsView,
-  workspaces: WorkspacesView,
-  artifactStores: ArtifactStoresView,
-  manifests: ManifestsView,
-  requests: RequestHistoryView,
-  audit: AuditView,
-  explorer: ApiExplorerView,
-  tenants: TenantsView,
-  users: UsersView,
-  credentials: CredentialsView,
-  roles: RolesView,
-  assignments: AssignmentsView,
-  settings: SettingsView,
-  serverInfo: ServerInfoView
-};
-
-const DETAIL_VIEWS = {
-  runs: RunDetailView,
-  agents: AgentDetailView,
-  promptTemplates: PromptTemplateEditorView
-};
+/**
+ * Resolve /dashboard/:section[/:id] to what the main area renders: a hub (tabbed or standalone),
+ * a detail view, a redirect for a pre-hub URL, or a redirect home for anything unknown.
+ */
+function resolveRoute(section, id) {
+  if (id) {
+    const page = detailPageBySlug(section);
+    if (page && DETAIL_VIEWS[page.id]) return { kind: 'detail', page, View: DETAIL_VIEWS[page.id] };
+  }
+  const hub = hubBySlug(section);
+  if (hub && !id) {
+    if (hub.tabs) return { kind: 'hub', hub };
+    return { kind: 'page', page: hub.page, View: PAGE_VIEWS[hub.page.id] };
+  }
+  // A pre-hub URL (or a detail-style URL with an unknown record route) lands on its hub and tab.
+  const legacy = pageBySlug(section);
+  if (legacy) return { kind: 'redirect', to: `${DASHBOARD_BASE}/${findHub(legacy.hub).slug}`, tab: legacy.defaultTab ? null : legacy.tab };
+  return { kind: 'redirect', to: `${DASHBOARD_BASE}/home` };
+}
 
 /** Authenticated shell: sidebar, topbar, and the routed view. */
 export default function Dashboard() {
@@ -83,7 +44,7 @@ export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [health, setHealth] = useState(null);
   const [live, setLive] = useState(false);
-  const route = routeBySlug(section);
+  const route = resolveRoute(section, id);
 
   useEffect(() => {
     if (!apiClient) return undefined;
@@ -135,8 +96,16 @@ export default function Dashboard() {
       .catch(() => {});
   }, [apiClient, tenantId, setWizardOpen]);
 
-  const View = id && DETAIL_VIEWS[route.id] ? DETAIL_VIEWS[route.id] : VIEWS[route.id] || HomeView;
-  const permitted = allowed(route.requires, principal);
+  if (route.kind === 'redirect') return <LegacyRedirect to={route.to} tab={route.tab} />;
+
+  const permitted = route.kind === 'hub' || allowed(route.page.requires, principal);
+  let content;
+  if (!permitted) content = <EmptyState title={t('common.states.forbiddenTitle')} body={t('common.states.forbiddenBody')} />;
+  else if (route.kind === 'hub') content = <HubView key={`${route.hub.key}-${tenantId}`} hubKey={route.hub.key} apiClient={apiClient} />;
+  else {
+    const View = route.View;
+    content = <View key={`${route.page.id}-${id || ''}-${tenantId}`} recordId={id ? decodeURIComponent(id) : undefined} apiClient={apiClient} />;
+  }
 
   const cls = ['dashboard'];
   if (sidebarCollapsed) cls.push('sidebar-collapsed');
@@ -147,7 +116,7 @@ export default function Dashboard() {
       <a className="skip-link" href="#main-content">
         {t('nav.skipToContent')}
       </a>
-      <Sidebar activeId={route.id} onNavigateMobile={() => setMobileNavOpen(false)} />
+      <Sidebar onNavigateMobile={() => setMobileNavOpen(false)} />
       {mobileNavOpen && <div className="mobile-nav-scrim" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />}
       <Topbar
         onToggleSidebar={() => {
@@ -158,7 +127,7 @@ export default function Dashboard() {
         live={live}
       />
       <main className="dashboard-content" id="main-content">
-        {permitted ? <View key={`${route.id}-${id || ''}-${tenantId}`} recordId={id ? decodeURIComponent(id) : undefined} apiClient={apiClient} /> : <EmptyState title={t('common.states.forbiddenTitle')} body={t('common.states.forbiddenBody')} />}
+        {content}
       </main>
       <SetupWizard />
       <Tour />

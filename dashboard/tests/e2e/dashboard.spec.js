@@ -2,7 +2,7 @@
 
 import { test, expect } from '@playwright/test';
 import { installMocks } from './mocks.js';
-import { ROUTES } from '../../src/utils/routes.js';
+import { PAGES, HUBS, LEGACY_REDIRECTS, pathFor } from '../../src/config/navConfig.js';
 
 const VIEWPORTS = [
   { name: 'desktop', width: 1280, height: 860 },
@@ -36,16 +36,104 @@ test('logs in, lands on Home, and logs out', async ({ page }) => {
   await expect(page.getByTestId('login-submit')).toBeVisible();
 });
 
-test('navigates every route without errors', async ({ page }) => {
+test('navigates every hub and tab without errors', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await login(page);
-  for (const route of ROUTES) {
-    await page.goto(`/dashboard/${route.slug}`);
-    await expect(page.locator('.page-header-title').first(), route.slug).toBeVisible();
+  for (const p of PAGES) {
+    await page.goto(pathFor(p.id));
+    await expect(page.locator('.page-header-title').first(), p.id).toBeVisible();
+    await expect(page.locator(`.sidebar-item[data-nav="${p.hub}"]`), p.id).toHaveAttribute('aria-current', 'page');
+    if (p.tab) await expect(page.locator(`.hub-tab-strip [data-tab-key="${p.tab}"]`), p.id).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.state-block', { hasText: 'permission' })).toHaveCount(0);
   }
   expect(errors).toEqual([]);
+});
+
+test('sidebar shows the consolidated hubs', async ({ page }) => {
+  await login(page);
+  const items = page.locator('.sidebar-item');
+  await expect(items).toHaveCount(HUBS.length);
+  expect(HUBS.length).toBeLessThanOrEqual(9);
+  await expect(page.locator('.sidebar-group-label')).toHaveText(['Operate', 'Platform', 'Administration']);
+});
+
+test('every pre-hub route redirects to its hub and tab, keeping the query string', async ({ page }) => {
+  await login(page);
+  for (const r of LEGACY_REDIRECTS) {
+    await page.goto(`/dashboard/${r.from}`);
+    await expect(page, r.from).toHaveURL(new RegExp(`${r.to}\\?tab=${r.tab}$`));
+  }
+  await page.goto('/dashboard/requests?fromUtc=2026-01-01T00%3A00%3A00Z');
+  await expect(page).toHaveURL(/\/dashboard\/monitoring\?tab=requests&fromUtc=2026-01-01T00%3A00%3A00Z$/);
+  await page.goto('/dashboard/nowhere');
+  await expect(page).toHaveURL(/\/dashboard\/home$/);
+});
+
+test('hub tabs are URL-synced and keyboard accessible', async ({ page }) => {
+  await login(page);
+  await page.locator('.sidebar-item[data-nav="configuration"]').click();
+  await expect(page).toHaveURL(/\/dashboard\/configuration$/);
+  await expect(page.locator('.page-header-title')).toHaveText('Configuration');
+  await expect(page).toHaveTitle('Harness Profiles | Configuration | Garrison');
+  await page.getByRole('tab', { name: 'MCP Servers' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/configuration\?tab=mcp-servers$/);
+  await expect(page).toHaveTitle('MCP Servers | Configuration | Garrison');
+  await page.getByRole('tab', { name: 'MCP Servers' }).press('ArrowRight');
+  await expect(page).toHaveURL(/tab=secrets$/);
+  await expect(page.getByRole('tab', { name: 'Secrets' })).toBeFocused();
+  await page.goBack();
+  await expect(page.getByRole('tab', { name: 'MCP Servers' })).toHaveAttribute('aria-selected', 'true');
+});
+
+test('detail deep links keep working and highlight their hub', async ({ page }) => {
+  await login(page);
+  await page.goto('/dashboard/runs/run_0001');
+  await expect(page.locator('.sidebar-item[data-nav="runs"]')).toHaveAttribute('aria-current', 'page');
+  await page.goto('/dashboard/agents/agt_0001');
+  await expect(page.locator('.sidebar-item[data-nav="agents"]')).toHaveAttribute('aria-current', 'page');
+  await page.goto('/dashboard/prompt-templates/new');
+  await expect(page.locator('.sidebar-item[data-nav="configuration"]')).toHaveAttribute('aria-current', 'page');
+});
+
+test('home KPIs read the server overview shape', async ({ page }) => {
+  await login(page);
+  await expect(page.getByTestId('kpi-nodes').locator('.kpi-value')).toHaveText('2 / 3');
+  await expect(page.getByTestId('kpi-succeeded').locator('.kpi-value')).toHaveText('120');
+  await expect(page.getByTestId('kpi-failed').locator('.kpi-value')).toHaveText('12');
+  await expect(page.getByTestId('kpi-active').locator('.kpi-value')).toHaveText('2');
+  await expect(page.getByTestId('kpi-queued').locator('.kpi-value')).toHaveText('3');
+  await expect(page.locator('.kpi-value', { hasText: 'NaN' })).toHaveCount(0);
+  await page.getByTestId('kpi-failed').click();
+  await expect(page).toHaveURL(/\/dashboard\/runs\?status=Failed$/);
+});
+
+test('queue reads the server summary rows', async ({ page }) => {
+  await login(page);
+  await page.goto(pathFor('queue'));
+  await expect(page.locator('.data-table tbody tr').first()).toContainText('echo-agent');
+  await expect(page.locator('.kpi-value').first()).toHaveText('3');
+});
+
+test('request activity chart is full width and tall', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page);
+  const chart = page.locator('.home-chart .chart-card');
+  await expect(chart.locator('.chart-canvas > svg')).toBeVisible();
+  const content = await page.locator('.dashboard-content').boundingBox();
+  const card = await chart.boundingBox();
+  const svg = await chart.locator('.chart-canvas > svg').boundingBox();
+  expect(card.width).toBeGreaterThan(content.width * 0.9);
+  expect(svg.height).toBeGreaterThanOrEqual(480);
+});
+
+test('empty states keep acronyms upper case', async ({ page }) => {
+  await page.route(/\/tenants\/[^/]+\/mcp-servers(\?|$)/, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ objects: [], totalRecords: 0, skip: 0, maxResults: 25, endOfResults: true }) })
+  );
+  await login(page);
+  await page.goto(pathFor('mcpServers'));
+  await expect(page.getByText('No MCP servers yet')).toBeVisible();
 });
 
 test('paginates and filters the runs table', async ({ page }) => {
@@ -188,8 +276,9 @@ const SHOTS = [
   { name: 'home', path: '/dashboard/home' },
   { name: 'runs', path: '/dashboard/runs' },
   { name: 'run-detail', path: '/dashboard/runs/run_0001' },
-  { name: 'deployments', path: '/dashboard/deployments' },
-  { name: 'settings', path: '/dashboard/settings' }
+  { name: 'deployments', path: '/dashboard/agents?tab=deployments' },
+  { name: 'configuration', path: '/dashboard/configuration' },
+  { name: 'settings', path: '/dashboard/system?tab=settings' }
 ];
 
 for (const vp of VIEWPORTS) {

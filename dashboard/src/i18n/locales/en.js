@@ -1,5 +1,12 @@
 // English source catalog for the Garrison dashboard. Every other locale mirrors these keys.
 
+// Lowercase a title for use mid-sentence, keeping acronyms (MCP, API, A2A, ID, URL) intact.
+const midSentence = (text) =>
+  text
+    .split(' ')
+    .map((word) => (/^[A-Z0-9]{2,}s?$/.test(word) ? word : word.toLowerCase()))
+    .join(' ');
+
 const resourcePage = (title, singular, subtitle, emptyBody) => ({
   title,
   subtitle,
@@ -8,7 +15,7 @@ const resourcePage = (title, singular, subtitle, emptyBody) => ({
   edit: `Edit ${singular}`,
   view: `${singular.charAt(0).toUpperCase()}${singular.slice(1)} details`,
   deleteTitle: `Delete ${singular}`,
-  emptyTitle: `No ${title.toLowerCase()} yet`,
+  emptyTitle: `No ${midSentence(title)} yet`,
   emptyBody
 });
 
@@ -176,6 +183,8 @@ const en = {
     permissionType: { Permit: 'Permit', Deny: 'Deny' },
     resourceScope: { Tenant: 'Tenant', Resource: 'Resource' },
     resourceBindingKind: { McpServer: 'MCP server', Secret: 'Secret' },
+    mcpTransport: { Http: 'HTTP', Stdio: 'stdio' },
+    remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: 'Created', Updated: 'Updated', Unchanged: 'Unchanged', Failed: 'Failed', Validated: 'Validated' },
     auditEventType: {
       AuthSuccess: 'Sign-in succeeded',
@@ -202,13 +211,21 @@ const en = {
   },
   nav: {
     primary: 'Primary navigation',
-    groups: {
-      start: 'Start',
+    sections: {
       operate: 'Operate',
-      configure: 'Configure',
-      observe: 'Observe',
-      administration: 'Administration',
-      system: 'System'
+      platform: 'Platform',
+      administration: 'Administration'
+    },
+    hubs: {
+      home: { label: 'Home', tip: 'Fleet and run health at a glance' },
+      invoke: { label: 'Invoke', tip: 'Try an agent interactively' },
+      runs: { label: 'Runs', tip: 'Runs and the scheduling queue' },
+      agents: { label: 'Agents', tip: 'Agents and the deployments that run them' },
+      configuration: { label: 'Configuration', tip: 'Harness profiles, prompt templates, MCP servers, secrets, workspaces, artifact stores, and manifests' },
+      fleet: { label: 'Fleet', tip: 'Worker nodes and node pools' },
+      access: { label: 'Access', tip: 'Tenants, users, credentials, roles, and assignments' },
+      monitoring: { label: 'Monitoring', tip: 'Request history, audit, and the API Explorer' },
+      system: { label: 'System', tip: 'Server settings and server info' }
     },
     items: {
       home: { label: 'Home', tip: 'Fleet and run health at a glance' },
@@ -552,7 +569,7 @@ const en = {
       fields: { name: 'Name', kind: 'Kind', description: 'Description', active: 'Active' }
     },
     agents: {
-      ...resourcePage('Agents', 'agent', 'Named capabilities exposed over REST, MCP, and A2A. Deployments decide how they run.', 'Add an agent, or apply the sample manifest from the Manifests page.'),
+      ...resourcePage('Agents', 'agent', 'Named capabilities exposed over REST, MCP, and A2A. Deployments decide how they run.', 'Add an agent, or apply the sample manifest from Configuration > Manifests.'),
       sections: { identity: 'Identity', exposure: 'Exposure', io: 'Input and output', delegation: 'Delegation' },
       columns: { name: 'Name', displayName: 'Display name', kind: 'Kind', exposure: 'Exposure', delegationMode: 'Delegation', tags: 'Tags', active: 'Active', id: 'ID', createdUtc: 'Created' },
       fields: {
@@ -674,6 +691,7 @@ const en = {
     },
     audit: {
       ...resourcePage('Audit', 'audit record', 'Authentication, authorization, and configuration events for this tenant.', 'Security events appear here as people and agents use Garrison.'),
+      emptyTitle: 'No audit records yet',
       columns: { createdUtc: 'Time', eventType: 'Event', principalName: 'Principal', resource: 'Resource', reason: 'Reason', sourceIp: 'Source IP', id: 'ID' },
       fields: {
         eventType: 'Event',
@@ -717,7 +735,8 @@ const en = {
         succeeded: 'Succeeded',
         failed: 'Failed',
         nodes: 'Nodes ready',
-        nodesNote: 'Ready / total'
+        nodesNote: 'Ready / total',
+        last24h: 'Last 24 hours'
       },
       requestActivity: 'API request activity',
       nodesTitle: 'Worker nodes',
@@ -958,7 +977,7 @@ const en = {
         ConfigMap: 'Managed by a Kubernetes ConfigMap. Change it in your manifests.',
         other: 'This setting cannot be edited here.'
       },
-      groups: {},
+      groups: { General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit' },
       fields: {}
     },
     serverInfo: {
@@ -1011,12 +1030,12 @@ const en = {
     skip: 'Skip tour',
     done: 'Done',
     steps: {
-      sidebar: { title: 'Navigation', body: 'Pages are grouped by job: start, operate, configure, observe, and administer.' },
+      sidebar: { title: 'Navigation', body: 'Pages are grouped into hubs. Each hub has tabs across the top of the page, and every tab has its own link.' },
       topbar: { title: 'Context', body: 'The server, tenant, your identity, health, and live status are always visible here.' },
       kpis: { title: 'At a glance', body: 'Each card summarizes a resource. Click a card to open the filtered list.' },
       invoke: { title: 'Invoke', body: 'Try any agent interactively and watch its transcript stream.' },
-      configure: { title: 'Configure', body: 'Agents, deployments, harness profiles, and prompt templates control exactly what runs.' },
-      observe: { title: 'Observe', body: 'Request history, audit, and the API Explorer help you verify and debug.' }
+      configure: { title: 'Configuration', body: 'Harness profiles, prompt templates, MCP servers, and secrets control exactly what runs. Agents and deployments have their own hub.' },
+      observe: { title: 'Monitoring', body: 'Request history, audit, and the API Explorer help you verify and debug.' }
     }
   }
 };

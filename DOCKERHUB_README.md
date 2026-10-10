@@ -24,7 +24,20 @@ All images are built for `linux/amd64` and `linux/arm64`, run as UID 10001 (exce
 
 Garrison is meant to run on Kubernetes. The repository's `k8s/` directory has a Kustomize base with overlays for minikube, K3S, and production, a Helm chart, and scripts that generate secrets, deploy, and smoke-test. See `docs/KUBERNETES.md` in the repository.
 
+## Docker Compose
+
+The repository's `docker/` directory runs one server, two workers, the dashboard, and PostgreSQL with one command, including the harness credentials and sample agents:
+
+```bash
+git clone https://github.com/jchristn/Garrison && cd Garrison/docker
+cp .env.example .env      # optional: ports, keys, and harness credentials
+./update.sh               # builds the images and starts the stack; ./update.sh --pull uses these published images
+```
+
+Open http://127.0.0.1:8080 and sign in to tenant `default` as `admin@garrison` with password `password`. See `docs/DOCKER.md` in the repository.
+
 ## Trying it with Docker
+
 
 The containers below use Sqlite and a user-defined network, which is enough to see a run go end to end. Change every default key before exposing anything.
 
@@ -71,6 +84,7 @@ Mount a volume at `/app/data` on the server to keep the Sqlite database. Multipl
 | `GARRISON_ADMIN_API_KEY` | Administrator API key | `garrisonadmin` |
 | `GARRISON_AUTH_SIGNING_KEY` | Session token key | a placeholder; set it |
 | `GARRISON_MASTER_KEY` | Secret encryption key | a placeholder; set it |
+| `GARRISON_ADMIN_EMAIL` | Seeded administrator email | `admin@garrison` |
 | `GARRISON_ADMIN_PASSWORD` | Seeded administrator password | `password` |
 | `GARRISON_DEFAULT_ACCESS_KEY`, `GARRISON_DEFAULT_SECRET_KEY` | Seeded administrator credential | `access_garrison_default`, `secret_garrison_default_change_me` |
 | `GARRISON_NODE_ACCESS_KEY`, `GARRISON_NODE_SECRET_KEY` | Seeded worker credential | `access_garrison_node`, `secret_garrison_node_change_me` |

@@ -166,6 +166,8 @@ const ja = {
     permissionType: { Permit: '許可', Deny: '拒否' },
     resourceScope: { Tenant: 'テナント', Resource: 'リソース' },
     resourceBindingKind: { McpServer: 'MCP サーバー', Secret: 'シークレット' },
+    mcpTransport: { Http: 'HTTP', Stdio: 'stdio' },
+    remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: '作成', Updated: '更新', Unchanged: '変更なし', Failed: '失敗', Validated: '検証済み' },
     auditEventType: {
       AuthSuccess: 'サインイン成功',
@@ -192,13 +194,21 @@ const ja = {
   },
   nav: {
     primary: 'メインナビゲーション',
-    groups: {
-      start: 'はじめに',
+    sections: {
       operate: '運用',
-      configure: '構成',
-      observe: '監視',
-      administration: '管理',
-      system: 'システム'
+      platform: 'プラットフォーム',
+      administration: '管理'
+    },
+    hubs: {
+      home: { label: 'ホーム', tip: 'フリートと実行の状態を一目で確認' },
+      invoke: { label: '呼び出し', tip: 'エージェントを対話的に試す' },
+      runs: { label: '実行', tip: '実行とスケジューリングキュー' },
+      agents: { label: 'エージェント', tip: 'エージェントとそれを実行するデプロイメント' },
+      configuration: { label: '構成', tip: 'ハーネスプロファイル、プロンプトテンプレート、MCP サーバー、シークレット、ワークスペース、成果物ストア、マニフェスト' },
+      fleet: { label: 'フリート', tip: 'ワーカーノードとノードプール' },
+      access: { label: 'アクセス', tip: 'テナント、ユーザー、認証キー、ロール、割り当て' },
+      monitoring: { label: '監視', tip: 'リクエスト履歴、監査、API エクスプローラー' },
+      system: { label: 'システム', tip: 'サーバー設定とサーバー情報' }
     },
     items: {
       home: { label: 'ホーム', tip: 'フリートと実行の状態を一目で確認' },
@@ -541,7 +551,7 @@ const ja = {
       fields: { name: '名前', kind: '種類', description: '説明', active: '有効' }
     },
     agents: {
-      ...rp('エージェント', 'REST、MCP、A2A で公開される名前付きの機能です。実行方法はデプロイメントで決まります。', 'エージェントを追加', 'エージェントを作成', 'エージェントを編集', 'エージェントの詳細', 'エージェントを削除', 'エージェントはまだありません', 'エージェントを追加するか、マニフェストページでサンプルマニフェストを適用してください。'),
+      ...rp('エージェント', 'REST、MCP、A2A で公開される名前付きの機能です。実行方法はデプロイメントで決まります。', 'エージェントを追加', 'エージェントを作成', 'エージェントを編集', 'エージェントの詳細', 'エージェントを削除', 'エージェントはまだありません', 'エージェントを追加するか、構成 > マニフェストでサンプルマニフェストを適用してください。'),
       sections: { identity: '識別情報', exposure: '公開設定', io: '入力と出力', delegation: '委任' },
       columns: { name: '名前', displayName: '表示名', kind: '種類', exposure: '公開', delegationMode: '委任', tags: 'タグ', active: '有効', id: 'ID', createdUtc: '作成日時' },
       fields: {
@@ -706,7 +716,8 @@ const ja = {
         succeeded: '成功',
         failed: '失敗',
         nodes: '準備完了ノード',
-        nodesNote: '準備完了 / 合計'
+        nodesNote: '準備完了 / 合計',
+        last24h: '過去 24 時間'
       },
       requestActivity: 'API リクエストのアクティビティ',
       nodesTitle: 'ワーカーノード',
@@ -947,7 +958,7 @@ const ja = {
         ConfigMap: 'Kubernetes の ConfigMap で管理されています。マニフェストで変更してください。',
         other: 'この設定はここでは編集できません。'
       },
-      groups: {},
+      groups: { General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査' },
       fields: {}
     },
     serverInfo: {
@@ -1000,11 +1011,11 @@ const ja = {
     skip: 'ツアーをスキップ',
     done: '完了',
     steps: {
-      sidebar: { title: 'ナビゲーション', body: 'ページは作業ごとにグループ化されています: はじめに、運用、構成、監視、管理。' },
+      sidebar: { title: 'ナビゲーション', body: 'ページはハブにまとめられています。各ハブの上部にタブがあり、タブごとに固有のリンクがあります。' },
       topbar: { title: 'コンテキスト', body: 'サーバー、テナント、ID、状態、ライブ状況は常にここに表示されます。' },
       kpis: { title: '概要', body: '各カードはリソースの要約です。クリックするとフィルター済みの一覧が開きます。' },
       invoke: { title: '呼び出し', body: '任意のエージェントを対話的に試し、記録をリアルタイムで確認できます。' },
-      configure: { title: '構成', body: 'エージェント、デプロイメント、ハーネスプロファイル、プロンプトテンプレートが実行内容を決めます。' },
+      configure: { title: '構成', body: 'ハーネスプロファイル、プロンプトテンプレート、MCP サーバー、シークレットが実行内容を決めます。エージェントとデプロイメントには専用のハブがあります。' },
       observe: { title: '監視', body: 'リクエスト履歴、監査、API エクスプローラーで確認とデバッグを行えます。' }
     }
   }

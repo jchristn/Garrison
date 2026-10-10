@@ -3,7 +3,7 @@
 import CopyableId from '../components/CopyableId';
 import { Badge } from '../components/StatusBadge';
 import { ENUMS, TERMINAL_RUN_STATUSES, runStatusTone, nodeStatusTone } from '../utils/constants';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatRelativeTime, formatDuration, formatNumber, formatCurrency, elapsedMs } from '../i18n/formatters';
 import { errorMessage } from '../utils/errors';
 
@@ -125,7 +125,7 @@ export const nodesConfig = {
     { label: ctx.t('resources.nodes.actions.cordon'), hidden: r.status !== 'Ready', onClick: () => act(ctx, () => ctx.apiClient.cordonNode(r.id), 'resources.nodes.toasts.cordoned') },
     { label: ctx.t('resources.nodes.actions.uncordon'), hidden: r.status !== 'Cordoned', onClick: () => act(ctx, () => ctx.apiClient.uncordonNode(r.id), 'resources.nodes.toasts.uncordoned') },
     { label: ctx.t('resources.nodes.actions.drain'), hidden: r.status === 'Draining' || r.status === 'Lost', onClick: () => act(ctx, () => ctx.apiClient.drainNode(r.id), 'resources.nodes.toasts.draining') },
-    { label: ctx.t('resources.nodes.actions.runs'), onClick: () => ctx.navigate(`${pathFor('runs')}?nodeId=${encodeURIComponent(r.id)}`) }
+    { label: ctx.t('resources.nodes.actions.runs'), onClick: () => ctx.navigate(pathFor('runs', null, { nodeId: r.id })) }
   ]
 };
 

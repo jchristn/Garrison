@@ -12,10 +12,9 @@ import { RunStatus } from './runConfigs';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { requestRangeToParams, nodeStatusTone } from '../utils/constants';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { formatNumber, formatRelativeTime, formatTime } from '../i18n/formatters';
-
-const ACTIVE = ['Queued', 'Leased', 'Running'];
+import { overviewKpis } from '../utils/overview';
 
 /** Build the overview from list endpoints when /overview is unavailable. */
 async function fallbackOverview(apiClient, tenantId) {
@@ -87,10 +86,7 @@ export default function HomeView() {
   }, [loadOverview]);
   useEffect(loadRequests, [loadRequests]);
 
-  const runs = overview?.runsByStatus || {};
-  const nodesByStatus = overview?.nodesByStatus || {};
-  const activeRuns = ACTIVE.reduce((s, k) => s + (runs[k] || 0), 0);
-  const totalNodes = Object.values(nodesByStatus).reduce((s, n) => s + n, 0);
+  const kpis = overviewKpis(overview);
   const val = (v) => (v === null || v === undefined ? '-' : formatNumber(v));
   const noAgents = overview && overview.agents === 0;
 
@@ -116,22 +112,23 @@ export default function HomeView() {
       )}
 
       <div className="kpi-grid" data-tour="kpis">
-        <KpiCard label={t('views.home.kpis.agents')} value={val(overview?.agents)} onClick={() => navigate(pathFor('agents'))} testId="kpi-agents" />
-        <KpiCard label={t('views.home.kpis.deployments')} value={val(overview?.deployments)} onClick={() => navigate(pathFor('deployments'))} />
-        <KpiCard label={t('views.home.kpis.activeRuns')} value={overview?.runsByStatus ? formatNumber(activeRuns) : '-'} onClick={() => navigate(`${pathFor('runs')}?status=Running`)} tone="info" />
-        <KpiCard label={t('views.home.kpis.queued')} value={val(runs.Queued ?? (overview?.runsByStatus ? 0 : null))} onClick={() => navigate(pathFor('queue'))} />
-        <KpiCard label={t('views.home.kpis.succeeded')} value={val(runs.Succeeded ?? (overview?.runsByStatus ? 0 : null))} onClick={() => navigate(`${pathFor('runs')}?status=Succeeded`)} tone="success" />
-        <KpiCard label={t('views.home.kpis.failed')} value={val(runs.Failed ?? (overview?.runsByStatus ? 0 : null))} onClick={() => navigate(`${pathFor('runs')}?status=Failed`)} tone={runs.Failed ? 'danger' : undefined} />
+        <KpiCard label={t('views.home.kpis.agents')} value={val(kpis.agents)} onClick={() => navigate(pathFor('agents'))} testId="kpi-agents" />
+        <KpiCard label={t('views.home.kpis.deployments')} value={val(kpis.deployments)} onClick={() => navigate(pathFor('deployments'))} testId="kpi-deployments" />
+        <KpiCard label={t('views.home.kpis.activeRuns')} value={val(kpis.active)} onClick={() => navigate(pathFor('runs', null, { status: 'Running' }))} tone="info" testId="kpi-active" />
+        <KpiCard label={t('views.home.kpis.queued')} value={val(kpis.queued)} onClick={() => navigate(pathFor('queue'))} testId="kpi-queued" />
+        <KpiCard label={t('views.home.kpis.succeeded')} value={val(kpis.succeeded)} note={t('views.home.kpis.last24h')} onClick={() => navigate(pathFor('runs', null, { status: 'Succeeded' }))} tone="success" testId="kpi-succeeded" />
+        <KpiCard label={t('views.home.kpis.failed')} value={val(kpis.failed)} note={t('views.home.kpis.last24h')} onClick={() => navigate(pathFor('runs', null, { status: 'Failed' }))} tone={kpis.failed ? 'danger' : undefined} testId="kpi-failed" />
         <KpiCard
           label={t('views.home.kpis.nodes')}
-          value={overview?.nodesByStatus ? `${formatNumber(nodesByStatus.Ready || 0)} / ${formatNumber(totalNodes)}` : '-'}
+          value={kpis.nodesTotal === null ? '-' : `${formatNumber(kpis.nodesReady)} / ${formatNumber(kpis.nodesTotal)}`}
           note={t('views.home.kpis.nodesNote')}
           onClick={() => navigate(pathFor('nodes'))}
-          tone={nodesByStatus.Lost ? 'warning' : undefined}
+          tone={kpis.nodesLost ? 'warning' : undefined}
+          testId="kpi-nodes"
         />
       </div>
 
-      <div className="home-grid">
+      <div className="home-chart">
         <ActivityChart
           summary={reqSummary}
           rangeId={reqRange}
@@ -139,9 +136,11 @@ export default function HomeView() {
           onRefresh={loadRequests}
           loading={reqLoading}
           title={t('views.home.requestActivity')}
-          onBucketClick={(b) => navigate(`${pathFor('requests')}?fromUtc=${encodeURIComponent(b.bucketStartUtc)}&toUtc=${encodeURIComponent(b.bucketEndUtc)}`)}
+          onBucketClick={(b) => navigate(pathFor('requests', null, { fromUtc: b.bucketStartUtc, toUtc: b.bucketEndUtc }))}
         />
+      </div>
 
+      <div className="home-grid">
         <section className="panel" aria-labelledby="nodes-title">
           <h2 id="nodes-title" className="section-title">
             {t('views.home.nodesTitle')}
@@ -163,28 +162,28 @@ export default function HomeView() {
             </ul>
           )}
         </section>
-      </div>
 
-      <section className="panel" aria-labelledby="failures-title">
-        <h2 id="failures-title" className="section-title">
-          {t('views.home.recentFailures')}
-        </h2>
-        {(overview?.recentFailures || []).length === 0 ? (
-          <p className="text-muted">{t('views.home.noFailures')}</p>
-        ) : (
-          <ul className="plain-list">
-            {overview.recentFailures.map((r) => (
-              <li key={r.id}>
-                <a href={pathFor('runs', r.id)} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
-                  <strong>{r.agentName}</strong>
-                </a>{' '}
-                <RunStatus status={r.status} t={t} /> <span className="text-muted">{r.outcome && t(`enums.runOutcome.${r.outcome}`, { defaultValue: r.outcome })}</span>{' '}
-                <span className="text-muted">{formatRelativeTime(r.createdUtc, i18n.language)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <section className="panel" aria-labelledby="failures-title">
+          <h2 id="failures-title" className="section-title">
+            {t('views.home.recentFailures')}
+          </h2>
+          {(overview?.recentFailures || []).length === 0 ? (
+            <p className="text-muted">{t('views.home.noFailures')}</p>
+          ) : (
+            <ul className="plain-list">
+              {overview.recentFailures.map((r) => (
+                <li key={r.id}>
+                  <a href={pathFor('runs', r.id)} onClick={(e) => { e.preventDefault(); navigate(pathFor('runs', r.id)); }}>
+                    <strong>{r.agentName}</strong>
+                  </a>{' '}
+                  <RunStatus status={r.status} t={t} /> <span className="text-muted">{r.outcome && t(`enums.runOutcome.${r.outcome}`, { defaultValue: r.outcome })}</span>{' '}
+                  <span className="text-muted">{formatRelativeTime(r.createdUtc, i18n.language)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       <section className="panel" aria-labelledby="cta-title">
         <h2 id="cta-title" className="section-title">

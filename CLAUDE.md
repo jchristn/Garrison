@@ -18,6 +18,7 @@ A multi-tenant control plane that runs headless agent harnesses (Claude Code, Co
 | `src/Test.*` | Touchstone suites and runners. |
 | `dashboard/` | React 19 + Vite 6 operator console. |
 | `sdk/{csharp,python,js,go}` | SDKs, each with a README and a test harness. |
+| `docker/` | Docker Compose stack (`compose.yaml`), `update.{sh,bat}`, `factory/reset.{sh,bat}`. |
 | `k8s/` | Kustomize base, components, overlays (minikube, k3s, production), Helm chart, scripts. |
 | `docs/` | Architecture, configuration, harnesses, prompts, manifests, Kubernetes, security, scaling, telemetry, i18n. |
 

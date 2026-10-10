@@ -157,8 +157,8 @@ function respond(method, url) {
   if (m) {
     const parts = m[1].split('/');
     const collection = parts[0];
-    if (collection === 'overview') return { agents: 6, deployments: 6, runsByStatus: { Running: 2, Queued: 3, Succeeded: 120, Failed: 12 }, nodesByStatus: { Ready: 2, Cordoned: 1 }, nodes: [1, 2, 3].map(FACTORIES.nodes), recentFailures: [2, 8].map((i) => ({ ...FACTORIES.runs(i), status: 'Failed', outcome: 'HarnessFailed' })) };
-    if (collection === 'queue') return { queued: 3, leased: 1, running: 2, groups: [{ agentName: 'echo-agent', harnessType: 'ClaudeCode', queued: 3, leased: 1, running: 2 }] };
+    if (collection === 'overview') return { agents: 6, deployments: 6, runsLast24Hours: 137, runsByStatus: [{ status: 'Running', count: 2 }, { status: 'Queued', count: 3 }, { status: 'Succeeded', count: 120 }, { status: 'Failed', count: 12 }], nodesByStatus: [{ status: 'Ready', count: 2 }, { status: 'Cordoned', count: 1 }], queued: 3, active: 2, generatedUtc: new Date().toISOString(), nodes: [1, 2, 3].map(FACTORIES.nodes), recentFailures: [2, 8].map((i) => ({ ...FACTORIES.runs(i), status: 'Failed', outcome: 'HarnessFailed' })) };
+    if (collection === 'queue') return [{ agentName: 'echo-agent', harnessType: 'ClaudeCode', queued: 3, leased: 1, running: 2 }];
     if (collection === 'manifests' && parts[1] === 'applies') return parts.length === 2 ? enumerate('manifest-applies', url) : FACTORIES['manifest-applies'](1);
     if (collection === 'manifests' && parts[1] === 'export') return 'apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: echo-agent\n';
     if (collection === 'manifests') return { items: [{ kind: 'Agent', name: 'echo-agent', result: 'Created' }, { kind: 'Deployment', name: 'echo-agent-default', result: 'Created' }] };

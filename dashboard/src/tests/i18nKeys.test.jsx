@@ -7,7 +7,7 @@ import { en, de, ja } from '../i18n/resources';
 import resources from '../i18n/resources';
 import * as resourceConfigs from '../views/resourceConfigs';
 import * as runConfigs from '../views/runConfigs';
-import { NAV_GROUPS, ROUTES } from '../utils/routes';
+import { NAV_SECTIONS, HUBS, PAGES } from '../config/navConfig';
 import { ENUMS } from '../utils/constants';
 
 const SRC = path.resolve(__dirname, '..');
@@ -101,12 +101,26 @@ describe('i18n key coverage', () => {
     expect(missing).toEqual([]);
   });
 
-  it('has navigation labels and tips for every route', () => {
-    for (const g of NAV_GROUPS) expect(exists(en, `nav.groups.${g.id}`)).toBe(true);
-    for (const r of ROUTES) {
-      expect(exists(en, `nav.items.${r.id}.label`), r.id).toBe(true);
-      expect(exists(en, `nav.items.${r.id}.tip`), r.id).toBe(true);
+  it('has navigation labels and tips for every section, hub, and page', () => {
+    for (const section of NAV_SECTIONS) expect(exists(en, `nav.sections.${section.key}`), section.key).toBe(true);
+    for (const hub of HUBS) {
+      expect(exists(en, `nav.hubs.${hub.key}.label`), hub.key).toBe(true);
+      expect(exists(en, `nav.hubs.${hub.key}.tip`), hub.key).toBe(true);
     }
+    for (const page of PAGES) {
+      expect(exists(en, `nav.items.${page.id}.label`), page.id).toBe(true);
+      expect(exists(en, `nav.items.${page.id}.tip`), page.id).toBe(true);
+    }
+  });
+
+  it('keeps acronyms upper case in every catalog', () => {
+    const acronym = /(?<![\w./{-])(mcp|a2a|api|apis|url|urls|json|sse|http|https|sdk|yaml|Mcp|Api|Url|Json|Sse|Http)(?![\w/.}-])/;
+    const offenders = [];
+    for (const [code, catalog] of [['en', en], ['de', de], ['ja', ja]]) {
+      for (const key of leafKeys(catalog)) if (acronym.test(String(lookup(catalog, key)))) offenders.push(`${code}: ${key}`);
+    }
+    expect(offenders).toEqual([]);
+    expect(en.resources.mcpServers.emptyTitle).toBe('No MCP servers yet');
   });
 
   it('has labels for every enum value', () => {

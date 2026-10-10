@@ -5,6 +5,8 @@ import { AppProvider } from './context/AppContext';
 import { ToastProvider } from './context/ToastContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import LegacyRedirect from './components/LegacyRedirect';
+import { LEGACY_REDIRECTS, DASHBOARD_BASE } from './config/navConfig';
 
 function AppLoading() {
   const { t } = useTranslation();
@@ -40,6 +42,10 @@ function AppRoutes() {
         }
       />
       <Route path="/dashboard" element={<Navigate to="/dashboard/home" replace />} />
+      {/* Pre-hub URLs replace-redirect to their hub and tab, keeping the query string. */}
+      {LEGACY_REDIRECTS.map((r) => (
+        <Route key={r.from} path={`${DASHBOARD_BASE}/${r.from}`} element={<LegacyRedirect to={r.to} tab={r.tab} />} />
+      ))}
       <Route
         path="/dashboard/:section"
         element={

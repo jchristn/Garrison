@@ -9,8 +9,8 @@ const STEPS = [
   { id: 'topbar', selector: '[data-tour="topbar"]' },
   { id: 'kpis', selector: '[data-tour="kpis"]' },
   { id: 'invoke', selector: '[data-nav="invoke"]' },
-  { id: 'configure', selector: '[data-nav="agents"]' },
-  { id: 'observe', selector: '[data-nav="requests"]' }
+  { id: 'configure', selector: '[data-nav="configuration"]' },
+  { id: 'observe', selector: '[data-nav="monitoring"]' }
 ];
 
 /** Guided tour highlighting the main areas. Completion is persisted; replay from the sidebar footer. */

@@ -1,0 +1,192 @@
+# Garrison on Docker Compose: one control-plane server, two workers, the dashboard, and Postgres.
+#
+#   cd docker
+#   cp .env.example .env        # optional: ports, keys, and harness credentials
+#   docker compose up -d --build
+#
+# Dashboard http://127.0.0.1:8080 (tenant default, admin@garrison, password password), REST http://127.0.0.1:8700,
+# MCP http://127.0.0.1:8701/mcp. Every port is overridable in .env.
+#
+# Each Garrison service names its image (jchristn77/garrison-*:v0.1.0-alpha) AND has a build stanza, so
+# `docker compose up` uses or pulls the named image and `docker compose up --build` (or update.sh) rebuilds it from
+# this repository. Third-party images are pinned. Host ports bind 127.0.0.1 only. The secrets below have
+# development defaults that match the server's built-in defaults; set real values in .env for anything shared.
+#
+# update.sh / update.bat rebuild the images and recreate the stack without touching data.
+# factory/reset.sh / factory/reset.bat delete all data (volumes) and start fresh.
+
+name: 'garrison'
+
+x-worker: &worker
+  image: 'jchristn77/garrison-worker:v0.1.0-alpha'
+  build:
+    context: '..'
+    dockerfile: 'src/Garrison.Worker/Dockerfile'
+  restart: 'unless-stopped'
+  stop_grace_period: 60s
+  depends_on:
+    garrison-server:
+      condition: service_healthy
+  healthcheck:
+    test: ['CMD', 'curl', '-f', 'http://127.0.0.1:8710/health']
+    interval: 5s
+    timeout: 5s
+    retries: 2
+    start_period: 60s
+
+x-worker-environment: &worker-environment
+  GARRISON_WORKER_SETTINGS_FILE: '/etc/garrison/garrison-worker.json'
+  GARRISON_WORKER_SERVER_URL: 'http://garrison-server:8700'
+  GARRISON_WORKER_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:-access_garrison_node}'
+  GARRISON_WORKER_SECRET_KEY: '${GARRISON_NODE_SECRET_KEY:-secret_garrison_node_change_me}'
+
+services:
+
+  # ------------------------------------------------------------------
+  # Postgres: the control plane's database.
+  # ------------------------------------------------------------------
+  postgres:
+    container_name: 'garrison-postgres'
+    image: 'postgres:17'
+    restart: 'unless-stopped'
+    ports:
+      - '127.0.0.1:${GARRISON_POSTGRES_PORT:-5433}:5432'
+    environment:
+      POSTGRES_DB: 'garrison'
+      POSTGRES_USER: 'garrison'
+      POSTGRES_PASSWORD: '${GARRISON_DB_PASSWORD:-garrison}'
+    volumes:
+      - garrison-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # TCP check (-h 127.0.0.1) so the container is healthy only once Postgres accepts network connections.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432 -U garrison -d garrison']
+      interval: 5s
+      timeout: 5s
+      retries: 2
+      start_period: 30s
+
+  # ------------------------------------------------------------------
+  # Control plane: REST and A2A on 8700, MCP on 8701, metrics on 9464.
+  # ------------------------------------------------------------------
+  garrison-server:
+    container_name: 'garrison-server'
+    image: 'jchristn77/garrison-server:v0.1.0-alpha'
+    build:
+      context: '..'
+      dockerfile: 'src/Garrison.Server/Dockerfile'
+    restart: 'unless-stopped'
+    ports:
+      - '127.0.0.1:${GARRISON_REST_PORT:-8700}:8700'
+      - '127.0.0.1:${GARRISON_MCP_PORT:-8701}:8701'
+    environment:
+      GARRISON_SETTINGS_FILE: '/etc/garrison/garrison.json'
+      GARRISON_SETTINGS_READONLY: 'true'
+      GARRISON_NODE_ID: 'garrison-server'
+      GARRISON_DB_PASSWORD: '${GARRISON_DB_PASSWORD:-garrison}'
+      GARRISON_MASTER_KEY: '${GARRISON_MASTER_KEY:-garrison-default-master-key-override-me}'
+      GARRISON_AUTH_SIGNING_KEY: '${GARRISON_AUTH_SIGNING_KEY:-garrison-default-signing-key-override-me}'
+      GARRISON_ADMIN_API_KEY: '${GARRISON_ADMIN_API_KEY:-garrisonadmin}'
+      GARRISON_ADMIN_EMAIL: '${GARRISON_ADMIN_EMAIL:-admin@garrison}'
+      GARRISON_ADMIN_PASSWORD: '${GARRISON_ADMIN_PASSWORD:-password}'
+      GARRISON_DEFAULT_ACCESS_KEY: '${GARRISON_DEFAULT_ACCESS_KEY:-access_garrison_default}'
+      GARRISON_DEFAULT_SECRET_KEY: '${GARRISON_DEFAULT_SECRET_KEY:-secret_garrison_default_change_me}'
+      GARRISON_NODE_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:-access_garrison_node}'
+      GARRISON_NODE_SECRET_KEY: '${GARRISON_NODE_SECRET_KEY:-secret_garrison_node_change_me}'
+      # Agents on the workers call back into Garrison (delegation) through these, so they use the service name.
+      GARRISON_MCP_PUBLIC_URL: 'http://garrison-server:8701'
+      GARRISON_PUBLIC_BASE_URL: 'http://garrison-server:8700'
+      GARRISON_EXPECTED_REPLICAS: '1'
+    volumes:
+      - ./server/garrison.json:/etc/garrison/garrison.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:8700/v1.0/api/health']
+      interval: 5s
+      timeout: 5s
+      retries: 2
+      start_period: 30s
+
+  # ------------------------------------------------------------------
+  # Workers: pull runs from the server and execute the harnesses.
+  # ------------------------------------------------------------------
+  garrison-worker-1:
+    <<: *worker
+    container_name: 'garrison-worker-1'
+    hostname: 'garrison-worker-1'
+    environment:
+      <<: *worker-environment
+      GARRISON_WORKER_NODE_NAME: 'garrison-worker-1'
+    volumes:
+      - ./worker/garrison-worker.json:/etc/garrison/garrison-worker.json:ro
+      - garrison-worker-1-workspaces:/workspaces
+
+  garrison-worker-2:
+    <<: *worker
+    container_name: 'garrison-worker-2'
+    hostname: 'garrison-worker-2'
+    environment:
+      <<: *worker-environment
+      GARRISON_WORKER_NODE_NAME: 'garrison-worker-2'
+    volumes:
+      - ./worker/garrison-worker.json:/etc/garrison/garrison-worker.json:ro
+      - garrison-worker-2-workspaces:/workspaces
+
+  # ------------------------------------------------------------------
+  # Dashboard: nginx serving the React console and proxying /v1.0 to the server.
+  # ------------------------------------------------------------------
+  garrison-dashboard:
+    container_name: 'garrison-dashboard'
+    image: 'jchristn77/garrison-dashboard:v0.1.0-alpha'
+    build:
+      context: '../dashboard'
+    restart: 'unless-stopped'
+    ports:
+      - '127.0.0.1:${GARRISON_DASHBOARD_PORT:-8080}:80'
+    environment:
+      GARRISON_API_UPSTREAM: 'http://garrison-server:8700'
+    depends_on:
+      garrison-server:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1/health']
+      interval: 5s
+      timeout: 5s
+      retries: 2
+      start_period: 10s
+
+  # ------------------------------------------------------------------
+  # Bootstrap (runs once): stores harness credentials as Garrison secrets and applies the sample agents.
+  # Same script and manifests as the Kubernetes bootstrap Job. Safe to re-run: docker compose up garrison-bootstrap
+  # ------------------------------------------------------------------
+  garrison-bootstrap:
+    container_name: 'garrison-bootstrap'
+    image: 'curlimages/curl:8.10.1'
+    restart: 'no'
+    entrypoint: ['sh', '/scripts/bootstrap.sh']
+    environment:
+      GARRISON_API_URL: 'http://garrison-server:8700'
+      GARRISON_TENANT_ID: 'default'
+      GARRISON_MANIFEST_DIR: '/manifests'
+      GARRISON_ADMIN_API_KEY: '${GARRISON_ADMIN_API_KEY:-garrisonadmin}'
+      ANTHROPIC_API_KEY: '${ANTHROPIC_API_KEY:-}'
+      CLAUDE_CODE_OAUTH_TOKEN: '${CLAUDE_CODE_OAUTH_TOKEN:-}'
+      OPENAI_API_KEY: '${OPENAI_API_KEY:-}'
+      CODEX_AUTH_JSON_FILE: '/run/garrison/codex-auth.json'
+      MUX_BASE_URL: '${MUX_BASE_URL:-}'
+      MUX_MODEL: '${MUX_MODEL:-}'
+      MUX_API_KEY: '${MUX_API_KEY:-}'
+      MUX_ADAPTER_TYPE: '${MUX_ADAPTER_TYPE:-}'
+    volumes:
+      - ../k8s/base/scripts/bootstrap.sh:/scripts/bootstrap.sh:ro
+      - ../k8s/base/manifests:/manifests:ro
+      - '${CODEX_AUTH_JSON_FILE:-./bootstrap/no-codex-auth.json}:/run/garrison/codex-auth.json:ro'
+    depends_on:
+      garrison-server:
+        condition: service_healthy
+
+volumes:
+  garrison-postgres-data:
+  garrison-worker-1-workspaces:
+  garrison-worker-2-workspaces:

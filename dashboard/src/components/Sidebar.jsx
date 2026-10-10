@@ -1,80 +1,65 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
-import { NAV_GROUPS } from '../utils/routes';
+import { NAV_SECTIONS, DASHBOARD_BASE, hubIsActive } from '../config/navConfig';
 import { allowed } from '../utils/principal';
 import { APP_VERSION } from '../utils/constants';
 import * as Icons from './Icons';
 
-const ICONS = {
-  home: Icons.HomeIcon,
-  invoke: Icons.SendIcon,
-  runs: Icons.RunsIcon,
-  queue: Icons.QueueIcon,
-  nodes: Icons.CpuIcon,
-  nodePools: Icons.PoolIcon,
-  agents: Icons.BotIcon,
-  deployments: Icons.BoxIcon,
-  harnessProfiles: Icons.TerminalIcon,
-  promptTemplates: Icons.FileTextIcon,
-  mcpServers: Icons.PlugIcon,
-  secrets: Icons.VaultIcon,
-  workspaces: Icons.FolderIcon,
-  artifactStores: Icons.DownloadIcon,
-  manifests: Icons.FileCodeIcon,
-  requests: Icons.ListIcon,
-  audit: Icons.ShieldIcon,
-  explorer: Icons.PlayIcon,
-  tenants: Icons.BuildingIcon,
-  users: Icons.UsersIcon,
-  credentials: Icons.KeyIcon,
-  roles: Icons.ShieldCheckIcon,
-  assignments: Icons.LinkIcon,
-  settings: Icons.SettingsIcon,
-  serverInfo: Icons.ServerIcon
-};
+/** A hub is visible when its standalone page, or at least one of its tabs, is allowed. */
+function hubVisible(hub, principal) {
+  if (hub.page) return allowed(hub.page.requires, principal);
+  return hub.tabs.some((tab) => allowed(tab.requires, principal));
+}
 
-/** Grouped, role-aware sidebar with a utility footer (setup wizard, tour, version). */
-export default function Sidebar({ activeId, onNavigateMobile }) {
+/**
+ * Grouped, role-aware sidebar rendered from config/navConfig.js, with a utility footer (setup
+ * wizard, tour, version). Each item is a hub; tabbed hubs show their pages as in-page tabs.
+ */
+export default function Sidebar({ onNavigateMobile }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { principal } = useAuth();
   const { setWizardOpen, setTourOpen } = useApp();
 
-  const go = (slug) => {
-    navigate(`/dashboard/${slug}`);
+  const go = (path) => {
+    navigate(path);
     onNavigateMobile?.();
   };
 
   return (
     <aside className="dashboard-sidebar" data-tour="sidebar">
       <div className="sidebar-brand">
-        <img src="/assets/logo.svg" alt="" />
+        <img src="/assets/logo.png" alt="" />
         <span>{t('common.appName')}</span>
       </div>
       <nav className="sidebar-nav" aria-label={t('nav.primary')}>
-        {NAV_GROUPS.map((group) => {
-          const items = group.items.filter((it) => allowed(it.requires, principal));
-          if (items.length === 0) return null;
+        {NAV_SECTIONS.map((section) => {
+          const hubs = section.items.filter((hub) => hubVisible(hub, principal));
+          if (hubs.length === 0) return null;
           return (
-            <div className="sidebar-group" key={group.id}>
-              <div className="sidebar-group-label">{t(`nav.groups.${group.id}`)}</div>
-              {items.map((it) => {
-                const Icon = ICONS[it.id];
-                const label = t(`nav.items.${it.id}.label`);
+            <div className="sidebar-group" key={section.key}>
+              <div className="sidebar-group-label">{t(`nav.sections.${section.key}`)}</div>
+              {hubs.map((hub) => {
+                const Icon = Icons[hub.icon];
+                const label = t(`nav.hubs.${hub.key}.label`);
+                const path = `${DASHBOARD_BASE}/${hub.slug}`;
+                const active = hubIsActive(hub, pathname);
                 return (
                   <a
-                    key={it.id}
-                    href={`/dashboard/${it.slug}`}
-                    className={`sidebar-item ${activeId === it.id ? 'active' : ''}`}
-                    aria-current={activeId === it.id ? 'page' : undefined}
+                    key={hub.key}
+                    href={path}
+                    className={`sidebar-item ${active ? 'active' : ''}`}
+                    aria-current={active ? 'page' : undefined}
                     onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
                       e.preventDefault();
-                      go(it.slug);
+                      go(path);
                     }}
-                    title={t(`nav.items.${it.id}.tip`)}
-                    data-nav={it.id}
+                    title={t(`nav.hubs.${hub.key}.tip`)}
+                    data-nav={hub.key}
                   >
                     {Icon && <Icon size={18} />}
                     <span>{label}</span>

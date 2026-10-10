@@ -8,7 +8,7 @@ import AutoRefreshSelect from '../components/AutoRefreshSelect';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import useAutoRefresh from '../hooks/useAutoRefresh';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { formatNumber } from '../i18n/formatters';
 
@@ -28,6 +28,20 @@ function summarizeRuns(runs) {
   return { ...totals, groups: Object.values(groups) };
 }
 
+/**
+ * The server returns GET /queue/summary as an array of rows ({ agentName, harnessType, queued, leased,
+ * running }), one per agent and harness. Totals are summed from the rows. An object shape with totals
+ * and `groups` is accepted too.
+ */
+function normalizeSummary(s) {
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const rows = Array.isArray(s) ? s : s?.groups || s?.byAgent || [];
+  const groups = rows.map((r) => ({ ...r, queued: num(r.queued), leased: num(r.leased), running: num(r.running) }));
+  const total = (k) => groups.reduce((acc, r) => acc + r[k], 0);
+  if (Array.isArray(s)) return { queued: total('queued'), leased: total('leased'), running: total('running'), groups };
+  return { queued: num(s?.queued ?? total('queued')), leased: num(s?.leased ?? total('leased')), running: num(s?.running ?? total('running')), groups };
+}
+
 /** Scheduling pressure: queued, leased, and running work grouped by agent and harness. */
 export default function QueueView() {
   const { t } = useTranslation();
@@ -42,7 +56,7 @@ export default function QueueView() {
     if (!apiClient) return;
     try {
       const s = await apiClient.getQueueSummary(tenantId);
-      setSummary({ queued: s.queued ?? 0, leased: s.leased ?? 0, running: s.running ?? 0, groups: s.groups || s.byAgent || [] });
+      setSummary(normalizeSummary(s));
       setError(null);
     } catch (e) {
       try {
@@ -68,9 +82,9 @@ export default function QueueView() {
       {summary && (
         <>
           <div className="kpi-grid">
-            <KpiCard label={t('views.queue.queued')} value={formatNumber(summary.queued)} onClick={() => navigate(`${pathFor('runs')}?status=Queued`)} />
-            <KpiCard label={t('views.queue.leased')} value={formatNumber(summary.leased)} onClick={() => navigate(`${pathFor('runs')}?status=Leased`)} />
-            <KpiCard label={t('views.queue.running')} value={formatNumber(summary.running)} onClick={() => navigate(`${pathFor('runs')}?status=Running`)} />
+            <KpiCard label={t('views.queue.queued')} value={formatNumber(summary.queued)} onClick={() => navigate(pathFor('runs', null, { status: 'Queued' }))} />
+            <KpiCard label={t('views.queue.leased')} value={formatNumber(summary.leased)} onClick={() => navigate(pathFor('runs', null, { status: 'Leased' }))} />
+            <KpiCard label={t('views.queue.running')} value={formatNumber(summary.running)} onClick={() => navigate(pathFor('runs', null, { status: 'Running' }))} />
           </div>
           {summary.groups.length === 0 ? (
             <div className="table-frame">

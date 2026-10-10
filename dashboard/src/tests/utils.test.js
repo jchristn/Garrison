@@ -7,7 +7,8 @@ import { buildListParams, sortLocal, toUtcIso, stripForDuplicate } from '../util
 import { parseSseFrame, normalizeEnumeration, ApiError } from '../utils/api';
 import { flattenOpenApiSpec, resolvePath, buildUrl, isDestructive } from '../utils/openApi';
 import { allowed, roleKey } from '../utils/principal';
-import { routeBySlug, pathFor, ROUTES } from '../utils/routes';
+import { pageBySlug, pathFor, PAGES, HUBS, LEGACY_REDIRECTS, hubForPath } from '../config/navConfig';
+import { toStatusMap, overviewKpis } from '../utils/overview';
 
 describe('normalizeBuckets', () => {
   const now = new Date('2026-10-09T12:34:56Z');
@@ -153,14 +154,63 @@ describe('principal and routes', () => {
     const user = { isAdmin: false, isTenantAdmin: false };
     expect(roleKey(admin)).toBe('roles.systemAdmin');
     expect(allowed(undefined, user)).toBe(true);
-    const tenants = routeBySlug('tenants');
+    const tenants = pageBySlug('tenants');
     expect(tenants).toBeTruthy();
     expect(allowed(tenants.requires, admin)).toBe(true);
     expect(allowed(tenants.requires, user)).toBe(false);
     expect(allowed('admin', { isTenantAdmin: true })).toBe(true);
     expect(roleKey({ principalType: 'Credential' })).toBe('roles.credential');
   });
-  it('builds paths for every route', () => {
-    for (const r of ROUTES) expect(pathFor(r.id)).toMatch(/^\/dashboard/);
+  it('builds paths for every page', () => {
+    for (const p of PAGES) expect(pathFor(p.id)).toMatch(/^\/dashboard\/[a-z-]+(\?tab=[a-z-]+)?$/);
+    expect(pathFor('home')).toBe('/dashboard/home');
+    expect(pathFor('runs')).toBe('/dashboard/runs');
+    expect(pathFor('queue')).toBe('/dashboard/runs?tab=queue');
+    expect(pathFor('mcpServers')).toBe('/dashboard/configuration?tab=mcp-servers');
+    expect(pathFor('runs', 'run_1')).toBe('/dashboard/runs/run_1');
+    expect(pathFor('promptTemplates', 'new')).toBe('/dashboard/prompt-templates/new');
+    expect(pathFor('runs', null, { status: 'Failed' })).toBe('/dashboard/runs?status=Failed');
+    expect(pathFor('requests', null, { fromUtc: 'a b' })).toBe('/dashboard/monitoring?fromUtc=a+b');
+    expect(pathFor('audit')).toBe('/dashboard/monitoring?tab=audit');
+  });
+  it('keeps the sidebar small and redirects every pre-hub route', () => {
+    expect(HUBS.length).toBeGreaterThanOrEqual(7);
+    expect(HUBS.length).toBeLessThanOrEqual(9);
+    const hubSlugs = new Set(HUBS.map((h) => h.slug));
+    for (const p of PAGES) {
+      const covered = hubSlugs.has(p.slug) || LEGACY_REDIRECTS.some((r) => r.from === p.slug);
+      expect(covered, p.slug).toBe(true);
+    }
+    for (const r of LEGACY_REDIRECTS) expect(hubSlugs.has(r.from), r.from).toBe(false);
+    expect(hubForPath('/dashboard/prompt-templates/pt_1').key).toBe('configuration');
+    expect(hubForPath('/dashboard/runs/run_1').key).toBe('runs');
+    expect(hubForPath('/dashboard/nowhere')).toBeNull();
+  });
+});
+
+describe('overview normalization', () => {
+  it('accepts the server array shape and the fallback map shape', () => {
+    expect(toStatusMap([{ status: 'Ready', count: 2 }, { status: 'Lost', count: 1 }])).toEqual({ Ready: 2, Lost: 1 });
+    expect(toStatusMap({ Ready: 2 })).toEqual({ Ready: 2 });
+    expect(toStatusMap(null)).toBeNull();
+  });
+  it('computes finite KPI values from the server response', () => {
+    const k = overviewKpis({
+      agents: 4,
+      deployments: 4,
+      runsLast24Hours: 15,
+      runsByStatus: [{ status: 'Succeeded', count: 15 }],
+      nodesByStatus: [{ status: 'Ready', count: 2 }],
+      queued: 0,
+      active: 0
+    });
+    expect(k).toEqual({ agents: 4, deployments: 4, active: 0, queued: 0, succeeded: 15, failed: 0, nodesReady: 2, nodesTotal: 2, nodesLost: 0 });
+    for (const v of Object.values(k)) expect(Number.isFinite(v)).toBe(true);
+  });
+  it('reports unknown values as null rather than NaN', () => {
+    const k = overviewKpis({});
+    expect(k.nodesTotal).toBeNull();
+    expect(k.agents).toBeNull();
+    expect(overviewKpis({ nodesByStatus: [] }).nodesTotal).toBe(0);
   });
 });

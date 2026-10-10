@@ -9,7 +9,7 @@ import EffectivePermissionsModal from '../components/EffectivePermissionsModal';
 import McpTestModal from '../components/McpTestModal';
 import CompilePreviewModal from '../components/CompilePreviewModal';
 import { ENUMS } from '../utils/constants';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 import { errorMessage } from '../utils/errors';
 
@@ -409,7 +409,7 @@ export const mcpServersConfig = {
   blank: () => ({ name: '', description: '', transport: 'Http', url: '', path: '/mcp', command: '', arguments: [], environment: [], headers: [], requiredTools: [], toolTimeoutSeconds: 600, required: true, active: true }),
   columns: ({ t, i18n }) => [
     nameCol('mcpServers', t),
-    col('mcpServers', t, 'transport', (r) => <Badge>{r.transport}</Badge>),
+    col('mcpServers', t, 'transport', (r) => <Badge>{t(`enums.mcpTransport.${r.transport}`, { defaultValue: r.transport })}</Badge>),
     col('mcpServers', t, 'endpoint', (r) => <code>{r.transport === 'Stdio' ? r.command : `${r.url || ''}${r.path || ''}`}</code>),
     col('mcpServers', t, 'required', (r) => (r.required ? t('common.boolean.yes') : t('common.boolean.no'))),
     activeCol('mcpServers', t),
@@ -424,7 +424,7 @@ export const mcpServersConfig = {
     ];
     return [
       field(id, t, 'name', 'text', { required: true }),
-      field(id, t, 'transport', 'select', { required: true, options: ENUMS.mcpTransport }),
+      field(id, t, 'transport', 'select', { required: true, options: ENUMS.mcpTransport, optionLabel: (v) => t(`enums.mcpTransport.${v}`, { defaultValue: v }) }),
       field(id, t, 'description', 'textarea'),
       field(id, t, 'url', 'text', { showIf: (x) => x.transport !== 'Stdio' }),
       field(id, t, 'path', 'text', { showIf: (x) => x.transport !== 'Stdio' }),
@@ -624,7 +624,7 @@ export const agentsConfig = {
       field(id, t, 'kind', 'select', { required: true, options: ENUMS.agentKind }),
       field(id, t, 'agentVersion', 'text'),
       field(id, t, 'tags', 'stringList'),
-      field(id, t, 'remoteProtocol', 'select', { options: ENUMS.remoteProtocol, showIf: (x) => x.kind === 'Remote' }),
+      field(id, t, 'remoteProtocol', 'select', { options: ENUMS.remoteProtocol, optionLabel: (v) => t(`enums.remoteProtocol.${v}`, { defaultValue: v }), showIf: (x) => x.kind === 'Remote' }),
       field(id, t, 'remoteEndpointUrl', 'text', { showIf: (x) => x.kind === 'Remote' }),
       section(id, t, 'exposure'),
       field(id, t, 'exposeA2A', 'checkbox'),
@@ -830,7 +830,7 @@ export const deploymentsConfig = {
   },
   rowActions: (r, ctx) => [
     { label: ctx.t('resources.deployments.actions.compilePreview'), onClick: () => ctx.setExtraModal(<CompilePreviewModal tenantId={ctx.tenantId} deployment={r} onClose={() => ctx.setExtraModal(null)} />) },
-    { label: ctx.t('resources.deployments.actions.test'), onClick: () => ctx.navigate(`${pathFor('invoke')}?agentId=${encodeURIComponent(r.agentId)}&deploymentId=${encodeURIComponent(r.id)}`) }
+    { label: ctx.t('resources.deployments.actions.test'), onClick: () => ctx.navigate(pathFor('invoke', null, { agentId: r.agentId, deploymentId: r.id })) }
   ]
 };
 

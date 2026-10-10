@@ -229,7 +229,7 @@ export default function RequestHistoryView({ apiClient }) {
           onRefresh={() => load(filters, page.pageNumber, page.pageSize)}
           onBucketClick={onBucketClick}
           loading={chartLoading}
-          title={t('views.requests.title')}
+          title={t('views.home.requestActivity')}
         />
       </div>
 

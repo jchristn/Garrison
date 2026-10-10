@@ -16,7 +16,7 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import useDebounce from '../hooks/useDebounce';
 import { ENUMS } from '../utils/constants';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { extractVariables } from '../utils/templates';
 import { formatDateTime } from '../i18n/formatters';

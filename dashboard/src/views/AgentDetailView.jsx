@@ -12,7 +12,7 @@ import { SendIcon } from '../components/Icons';
 import { RunStatus } from './runConfigs';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { formatRelativeTime } from '../i18n/formatters';
 
@@ -67,7 +67,7 @@ export default function AgentDetailView({ recordId }) {
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)}>
               {t('common.actions.viewJson')}
             </button>
-            <button type="button" className="button-primary" onClick={() => navigate(`${pathFor('invoke')}?agentId=${encodeURIComponent(agent.id)}`)}>
+            <button type="button" className="button-primary" onClick={() => navigate(pathFor('invoke', null, { agentId: agent.id }))}>
               <SendIcon size={14} /> {t('views.agentDetail.invoke')}
             </button>
           </>

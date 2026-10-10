@@ -94,6 +94,7 @@ These seed the first boot and protect stored secrets.
 |---|---|---|
 | `Security.MasterKey` | placeholder | Key that encrypts stored secrets: base64 of 32 bytes, or a passphrase. Losing it makes every secret unreadable. Environment: `GARRISON_MASTER_KEY` |
 | `Security.MasterKeyVersion` | `1` | Version written with each encrypted value, 1 to 255 |
+| `Security.AdminEmail` | `admin@garrison` | Email of the seeded administrator (first start only). Environment: `GARRISON_ADMIN_EMAIL` |
 | `Security.AdminPassword` | `password` | Password of the seeded `admin@garrison`. Environment: `GARRISON_ADMIN_PASSWORD` |
 | `Security.DefaultAccessKey`, `Security.DefaultSecretKey` | `access_garrison_default`, `secret_garrison_default_change_me` | Seeded administrator credential. Environment: `GARRISON_DEFAULT_ACCESS_KEY`, `GARRISON_DEFAULT_SECRET_KEY` |
 | `Security.NodeAccessKey`, `Security.NodeSecretKey` | `access_garrison_node`, `secret_garrison_node_change_me` | Seeded worker credential. Environment: `GARRISON_NODE_ACCESS_KEY`, `GARRISON_NODE_SECRET_KEY` |

@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { ENUMS, SAMPLE_MANIFEST, STORAGE_KEYS } from '../utils/constants';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 
 const STEPS = ['welcome', 'secret', 'manifest', 'invoke'];

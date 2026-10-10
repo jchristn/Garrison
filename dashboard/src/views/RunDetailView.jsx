@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { TERMINAL_RUN_STATUSES, ENUMS } from '../utils/constants';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 import { formatDateTime, formatDuration, formatNumber, formatCurrency, elapsedMs } from '../i18n/formatters';
 

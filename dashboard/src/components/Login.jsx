@@ -51,7 +51,7 @@ export default function Login() {
     <main className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <img src="/assets/logo.svg" alt="" width="56" height="56" />
+          <img src="/assets/logo.png" alt="" width="56" height="56" />
           <h1>{t('login.title')}</h1>
           <p>{t('login.subtitle')}</p>
         </div>

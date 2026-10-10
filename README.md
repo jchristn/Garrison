@@ -51,8 +51,9 @@ The control plane compiles each run into a fully resolved execution spec: comman
 | `src/Test.*` | Touchstone suites with console, xUnit, and NUnit runners |
 | `dashboard/` | React operator console |
 | `sdk/` | C#, Python, JavaScript/TypeScript, and Go SDKs |
+| `docker/` | Docker Compose stack, update and factory reset scripts |
 | `k8s/` | Kustomize base, components, overlays, Helm chart, scripts |
-| `docs/` | Architecture, configuration, harnesses, prompts, manifests, Kubernetes, security |
+| `docs/` | Architecture, configuration, harnesses, prompts, manifests, Docker, Kubernetes, security |
 
 ## Getting started
 
@@ -99,6 +100,18 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/agents/<agent id>
 ```
 
 The dashboard lives in `dashboard/`: `npm install && npm run dev`, then open the printed URL and sign in with the administrator account.
+
+### With Docker Compose
+
+One server, two workers, the dashboard, and Postgres on a single machine:
+
+```bash
+cd docker
+cp .env.example .env      # optional: ports, keys, and harness credentials (Claude, Codex, Mux)
+./update.sh               # builds the images and starts the stack; Windows: update.bat
+```
+
+Open http://127.0.0.1:8080 and sign in to tenant `default` as `admin@garrison` with password `password`. `docker/factory/reset.sh` deletes all data and starts fresh. `docs/DOCKER.md` has the details.
 
 ### On Kubernetes
 

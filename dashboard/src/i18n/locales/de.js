@@ -166,6 +166,8 @@ const de = {
     permissionType: { Permit: 'Erlauben', Deny: 'Verweigern' },
     resourceScope: { Tenant: 'Mandant', Resource: 'Ressource' },
     resourceBindingKind: { McpServer: 'MCP-Server', Secret: 'Geheimnis' },
+    mcpTransport: { Http: 'HTTP', Stdio: 'stdio' },
+    remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: 'Erstellt', Updated: 'Aktualisiert', Unchanged: 'Unverändert', Failed: 'Fehlgeschlagen', Validated: 'Validiert' },
     auditEventType: {
       AuthSuccess: 'Anmeldung erfolgreich',
@@ -192,13 +194,21 @@ const de = {
   },
   nav: {
     primary: 'Hauptnavigation',
-    groups: {
-      start: 'Start',
+    sections: {
       operate: 'Betrieb',
-      configure: 'Konfiguration',
-      observe: 'Beobachtung',
-      administration: 'Verwaltung',
-      system: 'System'
+      platform: 'Plattform',
+      administration: 'Verwaltung'
+    },
+    hubs: {
+      home: { label: 'Startseite', tip: 'Zustand von Flotte und Läufen auf einen Blick' },
+      invoke: { label: 'Aufrufen', tip: 'Einen Agenten interaktiv ausprobieren' },
+      runs: { label: 'Läufe', tip: 'Läufe und die Warteschlange' },
+      agents: { label: 'Agenten', tip: 'Agenten und die Bereitstellungen, die sie ausführen' },
+      configuration: { label: 'Konfiguration', tip: 'Harness-Profile, Prompt-Vorlagen, MCP-Server, Geheimnisse, Arbeitsbereiche, Artefaktspeicher und Manifeste' },
+      fleet: { label: 'Flotte', tip: 'Worker-Knoten und Knotenpools' },
+      access: { label: 'Zugriff', tip: 'Mandanten, Benutzer, Zugangsschlüssel, Rollen und Zuweisungen' },
+      monitoring: { label: 'Überwachung', tip: 'Anfrageverlauf, Audit und API-Explorer' },
+      system: { label: 'System', tip: 'Servereinstellungen und Serverinfo' }
     },
     items: {
       home: { label: 'Startseite', tip: 'Zustand von Flotte und Läufen auf einen Blick' },
@@ -541,7 +551,7 @@ const de = {
       fields: { name: 'Name', kind: 'Art', description: 'Beschreibung', active: 'Aktiv' }
     },
     agents: {
-      ...rp('Agenten', 'Benannte Fähigkeiten über REST, MCP und A2A. Bereitstellungen bestimmen, wie sie laufen.', 'Agent hinzufügen', 'Agent erstellen', 'Agent bearbeiten', 'Agentendetails', 'Agent löschen', 'Noch keine Agenten', 'Fügen Sie einen Agenten hinzu oder wenden Sie das Beispielmanifest auf der Seite Manifeste an.'),
+      ...rp('Agenten', 'Benannte Fähigkeiten über REST, MCP und A2A. Bereitstellungen bestimmen, wie sie laufen.', 'Agent hinzufügen', 'Agent erstellen', 'Agent bearbeiten', 'Agentendetails', 'Agent löschen', 'Noch keine Agenten', 'Fügen Sie einen Agenten hinzu oder wenden Sie das Beispielmanifest unter Konfiguration > Manifeste an.'),
       sections: { identity: 'Identität', exposure: 'Bereitstellung nach außen', io: 'Ein- und Ausgabe', delegation: 'Delegation' },
       columns: { name: 'Name', displayName: 'Anzeigename', kind: 'Art', exposure: 'Erreichbarkeit', delegationMode: 'Delegation', tags: 'Schlagwörter', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
       fields: {
@@ -706,7 +716,8 @@ const de = {
         succeeded: 'Erfolgreich',
         failed: 'Fehlgeschlagen',
         nodes: 'Bereite Knoten',
-        nodesNote: 'Bereit / gesamt'
+        nodesNote: 'Bereit / gesamt',
+        last24h: 'Letzte 24 Stunden'
       },
       requestActivity: 'API-Anfrageaktivität',
       nodesTitle: 'Worker-Knoten',
@@ -947,7 +958,7 @@ const de = {
         ConfigMap: 'Von einer Kubernetes-ConfigMap verwaltet. Ändern Sie den Wert in Ihren Manifesten.',
         other: 'Diese Einstellung kann hier nicht bearbeitet werden.'
       },
-      groups: {},
+      groups: { General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit' },
       fields: {}
     },
     serverInfo: {
@@ -1000,12 +1011,12 @@ const de = {
     skip: 'Tour überspringen',
     done: 'Fertig',
     steps: {
-      sidebar: { title: 'Navigation', body: 'Die Seiten sind nach Aufgaben gruppiert: Start, Betrieb, Konfiguration, Beobachtung und Verwaltung.' },
+      sidebar: { title: 'Navigation', body: 'Die Seiten sind in Bereiche gruppiert. Jeder Bereich hat oben Registerkarten, und jede Registerkarte hat einen eigenen Link.' },
       topbar: { title: 'Kontext', body: 'Server, Mandant, Ihre Identität, Zustand und Live-Status sind hier immer sichtbar.' },
       kpis: { title: 'Auf einen Blick', body: 'Jede Karte fasst eine Ressource zusammen. Ein Klick öffnet die gefilterte Liste.' },
       invoke: { title: 'Aufrufen', body: 'Probieren Sie jeden Agenten interaktiv aus und verfolgen Sie das Protokoll live.' },
-      configure: { title: 'Konfiguration', body: 'Agenten, Bereitstellungen, Harness-Profile und Prompt-Vorlagen bestimmen genau, was ausgeführt wird.' },
-      observe: { title: 'Beobachtung', body: 'Anfrageverlauf, Audit und API-Explorer helfen beim Prüfen und bei der Fehlersuche.' }
+      configure: { title: 'Konfiguration', body: 'Harness-Profile, Prompt-Vorlagen, MCP-Server und Geheimnisse bestimmen genau, was ausgeführt wird. Agenten und Bereitstellungen haben einen eigenen Bereich.' },
+      observe: { title: 'Überwachung', body: 'Anfrageverlauf, Audit und API-Explorer helfen beim Prüfen und bei der Fehlersuche.' }
     }
   }
 };

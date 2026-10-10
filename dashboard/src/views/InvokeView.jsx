@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { TERMINAL_RUN_STATUSES } from '../utils/constants';
-import { pathFor } from '../utils/routes';
+import { pathFor } from '../config/navConfig';
 import { errorMessage } from '../utils/errors';
 
 /** Interactive invoke: pick an agent and deployment, set allowed parameters, send a message, and stream the transcript. */

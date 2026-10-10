@@ -82,9 +82,9 @@ Rules for keeping the plan honest:
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
 | 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | In progress | 41 / 42 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
-| 5 | Dashboard | M1 | In progress | 40 / 41 |
+| 5 | Dashboard | M1 | In progress | 41 / 42 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 17 / 20 |
-| 7 | Container images and Kubernetes assets | M1 | In progress | 30 / 33 |
+| 7 | Container images and Kubernetes assets | M1 | In progress | 34 / 37 |
 | 8 | Documentation and Postman | M1 | In progress | 16 / 17 |
 | 9 | MVP verification (milestone M1) | M1 | In progress | 14 / 16 |
 | 10 | Control plane high availability and scale-out | M2 | Not started | 0 / 18 |
@@ -187,6 +187,7 @@ The Garrison theme is used for product naming and documentation. API nouns stay 
 | D-025 | Phase 12 permission approvals reuse Claude Code's rule syntax (`Bash(git status:*)`, `mcp__server__*`) and Armada's matcher semantics (deny beats allow, every shell subcommand must match, no command substitution), relayed through `--permission-prompt-tool mcp__garrison__garrison_permission_prompt`. Other harnesses get `Bypass` or `Refuse` until they expose an equivalent hook. | Armada proved the relay works for Claude Code only. | Armada `CliPermissionService`, `CliPermissionRuleMatcher` |
 | D-026 | Garrison sets SyslogLogging `EnableConsole` only to turn the console off; the default stays on. The setter probes for a terminal (`UserInteractive`, `WindowHeight`), which fails in containers and silently drops all console output. | Changing SyslogLogging's probe would alter behavior for its existing users; an additive opt-in property can replace this later. | `src/Garrison.Server/Bootstrapper.cs`, `src/Garrison.Worker/Bootstrapper.cs` |
 | D-027 | A wildcard Prometheus hostname (`*`, `+`, `0.0.0.0`) binds to the machine host name (the pod IP in Kubernetes) and falls back to `127.0.0.1`. | The OpenTelemetry Prometheus listener cannot bind a wildcard: `*` and `+` fail URI parsing and `0.0.0.0` is rejected by the managed `HttpListener`. | `GarrisonTelemetry` |
+| D-028 | Docker Compose assets ship alongside Kubernetes (`docker/compose.yaml`, `docker/update.{sh,bat}`, `docker/factory/reset.{sh,bat}`), amending D-002. `update` rebuilds images from source by default (`--pull` uses published images), as the user asked; the requirements default is pull. The bootstrap container reuses the Kubernetes bootstrap script and sample manifests. | A single-machine stack with real harnesses is the fastest way to evaluate Garrison; one bootstrap script keeps both runtimes identical. | `docker/`, `docs/DOCKER.md` |
 
 ---
 
@@ -1208,6 +1209,7 @@ Quality
 - [x] P5.39 Playwright: login, navigation of every route, table pagination and filters, action menu not clipped, modals, request inspector, API Explorer execution, theme and language toggles, logout; screenshots at 1280, 768, 390 in light and dark saved under `dashboard/test-results/` (git-ignored) with a summary in the handoff.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
 - [x] P5.40 Dashboard `Dockerfile` (node build, nginx runtime), `nginx.conf` (SPA fallback, `/health`, caching), runtime `config.js` injection of the server URL.  | claude 2026-10-10 dashboard stream; lint, 40 Vitest, build, 19 Playwright (mocked) green; live Playwright against K3S green
 - [~] P5.41 Accessibility pass (landmarks, labels, focus, color-independent status) and the dashboard handoff note (route inventory summary, references, missing capabilities, visual QA summary).  | claude 2026-10-10 dashboard stream; a11y pass done (landmarks, labels); handoff note not written
+- [x] P5.42 Consolidated navigation (NotDory and AssistantHub pattern): nine sidebar hubs with URL-synced tabs from `config/navConfig.js`, redirects from every old route, preserved deep links; Home KPIs read the server's status arrays (fixed "0 / NaN"); full-width 520px API request activity chart; acronym casing in all locales with a unit test; new logo and favicon.  | claude 2026-10-10 lint, 45 unit, 27 e2e, live 4/4 on K3S and Docker
 
 ### Phase 6: SDKs
 
@@ -1278,6 +1280,10 @@ Scripts and validation
 - [x] P7.31 Resource requests and limits documented per workload.  | k8s stream
 - [x] P7.32 Ingress timeouts and buffering configured for SSE and long-poll.  | k8s stream
 - [x] P7.33 Probe settings reviewed against section 5 compliance row.  | k8s stream
+- [x] P7.34 `docker/compose.yaml`: Postgres, server, two workers, dashboard, one-shot bootstrap; named images plus build stanzas; 127.0.0.1-only ports overridable in `.env`; curl healthchecks (5s interval, 2 retries) and `depends_on` with `service_healthy`.  | claude 2026-10-10 all six services healthy on Docker Desktop
+- [x] P7.35 `docker/update.{sh,bat}` (rebuild, down, up -d, status; `--pull` option) and `docker/factory/reset.{sh,bat}` (RESET confirmation, down -v, rebuild, up; `--no-start`).  | claude 2026-10-10 update and reset verified, reset reseeded agents with zero runs
+- [x] P7.36 Docker stack verified end to end with real credentials: Claude, Codex, and Mux answered; Claude to Codex delegation worked; live dashboard suite green.  | claude 2026-10-10
+- [x] P7.37 `docs/DOCKER.md`, README and Docker Hub README sections, CI validation of the compose file and scripts.  | claude 2026-10-10
 
 ### Phase 8: Documentation and Postman
 

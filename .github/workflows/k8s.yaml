@@ -33,6 +33,13 @@ jobs:
           done
       - name: Validate with kubeconform
         run: docker run --rm -v "$PWD/rendered:/r:ro" ghcr.io/yannh/kubeconform:latest -strict -summary -kubernetes-version 1.31.0 /r
+      - name: Validate Docker Compose
+        run: |
+          set -e
+          docker compose -f docker/compose.yaml config -q
+          bash -n docker/update.sh
+          bash -n docker/factory/reset.sh
+          diff docker/worker/garrison-worker.json k8s/base/config/garrison-worker.json
 
   smoke:
     if: github.ref == 'refs/heads/main'
