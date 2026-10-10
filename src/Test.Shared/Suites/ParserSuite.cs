@@ -33,6 +33,7 @@ namespace Test.Shared.Suites
                 Case("parsers", "claude-success", "Claude stream-json: recorded success", ClaudeSuccess),
                 Case("parsers", "claude-mcp-failed", "Claude stream-json: failed MCP server fails the run despite exit 0", ClaudeMcpFailed),
                 Case("parsers", "claude-max-turns", "Claude stream-json: error result with tool use", ClaudeMaxTurns),
+                Case("parsers", "codex-session-model", "Codex: served model read from the session file under CODEX_HOME", CodexSessionModel),
                 Case("parsers", "claude-partial", "Claude stream-json: partial messages stream text once and keep tool input", ClaudePartialMessages),
                 Case("parsers", "codex-success", "Codex JSONL: recorded success with usage", CodexSuccess),
                 Case("parsers", "codex-failed", "Codex JSONL: turn.failed with tool items", CodexFailed),
@@ -210,6 +211,28 @@ namespace Test.Shared.Suites
             HarnessOutcome outcome = OutcomeClassifier.Classify(new ExecutionSpec { Parser = OutputParserEnum.ClaudeStreamJson }, new ProcessRunResult { ExitCode = 0 }, state);
             Assert.Equal(RunStatusEnum.Failed, outcome.Status, "Status");
             Assert.Equal(RunOutcomeEnum.HarnessFailed, outcome.Outcome, "Outcome");
+        }
+
+        private static void CodexSessionModel()
+        {
+            string home = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "garrison-codex-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Assert.True(CodexSessionReader.ReadModel(home) == null, "Missing home yields null");
+                string dir = System.IO.Path.Combine(home, "sessions", "2026", "10", "10");
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "rollout-2026-10-10T00-00-00-abc.jsonl"), new[]
+                {
+                    "{\"type\":\"session_meta\",\"payload\":{\"model_provider\":\"openai\"}}",
+                    "{\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-6.1-sol\",\"cwd\":\"/w\"}}",
+                    "{\"type\":\"event_msg\",\"payload\":{\"type\":\"agent_message\"}}"
+                });
+                Assert.Equal("gpt-6.1-sol", CodexSessionReader.ReadModel(home), "Model from turn_context");
+            }
+            finally
+            {
+                if (System.IO.Directory.Exists(home)) System.IO.Directory.Delete(home, true);
+            }
         }
 
         private static void ClaudePartialMessages()

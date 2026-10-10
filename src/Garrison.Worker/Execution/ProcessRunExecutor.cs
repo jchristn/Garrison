@@ -125,6 +125,10 @@ namespace Garrison.Worker.Execution
 
                 parser.Complete(state);
                 foreach (RunEventReport report in state.Drain()) EmitScrubbed(reporter, scrubber, report);
+                if (String.IsNullOrEmpty(state.ServedModel) && spec.HarnessType == HarnessTypeEnum.Codex && spec.IsolateHome)
+                {
+                    state.ServedModel = CodexSessionReader.ReadModel(Path.Combine(directories.Home, ".codex"));
+                }
 
                 HarnessOutcome outcome = OutcomeClassifier.Classify(spec, process, state);
                 complete.Status = outcome.Status;
