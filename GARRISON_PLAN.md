@@ -90,7 +90,7 @@ Rules for keeping the plan honest:
 | 10 | Control plane high availability and scale-out | M2 | Complete | 18 / 18 |
 | 11 | Pod-per-run isolation executor | M2 | Complete | 13 / 13 |
 | 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 29 |
-| 13 | Observability stack and dashboards | M2 | Complete | 19 / 19 |
+| 13 | Observability stack and dashboards | M2 | In progress | 19 / 28 |
 | 14 | Benchmarking | M3 | Not started | 0 / 14 |
 | 15 | Hardening, simulated user testing, and 1.0 release | M4 | Not started | 0 / 20 |
 
@@ -99,7 +99,7 @@ Milestones:
 | Milestone | Definition | Phases |
 |---|---|---|
 | **M1: MVP** (signed off 2026-10-10, D-031) | One control node, two worker nodes, a Claude Code agent, a Mux agent, and a Codex agent running headless; dashboard, four SDKs, tests, Postman, and documentation; deployable to minikube and K3S. | 0 to 9 |
-| **M2: Scale** (complete 2026-10-10) | N control-plane replicas behind a Service with HPA, leader-elected maintenance, event backplane, pod-per-run isolation, full observability stack. | 10, 11, 13 |
+| **M2: Scale** | N control-plane replicas behind a Service with HPA, leader-elected maintenance, event backplane, pod-per-run isolation, full observability stack. | 10, 11, 13 |
 | **M3: Orchestration** | Multi-turn conversations, permission approvals relayed to humans, self-registered remote agents invoked over A2A/MCP, triggers, budgets and quotas, artifact storage, benchmarks. | 12, 14 |
 | **M4: 1.0** | Security review, simulated user testing, upgrade path, release process. | 15 |
 
@@ -1556,6 +1556,15 @@ Contract shared by the infrastructure tasks (P13.1 to P13.11, P13.17) and the pr
 - [x] P13.17 Kubernetes: the observability component exposes Grafana (and optionally Prometheus) through the overlay ingress and `port-forward.sh`; Grafana admin credentials come from a generated secret and are shown by `generate-secrets` like the Garrison admin credentials.  | claude 2026-10-10 overlays k3s-observability and minikube-observability, OBSERVABILITY=1 in the deploy scripts, garrison-grafana secret, Grafana on port-forward 3000 and the ingress
 - [x] P13.18 Fix metrics port-forwarding (G-11) so `kubectl port-forward` and in-pod `127.0.0.1` scrapes work alongside pod-IP scraping.  | claude 2026-10-10 server serves /metrics on 8700 and worker on 8710 by relaying the pod-IP Radiant listener (Telemetry.ServeMetricsOnServicePort); Prometheus scrapes those ports
 - [x] P13.19 Docs (`docs/TELEMETRY.md`, `docs/KUBERNETES.md`) and Playwright coverage for the observability cards and deep links, including the "not configured" state.  | claude 2026-10-10 docs/TELEMETRY.md, KUBERNETES.md, DOCKER.md, CONFIGURATION.md; 9 Playwright and 15 unit tests for cards and links
+- [ ] P13.20 Telemetry coverage audit: inventory every REST route, MCP tool, A2A method, node-protocol call, background service (scheduler, deadline enforcer, lease reaper, retention, leader election, backplane, pause detector, control-node registry, blocked-run service, Codex auth refresher), database operation, outbound call (MCP server tests, A2A remote agents, token refresh, OTLP), and worker path (lease loop, heartbeat, executor, Kubernetes Job executor, run guards, event relay). Record the result as a coverage matrix in `docs/TELEMETRY.md` (metric, span, log, Grafana panel for each), and fail CI when a route or MCP tool has no entry (test that walks the route table and tool catalog).
+- [ ] P13.21 Per-agent and per-model run metrics: add `tenant`, `agent`, `deployment`, `model` (served model) labels to run lifecycle, stage duration (queue, compile, claim, first token, streaming, execution, total), token (input, output, cached, reasoning), cost, outcome, guard, and repair metrics, server and worker side. Cardinality guard: `Telemetry.MaxLabelValues` per label (default 200, min 10, max 10000) folds the excess into `other`, with a counter of folded values.
+- [ ] P13.22 Per-route HTTP metrics: request count, duration histogram, request and response size, by route template (never raw path), method, status code, and tenant; in-flight gauge; auth failures and rate-limit rejections by reason.
+- [ ] P13.23 Protocol metrics: MCP sessions (active, created, expired, cross-replica restores), tool call duration by tool and result; A2A method duration and task states; SSE streams active and events sent; delegation depth and denials; invocation wait durations and `cancelOnDisconnect` cancels.
+- [ ] P13.24 Infrastructure metrics: database operation duration and errors by operation and provider, connection pool use; backplane publish and receive counts and lag; scheduler claim latency, queue depth by harness and agent, blocked runs by reason; lease expirations; leader changes; pause detections; node and control-node heartbeats and state transitions; Kubernetes Job executor create, pod start latency, PodFailed by reason, orphan cleanups; secret decrypt and Codex token refresh outcomes.
+- [ ] P13.25 Traces: a span for every route, MCP tool, A2A method, node-protocol call, background service iteration, database operation (with statement name, no values), outbound HTTP call, and worker run stage, linked across server, worker, and run pod by the run's `traceId`; exemplars on duration histograms so panels jump to traces.
+- [ ] P13.26 Logs: structured key=value fields (`tenant`, `agent`, `deployment`, `run`, `trace`, `route`, `node`) on every log line that concerns them, with Alloy promoting `level`, `component`, and `tenant` to Loki labels; error and warning rate panels.
+- [ ] P13.27 Grafana: the `Garrison` folder gains one dashboard per section (Overview, HTTP API, Runs, Agents, Models and tokens, Workers, Kubernetes executor, Protocols (MCP, A2A, SSE), Scheduler and queue, Database, Control plane (replicas, leader, backplane), Security and auth, Integrations, Logs and traces). Agent and harness and model template variables on every relevant dashboard, per-agent panels for invocation and run time percentiles, TTFT, streaming time, queue time, token breakdowns, cost, outcomes, guard trips; trace and log links from every panel that has them. Dashboard UIDs listed in `server-info` and linked from the Garrison dashboard.
+- [ ] P13.28 Verification: a script that generates traffic across every route, protocol, and harness on a cluster, then asserts through the Prometheus, Loki, and Tempo APIs that every matrix entry produced data, and a headless check that every Grafana panel renders without "No data" or errors. Helm and Kustomize mirrors, Docker Compose observability profile, and docs updated.
 
 ### Phase 14: Benchmarking (M3)
 
