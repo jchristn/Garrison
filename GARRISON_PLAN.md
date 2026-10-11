@@ -103,6 +103,35 @@ Milestones:
 | **M3: Orchestration** | Multi-turn conversations, permission approvals relayed to humans, self-registered remote agents invoked over A2A/MCP, triggers, budgets and quotas, artifact storage, benchmarks. | 12, 14 |
 | **M4: 1.0** | Security review, simulated user testing, upgrade path, release process. | 15 |
 
+### Current state and where to pick up (paused 2026-10-11)
+
+Work is paused at the user's request to let the codebase settle. Nothing is in flight: no agents, no background jobs, and every change is committed and pushed (last code commit `d9ce033`).
+
+**State at pause**
+
+- M1 done. M2 open: Phase 13 is complete, but phases 10 and 11 gained tasks from the AB_IMPROVEMENTS.md review. M3 and M4 not started apart from Phase 14 (14 of 15).
+- Last verified on the combined tree: build 0 warnings, Touchstone 385/385 (Sqlite and PostgreSQL), NUnit 249/249, all four SDK harnesses, dashboard lint, 209 unit, 110 Playwright, contract 61 routes with 0 mismatches, every Kustomize overlay, Helm lint, mirror diffs, em-dash check.
+- `garrison-k3s` (kubeconfig `~/.kube/garrison-k3s.yaml`, namespace `garrison`) runs `d9ce033`: 2 server replicas, 2 workers, schema 10, observability with 14 Grafana dashboards. `examples/validate.sh` 25/25 and the dashboard live tests 6/6 after deploy. Applying the overlay resets the server to 1 replica; scale it back to 2 afterwards. Port-forwards: REST 8700, MCP 8701, dashboard 8081, Grafana 3000, Prometheus 9090 (log `~/.kube/garrison-port-forward.log`). Credentials: tenant `default`, `admin@garrison` / `password`; Grafana `admin` / `password`. minikube is installed and stopped; no throwaway k3d clusters remain.
+
+**Pick up here, in order**
+
+1. Correctness bugs: P10.20 (a run can execute twice after lease expiry), P10.21 (requeued runs keep a working run token), G-23 (database pool versus PostgreSQL `max_connections`), G-24 (liveness probe restarts the server under load), G-25 (HTML 500 during a database outage), G-26 (manifest errors leak serializer internals), G-27 (node pool registration race). Re-run benchmark round 1 afterwards to confirm H5.
+2. Check that every run metric series carries `agent` and `model`: right after the deploy, `sum by (agent,harness,model) (garrison_runs_finished_total)` also returned series with only `harness`, probably the worker-side path or series from before the deploy.
+3. Phase 12, starting with P12.2a Codex streaming (closes G-12), P12.1 conversations, P12.3 approvals, then budgets and cost (P12.6, P12.7, P12.35) and the QoSKit work (P12.36, P12.38, D-036). The design answers are in D-035.
+4. Remaining M2 work in phases 10 and 11 (P10.22 to P10.25, P11.14 to P11.20), then P14.15 and Phase 15.
+
+**Waiting on the user**
+
+- A separate Codex login for Garrison (for example `CODEX_HOME=/tmp/garrison-codex codex login`, then store that auth.json as the `codex-auth-json` secret). The stored secret is the same login as the operator's `~/.codex`; since G-22, Garrison refreshes it about a day before the access token expires (2026-10-21), which will sign out Codex on the operator's machine.
+- Publishing images and packages (P7.5, P6.20) stays deferred until the user asks.
+
+**Things to know when resuming**
+
+- Telemetry renamed metrics (`_seconds` suffixes, worker token and cost series are counters, new labels); see CHANGELOG compatibility notes.
+- C# SDK `Tenants.DeleteAsync` now returns `Task` (G-7), and every single-resource DELETE answers 204.
+- The `.bat` scripts added by Phase 14 and the telemetry verifier are untested (no Windows host). The benchmark ci-gate workflow has not yet been observed passing on GitHub.
+- Several agents editing one working tree caused commits to be grouped; for the next stretch, prefer one agent per area, or worktrees branched from the current commit.
+
 ---
 
 ## 3. Product Definition
