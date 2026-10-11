@@ -667,6 +667,22 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<bool> ExtendDeadlineAsync(string runId, long epoch, DateTime deadlineUtc, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+            int affected = await _Driver.NonQueryAsync(
+                "UPDATE " + _Table + " SET deadlineutc = @deadline WHERE id = @id AND leaseepoch = @epoch AND status IN ('Leased', 'Running', 'Cancelling');",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", runId);
+                    AdoDatabaseDriver.Add(command, "epoch", epoch);
+                    AdoDatabaseDriver.Add(command, "deadline", deadlineUtc);
+                },
+                token).ConfigureAwait(false);
+            return affected == 1;
+        }
+
+        /// <inheritdoc />
         public async Task<List<Run>> ListExpiredLeasesAsync(DateTime nowUtc, int limit, CancellationToken token = default)
         {
             return await _Driver.QueryAsync(

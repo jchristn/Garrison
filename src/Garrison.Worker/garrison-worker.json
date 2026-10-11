@@ -12,6 +12,7 @@
   "HealthHostname": "*",
   "HealthPort": 8710,
   "HeartbeatIntervalMs": 5000,
+  "PauseGraceMs": 5000,
   "LeaseWaitMs": 20000,
   "EventFlushIntervalMs": 250,
   "EventBatchSize": 100,

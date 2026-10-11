@@ -10,6 +10,7 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Responses;
 
@@ -72,6 +73,55 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Clock used for heartbeat timestamps and pause detection. Default <see cref="TimeProvider.System"/>. Set it
+        /// before <see cref="RegisterAsync"/>; tests use a manual clock.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when set to null.</exception>
+        public TimeProvider Clock
+        {
+            get
+            {
+                return _Clock;
+            }
+            set
+            {
+                _Clock = value ?? throw new ArgumentNullException(nameof(value));
+                _Pause = new PauseDetector(_Clock);
+            }
+        }
+
+        /// <summary>
+        /// Time (from <see cref="Clock"/>) of the last Starting, Ready, or Draining row this replica wrote successfully,
+        /// or null before the first. The maintenance leader refuses to mark other nodes while this is stale (P3.16).
+        /// </summary>
+        public DateTime? LastHeartbeatUtc
+        {
+            get
+            {
+                long ticks = Interlocked.Read(ref _LastHeartbeatTicks);
+                return ticks == 0 ? null : new DateTime(ticks, DateTimeKind.Utc);
+            }
+        }
+
+        /// <summary>
+        /// Pause tolerance for the heartbeat loop, in milliseconds: when more than the heartbeat interval plus this value
+        /// passes between two checks, the loop logs the pause and heartbeats at once. Returns 5000 by default; the runtime
+        /// module supplies <see cref="RuntimeOptions.PauseGraceMs"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when set to null.</exception>
+        public Func<int> PauseGraceMs
+        {
+            get
+            {
+                return _PauseGraceMs;
+            }
+            set
+            {
+                _PauseGraceMs = value ?? throw new ArgumentNullException(nameof(value));
+            }
+        }
+
+        /// <summary>
         /// Heartbeats written successfully since the replica started.
         /// </summary>
         public long Heartbeats
@@ -97,6 +147,11 @@ namespace Garrison.Server.Runtime
         private readonly SemaphoreSlim _WriteLock = new SemaphoreSlim(1, 1);
         private Func<int> _ActiveRequests = () => 0;
         private Func<int> _HeartbeatIntervalMs = () => 5000;
+        private Func<int> _PauseGraceMs = () => 5000;
+        private TimeProvider _Clock = TimeProvider.System;
+        private PauseDetector _Pause = new PauseDetector(TimeProvider.System);
+        private long _LastHeartbeatTicks = 0;
+        private int _PauseCheckMs = 1000;
         private int _Status = (int)ControlNodeStatusEnum.Starting;
         private long _Heartbeats = 0;
         private CancellationTokenSource? _Cts = null;
@@ -234,30 +289,13 @@ namespace Garrison.Server.Runtime
 
         private async Task LoopAsync(CancellationToken token)
         {
+            _Pause.Touch();
             while (!token.IsCancellationRequested)
             {
                 int interval = Math.Clamp(_HeartbeatIntervalMs(), 1000, 60000);
-                bool wasDraining = _Context.IsDraining;
                 try
                 {
-                    if (wasDraining)
-                    {
-                        await Task.Delay(interval, token).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        // Wake at once when shutdown begins, so the row shows Draining without waiting for the next beat.
-                        using (CancellationTokenSource wake = CancellationTokenSource.CreateLinkedTokenSource(token, _Context.Stopping))
-                        {
-                            try
-                            {
-                                await Task.Delay(interval, wake.Token).ConfigureAwait(false);
-                            }
-                            catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                            {
-                            }
-                        }
-                    }
+                    await WaitForBeatAsync(interval, token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -276,6 +314,38 @@ namespace Garrison.Server.Runtime
                 {
                     _Context.Logging.Warn(_Header + "heartbeat failed: " + e.Message);
                 }
+                _Pause.Touch();
+            }
+        }
+
+        private async Task WaitForBeatAsync(int interval, CancellationToken token)
+        {
+            // Sleep in short slices so a pause (host sleep, frozen VM, clock jump) is noticed on resume and the row is
+            // heartbeated at once instead of after the rest of the interval (P3.16). Shutdown also wakes the loop, so the
+            // row shows Draining without waiting for the next beat.
+            int waited = 0;
+            while (waited < interval)
+            {
+                int slice = Math.Min(_PauseCheckMs, interval - waited);
+                bool wasDraining = _Context.IsDraining;
+                using (CancellationTokenSource wake = CancellationTokenSource.CreateLinkedTokenSource(token, _Context.Stopping))
+                {
+                    try
+                    {
+                        await Task.Delay(slice, wasDraining ? token : wake.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                }
+                waited += slice;
+                TimeSpan paused = _Pause.Observe(slice, Math.Max(1000, _PauseGraceMs()));
+                if (paused > TimeSpan.Zero)
+                {
+                    _Context.Logging.Warn(_Header + "control node " + NodeId + " was paused for " + Math.Round(paused.TotalSeconds, 1) + " s; heartbeating now event=controlnode.pause pausedMs=" + (long)paused.TotalMilliseconds + " resumedUtc=" + _Pause.UtcNow.ToString("o"));
+                    return;
+                }
             }
         }
 
@@ -293,7 +363,7 @@ namespace Garrison.Server.Runtime
             row.Backplane = _Backplane;
             row.Status = status;
             row.StartedUtc = _StartedUtc;
-            row.LastHeartbeatUtc = DateTime.UtcNow;
+            row.LastHeartbeatUtc = _Clock.GetUtcNow().UtcDateTime;
             row.ActiveRequests = offline ? 0 : _ActiveRequests();
             row.OpenStreams = offline ? 0 : _Context.Activity.OpenStreams;
             row.HeldLongPolls = offline ? 0 : _Context.Activity.HeldLongPolls;
@@ -306,6 +376,7 @@ namespace Garrison.Server.Runtime
                 await _Context.Database.ControlNodes.UpsertAsync(row, token).ConfigureAwait(false);
                 Interlocked.Exchange(ref _Status, (int)status);
                 Interlocked.Increment(ref _Heartbeats);
+                if (!offline) Interlocked.Exchange(ref _LastHeartbeatTicks, row.LastHeartbeatUtc.Ticks);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

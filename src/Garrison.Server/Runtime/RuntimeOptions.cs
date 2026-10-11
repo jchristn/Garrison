@@ -246,6 +246,40 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Pause tolerance (P3.16), in milliseconds. The leader's maintenance loop treats a tick as following a pause (the
+        /// host slept, the container or VM was frozen, the clock jumped, or a very long garbage collection ran) when more
+        /// than <see cref="MaintenanceIntervalMs"/> plus this value passed since its previous tick, or more than this value
+        /// passed between two steps of one pass. After a pause it expires no leases, marks no node Lost and no control
+        /// node Offline, enforces no deadline, and fails no blocked run until one heartbeat window
+        /// (<see cref="PauseDeferralMs"/>) has passed since the resume. Keep it above the slowest expected maintenance
+        /// query. Minimum 1000, maximum 600000, default 5000. Refreshed from the cluster setting Scheduling.PauseGraceMs.
+        /// </summary>
+        public int PauseGraceMs
+        {
+            get
+            {
+                return _PauseGraceMs;
+            }
+            set
+            {
+                _PauseGraceMs = Math.Clamp(value, 1000, 600000);
+            }
+        }
+
+        /// <summary>
+        /// How long destructive maintenance waits after a detected pause, in milliseconds: one full heartbeat window (the
+        /// larger of <see cref="HeartbeatIntervalMs"/> and <see cref="ControlNodeHeartbeatMs"/>) plus
+        /// <see cref="PauseGraceMs"/>, measured from the resume. Derived; 10000 with the defaults.
+        /// </summary>
+        public int PauseDeferralMs
+        {
+            get
+            {
+                return Math.Max(_HeartbeatIntervalMs, _ControlNodeHeartbeatMs) + _PauseGraceMs;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -265,6 +299,7 @@ namespace Garrison.Server.Runtime
         private int _ControlNodeHeartbeatMs = 5000;
         private int _ControlNodeOfflineAfterMs = 30000;
         private int _ControlNodeOfflineRetentionHours = 24;
+        private int _PauseGraceMs = 5000;
 
         #endregion
     }

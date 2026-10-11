@@ -192,6 +192,17 @@ namespace Garrison.Core.Database.Interfaces
         Task<bool> ExtendLeaseAsync(string runId, string nodeId, long epoch, DateTime leaseExpiresUtc, CancellationToken token = default);
 
         /// <summary>
+        /// Move the deadline of an active run (Leased, Running, or Cancelling) still held at a fencing epoch. Used by the
+        /// leader to give back time lost to a pause (P3.16).
+        /// </summary>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="epoch">Fencing epoch the run must still have.</param>
+        /// <param name="deadlineUtc">New deadline (UTC).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when the run was still active at that epoch and its deadline changed.</returns>
+        Task<bool> ExtendDeadlineAsync(string runId, long epoch, DateTime deadlineUtc, CancellationToken token = default);
+
+        /// <summary>
         /// Active runs whose lease expired before a time.
         /// </summary>
         /// <param name="nowUtc">Now (UTC).</param>

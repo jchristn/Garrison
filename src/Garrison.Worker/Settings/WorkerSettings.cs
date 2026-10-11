@@ -163,6 +163,24 @@ namespace Garrison.Worker.Settings
         }
 
         /// <summary>
+        /// Pause tolerance in milliseconds (P3.16). When the heartbeat loop finds that more than its sleep plus this value
+        /// passed (the host slept, the container or VM was frozen, or the clock jumped), it logs the pause and heartbeats,
+        /// renewing every lease it holds, at once instead of waiting for the next beat. Minimum 1000, maximum 600000,
+        /// default 5000.
+        /// </summary>
+        public int PauseGraceMs
+        {
+            get
+            {
+                return _PauseGraceMs;
+            }
+            set
+            {
+                _PauseGraceMs = Math.Clamp(value, 1000, 600000);
+            }
+        }
+
+        /// <summary>
         /// Lease long-poll wait in milliseconds; the registration response may override it. Minimum 0, maximum 60000, default 20000.
         /// </summary>
         public int LeaseWaitMs
@@ -378,6 +396,7 @@ namespace Garrison.Worker.Settings
         private int _HealthPort = 8710;
         private TelemetrySettings _Telemetry = DefaultTelemetry();
         private int _HeartbeatIntervalMs = 5000;
+        private int _PauseGraceMs = 5000;
         private int _LeaseWaitMs = 20000;
         private int _EventFlushIntervalMs = 250;
         private int _EventBatchSize = 100;

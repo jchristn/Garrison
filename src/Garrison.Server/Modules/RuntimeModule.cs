@@ -147,6 +147,16 @@ namespace Garrison.Server.Modules
             RetentionService? retention = context.TryGet<RetentionService>();
             if (retention != null) retention.ShouldRun = () => _Leader!.IsLeader;
 
+            // Pause tolerance (P3.16): the leader marks nothing while its own control node heartbeat is stale, and
+            // heartbeats itself as soon as it notices a pause.
+            ControlNodeService? controlNode = context.TryGet<ControlNodeService>();
+            if (controlNode != null)
+            {
+                controlNode.PauseGraceMs = () => _Options!.PauseGraceMs;
+                _Maintenance!.SelfHeartbeatUtc = () => controlNode.LastHeartbeatUtc;
+                _Maintenance.HeartbeatSelfAsync = ct => controlNode.HeartbeatAsync(ct);
+            }
+
             _Leader!.Start(token);
             _Maintenance!.Start(token);
             _Gauges?.Start(token);
@@ -207,6 +217,7 @@ namespace Garrison.Server.Modules
             _Options.LeaseDurationMs = cluster.GetInt("Scheduling.LeaseDurationMs");
             _Options.LeaseWaitMs = cluster.GetInt("Scheduling.LeaseWaitMs");
             _Options.NodeHeartbeatTimeoutMs = cluster.GetInt("Scheduling.NodeHeartbeatTimeoutMs");
+            _Options.PauseGraceMs = cluster.GetInt("Scheduling.PauseGraceMs");
             _Options.EventPollMs = cluster.GetInt("Scheduling.EventPollMs");
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
             _Options.FailBlockedAfterSeconds = cluster.GetInt("Runtime.FailBlockedAfterSeconds");

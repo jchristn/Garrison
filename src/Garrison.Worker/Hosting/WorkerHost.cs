@@ -9,6 +9,7 @@ namespace Garrison.Worker.Hosting
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Protocol;
     using Garrison.Core.Telemetry;
     using Garrison.Worker.Execution;
@@ -106,6 +107,35 @@ namespace Garrison.Worker.Hosting
             }
         }
 
+        /// <summary>
+        /// Clock used by the heartbeat loop's pause detection. Default <see cref="TimeProvider.System"/>. Set it before
+        /// <see cref="StartAsync"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when set to null.</exception>
+        public TimeProvider Clock
+        {
+            get
+            {
+                return _Pause.Clock;
+            }
+            set
+            {
+                if (value == null) throw new ArgumentNullException(nameof(value));
+                _Pause = new PauseDetector(value);
+            }
+        }
+
+        /// <summary>
+        /// Pauses the heartbeat loop detected since the worker started.
+        /// </summary>
+        public long PausesDetected
+        {
+            get
+            {
+                return _Pause.PausesDetected;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -139,6 +169,8 @@ namespace Garrison.Worker.Hosting
         private CancellationTokenSource? _WatchCall = null;
         private int _WatchWaitMs = 25000;
         private int _WatchIdlePollMs = 200;
+        private int _PauseCheckMs = 1000;
+        private PauseDetector _Pause = new PauseDetector(TimeProvider.System);
 
         #endregion
 
@@ -376,9 +408,10 @@ namespace Garrison.Worker.Hosting
         private async Task HeartbeatLoopAsync(CancellationToken token)
         {
             int failures = 0;
+            _Pause.Touch();
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(failures == 0 ? _HeartbeatIntervalMs : Backoff(failures), token).ConfigureAwait(false);
+                await WaitForHeartbeatAsync(failures == 0 ? _HeartbeatIntervalMs : Backoff(failures), token).ConfigureAwait(false);
                 try
                 {
                     if (Volatile.Read(ref _NeedsRegistration) == 1) await RegisterAsync(token).ConfigureAwait(false);
@@ -411,7 +444,39 @@ namespace Garrison.Worker.Hosting
                     }
                     _Logging.Warn(_Header + "heartbeat failed: " + e.Message);
                 }
+                _Pause.Touch();
             }
+        }
+
+        private async Task WaitForHeartbeatAsync(int delayMs, CancellationToken token)
+        {
+            // Sleep in short slices and compare wall-clock time, so a pause (host sleep, frozen container or VM, clock
+            // jump) is noticed on resume. Then heartbeat at once: the heartbeat renews every lease this worker holds
+            // before the control plane's pause deferral ends (P3.16).
+            int waited = 0;
+            while (waited < delayMs)
+            {
+                int slice = Math.Min(_PauseCheckMs, delayMs - waited);
+                await Task.Delay(slice, token).ConfigureAwait(false);
+                waited += slice;
+                TimeSpan paused = _Pause.Observe(slice, _Settings.PauseGraceMs);
+                if (paused > TimeSpan.Zero)
+                {
+                    _Telemetry?.Increment("garrison.worker.pauses");
+                    _Logging.Warn(_Header + "worker was paused for " + Math.Round(paused.TotalSeconds, 1) + " s; heartbeating and renewing " + _Runs.Count + " leases now"
+                        + " event=worker.pause pausedMs=" + (long)paused.TotalMilliseconds + " resumedUtc=" + _Pause.UtcNow.ToString("o") + " activeRuns=" + _Runs.Count);
+                    return;
+                }
+            }
+        }
+
+        private string PauseContext()
+        {
+            DateTime? resumed = _Pause.LastResumedUtc;
+            if (!resumed.HasValue) return String.Empty;
+            TimeSpan since = _Pause.UtcNow - resumed.Value;
+            if (since.TotalMinutes > 10) return String.Empty;
+            return " (this worker resumed from a " + Math.Round(_Pause.LastPause.TotalSeconds, 1) + " s pause " + Math.Round(since.TotalSeconds, 1) + " s ago event=worker.stale_after_pause)";
         }
 
         private async Task WatchLoopAsync(CancellationToken token)
@@ -485,7 +550,7 @@ namespace Garrison.Worker.Hosting
                 if (!_Runs.TryGetValue(runId, out ActiveRun? run)) return;
                 if (lost)
                 {
-                    _Logging.Warn(_Header + "lease for run " + runId + " was lost; killing the harness " + run.LogFields);
+                    _Logging.Warn(_Header + "lease for run " + runId + " was lost; killing the harness" + PauseContext() + " " + run.LogFields);
                     run.MarkLost();
                 }
                 else
@@ -576,7 +641,7 @@ namespace Garrison.Worker.Hosting
             RunEventShipper shipper = new RunEventShipper(_Client, nodeId, run.RunId, run.Epoch, _Settings.EventBatchSize, _Settings.MaxBufferedEvents, _Settings.EventFlushIntervalMs,
                 id =>
                 {
-                    _Logging.Warn(_Header + "control plane reports a stale lease for run " + id + "; killing the harness " + run.LogFields);
+                    _Logging.Warn(_Header + "control plane reports a stale lease for run " + id + "; killing the harness" + PauseContext() + " " + run.LogFields);
                     run.MarkLost();
                 },
                 message => _Logging.Debug(_Header + message + " " + run.LogFields),
@@ -708,7 +773,7 @@ namespace Garrison.Worker.Hosting
                 }
                 catch (StaleLeaseException)
                 {
-                    _Logging.Warn(_Header + "completion for run " + runId + " rejected: stale lease " + run.LogFields);
+                    _Logging.Warn(_Header + "completion for run " + runId + " rejected: stale lease" + PauseContext() + " " + run.LogFields);
                     _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "stale"));
                     return null;
                 }

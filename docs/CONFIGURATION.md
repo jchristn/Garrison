@@ -147,6 +147,7 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Scheduling.LeaseWaitMs` | `20000` | 0 to 60000 | Longest a lease long poll waits for work |
 | `Scheduling.NodeHeartbeatTimeoutMs` | `20000` | 5000 to 600000 | Silence after which a node is marked lost |
 | `Scheduling.EventPollMs` | `250` | 50 to 10000 | How often streaming subscribers check for new events |
+| `Scheduling.PauseGraceMs` | `5000` | 1000 to 600000 | Pause tolerance. When a leader maintenance tick comes more than the maintenance interval (2 seconds) plus this long after the previous one, or a pass stalls this long between two steps, the leader treats it as a pause (host sleep, frozen VM, clock jump). It then expires no leases, enforces no deadlines, marks no node `Lost` and no control node `Offline`, and fails no blocked run until one heartbeat window (the larger of the worker and control-plane heartbeat intervals) plus this grace has passed since the resume: 10 seconds with the defaults. Keep it above your slowest maintenance query. See `docs/SCALING.md`, "Pauses" |
 | `Runs.DefaultTimeoutSeconds` | `1800` | 5 to 86400 | Run deadline when neither the deployment nor the profile sets one |
 | `Runs.MaxDelegationDepth` | `3` | 0 to 10 | Deepest allowed chain of agents calling agents |
 | `Runs.RetentionDays` | `30` | 1 to 3650 | How long finished runs are kept |
@@ -207,6 +208,7 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `WorkRoot` | `workspaces` | Root of per-run workspace, home, and config directories. Environment: `GARRISON_WORKER_WORK_ROOT` |
 | `HealthHostname`, `HealthPort` | `*`, `8710` | Health listener. Environment: `GARRISON_WORKER_HEALTH_PORT` |
 | `HeartbeatIntervalMs` | `5000` | Heartbeat interval; the server can override it at registration |
+| `PauseGraceMs` | `5000` | Pause tolerance, 1000 to 600000. When the heartbeat loop finds that more than its sleep plus this long passed (host sleep, frozen container, clock jump), it logs a Warning (`event=worker.pause`) and heartbeats at once, which renews every lease it holds |
 | `LeaseWaitMs` | `20000` | Lease long-poll wait; the server can override it at registration |
 | `EventFlushIntervalMs` | `250` | How often buffered events are sent |
 | `EventBatchSize` | `100` | Events per batch |

@@ -162,6 +162,7 @@ All of these are cluster settings and apply live.
 | `Scheduling.EventPollMs` | 250 | Less database load from streams | Lower streaming latency |
 | `ControlPlane.HeartbeatIntervalMs` | 5000 | Fewer control node writes | Fresher activity counters |
 | `ControlPlane.OfflineAfterMs` | 30000 | Fewer false `Offline` rows on a slow database | A crashed replica shows `Offline` sooner |
+| `Scheduling.PauseGraceMs` | 5000 | Fewer false pause detections on a slow database | Shorter pauses are caught (see "Pauses" below) |
 
 Workers heartbeat every 5 seconds by default, and the server's registration response tells them the heartbeat interval and lease wait to use.
 
@@ -174,6 +175,25 @@ Workers heartbeat every 5 seconds by default, and the server's registration resp
 | A control-plane replica crashes | Clients and workers retry against another replica. If it was the leader, another replica takes over maintenance within the leader lease |
 | The database is unavailable | The control plane cannot accept or hand out work. Workers keep running what they have and retry |
 | A run hangs | The worker kills it at the deadline. If the worker cannot, the leader fails the run after the deadline plus a grace period |
+| The host sleeps, or the container or VM is frozen | Every timestamp looks old on resume. The leader notices the gap, holds off for one heartbeat window, and judges nodes and runs only after they have had a chance to report (below) |
+
+### Pauses
+
+A laptop that sleeps with Docker running freezes every process in the Docker VM: the control plane, the workers, and PostgreSQL. When the VM resumes, the wall clock has jumped, so every heartbeat, lease, and control node row looks minutes old. Without protection, the leader's first pass would mark every worker `Lost`, every replica (itself included) `Offline`, and fail healthy runs with `NodeLost`; the workers would then see stale leases and kill their harnesses. This happened on 2026-10-10, and P3.16 is the fix.
+
+The leader's maintenance loop compares the wall-clock time since its previous tick with the time it slept. A tick counts as a pause when the gap is longer than the maintenance interval (2 seconds) plus `Scheduling.PauseGraceMs` (5 seconds), so 7 seconds with the defaults. Two steps of one pass more than `Scheduling.PauseGraceMs` apart count too, which covers a pause that lands in the middle of a pass. Every replica watches, not only the leader, so a replica that wins the election just after a resume also waits. On a pause the leader:
+
+1. Logs a Warning such as `maintenance paused for 178.0 s; giving nodes one heartbeat window (10000 ms) to report ...` with structured fields `event=maintenance.pause pausedMs=... resumedUtc=... deferUntilUtc=... detectedIn=tick|pass leader=true|false`, and counts it in `garrison.maintenance.pauses`.
+2. Heartbeats its own control node row at once.
+3. Expires no leases, enforces no deadlines (including the `Runtime.MaxRunSeconds` cap), marks no worker `Lost` and no control node `Offline`, and fails no blocked run until one heartbeat window plus the grace has passed since the resume: the larger of `HeartbeatIntervalMs` and `ControlPlane.HeartbeatIntervalMs` plus `Scheduling.PauseGraceMs`, so 10 seconds with the defaults. Another pause during the window starts a new one. Time spent paused does not count toward `Runtime.FailBlockedAfterSeconds`.
+4. When the window ends, gives deadlines back. A run held across the pause whose worker re-confirmed the lease after the pause began (its lease now expires later than any renewal made before the pause could produce) gets its deadline, and its allowance under `Runtime.MaxRunSeconds`, moved by the paused time. A run whose worker did not re-confirm keeps its deadline and is enforced normally. The leader logs `event=maintenance.resume` with how many runs were extended and how many were not.
+5. Evaluates normally. A worker that is really down (it stopped heartbeating and never came back) is marked `Lost` and its runs requeued or failed on the first pass after the window, so a real outage is detected at most one heartbeat window later than without a pause.
+
+Separately, a leader whose own control node heartbeat is stale (older than `ControlPlane.HeartbeatIntervalMs` plus `Scheduling.PauseGraceMs`, or older than its last detected resume) marks nothing. It heartbeats itself first, and logs `event=maintenance.self_stale` once if it still cannot. A leader that just resumed therefore never judges others before it has re-heartbeated itself. Each replica's heartbeat loop also wakes once a second, notices a pause the same way, logs `event=controlnode.pause`, and heartbeats at once.
+
+Workers do the same on their side. The heartbeat loop wakes once a second, and when more than its sleep plus the worker's `PauseGraceMs` (5 seconds) has passed it logs `worker was paused for N s; heartbeating and renewing M leases now` (`event=worker.pause`) and heartbeats immediately, which renews every lease it holds well inside the leader's window. If the control plane still answers that a lease is stale (the leader really did give the run away), the worker kills the harness as before, and the log line says it resumed from a pause (`event=worker.stale_after_pause`).
+
+The rule assumes the pause is visible as a wall-clock jump. Pauses shorter than the threshold need no protection: with the defaults a node is only marked `Lost` after 20 seconds of silence, and a 7-second gap cannot get there on its own. Raise `Scheduling.PauseGraceMs` if your database is slow enough that one maintenance query takes more than 5 seconds, or every slow pass will be treated as a pause and real outages will be judged later.
 
 ## Scale and resilience tests
 

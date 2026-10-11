@@ -116,6 +116,7 @@ namespace Garrison.Server.Services
                 Int("Scheduling.LeaseWaitMs", 20000, 0, 60000, "Maximum lease long-poll wait."),
                 Int("Scheduling.NodeHeartbeatTimeoutMs", 20000, 5000, 600000, "Time without a heartbeat before a node is marked lost."),
                 Int("Scheduling.EventPollMs", 250, 50, 10000, "Event tail polling interval for streaming subscribers."),
+                Int("Scheduling.PauseGraceMs", 5000, 1000, 600000, "Pause tolerance: a maintenance tick that comes more than the maintenance interval plus this long after the previous one (host sleep, frozen VM, clock jump) skips lease expiry, Lost and Offline marking, and deadline enforcement until one heartbeat window plus this grace has passed since the resume."),
                 Int("Runs.DefaultTimeoutSeconds", 1800, 5, 86400, "Default run deadline when neither the deployment nor the profile sets one."),
                 Int("Runs.MaxDelegationDepth", 3, 0, 10, "Maximum agent-to-agent delegation depth."),
                 Int("Runs.RetentionDays", 30, 1, 3650, "Days finished runs are retained."),

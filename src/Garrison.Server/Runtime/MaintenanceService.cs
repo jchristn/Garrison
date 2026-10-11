@@ -9,6 +9,7 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Serialization;
@@ -23,7 +24,13 @@ namespace Garrison.Server.Runtime
     /// worker can run (one Warning run event per reason, and an optional failure after
     /// <see cref="RuntimeOptions.FailBlockedAfterSeconds"/>), applies run and event retention (archiving first when an
     /// <see cref="Archiver"/> is set), and deletes expired shared state (signed-request nonces, rate limit buckets, MCP
-    /// sessions, old backplane messages, and old Offline control nodes). Thread-safe.
+    /// sessions, old backplane messages, and old Offline control nodes). Tolerates pauses (P3.16): when a tick comes more
+    /// than <see cref="RuntimeOptions.MaintenanceIntervalMs"/> plus <see cref="RuntimeOptions.PauseGraceMs"/> after the
+    /// previous one, or a pass stalls for more than <see cref="RuntimeOptions.PauseGraceMs"/> between steps, it logs a
+    /// Warning and skips lease expiry, deadline enforcement, Lost and Offline marking, and blocked-run failures until
+    /// <see cref="RuntimeOptions.PauseDeferralMs"/> has passed since the resume and this replica has heartbeated its own
+    /// control node row again. Runs whose worker re-confirmed its lease after the pause get their deadline moved by the
+    /// paused time. Thread-safe.
     /// </summary>
     public class MaintenanceService : IDisposable
     {
@@ -127,6 +134,65 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Clock used for every time comparison. Default <see cref="TimeProvider.System"/>; tests use a manual clock to
+        /// simulate a pause. Setting it resets pause detection.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when set to null.</exception>
+        public TimeProvider Clock
+        {
+            get
+            {
+                return _Clock;
+            }
+            set
+            {
+                _Clock = value ?? throw new ArgumentNullException(nameof(value));
+                _Pause = new PauseDetector(_Clock);
+            }
+        }
+
+        /// <summary>
+        /// Returns the time of this replica's last successful control node heartbeat, or null when it has none. When set,
+        /// the leader marks nothing while its own heartbeat is older than
+        /// <see cref="RuntimeOptions.ControlNodeHeartbeatMs"/> plus <see cref="RuntimeOptions.PauseGraceMs"/>, or older
+        /// than the last detected resume. Null (the default) skips this check; the runtime module wires
+        /// <see cref="ControlNodeService.LastHeartbeatUtc"/>.
+        /// </summary>
+        public Func<DateTime?>? SelfHeartbeatUtc { get; set; } = null;
+
+        /// <summary>
+        /// Writes this replica's control node heartbeat now. Called when a pause is detected and when the leader finds its
+        /// own heartbeat stale. Null (the default) does nothing; the runtime module wires
+        /// <see cref="ControlNodeService.HeartbeatAsync"/>.
+        /// </summary>
+        public Func<CancellationToken, Task>? HeartbeatSelfAsync { get; set; } = null;
+
+        /// <summary>
+        /// End of the current pause deferral (UTC, from <see cref="Clock"/>), or null when no deferral is pending.
+        /// </summary>
+        public DateTime? DeferredUntilUtc
+        {
+            get
+            {
+                lock (_PauseLock)
+                {
+                    return _DeferUntilUtc;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pauses this replica's maintenance loop detected since it started.
+        /// </summary>
+        public long PausesDetected
+        {
+            get
+            {
+                return Interlocked.Read(ref _PausesDetected);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -151,6 +217,17 @@ namespace Garrison.Server.Runtime
         private long _LeaderPasses = 0;
         private readonly SemaphoreSlim _BlockedLock = new SemaphoreSlim(1, 1);
         private readonly ConcurrentDictionary<string, BlockedRunState> _Blocked = new ConcurrentDictionary<string, BlockedRunState>(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, TimeSpan> _PauseCredit = new ConcurrentDictionary<string, TimeSpan>(StringComparer.Ordinal);
+        private readonly object _PauseLock = new object();
+        private TimeProvider _Clock = TimeProvider.System;
+        private PauseDetector _Pause = new PauseDetector(TimeProvider.System);
+        private DateTime? _DeferUntilUtc = null;
+        private DateTime? _PendingResumeUtc = null;
+        private DateTime? _PendingPauseStartUtc = null;
+        private TimeSpan _PendingPaused = TimeSpan.Zero;
+        private long _PausesDetected = 0;
+        private bool _DeferralLogged = false;
+        private bool _SelfStaleWarned = false;
 
         #endregion
 
@@ -208,7 +285,20 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Run one maintenance pass regardless of leadership. Used by tests.
+        /// Run one maintenance tick as the leader, exactly as the background loop does: detect a pause since the previous
+        /// tick, defer destructive transitions while a pause deferral is pending or this replica's own heartbeat is stale,
+        /// then reap leases, enforce deadlines, mark Lost and Offline nodes, and check blocked runs. Used by tests that
+        /// drive <see cref="Clock"/> by hand.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when destructive transitions were evaluated on this tick, false when they were deferred.</returns>
+        public async Task<bool> RunTickAsync(CancellationToken token = default)
+        {
+            return await TickAsync(true, true, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Run one maintenance pass regardless of leadership and without pause detection or deferral. Used by tests.
         /// </summary>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Task.</returns>
@@ -229,8 +319,8 @@ namespace Garrison.Server.Runtime
         /// <returns>Runs and events removed.</returns>
         public async Task<int> ApplyRetentionAsync(CancellationToken token = default)
         {
-            DateTime runCutoff = DateTime.UtcNow.AddDays(-Math.Max(1, RunRetentionDays()));
-            DateTime eventCutoff = DateTime.UtcNow.AddDays(-Math.Max(1, EventRetentionDays()));
+            DateTime runCutoff = Now.AddDays(-Math.Max(1, RunRetentionDays()));
+            DateTime eventCutoff = Now.AddDays(-Math.Max(1, EventRetentionDays()));
             int runs;
             int events;
             RunArchiver? archiver = Archiver;
@@ -258,7 +348,7 @@ namespace Garrison.Server.Runtime
         /// <returns>Rows deleted.</returns>
         public async Task<int> CleanupSharedStateAsync(CancellationToken token = default)
         {
-            DateTime now = DateTime.UtcNow;
+            DateTime now = Now;
             int deleted = 0;
             deleted += await _Database.Nonces.PruneExpiredAsync(now, token).ConfigureAwait(false);
             deleted += await _Database.RateLimits.PruneExpiredAsync(now, token).ConfigureAwait(false);
@@ -301,35 +391,21 @@ namespace Garrison.Server.Runtime
 
         #region Private-Methods
 
+        private DateTime Now
+        {
+            get
+            {
+                return _Clock.GetUtcNow().UtcDateTime;
+            }
+        }
+
         private async Task LoopAsync(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    if (_Leader.IsLeader)
-                    {
-                        await ReapExpiredLeasesAsync(token).ConfigureAwait(false);
-                        await EnforceDeadlinesAsync(token).ConfigureAwait(false);
-                        await MarkLostNodesAsync(token).ConfigureAwait(false);
-                        await MarkOfflineControlNodesAsync(token).ConfigureAwait(false);
-                        if ((DateTime.UtcNow - _LastBlockedCheckUtc).TotalMilliseconds >= _BlockedCheckIntervalMs)
-                        {
-                            _LastBlockedCheckUtc = DateTime.UtcNow;
-                            await CheckBlockedRunsAsync(token).ConfigureAwait(false);
-                        }
-                        if (RunRetention && (DateTime.UtcNow - _LastRetentionUtc).TotalMilliseconds >= _RetentionIntervalMs)
-                        {
-                            _LastRetentionUtc = DateTime.UtcNow;
-                            await ApplyRetentionAsync(token).ConfigureAwait(false);
-                        }
-                        if ((DateTime.UtcNow - _LastCleanupUtc).TotalMilliseconds >= _CleanupIntervalMs)
-                        {
-                            _LastCleanupUtc = DateTime.UtcNow;
-                            await CleanupSharedStateAsync(token).ConfigureAwait(false);
-                        }
-                        Interlocked.Increment(ref _LeaderPasses);
-                    }
+                    await TickAsync(_Leader.IsLeader, false, token).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -339,9 +415,227 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        private async Task<bool> TickAsync(bool leader, bool forceBlockedCheck, CancellationToken token)
+        {
+            // Every replica watches for pauses, leader or not, so a replica that becomes leader just after a resume still
+            // waits for the heartbeat window.
+            TimeSpan paused = _Pause.Observe(_Options.MaintenanceIntervalMs, _Options.PauseGraceMs);
+            if (paused > TimeSpan.Zero) await OnPauseAsync(paused, "tick", leader, token).ConfigureAwait(false);
+
+            bool evaluated = false;
+            try
+            {
+                if (!leader) return false;
+
+                if (await DestructiveAllowedAsync(token).ConfigureAwait(false))
+                {
+                    evaluated = true;
+                    if (await AwakeAsync(token).ConfigureAwait(false)) await ReapExpiredLeasesAsync(token).ConfigureAwait(false);
+                    if (await AwakeAsync(token).ConfigureAwait(false)) await EnforceDeadlinesAsync(token).ConfigureAwait(false);
+                    if (await AwakeAsync(token).ConfigureAwait(false)) await MarkLostNodesAsync(token).ConfigureAwait(false);
+                    if (await AwakeAsync(token).ConfigureAwait(false)) await MarkOfflineControlNodesAsync(token).ConfigureAwait(false);
+                    if ((forceBlockedCheck || (Now - _LastBlockedCheckUtc).TotalMilliseconds >= _BlockedCheckIntervalMs) && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        _LastBlockedCheckUtc = Now;
+                        await CheckBlockedRunsAsync(token).ConfigureAwait(false);
+                    }
+                }
+
+                if (RunRetention && (Now - _LastRetentionUtc).TotalMilliseconds >= _RetentionIntervalMs)
+                {
+                    _LastRetentionUtc = Now;
+                    await ApplyRetentionAsync(token).ConfigureAwait(false);
+                }
+                if ((Now - _LastCleanupUtc).TotalMilliseconds >= _CleanupIntervalMs)
+                {
+                    _LastCleanupUtc = Now;
+                    await CleanupSharedStateAsync(token).ConfigureAwait(false);
+                }
+                Interlocked.Increment(ref _LeaderPasses);
+                return evaluated;
+            }
+            finally
+            {
+                // The pass's own duration does not count toward the next gap; only the sleep between passes does.
+                _Pause.Touch();
+            }
+        }
+
+        private async Task<bool> AwakeAsync(CancellationToken token)
+        {
+            // A pause can also land inside a pass (between two queries). Steps of one pass follow each other at once, so
+            // more than the grace between them is a pause too.
+            TimeSpan paused = _Pause.Observe(0, _Options.PauseGraceMs);
+            if (paused <= TimeSpan.Zero) return true;
+            await OnPauseAsync(paused, "pass", true, token).ConfigureAwait(false);
+            return false;
+        }
+
+        private async Task OnPauseAsync(TimeSpan paused, string detectedIn, bool leader, CancellationToken token)
+        {
+            DateTime resumed = Now;
+            DateTime deferUntil = resumed.AddMilliseconds(_Options.PauseDeferralMs);
+            lock (_PauseLock)
+            {
+                _PendingPauseStartUtc = resumed - paused;
+                _PendingResumeUtc = resumed;
+                _PendingPaused += paused;
+                if (_DeferUntilUtc == null || deferUntil > _DeferUntilUtc.Value) _DeferUntilUtc = deferUntil;
+                deferUntil = _DeferUntilUtc.Value;
+                _DeferralLogged = false;
+            }
+            Interlocked.Increment(ref _PausesDetected);
+            _Telemetry.Increment("garrison.maintenance.pauses", new RadiantTag("leader", leader ? "true" : "false"));
+            _Logging.Warn(_Header + "maintenance paused for " + Math.Round(paused.TotalSeconds, 1) + " s; giving nodes one heartbeat window ("
+                + _Options.PauseDeferralMs + " ms) to report before expiring leases, enforcing deadlines, or marking nodes Lost or control nodes Offline"
+                + " event=maintenance.pause pausedMs=" + (long)paused.TotalMilliseconds
+                + " resumedUtc=" + resumed.ToString("o")
+                + " deferUntilUtc=" + deferUntil.ToString("o")
+                + " detectedIn=" + detectedIn
+                + " leader=" + (leader ? "true" : "false"));
+
+            // Time spent paused does not count toward Runtime.FailBlockedAfterSeconds.
+            await _BlockedLock.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                foreach (BlockedRunState state in _Blocked.Values)
+                {
+                    if (state.BlockedSinceUtc.HasValue) state.BlockedSinceUtc = state.BlockedSinceUtc.Value + paused;
+                }
+            }
+            finally
+            {
+                _BlockedLock.Release();
+            }
+
+            await TryHeartbeatSelfAsync(token).ConfigureAwait(false);
+        }
+
+        private async Task<bool> DestructiveAllowedAsync(CancellationToken token)
+        {
+            DateTime now = Now;
+            DateTime? deferUntil;
+            DateTime? resumed;
+            lock (_PauseLock)
+            {
+                deferUntil = _DeferUntilUtc;
+                resumed = _PendingResumeUtc;
+            }
+
+            if (deferUntil.HasValue && now < deferUntil.Value)
+            {
+                if (!_DeferralLogged)
+                {
+                    _DeferralLogged = true;
+                    _Logging.Debug(_Header + "deferring lease expiry, deadlines, and Lost and Offline marking until " + deferUntil.Value.ToString("o"));
+                }
+                return false;
+            }
+
+            // A leader whose own heartbeat is stale (it just resumed, or cannot write) is not trusted to judge others.
+            Func<DateTime?>? self = SelfHeartbeatUtc;
+            if (self != null)
+            {
+                if (SelfHeartbeatStale(self(), resumed, now))
+                {
+                    await TryHeartbeatSelfAsync(token).ConfigureAwait(false);
+                    DateTime? last = self();
+                    if (SelfHeartbeatStale(last, resumed, Now))
+                    {
+                        if (!_SelfStaleWarned)
+                        {
+                            _SelfStaleWarned = true;
+                            _Logging.Warn(_Header + "this replica's own control node heartbeat is stale (last " + (last.HasValue ? last.Value.ToString("o") : "never")
+                                + "); not expiring leases, enforcing deadlines, or marking nodes until it heartbeats again event=maintenance.self_stale");
+                        }
+                        return false;
+                    }
+                }
+                _SelfStaleWarned = false;
+            }
+
+            if (resumed.HasValue) await EndDeferralAsync(token).ConfigureAwait(false);
+            return true;
+        }
+
+        private bool SelfHeartbeatStale(DateTime? last, DateTime? resumed, DateTime now)
+        {
+            if (!last.HasValue) return true;
+            if (resumed.HasValue && last.Value < resumed.Value) return true;
+            return (now - last.Value).TotalMilliseconds > _Options.ControlNodeHeartbeatMs + _Options.PauseGraceMs;
+        }
+
+        private async Task TryHeartbeatSelfAsync(CancellationToken token)
+        {
+            Func<CancellationToken, Task>? heartbeat = HeartbeatSelfAsync;
+            if (heartbeat == null) return;
+            try
+            {
+                await heartbeat(token).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                _Logging.Warn(_Header + "could not heartbeat this replica's control node: " + e.Message);
+            }
+        }
+
+        private async Task EndDeferralAsync(CancellationToken token)
+        {
+            DateTime pauseStart;
+            TimeSpan paused;
+            lock (_PauseLock)
+            {
+                if (!_PendingResumeUtc.HasValue || !_PendingPauseStartUtc.HasValue) return;
+                pauseStart = _PendingPauseStartUtc.Value;
+                paused = _PendingPaused;
+                _PendingResumeUtc = null;
+                _PendingPauseStartUtc = null;
+                _PendingPaused = TimeSpan.Zero;
+                _DeferUntilUtc = null;
+            }
+
+            // Runs held across the pause get their deadline back only when their worker re-confirmed the lease after the
+            // pause began (a lease renewed at time t expires at t plus the lease duration). The others are enforced
+            // normally: their lease expires, and their deadline stands.
+            DateTime now = Now;
+            int extended = 0;
+            int unconfirmed = 0;
+            List<Run> active = await _Database.Runs.ListActiveStartedBeforeAsync(now.AddDays(1), 1000, token).ConfigureAwait(false);
+            HashSet<string> activeIds = new HashSet<string>(active.Select(r => r.Id), StringComparer.Ordinal);
+            foreach (Run run in active)
+            {
+                token.ThrowIfCancellationRequested();
+                DateTime? held = run.LeasedUtc ?? run.StartedUtc;
+                if (!held.HasValue || held.Value > pauseStart) continue;
+
+                bool reconfirmed = run.LeaseExpiresUtc.HasValue && run.LeaseExpiresUtc.Value.AddMilliseconds(-_Options.LeaseDurationMs) > pauseStart;
+                if (!reconfirmed)
+                {
+                    unconfirmed++;
+                    continue;
+                }
+
+                _PauseCredit.AddOrUpdate(run.Id, paused, (id, existing) => existing + paused);
+                if (run.DeadlineUtc.HasValue && await _Database.Runs.ExtendDeadlineAsync(run.Id, run.LeaseEpoch, run.DeadlineUtc.Value + paused, token).ConfigureAwait(false))
+                {
+                    extended++;
+                    _Logging.Info(_Header + "run " + run.Id + " deadline extended by " + Math.Round(paused.TotalSeconds, 1) + " s after a pause; node "
+                        + (run.LeaseNodeName ?? run.LeaseNodeId) + " re-confirmed its lease " + RunTracing.LogFields(run.Id, run.TraceId));
+                }
+            }
+            foreach (string id in _PauseCredit.Keys.ToList())
+            {
+                if (!activeIds.Contains(id)) _PauseCredit.TryRemove(id, out TimeSpan _);
+            }
+
+            _Logging.Info(_Header + "pause deferral ended; evaluating leases, deadlines, and nodes normally (" + extended + " run deadlines extended by "
+                + Math.Round(paused.TotalSeconds, 1) + " s, " + unconfirmed + " runs held across the pause without a re-confirmed lease)"
+                + " event=maintenance.resume pausedMs=" + (long)paused.TotalMilliseconds + " extended=" + extended + " unconfirmed=" + unconfirmed);
+        }
+
         private async Task ReapExpiredLeasesAsync(CancellationToken token)
         {
-            List<Run> expired = await _Database.Runs.ListExpiredLeasesAsync(DateTime.UtcNow, 200, token).ConfigureAwait(false);
+            List<Run> expired = await _Database.Runs.ListExpiredLeasesAsync(Now, 200, token).ConfigureAwait(false);
             foreach (Run run in expired)
             {
                 Deployment? deployment = await _Database.Deployments.ReadAsync(run.DeploymentId, token).ConfigureAwait(false);
@@ -389,7 +683,7 @@ namespace Garrison.Server.Runtime
 
         private async Task EnforceDeadlinesAsync(CancellationToken token)
         {
-            List<Run> late = await _Database.Runs.ListPastDeadlineAsync(DateTime.UtcNow, 200, token).ConfigureAwait(false);
+            List<Run> late = await _Database.Runs.ListPastDeadlineAsync(Now, 200, token).ConfigureAwait(false);
             foreach (Run run in late)
             {
                 RunTransition transition = new RunTransition();
@@ -403,6 +697,7 @@ namespace Garrison.Server.Runtime
                 transition.SetCompleted = true;
                 if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
                 {
+                    _PauseCredit.TryRemove(run.Id, out TimeSpan _);
                     await _Database.Sessions.RevokeByRunAsync(run.Id, "Run timed out.", token).ConfigureAwait(false);
                     _Signals.Complete(run.Id);
                 }
@@ -411,9 +706,14 @@ namespace Garrison.Server.Runtime
             // The cluster cap bounds every run, including runs compiled before the cap was lowered and runs whose stored
             // deadline is missing or later than the cap allows.
             int capSeconds = _Options.MaxRunSeconds;
-            List<Run> overCap = await _Database.Runs.ListActiveStartedBeforeAsync(DateTime.UtcNow.AddSeconds(-(capSeconds + _Options.DeadlineGraceSeconds)), 200, token).ConfigureAwait(false);
+            DateTime now = Now;
+            List<Run> overCap = await _Database.Runs.ListActiveStartedBeforeAsync(now.AddSeconds(-(capSeconds + _Options.DeadlineGraceSeconds)), 200, token).ConfigureAwait(false);
             foreach (Run run in overCap)
             {
+                // Time a run spent paused with its lease re-confirmed afterwards does not count toward the cap.
+                DateTime? started = run.StartedUtc ?? run.LeasedUtc;
+                if (started.HasValue && _PauseCredit.TryGetValue(run.Id, out TimeSpan credit) && started.Value.AddSeconds(capSeconds + _Options.DeadlineGraceSeconds) + credit > now) continue;
+
                 RunTransition transition = new RunTransition();
                 transition.RunId = run.Id;
                 transition.FromStatuses.Add(run.Status);
@@ -425,6 +725,7 @@ namespace Garrison.Server.Runtime
                 transition.SetCompleted = true;
                 if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
                 {
+                    _PauseCredit.TryRemove(run.Id, out TimeSpan _);
                     await _Database.Sessions.RevokeByRunAsync(run.Id, "Run timed out.", token).ConfigureAwait(false);
                     _Signals.Complete(run.Id);
                 }
@@ -433,7 +734,7 @@ namespace Garrison.Server.Runtime
 
         private async Task MarkLostNodesAsync(CancellationToken token)
         {
-            List<Node> stale = await _Database.Nodes.ListStaleAsync(DateTime.UtcNow.AddMilliseconds(-_Options.NodeHeartbeatTimeoutMs), token).ConfigureAwait(false);
+            List<Node> stale = await _Database.Nodes.ListStaleAsync(Now.AddMilliseconds(-_Options.NodeHeartbeatTimeoutMs), token).ConfigureAwait(false);
             foreach (Node node in stale)
             {
                 if (await _Database.Nodes.SetStatusAsync(node.Id, NodeStatusEnum.Lost, token).ConfigureAwait(false))
@@ -445,7 +746,7 @@ namespace Garrison.Server.Runtime
 
         private async Task MarkOfflineControlNodesAsync(CancellationToken token)
         {
-            List<string> marked = await _Database.ControlNodes.MarkSilentOfflineAsync(DateTime.UtcNow.AddMilliseconds(-_Options.ControlNodeOfflineAfterMs), token).ConfigureAwait(false);
+            List<string> marked = await _Database.ControlNodes.MarkSilentOfflineAsync(Now.AddMilliseconds(-_Options.ControlNodeOfflineAfterMs), token).ConfigureAwait(false);
             foreach (string id in marked)
             {
                 _Logging.Warn(_Header + "control-plane replica " + id + " missed heartbeats and is now Offline");
@@ -482,14 +783,14 @@ namespace Garrison.Server.Runtime
                             state = await LoadBlockedStateAsync(run, token).ConfigureAwait(false);
                             _Blocked[run.Id] = state;
                         }
-                        if (state.BlockedSinceUtc == null) state.BlockedSinceUtc = DateTime.UtcNow;
+                        if (state.BlockedSinceUtc == null) state.BlockedSinceUtc = Now;
 
                         if (!state.Notified.Contains(reason.Value))
                         {
                             if (await AppendBlockedWarningAsync(run, reason.Value, token).ConfigureAwait(false)) state.Notified.Add(reason.Value);
                         }
 
-                        if (failAfterSeconds > 0 && (DateTime.UtcNow - state.BlockedSinceUtc.Value).TotalSeconds >= failAfterSeconds)
+                        if (failAfterSeconds > 0 && (Now - state.BlockedSinceUtc.Value).TotalSeconds >= failAfterSeconds)
                         {
                             await FailBlockedAsync(run, reason.Value, failAfterSeconds, token).ConfigureAwait(false);
                         }
