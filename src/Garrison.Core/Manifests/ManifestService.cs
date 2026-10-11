@@ -9,6 +9,7 @@ namespace Garrison.Core.Manifests
     using Garrison.Core.Database;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
@@ -271,7 +272,11 @@ namespace Garrison.Core.Manifests
                 secret.ValueLast4 = SecretGenerator.Last4(spec.Value);
                 secret.Fingerprint = fingerprint;
                 secret.KeyVersion = _Cipher.KeyVersion;
-                if (valueChanged) secret.RotatedUtc = DateTime.UtcNow;
+                if (valueChanged)
+                {
+                    secret.RotatedUtc = DateTime.UtcNow;
+                    SecretValueState.Reset(secret, spec.Value);
+                }
             }
             Dictionary<string, string> errors = new Dictionary<string, string>();
             ConfigurationValidator.Name(secret.Name, errors);

@@ -184,6 +184,73 @@ test('P13.15 no Grafana links appear when Grafana is not configured', async ({ p
   await expect(page.getByRole('menuitem', { name: 'Open in Grafana' })).toHaveCount(0);
 });
 
+test('P13.27 home lists one Grafana dashboard link per section, each with a tooltip', async ({ page }) => {
+  await configured(page, STATUS);
+  await login(page);
+  const list = page.getByTestId('grafana-dashboards');
+  await expect(list).toBeVisible();
+  const sections = [
+    ['overview', 'garrison-overview', 'Overview'],
+    ['http', 'garrison-http', 'HTTP API'],
+    ['runs', 'garrison-runs', 'Runs'],
+    ['agents', 'garrison-agents', 'Agents'],
+    ['models', 'garrison-models', 'Models and tokens'],
+    ['workers', 'garrison-workers', 'Workers'],
+    ['kubernetes', 'garrison-kubernetes', 'Kubernetes executor'],
+    ['protocols', 'garrison-protocols', 'Protocols'],
+    ['scheduler', 'garrison-scheduler', 'Scheduler and queue'],
+    ['database', 'garrison-database', 'Database'],
+    ['controlPlane', 'garrison-control-plane', 'Control plane'],
+    ['security', 'garrison-security', 'Security and auth'],
+    ['integrations', 'garrison-integrations', 'Integrations'],
+    ['logs', 'garrison-logs', 'Logs and traces']
+  ];
+  await expect(list.locator('a')).toHaveCount(sections.length);
+  for (const [key, uid, label] of sections) {
+    const link = page.getByTestId(`grafana-dashboard-${key}`);
+    await expect(link).toHaveText(label);
+    await expect(link).toHaveAttribute('href', `http://127.0.0.1:3000/d/${uid}?orgId=1`);
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('data-tip', /.+/);
+  }
+});
+
+test('P13.27 home skips sections whose UID is blank', async ({ page }) => {
+  await page.route(/\/v1\.0\/api\/server-info$/, (route) =>
+    patched(route, () => ({ observability: { ...OBSERVABILITY_CONFIGURED, dashboards: { ...OBSERVABILITY_CONFIGURED.dashboards, kubernetes: '', logs: '' } } }))
+  );
+  await login(page);
+  await expect(page.getByTestId('grafana-dashboards').locator('a')).toHaveCount(12);
+  await expect(page.getByTestId('grafana-dashboard-kubernetes')).toHaveCount(0);
+  await expect(page.getByTestId('grafana-dashboard-logs')).toHaveCount(0);
+  await page.unroute(/\/v1\.0\/api\/server-info$/);
+});
+
+test('P13.27 no section dashboard links when Grafana is not configured or reports no dashboards', async ({ page }) => {
+  await login(page);
+  await expect(page.getByTestId('kpi-agents')).toBeVisible();
+  await expect(page.getByTestId('grafana-dashboards')).toHaveCount(0);
+  await page.goto('/dashboard/agents/agt_0001');
+  await expect(page.locator('.page-header-title')).toBeVisible();
+  await expect(page.getByTestId('agent-grafana')).toHaveCount(0);
+});
+
+test('P13.27 home hides the section list when server info has no dashboards', async ({ page }) => {
+  await page.route(/\/v1\.0\/api\/server-info$/, (route) => patched(route, () => ({ observability: { ...OBSERVABILITY_CONFIGURED, dashboards: null } })));
+  await login(page);
+  await expect(page.getByTestId('kpis-grafana')).toBeVisible();
+  await expect(page.getByTestId('grafana-dashboards')).toHaveCount(0);
+});
+
+test('P13.27 agent detail opens the Agents dashboard filtered to the agent and tenant', async ({ page }) => {
+  await configured(page, STATUS);
+  await login(page);
+  await page.goto('/dashboard/agents/agt_0001');
+  const link = page.getByTestId('agent-grafana');
+  await expect(link).toHaveAttribute('href', 'http://127.0.0.1:3000/d/garrison-agents?orgId=1&var-tenant=default&var-agent=echo-agent');
+  await expect(link).toHaveAttribute('data-tip', /.+/);
+});
+
 test('P13.13 settings shows the Observability group with translated labels', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/settings');

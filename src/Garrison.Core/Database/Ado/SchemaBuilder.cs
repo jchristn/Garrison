@@ -82,6 +82,10 @@ namespace Garrison.Core.Database.Ado
             v9.BuildVersion9();
             migrations.Add(new SchemaMigration(9, "Run executors, run pod resources, and PersistentVolume workspaces", v9._Statements, v9._Columns));
 
+            SchemaBuilder v10 = new SchemaBuilder(catalog, dialect);
+            v10.BuildVersion10();
+            migrations.Add(new SchemaMigration(10, "Secret credential status and Codex login refresh", v10._Statements, v10._Columns));
+
             return migrations;
         }
 
@@ -171,6 +175,19 @@ namespace Garrison.Core.Database.Ado
                 "nodeid " + d.TypeId + " NOT NULL",
                 "executor VARCHAR(64) NOT NULL");
             Index("node_executors", "parent", false, "nodeid");
+        }
+
+        private void BuildVersion10()
+        {
+            SqlDialect d = _Dialect;
+
+            // secrets: credential health and control-plane refresh of CodexAuthJson logins (G-22). Null status is Ok.
+            Column("secrets", "status", "VARCHAR(64)");
+            Column("secrets", "statusmessage", d.TypeText);
+            Column("secrets", "statusutc", d.TypeTimestamp);
+            Column("secrets", "refreshedutc", d.TypeTimestamp);
+            Column("secrets", "accesstokenexpiresutc", d.TypeTimestamp);
+            Index("secrets", "kind", false, "kind");
         }
 
         private void BuildVersion7()

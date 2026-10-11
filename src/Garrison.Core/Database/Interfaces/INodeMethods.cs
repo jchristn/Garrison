@@ -7,6 +7,7 @@ namespace Garrison.Core.Database.Interfaces
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
+    using Garrison.Core.Responses;
 
     /// <summary>
     /// Node data access methods.
@@ -94,5 +95,12 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>True when updated.</returns>
         Task<bool> SetStatusAsync(string nodeId, NodeStatusEnum status, CancellationToken token = default);
+
+        /// <summary>
+        /// Count nodes per status, for the nodes gauge (P13.24).
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Counts per status; statuses with no nodes are absent.</returns>
+        Task<List<StatusCount>> CountByStatusAsync(CancellationToken token = default);
     }
 }

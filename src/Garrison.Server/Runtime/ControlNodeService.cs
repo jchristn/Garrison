@@ -13,6 +13,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Responses;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// Registers and heartbeats this replica's control node row (P10.19). One per replica. The row is written as
@@ -157,6 +158,7 @@ namespace Garrison.Server.Runtime
         private CancellationTokenSource? _Cts = null;
         private Task? _Loop = null;
         private bool _Stopped = false;
+        private readonly GaugeRegistration _CountsGauge;
         private bool _Disposed = false;
 
         #endregion
@@ -178,7 +180,7 @@ namespace Garrison.Server.Runtime
             _Hostname = ResolveHostname();
             _Address = ResolveAddress(context.Settings.Rest.Hostname, context.Settings.Rest.Port);
             _Backplane = backplane;
-            context.Telemetry.Gauge("garrison.control_nodes", ObserveCounts, "{node}");
+            _CountsGauge = GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.ControlNodes, ObserveCounts);
         }
 
         #endregion
@@ -279,6 +281,7 @@ namespace Garrison.Server.Runtime
             {
                 _Cts?.Dispose();
                 _WriteLock.Dispose();
+                _CountsGauge.Dispose();
             }
             _Disposed = true;
         }
@@ -304,7 +307,7 @@ namespace Garrison.Server.Runtime
 
                 try
                 {
-                    await HeartbeatAsync(token).ConfigureAwait(false);
+                    await GarrisonTracing.BackgroundAsync("control_node", "heartbeat", HeartbeatAsync, token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -374,13 +377,16 @@ namespace Garrison.Server.Runtime
                 // Once Offline has been written, nothing (a late heartbeat) may bring the row back.
                 if (_Stopped) return;
                 await _Context.Database.ControlNodes.UpsertAsync(row, token).ConfigureAwait(false);
-                Interlocked.Exchange(ref _Status, (int)status);
+                int previous = Interlocked.Exchange(ref _Status, (int)status);
+                if (previous != (int)status || Interlocked.Read(ref _Heartbeats) == 0) GarrisonMetrics.Count(GarrisonMetricCatalog.ControlNodeTransitions, "status", status.ToString());
                 Interlocked.Increment(ref _Heartbeats);
+                GarrisonMetrics.Count(GarrisonMetricCatalog.ControlNodeHeartbeats, "result", "ok");
                 if (!offline) Interlocked.Exchange(ref _LastHeartbeatTicks, row.LastHeartbeatUtc.Ticks);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                _Context.Logging.Warn(_Header + "could not write control node " + NodeId + " as " + status + ": " + e.Message);
+                GarrisonMetrics.Count(GarrisonMetricCatalog.ControlNodeHeartbeats, "result", "error");
+                _Context.Logging.Warn(_Header + "could not write control node " + NodeId + " as " + status + ": " + e.Message + " " + GarrisonTracing.LogFields("node", NodeId));
             }
             finally
             {

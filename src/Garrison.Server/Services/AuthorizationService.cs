@@ -11,6 +11,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Models;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Backplane;
 
     /// <summary>
@@ -102,6 +103,7 @@ namespace Garrison.Server.Services
 
             if (!decision.Permitted)
             {
+                GarrisonMetrics.Count(GarrisonMetricCatalog.AuthzDenials, "resource", resourceType.ToString(), "operation", operation.ToString(), "result", decision.Result == AuthorizationResultEnum.NotFound ? "NotFound" : "Forbidden");
                 AuditRecord record = new AuditRecord();
                 record.EventType = AuditEventTypeEnum.AuthorizationDenied;
                 record.TenantId = tenantId ?? ctx.TenantId;

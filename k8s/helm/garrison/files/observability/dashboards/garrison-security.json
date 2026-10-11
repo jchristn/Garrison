@@ -1,0 +1,1452 @@
+{
+  "uid": "garrison-security",
+  "title": "Garrison / Security and auth",
+  "description": "Authentication failures, authorization denials, rate limiting, tokens issued, secret decryption, Codex credential refreshes, and audit records.",
+  "tags": [
+    "garrison"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "fiscalYearStartMonth": 0,
+  "liveNow": false,
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Garrison dashboards",
+      "type": "dashboards",
+      "tags": [
+        "garrison"
+      ],
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "node",
+        "label": "Node",
+        "description": "Garrison node: the server pod or container name, or the worker node name.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(up{job=\"garrison\"}, node)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(up{job=\"garrison\"}, node)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
+      },
+      {
+        "name": "window",
+        "label": "Average over",
+        "type": "custom",
+        "query": "5m,15m,1h,6h",
+        "description": "Window for rates, averages, and percentiles. Runs are infrequent, so short windows leave gaps.",
+        "current": {
+          "selected": true,
+          "text": "15m",
+          "value": "15m"
+        },
+        "options": [
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": true,
+            "text": "15m",
+            "value": "15m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          }
+        ],
+        "multi": false,
+        "includeAll": false,
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Authentication",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "id": 1
+    },
+    {
+      "type": "stat",
+      "title": "Authentication failures",
+      "description": "Requests rejected by authentication in the selected range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_auth_failures_total{node=~\"$node\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 2
+    },
+    {
+      "type": "stat",
+      "title": "Rate limited",
+      "description": "Requests refused by the authentication rate limiter.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_auth_rate_limited_total{node=~\"$node\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 3
+    },
+    {
+      "type": "stat",
+      "title": "Authorization denials",
+      "description": "Requests and tool calls denied by authorization.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_authz_denials_total{node=~\"$node\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 4
+    },
+    {
+      "type": "stat",
+      "title": "Tokens issued",
+      "description": "Session tokens issued (sign-ins, token exchanges, run tokens).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_auth_tokens_issued_total{node=~\"$node\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 5
+    },
+    {
+      "type": "stat",
+      "title": "Secret decrypt errors",
+      "description": "Secret decryptions that failed (wrong key or tampered value).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_secret_decrypts_total{result=\"error\", node=~\"$node\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 6
+    },
+    {
+      "type": "stat",
+      "title": "Codex refresh failures",
+      "description": "Codex auth.json refreshes that failed or need reauthentication.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_codex_token_refresh_total{result=~\"failed|reauth_required\", node=~\"$node\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Authentication failures by scheme and reason",
+      "description": "Rejected requests by scheme (BearerToken, AccessKeySignature, AdminApiKey, None) and reason (Missing, Invalid, NotFound, Inactive).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (scheme, reason) (increase(garrison_auth_failures_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"scheme\", \"none\", \"\", \"\")",
+          "legendFormat": "{{scheme}} {{reason}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Rate limited by scope",
+      "description": "Requests refused by the rate limiter, by scope.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (scope) (increase(garrison_auth_rate_limited_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"scope\", \"none\", \"\", \"\")",
+          "legendFormat": "{{scope}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "Authorization denials by resource and operation",
+      "description": "Denials by resource type, operation, and result (Forbidden or NotFound).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (resource, operation, result) (increase(garrison_authz_denials_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"resource\", \"none\", \"\", \"\")",
+          "legendFormat": "{{resource}} {{operation}} {{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "Tokens issued by scheme and principal",
+      "description": "Session tokens issued by scheme and principal type (User, Credential, Run).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (scheme, principal) (increase(garrison_auth_tokens_issued_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"scheme\", \"none\", \"\", \"\")",
+          "legendFormat": "{{scheme}} {{principal}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "Watson authentication decisions",
+      "description": "Watson's built-in auth request counter by mode.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (watson_auth_mode) (rate(watson_auth_requests_total{node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"watson_auth_mode\", \"none\", \"\", \"\")",
+          "legendFormat": "{{watson_auth_mode}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "id": 12
+    },
+    {
+      "type": "row",
+      "title": "Secrets and credentials",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 24,
+        "h": 1
+      },
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "Secret decryptions by result (per minute)",
+      "description": "Secret decryptions (ok, error).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (result) (rate(garrison_secret_decrypts_total{node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"result\", \"none\", \"\", \"\")",
+          "legendFormat": "{{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 8,
+        "h": 8
+      },
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "Codex credential refreshes by result",
+      "description": "Control-plane refreshes of Codex auth.json credentials: ok, failed, reauth_required, skipped.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (result) (increase(garrison_codex_token_refresh_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"result\", \"none\", \"\", \"\")",
+          "legendFormat": "{{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 30,
+        "w": 8,
+        "h": 8
+      },
+      "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "Audit records by type",
+      "description": "Audit records written, by event type.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (type) (increase(garrison_audit_events_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"type\", \"none\", \"\", \"\")",
+          "legendFormat": "{{type}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Security logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%28%3Fi%29auth%7Cdenied%7Cforbidden%7Ctoken%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Rejected request traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.http.response.status_code%20%3E%3D%20400%20%26%26%20span.http.response.status_code%20%3C%20500%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 30,
+        "w": 8,
+        "h": 8
+      },
+      "id": 16
+    },
+    {
+      "type": "logs",
+      "title": "Authentication and authorization lines",
+      "description": "Server lines about authentication, denials, tokens, and secrets.",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "{app=\"garrison\", component=\"server\", node=~\"${node:regex}\"} |~ \"(?i)auth|denied|forbidden|token|secret|codex\"",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending",
+        "enableInfiniteScrolling": false
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 10
+      },
+      "id": 17
+    }
+  ]
+}

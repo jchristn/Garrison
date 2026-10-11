@@ -264,6 +264,7 @@ const de = {
     harnessType: { ClaudeCode: 'Claude Code', Codex: 'Codex', Mux: 'Mux', GeminiCli: 'Gemini CLI', Generic: 'Generisch' },
     agentKind: { Hosted: 'Gehostet', Remote: 'Entfernt' },
     delegationMode: { None: 'Keine Delegation', AllowList: 'Zulassungsliste', Any: 'Beliebiger Agent' },
+    secretStatus: { Ok: 'In Ordnung', NeedsReauthentication: 'Erneute Anmeldung nötig' },
     secretKind: {
       AnthropicApiKey: 'Anthropic-API-Schlüssel',
       ClaudeCodeOAuthToken: 'Claude-Code-OAuth-Token',
@@ -679,8 +680,10 @@ const de = {
       errors: { expiryPast: 'Wählen Sie ein Ablaufdatum in der Zukunft oder lassen Sie das Feld leer, damit das Geheimnis nie abläuft.' },
       ...rp('Geheimnisse', 'Verschlüsselte Zugangsdaten für Harnesses und Integrationen. Werte sind nur schreibbar.', 'Geheimnis hinzufügen', 'Geheimnis erstellen', 'Geheimnis bearbeiten', 'Geheimnisdetails', 'Geheimnis löschen', 'Noch keine Geheimnisse', 'Fügen Sie den API-Schlüssel oder das Token hinzu, das Ihre Agenten benötigen, etwa einen Anthropic-API-Schlüssel.'),
       notSet: 'Nicht gesetzt',
-      columns: { name: 'Name', kind: 'Art', valueLast4: 'Wert', rotatedUtc: 'Zuletzt geändert', expiresUtc: 'Läuft ab', active: 'Aktiv', id: 'ID' },
-      fields: { name: 'Name', kind: 'Art', description: 'Beschreibung', value: 'Wert', newValue: 'Neuer Wert', expiresUtc: 'Läuft ab', active: 'Aktiv' },
+      neverRefreshed: 'Noch nicht',
+      reauth: { title: 'Für diese Anmeldung ist eine erneute Anmeldung nötig', since: 'Seit {{time}}', action: 'Läufe, die dieses Geheimnis verwenden, schlagen fehl, bis Sie seinen Wert ersetzen. Melden Sie sich mit codex login und einem eigenen CODEX_HOME erneut an und speichern Sie die neue auth.json mit „Wert setzen“, oder stellen Sie das Deployment auf ein Geheimnis mit OpenAI-API-Schlüssel um. Verwenden Sie dieselbe Anmeldung nicht weiter auf einem anderen Rechner: Beide Kopien teilen sich ein Refresh-Token.' },
+      columns: { status: 'Zustand', accessTokenExpiresUtc: 'Zugriffstoken läuft ab', name: 'Name', kind: 'Art', valueLast4: 'Wert', rotatedUtc: 'Zuletzt geändert', expiresUtc: 'Läuft ab', active: 'Aktiv', id: 'ID' },
+      fields: { refreshedUtc: 'Zuletzt von Garrison erneuert', accessTokenExpiresUtc: 'Zugriffstoken läuft ab', name: 'Name', kind: 'Art', description: 'Beschreibung', value: 'Wert', newValue: 'Neuer Wert', expiresUtc: 'Läuft ab', active: 'Aktiv' },
       hints: { expiresUtc: 'Muss in der Zukunft liegen. Leer lassen für ein Geheimnis ohne Ablauf.', kind: 'Abonnement-Token auf gemeinsam genutzten Servern können gegen Anbieterbedingungen verstoßen. Bevorzugen Sie API-Schlüssel.' },
       actions: { setValue: 'Wert setzen', rotate: 'Rotieren' }
     },
@@ -915,6 +918,8 @@ const de = {
       observabilityVersion: 'Version {{version}}',
       observabilityOpen: '{{service}} öffnen',
       kpisGrafana: 'Übersicht in Grafana öffnen',
+      grafanaDashboards: 'Grafana-Dashboards',
+      grafanaSections: { overview: 'Übersicht', http: 'HTTP-API', runs: 'Läufe', agents: 'Agenten', models: 'Modelle und Tokens', workers: 'Worker', kubernetes: 'Kubernetes-Executor', protocols: 'Protokolle', scheduler: 'Scheduler und Warteschlange', database: 'Datenbank', controlPlane: 'Steuerungsebene', security: 'Sicherheit und Authentifizierung', integrations: 'Integrationen', logs: 'Logs und Traces' },
       observabilitySetup: 'Beobachtbarkeit einrichten',
       observabilityNone: 'Für diese Installation sind keine Beobachtbarkeitsdienste (Grafana, Prometheus, Tempo oder Loki) konfiguriert.',
       observability: 'Beobachtbarkeit',
@@ -1119,6 +1124,7 @@ const de = {
     },
     agentDetail: {
       invoke: 'Aufrufen',
+      grafana: 'In Grafana öffnen',
       noActiveDeployment: 'Dieser Agent hat keine aktive Bereitstellung; Aufrufe werden abgelehnt.',
       deployments_one: 'Bereitstellungen ({{count}})',
       deployments_other: 'Bereitstellungen ({{count}})',
@@ -1284,7 +1290,7 @@ const de = {
         ConfigMap: 'Von einer Kubernetes-ConfigMap verwaltet. Ändern Sie den Wert in Ihren Manifesten.',
         other: 'Diese Einstellung kann hier nicht bearbeitet werden.'
       },
-      groups: { Archive: 'Archiv', General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit', Runtime: 'Laufzeit', Observability: 'Beobachtbarkeit' },
+      groups: { Codex: 'Codex', Archive: 'Archiv', General: 'Allgemein', Rest: 'REST', Mcp: 'MCP', Database: 'Datenbank', Logging: 'Protokollierung', Auth: 'Authentifizierung', Security: 'Sicherheit', RequestHistory: 'Anfrageverlauf', Telemetry: 'Telemetrie', Cluster: 'Cluster', Scheduling: 'Planung', Runs: 'Läufe', Audit: 'Audit', Runtime: 'Laufzeit', Observability: 'Beobachtbarkeit' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana-URL',
@@ -1387,6 +1393,13 @@ const de = {
           RetentionDays: 'Aufbewahrung von Läufen (Tage)',
           MaxDelegationDepth: 'Maximale Delegationstiefe',
           DefaultTimeoutSeconds: 'Standard-Zeitlimit für Läufe (Sekunden)'
+        },
+        Codex: {
+          RefreshBeforeExpirySeconds: 'Codex-Anmeldungen vor Ablauf erneuern (Sekunden)',
+          RefreshCheckIntervalSeconds: 'Intervall der Hintergrundprüfung (Sekunden)',
+          RefreshTimeoutSeconds: 'Zeitlimit für die Erneuerung (Sekunden)',
+          TokenEndpoint: 'OAuth-Token-Endpunkt',
+          ClientId: 'OAuth-Client-ID'
         },
         Runtime: {
           FailBlockedAfterSeconds: 'Blockierte Läufe abbrechen nach (Sekunden)',

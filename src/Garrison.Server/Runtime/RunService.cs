@@ -201,9 +201,10 @@ namespace Garrison.Server.Runtime
                 if (!String.Equals(stored.Id, run.Id, StringComparison.Ordinal)) return IdempotentRetry(create, stored);
             }
 
-            _Logging?.Info("[Runs] run " + run.Id + " queued for agent " + run.AgentName + " (" + run.Kind + ", " + run.HarnessType + (String.IsNullOrEmpty(run.ParentRunId) ? String.Empty : ", parent " + run.ParentRunId) + ") " + RunTracing.LogFields(run.Id, run.TraceId));
+            _Logging?.Info("[Runs] run " + run.Id + " queued for agent " + run.AgentName + " (" + run.Kind + ", " + run.HarnessType + (String.IsNullOrEmpty(run.ParentRunId) ? String.Empty : ", parent " + run.ParentRunId) + ") " + RunTracing.LogFields(run.Id, run.TraceId)
+                + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", deployment.Name));
 
-            _Telemetry.Increment("garrison.runs.created", new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("kind", run.Kind.ToString()));
+            RunTelemetry.Created(run, deployment.Name);
             _Signals.NotifyQueue();
             return run;
         }
@@ -221,10 +222,7 @@ namespace Garrison.Server.Runtime
         public async Task<Run> CancelAsync(Run run, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
-            if (TerminalStatuses.Contains(run.Status)) throw new ConflictException("RunFinished", "Run " + run.Id + " already finished with status " + run.Status + ".");
-            Run updated = await CancelOneAsync(run, token).ConfigureAwait(false);
-            await CancelChildrenAsync(run, 0, token).ConfigureAwait(false);
-            return updated;
+            return await CancelAsync(run, "request", token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -242,7 +240,7 @@ namespace Garrison.Server.Runtime
             if (current == null || TerminalStatuses.Contains(current.Status)) return false;
             try
             {
-                await CancelAsync(current, token).ConfigureAwait(false);
+                await CancelAsync(current, "disconnect", token).ConfigureAwait(false);
             }
             catch (ConflictException)
             {
@@ -252,7 +250,15 @@ namespace Garrison.Server.Runtime
             return true;
         }
 
-        private async Task<Run> CancelOneAsync(Run run, CancellationToken token)
+        private async Task<Run> CancelAsync(Run run, string reason, CancellationToken token)
+        {
+            if (TerminalStatuses.Contains(run.Status)) throw new ConflictException("RunFinished", "Run " + run.Id + " already finished with status " + run.Status + ".");
+            Run updated = await CancelOneAsync(run, reason, token).ConfigureAwait(false);
+            await CancelChildrenAsync(run, 0, token).ConfigureAwait(false);
+            return updated;
+        }
+
+        private async Task<Run> CancelOneAsync(Run run, string reason, CancellationToken token)
         {
 
             RunTransition queued = new RunTransition();
@@ -263,7 +269,14 @@ namespace Garrison.Server.Runtime
             queued.Outcome = RunOutcomeEnum.Cancelled;
             queued.SetCompleted = true;
             queued.CancelRequested = true;
-            if (!await _Database.Runs.TransitionAsync(queued, token).ConfigureAwait(false))
+            if (await _Database.Runs.TransitionAsync(queued, token).ConfigureAwait(false))
+            {
+                run.Status = RunStatusEnum.Cancelled;
+                run.Outcome = RunOutcomeEnum.Cancelled;
+                run.CompletedUtc = DateTime.UtcNow;
+                await RunTelemetry.FinishedAsync(_Database, run, token).ConfigureAwait(false);
+            }
+            else
             {
                 RunTransition active = new RunTransition();
                 active.RunId = run.Id;
@@ -275,7 +288,8 @@ namespace Garrison.Server.Runtime
             }
 
             _Signals.Notify(run.Id);
-            _Logging?.Info("[Runs] cancellation requested for run " + run.Id + " " + RunTracing.LogFields(run.Id, run.TraceId));
+            GarrisonMetrics.Count(GarrisonMetricCatalog.RunCancellations, "tenant", run.TenantId, "agent", run.AgentName, "reason", reason);
+            _Logging?.Info("[Runs] cancellation requested for run " + run.Id + " " + RunTracing.LogFields(run.Id, run.TraceId) + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName));
             Run? updated = await _Database.Runs.ReadAsync(run.TenantId, run.Id, token).ConfigureAwait(false);
             _Signals.NotifyNode(updated?.LeaseNodeId ?? run.LeaseNodeId);
             return updated ?? run;
@@ -295,7 +309,7 @@ namespace Garrison.Server.Runtime
                 if (child.Id == parent.Id) continue;
                 if (!TerminalStatuses.Contains(child.Status))
                 {
-                    await CancelOneAsync(child, token).ConfigureAwait(false);
+                    await CancelOneAsync(child, "parent", token).ConfigureAwait(false);
                     _Logging?.Info("[Runs] cancelled delegated run " + child.Id + " with its parent " + parent.Id + " " + RunTracing.LogFields(child.Id, child.TraceId));
                 }
                 await CancelChildrenAsync(child, depth + 1, token).ConfigureAwait(false);

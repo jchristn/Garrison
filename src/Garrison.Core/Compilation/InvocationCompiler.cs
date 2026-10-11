@@ -9,6 +9,7 @@ namespace Garrison.Core.Compilation
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Codex;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
@@ -30,6 +31,12 @@ namespace Garrison.Core.Compilation
         /// Text that replaces secret values in previews.
         /// </summary>
         public static readonly string Redacted = "[REDACTED]";
+
+        /// <summary>
+        /// Prepares bound secrets before a run or repair is compiled (for example, refreshing an expiring CodexAuthJson
+        /// login, G-22), or null (the default) to use secrets as stored. Previews never call it.
+        /// </summary>
+        public ISecretPreparer? SecretPreparer { get; set; } = null;
 
         /// <summary>
         /// Deployment prompt role used for the structured output repair prompt.
@@ -94,7 +101,7 @@ namespace Garrison.Core.Compilation
         public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
-            CompilationInputs inputs = await LoadAsync(run.TenantId, run.DeploymentId, token).ConfigureAwait(false);
+            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken);
         }
 
@@ -114,7 +121,7 @@ namespace Garrison.Core.Compilation
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
             if (repair == null) throw new ArgumentNullException(nameof(repair));
-            CompilationInputs inputs = await LoadAsync(run.TenantId, run.DeploymentId, true, token).ConfigureAwait(false);
+            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, true, true, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, repair);
         }
 
@@ -183,7 +190,12 @@ namespace Garrison.Core.Compilation
         /// <param name="token">Cancellation token.</param>
         /// <returns>Inputs.</returns>
         /// <exception cref="CompilationException">Thrown when a reference is missing or a template is invalid.</exception>
-        public async Task<CompilationInputs> LoadAsync(string tenantId, string deploymentId, bool includeRepair, CancellationToken token = default)
+        public Task<CompilationInputs> LoadAsync(string tenantId, string deploymentId, bool includeRepair, CancellationToken token = default)
+        {
+            return LoadCoreAsync(tenantId, deploymentId, includeRepair, false, token);
+        }
+
+        private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token)
         {
             CompilationInputs inputs = new CompilationInputs();
             inputs.Tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
@@ -226,7 +238,10 @@ namespace Garrison.Core.Compilation
                 {
                     Secret secret = await _Database.Secrets.ReadAsync(tenantId, binding.ResourceId, token).ConfigureAwait(false)
                         ?? throw new CompilationException("ReferenceNotFound", "Secret " + binding.ResourceId + " bound as " + binding.Alias + " was not found.");
-                    if (secret.Active) inputs.Secrets[binding.Alias] = secret;
+                    if (!secret.Active) continue;
+                    ISecretPreparer? preparer = SecretPreparer;
+                    if (prepareSecrets && preparer != null) secret = await preparer.PrepareAsync(secret, token).ConfigureAwait(false);
+                    inputs.Secrets[binding.Alias] = secret;
                 }
             }
 
@@ -293,6 +308,7 @@ namespace Garrison.Core.Compilation
             spec.TenantId = run.TenantId;
             spec.AgentName = agent.Name;
             spec.DeploymentId = deployment.Id;
+            spec.DeploymentName = deployment.Name;
             spec.HarnessType = profile.HarnessType;
 
             Dictionary<string, string> parameters = RunOverrideValidator.Effective(deployment, run.Parameters);
@@ -639,12 +655,25 @@ namespace Garrison.Core.Compilation
             {
                 string value = Decrypt(entry.Value);
                 if (value.Length > 0) scrub.Add(value);
+                if (entry.Value.Kind == SecretKindEnum.CodexAuthJson) AddCodexTokens(value, scrub);
                 secrets[entry.Key] = value;
                 string kind = entry.Value.Kind.ToString();
                 if (!byKind.ContainsKey(kind)) byKind[kind] = value;
             }
             secrets["kind"] = byKind;
             return secrets;
+        }
+
+        private static void AddCodexTokens(string value, HashSet<string> scrub)
+        {
+            // The run copy of a Codex login is rewritten (codexRunAuth), so the whole value never appears in output;
+            // scrub the individual tokens instead.
+            CodexAuthFile? file = CodexAuthDocument.TryParse(value);
+            if (file?.Tokens == null) return;
+            foreach (string? item in new string?[] { file.Tokens.AccessToken, file.Tokens.RefreshToken, file.Tokens.IdToken, file.OpenAiApiKey })
+            {
+                if (!String.IsNullOrEmpty(item) && item.Length >= 8) scrub.Add(item);
+            }
         }
 
         private string Decrypt(Secret secret)

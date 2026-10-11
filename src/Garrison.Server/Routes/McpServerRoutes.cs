@@ -13,6 +13,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Core.Templates;
     using McpServer = Garrison.Core.Models.McpServer;
     using McpHttpClient = Voltaic.Mcp.McpHttpClient;
@@ -150,6 +151,11 @@ namespace Garrison.Server.Routes
             }
 
             Stopwatch watch = Stopwatch.StartNew();
+            long outboundStart = Stopwatch.GetTimestamp();
+            Activity? outbound = GarrisonTracing.StartOutbound("mcp_server", "test");
+            outbound?.SetTag("garrison.mcp_server", server.Name);
+            string outcome = "error";
+            Exception? failure = null;
             try
             {
                 TemplateContext context = await SecretsByNameAsync(tenantId, http.Token).ConfigureAwait(false);
@@ -178,13 +184,17 @@ namespace Garrison.Server.Routes
                 }
                 response.MissingRequiredTools = server.RequiredTools.Where(t => !response.Tools.Contains(t, StringComparer.Ordinal)).ToList();
                 response.Success = response.MissingRequiredTools.Count == 0;
+                outcome = response.Success ? "ok" : "missing_tools";
                 if (!response.Success) response.Error = "Required tools are missing: " + String.Join(", ", response.MissingRequiredTools) + ".";
             }
             catch (Exception e) when (e is not OperationCanceledException || !http.Token.IsCancellationRequested)
             {
                 response.Success = false;
                 response.Error = e is OperationCanceledException ? "Timed out after " + _TestTimeoutMs + " ms." : e.Message;
+                outcome = e is OperationCanceledException ? "timeout" : "error";
+                failure = e;
             }
+            GarrisonTracing.EndOutbound(outbound, "mcp_server", "test", outboundStart, outcome, failure);
             response.DurationMs = watch.ElapsedMilliseconds;
             await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
         }

@@ -11,6 +11,7 @@ namespace Garrison.Core.Database.Ado
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
+    using Garrison.Core.Responses;
 
     /// <summary>
     /// Provider-neutral Node data access. Thread-safe.
@@ -262,6 +263,22 @@ namespace Garrison.Core.Database.Ado
                 "SELECT * FROM " + _Table + " WHERE status NOT IN ('Lost', 'Offline') AND lastheartbeatutc < @cutoff;",
                 command => AdoDatabaseDriver.Add(command, "cutoff", cutoffUtc),
                 Map,
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<StatusCount>> CountByStatusAsync(CancellationToken token = default)
+        {
+            return await _Driver.QueryAsync(
+                "SELECT status, COUNT(*) AS total FROM " + _Table + " GROUP BY status;",
+                null,
+                reader =>
+                {
+                    StatusCount count = new StatusCount();
+                    count.Status = AdoConverters.Str(reader, "status");
+                    count.Count = AdoConverters.Long(reader, "total");
+                    return count;
+                },
                 token).ConfigureAwait(false);
         }
 

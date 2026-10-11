@@ -53,15 +53,39 @@ configMapGenerator:
   - name: garrison-grafana-dashboard-runs
     files:
       - garrison-runs.json=dashboards/garrison-runs.json
+  - name: garrison-grafana-dashboard-agents
+    files:
+      - garrison-agents.json=dashboards/garrison-agents.json
+  - name: garrison-grafana-dashboard-models
+    files:
+      - garrison-models.json=dashboards/garrison-models.json
   - name: garrison-grafana-dashboard-workers
     files:
       - garrison-workers.json=dashboards/garrison-workers.json
+  - name: garrison-grafana-dashboard-kubernetes
+    files:
+      - garrison-kubernetes.json=dashboards/garrison-kubernetes.json
   - name: garrison-grafana-dashboard-protocols
     files:
       - garrison-protocols.json=dashboards/garrison-protocols.json
+  - name: garrison-grafana-dashboard-scheduler
+    files:
+      - garrison-scheduler.json=dashboards/garrison-scheduler.json
+  - name: garrison-grafana-dashboard-database
+    files:
+      - garrison-database.json=dashboards/garrison-database.json
+  - name: garrison-grafana-dashboard-control-plane
+    files:
+      - garrison-control-plane.json=dashboards/garrison-control-plane.json
+  - name: garrison-grafana-dashboard-security
+    files:
+      - garrison-security.json=dashboards/garrison-security.json
   - name: garrison-grafana-dashboard-integrations
     files:
       - garrison-integrations.json=dashboards/garrison-integrations.json
+  - name: garrison-grafana-dashboard-logs
+    files:
+      - garrison-logs.json=dashboards/garrison-logs.json
 
 patches:
   - path: garrison-env.yaml

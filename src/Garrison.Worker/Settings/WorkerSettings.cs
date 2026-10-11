@@ -495,6 +495,8 @@ namespace Garrison.Worker.Settings
             if (value != null && Boolean.TryParse(value, out bool otlpEnabled)) Telemetry.OtlpEnable = otlpEnabled;
             value = Env("GARRISON_WORKER_OTLP_ENDPOINT");
             if (value != null) Telemetry.OtlpEndpoint = value;
+            value = Env("GARRISON_WORKER_TELEMETRY_MAX_LABEL_VALUES");
+            if (value != null && Int32.TryParse(value, out int maxLabelValues)) Telemetry.MaxLabelValues = maxLabelValues;
             Kubernetes.ApplyEnvironment();
             value = Env("GARRISON_WORKER_LABELS");
             if (value != null)

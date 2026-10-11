@@ -38,9 +38,11 @@ namespace Test.Shared
                 suites.AddRange(StructuredOutputSuite.Build());
                 suites.AddRange(FindingsSuite.Build());
                 suites.AddRange(ObservabilitySuite.Build());
+                suites.AddRange(TelemetryCoverageSuite.Build());
                 suites.AddRange(ScaleOutSuite.Build());
                 suites.AddRange(MultiReplicaSuite.Build());
                 suites.AddRange(KubernetesExecutorSuite.Build());
+                suites.AddRange(CodexCredentialSuite.Build());
                 return suites;
             }
         }

@@ -83,13 +83,15 @@ spec:
               readOnly: true
             - name: data
               mountPath: /var/lib/grafana
+          # Fourteen dashboards issue many queries at once when one is opened; one CPU throttles Grafana until its
+          # health check times out.
           resources:
             requests:
               cpu: 50m
               memory: 192Mi
             limits:
-              cpu: "1"
-              memory: 512Mi
+              cpu: "2"
+              memory: 768Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -99,6 +101,7 @@ spec:
               path: /api/health
               port: http
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3
           livenessProbe:
             httpGet:
@@ -106,6 +109,7 @@ spec:
               port: http
             initialDelaySeconds: 60
             periodSeconds: 20
+            timeoutSeconds: 5
             failureThreshold: 5
       volumes:
         - name: config
@@ -127,11 +131,27 @@ spec:
               - configMap:
                   name: garrison-grafana-dashboard-runs
               - configMap:
+                  name: garrison-grafana-dashboard-agents
+              - configMap:
+                  name: garrison-grafana-dashboard-models
+              - configMap:
                   name: garrison-grafana-dashboard-workers
+              - configMap:
+                  name: garrison-grafana-dashboard-kubernetes
               - configMap:
                   name: garrison-grafana-dashboard-protocols
               - configMap:
+                  name: garrison-grafana-dashboard-scheduler
+              - configMap:
+                  name: garrison-grafana-dashboard-database
+              - configMap:
+                  name: garrison-grafana-dashboard-control-plane
+              - configMap:
+                  name: garrison-grafana-dashboard-security
+              - configMap:
                   name: garrison-grafana-dashboard-integrations
+              - configMap:
+                  name: garrison-grafana-dashboard-logs
         - name: data
           emptyDir: {}
 ---

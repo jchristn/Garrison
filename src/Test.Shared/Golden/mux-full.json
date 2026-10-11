@@ -4,6 +4,7 @@
     "tenantId": "ten_golden",
     "agentName": "helper-mux-full",
     "deploymentId": "dep_mux_full",
+    "deploymentName": "helper-mux-full-default",
     "harnessType": "Mux",
     "executable": "mux",
     "arguments": [

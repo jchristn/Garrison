@@ -1,0 +1,1350 @@
+{
+  "name": "synthetic-fleet",
+  "description": "A fictional Garrison installation for benchmarking: placement and scheduling probes on two worker lanes, the end-to-end run flow on the fake harness, a load workload, and a generated fleet of agents, deployments, and shared templates for manifest apply at scale.",
+  "corpora": [
+    {
+      "id": "routing",
+      "command": "routing",
+      "description": "Placement and scheduling: node selectors on worker lanes, weight 0 deployments, runs no worker can take (blocked reasons), a missing executable, request validation, priority order, and the per-deployment concurrency limit. Needs two worker lanes (alpha and beta).",
+      "items": [
+        {
+          "id": "template-bench-task",
+          "kind": "PromptTemplate",
+          "name": "bench-task",
+          "manifest": "apiVersion: garrison/v1\nkind: PromptTemplate\nmetadata:\n  name: bench-task\n  description: The caller's message and nothing else, so the fake harness echo is predictable\nspec:\n  kind: Task\n  content: \"{{input.message}}\"\n"
+        },
+        {
+          "id": "agent-route-alpha",
+          "kind": "Agent",
+          "name": "route-alpha",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-alpha\n  description: \"Runs only on alpha lane workers\"\nspec:\n  displayName: route-alpha\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-route-alpha-fake",
+          "kind": "Deployment",
+          "name": "route-alpha-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-alpha-fake\nspec:\n  agent: route-alpha\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n  nodeSelector:\n    bench.garrison.io/lane: alpha\n"
+        },
+        {
+          "id": "agent-route-beta",
+          "kind": "Agent",
+          "name": "route-beta",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-beta\n  description: \"Runs only on beta lane workers\"\nspec:\n  displayName: route-beta\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-route-beta-fake",
+          "kind": "Deployment",
+          "name": "route-beta-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-beta-fake\nspec:\n  agent: route-beta\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n  nodeSelector:\n    bench.garrison.io/lane: beta\n"
+        },
+        {
+          "id": "agent-route-any",
+          "kind": "Agent",
+          "name": "route-any",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-any\n  description: \"Runs on any worker\"\nspec:\n  displayName: route-any\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-route-any-fake",
+          "kind": "Deployment",
+          "name": "route-any-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-any-fake\nspec:\n  agent: route-any\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n"
+        },
+        {
+          "id": "agent-route-nowhere",
+          "kind": "Agent",
+          "name": "route-nowhere",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-nowhere\n  description: \"Pinned to a lane no worker has\"\nspec:\n  displayName: route-nowhere\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-route-nowhere-fake",
+          "kind": "Deployment",
+          "name": "route-nowhere-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-nowhere-fake\nspec:\n  agent: route-nowhere\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n  nodeSelector:\n    bench.garrison.io/lane: gamma\n"
+        },
+        {
+          "id": "agent-route-gemini",
+          "kind": "Agent",
+          "name": "route-gemini",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-gemini\n  description: \"Needs Gemini CLI, which no bench worker has\"\nspec:\n  displayName: route-gemini\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-route-gemini-cli",
+          "kind": "Deployment",
+          "name": "route-gemini-cli",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-gemini-cli\nspec:\n  agent: route-gemini\n  harnessProfile: builtin/gemini-cli\n  timeoutSeconds: 60\n"
+        },
+        {
+          "id": "agent-route-weighted",
+          "kind": "Agent",
+          "name": "route-weighted",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-weighted\n  description: \"Two deployments: alpha with weight 100, beta with weight 0\"\nspec:\n  displayName: route-weighted\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-route-weighted-on",
+          "kind": "Deployment",
+          "name": "route-weighted-on",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-weighted-on\nspec:\n  agent: route-weighted\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n  nodeSelector:\n    bench.garrison.io/lane: alpha\n  weight: 100\n"
+        },
+        {
+          "id": "deployment-route-weighted-off",
+          "kind": "Deployment",
+          "name": "route-weighted-off",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-weighted-off\nspec:\n  agent: route-weighted\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n  nodeSelector:\n    bench.garrison.io/lane: beta\n  weight: 0\n"
+        },
+        {
+          "id": "agent-route-single",
+          "kind": "Agent",
+          "name": "route-single",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-single\n  description: \"One run at a time\"\nspec:\n  displayName: route-single\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-route-single-fake",
+          "kind": "Deployment",
+          "name": "route-single-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-single-fake\nspec:\n  agent: route-single\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    delayMs: \"20\"\n  maxConcurrentRuns: 1\n  allowedRunOverrides:\n    - name: delayMs\n      validation: IntegerRange\n      pattern: \"0,5000\"\n"
+        },
+        {
+          "id": "agent-route-nodeploy",
+          "kind": "Agent",
+          "name": "route-nodeploy",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-nodeploy\n  description: \"An agent with no deployment\"\nspec:\n  displayName: route-nodeploy\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "profile-bench-missing-cli",
+          "kind": "HarnessProfile",
+          "name": "bench-missing-cli",
+          "manifest": "apiVersion: garrison/v1\nkind: HarnessProfile\nmetadata:\n  name: bench-missing-cli\n  description: \"A harness profile whose executable is not installed anywhere\"\nspec:\n  harnessType: Generic\n  executable: garrison-bench-no-such-cli\n  promptDelivery: Stdin\n  systemPromptDelivery: File\n  systemPromptTarget: system-prompt.md\n  outputParser: ClaudeStreamJson\n  resultSource: ParserFinalEvent\n  successPolicy: FinalEvent\n  successExitCodes: [0]\n  defaultTimeoutSeconds: 120\n  killGraceSeconds: 2\n  isolateHome: true\n  arguments:\n    - template: \"--format\"\n    - template: \"claude\"\n  probeArguments: [--version]\n"
+        },
+        {
+          "id": "agent-route-missing-cli",
+          "kind": "Agent",
+          "name": "route-missing-cli",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: route-missing-cli\n  description: \"Deployed on a harness profile whose executable is missing\"\nspec:\n  displayName: route-missing-cli\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-route-missing-cli-dep",
+          "kind": "Deployment",
+          "name": "route-missing-cli-dep",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: route-missing-cli-dep\nspec:\n  agent: route-missing-cli\n  harnessProfile: bench-missing-cli\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n"
+        }
+      ],
+      "probes": [
+        {
+          "id": "placement-alpha-1",
+          "type": "node-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-alpha",
+          "input": "Placement probe alpha 1: this run must land on an alpha lane worker.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "alpha"
+          }
+        },
+        {
+          "id": "placement-beta-1",
+          "type": "node-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-beta",
+          "input": "Placement probe beta 1: this run must land on a beta lane worker.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "beta"
+          }
+        },
+        {
+          "id": "placement-alpha-2",
+          "type": "node-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-alpha",
+          "input": "Placement probe alpha 2: this run must land on an alpha lane worker.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "alpha"
+          }
+        },
+        {
+          "id": "placement-beta-2",
+          "type": "node-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-beta",
+          "input": "Placement probe beta 2: this run must land on a beta lane worker.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "beta"
+          }
+        },
+        {
+          "id": "placement-alpha-3",
+          "type": "node-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-alpha",
+          "input": "Placement probe alpha 3: this run must land on an alpha lane worker.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "alpha"
+          }
+        },
+        {
+          "id": "placement-beta-3",
+          "type": "node-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-beta",
+          "input": "Placement probe beta 3: this run must land on a beta lane worker.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "beta"
+          }
+        },
+        {
+          "id": "placement-alpha-4",
+          "type": "node-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-alpha",
+          "input": "Placement probe alpha 4: this run must land on an alpha lane worker.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "alpha"
+          }
+        },
+        {
+          "id": "placement-beta-4",
+          "type": "node-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-beta",
+          "input": "Placement probe beta 4: this run must land on a beta lane worker.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "beta"
+          }
+        },
+        {
+          "id": "placement-any-1",
+          "type": "no-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-any",
+          "input": "Placement probe any 1: any worker may take this run.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true
+          }
+        },
+        {
+          "id": "weight-zero-1",
+          "type": "weight-zero",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-weighted",
+          "input": "Weighted probe 1: the weight 0 deployment must never be picked.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "alpha"
+          }
+        },
+        {
+          "id": "placement-any-2",
+          "type": "no-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-any",
+          "input": "Placement probe any 2: any worker may take this run.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true
+          }
+        },
+        {
+          "id": "weight-zero-2",
+          "type": "weight-zero",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-weighted",
+          "input": "Weighted probe 2: the weight 0 deployment must never be picked.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "alpha"
+          }
+        },
+        {
+          "id": "placement-any-3",
+          "type": "no-selector",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-any",
+          "input": "Placement probe any 3: any worker may take this run.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true
+          }
+        },
+        {
+          "id": "weight-zero-3",
+          "type": "weight-zero",
+          "category": "placement",
+          "negative": false,
+          "action": "run",
+          "agent": "route-weighted",
+          "input": "Weighted probe 3: the weight 0 deployment must never be picked.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "nodeLabelKey": "bench.garrison.io/lane",
+            "nodeLabelValue": "alpha"
+          }
+        },
+        {
+          "id": "blocked-no-matching-pool",
+          "type": "unmatched-selector",
+          "category": "blocking",
+          "negative": true,
+          "action": "blocked",
+          "agent": "route-nowhere",
+          "input": "No worker carries the gamma lane label.",
+          "timeoutSeconds": 15,
+          "expect": {
+            "blockedReason": "NoMatchingPool"
+          }
+        },
+        {
+          "id": "blocked-no-capable-worker",
+          "type": "missing-harness",
+          "category": "blocking",
+          "negative": true,
+          "action": "blocked",
+          "agent": "route-gemini",
+          "input": "No worker reports Gemini CLI.",
+          "timeoutSeconds": 15,
+          "expect": {
+            "blockedReason": "NoCapableWorker"
+          }
+        },
+        {
+          "id": "missing-executable",
+          "type": "missing-executable",
+          "category": "blocking",
+          "negative": true,
+          "action": "run",
+          "agent": "route-missing-cli",
+          "input": "The profile's executable does not exist on any worker.",
+          "timeoutSeconds": 60,
+          "expect": {
+            "status": "Failed",
+            "outcome": "NotInstalled"
+          }
+        },
+        {
+          "id": "no-deployment",
+          "type": "no-deployment",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "route-nodeploy",
+          "input": "This agent has no deployment.",
+          "expect": {
+            "httpStatus": 409,
+            "errorCode": "NoActiveDeployment"
+          }
+        },
+        {
+          "id": "unknown-agent",
+          "type": "unknown-agent",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "route-does-not-exist",
+          "input": "No such agent.",
+          "expect": {
+            "httpStatus": 404
+          }
+        },
+        {
+          "id": "override-not-allowed",
+          "type": "override-not-allowed",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "route-alpha",
+          "input": "format is not an allowed override.",
+          "parameters": {
+            "format": "plain"
+          },
+          "expect": {
+            "httpStatus": 400,
+            "errorCode": "ValidationFailed",
+            "fieldCode": "ParameterNotAllowed"
+          }
+        },
+        {
+          "id": "override-out-of-range",
+          "type": "override-out-of-range",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "route-single",
+          "input": "delayMs is limited to 0 to 5000.",
+          "parameters": {
+            "delayMs": "99999"
+          },
+          "expect": {
+            "httpStatus": 400,
+            "errorCode": "ValidationFailed",
+            "fieldCode": "ParameterInvalid"
+          }
+        },
+        {
+          "id": "override-in-range",
+          "type": "override-in-range",
+          "category": "validation",
+          "negative": false,
+          "action": "run",
+          "agent": "route-single",
+          "input": "An allowed override inside its range.",
+          "parameters": {
+            "delayMs": "10"
+          },
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true
+          }
+        },
+        {
+          "id": "priority-first",
+          "type": "priority",
+          "category": "ordering",
+          "negative": false,
+          "action": "priority",
+          "agent": "route-single",
+          "input": "Priority probe input text for the single-slot deployment, long enough to take a while.",
+          "count": 5,
+          "priority": 50,
+          "timeoutSeconds": 120,
+          "parameters": {
+            "delayMs": "400"
+          },
+          "expect": {
+            "status": "Succeeded"
+          }
+        },
+        {
+          "id": "single-slot-no-overlap",
+          "type": "concurrency-limit",
+          "category": "ordering",
+          "negative": false,
+          "action": "no-overlap",
+          "agent": "route-single",
+          "input": "Concurrency probe for the single-slot deployment.",
+          "count": 4,
+          "timeoutSeconds": 120,
+          "parameters": {
+            "delayMs": "100"
+          },
+          "expect": {
+            "status": "Succeeded"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e2e",
+      "command": "e2e",
+      "description": "The full run flow on the fake harness: prompt rendering and truncation, Unicode and escaping, every output parser, fixed answers, structured output with and without repair, harness failure, deadlines, cancellation, idempotent creation, tenant isolation, and event streaming. Run probes carry the direct-invocation arguments of the reference arm.",
+      "items": [
+        {
+          "id": "template-bench-task",
+          "kind": "PromptTemplate",
+          "name": "bench-task",
+          "manifest": "apiVersion: garrison/v1\nkind: PromptTemplate\nmetadata:\n  name: bench-task\n  description: The caller's message and nothing else, so the fake harness echo is predictable\nspec:\n  kind: Task\n  content: \"{{input.message}}\"\n"
+        },
+        {
+          "id": "profile-bench-fake-codex",
+          "kind": "HarnessProfile",
+          "name": "bench-fake-codex",
+          "manifest": "apiVersion: garrison/v1\nkind: HarnessProfile\nmetadata:\n  name: bench-fake-codex\n  description: \"The fake harness in Codex JSONL format, parsed as Codex\"\nspec:\n  harnessType: Generic\n  executable: garrison-fake-harness\n  promptDelivery: Stdin\n  systemPromptDelivery: File\n  systemPromptTarget: system-prompt.md\n  outputParser: CodexJsonl\n  resultSource: ParserFinalEvent\n  successPolicy: FinalEvent\n  successExitCodes: [0]\n  defaultTimeoutSeconds: 120\n  killGraceSeconds: 2\n  isolateHome: true\n  arguments:\n    - template: \"--format\"\n    - template: \"codex\"\n  probeArguments: [--version]\n"
+        },
+        {
+          "id": "profile-bench-fake-mux",
+          "kind": "HarnessProfile",
+          "name": "bench-fake-mux",
+          "manifest": "apiVersion: garrison/v1\nkind: HarnessProfile\nmetadata:\n  name: bench-fake-mux\n  description: \"The fake harness in Mux JSONL format, parsed as Mux\"\nspec:\n  harnessType: Generic\n  executable: garrison-fake-harness\n  promptDelivery: Stdin\n  systemPromptDelivery: File\n  systemPromptTarget: system-prompt.md\n  outputParser: MuxJsonl\n  resultSource: ParserFinalEvent\n  successPolicy: FinalEventAndExitCode\n  successExitCodes: [0]\n  defaultTimeoutSeconds: 120\n  killGraceSeconds: 2\n  isolateHome: true\n  arguments:\n    - template: \"--format\"\n    - template: \"mux\"\n  probeArguments: [--version]\n"
+        },
+        {
+          "id": "profile-bench-fake-plain",
+          "kind": "HarnessProfile",
+          "name": "bench-fake-plain",
+          "manifest": "apiVersion: garrison/v1\nkind: HarnessProfile\nmetadata:\n  name: bench-fake-plain\n  description: \"The fake harness in plain text, result from stdout\"\nspec:\n  harnessType: Generic\n  executable: garrison-fake-harness\n  promptDelivery: Stdin\n  systemPromptDelivery: File\n  systemPromptTarget: system-prompt.md\n  outputParser: PlainText\n  resultSource: Stdout\n  successPolicy: ExitCode\n  successExitCodes: [0]\n  defaultTimeoutSeconds: 120\n  killGraceSeconds: 2\n  isolateHome: true\n  arguments:\n    - template: \"--format\"\n    - template: \"plain\"\n  probeArguments: [--version]\n"
+        },
+        {
+          "id": "agent-e2e-claude",
+          "kind": "Agent",
+          "name": "e2e-claude",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-claude\n  description: \"Claude stream-json parsing\"\nspec:\n  displayName: e2e-claude\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-claude-fake",
+          "kind": "Deployment",
+          "name": "e2e-claude-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-claude-fake\nspec:\n  agent: e2e-claude\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n"
+        },
+        {
+          "id": "agent-e2e-codex",
+          "kind": "Agent",
+          "name": "e2e-codex",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-codex\n  description: \"Codex JSONL parsing\"\nspec:\n  displayName: e2e-codex\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-codex-fake",
+          "kind": "Deployment",
+          "name": "e2e-codex-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-codex-fake\nspec:\n  agent: e2e-codex\n  harnessProfile: bench-fake-codex\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n"
+        },
+        {
+          "id": "agent-e2e-mux",
+          "kind": "Agent",
+          "name": "e2e-mux",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-mux\n  description: \"Mux JSONL parsing\"\nspec:\n  displayName: e2e-mux\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-mux-fake",
+          "kind": "Deployment",
+          "name": "e2e-mux-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-mux-fake\nspec:\n  agent: e2e-mux\n  harnessProfile: bench-fake-mux\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n"
+        },
+        {
+          "id": "agent-e2e-plain",
+          "kind": "Agent",
+          "name": "e2e-plain",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-plain\n  description: \"Plain text output\"\nspec:\n  displayName: e2e-plain\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-plain-fake",
+          "kind": "Deployment",
+          "name": "e2e-plain-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-plain-fake\nspec:\n  agent: e2e-plain\n  harnessProfile: bench-fake-plain\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n"
+        },
+        {
+          "id": "agent-e2e-stream",
+          "kind": "Agent",
+          "name": "e2e-stream",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-stream\n  description: \"Slow output for event streaming\"\nspec:\n  displayName: e2e-stream\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-stream-fake",
+          "kind": "Deployment",
+          "name": "e2e-stream-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-stream-fake\nspec:\n  agent: e2e-stream\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    delayMs: \"50\"\n"
+        },
+        {
+          "id": "agent-e2e-answer",
+          "kind": "Agent",
+          "name": "e2e-answer",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-answer\n  description: \"A fixed answer\"\nspec:\n  displayName: e2e-answer\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-answer-fake",
+          "kind": "Deployment",
+          "name": "e2e-answer-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-answer-fake\nspec:\n  agent: e2e-answer\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    answer: \"BENCH-FIXED-ANSWER\"\n"
+        },
+        {
+          "id": "agent-e2e-fail",
+          "kind": "Agent",
+          "name": "e2e-fail",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-fail\n  description: \"A harness that fails\"\nspec:\n  displayName: e2e-fail\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-fail-fake",
+          "kind": "Deployment",
+          "name": "e2e-fail-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-fail-fake\nspec:\n  agent: e2e-fail\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    fail: \"true\"\n"
+        },
+        {
+          "id": "agent-e2e-timeout",
+          "kind": "Agent",
+          "name": "e2e-timeout",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-timeout\n  description: \"A harness that overruns its deadline\"\nspec:\n  displayName: e2e-timeout\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-timeout-fake",
+          "kind": "Deployment",
+          "name": "e2e-timeout-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-timeout-fake\nspec:\n  agent: e2e-timeout\n  harnessProfile: builtin/fake\n  timeoutSeconds: 3\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    delayMs: \"1000\"\n"
+        },
+        {
+          "id": "agent-e2e-cancel",
+          "kind": "Agent",
+          "name": "e2e-cancel",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-cancel\n  description: \"A long run to cancel\"\nspec:\n  displayName: e2e-cancel\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-e2e-cancel-fake",
+          "kind": "Deployment",
+          "name": "e2e-cancel-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-cancel-fake\nspec:\n  agent: e2e-cancel\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    delayMs: \"2000\"\n"
+        },
+        {
+          "id": "agent-e2e-structured",
+          "kind": "Agent",
+          "name": "e2e-structured",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-structured\n  description: \"Structured output that validates\"\nspec:\n  displayName: e2e-structured\n  exposure: { a2a: false, mcpTool: false }\n  outputSchema:\n    type: object\n    properties:\n      answer: { type: string }\n    required: [answer]\n"
+        },
+        {
+          "id": "deployment-e2e-structured-fake",
+          "kind": "Deployment",
+          "name": "e2e-structured-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-structured-fake\nspec:\n  agent: e2e-structured\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    answer: \"{\\\"answer\\\":\\\"ok\\\"}\"\n    structuredOutput: \"true\"\n"
+        },
+        {
+          "id": "agent-e2e-repair",
+          "kind": "Agent",
+          "name": "e2e-repair",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-repair\n  description: \"Invalid output repaired on resume\"\nspec:\n  displayName: e2e-repair\n  exposure: { a2a: false, mcpTool: false }\n  outputSchema:\n    type: object\n    properties:\n      answer: { type: string }\n    required: [answer]\n"
+        },
+        {
+          "id": "deployment-e2e-repair-fake",
+          "kind": "Deployment",
+          "name": "e2e-repair-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-repair-fake\nspec:\n  agent: e2e-repair\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    answer: \"not json\"\n    resumeAnswer: \"{\\\"answer\\\":\\\"fixed\\\"}\"\n"
+        },
+        {
+          "id": "agent-e2e-invalid",
+          "kind": "Agent",
+          "name": "e2e-invalid",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: e2e-invalid\n  description: \"Invalid output that stays invalid\"\nspec:\n  displayName: e2e-invalid\n  exposure: { a2a: false, mcpTool: false }\n  outputSchema:\n    type: object\n    properties:\n      answer: { type: string }\n    required: [answer]\n"
+        },
+        {
+          "id": "deployment-e2e-invalid-fake",
+          "kind": "Deployment",
+          "name": "e2e-invalid-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: e2e-invalid-fake\nspec:\n  agent: e2e-invalid\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    answer: \"not json\"\n    resumeAnswer: \"still not json\"\n"
+        }
+      ],
+      "probes": [
+        {
+          "id": "echo-short",
+          "type": "short-input",
+          "category": "prompts",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-claude",
+          "input": "Hello, Garrison.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "minEvents": 3,
+            "eventTypes": [
+              "Thinking",
+              "AssistantText"
+            ],
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "echo-sentence",
+          "type": "short-input",
+          "category": "prompts",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-claude",
+          "input": "Summarize the deployment plan for the staging cluster in one sentence.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "minEvents": 3,
+            "eventTypes": [
+              "Thinking",
+              "AssistantText"
+            ],
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "echo-unicode",
+          "type": "unicode",
+          "category": "prompts",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-claude",
+          "input": "Grüße aus Zürich, こんにちは, and a check mark ✓ survive the round trip.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "minEvents": 3,
+            "eventTypes": [
+              "Thinking",
+              "AssistantText"
+            ],
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "echo-long",
+          "type": "truncation",
+          "category": "prompts",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-claude",
+          "input": "0123456789",
+          "mode": "invoke",
+          "inputRepeat": 50,
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "minEvents": 3,
+            "eventTypes": [
+              "Thinking",
+              "AssistantText"
+            ],
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "echo-large",
+          "type": "large-input",
+          "category": "prompts",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-claude",
+          "input": "The quick brown fox jumps over the lazy dog. ",
+          "mode": "invoke",
+          "inputRepeat": 1000,
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "minEvents": 3,
+            "eventTypes": [
+              "Thinking",
+              "AssistantText"
+            ],
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "echo-multiline",
+          "type": "multiline",
+          "category": "prompts",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-claude",
+          "input": "Line one.\nLine two.\n\tIndented line three.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "echo-json-chars",
+          "type": "escaping",
+          "category": "prompts",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-claude",
+          "input": "Quotes \" and backslashes \\ and {{braces}} and <tags> & ampersands.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "parse-codex",
+          "type": "codex-format",
+          "category": "parsing",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-codex",
+          "input": "Codex format output is parsed into a result.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "codex"
+          ]
+        },
+        {
+          "id": "parse-mux",
+          "type": "mux-format",
+          "category": "parsing",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-mux",
+          "input": "Mux format output is parsed into a result.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "mux"
+          ]
+        },
+        {
+          "id": "parse-plain",
+          "type": "plain-format",
+          "category": "parsing",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-plain",
+          "input": "Plain text output becomes the result.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true
+          },
+          "directArguments": [
+            "--format",
+            "plain"
+          ]
+        },
+        {
+          "id": "fixed-answer",
+          "type": "fixed-answer",
+          "category": "parsing",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-answer",
+          "input": "The harness answers with a fixed text.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultText": "BENCH-FIXED-ANSWER",
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude",
+            "--answer",
+            "BENCH-FIXED-ANSWER"
+          ]
+        },
+        {
+          "id": "structured-valid",
+          "type": "structured-output",
+          "category": "structured",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-structured",
+          "input": "Return the answer as JSON.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "outputSchemaValid": true,
+            "repairAttempts": 0
+          }
+        },
+        {
+          "id": "structured-repair",
+          "type": "structured-repair",
+          "category": "structured",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-repair",
+          "input": "Return the answer as JSON; the first attempt is wrong.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "outputSchemaValid": true,
+            "repairAttempts": 1
+          }
+        },
+        {
+          "id": "structured-invalid",
+          "type": "structured-invalid",
+          "category": "structured",
+          "negative": true,
+          "action": "run",
+          "agent": "e2e-invalid",
+          "input": "Return the answer as JSON; both attempts are wrong.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Failed",
+            "outcome": "SchemaValidationFailed",
+            "outputSchemaValid": false,
+            "repairAttempts": 1
+          }
+        },
+        {
+          "id": "harness-fails",
+          "type": "harness-failure",
+          "category": "failure",
+          "negative": true,
+          "action": "run",
+          "agent": "e2e-fail",
+          "input": "This harness reports failure.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Failed",
+            "outcome": "HarnessFailed"
+          },
+          "directArguments": [
+            "--format",
+            "claude",
+            "--fail"
+          ]
+        },
+        {
+          "id": "deadline",
+          "type": "deadline",
+          "category": "failure",
+          "negative": true,
+          "action": "run",
+          "agent": "e2e-timeout",
+          "input": "This harness overruns its three second deadline by a wide margin, so the worker must stop it.",
+          "mode": "invoke",
+          "timeoutSeconds": 60,
+          "expect": {
+            "status": "TimedOut",
+            "outcome": "TimedOut"
+          }
+        },
+        {
+          "id": "cancel-running",
+          "type": "cancel",
+          "category": "lifecycle",
+          "negative": false,
+          "action": "cancel",
+          "agent": "e2e-cancel",
+          "input": "A long run that is cancelled while it streams output to the worker.",
+          "timeoutSeconds": 60,
+          "expect": {
+            "status": "Cancelled",
+            "outcome": "Cancelled",
+            "maxCancelMs": 5000
+          }
+        },
+        {
+          "id": "idempotent-create",
+          "type": "idempotency",
+          "category": "lifecycle",
+          "negative": false,
+          "action": "idempotency",
+          "agent": "e2e-claude",
+          "input": "Created twice with one idempotency key.",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true
+          }
+        },
+        {
+          "id": "cross-tenant-read",
+          "type": "cross-tenant",
+          "category": "isolation",
+          "negative": true,
+          "action": "cross-tenant",
+          "agent": "e2e-claude",
+          "input": "A run another tenant must not see.",
+          "expect": {
+            "httpStatus": 404
+          }
+        },
+        {
+          "id": "unknown-agent",
+          "type": "unknown-agent",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "e2e-does-not-exist",
+          "input": "No such agent.",
+          "expect": {
+            "httpStatus": 404
+          }
+        },
+        {
+          "id": "stream-1",
+          "type": "event-stream",
+          "category": "streaming",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-stream",
+          "input": "Streaming probe one: output arrives in sixteen character chunks fifty milliseconds apart.",
+          "mode": "create",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "minEvents": 3,
+            "eventTypes": [
+              "Thinking",
+              "AssistantText"
+            ],
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude",
+            "--delay-ms",
+            "50"
+          ]
+        },
+        {
+          "id": "stream-2",
+          "type": "event-stream",
+          "category": "streaming",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-stream",
+          "input": "Streaming probe two: the event stream must deliver every chunk in order with no gaps.",
+          "mode": "create",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "minEvents": 3,
+            "eventTypes": [
+              "Thinking",
+              "AssistantText"
+            ],
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude",
+            "--delay-ms",
+            "50"
+          ]
+        },
+        {
+          "id": "wait-create",
+          "type": "create-wait",
+          "category": "lifecycle",
+          "negative": false,
+          "action": "run",
+          "agent": "e2e-claude",
+          "input": "Created with wait=true instead of invoke.",
+          "mode": "wait",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "load",
+      "command": "load",
+      "description": "Workload agents of the load and resilience commands: load-echo (alpha lane, 3 attempts, retry on node loss, delayMs overridable per run from 0 to 5000), fail-echo, and slow-echo.",
+      "items": [
+        {
+          "id": "template-bench-task",
+          "kind": "PromptTemplate",
+          "name": "bench-task",
+          "manifest": "apiVersion: garrison/v1\nkind: PromptTemplate\nmetadata:\n  name: bench-task\n  description: The caller's message and nothing else, so the fake harness echo is predictable\nspec:\n  kind: Task\n  content: \"{{input.message}}\"\n"
+        },
+        {
+          "id": "agent-load-echo",
+          "kind": "Agent",
+          "name": "load-echo",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: load-echo\n  description: \"Load and resilience workload agent\"\nspec:\n  displayName: load-echo\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-load-echo-fake",
+          "kind": "Deployment",
+          "name": "load-echo-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: load-echo-fake\nspec:\n  agent: load-echo\n  harnessProfile: builtin/fake\n  timeoutSeconds: 300\n  maxAttempts: 3\n  retryOnNodeLoss: true\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    delayMs: \"0\"\n  nodeSelector:\n    bench.garrison.io/lane: alpha\n  allowedRunOverrides:\n    - name: delayMs\n      validation: IntegerRange\n      pattern: \"0,5000\"\n"
+        },
+        {
+          "id": "agent-fail-echo",
+          "kind": "Agent",
+          "name": "fail-echo",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: fail-echo\n  description: \"Always fails\"\nspec:\n  displayName: fail-echo\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-fail-echo-fake",
+          "kind": "Deployment",
+          "name": "fail-echo-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: fail-echo-fake\nspec:\n  agent: fail-echo\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    fail: \"true\"\n  nodeSelector:\n    bench.garrison.io/lane: alpha\n"
+        },
+        {
+          "id": "agent-slow-echo",
+          "kind": "Agent",
+          "name": "slow-echo",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: slow-echo\n  description: \"Overruns a 3 second deadline\"\nspec:\n  displayName: slow-echo\n  exposure: { a2a: false, mcpTool: false }\n"
+        },
+        {
+          "id": "deployment-slow-echo-fake",
+          "kind": "Deployment",
+          "name": "slow-echo-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: slow-echo-fake\nspec:\n  agent: slow-echo\n  harnessProfile: builtin/fake\n  timeoutSeconds: 3\n  prompts:\n    Task: bench-task\n  parameters:\n    format: \"claude\"\n    delayMs: \"1000\"\n  nodeSelector:\n    bench.garrison.io/lane: alpha\n"
+        }
+      ],
+      "probes": []
+    }
+  ],
+  "ingestScale": {
+    "corpusId": "fleet",
+    "agents": 200,
+    "templates": 40,
+    "zipfExponent": 1.1,
+    "seed": 20261011,
+    "words": [
+      "amber",
+      "basalt",
+      "cedar",
+      "delta",
+      "ember",
+      "fjord",
+      "granite",
+      "harbor",
+      "indigo",
+      "juniper",
+      "kestrel",
+      "lumen",
+      "meridian",
+      "nimbus",
+      "onyx",
+      "prairie",
+      "quartz",
+      "raven",
+      "sierra",
+      "tundra",
+      "umber",
+      "vesper",
+      "willow",
+      "xenon",
+      "yarrow",
+      "zephyr",
+      "atlas",
+      "beacon",
+      "cobalt",
+      "drift"
+    ],
+    "lanes": [
+      "alpha",
+      "beta"
+    ],
+    "probes": [
+      {
+        "id": "reachable-all",
+        "type": "reachability",
+        "category": "load-path",
+        "negative": false,
+        "action": "reachable",
+        "expect": {}
+      },
+      {
+        "id": "dry-run-existing",
+        "type": "idempotent-dry-run",
+        "category": "load-path",
+        "negative": false,
+        "action": "apply",
+        "manifest": "apiVersion: garrison/v1\nkind: PromptTemplate\nmetadata:\n  name: fleet-task-000\n  description: Probe copy\nspec:\n  kind: Task\n  content: \"changed {{input.message}}\"\n",
+        "dryRun": true,
+        "expect": {
+          "httpStatus": 200,
+          "manifestFailed": 0
+        }
+      },
+      {
+        "id": "dry-run-new",
+        "type": "new-document",
+        "category": "load-path",
+        "negative": false,
+        "action": "apply",
+        "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: fleet-probe-new-agent\nspec:\n  displayName: Probe\n",
+        "dryRun": true,
+        "expect": {
+          "httpStatus": 200,
+          "manifestCreated": 1,
+          "manifestFailed": 0
+        }
+      },
+      {
+        "id": "unknown-kind",
+        "type": "unknown-kind",
+        "category": "validation",
+        "negative": true,
+        "action": "apply",
+        "dryRun": true,
+        "manifest": "apiVersion: garrison/v1\nkind: Gadget\nmetadata:\n  name: fleet-gadget\nspec: {}\n",
+        "expect": {
+          "httpStatus": 400,
+          "manifestFailed": 1,
+          "manifestMessageContains": "Gadget"
+        }
+      },
+      {
+        "id": "missing-reference",
+        "type": "missing-reference",
+        "category": "validation",
+        "negative": true,
+        "action": "apply",
+        "dryRun": true,
+        "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: fleet-orphan\nspec:\n  agent: fleet-agent-missing\n  harnessProfile: builtin/fake\n",
+        "expect": {
+          "httpStatus": 400,
+          "manifestFailed": 1,
+          "manifestMessageContains": "fleet-agent-missing"
+        }
+      },
+      {
+        "id": "bad-api-version",
+        "type": "bad-api-version",
+        "category": "validation",
+        "negative": true,
+        "action": "apply",
+        "dryRun": true,
+        "manifest": "apiVersion: garrison/v2\nkind: Agent\nmetadata:\n  name: fleet-v2\nspec: {}\n",
+        "expect": {
+          "httpStatus": 400,
+          "manifestFailed": 1
+        }
+      },
+      {
+        "id": "secret-value",
+        "type": "secret-value",
+        "category": "validation",
+        "negative": true,
+        "action": "apply",
+        "dryRun": true,
+        "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: fleet-secret\nspec:\n  kind: AnthropicApiKey\n  value: not-a-real-key\n",
+        "expect": {
+          "httpStatus": 400,
+          "manifestFailed": 1,
+          "manifestMessageContains": "value"
+        }
+      },
+      {
+        "id": "reserved-name",
+        "type": "reserved-name",
+        "category": "validation",
+        "negative": true,
+        "action": "apply",
+        "dryRun": true,
+        "manifest": "apiVersion: garrison/v1\nkind: PromptTemplate\nmetadata:\n  name: builtin/fleet-reserved\nspec:\n  kind: Task\n  content: hi\n",
+        "expect": {
+          "httpStatus": 400,
+          "manifestFailed": 1,
+          "manifestMessageContains": "builtin/"
+        }
+      },
+      {
+        "id": "bad-template-syntax",
+        "type": "template-syntax",
+        "category": "validation",
+        "negative": true,
+        "action": "apply",
+        "dryRun": true,
+        "manifest": "apiVersion: garrison/v1\nkind: PromptTemplate\nmetadata:\n  name: fleet-broken-template\nspec:\n  kind: Task\n  content: \"{{#if input.message}} never closed\"\n",
+        "expect": {
+          "httpStatus": 400,
+          "manifestFailed": 1
+        }
+      }
+    ]
+  }
+}

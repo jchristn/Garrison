@@ -1,7 +1,7 @@
 // P13.12 to P13.15: observability cards and Grafana deep-link builders.
 
 import { describe, it, expect } from 'vitest';
-import { grafanaConfig, exploreUrl, traceUrl, logsUrl, runLogQuery, runTimeRange, dashboardUrl, nodeDashboardUrl, DEFAULT_DASHBOARDS, DEFAULT_DATASOURCES, RUN_RANGE_MARGIN_MS } from '../utils/grafana';
+import { grafanaConfig, exploreUrl, traceUrl, logsUrl, runLogQuery, runTimeRange, dashboardUrl, nodeDashboardUrl, agentDashboardUrl, sectionDashboardLinks, DASHBOARD_SECTIONS, DEFAULT_DASHBOARDS, DEFAULT_DATASOURCES, RUN_RANGE_MARGIN_MS } from '../utils/grafana';
 import { observabilityCards, reachabilityState } from '../utils/observability';
 
 const INFO = {
@@ -132,5 +132,35 @@ describe('observability cards', () => {
   });
   it('shows nothing when no service is configured', () => {
     expect(observabilityCards({ observability: { grafanaUrl: null, prometheusUrl: null, lokiUrl: null, tempoUrl: null } }, status)).toEqual([]);
+  });
+});
+
+describe('section dashboards (P13.27)', () => {
+  it('covers all fourteen Garrison sections with garrison- UIDs', () => {
+    expect(DASHBOARD_SECTIONS).toHaveLength(14);
+    for (const key of DASHBOARD_SECTIONS) expect(DEFAULT_DASHBOARDS[key]).toMatch(/^garrison-[a-z-]+$/);
+    expect(DEFAULT_DASHBOARDS.controlPlane).toBe('garrison-control-plane');
+    expect(new Set(Object.values(DEFAULT_DASHBOARDS)).size).toBe(14);
+  });
+  it('lists one link per section in display order', () => {
+    const links = sectionDashboardLinks(INFO);
+    expect(links.map((l) => l.key)).toEqual([...DASHBOARD_SECTIONS]);
+    expect(links[0]).toEqual({ key: 'overview', uid: 'garrison-overview', url: 'http://127.0.0.1:3000/d/garrison-overview?orgId=1' });
+    expect(links.find((l) => l.key === 'agents').url).toBe('http://127.0.0.1:3000/d/garrison-agents?orgId=1');
+  });
+  it('is empty without Grafana or without reported dashboards, and skips blank UIDs', () => {
+    expect(sectionDashboardLinks(null)).toEqual([]);
+    expect(sectionDashboardLinks({ observability: { grafanaUrl: null, dashboards: null } })).toEqual([]);
+    expect(sectionDashboardLinks({ observability: { grafanaUrl: 'https://g.example.com', dashboards: null } })).toEqual([]);
+    const links = sectionDashboardLinks({ observability: { ...INFO.observability, dashboards: { ...DEFAULT_DASHBOARDS, logs: '', security: 'my-security' } } });
+    expect(links.map((l) => l.key)).not.toContain('logs');
+    expect(links.find((l) => l.key === 'security').url).toBe('http://127.0.0.1:3000/d/my-security?orgId=1');
+  });
+  it('filters the Agents dashboard to an agent and tenant', () => {
+    const c = grafanaConfig(INFO);
+    expect(agentDashboardUrl(c, 'echo', 'default')).toBe('http://127.0.0.1:3000/d/garrison-agents?orgId=1&var-tenant=default&var-agent=echo');
+    expect(agentDashboardUrl(c, 'echo')).toBe('http://127.0.0.1:3000/d/garrison-agents?orgId=1&var-agent=echo');
+    expect(agentDashboardUrl(c, '')).toBeNull();
+    expect(agentDashboardUrl(null, 'echo')).toBeNull();
   });
 });

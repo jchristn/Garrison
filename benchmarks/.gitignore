@@ -1,0 +1,7 @@
+# Benchmark scratch: server working directory, builds, logs, kubeconfig.
+.run/
+# Downloaded public datasets and caches (never committed; check licenses upstream).
+data/
+# Per-run reports. Curated numbers go in RESULTS.md; CI baselines live in baselines/.
+results/*
+!results/.gitkeep

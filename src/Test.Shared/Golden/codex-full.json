@@ -4,6 +4,7 @@
     "tenantId": "ten_golden",
     "agentName": "helper-codex-full",
     "deploymentId": "dep_codex_full",
+    "deploymentName": "helper-codex-full-default",
     "harnessType": "Codex",
     "executable": "codex",
     "arguments": [

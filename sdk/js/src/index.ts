@@ -185,6 +185,33 @@ export type RunOutcome = typeof RUN_OUTCOMES[number];
 /** Why a queued run cannot be handed to any worker right now. */
 export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool";
 
+/**
+ * Health of a stored credential (Secret.status). NeedsReauthentication means the provider rejected a CodexAuthJson
+ * login for good (refresh token reused, expired, or revoked): runs that bind it fail with outcome NotCredentialed and an
+ * errorMessage starting "SecretNeedsReauthentication:" until the secret's value is replaced with a fresh login.
+ */
+export const SECRET_STATUSES = ["Ok", "NeedsReauthentication"] as const;
+
+/** One of {@link SECRET_STATUSES}. */
+export type SecretStatus = typeof SECRET_STATUSES[number];
+
+/** Secret metadata. The value is write-only and never returned. */
+export interface Secret extends Json {
+  id: string; tenantId: string; name: string; description?: string; kind: string; valueLast4?: string;
+  fingerprint?: string; keyVersion: number; expiresUtc?: string; rotatedUtc?: string; active: boolean; isProtected: boolean;
+  /** Ok, or NeedsReauthentication when the stored login must be replaced. */
+  status: SecretStatus;
+  /** Why the secret is in its current status (the provider error), or absent when Ok. */
+  statusMessage?: string;
+  /** When the status left Ok, or absent. */
+  statusUtc?: string;
+  /** When the control plane last refreshed this Codex login itself, or absent. */
+  refreshedUtc?: string;
+  /** Expiry of the stored ChatGPT access token (CodexAuthJson only), or absent. */
+  accessTokenExpiresUtc?: string;
+  createdUtc: string; lastUpdateUtc: string;
+}
+
 export interface RunEvent extends Json {
   id: string; runId: string; sequence: number; eventType: string; timestampUtc: string; text?: string;
   toolName?: string; toolCallId?: string; success?: boolean; inputTokens?: number; outputTokens?: number;

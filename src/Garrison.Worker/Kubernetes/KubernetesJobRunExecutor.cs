@@ -2,6 +2,7 @@ namespace Garrison.Worker.Kubernetes
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -13,6 +14,7 @@ namespace Garrison.Worker.Kubernetes
     using Garrison.Core.Enums;
     using Garrison.Core.Protocol;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Telemetry;
     using Garrison.Harnesses.Execution;
     using Garrison.Worker.Execution;
     using k8s;
@@ -92,6 +94,57 @@ namespace Garrison.Worker.Kubernetes
         {
             if (assignment == null) throw new ArgumentNullException(nameof(assignment));
             if (reporter == null) throw new ArgumentNullException(nameof(reporter));
+            using (Activity? span = GarrisonTracing.Start("run:k8s_job", ActivityKind.Internal, true))
+            {
+                RunCompleteRequest complete = await ExecuteCoreAsync(assignment, reporter, token).ConfigureAwait(false);
+                span?.SetTag("garrison.outcome", complete.Outcome.ToString());
+                if (complete.Outcome == RunOutcomeEnum.PodFailed)
+                {
+                    string reason = PodFailureReason(complete.ErrorMessage);
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.K8sPodFailures, "reason", reason);
+                    span?.SetTag("garrison.pod_failure", reason);
+                    GarrisonTracing.Fail(span, complete.ErrorMessage ?? "PodFailed");
+                }
+                else if (complete.Status == RunStatusEnum.Succeeded)
+                {
+                    GarrisonTracing.Ok(span);
+                }
+                return complete;
+            }
+        }
+
+        /// <summary>
+        /// The reason label for a PodFailed error message: Unschedulable, ImagePull, OOMKilled, Evicted, PendingTimeout,
+        /// SpecSecret, NoCompletion, ApiError, or Other.
+        /// </summary>
+        /// <param name="message">Error message, or null.</param>
+        /// <returns>Reason label.</returns>
+        public static string PodFailureReason(string? message)
+        {
+            if (String.IsNullOrEmpty(message)) return "Other";
+            if (message.Contains("OOMKilled", StringComparison.OrdinalIgnoreCase) || message.Contains("out of memory", StringComparison.OrdinalIgnoreCase)) return "OOMKilled";
+            if (message.Contains("ImagePull", StringComparison.OrdinalIgnoreCase) || message.Contains("ErrImage", StringComparison.OrdinalIgnoreCase) || message.Contains("image", StringComparison.OrdinalIgnoreCase)) return "ImagePull";
+            if (message.Contains("Unschedulable", StringComparison.OrdinalIgnoreCase) || message.Contains("could not be scheduled", StringComparison.OrdinalIgnoreCase)) return "Unschedulable";
+            if (message.Contains("Evicted", StringComparison.OrdinalIgnoreCase)) return "Evicted";
+            if (message.Contains("stayed Pending", StringComparison.OrdinalIgnoreCase)) return "PendingTimeout";
+            if (message.Contains("run spec Secret", StringComparison.OrdinalIgnoreCase)) return "SpecSecret";
+            if (message.Contains("without reporting", StringComparison.OrdinalIgnoreCase) || message.Contains("was not created", StringComparison.OrdinalIgnoreCase)) return "NoCompletion";
+            if (message.Contains("Run pod failed:", StringComparison.Ordinal)) return "ApiError";
+            return "Other";
+        }
+
+        /// <inheritdoc />
+        public void Release(RunAssignment assignment, bool succeeded)
+        {
+            // Run pods keep nothing on the worker; their emptyDir volumes go with the pod.
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private async Task<RunCompleteRequest> ExecuteCoreAsync(RunAssignment assignment, IRunReporter reporter, CancellationToken token)
+        {
             ExecutionSpec spec = assignment.Spec ?? new ExecutionSpec();
             IKubernetes? client = _Runtime.Client;
             if (client == null || !_Runtime.Available) return Fail(RunOutcomeEnum.NoCapableWorker, "This worker cannot run KubernetesJob runs right now: " + _Runtime.Detail + ".");
@@ -114,8 +167,19 @@ namespace Garrison.Worker.Kubernetes
                 try
                 {
                     V1Job job = _Builder.BuildJob(request);
-                    V1Job createdJob = await client.BatchV1.CreateNamespacedJobAsync(job, ns, cancellationToken: linked.Token).ConfigureAwait(false);
+                    long createStart = Stopwatch.GetTimestamp();
+                    V1Job createdJob;
+                    try
+                    {
+                        createdJob = await client.BatchV1.CreateNamespacedJobAsync(job, ns, cancellationToken: linked.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception e) when (e is HttpOperationException || e is HttpRequestException)
+                    {
+                        GarrisonMetrics.Count(GarrisonMetricCatalog.K8sJobs, "result", "create_failed");
+                        throw;
+                    }
                     created = true;
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.K8sJobs, "result", "created");
                     try
                     {
                         await client.CoreV1.CreateNamespacedSecretAsync(_Builder.BuildSecret(request, createdJob), ns, cancellationToken: linked.Token).ConfigureAwait(false);
@@ -141,6 +205,7 @@ namespace Garrison.Worker.Kubernetes
                         await DeleteAsync(jobName).ConfigureAwait(false);
                         return Fail(RunOutcomeEnum.PodFailed, scrubber.Scrub("Run pod stayed Pending for more than " + _Runtime.Settings.PendingTimeoutSeconds + " s (" + start.Message + ")."));
                     }
+                    GarrisonMetrics.Observe(GarrisonMetricCatalog.K8sPodStart, GarrisonMetrics.SecondsSince(createStart));
                     Lifecycle(reporter, "RunPodStarted", "Run pod " + pod.Metadata.Name + " started" + (String.IsNullOrEmpty(pod.Spec?.NodeName) ? String.Empty : " on node " + pod.Spec.NodeName) + ".");
 
                     PodLineParser parser = new PodLineParser(nonce, _Runtime.Settings.MaxLineBytes);
@@ -199,16 +264,6 @@ namespace Garrison.Worker.Kubernetes
                 }
             }
         }
-
-        /// <inheritdoc />
-        public void Release(RunAssignment assignment, bool succeeded)
-        {
-            // Run pods keep nothing on the worker; their emptyDir volumes go with the pod.
-        }
-
-        #endregion
-
-        #region Private-Methods
 
         private RunPodRequest BuildRequest(RunAssignment assignment, string nonce, string ns)
         {
@@ -382,6 +437,7 @@ namespace Garrison.Worker.Kubernetes
                 try
                 {
                     await _Runtime.DeleteJobAsync(jobName, timeout.Token).ConfigureAwait(false);
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.K8sJobs, "result", "deleted");
                 }
                 catch (Exception e) when (e is OperationCanceledException || e is HttpRequestException || e is IOException)
                 {

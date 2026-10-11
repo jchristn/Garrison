@@ -243,6 +243,7 @@ const zhHant = {
     harnessType: { ClaudeCode: 'Claude Code', Codex: 'Codex', Mux: 'Mux', GeminiCli: 'Gemini CLI', Generic: '通用' },
     agentKind: { Hosted: '託管', Remote: '遠端' },
     delegationMode: { None: '不委派', AllowList: '允許清單', Any: '任何代理程式' },
+    secretStatus: { Ok: '正常', NeedsReauthentication: '需要重新驗證' },
     secretKind: {
       AnthropicApiKey: 'Anthropic API 金鑰',
       ClaudeCodeOAuthToken: 'Claude Code OAuth 權杖',
@@ -657,8 +658,10 @@ const zhHant = {
       errors: { expiryPast: '請選擇未來的到期時間，或留白讓祕密永不過期。' },
       ...rp('祕密', '供 Harness 與整合服務使用的加密憑證。值為唯寫。', '新增祕密', '建立祕密', '編輯祕密', '祕密詳細資料', '刪除祕密', '尚無祕密', '新增代理程式所需的 API 金鑰或權杖，例如 Anthropic API 金鑰。'),
       notSet: '未設定',
-      columns: { name: '名稱', kind: '種類', valueLast4: '值', rotatedUtc: '上次變更', expiresUtc: '到期', active: '啟用', id: 'ID' },
-      fields: { name: '名稱', kind: '種類', description: '描述', value: '值', newValue: '新值', expiresUtc: '到期', active: '啟用' },
+      neverRefreshed: '尚未更新',
+      reauth: { title: '此登入需要重新驗證', since: '自 {{time}} 起', action: '使用此祕密的執行會一直失敗，直到你取代它的值。請使用獨立的 CODEX_HOME 執行 codex login 重新登入，再以「設定值」儲存新的 auth.json，或將部署改用 OpenAI API 金鑰祕密。不要在另一台電腦上繼續使用同一個登入：兩份副本共用同一個更新權杖。' },
+      columns: { status: '狀態', accessTokenExpiresUtc: '存取權杖到期時間', name: '名稱', kind: '種類', valueLast4: '值', rotatedUtc: '上次變更', expiresUtc: '到期', active: '啟用', id: 'ID' },
+      fields: { refreshedUtc: 'Garrison 上次更新', accessTokenExpiresUtc: '存取權杖到期時間', name: '名稱', kind: '種類', description: '描述', value: '值', newValue: '新值', expiresUtc: '到期', active: '啟用' },
       hints: { expiresUtc: '必須是未來的時間。留白表示祕密永不過期。', kind: '在共用伺服器上使用訂閱權杖可能違反供應商的條款。共用部署請優先使用 API 金鑰。' },
       actions: { setValue: '設定值', rotate: '輪替' }
     },
@@ -894,6 +897,8 @@ const zhHant = {
       observabilityVersion: '版本 {{version}}',
       observabilityOpen: '開啟 {{service}}',
       kpisGrafana: '在 Grafana 中開啟總覽',
+      grafanaDashboards: 'Grafana 儀表板',
+      grafanaSections: { overview: '概覽', http: 'HTTP API', runs: '執行', agents: '代理程式', models: '模型與權杖', workers: '工作節點', kubernetes: 'Kubernetes 執行器', protocols: '協定', scheduler: '排程器與佇列', database: '資料庫', controlPlane: '控制平面', security: '安全與驗證', integrations: '整合', logs: '記錄與追蹤' },
       observabilitySetup: '設定可觀測性',
       observabilityNone: '此環境未設定任何可觀測性服務（Grafana、Prometheus、Tempo 或 Loki）。',
       observability: '可觀測性',
@@ -1098,6 +1103,7 @@ const zhHant = {
     },
     agentDetail: {
       invoke: '呼叫',
+      grafana: '在 Grafana 中開啟',
       noActiveDeployment: '此代理程式沒有啟用中的部署，因此呼叫將遭到拒絕。',
       deployments_one: '部署（{{count}}）',
       deployments_other: '部署（{{count}}）',
@@ -1263,7 +1269,7 @@ const zhHant = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。請在你的清單中變更。',
         other: '此設定無法在這裡編輯。'
       },
-      groups: { Archive: '封存', General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '記錄', Auth: '驗證', Security: '安全性', RequestHistory: '請求歷程', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '稽核', Runtime: '執行階段', Observability: '可觀測性' },
+      groups: { Codex: 'Codex', Archive: '封存', General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '記錄', Auth: '驗證', Security: '安全性', RequestHistory: '請求歷程', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '稽核', Runtime: '執行階段', Observability: '可觀測性' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana URL',
@@ -1366,6 +1372,13 @@ const zhHant = {
           RetentionDays: '執行保留天數',
           MaxDelegationDepth: '最大委派深度',
           DefaultTimeoutSeconds: '預設執行逾時（秒）'
+        },
+        Codex: {
+          RefreshBeforeExpirySeconds: '在到期前更新 Codex 登入（秒）',
+          RefreshCheckIntervalSeconds: '背景檢查間隔（秒）',
+          RefreshTimeoutSeconds: '登入更新逾時（秒）',
+          TokenEndpoint: 'OAuth 權杖端點',
+          ClientId: 'OAuth 用戶端 ID'
         },
         Runtime: {
           FailBlockedAfterSeconds: '受阻執行在幾秒後失敗',

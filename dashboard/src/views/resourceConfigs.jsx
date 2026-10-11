@@ -524,6 +524,40 @@ export const mcpServersConfig = {
   ]
 };
 
+/**
+ * Credential state of a secret in its view and edit forms (G-22): a warning when the stored login needs
+ * reauthentication, and for Codex logins when Garrison last refreshed it and when its access token expires.
+ */
+function secretCredentialNotice(r, t, i18n) {
+  if (!r) return null;
+  const parts = [];
+  if (r.status === 'NeedsReauthentication') {
+    parts.push(
+      <div key="reauth" className="warning-banner" role="alert" data-testid="secret-reauth-warning" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+        <strong {...tip(enumTip(t, 'secretStatus', 'NeedsReauthentication'))}>{t('resources.secrets.reauth.title')}</strong>
+        {r.statusMessage && <span {...tip(resourceTip(t, 'secrets', 'statusMessage'))}>{r.statusMessage}</span>}
+        {r.statusUtc && <span className="text-muted" {...tip(resourceTip(t, 'secrets', 'statusUtc'))}>{t('resources.secrets.reauth.since', { time: formatDateTime(r.statusUtc, i18n.language) })}</span>}
+        <span>{t('resources.secrets.reauth.action')}</span>
+      </div>
+    );
+  }
+  if (r.kind === 'CodexAuthJson' && (r.refreshedUtc || r.accessTokenExpiresUtc)) {
+    parts.push(
+      <div key="codex" className="info-banner" data-testid="secret-codex-login">
+        <span {...tip(resourceTip(t, 'secrets', 'refreshedUtc'))}>
+          {t('resources.secrets.fields.refreshedUtc')}: {r.refreshedUtc ? formatDateTime(r.refreshedUtc, i18n.language) : t('resources.secrets.neverRefreshed')}
+        </span>
+        {r.accessTokenExpiresUtc && (
+          <span {...tip(resourceTip(t, 'secrets', 'accessTokenExpiresUtc'))}>
+            {t('resources.secrets.fields.accessTokenExpiresUtc')}: {formatDateTime(r.accessTokenExpiresUtc, i18n.language)}
+          </span>
+        )}
+      </div>
+    );
+  }
+  return parts.length ? <>{parts}</> : null;
+}
+
 export const secretsConfig = {
   id: 'secrets',
   explainer: 'secrets',
@@ -534,9 +568,11 @@ export const secretsConfig = {
   columns: ({ t, i18n }) => [
     nameCol('secrets', t),
     col('secrets', t, 'kind', (r) => enumBadge(t, 'secretKind', r.kind, 'info')),
+    col('secrets', t, 'status', (r) => enumBadge(t, 'secretStatus', r.status || 'Ok', r.status === 'NeedsReauthentication' ? 'danger' : 'success')),
     col('secrets', t, 'valueLast4', (r) => (r.valueLast4 ? <code>****{r.valueLast4}</code> : <span className="text-muted">{t('resources.secrets.notSet')}</span>)),
     col('secrets', t, 'rotatedUtc', (r) => (r.rotatedUtc ? formatRelativeTime(r.rotatedUtc, i18n.language) : '-')),
     col('secrets', t, 'expiresUtc', (r) => (r.expiresUtc ? formatDateTime(r.expiresUtc, i18n.language) : t('common.generic.never'))),
+    col('secrets', t, 'accessTokenExpiresUtc', (r) => (r.accessTokenExpiresUtc ? formatDateTime(r.accessTokenExpiresUtc, i18n.language) : '-'), { defaultHidden: true }),
     activeCol('secrets', t),
     idCol('secrets', t)
   ],
@@ -562,6 +598,7 @@ export const secretsConfig = {
     return body;
   },
   canDuplicate: false,
+  formNotice: (r, { t, i18n }) => secretCredentialNotice(r, t, i18n),
   rowActions: (r, ctx) => [
     {
       label: ctx.t('resources.secrets.actions.setValue'),

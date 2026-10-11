@@ -55,10 +55,19 @@ The manifest in the next step refers to two secrets by name, `claude-credential`
 jq -n --arg v "$CLAUDE_CODE_OAUTH_TOKEN" '{name:"claude-credential",kind:"ClaudeCodeOAuthToken",value:$v}' |
   curl -s -X POST $API/secrets -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary @- | jq -r .id
 
-# Codex: the auth.json from `codex login`, or use kind OpenAiApiKey with $OPENAI_API_KEY
-jq -n --rawfile v ~/.codex/auth.json '{name:"codex-credential",kind:"CodexAuthJson",value:$v}' |
+# Codex, simplest: an API key
+jq -n --arg v "$OPENAI_API_KEY" '{name:"codex-credential",kind:"OpenAiApiKey",value:$v}' |
   curl -s -X POST $API/secrets -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary @- | jq -r .id
+
+# Codex with a ChatGPT login instead: sign in once into a throwaway CODEX_HOME, store that auth.json, delete the copy
+CODEX_LOGIN_HOME=$(mktemp -d)
+CODEX_HOME=$CODEX_LOGIN_HOME codex login
+jq -n --rawfile v $CODEX_LOGIN_HOME/auth.json '{name:"codex-credential",kind:"CodexAuthJson",value:$v}' |
+  curl -s -X POST $API/secrets -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary @- | jq -r .id
+rm -rf $CODEX_LOGIN_HOME
 ```
+
+For Codex, an `OpenAiApiKey` secret is the simplest choice, and the right one for a deployment that several people share. A ChatGPT login (`CodexAuthJson`) works too: Garrison refreshes it on the control plane before it expires and stores the rotated tokens, so it keeps working without you. Do not store the `~/.codex/auth.json` you use on your own machine, and do not keep using a login after you give it to Garrison. OpenAI replaces the refresh token every time a login is refreshed, so two copies of one login invalidate each other: whichever refreshes second gets `refresh_token_reused`, and either your local Codex or every Codex run in Garrison stops working. That is why the commands above sign in with a separate `CODEX_HOME`. If it happens anyway, the secret shows **Needs reauthentication** in the Secrets list, its runs fail with outcome `NotCredentialed`, and the fix is to sign in again the same way and set the new file as the secret's value.
 
 If you use an API key instead of a subscription, change the matching `kind` in `examples/multi-agent.yaml` too. To replace a value later, use the secret's **Set value** action in the dashboard, or `PUT $API/secrets/<id>/value` with `{"value":"..."}`.
 

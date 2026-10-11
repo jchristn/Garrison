@@ -5,6 +5,7 @@ namespace Garrison.Core.Templates
     using System.Collections.Generic;
     using System.Globalization;
     using System.Text;
+    using Garrison.Core.Codex;
 
     /// <summary>
     /// Renders templates against a <see cref="TemplateContext"/>. Missing values render as empty text; use the
@@ -164,6 +165,8 @@ namespace Garrison.Core.Templates
                     int length = IntArgument(filter, 200, name, node);
                     string text = TemplateValues.ToText(value);
                     return text.Length <= length ? text : text.Substring(0, Math.Max(0, length));
+                case "codexrunauth":
+                    return CodexAuthDocument.ForRun(TemplateValues.ToText(value));
                 case "join":
                     string separator = filter.Argument ?? ", ";
                     List<string> parts = new List<string>();

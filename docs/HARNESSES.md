@@ -63,6 +63,22 @@ codex exec --json --skip-git-repo-check --ignore-user-config
 
 `--ignore-user-config` and `project_doc_max_bytes=0` stop Codex from reading the worker's own configuration or an `AGENTS.md` in the workspace. MCP bearer tokens are never written into arguments: each header is passed by environment variable name (`env_http_headers`), and the worker sets those variables. Credentials come from a secret of kind `OpenAiApiKey` (as both `CODEX_API_KEY` and `OPENAI_API_KEY`) or `CodexAuthJson`, which is written to `$HOME/.codex/auth.json` with mode 600. Deployment parameters: `sandbox` and `openaiBaseUrl`.
 
+#### ChatGPT logins (`CodexAuthJson`)
+
+A `CodexAuthJson` secret holds the whole `auth.json` that `codex login` writes: an access token that expires after a while, a refresh token, an ID token, and `last_refresh`. OpenAI rotates the refresh token on every refresh, and a refresh token works once. If each run refreshed its own copy, the rotated token would be thrown away with the run and the next refresh would fail with `refresh_token_reused` (G-22). So the control plane owns the refresh:
+
+- Before a run that binds the secret is compiled, the control plane reads the access token's `exp` claim. When it expires within `Codex.RefreshBeforeExpirySeconds` (default one day, or half the token's lifetime for short-lived tokens), the control plane refreshes the login itself, exactly as the Codex CLI does: `POST https://auth.openai.com/oauth/token` with the JSON body `{"client_id": "app_EMoamEEZ73f0CkXaXp7hrann", "grant_type": "refresh_token", "refresh_token": "..."}`. The endpoint and client are the settings `Codex.TokenEndpoint` and `Codex.ClientId` (`docs/CONFIGURATION.md`).
+- The refreshed tokens and a new `last_refresh` are written back to the secret, encrypted like any secret value. Every other field in the file is kept as it was.
+- Only one refresh of a secret runs at a time across all control-plane replicas, under a database lease named `codex-refresh:<secretId>`. A run on another replica waits for it and reads the refreshed secret back. The write-back only succeeds if the stored value is still the one that was refreshed, so it never overwrites a value an operator replaced meanwhile.
+- The leader also checks every active `CodexAuthJson` secret every `Codex.RefreshCheckIntervalSeconds` (default 900) and refreshes the ones near expiry, so a login no run has used for a while does not lapse.
+- The run gets a copy without the refresh token (the `codexRunAuth` template filter in the built-in profile), and `CODEX_REFRESH_TOKEN_URL_OVERRIDE` points at a closed loopback port. The access token it receives is fresh, so Codex has no reason to refresh; if it tries anyway, it cannot consume or leak the stored refresh token. Nothing a run does is written back.
+- If OpenAI rejects the refresh for good (`refresh_token_reused`, `refresh_token_expired`, `refresh_token_invalidated`, `invalid_grant`, or HTTP 401), the secret's `status` becomes `NeedsReauthentication` with the reason in `statusMessage`, and every run that binds it fails at once with outcome `NotCredentialed` and a message that names the secret and the fix. Setting a new value returns the secret to `Ok`.
+- A failure worth retrying (network error, timeout, 5xx) leaves the secret alone. A run still starts if its access token is valid for at least five more minutes; otherwise it fails with outcome `NotCredentialed` and code `SecretRefreshFailed`, and the next run tries again.
+
+The Secrets list shows each login's status, when Garrison last refreshed it (`refreshedUtc`), and when its access token expires (`accessTokenExpiresUtc`).
+
+Do not keep using a login on another machine after you store it in Garrison, and do not store the `auth.json` you use yourself: both copies share one refresh token, so whichever refreshes second breaks. Sign in with a separate `CODEX_HOME` (`CODEX_HOME=$(mktemp -d) codex login`) and store that file. For deployments that several people share, an `OpenAiApiKey` secret is simpler and has none of these constraints.
+
 Codex output does not stream: `codex exec --json` prints each agent message only when it is complete, so a short answer arrives in one piece at the end of the run. Streaming needs Codex's experimental `app-server` protocol, which is planned (P12.2a in `GARRISON_PLAN.md`).
 
 ### Mux
@@ -221,7 +237,7 @@ Every decrypted value is added to the run's scrub list. The worker replaces scru
 
 The worker starts each harness with an empty environment plus a short allowlist (`PATH`, `LANG`, proxy and certificate settings, and a few others; see `docs/CONFIGURATION.md`). Keys sitting in the worker's own environment do not leak into harnesses.
 
-Subscription credentials (`ClaudeCodeOAuthToken`, `CodexAuthJson`) work, but using a personal subscription to serve other people may break the provider's terms. Use API keys for anything shared.
+Subscription credentials (`ClaudeCodeOAuthToken`, `CodexAuthJson`) work, but using a personal subscription to serve other people may break the provider's terms. Use API keys for anything shared. A `CodexAuthJson` login is refreshed by the control plane, never by a run; see [ChatGPT logins](#chatgpt-logins-codexauthjson).
 
 ## Deployments
 

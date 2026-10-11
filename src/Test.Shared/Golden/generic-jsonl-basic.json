@@ -4,6 +4,7 @@
     "tenantId": "ten_golden",
     "agentName": "helper-generic-jsonl-basic",
     "deploymentId": "dep_generic_jsonl_basic",
+    "deploymentName": "helper-generic-jsonl-basic-default",
     "harnessType": "Generic",
     "executable": "my-agent",
     "arguments": [],

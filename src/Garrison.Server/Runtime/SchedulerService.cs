@@ -107,12 +107,15 @@ namespace Garrison.Server.Runtime
             long seen = _Signals.QueueChanged.Version;
             ControlNodeActivity? activity = Activity;
             bool holding = false;
+            long requestStart = Stopwatch.GetTimestamp();
             try
             {
                 while (true)
                 {
                     token.ThrowIfCancellationRequested();
+                    long claimStart = Stopwatch.GetTimestamp();
                     List<RunAssignment> claimed = await ClaimAsync(node, maxRuns - response.Assignments.Count, token).ConfigureAwait(false);
+                    GarrisonMetrics.Observe(GarrisonMetricCatalog.ClaimDuration, GarrisonMetrics.SecondsSince(claimStart), "result", claimed.Count > 0 ? "assigned" : "empty");
                     response.Assignments.AddRange(claimed);
                     if (response.Assignments.Count > 0) return response;
 
@@ -141,6 +144,9 @@ namespace Garrison.Server.Runtime
             finally
             {
                 if (holding && activity != null) activity.LongPollEnded();
+                string leaseResult = response.Assignments.Count > 0 ? "assigned" : "empty";
+                GarrisonMetrics.Count(GarrisonMetricCatalog.LeaseRequests, "result", leaseResult);
+                GarrisonMetrics.Observe(GarrisonMetricCatalog.LeaseWait, GarrisonMetrics.SecondsSince(requestStart), "result", leaseResult);
             }
         }
 
@@ -212,7 +218,7 @@ namespace Garrison.Server.Runtime
                     }
                     if (active >= limit)
                     {
-                        _Telemetry.Increment("garrison.claims", new RadiantTag("result", "limit"));
+                        GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "limit", "harness", candidate.HarnessType.ToString());
                         continue;
                     }
                 }
@@ -230,24 +236,35 @@ namespace Garrison.Server.Runtime
                     if (result.LimitReached)
                     {
                         activeByDeployment[candidate.DeploymentId] = limit;
-                        _Telemetry.Increment("garrison.claims", new RadiantTag("result", "limit"));
+                        GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "limit", "harness", candidate.HarnessType.ToString());
                         claim?.SetTag("garrison.claim_result", "limit");
                         continue;
                     }
                     if (!result.Claimed)
                     {
-                        _Telemetry.Increment("garrison.claims", new RadiantTag("result", "lost"));
+                        GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "lost", "harness", candidate.HarnessType.ToString());
                         claim?.SetTag("garrison.claim_result", "lost");
                         continue;
                     }
                     long epoch = result.Epoch ?? 0;
+                    double claimSeconds = timer.Elapsed.TotalSeconds;
                     if (limit > 0) activeByDeployment[candidate.DeploymentId] = activeByDeployment[candidate.DeploymentId] + 1;
-                    _Telemetry.Increment("garrison.claims", new RadiantTag("result", "won"));
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "won", "harness", candidate.HarnessType.ToString());
                     claim?.SetTag("garrison.claim_result", "won");
-                    _Logging.Info(_Header + "run " + candidate.Id + " leased to " + node.Name + " (epoch " + epoch + ") " + RunTracing.LogFields(candidate.Id, candidate.TraceId));
+                    claim?.SetTag("garrison.agent", candidate.AgentName);
+                    claim?.SetTag("garrison.tenant", candidate.TenantId);
+                    if (deployment != null) RunTelemetry.Remember(deployment.Id, deployment.Name);
+                    _Logging.Info(_Header + "run " + candidate.Id + " leased to " + node.Name + " (epoch " + epoch + ") " + RunTracing.LogFields(candidate.Id, candidate.TraceId)
+                        + " " + GarrisonTracing.LogFields("tenant", candidate.TenantId, "agent", candidate.AgentName, "deployment", deployment?.Name, "node", node.Name));
 
                     RunAssignment? assignment = await PrepareAsync(candidate.TenantId, candidate.Id, node, epoch, leaseExpires, claim, token).ConfigureAwait(false);
-                    _Telemetry.Record("garrison.compile.duration", timer.Elapsed.TotalSeconds, new RadiantTag("harness", candidate.HarnessType.ToString()));
+                    GarrisonMetrics.Observe(GarrisonMetricCatalog.CompileDuration, timer.Elapsed.TotalSeconds, "harness", candidate.HarnessType.ToString(), "agent", candidate.AgentName, "result", assignment != null ? "ok" : "failed");
+                    if (assignment != null)
+                    {
+                        RunMetricLabels claimLabels = RunMetricLabels.For(candidate, deployment?.Name);
+                        GarrisonMetrics.Observe(GarrisonMetricCatalog.RunStageDuration, claimSeconds, GarrisonMetrics.RunTags(claimLabels, "stage", "claim"));
+                        GarrisonMetrics.Observe(GarrisonMetricCatalog.RunStageDuration, Math.Max(0, timer.Elapsed.TotalSeconds - claimSeconds), GarrisonMetrics.RunTags(claimLabels, "stage", "compile"));
+                    }
                     if (assignment != null) assignments.Add(assignment);
                     else claim?.SetStatus(ActivityStatusCode.Error, "compile failed");
                 }
@@ -293,6 +310,14 @@ namespace Garrison.Server.Runtime
                     compiled = await _Compiler().CompileAsync(run, runToken, token).ConfigureAwait(false);
                 }
 
+                // A compile that waited on a credential refresh (G-22) may have used up part of the lease; give the
+                // worker a full lease from now so the run is not reclaimed before its first heartbeat.
+                if (DateTime.UtcNow > leaseExpires.AddMilliseconds(-_Options.LeaseDurationMs * 0.75))
+                {
+                    DateTime renewed = DateTime.UtcNow.AddMilliseconds(_Options.LeaseDurationMs);
+                    if (await _Database.Runs.ExtendLeaseAsync(run.Id, node.Id, epoch, renewed, token).ConfigureAwait(false)) leaseExpires = renewed;
+                }
+
                 // The worker parents its harness span on this, so the whole run shares one trace.
                 compiled.Spec.TraceParent = claim?.Id ?? run.TraceParent ?? compiled.Spec.TraceParent;
                 compiled.Spec.TimeoutSeconds = Math.Min(compiled.Spec.TimeoutSeconds > 0 ? compiled.Spec.TimeoutSeconds : timeoutSeconds, _Options.MaxRunSeconds);
@@ -330,13 +355,19 @@ namespace Garrison.Server.Runtime
                 failed.ToStatus = RunStatusEnum.Failed;
                 failed.Epoch = epoch;
                 failed.NodeId = node.Id;
-                failed.Outcome = RunOutcomeEnum.CompileFailed;
+                // A bound login that needs reauthentication, or that could not be refreshed, is a credential problem,
+                // not a configuration one (G-22).
+                failed.Outcome = e is CredentialUnavailableException ? RunOutcomeEnum.NotCredentialed : RunOutcomeEnum.CompileFailed;
                 failed.ErrorMessage = e.Code + ": " + e.Message;
                 failed.ClearLease = true;
                 failed.SetCompleted = true;
                 await _Database.Runs.TransitionAsync(failed, token).ConfigureAwait(false);
                 await _Database.Sessions.RevokeByRunAsync(run.Id, "Run failed to compile.", token).ConfigureAwait(false);
                 _Signals.Complete(run.Id);
+                run.Status = failed.ToStatus;
+                run.Outcome = failed.Outcome ?? RunOutcomeEnum.CompileFailed;
+                run.CompletedUtc = DateTime.UtcNow;
+                await RunTelemetry.FinishedAsync(_Database, run, token).ConfigureAwait(false);
                 return null;
             }
         }
@@ -357,6 +388,10 @@ namespace Garrison.Server.Runtime
             await _Database.Runs.TransitionAsync(rejected, token).ConfigureAwait(false);
             await _Database.Sessions.RevokeByRunAsync(run.Id, "Run rejected.", token).ConfigureAwait(false);
             _Signals.Complete(run.Id);
+            run.Status = RunStatusEnum.Rejected;
+            run.Outcome = RunOutcomeEnum.Rejected;
+            run.CompletedUtc = DateTime.UtcNow;
+            await RunTelemetry.FinishedAsync(_Database, run, token).ConfigureAwait(false);
         }
 
         #endregion

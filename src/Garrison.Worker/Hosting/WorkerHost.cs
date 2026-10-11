@@ -8,6 +8,7 @@ namespace Garrison.Worker.Hosting
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Compilation;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
     using Garrison.Core.Protocol;
@@ -158,6 +159,7 @@ namespace Garrison.Worker.Hosting
         private readonly ActivitySource _Activity = new ActivitySource("Garrison.Worker");
         private HealthServer? _Health = null;
         private GarrisonTelemetry? _Telemetry = null;
+        private readonly List<GaugeRegistration> _Gauges = new List<GaugeRegistration>();
         private Task? _MainTask = null;
         private List<NodeCapabilityReport> _Capabilities = new List<NodeCapabilityReport>();
         private string? _NodeId = null;
@@ -238,8 +240,8 @@ namespace Garrison.Worker.Hosting
                     if (message.StartsWith("telemetry", StringComparison.Ordinal)) _Logging.Warn(_Header + message);
                     else _Logging.Debug(_Header + message);
                 });
-                _Telemetry.Gauge("garrison.worker.runs.active", () => _Runs.Count, "{run}");
-                _Telemetry.Gauge("garrison.worker.slots.free", () => _Slots.CurrentCount, "{slot}");
+                _Gauges.Add(GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.WorkerRunsActive, () => _Runs.Count));
+                _Gauges.Add(GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.WorkerSlotsFree, () => _Slots.CurrentCount));
                 if (_Telemetry.Active && _Telemetry.PrometheusHostname != null)
                 {
                     _Logging.Info(_Header + "metrics listening on " + _Telemetry.PrometheusHostname + ":" + _Settings.Telemetry.PrometheusPort + _Settings.Telemetry.PrometheusPath);
@@ -249,8 +251,8 @@ namespace Garrison.Worker.Hosting
             if (startHealthServer)
             {
                 GarrisonTelemetry? telemetry = _Telemetry;
-                Func<CancellationToken, Task<MetricsScrape?>>? metrics = null;
-                if (telemetry != null && _Settings.Telemetry.ServeMetricsOnServicePort) metrics = token => telemetry.ScrapeAsync(token);
+                Func<string?, CancellationToken, Task<MetricsScrape?>>? metrics = null;
+                if (telemetry != null && _Settings.Telemetry.ServeMetricsOnServicePort) metrics = (accept, token) => telemetry.ScrapeAsync(accept, token);
                 _Health = new HealthServer(_Settings.HealthHostname, _Settings.HealthPort, Health, metrics);
                 _Health.Start();
                 _Logging.Info(_Header + "health listening on " + _Settings.HealthHostname + ":" + _Settings.HealthPort + (metrics != null && telemetry!.PrometheusUrl != null ? " (also serving /metrics)" : String.Empty));
@@ -340,6 +342,8 @@ namespace Garrison.Worker.Hosting
                 }
             }
             _Health?.Dispose();
+            foreach (GaugeRegistration gauge in _Gauges) gauge.Dispose();
+            _Gauges.Clear();
             _Telemetry?.Dispose();
             _Kubernetes?.Dispose();
             _Activity.Dispose();
@@ -359,6 +363,7 @@ namespace Garrison.Worker.Hosting
             try
             {
                 _Capabilities = await _Prober.ProbeAllAsync(token).ConfigureAwait(false);
+                CountProbes(_Capabilities);
                 foreach (NodeCapabilityReport capability in _Capabilities)
                 {
                     _Logging.Info(_Header + "harness " + capability.HarnessType + " (" + capability.Executable + "): " + (capability.Available ? "available " + capability.Version : "unavailable, " + capability.Detail));
@@ -439,26 +444,15 @@ namespace Garrison.Worker.Hosting
                 {
                     if (Volatile.Read(ref _NeedsRegistration) == 1) await RegisterAsync(token).ConfigureAwait(false);
 
-                    NodeHeartbeatRequest request = new NodeHeartbeatRequest();
-                    request.NodeId = _NodeId ?? String.Empty;
-                    request.ActiveRuns = _Runs.Values.Select(r => new NodeRunLease { RunId = r.RunId, Epoch = r.Epoch }).ToList();
-                    request.FreeCapacity = _Slots.CurrentCount;
-                    request.Draining = Draining;
-                    NodeHeartbeatResponse response = await _Client.HeartbeatAsync(request, token).ConfigureAwait(false);
+                    await GarrisonTracing.BackgroundAsync("worker", "heartbeat", HeartbeatOnceAsync, token).ConfigureAwait(false);
                     failures = 0;
                     _LastError = null;
-
-                    foreach (string runId in response.LostRunIds) await TransitionAsync(runId, true, token).ConfigureAwait(false);
-                    foreach (string runId in response.CancelRunIds) await TransitionAsync(runId, false, token).ConfigureAwait(false);
-                    if (response.Drain && !Draining)
-                    {
-                        _Logging.Info(_Header + "control plane requested drain");
-                        _ = Task.Run(() => StopAsync(CancellationToken.None));
-                    }
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerHeartbeats, "result", "ok");
                 }
                 catch (NodeProtocolException e)
                 {
                     failures++;
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerHeartbeats, "result", "error");
                     _LastError = e.Message;
                     if (e.StatusCode == 404 || e.StatusCode == 401 || e.StatusCode == 403)
                     {
@@ -468,6 +462,33 @@ namespace Garrison.Worker.Hosting
                     _Logging.Warn(_Header + "heartbeat failed: " + e.Message);
                 }
                 _Pause.Touch();
+            }
+        }
+
+        private async Task<bool> HeartbeatOnceAsync(CancellationToken token)
+        {
+            NodeHeartbeatRequest request = new NodeHeartbeatRequest();
+            request.NodeId = _NodeId ?? String.Empty;
+            request.ActiveRuns = _Runs.Values.Select(r => new NodeRunLease { RunId = r.RunId, Epoch = r.Epoch }).ToList();
+            request.FreeCapacity = _Slots.CurrentCount;
+            request.Draining = Draining;
+            NodeHeartbeatResponse response = await _Client.HeartbeatAsync(request, token).ConfigureAwait(false);
+
+            foreach (string runId in response.LostRunIds) await TransitionAsync(runId, true, token).ConfigureAwait(false);
+            foreach (string runId in response.CancelRunIds) await TransitionAsync(runId, false, token).ConfigureAwait(false);
+            if (response.Drain && !Draining)
+            {
+                _Logging.Info(_Header + "control plane requested drain " + GarrisonTracing.LogFields("node", _Settings.EffectiveNodeName));
+                _ = Task.Run(() => StopAsync(CancellationToken.None));
+            }
+            return response.LostRunIds.Count > 0 || response.CancelRunIds.Count > 0 || response.Drain;
+        }
+
+        private void CountProbes(List<NodeCapabilityReport> capabilities)
+        {
+            foreach (NodeCapabilityReport capability in capabilities)
+            {
+                GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerProbes, "harness", capability.HarnessType.ToString(), "result", capability.Available ? "available" : "unavailable");
             }
         }
 
@@ -485,7 +506,7 @@ namespace Garrison.Worker.Hosting
                 TimeSpan paused = _Pause.Observe(slice, _Settings.PauseGraceMs);
                 if (paused > TimeSpan.Zero)
                 {
-                    _Telemetry?.Increment("garrison.worker.pauses");
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerPauses);
                     _Logging.Warn(_Header + "worker was paused for " + Math.Round(paused.TotalSeconds, 1) + " s; heartbeating and renewing " + _Runs.Count + " leases now"
                         + " event=worker.pause pausedMs=" + (long)paused.TotalMilliseconds + " resumedUtc=" + _Pause.UtcNow.ToString("o") + " activeRuns=" + _Runs.Count);
                     return;
@@ -608,10 +629,15 @@ namespace Garrison.Worker.Hosting
                             request.NodeId = _NodeId;
                             request.MaxRuns = 1;
                             request.WaitMs = _LeaseWaitMs;
-                            NodeLeaseResponse response = await _Client.LeaseAsync(request, leasing.Token).ConfigureAwait(false);
+                            NodeLeaseResponse response = new NodeLeaseResponse();
+                            await GarrisonTracing.BackgroundAsync("worker", "lease", async ct =>
+                            {
+                                response = await _Client.LeaseAsync(request, ct).ConfigureAwait(false);
+                                return response.Assignments.Count > 0;
+                            }, leasing.Token).ConfigureAwait(false);
                             failures = 0;
                             RunAssignment? assignment = response.Assignments.FirstOrDefault();
-                            _Telemetry?.Increment("garrison.worker.leases", new RadiantTag("result", assignment == null ? "empty" : "assigned"));
+                            GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerLeases, "result", assignment == null ? "empty" : "assigned");
                             if (assignment == null) continue;
                             for (int i = 1; i < response.Assignments.Count; i++) _Logging.Warn(_Header + "ignoring extra assignment " + response.Assignments[i].RunId + " (requested one)");
 
@@ -621,7 +647,7 @@ namespace Garrison.Worker.Hosting
                         {
                             failures++;
                             _LastError = e.Message;
-                            _Telemetry?.Increment("garrison.worker.leases", new RadiantTag("result", "error"));
+                            GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerLeases, "result", "error");
                             if (e.StatusCode == 404 || e.StatusCode == 401 || e.StatusCode == 403) Interlocked.Exchange(ref _NeedsRegistration, 1);
                             _Logging.Warn(_Header + "lease failed: " + e.Message);
                             await Task.Delay(Backoff(failures), leasing.Token).ConfigureAwait(false);
@@ -721,7 +747,14 @@ namespace Garrison.Worker.Hosting
                         complete.RepairAttempt = repairAttempt;
                         // Repairs resume the harness session in the run's directories, which only Process runs keep.
                         complete.SupportsRepair = current.Spec.Executor == RunExecutorEnum.Process;
-                        response = await ReportCompletionAsync(run, complete, retry.Token).ConfigureAwait(false);
+                        long reportStart = Stopwatch.GetTimestamp();
+                        using (Activity? report = StartRunActivity(run, "run:report"))
+                        {
+                            response = await ReportCompletionAsync(run, complete, retry.Token).ConfigureAwait(false);
+                            if (response != null) GarrisonTracing.Ok(report);
+                            else GarrisonTracing.Fail(report, "completion not accepted");
+                        }
+                        GarrisonMetrics.Observe(GarrisonMetricCatalog.WorkerRunStage, GarrisonMetrics.SecondsSince(reportStart), "stage", "report", "harness", harness, "agent", run.Assignment.Spec.AgentName);
                     }
 
                     if (response == null || response.Repair == null || response.RepairAttempt <= repairAttempt) return;
@@ -795,7 +828,8 @@ namespace Garrison.Worker.Hosting
                 }
             }
             stopwatch.Stop();
-            RecordRun(harness, complete, stopwatch.Elapsed.TotalSeconds);
+            RecordRun(assignment.Spec, complete, stopwatch.Elapsed.TotalSeconds);
+            GarrisonMetrics.Observe(GarrisonMetricCatalog.WorkerRunStage, stopwatch.Elapsed.TotalSeconds, "stage", "execution", "harness", harness, "agent", assignment.Spec.AgentName);
             return complete;
         }
 
@@ -809,13 +843,13 @@ namespace Garrison.Worker.Hosting
                 {
                     RunCompleteResponse response = await _Client.CompleteAsync(runId, complete, token).ConfigureAwait(false);
                     _Logging.Info(_Header + "run " + runId + " completed: " + complete.Status + " (" + complete.Outcome + ")" + (response?.Repair != null ? "; repair requested" : String.Empty) + " " + run.LogFields);
-                    _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "accepted"));
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerCompletionReports, "result", "accepted");
                     return response;
                 }
                 catch (StaleLeaseException)
                 {
                     _Logging.Warn(_Header + "completion for run " + runId + " rejected: stale lease" + PauseContext() + " " + run.LogFields);
-                    _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "stale"));
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerCompletionReports, "result", "stale");
                     return null;
                 }
                 catch (NodeProtocolException e)
@@ -828,7 +862,7 @@ namespace Garrison.Worker.Hosting
                     catch (OperationCanceledException)
                     {
                         _Logging.Alert(_Header + "gave up reporting completion for run " + runId + " " + run.LogFields);
-                        _Telemetry?.Increment("garrison.worker.completion_reports", new RadiantTag("result", "abandoned"));
+                        GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerCompletionReports, "result", "abandoned");
                         return null;
                     }
                 }
@@ -842,6 +876,7 @@ namespace Garrison.Worker.Hosting
             {
                 await Task.Delay(TimeSpan.FromSeconds(_Settings.ProbeIntervalSeconds), token).ConfigureAwait(false);
                 List<NodeCapabilityReport> latest = await _Prober.ProbeAllAsync(token).ConfigureAwait(false);
+                CountProbes(latest);
                 bool changed = latest.Count != _Capabilities.Count || latest.Where((c, i) => c.Available != _Capabilities[i].Available || c.Version != _Capabilities[i].Version).Any();
                 if (_Kubernetes != null)
                 {
@@ -875,7 +910,7 @@ namespace Garrison.Worker.Hosting
                 if (_Kubernetes.Available)
                 {
                     int deleted = await _Reconciler.ReconcileAsync(() => new HashSet<string>(_Runs.Values.Select(r => KubernetesJobReconciler.Key(r.RunId, r.Epoch)), StringComparer.Ordinal), token).ConfigureAwait(false);
-                    if (deleted > 0) _Telemetry?.Increment("garrison.worker.jobs.reconciled", new RadiantTag("result", "deleted"));
+                    if (deleted > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.K8sReconciled, deleted, GarrisonMetrics.Tags("result", "deleted"));
                 }
                 await Task.Delay(TimeSpan.FromSeconds(_Settings.Kubernetes.ReconcileIntervalSeconds), token).ConfigureAwait(false);
             }
@@ -883,32 +918,53 @@ namespace Garrison.Worker.Hosting
 
         private Activity? StartHarnessActivity(ActiveRun run, string harness)
         {
-            ActivityContext parent = default(ActivityContext);
-            string? traceParent = run.Assignment.Spec.TraceParent;
-            if (!String.IsNullOrEmpty(traceParent)) ActivityContext.TryParse(traceParent, null, out parent);
-            Activity? activity = _Activity.StartActivity("harness " + harness + " exec", ActivityKind.Internal, parent);
+            Activity? activity = StartRunActivity(run, "harness " + harness + " exec");
             if (activity != null)
             {
-                activity.SetTag("garrison.run_id", run.RunId);
                 activity.SetTag("garrison.harness", harness);
                 activity.SetTag("garrison.lease_epoch", run.Epoch);
             }
             return activity;
         }
 
-        private void RecordRun(string harness, RunCompleteRequest complete, double seconds)
+        private Activity? StartRunActivity(ActiveRun run, string name)
         {
-            if (_Telemetry == null) return;
-            RadiantTag harnessTag = new RadiantTag("harness", harness);
-            _Telemetry.Increment("garrison.worker.runs", harnessTag, new RadiantTag("outcome", complete.Outcome.ToString()));
-            _Telemetry.Record("garrison.worker.run.duration", seconds, harnessTag);
-            if (complete.InputTokens > 0) _Telemetry.Add("garrison.worker.harness.tokens", complete.InputTokens, harnessTag, new RadiantTag("direction", "input"));
-            if (complete.OutputTokens > 0) _Telemetry.Add("garrison.worker.harness.tokens", complete.OutputTokens, harnessTag, new RadiantTag("direction", "output"));
-            if (complete.CachedTokens > 0) _Telemetry.Add("garrison.worker.harness.tokens", complete.CachedTokens, harnessTag, new RadiantTag("direction", "cached"));
-            if (complete.ReasoningTokens > 0) _Telemetry.Add("garrison.worker.harness.tokens", complete.ReasoningTokens, harnessTag, new RadiantTag("direction", "reasoning"));
-            if (complete.TimeToFirstTokenMs.HasValue) _Telemetry.Record("garrison.worker.run.ttft", complete.TimeToFirstTokenMs.Value / 1000.0, harnessTag);
-            if (complete.StreamingMs.HasValue) _Telemetry.Record("garrison.worker.run.streaming", complete.StreamingMs.Value / 1000.0, harnessTag);
-            if (complete.CostUsd != null && complete.CostUsd.Value > 0) _Telemetry.Add("garrison.worker.harness.cost_usd", complete.CostUsd.Value, harnessTag);
+            // Worker spans join the run's trace from the traceparent shipped in the execution spec, so the server's
+            // create, claim, and compile spans and the worker's spans form one trace (P13.25).
+            ActivityContext parent = default(ActivityContext);
+            string? traceParent = run.Assignment.Spec.TraceParent;
+            if (!String.IsNullOrEmpty(traceParent)) ActivityContext.TryParse(traceParent, null, out parent);
+            Activity? activity = _Activity.StartActivity(name, ActivityKind.Internal, parent);
+            if (activity != null)
+            {
+                activity.SetTag("garrison.run_id", run.RunId);
+                activity.SetTag("garrison.agent", run.Assignment.Spec.AgentName);
+                activity.SetTag("garrison.tenant", run.Assignment.Spec.TenantId);
+                activity.SetTag("garrison.node", _Settings.EffectiveNodeName);
+            }
+            return activity;
+        }
+
+        private static void RecordRun(ExecutionSpec spec, RunCompleteRequest complete, double seconds)
+        {
+            RunMetricLabels labels = RunMetricLabels.For(spec, complete.ServedModel);
+            GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerRuns, 1, GarrisonMetrics.RunTags(labels, "outcome", complete.Outcome.ToString()));
+            GarrisonMetrics.Observe(GarrisonMetricCatalog.WorkerRunDuration, seconds, GarrisonMetrics.RunTags(labels));
+            WorkerTokens(labels, "input", complete.InputTokens);
+            WorkerTokens(labels, "output", complete.OutputTokens);
+            WorkerTokens(labels, "cached", complete.CachedTokens);
+            WorkerTokens(labels, "reasoning", complete.ReasoningTokens);
+            if (complete.TimeToFirstTokenMs.HasValue) GarrisonMetrics.Observe(GarrisonMetricCatalog.WorkerRunTtft, complete.TimeToFirstTokenMs.Value / 1000.0, GarrisonMetrics.RunTags(labels));
+            if (complete.StreamingMs.HasValue) GarrisonMetrics.Observe(GarrisonMetricCatalog.WorkerRunStreaming, complete.StreamingMs.Value / 1000.0, GarrisonMetrics.RunTags(labels));
+            if (complete.CostUsd != null && complete.CostUsd.Value > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerCost, complete.CostUsd.Value, GarrisonMetrics.RunTags(labels));
+            string? guard = RunMetricLabels.Guard(complete.Outcome);
+            if (guard != null) GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerGuardTrips, "guard", guard, "harness", labels.Harness, "agent", labels.Agent);
+        }
+
+        private static void WorkerTokens(RunMetricLabels labels, string direction, long tokens)
+        {
+            if (tokens <= 0) return;
+            GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerTokens, tokens, GarrisonMetrics.RunTags(labels, "direction", direction));
         }
 
         private static int Backoff(int attempt)

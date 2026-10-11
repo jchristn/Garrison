@@ -6,6 +6,7 @@ namespace Garrison.Server.Services
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// Fixed-window rate limiter for authentication routes, keyed by source IP. Counters live in the database
@@ -76,7 +77,9 @@ namespace Garrison.Server.Services
             try
             {
                 int hits = await _Database.RateLimits.IncrementAsync(bucket, windowEnd.AddMinutes(1), token).ConfigureAwait(false);
-                return hits <= _LimitPerMinute();
+                bool allowed = hits <= _LimitPerMinute();
+                if (!allowed) GarrisonMetrics.Count(GarrisonMetricCatalog.AuthRateLimited, "scope", _Scope);
+                return allowed;
             }
             catch (Exception e) when (e is DbException || e is InvalidOperationException || e is TimeoutException)
             {

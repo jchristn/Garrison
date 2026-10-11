@@ -1,6 +1,7 @@
 namespace Garrison.Server.Runtime
 {
     using System;
+    using System.Diagnostics;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
@@ -8,6 +9,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Models;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// Shared invocation path for REST, MCP, and A2A: resolves the agent, applies the caller identity (originating
@@ -91,7 +93,15 @@ namespace Garrison.Server.Runtime
             {
                 Run parent = await _Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false)
                     ?? throw new ConflictException("ParentRunNotFound", "The calling run no longer exists.");
-                await _Delegation.CheckAsync(parent, agent, token).ConfigureAwait(false);
+                try
+                {
+                    await _Delegation.CheckAsync(parent, agent, token).ConfigureAwait(false);
+                }
+                catch (ConflictException e)
+                {
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.DelegationDenials, "reason", e.Code);
+                    throw;
+                }
                 create.Parent = parent;
                 create.Kind = RunKindEnum.Delegated;
                 create.CallerType = ctx.OriginPrincipalType ?? PrincipalTypeEnum.User;
@@ -106,18 +116,38 @@ namespace Garrison.Server.Runtime
                 create.CallerName = ctx.PrincipalName;
             }
 
-            Run run = await _Runs.CreateAsync(create, token).ConfigureAwait(false);
+            Run run;
+            try
+            {
+                run = await _Runs.CreateAsync(create, token).ConfigureAwait(false);
+            }
+            catch (ConflictException e) when (create.Parent != null && e.Code == "DelegationDepthExceeded")
+            {
+                GarrisonMetrics.Count(GarrisonMetricCatalog.DelegationDenials, "reason", e.Code);
+                throw;
+            }
             if (!options.Wait) return run;
+            long waitStart = Stopwatch.GetTimestamp();
+            string result = "cancelled";
             try
             {
                 Run? finished = await _Runs.WaitAsync(tenantId, run.Id, options.WaitSeconds, token).ConfigureAwait(false);
+                result = finished != null && RunService.IsTerminal(finished.Status) ? "completed" : "timeout";
                 return finished ?? run;
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested && options.CancelOnDisconnect && !_Runs.ShutdownToken.IsCancellationRequested && (options.CallerGone == null || options.CallerGone()))
             {
                 // Nobody is waiting for the result any more: stop the harness instead of letting it run to its deadline.
-                await _Runs.CancelAbandonedAsync(tenantId, run.Id, options.DisconnectReason, CancellationToken.None).ConfigureAwait(false);
+                result = "disconnected";
+                if (await _Runs.CancelAbandonedAsync(tenantId, run.Id, options.DisconnectReason, CancellationToken.None).ConfigureAwait(false))
+                {
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.DisconnectCancels, "surface", options.Surface);
+                }
                 throw;
+            }
+            finally
+            {
+                GarrisonMetrics.Observe(GarrisonMetricCatalog.InvocationWait, GarrisonMetrics.SecondsSince(waitStart), "surface", options.Surface, "result", result);
             }
         }
 

@@ -269,6 +269,14 @@ namespace Garrison.Core.Database.Interfaces
         Task<List<StatusCount>> CountUnfinishedAsync(CancellationToken token = default);
 
         /// <summary>
+        /// Count unfinished runs (Pending, Queued, Leased, Running, Cancelling) per tenant, agent, harness, and status
+        /// across all tenants, for the queue depth gauge (P13.24). Uses the status indexes.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Rows; combinations with no runs are absent.</returns>
+        Task<List<RunGaugeRow>> CountUnfinishedByAgentAsync(CancellationToken token = default);
+
+        /// <summary>
         /// Active run counts grouped by agent and harness.
         /// </summary>
         /// <param name="tenantId">Tenant identifier, or null for all tenants.</param>

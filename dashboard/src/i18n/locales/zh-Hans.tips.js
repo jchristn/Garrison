@@ -365,6 +365,10 @@ const tips = {
       Hosted: '托管：Garrison 通过其部署在工作节点上自行运行此智能体。',
       Remote: '远程：智能体在其他地方运行，Garrison 将调用转发到它的 A2A 或 MCP 端点。'
     },
+    secretStatus: {
+      Ok: '就 Garrison 所知，此凭据可以使用。设置新值后，机密总会回到此状态。',
+      NeedsReauthentication: 'OpenAI 已永久拒绝所存的 ChatGPT 登录，例如其刷新令牌已被使用过。使用此机密的运行会一直失败，直到你用新的登录替换它的值。'
+    },
     secretKind: {
       AnthropicApiKey: 'Anthropic API 密钥，由 Claude Code 配置文件以 ANTHROPIC_API_KEY 注入。',
       ClaudeCodeOAuthToken: 'Claude Code 订阅令牌。在共享服务器上使用前，请查阅提供商的条款。',
@@ -596,6 +600,11 @@ const tips = {
       actions: { test: '立即连接服务器并列出其工具，以检查地址和凭据。' }
     },
     secrets: {
+      status: '所存凭据是否仍然可用。当 Codex 登录无法再刷新时，Garrison 会将其标记为需要重新认证。',
+      accessTokenExpiresUtc: '所存 Codex ChatGPT 登录中的访问令牌何时过期。Garrison 会在此之前刷新它，并把新令牌写回机密。',
+      refreshedUtc: 'Garrison 上次自行刷新此 Codex 登录的时间。运行只会收到不含刷新令牌的副本。',
+      statusMessage: '提供方报告的登录无法使用的原因。',
+      statusUtc: 'Garrison 发现该登录无法再刷新的时间。',
       add: '保存一个新凭据，例如 API 密钥或令牌，静态加密存储。部署通过别名引用它；保存后该值不会再次显示。',
       name: '机密名称。部署通过此名称选择机密并为其指定别名。',
       kind: '这是哪一类凭据。内置配置文件根据类型判断要填充哪个变量或文件。',
@@ -808,7 +817,7 @@ const tips = {
         detail: '探测输出，在 Harness 不可用时很有用。'
       },
       actions: {
-        grafana: '在新标签页中打开 Grafana 的 Workers and Harnesses 仪表板，并筛选到节点 {{node}}。',
+        grafana: '在新标签页中打开 Grafana 的 Workers 仪表板，并筛选到节点 {{node}}。',
         cordon: '停止向此节点发送新的运行。已在其上的运行会正常完成。',
         uncordon: '让此节点重新接受新的运行。',
         drain: '停止接收新的运行，让当前运行完成，之后节点进入空闲。请在关闭节点前使用。',
@@ -880,6 +889,23 @@ const tips = {
       },
       observabilityVersion: '{{service}} 在服务器健康检查中报告的版本。',
       kpisGrafana: '在新标签页中打开 Grafana 里的 Garrison 概览仪表板，查看这些数字随时间的变化。',
+      grafanaDashboards: 'Grafana 中的 Garrison 文件夹为每个部分提供一个仪表板。每个链接都会在新标签页中打开对应的仪表板。',
+      grafanaSections: {
+        overview: '整体健康状况：在线的副本和工作节点、运行与请求速率、错误、成本和最近的问题。',
+        http: '按路由划分的 REST 流量：请求速率、延迟百分位、错误、负载大小、认证失败和进行中的请求。',
+        runs: '运行生命周期：按结果统计的创建和完成数量、各阶段耗时、取消、结构化输出校验和修复。',
+        agents: '各智能体的性能：调用次数、运行时间和排队时间百分位、首个令牌时间、流式输出时间、结果和防护触发。',
+        models: '按模型和智能体统计的令牌用量与成本：输入、输出、缓存和推理令牌、成本以及输出吞吐量。',
+        workers: '工作节点：租约、每个节点的运行、完成报告、心跳、空闲槽位以及对控制平面的调用。',
+        kubernetes: '每次运行一个 Pod 的执行器：创建和删除的 Job、Pod 启动延迟、按原因统计的 Pod 失败以及孤立 Job 清理。',
+        protocols: 'MCP、A2A 与流式传输：工具调用及耗时、会话、A2A 方法与任务状态、SSE 流、WebSocket 和委派。',
+        scheduler: '调度：按智能体和运行框架统计的队列深度、认领结果与延迟、租约长轮询、被阻塞的运行和过期租约。',
+        database: '数据库：按操作和表统计的语句延迟、错误、使用中的连接、写锁等待和保留清理。',
+        controlPlane: '控制平面副本：状态、领导者变更、背板流量与延迟、心跳以及后台服务的迭代。',
+        security: '按方案和原因统计的认证失败、授权拒绝、速率限制、签发的令牌、密钥解密以及 Codex 令牌刷新。',
+        integrations: '按服务统计的出站调用：MCP 服务器测试、可观测性探测、MCP 代理、Kubernetes API 以及工作节点对控制平面的调用。',
+        logs: '按组件和租户统计的日志量、错误与警告、最近的错误行以及追踪链接。'
+      },
       observabilityDocs: '在新标签页中打开遥测指南：如何采集 Garrison 指标并连接 Grafana、Prometheus、Tempo 或 Loki。',
       observability: '指向此环境报告为已配置的指标、仪表板和追踪工具的链接。未配置的服务不会显示。',
       kpis: {
@@ -951,6 +977,7 @@ const tips = {
       name: '调用方调用此智能体时使用的名称。',
       viewJson: '以 JSON 形式显示完整的智能体记录。',
       invoke: '打开“调用”页面并选中此智能体。除非你指定部署，否则会按权重选择部署。',
+      grafana: '在新标签页中打开按此智能体筛选的 Grafana 智能体仪表板：调用次数、运行时间百分位、首个令牌时间、流式输出时间、令牌、成本和防护触发。',
       id: '用于 API 调用的智能体标识符。',
       tabs: {
         deployments: '此智能体的运行方式，包括各自的权重以及每个部署获得的流量份额。',
@@ -1175,7 +1202,7 @@ const tips = {
     }
   },
   analytics: {
-    grafana: '在新标签页中打开 Grafana 的 Runs and Scheduling 仪表板，时间范围与本页相同。',
+    grafana: '在新标签页中打开 Grafana 的 Runs 仪表板，时间范围与本页相同。',
     filters: {
       ttft: '勾选后，首 Token 时间图表会去掉运行等待委派智能体的时间，从而公平比较会委派的智能体和直接回答的智能体。',
       range: '所有图表和汇总的时间范围：最近一小时、一天、一周、30 天，或自定义的开始和结束时间。',

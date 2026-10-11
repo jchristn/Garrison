@@ -1202,7 +1202,13 @@ The response includes `observability`, which is always present: the browser-faci
   "lokiUrl": null,
   "tempoUrl": null,
   "datasources": { "prometheus": "garrison-prometheus", "loki": "garrison-loki", "tempo": "garrison-tempo" },
-  "dashboards": { "overview": "garrison-overview", "http": "garrison-http", "runs": "garrison-runs", "workers": "garrison-workers", "protocols": "garrison-protocols", "integrations": "garrison-integrations" }
+  "dashboards": {
+    "overview": "garrison-overview", "http": "garrison-http", "runs": "garrison-runs", "workers": "garrison-workers",
+    "protocols": "garrison-protocols", "integrations": "garrison-integrations", "agents": "garrison-agents",
+    "models": "garrison-models", "kubernetes": "garrison-kubernetes", "scheduler": "garrison-scheduler",
+    "database": "garrison-database", "controlPlane": "garrison-control-plane", "security": "garrison-security",
+    "logs": "garrison-logs"
+  }
 }
 ```
 
@@ -4406,7 +4412,7 @@ Observability endpoints in `ServerInfoResponse.observability`. Every field is al
 | `lokiUrl` | `string?` | Loki URL (`Observability.LokiUrl`). |
 | `tempoUrl` | `string?` | Tempo URL (`Observability.TempoUrl`). |
 | `datasources` | `ObservabilityDatasources?` | Grafana datasource UIDs: `prometheus` (`garrison-prometheus`), `loki` (`garrison-loki`), `tempo` (`garrison-tempo`). `null` when Grafana is not configured. |
-| `dashboards` | `ObservabilityDashboards?` | Grafana dashboard UIDs: `overview`, `http`, `runs`, `workers`, `protocols`, `integrations` (`garrison-overview` and so on). `null` when Grafana is not configured. |
+| `dashboards` | `ObservabilityDashboards?` | Grafana dashboard UIDs, one per section of the Garrison folder: `overview`, `http`, `runs`, `workers`, `protocols`, `integrations`, `agents`, `models`, `kubernetes`, `scheduler`, `database`, `controlPlane`, `security`, `logs` (`garrison-overview`, ..., `garrison-control-plane`, ...). `null` when Grafana is not configured. |
 
 #### `ObservabilityServiceStatus`
 
@@ -4533,6 +4539,8 @@ One invocation of one deployment.
 `RepetitionDetected`, `NoProgress`, and `OutputLimitExceeded` (when the assistant text passed `maxAssistantChars`) are run guard stops; see [Run guards](#run-guards-repetitiondetected-outputlimitexceeded-noprogress). `OutputLimitExceeded` also means the harness wrote more than the profile's `maxOutputBytes` to stdout.
 
 `NoCapableWorker` means the run stayed queued with no Ready worker able to run it for longer than `Runtime.FailBlockedAfterSeconds`.
+
+`NotCredentialed` also covers bound credentials the control plane cannot use (G-22). The run fails before it reaches a worker and `errorMessage` starts with a code: `SecretNeedsReauthentication:` when a `CodexAuthJson` secret's `status` is `NeedsReauthentication` (replace its value), or `SecretRefreshFailed:` when its access token is expired and the refresh failed for a reason worth retrying (retry the run).
 
 `SchemaValidationFailed` means the final output did not validate against the agent's output schema, either after the one repair attempt or immediately when no repair was possible (for example the harness profile does not support resume). See [Structured output validation](#structured-output-validation-outputschemavalid-schemavalidationerrors-repairattempts).
 
@@ -4980,6 +4988,11 @@ Encrypted credential or secret value.
 | `keyVersion` | `int` | Master key version used for encryption. |
 | `expiresUtc` | `DateTime?` | Expiration (UTC). |
 | `rotatedUtc` | `DateTime?` | Last value change (UTC). |
+| `status` | `SecretStatusEnum` | Health of the stored credential: `Ok`, or `NeedsReauthentication` when a `CodexAuthJson` login can no longer be refreshed. Setting a new value returns it to `Ok`. |
+| `statusMessage` | `string?` | Why the secret is not `Ok`, for example the provider error code and description. |
+| `statusUtc` | `DateTime?` | When the status left `Ok` (UTC). |
+| `refreshedUtc` | `DateTime?` | When the control plane last refreshed the stored login itself (UTC). `CodexAuthJson` only. |
+| `accessTokenExpiresUtc` | `DateTime?` | When the access token in the stored login expires (UTC, from its `exp` claim). `CodexAuthJson` ChatGPT logins only. |
 | `active` | `bool` | Whether the record is active. |
 | `isProtected` | `bool` | Whether the record is protected from deletion. |
 | `createdUtc` | `DateTime` | Creation timestamp (UTC). |
@@ -4988,6 +5001,12 @@ Encrypted credential or secret value.
 #### `SecretKindEnum`
 
 `AnthropicApiKey`, `ClaudeCodeOAuthToken`, `OpenAiApiKey`, `CodexAuthJson`, `GeminiApiKey`, `GenericEnv`, `GenericFile`, `BearerToken`, `BasicAuth`, `GitCredential`
+
+#### `SecretStatusEnum`
+
+`Ok`, `NeedsReauthentication`
+
+`NeedsReauthentication` (G-22) is set by the control plane when OpenAI rejects the refresh of a `CodexAuthJson` ChatGPT login for good (`refresh_token_reused`, `refresh_token_expired`, `refresh_token_invalidated`, `invalid_grant`, or HTTP 401). Runs that bind the secret then fail at once with outcome `NotCredentialed`. Replace the value (`PUT .../secrets/{id}/value`, `POST .../secrets/{id}/rotate`, an update that includes `value`, or a manifest apply with a new value) to return it to `Ok`. The control plane refreshes `CodexAuthJson` logins itself before they expire and writes the rotated tokens back to the secret, which changes `refreshedUtc`, `accessTokenExpiresUtc`, `valueLast4`, and `fingerprint` but not `rotatedUtc`. See `docs/HARNESSES.md`, ChatGPT logins.
 
 #### `SecretRequest`
 

@@ -366,6 +366,10 @@ const tips = {
       Hosted: 'Hosted: Garrison runs this agent itself through its deployments on worker nodes.',
       Remote: 'Remote: the agent runs elsewhere and Garrison forwards calls to its A2A or MCP endpoint.'
     },
+    secretStatus: {
+      Ok: 'The credential is usable, as far as Garrison knows. Setting a new value always returns a secret to this state.',
+      NeedsReauthentication: 'OpenAI rejected the stored ChatGPT login for good, for example because its refresh token was already used. Runs that use this secret fail until you replace its value with a fresh login.'
+    },
     secretKind: {
       AnthropicApiKey: 'An Anthropic API key, injected as ANTHROPIC_API_KEY by the Claude Code profile.',
       ClaudeCodeOAuthToken: 'A Claude Code subscription token. Check provider terms before using it on shared servers.',
@@ -597,6 +601,11 @@ const tips = {
       actions: { test: 'Connect to the server now and list its tools, to check the address and credentials.' }
     },
     secrets: {
+      status: 'Whether the stored credential still works. Garrison marks a Codex login as needing reauthentication when it can no longer be refreshed.',
+      accessTokenExpiresUtc: 'When the access token in a stored Codex ChatGPT login expires. Garrison refreshes it before then and writes the new tokens back to the secret.',
+      refreshedUtc: 'When Garrison last refreshed this Codex login itself. Runs only ever receive a copy without the refresh token.',
+      statusMessage: 'Why the login cannot be used, as reported by the provider.',
+      statusUtc: 'When Garrison found that the login can no longer be refreshed.',
       add: 'Store a new credential, such as an API key or token, encrypted at rest. Deployments reference it by alias; the value is never shown again after saving.',
       name: 'Secret name. Deployments pick the secret by this name and give it an alias.',
       kind: 'What sort of credential this is. Built-in profiles use the kind to know which variable or file to fill.',
@@ -809,7 +818,7 @@ const tips = {
         detail: 'Probe output, useful when a harness is unavailable.'
       },
       actions: {
-        grafana: 'Open the Workers and Harnesses dashboard in Grafana in a new tab, filtered to node {{node}}.',
+        grafana: 'Open the Workers dashboard in Grafana in a new tab, filtered to node {{node}}.',
         cordon: 'Stop sending new runs to this node. Runs already on it finish normally.',
         uncordon: 'Let this node accept new runs again.',
         drain: 'Stop new runs and let current ones finish, then the node goes idle. Use before shutting it down.',
@@ -881,6 +890,23 @@ const tips = {
       },
       observabilityVersion: 'Version {{service}} reported to the server\'s health check.',
       kpisGrafana: 'Open the Garrison overview dashboard in Grafana in a new tab to see these numbers over time.',
+      grafanaDashboards: 'The Garrison folder in Grafana has one dashboard per section. Each link opens that dashboard in a new tab.',
+      grafanaSections: {
+        overview: 'Health at a glance: replicas and workers up, run and request rates, errors, cost, and recent problems.',
+        http: 'REST traffic by route: request rate, latency percentiles, errors, payload sizes, authentication failures, and requests in flight.',
+        runs: 'Run lifecycle: runs created and finished by outcome, stage durations, cancellations, structured output validation, and repairs.',
+        agents: 'Per-agent performance: invocations, run time and queue time percentiles, time to first token, streaming time, outcomes, and guard trips.',
+        models: 'Token use and cost by model and agent: input, output, cached, and reasoning tokens, cost, and output throughput.',
+        workers: 'Worker nodes: leases, runs per node, completion reports, heartbeats, free slots, and calls to the control plane.',
+        kubernetes: 'Pod-per-run executor: run Jobs created and deleted, pod start latency, pod failures by reason, and orphan cleanups.',
+        protocols: 'MCP, A2A, and streaming: tool calls and durations, sessions, A2A methods and task states, SSE streams, WebSockets, and delegation.',
+        scheduler: 'Scheduling: queue depth by agent and harness, claim results and latency, lease long polls, blocked runs, and lease expirations.',
+        database: 'Database: statement latency by operation and table, errors, connections in use, write lock waits, and retention.',
+        controlPlane: 'Control-plane replicas: status, leader changes, backplane traffic and lag, heartbeats, and background service iterations.',
+        security: 'Authentication failures by scheme and reason, authorization denials, rate limiting, tokens issued, secret decryption, and Codex token refreshes.',
+        integrations: 'Outbound calls by service: MCP server tests, observability probes, the MCP proxy, the Kubernetes API, and the control plane from workers.',
+        logs: 'Log volume, errors and warnings by component and tenant, recent error lines, and links to traces.'
+      },
       observabilityDocs: 'Open the telemetry guide in a new tab: how to scrape Garrison metrics and connect Grafana, Prometheus, Tempo, or Loki.',
       observability: 'Links to the metrics, dashboard, and tracing tools this deployment reports as configured. Services that are not configured are not shown.',
       kpis: {
@@ -952,6 +978,7 @@ const tips = {
       name: 'The name callers use to invoke this agent.',
       viewJson: 'Show the full agent record as JSON.',
       invoke: 'Open Invoke with this agent selected. A deployment is picked by weight unless you choose one.',
+      grafana: 'Open the Agents dashboard in Grafana in a new tab, filtered to this agent: invocations, run time percentiles, time to first token, streaming time, tokens, cost, and guard trips.',
       id: 'Agent identifier for API calls.',
       tabs: {
         deployments: 'The ways this agent runs, with their weights and the share of traffic each one receives.',
@@ -1176,7 +1203,7 @@ const tips = {
     }
   },
   analytics: {
-    grafana: 'Open the Runs and Scheduling dashboard in Grafana in a new tab for the same time range as this page.',
+    grafana: 'Open the Runs dashboard in Grafana in a new tab for the same time range as this page.',
     filters: {
       ttft: 'When checked, the time to first token chart leaves out the time runs spent waiting on agents they delegated to, so delegating agents compare fairly with agents that answer directly.',
       range: 'Time window for every chart and total: the last hour, day, week, or 30 days, or a custom start and end.',

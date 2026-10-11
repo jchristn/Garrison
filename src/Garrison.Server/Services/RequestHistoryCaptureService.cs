@@ -11,6 +11,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Settings;
     using SyslogLogging;
     using WatsonWebserver.Core;
@@ -138,7 +139,11 @@ namespace Garrison.Server.Services
             try
             {
                 RequestHistoryEntry entry = Build(context);
-                if (!_Queue.Writer.TryWrite(entry)) Interlocked.Increment(ref _Dropped);
+                if (!_Queue.Writer.TryWrite(entry))
+                {
+                    Interlocked.Increment(ref _Dropped);
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.RequestHistoryCaptured, "result", "dropped");
+                }
             }
             catch (Exception e)
             {
@@ -267,6 +272,7 @@ namespace Garrison.Server.Services
                         try
                         {
                             await _Database.RequestHistory.CreateAsync(entry, token).ConfigureAwait(false);
+                            GarrisonMetrics.Count(GarrisonMetricCatalog.RequestHistoryCaptured, "result", "written");
                         }
                         catch (OperationCanceledException)
                         {
@@ -274,6 +280,7 @@ namespace Garrison.Server.Services
                         }
                         catch (Exception e)
                         {
+                            GarrisonMetrics.Count(GarrisonMetricCatalog.RequestHistoryCaptured, "result", "error");
                             _Logging.Warn("[RequestHistory] persist failed: " + e.Message);
                         }
                     }

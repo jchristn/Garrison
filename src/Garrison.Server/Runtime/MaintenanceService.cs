@@ -3,6 +3,7 @@ namespace Garrison.Server.Runtime
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Diagnostics.Metrics;
     using System.Linq;
     using System.Text.Json;
     using System.Threading;
@@ -206,6 +207,8 @@ namespace Garrison.Server.Runtime
         private readonly string _Header = "[Maintenance] ";
         private CancellationTokenSource? _Cts = null;
         private Task? _Loop = null;
+        private Dictionary<string, long> _BlockedByReason = new Dictionary<string, long>(StringComparer.Ordinal);
+        private GaugeRegistration? _BlockedGauge = null;
         private bool _Disposed = false;
         private int _RetentionIntervalMs = 3600000;
         private DateTime _LastRetentionUtc = DateTime.MinValue;
@@ -250,6 +253,7 @@ namespace Garrison.Server.Runtime
             _Signals = signals ?? throw new ArgumentNullException(nameof(signals));
             _Options = options ?? throw new ArgumentNullException(nameof(options));
             _Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            _BlockedGauge = GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.RunsBlockedCurrent, ObserveBlocked);
             _Logging = logging ?? throw new ArgumentNullException(nameof(logging));
         }
 
@@ -336,6 +340,8 @@ namespace Garrison.Server.Runtime
                 events = await _Database.RunEvents.PruneAsync(eventCutoff, token).ConfigureAwait(false);
                 if (runs + events > 0) _Logging.Info(_Header + "retention pruned " + runs + " runs and " + events + " events");
             }
+            if (runs > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, runs, GarrisonMetrics.Tags("kind", "runs"));
+            if (events > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, events, GarrisonMetrics.Tags("kind", "run_events"));
             return runs + events;
         }
 
@@ -350,11 +356,13 @@ namespace Garrison.Server.Runtime
         {
             DateTime now = Now;
             int deleted = 0;
-            deleted += await _Database.Nonces.PruneExpiredAsync(now, token).ConfigureAwait(false);
-            deleted += await _Database.RateLimits.PruneExpiredAsync(now, token).ConfigureAwait(false);
-            deleted += await _Database.McpSessions.PruneExpiredAsync(now, token).ConfigureAwait(false);
-            deleted += await _Database.BackplaneMessages.PruneAsync(now.AddMinutes(-_BackplaneRetentionMinutes), token).ConfigureAwait(false);
-            deleted += await _Database.ControlNodes.DeleteOfflineAsync(now.AddHours(-_Options.ControlNodeOfflineRetentionHours), token).ConfigureAwait(false);
+            deleted += Pruned("nonces", await _Database.Nonces.PruneExpiredAsync(now, token).ConfigureAwait(false));
+            deleted += Pruned("rate_limit_buckets", await _Database.RateLimits.PruneExpiredAsync(now, token).ConfigureAwait(false));
+            int sessions = Pruned("mcp_sessions", await _Database.McpSessions.PruneExpiredAsync(now, token).ConfigureAwait(false));
+            if (sessions > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.McpSessions, sessions, GarrisonMetrics.Tags("event", "expired"));
+            deleted += sessions;
+            deleted += Pruned("backplane_messages", await _Database.BackplaneMessages.PruneAsync(now.AddMinutes(-_BackplaneRetentionMinutes), token).ConfigureAwait(false));
+            deleted += Pruned("control_nodes", await _Database.ControlNodes.DeleteOfflineAsync(now.AddHours(-_Options.ControlNodeOfflineRetentionHours), token).ConfigureAwait(false));
             if (deleted > 0) _Logging.Debug(_Header + "cleanup removed " + deleted + " expired nonces, rate limit buckets, MCP sessions, backplane messages, and old Offline control nodes");
             return deleted;
         }
@@ -383,6 +391,7 @@ namespace Garrison.Server.Runtime
             {
                 _Cts?.Dispose();
                 _BlockedLock.Dispose();
+                _BlockedGauge?.Dispose();
             }
             _Disposed = true;
         }
@@ -430,26 +439,27 @@ namespace Garrison.Server.Runtime
                 if (await DestructiveAllowedAsync(token).ConfigureAwait(false))
                 {
                     evaluated = true;
-                    if (await AwakeAsync(token).ConfigureAwait(false)) await ReapExpiredLeasesAsync(token).ConfigureAwait(false);
-                    if (await AwakeAsync(token).ConfigureAwait(false)) await EnforceDeadlinesAsync(token).ConfigureAwait(false);
-                    if (await AwakeAsync(token).ConfigureAwait(false)) await MarkLostNodesAsync(token).ConfigureAwait(false);
-                    if (await AwakeAsync(token).ConfigureAwait(false)) await MarkOfflineControlNodesAsync(token).ConfigureAwait(false);
+                    // Each step is one background iteration with its own span and metrics (P13.24, P13.25).
+                    if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "reap_leases", ReapExpiredLeasesAsync, token).ConfigureAwait(false);
+                    if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "enforce_deadlines", EnforceDeadlinesAsync, token).ConfigureAwait(false);
+                    if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "mark_lost_nodes", MarkLostNodesAsync, token).ConfigureAwait(false);
+                    if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "mark_offline_control_nodes", MarkOfflineControlNodesAsync, token).ConfigureAwait(false);
                     if ((forceBlockedCheck || (Now - _LastBlockedCheckUtc).TotalMilliseconds >= _BlockedCheckIntervalMs) && await AwakeAsync(token).ConfigureAwait(false))
                     {
                         _LastBlockedCheckUtc = Now;
-                        await CheckBlockedRunsAsync(token).ConfigureAwait(false);
+                        await GarrisonTracing.BackgroundAsync("maintenance", "blocked_runs", CheckBlockedRunsAsync, token).ConfigureAwait(false);
                     }
                 }
 
                 if (RunRetention && (Now - _LastRetentionUtc).TotalMilliseconds >= _RetentionIntervalMs)
                 {
                     _LastRetentionUtc = Now;
-                    await ApplyRetentionAsync(token).ConfigureAwait(false);
+                    await GarrisonTracing.BackgroundAsync("maintenance", "run_retention", async ct => await ApplyRetentionAsync(ct).ConfigureAwait(false) > 0, token).ConfigureAwait(false);
                 }
                 if ((Now - _LastCleanupUtc).TotalMilliseconds >= _CleanupIntervalMs)
                 {
                     _LastCleanupUtc = Now;
-                    await CleanupSharedStateAsync(token).ConfigureAwait(false);
+                    await GarrisonTracing.BackgroundAsync("maintenance", "cleanup_shared_state", async ct => await CleanupSharedStateAsync(ct).ConfigureAwait(false) > 0, token).ConfigureAwait(false);
                 }
                 Interlocked.Increment(ref _LeaderPasses);
                 return evaluated;
@@ -459,6 +469,22 @@ namespace Garrison.Server.Runtime
                 // The pass's own duration does not count toward the next gap; only the sleep between passes does.
                 _Pause.Touch();
             }
+        }
+
+        private IEnumerable<Measurement<double>> ObserveBlocked()
+        {
+            // Only the leader evaluates blocked runs, so only the leader reports them; aggregate with max.
+            if (!_Leader.IsLeader) return Array.Empty<Measurement<double>>();
+            Dictionary<string, long> counts = Volatile.Read(ref _BlockedByReason);
+            List<Measurement<double>> measurements = new List<Measurement<double>>(counts.Count);
+            foreach (KeyValuePair<string, long> pair in counts) measurements.Add(GarrisonMetrics.Measure(pair.Value, "reason", pair.Key));
+            return measurements;
+        }
+
+        private static int Pruned(string kind, int count)
+        {
+            if (count > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, count, GarrisonMetrics.Tags("kind", kind));
+            return count;
         }
 
         private async Task<bool> AwakeAsync(CancellationToken token)
@@ -485,7 +511,7 @@ namespace Garrison.Server.Runtime
                 _DeferralLogged = false;
             }
             Interlocked.Increment(ref _PausesDetected);
-            _Telemetry.Increment("garrison.maintenance.pauses", new RadiantTag("leader", leader ? "true" : "false"));
+            GarrisonMetrics.Count(GarrisonMetricCatalog.MaintenancePauses, "leader", leader ? "true" : "false");
             _Logging.Warn(_Header + "maintenance paused for " + Math.Round(paused.TotalSeconds, 1) + " s; giving nodes one heartbeat window ("
                 + _Options.PauseDeferralMs + " ms) to report before expiring leases, enforcing deadlines, or marking nodes Lost or control nodes Offline"
                 + " event=maintenance.pause pausedMs=" + (long)paused.TotalMilliseconds
@@ -633,7 +659,7 @@ namespace Garrison.Server.Runtime
                 + " event=maintenance.resume pausedMs=" + (long)paused.TotalMilliseconds + " extended=" + extended + " unconfirmed=" + unconfirmed);
         }
 
-        private async Task ReapExpiredLeasesAsync(CancellationToken token)
+        private async Task<bool> ReapExpiredLeasesAsync(CancellationToken token)
         {
             List<Run> expired = await _Database.Runs.ListExpiredLeasesAsync(Now, 200, token).ConfigureAwait(false);
             foreach (Run run in expired)
@@ -669,19 +695,30 @@ namespace Garrison.Server.Runtime
 
                 if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
                 {
-                    _Telemetry.Increment("garrison.lease.expirations", new RadiantTag("action", requeue ? "requeued" : "failed"));
-                    _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()) + " " + RunTracing.LogFields(run.Id, run.TraceId));
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.LeaseExpirations, "action", requeue ? "requeued" : "failed");
+                    _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()) + " " + RunTracing.LogFields(run.Id, run.TraceId)
+                        + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", deployment?.Name, "node", run.LeaseNodeName ?? run.LeaseNodeId));
                     if (requeue) _Signals.NotifyQueue();
                     else
                     {
                         await _Database.Sessions.RevokeByRunAsync(run.Id, "Run lease expired.", token).ConfigureAwait(false);
                         _Signals.Complete(run.Id);
+                        await FinishedAsync(run, transition, token).ConfigureAwait(false);
                     }
                 }
             }
+            return expired.Count > 0;
         }
 
-        private async Task EnforceDeadlinesAsync(CancellationToken token)
+        private async Task FinishedAsync(Run run, RunTransition transition, CancellationToken token)
+        {
+            run.Status = transition.ToStatus;
+            if (transition.Outcome.HasValue) run.Outcome = transition.Outcome.Value;
+            run.CompletedUtc = Now;
+            await RunTelemetry.FinishedAsync(_Database, run, token).ConfigureAwait(false);
+        }
+
+        private async Task<bool> EnforceDeadlinesAsync(CancellationToken token)
         {
             List<Run> late = await _Database.Runs.ListPastDeadlineAsync(Now, 200, token).ConfigureAwait(false);
             foreach (Run run in late)
@@ -700,6 +737,7 @@ namespace Garrison.Server.Runtime
                     _PauseCredit.TryRemove(run.Id, out TimeSpan _);
                     await _Database.Sessions.RevokeByRunAsync(run.Id, "Run timed out.", token).ConfigureAwait(false);
                     _Signals.Complete(run.Id);
+                    await FinishedAsync(run, transition, token).ConfigureAwait(false);
                 }
             }
 
@@ -728,40 +766,49 @@ namespace Garrison.Server.Runtime
                     _PauseCredit.TryRemove(run.Id, out TimeSpan _);
                     await _Database.Sessions.RevokeByRunAsync(run.Id, "Run timed out.", token).ConfigureAwait(false);
                     _Signals.Complete(run.Id);
+                    await FinishedAsync(run, transition, token).ConfigureAwait(false);
                 }
             }
+            return late.Count > 0 || overCap.Count > 0;
         }
 
-        private async Task MarkLostNodesAsync(CancellationToken token)
+        private async Task<bool> MarkLostNodesAsync(CancellationToken token)
         {
             List<Node> stale = await _Database.Nodes.ListStaleAsync(Now.AddMilliseconds(-_Options.NodeHeartbeatTimeoutMs), token).ConfigureAwait(false);
             foreach (Node node in stale)
             {
                 if (await _Database.Nodes.SetStatusAsync(node.Id, NodeStatusEnum.Lost, token).ConfigureAwait(false))
                 {
-                    _Logging.Warn(_Header + "node " + node.Name + " missed heartbeats and is now Lost");
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.NodeTransitions, "status", NodeStatusEnum.Lost.ToString());
+                    _Logging.Warn(_Header + "node " + node.Name + " missed heartbeats and is now Lost " + GarrisonTracing.LogFields("node", node.Name));
                 }
             }
+            return stale.Count > 0;
         }
 
-        private async Task MarkOfflineControlNodesAsync(CancellationToken token)
+        private async Task<bool> MarkOfflineControlNodesAsync(CancellationToken token)
         {
             List<string> marked = await _Database.ControlNodes.MarkSilentOfflineAsync(Now.AddMilliseconds(-_Options.ControlNodeOfflineAfterMs), token).ConfigureAwait(false);
             foreach (string id in marked)
             {
-                _Logging.Warn(_Header + "control-plane replica " + id + " missed heartbeats and is now Offline");
+                GarrisonMetrics.Count(GarrisonMetricCatalog.ControlNodeTransitions, "status", "Offline");
+                _Logging.Warn(_Header + "control-plane replica " + id + " missed heartbeats and is now Offline " + GarrisonTracing.LogFields("node", id));
             }
+            return marked.Count > 0;
         }
 
-        private async Task CheckBlockedRunsAsync(CancellationToken token)
+        private async Task<bool> CheckBlockedRunsAsync(CancellationToken token)
         {
             BlockedRunService? blocked = BlockedRuns;
-            if (blocked == null) return;
+            if (blocked == null) return false;
+            bool any = false;
 
             await _BlockedLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
                 List<Run> queued = await _Database.Runs.ListQueuedAsync(null, blocked.MaxQueuedRunsScanned, token).ConfigureAwait(false);
+                any = queued.Count > 0;
+                Dictionary<string, long> byReason = new Dictionary<string, long>(StringComparer.Ordinal);
                 HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
                 if (queued.Count > 0)
                 {
@@ -778,6 +825,7 @@ namespace Garrison.Server.Runtime
                             continue;
                         }
 
+                        byReason[reason.Value.ToString()] = (byReason.TryGetValue(reason.Value.ToString(), out long counted) ? counted : 0) + 1;
                         if (!_Blocked.TryGetValue(run.Id, out BlockedRunState? state))
                         {
                             state = await LoadBlockedStateAsync(run, token).ConfigureAwait(false);
@@ -801,11 +849,13 @@ namespace Garrison.Server.Runtime
                 {
                     if (!seen.Contains(id)) _Blocked.TryRemove(id, out BlockedRunState? _);
                 }
+                Volatile.Write(ref _BlockedByReason, byReason);
             }
             finally
             {
                 _BlockedLock.Release();
             }
+            return any;
         }
 
         private async Task<BlockedRunState> LoadBlockedStateAsync(Run run, CancellationToken token)
@@ -868,8 +918,8 @@ namespace Garrison.Server.Runtime
             int inserted = await _Database.RunEvents.InsertBatchAsync(new List<RunEvent> { evt }, token).ConfigureAwait(false);
             if (inserted == 0) return false;
             await _Database.Runs.UpdateLastEventSequenceAsync(current.Id, evt.Sequence, token).ConfigureAwait(false);
-            _Telemetry.Increment("garrison.runs.blocked", new RadiantTag("reason", reason.ToString()));
-            _Logging.Info(_Header + "run " + current.Id + " is blocked (" + reason + "): " + evt.Text + " " + RunTracing.LogFields(current.Id, current.TraceId));
+            GarrisonMetrics.Count(GarrisonMetricCatalog.RunsBlocked, "reason", reason.ToString());
+            _Logging.Info(_Header + "run " + current.Id + " is blocked (" + reason + "): " + evt.Text + " " + RunTracing.LogFields(current.Id, current.TraceId) + " " + GarrisonTracing.LogFields("tenant", current.TenantId, "agent", current.AgentName));
             _Signals.Notify(current.Id);
             return true;
         }
@@ -887,9 +937,10 @@ namespace Garrison.Server.Runtime
             if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
             {
                 _Blocked.TryRemove(run.Id, out BlockedRunState? _);
-                _Telemetry.Increment("garrison.runs.blocked.failed", new RadiantTag("reason", reason.ToString()));
-                _Logging.Warn(_Header + "run " + run.Id + " failed after " + failAfterSeconds + " seconds blocked (" + reason + ") " + RunTracing.LogFields(run.Id, run.TraceId));
+                GarrisonMetrics.Count(GarrisonMetricCatalog.RunsBlockedFailed, "reason", reason.ToString());
+                _Logging.Warn(_Header + "run " + run.Id + " failed after " + failAfterSeconds + " seconds blocked (" + reason + ") " + RunTracing.LogFields(run.Id, run.TraceId) + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName));
                 _Signals.Complete(run.Id);
+                await FinishedAsync(run, transition, token).ConfigureAwait(false);
             }
         }
 

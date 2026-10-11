@@ -1,0 +1,1219 @@
+{
+  "uid": "garrison-logs",
+  "title": "Garrison / Logs and traces",
+  "description": "Log volume, errors and warnings, filtered log streams, trace search, and the health of the telemetry pipeline itself.",
+  "tags": [
+    "garrison"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "fiscalYearStartMonth": 0,
+  "liveNow": false,
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Garrison dashboards",
+      "type": "dashboards",
+      "tags": [
+        "garrison"
+      ],
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "component",
+        "label": "Component",
+        "description": "Garrison component.",
+        "type": "custom",
+        "query": "server,worker,dashboard",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "node",
+        "label": "Node",
+        "description": "Garrison node: the server pod or container name, or the worker node name.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(up{job=\"garrison\"}, node)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(up{job=\"garrison\"}, node)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
+      },
+      {
+        "name": "tenant",
+        "label": "Tenant",
+        "description": "Tenant ID. Empty until the first run is created.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(garrison_runs_created_total, tenant)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(garrison_runs_created_total, tenant)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
+      },
+      {
+        "name": "agent",
+        "label": "Agent",
+        "description": "Agent name.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(garrison_runs_created_total{tenant=~\"$tenant\"}, agent)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(garrison_runs_created_total{tenant=~\"$tenant\"}, agent)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
+      },
+      {
+        "name": "run",
+        "label": "Run ID",
+        "description": "Filters log panels to lines that contain this run ID.",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "search",
+        "label": "Log text",
+        "description": "Filters log panels to lines that contain this text.",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "window",
+        "label": "Average over",
+        "type": "custom",
+        "query": "5m,15m,1h,6h",
+        "description": "Window for rates, averages, and percentiles. Runs are infrequent, so short windows leave gaps.",
+        "current": {
+          "selected": true,
+          "text": "15m",
+          "value": "15m"
+        },
+        "options": [
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": true,
+            "text": "15m",
+            "value": "15m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          }
+        ],
+        "multi": false,
+        "includeAll": false,
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Log volume",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "id": 1
+    },
+    {
+      "type": "timeseries",
+      "title": "Log lines by level",
+      "description": "Log lines per interval by level (Alloy promotes level, component, node, and tenant to labels).",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "sum by (level) (count_over_time({app=\"garrison\", node=~\"${node:regex}\"} [$__auto]))",
+          "legendFormat": "{{level}}",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "Log lines by component",
+      "description": "Log lines per interval by component (server, worker, dashboard).",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "sum by (component) (count_over_time({app=\"garrison\", node=~\"${node:regex}\"} [$__auto]))",
+          "legendFormat": "{{component}}",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "Errors and warnings per minute",
+      "description": "Warning and error lines per minute by component.",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "sum by (component, level) (count_over_time({app=\"garrison\", level=~\"Warn|Error|Alert|Critical|Emergency\", node=~\"${node:regex}\"} [1m]))",
+          "legendFormat": "{{component}} {{level}}",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Log lines by tenant",
+      "description": "Lines that carry tenant=<id>, by tenant label.",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "sum by (tenant) (count_over_time({app=\"garrison\", tenant=~\".+\", node=~\"${node:regex}\"} [$__auto]))",
+          "legendFormat": "{{tenant}}",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "id": 5
+    },
+    {
+      "type": "row",
+      "title": "Logs",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 1
+      },
+      "id": 6
+    },
+    {
+      "type": "logs",
+      "title": "Warnings and errors",
+      "description": "Recent warning and error lines from every component.",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "{app=\"garrison\", level=~\"Warn|Error|Alert|Critical|Emergency\", node=~\"${node:regex}\"} |= \"$search\"",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending",
+        "enableInfiniteScrolling": false
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 10
+      },
+      "id": 7
+    },
+    {
+      "type": "logs",
+      "title": "Filtered logs",
+      "description": "All lines, narrowed by the Agent, Run ID, and Log text boxes.",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "{app=\"garrison\", node=~\"${node:regex}\"} |~ \"${agent:regex}\" |= \"$run\" |= \"$search\"",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending",
+        "enableInfiniteScrolling": false
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 10
+      },
+      "id": 8
+    },
+    {
+      "type": "row",
+      "title": "Traces",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 1
+      },
+      "id": 9
+    },
+    {
+      "type": "table",
+      "title": "Failed and rejected spans",
+      "description": "Traces with a span in error or a request answered 4xx or 5xx.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "garrison-tempo"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "garrison-tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ status = error || span.http.response.status_code >= 400 }",
+          "limit": 20,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      },
+      "id": 10
+    },
+    {
+      "type": "table",
+      "title": "Slowest harness executions",
+      "description": "Harness executions that took longer than one second, inside their run traces.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "garrison-tempo"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "garrison-tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ name =~ \"harness .* exec\" && duration > 1s }",
+          "limit": 20,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      },
+      "id": 11
+    },
+    {
+      "type": "table",
+      "title": "Traces for the selected agent",
+      "description": "Traces whose spans name the selected agents.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "garrison-tempo"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "garrison-tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ span.garrison.agent =~ \"${agent:regex}\" }",
+          "limit": 20,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 12,
+        "h": 8
+      },
+      "id": 12
+    },
+    {
+      "type": "table",
+      "title": "Traces for a run",
+      "description": "Traces whose spans carry the run ID typed in the Run ID box (every run trace when the box is empty).",
+      "datasource": {
+        "type": "tempo",
+        "uid": "garrison-tempo"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "garrison-tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ span.garrison.run_id =~ \"$run.*\" }",
+          "limit": 20,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 47,
+        "w": 12,
+        "h": 8
+      },
+      "id": 13
+    },
+    {
+      "type": "row",
+      "title": "Telemetry pipeline",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 24,
+        "h": 1
+      },
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "Telemetry diagnostics",
+      "description": "Messages reported by the telemetry pipeline (export failures and the like), by severity.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (severity, node) (increase(garrison_telemetry_diagnostics_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"severity\", \"none\", \"\", \"\")",
+          "legendFormat": "{{severity}} {{node}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Warnings and errors in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20level%3D~%5C%22Warn%7CError%7CAlert%7CCritical%7CEmergency%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Failed spans in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20status%20%3D%20error%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 8,
+        "h": 8
+      },
+      "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "Label values folded",
+      "description": "Measurements whose label value was replaced by other, by label.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (label) (increase(garrison_telemetry_labels_folded_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"label\", \"none\", \"\", \"\")",
+          "legendFormat": "{{label}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 56,
+        "w": 8,
+        "h": 8
+      },
+      "id": 16
+    },
+    {
+      "type": "timeseries",
+      "title": "Scrape targets up",
+      "description": "Garrison scrape targets Prometheus reached, by component.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (component) (up{job=\"garrison\", node=~\"$node\"}) or on() label_replace(vector(0), \"component\", \"none\", \"\", \"\")",
+          "legendFormat": "{{component}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 56,
+        "w": 8,
+        "h": 8
+      },
+      "id": 17
+    }
+  ]
+}

@@ -49,6 +49,7 @@ namespace Garrison.Server.Modules
         private ClusterSettingsService? _Cluster = null;
         private RunGaugeService? _Gauges = null;
         private CompilerOptions? _Compiler = null;
+        private CodexCredentialService? _Codex = null;
 
         #endregion
 
@@ -103,6 +104,8 @@ namespace Garrison.Server.Modules
             context.Register(_Blocked);
             _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
             context.Register(_Gauges);
+            _Codex = new CodexCredentialService(context.Database, context.Cipher, () => context.Settings.Codex, context.NodeId, context.Logging);
+            context.Register(_Codex);
             return Task.CompletedTask;
         }
 
@@ -157,8 +160,14 @@ namespace Garrison.Server.Modules
                 _Maintenance.HeartbeatSelfAsync = ct => controlNode.HeartbeatAsync(ct);
             }
 
+            // G-22: runs that bind a CodexAuthJson secret get a login the control plane refreshed, and the leader keeps
+            // idle logins from lapsing.
+            InvocationCompiler? compiler = context.TryGet<InvocationCompiler>();
+            if (compiler != null) compiler.SecretPreparer = _Codex;
+
             _Leader!.Start(token);
             _Maintenance!.Start(token);
+            _Codex!.Start(() => _Leader!.IsLeader, token);
             _Gauges?.Start(token);
             return Task.CompletedTask;
         }
@@ -184,6 +193,8 @@ namespace Garrison.Server.Modules
                 }
             }
             _SettingsCts?.Dispose();
+            if (_Codex != null) await _Codex.StopAsync().ConfigureAwait(false);
+            _Codex?.Dispose();
             if (_Gauges != null) await _Gauges.StopAsync().ConfigureAwait(false);
             _Gauges?.Dispose();
             if (_Maintenance != null) await _Maintenance.StopAsync().ConfigureAwait(false);

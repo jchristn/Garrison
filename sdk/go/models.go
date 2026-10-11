@@ -60,6 +60,44 @@ const (
 	WorkspaceKindPersistentVolume = "PersistentVolume"
 )
 
+// Secret statuses (Secret.Status).
+const (
+	// SecretStatusOk means the credential is usable or was not checked. Setting a new value returns a secret here.
+	SecretStatusOk = "Ok"
+	// SecretStatusNeedsReauthentication means the provider rejected a CodexAuthJson login for good (refresh token
+	// reused, expired, or revoked). Runs that bind the secret fail with outcome NotCredentialed and an error message
+	// starting "SecretNeedsReauthentication:" until the secret's value is replaced with a fresh login.
+	SecretStatusNeedsReauthentication = "NeedsReauthentication"
+)
+
+// Secret is secret metadata. The value is write-only and never returned. Decode a Client.Secrets response into it.
+type Secret struct {
+	ID          string `json:"id"`
+	TenantID    string `json:"tenantId"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Kind        string `json:"kind"`
+	ValueLast4  string `json:"valueLast4,omitempty"`
+	Fingerprint string `json:"fingerprint,omitempty"`
+	KeyVersion  int    `json:"keyVersion"`
+	ExpiresUTC  string `json:"expiresUtc,omitempty"`
+	RotatedUTC  string `json:"rotatedUtc,omitempty"`
+	Active      bool   `json:"active"`
+	IsProtected bool   `json:"isProtected"`
+	// Status is SecretStatusOk or SecretStatusNeedsReauthentication.
+	Status string `json:"status"`
+	// StatusMessage explains the status (the provider error), or is empty when Ok.
+	StatusMessage string `json:"statusMessage,omitempty"`
+	// StatusUTC is when the status left Ok, or empty.
+	StatusUTC string `json:"statusUtc,omitempty"`
+	// RefreshedUTC is when the control plane last refreshed this Codex login itself, or empty.
+	RefreshedUTC string `json:"refreshedUtc,omitempty"`
+	// AccessTokenExpiresUTC is the expiry of the stored ChatGPT access token (CodexAuthJson only), or empty.
+	AccessTokenExpiresUTC string `json:"accessTokenExpiresUtc,omitempty"`
+	CreatedUTC            string `json:"createdUtc,omitempty"`
+	LastUpdateUTC         string `json:"lastUpdateUtc,omitempty"`
+}
+
 // RunPodResources are requests and limits for the run pod of a KubernetesJob run, as Kubernetes quantities (for
 // example "500m", "2", "512Mi", "4Gi"). Nil values use the worker's defaults.
 type RunPodResources struct {

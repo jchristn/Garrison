@@ -1,0 +1,164 @@
+{
+  "name": "garrison-live",
+  "description": "Frozen snapshot of the configuration Garrison ships: the quick start manifest (examples/multi-agent.yaml) and the sample agents and deployments the Kubernetes bootstrap Job applies (k8s/base/manifests), substituted as the bootstrap does with no credentials.",
+  "snapshotDate": "2026-10-11",
+  "files": [
+    "examples/multi-agent.yaml",
+    "k8s/base/manifests/agents.yaml",
+    "k8s/base/manifests/deployment-claude.yaml",
+    "k8s/base/manifests/deployment-codex.yaml",
+    "k8s/base/manifests/deployment-mux.yaml"
+  ],
+  "substitutions": {
+    "__CLAUDE_SECRET__": "claude-credential",
+    "__CODEX_SECRET__": "codex-credential",
+    "__MUX_BASE_URL__": "http://127.0.0.1:9/v1",
+    "__MUX_MODEL__": "gpt-4o-mini",
+    "__MUX_ADAPTER_TYPE__": "openai-compatible"
+  },
+  "dropLinesContaining": [
+    "__MUX_CONTEXT_WINDOW__",
+    "__MUX_MAX_TOKENS__"
+  ],
+  "extraItems": [
+    {
+      "id": "secret-mux-api-key",
+      "kind": "Secret",
+      "name": "mux-api-key",
+      "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: mux-api-key\n  description: Declared by the bootstrap Job for the Mux sample deployment (no value)\nspec:\n  kind: GenericEnv\n"
+    }
+  ],
+  "corpora": [
+    {
+      "id": "live-ingest",
+      "command": "ingest",
+      "description": "Load the shipped configuration and check it reads back.",
+      "probes": [
+        {
+          "id": "reachable-all",
+          "type": "reachability",
+          "category": "load-path",
+          "negative": false,
+          "action": "reachable",
+          "expect": {}
+        },
+        {
+          "id": "dry-run-unchanged",
+          "type": "idempotent-dry-run",
+          "category": "load-path",
+          "negative": false,
+          "action": "apply",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: echo\n  description: Repeats its input; runs on the fake harness and costs nothing\nspec:\n  displayName: Echo\n  exposure: { a2a: true, mcpTool: true }\n",
+          "dryRun": true,
+          "expect": {
+            "httpStatus": 200,
+            "manifestUnchanged": 1,
+            "manifestFailed": 0
+          }
+        },
+        {
+          "id": "secret-value",
+          "type": "secret-value",
+          "category": "validation",
+          "negative": true,
+          "action": "apply",
+          "dryRun": true,
+          "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: claude-credential\nspec:\n  kind: ClaudeCodeOAuthToken\n  value: not-a-real-token\n",
+          "expect": {
+            "httpStatus": 400,
+            "manifestFailed": 1,
+            "manifestMessageContains": "value"
+          }
+        }
+      ]
+    },
+    {
+      "id": "live-e2e",
+      "command": "e2e",
+      "description": "Use the shipped configuration the way the quick start does, without model credentials.",
+      "probes": [
+        {
+          "id": "echo-invoke",
+          "type": "quick-start",
+          "category": "flow",
+          "negative": false,
+          "action": "run",
+          "agent": "echo",
+          "input": "Hello from the live snapshot.",
+          "mode": "invoke",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "echo-create",
+          "type": "quick-start",
+          "category": "flow",
+          "negative": false,
+          "action": "run",
+          "agent": "echo",
+          "input": "Created asynchronously and followed to the end.",
+          "mode": "create",
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          },
+          "directArguments": [
+            "--format",
+            "claude"
+          ]
+        },
+        {
+          "id": "planner-override",
+          "type": "override-not-allowed",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "planner",
+          "input": "Use a different model.",
+          "parameters": {
+            "model": "opus"
+          },
+          "expect": {
+            "httpStatus": 400,
+            "errorCode": "ValidationFailed",
+            "fieldCode": "ParameterNotAllowed"
+          }
+        },
+        {
+          "id": "missing-delegate",
+          "type": "unknown-agent",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "researcher",
+          "input": "researcher is in the planner's allow list but does not exist.",
+          "expect": {
+            "httpStatus": 404
+          }
+        },
+        {
+          "id": "cross-tenant-read",
+          "type": "cross-tenant",
+          "category": "isolation",
+          "negative": true,
+          "action": "cross-tenant",
+          "agent": "echo",
+          "input": "A run another tenant must not see.",
+          "expect": {
+            "httpStatus": 404
+          }
+        }
+      ]
+    }
+  ]
+}

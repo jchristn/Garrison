@@ -1,0 +1,382 @@
+{
+  "name": "garrison-live",
+  "description": "Frozen snapshot of the configuration Garrison ships: the quick start manifest (examples/multi-agent.yaml) and the sample agents and deployments the Kubernetes bootstrap Job applies (k8s/base/manifests), substituted as the bootstrap does with no credentials.",
+  "schemaVersion": 1,
+  "tier": "live",
+  "snapshotDate": "2026-10-11",
+  "source": "Frozen snapshot of examples/multi-agent.yaml, k8s/base/manifests/agents.yaml, k8s/base/manifests/deployment-claude.yaml, k8s/base/manifests/deployment-codex.yaml, k8s/base/manifests/deployment-mux.yaml on 2026-10-11, substituted as the bootstrap Job does, built by Garrison.Benchmark generate --kind live from benchmarks/datasets/live/sources.json.",
+  "corpora": [
+    {
+      "id": "live-ingest",
+      "description": "Load the shipped configuration and check it reads back.",
+      "command": "ingest",
+      "items": [
+        {
+          "id": "secret-claude-credential",
+          "kind": "Secret",
+          "name": "claude-credential",
+          "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: claude-credential\n  description: Claude Code credential for the quick start agents\nspec:\n  kind: ClaudeCodeOAuthToken\n"
+        },
+        {
+          "id": "secret-codex-credential",
+          "kind": "Secret",
+          "name": "codex-credential",
+          "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: codex-credential\n  description: Codex credential for the quick start agents\nspec:\n  kind: CodexAuthJson\n"
+        },
+        {
+          "id": "agent-planner",
+          "kind": "Agent",
+          "name": "planner",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: planner\n  description: Breaks a request into steps and hands coding work to other agents\nspec:\n  displayName: Planner\n  exposure: { a2a: true, mcpTool: true }\n  # Without a mode, a non-empty allow list means AllowList. researcher is the Mux agent the quick start\n  # creates in the dashboard; naming an agent that does not exist yet is fine.\n  delegation:\n    allow: [coder, echo, researcher]\n    maxDepth: 1\n"
+        },
+        {
+          "id": "agent-coder",
+          "kind": "Agent",
+          "name": "coder",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: coder\n  description: Writes and explains code\nspec:\n  displayName: Coder\n  exposure: { a2a: true, mcpTool: true }\n"
+        },
+        {
+          "id": "agent-echo",
+          "kind": "Agent",
+          "name": "echo",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: echo\n  description: Repeats its input; runs on the fake harness and costs nothing\nspec:\n  displayName: Echo\n  exposure: { a2a: true, mcpTool: true }\n"
+        },
+        {
+          "id": "deployment-planner-claude",
+          "kind": "Deployment",
+          "name": "planner-claude",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: planner-claude\nspec:\n  agent: planner\n  harnessProfile: builtin/claude-code\n  model: sonnet\n  maxTurns: 8\n  timeoutSeconds: 300\n  resources:\n    secrets:\n      - { alias: anthropic, secret: claude-credential }\n"
+        },
+        {
+          "id": "deployment-coder-codex",
+          "kind": "Deployment",
+          "name": "coder-codex",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: coder-codex\nspec:\n  agent: coder\n  harnessProfile: builtin/codex\n  maxTurns: 8\n  timeoutSeconds: 300\n  resources:\n    secrets:\n      - { alias: codex, secret: codex-credential }\n"
+        },
+        {
+          "id": "deployment-echo-fake",
+          "kind": "Deployment",
+          "name": "echo-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: echo-fake\nspec:\n  agent: echo\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  parameters:\n    format: claude\n"
+        },
+        {
+          "id": "agent-claude-helper",
+          "kind": "Agent",
+          "name": "claude-helper",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: claude-helper\nspec:\n  displayName: Claude Helper\n  description: General-purpose assistant running on Claude Code.\n  exposure: { a2a: true, mcpTool: true }\n  delegation: { maxDepth: 2, allow: [codex-coder, mux-helper] }\n"
+        },
+        {
+          "id": "agent-codex-coder",
+          "kind": "Agent",
+          "name": "codex-coder",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: codex-coder\nspec:\n  displayName: Codex Coder\n  description: Coding assistant running on OpenAI Codex.\n  exposure: { a2a: true, mcpTool: true }\n"
+        },
+        {
+          "id": "agent-mux-helper",
+          "kind": "Agent",
+          "name": "mux-helper",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: mux-helper\nspec:\n  displayName: Mux Helper\n  description: Assistant running on Mux against an OpenAI-compatible model endpoint.\n  exposure: { a2a: true, mcpTool: true }\n"
+        },
+        {
+          "id": "deployment-claude-helper-default",
+          "kind": "Deployment",
+          "name": "claude-helper-default",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: claude-helper-default\nspec:\n  agent: claude-helper\n  harnessProfile: builtin/claude-code\n  model: sonnet\n  maxTurns: 8\n  prompts:\n    System: builtin/default-system\n    Task: builtin/default-task\n  resources:\n    secrets:\n      - { alias: anthropic, secret: claude-credential }\n  timeoutSeconds: 600\n"
+        },
+        {
+          "id": "deployment-codex-coder-default",
+          "kind": "Deployment",
+          "name": "codex-coder-default",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: codex-coder-default\nspec:\n  agent: codex-coder\n  harnessProfile: builtin/codex\n  maxTurns: 8\n  prompts:\n    System: builtin/default-system\n    Task: builtin/default-task\n  resources:\n    secrets:\n      - { alias: codex, secret: codex-credential }\n  timeoutSeconds: 600\n"
+        },
+        {
+          "id": "deployment-mux-helper-default",
+          "kind": "Deployment",
+          "name": "mux-helper-default",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: mux-helper-default\nspec:\n  agent: mux-helper\n  harnessProfile: builtin/mux\n  model: gpt-4o-mini\n  maxTurns: 8\n  parameters:\n    baseUrl: http://127.0.0.1:9/v1\n    adapterType: openai-compatible\n    # Optional. The bootstrap removes these lines when MUX_CONTEXT_WINDOW or MUX_MAX_TOKENS is not set.\n  prompts:\n    System: builtin/default-system\n    Task: builtin/default-task\n  resources:\n    secrets:\n      - { alias: mux, secret: mux-api-key }\n  timeoutSeconds: 600\n"
+        },
+        {
+          "id": "secret-mux-api-key",
+          "kind": "Secret",
+          "name": "mux-api-key",
+          "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: mux-api-key\n  description: Declared by the bootstrap Job for the Mux sample deployment (no value)\nspec:\n  kind: GenericEnv\n"
+        }
+      ],
+      "probes": [
+        {
+          "id": "reachable-all",
+          "type": "reachability",
+          "category": "load-path",
+          "negative": false,
+          "action": "reachable",
+          "inputRepeat": 1,
+          "priority": 0,
+          "mode": "create",
+          "count": 1,
+          "dryRun": false,
+          "timeoutSeconds": 60,
+          "expect": {
+            "resultEcho": false,
+            "contiguousEvents": false
+          }
+        },
+        {
+          "id": "dry-run-unchanged",
+          "type": "idempotent-dry-run",
+          "category": "load-path",
+          "negative": false,
+          "action": "apply",
+          "inputRepeat": 1,
+          "priority": 0,
+          "mode": "create",
+          "count": 1,
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: echo\n  description: Repeats its input; runs on the fake harness and costs nothing\nspec:\n  displayName: Echo\n  exposure: { a2a: true, mcpTool: true }\n",
+          "dryRun": true,
+          "timeoutSeconds": 60,
+          "expect": {
+            "httpStatus": 200,
+            "resultEcho": false,
+            "contiguousEvents": false,
+            "manifestFailed": 0,
+            "manifestUnchanged": 1
+          }
+        },
+        {
+          "id": "secret-value",
+          "type": "secret-value",
+          "category": "validation",
+          "negative": true,
+          "action": "apply",
+          "inputRepeat": 1,
+          "priority": 0,
+          "mode": "create",
+          "count": 1,
+          "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: claude-credential\nspec:\n  kind: ClaudeCodeOAuthToken\n  value: not-a-real-token\n",
+          "dryRun": true,
+          "timeoutSeconds": 60,
+          "expect": {
+            "httpStatus": 400,
+            "resultEcho": false,
+            "contiguousEvents": false,
+            "manifestFailed": 1,
+            "manifestMessageContains": "value"
+          }
+        }
+      ]
+    },
+    {
+      "id": "live-e2e",
+      "description": "Use the shipped configuration the way the quick start does, without model credentials.",
+      "command": "e2e",
+      "items": [
+        {
+          "id": "secret-claude-credential",
+          "kind": "Secret",
+          "name": "claude-credential",
+          "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: claude-credential\n  description: Claude Code credential for the quick start agents\nspec:\n  kind: ClaudeCodeOAuthToken\n"
+        },
+        {
+          "id": "secret-codex-credential",
+          "kind": "Secret",
+          "name": "codex-credential",
+          "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: codex-credential\n  description: Codex credential for the quick start agents\nspec:\n  kind: CodexAuthJson\n"
+        },
+        {
+          "id": "agent-planner",
+          "kind": "Agent",
+          "name": "planner",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: planner\n  description: Breaks a request into steps and hands coding work to other agents\nspec:\n  displayName: Planner\n  exposure: { a2a: true, mcpTool: true }\n  # Without a mode, a non-empty allow list means AllowList. researcher is the Mux agent the quick start\n  # creates in the dashboard; naming an agent that does not exist yet is fine.\n  delegation:\n    allow: [coder, echo, researcher]\n    maxDepth: 1\n"
+        },
+        {
+          "id": "agent-coder",
+          "kind": "Agent",
+          "name": "coder",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: coder\n  description: Writes and explains code\nspec:\n  displayName: Coder\n  exposure: { a2a: true, mcpTool: true }\n"
+        },
+        {
+          "id": "agent-echo",
+          "kind": "Agent",
+          "name": "echo",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: echo\n  description: Repeats its input; runs on the fake harness and costs nothing\nspec:\n  displayName: Echo\n  exposure: { a2a: true, mcpTool: true }\n"
+        },
+        {
+          "id": "deployment-planner-claude",
+          "kind": "Deployment",
+          "name": "planner-claude",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: planner-claude\nspec:\n  agent: planner\n  harnessProfile: builtin/claude-code\n  model: sonnet\n  maxTurns: 8\n  timeoutSeconds: 300\n  resources:\n    secrets:\n      - { alias: anthropic, secret: claude-credential }\n"
+        },
+        {
+          "id": "deployment-coder-codex",
+          "kind": "Deployment",
+          "name": "coder-codex",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: coder-codex\nspec:\n  agent: coder\n  harnessProfile: builtin/codex\n  maxTurns: 8\n  timeoutSeconds: 300\n  resources:\n    secrets:\n      - { alias: codex, secret: codex-credential }\n"
+        },
+        {
+          "id": "deployment-echo-fake",
+          "kind": "Deployment",
+          "name": "echo-fake",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: echo-fake\nspec:\n  agent: echo\n  harnessProfile: builtin/fake\n  timeoutSeconds: 60\n  parameters:\n    format: claude\n"
+        },
+        {
+          "id": "agent-claude-helper",
+          "kind": "Agent",
+          "name": "claude-helper",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: claude-helper\nspec:\n  displayName: Claude Helper\n  description: General-purpose assistant running on Claude Code.\n  exposure: { a2a: true, mcpTool: true }\n  delegation: { maxDepth: 2, allow: [codex-coder, mux-helper] }\n"
+        },
+        {
+          "id": "agent-codex-coder",
+          "kind": "Agent",
+          "name": "codex-coder",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: codex-coder\nspec:\n  displayName: Codex Coder\n  description: Coding assistant running on OpenAI Codex.\n  exposure: { a2a: true, mcpTool: true }\n"
+        },
+        {
+          "id": "agent-mux-helper",
+          "kind": "Agent",
+          "name": "mux-helper",
+          "manifest": "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: mux-helper\nspec:\n  displayName: Mux Helper\n  description: Assistant running on Mux against an OpenAI-compatible model endpoint.\n  exposure: { a2a: true, mcpTool: true }\n"
+        },
+        {
+          "id": "deployment-claude-helper-default",
+          "kind": "Deployment",
+          "name": "claude-helper-default",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: claude-helper-default\nspec:\n  agent: claude-helper\n  harnessProfile: builtin/claude-code\n  model: sonnet\n  maxTurns: 8\n  prompts:\n    System: builtin/default-system\n    Task: builtin/default-task\n  resources:\n    secrets:\n      - { alias: anthropic, secret: claude-credential }\n  timeoutSeconds: 600\n"
+        },
+        {
+          "id": "deployment-codex-coder-default",
+          "kind": "Deployment",
+          "name": "codex-coder-default",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: codex-coder-default\nspec:\n  agent: codex-coder\n  harnessProfile: builtin/codex\n  maxTurns: 8\n  prompts:\n    System: builtin/default-system\n    Task: builtin/default-task\n  resources:\n    secrets:\n      - { alias: codex, secret: codex-credential }\n  timeoutSeconds: 600\n"
+        },
+        {
+          "id": "deployment-mux-helper-default",
+          "kind": "Deployment",
+          "name": "mux-helper-default",
+          "manifest": "apiVersion: garrison/v1\nkind: Deployment\nmetadata:\n  name: mux-helper-default\nspec:\n  agent: mux-helper\n  harnessProfile: builtin/mux\n  model: gpt-4o-mini\n  maxTurns: 8\n  parameters:\n    baseUrl: http://127.0.0.1:9/v1\n    adapterType: openai-compatible\n    # Optional. The bootstrap removes these lines when MUX_CONTEXT_WINDOW or MUX_MAX_TOKENS is not set.\n  prompts:\n    System: builtin/default-system\n    Task: builtin/default-task\n  resources:\n    secrets:\n      - { alias: mux, secret: mux-api-key }\n  timeoutSeconds: 600\n"
+        },
+        {
+          "id": "secret-mux-api-key",
+          "kind": "Secret",
+          "name": "mux-api-key",
+          "manifest": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: mux-api-key\n  description: Declared by the bootstrap Job for the Mux sample deployment (no value)\nspec:\n  kind: GenericEnv\n"
+        }
+      ],
+      "probes": [
+        {
+          "id": "echo-invoke",
+          "type": "quick-start",
+          "category": "flow",
+          "negative": false,
+          "action": "run",
+          "agent": "echo",
+          "input": "Hello from the live snapshot.",
+          "inputRepeat": 1,
+          "priority": 0,
+          "mode": "invoke",
+          "count": 1,
+          "dryRun": false,
+          "timeoutSeconds": 60,
+          "directArguments": [
+            "--format",
+            "claude"
+          ],
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          }
+        },
+        {
+          "id": "echo-create",
+          "type": "quick-start",
+          "category": "flow",
+          "negative": false,
+          "action": "run",
+          "agent": "echo",
+          "input": "Created asynchronously and followed to the end.",
+          "inputRepeat": 1,
+          "priority": 0,
+          "mode": "create",
+          "count": 1,
+          "dryRun": false,
+          "timeoutSeconds": 60,
+          "directArguments": [
+            "--format",
+            "claude"
+          ],
+          "expect": {
+            "status": "Succeeded",
+            "outcome": "Succeeded",
+            "resultEcho": true,
+            "contiguousEvents": true
+          }
+        },
+        {
+          "id": "planner-override",
+          "type": "override-not-allowed",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "planner",
+          "input": "Use a different model.",
+          "inputRepeat": 1,
+          "parameters": {
+            "model": "opus"
+          },
+          "priority": 0,
+          "mode": "create",
+          "count": 1,
+          "dryRun": false,
+          "timeoutSeconds": 60,
+          "expect": {
+            "httpStatus": 400,
+            "errorCode": "ValidationFailed",
+            "fieldCode": "ParameterNotAllowed",
+            "resultEcho": false,
+            "contiguousEvents": false
+          }
+        },
+        {
+          "id": "missing-delegate",
+          "type": "unknown-agent",
+          "category": "validation",
+          "negative": true,
+          "action": "request",
+          "agent": "researcher",
+          "input": "researcher is in the planner's allow list but does not exist.",
+          "inputRepeat": 1,
+          "priority": 0,
+          "mode": "create",
+          "count": 1,
+          "dryRun": false,
+          "timeoutSeconds": 60,
+          "expect": {
+            "httpStatus": 404,
+            "resultEcho": false,
+            "contiguousEvents": false
+          }
+        },
+        {
+          "id": "cross-tenant-read",
+          "type": "cross-tenant",
+          "category": "isolation",
+          "negative": true,
+          "action": "cross-tenant",
+          "agent": "echo",
+          "input": "A run another tenant must not see.",
+          "inputRepeat": 1,
+          "priority": 0,
+          "mode": "create",
+          "count": 1,
+          "dryRun": false,
+          "timeoutSeconds": 60,
+          "expect": {
+            "httpStatus": 404,
+            "resultEcho": false,
+            "contiguousEvents": false
+          }
+        }
+      ]
+    }
+  ]
+}

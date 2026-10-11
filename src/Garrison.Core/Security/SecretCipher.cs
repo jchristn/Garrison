@@ -3,6 +3,7 @@ namespace Garrison.Core.Security
     using System;
     using System.Security.Cryptography;
     using System.Text;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// Encrypts secret values at rest with AES-256-GCM, a random 12-byte nonce per value, and caller-supplied
@@ -89,6 +90,25 @@ namespace Garrison.Core.Security
         public string Decrypt(string encoded, string associatedData)
         {
             if (String.IsNullOrEmpty(encoded)) throw new ArgumentNullException(nameof(encoded));
+            try
+            {
+                string plaintext = DecryptCore(encoded, associatedData);
+                GarrisonMetrics.Count(GarrisonMetricCatalog.SecretDecrypts, "result", "ok");
+                return plaintext;
+            }
+            catch (Exception e) when (e is CryptographicException || e is FormatException)
+            {
+                GarrisonMetrics.Count(GarrisonMetricCatalog.SecretDecrypts, "result", "error");
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private string DecryptCore(string encoded, string associatedData)
+        {
             byte[] raw = Convert.FromBase64String(encoded);
             if (raw.Length < 29) throw new CryptographicException("Encrypted value is truncated.");
             byte[] nonce = new byte[12];
@@ -104,10 +124,6 @@ namespace Garrison.Core.Security
             }
             return Encoding.UTF8.GetString(data);
         }
-
-        #endregion
-
-        #region Private-Methods
 
         private static byte[] DeriveKey(string masterKey)
         {

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Garrison benchmark harness (Phase 14, BENCHMARKING.md). A console application that talks to Garrison only over
+       its public REST surface with its own typed client, so it has no project references to the product. It is not a
+       test project: dotnet test must not discover it. The assembly and process are named Garrison.Benchmark so that a
+       cleanup script for another product's Test.Benchmark never stops this one. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Garrison.Benchmark</RootNamespace>
+    <AssemblyName>Garrison.Benchmark</AssemblyName>
+    <IsTestProject>false</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <Description>Garrison benchmark harness: black-box ingest, routing, end-to-end, load, and resilience measurements with provenance, confidence intervals, and a significance-gated compare.</Description>
+  </PropertyGroup>
+
+</Project>

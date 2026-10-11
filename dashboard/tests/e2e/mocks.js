@@ -211,7 +211,23 @@ const FACTORIES = {
       headers: [{ id: `chr_mcp_${pad(i)}_0000hea`, mcpServerId: `mcp_${pad(i)}`, name: 'X-Team', valueTemplate: 'platform' }],
       requiredTools: ['search']
     }),
-  secrets: (i) => base('sec', i, { description: 'Secret', kind: 'AnthropicApiKey', valueLast4: 'wxyz', fingerprint: 'ac3ff3db6348426c', keyVersion: 1, rotatedUtc: iso(i * 60) }),
+  // sec_0002 is a Codex ChatGPT login the provider rejected (G-22): runs that bind it fail until it is replaced.
+  secrets: (i) =>
+    i === 2
+      ? base('sec', i, {
+          description: 'Codex login',
+          kind: 'CodexAuthJson',
+          valueLast4: 'Z"\n}',
+          fingerprint: '5d1c0e8b2a7f4c19',
+          keyVersion: 1,
+          rotatedUtc: iso(i * 60),
+          status: 'NeedsReauthentication',
+          statusMessage: 'OpenAI rejected the stored refresh token (HTTP 401 refresh_token_reused: Your refresh token has already been used to generate a new access token.). The refresh token was already used, usually because the same login also refreshed somewhere else (another machine, or a copy of this auth.json)',
+          statusUtc: iso(30),
+          refreshedUtc: iso(1440),
+          accessTokenExpiresUtc: iso(60)
+        })
+      : base('sec', i, { description: 'Secret', kind: 'AnthropicApiKey', valueLast4: 'wxyz', fingerprint: 'ac3ff3db6348426c', keyVersion: 1, rotatedUtc: iso(i * 60), status: 'Ok' }),
   'workspace-templates': (i) =>
     base('wst', i, {
       description: 'Workspace',
@@ -419,6 +435,9 @@ const SETTINGS = {
     { path: 'Runtime.MaxAssistantChars', group: 'Runtime', description: 'Default for deployments that do not set maxAssistantChars. 0 is unlimited.', type: 'int', value: '200000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 100000000 },
     { path: 'Runtime.NoProgressSeconds', group: 'Runtime', description: 'Default for deployments that do not set noProgressSeconds. 0 turns the guard off.', type: 'int', value: '300', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 86400 },
     { path: 'Runtime.FailBlockedAfterSeconds', group: 'Runtime', description: 'Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever.', type: 'int', value: '0', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 604800 },
+    // G-22: control-plane refresh of Codex ChatGPT logins; settings-file values that apply live.
+    { path: 'Codex.RefreshBeforeExpirySeconds', group: 'Codex', description: 'Refresh a ChatGPT login stored in a CodexAuthJson secret when its access token expires within this many seconds (half the token lifetime for short-lived tokens). Keep it above Runtime.MaxRunSeconds.', type: 'int', value: '86400', isSecret: false, isSet: true, source: 'File', applyMode: 'Live', editable: true, minimum: 300, maximum: 2592000 },
+    { path: 'Codex.TokenEndpoint', group: 'Codex', description: 'OAuth token endpoint for Codex login refreshes. Empty uses https://auth.openai.com/oauth/token, the endpoint the Codex CLI uses.', type: 'string', value: 'https://auth.openai.com/oauth/token', isSecret: false, isSet: true, source: 'File', applyMode: 'Live', editable: true },
     // P13.13: observability URLs are cluster string settings; empty means not configured.
     { path: 'Observability.GrafanaUrl', group: 'Observability', description: 'Browser-facing Grafana URL for the Home card and deep links, for example https://grafana.example.com. Empty means not configured.', type: 'string', value: '', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true },
     { path: 'Observability.GrafanaInternalUrl', group: 'Observability', description: 'URL the server uses to probe Grafana for reachability. Empty uses the browser-facing URL.', type: 'string', value: '', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true }
@@ -662,7 +681,22 @@ export const OBSERVABILITY_CONFIGURED = {
   lokiUrl: 'http://127.0.0.1:3100',
   tempoUrl: 'http://127.0.0.1:3200',
   datasources: { prometheus: 'garrison-prometheus', loki: 'garrison-loki', tempo: 'garrison-tempo' },
-  dashboards: { overview: 'garrison-overview', http: 'garrison-http', runs: 'garrison-runs', workers: 'garrison-workers', protocols: 'garrison-protocols', integrations: 'garrison-integrations' }
+  dashboards: {
+    overview: 'garrison-overview',
+    http: 'garrison-http',
+    runs: 'garrison-runs',
+    workers: 'garrison-workers',
+    protocols: 'garrison-protocols',
+    integrations: 'garrison-integrations',
+    agents: 'garrison-agents',
+    models: 'garrison-models',
+    kubernetes: 'garrison-kubernetes',
+    scheduler: 'garrison-scheduler',
+    database: 'garrison-database',
+    controlPlane: 'garrison-control-plane',
+    security: 'garrison-security',
+    logs: 'garrison-logs'
+  }
 };
 
 /** GET /observability/status: always the four services, in order. Nothing is configured in the default mocks. */

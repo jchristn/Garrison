@@ -110,7 +110,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, kind = @kind, valueencrypted = @valueencrypted, valuelast4 = @valuelast4, fingerprint = @fingerprint, keyversion = @keyversion, expiresutc = @expiresutc, rotatedutc = @rotatedutc, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, kind = @kind, valueencrypted = @valueencrypted, valuelast4 = @valuelast4, fingerprint = @fingerprint, keyversion = @keyversion, expiresutc = @expiresutc, rotatedutc = @rotatedutc, active = @active, isprotected = @isprotected, status = @status, statusmessage = @statusmessage, statusutc = @statusutc, refreshedutc = @refreshedutc, accesstokenexpiresutc = @accesstokenexpiresutc, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -129,6 +129,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "rotatedutc", obj.RotatedUtc);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
+                    AddCredentialState(command, obj);
                     AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
                 }, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -193,6 +194,46 @@ namespace Garrison.Core.Database.Ado
             return EnumerationResult<Secret>.Build(query, total, objects);
         }
 
+        /// <inheritdoc />
+        public async Task<bool> TryUpdateCredentialAsync(Secret obj, string? expectedValueEncrypted, CancellationToken token = default)
+        {
+            if (obj == null) throw new ArgumentNullException(nameof(obj));
+            DateTime now = DateTime.UtcNow;
+
+            string guard = expectedValueEncrypted == null ? "valueencrypted IS NULL" : "valueencrypted = @expected";
+            string sql = "UPDATE " + _Table + " SET valueencrypted = @valueencrypted, valuelast4 = @valuelast4, fingerprint = @fingerprint, keyversion = @keyversion, status = @status, statusmessage = @statusmessage, statusutc = @statusutc, refreshedutc = @refreshedutc, accesstokenexpiresutc = @accesstokenexpiresutc, lastupdateutc = @lastupdateutc WHERE id = @id AND " + guard + ";";
+
+            int affected = 0;
+            await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
+            {
+                affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", obj.Id);
+                    AdoDatabaseDriver.Add(command, "valueencrypted", obj.ValueEncrypted);
+                    AdoDatabaseDriver.Add(command, "valuelast4", obj.ValueLast4);
+                    AdoDatabaseDriver.Add(command, "fingerprint", obj.Fingerprint);
+                    AdoDatabaseDriver.Add(command, "keyversion", obj.KeyVersion);
+                    AddCredentialState(command, obj);
+                    AdoDatabaseDriver.Add(command, "lastupdateutc", now);
+                    if (expectedValueEncrypted != null) AdoDatabaseDriver.Add(command, "expected", expectedValueEncrypted);
+                }, ct).ConfigureAwait(false);
+            }, token).ConfigureAwait(false);
+
+            if (affected > 0) obj.LastUpdateUtc = now;
+            return affected > 0;
+        }
+
+        /// <inheritdoc />
+        public async Task<List<Secret>> ReadActiveByKindAsync(SecretKindEnum kind, CancellationToken token = default)
+        {
+            List<Secret> objects = await _Driver.QueryAsync(
+                "SELECT * FROM " + _Table + " WHERE kind = @kind AND active = " + _Driver.Dialect.BooleanLiteral(true) + " ORDER BY id;",
+                command => AdoDatabaseDriver.Add(command, "kind", kind.ToString()),
+                Map,
+                token).ConfigureAwait(false);
+            return objects;
+        }
+
         /// <summary>
         /// Map a row to a Secret (child rows not loaded).
         /// </summary>
@@ -214,6 +255,11 @@ namespace Garrison.Core.Database.Ado
             obj.RotatedUtc = AdoConverters.NullableDate(reader, "rotatedutc");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
+            obj.Status = AdoConverters.Enum<SecretStatusEnum>(reader, "status", SecretStatusEnum.Ok);
+            obj.StatusMessage = AdoConverters.NullableStr(reader, "statusmessage");
+            obj.StatusUtc = AdoConverters.NullableDate(reader, "statusutc");
+            obj.RefreshedUtc = AdoConverters.NullableDate(reader, "refreshedutc");
+            obj.AccessTokenExpiresUtc = AdoConverters.NullableDate(reader, "accesstokenexpiresutc");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             obj.LastUpdateUtc = AdoConverters.Date(reader, "lastupdateutc");
             return obj;
@@ -223,9 +269,18 @@ namespace Garrison.Core.Database.Ado
 
         #region Private-Methods
 
+        private static void AddCredentialState(DbCommand command, Secret obj)
+        {
+            AdoDatabaseDriver.Add(command, "status", obj.Status.ToString());
+            AdoDatabaseDriver.Add(command, "statusmessage", obj.StatusMessage);
+            AdoDatabaseDriver.Add(command, "statusutc", obj.StatusUtc);
+            AdoDatabaseDriver.Add(command, "refreshedutc", obj.RefreshedUtc);
+            AdoDatabaseDriver.Add(command, "accesstokenexpiresutc", obj.AccessTokenExpiresUtc);
+        }
+
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Secret obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, kind, valueencrypted, valuelast4, fingerprint, keyversion, expiresutc, rotatedutc, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @kind, @valueencrypted, @valuelast4, @fingerprint, @keyversion, @expiresutc, @rotatedutc, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, kind, valueencrypted, valuelast4, fingerprint, keyversion, expiresutc, rotatedutc, active, isprotected, status, statusmessage, statusutc, refreshedutc, accesstokenexpiresutc, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @kind, @valueencrypted, @valuelast4, @fingerprint, @keyversion, @expiresutc, @rotatedutc, @active, @isprotected, @status, @statusmessage, @statusutc, @refreshedutc, @accesstokenexpiresutc, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -241,6 +296,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "rotatedutc", obj.RotatedUtc);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);
                 AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
+                AddCredentialState(command, obj);
                 AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);
                 AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
             }, token).ConfigureAwait(false);

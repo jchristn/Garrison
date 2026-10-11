@@ -273,6 +273,7 @@ const es = {
     harnessType: { ClaudeCode: 'Claude Code', Codex: 'Codex', Mux: 'Mux', GeminiCli: 'Gemini CLI', Generic: 'Genérico' },
     agentKind: { Hosted: 'Alojado', Remote: 'Remoto' },
     delegationMode: { None: 'Sin delegación', AllowList: 'Lista de permitidos', Any: 'Cualquier agente' },
+    secretStatus: { Ok: 'Correcto', NeedsReauthentication: 'Requiere volver a iniciar sesión' },
     secretKind: {
       AnthropicApiKey: 'Clave de API de Anthropic',
       ClaudeCodeOAuthToken: 'Token OAuth de Claude Code',
@@ -697,8 +698,10 @@ const es = {
       errors: { expiryPast: 'Elige una caducidad en el futuro, o déjala vacía para que el secreto no caduque nunca.' },
       ...rp('Secretos', 'Credenciales cifradas para harnesses e integraciones. Los valores son de solo escritura.', 'Añadir secreto', 'Crear secreto', 'Editar secreto', 'Detalles del secreto', 'Eliminar secreto', 'Aún no hay secretos', 'Añade la clave de API o el token que necesitan tus agentes, por ejemplo una clave de API de Anthropic.'),
       notSet: 'Sin definir',
-      columns: { name: 'Nombre', kind: 'Tipo', valueLast4: 'Valor', rotatedUtc: 'Último cambio', expiresUtc: 'Caduca', active: 'Activo', id: 'ID' },
-      fields: { name: 'Nombre', kind: 'Tipo', description: 'Descripción', value: 'Valor', newValue: 'Nuevo valor', expiresUtc: 'Caduca', active: 'Activo' },
+      neverRefreshed: 'Todavía no',
+      reauth: { title: 'Hay que volver a iniciar sesión con esta cuenta', since: 'Desde {{time}}', action: 'Las ejecuciones que usan este secreto fallan hasta que sustituyas su valor. Vuelve a iniciar sesión con codex login usando un CODEX_HOME aparte y guarda el nuevo auth.json con «Definir valor», o cambia el despliegue a un secreto con clave de API de OpenAI. No sigas usando la misma sesión en otro equipo: ambas copias comparten un mismo token de actualización.' },
+      columns: { status: 'Estado', accessTokenExpiresUtc: 'Caducidad del token de acceso', name: 'Nombre', kind: 'Tipo', valueLast4: 'Valor', rotatedUtc: 'Último cambio', expiresUtc: 'Caduca', active: 'Activo', id: 'ID' },
+      fields: { refreshedUtc: 'Última renovación por Garrison', accessTokenExpiresUtc: 'Caducidad del token de acceso', name: 'Nombre', kind: 'Tipo', description: 'Descripción', value: 'Valor', newValue: 'Nuevo valor', expiresUtc: 'Caduca', active: 'Activo' },
       hints: { expiresUtc: 'Debe estar en el futuro. Déjala vacía para un secreto que no caduca.', kind: 'Usar tokens de suscripción en servidores compartidos puede infringir las condiciones del proveedor. En despliegues compartidos, es preferible usar claves de API.' },
       actions: { setValue: 'Definir valor', rotate: 'Rotar' }
     },
@@ -935,6 +938,8 @@ const es = {
       observabilityVersion: 'Versión {{version}}',
       observabilityOpen: 'Abrir {{service}}',
       kpisGrafana: 'Abrir el resumen en Grafana',
+      grafanaDashboards: 'Paneles de Grafana',
+      grafanaSections: { overview: 'Resumen', http: 'API HTTP', runs: 'Ejecuciones', agents: 'Agentes', models: 'Modelos y tokens', workers: 'Nodos de trabajo', kubernetes: 'Ejecutor de Kubernetes', protocols: 'Protocolos', scheduler: 'Planificador y cola', database: 'Base de datos', controlPlane: 'Plano de control', security: 'Seguridad y autenticación', integrations: 'Integraciones', logs: 'Registros y trazas' },
       observabilitySetup: 'Configurar la observabilidad',
       observabilityNone: 'Esta instalación no tiene configurado ningún servicio de observabilidad (Grafana, Prometheus, Tempo o Loki).',
       observability: 'Observabilidad',
@@ -1141,6 +1146,7 @@ const es = {
     },
     agentDetail: {
       invoke: 'Invocar',
+      grafana: 'Abrir en Grafana',
       noActiveDeployment: 'Este agente no tiene ningún despliegue activo, por lo que se rechazarán las invocaciones.',
       deployments_one: 'Despliegues ({{count}})',
       deployments_other: 'Despliegues ({{count}})',
@@ -1308,7 +1314,7 @@ const es = {
         ConfigMap: 'Gestionado por un ConfigMap de Kubernetes. Cámbialo en tus manifiestos.',
         other: 'Este ajuste no se puede editar aquí.'
       },
-      groups: { Archive: 'Archivo', General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Base de datos', Logging: 'Registro', Auth: 'Autenticación', Security: 'Seguridad', RequestHistory: 'Historial de solicitudes', Telemetry: 'Telemetría', Cluster: 'Clúster', Scheduling: 'Planificación', Runs: 'Ejecuciones', Audit: 'Auditoría', Runtime: 'Tiempo de ejecución', Observability: 'Observabilidad' },
+      groups: { Codex: 'Codex', Archive: 'Archivo', General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Base de datos', Logging: 'Registro', Auth: 'Autenticación', Security: 'Seguridad', RequestHistory: 'Historial de solicitudes', Telemetry: 'Telemetría', Cluster: 'Clúster', Scheduling: 'Planificación', Runs: 'Ejecuciones', Audit: 'Auditoría', Runtime: 'Tiempo de ejecución', Observability: 'Observabilidad' },
       fields: {
         Observability: {
           GrafanaUrl: 'URL de Grafana',
@@ -1411,6 +1417,13 @@ const es = {
           RetentionDays: 'Retención de ejecuciones (días)',
           MaxDelegationDepth: 'Profundidad máxima de delegación',
           DefaultTimeoutSeconds: 'Tiempo límite predeterminado de ejecución (segundos)'
+        },
+        Codex: {
+          RefreshBeforeExpirySeconds: 'Renovar sesiones de Codex antes de caducar (segundos)',
+          RefreshCheckIntervalSeconds: 'Intervalo de la comprobación en segundo plano (segundos)',
+          RefreshTimeoutSeconds: 'Tiempo máximo de renovación (segundos)',
+          TokenEndpoint: 'Endpoint de tokens OAuth',
+          ClientId: 'ID de cliente OAuth'
         },
         Runtime: {
           FailBlockedAfterSeconds: 'Hacer fallar ejecuciones bloqueadas tras (segundos)',

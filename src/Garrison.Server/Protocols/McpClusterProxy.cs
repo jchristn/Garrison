@@ -17,6 +17,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Models;
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Backplane;
     using WatsonWebserver;
     using WatsonWebserver.Core;
@@ -122,6 +123,7 @@ namespace Garrison.Server.Protocols
         private IEventBackplane? _Backplane = null;
         private int _TouchIntervalSeconds = 30;
         private long _Rehydrations = 0;
+        private readonly GaugeRegistration _SessionGauge;
         private bool _Disposed = false;
 
         #endregion
@@ -150,8 +152,9 @@ namespace Garrison.Server.Protocols
             handler.UseProxy = false;
             handler.AutomaticDecompression = DecompressionMethods.None;
             handler.PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1);
-            _Http = new HttpClient(handler);
+            _Http = new HttpClient(new TelemetryHttpHandler("mcp_internal", handler));
             _Http.Timeout = Timeout.InfiniteTimeSpan;
+            _SessionGauge = GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.McpSessionsActive, () => _Sessions.Count);
         }
 
         #endregion
@@ -228,6 +231,7 @@ namespace Garrison.Server.Protocols
                 if (_Server is IDisposable disposable) disposable.Dispose();
                 _Http.Dispose();
                 _RehydrateLock.Dispose();
+                _SessionGauge.Dispose();
             }
             _Disposed = true;
         }
@@ -427,6 +431,7 @@ namespace Garrison.Server.Protocols
                 created.LastTouchUtc = now;
                 _Sessions[clusterId] = created;
                 Interlocked.Increment(ref _Rehydrations);
+                GarrisonMetrics.Count(GarrisonMetricCatalog.McpSessions, "event", "restored");
                 _Context.Logging.Debug(_Header + "session " + clusterId + " served here as local session " + localId);
                 return created;
             }
@@ -504,6 +509,7 @@ namespace Garrison.Server.Protocols
             local.Principal = session.Principal;
             local.LastTouchUtc = now;
             _Sessions[session.Id] = local;
+            GarrisonMetrics.Count(GarrisonMetricCatalog.McpSessions, "event", "created");
             return session.Id;
         }
 
@@ -511,6 +517,7 @@ namespace Garrison.Server.Protocols
         {
             await _Context.Database.McpSessions.DeleteAsync(local.ClusterId, token).ConfigureAwait(false);
             _Sessions.TryRemove(local.ClusterId, out McpLocalSession? _);
+            GarrisonMetrics.Count(GarrisonMetricCatalog.McpSessions, "event", "closed");
             _Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.McpSessionClosed, local.ClusterId));
             using (HttpResponseMessage response = await ForwardAsync(method, pathAndQuery, headers, body, local.LocalId, caller, clientAddress, token).ConfigureAwait(false))
             {

@@ -194,6 +194,8 @@ spec:
             - --storage.tsdb.retention.time={{ $o.prometheus.retention }}
             - --storage.tsdb.retention.size={{ $o.prometheus.retentionSize }}
             - --web.enable-lifecycle
+            - --enable-feature=exemplar-storage
+            - --enable-feature=created-timestamp-zero-ingestion
           ports:
             - { name: http, containerPort: 9090 }
           volumeMounts:
@@ -466,8 +468,8 @@ spec:
             {{- toYaml $o.grafana.resources | nindent 12 }}
           securityContext:
             {{- include "garrison.observabilityContainerSecurity" false | nindent 12 }}
-          readinessProbe: { httpGet: { path: /api/health, port: http }, periodSeconds: 10, failureThreshold: 3 }
-          livenessProbe: { httpGet: { path: /api/health, port: http }, initialDelaySeconds: 60, periodSeconds: 20, failureThreshold: 5 }
+          readinessProbe: { httpGet: { path: /api/health, port: http }, periodSeconds: 10, timeoutSeconds: 5, failureThreshold: 3 }
+          livenessProbe: { httpGet: { path: /api/health, port: http }, initialDelaySeconds: 60, periodSeconds: 20, timeoutSeconds: 5, failureThreshold: 5 }
       volumes:
         - { name: config, configMap: { name: garrison-grafana-config } }
         - { name: datasources, configMap: { name: garrison-grafana-datasources } }

@@ -20,6 +20,9 @@ import { tip } from '../components/Tooltip';
 import { enumTip } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
 import { trafficShares } from '../utils/deployments';
+import GrafanaLink from '../components/GrafanaLink';
+import { useGrafana } from '../hooks/useServerInfo';
+import { agentDashboardUrl } from '../utils/grafana';
 
 /** One agent end to end: identity, exposure, delegation, deployments with weights, A2A card, and recent runs. */
 export default function AgentDetailView({ recordId }) {
@@ -27,6 +30,7 @@ export default function AgentDetailView({ recordId }) {
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const navigate = useNavigate();
+  const grafana = useGrafana();
   const [agent, setAgent] = useState(null);
   const [deployments, setDeployments] = useState([]);
   const [profiles, setProfiles] = useState({});
@@ -78,6 +82,7 @@ export default function AgentDetailView({ recordId }) {
         }
         actions={
           <>
+            <GrafanaLink size="md" href={agentDashboardUrl(grafana, agent.name, tenantId)} label={t('views.agentDetail.grafana')} tipText={t('tips.views.agentDetail.grafana')} testId="agent-grafana" />
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.agentDetail.viewJson'))}>
               {t('common.actions.viewJson')}
             </button>

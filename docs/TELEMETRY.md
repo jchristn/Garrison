@@ -13,6 +13,8 @@ The control plane publishes metrics through Radiant (OpenTelemetry) and serves t
 | `Telemetry.OtlpEnable`, `OtlpEndpoint` | `false`, `http://127.0.0.1:4317` |
 | `Telemetry.ServeMetricsOnServicePort` | `true`: `GET /metrics` is also served on the REST port (8700), without authentication |
 | `Telemetry.ServiceName` | `garrison-server`; the control-plane node identifier is the service instance |
+| `Telemetry.MaxLabelValues` | `200` (10 to 10000): distinct values each metric label may take before new values are reported as `other` (environment `GARRISON_TELEMETRY_MAX_LABEL_VALUES`, worker `GARRISON_WORKER_TELEMETRY_MAX_LABEL_VALUES`) |
+| `Telemetry.Exemplars` | `true`: duration histograms carry the trace that produced a sample (sets `OTEL_METRICS_EXEMPLAR_FILTER=trace_based` unless it is already set) |
 
 The Prometheus listener cannot bind a true wildcard, so a hostname of `*`, `+`, or `0.0.0.0` binds to the machine host name instead (in Kubernetes that resolves to the pod IP, which is what Prometheus scrapes) and falls back to `127.0.0.1` if that fails. The startup log names the address it used: `metrics listening on garrison-worker-0:9465/metrics`.
 
@@ -30,62 +32,69 @@ kubectl -n garrison port-forward garrison-worker-0 8710:8710 &
 curl -s http://127.0.0.1:8710/metrics | head
 ```
 
-The relayed endpoint asks the pod-IP listener for a fresh scrape on every request, so both return the same values; it answers 503 when the Prometheus listener is off or did not answer. It needs no authentication, like the 9464 listener, so turn it off with `Telemetry.ServeMetricsOnServicePort` set to `false` (server settings file, or the worker's `Telemetry` block) if the REST port is exposed somewhere metrics should not be. Scrapes of `/metrics` on the REST port are not recorded in request history. Radiant has no API that renders the exposition in process and binds one host per listener, which is why Garrison relays the scrape instead of binding a second listener.
+The relayed endpoint asks the pod-IP listener for a fresh scrape on every request, passing the scraper's `Accept` header through so an OpenMetrics scrape (which is what carries exemplars) stays OpenMetrics, so both return the same values; it answers 503 when the Prometheus listener is off or did not answer. It needs no authentication, like the 9464 listener, so turn it off with `Telemetry.ServeMetricsOnServicePort` set to `false` (server settings file, or the worker's `Telemetry` block) if the REST port is exposed somewhere metrics should not be. Scrapes of `/metrics` on the REST port are not recorded in request history. Radiant has no API that renders the exposition in process and binds one host per listener, which is why Garrison relays the scrape instead of binding a second listener.
 
 If the pipeline cannot start at all, for example because the scrape port is taken, Garrison keeps running without metrics and logs `telemetry disabled: ...` at warning severity with the underlying cause.
 
 ### Garrison metrics
 
-Prometheus names are the OpenTelemetry names with dots replaced by underscores and a `_total` suffix on counters (`garrison.runs.created` becomes `garrison_runs_created_total`).
+Every Garrison metric lives on one OpenTelemetry meter named `Garrison`, declared in a single catalog (`GarrisonMetricCatalog` in `src/Garrison.Core/Telemetry`) with its type, unit, labels, histogram buckets, the process that emits it, and the Grafana dashboard that charts it. The catalog is the source of the table in the [coverage matrix](#coverage-matrix) below, and a test fails when a metric is added without a row there or without a panel on its dashboard.
 
-| Metric | Type | Tags | Meaning |
-|---|---|---|---|
-| `garrison.http.requests` | counter | `method`, `status_class` (`2xx`, `4xx`, ...) | REST requests handled |
-| `garrison.runs.created` | counter | `harness`, `kind` | Runs created |
-| `garrison.runs.finished` | counter | `outcome`, `harness` | Runs that reached a terminal status |
-| `garrison.runs.schema_validations` | counter | `result` (`valid`, `invalid`), `execution` (`original`, `repair`), `harness` | Validations of run output against the agent's output schema |
-| `garrison.runs.repairs` | counter | `harness` | Structured output repair attempts started |
-| `garrison.run.stage.duration` | histogram, seconds | `stage` (`execution`, `queue`, `first_token`), `harness` | `execution`: start to completion; `queue`: queued to leased; `first_token`: harness start to first model output |
-| `garrison.harness.tokens` | histogram | `harness`, `direction` (`input`, `output`, `reasoning`) | Tokens per run, as reported by the harness |
-| `garrison.claims` | counter | `result` (`won`, `lost`, `limit`) | Lease claim attempts. `lost` means another node claimed the run first; `limit` means a deployment was at its concurrency limit |
-| `garrison.compile.duration` | histogram, seconds | `harness` | Time to compile a claimed run into an execution spec |
-| `garrison.event.batch.size` | histogram | | Events per batch received from workers |
-| `garrison.lease.expirations` | counter | `action` (`requeued`, `failed`) | Runs whose worker stopped renewing the lease |
-| `garrison.mcp.tool.calls` | counter | `tool` | MCP tool calls |
-| `garrison.mcp.tool.results` | counter | `tool`, `result` (`ok`, `error`) | MCP tool outcomes |
-| `garrison.a2a.requests` | counter | `method` | A2A JSON-RPC requests |
-| `garrison.control_nodes` | gauge | `status` (`Starting`, `Ready`, `Draining`, `Offline`) | Control-plane replicas by status, refreshed on each control node heartbeat (5 seconds). Every replica reports the same cluster-wide counts, so aggregate with `max`, not `sum` |
+Prometheus names are the OpenTelemetry names with dots replaced by underscores, `_total` on counters, and `_seconds` or `_bytes` on histograms measured in seconds or bytes (`garrison.run.stage.duration` becomes `garrison_run_stage_duration_seconds_bucket`). Every series also carries `otel_scope_name="Garrison"` and the scrape labels `component` (`server`, `worker`), `node`, `pod`, `namespace`, and `pool`.
 
-The scrape also includes .NET runtime and process metrics (`dotnet_*`, `process_*`), HTTP server metrics (`http_server_request_duration_seconds` and friends), and metrics from the libraries Garrison is built on (`watson_*` for the REST listener, `voltaic_*` for MCP).
+Per-run metrics carry five labels, on the server and on the worker:
+
+| Label | Value |
+|---|---|
+| `tenant` | Tenant ID |
+| `agent` | Agent name |
+| `deployment` | Deployment name (the ID when the name is not known) |
+| `harness` | Harness type |
+| `model` | Model the harness reported serving, `none` until it is known |
+
+So a single query answers per-agent questions directly: p95 time to first token for one agent is `histogram_quantile(0.95, sum by (le) (rate(garrison_run_stage_duration_seconds_bucket{stage="first_token", agent="triage"}[15m])))`, and its input tokens per hour are `sum(increase(garrison_run_tokens_total{agent="triage", direction="input"}[1h]))`. The stages of `garrison_run_stage_duration_seconds` are `queue`, `claim`, `compile`, `startup`, `first_token`, `first_token_excl_delegation`, `streaming`, `execution`, `delegation_wait`, and `total`, matching the [run timing](#run-timing) fields.
+
+Requests the client abandoned before the answer, such as a worker dropping its cancellation watch long poll whenever its set of runs changes, are recorded with `status_code="499"` and `status_class="aborted"`, so they never inflate 5xx error rates.
+
+#### Cardinality
+
+Labels never carry run IDs, user IDs, raw paths, or free text. REST metrics use the route template Watson matched (`/v1.0/api/tenants/{tenantId}/runs/{id}`), never the raw path. The labels that grow with your data (tenant, agent, deployment, model, MCP tool, database table, error type) pass through a guard: each label keeps its first `Telemetry.MaxLabelValues` distinct values (200 by default) and reports any further value as `other`, counting each one in `garrison_telemetry_labels_folded_total{label}`. Empty values are reported as `none`. If that counter moves, raise the limit or look for a label that is not as bounded as it should be. With the defaults a busy cluster stays in the low tens of thousands of series.
+
+#### Exemplars
+
+Duration histograms (REST requests, run stages, database statements, MCP tools, A2A methods, outbound calls, background iterations) carry exemplars: for a sampled request, the trace ID of the request that produced the sample. Prometheus stores them when it runs with `--enable-feature=exemplar-storage` (the packaged Prometheus does), and the `garrison-prometheus` Grafana datasource links an exemplar's `trace_id` to `garrison-tempo`, so a latency spike on a panel is one click from the trace that caused it. Only OpenMetrics scrapes include exemplars; Prometheus asks for OpenMetrics by default.
+
+Counters are created the first time something happens, so a series' first scrape already holds a count and a plain `increase()` would miss those first events (an agent that ran twice shows 0). The OpenMetrics exposition carries a `_created` timestamp for every counter, and the packaged Prometheus runs with `--enable-feature=created-timestamp-zero-ingestion` to insert the zero before it. A Prometheus of your own needs the same flag for low-volume series to count correctly.
+
+### Other metrics in the scrape
+
+| Source | Prefix | What it adds |
+|---|---|---|
+| Watson (REST and MCP listeners) | `http_server_*`, `watson_*` | The OpenTelemetry HTTP server metrics by `http_route`, plus connections, route matches and misses, authentication decisions, WebSocket sessions, exceptions, and uptime. Watson telemetry is on explicitly in the server |
+| Voltaic (MCP) | `voltaic_*` | MCP protocol metrics |
+| Npgsql | `db_client_*` | Postgresql connection pool use, waits, and timeouts (Postgresql only) |
+| .NET runtime and process | `dotnet_*`, `process_*` | GC, heap, threads, CPU, working set |
 
 ### What to watch
 
 | Question | Look at |
 |---|---|
-| Are runs failing, and why? | `garrison_runs_finished_total` by `outcome`. `NotCredentialed`, `NotInstalled`, and `McpPreflightFailed` point at configuration, not at the model |
-| Are workers dying mid-run? | `garrison_lease_expirations_total`, and nodes in `Lost` in the dashboard |
+| Are runs failing, and why? | `garrison_runs_finished_total` by `outcome` and `agent`. `NotCredentialed`, `NotInstalled`, and `McpPreflightFailed` point at configuration, not at the model |
+| Which agent is slow, and where? | `garrison_run_stage_duration_seconds` by `stage` for that agent: queue time is capacity, `startup` is workspace and MCP preflight, `first_token` is the harness and model, `streaming` is output length |
+| Which agent or model costs the most? | `garrison_run_cost_usd_total` and `garrison_run_tokens_total` by `agent`, `model`, and `direction` |
+| Are guards stopping runs? | `garrison_runs_guard_trips_total` by `guard` and `agent` |
+| Are workers dying mid-run? | `garrison_lease_expirations_total`, `garrison_node_transitions_total{status="Lost"}` |
 | Is there contention for work? | The `lost` share of `garrison_claims_total`. Some is normal with many workers |
 | Is a deployment throttled? | `garrison_claims_total{result="limit"}` |
-| How expensive are runs? | `garrison_harness_tokens` by harness, and `costUsd` on runs |
+| Is work queuing? | `garrison_queue_depth` by `agent` and `status`, `garrison_runs_blocked_current` by `reason` |
+| Is the API healthy? | `garrison_http_requests_total` by `route` and `status_class`, p95 of `garrison_http_request_duration_seconds` by `route` |
+| Is the database the bottleneck? | p95 of `garrison_db_operation_duration_seconds` by `table`, `garrison_db_errors_total`, `garrison_db_write_lock_wait_seconds` on Sqlite |
 | Are all control-plane replicas up? | `max(garrison_control_nodes{status="Ready"})` against the expected replica count, and `GET /v1.0/api/control-nodes` for which one is missing |
-| Is the API healthy? | `garrison_http_requests_total` by `status_class`, `http_server_request_duration_seconds` |
+| Is someone guessing credentials? | `garrison_auth_failures_total` by `reason`, `garrison_auth_rate_limited_total` |
 
 ### Worker metrics
 
-Workers publish their own metrics through the same pipeline, configured by the `Telemetry` block in `garrison-worker.json` (service name `garrison-worker`, Prometheus on port 9465 at `/metrics`) and the environment variables `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, and `GARRISON_WORKER_OTLP_ENDPOINT`.
-
-| Metric | Type | Tags | Meaning |
-|---|---|---|---|
-| `garrison.worker.leases` | counter | `result` (`assigned`, `empty`, `error`) | Lease requests and what came back |
-| `garrison.worker.runs` | counter | `harness`, `outcome` | Runs this worker finished |
-| `garrison.worker.run.duration` | histogram, seconds | `harness` | Run duration on the worker |
-| `garrison.worker.run.ttft` | histogram, seconds | `harness` | Harness process start to first model output |
-| `garrison.worker.run.streaming` | histogram, seconds | `harness` | First to last model output |
-| `garrison.worker.harness.tokens` | histogram | `harness`, `direction` (`input`, `output`, `cached`, `reasoning`) | Tokens per run |
-| `garrison.worker.harness.cost_usd` | histogram | `harness` | Reported cost per run |
-| `garrison.worker.completion_reports` | counter | `result` (`accepted`, `stale`, `abandoned`) | Completion reports, including ones refused for a lost lease or given up after `CompletionRetrySeconds` |
-| `garrison.worker.runs.active` | gauge | | Runs in progress |
-| `garrison.worker.slots.free` | gauge | | Free run slots |
+Workers publish their own metrics through the same pipeline, configured by the `Telemetry` block in `garrison-worker.json` (service name `garrison-worker`, Prometheus on port 9465 at `/metrics`) and the environment variables `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT`, and `GARRISON_WORKER_TELEMETRY_MAX_LABEL_VALUES`. Worker metrics are the `garrison_worker_*` rows of the catalog; every call a worker makes to the control plane is also an outbound call, `garrison_outbound_duration_seconds{service="control_plane", operation="lease"}` and so on, and its Kubernetes API calls are `service="kubernetes"`.
 
 The worker's state is also visible through the control plane (node status, capacity, active runs, and last heartbeat in `GET /v1.0/api/nodes`, the dashboard, and the `nodes` WebSocket channel) and from its health endpoint, `GET /health/ready` on port 8710.
 
@@ -127,14 +136,25 @@ Every run belongs to one W3C trace, and the run records its ID as `traceId` (32 
 
 | Span | Process | Source | Parent |
 |---|---|---|---|
+| `<METHOD> <route template>` | Server | `Watson` | The caller's `traceparent` when it sends one. One server span per REST request, including the node protocol |
+| `mcp <tool>` | Server | `Garrison` | The MCP request span; agent tools are `mcp agent` |
+| `a2a <method>` | Server | `Garrison` | The A2A request span |
 | `run:create` | Server | `Garrison` | The request span (REST, MCP, or A2A) when one is recorded; for a delegated run, the parent run's trace |
 | `run:claim` | Server | `Garrison` | `run:create`, even though the claim happens later inside a worker's lease request |
 | `run:compile` | Server | `Garrison` | `run:claim` |
 | `harness <type> exec` | Worker | `Garrison.Worker` | `run:claim`, from the traceparent shipped in the execution spec |
+| `run:workspace`, `run:mcp_preflight` | Worker | `Garrison` | `harness <type> exec` |
+| `run:k8s_job` | Worker | `Garrison` | `harness <type> exec`, for KubernetesJob runs |
+| `run:report` | Worker | `Garrison.Worker` | The run's trace: the completion report and its retries |
+| `db <operation> <table>` | Server | `Garrison` | Whatever span is current. Statement spans are only started inside a trace, never as roots, and name the statement, never its SQL text or values |
+| `<service> <operation>` (client) | Server, worker | `Garrison` | Outbound calls: `control_plane lease` and the other node protocol calls, `kubernetes post`, `grafana probe`, `mcp_server test`, `mcp_internal post` (the MCP cluster proxy) |
+| `<service> <operation>` (background) | Server, worker | `Garrison` | A new trace per iteration of a background service: `maintenance reap_leases`, `leader_election campaign`, `backplane poll`, `worker heartbeat`, and the rest listed in the coverage matrix |
 
-The trace ID exists even when tracing is off: if no span is recorded, Garrison generates a sampled traceparent for the run, so deep links and log searches still work once you turn exporting on. Spans carry `garrison.run_id`, `garrison.agent`, `garrison.harness`, and `garrison.node` tags. The worker also passes the traceparent to the harness as the `TRACEPARENT` environment variable, so a harness that understands W3C trace context can join the trace.
+The trace ID exists even when tracing is off: if no span is recorded, Garrison generates a sampled traceparent for the run, so deep links and log searches still work once you turn exporting on. Spans carry `garrison.run_id`, `garrison.tenant`, `garrison.agent`, `garrison.harness`, and `garrison.node` where they apply, OpenTelemetry attributes (`http.route`, `db.system`, `db.collection.name`, `rpc.method`, `peer.service`) where one exists, and an explicit status: failures set `Error` with the exception type and message, never values or secrets. The worker also passes the traceparent to the harness as the `TRACEPARENT` environment variable, so a harness that understands W3C trace context can join the trace. KubernetesJob run pods do not export spans (their network is locked down); they log `run=` and `trace=` on every line instead, so Loki joins them to the same trace.
 
-Spans are exported through Radiant over OTLP (gRPC) when `Telemetry.OtlpEnable` is true. Turn it on for the server with `GARRISON_OTLP_ENABLE=true` and `GARRISON_OTLP_ENDPOINT` (for example `http://garrison-alloy:4317`), and for workers with `GARRISON_WORKER_OTLP_ENABLE=true` and `GARRISON_WORKER_OTLP_ENDPOINT`. With both on, a run's server and worker spans arrive in Tempo as one trace. The server also exports the spans of its HTTP and MCP listeners.
+Background iterations that found nothing to do (an empty lease poll, a maintenance step with no expired leases) tag their root span `garrison.idle="true"`. The packaged Alloy drops those traces whole with a tail-sampling policy, so idle polling does not flood Tempo, while every iteration still counts in `garrison_background_iterations_total{result="idle"}`.
+
+Spans are exported through Radiant over OTLP (gRPC) when `Telemetry.OtlpEnable` is true. Turn it on for the server with `GARRISON_OTLP_ENABLE=true` and `GARRISON_OTLP_ENDPOINT` (for example `http://garrison-alloy:4317`), and for workers with `GARRISON_WORKER_OTLP_ENABLE=true` and `GARRISON_WORKER_OTLP_ENDPOINT`. With both on, a run's server and worker spans arrive in Tempo as one trace.
 
 ## Logs
 
@@ -148,7 +168,14 @@ Every line about a run ends with `run=<runId> trace=<traceId>` (`trace=-` when t
 [Worker] executing run run_01JABC... (epoch 1, Fake) run=run_01JABC... trace=4bf92f3577b34da6a3ce929d0e0e4736
 ```
 
-With logs shipped to Loki under the label `app="garrison"`, `{app="garrison"} |= "<runId>"` returns everything the server and workers logged about a run, and `|= "trace=<traceId>"` does the same by trace.
+Lines also carry the other fields that apply, as `key=value` pairs after the message: `tenant`, `agent`, `deployment`, `model`, `node`, `outcome`, and, on the server's per-request debug line, `route`, `status`, and `trace`:
+
+```
+[Runs] run run_01JABC... finished Succeeded (Succeeded) on garrison-worker-0 in 812 ms run=run_01JABC... trace=4bf9... tenant=ten_01J... agent=echo deployment=default model=fake-1 node=garrison-worker-0 outcome=Succeeded
+[GarrisonServer] GET /v1.0/api/tenants/ten_01J.../runs 200 (3.41ms) route=/v1.0/api/tenants/{tenantId}/runs tenant=ten_01J... status=200 trace=0af7...
+```
+
+With logs shipped to Loki under the label `app="garrison"`, `{app="garrison"} |= "<runId>"` returns everything the server and workers logged about a run, and `|= "trace=<traceId>"` does the same by trace. The packaged Alloy promotes `level`, `component` (`server`, `worker`, `dashboard`), `node`, and `tenant` to Loki labels, so `sum by (level) (count_over_time({app="garrison", tenant="ten_01J..."}[5m]))` is the log volume of one tenant by severity, and `{app="garrison", level=~"Warn|Error|Alert|Critical|Emergency"}` is every problem line.
 
 Secrets are never logged. Values passed to harnesses as secrets are scrubbed from run events, results, and stderr on the worker before they are sent.
 
@@ -173,7 +200,10 @@ Empty means not configured. Values must be absolute `http` or `https` URLs; a tr
   "grafanaUrl": "http://127.0.0.1:3000", "prometheusUrl": null, "lokiUrl": null, "tempoUrl": null,
   "datasources": { "prometheus": "garrison-prometheus", "loki": "garrison-loki", "tempo": "garrison-tempo" },
   "dashboards": { "overview": "garrison-overview", "http": "garrison-http", "runs": "garrison-runs",
-                  "workers": "garrison-workers", "protocols": "garrison-protocols", "integrations": "garrison-integrations" }
+                  "workers": "garrison-workers", "protocols": "garrison-protocols", "integrations": "garrison-integrations",
+                  "agents": "garrison-agents", "models": "garrison-models", "kubernetes": "garrison-kubernetes",
+                  "scheduler": "garrison-scheduler", "database": "garrison-database", "controlPlane": "garrison-control-plane",
+                  "security": "garrison-security", "logs": "garrison-logs" }
 }
 ```
 
@@ -185,12 +215,410 @@ The dashboard uses both:
 |---|---|
 | Home, Observability | One card per configured service with a Reachable or Unreachable badge, its version, and an Open link. With nothing configured, a single "Set up observability" note links here. Localhost URLs are shown as `127.0.0.1`, and no default credentials are ever shown |
 | Run detail | "View trace": Grafana Explore on `garrison-tempo` with the run's `traceId`. "View logs": Grafana Explore on `garrison-loki` with `{app="garrison"} \|= "<runId>"`, over the run's time range plus 5 minutes either side |
+| Home, Observability, Grafana dashboards | One link per section dashboard (Overview, HTTP API, Runs, Agents, Models and tokens, Workers, Kubernetes executor, Protocols, Scheduler and queue, Database, Control plane, Security and auth, Integrations, Logs and traces), each with a tooltip saying what it shows. Hidden when Grafana is not configured |
+| Agent detail | "Open in Grafana": the `garrison-agents` dashboard with `var-tenant=<tenant ID>&var-agent=<agent name>` |
 | Nodes | "Open in Grafana": the `garrison-workers` dashboard with `var-node=<node name>` |
 | Home KPIs | The `garrison-overview` dashboard |
 | Request History | The `garrison-http` dashboard |
 | Analytics | The `garrison-runs` dashboard over the range selected on the page |
 
-Grafana links are built for Grafana 10 and later. Explore links have the form `<grafana>/explore?schemaVersion=1&orgId=1&panes=<JSON>`, where the URL-encoded JSON holds one pane with the datasource UID, one query (`queryType: "traceql"` with the trace ID for Tempo, `expr` for Loki), and a `range` in epoch milliseconds. Dashboard links have the form `<grafana>/d/<uid>?orgId=1`, plus `var-node=` or `from=` and `to=` where they apply. Links are hidden when Grafana is not configured, and "View trace" is hidden for runs without a trace ID.
+Grafana links are built for Grafana 10 and later. Explore links have the form `<grafana>/explore?schemaVersion=1&orgId=1&panes=<JSON>`, where the URL-encoded JSON holds one pane with the datasource UID, one query (`queryType: "traceql"` with the trace ID for Tempo, `expr` for Loki), and a `range` in epoch milliseconds. Dashboard links have the form `<grafana>/d/<uid>?orgId=1`, plus `var-node=`, `var-tenant=` and `var-agent=`, or `from=` and `to=` where they apply. Links are hidden when Grafana is not configured, and "View trace" is hidden for runs without a trace ID.
+
+## Grafana dashboards
+
+The packaged Grafana provisions one dashboard per section into the `Garrison` folder. Each has the `Garrison dashboards` menu at the top right (it keeps the time range and variables when you switch), template variables for the dimensions it covers (plus an `Average over` window for rates and percentiles), and links from its panels to the matching logs in Loki and traces in Tempo. Duration panels show exemplars: the dots link to the trace behind a sample.
+
+| Dashboard | UID | Variables | What it answers |
+|---|---|---|---|
+| Overview | `garrison-overview` | node, tenant, agent, harness | Is the cluster healthy: replicas and workers up, run rate and failures, API errors, queue, cost, recent problems |
+| HTTP API | `garrison-http` | node, tenant, route, method | Request rate, errors, and latency percentiles per route template, request and response sizes, in-flight requests |
+| Runs | `garrison-runs` | tenant, agent, deployment, harness, model, run | Run lifecycle: created, finished by outcome, stage durations, cancellations, structured output validation and repairs |
+| Agents | `garrison-agents` | tenant, agent, deployment, harness, model | Per agent: invocations, run time and TTFT percentiles, queue, startup, streaming, delegation wait, tokens, cost, outcomes, guard trips, tool calls |
+| Models and tokens | `garrison-models` | node, tenant, agent, deployment, harness, model | Tokens by direction (input, output, cached, reasoning), cost, and output throughput by model and agent |
+| Workers | `garrison-workers` | node, tenant, agent, deployment, harness, model | Leases, heartbeats, run duration and stages on workers, completion reports, event shipping, capability probes, node state |
+| Kubernetes executor | `garrison-kubernetes` | node | Run Jobs created and deleted, pod start latency, PodFailed by reason, orphan cleanup, Kubernetes API latency |
+| Protocols (MCP, A2A, SSE) | `garrison-protocols` | tenant, agent, tool, node | MCP tools and sessions, A2A methods and task states, SSE streams, WebSocket sessions, delegation depth and denials, invocation waits |
+| Scheduler and queue | `garrison-scheduler` | tenant, agent, harness | Queue depth per agent, blocked runs by reason, claims, claim and compile latency, lease requests and waits, lease expirations |
+| Database | `garrison-database` | node, provider, table | Statement latency by table and operation, errors, connections, Sqlite write-lock waits, retries, retention |
+| Control plane | `garrison-control-plane` | node | Replicas, leader, backplane traffic and lag, background service iterations and failures, pauses |
+| Security and auth | `garrison-security` | node | Authentication failures by scheme and reason, rate limiting, authorization denials, tokens issued, secret decryption, Codex token refresh, audit records |
+| Integrations | `garrison-integrations` | node, service | Outbound calls by service and operation (control plane, Kubernetes, MCP servers, observability probes), their latency and errors, observability reachability |
+| Logs and traces | `garrison-logs` | component, node, tenant, agent, run | Log volume by level and component, error and warning rates, recent problem lines, trace search, telemetry pipeline health |
+
+Dashboard JSON lives in `k8s/components/observability/dashboards` (mirrored byte for byte in the Helm chart, and mounted by Docker Compose), and `GET /v1.0/api/server-info` lists every UID under `observability.dashboards`.
+
+## Coverage matrix
+
+This is the inventory of what Garrison instruments (P13.20). The REST, MCP, A2A, and metric tables are generated from the code: the `telemetry` test suite builds them from the server's route table, the MCP tool catalog, the A2A gateway, and the metric catalog, and fails when they differ from this page, so a route, tool, or metric added without telemetry fails CI. Regenerate them with `GARRISON_UPDATE_TELEMETRY_DOC=1 dotnet run --project src/Test.Automated -f net10.0 -- --suites telemetry`.
+
+### How each area is covered
+
+| Area | Metrics | Spans | Logs | Panels |
+|---|---|---|---|---|
+| REST routes | `garrison_http_requests_total`, `garrison_http_request_duration_seconds`, `garrison_http_request_size_bytes`, `garrison_http_response_size_bytes` by route template, recorded once per request in the server's post-routing hook | Watson server span per request | Debug line per request with `route`, `tenant`, `status`, `trace`; warning with the request on a 500 | garrison-http |
+| Authentication and authorization | `garrison_auth_failures_total`, `garrison_auth_rate_limited_total`, `garrison_authz_denials_total`, `garrison_auth_tokens_issued_total`, `garrison_audit_events_total` | Request span | Audit records | garrison-security |
+| MCP tools | `garrison_mcp_tool_calls_total`, `garrison_mcp_tool_results_total`, `garrison_mcp_tool_duration_seconds` | `mcp <tool>` | `[Mcp]` lines | garrison-protocols |
+| MCP sessions | `garrison_mcp_sessions_active`, `garrison_mcp_sessions_total{event}`, `garrison_outbound_*{service="mcp_internal"}` | `mcp_internal <method>` client spans of the cluster proxy | `[McpProxy]` lines | garrison-protocols |
+| A2A methods | `garrison_a2a_requests_total`, `garrison_a2a_request_duration_seconds`, `garrison_a2a_tasks_total` | `a2a <method>` | Request line | garrison-protocols |
+| SSE and WebSocket | `garrison_sse_streams_active`, `garrison_sse_events_total`, `garrison_websocket_sessions_active`, `garrison_websocket_messages_total` | Request span | `[LiveUpdates]` lines | garrison-protocols |
+| Invocation waits and delegation | `garrison_invocation_wait_duration_seconds`, `garrison_invocation_disconnect_cancels_total`, `garrison_delegation_depth`, `garrison_delegation_denials_total` | Request span, `run:create` | `[Runs]` cancellation lines | garrison-protocols |
+| Run lifecycle | `garrison_runs_created_total`, `garrison_runs_finished_total`, `garrison_run_stage_duration_seconds`, tokens, cost, guard trips, cancellations, recorded at creation and at every terminal transition (worker completion, lease expiry, deadline, blocked, cancellation of a queued run, compile failure, rejection) | `run:create`, `run:claim`, `run:compile`, worker spans | `[Runs]`, `[Scheduler]`, `[Maintenance]` lines with `run`, `trace`, `tenant`, `agent`, `deployment` | garrison-runs, garrison-agents, garrison-models |
+| Node protocol (server side) | REST metrics on `/v1.0/api/node/*`, `garrison_node_heartbeats_total`, `garrison_node_transitions_total`, `garrison_scheduler_*`, `garrison_claims_total`, `garrison_event_batch_size`, `garrison_run_events_total` | Request span, `run:claim` | `[Scheduler]` lines | garrison-scheduler, garrison-workers |
+| Database | `garrison_db_operation_duration_seconds`, `garrison_db_errors_total`, `garrison_db_connections_in_use`, `garrison_db_write_lock_wait_seconds`, `garrison_db_transaction_retries_total`, Npgsql `db_client_*`. Recorded in the ADO.NET driver's execution methods, through which every statement runs | `db <operation> <table>`, `db transaction none` | Errors surface in the caller's lines | garrison-database |
+| Outbound calls | `garrison_outbound_requests_total`, `garrison_outbound_duration_seconds` by service and operation, through one HTTP message handler | `<service> <operation>` client spans | Caller's lines | garrison-integrations |
+| Worker paths | `garrison_worker_*`, `garrison_outbound_*{service="control_plane"}` | `harness <type> exec`, `run:workspace`, `run:mcp_preflight`, `run:k8s_job`, `run:report`, `worker heartbeat`, `worker lease` | `[Worker]` lines with `run`, `trace`, `tenant`, `agent`, `deployment` | garrison-workers, garrison-agents |
+| Kubernetes executor | `garrison_worker_k8s_jobs_total`, `garrison_worker_k8s_pod_start_duration_seconds`, `garrison_worker_k8s_pod_failures_total`, `garrison_worker_jobs_reconciled_total`, `garrison_outbound_*{service="kubernetes"}` | `run:k8s_job`, `kubernetes <method>` | `[Worker]` and `[run-one]` lines with `run` and `trace` | garrison-kubernetes |
+
+### Background services
+
+Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which records `garrison_background_duration_seconds` and `garrison_background_iterations_total{service, operation, result}` (`ok`, `idle`, `error`) and starts a root span named `<service> <operation>`.
+
+| Service | Operations | Process | Also records |
+|---|---|---|---|
+| `maintenance` (leader) | `reap_leases`, `enforce_deadlines`, `mark_lost_nodes`, `mark_offline_control_nodes`, `blocked_runs`, `run_retention`, `cleanup_shared_state` | Server | `garrison_lease_expirations_total`, `garrison_runs_blocked_*`, `garrison_node_transitions_total`, `garrison_control_node_transitions_total`, `garrison_retention_deleted_total`, `garrison_maintenance_pauses_total` (pause detector, every replica) |
+| `leader_election` | `campaign` | Server | `garrison_leader_changes_total`, `garrison_leader_is_leader` |
+| `control_node` | `heartbeat` | Server | `garrison_control_node_heartbeats_total`, `garrison_control_nodes` |
+| `gauges` | `refresh` | Server | `garrison_runs_queued`, `garrison_runs_active`, `garrison_queue_depth`, `garrison_nodes` |
+| `backplane` | `publish`, `poll` (polling backplane; the Postgresql backplane receives through LISTEN) | Server | `garrison_backplane_published_total`, `garrison_backplane_received_total`, `garrison_backplane_lag_seconds` |
+| `retention` (leader) | `prune` | Server | `garrison_retention_deleted_total` |
+| `cluster_settings` | `refresh` | Server | |
+| Codex auth refresher (G-22) | `refresh` | Server | `garrison_codex_token_refresh_total{result}` |
+| Request history writer | | Server | `garrison_request_history_captured_total` |
+| `worker` | `heartbeat`, `lease` | Worker | `garrison_worker_heartbeats_total`, `garrison_worker_leases_total`, `garrison_worker_pauses_total` |
+| Worker capability probe, cancellation watch, Job reconciler | | Worker | `garrison_worker_capability_probes_total`, `garrison_outbound_*{operation="watch"}`, `garrison_worker_jobs_reconciled_total` |
+
+### Deliberately not instrumented
+
+| What | Why |
+|---|---|
+| Remote A2A agents as outbound calls | Invoking remote agents is not implemented yet (plan Phase 12); the outbound handler covers them once it is |
+| OTLP export outcomes | Radiant does not expose exporter results; its diagnostics are counted in `garrison_telemetry_diagnostics_total` and logged |
+| Spans inside KubernetesJob run pods | Run pods have no network path to the collector by design; their log lines carry `run=` and `trace=` |
+| Database statement spans outside a trace | Background polling would create a root span per query; the statements are still timed in `garrison_db_operation_duration_seconds` |
+| The runtime module's settings re-apply loop | In-memory only; the settings refresh it follows is the `cluster_settings refresh` iteration |
+| Request-scoped wait loops (synchronous waits, SSE and WebSocket pumps, the node cancellation watch) | They are part of a request, covered by its span and by the invocation, SSE, and WebSocket metrics |
+| The MCP listener's own requests in `garrison_http_*` | The MCP port is a separate listener; Watson's `http_server_*` metrics and the `mcp_internal` outbound metrics cover it |
+| The dashboard container | It is a static site behind nginx; its logs are shipped (`component="dashboard"`), it has no metrics |
+
+### Metric catalog
+
+<!-- telemetry-coverage:metrics -->
+| Metric (Prometheus) | Type | Labels | Process | Dashboard | Meaning |
+|---|---|---|---|---|---|
+| `garrison_run_tool_calls` | histogram | `agent`, `harness` | server | garrison-agents | Tool calls (MCP tools, shell commands, searches) per run |
+| `garrison_runs_guard_trips_total` | counter | `guard`, `tenant`, `agent`, `harness` | server | garrison-agents | Runs stopped by a guard: repetition, no_progress, output_limit, timeout, blocked |
+| `garrison_background_duration_seconds` | histogram, seconds | `service`, `operation`, `result` | server, worker | garrison-control-plane | Duration of one iteration of a background service (scheduler, maintenance steps, leader election, retention, gauges, settings refresh, ...) |
+| `garrison_background_iterations_total` | counter | `service`, `operation`, `result` | server, worker | garrison-control-plane | Background service iterations by result (ok, idle, error) |
+| `garrison_backplane_lag_seconds` | histogram, seconds | `backplane` | server | garrison-control-plane | Time from publish on one replica to delivery on another |
+| `garrison_backplane_published_total` | counter | `backplane`, `kind` | server | garrison-control-plane | Backplane messages published by this replica |
+| `garrison_backplane_received_total` | counter | `backplane`, `kind` | server | garrison-control-plane | Backplane messages received from other replicas |
+| `garrison_build_info` | gauge | `version`, `process` | server, worker | garrison-overview | Always 1; carries the Garrison version and process (server, worker) |
+| `garrison_control_node_heartbeats_total` | counter | `result` | server | garrison-control-plane | This replica's control node heartbeats (ok, error) |
+| `garrison_control_node_transitions_total` | counter | `status` | server | garrison-control-plane | Control node state transitions, by new status |
+| `garrison_control_nodes` | gauge | `status` | server | garrison-control-plane | Control-plane replicas by status; every replica reports the same cluster-wide counts, so aggregate with max |
+| `garrison_leader_changes_total` | counter | `role` | server | garrison-control-plane | Leadership acquired or lost by this replica |
+| `garrison_leader_is_leader` | gauge | none | server | garrison-control-plane | 1 on the replica that holds leadership, 0 elsewhere |
+| `garrison_maintenance_pauses_total` | counter | `leader` | server | garrison-control-plane | Process pauses (VM or container freeze) detected by maintenance |
+| `garrison_archive_runs_total` | counter | `kind`, `result` | server | garrison-database | Runs and events written to the retention archive (kind runs or events, result ok or error) |
+| `garrison_db_connections_in_use` | gauge | `provider` | server | garrison-database | Database connections open in this process (Postgresql pooling detail is in the npgsql_* metrics) |
+| `garrison_db_errors_total` | counter | `provider`, `operation`, `table`, `error` | server | garrison-database | Database statements that threw, by exception type |
+| `garrison_db_operation_duration_seconds` | histogram, seconds | `provider`, `operation`, `table`, `result` | server | garrison-database | Database statement and transaction duration by provider, operation (select, insert, update, delete, transaction, ...), and table |
+| `garrison_db_transaction_retries_total` | counter | `provider` | server | garrison-database | Transactions retried after a transient conflict (serialization failure, busy database) |
+| `garrison_db_write_lock_wait_seconds` | histogram, seconds | `provider` | server | garrison-database | Time waiting for the Sqlite write lock |
+| `garrison_request_history_captured_total` | counter | `result` | server | garrison-database | Request history entries written or dropped |
+| `garrison_retention_deleted_total` | counter | `kind` | server | garrison-database | Rows removed by retention (runs, events, request history, audit, ...) |
+| `garrison_http_request_duration_seconds` | histogram, seconds | `method`, `route`, `status_class`, `tenant` | server | garrison-http | Time from the request arriving to the response being sent |
+| `garrison_http_request_size_bytes` | histogram, bytes | `method`, `route` | server | garrison-http | Request body size |
+| `garrison_http_requests_total` | counter | `method`, `route`, `status_code`, `status_class`, `tenant` | server | garrison-http | REST requests handled, by route template (never the raw path), method, status, and tenant. Requests the client abandoned (a worker dropping its cancellation watch, a closed browser tab) have status_code 499 and status_class aborted, never 5xx |
+| `garrison_http_requests_in_flight` | gauge | none | server | garrison-http | REST requests being handled right now, including long polls and streams |
+| `garrison_http_response_size_bytes` | histogram, bytes | `method`, `route` | server | garrison-http | Response body size (0 for streamed responses) |
+| `garrison_observability_reachable` | gauge | `service` | server | garrison-integrations | 1 when the server's last probe reached the observability service (Grafana, Prometheus, Loki, Tempo), 0 when not; absent when not configured |
+| `garrison_outbound_duration_seconds` | histogram, seconds | `service`, `operation`, `result` | server, worker | garrison-integrations | Outbound call duration |
+| `garrison_outbound_requests_total` | counter | `service`, `operation`, `result` | server, worker | garrison-integrations | Outbound calls (MCP server tests, A2A remote agents, observability probes, metrics relay, MCP proxying, Kubernetes API) by result (ok, error, status class) |
+| `garrison_worker_jobs_reconciled_total` | counter | `result` | worker | garrison-kubernetes | Orphaned run Jobs deleted by the reconciler |
+| `garrison_worker_k8s_jobs_total` | counter | `result` | worker | garrison-kubernetes | Run Jobs created (created, create_failed) and deleted |
+| `garrison_worker_k8s_pod_failures_total` | counter | `reason` | worker | garrison-kubernetes | Run pods that failed outside the harness (PodFailed), by reason (Unschedulable, ImagePull, OOMKilled, Evicted, ...) |
+| `garrison_worker_k8s_pod_start_duration_seconds` | histogram, seconds | none | worker | garrison-kubernetes | Run Job created to its pod running |
+| `garrison_harness_tokens` | histogram | `direction`, `agent`, `harness`, `model` | server | garrison-models | Tokens per run as reported by the harness, by direction |
+| `garrison_run_cost` | histogram | `agent`, `harness`, `model` | server | garrison-models | Cost per run in US dollars |
+| `garrison_run_cost_usd_total` | counter | `tenant`, `agent`, `deployment`, `harness`, `model` | server | garrison-models | Reported or estimated cost of finished runs in US dollars |
+| `garrison_run_output_rate` | histogram | `agent`, `harness`, `model` | server | garrison-models | Output tokens per second over the streaming window (runs with at least 100 ms of streaming) |
+| `garrison_run_tokens_total` | counter | `direction`, `tenant`, `agent`, `deployment`, `harness`, `model` | server | garrison-models | Tokens consumed by finished runs, by direction (input, output, cached, reasoning) |
+| `garrison_a2a_request_duration_seconds` | histogram, seconds | `method`, `result` | server | garrison-protocols | A2A JSON-RPC method duration |
+| `garrison_a2a_requests_total` | counter | `method`, `result` | server | garrison-protocols | A2A JSON-RPC requests by method and result (ok, error) |
+| `garrison_a2a_tasks_total` | counter | `state` | server | garrison-protocols | A2A task states returned to callers (submitted, working, completed, failed, canceled, ...) |
+| `garrison_delegation_denials_total` | counter | `reason` | server | garrison-protocols | Delegations refused (depth, cycle, policy, quota) |
+| `garrison_delegation_depth` | histogram | `agent` | server | garrison-protocols | Call depth of delegated runs when they are created |
+| `garrison_invocation_disconnect_cancels_total` | counter | `surface` | server | garrison-protocols | Runs cancelled because the waiting caller disconnected (cancelOnDisconnect) |
+| `garrison_invocation_wait_duration_seconds` | histogram, seconds | `surface`, `result` | server | garrison-protocols | How long synchronous invocations (REST wait, MCP garrison_invoke_agent and agent tools, A2A message/send) waited, by result (completed, timeout, disconnected, cancelled) |
+| `garrison_mcp_sessions_total` | counter | `event` | server | garrison-protocols | MCP session lifecycle: created, restored (served on another replica than the one that created it), closed, expired |
+| `garrison_mcp_sessions_active` | gauge | none | server | garrison-protocols | MCP sessions served by this replica |
+| `garrison_mcp_tool_calls_total` | counter | `tool`, `tenant` | server | garrison-protocols | MCP tool calls; agent tools are reported as tool=agent |
+| `garrison_mcp_tool_duration_seconds` | histogram, seconds | `tool`, `result` | server | garrison-protocols | MCP tool call duration, including the wait for invoked agents |
+| `garrison_mcp_tool_results_total` | counter | `tool`, `result` | server | garrison-protocols | MCP tool outcomes (ok, error) |
+| `garrison_sse_events_total` | counter | `stream` | server | garrison-protocols | Server-sent events written |
+| `garrison_sse_streams_active` | gauge | `stream` | server | garrison-protocols | Server-sent event streams open on this replica (run_events, a2a) |
+| `garrison_websocket_messages_total` | counter | `direction` | server | garrison-protocols | Live-update WebSocket messages (received, sent) |
+| `garrison_websocket_sessions_active` | gauge | none | server | garrison-protocols | Live-update WebSocket sessions open on this replica |
+| `garrison_event_batch_size` | histogram | none | server | garrison-runs | Events per batch received from workers |
+| `garrison_run_events_total` | counter | `type` | server | garrison-runs | Run events received from workers, by event type |
+| `garrison_run_stage_duration_seconds` | histogram, seconds | `stage`, `tenant`, `agent`, `deployment`, `harness`, `model` | server | garrison-agents | Per-run stage durations: queue (queued to leased), claim (scheduler claim and compile inside the lease request), startup (leased to harness start), first_token (TTFT), first_token_excl_delegation, streaming (first to last output), execution (harness start to exit), delegation_wait, total (queued to completion received) |
+| `garrison_runs_active` | gauge | none | server | garrison-runs | Runs leased, running, or cancelling, cluster-wide; aggregate with max |
+| `garrison_runs_cancellations_total` | counter | `tenant`, `agent`, `reason` | server | garrison-runs | Cancellation requests accepted, by reason (request, disconnect, parent) |
+| `garrison_runs_created_total` | counter | `tenant`, `agent`, `deployment`, `harness`, `kind`, `executor` | server | garrison-runs | Runs created (invocations), per agent and deployment |
+| `garrison_runs_finished_total` | counter | `tenant`, `agent`, `deployment`, `harness`, `model`, `outcome` | server | garrison-runs | Runs that reached a terminal status, by outcome and served model |
+| `garrison_runs_queued` | gauge | none | server | garrison-runs | Runs waiting for a worker (Pending and Queued), cluster-wide; aggregate with max |
+| `garrison_runs_repairs_total` | counter | `harness`, `tenant`, `agent` | server | garrison-runs | Structured output repair attempts started |
+| `garrison_runs_schema_validations_total` | counter | `result`, `execution`, `harness`, `tenant`, `agent` | server | garrison-runs | Validations of run output against the agent's output schema |
+| `garrison_claims_total` | counter | `result`, `harness` | server | garrison-scheduler | Lease claim attempts: won, lost (another node claimed first), limit (deployment at its concurrency limit) |
+| `garrison_compile_duration_seconds` | histogram, seconds | `harness`, `agent`, `result` | server | garrison-scheduler | Time to compile a claimed run into an execution spec |
+| `garrison_lease_expirations_total` | counter | `action` | server | garrison-scheduler | Runs whose worker stopped renewing the lease (requeued or failed) |
+| `garrison_queue_depth` | gauge | `status`, `tenant`, `agent`, `harness` | server | garrison-scheduler | Unfinished runs by status, tenant, agent, and harness, cluster-wide (refreshed every 10 seconds); aggregate with max |
+| `garrison_runs_blocked_total` | counter | `reason` | server | garrison-scheduler | Runs that became blocked (warning appended) |
+| `garrison_runs_blocked_current` | gauge | `reason` | server | garrison-scheduler | Queued runs no Ready worker can run right now, by reason; aggregate with max |
+| `garrison_runs_blocked_failed_total` | counter | `reason` | server | garrison-scheduler | Blocked runs failed with NoCapableWorker after Runtime.FailBlockedAfterSeconds |
+| `garrison_scheduler_claim_duration_seconds` | histogram, seconds | `result` | server | garrison-scheduler | Time to find, claim, and compile a run inside one lease request (result assigned or empty) |
+| `garrison_scheduler_lease_requests_total` | counter | `result` | server | garrison-scheduler | Worker lease requests answered, by result (assigned, empty) |
+| `garrison_scheduler_lease_wait_duration_seconds` | histogram, seconds | `result` | server | garrison-scheduler | How long a lease request waited (long poll) before it was answered |
+| `garrison_audit_events_total` | counter | `type` | server | garrison-security | Audit records written, by event type |
+| `garrison_auth_failures_total` | counter | `scheme`, `reason` | server | garrison-security | Requests rejected by authentication, by scheme (BearerToken, AccessKeySignature, ...) and reason (Invalid, NotFound, Inactive, Missing) |
+| `garrison_auth_rate_limited_total` | counter | `scope` | server | garrison-security | Requests refused by the authentication rate limiter, by limiter scope |
+| `garrison_auth_tokens_issued_total` | counter | `scheme`, `principal` | server | garrison-security | Session tokens issued (sign-ins and token exchanges) by scheme and principal type (User, Credential, Run) |
+| `garrison_authz_denials_total` | counter | `resource`, `operation`, `result` | server | garrison-security | Authorization denials by resource type, operation, and result (Forbidden, NotFound) |
+| `garrison_codex_token_refresh_total` | counter | `result` | server | garrison-security | Control-plane refreshes of Codex auth.json credentials by result (ok, failed, reauth_required, skipped) |
+| `garrison_secret_decrypts_total` | counter | `result` | server | garrison-security | Secret decryptions by result (ok, error) |
+| `garrison_telemetry_diagnostics_total` | counter | `severity` | server, worker | garrison-logs | Diagnostics reported by the telemetry pipeline (export failures and the like) |
+| `garrison_telemetry_labels_folded_total` | counter | `label` | server, worker | garrison-overview | Measurements whose label value was replaced by other because the label already had Telemetry.MaxLabelValues distinct values |
+| `garrison_node_heartbeats_total` | counter | `result` | server | garrison-workers | Worker heartbeats received (ok, unknown_node, rejected) |
+| `garrison_node_transitions_total` | counter | `status` | server | garrison-workers | Worker node state transitions, by new status (Ready, Draining, Lost, Offline, Registered) |
+| `garrison_nodes` | gauge | `status` | server | garrison-workers | Worker nodes by status, cluster-wide; aggregate with max |
+| `garrison_worker_capability_probes_total` | counter | `harness`, `result` | worker | garrison-workers | Harness capability probes (available, unavailable) |
+| `garrison_worker_completion_reports_total` | counter | `result` | worker | garrison-workers | Completion reports: accepted, stale (lease lost), abandoned (gave up after CompletionRetrySeconds) |
+| `garrison_worker_events_total` | counter | `result` | worker | garrison-workers | Run events relayed to the control plane (shipped, dropped) |
+| `garrison_worker_harness_cost_usd_total` | counter | `tenant`, `agent`, `deployment`, `harness`, `model` | worker | garrison-models | Reported cost of runs on this worker in US dollars |
+| `garrison_worker_harness_tokens_total` | counter | `direction`, `tenant`, `agent`, `deployment`, `harness`, `model` | worker | garrison-models | Tokens reported by harnesses on this worker, by direction (input, output, cached, reasoning) |
+| `garrison_worker_heartbeats_total` | counter | `result` | worker | garrison-workers | Heartbeats sent (ok, error) |
+| `garrison_worker_leases_total` | counter | `result` | worker | garrison-workers | Lease requests and what came back (assigned, empty, error) |
+| `garrison_worker_pauses_total` | counter | none | worker | garrison-workers | Process pauses detected by the worker's heartbeat loop |
+| `garrison_worker_run_duration_seconds` | histogram, seconds | `tenant`, `agent`, `deployment`, `harness`, `model` | worker | garrison-workers | Run duration on the worker (lease to completion report) |
+| `garrison_worker_run_guard_trips_total` | counter | `guard`, `harness`, `agent` | worker | garrison-agents | Runs this worker stopped with a guard (repetition, no_progress, output_limit, timeout) |
+| `garrison_worker_run_stage_duration_seconds` | histogram, seconds | `stage`, `harness`, `agent` | worker | garrison-workers | Worker run stages: workspace (prepare), execution (executor, including MCP preflight), report (completion report until accepted) |
+| `garrison_worker_run_streaming_seconds` | histogram, seconds | `tenant`, `agent`, `deployment`, `harness`, `model` | worker | garrison-workers | First to last model output |
+| `garrison_worker_run_ttft_seconds` | histogram, seconds | `tenant`, `agent`, `deployment`, `harness`, `model` | worker | garrison-workers | Harness process start to first model output |
+| `garrison_worker_runs_total` | counter | `tenant`, `agent`, `deployment`, `harness`, `model`, `outcome` | worker | garrison-workers | Runs this worker finished |
+| `garrison_worker_runs_active` | gauge | none | worker | garrison-workers | Runs in progress on this worker |
+| `garrison_worker_slots_free` | gauge | none | worker | garrison-workers | Free run slots on this worker |
+<!-- /telemetry-coverage:metrics -->
+
+### REST routes
+
+Every route registers through the route registrar, which records it in the operation scope map; the table below is that map.
+
+<!-- telemetry-coverage:routes -->
+| Method | Route | Metric series | Span | Log | Panels |
+|---|---|---|---|---|---|
+| GET | `/metrics` | not recorded, so scrapes stay out of request metrics | `GET /metrics` | none | none |
+| GET | `/v1.0/a2a/{tenantId}` | `route="/v1.0/a2a/{tenantId}"` | `GET /v1.0/a2a/{tenantId}` | `route=/v1.0/a2a/{tenantId}` | garrison-http, garrison-protocols |
+| POST | `/v1.0/a2a/{tenantId}/{agentName}` | `route="/v1.0/a2a/{tenantId}/{agentName}"` | `POST /v1.0/a2a/{tenantId}/{agentName}` | `route=/v1.0/a2a/{tenantId}/{agentName}` | garrison-http, garrison-protocols |
+| GET | `/v1.0/a2a/{tenantId}/{agentName}/.well-known/agent-card.json` | `route="/v1.0/a2a/{tenantId}/{agentName}/.well-known/agent-card.json"` | `GET /v1.0/a2a/{tenantId}/{agentName}/.well-known/agent-card.json` | `route=/v1.0/a2a/{tenantId}/{agentName}/.well-known/agent-card.json` | garrison-http, garrison-protocols |
+| GET | `/v1.0/api/control-nodes` | `route="/v1.0/api/control-nodes"` | `GET /v1.0/api/control-nodes` | `route=/v1.0/api/control-nodes` | garrison-http |
+| GET | `/v1.0/api/control-nodes/{id}` | `route="/v1.0/api/control-nodes/{id}"` | `GET /v1.0/api/control-nodes/{id}` | `route=/v1.0/api/control-nodes/{id}` | garrison-http |
+| GET | `/v1.0/api/harness-profiles/builtin` | `route="/v1.0/api/harness-profiles/builtin"` | `GET /v1.0/api/harness-profiles/builtin` | `route=/v1.0/api/harness-profiles/builtin` | garrison-http |
+| GET | `/v1.0/api/health` | `route="/v1.0/api/health"` | `GET /v1.0/api/health` | `route=/v1.0/api/health` | garrison-http |
+| GET | `/v1.0/api/health/live` | `route="/v1.0/api/health/live"` | `GET /v1.0/api/health/live` | `route=/v1.0/api/health/live` | garrison-http |
+| GET | `/v1.0/api/health/ready` | `route="/v1.0/api/health/ready"` | `GET /v1.0/api/health/ready` | `route=/v1.0/api/health/ready` | garrison-http |
+| GET | `/v1.0/api/node-pools` | `route="/v1.0/api/node-pools"` | `GET /v1.0/api/node-pools` | `route=/v1.0/api/node-pools` | garrison-http |
+| POST | `/v1.0/api/node-pools` | `route="/v1.0/api/node-pools"` | `POST /v1.0/api/node-pools` | `route=/v1.0/api/node-pools` | garrison-http |
+| DELETE | `/v1.0/api/node-pools/{id}` | `route="/v1.0/api/node-pools/{id}"` | `DELETE /v1.0/api/node-pools/{id}` | `route=/v1.0/api/node-pools/{id}` | garrison-http |
+| GET | `/v1.0/api/node-pools/{id}` | `route="/v1.0/api/node-pools/{id}"` | `GET /v1.0/api/node-pools/{id}` | `route=/v1.0/api/node-pools/{id}` | garrison-http |
+| PUT | `/v1.0/api/node-pools/{id}` | `route="/v1.0/api/node-pools/{id}"` | `PUT /v1.0/api/node-pools/{id}` | `route=/v1.0/api/node-pools/{id}` | garrison-http |
+| POST | `/v1.0/api/node/drain` | `route="/v1.0/api/node/drain"` | `POST /v1.0/api/node/drain` | `route=/v1.0/api/node/drain` | garrison-http, garrison-workers |
+| POST | `/v1.0/api/node/heartbeat` | `route="/v1.0/api/node/heartbeat"` | `POST /v1.0/api/node/heartbeat` | `route=/v1.0/api/node/heartbeat` | garrison-http, garrison-workers |
+| POST | `/v1.0/api/node/lease` | `route="/v1.0/api/node/lease"` | `POST /v1.0/api/node/lease` | `route=/v1.0/api/node/lease` | garrison-http, garrison-workers, garrison-scheduler |
+| POST | `/v1.0/api/node/register` | `route="/v1.0/api/node/register"` | `POST /v1.0/api/node/register` | `route=/v1.0/api/node/register` | garrison-http, garrison-workers |
+| POST | `/v1.0/api/node/runs/{runId}/complete` | `route="/v1.0/api/node/runs/{runId}/complete"` | `POST /v1.0/api/node/runs/{runId}/complete` | `route=/v1.0/api/node/runs/{runId}/complete` | garrison-http, garrison-workers |
+| POST | `/v1.0/api/node/runs/{runId}/events` | `route="/v1.0/api/node/runs/{runId}/events"` | `POST /v1.0/api/node/runs/{runId}/events` | `route=/v1.0/api/node/runs/{runId}/events` | garrison-http, garrison-workers |
+| POST | `/v1.0/api/node/runs/{runId}/started` | `route="/v1.0/api/node/runs/{runId}/started"` | `POST /v1.0/api/node/runs/{runId}/started` | `route=/v1.0/api/node/runs/{runId}/started` | garrison-http, garrison-workers |
+| POST | `/v1.0/api/node/watch` | `route="/v1.0/api/node/watch"` | `POST /v1.0/api/node/watch` | `route=/v1.0/api/node/watch` | garrison-http, garrison-workers |
+| GET | `/v1.0/api/nodes` | `route="/v1.0/api/nodes"` | `GET /v1.0/api/nodes` | `route=/v1.0/api/nodes` | garrison-http |
+| DELETE | `/v1.0/api/nodes/{id}` | `route="/v1.0/api/nodes/{id}"` | `DELETE /v1.0/api/nodes/{id}` | `route=/v1.0/api/nodes/{id}` | garrison-http |
+| GET | `/v1.0/api/nodes/{id}` | `route="/v1.0/api/nodes/{id}"` | `GET /v1.0/api/nodes/{id}` | `route=/v1.0/api/nodes/{id}` | garrison-http |
+| PUT | `/v1.0/api/nodes/{id}` | `route="/v1.0/api/nodes/{id}"` | `PUT /v1.0/api/nodes/{id}` | `route=/v1.0/api/nodes/{id}` | garrison-http |
+| POST | `/v1.0/api/nodes/{id}/cordon` | `route="/v1.0/api/nodes/{id}/cordon"` | `POST /v1.0/api/nodes/{id}/cordon` | `route=/v1.0/api/nodes/{id}/cordon` | garrison-http |
+| POST | `/v1.0/api/nodes/{id}/drain` | `route="/v1.0/api/nodes/{id}/drain"` | `POST /v1.0/api/nodes/{id}/drain` | `route=/v1.0/api/nodes/{id}/drain` | garrison-http |
+| POST | `/v1.0/api/nodes/{id}/uncordon` | `route="/v1.0/api/nodes/{id}/uncordon"` | `POST /v1.0/api/nodes/{id}/uncordon` | `route=/v1.0/api/nodes/{id}/uncordon` | garrison-http |
+| GET | `/v1.0/api/observability/status` | `route="/v1.0/api/observability/status"` | `GET /v1.0/api/observability/status` | `route=/v1.0/api/observability/status` | garrison-http |
+| DELETE | `/v1.0/api/request-history` | `route="/v1.0/api/request-history"` | `DELETE /v1.0/api/request-history` | `route=/v1.0/api/request-history` | garrison-http |
+| GET | `/v1.0/api/request-history` | `route="/v1.0/api/request-history"` | `GET /v1.0/api/request-history` | `route=/v1.0/api/request-history` | garrison-http |
+| GET | `/v1.0/api/request-history/summary` | `route="/v1.0/api/request-history/summary"` | `GET /v1.0/api/request-history/summary` | `route=/v1.0/api/request-history/summary` | garrison-http |
+| DELETE | `/v1.0/api/request-history/{id}` | `route="/v1.0/api/request-history/{id}"` | `DELETE /v1.0/api/request-history/{id}` | `route=/v1.0/api/request-history/{id}` | garrison-http |
+| GET | `/v1.0/api/request-history/{id}` | `route="/v1.0/api/request-history/{id}"` | `GET /v1.0/api/request-history/{id}` | `route=/v1.0/api/request-history/{id}` | garrison-http |
+| GET | `/v1.0/api/server-info` | `route="/v1.0/api/server-info"` | `GET /v1.0/api/server-info` | `route=/v1.0/api/server-info` | garrison-http |
+| GET | `/v1.0/api/settings` | `route="/v1.0/api/settings"` | `GET /v1.0/api/settings` | `route=/v1.0/api/settings` | garrison-http |
+| PUT | `/v1.0/api/settings` | `route="/v1.0/api/settings"` | `PUT /v1.0/api/settings` | `route=/v1.0/api/settings` | garrison-http |
+| POST | `/v1.0/api/settings/database/test` | `route="/v1.0/api/settings/database/test"` | `POST /v1.0/api/settings/database/test` | `route=/v1.0/api/settings/database/test` | garrison-http |
+| POST | `/v1.0/api/settings/restart` | `route="/v1.0/api/settings/restart"` | `POST /v1.0/api/settings/restart` | `route=/v1.0/api/settings/restart` | garrison-http |
+| GET | `/v1.0/api/tenants` | `route="/v1.0/api/tenants"` | `GET /v1.0/api/tenants` | `route=/v1.0/api/tenants` | garrison-http |
+| POST | `/v1.0/api/tenants` | `route="/v1.0/api/tenants"` | `POST /v1.0/api/tenants` | `route=/v1.0/api/tenants` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}` | `route="/v1.0/api/tenants/{tenantId}"` | `DELETE /v1.0/api/tenants/{tenantId}` | `route=/v1.0/api/tenants/{tenantId}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}` | `route="/v1.0/api/tenants/{tenantId}"` | `GET /v1.0/api/tenants/{tenantId}` | `route=/v1.0/api/tenants/{tenantId}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}` | `route="/v1.0/api/tenants/{tenantId}"` | `PUT /v1.0/api/tenants/{tenantId}` | `route=/v1.0/api/tenants/{tenantId}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/agents` | `route="/v1.0/api/tenants/{tenantId}/agents"` | `GET /v1.0/api/tenants/{tenantId}/agents` | `route=/v1.0/api/tenants/{tenantId}/agents` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/agents` | `route="/v1.0/api/tenants/{tenantId}/agents"` | `POST /v1.0/api/tenants/{tenantId}/agents` | `route=/v1.0/api/tenants/{tenantId}/agents` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/agents/register` | `route="/v1.0/api/tenants/{tenantId}/agents/register"` | `POST /v1.0/api/tenants/{tenantId}/agents/register` | `route=/v1.0/api/tenants/{tenantId}/agents/register` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke` | `route="/v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke"` | `POST /v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke` | `route=/v1.0/api/tenants/{tenantId}/agents/{agentId}/invoke` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/agents/{id}` | `route="/v1.0/api/tenants/{tenantId}/agents/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/agents/{id}` | `route=/v1.0/api/tenants/{tenantId}/agents/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/agents/{id}` | `route="/v1.0/api/tenants/{tenantId}/agents/{id}"` | `GET /v1.0/api/tenants/{tenantId}/agents/{id}` | `route=/v1.0/api/tenants/{tenantId}/agents/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/agents/{id}` | `route="/v1.0/api/tenants/{tenantId}/agents/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/agents/{id}` | `route=/v1.0/api/tenants/{tenantId}/agents/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/agents/{id}/card` | `route="/v1.0/api/tenants/{tenantId}/agents/{id}/card"` | `GET /v1.0/api/tenants/{tenantId}/agents/{id}/card` | `route=/v1.0/api/tenants/{tenantId}/agents/{id}/card` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/analytics/runs` | `route="/v1.0/api/tenants/{tenantId}/analytics/runs"` | `GET /v1.0/api/tenants/{tenantId}/analytics/runs` | `route=/v1.0/api/tenants/{tenantId}/analytics/runs` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` | `route="/v1.0/api/tenants/{tenantId}/analytics/runs/dimensions"` | `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` | `route=/v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/artifact-stores` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores"` | `GET /v1.0/api/tenants/{tenantId}/artifact-stores` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/artifact-stores` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores"` | `POST /v1.0/api/tenants/{tenantId}/artifact-stores` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores/{id}"` | `GET /v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/audit` | `route="/v1.0/api/tenants/{tenantId}/audit"` | `DELETE /v1.0/api/tenants/{tenantId}/audit` | `route=/v1.0/api/tenants/{tenantId}/audit` | garrison-http, garrison-security |
+| GET | `/v1.0/api/tenants/{tenantId}/audit` | `route="/v1.0/api/tenants/{tenantId}/audit"` | `GET /v1.0/api/tenants/{tenantId}/audit` | `route=/v1.0/api/tenants/{tenantId}/audit` | garrison-http, garrison-security |
+| DELETE | `/v1.0/api/tenants/{tenantId}/audit/{id}` | `route="/v1.0/api/tenants/{tenantId}/audit/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/audit/{id}` | `route=/v1.0/api/tenants/{tenantId}/audit/{id}` | garrison-http, garrison-security |
+| GET | `/v1.0/api/tenants/{tenantId}/audit/{id}` | `route="/v1.0/api/tenants/{tenantId}/audit/{id}"` | `GET /v1.0/api/tenants/{tenantId}/audit/{id}` | `route=/v1.0/api/tenants/{tenantId}/audit/{id}` | garrison-http, garrison-security |
+| GET | `/v1.0/api/tenants/{tenantId}/credential-scope-assignments` | `route="/v1.0/api/tenants/{tenantId}/credential-scope-assignments"` | `GET /v1.0/api/tenants/{tenantId}/credential-scope-assignments` | `route=/v1.0/api/tenants/{tenantId}/credential-scope-assignments` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/credential-scope-assignments` | `route="/v1.0/api/tenants/{tenantId}/credential-scope-assignments"` | `POST /v1.0/api/tenants/{tenantId}/credential-scope-assignments` | `route=/v1.0/api/tenants/{tenantId}/credential-scope-assignments` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | `route="/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | `route=/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | `route="/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}"` | `GET /v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | `route=/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | `route="/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | `route=/v1.0/api/tenants/{tenantId}/credential-scope-assignments/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/credentials` | `route="/v1.0/api/tenants/{tenantId}/credentials"` | `GET /v1.0/api/tenants/{tenantId}/credentials` | `route=/v1.0/api/tenants/{tenantId}/credentials` | garrison-http, garrison-security |
+| POST | `/v1.0/api/tenants/{tenantId}/credentials` | `route="/v1.0/api/tenants/{tenantId}/credentials"` | `POST /v1.0/api/tenants/{tenantId}/credentials` | `route=/v1.0/api/tenants/{tenantId}/credentials` | garrison-http, garrison-security |
+| DELETE | `/v1.0/api/tenants/{tenantId}/credentials/{id}` | `route="/v1.0/api/tenants/{tenantId}/credentials/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/credentials/{id}` | `route=/v1.0/api/tenants/{tenantId}/credentials/{id}` | garrison-http, garrison-security |
+| GET | `/v1.0/api/tenants/{tenantId}/credentials/{id}` | `route="/v1.0/api/tenants/{tenantId}/credentials/{id}"` | `GET /v1.0/api/tenants/{tenantId}/credentials/{id}` | `route=/v1.0/api/tenants/{tenantId}/credentials/{id}` | garrison-http, garrison-security |
+| PUT | `/v1.0/api/tenants/{tenantId}/credentials/{id}` | `route="/v1.0/api/tenants/{tenantId}/credentials/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/credentials/{id}` | `route=/v1.0/api/tenants/{tenantId}/credentials/{id}` | garrison-http, garrison-security |
+| GET | `/v1.0/api/tenants/{tenantId}/credentials/{id}/permissions` | `route="/v1.0/api/tenants/{tenantId}/credentials/{id}/permissions"` | `GET /v1.0/api/tenants/{tenantId}/credentials/{id}/permissions` | `route=/v1.0/api/tenants/{tenantId}/credentials/{id}/permissions` | garrison-http, garrison-security |
+| POST | `/v1.0/api/tenants/{tenantId}/credentials/{id}/rotate` | `route="/v1.0/api/tenants/{tenantId}/credentials/{id}/rotate"` | `POST /v1.0/api/tenants/{tenantId}/credentials/{id}/rotate` | `route=/v1.0/api/tenants/{tenantId}/credentials/{id}/rotate` | garrison-http, garrison-security |
+| GET | `/v1.0/api/tenants/{tenantId}/deployments` | `route="/v1.0/api/tenants/{tenantId}/deployments"` | `GET /v1.0/api/tenants/{tenantId}/deployments` | `route=/v1.0/api/tenants/{tenantId}/deployments` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/deployments` | `route="/v1.0/api/tenants/{tenantId}/deployments"` | `POST /v1.0/api/tenants/{tenantId}/deployments` | `route=/v1.0/api/tenants/{tenantId}/deployments` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test` | `route="/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test"` | `POST /v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test` | `route=/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/deployments/{id}` | `route="/v1.0/api/tenants/{tenantId}/deployments/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/deployments/{id}` | `route=/v1.0/api/tenants/{tenantId}/deployments/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/deployments/{id}` | `route="/v1.0/api/tenants/{tenantId}/deployments/{id}"` | `GET /v1.0/api/tenants/{tenantId}/deployments/{id}` | `route=/v1.0/api/tenants/{tenantId}/deployments/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/deployments/{id}` | `route="/v1.0/api/tenants/{tenantId}/deployments/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/deployments/{id}` | `route=/v1.0/api/tenants/{tenantId}/deployments/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview` | `route="/v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview"` | `POST /v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview` | `route=/v1.0/api/tenants/{tenantId}/deployments/{id}/compile-preview` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/harness-profiles` | `route="/v1.0/api/tenants/{tenantId}/harness-profiles"` | `GET /v1.0/api/tenants/{tenantId}/harness-profiles` | `route=/v1.0/api/tenants/{tenantId}/harness-profiles` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/harness-profiles` | `route="/v1.0/api/tenants/{tenantId}/harness-profiles"` | `POST /v1.0/api/tenants/{tenantId}/harness-profiles` | `route=/v1.0/api/tenants/{tenantId}/harness-profiles` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | `route="/v1.0/api/tenants/{tenantId}/harness-profiles/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | `route=/v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | `route="/v1.0/api/tenants/{tenantId}/harness-profiles/{id}"` | `GET /v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | `route=/v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | `route="/v1.0/api/tenants/{tenantId}/harness-profiles/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | `route=/v1.0/api/tenants/{tenantId}/harness-profiles/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/harness-profiles/{id}/clone` | `route="/v1.0/api/tenants/{tenantId}/harness-profiles/{id}/clone"` | `POST /v1.0/api/tenants/{tenantId}/harness-profiles/{id}/clone` | `route=/v1.0/api/tenants/{tenantId}/harness-profiles/{id}/clone` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/manifests/applies` | `route="/v1.0/api/tenants/{tenantId}/manifests/applies"` | `GET /v1.0/api/tenants/{tenantId}/manifests/applies` | `route=/v1.0/api/tenants/{tenantId}/manifests/applies` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/manifests/applies/{id}` | `route="/v1.0/api/tenants/{tenantId}/manifests/applies/{id}"` | `GET /v1.0/api/tenants/{tenantId}/manifests/applies/{id}` | `route=/v1.0/api/tenants/{tenantId}/manifests/applies/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/manifests/apply` | `route="/v1.0/api/tenants/{tenantId}/manifests/apply"` | `POST /v1.0/api/tenants/{tenantId}/manifests/apply` | `route=/v1.0/api/tenants/{tenantId}/manifests/apply` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/manifests/export` | `route="/v1.0/api/tenants/{tenantId}/manifests/export"` | `POST /v1.0/api/tenants/{tenantId}/manifests/export` | `route=/v1.0/api/tenants/{tenantId}/manifests/export` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/mcp-servers` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers"` | `GET /v1.0/api/tenants/{tenantId}/mcp-servers` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/mcp-servers` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers"` | `POST /v1.0/api/tenants/{tenantId}/mcp-servers` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers/{id}"` | `GET /v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test` | `route="/v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test"` | `POST /v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test` | `route=/v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/overview` | `route="/v1.0/api/tenants/{tenantId}/overview"` | `GET /v1.0/api/tenants/{tenantId}/overview` | `route=/v1.0/api/tenants/{tenantId}/overview` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/permissions` | `route="/v1.0/api/tenants/{tenantId}/permissions"` | `GET /v1.0/api/tenants/{tenantId}/permissions` | `route=/v1.0/api/tenants/{tenantId}/permissions` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/permissions` | `route="/v1.0/api/tenants/{tenantId}/permissions"` | `POST /v1.0/api/tenants/{tenantId}/permissions` | `route=/v1.0/api/tenants/{tenantId}/permissions` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/permissions/{id}` | `route="/v1.0/api/tenants/{tenantId}/permissions/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/permissions/{id}` | `route=/v1.0/api/tenants/{tenantId}/permissions/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/permissions/{id}` | `route="/v1.0/api/tenants/{tenantId}/permissions/{id}"` | `GET /v1.0/api/tenants/{tenantId}/permissions/{id}` | `route=/v1.0/api/tenants/{tenantId}/permissions/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/permissions/{id}` | `route="/v1.0/api/tenants/{tenantId}/permissions/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/permissions/{id}` | `route=/v1.0/api/tenants/{tenantId}/permissions/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/prompt-templates` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates"` | `GET /v1.0/api/tenants/{tenantId}/prompt-templates` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/prompt-templates` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates"` | `POST /v1.0/api/tenants/{tenantId}/prompt-templates` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/prompt-templates/render` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/render"` | `POST /v1.0/api/tenants/{tenantId}/prompt-templates/render` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/render` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}"` | `GET /v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/clone` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/clone"` | `POST /v1.0/api/tenants/{tenantId}/prompt-templates/{id}/clone` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/clone` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/render` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/render"` | `POST /v1.0/api/tenants/{tenantId}/prompt-templates/{id}/render` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/render` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/reset` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/reset"` | `POST /v1.0/api/tenants/{tenantId}/prompt-templates/{id}/reset` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/reset` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/restore/{version}` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/restore/{version}"` | `POST /v1.0/api/tenants/{tenantId}/prompt-templates/{id}/restore/{version}` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/restore/{version}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/versions` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/versions"` | `GET /v1.0/api/tenants/{tenantId}/prompt-templates/{id}/versions` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/versions` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/versions/{version}` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/versions/{version}"` | `GET /v1.0/api/tenants/{tenantId}/prompt-templates/{id}/versions/{version}` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/{id}/versions/{version}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/queue/summary` | `route="/v1.0/api/tenants/{tenantId}/queue/summary"` | `GET /v1.0/api/tenants/{tenantId}/queue/summary` | `route=/v1.0/api/tenants/{tenantId}/queue/summary` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/role-permissions` | `route="/v1.0/api/tenants/{tenantId}/role-permissions"` | `GET /v1.0/api/tenants/{tenantId}/role-permissions` | `route=/v1.0/api/tenants/{tenantId}/role-permissions` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/role-permissions` | `route="/v1.0/api/tenants/{tenantId}/role-permissions"` | `POST /v1.0/api/tenants/{tenantId}/role-permissions` | `route=/v1.0/api/tenants/{tenantId}/role-permissions` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/role-permissions/{id}` | `route="/v1.0/api/tenants/{tenantId}/role-permissions/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/role-permissions/{id}` | `route=/v1.0/api/tenants/{tenantId}/role-permissions/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/roles` | `route="/v1.0/api/tenants/{tenantId}/roles"` | `GET /v1.0/api/tenants/{tenantId}/roles` | `route=/v1.0/api/tenants/{tenantId}/roles` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/roles` | `route="/v1.0/api/tenants/{tenantId}/roles"` | `POST /v1.0/api/tenants/{tenantId}/roles` | `route=/v1.0/api/tenants/{tenantId}/roles` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/roles/{id}` | `route="/v1.0/api/tenants/{tenantId}/roles/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/roles/{id}` | `route=/v1.0/api/tenants/{tenantId}/roles/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/roles/{id}` | `route="/v1.0/api/tenants/{tenantId}/roles/{id}"` | `GET /v1.0/api/tenants/{tenantId}/roles/{id}` | `route=/v1.0/api/tenants/{tenantId}/roles/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/roles/{id}` | `route="/v1.0/api/tenants/{tenantId}/roles/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/roles/{id}` | `route=/v1.0/api/tenants/{tenantId}/roles/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/roles/{id}/clone` | `route="/v1.0/api/tenants/{tenantId}/roles/{id}/clone"` | `POST /v1.0/api/tenants/{tenantId}/roles/{id}/clone` | `route=/v1.0/api/tenants/{tenantId}/roles/{id}/clone` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/runs` | `route="/v1.0/api/tenants/{tenantId}/runs"` | `DELETE /v1.0/api/tenants/{tenantId}/runs` | `route=/v1.0/api/tenants/{tenantId}/runs` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs` | `route="/v1.0/api/tenants/{tenantId}/runs"` | `GET /v1.0/api/tenants/{tenantId}/runs` | `route=/v1.0/api/tenants/{tenantId}/runs` | garrison-http, garrison-runs |
+| POST | `/v1.0/api/tenants/{tenantId}/runs` | `route="/v1.0/api/tenants/{tenantId}/runs"` | `POST /v1.0/api/tenants/{tenantId}/runs` | `route=/v1.0/api/tenants/{tenantId}/runs` | garrison-http, garrison-runs |
+| DELETE | `/v1.0/api/tenants/{tenantId}/runs/{id}` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/runs/{id}` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs/{id}` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}` | garrison-http, garrison-runs |
+| POST | `/v1.0/api/tenants/{tenantId}/runs/{id}/cancel` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/cancel"` | `POST /v1.0/api/tenants/{tenantId}/runs/{id}/cancel` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/cancel` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/children` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/children"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/children` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/children` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/events` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/events"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/events` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | garrison-http, garrison-runs |
+| POST | `/v1.0/api/tenants/{tenantId}/runs/{id}/retry` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/retry"` | `POST /v1.0/api/tenants/{tenantId}/runs/{id}/retry` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/retry` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/secrets` | `route="/v1.0/api/tenants/{tenantId}/secrets"` | `GET /v1.0/api/tenants/{tenantId}/secrets` | `route=/v1.0/api/tenants/{tenantId}/secrets` | garrison-http, garrison-security |
+| POST | `/v1.0/api/tenants/{tenantId}/secrets` | `route="/v1.0/api/tenants/{tenantId}/secrets"` | `POST /v1.0/api/tenants/{tenantId}/secrets` | `route=/v1.0/api/tenants/{tenantId}/secrets` | garrison-http, garrison-security |
+| DELETE | `/v1.0/api/tenants/{tenantId}/secrets/{id}` | `route="/v1.0/api/tenants/{tenantId}/secrets/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/secrets/{id}` | `route=/v1.0/api/tenants/{tenantId}/secrets/{id}` | garrison-http, garrison-security |
+| GET | `/v1.0/api/tenants/{tenantId}/secrets/{id}` | `route="/v1.0/api/tenants/{tenantId}/secrets/{id}"` | `GET /v1.0/api/tenants/{tenantId}/secrets/{id}` | `route=/v1.0/api/tenants/{tenantId}/secrets/{id}` | garrison-http, garrison-security |
+| PUT | `/v1.0/api/tenants/{tenantId}/secrets/{id}` | `route="/v1.0/api/tenants/{tenantId}/secrets/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/secrets/{id}` | `route=/v1.0/api/tenants/{tenantId}/secrets/{id}` | garrison-http, garrison-security |
+| POST | `/v1.0/api/tenants/{tenantId}/secrets/{id}/rotate` | `route="/v1.0/api/tenants/{tenantId}/secrets/{id}/rotate"` | `POST /v1.0/api/tenants/{tenantId}/secrets/{id}/rotate` | `route=/v1.0/api/tenants/{tenantId}/secrets/{id}/rotate` | garrison-http, garrison-security |
+| PUT | `/v1.0/api/tenants/{tenantId}/secrets/{id}/value` | `route="/v1.0/api/tenants/{tenantId}/secrets/{id}/value"` | `PUT /v1.0/api/tenants/{tenantId}/secrets/{id}/value` | `route=/v1.0/api/tenants/{tenantId}/secrets/{id}/value` | garrison-http, garrison-security |
+| GET | `/v1.0/api/tenants/{tenantId}/user-role-assignments` | `route="/v1.0/api/tenants/{tenantId}/user-role-assignments"` | `GET /v1.0/api/tenants/{tenantId}/user-role-assignments` | `route=/v1.0/api/tenants/{tenantId}/user-role-assignments` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/user-role-assignments` | `route="/v1.0/api/tenants/{tenantId}/user-role-assignments"` | `POST /v1.0/api/tenants/{tenantId}/user-role-assignments` | `route=/v1.0/api/tenants/{tenantId}/user-role-assignments` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | `route="/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | `route=/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | `route="/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}"` | `GET /v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | `route=/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | `route="/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | `route=/v1.0/api/tenants/{tenantId}/user-role-assignments/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/users` | `route="/v1.0/api/tenants/{tenantId}/users"` | `GET /v1.0/api/tenants/{tenantId}/users` | `route=/v1.0/api/tenants/{tenantId}/users` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/users` | `route="/v1.0/api/tenants/{tenantId}/users"` | `POST /v1.0/api/tenants/{tenantId}/users` | `route=/v1.0/api/tenants/{tenantId}/users` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/users/{id}` | `route="/v1.0/api/tenants/{tenantId}/users/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/users/{id}` | `route=/v1.0/api/tenants/{tenantId}/users/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/users/{id}` | `route="/v1.0/api/tenants/{tenantId}/users/{id}"` | `GET /v1.0/api/tenants/{tenantId}/users/{id}` | `route=/v1.0/api/tenants/{tenantId}/users/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/users/{id}` | `route="/v1.0/api/tenants/{tenantId}/users/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/users/{id}` | `route=/v1.0/api/tenants/{tenantId}/users/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/users/{id}/permissions` | `route="/v1.0/api/tenants/{tenantId}/users/{id}/permissions"` | `GET /v1.0/api/tenants/{tenantId}/users/{id}/permissions` | `route=/v1.0/api/tenants/{tenantId}/users/{id}/permissions` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/workspace-templates` | `route="/v1.0/api/tenants/{tenantId}/workspace-templates"` | `GET /v1.0/api/tenants/{tenantId}/workspace-templates` | `route=/v1.0/api/tenants/{tenantId}/workspace-templates` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/workspace-templates` | `route="/v1.0/api/tenants/{tenantId}/workspace-templates"` | `POST /v1.0/api/tenants/{tenantId}/workspace-templates` | `route=/v1.0/api/tenants/{tenantId}/workspace-templates` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/workspace-templates/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/workspace-templates/{id}"` | `GET /v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/workspace-templates/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | garrison-http |
+| DELETE | `/v1.0/token` | `route="/v1.0/token"` | `DELETE /v1.0/token` | `route=/v1.0/token` | garrison-http, garrison-security |
+| GET | `/v1.0/token` | `route="/v1.0/token"` | `GET /v1.0/token` | `route=/v1.0/token` | garrison-http, garrison-security |
+| POST | `/v1.0/token` | `route="/v1.0/token"` | `POST /v1.0/token` | `route=/v1.0/token` | garrison-http, garrison-security |
+| GET | `/v1.0/token/details` | `route="/v1.0/token/details"` | `GET /v1.0/token/details` | `route=/v1.0/token/details` | garrison-http, garrison-security |
+| POST | `/v1.0/token/refresh` | `route="/v1.0/token/refresh"` | `POST /v1.0/token/refresh` | `route=/v1.0/token/refresh` | garrison-http, garrison-security |
+<!-- /telemetry-coverage:routes -->
+
+Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metrics, `[LiveUpdates]` lines, panel garrison-protocols), `GET /metrics` (not recorded, to keep scrapes out of request metrics), CORS preflight `OPTIONS` (Watson metrics), and the MCP endpoint on port 8701 (see MCP sessions above).
+
+### MCP tools
+
+<!-- telemetry-coverage:mcp-tools -->
+| Tool | Metric series | Span | Log | Panels |
+|---|---|---|---|---|
+| `garrison_cancel_run` | `tool="garrison_cancel_run"` | `mcp garrison_cancel_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_agent` | `tool="garrison_get_agent"` | `mcp garrison_get_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_run` | `tool="garrison_get_run"` | `mcp garrison_get_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_run_events` | `tool="garrison_get_run_events"` | `mcp garrison_get_run_events` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_invoke_agent` | `tool="garrison_invoke_agent"` | `mcp garrison_invoke_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_agents` | `tool="garrison_list_agents"` | `mcp garrison_list_agents` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_runs` | `tool="garrison_list_runs"` | `mcp garrison_list_runs` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_start_run` | `tool="garrison_start_run"` | `mcp garrison_start_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `{mcpToolName}` (agent tools, one per exposed agent) | `tool="agent"` | `mcp agent` | `[Mcp]` lines, `tenant=`, `agent=` | garrison-protocols, garrison-agents |
+<!-- /telemetry-coverage:mcp-tools -->
+
+### A2A methods
+
+<!-- telemetry-coverage:a2a-methods -->
+| Method | Metric series | Span | Log | Panels |
+|---|---|---|---|---|
+| `SendMessage` | `method="SendMessage"` | `a2a SendMessage` | request line `route=/v1.0/a2a/{tenantId}/{agentName}` | garrison-protocols |
+| `SendStreamingMessage` | `method="SendStreamingMessage"` | `a2a SendStreamingMessage` | request line `route=/v1.0/a2a/{tenantId}/{agentName}` | garrison-protocols |
+| `GetTask` | `method="GetTask"` | `a2a GetTask` | request line `route=/v1.0/a2a/{tenantId}/{agentName}` | garrison-protocols |
+| `CancelTask` | `method="CancelTask"` | `a2a CancelTask` | request line `route=/v1.0/a2a/{tenantId}/{agentName}` | garrison-protocols |
+| `ListTasks` | `method="ListTasks"` | `a2a ListTasks` | request line `route=/v1.0/a2a/{tenantId}/{agentName}` | garrison-protocols |
+| `SubscribeToTask` | `method="SubscribeToTask"` | `a2a SubscribeToTask` | request line `route=/v1.0/a2a/{tenantId}/{agentName}` | garrison-protocols |
+<!-- /telemetry-coverage:a2a-methods -->
+
+## Verifying telemetry end to end
+
+`k8s/tests/telemetry-verify.sh` (and `.bat`) generates traffic across every REST route group, MCP tools and sessions, A2A methods, SSE and WebSocket streams, process and KubernetesJob runs, blocked runs, and the fake harness's guard outcomes on a cluster deployed with `OBSERVABILITY=1`, then asserts through the Prometheus, Loki, and Tempo APIs that every metric in the catalog has data, that logs carry the promoted labels, and that run traces span server and worker, and finally opens every Grafana dashboard in a headless browser and fails on any panel that shows "No data" or an error. See the header of the script for its settings.
 
 ## Records in the database
 

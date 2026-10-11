@@ -1,0 +1,2163 @@
+{
+  "uid": "garrison-control-plane",
+  "title": "Garrison / Control plane",
+  "description": "Control-plane replicas, leadership, heartbeats, the event backplane, process pauses, and every background service iteration.",
+  "tags": [
+    "garrison"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "fiscalYearStartMonth": 0,
+  "liveNow": false,
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Garrison dashboards",
+      "type": "dashboards",
+      "tags": [
+        "garrison"
+      ],
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "node",
+        "label": "Node",
+        "description": "Garrison node: the server pod or container name, or the worker node name.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(up{job=\"garrison\"}, node)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(up{job=\"garrison\"}, node)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
+      },
+      {
+        "name": "window",
+        "label": "Average over",
+        "type": "custom",
+        "query": "5m,15m,1h,6h",
+        "description": "Window for rates, averages, and percentiles. Runs are infrequent, so short windows leave gaps.",
+        "current": {
+          "selected": true,
+          "text": "15m",
+          "value": "15m"
+        },
+        "options": [
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": true,
+            "text": "15m",
+            "value": "15m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          }
+        ],
+        "multi": false,
+        "includeAll": false,
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Replicas and leadership",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "id": 1
+    },
+    {
+      "type": "stat",
+      "title": "Replicas Ready",
+      "description": "Control-plane replicas in Ready, cluster-wide.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "max(garrison_control_nodes{status=\"Ready\"}) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 2
+    },
+    {
+      "type": "stat",
+      "title": "Leader",
+      "description": "1 when a replica holds leadership.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "max(garrison_leader_is_leader) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 3
+    },
+    {
+      "type": "stat",
+      "title": "Leader changes",
+      "description": "Leadership acquired or lost in the selected range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_leader_changes_total[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 4
+    },
+    {
+      "type": "stat",
+      "title": "Heartbeat errors",
+      "description": "Control node heartbeats that failed to write.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_control_node_heartbeats_total{result=\"error\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 5
+    },
+    {
+      "type": "stat",
+      "title": "Pauses",
+      "description": "Process pauses detected by maintenance.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_maintenance_pauses_total[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 6
+    },
+    {
+      "type": "stat",
+      "title": "Background errors",
+      "description": "Background iterations that failed in the selected range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_background_iterations_total{result=\"error\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Replicas by status",
+      "description": "Control-plane replicas by status (aggregate with max: every replica reports the same counts).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "max by (status) (garrison_control_nodes) or on() label_replace(vector(0), \"status\", \"none\", \"\", \"\")",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 8,
+        "h": 8
+      },
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Leader by replica",
+      "description": "Which replica holds leadership.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "max by (node) (garrison_leader_is_leader{node=~\"$node\"}) or on() label_replace(vector(0), \"node\", \"none\", \"\", \"\")",
+          "legendFormat": "{{node}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 5,
+        "w": 8,
+        "h": 8
+      },
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "Leadership changes",
+      "description": "Leadership acquired or lost, by replica.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (node, role) (increase(garrison_leader_changes_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"node\", \"none\", \"\", \"\")",
+          "legendFormat": "{{node}} {{role}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 5,
+        "w": 8,
+        "h": 8
+      },
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "Control node heartbeats (per minute)",
+      "description": "This replica's heartbeats by result.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (node, result) (rate(garrison_control_node_heartbeats_total{node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"node\", \"none\", \"\", \"\")",
+          "legendFormat": "{{node}} {{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 8,
+        "h": 8
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "Control node transitions",
+      "description": "Replica state transitions by new status (Starting, Ready, Draining, Offline).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (status) (increase(garrison_control_node_transitions_total[$__rate_interval])) or on() label_replace(vector(0), \"status\", \"none\", \"\", \"\")",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 13,
+        "w": 8,
+        "h": 8
+      },
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "Maintenance pauses",
+      "description": "Process pauses detected, by whether the replica was leader.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (leader) (increase(garrison_maintenance_pauses_total[$__rate_interval])) or on() label_replace(vector(0), \"leader\", \"none\", \"\", \"\")",
+          "legendFormat": "{{leader}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 13,
+        "w": 8,
+        "h": 8
+      },
+      "id": 13
+    },
+    {
+      "type": "row",
+      "title": "Backplane",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 1
+      },
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "Backplane messages published (per minute)",
+      "description": "Messages published by kind.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (backplane, kind) (rate(garrison_backplane_published_total{node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"backplane\", \"none\", \"\", \"\")",
+          "legendFormat": "{{backplane}} {{kind}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 8,
+        "h": 8
+      },
+      "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "Backplane messages received (per minute)",
+      "description": "Messages received from other replicas by kind.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (backplane, kind) (rate(garrison_backplane_received_total{node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"backplane\", \"none\", \"\", \"\")",
+          "legendFormat": "{{backplane}} {{kind}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 22,
+        "w": 8,
+        "h": 8
+      },
+      "id": 16
+    },
+    {
+      "type": "timeseries",
+      "title": "Backplane lag",
+      "description": "Publish on one replica to delivery on another.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, backplane) (rate(garrison_backplane_lag_seconds_bucket{node=~\"$node\"}[$window]))) or on() label_replace(vector(0), \"backplane\", \"none\", \"\", \"\")",
+          "legendFormat": "{{backplane}} p50",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, backplane) (rate(garrison_backplane_lag_seconds_bucket{node=~\"$node\"}[$window]))) or on() label_replace(vector(0), \"backplane\", \"none\", \"\", \"\")",
+          "legendFormat": "{{backplane}} p95",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 22,
+        "w": 8,
+        "h": 8
+      },
+      "id": 17
+    },
+    {
+      "type": "row",
+      "title": "Background services",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 1
+      },
+      "id": 18
+    },
+    {
+      "type": "timeseries",
+      "title": "Background iterations by service and result (per minute)",
+      "description": "Iterations of every background service (maintenance steps, leader election, gauges, retention, settings refresh, backplane, worker heartbeat and lease loops) by result: ok, idle, error.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (service, operation, result) (rate(garrison_background_iterations_total{node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"service\", \"none\", \"\", \"\")",
+          "legendFormat": "{{service}} {{operation}} {{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "id": 19
+    },
+    {
+      "type": "timeseries",
+      "title": "Background iteration p95 by operation",
+      "description": "95th percentile iteration duration by service and operation.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, service, operation) (rate(garrison_background_duration_seconds_bucket{node=~\"$node\"}[$window]))) or on() label_replace(vector(0), \"service\", \"none\", \"\", \"\")",
+          "legendFormat": "{{service}} {{operation}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "id": 20
+    },
+    {
+      "type": "table",
+      "title": "Background services",
+      "description": "Iterations, errors, and 95th percentile duration per service and operation over the selected range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum by (service, operation) (increase(garrison_background_iterations_total{node=~\"$node\"}[$__range])))",
+          "legendFormat": "iterations",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "editorMode": "code",
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum by (service, operation) (increase(garrison_background_iterations_total{result=\"error\", node=~\"$node\"}[$__range])))",
+          "legendFormat": "errors",
+          "refId": "B",
+          "range": false,
+          "instant": true,
+          "editorMode": "code",
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, service, operation) (rate(garrison_background_duration_seconds_bucket{node=~\"$node\"}[$__range])))",
+          "legendFormat": "p95",
+          "refId": "C",
+          "range": false,
+          "instant": true,
+          "editorMode": "code",
+          "format": "table"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "0"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "Iterations",
+              "Value #B": "Errors",
+              "Value #C": "p95"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 24,
+        "h": 9
+      },
+      "id": 21
+    },
+    {
+      "type": "timeseries",
+      "title": "Process memory",
+      "description": ".NET working set per process.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (node) (dotnet_process_memory_working_set_bytes{node=~\"$node\"}) or on() label_replace(vector(0), \"node\", \"none\", \"\", \"\")",
+          "legendFormat": "{{node}} working set",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "id": 22
+    },
+    {
+      "type": "timeseries",
+      "title": "Thread pool queue",
+      "description": ".NET thread pool queue length per process; a growing queue means the process is saturated.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (node) (rate(dotnet_thread_pool_queue_length_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"node\", \"none\", \"\", \"\")",
+          "legendFormat": "{{node}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Control plane logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22server%5C%22}%20%7C~%20%5C%22%5C%5C%5C%5C%5B%28Leader%7CControlNode%7CBackplane%7CMaintenance%7CGarrisonServer%29%5C%5C%5C%5C%5D%5C%22%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Background iteration traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20span.garrison.service%20%21%3D%20%5C%22%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "id": 23
+    },
+    {
+      "type": "table",
+      "title": "Failed or slow background iterations",
+      "description": "Background iteration spans that ended in an error or took longer than 50 ms.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "garrison-tempo"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "garrison-tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ span.garrison.service != \"\" && (status = error || duration > 50ms) }",
+          "limit": 20,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 24,
+        "h": 8
+      },
+      "id": 24
+    },
+    {
+      "type": "logs",
+      "title": "Control plane logs",
+      "description": "Leader, control node, backplane, maintenance, and server lifecycle lines.",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "{app=\"garrison\", component=\"server\", node=~\"${node:regex}\"} |~ \"\\\\[(Leader|ControlNode|Backplane|Maintenance|GarrisonServer|Garrison)\\\\]\"",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending",
+        "enableInfiniteScrolling": false
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 24,
+        "h": 10
+      },
+      "id": 25
+    }
+  ]
+}

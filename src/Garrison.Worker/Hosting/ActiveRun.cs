@@ -2,6 +2,7 @@ namespace Garrison.Worker.Hosting
 {
     using System;
     using System.Threading;
+    using Garrison.Core.Compilation;
     using Garrison.Core.Protocol;
     using Garrison.Core.Telemetry;
 
@@ -54,13 +55,14 @@ namespace Garrison.Worker.Hosting
         public string? TraceId { get; }
 
         /// <summary>
-        /// Log fields identifying the run: run=&lt;runId&gt; trace=&lt;traceId&gt;.
+        /// Log fields identifying the run: run=&lt;runId&gt; trace=&lt;traceId&gt; tenant=... agent=... deployment=... (P13.26).
         /// </summary>
         public string LogFields
         {
             get
             {
-                return RunTracing.LogFields(RunId, TraceId);
+                ExecutionSpec spec = Assignment.Spec ?? new ExecutionSpec();
+                return RunTracing.LogFields(RunId, TraceId) + " " + GarrisonTracing.LogFields("tenant", spec.TenantId, "agent", spec.AgentName, "deployment", String.IsNullOrEmpty(spec.DeploymentName) ? spec.DeploymentId : spec.DeploymentName);
             }
         }
 

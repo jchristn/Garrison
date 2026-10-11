@@ -243,6 +243,7 @@ const zhHans = {
     harnessType: { ClaudeCode: 'Claude Code', Codex: 'Codex', Mux: 'Mux', GeminiCli: 'Gemini CLI', Generic: '通用' },
     agentKind: { Hosted: '托管', Remote: '远程' },
     delegationMode: { None: '不委派', AllowList: '允许列表', Any: '任意智能体' },
+    secretStatus: { Ok: '正常', NeedsReauthentication: '需要重新认证' },
     secretKind: {
       AnthropicApiKey: 'Anthropic API 密钥',
       ClaudeCodeOAuthToken: 'Claude Code OAuth 令牌',
@@ -657,8 +658,10 @@ const zhHans = {
       errors: { expiryPast: '请选择未来的过期时间，或留空使机密永不过期。' },
       ...rp('机密', '供 Harness 和集成使用的加密凭据。值为只写。', '添加机密', '创建机密', '编辑机密', '机密详情', '删除机密', '暂无机密', '添加智能体所需的 API 密钥或令牌，例如 Anthropic API 密钥。'),
       notSet: '未设置',
-      columns: { name: '名称', kind: '类别', valueLast4: '值', rotatedUtc: '上次更改', expiresUtc: '过期时间', active: '启用', id: 'ID' },
-      fields: { name: '名称', kind: '类别', description: '描述', value: '值', newValue: '新值', expiresUtc: '过期时间', active: '启用' },
+      neverRefreshed: '尚未刷新',
+      reauth: { title: '此登录需要重新认证', since: '自 {{time}} 起', action: '使用此机密的运行会一直失败，直到你替换它的值。请使用单独的 CODEX_HOME 运行 codex login 重新登录，然后用“设置值”保存新的 auth.json，或将部署改用 OpenAI API 密钥机密。不要在另一台机器上继续使用同一个登录：两份副本共用同一个刷新令牌。' },
+      columns: { status: '状态', accessTokenExpiresUtc: '访问令牌过期时间', name: '名称', kind: '类别', valueLast4: '值', rotatedUtc: '上次更改', expiresUtc: '过期时间', active: '启用', id: 'ID' },
+      fields: { refreshedUtc: 'Garrison 上次刷新', accessTokenExpiresUtc: '访问令牌过期时间', name: '名称', kind: '类别', description: '描述', value: '值', newValue: '新值', expiresUtc: '过期时间', active: '启用' },
       hints: { expiresUtc: '必须是未来的时间。留空表示机密永不过期。', kind: '在共享服务器上使用订阅令牌可能违反提供商条款。共享部署请优先使用 API 密钥。' },
       actions: { setValue: '设置值', rotate: '轮换' }
     },
@@ -894,6 +897,8 @@ const zhHans = {
       observabilityVersion: '版本 {{version}}',
       observabilityOpen: '打开 {{service}}',
       kpisGrafana: '在 Grafana 中打开概览',
+      grafanaDashboards: 'Grafana 仪表板',
+      grafanaSections: { overview: '概览', http: 'HTTP API', runs: '运行', agents: '智能体', models: '模型与令牌', workers: '工作节点', kubernetes: 'Kubernetes 执行器', protocols: '协议', scheduler: '调度器与队列', database: '数据库', controlPlane: '控制平面', security: '安全与认证', integrations: '集成', logs: '日志与追踪' },
       observabilitySetup: '设置可观测性',
       observabilityNone: '此环境未配置任何可观测性服务（Grafana、Prometheus、Tempo 或 Loki）。',
       observability: '可观测性',
@@ -1098,6 +1103,7 @@ const zhHans = {
     },
     agentDetail: {
       invoke: '调用',
+      grafana: '在 Grafana 中打开',
       noActiveDeployment: '此智能体没有启用的部署，因此调用会被拒绝。',
       deployments_one: '部署（{{count}}）',
       deployments_other: '部署（{{count}}）',
@@ -1263,7 +1269,7 @@ const zhHans = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。请在你的清单中修改。',
         other: '此设置无法在此处编辑。'
       },
-      groups: { Archive: '归档', General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计', Runtime: '运行时', Observability: '可观测性' },
+      groups: { Codex: 'Codex', Archive: '归档', General: '常规', Rest: 'REST', Mcp: 'MCP', Database: '数据库', Logging: '日志', Auth: '身份验证', Security: '安全', RequestHistory: '请求历史', Telemetry: '遥测', Cluster: '集群', Scheduling: '调度', Runs: '运行', Audit: '审计', Runtime: '运行时', Observability: '可观测性' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana URL',
@@ -1366,6 +1372,13 @@ const zhHans = {
           RetentionDays: '运行保留天数',
           MaxDelegationDepth: '最大委派深度',
           DefaultTimeoutSeconds: '默认运行超时（秒）'
+        },
+        Codex: {
+          RefreshBeforeExpirySeconds: '在过期前刷新 Codex 登录（秒）',
+          RefreshCheckIntervalSeconds: '后台检查间隔（秒）',
+          RefreshTimeoutSeconds: '登录刷新超时（秒）',
+          TokenEndpoint: 'OAuth 令牌端点',
+          ClientId: 'OAuth 客户端 ID'
         },
         Runtime: {
           FailBlockedAfterSeconds: '受阻运行在多少秒后失败',

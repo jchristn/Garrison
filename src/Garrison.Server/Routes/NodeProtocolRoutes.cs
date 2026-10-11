@@ -7,6 +7,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Protocol;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Runtime;
     using WatsonWebserver.Core;
 
@@ -112,7 +113,11 @@ namespace Garrison.Server.Routes
         {
             NodeHeartbeatRequest request = RouteHelpers.RequiredBody<NodeHeartbeatRequest>(context);
             Node node = await RequireNodeAsync(request.NodeId, context).ConfigureAwait(false);
-            await _Context.Database.Nodes.SetStatusAsync(node.Id, request.ActiveRuns.Count == 0 ? NodeStatusEnum.Offline : NodeStatusEnum.Draining, context.Token).ConfigureAwait(false);
+            NodeStatusEnum drained = request.ActiveRuns.Count == 0 ? NodeStatusEnum.Offline : NodeStatusEnum.Draining;
+            if (await _Context.Database.Nodes.SetStatusAsync(node.Id, drained, context.Token).ConfigureAwait(false) && node.Status != drained)
+            {
+                GarrisonMetrics.Count(GarrisonMetricCatalog.NodeTransitions, "status", drained.ToString());
+            }
             await RouteHelpers.JsonAsync(context, 200, new NodeAckResponse()).ConfigureAwait(false);
         }
 

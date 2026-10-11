@@ -7,12 +7,16 @@ namespace Garrison.Core.Telemetry
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core;
     using Garrison.Core.Settings;
     using Radiant;
 
     /// <summary>
-    /// Application telemetry over Radiant: Prometheus listener, optional OTLP export, subscriptions to the Garrison,
-    /// Garrison.Worker, Watson, Voltaic, and Padlock sources. Recording is best-effort and never throws. Thread-safe.
+    /// Application telemetry over Radiant: Prometheus listener, optional OTLP export, subscriptions to the Garrison meter
+    /// and activity source (<see cref="GarrisonMetrics"/>, <see cref="GarrisonTracing"/>), Garrison.Worker, Watson,
+    /// Voltaic, Padlock, and the Npgsql connection pool meter. Histogram buckets come from
+    /// <see cref="GarrisonMetricCatalog"/>, and duration histograms carry trace exemplars when
+    /// <see cref="TelemetrySettings.Exemplars"/> is on. Recording is best-effort and never throws. Thread-safe.
     /// </summary>
     public class GarrisonTelemetry : IDisposable
     {
@@ -64,6 +68,7 @@ namespace Garrison.Core.Telemetry
         private readonly RadiantHost? _Host;
         private readonly RadiantClient? _Client;
         private readonly HttpClient _Http = new HttpClient();
+        private readonly List<GaugeRegistration> _Gauges = new List<GaugeRegistration>();
         private int _ScrapeTimeoutMs = 5000;
         private bool _Disposed = false;
 
@@ -81,7 +86,22 @@ namespace Garrison.Core.Telemetry
         public GarrisonTelemetry(TelemetrySettings settings, string nodeId, Action<string>? diagnostic)
         {
             if (settings == null) throw new ArgumentNullException(nameof(settings));
+            GarrisonMetrics.Labels.MaxLabelValues = settings.MaxLabelValues;
             if (!settings.Enabled) return;
+
+            // Exemplars: the OpenTelemetry SDK attaches the current trace to histogram measurements when this filter is
+            // trace_based, and the Prometheus exporter writes them in OpenMetrics scrapes. An explicit value wins.
+            if (settings.Exemplars && String.IsNullOrEmpty(Environment.GetEnvironmentVariable("OTEL_METRICS_EXEMPLAR_FILTER")))
+            {
+                Environment.SetEnvironmentVariable("OTEL_METRICS_EXEMPLAR_FILTER", "trace_based");
+            }
+
+            Action<string>? counted = diagnostic == null ? null : new Action<string>(message =>
+            {
+                GarrisonMetrics.Count(GarrisonMetricCatalog.TelemetryDiagnostics, "severity", message.StartsWith("telemetry", StringComparison.Ordinal) ? "warning" : "info");
+                diagnostic(message);
+            });
+            diagnostic = counted;
 
             List<string> hosts = PrometheusHosts(settings);
             for (int i = 0; i < hosts.Count; i++)
@@ -93,6 +113,11 @@ namespace Garrison.Core.Telemetry
                     PrometheusHostname = settings.PrometheusEnable ? hosts[i] : null;
                     PrometheusUrl = settings.PrometheusEnable ? "http://" + hosts[i] + ":" + settings.PrometheusPort + settings.PrometheusPath : null;
                     if (i > 0) diagnostic?.Invoke("telemetry: Prometheus listener bound to " + hosts[i] + " after " + hosts[i - 1] + " failed");
+                    string process = settings.ServiceName.EndsWith("worker", StringComparison.OrdinalIgnoreCase) ? "worker" : "server";
+                    _Gauges.Add(GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.BuildInfo, () => new Measurement<double>[]
+                    {
+                        new Measurement<double>(1, new KeyValuePair<string, object?>("version", Constants.ProductVersion), new KeyValuePair<string, object?>("process", process))
+                    }));
                     return;
                 }
                 catch (Exception e)
@@ -207,7 +232,19 @@ namespace Garrison.Core.Telemetry
         /// </summary>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Exposition, or null when the listener is off or did not answer.</returns>
-        public async Task<MetricsScrape?> ScrapeAsync(CancellationToken token = default)
+        public Task<MetricsScrape?> ScrapeAsync(CancellationToken token = default)
+        {
+            return ScrapeAsync(null, token);
+        }
+
+        /// <summary>
+        /// Read the current exposition from this process's own metrics listener, passing the scraper's Accept header
+        /// through so a Prometheus that asks for OpenMetrics gets exemplars. Never throws for listener failures.
+        /// </summary>
+        /// <param name="accept">Accept header of the original scrape, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Exposition, or null when the listener is off or did not answer.</returns>
+        public async Task<MetricsScrape?> ScrapeAsync(string? accept, CancellationToken token = default)
         {
             string? url = PrometheusUrl;
             if (url == null || _Disposed) return null;
@@ -216,14 +253,18 @@ namespace Garrison.Core.Telemetry
                 timeout.CancelAfter(_ScrapeTimeoutMs);
                 try
                 {
-                    using (HttpResponseMessage response = await _Http.GetAsync(url, timeout.Token).ConfigureAwait(false))
+                    using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
                     {
-                        if (!response.IsSuccessStatusCode) return null;
-                        MetricsScrape scrape = new MetricsScrape();
-                        scrape.Body = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
-                        string? contentType = response.Content.Headers.ContentType?.ToString();
-                        if (!String.IsNullOrEmpty(contentType)) scrape.ContentType = contentType;
-                        return scrape;
+                        if (!String.IsNullOrEmpty(accept)) request.Headers.TryAddWithoutValidation("Accept", accept);
+                        using (HttpResponseMessage response = await _Http.SendAsync(request, timeout.Token).ConfigureAwait(false))
+                        {
+                            if (!response.IsSuccessStatusCode) return null;
+                            MetricsScrape scrape = new MetricsScrape();
+                            scrape.Body = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
+                            string? contentType = response.Content.Headers.ContentType?.ToString();
+                            if (!String.IsNullOrEmpty(contentType)) scrape.ContentType = contentType;
+                            return scrape;
+                        }
                     }
                 }
                 catch (Exception e) when (e is HttpRequestException || e is OperationCanceledException || e is InvalidOperationException || e is ObjectDisposedException)
@@ -255,6 +296,8 @@ namespace Garrison.Core.Telemetry
             if (_Disposed) return;
             if (disposing)
             {
+                foreach (GaugeRegistration gauge in _Gauges) gauge.Dispose();
+                _Gauges.Clear();
                 _Host?.Dispose();
                 _Http.Dispose();
             }
@@ -297,6 +340,17 @@ namespace Garrison.Core.Telemetry
             radiant.Prometheus.Path = settings.PrometheusPath;
             radiant.Otlp.Enable = settings.OtlpEnable;
             if (!String.IsNullOrEmpty(settings.OtlpEndpoint)) radiant.Otlp.Endpoint = settings.OtlpEndpoint;
+            radiant.Metrics.LabelPolicy = LabelPolicyEnum.Lenient;
+            foreach (MetricDescriptor descriptor in GarrisonMetricCatalog.All())
+            {
+                if (descriptor.Kind != MetricKindEnum.Histogram || descriptor.Buckets == null) continue;
+                MetricDefinition definition = new MetricDefinition(descriptor.Name, descriptor.Kind, descriptor.Unit, descriptor.Labels);
+                definition.Buckets = descriptor.Buckets;
+                definition.Description = descriptor.Description;
+                radiant.Metrics.Define(definition);
+            }
+            radiant.Sources.AddMeter(GarrisonMetrics.MeterName);
+            radiant.Sources.AddMeter("Npgsql");
             radiant.Sources.AddActivitySource("Garrison");
             radiant.Sources.AddActivitySource("Garrison.Worker");
             radiant.Sources.AddMeter("Watson");

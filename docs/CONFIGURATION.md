@@ -129,6 +129,8 @@ Seeding happens only when the records do not exist yet. Changing these values la
 | `Telemetry.OtlpEnable` | `false` | Restart | Export over OTLP. Environment: `GARRISON_OTLP_ENABLE` |
 | `Telemetry.OtlpEndpoint` | `http://127.0.0.1:4317` | Restart | OTLP collector (gRPC). Environment: `GARRISON_OTLP_ENDPOINT` |
 | `Telemetry.ServeMetricsOnServicePort` | `true` | Live | Also serve `GET /metrics` on the REST port, without authentication, relayed from the Prometheus listener, so `kubectl port-forward` and in-pod `127.0.0.1` scrapes work (see `docs/TELEMETRY.md`) |
+| `Telemetry.MaxLabelValues` | `200` | Restart | Distinct values each metric label (tenant, agent, deployment, model, and so on) may take before new values are reported as `other`; 10 to 10000. Environment: `GARRISON_TELEMETRY_MAX_LABEL_VALUES` |
+| `Telemetry.Exemplars` | `true` | Restart | Attach the current trace to duration histogram samples, so Grafana can jump from a panel to the trace (sets `OTEL_METRICS_EXEMPLAR_FILTER=trace_based` unless it is set) |
 | `Cluster.ExpectedReplicas` | `1` | Restart | Control-plane replicas you intend to run. Above 1, Garrison refuses to start on Sqlite. Environment: `GARRISON_EXPECTED_REPLICAS` |
 | `Cluster.SettingsFileReadOnly` | `false` | Restart | The file is managed outside Garrison. Environment: `GARRISON_SETTINGS_READONLY` |
 | `Cluster.Backplane` | `Auto` | Restart | How replicas tell each other about run changes, new work, and cache invalidations: `Auto` (PostgreSQL LISTEN/NOTIFY on PostgreSQL, `Local` on Sqlite), `Local` (none), `Polling` (a table every replica polls; works on both providers), or `PostgresNotify`. Environment: `GARRISON_BACKPLANE` |
@@ -137,6 +139,18 @@ Seeding happens only when the records do not exist yet. Changing these values la
 | `NodeId` | the host name | Restart | This replica's identifier in logs and leader election. Environment: `GARRISON_NODE_ID` |
 
 `RequestHistory.Enabled` and `RequestHistory.RetentionDays` can be set in the file, but only as the starting values of the cluster settings of the same name.
+
+### Codex
+
+How the control plane refreshes ChatGPT logins stored in `CodexAuthJson` secrets (G-22; see `docs/HARNESSES.md`, ChatGPT logins). Every value applies live.
+
+| Path | Default | Applies | Meaning |
+|---|---|---|---|
+| `Codex.RefreshBeforeExpirySeconds` | `86400` | Live | Refresh a login when its access token expires within this many seconds, 300 to 2592000. For a token that lives less than twice this long, half its lifetime is used instead. Keep it above `Runtime.MaxRunSeconds` so that the token a run receives outlives the run. Environment: `GARRISON_CODEX_REFRESH_BEFORE_EXPIRY_SECONDS` |
+| `Codex.RefreshCheckIntervalSeconds` | `900` | Live | How often the leader checks every active `CodexAuthJson` secret and refreshes the ones near expiry, so idle logins do not lapse, 0 to 86400. `0` turns the background check off; runs still refresh the logins they use |
+| `Codex.RefreshTimeoutSeconds` | `15` | Live | Longest one refresh request may take, 5 to 300. The refresh happens while a run is handed to a worker, and a run waiting on another replica's refresh waits up to this plus 5 seconds, so keep it well below `Scheduling.LeaseDurationMs` |
+| `Codex.TokenEndpoint` | `https://auth.openai.com/oauth/token` | Live | OAuth token endpoint, the one the Codex CLI uses. Empty restores the default. Environment: `GARRISON_CODEX_TOKEN_ENDPOINT` |
+| `Codex.ClientId` | `app_EMoamEEZ73f0CkXaXp7hrann` | Live | OAuth client identifier sent with each refresh, the Codex CLI's client. It must match the client the login was issued to. Empty restores the default. Environment: `GARRISON_CODEX_CLIENT_ID` |
 
 ## Cluster settings
 
@@ -222,7 +236,7 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `Probes` | `claude`, `codex`, `mux`, `gemini`, `garrison-fake-harness`, each with `--version` | Harness checks run at startup. An available harness adds the label `garrison.io/harness-<label>=true` |
 | `Kubernetes` | disabled | The KubernetesJob (pod-per-run) executor: `Enabled`, `RunNamespace`, `RunImage`, `ImagePullPolicy`, `ImagePullSecrets`, `ServiceAccountName`, `RuntimeClassName`, `NodeSelector`, `PodLabels`, `JobTtlSeconds`, `PendingTimeoutSeconds`, `DefaultResources`, `RunAsUser`, `RunAsGroup`, `EmptyDirSizeLimit`, `EgressCanary`, `ReconcileIntervalSeconds`, and more. Environment: `GARRISON_WORKER_KUBERNETES_ENABLED` and `GARRISON_WORKER_RUN_*`. Every field is described in `docs/KUBERNETES.md`, "Pod-per-run executor" |
 | `Logging.ConsoleLogging`, `Logging.MinimumSeverity` | `true`, `1` | Logging |
-| `Telemetry` | service `garrison-worker`, Prometheus on `*:9465/metrics`, OTLP off, `/metrics` also served on the health port | Same fields as the server's `Telemetry` block; `ServeMetricsOnServicePort` applies to the health listener. Environment: `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT` |
+| `Telemetry` | service `garrison-worker`, Prometheus on `*:9465/metrics`, OTLP off, `/metrics` also served on the health port | Same fields as the server's `Telemetry` block; `ServeMetricsOnServicePort` applies to the health listener. Environment: `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT`, `GARRISON_WORKER_TELEMETRY_MAX_LABEL_VALUES` |
 
 The environment allowlist is a security boundary: credentials in the worker's environment never reach a harness unless you add them here. The supported way to give a harness a key is a Garrison secret mapped in the harness profile or deployment (see `docs/HARNESSES.md`).
 

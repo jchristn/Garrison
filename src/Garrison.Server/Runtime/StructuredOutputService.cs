@@ -2,6 +2,7 @@ namespace Garrison.Server.Runtime
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -93,10 +94,9 @@ namespace Garrison.Server.Runtime
             StructuredOutputCheck check = new StructuredOutputCheck();
             check.Agent = agent;
             check.Validation = _Validator.Validate(agent.OutputSchemaJson!, request.StructuredOutputJson, request.ResultText);
-            _Telemetry.Increment("garrison.runs.schema_validations",
-                new RadiantTag("result", check.Validation.Valid ? "valid" : "invalid"),
-                new RadiantTag("execution", request.RepairAttempt > 0 ? "repair" : "original"),
-                new RadiantTag("harness", run.HarnessType.ToString()));
+            TagList validation = GarrisonMetrics.Tags("result", check.Validation.Valid ? "valid" : "invalid", "execution", request.RepairAttempt > 0 ? "repair" : "original", "harness", run.HarnessType.ToString(), "tenant", run.TenantId);
+            validation.Add("agent", GarrisonMetrics.Fold("agent", run.AgentName));
+            GarrisonMetrics.Count(GarrisonMetricCatalog.SchemaValidations, 1, validation);
             if (check.Validation.Valid) return check;
 
             check.NoRepairReason = await RepairBlockerAsync(run, request, check.Validation, token).ConfigureAwait(false);
@@ -152,7 +152,7 @@ namespace Garrison.Server.Runtime
             response.Repair = compiled.Spec;
             response.RepairAttempt = repair.Attempt;
             response.EventSequenceStart = eventSequenceStart;
-            _Telemetry.Increment("garrison.runs.repairs", new RadiantTag("harness", run.HarnessType.ToString()));
+            GarrisonMetrics.Count(GarrisonMetricCatalog.Repairs, "harness", run.HarnessType.ToString(), "tenant", run.TenantId, "agent", run.AgentName);
             return response;
         }
 

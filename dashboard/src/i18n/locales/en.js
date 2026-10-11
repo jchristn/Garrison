@@ -266,6 +266,7 @@ const en = {
     harnessType: { ClaudeCode: 'Claude Code', Codex: 'Codex', Mux: 'Mux', GeminiCli: 'Gemini CLI', Generic: 'Generic' },
     agentKind: { Hosted: 'Hosted', Remote: 'Remote' },
     delegationMode: { None: 'No delegation', AllowList: 'Allow list', Any: 'Any agent' },
+    secretStatus: { Ok: 'OK', NeedsReauthentication: 'Needs reauthentication' },
     secretKind: {
       AnthropicApiKey: 'Anthropic API key',
       ClaudeCodeOAuthToken: 'Claude Code OAuth token',
@@ -682,8 +683,10 @@ const en = {
       errors: { expiryPast: 'Choose an expiry in the future, or leave it empty so the secret never expires.' },
       ...resourcePage('Secrets', 'secret', 'Encrypted credentials for harnesses and integrations. Values are write-only.', 'Add the API key or token your agents need, for example an Anthropic API key.'),
       notSet: 'Not set',
-      columns: { name: 'Name', kind: 'Kind', valueLast4: 'Value', rotatedUtc: 'Last changed', expiresUtc: 'Expires', active: 'Active', id: 'ID' },
-      fields: { name: 'Name', kind: 'Kind', description: 'Description', value: 'Value', newValue: 'New value', expiresUtc: 'Expires', active: 'Active' },
+      neverRefreshed: 'Not yet',
+      reauth: { title: 'This login needs reauthentication', since: 'Since {{time}}', action: 'Runs that use this secret fail until you replace its value. Sign in again with codex login using a separate CODEX_HOME, then use Set value to store the new auth.json, or switch the deployment to an OpenAI API key secret. Do not keep using the same login on another machine: both copies share one refresh token.' },
+      columns: { status: 'Status', accessTokenExpiresUtc: 'Access token expires', name: 'Name', kind: 'Kind', valueLast4: 'Value', rotatedUtc: 'Last changed', expiresUtc: 'Expires', active: 'Active', id: 'ID' },
+      fields: { refreshedUtc: 'Last refreshed by Garrison', accessTokenExpiresUtc: 'Access token expires', name: 'Name', kind: 'Kind', description: 'Description', value: 'Value', newValue: 'New value', expiresUtc: 'Expires', active: 'Active' },
       hints: { expiresUtc: 'Must be in the future. Leave empty for a secret that never expires.', kind: 'Subscription tokens on shared servers may violate provider terms. Prefer API keys for shared deployments.' },
       actions: { setValue: 'Set value', rotate: 'Rotate' }
     },
@@ -920,6 +923,8 @@ const en = {
       observabilityVersion: 'Version {{version}}',
       observabilityOpen: 'Open {{service}}',
       kpisGrafana: 'Open the overview in Grafana',
+      grafanaDashboards: 'Grafana dashboards',
+      grafanaSections: { overview: 'Overview', http: 'HTTP API', runs: 'Runs', agents: 'Agents', models: 'Models and tokens', workers: 'Workers', kubernetes: 'Kubernetes executor', protocols: 'Protocols', scheduler: 'Scheduler and queue', database: 'Database', controlPlane: 'Control plane', security: 'Security and auth', integrations: 'Integrations', logs: 'Logs and traces' },
       observabilitySetup: 'Set up observability',
       observabilityNone: 'No observability services (Grafana, Prometheus, Tempo, or Loki) are configured for this deployment.',
       observability: 'Observability',
@@ -1124,6 +1129,7 @@ const en = {
     },
     agentDetail: {
       invoke: 'Invoke',
+      grafana: 'Open in Grafana',
       noActiveDeployment: 'This agent has no active deployment, so invocations will be rejected.',
       deployments_one: 'Deployments ({{count}})',
       deployments_other: 'Deployments ({{count}})',
@@ -1289,7 +1295,7 @@ const en = {
         ConfigMap: 'Managed by a Kubernetes ConfigMap. Change it in your manifests.',
         other: 'This setting cannot be edited here.'
       },
-      groups: { Archive: 'Archive', General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit', Runtime: 'Runtime', Observability: 'Observability' },
+      groups: { Codex: 'Codex', Archive: 'Archive', General: 'General', Rest: 'REST', Mcp: 'MCP', Database: 'Database', Logging: 'Logging', Auth: 'Authentication', Security: 'Security', RequestHistory: 'Request history', Telemetry: 'Telemetry', Cluster: 'Cluster', Scheduling: 'Scheduling', Runs: 'Runs', Audit: 'Audit', Runtime: 'Runtime', Observability: 'Observability' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana URL',
@@ -1392,6 +1398,13 @@ const en = {
           RetentionDays: 'Run retention (days)',
           MaxDelegationDepth: 'Maximum delegation depth',
           DefaultTimeoutSeconds: 'Default run timeout (seconds)'
+        },
+        Codex: {
+          RefreshBeforeExpirySeconds: 'Refresh Codex logins before expiry (seconds)',
+          RefreshCheckIntervalSeconds: 'Background login check interval (seconds)',
+          RefreshTimeoutSeconds: 'Login refresh timeout (seconds)',
+          TokenEndpoint: 'OAuth token endpoint',
+          ClientId: 'OAuth client ID'
         },
         Runtime: {
           FailBlockedAfterSeconds: 'Fail blocked runs after (seconds)',

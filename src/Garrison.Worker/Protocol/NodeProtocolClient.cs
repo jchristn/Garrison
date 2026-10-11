@@ -9,6 +9,7 @@ namespace Garrison.Worker.Protocol
     using Garrison.Core.Protocol;
     using Garrison.Core.Responses;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// HTTP client for the node protocol. Authenticates with the node credential (POST /v1.0/token), uses the bearer
@@ -70,7 +71,9 @@ namespace Garrison.Worker.Protocol
             SocketsHttpHandler handler = new SocketsHttpHandler();
             handler.PooledConnectionLifetime = TimeSpan.FromMinutes(5);
             handler.MaxConnectionsPerServer = 64;
-            _Http = new HttpClient(handler);
+            // Every protocol call is an outbound call to the control plane (service control_plane, operation register,
+            // heartbeat, lease, watch, drain, started, events, complete, token) with a client span (P13.24, P13.25).
+            _Http = new HttpClient(new TelemetryHttpHandler("control_plane", handler));
             _Http.Timeout = Timeout.InfiniteTimeSpan;
         }
 
@@ -220,6 +223,7 @@ namespace Garrison.Worker.Protocol
                 using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _BaseUrl + path))
                 {
                     request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + bearer);
+                    request.Options.Set(TelemetryHttpHandler.OperationKey, path.Substring(path.LastIndexOf('/') + 1));
                     request.Content = new StringContent(Serializer.Serialize(body), Encoding.UTF8, "application/json");
                     HttpResponseMessage response;
                     try
@@ -262,6 +266,7 @@ namespace Garrison.Worker.Protocol
                 using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token))
                 using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _BaseUrl + "/v1.0/token"))
                 {
+                    request.Options.Set(TelemetryHttpHandler.OperationKey, "token");
                     request.Content = new StringContent(Serializer.Serialize(new { accessKey = _AccessKey, secretKey = _SecretKey }), Encoding.UTF8, "application/json");
                     HttpResponseMessage response;
                     try

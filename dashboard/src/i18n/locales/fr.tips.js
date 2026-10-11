@@ -365,6 +365,10 @@ const tips = {
       Hosted: 'Hébergé : Garrison exécute lui-même cet agent via ses déploiements sur les nœuds worker.',
       Remote: 'Distant : l\'agent s\'exécute ailleurs et Garrison transmet les appels à son point de terminaison A2A ou MCP.'
     },
+    secretStatus: {
+      Ok: 'L\'identifiant est utilisable, à la connaissance de Garrison. Définir une nouvelle valeur ramène toujours le secret à cet état.',
+      NeedsReauthentication: 'OpenAI a définitivement refusé la connexion ChatGPT enregistrée, par exemple parce que son jeton d\'actualisation avait déjà servi. Les exécutions qui utilisent ce secret échouent tant que vous ne remplacez pas sa valeur par une nouvelle connexion.'
+    },
     secretKind: {
       AnthropicApiKey: 'Une clé API Anthropic, injectée en tant que ANTHROPIC_API_KEY par le profil Claude Code.',
       ClaudeCodeOAuthToken: 'Un jeton d\'abonnement Claude Code. Vérifiez les conditions du fournisseur avant de l\'utiliser sur des serveurs partagés.',
@@ -596,6 +600,11 @@ const tips = {
       actions: { test: 'Se connecter maintenant au serveur et lister ses outils, pour vérifier l\'adresse et les identifiants.' }
     },
     secrets: {
+      status: 'Indique si l\'identifiant enregistré fonctionne encore. Garrison signale une connexion Codex comme à renouveler lorsqu\'elle ne peut plus être actualisée.',
+      accessTokenExpiresUtc: 'Date d\'expiration du jeton d\'accès d\'une connexion ChatGPT Codex enregistrée. Garrison le renouvelle avant et réécrit les nouveaux jetons dans le secret.',
+      refreshedUtc: 'Date à laquelle Garrison a lui-même renouvelé cette connexion Codex pour la dernière fois. Les exécutions ne reçoivent qu\'une copie sans le jeton d\'actualisation.',
+      statusMessage: 'Pourquoi la connexion est inutilisable, selon le fournisseur.',
+      statusUtc: 'Date à laquelle Garrison a constaté que la connexion ne peut plus être renouvelée.',
       add: 'Enregistrer un nouveau secret, comme une clé API ou un jeton, chiffré au repos. Les déploiements y font référence par alias ; la valeur n\'est plus jamais affichée après l\'enregistrement.',
       name: 'Nom du secret. Les déploiements choisissent le secret par ce nom et lui donnent un alias.',
       kind: 'Le type d\'identifiants que contient ce secret. Les profils intégrés utilisent ce type pour savoir quelle variable ou quel fichier remplir.',
@@ -808,7 +817,7 @@ const tips = {
         detail: 'Sortie de la sonde, utile lorsqu\'un harness est indisponible.'
       },
       actions: {
-        grafana: 'Ouvrir le tableau de bord Workers and Harnesses dans Grafana dans un nouvel onglet, filtré sur le nœud {{node}}.',
+        grafana: 'Ouvrir le tableau de bord Workers dans Grafana dans un nouvel onglet, filtré sur le nœud {{node}}.',
         cordon: 'Cesser d\'envoyer de nouvelles exécutions à ce nœud. Les exécutions déjà présentes se terminent normalement.',
         uncordon: 'Autoriser à nouveau ce nœud à accepter de nouvelles exécutions.',
         drain: 'Bloquer les nouvelles exécutions et laisser les exécutions en cours se terminer, puis le nœud devient inactif. À utiliser avant de l\'arrêter.',
@@ -880,6 +889,23 @@ const tips = {
       },
       observabilityVersion: 'Version que {{service}} a indiquée lors de la vérification d\'état du serveur.',
       kpisGrafana: 'Ouvrir le tableau de bord de vue d\'ensemble de Garrison dans Grafana dans un nouvel onglet pour suivre ces chiffres dans le temps.',
+      grafanaDashboards: 'Le dossier Garrison de Grafana contient un tableau de bord par section. Chaque lien ouvre ce tableau de bord dans un nouvel onglet.',
+      grafanaSections: {
+        overview: 'L\'état en un coup d\'œil : réplicas et workers actifs, débits d\'exécutions et de requêtes, erreurs, coût et problèmes récents.',
+        http: 'Trafic REST par route : débit des requêtes, percentiles de latence, erreurs, tailles des charges utiles, échecs d\'authentification et requêtes en cours.',
+        runs: 'Cycle de vie des exécutions : créées et terminées par résultat, durée de chaque étape, annulations, validation des sorties structurées et réparations.',
+        agents: 'Performances par agent : invocations, percentiles de durée et d\'attente en file, délai avant le premier jeton, durée de streaming, résultats et déclenchements de garde-fous.',
+        models: 'Consommation de jetons et coût par modèle et par agent : jetons d\'entrée, de sortie, en cache et de raisonnement, coût et débit de sortie.',
+        workers: 'Nœuds workers : baux, exécutions par nœud, comptes rendus de fin, battements de cœur, emplacements libres et appels au plan de contrôle.',
+        kubernetes: 'Exécuteur à un pod par exécution : Jobs créés et supprimés, latence de démarrage des pods, échecs de pod par cause et nettoyage des orphelins.',
+        protocols: 'MCP, A2A et streaming : appels d\'outils et leur durée, sessions, méthodes A2A et états des tâches, flux SSE, WebSockets et délégation.',
+        scheduler: 'Planification : profondeur de file par agent et harnais, résultats et latence des réservations, attentes longues des baux, exécutions bloquées et baux expirés.',
+        database: 'Base de données : latence des requêtes par opération et table, erreurs, connexions utilisées, attentes du verrou d\'écriture et rétention.',
+        controlPlane: 'Réplicas du plan de contrôle : statut, changements de leader, trafic et retard du backplane, battements de cœur et itérations des services d\'arrière-plan.',
+        security: 'Échecs d\'authentification par schéma et motif, refus d\'autorisation, limitation de débit, jetons émis, déchiffrement des secrets et renouvellements de jetons Codex.',
+        integrations: 'Appels sortants par service : tests de serveurs MCP, sondes d\'observabilité, proxy MCP, API Kubernetes et plan de contrôle vu des workers.',
+        logs: 'Volume de journaux, erreurs et avertissements par composant et locataire, lignes d\'erreur récentes et liens vers les traces.'
+      },
       observabilityDocs: 'Ouvrir le guide de télémétrie dans un nouvel onglet : comment collecter les métriques de Garrison et connecter Grafana, Prometheus, Tempo ou Loki.',
       observability: 'Liens vers les outils de métriques, de tableaux de bord et de traces que cette installation déclare configurés. Les services non configurés ne sont pas affichés.',
       kpis: {
@@ -951,6 +977,7 @@ const tips = {
       name: 'Le nom que les appelants utilisent pour invoquer cet agent.',
       viewJson: 'Afficher l\'enregistrement complet de l\'agent en JSON.',
       invoke: 'Ouvrir « Invoquer » avec cet agent sélectionné. Un déploiement est choisi selon le poids, sauf si vous en choisissez un.',
+      grafana: 'Ouvrir dans un nouvel onglet le tableau de bord Agents de Grafana filtré sur cet agent : invocations, percentiles de durée, délai avant le premier jeton, durée de streaming, jetons, coût et déclenchements de garde-fous.',
       id: 'Identifiant de l\'agent pour les appels API.',
       tabs: {
         deployments: 'Les manières dont cet agent s\'exécute, avec leurs poids et la part de trafic que reçoit chacune.',
@@ -1175,7 +1202,7 @@ const tips = {
     }
   },
   analytics: {
-    grafana: 'Ouvrir le tableau de bord Runs and Scheduling dans Grafana dans un nouvel onglet, sur la même période que cette page.',
+    grafana: 'Ouvrir le tableau de bord Runs dans Grafana dans un nouvel onglet, sur la même période que cette page.',
     filters: {
       ttft: 'Si la case est cochée, le graphique du délai avant le premier jeton omet le temps passé à attendre les agents délégués, pour comparer équitablement les agents qui délèguent à ceux qui répondent directement.',
       range: 'Fenêtre de temps de tous les graphiques et totaux : la dernière heure, le dernier jour, la dernière semaine, les 30 derniers jours, ou un début et une fin personnalisés.',

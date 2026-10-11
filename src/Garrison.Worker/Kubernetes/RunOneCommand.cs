@@ -11,6 +11,7 @@ namespace Garrison.Worker.Kubernetes
     using Garrison.Core.Enums;
     using Garrison.Core.Protocol;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Telemetry;
     using Garrison.Worker.Execution;
 
     /// <summary>
@@ -110,7 +111,10 @@ namespace Garrison.Worker.Kubernetes
                     return 3;
                 }
 
-                Console.Error.WriteLine("[run-one] run " + envelope.Assignment.RunId + " epoch " + envelope.Assignment.Epoch + " starting" + (hardened ? " (non-dumpable)" : String.Empty));
+                // Pod log lines carry the run's trace ID so Loki joins them to the server and worker spans and logs (P13.26).
+                string scope = GarrisonTracing.LogFields("tenant", envelope.Assignment.Spec?.TenantId, "agent", envelope.Assignment.Spec?.AgentName);
+                string fields = RunTracing.LogFields(envelope.Assignment.RunId, RunTracing.TraceIdOf(envelope.Assignment.Spec?.TraceParent)) + " " + scope;
+                Console.Error.WriteLine("[run-one] run " + envelope.Assignment.RunId + " epoch " + envelope.Assignment.Epoch + " starting" + (hardened ? " (non-dumpable)" : String.Empty) + " " + fields);
                 string? home = Environment.GetEnvironmentVariable("HOME");
                 if (!String.IsNullOrEmpty(home)) TryCreate(home);
                 TryCreate(envelope.WorkRoot);
@@ -120,7 +124,7 @@ namespace Garrison.Worker.Kubernetes
                 options.WorkRoot = envelope.WorkRoot;
                 options.EnvironmentAllowlist = envelope.EnvironmentAllowlist;
                 options.McpPreflightTimeoutMs = envelope.McpPreflightTimeoutMs;
-                ProcessRunExecutor executor = new ProcessRunExecutor(options, message => Console.Error.WriteLine("[run-one] " + message));
+                ProcessRunExecutor executor = new ProcessRunExecutor(options, message => Console.Error.WriteLine("[run-one] " + message + " " + scope));
 
                 RunCompleteRequest complete;
                 try
@@ -146,7 +150,7 @@ namespace Garrison.Worker.Kubernetes
                 }
                 reporter.Complete(complete);
                 await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
-                Console.Error.WriteLine("[run-one] run " + envelope.Assignment.RunId + " finished: " + complete.Status + " (" + complete.Outcome + ")");
+                Console.Error.WriteLine("[run-one] run " + envelope.Assignment.RunId + " finished: " + complete.Status + " (" + complete.Outcome + ") " + fields);
             }
             return 0;
         }

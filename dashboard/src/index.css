@@ -807,6 +807,10 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .observability-card { gap: var(--spacing-xs); }
 .observability-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); }
 .grafana-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--spacing-sm); margin-block: var(--spacing-xs) var(--spacing-sm); }
+.grafana-dashboards { margin-top: var(--spacing-md); }
+.grafana-dashboards-title { font-size: var(--font-size-sm); font-weight: 600; margin-bottom: var(--spacing-sm); display: inline-block; }
+.grafana-dashboard-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--spacing-sm); }
+.grafana-dashboard-list a { width: 100%; justify-content: flex-start; }
 a.button { text-decoration: none; }
 .kpi-clickable { cursor: pointer; text-align: start; font: inherit; color: inherit; border: 1px solid var(--color-border); }
 .kpi-clickable:hover { border-color: var(--color-primary); }

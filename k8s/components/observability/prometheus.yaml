@@ -46,6 +46,12 @@ spec:
             - --storage.tsdb.retention.time=3d
             - --storage.tsdb.retention.size=1GB
             - --web.enable-lifecycle
+            # Exemplars: Garrison duration histograms carry the trace that produced a sample, so Grafana panels can
+            # jump from a latency spike to the trace in Tempo.
+            - --enable-feature=exemplar-storage
+            # Counters are created on first use, so their first scrape already holds a count; the OpenMetrics _created
+            # timestamp lets Prometheus add the zero before it, so increase() and rate() count a series' first events.
+            - --enable-feature=created-timestamp-zero-ingestion
           ports:
             - name: http
               containerPort: 9090

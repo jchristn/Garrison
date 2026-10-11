@@ -18,6 +18,10 @@ TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"}
 # Run executors: deployment "executor", node pool "defaultExecutor", run "executor", node "executors".
 RUN_EXECUTORS = ("Process", "KubernetesJob")
 
+# Secret["status"] values. NeedsReauthentication means the provider rejected a CodexAuthJson login for good (refresh
+# token reused, expired, or revoked); runs that bind it fail with outcome NotCredentialed until the value is replaced.
+SECRET_STATUSES = ("Ok", "NeedsReauthentication")
+
 
 class GarrisonError(Exception):
     """Raised when the API returns a non-success status. Carries the parsed error body when present."""
@@ -283,6 +287,13 @@ class McpServers(Resource):
 
 
 class Secrets(Resource):
+    """Secrets (metadata only; values are write-only).
+
+    Each secret carries ``status`` (one of SECRET_STATUSES), ``statusMessage``, ``statusUtc``, ``refreshedUtc`` (when the
+    control plane last refreshed a Codex login itself), and ``accessTokenExpiresUtc`` (CodexAuthJson only). A secret
+    with status NeedsReauthentication returns to Ok when set_value, rotate, or update sets a new value.
+    """
+
     def set_value(self, id: str, value: str) -> Dict[str, Any]:
         return self._t.request("PUT", self._item(id) + "/value", body={"value": value})
 

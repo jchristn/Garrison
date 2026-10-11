@@ -34,6 +34,11 @@ namespace Garrison.Core.Compilation
         public string DeploymentId { get; set; } = String.Empty;
 
         /// <summary>
+        /// Deployment name, used as the deployment label on worker metrics. Empty when the control plane did not send it.
+        /// </summary>
+        public string DeploymentName { get; set; } = String.Empty;
+
+        /// <summary>
         /// Harness type.
         /// </summary>
         public HarnessTypeEnum HarnessType { get; set; } = HarnessTypeEnum.Generic;

@@ -5,11 +5,13 @@ namespace Garrison.Server.Routes
     using System.Threading.Tasks;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Server.Runtime;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -100,9 +102,11 @@ namespace Garrison.Server.Routes
             ConfigurationSupport.EnsureNameAvailable(named, named?.Id, secret.Id, request.Name);
             secret.Name = request.Name;
             secret.Description = request.Description;
+            bool kindChanged = secret.Kind != request.Kind;
             secret.Kind = request.Kind;
             secret.ExpiresUtc = request.ExpiresUtc;
             if (!String.IsNullOrEmpty(request.Value)) SetValue(secret, request.Value);
+            else if (kindChanged) SecretValueState.Reset(secret, secret.Kind == SecretKindEnum.CodexAuthJson ? DecryptOrNull(secret) : null);
             Secret updated = await _Server.Database.Secrets.UpdateAsync(secret, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.SecretChanged, "Secret", updated.Id, "Updated secret " + updated.Name + (String.IsNullOrEmpty(request.Value) ? "." : " including its value.")).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);
@@ -128,6 +132,7 @@ namespace Garrison.Server.Routes
             ConfigurationSupport.EnsureEditable(secret.TenantId, false, secret.IsProtected, tenantId, "Secret " + secret.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.ResourceBindings.Any(b => b.Kind == ResourceBindingKindEnum.Secret && b.ResourceId == secret.Id), "Secret " + secret.Name, http.Token).ConfigureAwait(false);
             await _Server.Database.Secrets.DeleteAsync(secret.Id, http.Token).ConfigureAwait(false);
+            await CodexCredentialService.DeleteLeaseAsync(_Server.Database, secret.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.SecretChanged, "Secret", secret.Id, "Deleted secret " + secret.Name + ".").ConfigureAwait(false);
             await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
@@ -139,6 +144,20 @@ namespace Garrison.Server.Routes
             secret.Fingerprint = SecretGenerator.Fingerprint(value);
             secret.KeyVersion = _Server.Cipher.KeyVersion;
             secret.RotatedUtc = DateTime.UtcNow;
+            SecretValueState.Reset(secret, value);
+        }
+
+        private string? DecryptOrNull(Secret secret)
+        {
+            if (String.IsNullOrEmpty(secret.ValueEncrypted)) return null;
+            try
+            {
+                return _Server.Cipher.Decrypt(secret.ValueEncrypted, secret.Id);
+            }
+            catch (Exception e) when (e is System.Security.Cryptography.CryptographicException || e is FormatException)
+            {
+                return null;
+            }
         }
 
         private static void Validate(SecretRequest request)

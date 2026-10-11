@@ -4,6 +4,7 @@
     "tenantId": "ten_golden",
     "agentName": "helper-fake-basic",
     "deploymentId": "dep_fake_basic",
+    "deploymentName": "helper-fake-basic-default",
     "harnessType": "Generic",
     "executable": "garrison-fake-harness",
     "arguments": [

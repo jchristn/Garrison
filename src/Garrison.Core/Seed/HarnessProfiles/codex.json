@@ -138,6 +138,12 @@
       "name": "OPENAI_BASE_URL",
       "valueTemplate": "{{deployment.parameters.openaiBaseUrl}}",
       "isSecret": false
+    },
+    {
+      "name": "CODEX_REFRESH_TOKEN_URL_OVERRIDE",
+      "valueTemplate": "http://127.0.0.1:9/garrison-refresh-disabled",
+      "isSecret": false,
+      "condition": "{{secret.kind.CodexAuthJson}}"
     }
   ],
   "files": [
@@ -158,7 +164,7 @@
     {
       "baseDirectory": "Home",
       "pathTemplate": ".codex/auth.json",
-      "contentTemplate": "{{secret.kind.CodexAuthJson}}",
+      "contentTemplate": "{{secret.kind.CodexAuthJson | codexRunAuth}}",
       "isSecret": true,
       "condition": "{{secret.kind.CodexAuthJson}}",
       "mode": "600"

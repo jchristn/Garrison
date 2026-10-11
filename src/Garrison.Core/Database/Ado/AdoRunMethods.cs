@@ -872,6 +872,25 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<List<RunGaugeRow>> CountUnfinishedByAgentAsync(CancellationToken token = default)
+        {
+            return await _Driver.QueryAsync(
+                "SELECT tenantid, agentname, harnesstype, status, COUNT(*) AS total FROM " + _Table + " WHERE status IN ('Pending', 'Queued', 'Leased', 'Running', 'Cancelling') GROUP BY tenantid, agentname, harnesstype, status;",
+                null,
+                reader =>
+                {
+                    RunGaugeRow row = new RunGaugeRow();
+                    row.TenantId = AdoConverters.Str(reader, "tenantid");
+                    row.AgentName = AdoConverters.Str(reader, "agentname");
+                    row.HarnessType = AdoConverters.Enum<HarnessTypeEnum>(reader, "harnesstype", HarnessTypeEnum.Generic);
+                    row.Status = AdoConverters.Str(reader, "status");
+                    row.Count = AdoConverters.Long(reader, "total");
+                    return row;
+                },
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<List<QueueSummaryRow>> QueueSummaryAsync(string? tenantId, CancellationToken token = default)
         {
             string where = " WHERE status IN ('Queued', 'Leased', 'Running')" + (String.IsNullOrEmpty(tenantId) ? String.Empty : " AND tenantid = @tenantid");

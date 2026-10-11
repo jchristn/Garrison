@@ -365,6 +365,10 @@ const tips = {
       Hosted: '託管：Garrison 透過此代理程式在工作節點上的部署自行執行它。',
       Remote: '遠端：代理程式在其他地方執行，Garrison 會將呼叫轉送到它的 A2A 或 MCP 端點。'
     },
+    secretStatus: {
+      Ok: '就 Garrison 所知，此憑證可以使用。設定新值後，祕密一定會回到此狀態。',
+      NeedsReauthentication: 'OpenAI 已永久拒絕所儲存的 ChatGPT 登入，例如其更新權杖已經用過。使用此祕密的執行會一直失敗，直到你以新的登入取代它的值。'
+    },
     secretKind: {
       AnthropicApiKey: 'Anthropic API 金鑰，由 Claude Code 設定檔以 ANTHROPIC_API_KEY 注入。',
       ClaudeCodeOAuthToken: 'Claude Code 訂閱權杖。在共用伺服器上使用前，請先確認供應商條款。',
@@ -596,6 +600,11 @@ const tips = {
       actions: { test: '立即連線到伺服器並列出其工具，以檢查位址與憑證。' }
     },
     secrets: {
+      status: '所儲存的憑證是否仍然可用。當 Codex 登入無法再更新時，Garrison 會將其標示為需要重新驗證。',
+      accessTokenExpiresUtc: '所儲存 Codex ChatGPT 登入中的存取權杖何時到期。Garrison 會在此之前更新它，並把新權杖寫回祕密。',
+      refreshedUtc: 'Garrison 上次自行更新此 Codex 登入的時間。執行只會收到不含更新權杖的副本。',
+      statusMessage: '提供者回報的登入無法使用原因。',
+      statusUtc: 'Garrison 發現該登入無法再更新的時間。',
       add: '儲存新的憑證，例如 API 金鑰或權杖，並在靜態時加密。部署以別名參照它；儲存後值將不會再次顯示。',
       name: '祕密名稱。部署以此名稱選擇祕密，並為它指定別名。',
       kind: '這是哪一種憑證。內建設定檔會依種類判斷要填入哪個變數或檔案。',
@@ -808,7 +817,7 @@ const tips = {
         detail: '探測輸出，在 Harness 無法使用時很有幫助。'
       },
       actions: {
-        grafana: '在新分頁中開啟 Grafana 的 Workers and Harnesses 儀表板，並篩選到節點 {{node}}。',
+        grafana: '在新分頁中開啟 Grafana 的 Workers 儀表板，並篩選到節點 {{node}}。',
         cordon: '停止將新的執行傳送到此節點。已在其上的執行會正常完成。',
         uncordon: '讓此節點再次接受新的執行。',
         drain: '停止接受新的執行並讓目前的執行完成，之後節點會進入閒置。請在關閉節點前使用。',
@@ -880,6 +889,23 @@ const tips = {
       },
       observabilityVersion: '{{service}} 在伺服器健康檢查中回報的版本。',
       kpisGrafana: '在新分頁中開啟 Grafana 裡的 Garrison 總覽儀表板，查看這些數字隨時間的變化。',
+      grafanaDashboards: 'Grafana 中的 Garrison 資料夾為每個區段提供一個儀表板。每個連結都會在新分頁中開啟對應的儀表板。',
+      grafanaSections: {
+        overview: '整體健康狀況：上線的副本和工作節點、執行與請求速率、錯誤、成本和近期問題。',
+        http: '依路由劃分的 REST 流量：請求速率、延遲百分位數、錯誤、承載大小、驗證失敗和處理中的請求。',
+        runs: '執行生命週期：依結果統計的建立和完成數量、各階段耗時、取消、結構化輸出驗證和修復。',
+        agents: '各代理程式的效能：叫用次數、執行時間和排隊時間百分位數、第一個權杖時間、串流時間、結果和防護觸發。',
+        models: '依模型和代理程式統計的權杖用量與成本：輸入、輸出、快取和推理權杖、成本以及輸出吞吐量。',
+        workers: '工作節點：租約、每個節點的執行、完成報告、心跳、空閒槽位以及對控制平面的呼叫。',
+        kubernetes: '每次執行一個 Pod 的執行器：建立和刪除的 Job、Pod 啟動延遲、依原因統計的 Pod 失敗以及孤立 Job 清理。',
+        protocols: 'MCP、A2A 與串流：工具呼叫及耗時、工作階段、A2A 方法與工作狀態、SSE 串流、WebSocket 和委派。',
+        scheduler: '排程：依代理程式和執行框架統計的佇列深度、認領結果與延遲、租約長輪詢、被封鎖的執行和過期租約。',
+        database: '資料庫：依作業和資料表統計的陳述式延遲、錯誤、使用中的連線、寫入鎖等待和保留清理。',
+        controlPlane: '控制平面副本：狀態、領導者變更、背板流量與延遲、心跳以及背景服務的反覆執行。',
+        security: '依機制和原因統計的驗證失敗、授權拒絕、速率限制、核發的權杖、機密解密以及 Codex 權杖更新。',
+        integrations: '依服務統計的對外呼叫：MCP 伺服器測試、可觀測性探測、MCP Proxy、Kubernetes API 以及工作節點對控制平面的呼叫。',
+        logs: '依元件和租用戶統計的記錄量、錯誤與警告、近期錯誤行以及追蹤連結。'
+      },
       observabilityDocs: '在新分頁開啟遙測指南：如何收集 Garrison 指標並連接 Grafana、Prometheus、Tempo 或 Loki。',
       observability: '連到此環境回報為已設定的指標、儀表板與追蹤工具。未設定的服務不會顯示。',
       kpis: {
@@ -951,6 +977,7 @@ const tips = {
       name: '呼叫端用來呼叫此代理程式的名稱。',
       viewJson: '以 JSON 顯示完整的代理程式紀錄。',
       invoke: '開啟「呼叫」頁面並選取此代理程式。除非你自行選擇，否則會依權重挑選部署。',
+      grafana: '在新分頁中開啟依此代理程式篩選的 Grafana 代理程式儀表板：叫用次數、執行時間百分位數、第一個權杖時間、串流時間、權杖、成本和防護觸發。',
       id: '用於 API 呼叫的代理程式識別碼。',
       tabs: {
         deployments: '此代理程式的各種執行方式，包含其權重以及各自分得的流量比例。',
@@ -1175,7 +1202,7 @@ const tips = {
     }
   },
   analytics: {
-    grafana: '在新分頁中開啟 Grafana 的 Runs and Scheduling 儀表板，時間範圍與本頁相同。',
+    grafana: '在新分頁中開啟 Grafana 的 Runs 儀表板，時間範圍與本頁相同。',
     filters: {
       ttft: '勾選後，第一個 Token 時間圖表會排除等待委派代理程式的時間，讓會委派的代理程式能與直接回答的代理程式公平比較。',
       range: '所有圖表與總計的時間範圍：最近一小時、一天、一週、30 天，或自訂的開始與結束時間。',

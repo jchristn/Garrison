@@ -7,6 +7,7 @@ namespace Garrison.Worker.Reporting
     using System.Threading.Tasks;
     using Garrison.Core.Enums;
     using Garrison.Core.Protocol;
+    using Garrison.Core.Telemetry;
     using Garrison.Worker.Execution;
     using Garrison.Worker.Protocol;
 
@@ -153,6 +154,7 @@ namespace Garrison.Worker.Reporting
                     if (index < 0) index = 0;
                     _Buffer.RemoveAt(index);
                     Interlocked.Increment(ref _Dropped);
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerEvents, "result", "dropped");
                 }
             }
         }
@@ -284,6 +286,7 @@ namespace Garrison.Worker.Reporting
                     HashSet<long> sent = new HashSet<long>(batch.Select(b => b.Sequence));
                     _Buffer.RemoveAll(e => sent.Contains(e.Sequence));
                 }
+                GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerEvents, batch.Count, GarrisonMetrics.Tags("result", "shipped"));
                 return true;
             }
             finally

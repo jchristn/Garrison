@@ -16,6 +16,7 @@ namespace Garrison.Server.WebSockets
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Server.Runtime;
+    using Garrison.Server.Services;
     using WatsonWebserver.Core;
     using WatsonWebserver.Core.WebSockets;
 
@@ -85,6 +86,7 @@ namespace Garrison.Server.WebSockets
             // The socket closes when the client leaves or when the replica starts draining; the dashboard reconnects
             // (to another replica) by itself.
             _Context.Activity.StreamOpened();
+            StreamTelemetry.WebSocketOpened();
             try
             {
                 using (CancellationTokenSource lifetime = CancellationTokenSource.CreateLinkedTokenSource(http.Token, _Context.Stopping))
@@ -95,6 +97,7 @@ namespace Garrison.Server.WebSockets
             finally
             {
                 _Context.Activity.StreamClosed();
+                StreamTelemetry.WebSocketClosed();
             }
         }
 
@@ -119,6 +122,7 @@ namespace Garrison.Server.WebSockets
 
                     await foreach (WebSocketMessage message in session.ReadMessagesAsync(token).ConfigureAwait(false))
                     {
+                        StreamTelemetry.WebSocketMessage("received");
                         if (message.MessageType != WebSocketMessageType.Text || String.IsNullOrEmpty(message.Text)) continue;
                         ClientMessage? request;
                         try
@@ -287,7 +291,11 @@ namespace Garrison.Server.WebSockets
             await sendLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                if (session.IsConnected) await session.SendTextAsync(Serializer.Serialize(message), token).ConfigureAwait(false);
+                if (session.IsConnected)
+                {
+                    await session.SendTextAsync(Serializer.Serialize(message), token).ConfigureAwait(false);
+                    StreamTelemetry.WebSocketMessage("sent");
+                }
             }
             finally
             {

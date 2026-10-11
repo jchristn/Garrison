@@ -112,6 +112,12 @@ client.deployments.create({"agentId": agent["id"], "name": "helper-pod", "harnes
 
 Runs carry `executor`, nodes list `executors`, and only nodes reporting a run's executor claim it. Workspace templates of kind `"PersistentVolume"` mount the claim named by `persistentVolumeClaim` (KubernetesJob runs only). Run pod failures outside the harness end with outcome `PodFailed`. See `docs/KUBERNETES.md`.
 
+## Secret status
+
+The control plane refreshes ChatGPT logins stored in `CodexAuthJson` secrets itself, shortly before the access token expires, and writes the rotated tokens back to the secret. When OpenAI rejects the stored refresh token for good (reused, expired, or revoked), the secret's status becomes `NeedsReauthentication`.
+
+Each secret carries `status` (one of `garrison_sdk.SECRET_STATUSES`: `"Ok"` or `"NeedsReauthentication"`), `statusMessage` (the provider error, absent when `Ok`), `statusUtc` (when the status left `Ok`), `refreshedUtc` (when the control plane last refreshed the login itself), and `accessTokenExpiresUtc` (expiry of the stored access token; `CodexAuthJson` only). To find secrets that need attention, list them and check `secret["status"] == "NeedsReauthentication"`, then call `client.secrets.set_value(id, new_auth_json)`. A run whose deployment binds a secret in that state fails before it starts, with outcome `NotCredentialed` and an error message that starts with `SecretNeedsReauthentication:`. (`SecretRefreshFailed:` means the access token was expired and the refresh failed for a passing reason such as a network error; the secret stays `Ok` and a retry may work.) The fix is to replace the value: sign in again with `codex login` using a `CODEX_HOME` nothing else uses, then set the new `auth.json` as the secret's value. Setting a value returns the status to `Ok`. Do not keep using that login on another machine, because both copies share one refresh token; for shared deployments an `OpenAiApiKey` secret is simpler. See "Codex logins" in `docs/SECURITY.md`.
+
 ## Run analytics
 
 ```python

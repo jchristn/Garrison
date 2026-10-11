@@ -232,7 +232,7 @@ observability:
       tls: []
     resources:
       requests: { cpu: 50m, memory: 192Mi }
-      limits: { cpu: "1", memory: 512Mi }
+      limits: { cpu: "2", memory: 768Mi }
   prometheus:
     image: prom/prometheus:v3.5.4
     retention: 3d

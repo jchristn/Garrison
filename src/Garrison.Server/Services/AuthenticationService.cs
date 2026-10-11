@@ -13,6 +13,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Settings;
     using WatsonWebserver.Core;
 
@@ -65,6 +66,7 @@ namespace Garrison.Server.Services
         /// <returns>Task.</returns>
         public async Task AuthenticateRequestAsync(HttpContextBase context)
         {
+            RequestTelemetry.CaptureSpan(context);
             RequestContext resolved = await ResolveAsync(
                 context.Request.Headers,
                 context.Request.Method.ToString(),
@@ -185,6 +187,7 @@ namespace Garrison.Server.Services
             }
 
             ctx.AuthResult = AuthResultEnum.NotFound;
+            GarrisonMetrics.Count(GarrisonMetricCatalog.AuthFailures, "scheme", "None", "reason", "Missing");
             return ctx;
         }
 
@@ -255,6 +258,7 @@ namespace Garrison.Server.Services
             TokenPayload payload = Payload(session);
             payload.UserId = user.Id;
             await _Audit.WriteAsync(null, AuditEventTypeEnum.SessionIssued, "Session", session.Id, "Session issued to user " + user.Email + ".", user.TenantId, token).ConfigureAwait(false);
+            GarrisonMetrics.Count(GarrisonMetricCatalog.AuthTokensIssued, "scheme", scheme.ToString(), "principal", PrincipalTypeEnum.User.ToString());
             return Response(session, payload, user.TenantId);
         }
 
@@ -276,6 +280,7 @@ namespace Garrison.Server.Services
             await _Database.Sessions.CreateAsync(session, token).ConfigureAwait(false);
             TokenPayload payload = Payload(session);
             payload.CredentialId = credential.Id;
+            GarrisonMetrics.Count(GarrisonMetricCatalog.AuthTokensIssued, "scheme", scheme.ToString(), "principal", PrincipalTypeEnum.Credential.ToString());
             return Response(session, payload, credential.TenantId);
         }
 
@@ -297,6 +302,7 @@ namespace Garrison.Server.Services
             await _Database.Sessions.CreateAsync(session, token).ConfigureAwait(false);
             TokenPayload payload = Payload(session);
             payload.RunId = run.Id;
+            GarrisonMetrics.Count(GarrisonMetricCatalog.AuthTokensIssued, "scheme", AuthSchemeEnum.RunToken.ToString(), "principal", PrincipalTypeEnum.Run.ToString());
             return _Tokens.Issue(payload);
         }
 
@@ -451,6 +457,7 @@ namespace Garrison.Server.Services
             ctx.IsAuthenticated = false;
             ctx.AuthResult = result;
             ctx.AuthScheme = scheme;
+            GarrisonMetrics.Count(GarrisonMetricCatalog.AuthFailures, "scheme", scheme.ToString(), "reason", result.ToString());
             AuditRecord record = new AuditRecord();
             record.EventType = AuditEventTypeEnum.AuthFailure;
             record.RequestId = ctx.RequestId;

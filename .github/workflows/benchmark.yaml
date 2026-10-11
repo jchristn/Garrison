@@ -1,0 +1,37 @@
+name: Benchmark gate
+
+# The deterministic benchmark gate (BENCHMARKING.md, benchmarks/README.md "CI gate"): builds the server, worker, fake
+# harness, and Garrison.Benchmark from this commit, starts the local bench stack (one server on Sqlite and two worker
+# processes on lanes alpha and beta, fake harness only, 127.0.0.1 ports 378xx), runs validate, routing, e2e
+# correctness with the direct arm, and ingest correctness on the synthetic and live datasets, and compares every report
+# with its committed baseline in benchmarks/baselines/. Latency and throughput are never gated here; they are compared
+# by hand on one machine (benchmarks/README.md). Runs on every push to every branch and every pull request.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ci-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Benchmark gate
+        run: bash benchmarks/ci-gate.sh --shared-note "GitHub-hosted ubuntu-latest runner"
+      - name: Upload gate reports and stack logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-gate
+          path: |
+            benchmarks/results/
+            benchmarks/.run/local/*.log
+          if-no-files-found: warn
+          include-hidden-files: true

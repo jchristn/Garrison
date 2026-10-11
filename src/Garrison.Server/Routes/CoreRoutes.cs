@@ -72,7 +72,7 @@ namespace Garrison.Server.Routes
                 await RouteHelpers.ErrorAsync(context, 404, "NotFound", "Metrics are not served on this port; set Telemetry.ServeMetricsOnServicePort to true or scrape the metrics listener.").ConfigureAwait(false);
                 return;
             }
-            MetricsScrape? scrape = await _Context.Telemetry.ScrapeAsync(context.Token).ConfigureAwait(false);
+            MetricsScrape? scrape = await _Context.Telemetry.ScrapeAsync(context.Request.RetrieveHeaderValue("Accept"), context.Token).ConfigureAwait(false);
             if (scrape == null)
             {
                 await RouteHelpers.ErrorAsync(context, 503, "MetricsUnavailable", "The Prometheus metrics listener is not enabled or did not answer.").ConfigureAwait(false);

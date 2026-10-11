@@ -1,0 +1,2271 @@
+{
+  "schemaVersion": 1,
+  "kind": "e2e",
+  "dataset": "synthetic-fleet",
+  "label": "ci-gate",
+  "deterministic": true,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-10-11T16:45:43.902705Z",
+    "finishedUtc": "2026-10-11T16:45:55.554034Z",
+    "sutUrl": "http://127.0.0.1 (bench stack)",
+    "sutVersion": "0.1.0-alpha",
+    "stack": "local",
+    "productCommit": "23c4da98f483eceb07ebe453ecea8a6030e4013f-dirty",
+    "productDirtyFiles": 366,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "uncommitted-dirty",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.12",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "synthetic-fleet",
+    "datasetSha256": "2e79613ad9cab719bd66ffaa8c3eb6ac6688c37ae25a5eae9ab23cf67cf5b52a",
+    "datasetPath": "benchmarks/datasets/synthetic-fleet.json",
+    "commandLine": "Garrison.Benchmark e2e --dataset benchmarks/datasets/synthetic-fleet.json --deterministic true --repeat 1 --warmup 1 --url http://127.0.0.1:37800 --stack local --label ci-gate --results-dir <repo>/benchmarks/results --seed 42 --fake-harness <repo>/benchmarks/.run/build/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll",
+    "seed": 42
+  },
+  "options": {
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "corpus": "",
+    "dataset": "benchmarks/datasets/synthetic-fleet.json",
+    "deterministic": "true",
+    "direct": "true",
+    "fake-harness": "<repo>/benchmarks/.run/build/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll",
+    "kubeconfig": "(unset)",
+    "label": "ci-gate",
+    "limit": "0",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "other-tenant": "default",
+    "poll-ms": "100",
+    "ready-timeout-seconds": "120",
+    "repeat": "1",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "<repo>/benchmarks/results",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "(unset)",
+    "stream": "true",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "warmup": "1",
+    "workspace-suffix": "(unset)"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "description": "Runs through Garrison: REST create or invoke, scheduling, lease, compile, worker, fake harness, event shipping, completion.",
+      "probes": 23,
+      "passed": 23,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 23,
+        "indicative": false
+      },
+      "latency": {
+        "count": 23,
+        "mean": 366.6604739130435,
+        "stdDev": 1035.68977657538,
+        "min": 0.7709,
+        "p50": 134.832,
+        "p90": 473.087,
+        "p95": 544.353,
+        "p99": 5081.8248,
+        "max": 5081.8248,
+        "p50Ci": {
+          "estimate": 134.832,
+          "lower": 108.9788,
+          "upper": 140.7146,
+          "level": 0.95,
+          "n": 23,
+          "indicative": false
+        },
+        "p95Ci": {
+          "estimate": 544.353,
+          "lower": 172.3323,
+          "upper": 5081.8248,
+          "level": 0.95,
+          "n": 23,
+          "indicative": false
+        }
+      },
+      "timings": {
+        "cancelMs": {
+          "count": 1,
+          "mean": 75.743,
+          "stdDev": 0,
+          "min": 75.743,
+          "p50": 75.743,
+          "p90": 75.743,
+          "p95": 75.743,
+          "p99": 75.743,
+          "max": 75.743
+        },
+        "cancelRequestMs": {
+          "count": 1,
+          "mean": 1.4142,
+          "stdDev": 0,
+          "min": 1.4142,
+          "p50": 1.4142,
+          "p90": 1.4142,
+          "p95": 1.4142,
+          "p99": 1.4142,
+          "max": 1.4142
+        },
+        "directMs": {
+          "count": 15,
+          "mean": 137.91759333333331,
+          "stdDev": 118.91739869803665,
+          "min": 46.4782,
+          "p50": 97.3564,
+          "p90": 426.8912,
+          "p95": 430.9224,
+          "p99": 430.9224,
+          "max": 430.9224,
+          "p50Ci": {
+            "estimate": 97.3564,
+            "lower": 94.1117,
+            "upper": 101.8775,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 430.9224,
+            "lower": 101.8775,
+            "upper": 430.9224,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          }
+        },
+        "eventPersistMaxMs": {
+          "count": 19,
+          "mean": 66.17405263157893,
+          "stdDev": 58.28397781120533,
+          "min": 7.4,
+          "p50": 43.756,
+          "p90": 197.146,
+          "p95": 197.981,
+          "p99": 197.981,
+          "max": 197.981,
+          "p50Ci": {
+            "estimate": 43.756,
+            "lower": 39.592,
+            "upper": 55.763,
+            "level": 0.95,
+            "n": 19,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 197.981,
+            "lower": 61.149,
+            "upper": 197.981,
+            "level": 0.95,
+            "n": 19,
+            "indicative": true
+          }
+        },
+        "eventPersistMs": {
+          "count": 19,
+          "mean": 33.895842105263156,
+          "stdDev": 47.28963988521888,
+          "min": 4.553,
+          "p50": 13.26,
+          "p90": 111.486,
+          "p95": 181.837,
+          "p99": 181.837,
+          "max": 181.837,
+          "p50Ci": {
+            "estimate": 13.26,
+            "lower": 11.279,
+            "upper": 25.254,
+            "level": 0.95,
+            "n": 19,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 181.837,
+            "lower": 32.127,
+            "upper": 181.837,
+            "level": 0.95,
+            "n": 19,
+            "indicative": true
+          }
+        },
+        "events": {
+          "count": 19,
+          "mean": 10.842105263157896,
+          "stdDev": 4.153487930439198,
+          "min": 3,
+          "p50": 10,
+          "p90": 19,
+          "p95": 19,
+          "p99": 19,
+          "max": 19,
+          "p50Ci": {
+            "estimate": 10,
+            "lower": 9,
+            "upper": 12,
+            "level": 0.95,
+            "n": 19,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 19,
+            "lower": 16,
+            "upper": 19,
+            "level": 0.95,
+            "n": 19,
+            "indicative": true
+          }
+        },
+        "executionMs": {
+          "count": 20,
+          "mean": 375.7,
+          "stdDev": 1105.698878775915,
+          "min": 47,
+          "p50": 88,
+          "p90": 418,
+          "p95": 418,
+          "p99": 5053,
+          "max": 5053,
+          "p50Ci": {
+            "estimate": 88,
+            "lower": 87,
+            "upper": 100,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 418,
+            "lower": 167,
+            "upper": 5053,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          }
+        },
+        "overheadMs": {
+          "count": 15,
+          "mean": 39.11131999999999,
+          "stdDev": 27.249252939437216,
+          "min": 8.013100000000009,
+          "p50": 38.254900000000006,
+          "p90": 73.34960000000001,
+          "p95": 117.46179999999993,
+          "p99": 117.46179999999993,
+          "max": 117.46179999999993,
+          "p50Ci": {
+            "estimate": 38.254900000000006,
+            "lower": 20.743100000000013,
+            "upper": 43.13080000000001,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 117.46179999999993,
+            "lower": 43.13080000000001,
+            "upper": 117.46179999999993,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          }
+        },
+        "queueMs": {
+          "count": 20,
+          "mean": 0.2,
+          "stdDev": 0.41039134083406165,
+          "min": 0,
+          "p50": 0,
+          "p90": 1,
+          "p95": 1,
+          "p99": 1,
+          "max": 1,
+          "p50Ci": {
+            "estimate": 0,
+            "lower": 0,
+            "upper": 0,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 1,
+            "lower": 0,
+            "upper": 1,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          }
+        },
+        "requestMs": {
+          "count": 23,
+          "mean": 325.4172304347826,
+          "stdDev": 1038.841539298528,
+          "min": 3.0301,
+          "p50": 124.5936,
+          "p90": 222.7951,
+          "p95": 234.2462,
+          "p99": 5081.8248,
+          "max": 5081.8248,
+          "p50Ci": {
+            "estimate": 124.5936,
+            "lower": 108.9788,
+            "upper": 138.6694,
+            "level": 0.95,
+            "n": 23,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 234.2462,
+            "lower": 140.7146,
+            "upper": 5081.8248,
+            "level": 0.95,
+            "n": 23,
+            "indicative": false
+          }
+        },
+        "serverOverheadMs": {
+          "count": 20,
+          "mean": 37.55,
+          "stdDev": 12.857416454900138,
+          "min": 18,
+          "p50": 33,
+          "p90": 57,
+          "p95": 63,
+          "p99": 64,
+          "max": 64,
+          "p50Ci": {
+            "estimate": 33,
+            "lower": 30,
+            "upper": 39,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 63,
+            "lower": 46,
+            "upper": 64,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          }
+        },
+        "streamMaxMs": {
+          "count": 2,
+          "mean": 1.604,
+          "stdDev": 1.5697770542341354,
+          "min": 0.494,
+          "p50": 0.494,
+          "p90": 2.714,
+          "p95": 2.714,
+          "p99": 2.714,
+          "max": 2.714,
+          "p50Ci": {
+            "estimate": 0.494,
+            "lower": 0.494,
+            "upper": 2.714,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 2.714,
+            "lower": 0.494,
+            "upper": 2.714,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "streamMessages": {
+          "count": 2,
+          "mean": 13,
+          "stdDev": 0,
+          "min": 13,
+          "p50": 13,
+          "p90": 13,
+          "p95": 13,
+          "p99": 13,
+          "max": 13,
+          "p50Ci": {
+            "estimate": 13,
+            "lower": 13,
+            "upper": 13,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 13,
+            "lower": 13,
+            "upper": 13,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "streamMs": {
+          "count": 2,
+          "mean": 0.45799999999999996,
+          "stdDev": 0.032526911934581175,
+          "min": 0.435,
+          "p50": 0.435,
+          "p90": 0.481,
+          "p95": 0.481,
+          "p99": 0.481,
+          "max": 0.481,
+          "p50Ci": {
+            "estimate": 0.435,
+            "lower": 0.435,
+            "upper": 0.481,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 0.481,
+            "lower": 0.435,
+            "upper": 0.481,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "totalMs": {
+          "count": 20,
+          "mean": 413.25,
+          "stdDev": 1102.7172598917448,
+          "min": 77,
+          "p50": 130,
+          "p90": 451,
+          "p95": 457,
+          "p99": 5077,
+          "max": 5077,
+          "p50Ci": {
+            "estimate": 130,
+            "lower": 121,
+            "upper": 144,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 457,
+            "lower": 219,
+            "upper": 5077,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          }
+        },
+        "ttftMs": {
+          "count": 20,
+          "mean": 50.05,
+          "stdDev": 6.082546211994828,
+          "min": 42,
+          "p50": 48,
+          "p90": 60,
+          "p95": 62,
+          "p99": 66,
+          "max": 66,
+          "p50Ci": {
+            "estimate": 48,
+            "lower": 46,
+            "upper": 50,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 62,
+            "lower": 53,
+            "upper": 66,
+            "level": 0.95,
+            "n": 20,
+            "indicative": false
+          }
+        }
+      },
+      "byType": [
+        {
+          "key": "cancel",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "codex-format",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "create-wait",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "cross-tenant",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "deadline",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "escaping",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "event-stream",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "fixed-answer",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "harness-failure",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "idempotency",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "large-input",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "multiline",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "mux-format",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "plain-format",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "short-input",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "structured-invalid",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "structured-output",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "structured-repair",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "truncation",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "unicode",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "unknown-agent",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "failure",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "isolation",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "lifecycle",
+          "n": 3,
+          "passed": 3,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 3,
+            "indicative": true
+          }
+        },
+        {
+          "key": "parsing",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "prompts",
+          "n": 7,
+          "passed": 7,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 7,
+            "indicative": true
+          }
+        },
+        {
+          "key": "streaming",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "structured",
+          "n": 3,
+          "passed": 3,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 3,
+            "indicative": true
+          }
+        },
+        {
+          "key": "validation",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "direct",
+      "description": "Reference arm and floor: the same fake harness, arguments, and prompt, started directly by the harness with no Garrison in between.",
+      "probes": 15,
+      "passed": 15,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 15,
+        "indicative": true
+      },
+      "latency": {
+        "count": 15,
+        "mean": 137.91759333333331,
+        "stdDev": 118.91739869803665,
+        "min": 46.4782,
+        "p50": 97.3564,
+        "p90": 426.8912,
+        "p95": 430.9224,
+        "p99": 430.9224,
+        "max": 430.9224,
+        "p50Ci": {
+          "estimate": 97.3564,
+          "lower": 94.1117,
+          "upper": 101.5,
+          "level": 0.95,
+          "n": 15,
+          "indicative": true
+        },
+        "p95Ci": {
+          "estimate": 430.9224,
+          "lower": 101.8775,
+          "upper": 430.9224,
+          "level": 0.95,
+          "n": 15,
+          "indicative": true
+        }
+      },
+      "timings": {
+        "directMs": {
+          "count": 15,
+          "mean": 137.91759333333331,
+          "stdDev": 118.91739869803665,
+          "min": 46.4782,
+          "p50": 97.3564,
+          "p90": 426.8912,
+          "p95": 430.9224,
+          "p99": 430.9224,
+          "max": 430.9224,
+          "p50Ci": {
+            "estimate": 97.3564,
+            "lower": 94.1117,
+            "upper": 101.5,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 430.9224,
+            "lower": 101.8775,
+            "upper": 430.9224,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          }
+        }
+      },
+      "byType": [
+        {
+          "key": "codex-format",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "create-wait",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "escaping",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "event-stream",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "fixed-answer",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "harness-failure",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "large-input",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "multiline",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "mux-format",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "plain-format",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "short-input",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "truncation",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "unicode",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "failure",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "lifecycle",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "parsing",
+          "n": 4,
+          "passed": 4,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 4,
+            "indicative": true
+          }
+        },
+        {
+          "key": "prompts",
+          "n": 7,
+          "passed": 7,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 7,
+            "indicative": true
+          }
+        },
+        {
+          "key": "streaming",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "e2e",
+      "probeId": "echo-short",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "short-input",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Hello, Garrison.",
+      "runIds": [
+        "run_mv4218j8_iyLzsXDmi0kv8v8K8iY"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 135.6113,
+      "timings": {
+        "directMs": 97.3564,
+        "eventPersistMaxMs": 46.871,
+        "eventPersistMs": 13.26,
+        "events": 8,
+        "executionMs": 89,
+        "overheadMs": 38.254900000000006,
+        "queueMs": 0,
+        "requestMs": 135.6113,
+        "serverOverheadMs": 32,
+        "totalMs": 121,
+        "ttftMs": 45
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-short",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "short-input",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Hello, Garrison.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 97.3564,
+      "timings": {
+        "directMs": 97.3564
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-sentence",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "short-input",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Summarize the deployment plan for the staging cluster in one sentence.",
+      "runIds": [
+        "run_mv4218pz_x0DfiPxdxQLhQypu5W1"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 132.2847,
+      "timings": {
+        "directMs": 103.0527,
+        "eventPersistMaxMs": 40.986,
+        "eventPersistMs": 12.028,
+        "events": 11,
+        "executionMs": 88,
+        "overheadMs": 29.231999999999985,
+        "queueMs": 0,
+        "requestMs": 132.2847,
+        "serverOverheadMs": 34,
+        "totalMs": 122,
+        "ttftMs": 49
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-sentence",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "short-input",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Summarize the deployment plan for the staging cluster in one sentence.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 103.0527,
+      "timings": {
+        "directMs": 103.0527
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-unicode",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "unicode",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Grüße aus Zürich, こんにちは, and a check mark ✓ survive the round trip.",
+      "runIds": [
+        "run_mv4218x0_hJIBmaQmkxHqSGW8Mx2"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 138.6694,
+      "timings": {
+        "directMs": 97.3332,
+        "eventPersistMaxMs": 39.592,
+        "eventPersistMs": 18.822,
+        "events": 11,
+        "executionMs": 99,
+        "overheadMs": 41.33619999999999,
+        "queueMs": 0,
+        "requestMs": 138.6694,
+        "serverOverheadMs": 34,
+        "totalMs": 133,
+        "ttftMs": 62
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-unicode",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "unicode",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Grüße aus Zürich, こんにちは, and a check mark ✓ survive the round trip.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 97.3332,
+      "timings": {
+        "directMs": 97.3332
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-long",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "truncation",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123...",
+      "runIds": [
+        "run_mv42193o_MrSbAvgciyhPV3LmI1T"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 172.3323,
+      "timings": {
+        "directMs": 98.9827,
+        "eventPersistMaxMs": 61.149,
+        "eventPersistMs": 32.127,
+        "events": 19,
+        "executionMs": 105,
+        "overheadMs": 73.34960000000001,
+        "queueMs": 0,
+        "requestMs": 172.3323,
+        "serverOverheadMs": 63,
+        "totalMs": 168,
+        "ttftMs": 66
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-long",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "truncation",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 98.9827,
+      "timings": {
+        "directMs": 98.9827
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-large",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "large-input",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jump...",
+      "runIds": [
+        "run_mv4219bl_TQBpmyskMQ7c6XIhAZd"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 111.5641,
+      "timings": {
+        "directMs": 101.8775,
+        "eventPersistMaxMs": 31.29,
+        "eventPersistMs": 12.216,
+        "events": 19,
+        "executionMs": 77,
+        "overheadMs": 9.686599999999999,
+        "queueMs": 1,
+        "requestMs": 111.5641,
+        "serverOverheadMs": 27,
+        "totalMs": 104,
+        "ttftMs": 48
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-large",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "large-input",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jump...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 101.8775,
+      "timings": {
+        "directMs": 101.8775
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-multiline",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "multiline",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Line one. Line two. \tIndented line three.",
+      "runIds": [
+        "run_mv4219hi_KV9IsH9ofE4BbevJ9Lg"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 137.3838,
+      "timings": {
+        "directMs": 94.253,
+        "eventPersistMaxMs": 52.368,
+        "eventPersistMs": 21.796,
+        "events": 9,
+        "executionMs": 87,
+        "overheadMs": 43.13080000000001,
+        "queueMs": 0,
+        "requestMs": 137.3838,
+        "serverOverheadMs": 46,
+        "totalMs": 133,
+        "ttftMs": 46
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-multiline",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "multiline",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Line one. Line two. \tIndented line three.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 94.253,
+      "timings": {
+        "directMs": 94.253
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-json-chars",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "escaping",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Quotes \" and backslashes \\ and {{braces}} and <tags> & ampersands.",
+      "runIds": [
+        "run_mv4219oh_2T8Hqe5qJOvFPc9ztDb"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 124.5936,
+      "timings": {
+        "directMs": 99.9451,
+        "eventPersistMaxMs": 43.756,
+        "eventPersistMs": 12.096,
+        "events": 11,
+        "executionMs": 88,
+        "overheadMs": 24.6485,
+        "queueMs": 1,
+        "requestMs": 124.5936,
+        "serverOverheadMs": 33,
+        "totalMs": 121,
+        "ttftMs": 46
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "echo-json-chars",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "escaping",
+      "category": "prompts",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Quotes \" and backslashes \\ and {{braces}} and <tags> & ampersands.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 99.9451,
+      "timings": {
+        "directMs": 99.9451
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "parse-codex",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "codex-format",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Codex format output is parsed into a result.",
+      "runIds": [
+        "run_mv4219ur_RLy3t0MqrluL4nbpkRT"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 100.8084,
+      "timings": {
+        "directMs": 92.7953,
+        "eventPersistMaxMs": 35.257,
+        "eventPersistMs": 5.565,
+        "events": 7,
+        "executionMs": 79,
+        "overheadMs": 8.013100000000009,
+        "queueMs": 0,
+        "requestMs": 100.8084,
+        "serverOverheadMs": 18,
+        "totalMs": 97,
+        "ttftMs": 46
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "parse-codex",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "codex-format",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Codex format output is parsed into a result.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 92.7953,
+      "timings": {
+        "directMs": 92.7953
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "parse-mux",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "mux-format",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Mux format output is parsed into a result.",
+      "runIds": [
+        "run_mv421a06_NG8OTxDrZ1HC9kWzau8"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 108.9788,
+      "timings": {
+        "directMs": 88.2357,
+        "eventPersistMaxMs": 32.801,
+        "eventPersistMs": 7.713,
+        "events": 9,
+        "executionMs": 77,
+        "overheadMs": 20.743100000000013,
+        "queueMs": 0,
+        "requestMs": 108.9788,
+        "serverOverheadMs": 29,
+        "totalMs": 106,
+        "ttftMs": 47
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "parse-mux",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "mux-format",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Mux format output is parsed into a result.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 88.2357,
+      "timings": {
+        "directMs": 88.2357
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "parse-plain",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "plain-format",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Plain text output becomes the result.",
+      "runIds": [
+        "run_mv421a62_YxsWEqHjWtZd4bPVwhj"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 82.4155,
+      "timings": {
+        "directMs": 46.4782,
+        "eventPersistMaxMs": 7.4,
+        "eventPersistMs": 7.4,
+        "events": 3,
+        "executionMs": 47,
+        "overheadMs": 35.93729999999999,
+        "queueMs": 1,
+        "requestMs": 82.4155,
+        "serverOverheadMs": 30,
+        "totalMs": 77,
+        "ttftMs": 42
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "parse-plain",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "plain-format",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Plain text output becomes the result.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 46.4782,
+      "timings": {
+        "directMs": 46.4782
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "fixed-answer",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "fixed-answer",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result BENCH-FIXED-ANSWER",
+      "runIds": [
+        "run_mv421a9o_yjgxOOheOXg8jaxYiDf"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 140.7146,
+      "timings": {
+        "directMs": 95.0288,
+        "eventPersistMaxMs": 55.763,
+        "eventPersistMs": 25.254,
+        "events": 8,
+        "executionMs": 100,
+        "overheadMs": 45.685799999999986,
+        "queueMs": 0,
+        "requestMs": 140.7146,
+        "serverOverheadMs": 37,
+        "totalMs": 137,
+        "ttftMs": 49
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "fixed-answer",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "fixed-answer",
+      "category": "parsing",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result BENCH-FIXED-ANSWER",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 95.0288,
+      "timings": {
+        "directMs": 95.0288
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "structured-valid",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "structured-output",
+      "category": "structured",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result {\"answer\":\"ok\"}",
+      "runIds": [
+        "run_mv421agq_0mQQGazim1pRcfQ1iXo"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 150.7003,
+      "timings": {
+        "eventPersistMaxMs": 34.829,
+        "eventPersistMs": 4.553,
+        "events": 7,
+        "executionMs": 87,
+        "queueMs": 1,
+        "requestMs": 150.7003,
+        "serverOverheadMs": 57,
+        "totalMs": 144,
+        "ttftMs": 53
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "structured-repair",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "structured-repair",
+      "category": "structured",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result {\"answer\":\"fixed\"}",
+      "runIds": [
+        "run_mv421al1_F5m113goehIGsdaeP03"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 234.2462,
+      "timings": {
+        "eventPersistMaxMs": 40.125,
+        "eventPersistMs": 11.279,
+        "events": 16,
+        "executionMs": 167,
+        "queueMs": 0,
+        "requestMs": 234.2462,
+        "serverOverheadMs": 64,
+        "totalMs": 231,
+        "ttftMs": 48
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "structured-invalid",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "structured-invalid",
+      "category": "structured",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Failed/SchemaValidationFailed on bench-beta-1, result still not json",
+      "runIds": [
+        "run_mv421arl_KeWSdXEr2wHlmaWnP1E"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 222.7951,
+      "timings": {
+        "eventPersistMaxMs": 51.875,
+        "eventPersistMs": 10.581,
+        "events": 16,
+        "executionMs": 168,
+        "queueMs": 0,
+        "requestMs": 222.7951,
+        "serverOverheadMs": 51,
+        "totalMs": 219,
+        "ttftMs": 50
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "harness-fails",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "harness-failure",
+      "category": "failure",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Failed/HarnessFailed on bench-beta-1, result Echo: This harness reports failure.",
+      "runIds": [
+        "run_mv421axw_rBC6ZScmRjGpcfXHFbz"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 134.832,
+      "timings": {
+        "directMs": 94.1117,
+        "eventPersistMaxMs": 59.19,
+        "eventPersistMs": 28.719,
+        "events": 10,
+        "executionMs": 86,
+        "overheadMs": 40.720299999999995,
+        "queueMs": 0,
+        "requestMs": 134.832,
+        "serverOverheadMs": 44,
+        "totalMs": 130,
+        "ttftMs": 47
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "harness-fails",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "harness-failure",
+      "category": "failure",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 1 (error), result Echo: This harness reports failure.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 94.1117,
+      "timings": {
+        "directMs": 94.1117
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "deadline",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "deadline",
+      "category": "failure",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "TimedOut/TimedOut on bench-beta-1, result Echo: This harness overruns its three second deadline by a wide margin, so the w",
+      "runIds": [
+        "run_mv421b49_i2GxAEWnuT9KmNSifdp"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 5081.8248,
+      "timings": {
+        "eventPersistMaxMs": 197.146,
+        "eventPersistMs": 181.837,
+        "events": 9,
+        "executionMs": 5053,
+        "queueMs": 0,
+        "requestMs": 5081.8248,
+        "serverOverheadMs": 24,
+        "totalMs": 5077,
+        "ttftMs": 53
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "cancel-running",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "cancel",
+      "category": "lifecycle",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Cancelled/Cancelled on bench-alpha-1, result Echo: A long run",
+      "runIds": [
+        "run_mv421f26_W5nCSZtmx7ym1XIfUwa"
+      ],
+      "nodes": [],
+      "latencyMs": 75.743,
+      "timings": {
+        "cancelMs": 75.743,
+        "cancelRequestMs": 1.4142,
+        "requestMs": 8.4762
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "idempotent-create",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "idempotency",
+      "category": "lifecycle",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Created twice with one idempotency key.",
+      "runIds": [
+        "run_mv421fec_gI9DSqSeE94UvMcQ4wu"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 1.394,
+      "timings": {
+        "executionMs": 93,
+        "queueMs": 0,
+        "requestMs": 15.1759,
+        "serverOverheadMs": 32,
+        "totalMs": 125,
+        "ttftMs": 60
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "cross-tenant-read",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "cross-tenant",
+      "category": "isolation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "read through tenant default: 404 NotFound; events: 404 NotFound",
+      "runIds": [
+        "run_mv421fl2_UMbUfLdh4nS2k5awhdr"
+      ],
+      "nodes": [],
+      "latencyMs": 0.7709,
+      "timings": {
+        "requestMs": 113.3997
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "unknown-agent",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "unknown-agent",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "404 NotFound: Agent e2e-does-not-exist not found.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 10.2829,
+      "timings": {
+        "requestMs": 10.2829
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "stream-1",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "event-stream",
+      "category": "streaming",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Streaming probe one: output arrives in sixteen character chunks fifty milliseconds apart.",
+      "runIds": [
+        "run_mv421foj_c726kS3dnHk5tmol7H0"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 544.353,
+      "timings": {
+        "directMs": 426.8912,
+        "eventPersistMaxMs": 187.813,
+        "eventPersistMs": 109.158,
+        "events": 12,
+        "executionMs": 418,
+        "overheadMs": 117.46179999999993,
+        "queueMs": 0,
+        "requestMs": 3.0301,
+        "serverOverheadMs": 33,
+        "streamMaxMs": 2.714,
+        "streamMessages": 13,
+        "streamMs": 0.481,
+        "totalMs": 451,
+        "ttftMs": 50
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "stream-1",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "event-stream",
+      "category": "streaming",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Streaming probe one: output arrives in sixteen character chunks fifty milliseconds apart.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 426.8912,
+      "timings": {
+        "directMs": 426.8912
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "stream-2",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "event-stream",
+      "category": "streaming",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Streaming probe two: the event stream must deliver every chunk in order with no gaps.",
+      "runIds": [
+        "run_mv421gft_4YVV1RfeOxgnyRv60yn"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 473.087,
+      "timings": {
+        "directMs": 430.9224,
+        "eventPersistMaxMs": 197.981,
+        "eventPersistMs": 111.486,
+        "events": 12,
+        "executionMs": 418,
+        "overheadMs": 42.16460000000001,
+        "queueMs": 0,
+        "requestMs": 6.6714,
+        "serverOverheadMs": 39,
+        "streamMaxMs": 0.494,
+        "streamMessages": 13,
+        "streamMs": 0.435,
+        "totalMs": 457,
+        "ttftMs": 46
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "stream-2",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "event-stream",
+      "category": "streaming",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Streaming probe two: the event stream must deliver every chunk in order with no gaps.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 430.9224,
+      "timings": {
+        "directMs": 430.9224
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "wait-create",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "create-wait",
+      "category": "lifecycle",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Created with wait=true instead of invoke.",
+      "runIds": [
+        "run_mv421h56_o5HgkZArX6uTpu2h40C"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 117.8052,
+      "timings": {
+        "directMs": 101.5,
+        "eventPersistMaxMs": 41.115,
+        "eventPersistMs": 18.131,
+        "events": 9,
+        "executionMs": 88,
+        "overheadMs": 16.3052,
+        "queueMs": 0,
+        "requestMs": 117.8052,
+        "serverOverheadMs": 24,
+        "totalMs": 112,
+        "ttftMs": 48
+      }
+    },
+    {
+      "corpus": "e2e",
+      "probeId": "wait-create",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "create-wait",
+      "category": "lifecycle",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Created with wait=true instead of invoke.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 101.5,
+      "timings": {
+        "directMs": 101.5
+      }
+    }
+  ],
+  "loadLevels": [],
+  "scenarios": [],
+  "stages": [],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    },
+    {
+      "metric": "garrison.queueMs.p50",
+      "source": "docs/SCALING.md, Measured results (2026-10-10)",
+      "link": "docs/SCALING.md",
+      "baseline": 39,
+      "ours": 0,
+      "delta": -39,
+      "note": "Claim latency (queued to leased) with no backlog, 0.5 s runs, 3 server replicas and 4 workers on k3d; this suite uses 1 replica and measures across all e2e probes."
+    },
+    {
+      "metric": "garrison.serverOverheadMs.p50",
+      "source": "docs/SCALING.md, Measured results (2026-10-10)",
+      "link": "docs/SCALING.md",
+      "baseline": 140,
+      "ours": 33,
+      "delta": -107,
+      "note": "SCALING.md reports runs finishing 140 to 230 ms after their harness time with no backlog; the low end is shown. serverOverheadMs is totalMs minus executionMs."
+    }
+  ],
+  "notes": []
+}

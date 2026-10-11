@@ -3,16 +3,20 @@ namespace Garrison.Core.Database.Ado
     using System;
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Diagnostics;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database.Sql;
+    using Garrison.Core.Database.Telemetry;
     using Garrison.Core.Helpers;
 
     /// <summary>
     /// Shared ADO.NET database driver. Implements the data-access surface once against
     /// <see cref="System.Data.Common"/>, parameterized by a <see cref="SqlDialect"/> and a <see cref="TableCatalog"/>.
-    /// Provider subclasses supply a connection, a dialect, and connection or transaction specifics. Thread-safe.
+    /// Provider subclasses supply a connection, a dialect, and connection or transaction specifics. Every statement and
+    /// transaction runs through the execution methods here, which record its duration, errors, and span through
+    /// <see cref="DatabaseTelemetry"/> (P13.24). Thread-safe.
     /// </summary>
     public abstract class AdoDatabaseDriver : DatabaseDriverBase
     {
@@ -74,6 +78,7 @@ namespace Garrison.Core.Database.Ado
         private readonly SqlDialect _Dialect;
         private readonly TableCatalog _Catalog;
         private int _MaxConflictRetries = 16;
+        private readonly string _Provider;
 
         #endregion
 
@@ -90,6 +95,7 @@ namespace Garrison.Core.Database.Ado
             _Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _Dialect = dialect ?? throw new ArgumentNullException(nameof(dialect));
             _Catalog = new TableCatalog(settings.TablePrefix, settings.Schema, dialect);
+            _Provider = settings.Type.ToString().ToLowerInvariant();
 
             Tenants = new AdoTenantMethods(this);
             Users = new AdoUserMethods(this);
@@ -216,6 +222,7 @@ namespace Garrison.Core.Database.Ado
         {
             DbConnection connection = CreateConnection();
             await connection.OpenAsync(token).ConfigureAwait(false);
+            DatabaseTelemetry.TrackConnection(connection);
             await OnConnectionOpenedAsync(connection, token).ConfigureAwait(false);
             return connection;
         }
@@ -242,17 +249,30 @@ namespace Garrison.Core.Database.Ado
         /// <returns>Affected rows.</returns>
         public async Task<int> NonQueryAsync(string sql, Action<DbCommand>? bind, CancellationToken token = default)
         {
-            using (IDisposable? writeLock = await EnterWriteAsync(token).ConfigureAwait(false))
+            DatabaseStatement statement = DatabaseTelemetry.Describe(sql);
+            long start = Stopwatch.GetTimestamp();
+            Activity? activity = DatabaseTelemetry.Start(statement, _Provider);
+            try
             {
-                await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
+                using (IDisposable? writeLock = await EnterWriteTimedAsync(token).ConfigureAwait(false))
                 {
-                    await using (DbCommand command = connection.CreateCommand())
+                    await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
                     {
-                        command.CommandText = sql;
-                        bind?.Invoke(command);
-                        return await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                        await using (DbCommand command = connection.CreateCommand())
+                        {
+                            command.CommandText = sql;
+                            bind?.Invoke(command);
+                            int affected = await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                            DatabaseTelemetry.End(activity, statement, _Provider, start, null);
+                            return affected;
+                        }
                     }
                 }
+            }
+            catch (Exception e)
+            {
+                DatabaseTelemetry.End(activity, statement, _Provider, start, e);
+                throw;
             }
         }
 
@@ -265,15 +285,27 @@ namespace Garrison.Core.Database.Ado
         /// <returns>Scalar value, or null.</returns>
         public async Task<object?> ScalarAsync(string sql, Action<DbCommand>? bind, CancellationToken token = default)
         {
-            await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
+            DatabaseStatement statement = DatabaseTelemetry.Describe(sql);
+            long start = Stopwatch.GetTimestamp();
+            Activity? activity = DatabaseTelemetry.Start(statement, _Provider);
+            try
             {
-                await using (DbCommand command = connection.CreateCommand())
+                await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
                 {
-                    command.CommandText = sql;
-                    bind?.Invoke(command);
-                    object? result = await command.ExecuteScalarAsync(token).ConfigureAwait(false);
-                    return result == null || result == DBNull.Value ? null : result;
+                    await using (DbCommand command = connection.CreateCommand())
+                    {
+                        command.CommandText = sql;
+                        bind?.Invoke(command);
+                        object? result = await command.ExecuteScalarAsync(token).ConfigureAwait(false);
+                        DatabaseTelemetry.End(activity, statement, _Provider, start, null);
+                        return result == null || result == DBNull.Value ? null : result;
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                DatabaseTelemetry.End(activity, statement, _Provider, start, e);
+                throw;
             }
         }
 
@@ -292,18 +324,31 @@ namespace Garrison.Core.Database.Ado
             if (map == null) throw new ArgumentNullException(nameof(map));
 
             List<T> results = new List<T>();
-            await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
+            DatabaseStatement statement = DatabaseTelemetry.Describe(sql);
+            long start = Stopwatch.GetTimestamp();
+            Activity? activity = DatabaseTelemetry.Start(statement, _Provider);
+            try
             {
-                await using (DbCommand command = connection.CreateCommand())
+                await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
                 {
-                    command.CommandText = sql;
-                    bind?.Invoke(command);
-                    await using (DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false))
+                    await using (DbCommand command = connection.CreateCommand())
                     {
-                        while (await reader.ReadAsync(token).ConfigureAwait(false)) results.Add(map(reader));
+                        command.CommandText = sql;
+                        bind?.Invoke(command);
+                        await using (DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false))
+                        {
+                            while (await reader.ReadAsync(token).ConfigureAwait(false)) results.Add(map(reader));
+                        }
                     }
                 }
             }
+            catch (Exception e)
+            {
+                DatabaseTelemetry.End(activity, statement, _Provider, start, e);
+                throw;
+            }
+            activity?.SetTag("db.response.returned_rows", results.Count);
+            DatabaseTelemetry.End(activity, statement, _Provider, start, null);
             return results;
         }
 
@@ -335,28 +380,41 @@ namespace Garrison.Core.Database.Ado
             if (work == null) throw new ArgumentNullException(nameof(work));
 
             int attempt = 0;
-            while (true)
+            long start = Stopwatch.GetTimestamp();
+            Activity? activity = DatabaseTelemetry.Start(DatabaseTelemetry.Transaction, _Provider);
+            try
             {
-                try
+                while (true)
                 {
-                    using (IDisposable? writeLock = await EnterWriteAsync(token).ConfigureAwait(false))
+                    try
                     {
-                        await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
+                        using (IDisposable? writeLock = await EnterWriteTimedAsync(token).ConfigureAwait(false))
                         {
-                            await using (DbTransaction transaction = await BeginTransactionAsync(connection, token).ConfigureAwait(false))
+                            await using (DbConnection connection = await OpenConnectionAsync(token).ConfigureAwait(false))
                             {
-                                await work(connection, transaction, token).ConfigureAwait(false);
-                                await transaction.CommitAsync(token).ConfigureAwait(false);
-                                return;
+                                await using (DbTransaction transaction = await BeginTransactionAsync(connection, token).ConfigureAwait(false))
+                                {
+                                    await work(connection, transaction, token).ConfigureAwait(false);
+                                    await transaction.CommitAsync(token).ConfigureAwait(false);
+                                    activity?.SetTag("garrison.db.retries", attempt);
+                                    DatabaseTelemetry.End(activity, DatabaseTelemetry.Transaction, _Provider, start, null);
+                                    return;
+                                }
                             }
                         }
                     }
+                    catch (Exception ex) when (_Dialect.IsTransientConflict(ex) && attempt < _MaxConflictRetries)
+                    {
+                        attempt++;
+                        DatabaseTelemetry.Retried(_Provider);
+                        await Task.Delay(Math.Min(5 + attempt * 5, 100), token).ConfigureAwait(false);
+                    }
                 }
-                catch (Exception ex) when (_Dialect.IsTransientConflict(ex) && attempt < _MaxConflictRetries)
-                {
-                    attempt++;
-                    await Task.Delay(Math.Min(5 + attempt * 5, 100), token).ConfigureAwait(false);
-                }
+            }
+            catch (Exception e)
+            {
+                DatabaseTelemetry.End(activity, DatabaseTelemetry.Transaction, _Provider, start, e);
+                throw;
             }
         }
 
@@ -376,12 +434,26 @@ namespace Garrison.Core.Database.Ado
             if (transaction == null) throw new ArgumentNullException(nameof(transaction));
             if (String.IsNullOrEmpty(sql)) throw new ArgumentNullException(nameof(sql));
 
-            await using (DbCommand command = connection.CreateCommand())
+            DatabaseStatement statement = DatabaseTelemetry.Describe(sql);
+            string provider = DatabaseTelemetry.Provider(connection);
+            long start = Stopwatch.GetTimestamp();
+            Activity? activity = DatabaseTelemetry.Start(statement, provider);
+            try
             {
-                command.Transaction = transaction;
-                command.CommandText = sql;
-                bind?.Invoke(command);
-                return await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                await using (DbCommand command = connection.CreateCommand())
+                {
+                    command.Transaction = transaction;
+                    command.CommandText = sql;
+                    bind?.Invoke(command);
+                    int affected = await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                    DatabaseTelemetry.End(activity, statement, provider, start, null);
+                    return affected;
+                }
+            }
+            catch (Exception e)
+            {
+                DatabaseTelemetry.End(activity, statement, provider, start, e);
+                throw;
             }
         }
 
@@ -404,16 +476,29 @@ namespace Garrison.Core.Database.Ado
             if (map == null) throw new ArgumentNullException(nameof(map));
 
             List<T> results = new List<T>();
-            await using (DbCommand command = connection.CreateCommand())
+            DatabaseStatement statement = DatabaseTelemetry.Describe(sql);
+            string provider = DatabaseTelemetry.Provider(connection);
+            long start = Stopwatch.GetTimestamp();
+            Activity? activity = DatabaseTelemetry.Start(statement, provider);
+            try
             {
-                command.Transaction = transaction;
-                command.CommandText = sql;
-                bind?.Invoke(command);
-                await using (DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false))
+                await using (DbCommand command = connection.CreateCommand())
                 {
-                    while (await reader.ReadAsync(token).ConfigureAwait(false)) results.Add(map(reader));
+                    command.Transaction = transaction;
+                    command.CommandText = sql;
+                    bind?.Invoke(command);
+                    await using (DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync(token).ConfigureAwait(false)) results.Add(map(reader));
+                    }
                 }
             }
+            catch (Exception e)
+            {
+                DatabaseTelemetry.End(activity, statement, provider, start, e);
+                throw;
+            }
+            DatabaseTelemetry.End(activity, statement, provider, start, null);
             return results;
         }
 
@@ -466,6 +551,14 @@ namespace Garrison.Core.Database.Ado
         #endregion
 
         #region Private-Methods
+
+        private async Task<IDisposable?> EnterWriteTimedAsync(CancellationToken token)
+        {
+            long start = Stopwatch.GetTimestamp();
+            IDisposable? writeLock = await EnterWriteAsync(token).ConfigureAwait(false);
+            if (writeLock != null) DatabaseTelemetry.WriteLockWaited(_Provider, start);
+            return writeLock;
+        }
 
         private async Task ApplyMigrationsAsync(CancellationToken token)
         {

@@ -19,7 +19,7 @@ namespace Garrison.Worker.Hosting
 
         private readonly Webserver _Server;
         private readonly Func<WorkerHealth> _Health;
-        private readonly Func<CancellationToken, Task<MetricsScrape?>>? _Metrics;
+        private readonly Func<string?, CancellationToken, Task<MetricsScrape?>>? _Metrics;
         private bool _Disposed = false;
 
         #endregion
@@ -34,7 +34,7 @@ namespace Garrison.Worker.Hosting
         /// <param name="health">Health snapshot provider.</param>
         /// <exception cref="ArgumentNullException">Thrown when health is null.</exception>
         public HealthServer(string hostname, int port, Func<WorkerHealth> health)
-            : this(hostname, port, health, null)
+            : this(hostname, port, health, (Func<string?, CancellationToken, Task<MetricsScrape?>>?)null)
         {
         }
 
@@ -47,6 +47,20 @@ namespace Garrison.Worker.Hosting
         /// <param name="metrics">Returns the Prometheus exposition, or null when unavailable; null disables GET /metrics.</param>
         /// <exception cref="ArgumentNullException">Thrown when health is null.</exception>
         public HealthServer(string hostname, int port, Func<WorkerHealth> health, Func<CancellationToken, Task<MetricsScrape?>>? metrics)
+            : this(hostname, port, health, Adapt(metrics))
+        {
+        }
+
+        /// <summary>
+        /// Instantiate with a metrics source that receives the scraper's Accept header, so OpenMetrics scrapes (which
+        /// carry exemplars) are relayed as OpenMetrics.
+        /// </summary>
+        /// <param name="hostname">Bind hostname.</param>
+        /// <param name="port">Port.</param>
+        /// <param name="health">Health snapshot provider.</param>
+        /// <param name="metrics">Returns the exposition for an Accept header, or null when unavailable; null disables GET /metrics.</param>
+        /// <exception cref="ArgumentNullException">Thrown when health is null.</exception>
+        public HealthServer(string hostname, int port, Func<WorkerHealth> health, Func<string?, CancellationToken, Task<MetricsScrape?>>? metrics)
         {
             _Health = health ?? throw new ArgumentNullException(nameof(health));
             _Metrics = metrics;
@@ -123,12 +137,18 @@ namespace Garrison.Worker.Hosting
             await SendAsync(context, health.Ready ? 200 : 503, health).ConfigureAwait(false);
         }
 
+        private static Func<string?, CancellationToken, Task<MetricsScrape?>>? Adapt(Func<CancellationToken, Task<MetricsScrape?>>? metrics)
+        {
+            if (metrics == null) return null;
+            return (accept, token) => metrics(token);
+        }
+
         private async Task MetricsAsync(HttpContextBase context)
         {
             MetricsScrape? scrape = null;
             try
             {
-                scrape = await _Metrics!(context.Token).ConfigureAwait(false);
+                scrape = await _Metrics!(context.Request.RetrieveHeaderValue("Accept"), context.Token).ConfigureAwait(false);
             }
             catch (Exception)
             {

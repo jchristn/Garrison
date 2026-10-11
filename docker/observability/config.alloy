@@ -4,8 +4,9 @@
 //    and logs are accepted and dropped: Prometheus scrapes the metrics, and logs are read from the containers.
 // 2. Container logs of this Compose project's Garrison services (server, workers, dashboard), read through the
 //    Docker socket and shipped to Loki with the labels app="garrison", component (server, worker, dashboard),
-//    node (the container name, which is also the Garrison node name), and level when the line has a Garrison
-//    severity. The labels match the Kubernetes configuration, so the dashboards and deep links work unchanged.
+//    node (the container name, which is also the Garrison node name), level when the line has a Garrison
+//    severity, and tenant when the line names one. The labels match the Kubernetes configuration, so the
+//    dashboards and deep links work unchanged.
 
 otelcol.receiver.otlp "default" {
   grpc {
@@ -29,6 +30,28 @@ otelcol.processor.filter "probes" {
     span = [
       "IsMatch(attributes[\"http.route\"], \"^(/v1\\\\.0/api/health|/health|/metrics)(/.*)?$\")",
     ]
+  }
+
+  output {
+    traces = [otelcol.processor.tail_sampling.idle.input]
+  }
+}
+
+// Background services (maintenance steps, polling, heartbeats, empty lease polls) start a root span on every
+// iteration and tag it garrison.idle="true" when the iteration found nothing to do. Those traces are dropped here,
+// whole, so idle polling does not flood Tempo; every iteration is still counted in garrison_background_* metrics.
+otelcol.processor.tail_sampling "idle" {
+  decision_wait = "10s"
+
+  policy {
+    name = "drop-idle-background-iterations"
+    type = "string_attribute"
+
+    string_attribute {
+      key          = "garrison.idle"
+      values       = ["true"]
+      invert_match = true
+    }
   }
 
   output {
@@ -107,9 +130,16 @@ loki.process "garrison" {
     expression = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2} \\S+ (?P<level>Debug|Info|Warn|Error|Alert|Critical|Emergency) "
   }
 
+  // Lines that concern a tenant carry tenant=<tenant ID> (P13.26); promote it to a Loki label so log panels and
+  // queries can filter by tenant without a line filter. Tenants are few, so the label stays low-cardinality.
+  stage.regex {
+    expression = " tenant=(?P<tenant>[A-Za-z0-9_\\-]+)"
+  }
+
   stage.labels {
     values = {
-      level = "",
+      level  = "",
+      tenant = "",
     }
   }
 

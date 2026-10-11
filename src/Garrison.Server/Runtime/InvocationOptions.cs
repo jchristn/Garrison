@@ -73,5 +73,11 @@ namespace Garrison.Server.Runtime
         /// client disconnected".
         /// </summary>
         public string DisconnectReason { get; set; } = "the caller disconnected";
+
+        /// <summary>
+        /// Protocol surface the invocation came from, used as the surface label on invocation metrics: rest, mcp, or
+        /// a2a. Default rest.
+        /// </summary>
+        public string Surface { get; set; } = "rest";
     }
 }

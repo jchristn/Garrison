@@ -9,6 +9,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -109,6 +110,7 @@ namespace Garrison.Server.Routes
         {
             Node node = await RequireAsync(context).ConfigureAwait(false);
             await _Context.Database.Nodes.SetStatusAsync(node.Id, status, context.Token).ConfigureAwait(false);
+            if (node.Status != status) GarrisonMetrics.Count(GarrisonMetricCatalog.NodeTransitions, "status", status.ToString());
             node.Status = status;
             await _Context.Audit.WriteAsync(RouteHelpers.Context(context), AuditEventTypeEnum.NodeStatusChanged, "Node", node.Id, "Node " + node.Name + " set to " + status + ".", null, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, node).ConfigureAwait(false);

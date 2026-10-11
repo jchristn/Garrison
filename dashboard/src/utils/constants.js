@@ -59,6 +59,7 @@ export const ENUMS = {
   promptTemplateKind: ['System', 'Task', 'Fragment', 'ToolDescription', 'ConfigFile', 'Other'],
   mcpTransport: ['Http', 'Stdio'],
   secretKind: ['AnthropicApiKey', 'ClaudeCodeOAuthToken', 'OpenAiApiKey', 'CodexAuthJson', 'GeminiApiKey', 'GenericEnv', 'GenericFile', 'BearerToken', 'BasicAuth', 'GitCredential'],
+  secretStatus: ['Ok', 'NeedsReauthentication'],
   workspaceKind: ['Empty', 'GitRepository', 'Seeded', 'PersistentVolume'],
   runExecutor: ['Process', 'KubernetesJob'],
   workspaceRetention: ['Delete', 'Keep', 'KeepOnFailure'],

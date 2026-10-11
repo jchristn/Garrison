@@ -2,6 +2,7 @@ namespace Garrison.Server.Routes
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Net.Sockets;
@@ -14,6 +15,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Requests;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Protocols;
     using Garrison.Server.Runtime;
     using Garrison.Server.Services;
@@ -76,6 +78,16 @@ namespace Garrison.Server.Routes
             routes.Authenticated(HttpMethod.POST, "/v1.0/a2a/{tenantId}/{agentName}", JsonRpcAsync, "A2A JSON-RPC endpoint (SendMessage, SendStreamingMessage, GetTask, ListTasks, CancelTask, SubscribeToTask)", "A2A");
         }
 
+        /// <summary>
+        /// A2A JSON-RPC methods this gateway answers, by the canonical name used as the method label on A2A metrics and
+        /// spans (P13.20, P13.23). Requests for any other method are labeled unknown.
+        /// </summary>
+        /// <returns>Method names.</returns>
+        public static List<string> Methods()
+        {
+            return new List<string> { "SendMessage", "SendStreamingMessage", "GetTask", "CancelTask", "ListTasks", "SubscribeToTask" };
+        }
+
         #endregion
 
         #region Private-Methods
@@ -128,99 +140,167 @@ namespace Garrison.Server.Routes
                 return;
             }
 
-            _Context.Telemetry.Increment("garrison.a2a.requests", new RadiantTag("method", method));
-            Agent? agent = await _Context.Database.Agents.ReadByNameAsync(tenantId, agentName, context.Token).ConfigureAwait(false);
-            RequestContext ctx = RouteHelpers.Context(context);
-            if (agent == null || !agent.ExposeA2A || (ctx.TenantId != tenantId && !ctx.IsAdmin))
-            {
-                await SendRpcErrorAsync(context, id, Error(-32001, "Agent " + agentName + " not found.")).ConfigureAwait(false);
-                return;
-            }
-
+            string methodLabel = MethodLabel(method);
+            long start = Stopwatch.GetTimestamp();
+            string result = "ok";
+            Activity? span = GarrisonTracing.Start("a2a " + methodLabel);
+            span?.SetTag("rpc.system", "jsonrpc");
+            span?.SetTag("rpc.method", methodLabel);
+            span?.SetTag("garrison.agent", agentName);
+            span?.SetTag("garrison.tenant", tenantId);
             try
             {
-                switch (method)
+                Agent? agent = await _Context.Database.Agents.ReadByNameAsync(tenantId, agentName, context.Token).ConfigureAwait(false);
+                RequestContext ctx = RouteHelpers.Context(context);
+                if (agent == null || !agent.ExposeA2A || (ctx.TenantId != tenantId && !ctx.IsAdmin))
                 {
-                    case A2AProtocol.SendMessage:
-                    case "message/send":
-                        await SendMessageAsync(context, ctx, tenantId, agent, id, Parse<SendMessageRequest>(parameters), false).ConfigureAwait(false);
-                        return;
-                    case A2AProtocol.SendStreamingMessage:
-                    case "message/stream":
-                        await SendMessageAsync(context, ctx, tenantId, agent, id, Parse<SendMessageRequest>(parameters), true).ConfigureAwait(false);
-                        return;
-                    case A2AProtocol.GetTask:
-                    case "tasks/get":
-                        GetTaskRequest get = Parse<GetTaskRequest>(parameters);
-                        Run run = await RequireTaskAsync(ctx, tenantId, agent, get.Id, OperationTypeEnum.Read, context).ConfigureAwait(false);
-                        await SendRpcResultAsync(context, id, A2AMapper.Task(run)).ConfigureAwait(false);
-                        return;
-                    case A2AProtocol.CancelTask:
-                    case "tasks/cancel":
-                        CancelTaskRequest cancel = Parse<CancelTaskRequest>(parameters);
-                        Run toCancel = await RequireTaskAsync(ctx, tenantId, agent, cancel.Id, OperationTypeEnum.Update, context).ConfigureAwait(false);
-                        if (RunService.IsTerminal(toCancel.Status))
-                        {
-                            await SendRpcErrorAsync(context, id, Error((int)A2AErrorCode.TaskNotCancelable, "Task " + toCancel.Id + " already finished.")).ConfigureAwait(false);
+                    result = "error";
+                    await SendRpcErrorAsync(context, id, Error(-32001, "Agent " + agentName + " not found.")).ConfigureAwait(false);
+                    return;
+                }
+
+                try
+                {
+                    switch (method)
+                    {
+                        case A2AProtocol.SendMessage:
+                        case "message/send":
+                            await SendMessageAsync(context, ctx, tenantId, agent, id, Parse<SendMessageRequest>(parameters), false).ConfigureAwait(false);
                             return;
-                        }
-                        Run cancelled = await _Runs.CancelAsync(toCancel, context.Token).ConfigureAwait(false);
-                        await SendRpcResultAsync(context, id, A2AMapper.Task(cancelled)).ConfigureAwait(false);
-                        return;
-                    case A2AProtocol.ListTasks:
-                    case "tasks/list":
-                        await ListTasksAsync(context, ctx, tenantId, agent, id, Parse<ListTasksRequest>(parameters)).ConfigureAwait(false);
-                        return;
-                    case A2AProtocol.SubscribeToTask:
-                    case "tasks/resubscribe":
-                        SubscribeToTaskRequest subscribe = Parse<SubscribeToTaskRequest>(parameters);
-                        Run watched = await RequireTaskAsync(ctx, tenantId, agent, subscribe.Id, OperationTypeEnum.Read, context).ConfigureAwait(false);
-                        await StreamAsync(context, id, tenantId, watched).ConfigureAwait(false);
-                        return;
-                    default:
-                        await SendRpcErrorAsync(context, id, JsonRpcError.MethodNotFound()).ConfigureAwait(false);
-                        return;
+                        case A2AProtocol.SendStreamingMessage:
+                        case "message/stream":
+                            await SendMessageAsync(context, ctx, tenantId, agent, id, Parse<SendMessageRequest>(parameters), true).ConfigureAwait(false);
+                            return;
+                        case A2AProtocol.GetTask:
+                        case "tasks/get":
+                            GetTaskRequest get = Parse<GetTaskRequest>(parameters);
+                            Run run = await RequireTaskAsync(ctx, tenantId, agent, get.Id, OperationTypeEnum.Read, context).ConfigureAwait(false);
+                            CountTask(run);
+                            await SendRpcResultAsync(context, id, A2AMapper.Task(run)).ConfigureAwait(false);
+                            return;
+                        case A2AProtocol.CancelTask:
+                        case "tasks/cancel":
+                            CancelTaskRequest cancel = Parse<CancelTaskRequest>(parameters);
+                            Run toCancel = await RequireTaskAsync(ctx, tenantId, agent, cancel.Id, OperationTypeEnum.Update, context).ConfigureAwait(false);
+                            if (RunService.IsTerminal(toCancel.Status))
+                            {
+                                result = "error";
+                    await SendRpcErrorAsync(context, id, Error((int)A2AErrorCode.TaskNotCancelable, "Task " + toCancel.Id + " already finished.")).ConfigureAwait(false);
+                                return;
+                            }
+                            Run cancelled = await _Runs.CancelAsync(toCancel, context.Token).ConfigureAwait(false);
+                            CountTask(cancelled);
+                            await SendRpcResultAsync(context, id, A2AMapper.Task(cancelled)).ConfigureAwait(false);
+                            return;
+                        case A2AProtocol.ListTasks:
+                        case "tasks/list":
+                            await ListTasksAsync(context, ctx, tenantId, agent, id, Parse<ListTasksRequest>(parameters)).ConfigureAwait(false);
+                            return;
+                        case A2AProtocol.SubscribeToTask:
+                        case "tasks/resubscribe":
+                            SubscribeToTaskRequest subscribe = Parse<SubscribeToTaskRequest>(parameters);
+                            Run watched = await RequireTaskAsync(ctx, tenantId, agent, subscribe.Id, OperationTypeEnum.Read, context).ConfigureAwait(false);
+                            await StreamAsync(context, id, tenantId, watched).ConfigureAwait(false);
+                            return;
+                        default:
+                            result = "error";
+                    await SendRpcErrorAsync(context, id, JsonRpcError.MethodNotFound()).ConfigureAwait(false);
+                            return;
+                    }
                 }
-            }
-            catch (A2AAccessException e)
-            {
-                await SendRpcErrorAsync(context, id, Error(e.Code, e.Message)).ConfigureAwait(false);
-            }
-            catch (NotFoundException e)
-            {
-                await SendRpcErrorAsync(context, id, Error((int)A2AErrorCode.TaskNotFound, e.Message)).ConfigureAwait(false);
-            }
-            catch (IdempotencyConflictException e)
-            {
-                // A reused messageId with different content (M1-10): HTTP 409 with a JSON-RPC error body.
-                JsonRpcError error = Error(-32602, "messageId " + e.Key + " was already used for task " + e.ExistingRunId + " with different content. Send a new messageId for a new message; resending identical content returns the existing task.");
-                error.Data = new A2AErrorData { Code = "MessageIdConflict", TaskId = e.ExistingRunId };
-                await SendRpcErrorAsync(context, id, error, 409).ConfigureAwait(false);
-            }
-            catch (ValidationException e)
-            {
-                JsonRpcError error = Error(-32602, e.Describe());
-                A2AErrorData data = new A2AErrorData { Code = "ValidationFailed" };
-                if (e.Fields.Count > 0)
+                catch (A2AAccessException e)
                 {
-                    data.Errors = e.Fields;
-                    data.FieldCodes = e.Fields.Keys.ToDictionary(k => k, k => e.CodeFor(k));
+                    result = "error";
+                    await SendRpcErrorAsync(context, id, Error(e.Code, e.Message)).ConfigureAwait(false);
                 }
-                error.Data = data;
-                await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+                catch (NotFoundException e)
+                {
+                    result = "error";
+                    await SendRpcErrorAsync(context, id, Error((int)A2AErrorCode.TaskNotFound, e.Message)).ConfigureAwait(false);
+                }
+                catch (IdempotencyConflictException e)
+                {
+                    // A reused messageId with different content (M1-10): HTTP 409 with a JSON-RPC error body.
+                    JsonRpcError error = Error(-32602, "messageId " + e.Key + " was already used for task " + e.ExistingRunId + " with different content. Send a new messageId for a new message; resending identical content returns the existing task.");
+                    error.Data = new A2AErrorData { Code = "MessageIdConflict", TaskId = e.ExistingRunId };
+                    result = "error";
+                    await SendRpcErrorAsync(context, id, error, 409).ConfigureAwait(false);
+                }
+                catch (ValidationException e)
+                {
+                    JsonRpcError error = Error(-32602, e.Describe());
+                    A2AErrorData data = new A2AErrorData { Code = "ValidationFailed" };
+                    if (e.Fields.Count > 0)
+                    {
+                        data.Errors = e.Fields;
+                        data.FieldCodes = e.Fields.Keys.ToDictionary(k => k, k => e.CodeFor(k));
+                    }
+                    error.Data = data;
+                    result = "error";
+                    await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+                }
+                catch (ConflictException e)
+                {
+                    JsonRpcError error = Error(-32602, e.Code + ": " + e.Message);
+                    error.Data = new A2AErrorData { Code = e.Code };
+                    result = "error";
+                    await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is JsonException || e is ArgumentException)
+                {
+                    JsonRpcError error = Error(-32602, "InvalidParams: " + e.Message);
+                    error.Data = new A2AErrorData { Code = "InvalidParams" };
+                    result = "error";
+                    await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+                }
             }
-            catch (ConflictException e)
+            catch (Exception e)
             {
-                JsonRpcError error = Error(-32602, e.Code + ": " + e.Message);
-                error.Data = new A2AErrorData { Code = e.Code };
-                await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+                result = "error";
+                GarrisonTracing.Fail(span, e);
+                throw;
             }
-            catch (Exception e) when (e is JsonException || e is ArgumentException)
+            finally
             {
-                JsonRpcError error = Error(-32602, "InvalidParams: " + e.Message);
-                error.Data = new A2AErrorData { Code = "InvalidParams" };
-                await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+                if (result == "ok") GarrisonTracing.Ok(span);
+                else GarrisonTracing.Fail(span, "JSON-RPC error");
+                span?.Dispose();
+                TagList tags = GarrisonMetrics.Tags("method", methodLabel, "result", result);
+                GarrisonMetrics.Count(GarrisonMetricCatalog.A2aRequests, 1, tags);
+                GarrisonMetrics.Observe(GarrisonMetricCatalog.A2aDuration, GarrisonMetrics.SecondsSince(start), tags);
             }
+        }
+
+        private static string MethodLabel(string method)
+        {
+            switch (method)
+            {
+                case A2AProtocol.SendMessage:
+                case "message/send":
+                    return "SendMessage";
+                case A2AProtocol.SendStreamingMessage:
+                case "message/stream":
+                    return "SendStreamingMessage";
+                case A2AProtocol.GetTask:
+                case "tasks/get":
+                    return "GetTask";
+                case A2AProtocol.CancelTask:
+                case "tasks/cancel":
+                    return "CancelTask";
+                case A2AProtocol.ListTasks:
+                case "tasks/list":
+                    return "ListTasks";
+                case A2AProtocol.SubscribeToTask:
+                case "tasks/resubscribe":
+                    return "SubscribeToTask";
+                default:
+                    return "unknown";
+            }
+        }
+
+        private static void CountTask(Run run)
+        {
+            GarrisonMetrics.Count(GarrisonMetricCatalog.A2aTasks, "state", A2AMapper.State(run.Status).ToString());
         }
 
         private async Task SendMessageAsync(HttpContextBase context, RequestContext ctx, string tenantId, Agent agent, object? id, SendMessageRequest request, bool streaming)
@@ -242,6 +322,7 @@ namespace Garrison.Server.Routes
             options.CancelOnDisconnect = true;
             options.CallerGone = () => context.RequestAborted && !_Context.IsDraining;
             options.DisconnectReason = "the A2A client disconnected from a blocking SendMessage";
+            options.Surface = "a2a";
 
             Run run = await _Invoker.InvokeAsync(ctx, tenantId, agent, options, context.Token).ConfigureAwait(false);
             if (streaming)
@@ -265,6 +346,7 @@ namespace Garrison.Server.Routes
 
             SendMessageResponse response = new SendMessageResponse();
             response.Task = A2AMapper.Task(run);
+            CountTask(run);
             await SendRpcResultAsync(context, id, response).ConfigureAwait(false);
         }
 
@@ -277,6 +359,7 @@ namespace Garrison.Server.Routes
             context.Response.ServerSentEvents = true;
 
             _Context.Activity.StreamOpened();
+            StreamTelemetry.Opened("a2a");
             try
             {
                 StreamResponse first = new StreamResponse();
@@ -305,6 +388,7 @@ namespace Garrison.Server.Routes
                             StreamResponse update = new StreamResponse();
                             update.StatusUpdate = new TaskStatusUpdateEvent { TaskId = current.Id, ContextId = A2AMapper.Task(current, false).ContextId, Status = A2AMapper.Status(current) };
                             await SendStreamEventAsync(context, id, update, terminal).ConfigureAwait(false);
+                            CountTask(current);
                             lastState = state;
                         }
 
@@ -327,6 +411,7 @@ namespace Garrison.Server.Routes
             finally
             {
                 _Context.Activity.StreamClosed();
+                StreamTelemetry.Closed("a2a");
             }
         }
 
@@ -417,6 +502,7 @@ namespace Garrison.Server.Routes
             ServerSentEvent message = new ServerSentEvent();
             message.Data = JsonSerializer.Serialize(response, A2AJson.DefaultOptions);
             await context.Response.SendEvent(message, final, context.Token).ConfigureAwait(false);
+            StreamTelemetry.Sent("a2a");
         }
 
         #endregion

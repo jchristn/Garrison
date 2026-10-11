@@ -269,6 +269,7 @@ const fr = {
     harnessType: { ClaudeCode: 'Claude Code', Codex: 'Codex', Mux: 'Mux', GeminiCli: 'Gemini CLI', Generic: 'Générique' },
     agentKind: { Hosted: 'Hébergé', Remote: 'Distant' },
     delegationMode: { None: 'Aucune délégation', AllowList: 'Liste d\'autorisation', Any: 'N\'importe quel agent' },
+    secretStatus: { Ok: 'Valide', NeedsReauthentication: 'Reconnexion requise' },
     secretKind: {
       AnthropicApiKey: 'Clé API Anthropic',
       ClaudeCodeOAuthToken: 'Jeton OAuth Claude Code',
@@ -693,8 +694,10 @@ const fr = {
       errors: { expiryPast: 'Choisissez une expiration dans le futur, ou laissez le champ vide pour que le secret n\'expire jamais.' },
       ...rp('Secrets', 'Identifiants chiffrés pour les harness et les intégrations. Les valeurs sont en écriture seule.', 'Ajouter un secret', 'Créer un secret', 'Modifier le secret', 'Détails du secret', 'Supprimer le secret', 'Aucun secret pour l\'instant', 'Ajoutez la clé API ou le jeton dont vos agents ont besoin, par exemple une clé API Anthropic.'),
       notSet: 'Non défini',
-      columns: { name: 'Nom', kind: 'Type', valueLast4: 'Valeur', rotatedUtc: 'Dernière modification', expiresUtc: 'Expiration', active: 'Actif', id: 'ID' },
-      fields: { name: 'Nom', kind: 'Type', description: 'Description', value: 'Valeur', newValue: 'Nouvelle valeur', expiresUtc: 'Expiration', active: 'Actif' },
+      neverRefreshed: 'Pas encore',
+      reauth: { title: 'Cette connexion doit être renouvelée', since: 'Depuis {{time}}', action: 'Les exécutions qui utilisent ce secret échouent tant que vous n\'avez pas remplacé sa valeur. Reconnectez-vous avec codex login en utilisant un CODEX_HOME distinct, puis enregistrez le nouveau auth.json avec « Définir la valeur », ou passez le déploiement à un secret de clé d\'API OpenAI. Ne continuez pas à utiliser la même connexion sur une autre machine : les deux copies partagent un même jeton d\'actualisation.' },
+      columns: { status: 'État', accessTokenExpiresUtc: 'Expiration du jeton d\'accès', name: 'Nom', kind: 'Type', valueLast4: 'Valeur', rotatedUtc: 'Dernière modification', expiresUtc: 'Expiration', active: 'Actif', id: 'ID' },
+      fields: { refreshedUtc: 'Dernier renouvellement par Garrison', accessTokenExpiresUtc: 'Expiration du jeton d\'accès', name: 'Nom', kind: 'Type', description: 'Description', value: 'Valeur', newValue: 'Nouvelle valeur', expiresUtc: 'Expiration', active: 'Actif' },
       hints: { expiresUtc: 'Doit être dans le futur. Laissez vide pour un secret sans expiration.', kind: 'Les jetons d\'abonnement utilisés sur des serveurs partagés peuvent enfreindre les conditions du fournisseur. Privilégiez les clés API pour les déploiements partagés.' },
       actions: { setValue: 'Définir la valeur', rotate: 'Renouveler' }
     },
@@ -931,6 +934,8 @@ const fr = {
       observabilityVersion: 'Version {{version}}',
       observabilityOpen: 'Ouvrir {{service}}',
       kpisGrafana: 'Ouvrir la vue d\'ensemble dans Grafana',
+      grafanaDashboards: 'Tableaux de bord Grafana',
+      grafanaSections: { overview: 'Vue d\'ensemble', http: 'API HTTP', runs: 'Exécutions', agents: 'Agents', models: 'Modèles et jetons', workers: 'Nœuds worker', kubernetes: 'Exécuteur Kubernetes', protocols: 'Protocoles', scheduler: 'Planificateur et file', database: 'Base de données', controlPlane: 'Plan de contrôle', security: 'Sécurité et authentification', integrations: 'Intégrations', logs: 'Journaux et traces' },
       observabilitySetup: 'Configurer l\'observabilité',
       observabilityNone: 'Aucun service d\'observabilité (Grafana, Prometheus, Tempo ou Loki) n\'est configuré pour cette installation.',
       observability: 'Observabilité',
@@ -1137,6 +1142,7 @@ const fr = {
     },
     agentDetail: {
       invoke: 'Invoquer',
+      grafana: 'Ouvrir dans Grafana',
       noActiveDeployment: 'Cet agent n\'a aucun déploiement actif : les invocations seront donc rejetées.',
       deployments_one: 'Déploiements ({{count}})',
       deployments_other: 'Déploiements ({{count}})',
@@ -1304,7 +1310,7 @@ const fr = {
         ConfigMap: 'Géré par une ConfigMap Kubernetes. Modifiez-le dans vos manifestes.',
         other: 'Ce paramètre ne peut pas être modifié ici.'
       },
-      groups: { Archive: 'Archivage', General: 'Général', Rest: 'REST', Mcp: 'MCP', Database: 'Base de données', Logging: 'Journalisation', Auth: 'Authentification', Security: 'Sécurité', RequestHistory: 'Historique des requêtes', Telemetry: 'Télémétrie', Cluster: 'Cluster', Scheduling: 'Planification', Runs: 'Exécutions', Audit: 'Audit', Runtime: 'Moteur d\'exécution', Observability: 'Observabilité' },
+      groups: { Codex: 'Codex', Archive: 'Archivage', General: 'Général', Rest: 'REST', Mcp: 'MCP', Database: 'Base de données', Logging: 'Journalisation', Auth: 'Authentification', Security: 'Sécurité', RequestHistory: 'Historique des requêtes', Telemetry: 'Télémétrie', Cluster: 'Cluster', Scheduling: 'Planification', Runs: 'Exécutions', Audit: 'Audit', Runtime: 'Moteur d\'exécution', Observability: 'Observabilité' },
       fields: {
         Observability: {
           GrafanaUrl: 'URL de Grafana',
@@ -1407,6 +1413,13 @@ const fr = {
           RetentionDays: 'Conservation des exécutions (jours)',
           MaxDelegationDepth: 'Profondeur maximale de délégation',
           DefaultTimeoutSeconds: 'Délai d\'exécution par défaut (secondes)'
+        },
+        Codex: {
+          RefreshBeforeExpirySeconds: 'Renouveler les connexions Codex avant expiration (secondes)',
+          RefreshCheckIntervalSeconds: 'Intervalle de la vérification en arrière-plan (secondes)',
+          RefreshTimeoutSeconds: 'Délai maximal de renouvellement (secondes)',
+          TokenEndpoint: 'Point de terminaison des jetons OAuth',
+          ClientId: 'Identifiant client OAuth'
         },
         Runtime: {
           FailBlockedAfterSeconds: 'Faire échouer les exécutions bloquées après (secondes)',

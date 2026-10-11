@@ -1,0 +1,8 @@
+{
+  "Rest": { "Hostname": "127.0.0.1", "Port": 37800 },
+  "Mcp": { "Hostname": "127.0.0.1", "Port": 37801 },
+  "Database": { "Type": "Sqlite", "Filename": "garrison.db" },
+  "Auth": { "AdminApiKey": "garrison-benchmark-admin-key-not-for-production" },
+  "Logging": { "ConsoleLogging": true, "MinimumSeverity": 2 },
+  "Telemetry": { "Enabled": true, "PrometheusHostname": "127.0.0.1", "PrometheusPort": 37464, "OtlpEnable": false }
+}

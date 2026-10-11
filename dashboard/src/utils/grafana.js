@@ -12,8 +12,37 @@ export const DEFAULT_DASHBOARDS = Object.freeze({
   runs: 'garrison-runs',
   workers: 'garrison-workers',
   protocols: 'garrison-protocols',
-  integrations: 'garrison-integrations'
+  integrations: 'garrison-integrations',
+  agents: 'garrison-agents',
+  models: 'garrison-models',
+  kubernetes: 'garrison-kubernetes',
+  scheduler: 'garrison-scheduler',
+  database: 'garrison-database',
+  controlPlane: 'garrison-control-plane',
+  security: 'garrison-security',
+  logs: 'garrison-logs'
 });
+
+/**
+ * The Garrison folder's section dashboards in display order (P13.27). Each key is a field of
+ * server-info `observability.dashboards` and of DEFAULT_DASHBOARDS.
+ */
+export const DASHBOARD_SECTIONS = Object.freeze([
+  'overview',
+  'http',
+  'runs',
+  'agents',
+  'models',
+  'workers',
+  'kubernetes',
+  'protocols',
+  'scheduler',
+  'database',
+  'controlPlane',
+  'security',
+  'integrations',
+  'logs'
+]);
 
 /** Margin added before and after a run's time range in Explore links, in milliseconds (5 minutes). */
 export const RUN_RANGE_MARGIN_MS = 5 * 60 * 1000;
@@ -89,7 +118,7 @@ export function logsUrl(config, run, now = Date.now()) {
 /**
  * Dashboard link: `/d/<uid>?orgId=1` plus optional `from`, `to` (epoch ms or ISO strings) and `vars` (`var-<name>`).
  * @param {object} config grafanaConfig() result
- * @param {string} key dashboard key (overview, http, runs, workers, protocols, integrations)
+ * @param {string} key dashboard key (see DASHBOARD_SECTIONS)
  */
 export function dashboardUrl(config, key, { from, to, vars } = {}) {
   const dash = config?.dashboards?.[key];
@@ -105,7 +134,7 @@ export function dashboardUrl(config, key, { from, to, vars } = {}) {
   return `${config.url}/d/${encodeURIComponent(dash)}?${params.toString()}`;
 }
 
-/** Workers and Harnesses dashboard filtered to one node. */
+/** Workers dashboard filtered to one node. */
 export function nodeDashboardUrl(config, nodeName) {
   if (!nodeName) return null;
   return dashboardUrl(config, 'workers', { vars: { node: nodeName } });
@@ -115,4 +144,28 @@ export function nodeDashboardUrl(config, nodeName) {
 export function controlNodeDashboardUrl(config, nodeName) {
   if (!nodeName) return null;
   return dashboardUrl(config, 'overview', { vars: { node: nodeName } });
+}
+
+/**
+ * One link per section dashboard for the Home Observability section, in DASHBOARD_SECTIONS order. Empty when Grafana is
+ * not configured or server info reports no dashboards (`observability.dashboards` null or missing); sections whose UID is
+ * blank are skipped.
+ * @returns {{ key: string, uid: string, url: string }[]}
+ */
+export function sectionDashboardLinks(info) {
+  const config = grafanaConfig(info);
+  const reported = info?.observability?.dashboards;
+  if (!config || !reported || typeof reported !== 'object') return [];
+  const links = [];
+  for (const key of DASHBOARD_SECTIONS) {
+    const url = dashboardUrl(config, key);
+    if (url) links.push({ key, uid: config.dashboards[key], url });
+  }
+  return links;
+}
+
+/** Agents dashboard filtered to one agent (`var-agent`), and to its tenant (`var-tenant`) when known. */
+export function agentDashboardUrl(config, agentName, tenantId) {
+  if (!agentName) return null;
+  return dashboardUrl(config, 'agents', { vars: { tenant: tenantId, agent: agentName } });
 }

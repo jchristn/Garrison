@@ -1,2127 +1,2454 @@
 {
- "uid": "garrison-workers",
- "title": "Garrison / Workers and Harnesses",
- "description": "Worker nodes: capacity, lease polling, harness runs and their timings, tokens, cost, availability, and process health.",
- "tags": [
-  "garrison"
- ],
- "timezone": "browser",
- "editable": false,
- "graphTooltip": 1,
- "refresh": "30s",
- "schemaVersion": 39,
- "version": 1,
- "time": {
-  "from": "now-6h",
-  "to": "now"
- },
- "timepicker": {},
- "fiscalYearStartMonth": 0,
- "liveNow": false,
- "annotations": {
-  "list": [
-   {
-    "builtIn": 1,
-    "datasource": {
-     "type": "grafana",
-     "uid": "-- Grafana --"
-    },
-    "enable": true,
-    "hide": true,
-    "iconColor": "rgba(0, 211, 255, 1)",
-    "name": "Annotations & Alerts",
-    "type": "dashboard"
-   }
-  ]
- },
- "links": [
-  {
-   "title": "Garrison dashboards",
-   "type": "dashboards",
-   "tags": [
+  "uid": "garrison-workers",
+  "title": "Garrison / Workers",
+  "description": "Worker nodes: capacity, leases, heartbeats, run execution as measured on the worker, event relay, completion reports, and harness availability.",
+  "tags": [
     "garrison"
-   ],
-   "asDropdown": true,
-   "includeVars": true,
-   "keepTime": true,
-   "targetBlank": false,
-   "icon": "external link"
-  }
- ],
- "templating": {
-  "list": [
-   {
-    "name": "node",
-    "label": "Worker",
-    "description": "Worker node name.",
-    "type": "query",
-    "datasource": {
-     "type": "prometheus",
-     "uid": "garrison-prometheus"
-    },
-    "query": {
-     "query": "label_values(up{job=\"garrison\", component=\"worker\"}, node)",
-     "refId": "PrometheusVariableQueryEditor-VariableQuery",
-     "qryType": 1
-    },
-    "definition": "label_values(up{job=\"garrison\", component=\"worker\"}, node)",
-    "refresh": 2,
-    "sort": 1,
-    "multi": true,
-    "includeAll": true,
-    "allValue": ".*",
-    "current": {
-     "selected": true,
-     "text": [
-      "All"
-     ],
-     "value": [
-      "$__all"
-     ]
-    },
-    "options": [],
-    "regex": "",
-    "skipUrlSync": false,
-    "hide": 0
-   },
-   {
-    "name": "harness",
-    "label": "Harness",
-    "description": "Harness type. Empty until a worker finishes its first run.",
-    "type": "query",
-    "datasource": {
-     "type": "prometheus",
-     "uid": "garrison-prometheus"
-    },
-    "query": {
-     "query": "label_values(garrison_worker_runs_total, harness)",
-     "refId": "PrometheusVariableQueryEditor-VariableQuery",
-     "qryType": 1
-    },
-    "definition": "label_values(garrison_worker_runs_total, harness)",
-    "refresh": 2,
-    "sort": 1,
-    "multi": true,
-    "includeAll": true,
-    "allValue": ".*",
-    "current": {
-     "selected": true,
-     "text": [
-      "All"
-     ],
-     "value": [
-      "$__all"
-     ]
-    },
-    "options": [],
-    "regex": "",
-    "skipUrlSync": false,
-    "hide": 0
-   },
-   {
-    "name": "window",
-    "label": "Average over",
-    "type": "custom",
-    "query": "5m,15m,1h,6h",
-    "description": "Window for averages and percentiles. Runs are infrequent, so short windows leave gaps.",
-    "current": {
-     "selected": true,
-     "text": "15m",
-     "value": "15m"
-    },
-    "options": [
-     {
-      "selected": false,
-      "text": "5m",
-      "value": "5m"
-     },
-     {
-      "selected": true,
-      "text": "15m",
-      "value": "15m"
-     },
-     {
-      "selected": false,
-      "text": "1h",
-      "value": "1h"
-     },
-     {
-      "selected": false,
-      "text": "6h",
-      "value": "6h"
-     }
-    ],
-    "multi": false,
-    "includeAll": false,
-    "hide": 0,
-    "skipUrlSync": false
-   }
-  ]
- },
- "panels": [
-  {
-   "id": 1,
-   "type": "row",
-   "title": "Nodes",
-   "collapsed": false,
-   "gridPos": {
-    "x": 0,
-    "y": 0,
-    "w": 24,
-    "h": 1
-   },
-   "panels": []
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
   },
-  {
-   "type": "stat",
-   "title": "Workers up",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum(up{job=\"garrison\", component=\"worker\", node=~\"$node\"})",
-     "legendFormat": "__auto",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "thresholds"
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "red",
-        "value": null
-       },
-       {
-        "color": "green",
-        "value": 1
-       }
-      ]
-     },
-     "mappings": [],
-     "noValue": "0"
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "none",
-    "justifyMode": "auto",
-    "textMode": "auto",
-    "orientation": "auto",
-    "wideLayout": true,
-    "showPercentChange": false
-   },
-   "id": 2,
-   "gridPos": {
-    "x": 0,
-    "y": 1,
-    "w": 4,
-    "h": 4
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Executing",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum(garrison_worker_runs_active{node=~\"$node\"})",
-     "legendFormat": "__auto",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "thresholds"
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "noValue": "0"
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "area",
-    "justifyMode": "auto",
-    "textMode": "auto",
-    "orientation": "auto",
-    "wideLayout": true,
-    "showPercentChange": false
-   },
-   "id": 3,
-   "gridPos": {
-    "x": 4,
-    "y": 1,
-    "w": 4,
-    "h": 4
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Free slots",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum(garrison_worker_slots_free{node=~\"$node\"})",
-     "legendFormat": "__auto",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "thresholds"
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "orange",
-        "value": null
-       },
-       {
-        "color": "green",
-        "value": 1
-       }
-      ]
-     },
-     "mappings": [],
-     "noValue": "0"
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "area",
-    "justifyMode": "auto",
-    "textMode": "auto",
-    "orientation": "auto",
-    "wideLayout": true,
-    "showPercentChange": false
-   },
-   "id": 4,
-   "gridPos": {
-    "x": 8,
-    "y": 1,
-    "w": 4,
-    "h": 4
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Runs finished",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum(increase(garrison_worker_runs_total{node=~\"$node\", harness=~\"$harness\"}[$__range]))",
-     "legendFormat": "__auto",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "thresholds"
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "noValue": "0",
-     "decimals": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "area",
-    "justifyMode": "auto",
-    "textMode": "auto",
-    "orientation": "auto",
-    "wideLayout": true,
-    "showPercentChange": false
-   },
-   "id": 5,
-   "gridPos": {
-    "x": 12,
-    "y": 1,
-    "w": 4,
-    "h": 4
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Lease errors",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum(increase(garrison_worker_leases_total{result=\"error\", node=~\"$node\"}[$__range]))",
-     "legendFormat": "__auto",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "thresholds"
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       },
-       {
-        "color": "orange",
-        "value": 1
-       }
-      ]
-     },
-     "mappings": [],
-     "noValue": "0",
-     "decimals": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "area",
-    "justifyMode": "auto",
-    "textMode": "auto",
-    "orientation": "auto",
-    "wideLayout": true,
-    "showPercentChange": false
-   },
-   "id": 6,
-   "gridPos": {
-    "x": 16,
-    "y": 1,
-    "w": 4,
-    "h": 4
-   }
-  },
-  {
-   "type": "stat",
-   "title": "Stale or abandoned completions",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum(increase(garrison_worker_completion_reports_total{result=~\"stale|abandoned\", node=~\"$node\"}[$__range]))",
-     "legendFormat": "__auto",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "thresholds"
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       },
-       {
-        "color": "orange",
-        "value": 1
-       }
-      ]
-     },
-     "mappings": [],
-     "noValue": "0",
-     "decimals": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "",
-     "values": false
-    },
-    "colorMode": "value",
-    "graphMode": "area",
-    "justifyMode": "auto",
-    "textMode": "auto",
-    "orientation": "auto",
-    "wideLayout": true,
-    "showPercentChange": false
-   },
-   "id": 7,
-   "gridPos": {
-    "x": 20,
-    "y": 1,
-    "w": 4,
-    "h": 4
-   }
-  },
-  {
-   "type": "table",
-   "title": "Workers",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "max by (node) (up{job=\"garrison\", component=\"worker\", node=~\"$node\"})",
-     "legendFormat": "__auto",
-     "refId": "A",
-     "range": false,
-     "instant": true,
-     "editorMode": "code",
-     "format": "table"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (garrison_worker_runs_active{node=~\"$node\"})",
-     "legendFormat": "__auto",
-     "refId": "B",
-     "range": false,
-     "instant": true,
-     "editorMode": "code",
-     "format": "table"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (garrison_worker_slots_free{node=~\"$node\"})",
-     "legendFormat": "__auto",
-     "refId": "C",
-     "range": false,
-     "instant": true,
-     "editorMode": "code",
-     "format": "table"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (increase(garrison_worker_runs_total{node=~\"$node\"}[$__range]))",
-     "legendFormat": "__auto",
-     "refId": "D",
-     "range": false,
-     "instant": true,
-     "editorMode": "code",
-     "format": "table"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (process_memory_usage_bytes{job=\"garrison\", component=\"worker\", node=~\"$node\"})",
-     "legendFormat": "__auto",
-     "refId": "E",
-     "range": false,
-     "instant": true,
-     "editorMode": "code",
-     "format": "table"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "max by (node) (process_uptime_seconds{job=\"garrison\", component=\"worker\", node=~\"$node\"})",
-     "legendFormat": "__auto",
-     "refId": "F",
-     "range": false,
-     "instant": true,
-     "editorMode": "code",
-     "format": "table"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "custom": {
-      "align": "auto",
-      "cellOptions": {
-       "type": "auto"
-      },
-      "filterable": false
-     },
-     "mappings": [],
-     "noValue": "0",
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     }
-    },
-    "overrides": [
-     {
-      "matcher": {
-       "id": "byName",
-       "options": "Memory"
-      },
-      "properties": [
-       {
-        "id": "unit",
-        "value": "bytes"
-       }
-      ]
-     },
-     {
-      "matcher": {
-       "id": "byName",
-       "options": "Uptime"
-      },
-      "properties": [
-       {
-        "id": "unit",
-        "value": "s"
-       }
-      ]
-     }
+  "timepicker": {},
+  "fiscalYearStartMonth": 0,
+  "liveNow": false,
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
     ]
-   },
-   "options": {
-    "showHeader": true,
-    "cellHeight": "sm",
-    "footer": {
-     "show": false,
-     "reducer": [
-      "sum"
-     ],
-     "fields": ""
+  },
+  "links": [
+    {
+      "title": "Garrison dashboards",
+      "type": "dashboards",
+      "tags": [
+        "garrison"
+      ],
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link"
     }
-   },
-   "transformations": [
-    {
-     "id": "merge",
-     "options": {}
-    },
-    {
-     "id": "organize",
-     "options": {
-      "excludeByName": {
-       "Time": true
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "node",
+        "label": "Node",
+        "description": "Garrison node: the server pod or container name, or the worker node name.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(up{job=\"garrison\"}, node)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(up{job=\"garrison\"}, node)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
       },
-      "indexByName": {},
-      "renameByName": {
-       "node": "Node",
-       "Value #A": "Up",
-       "Value #B": "Executing",
-       "Value #C": "Free slots",
-       "Value #D": "Runs (range)",
-       "Value #E": "Memory",
-       "Value #F": "Uptime"
-      }
-     }
-    }
-   ],
-   "id": 8,
-   "gridPos": {
-    "x": 0,
-    "y": 5,
-    "w": 24,
-    "h": 7
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Executing runs per node",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (garrison_worker_runs_active{node=~\"$node\"})",
-     "legendFormat": "{{node}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      {
+        "name": "tenant",
+        "label": "Tenant",
+        "description": "Tenant ID. Empty until the first run is created.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(garrison_runs_created_total, tenant)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(garrison_runs_created_total, tenant)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 9,
-   "gridPos": {
-    "x": 0,
-    "y": 12,
-    "w": 8,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Free slots per node",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (garrison_worker_slots_free{node=~\"$node\"})",
-     "legendFormat": "{{node}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      {
+        "name": "agent",
+        "label": "Agent",
+        "description": "Agent name.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(garrison_runs_created_total{tenant=~\"$tenant\"}, agent)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(garrison_runs_created_total{tenant=~\"$tenant\"}, agent)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 10,
-   "gridPos": {
-    "x": 8,
-    "y": 12,
-    "w": 8,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Lease requests by result (per minute)",
-   "description": "assigned: got a run. empty: nothing to do. error: the request failed.",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node, result) (rate(garrison_worker_leases_total{node=~\"$node\"}[$__rate_interval])) * 60",
-     "legendFormat": "{{node}} {{result}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      {
+        "name": "deployment",
+        "label": "Deployment",
+        "description": "Deployment name.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(garrison_runs_created_total{tenant=~\"$tenant\", agent=~\"$agent\"}, deployment)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(garrison_runs_created_total{tenant=~\"$tenant\", agent=~\"$agent\"}, deployment)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 11,
-   "gridPos": {
-    "x": 16,
-    "y": 12,
-    "w": 8,
-    "h": 8
-   }
-  },
-  {
-   "id": 12,
-   "type": "row",
-   "title": "Harnesses",
-   "collapsed": false,
-   "gridPos": {
-    "x": 0,
-    "y": 20,
-    "w": 24,
-    "h": 1
-   },
-   "panels": []
-  },
-  {
-   "type": "timeseries",
-   "title": "Runs finished by harness and outcome (per minute)",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (harness, outcome) (rate(garrison_worker_runs_total{node=~\"$node\", harness=~\"$harness\"}[$__rate_interval])) * 60",
-     "legendFormat": "{{harness}} {{outcome}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "bars",
-      "lineWidth": 1,
-      "fillOpacity": 60,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "normal",
-       "group": "A"
+      {
+        "name": "harness",
+        "label": "Harness",
+        "description": "Harness type. Empty until the first run is created.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(garrison_runs_created_total, harness)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(garrison_runs_created_total, harness)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 13,
-   "gridPos": {
-    "x": 0,
-    "y": 21,
-    "w": 12,
-    "h": 8
-   }
-  },
-  {
-   "type": "bargauge",
-   "title": "Harness availability problems in the selected range",
-   "description": "Runs that failed because the harness CLI is missing, has no credentials, or could not reach its MCP servers. Empty is good.",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "round(sum by (harness, outcome) (increase(garrison_worker_runs_total{outcome=~\"NotInstalled|NotCredentialed|McpPreflightFailed\", node=~\"$node\", harness=~\"$harness\"}[$__range])))",
-     "legendFormat": "{{harness}} {{outcome}}",
-     "refId": "A",
-     "range": false,
-     "instant": true,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "decimals": 0,
-     "color": {
-      "mode": "palette-classic"
-     },
-     "min": 0,
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": []
-    },
-    "overrides": []
-   },
-   "options": {
-    "orientation": "horizontal",
-    "displayMode": "basic",
-    "showUnfilled": true,
-    "valueMode": "color",
-    "namePlacement": "auto",
-    "sizing": "auto",
-    "minVizHeight": 16,
-    "minVizWidth": 8,
-    "maxVizHeight": 300,
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ],
-     "fields": "",
-     "values": false
-    }
-   },
-   "id": 14,
-   "gridPos": {
-    "x": 12,
-    "y": 21,
-    "w": 12,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Time to first token by harness",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "histogram_quantile(0.5, sum by (le, harness) (rate(garrison_worker_run_ttft_bucket{node=~\"$node\", harness=~\"$harness\"}[$window])))",
-     "legendFormat": "{{harness}} p50",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "histogram_quantile(0.95, sum by (le, harness) (rate(garrison_worker_run_ttft_bucket{node=~\"$node\", harness=~\"$harness\"}[$window])))",
-     "legendFormat": "{{harness}} p95",
-     "refId": "B",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (harness) (rate(garrison_worker_run_ttft_sum{node=~\"$node\", harness=~\"$harness\"}[$window])) / sum by (harness) (rate(garrison_worker_run_ttft_count{node=~\"$node\", harness=~\"$harness\"}[$window]))",
-     "legendFormat": "{{harness}} avg",
-     "refId": "C",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "s",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      {
+        "name": "model",
+        "label": "Model",
+        "description": "Served model as the harness reported it; none when it did not report one.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "garrison-prometheus"
+        },
+        "query": {
+          "query": "label_values(garrison_runs_finished_total, model)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery",
+          "qryType": 1
+        },
+        "definition": "label_values(garrison_runs_finished_total, model)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 15,
-   "gridPos": {
-    "x": 0,
-    "y": 29,
-    "w": 8,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Run duration by harness",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "histogram_quantile(0.95, sum by (le, harness) (rate(garrison_worker_run_duration_bucket{node=~\"$node\", harness=~\"$harness\"}[$window])))",
-     "legendFormat": "{{harness}} p95",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (harness) (rate(garrison_worker_run_duration_sum{node=~\"$node\", harness=~\"$harness\"}[$window])) / sum by (harness) (rate(garrison_worker_run_duration_count{node=~\"$node\", harness=~\"$harness\"}[$window]))",
-     "legendFormat": "{{harness}} avg",
-     "refId": "B",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "s",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      {
+        "name": "window",
+        "label": "Average over",
+        "type": "custom",
+        "query": "5m,15m,1h,6h",
+        "description": "Window for rates, averages, and percentiles. Runs are infrequent, so short windows leave gaps.",
+        "current": {
+          "selected": true,
+          "text": "15m",
+          "value": "15m"
+        },
+        "options": [
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": true,
+            "text": "15m",
+            "value": "15m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          }
+        ],
+        "multi": false,
+        "includeAll": false,
+        "hide": 0,
+        "skipUrlSync": false
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
+      {
+        "name": "search",
+        "label": "Log text",
+        "description": "Filters log panels to lines that contain this text.",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
       }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 16,
-   "gridPos": {
-    "x": 8,
-    "y": 29,
-    "w": 8,
-    "h": 8
-   }
+    ]
   },
-  {
-   "type": "timeseries",
-   "title": "Streaming time by harness (average)",
-   "description": "First to last model output.",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
+  "panels": [
     {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (harness) (rate(garrison_worker_run_streaming_sum{node=~\"$node\", harness=~\"$harness\"}[$window])) / sum by (harness) (rate(garrison_worker_run_streaming_count{node=~\"$node\", harness=~\"$harness\"}[$window]))",
-     "legendFormat": "{{harness}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "s",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      "type": "row",
+      "title": "Capacity",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
+      "id": 1
     },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 17,
-   "gridPos": {
-    "x": 16,
-    "y": 29,
-    "w": 8,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Tokens by harness and direction (per minute)",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
     {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (harness, direction) (rate(garrison_worker_harness_tokens_total{node=~\"$node\", harness=~\"$harness\"}[$__rate_interval])) * 60",
-     "legendFormat": "{{harness}} {{direction}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "normal",
-       "group": "A"
+      "type": "stat",
+      "title": "Workers up",
+      "description": "Worker metrics endpoints Prometheus scraped successfully.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 18,
-   "gridPos": {
-    "x": 0,
-    "y": 37,
-    "w": 12,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Reported cost by harness (USD per hour)",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (harness) (rate(garrison_worker_harness_cost_usd_total{node=~\"$node\", harness=~\"$harness\"}[$window])) * 3600",
-     "legendFormat": "{{harness}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "currencyUSD",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum(up{job=\"garrison\", component=\"worker\", node=~\"$node\"}) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 19,
-   "gridPos": {
-    "x": 12,
-    "y": 37,
-    "w": 12,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Completion reports by result (per minute)",
-   "description": "stale: refused because the lease was lost. abandoned: given up after the retry window.",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (result) (rate(garrison_worker_completion_reports_total{node=~\"$node\"}[$__rate_interval])) * 60",
-     "legendFormat": "{{result}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "bars",
-      "lineWidth": 1,
-      "fillOpacity": 60,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 20,
-   "gridPos": {
-    "x": 0,
-    "y": 45,
-    "w": 12,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "MCP server connections from harness preflight",
-   "description": "Workers connect to each agent's MCP servers before starting the harness.",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (voltaic_outcome) (rate(voltaic_client_connect_duration_seconds_count{job=\"garrison\", component=\"worker\", node=~\"$node\"}[$__rate_interval])) * 60",
-     "legendFormat": "connects per minute, {{voltaic_outcome}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum(rate(voltaic_client_connect_duration_seconds_sum{job=\"garrison\", component=\"worker\", node=~\"$node\"}[$window])) / sum(rate(voltaic_client_connect_duration_seconds_count{job=\"garrison\", component=\"worker\", node=~\"$node\"}[$window]))",
-     "legendFormat": "average connect seconds",
-     "refId": "B",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
+      "id": 2
     },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 21,
-   "gridPos": {
-    "x": 12,
-    "y": 45,
-    "w": 12,
-    "h": 8
-   }
-  },
-  {
-   "id": 22,
-   "type": "row",
-   "title": "Process",
-   "collapsed": false,
-   "gridPos": {
-    "x": 0,
-    "y": 53,
-    "w": 24,
-    "h": 1
-   },
-   "panels": []
-  },
-  {
-   "type": "timeseries",
-   "title": "Memory per worker",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
     {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (process_memory_usage_bytes{job=\"garrison\", component=\"worker\", node=~\"$node\"})",
-     "legendFormat": "{{node}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "bytes",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      "type": "stat",
+      "title": "Ready nodes",
+      "description": "Worker nodes the control plane considers Ready (cluster-wide).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 23,
-   "gridPos": {
-    "x": 0,
-    "y": 54,
-    "w": 8,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "CPU per worker",
-   "description": "Worker process only; harness child processes are not included.",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (rate(dotnet_process_cpu_time_seconds_total{job=\"garrison\", component=\"worker\", node=~\"$node\"}[$__rate_interval]))",
-     "legendFormat": "{{node}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "percentunit",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "max(garrison_nodes{status=\"Ready\"}) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 24,
-   "gridPos": {
-    "x": 8,
-    "y": 54,
-    "w": 8,
-    "h": 8
-   }
-  },
-  {
-   "type": "timeseries",
-   "title": "Lock wait (average)",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "garrison-prometheus"
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "garrison-prometheus"
-     },
-     "expr": "sum by (node) (rate(padlock_lock_wait_duration_seconds_sum{job=\"garrison\", component=\"worker\", node=~\"$node\"}[$window])) / sum by (node) (rate(padlock_lock_wait_duration_seconds_count{job=\"garrison\", component=\"worker\", node=~\"$node\"}[$window]))",
-     "legendFormat": "{{node}}",
-     "refId": "A",
-     "range": true,
-     "instant": false,
-     "editorMode": "code"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "s",
-     "color": {
-      "mode": "palette-classic"
-     },
-     "custom": {
-      "drawStyle": "line",
-      "lineWidth": 1,
-      "fillOpacity": 10,
-      "showPoints": "never",
-      "spanNulls": true,
-      "pointSize": 4,
-      "lineInterpolation": "linear",
-      "stacking": {
-       "mode": "none",
-       "group": "A"
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
-      "axisPlacement": "auto",
-      "gradientMode": "none",
-      "barAlignment": 0,
-      "hideFrom": {
-       "legend": false,
-       "tooltip": false,
-       "viz": false
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     },
-     "mappings": [],
-     "min": 0
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 3
     },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom",
-     "showLegend": true,
-     "calcs": []
-    },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
-   },
-   "id": 25,
-   "gridPos": {
-    "x": 16,
-    "y": 54,
-    "w": 8,
-    "h": 8
-   }
-  },
-  {
-   "id": 26,
-   "type": "row",
-   "title": "Logs",
-   "collapsed": false,
-   "gridPos": {
-    "x": 0,
-    "y": 62,
-    "w": 24,
-    "h": 1
-   },
-   "panels": []
-  },
-  {
-   "type": "logs",
-   "title": "Worker logs",
-   "description": "",
-   "datasource": {
-    "type": "loki",
-    "uid": "garrison-loki"
-   },
-   "targets": [
     {
-     "datasource": {
-      "type": "loki",
-      "uid": "garrison-loki"
-     },
-     "expr": "{app=\"garrison\", component=\"worker\", node=~\"$node\"}",
-     "refId": "A",
-     "queryType": "range",
-     "editorMode": "code"
+      "type": "stat",
+      "title": "Runs executing",
+      "description": "Runs in progress on the selected workers.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum(garrison_worker_runs_active{node=~\"$node\"}) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 4
+    },
+    {
+      "type": "stat",
+      "title": "Free slots",
+      "description": "Free run slots on the selected workers.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum(garrison_worker_slots_free{node=~\"$node\"}) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 5
+    },
+    {
+      "type": "stat",
+      "title": "Runs finished",
+      "description": "Runs the selected workers finished in the selected range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_worker_runs_total{node=~\"$node\", tenant=~\"$tenant\", agent=~\"$agent\", deployment=~\"$deployment\", harness=~\"$harness\", model=~\"$model\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 6
+    },
+    {
+      "type": "stat",
+      "title": "Pauses",
+      "description": "Process pauses (VM or container freeze) detected by the workers.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum(increase(garrison_worker_pauses_total{node=~\"$node\"}[$__range]))) or on() vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Runs executing and free slots by node",
+      "description": "Capacity per worker.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (node) (garrison_worker_runs_active{node=~\"$node\"}) or on() label_replace(vector(0), \"node\", \"none\", \"\", \"\")",
+          "legendFormat": "{{node}} active",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (node) (garrison_worker_slots_free{node=~\"$node\"}) or on() label_replace(vector(0), \"node\", \"none\", \"\", \"\")",
+          "legendFormat": "{{node}} free",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Nodes by status (cluster-wide)",
+      "description": "Worker nodes per status as stored by the control plane.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "max by (status) (garrison_nodes) or on() label_replace(vector(0), \"status\", \"none\", \"\", \"\")",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "id": 9
+    },
+    {
+      "type": "row",
+      "title": "Protocol",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 1
+      },
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "Lease requests by result (per minute)",
+      "description": "Lease long polls and what came back: assigned, empty, error.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (result) (rate(garrison_worker_leases_total{node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"result\", \"none\", \"\", \"\")",
+          "legendFormat": "{{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 8,
+        "h": 8
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "Heartbeats (per minute)",
+      "description": "Heartbeats the workers sent (ok, error) and the control plane received (ok).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (result) (rate(garrison_worker_heartbeats_total{node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"result\", \"none\", \"\", \"\")",
+          "legendFormat": "sent {{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (result) (rate(garrison_node_heartbeats_total[$__rate_interval])) * 60 or on() label_replace(vector(0), \"result\", \"none\", \"\", \"\")",
+          "legendFormat": "received {{result}}",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 14,
+        "w": 8,
+        "h": 8
+      },
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "Node state transitions",
+      "description": "Worker node transitions by new status (Registered, Ready, Draining, Lost, Offline).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (status) (increase(garrison_node_transitions_total[$__rate_interval])) or on() label_replace(vector(0), \"status\", \"none\", \"\", \"\")",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 14,
+        "w": 8,
+        "h": 8
+      },
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "Control-plane call latency p95 by call",
+      "description": "Node protocol calls to the control plane (register, heartbeat, lease, watch, started, events, complete, token), 95th percentile. Long polls include their wait.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, operation) (rate(garrison_outbound_duration_seconds_bucket{service=\"control_plane\", node=~\"$node\"}[$window]))) or on() label_replace(vector(0), \"operation\", \"none\", \"\", \"\")",
+          "legendFormat": "{{operation}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "Control-plane calls by result (per minute)",
+      "description": "Node protocol calls by operation and result.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (operation, result) (rate(garrison_outbound_requests_total{service=\"control_plane\", node=~\"$node\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"operation\", \"none\", \"\", \"\")",
+          "legendFormat": "{{operation}} {{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "id": 15
+    },
+    {
+      "type": "row",
+      "title": "Run execution",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 1
+      },
+      "id": 16
+    },
+    {
+      "type": "timeseries",
+      "title": "Run duration on the worker",
+      "description": "Lease to completion report, per harness. Exemplar dots open the run trace.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, harness) (rate(garrison_worker_run_duration_seconds_bucket{node=~\"$node\", tenant=~\"$tenant\", agent=~\"$agent\", deployment=~\"$deployment\", harness=~\"$harness\", model=~\"$model\"}[$window]))) or on() label_replace(vector(0), \"harness\", \"none\", \"\", \"\")",
+          "legendFormat": "{{harness}} p50",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, harness) (rate(garrison_worker_run_duration_seconds_bucket{node=~\"$node\", tenant=~\"$tenant\", agent=~\"$agent\", deployment=~\"$deployment\", harness=~\"$harness\", model=~\"$model\"}[$window]))) or on() label_replace(vector(0), \"harness\", \"none\", \"\", \"\")",
+          "legendFormat": "{{harness}} p95",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "id": 17
+    },
+    {
+      "type": "timeseries",
+      "title": "Time to first token on the worker",
+      "description": "Harness process start to first model output, per harness.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, harness) (rate(garrison_worker_run_ttft_seconds_bucket{node=~\"$node\", tenant=~\"$tenant\", agent=~\"$agent\", deployment=~\"$deployment\", harness=~\"$harness\", model=~\"$model\"}[$window]))) or on() label_replace(vector(0), \"harness\", \"none\", \"\", \"\")",
+          "legendFormat": "{{harness}} p50",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, harness) (rate(garrison_worker_run_ttft_seconds_bucket{node=~\"$node\", tenant=~\"$tenant\", agent=~\"$agent\", deployment=~\"$deployment\", harness=~\"$harness\", model=~\"$model\"}[$window]))) or on() label_replace(vector(0), \"harness\", \"none\", \"\", \"\")",
+          "legendFormat": "{{harness}} p95",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "id": 18
+    },
+    {
+      "type": "timeseries",
+      "title": "Streaming time on the worker",
+      "description": "First to last model output, per harness.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, harness) (rate(garrison_worker_run_streaming_seconds_bucket{node=~\"$node\", tenant=~\"$tenant\", agent=~\"$agent\", deployment=~\"$deployment\", harness=~\"$harness\", model=~\"$model\"}[$window]))) or on() label_replace(vector(0), \"harness\", \"none\", \"\", \"\")",
+          "legendFormat": "{{harness}} p50",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, harness) (rate(garrison_worker_run_streaming_seconds_bucket{node=~\"$node\", tenant=~\"$tenant\", agent=~\"$agent\", deployment=~\"$deployment\", harness=~\"$harness\", model=~\"$model\"}[$window]))) or on() label_replace(vector(0), \"harness\", \"none\", \"\", \"\")",
+          "legendFormat": "{{harness}} p95",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      },
+      "id": 19
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker stage p95",
+      "description": "Worker stages: workspace preparation, MCP pre-flight, execution, and completion report.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(garrison_worker_run_stage_duration_seconds_bucket{node=~\"$node\", agent=~\"$agent\", harness=~\"$harness\"}[$window]))) or on() label_replace(vector(0), \"stage\", \"none\", \"\", \"\")",
+          "legendFormat": "{{stage}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code",
+          "exemplar": true
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      },
+      "id": 20
+    },
+    {
+      "type": "timeseries",
+      "title": "Runs finished on workers by outcome (per minute)",
+      "description": "Runs the workers finished, by outcome.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (outcome) (rate(garrison_worker_runs_total{node=~\"$node\", tenant=~\"$tenant\", agent=~\"$agent\", deployment=~\"$deployment\", harness=~\"$harness\", model=~\"$model\"}[$__rate_interval])) * 60 or on() label_replace(vector(0), \"outcome\", \"none\", \"\", \"\")",
+          "legendFormat": "{{outcome}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 12,
+        "h": 8
+      },
+      "id": 21
+    },
+    {
+      "type": "timeseries",
+      "title": "Completion reports and events",
+      "description": "Completion reports by result (accepted, stale, abandoned) and run events relayed (shipped, dropped).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (result) (increase(garrison_worker_completion_reports_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"result\", \"none\", \"\", \"\")",
+          "legendFormat": "report {{result}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (result) (increase(garrison_worker_events_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"result\", \"none\", \"\", \"\")",
+          "legendFormat": "events {{result}}",
+          "refId": "B",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 47,
+        "w": 12,
+        "h": 8
+      },
+      "id": 22
+    },
+    {
+      "type": "row",
+      "title": "Harnesses",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 24,
+        "h": 1
+      },
+      "id": 23
+    },
+    {
+      "type": "bargauge",
+      "title": "Harness probes by result",
+      "description": "Harness capability probes in the selected range, by harness and result.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "round(sum by (harness, result) (increase(garrison_worker_capability_probes_total{node=~\"$node\"}[$__range]))) or on() label_replace(vector(0), \"harness\", \"none\", \"\", \"\")",
+          "legendFormat": "{{harness}} {{result}}",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "auto",
+        "sizing": "auto",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "maxVizHeight": 300,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "id": 24
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker pauses",
+      "description": "Pauses detected by each worker's heartbeat loop.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "garrison-prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "garrison-prometheus"
+          },
+          "expr": "sum by (node) (increase(garrison_worker_pauses_total{node=~\"$node\"}[$__rate_interval])) or on() label_replace(vector(0), \"node\", \"none\", \"\", \"\")",
+          "legendFormat": "{{node}}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "editorMode": "code"
+        }
+      ],
+      "links": [
+        {
+          "title": "Worker logs in Loki",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-loki%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22loki%22%2C%22uid%22:%22garrison-loki%22}%2C%22expr%22:%22{app%3D%5C%22garrison%5C%22%2C%20component%3D%5C%22worker%5C%22%2C%20node%3D~%5C%22${node:regex}%5C%22}%22%2C%22queryType%22:%22range%22%2C%22editorMode%22:%22code%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        },
+        {
+          "title": "Worker traces in Tempo",
+          "url": "/explore?schemaVersion=1&orgId=1&panes={%22a%22:{%22datasource%22:%22garrison-tempo%22%2C%22queries%22:%5B{%22refId%22:%22A%22%2C%22datasource%22:{%22type%22:%22tempo%22%2C%22uid%22:%22garrison-tempo%22}%2C%22queryType%22:%22traceql%22%2C%22query%22:%22{%20resource.service.name%20%3D%20%5C%22garrison-worker%5C%22%20}%22%2C%22limit%22:20%2C%22tableType%22:%22traces%22}%5D%2C%22range%22:{%22from%22:%22${__from}%22%2C%22to%22:%22${__to}%22}}}",
+          "targetBlank": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "spanNulls": true,
+            "pointSize": 4,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "barAlignment": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "0",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "id": 25
+    },
+    {
+      "type": "table",
+      "title": "Harness executions",
+      "description": "Worker spans around each harness process, nested in the run's trace.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "garrison-tempo"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "garrison-tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ name =~ \"harness .* exec\" && span.garrison.agent =~ \"${agent:regex}\" }",
+          "limit": 20,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 24,
+        "h": 8
+      },
+      "id": 26
+    },
+    {
+      "type": "logs",
+      "title": "Worker logs",
+      "description": "Lines from the selected workers.",
+      "datasource": {
+        "type": "loki",
+        "uid": "garrison-loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "garrison-loki"
+          },
+          "expr": "{app=\"garrison\", component=\"worker\", node=~\"${node:regex}\"} |= \"$search\"",
+          "refId": "A",
+          "queryType": "range",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending",
+        "enableInfiniteScrolling": false
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 24,
+        "h": 10
+      },
+      "id": 27
     }
-   ],
-   "options": {
-    "showTime": true,
-    "showLabels": false,
-    "showCommonLabels": false,
-    "wrapLogMessage": true,
-    "prettifyLogMessage": false,
-    "enableLogDetails": true,
-    "dedupStrategy": "none",
-    "sortOrder": "Descending",
-    "enableInfiniteScrolling": false
-   },
-   "id": 27,
-   "gridPos": {
-    "x": 0,
-    "y": 63,
-    "w": 24,
-    "h": 10
-   }
-  }
- ]
+  ]
 }

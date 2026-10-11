@@ -14,6 +14,11 @@ datasources:
     jsonData:
       httpMethod: POST
       timeInterval: 15s
+      # Exemplars on Garrison duration histograms link to the trace that produced them.
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: garrison-tempo
+          urlDisplayLabel: View trace
 
   - name: Loki
     type: loki

@@ -2,6 +2,7 @@ namespace Garrison.Worker.Execution
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Threading;
@@ -71,15 +72,25 @@ namespace Garrison.Worker.Execution
                 new PlaceholderResolver(directories).ResolveSpec(spec);
                 Dictionary<string, string> environment = BuildEnvironment(spec, directories);
 
-                try
+                long workspaceStart = Stopwatch.GetTimestamp();
+                using (Activity? workspaceSpan = GarrisonTracing.Start("run:workspace", ActivityKind.Internal, true))
                 {
-                    // A structured output repair resumes the session in the workspace the original execution left.
-                    if (spec.RepairAttempt == 0) await _Workspace.PrepareAsync(spec.Workspace, directories, environment, token).ConfigureAwait(false);
-                    foreach (ExecutionFile file in spec.Files) await FileMaterializer.WriteAsync(file, directories, token).ConfigureAwait(false);
-                }
-                catch (Exception e) when (e is not OperationCanceledException)
-                {
-                    return Fail(complete, RunOutcomeEnum.WorkspaceFailed, scrubber.Scrub("Workspace preparation failed: " + e.Message));
+                    try
+                    {
+                        // A structured output repair resumes the session in the workspace the original execution left.
+                        if (spec.RepairAttempt == 0) await _Workspace.PrepareAsync(spec.Workspace, directories, environment, token).ConfigureAwait(false);
+                        foreach (ExecutionFile file in spec.Files) await FileMaterializer.WriteAsync(file, directories, token).ConfigureAwait(false);
+                        GarrisonTracing.Ok(workspaceSpan);
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        GarrisonTracing.Fail(workspaceSpan, e);
+                        return Fail(complete, RunOutcomeEnum.WorkspaceFailed, scrubber.Scrub("Workspace preparation failed: " + e.Message));
+                    }
+                    finally
+                    {
+                        GarrisonMetrics.Observe(GarrisonMetricCatalog.WorkerRunStage, GarrisonMetrics.SecondsSince(workspaceStart), "stage", "workspace", "harness", spec.HarnessType.ToString(), "agent", spec.AgentName);
+                    }
                 }
                 if (spec.RepairAttempt > 0) Lifecycle(reporter, "RepairAttemptStarted", "Structured output repair attempt " + spec.RepairAttempt + ": resuming the harness session in " + directories.Workspace + ".");
                 else Lifecycle(reporter, "WorkspacePrepared", "Workspace prepared at " + directories.Workspace + ".");
@@ -88,7 +99,16 @@ namespace Garrison.Worker.Execution
                 {
                     McpPreflight preflight = new McpPreflight();
                     preflight.TimeoutMs = _Options.McpPreflightTimeoutMs;
-                    McpPreflightResult check = await preflight.CheckAsync(spec.McpPreflight, token).ConfigureAwait(false);
+                    McpPreflightResult check;
+                    long preflightStart = Stopwatch.GetTimestamp();
+                    using (Activity? preflightSpan = GarrisonTracing.Start("run:mcp_preflight", ActivityKind.Internal, true))
+                    {
+                        check = await preflight.CheckAsync(spec.McpPreflight, token).ConfigureAwait(false);
+                        preflightSpan?.SetTag("garrison.mcp_servers", spec.McpPreflight.Count);
+                        if (check.Success) GarrisonTracing.Ok(preflightSpan);
+                        else GarrisonTracing.Fail(preflightSpan, "MCP pre-flight failed");
+                        GarrisonMetrics.Observe(GarrisonMetricCatalog.WorkerRunStage, GarrisonMetrics.SecondsSince(preflightStart), "stage", "preflight", "harness", spec.HarnessType.ToString(), "agent", spec.AgentName);
+                    }
                     foreach (string warning in check.Warnings) Emit(reporter, scrubber, RunEventTypeEnum.Warning, warning, "McpPreflightWarning");
                     if (!check.Success) return Fail(complete, RunOutcomeEnum.McpPreflightFailed, scrubber.Scrub(check.Message));
                     Lifecycle(reporter, "McpPreflightPassed", "MCP pre-flight passed for " + spec.McpPreflight.Count + " server(s).");

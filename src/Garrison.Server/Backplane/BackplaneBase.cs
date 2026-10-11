@@ -6,6 +6,7 @@ namespace Garrison.Server.Backplane
     using System.Threading.Channels;
     using System.Threading.Tasks;
     using Garrison.Core.Models;
+    using Garrison.Core.Telemetry;
     using SyslogLogging;
 
     /// <summary>
@@ -201,6 +202,9 @@ namespace Garrison.Server.Backplane
         {
             if (message == null || String.Equals(message.Origin, InstanceId, StringComparison.Ordinal)) return;
             Interlocked.Increment(ref _Received);
+            GarrisonMetrics.Count(GarrisonMetricCatalog.BackplaneReceived, "backplane", Name, "kind", message.Kind.ToString());
+            double lag = (DateTime.UtcNow - message.CreatedUtc).TotalSeconds;
+            if (lag >= 0) GarrisonMetrics.Observe(GarrisonMetricCatalog.BackplaneLag, lag, "backplane", Name);
             EventHandler<BackplaneMessage>? handler = MessageReceived;
             if (handler == null) return;
             try
@@ -306,8 +310,9 @@ namespace Garrison.Server.Backplane
 
                 try
                 {
-                    await SendAsync(batch, token).ConfigureAwait(false);
+                    await GarrisonTracing.BackgroundAsync("backplane", "publish", ct => SendAsync(batch, ct), token).ConfigureAwait(false);
                     Interlocked.Add(ref _Published, batch.Count);
+                    foreach (BackplaneMessage sent in batch) GarrisonMetrics.Count(GarrisonMetricCatalog.BackplanePublished, "backplane", Name, "kind", sent.Kind.ToString());
                 }
                 catch (OperationCanceledException)
                 {

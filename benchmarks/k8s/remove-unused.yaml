@@ -1,0 +1,19 @@
+# The benchmark talks to the API directly and provisions its own tenants, so the dashboard and the bootstrap Job
+# (which applies sample agents to the default tenant) are left out.
+$patch: delete
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garrison-dashboard
+---
+$patch: delete
+apiVersion: v1
+kind: Service
+metadata:
+  name: garrison-dashboard
+---
+$patch: delete
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: garrison-bootstrap

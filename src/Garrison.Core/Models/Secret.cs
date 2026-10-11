@@ -100,6 +100,36 @@ namespace Garrison.Core.Models
         public DateTime? RotatedUtc { get; set; } = null;
 
         /// <summary>
+        /// Health of the stored credential. Default <see cref="SecretStatusEnum.Ok"/>. The control plane sets
+        /// <see cref="SecretStatusEnum.NeedsReauthentication"/> when a CodexAuthJson login can no longer be refreshed;
+        /// setting a new value returns the secret to Ok.
+        /// </summary>
+        public SecretStatusEnum Status { get; set; } = SecretStatusEnum.Ok;
+
+        /// <summary>
+        /// Why the secret is in its current status, for example the provider error that made a login unusable. Null
+        /// when the status is Ok.
+        /// </summary>
+        public string? StatusMessage { get; set; } = null;
+
+        /// <summary>
+        /// When the status last changed away from Ok (UTC), or null.
+        /// </summary>
+        public DateTime? StatusUtc { get; set; } = null;
+
+        /// <summary>
+        /// When the control plane last refreshed the stored login itself (UTC), or null when it never has. Only
+        /// CodexAuthJson secrets holding a ChatGPT login are refreshed.
+        /// </summary>
+        public DateTime? RefreshedUtc { get; set; } = null;
+
+        /// <summary>
+        /// When the access token in the stored login expires (UTC, from the token's exp claim), or null when the value
+        /// holds no readable access token. Set for CodexAuthJson secrets holding a ChatGPT login.
+        /// </summary>
+        public DateTime? AccessTokenExpiresUtc { get; set; } = null;
+
+        /// <summary>
         /// Whether the record is active.
         /// </summary>
         public bool Active { get; set; } = true;

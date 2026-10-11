@@ -7,6 +7,7 @@ namespace Garrison.Core.Services
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// Writes audit records. Failures are reported to the diagnostic callback and never thrown. Thread-safe.
@@ -82,6 +83,7 @@ namespace Garrison.Core.Services
         public async Task WriteAsync(AuditRecord record, CancellationToken token = default)
         {
             if (record == null) return;
+            GarrisonMetrics.Count(GarrisonMetricCatalog.AuditEvents, "type", record.EventType.ToString());
             try
             {
                 await _Database.Audit.CreateAsync(record, token).ConfigureAwait(false);

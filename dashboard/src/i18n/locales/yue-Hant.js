@@ -243,6 +243,7 @@ const yueHant = {
     harnessType: { ClaudeCode: 'Claude Code', Codex: 'Codex', Mux: 'Mux', GeminiCli: 'Gemini CLI', Generic: '通用' },
     agentKind: { Hosted: '託管', Remote: '遠端' },
     delegationMode: { None: '唔委派', AllowList: '允許清單', Any: '任何代理程式' },
+    secretStatus: { Ok: '正常', NeedsReauthentication: '要重新驗證' },
     secretKind: {
       AnthropicApiKey: 'Anthropic API 金鑰',
       ClaudeCodeOAuthToken: 'Claude Code OAuth 權杖',
@@ -656,8 +657,10 @@ const yueHant = {
       errors: { expiryPast: '請揀一個將來嘅到期時間，或者留空等機密永遠唔會過期。' },
       ...rp('機密', 'Harness 同整合用嘅加密憑證。數值只寫唔讀。', '新增機密', '建立機密', '編輯機密', '機密詳情', '刪除機密', '仲未有機密', '加入你啲代理程式需要嘅 API 金鑰或者權杖，例如 Anthropic API 金鑰。'),
       notSet: '未設定',
-      columns: { name: '名稱', kind: '種類', valueLast4: '數值', rotatedUtc: '最後變更', expiresUtc: '到期', active: '啟用', id: 'ID' },
-      fields: { name: '名稱', kind: '種類', description: '描述', value: '數值', newValue: '新數值', expiresUtc: '到期', active: '啟用' },
+      neverRefreshed: '未更新過',
+      reauth: { title: '呢個登入要重新驗證', since: '由 {{time}} 開始', action: '用緊呢個機密嘅執行會一直失敗，直至你換咗佢嘅數值。請用獨立嘅 CODEX_HOME 行 codex login 重新登入，再用「設定數值」儲存新嘅 auth.json，或者將部署改用 OpenAI API 金鑰機密。唔好喺另一部機繼續用同一個登入：兩份副本共用同一個更新權杖。' },
+      columns: { status: '狀態', accessTokenExpiresUtc: '存取權杖到期時間', name: '名稱', kind: '種類', valueLast4: '數值', rotatedUtc: '最後變更', expiresUtc: '到期', active: '啟用', id: 'ID' },
+      fields: { refreshedUtc: 'Garrison 上次更新', accessTokenExpiresUtc: '存取權杖到期時間', name: '名稱', kind: '種類', description: '描述', value: '數值', newValue: '新數值', expiresUtc: '到期', active: '啟用' },
       hints: { expiresUtc: '一定要係將來嘅時間。留空就代表機密永遠唔會過期。', kind: '喺共用伺服器用訂閱權杖可能違反供應商條款。共用部署最好用 API 金鑰。' },
       actions: { setValue: '設定數值', rotate: '輪換' }
     },
@@ -893,6 +896,8 @@ const yueHant = {
       observabilityVersion: '版本 {{version}}',
       observabilityOpen: '打開 {{service}}',
       kpisGrafana: '喺 Grafana 打開總覽',
+      grafanaDashboards: 'Grafana 儀表板',
+      grafanaSections: { overview: '總覽', http: 'HTTP API', runs: '執行', agents: '代理程式', models: '模型同權杖', workers: '工作節點', kubernetes: 'Kubernetes 執行器', protocols: '協定', scheduler: '排程器同佇列', database: '資料庫', controlPlane: '控制平面', security: '安全同驗證', integrations: '整合', logs: '日誌同追蹤' },
       observabilitySetup: '設定可觀測性',
       observabilityNone: '呢個環境冇設定任何可觀測性服務（Grafana、Prometheus、Tempo 或者 Loki）。',
       observability: '可觀測性',
@@ -1097,6 +1102,7 @@ const yueHant = {
     },
     agentDetail: {
       invoke: '調用',
+      grafana: '喺 Grafana 打開',
       noActiveDeployment: '呢個代理程式冇啟用中嘅部署，所以調用會被拒絕。',
       deployments_one: '部署（{{count}}）',
       deployments_other: '部署（{{count}}）',
@@ -1262,7 +1268,7 @@ const yueHant = {
         ConfigMap: '由 Kubernetes ConfigMap 管理。請喺你嘅清單入面改。',
         other: '呢個設定唔可以喺度編輯。'
       },
-      groups: { Archive: '封存', General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '日誌', Auth: '驗證', Security: '保安', RequestHistory: '請求記錄', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '審計', Runtime: '執行階段', Observability: '可觀測性' },
+      groups: { Codex: 'Codex', Archive: '封存', General: '一般', Rest: 'REST', Mcp: 'MCP', Database: '資料庫', Logging: '日誌', Auth: '驗證', Security: '保安', RequestHistory: '請求記錄', Telemetry: '遙測', Cluster: '叢集', Scheduling: '排程', Runs: '執行', Audit: '審計', Runtime: '執行階段', Observability: '可觀測性' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana URL',
@@ -1365,6 +1371,13 @@ const yueHant = {
           RetentionDays: '執行保留日數',
           MaxDelegationDepth: '最大委派深度',
           DefaultTimeoutSeconds: '預設執行逾時（秒）'
+        },
+        Codex: {
+          RefreshBeforeExpirySeconds: '到期前更新 Codex 登入（秒）',
+          RefreshCheckIntervalSeconds: '背景檢查間隔（秒）',
+          RefreshTimeoutSeconds: '登入更新逾時（秒）',
+          TokenEndpoint: 'OAuth 權杖端點',
+          ClientId: 'OAuth 用戶端 ID'
         },
         Runtime: {
           FailBlockedAfterSeconds: '受阻執行幾多秒之後當失敗',

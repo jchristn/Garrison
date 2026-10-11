@@ -1,0 +1,335 @@
+{
+  "schemaVersion": 1,
+  "kind": "ingest",
+  "dataset": "garrison-live",
+  "label": "ci-gate",
+  "deterministic": true,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-10-11T16:45:58.037318Z",
+    "finishedUtc": "2026-10-11T16:45:58.131426Z",
+    "sutUrl": "http://127.0.0.1 (bench stack)",
+    "sutVersion": "0.1.0-alpha",
+    "stack": "local",
+    "productCommit": "23c4da98f483eceb07ebe453ecea8a6030e4013f-dirty",
+    "productDirtyFiles": 366,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "uncommitted-dirty",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.12",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "garrison-live",
+    "datasetSha256": "a0f3f286b047775bb9996f4b67d14d269bcc506d8fe2aabf301f48c87c506eb2",
+    "datasetPath": "benchmarks/datasets/garrison-live.json",
+    "commandLine": "Garrison.Benchmark ingest --dataset benchmarks/datasets/garrison-live.json --corpus live-ingest --deterministic true --url http://127.0.0.1:37800 --stack local --label ci-gate --results-dir <repo>/benchmarks/results --seed 42",
+    "seed": 42
+  },
+  "options": {
+    "batch-size": "50",
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "corpus": "live-ingest",
+    "dataset": "benchmarks/datasets/garrison-live.json",
+    "deterministic": "true",
+    "dry-run": "true",
+    "kubeconfig": "(unset)",
+    "label": "ci-gate",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "poll-ms": "100",
+    "ready-timeout-seconds": "120",
+    "reapply": "true",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "<repo>/benchmarks/results",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "(unset)",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "probes": 3,
+      "passed": 3,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 3,
+        "indicative": true
+      },
+      "latency": {
+        "count": 3,
+        "mean": 0.8570500000000001,
+        "stdDev": 0.39428289019433754,
+        "min": 0.5727,
+        "p50": 0.6913,
+        "p90": 1.30715,
+        "p95": 1.30715,
+        "p99": 1.30715,
+        "max": 1.30715,
+        "p50Ci": {
+          "estimate": 0.6913,
+          "lower": 0.5727,
+          "upper": 1.30715,
+          "level": 0.95,
+          "n": 3,
+          "indicative": true
+        },
+        "p95Ci": {
+          "estimate": 1.30715,
+          "lower": 0.5727,
+          "upper": 1.30715,
+          "level": 0.95,
+          "n": 3,
+          "indicative": true
+        }
+      },
+      "timings": {
+        "agents": {
+          "count": 1,
+          "mean": 6,
+          "stdDev": 0,
+          "min": 6,
+          "p50": 6,
+          "p90": 6,
+          "p95": 6,
+          "p99": 6,
+          "max": 6
+        },
+        "reachable": {
+          "count": 1,
+          "mean": 6,
+          "stdDev": 0,
+          "min": 6,
+          "p50": 6,
+          "p90": 6,
+          "p95": 6,
+          "p99": 6,
+          "max": 6
+        },
+        "requestMs": {
+          "count": 2,
+          "mean": 0.632,
+          "stdDev": 0.08386286424872456,
+          "min": 0.5727,
+          "p50": 0.5727,
+          "p90": 0.6913,
+          "p95": 0.6913,
+          "p99": 0.6913,
+          "max": 0.6913,
+          "p50Ci": {
+            "estimate": 0.5727,
+            "lower": 0.5727,
+            "upper": 0.6913,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 0.6913,
+            "lower": 0.5727,
+            "upper": 0.6913,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        }
+      },
+      "byType": [
+        {
+          "key": "idempotent-dry-run",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "reachability",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "secret-value",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "load-path",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "validation",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "live-ingest",
+      "probeId": "reachable-all",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "reachability",
+      "category": "load-path",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "6 of 6 agents readable",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.30715,
+      "timings": {
+        "agents": 6,
+        "reachable": 6
+      }
+    },
+    {
+      "corpus": "live-ingest",
+      "probeId": "dry-run-unchanged",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "idempotent-dry-run",
+      "category": "load-path",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "200, created 0, unchanged 1, failed 0",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 0.5727,
+      "timings": {
+        "requestMs": 0.5727
+      }
+    },
+    {
+      "corpus": "live-ingest",
+      "probeId": "secret-value",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "secret-value",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Secret claude-credential carries a value but this apply does not allow secret values.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 0.6913,
+      "timings": {
+        "requestMs": 0.6913
+      }
+    }
+  ],
+  "loadLevels": [],
+  "ingest": {
+    "documents": 15,
+    "applies": 1,
+    "batchSize": 50,
+    "created": 15,
+    "updated": 0,
+    "unchanged": 0,
+    "failed": 0,
+    "requestErrors": 0,
+    "documentsPerSecond": 1474.0421182967934,
+    "applyLatency": {
+      "count": 1,
+      "mean": 10.1452,
+      "stdDev": 0,
+      "min": 10.1452,
+      "p50": 10.1452,
+      "p90": 10.1452,
+      "p95": 10.1452,
+      "p99": 10.1452,
+      "max": 10.1452
+    },
+    "reapplyUnchangedRate": 1,
+    "reapplyLatency": {
+      "count": 1,
+      "mean": 14.7172,
+      "stdDev": 0,
+      "min": 14.7172,
+      "p50": 14.7172,
+      "p90": 14.7172,
+      "p95": 14.7172,
+      "p99": 14.7172,
+      "max": 14.7172
+    },
+    "dryRunMs": 6.9236,
+    "reachable": 6,
+    "agentDocuments": 6,
+    "reachability": 1
+  },
+  "scenarios": [],
+  "stages": [],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": []
+}

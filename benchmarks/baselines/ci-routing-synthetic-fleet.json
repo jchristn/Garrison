@@ -1,0 +1,1406 @@
+{
+  "schemaVersion": 1,
+  "kind": "routing",
+  "dataset": "synthetic-fleet",
+  "label": "ci-gate",
+  "deterministic": true,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-10-11T16:45:21.53985Z",
+    "finishedUtc": "2026-10-11T16:45:43.557767Z",
+    "sutUrl": "http://127.0.0.1 (bench stack)",
+    "sutVersion": "0.1.0-alpha",
+    "stack": "local",
+    "productCommit": "23c4da98f483eceb07ebe453ecea8a6030e4013f-dirty",
+    "productDirtyFiles": 366,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "uncommitted-dirty",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.12",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "synthetic-fleet",
+    "datasetSha256": "2e79613ad9cab719bd66ffaa8c3eb6ac6688c37ae25a5eae9ab23cf67cf5b52a",
+    "datasetPath": "benchmarks/datasets/synthetic-fleet.json",
+    "commandLine": "Garrison.Benchmark routing --dataset benchmarks/datasets/synthetic-fleet.json --deterministic true --url http://127.0.0.1:37800 --stack local --label ci-gate --results-dir <repo>/benchmarks/results --seed 42",
+    "seed": 42
+  },
+  "options": {
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "corpus": "",
+    "dataset": "benchmarks/datasets/synthetic-fleet.json",
+    "deterministic": "true",
+    "direct": "false",
+    "kubeconfig": "(unset)",
+    "label": "ci-gate",
+    "limit": "0",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "other-tenant": "default",
+    "poll-ms": "100",
+    "ready-timeout-seconds": "120",
+    "repeat": "1",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "<repo>/benchmarks/results",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "(unset)",
+    "stream": "true",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "warmup": "0",
+    "workspace-suffix": "(unset)"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "description": "Runs through Garrison: REST create or invoke, scheduling, lease, compile, worker, fake harness, event shipping, completion.",
+      "probes": 24,
+      "passed": 24,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 24,
+        "indicative": false
+      },
+      "latency": {
+        "count": 22,
+        "mean": 141.16928181818182,
+        "stdDev": 95.15807622830067,
+        "min": 0.701,
+        "p50": 206.802,
+        "p90": 210.969,
+        "p95": 230.954,
+        "p99": 250.245,
+        "max": 250.245,
+        "p50Ci": {
+          "estimate": 206.802,
+          "lower": 3.6533,
+          "upper": 208.818,
+          "level": 0.95,
+          "n": 22,
+          "indicative": false
+        },
+        "p95Ci": {
+          "estimate": 230.954,
+          "lower": 209.294,
+          "upper": 250.245,
+          "level": 0.95,
+          "n": 22,
+          "indicative": false
+        }
+      },
+      "timings": {
+        "eventPersistMaxMs": {
+          "count": 15,
+          "mean": 38.0636,
+          "stdDev": 9.020096759062906,
+          "min": 30.881,
+          "p50": 34.06,
+          "p90": 50.488,
+          "p95": 63.974,
+          "p99": 63.974,
+          "max": 63.974,
+          "p50Ci": {
+            "estimate": 34.06,
+            "lower": 33.583,
+            "upper": 37.223,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 63.974,
+            "lower": 42.452,
+            "upper": 63.974,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          }
+        },
+        "eventPersistMs": {
+          "count": 15,
+          "mean": 13.99013333333333,
+          "stdDev": 5.227456385917215,
+          "min": 9.596,
+          "p50": 11.69,
+          "p90": 21.154,
+          "p95": 25.998,
+          "p99": 25.998,
+          "max": 25.998,
+          "p50Ci": {
+            "estimate": 11.69,
+            "lower": 10.735,
+            "upper": 20.243,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 25.998,
+            "lower": 20.243,
+            "upper": 25.998,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          }
+        },
+        "events": {
+          "count": 16,
+          "mean": 10.125,
+          "stdDev": 2.247220505424423,
+          "min": 2,
+          "p50": 11,
+          "p90": 11,
+          "p95": 11,
+          "p99": 11,
+          "max": 11,
+          "p50Ci": {
+            "estimate": 11,
+            "lower": 10,
+            "upper": 11,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 11,
+            "lower": 11,
+            "upper": 11,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          }
+        },
+        "executionMs": {
+          "count": 15,
+          "mean": 86.06666666666666,
+          "stdDev": 13.040961109775102,
+          "min": 74,
+          "p50": 83,
+          "p90": 106,
+          "p95": 124,
+          "p99": 124,
+          "max": 124,
+          "p50Ci": {
+            "estimate": 83,
+            "lower": 78,
+            "upper": 85,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 124,
+            "lower": 85,
+            "upper": 124,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          }
+        },
+        "queueMs": {
+          "count": 16,
+          "mean": 1.375,
+          "stdDev": 1.5864005379054391,
+          "min": 0,
+          "p50": 1,
+          "p90": 2,
+          "p95": 7,
+          "p99": 7,
+          "max": 7,
+          "p50Ci": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 7,
+            "lower": 1,
+            "upper": 7,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          }
+        },
+        "requestMs": {
+          "count": 24,
+          "mean": 4.250858333333333,
+          "stdDev": 6.789797991418844,
+          "min": 1.0121,
+          "p50": 2.5113,
+          "p90": 3.6533,
+          "p95": 10.4592,
+          "p99": 35.1103,
+          "max": 35.1103,
+          "p50Ci": {
+            "estimate": 2.5113,
+            "lower": 2.38,
+            "upper": 2.8581,
+            "level": 0.95,
+            "n": 24,
+            "indicative": false
+          },
+          "p95Ci": {
+            "estimate": 10.4592,
+            "lower": 3.2099,
+            "upper": 35.1103,
+            "level": 0.95,
+            "n": 24,
+            "indicative": false
+          }
+        },
+        "serverOverheadMs": {
+          "count": 15,
+          "mean": 35.6,
+          "stdDev": 24.80437749384457,
+          "min": 19,
+          "p50": 30,
+          "p90": 65,
+          "p95": 116,
+          "p99": 116,
+          "max": 116,
+          "p50Ci": {
+            "estimate": 30,
+            "lower": 21,
+            "upper": 32,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 116,
+            "lower": 32,
+            "upper": 116,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          }
+        },
+        "streamMaxMs": {
+          "count": 16,
+          "mean": 1.267,
+          "stdDev": 0.9939646539657903,
+          "min": 0.474,
+          "p50": 0.913,
+          "p90": 2.744,
+          "p95": 4.185,
+          "p99": 4.185,
+          "max": 4.185,
+          "p50Ci": {
+            "estimate": 0.913,
+            "lower": 0.688,
+            "upper": 1.144,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 4.185,
+            "lower": 1.162,
+            "upper": 4.185,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          }
+        },
+        "streamMessages": {
+          "count": 16,
+          "mean": 11.125,
+          "stdDev": 2.247220505424423,
+          "min": 3,
+          "p50": 12,
+          "p90": 12,
+          "p95": 12,
+          "p99": 12,
+          "max": 12,
+          "p50Ci": {
+            "estimate": 12,
+            "lower": 11,
+            "upper": 12,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 12,
+            "lower": 12,
+            "upper": 12,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          }
+        },
+        "streamMs": {
+          "count": 16,
+          "mean": 1.2043125,
+          "stdDev": 0.9965665536397121,
+          "min": 0.416,
+          "p50": 0.867,
+          "p90": 2.671,
+          "p95": 4.144,
+          "p99": 4.144,
+          "max": 4.144,
+          "p50Ci": {
+            "estimate": 0.867,
+            "lower": 0.714,
+            "upper": 0.999,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 4.144,
+            "lower": 1.111,
+            "upper": 4.144,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          }
+        },
+        "totalMs": {
+          "count": 16,
+          "mean": 114.5,
+          "stdDev": 38.53656272511427,
+          "min": 7,
+          "p50": 113,
+          "p90": 160,
+          "p95": 199,
+          "p99": 199,
+          "max": 199,
+          "p50Ci": {
+            "estimate": 113,
+            "lower": 106,
+            "upper": 117,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 199,
+            "lower": 127,
+            "upper": 199,
+            "level": 0.95,
+            "n": 16,
+            "indicative": true
+          }
+        },
+        "ttftMs": {
+          "count": 15,
+          "mean": 52,
+          "stdDev": 11.976166808648392,
+          "min": 44,
+          "p50": 49,
+          "p90": 54,
+          "p95": 94,
+          "p99": 94,
+          "max": 94,
+          "p50Ci": {
+            "estimate": 49,
+            "lower": 47,
+            "upper": 51,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 94,
+            "lower": 51,
+            "upper": 94,
+            "level": 0.95,
+            "n": 15,
+            "indicative": true
+          }
+        }
+      },
+      "byType": [
+        {
+          "key": "concurrency-limit",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "missing-executable",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "missing-harness",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "no-deployment",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "no-selector",
+          "n": 3,
+          "passed": 3,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 3,
+            "indicative": true
+          }
+        },
+        {
+          "key": "node-selector",
+          "n": 8,
+          "passed": 8,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 8,
+            "indicative": true
+          }
+        },
+        {
+          "key": "override-in-range",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "override-not-allowed",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "override-out-of-range",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "priority",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "unknown-agent",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "unmatched-selector",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "weight-zero",
+          "n": 3,
+          "passed": 3,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 3,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "blocking",
+          "n": 3,
+          "passed": 3,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 3,
+            "indicative": true
+          }
+        },
+        {
+          "key": "ordering",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "placement",
+          "n": 14,
+          "passed": 14,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 14,
+            "indicative": true
+          }
+        },
+        {
+          "key": "validation",
+          "n": 5,
+          "passed": 5,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "routing",
+      "probeId": "placement-alpha-1",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "node-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Placement probe alpha 1: this run must land on an alpha lane worker.",
+      "runIds": [
+        "run_mv420r5b_yt69qqIjYmW1PEA28wx"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 250.245,
+      "timings": {
+        "eventPersistMaxMs": 50.488,
+        "eventPersistMs": 25.998,
+        "events": 11,
+        "executionMs": 83,
+        "queueMs": 7,
+        "requestMs": 35.1103,
+        "serverOverheadMs": 116,
+        "streamMaxMs": 4.185,
+        "streamMessages": 12,
+        "streamMs": 4.144,
+        "totalMs": 199,
+        "ttftMs": 49
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-beta-1",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "node-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Placement probe beta 1: this run must land on a beta lane worker.",
+      "runIds": [
+        "run_mv420rcb_v7cAfJdjNA5EhqgtMxQ"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 209.091,
+      "timings": {
+        "eventPersistMaxMs": 42.452,
+        "eventPersistMs": 21.154,
+        "events": 11,
+        "executionMs": 74,
+        "queueMs": 1,
+        "requestMs": 2.9135,
+        "serverOverheadMs": 65,
+        "streamMaxMs": 0.814,
+        "streamMessages": 12,
+        "streamMs": 0.742,
+        "totalMs": 139,
+        "ttftMs": 45
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-alpha-2",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "node-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Placement probe alpha 2: this run must land on an alpha lane worker.",
+      "runIds": [
+        "run_mv420ri6_iMldNfanuraWR16VPrc"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 209.961,
+      "timings": {
+        "eventPersistMaxMs": 35.281,
+        "eventPersistMs": 10.241,
+        "events": 11,
+        "executionMs": 83,
+        "queueMs": 1,
+        "requestMs": 3.2099,
+        "serverOverheadMs": 30,
+        "streamMaxMs": 0.913,
+        "streamMessages": 12,
+        "streamMs": 0.883,
+        "totalMs": 113,
+        "ttftMs": 50
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-beta-2",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "node-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Placement probe beta 2: this run must land on a beta lane worker.",
+      "runIds": [
+        "run_mv420ro1_MVzx71yhQqv9VT7HAdx"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 208.456,
+      "timings": {
+        "eventPersistMaxMs": 44.025,
+        "eventPersistMs": 20.615,
+        "events": 11,
+        "executionMs": 93,
+        "queueMs": 1,
+        "requestMs": 2.2903,
+        "serverOverheadMs": 24,
+        "streamMaxMs": 0.954,
+        "streamMessages": 12,
+        "streamMs": 0.9,
+        "totalMs": 117,
+        "ttftMs": 54
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-alpha-3",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "node-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Placement probe alpha 3: this run must land on an alpha lane worker.",
+      "runIds": [
+        "run_mv420rtw_2UnlsWvhW5ay3L74Os9"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 209.294,
+      "timings": {
+        "eventPersistMaxMs": 37.223,
+        "eventPersistMs": 11.702,
+        "events": 11,
+        "executionMs": 85,
+        "queueMs": 1,
+        "requestMs": 3.502,
+        "serverOverheadMs": 31,
+        "streamMaxMs": 1.162,
+        "streamMessages": 12,
+        "streamMs": 1.111,
+        "totalMs": 116,
+        "ttftMs": 50
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-beta-3",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "node-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Placement probe beta 3: this run must land on a beta lane worker.",
+      "runIds": [
+        "run_mv420rzs_b7TckbWdfhMIQVylmab"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 209.029,
+      "timings": {
+        "eventPersistMaxMs": 34.06,
+        "eventPersistMs": 10.748,
+        "events": 11,
+        "executionMs": 83,
+        "queueMs": 1,
+        "requestMs": 2.6838,
+        "serverOverheadMs": 21,
+        "streamMaxMs": 0.866,
+        "streamMessages": 12,
+        "streamMs": 0.819,
+        "totalMs": 104,
+        "ttftMs": 51
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-alpha-4",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "node-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Placement probe alpha 4: this run must land on an alpha lane worker.",
+      "runIds": [
+        "run_mv420s5m_gARpX2JeJFur5YsergE"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 206.773,
+      "timings": {
+        "eventPersistMaxMs": 33.698,
+        "eventPersistMs": 11.539,
+        "events": 11,
+        "executionMs": 83,
+        "queueMs": 1,
+        "requestMs": 2.6436,
+        "serverOverheadMs": 30,
+        "streamMaxMs": 1.144,
+        "streamMessages": 12,
+        "streamMs": 0.999,
+        "totalMs": 113,
+        "ttftMs": 51
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-beta-4",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "node-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Placement probe beta 4: this run must land on a beta lane worker.",
+      "runIds": [
+        "run_mv420sbe_o9GpTANj3qj7KySLgOV"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 106.961,
+      "timings": {
+        "eventPersistMaxMs": 31.037,
+        "eventPersistMs": 10.107,
+        "events": 11,
+        "executionMs": 78,
+        "queueMs": 1,
+        "requestMs": 2.8581,
+        "serverOverheadMs": 20,
+        "streamMaxMs": 2.387,
+        "streamMessages": 12,
+        "streamMs": 2.332,
+        "totalMs": 98,
+        "ttftMs": 49
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-any-1",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "no-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Placement probe any 1: any worker may take this run.",
+      "runIds": [
+        "run_mv420sed_z9bSXMClMGLgKUvubd6"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 206.802,
+      "timings": {
+        "eventPersistMaxMs": 33.583,
+        "eventPersistMs": 10.735,
+        "events": 10,
+        "executionMs": 80,
+        "queueMs": 0,
+        "requestMs": 2.1495,
+        "serverOverheadMs": 29,
+        "streamMaxMs": 0.688,
+        "streamMessages": 11,
+        "streamMs": 0.646,
+        "totalMs": 109,
+        "ttftMs": 49
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "weight-zero-1",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "weight-zero",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Weighted probe 1: the weight 0 deployment must never be picked.",
+      "runIds": [
+        "run_mv420sk6_2emSgGIfOADuk2NyX7h"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 208.818,
+      "timings": {
+        "eventPersistMaxMs": 33.99,
+        "eventPersistMs": 13.095,
+        "events": 11,
+        "executionMs": 85,
+        "queueMs": 1,
+        "requestMs": 2.422,
+        "serverOverheadMs": 31,
+        "streamMaxMs": 0.934,
+        "streamMessages": 12,
+        "streamMs": 0.867,
+        "totalMs": 116,
+        "ttftMs": 54
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-any-2",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "no-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Placement probe any 2: any worker may take this run.",
+      "runIds": [
+        "run_mv420sq0_VqfviHqnOCLRIStz0Xc"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 105.132,
+      "timings": {
+        "eventPersistMaxMs": 36.293,
+        "eventPersistMs": 11.69,
+        "events": 10,
+        "executionMs": 81,
+        "queueMs": 1,
+        "requestMs": 2.5883,
+        "serverOverheadMs": 19,
+        "streamMaxMs": 0.669,
+        "streamMessages": 11,
+        "streamMs": 0.61,
+        "totalMs": 100,
+        "ttftMs": 46
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "weight-zero-2",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "weight-zero",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Weighted probe 2: the weight 0 deployment must never be picked.",
+      "runIds": [
+        "run_mv420ssy_wLD3lJxc41jdHAMTCoE"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 210.969,
+      "timings": {
+        "eventPersistMaxMs": 30.881,
+        "eventPersistMs": 9.596,
+        "events": 11,
+        "executionMs": 76,
+        "queueMs": 2,
+        "requestMs": 3.47,
+        "serverOverheadMs": 32,
+        "streamMaxMs": 2.744,
+        "streamMessages": 12,
+        "streamMs": 2.671,
+        "totalMs": 108,
+        "ttftMs": 47
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "placement-any-3",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "no-selector",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Placement probe any 3: any worker may take this run.",
+      "runIds": [
+        "run_mv420syt_uO545nArQ8h9AYFv61h"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 208.597,
+      "timings": {
+        "eventPersistMaxMs": 31.57,
+        "eventPersistMs": 10.313,
+        "events": 10,
+        "executionMs": 77,
+        "queueMs": 1,
+        "requestMs": 1.9919,
+        "serverOverheadMs": 29,
+        "streamMaxMs": 0.553,
+        "streamMessages": 11,
+        "streamMs": 0.496,
+        "totalMs": 106,
+        "ttftMs": 47
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "weight-zero-3",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "weight-zero",
+      "category": "placement",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-alpha-1, result Echo: Weighted probe 3: the weight 0 deployment must never be picked.",
+      "runIds": [
+        "run_mv420t4n_A2Yl7ASpYcsR6QJLwE4"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 230.954,
+      "timings": {
+        "eventPersistMaxMs": 32.399,
+        "eventPersistMs": 12.076,
+        "events": 11,
+        "executionMs": 124,
+        "queueMs": 0,
+        "requestMs": 2.4182,
+        "serverOverheadMs": 36,
+        "streamMaxMs": 1.016,
+        "streamMessages": 12,
+        "streamMs": 0.919,
+        "totalMs": 160,
+        "ttftMs": 94
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "blocked-no-matching-pool",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "unmatched-selector",
+      "category": "blocking",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Queued/None, result null, blockedReason NoMatchingPool",
+      "runIds": [
+        "run_mv420tb4_2l7sYcsk0v4BvRNxUwk"
+      ],
+      "nodes": [],
+      "latencyMs": 0.814,
+      "timings": {
+        "requestMs": 2.1474
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "blocked-no-capable-worker",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "missing-harness",
+      "category": "blocking",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Queued/None, result null, blockedReason NoCapableWorker",
+      "runIds": [
+        "run_mv420tbb_Kc9VI3uoCV4ecuTlg6z"
+      ],
+      "nodes": [],
+      "latencyMs": 0.701,
+      "timings": {
+        "requestMs": 2.2595
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "missing-executable",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "missing-executable",
+      "category": "blocking",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Failed/NotInstalled on bench-alpha-1, result null",
+      "runIds": [
+        "run_mv420tbg_dhAcjs2rwcidV8Z8dvn"
+      ],
+      "nodes": [
+        "bench-alpha-1"
+      ],
+      "latencyMs": 106.387,
+      "timings": {
+        "events": 2,
+        "queueMs": 1,
+        "requestMs": 2.1857,
+        "streamMaxMs": 0.474,
+        "streamMessages": 3,
+        "streamMs": 0.416,
+        "totalMs": 7
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "no-deployment",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "no-deployment",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "409 NoActiveDeployment: Agent route-nodeploy has no active deployment with a weight above zero, so it cannot run. Create a deployment for it, or...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 3.6533,
+      "timings": {
+        "requestMs": 3.6533
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "unknown-agent",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "unknown-agent",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "404 NotFound: Agent route-does-not-exist not found.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.0121,
+      "timings": {
+        "requestMs": 1.0121
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "override-not-allowed",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "override-not-allowed",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 ValidationFailed: Run parameter format is not allowed for deployment route-alpha-fake: Deployment route-alpha-fake does not allow overridi...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 2.4745,
+      "timings": {
+        "requestMs": 2.4745
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "override-out-of-range",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "override-out-of-range",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 ValidationFailed: Run parameter delayMs is not allowed for deployment route-single-fake: Parameter delayMs: Value must be between 0 and 50...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 2.5113,
+      "timings": {
+        "requestMs": 2.5113
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "override-in-range",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "override-in-range",
+      "category": "validation",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: An allowed override inside its range.",
+      "runIds": [
+        "run_mv420ter_woLxtVHq1piuug17MPJ"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 207.089,
+      "timings": {
+        "eventPersistMaxMs": 63.974,
+        "eventPersistMs": 20.243,
+        "events": 9,
+        "executionMs": 106,
+        "queueMs": 2,
+        "requestMs": 2.38,
+        "serverOverheadMs": 21,
+        "streamMaxMs": 0.769,
+        "streamMessages": 10,
+        "streamMs": 0.714,
+        "totalMs": 127,
+        "ttftMs": 44
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "priority-first",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "priority",
+      "category": "ordering",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "high leased 16:45:27.819, first low leased 16:45:30.831",
+      "runIds": [
+        "run_mv420tkl_PXJurtMoZfR9hXYtWRz",
+        "run_mv420tkr_N8CiDJxq40Lx5lnvF2Y",
+        "run_mv420tku_hwSWvTLiHMXwSqihhuf",
+        "run_mv420tkw_K1xOl2iiuSY2R7PpHM9",
+        "run_mv420tkz_8lUYXFOhtj3Vvl1O45n"
+      ],
+      "nodes": [
+        "bench-alpha-1",
+        "bench-beta-1"
+      ],
+      "timings": {
+        "requestMs": 2.6862
+      }
+    },
+    {
+      "corpus": "routing",
+      "probeId": "single-slot-no-overlap",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "concurrency-limit",
+      "category": "ordering",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "4 runs, 0 overlapping pairs",
+      "runIds": [
+        "run_mv42157h_dZ4Awj2rKNSx1em8q0Q",
+        "run_mv42157j_6QVjtEThxydsNJN616G",
+        "run_mv42157l_FutcSxJivklsPKky1Md",
+        "run_mv42157l_CK089OOiKuEV5buOUNB"
+      ],
+      "nodes": [
+        "bench-alpha-1",
+        "bench-beta-1"
+      ],
+      "timings": {
+        "requestMs": 10.4592
+      }
+    }
+  ],
+  "loadLevels": [],
+  "scenarios": [],
+  "stages": [],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": []
+}

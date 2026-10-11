@@ -4,6 +4,7 @@
     "tenantId": "ten_golden",
     "agentName": "helper-gemini-cli-full",
     "deploymentId": "dep_gemini_cli_full",
+    "deploymentName": "helper-gemini-cli-full-default",
     "harnessType": "GeminiCli",
     "executable": "gemini",
     "arguments": [

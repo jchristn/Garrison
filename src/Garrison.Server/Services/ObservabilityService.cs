@@ -2,12 +2,14 @@ namespace Garrison.Server.Services
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics.Metrics;
     using System.Linq;
     using System.Net.Http;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Responses;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// Observability endpoints (Phase 13): the browser-facing URLs reported by server info, and reachability probes of
@@ -99,6 +101,7 @@ namespace Garrison.Server.Services
         private List<ObservabilityServiceStatus>? _Cached = null;
         private string _CachedFingerprint = String.Empty;
         private DateTime _CachedUtc = DateTime.MinValue;
+        private readonly GaugeRegistration _ReachableGauge;
         private bool _Disposed = false;
 
         #endregion
@@ -113,8 +116,9 @@ namespace Garrison.Server.Services
         public ObservabilityService(ClusterSettingsService cluster)
         {
             _Cluster = cluster ?? throw new ArgumentNullException(nameof(cluster));
-            _Http = new HttpClient();
+            _Http = new HttpClient(new TelemetryHttpHandler("observability", new SocketsHttpHandler()));
             _Http.Timeout = Timeout.InfiniteTimeSpan;
+            _ReachableGauge = GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.ObservabilityReachable, ObserveReachable);
         }
 
         #endregion
@@ -228,6 +232,7 @@ namespace Garrison.Server.Services
             if (disposing)
             {
                 _Http.Dispose();
+                _ReachableGauge.Dispose();
                 _ProbeLock.Dispose();
             }
             _Disposed = true;
@@ -303,31 +308,31 @@ namespace Garrison.Server.Services
                 switch (service)
                 {
                     case "grafana":
-                        string? health = await GetAsync(baseUrl + "/api/health", token).ConfigureAwait(false);
+                        string? health = await GetAsync(service, baseUrl + "/api/health", token).ConfigureAwait(false);
                         status.Reachable = health != null;
                         if (health != null) status.Version = Parse<BuildInfoVersion>(health)?.Version;
                         break;
                     case "prometheus":
-                        status.Reachable = await GetAsync(baseUrl + "/-/ready", token).ConfigureAwait(false) != null;
+                        status.Reachable = await GetAsync(service, baseUrl + "/-/ready", token).ConfigureAwait(false) != null;
                         if (status.Reachable)
                         {
-                            string? build = await GetAsync(baseUrl + "/api/v1/status/buildinfo", token).ConfigureAwait(false);
+                            string? build = await GetAsync(service, baseUrl + "/api/v1/status/buildinfo", token).ConfigureAwait(false);
                             if (build != null) status.Version = Parse<PrometheusBuildInfo>(build)?.Data?.Version;
                         }
                         break;
                     case "loki":
-                        status.Reachable = await GetAsync(baseUrl + "/ready", token).ConfigureAwait(false) != null;
+                        status.Reachable = await GetAsync(service, baseUrl + "/ready", token).ConfigureAwait(false) != null;
                         if (status.Reachable)
                         {
-                            string? build = await GetAsync(baseUrl + "/loki/api/v1/status/buildinfo", token).ConfigureAwait(false);
+                            string? build = await GetAsync(service, baseUrl + "/loki/api/v1/status/buildinfo", token).ConfigureAwait(false);
                             if (build != null) status.Version = Parse<BuildInfoVersion>(build)?.Version;
                         }
                         break;
                     case "tempo":
-                        status.Reachable = await GetAsync(baseUrl + "/ready", token).ConfigureAwait(false) != null;
+                        status.Reachable = await GetAsync(service, baseUrl + "/ready", token).ConfigureAwait(false) != null;
                         if (status.Reachable)
                         {
-                            string? build = await GetAsync(baseUrl + "/api/status/buildinfo", token).ConfigureAwait(false);
+                            string? build = await GetAsync(service, baseUrl + "/api/status/buildinfo", token).ConfigureAwait(false);
                             if (build != null) status.Version = Parse<BuildInfoVersion>(build)?.Version;
                         }
                         break;
@@ -343,17 +348,29 @@ namespace Garrison.Server.Services
             return status;
         }
 
-        private async Task<string?> GetAsync(string url, CancellationToken token)
+        private IEnumerable<Measurement<double>> ObserveReachable()
+        {
+            List<ObservabilityServiceStatus>? cached = _Cached;
+            if (cached == null) return Array.Empty<Measurement<double>>();
+            return cached.Where(s => s.Configured).Select(s => GarrisonMetrics.Measure(s.Reachable ? 1 : 0, "service", s.Service)).ToList();
+        }
+
+        private async Task<string?> GetAsync(string service, string url, CancellationToken token)
         {
             using (CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
                 timeout.CancelAfter(_ProbeTimeoutMs);
                 try
                 {
-                    using (HttpResponseMessage response = await _Http.GetAsync(url, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false))
+                    using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
                     {
-                        if (!response.IsSuccessStatusCode) return null;
-                        return await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
+                        request.Options.Set(TelemetryHttpHandler.ServiceKey, service);
+                        request.Options.Set(TelemetryHttpHandler.OperationKey, "probe");
+                        using (HttpResponseMessage response = await _Http.SendAsync(request, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false))
+                        {
+                            if (!response.IsSuccessStatusCode) return null;
+                            return await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
+                        }
                     }
                 }
                 catch (Exception e) when (e is HttpRequestException || e is OperationCanceledException || e is InvalidOperationException || e is UriFormatException)

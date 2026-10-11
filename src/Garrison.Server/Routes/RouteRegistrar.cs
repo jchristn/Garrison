@@ -10,6 +10,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Services;
     using SyslogLogging;
     using WatsonWebserver;
@@ -247,6 +248,7 @@ namespace Garrison.Server.Routes
 
         private async Task InvokeAsync(HttpContextBase context, Func<HttpContextBase, Task> handler)
         {
+            RequestTelemetry.CaptureSpan(context);
             try
             {
                 await handler(context).ConfigureAwait(false);
@@ -281,7 +283,8 @@ namespace Garrison.Server.Routes
             }
             catch (Exception e)
             {
-                _Logging.Warn(_Header + context.Request.Method + " " + context.Request.Url.RawWithoutQuery + " failed: " + e);
+                _Logging.Warn(_Header + context.Request.Method + " " + context.Request.Url.RawWithoutQuery + " failed: " + e + " "
+                    + GarrisonTracing.LogFields("route", RequestTelemetry.RouteTemplate(context), "tenant", RequestTelemetry.Tenant(context), "trace", System.Diagnostics.Activity.Current?.TraceId.ToHexString()));
                 if (!context.Response.ResponseSent) await RouteHelpers.ErrorAsync(context, 500, "InternalError", "An internal error occurred. See server logs with the request identifier.").ConfigureAwait(false);
             }
         }

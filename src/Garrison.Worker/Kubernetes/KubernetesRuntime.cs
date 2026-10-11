@@ -8,6 +8,7 @@ namespace Garrison.Worker.Kubernetes
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Telemetry;
     using Garrison.Worker.Settings;
     using k8s;
     using k8s.Autorest;
@@ -140,7 +141,8 @@ namespace Garrison.Worker.Kubernetes
                     Namespace = !String.IsNullOrWhiteSpace(_Settings.RunNamespace) ? _Settings.RunNamespace!
                         : !String.IsNullOrWhiteSpace(configuration.Namespace) ? configuration.Namespace!
                         : Environment.GetEnvironmentVariable("POD_NAMESPACE") ?? "default";
-                    _Client = new k8s.Kubernetes(configuration);
+                    // Every Kubernetes API call is an outbound call (service kubernetes) with a client span (P13.24).
+                    _Client = new k8s.Kubernetes(configuration, new TelemetryHttpHandler("kubernetes"));
                 }
 
                 Image = _Settings.RunImage;

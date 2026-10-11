@@ -154,6 +154,7 @@ A value is false when it is missing, `false`, an empty or whitespace-only string
 | `indent: 4` | Indent every line after the first by that many spaces (default 2) |
 | `truncate: 200` | Keep at most that many characters (default 200) |
 | `join: ", "` | Join a list (default `, `) |
+| `codexRunAuth` (filter names ignore case) | For a Codex `auth.json` login: the copy handed to a run, with the refresh token removed so the run can use the current access token but can never use up the stored refresh token (G-22). Other text passes through unchanged |
 
 Output is not HTML-escaped. Includes nest up to 8 deep and rendered output is limited to 8 MiB. An unknown filter, an unclosed block, or an include that does not exist fails the render with the line and column. For runs, that failure surfaces as the run outcome `CompileFailed` or a 400 `TemplateRenderFailed` when a preview is requested.
 
@@ -196,7 +197,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/
 `context` is merged over a built-in sample context, so you only supply what you want to change. Pass `deploymentId` instead to render against a real deployment's context (secrets excluded). A failed render still answers 200, with `success: false` and the problems in `errors`:
 
 ```json
-{"rendered":"","success":false,"variables":[],"includes":[],"errors":["template 'ad hoc' at line 1, column 36: Unknown filter 'shout'. Supported: default, upper, lower, trim, json, toml, indent, truncate, join."]}
+{"rendered":"","success":false,"variables":[],"includes":[],"errors":["template 'ad hoc' at line 1, column 36: Unknown filter 'shout'. Supported: default, upper, lower, trim, json, toml, indent, truncate, join, codexrunauth."]}
 ```
 
 The dashboard's template editor calls the same endpoint as you type. To see every prompt and file a deployment would produce, together, use `POST .../deployments/{id}/compile-preview`.

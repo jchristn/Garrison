@@ -68,11 +68,36 @@ namespace Garrison.Core.Settings
         /// </summary>
         public bool ServeMetricsOnServicePort { get; set; } = true;
 
+        /// <summary>
+        /// Distinct values each metric label (tenant, agent, deployment, model, and so on) may take before new values are
+        /// reported as <c>other</c> and counted in garrison.telemetry.labels_folded. Bounds the number of series a
+        /// busy cluster can create. Minimum 10, maximum 10000, default 200.
+        /// </summary>
+        public int MaxLabelValues
+        {
+            get
+            {
+                return _MaxLabelValues;
+            }
+            set
+            {
+                _MaxLabelValues = Math.Clamp(value, 10, 10000);
+            }
+        }
+
+        /// <summary>
+        /// Whether duration histograms carry trace exemplars (the trace that produced a sample), so Grafana panels can
+        /// jump to the trace. Sets OTEL_METRICS_EXEMPLAR_FILTER=trace_based unless that variable is already set. Only
+        /// OpenMetrics scrapes include exemplars, and Prometheus needs --enable-feature=exemplar-storage. Default true.
+        /// </summary>
+        public bool Exemplars { get; set; } = true;
+
         #endregion
 
         #region Private-Members
 
         private int _PrometheusPort = 9464;
+        private int _MaxLabelValues = 200;
 
         #endregion
     }

@@ -16,7 +16,7 @@ namespace Garrison.Core.Templates
 
         private static readonly HashSet<string> _Filters = new HashSet<string>(StringComparer.Ordinal)
         {
-            "default", "upper", "lower", "trim", "json", "toml", "indent", "truncate", "join"
+            "default", "upper", "lower", "trim", "json", "toml", "indent", "truncate", "join", "codexrunauth"
         };
 
         private static readonly string _RawOpen = "{{{{raw}}}}";

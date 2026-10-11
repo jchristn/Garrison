@@ -2,6 +2,7 @@ namespace Garrison.Server.Protocols
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Net;
     using System.Net.Sockets;
@@ -18,6 +19,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Core.Templates;
     using Garrison.Server.Routes;
     using Garrison.Server.Runtime;
@@ -550,7 +552,13 @@ namespace Garrison.Server.Protocols
             string? tenantId = ctx.TenantId ?? args?.GetString("tenantId");
             if (String.IsNullOrEmpty(tenantId)) throw ToolError("TenantRequired", "No tenant could be resolved. System administrators must pass tenantId.");
 
-            _Context.Telemetry.Increment("garrison.mcp.tool.calls", new RadiantTag("tool", tool.AgentTool ? "agent" : tool.Name));
+            string toolLabel = tool.AgentTool ? "agent" : tool.Name;
+            GarrisonMetrics.Count(GarrisonMetricCatalog.McpToolCalls, "tool", toolLabel, "tenant", tenantId);
+            long start = Stopwatch.GetTimestamp();
+            string outcome = "error";
+            Activity? span = GarrisonTracing.Start("mcp " + toolLabel, ActivityKind.Internal);
+            span?.SetTag("garrison.mcp.tool", tool.Name);
+            span?.SetTag("garrison.tenant", tenantId);
             try
             {
                 object result;
@@ -586,21 +594,34 @@ namespace Garrison.Server.Protocols
                         result = await AgentToolCallAsync(ctx, tenantId, tool.Name, args, token).ConfigureAwait(false);
                         break;
                 }
-                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.AgentTool ? "agent" : tool.Name), new RadiantTag("result", "ok"));
+                outcome = "ok";
+                GarrisonTracing.Ok(span);
                 return McpToolCallResult.FromText(Serializer.SerializeReadable(result));
             }
-            catch (McpToolException)
+            catch (McpToolException e)
             {
-                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.AgentTool ? "agent" : tool.Name), new RadiantTag("result", "error"));
+                GarrisonTracing.Fail(span, e);
                 throw;
             }
             catch (Exception e) when (e is NotFoundException || e is ConflictException || e is ValidationException || e is ArgumentException)
             {
-                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.AgentTool ? "agent" : tool.Name), new RadiantTag("result", "error"));
+                GarrisonTracing.Fail(span, e);
                 if (e is ValidationException validation) throw ToolError("ValidationFailed", validation.Describe());
                 if (e is ConflictException conflict) throw ToolError(conflict.Code, e.Message);
                 if (e is NotFoundException) throw ToolError("NotFound", e.Message);
                 throw ToolError("BadRequest", e.Message);
+            }
+            catch (Exception e)
+            {
+                GarrisonTracing.Fail(span, e);
+                throw;
+            }
+            finally
+            {
+                span?.Dispose();
+                TagList tags = GarrisonMetrics.Tags("tool", toolLabel, "result", outcome);
+                GarrisonMetrics.Count(GarrisonMetricCatalog.McpToolResults, 1, tags);
+                GarrisonMetrics.Observe(GarrisonMetricCatalog.McpToolDuration, GarrisonMetrics.SecondsSince(start), tags);
             }
         }
 
@@ -664,6 +685,7 @@ namespace Garrison.Server.Protocols
             options.CancelOnDisconnect = wait;
             options.CallerGone = () => !_Context.IsDraining;
             options.DisconnectReason = "the MCP client cancelled " + toolName + " or closed its session";
+            options.Surface = "mcp";
             Run run = await _Invoker.InvokeAsync(ctx, tenantId, agent, options, token).ConfigureAwait(false);
             return await SummarizeAsync(run, token).ConfigureAwait(false);
         }

@@ -11,6 +11,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Database;
     using Garrison.Core.Models;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Telemetry;
     using SyslogLogging;
 
     /// <summary>
@@ -192,11 +193,20 @@ namespace Garrison.Server.Runtime
 
             // FileShare.Read: a second writer (a replica that briefly overlapped as leader) fails to open the file
             // instead of interleaving lines, and its records stay in the database for the next pass.
-            using (FileStream stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read))
+            try
             {
-                await stream.WriteAsync(bytes, token).ConfigureAwait(false);
-                await stream.FlushAsync(token).ConfigureAwait(false);
-                stream.Flush(true);
+                using (FileStream stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read))
+                {
+                    await stream.WriteAsync(bytes, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                    stream.Flush(true);
+                }
+                GarrisonMetrics.Count(GarrisonMetricCatalog.ArchiveRuns, lines.Count, GarrisonMetrics.Tags("kind", prefix.Contains("events", StringComparison.Ordinal) ? "events" : "runs", "result", "ok"));
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                GarrisonMetrics.Count(GarrisonMetricCatalog.ArchiveRuns, lines.Count, GarrisonMetrics.Tags("kind", prefix.Contains("events", StringComparison.Ordinal) ? "events" : "runs", "result", "error"));
+                throw;
             }
             _Logging?.Debug("[Archive] appended " + lines.Count + " records to " + path);
         }

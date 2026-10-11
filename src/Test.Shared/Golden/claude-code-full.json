@@ -4,6 +4,7 @@
     "tenantId": "ten_golden",
     "agentName": "helper-claude-code-full",
     "deploymentId": "dep_claude_code_full",
+    "deploymentName": "helper-claude-code-full-default",
     "harnessType": "ClaudeCode",
     "executable": "claude",
     "arguments": [

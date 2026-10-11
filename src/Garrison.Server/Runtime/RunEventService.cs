@@ -153,7 +153,11 @@ namespace Garrison.Server.Runtime
 
             int inserted = await _Database.RunEvents.InsertBatchAsync(events, token).ConfigureAwait(false);
             if (events.Count > 0) await _Database.Runs.UpdateLastEventSequenceAsync(run.Id, events.Max(e => e.Sequence), token).ConfigureAwait(false);
-            _Telemetry.Record("garrison.event.batch.size", events.Count);
+            GarrisonMetrics.Observe(GarrisonMetricCatalog.EventBatchSize, events.Count);
+            if (GarrisonMetrics.Enabled(GarrisonMetricCatalog.RunEvents))
+            {
+                foreach (RunEvent evt in events) GarrisonMetrics.Count(GarrisonMetricCatalog.RunEvents, "type", evt.EventType.ToString());
+            }
             _Signals.Notify(run.Id);
             return inserted;
         }
@@ -388,15 +392,11 @@ namespace Garrison.Server.Runtime
             }
 
             await _Database.Sessions.RevokeByRunAsync(run.Id, "Run finished.", token).ConfigureAwait(false);
-            _Telemetry.Increment("garrison.runs.finished", new RadiantTag("outcome", run.Outcome.ToString()), new RadiantTag("harness", run.HarnessType.ToString()));
-            if (run.InputTokens > 0) _Telemetry.Record("garrison.harness.tokens", run.InputTokens, new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("direction", "input"));
-            if (run.OutputTokens > 0) _Telemetry.Record("garrison.harness.tokens", run.OutputTokens, new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("direction", "output"));
-            if (run.StartedUtc.HasValue && run.CompletedUtc.HasValue) _Telemetry.Record("garrison.run.stage.duration", (run.CompletedUtc.Value - run.StartedUtc.Value).TotalSeconds, new RadiantTag("stage", "execution"), new RadiantTag("harness", run.HarnessType.ToString()));
-            if (run.QueueMs.HasValue) _Telemetry.Record("garrison.run.stage.duration", run.QueueMs.Value / 1000.0, new RadiantTag("stage", "queue"), new RadiantTag("harness", run.HarnessType.ToString()));
-            if (run.TimeToFirstTokenMs.HasValue) _Telemetry.Record("garrison.run.stage.duration", run.TimeToFirstTokenMs.Value / 1000.0, new RadiantTag("stage", "first_token"), new RadiantTag("harness", run.HarnessType.ToString()));
-            if (run.ReasoningTokens > 0) _Telemetry.Record("garrison.harness.tokens", run.ReasoningTokens, new RadiantTag("harness", run.HarnessType.ToString()), new RadiantTag("direction", "reasoning"));
+            RunMetricLabels labels = await RunTelemetry.LabelsAsync(_Database, run, token).ConfigureAwait(false);
+            RunTelemetry.Finished(run, labels);
             _Signals.Complete(run.Id);
-            _Logging?.Info("[Runs] run " + run.Id + " finished " + run.Status + " (" + run.Outcome + ") on " + (run.LeaseNodeName ?? request.NodeId) + (run.TotalMs.HasValue ? " in " + run.TotalMs.Value + " ms" : String.Empty) + " " + RunTracing.LogFields(run.Id, run.TraceId));
+            _Logging?.Info("[Runs] run " + run.Id + " finished " + run.Status + " (" + run.Outcome + ") on " + (run.LeaseNodeName ?? request.NodeId) + (run.TotalMs.HasValue ? " in " + run.TotalMs.Value + " ms" : String.Empty) + " " + RunTracing.LogFields(run.Id, run.TraceId)
+                + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", labels.Deployment, "model", run.ServedModel, "node", run.LeaseNodeName ?? request.NodeId, "outcome", run.Outcome.ToString()));
 
             RunCompleteResponse response = new RunCompleteResponse();
             response.Message = run.Status + " (" + run.Outcome + ")";

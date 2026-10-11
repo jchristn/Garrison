@@ -11,6 +11,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Backplane;
 
     /// <summary>
@@ -356,7 +357,7 @@ namespace Garrison.Server.Services
                 try
                 {
                     await Task.Delay(_RefreshIntervalMs, token).ConfigureAwait(false);
-                    await RefreshAsync(token).ConfigureAwait(false);
+                    await GarrisonTracing.BackgroundAsync("cluster_settings", "refresh", RefreshAsync, token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {

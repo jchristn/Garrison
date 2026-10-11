@@ -365,6 +365,10 @@ const tips = {
       Hosted: 'Ospitato: Garrison esegue direttamente questo agente tramite le sue distribuzioni sui nodi worker.',
       Remote: 'Remoto: l\'agente viene eseguito altrove e Garrison inoltra le chiamate al suo endpoint A2A o MCP.'
     },
+    secretStatus: {
+      Ok: 'La credenziale è utilizzabile, per quanto ne sa Garrison. Impostare un nuovo valore riporta sempre il segreto a questo stato.',
+      NeedsReauthentication: 'OpenAI ha rifiutato definitivamente l\'accesso ChatGPT salvato, per esempio perché il suo token di aggiornamento era già stato usato. Le esecuzioni che usano questo segreto falliscono finché non ne sostituisci il valore con un nuovo accesso.'
+    },
     secretKind: {
       AnthropicApiKey: 'Una chiave API Anthropic, iniettata come ANTHROPIC_API_KEY dal profilo Claude Code.',
       ClaudeCodeOAuthToken: 'Un token di abbonamento Claude Code. Verifica i termini del provider prima di usarlo su server condivisi.',
@@ -596,6 +600,11 @@ const tips = {
       actions: { test: 'Connettiti ora al server ed elencane gli strumenti, per verificare indirizzo e credenziali.' }
     },
     secrets: {
+      status: 'Indica se la credenziale salvata funziona ancora. Garrison segnala che un accesso Codex richiede un nuovo login quando non è più possibile rinnovarlo.',
+      accessTokenExpiresUtc: 'Quando scade il token di accesso di un accesso ChatGPT di Codex salvato. Garrison lo rinnova prima e riscrive i nuovi token nel segreto.',
+      refreshedUtc: 'Quando Garrison ha rinnovato per l\'ultima volta questo accesso Codex. Le esecuzioni ricevono sempre e solo una copia senza il token di aggiornamento.',
+      statusMessage: 'Perché l\'accesso non può essere usato, secondo il fornitore.',
+      statusUtc: 'Quando Garrison ha rilevato che l\'accesso non può più essere rinnovato.',
       add: 'Salva una nuova credenziale, come una chiave API o un token, cifrata a riposo. Le distribuzioni la richiamano tramite alias; dopo il salvataggio il valore non viene mai più mostrato.',
       name: 'Nome del segreto. Le distribuzioni scelgono il segreto con questo nome e gli assegnano un alias.',
       kind: 'Che tipo di credenziale è. I profili predefiniti usano il tipo per sapere quale variabile o file valorizzare.',
@@ -808,7 +817,7 @@ const tips = {
         detail: 'Output del controllo, utile quando un harness non è disponibile.'
       },
       actions: {
-        grafana: 'Apri in una nuova scheda la dashboard Workers and Harnesses in Grafana, filtrata sul nodo {{node}}.',
+        grafana: 'Apri in una nuova scheda la dashboard Workers in Grafana, filtrata sul nodo {{node}}.',
         cordon: 'Smetti di inviare nuove esecuzioni a questo nodo. Quelle già presenti terminano normalmente.',
         uncordon: 'Consenti di nuovo a questo nodo di accettare nuove esecuzioni.',
         drain: 'Blocca le nuove esecuzioni e lascia terminare quelle correnti, poi il nodo resta inattivo. Usalo prima di spegnerlo.',
@@ -880,6 +889,23 @@ const tips = {
       },
       observabilityVersion: 'Versione che {{service}} ha indicato al controllo di stato del server.',
       kpisGrafana: 'Apri in una nuova scheda la dashboard di panoramica di Garrison in Grafana per vedere questi numeri nel tempo.',
+      grafanaDashboards: 'La cartella Garrison in Grafana contiene una dashboard per sezione. Ogni link apre la dashboard in una nuova scheda.',
+      grafanaSections: {
+        overview: 'Stato a colpo d\'occhio: repliche e worker attivi, frequenza di esecuzioni e richieste, errori, costo e problemi recenti.',
+        http: 'Traffico REST per route: frequenza delle richieste, percentili di latenza, errori, dimensioni dei payload, errori di autenticazione e richieste in corso.',
+        runs: 'Ciclo di vita delle esecuzioni: create e terminate per esito, durata delle fasi, annullamenti, validazione dell\'output strutturato e riparazioni.',
+        agents: 'Prestazioni per agente: invocazioni, percentili di durata e di attesa in coda, tempo al primo token, tempo di streaming, esiti e interventi delle protezioni.',
+        models: 'Uso di token e costo per modello e agente: token di input, output, in cache e di ragionamento, costo e throughput di output.',
+        workers: 'Nodi worker: lease, esecuzioni per nodo, report di completamento, heartbeat, slot liberi e chiamate al piano di controllo.',
+        kubernetes: 'Esecutore con un pod per esecuzione: Job creati ed eliminati, latenza di avvio dei pod, errori dei pod per causa e pulizia degli orfani.',
+        protocols: 'MCP, A2A e streaming: chiamate agli strumenti e durata, sessioni, metodi A2A e stati delle attività, stream SSE, WebSocket e delega.',
+        scheduler: 'Pianificazione: profondità della coda per agente e harness, esiti e latenza delle acquisizioni, long poll dei lease, esecuzioni bloccate e lease scaduti.',
+        database: 'Database: latenza delle istruzioni per operazione e tabella, errori, connessioni in uso, attese del lock di scrittura e conservazione.',
+        controlPlane: 'Repliche del piano di controllo: stato, cambi di leader, traffico e ritardo del backplane, heartbeat e iterazioni dei servizi in background.',
+        security: 'Errori di autenticazione per schema e motivo, dinieghi di autorizzazione, limitazione della frequenza, token emessi, decifratura dei segreti e rinnovi dei token Codex.',
+        integrations: 'Chiamate in uscita per servizio: test dei server MCP, controlli di osservabilità, proxy MCP, API Kubernetes e piano di controllo dal lato dei worker.',
+        logs: 'Volume dei log, errori e avvisi per componente e tenant, righe di errore recenti e link alle tracce.'
+      },
       observabilityDocs: 'Apri la guida alla telemetria in una nuova scheda: come raccogliere le metriche di Garrison e collegare Grafana, Prometheus, Tempo o Loki.',
       observability: 'Collegamenti agli strumenti di metriche, dashboard e tracciamento che questa installazione dichiara configurati. I servizi non configurati non vengono mostrati.',
       kpis: {
@@ -951,6 +977,7 @@ const tips = {
       name: 'Il nome che i chiamanti usano per invocare questo agente.',
       viewJson: 'Mostra il record completo dell\'agente come JSON.',
       invoke: 'Apri Invoca con questo agente selezionato. La distribuzione viene scelta in base al peso, a meno che tu non ne indichi una.',
+      grafana: 'Apri in una nuova scheda la dashboard Agenti di Grafana filtrata su questo agente: invocazioni, percentili di durata, tempo al primo token, tempo di streaming, token, costo e interventi delle protezioni.',
       id: 'Identificatore dell\'agente per le chiamate API.',
       tabs: {
         deployments: 'I modi in cui viene eseguito questo agente, con i loro pesi e la quota di traffico che riceve ciascuno.',
@@ -1175,7 +1202,7 @@ const tips = {
     }
   },
   analytics: {
-    grafana: 'Apri in una nuova scheda la dashboard Runs and Scheduling in Grafana con lo stesso intervallo di tempo di questa pagina.',
+    grafana: 'Apri in una nuova scheda la dashboard Runs in Grafana con lo stesso intervallo di tempo di questa pagina.',
     filters: {
       ttft: 'Se selezionato, il grafico del tempo al primo token esclude il tempo passato ad attendere gli agenti delegati, così gli agenti che delegano si confrontano equamente con quelli che rispondono direttamente.',
       range: 'Finestra temporale di tutti i grafici e totali: l\'ultima ora, giorno, settimana o 30 giorni, oppure un inizio e una fine personalizzati.',

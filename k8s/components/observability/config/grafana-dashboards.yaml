@@ -1,6 +1,8 @@
 # Grafana dashboard provider: every JSON file under the mounted directory lands in the Garrison folder.
-# Dashboard UIDs (garrison-overview, garrison-http, garrison-runs, garrison-workers, garrison-protocols,
-# garrison-integrations) are fixed in the JSON so the Garrison dashboard can deep link to them.
+# Dashboard UIDs (garrison-overview, garrison-http, garrison-runs, garrison-agents, garrison-models,
+# garrison-workers, garrison-kubernetes, garrison-protocols, garrison-scheduler, garrison-database,
+# garrison-control-plane, garrison-security, garrison-integrations, garrison-logs) are fixed in the JSON so the
+# Garrison dashboard can deep link to them.
 apiVersion: 1
 
 providers:

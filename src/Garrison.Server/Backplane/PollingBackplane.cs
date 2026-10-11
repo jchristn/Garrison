@@ -7,6 +7,7 @@ namespace Garrison.Server.Backplane
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Models;
+    using Garrison.Core.Telemetry;
     using SyslogLogging;
 
     /// <summary>
@@ -112,7 +113,7 @@ namespace Garrison.Server.Backplane
             {
                 try
                 {
-                    await PollOnceAsync(token).ConfigureAwait(false);
+                    await GarrisonTracing.BackgroundAsync("backplane", "poll", PollOnceAsync, token).ConfigureAwait(false);
                     if (failing)
                     {
                         failing = false;
@@ -144,9 +145,15 @@ namespace Garrison.Server.Backplane
 
         #region Private-Methods
 
-        private async Task PollOnceAsync(CancellationToken token)
+        private async Task<bool> PollOnceAsync(CancellationToken token)
         {
             List<BackplaneMessage> rows = await _Database.BackplaneMessages.ListAfterAsync(_Watermark, 1000, token).ConfigureAwait(false);
+            PollRows(rows);
+            return rows.Count > 0;
+        }
+
+        private void PollRows(List<BackplaneMessage> rows)
+        {
             foreach (BackplaneMessage row in rows)
             {
                 if (row.Sequence <= _Watermark || !_SeenAboveWatermark.Add(row.Sequence)) continue;

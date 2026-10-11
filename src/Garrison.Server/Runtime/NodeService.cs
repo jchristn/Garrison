@@ -11,6 +11,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Protocol;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// Worker node registration and heartbeats. Thread-safe.
@@ -148,6 +149,7 @@ namespace Garrison.Server.Runtime
 
             if (create) await _Database.Nodes.CreateAsync(node, token).ConfigureAwait(false);
             else await _Database.Nodes.UpdateAsync(node, token).ConfigureAwait(false);
+            GarrisonMetrics.Count(GarrisonMetricCatalog.NodeTransitions, "status", "Registered");
 
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.NodeRegistered, "Node", node.Id, "Node " + node.Name + " registered with " + node.Capabilities.Count(c => c.Available) + " available harnesses.", null, token).ConfigureAwait(false);
 
@@ -173,6 +175,8 @@ namespace Garrison.Server.Runtime
             if (request == null) throw new ArgumentNullException(nameof(request));
 
             await _Database.Nodes.TouchHeartbeatAsync(node.Id, request.ActiveRuns.Count, token).ConfigureAwait(false);
+            GarrisonMetrics.Count(GarrisonMetricCatalog.NodeHeartbeats, "result", "ok");
+            if (node.Status == NodeStatusEnum.Lost || node.Status == NodeStatusEnum.Offline) GarrisonMetrics.Count(GarrisonMetricCatalog.NodeTransitions, "status", NodeStatusEnum.Ready.ToString());
 
             NodeHeartbeatResponse response = new NodeHeartbeatResponse();
             response.LeaseDurationMs = _Options.LeaseDurationMs;

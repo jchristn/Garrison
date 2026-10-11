@@ -51,6 +51,18 @@ Passwords are stored as `pbkdf2-sha256$<iterations>$<salt>$<hash>`. Hashes writt
 
 Secret values never appear in API responses, manifest exports, logs, the compile preview, or the template preview. They exist in plaintext only inside the execution spec sent to the worker that leased the run, and in the harness process's environment or files.
 
+### Codex logins
+
+A `CodexAuthJson` secret holds a ChatGPT login, including a long-lived refresh token. Garrison keeps that refresh token on the control plane (G-22):
+
+- Only the control plane refreshes the login, against `Codex.TokenEndpoint` (default `https://auth.openai.com/oauth/token`), and it writes the rotated tokens back encrypted under the master key, like any secret value. Refreshes are serialized across replicas by a database lease, and the write-back is a compare-and-swap on the stored ciphertext.
+- Runs receive a copy of `auth.json` with the refresh token removed, plus `CODEX_REFRESH_TOKEN_URL_OVERRIDE` pointing at a closed loopback port. A run, or anything running inside it, can use the current access token until it expires but cannot read, use up, or rotate the refresh token, and nothing a run does is persisted.
+- The access, refresh, and ID tokens are each added to the run's scrub list, so they are replaced in events, results, and the stderr tail.
+- Token values are never logged and never appear in API responses. Refresh failures are recorded on the secret (`status`, `statusMessage`, `statusUtc`) with the provider's error code and description only.
+- A login the provider rejects for good is marked `NeedsReauthentication` and is not presented again until an operator replaces the value.
+
+Treat a login stored in Garrison as belonging to Garrison. The same login used on another machine shares the refresh token, and whichever copy refreshes second is rejected with `refresh_token_reused`. For shared deployments, prefer an `OpenAiApiKey` secret.
+
 ### Rate limiting
 
 Token issuance is limited per source address (`Auth.RateLimitPerMinute`, 60), answering 429 `RateLimited` beyond it. The counter lives in the database, so the limit holds across all control-plane replicas. Behind a proxy or load balancer the source address is the address the server sees, so all clients behind one proxy share a budget. Other routes are not rate limited.

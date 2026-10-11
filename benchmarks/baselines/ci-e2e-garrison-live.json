@@ -1,0 +1,823 @@
+{
+  "schemaVersion": 1,
+  "kind": "e2e",
+  "dataset": "garrison-live",
+  "label": "ci-gate",
+  "deterministic": true,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-10-11T16:45:57.130328Z",
+    "finishedUtc": "2026-10-11T16:45:57.838895Z",
+    "sutUrl": "http://127.0.0.1 (bench stack)",
+    "sutVersion": "0.1.0-alpha",
+    "stack": "local",
+    "productCommit": "23c4da98f483eceb07ebe453ecea8a6030e4013f-dirty",
+    "productDirtyFiles": 366,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "uncommitted-dirty",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.12",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "garrison-live",
+    "datasetSha256": "a0f3f286b047775bb9996f4b67d14d269bcc506d8fe2aabf301f48c87c506eb2",
+    "datasetPath": "benchmarks/datasets/garrison-live.json",
+    "commandLine": "Garrison.Benchmark e2e --dataset benchmarks/datasets/garrison-live.json --corpus live-e2e --deterministic true --repeat 1 --warmup 0 --url http://127.0.0.1:37800 --stack local --label ci-gate --results-dir <repo>/benchmarks/results --seed 42 --fake-harness <repo>/benchmarks/.run/build/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll",
+    "seed": 42
+  },
+  "options": {
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "corpus": "live-e2e",
+    "dataset": "benchmarks/datasets/garrison-live.json",
+    "deterministic": "true",
+    "direct": "true",
+    "fake-harness": "<repo>/benchmarks/.run/build/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll",
+    "kubeconfig": "(unset)",
+    "label": "ci-gate",
+    "limit": "0",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "other-tenant": "default",
+    "poll-ms": "100",
+    "ready-timeout-seconds": "120",
+    "repeat": "1",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "<repo>/benchmarks/results",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "(unset)",
+    "stream": "true",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800",
+    "warmup": "0",
+    "workspace-suffix": "(unset)"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "description": "Runs through Garrison: REST create or invoke, scheduling, lease, compile, worker, fake harness, event shipping, completion.",
+      "probes": 5,
+      "passed": 5,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 5,
+        "indicative": true
+      },
+      "latency": {
+        "count": 5,
+        "mean": 71.89128,
+        "stdDev": 103.36395567206684,
+        "min": 1.8264,
+        "p50": 2.7057,
+        "p90": 232.402,
+        "p95": 232.402,
+        "p99": 232.402,
+        "max": 232.402,
+        "p50Ci": {
+          "estimate": 2.7057,
+          "lower": 1.8264,
+          "upper": 232.402,
+          "level": 0.95,
+          "n": 5,
+          "indicative": true
+        },
+        "p95Ci": {
+          "estimate": 232.402,
+          "lower": 2.7057,
+          "upper": 232.402,
+          "level": 0.95,
+          "n": 5,
+          "indicative": true
+        }
+      },
+      "timings": {
+        "directMs": {
+          "count": 2,
+          "mean": 98.0052,
+          "stdDev": 4.041115254481121,
+          "min": 95.1477,
+          "p50": 95.1477,
+          "p90": 100.8627,
+          "p95": 100.8627,
+          "p99": 100.8627,
+          "max": 100.8627,
+          "p50Ci": {
+            "estimate": 95.1477,
+            "lower": 95.1477,
+            "upper": 100.8627,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 100.8627,
+            "lower": 95.1477,
+            "upper": 100.8627,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "eventPersistMaxMs": {
+          "count": 2,
+          "mean": 41.295,
+          "stdDev": 4.932776905557355,
+          "min": 37.807,
+          "p50": 37.807,
+          "p90": 44.783,
+          "p95": 44.783,
+          "p99": 44.783,
+          "max": 44.783,
+          "p50Ci": {
+            "estimate": 37.807,
+            "lower": 37.807,
+            "upper": 44.783,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 44.783,
+            "lower": 37.807,
+            "upper": 44.783,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "eventPersistMs": {
+          "count": 2,
+          "mean": 13.596499999999999,
+          "stdDev": 2.270519874390004,
+          "min": 11.991,
+          "p50": 11.991,
+          "p90": 15.202,
+          "p95": 15.202,
+          "p99": 15.202,
+          "max": 15.202,
+          "p50Ci": {
+            "estimate": 11.991,
+            "lower": 11.991,
+            "upper": 15.202,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 15.202,
+            "lower": 11.991,
+            "upper": 15.202,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "events": {
+          "count": 2,
+          "mean": 9.5,
+          "stdDev": 0.7071067811865476,
+          "min": 9,
+          "p50": 9,
+          "p90": 10,
+          "p95": 10,
+          "p99": 10,
+          "max": 10,
+          "p50Ci": {
+            "estimate": 9,
+            "lower": 9,
+            "upper": 10,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 10,
+            "lower": 9,
+            "upper": 10,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "executionMs": {
+          "count": 2,
+          "mean": 91.5,
+          "stdDev": 3.5355339059327378,
+          "min": 89,
+          "p50": 89,
+          "p90": 94,
+          "p95": 94,
+          "p99": 94,
+          "max": 94,
+          "p50Ci": {
+            "estimate": 89,
+            "lower": 89,
+            "upper": 94,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 94,
+            "lower": 89,
+            "upper": 94,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "overheadMs": {
+          "count": 2,
+          "mean": 78.51435000000001,
+          "stdDev": 83.07083394311748,
+          "min": 19.7744,
+          "p50": 19.7744,
+          "p90": 137.2543,
+          "p95": 137.2543,
+          "p99": 137.2543,
+          "max": 137.2543,
+          "p50Ci": {
+            "estimate": 19.7744,
+            "lower": 19.7744,
+            "upper": 137.2543,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 137.2543,
+            "lower": 19.7744,
+            "upper": 137.2543,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "queueMs": {
+          "count": 2,
+          "mean": 1,
+          "stdDev": 1.4142135623730951,
+          "min": 0,
+          "p50": 0,
+          "p90": 2,
+          "p95": 2,
+          "p99": 2,
+          "max": 2,
+          "p50Ci": {
+            "estimate": 0,
+            "lower": 0,
+            "upper": 2,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 2,
+            "lower": 0,
+            "upper": 2,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "requestMs": {
+          "count": 5,
+          "mean": 50.18478,
+          "stdDev": 64.73709475178818,
+          "min": 1.8264,
+          "p50": 5.0412,
+          "p90": 121.534,
+          "p95": 121.534,
+          "p99": 121.534,
+          "max": 121.534,
+          "p50Ci": {
+            "estimate": 5.0412,
+            "lower": 1.8264,
+            "upper": 121.534,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 121.534,
+            "lower": 5.0412,
+            "upper": 121.534,
+            "level": 0.95,
+            "n": 5,
+            "indicative": true
+          }
+        },
+        "serverOverheadMs": {
+          "count": 2,
+          "mean": 23,
+          "stdDev": 5.656854249492381,
+          "min": 19,
+          "p50": 19,
+          "p90": 27,
+          "p95": 27,
+          "p99": 27,
+          "max": 27,
+          "p50Ci": {
+            "estimate": 19,
+            "lower": 19,
+            "upper": 27,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 27,
+            "lower": 19,
+            "upper": 27,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "streamMaxMs": {
+          "count": 1,
+          "mean": 0.948,
+          "stdDev": 0,
+          "min": 0.948,
+          "p50": 0.948,
+          "p90": 0.948,
+          "p95": 0.948,
+          "p99": 0.948,
+          "max": 0.948
+        },
+        "streamMessages": {
+          "count": 1,
+          "mean": 11,
+          "stdDev": 0,
+          "min": 11,
+          "p50": 11,
+          "p90": 11,
+          "p95": 11,
+          "p99": 11,
+          "max": 11
+        },
+        "streamMs": {
+          "count": 1,
+          "mean": 0.885,
+          "stdDev": 0,
+          "min": 0.885,
+          "p50": 0.885,
+          "p90": 0.885,
+          "p95": 0.885,
+          "p99": 0.885,
+          "max": 0.885
+        },
+        "totalMs": {
+          "count": 2,
+          "mean": 114.5,
+          "stdDev": 9.192388155425117,
+          "min": 108,
+          "p50": 108,
+          "p90": 121,
+          "p95": 121,
+          "p99": 121,
+          "max": 121,
+          "p50Ci": {
+            "estimate": 108,
+            "lower": 108,
+            "upper": 121,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 121,
+            "lower": 108,
+            "upper": 121,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        "ttftMs": {
+          "count": 2,
+          "mean": 53.5,
+          "stdDev": 0.7071067811865476,
+          "min": 53,
+          "p50": 53,
+          "p90": 54,
+          "p95": 54,
+          "p99": 54,
+          "max": 54,
+          "p50Ci": {
+            "estimate": 53,
+            "lower": 53,
+            "upper": 54,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 54,
+            "lower": 53,
+            "upper": 54,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        }
+      },
+      "byType": [
+        {
+          "key": "cross-tenant",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "override-not-allowed",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "quick-start",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "unknown-agent",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "flow",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        },
+        {
+          "key": "isolation",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "validation",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "direct",
+      "description": "Reference arm and floor: the same fake harness, arguments, and prompt, started directly by the harness with no Garrison in between.",
+      "probes": 2,
+      "passed": 2,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 2,
+        "indicative": true
+      },
+      "latency": {
+        "count": 2,
+        "mean": 98.0052,
+        "stdDev": 4.041115254481121,
+        "min": 95.1477,
+        "p50": 95.1477,
+        "p90": 100.8627,
+        "p95": 100.8627,
+        "p99": 100.8627,
+        "max": 100.8627,
+        "p50Ci": {
+          "estimate": 95.1477,
+          "lower": 95.1477,
+          "upper": 100.8627,
+          "level": 0.95,
+          "n": 2,
+          "indicative": true
+        },
+        "p95Ci": {
+          "estimate": 100.8627,
+          "lower": 95.1477,
+          "upper": 100.8627,
+          "level": 0.95,
+          "n": 2,
+          "indicative": true
+        }
+      },
+      "timings": {
+        "directMs": {
+          "count": 2,
+          "mean": 98.0052,
+          "stdDev": 4.041115254481121,
+          "min": 95.1477,
+          "p50": 95.1477,
+          "p90": 100.8627,
+          "p95": 100.8627,
+          "p99": 100.8627,
+          "max": 100.8627,
+          "p50Ci": {
+            "estimate": 95.1477,
+            "lower": 95.1477,
+            "upper": 100.8627,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 100.8627,
+            "lower": 95.1477,
+            "upper": 100.8627,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        }
+      },
+      "byType": [
+        {
+          "key": "quick-start",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "flow",
+          "n": 2,
+          "passed": 2,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 2,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "live-e2e",
+      "probeId": "echo-invoke",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "quick-start",
+      "category": "flow",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Hello from the live snapshot.",
+      "runIds": [
+        "run_mv421iju_eH9Kxx9orZaWebae7ll"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 120.6371,
+      "timings": {
+        "directMs": 100.8627,
+        "eventPersistMaxMs": 37.807,
+        "eventPersistMs": 11.991,
+        "events": 9,
+        "executionMs": 89,
+        "overheadMs": 19.7744,
+        "queueMs": 0,
+        "requestMs": 120.6371,
+        "serverOverheadMs": 19,
+        "totalMs": 108,
+        "ttftMs": 53
+      }
+    },
+    {
+      "corpus": "live-e2e",
+      "probeId": "echo-invoke",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "quick-start",
+      "category": "flow",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Hello from the live snapshot.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 100.8627,
+      "timings": {
+        "directMs": 100.8627
+      }
+    },
+    {
+      "corpus": "live-e2e",
+      "probeId": "echo-create",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "quick-start",
+      "category": "flow",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "Succeeded/Succeeded on bench-beta-1, result Echo: Created asynchronously and followed to the end.",
+      "runIds": [
+        "run_mv421ipr_0A5H9IvkD3va5uGBpjf"
+      ],
+      "nodes": [
+        "bench-beta-1"
+      ],
+      "latencyMs": 232.402,
+      "timings": {
+        "directMs": 95.1477,
+        "eventPersistMaxMs": 44.783,
+        "eventPersistMs": 15.202,
+        "events": 10,
+        "executionMs": 94,
+        "overheadMs": 137.2543,
+        "queueMs": 2,
+        "requestMs": 5.0412,
+        "serverOverheadMs": 27,
+        "streamMaxMs": 0.948,
+        "streamMessages": 11,
+        "streamMs": 0.885,
+        "totalMs": 121,
+        "ttftMs": 54
+      }
+    },
+    {
+      "corpus": "live-e2e",
+      "probeId": "echo-create",
+      "repeat": 0,
+      "arm": "direct",
+      "type": "quick-start",
+      "category": "flow",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "exit 0, result Echo: Created asynchronously and followed to the end.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 95.1477,
+      "timings": {
+        "directMs": 95.1477
+      }
+    },
+    {
+      "corpus": "live-e2e",
+      "probeId": "planner-override",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "override-not-allowed",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 ValidationFailed: Run parameter model is not allowed for deployment planner-claude: Deployment planner-claude does not allow overriding mo...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.8264,
+      "timings": {
+        "requestMs": 1.8264
+      }
+    },
+    {
+      "corpus": "live-e2e",
+      "probeId": "missing-delegate",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "unknown-agent",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "404 NotFound: Agent researcher not found.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.8852,
+      "timings": {
+        "requestMs": 1.8852
+      }
+    },
+    {
+      "corpus": "live-e2e",
+      "probeId": "cross-tenant-read",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "cross-tenant",
+      "category": "isolation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "read through tenant default: 404 NotFound; events: 404 NotFound",
+      "runIds": [
+        "run_mv421iza_F1eHBWCfr86wyWqI8vV"
+      ],
+      "nodes": [],
+      "latencyMs": 2.7057,
+      "timings": {
+        "requestMs": 121.534
+      }
+    }
+  ],
+  "loadLevels": [],
+  "scenarios": [],
+  "stages": [],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": []
+}

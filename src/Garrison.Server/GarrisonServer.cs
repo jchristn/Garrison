@@ -1,17 +1,20 @@
 namespace Garrison.Server
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core;
+    using Garrison.Core.Telemetry;
     using Garrison.Server.Backplane;
     using Garrison.Server.Modules;
     using Garrison.Server.Routes;
     using Garrison.Server.Runtime;
     using Garrison.Server.Services;
-    using Radiant;
+    using SyslogLogging;
     using WatsonWebserver;
     using WatsonWebserver.Core;
     using WatsonWebserver.Core.OpenApi;
@@ -130,6 +133,7 @@ namespace Garrison.Server
         private int _ShutdownGraceMs = 15000;
         private int _StopRequested = 0;
         private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime> _InFlight = new System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime>();
+        private readonly GaugeRegistration _InFlightGauge;
         private bool _Disposed = false;
 
         #endregion
@@ -158,6 +162,12 @@ namespace Garrison.Server
             settings.Port = context.Settings.Rest.Port;
             settings.Ssl.Enable = context.Settings.Rest.Ssl;
             settings.WebSockets.Enable = true;
+            // Watson's built-in HTTP telemetry (http.server.*, watson.*, and one server span per request named
+            // "{method} {route}") is the foundation; the Radiant pipeline subscribes to the Watson meter and source.
+            settings.Telemetry.Enable = true;
+            settings.Telemetry.EnableMetrics = true;
+            settings.Telemetry.EnableTraces = true;
+            settings.Telemetry.PropagateContext = true;
             _Server = new Webserver(settings, DefaultRouteAsync);
             context.Register(_Server);
 
@@ -176,6 +186,7 @@ namespace Garrison.Server
             context.Register(_ControlNode);
 
             _Routes = new RouteRegistrar(_Server, context.Authorization, context.Database, context.Scopes, context.Logging);
+            _InFlightGauge = GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.HttpInFlight, () => _InFlight.Count);
             if (context.Settings.Rest.CorsOrigins.Count > 0) _CorsOrigin = String.Join(" ", context.Settings.Rest.CorsOrigins);
         }
 
@@ -296,6 +307,7 @@ namespace Garrison.Server
             if (disposing)
             {
                 _Stopping.Dispose();
+                _InFlightGauge.Dispose();
                 _ControlNode.Dispose();
                 if (_Server is IDisposable disposable) disposable.Dispose();
                 if (_OwnsBackplane) _Backplane.Dispose();
@@ -332,6 +344,7 @@ namespace Garrison.Server
         private Task PreRoutingAsync(HttpContextBase context)
         {
             _InFlight[context.Request.Guid] = DateTime.UtcNow;
+            RequestTelemetry.CaptureSpan(context);
             return Task.CompletedTask;
         }
 
@@ -341,9 +354,37 @@ namespace Garrison.Server
             context.Timestamp.End = DateTime.UtcNow;
             AddCors(context);
 
-            _Context.Logging.Debug(_Header + context.Request.Method + " " + context.Request.Url.RawWithQuery + " " + context.Response.StatusCode + " (" + (context.Timestamp.TotalMs.HasValue ? context.Timestamp.TotalMs.Value.ToString("F2") : "?") + "ms)");
+            string route = RequestTelemetry.RouteTemplate(context);
+            string? tenant = RequestTelemetry.Tenant(context);
+            double seconds = context.Timestamp.TotalMs.HasValue ? context.Timestamp.TotalMs.Value / 1000.0 : 0;
+            Activity? requestSpan = RequestTelemetry.TakeSpan(context);
+            if (!String.Equals(route, "/metrics", StringComparison.Ordinal))
+            {
+                // Watson has ended the request span by now, and an ended span cannot be made current. A local child of
+                // it (never exported) carries its trace into the measurements, so they get it as their exemplar.
+                Activity? exemplar = null;
+                if (requestSpan != null && Activity.Current == null)
+                {
+                    exemplar = new Activity("garrison.http.exemplar");
+                    exemplar.SetParentId(requestSpan.TraceId, requestSpan.SpanId, requestSpan.ActivityTraceFlags);
+                    exemplar.Start();
+                }
+                try
+                {
+                    RequestTelemetry.Record(context, route, tenant, seconds);
+                }
+                finally
+                {
+                    exemplar?.Stop();
+                }
+            }
 
-            _Context.Telemetry.Increment("garrison.http.requests", new RadiantTag("method", context.Request.Method.ToString()), new RadiantTag("status_class", (context.Response.StatusCode / 100) + "xx"));
+            if (_Context.Logging.Settings.MinimumSeverity <= Severity.Debug)
+            {
+                string? traceId = (requestSpan ?? Activity.Current)?.TraceId.ToHexString();
+                _Context.Logging.Debug(_Header + context.Request.Method + " " + context.Request.Url.RawWithQuery + " " + context.Response.StatusCode + " (" + (context.Timestamp.TotalMs.HasValue ? context.Timestamp.TotalMs.Value.ToString("F2") : "?") + "ms) "
+                    + GarrisonTracing.LogFields("route", route, "tenant", tenant, "status", context.Response.StatusCode.ToString(), "trace", traceId));
+            }
 
             // Prometheus scrapes of the relayed /metrics endpoint are not request history.
             IRequestObserver? observer = _Context.TryGet<IRequestObserver>();

@@ -6,6 +6,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core;
     using Garrison.Core.Database;
     using Garrison.Core.Models;
+    using Garrison.Core.Telemetry;
     using SyslogLogging;
 
     /// <summary>
@@ -50,6 +51,7 @@ namespace Garrison.Server.Runtime
         private Task? _Loop = null;
         private long _Epoch = 0;
         private long _ValidUntilTicks = 0;
+        private readonly GaugeRegistration _LeaderGauge;
         private bool _Disposed = false;
 
         #endregion
@@ -70,6 +72,7 @@ namespace Garrison.Server.Runtime
             _Options = options ?? throw new ArgumentNullException(nameof(options));
             _Logging = logging ?? throw new ArgumentNullException(nameof(logging));
             Holder = (String.IsNullOrEmpty(nodeId) ? "command" : nodeId) + ":" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            _LeaderGauge = GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.IsLeader, () => IsLeader ? 1 : 0);
         }
 
         #endregion
@@ -167,7 +170,11 @@ namespace Garrison.Server.Runtime
         protected virtual void Dispose(bool disposing)
         {
             if (_Disposed) return;
-            if (disposing) _Cts?.Dispose();
+            if (disposing)
+            {
+                _Cts?.Dispose();
+                _LeaderGauge.Dispose();
+            }
             _Disposed = true;
         }
 
@@ -175,26 +182,42 @@ namespace Garrison.Server.Runtime
 
         #region Private-Methods
 
+        private async Task<bool> CampaignAsync(CancellationToken token)
+        {
+            DateTime attempted = DateTime.UtcNow;
+            long? epoch = await _Database.CoordinationLeases.TryAcquireAsync(Constants.LeaderLeaseName, Holder, _Options.LeaderLeaseMs, token).ConfigureAwait(false);
+            long previous = Interlocked.Read(ref _Epoch);
+            if (epoch.HasValue)
+            {
+                Interlocked.Exchange(ref _ValidUntilTicks, attempted.AddMilliseconds(_Options.LeaderLeaseMs * 0.8).Ticks);
+                Interlocked.Exchange(ref _Epoch, epoch.Value);
+                if (previous == 0)
+                {
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.LeaderChanges, "role", "acquired");
+                    _Logging.Info(_Header + Holder + " became leader at epoch " + epoch.Value + " " + GarrisonTracing.LogFields("node", Holder));
+                    return true;
+                }
+            }
+            else
+            {
+                Interlocked.Exchange(ref _Epoch, 0);
+                if (previous > 0)
+                {
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.LeaderChanges, "role", "lost");
+                    _Logging.Info(_Header + Holder + " lost leadership " + GarrisonTracing.LogFields("node", Holder));
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private async Task LoopAsync(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    DateTime attempted = DateTime.UtcNow;
-                    long? epoch = await _Database.CoordinationLeases.TryAcquireAsync(Constants.LeaderLeaseName, Holder, _Options.LeaderLeaseMs, token).ConfigureAwait(false);
-                    long previous = Interlocked.Read(ref _Epoch);
-                    if (epoch.HasValue)
-                    {
-                        Interlocked.Exchange(ref _ValidUntilTicks, attempted.AddMilliseconds(_Options.LeaderLeaseMs * 0.8).Ticks);
-                        Interlocked.Exchange(ref _Epoch, epoch.Value);
-                        if (previous == 0) _Logging.Info(_Header + Holder + " became leader at epoch " + epoch.Value);
-                    }
-                    else
-                    {
-                        Interlocked.Exchange(ref _Epoch, 0);
-                        if (previous > 0) _Logging.Info(_Header + Holder + " lost leadership");
-                    }
+                    await GarrisonTracing.BackgroundAsync("leader_election", "campaign", CampaignAsync, token).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {

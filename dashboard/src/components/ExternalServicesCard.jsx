@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import CopyButton from './CopyButton';
+import GrafanaDashboardLinks from './GrafanaDashboardLinks';
 import { Badge } from './StatusBadge';
 import { tip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
@@ -100,6 +101,7 @@ export default function ExternalServicesCard() {
           })}
         </ul>
       )}
+      <GrafanaDashboardLinks info={info} />
     </section>
   );
 }

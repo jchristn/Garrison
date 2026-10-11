@@ -1,0 +1,741 @@
+{
+  "schemaVersion": 1,
+  "kind": "ingest",
+  "dataset": "synthetic-fleet",
+  "label": "ci-gate",
+  "deterministic": true,
+  "incomplete": false,
+  "provenance": {
+    "startedUtc": "2026-10-11T16:45:55.800238Z",
+    "finishedUtc": "2026-10-11T16:45:56.916569Z",
+    "sutUrl": "http://127.0.0.1 (bench stack)",
+    "sutVersion": "0.1.0-alpha",
+    "stack": "local",
+    "productCommit": "23c4da98f483eceb07ebe453ecea8a6030e4013f-dirty",
+    "productDirtyFiles": 366,
+    "harnessVersion": "1.0.0",
+    "harnessCommit": "uncommitted-dirty",
+    "machineName": "scrubbed",
+    "os": "macOS 26.6.0 (Arm64)",
+    "cpu": "Apple M5 Max (Arm64)",
+    "cores": 18,
+    "runtime": ".NET 10.0.12",
+    "httpClient": "SocketsHttpHandler, MaxConnectionsPerServer 1024, timeout 660 s, pooled connection lifetime 30 s, connect timeout 10 s",
+    "images": [],
+    "externalServices": [
+      "none: every run uses the fake harness (garrison-fake-harness), no model or paid service"
+    ],
+    "datasetName": "synthetic-fleet",
+    "datasetSha256": "2e79613ad9cab719bd66ffaa8c3eb6ac6688c37ae25a5eae9ab23cf67cf5b52a",
+    "datasetPath": "benchmarks/datasets/synthetic-fleet.json",
+    "commandLine": "Garrison.Benchmark ingest --dataset benchmarks/datasets/synthetic-fleet.json --deterministic true --batch-size 100 --url http://127.0.0.1:37800 --stack local --label ci-gate --results-dir <repo>/benchmarks/results --seed 42",
+    "seed": 42
+  },
+  "options": {
+    "batch-size": "100",
+    "connection-lifetime-seconds": "30",
+    "context": "(unset)",
+    "corpus": "",
+    "dataset": "benchmarks/datasets/synthetic-fleet.json",
+    "deterministic": "true",
+    "dry-run": "true",
+    "kubeconfig": "(unset)",
+    "label": "ci-gate",
+    "max-connections": "1024",
+    "namespace": "garrison",
+    "poll-ms": "100",
+    "ready-timeout-seconds": "120",
+    "reapply": "true",
+    "request-timeout-seconds": "660",
+    "resamples": "2000",
+    "results-dir": "<repo>/benchmarks/results",
+    "seed": "42",
+    "shared-note": "(unset)",
+    "stack": "local",
+    "stack-details": "(unset)",
+    "sut-commit": "(unset)",
+    "url": "http://127.0.0.1:37800"
+  },
+  "arms": [
+    {
+      "name": "garrison",
+      "probes": 9,
+      "passed": 9,
+      "errors": 0,
+      "passRate": {
+        "estimate": 1,
+        "lower": 1,
+        "upper": 1,
+        "level": 0.95,
+        "n": 9,
+        "indicative": true
+      },
+      "latency": {
+        "count": 9,
+        "mean": 2.808112611111111,
+        "stdDev": 1.6840461726171172,
+        "min": 0.6908,
+        "p50": 2.1284,
+        "p90": 5.5625,
+        "p95": 5.5625,
+        "p99": 5.5625,
+        "max": 5.5625,
+        "p50Ci": {
+          "estimate": 2.1284,
+          "lower": 1.6065,
+          "upper": 4.6539,
+          "level": 0.95,
+          "n": 9,
+          "indicative": true
+        },
+        "p95Ci": {
+          "estimate": 5.5625,
+          "lower": 2.548,
+          "upper": 5.5625,
+          "level": 0.95,
+          "n": 9,
+          "indicative": true
+        }
+      },
+      "timings": {
+        "agents": {
+          "count": 1,
+          "mean": 200,
+          "stdDev": 0,
+          "min": 200,
+          "p50": 200,
+          "p90": 200,
+          "p95": 200,
+          "p99": 200,
+          "max": 200
+        },
+        "reachable": {
+          "count": 1,
+          "mean": 200,
+          "stdDev": 0,
+          "min": 200,
+          "p50": 200,
+          "p90": 200,
+          "p95": 200,
+          "p99": 200,
+          "max": 200
+        },
+        "requestMs": {
+          "count": 8,
+          "mean": 2.920875,
+          "stdDev": 1.7636239652245276,
+          "min": 0.6908,
+          "p50": 2.1284,
+          "p90": 5.5625,
+          "p95": 5.5625,
+          "p99": 5.5625,
+          "max": 5.5625,
+          "p50Ci": {
+            "estimate": 2.1284,
+            "lower": 1.6065,
+            "upper": 4.6539,
+            "level": 0.95,
+            "n": 8,
+            "indicative": true
+          },
+          "p95Ci": {
+            "estimate": 5.5625,
+            "lower": 4.5491,
+            "upper": 5.5625,
+            "level": 0.95,
+            "n": 8,
+            "indicative": true
+          }
+        }
+      },
+      "byType": [
+        {
+          "key": "bad-api-version",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "idempotent-dry-run",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "missing-reference",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "new-document",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "reachability",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "reserved-name",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "secret-value",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "template-syntax",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        },
+        {
+          "key": "unknown-kind",
+          "n": 1,
+          "passed": 1,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 1,
+            "indicative": true
+          }
+        }
+      ],
+      "byCategory": [
+        {
+          "key": "load-path",
+          "n": 3,
+          "passed": 3,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 3,
+            "indicative": true
+          }
+        },
+        {
+          "key": "validation",
+          "n": 6,
+          "passed": 6,
+          "passRate": {
+            "estimate": 1,
+            "lower": 1,
+            "upper": 1,
+            "level": 0.95,
+            "n": 6,
+            "indicative": true
+          }
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "corpus": "fleet",
+      "probeId": "reachable-all",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "reachability",
+      "category": "load-path",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "200 of 200 agents readable",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.9060134999999994,
+      "timings": {
+        "agents": 200,
+        "reachable": 200
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "dry-run-existing",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "idempotent-dry-run",
+      "category": "load-path",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "200, created 0, unchanged 0, failed 0",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 4.6539,
+      "timings": {
+        "requestMs": 4.6539
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "dry-run-new",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "new-document",
+      "category": "load-path",
+      "negative": false,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "200, created 1, unchanged 0, failed 0",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.6278,
+      "timings": {
+        "requestMs": 1.6278
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "unknown-kind",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "unknown-kind",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Document 0 has unknown kind 'Gadget'. Supported: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, A...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 2.548,
+      "timings": {
+        "requestMs": 2.548
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "missing-reference",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "missing-reference",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Reference 'agent' points to Agent 'fleet-agent-missing', which does not exist and is not defined earlier in this manifes...",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 1.6065,
+      "timings": {
+        "requestMs": 1.6065
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "bad-api-version",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "bad-api-version",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Document 0 has apiVersion 'garrison/v2'; expected garrison/v1.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 0.6908,
+      "timings": {
+        "requestMs": 0.6908
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "secret-value",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "secret-value",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: Secret fleet-secret carries a value but this apply does not allow secret values.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 4.5491,
+      "timings": {
+        "requestMs": 4.5491
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "reserved-name",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "reserved-name",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: PromptTemplate builtin/fleet-reserved: names starting with builtin/ are reserved for built-ins.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 5.5625,
+      "timings": {
+        "requestMs": 5.5625
+      }
+    },
+    {
+      "corpus": "fleet",
+      "probeId": "bad-template-syntax",
+      "repeat": 0,
+      "arm": "garrison",
+      "type": "template-syntax",
+      "category": "validation",
+      "negative": true,
+      "passed": true,
+      "score": 1,
+      "errored": false,
+      "failures": [],
+      "observed": "400 (no error code), created 0, unchanged 0, failed 1: The prompt template is invalid. content: template 'content' at line 1, column 1: Unclosed {{#if}} block.",
+      "runIds": [],
+      "nodes": [],
+      "latencyMs": 2.1284,
+      "timings": {
+        "requestMs": 2.1284
+      }
+    }
+  ],
+  "loadLevels": [],
+  "ingest": {
+    "documents": 440,
+    "applies": 5,
+    "batchSize": 100,
+    "created": 440,
+    "updated": 0,
+    "unchanged": 0,
+    "failed": 0,
+    "requestErrors": 0,
+    "documentsPerSecond": 2291.3826306947367,
+    "applyLatency": {
+      "count": 5,
+      "mean": 38.326080000000005,
+      "stdDev": 19.50775272390441,
+      "min": 18.3075,
+      "p50": 29.6694,
+      "p90": 68.503,
+      "p95": 68.503,
+      "p99": 68.503,
+      "max": 68.503,
+      "p50Ci": {
+        "estimate": 29.6694,
+        "lower": 18.3075,
+        "upper": 68.503,
+        "level": 0.95,
+        "n": 5,
+        "indicative": true
+      },
+      "p95Ci": {
+        "estimate": 68.503,
+        "lower": 29.6694,
+        "upper": 68.503,
+        "level": 0.95,
+        "n": 5,
+        "indicative": true
+      }
+    },
+    "reapplyUnchangedRate": 1,
+    "reapplyLatency": {
+      "count": 5,
+      "mean": 58.307500000000005,
+      "stdDev": 41.906036295801115,
+      "min": 18.5013,
+      "p50": 47.0422,
+      "p90": 114.3401,
+      "p95": 114.3401,
+      "p99": 114.3401,
+      "max": 114.3401,
+      "p50Ci": {
+        "estimate": 47.0422,
+        "lower": 18.5013,
+        "upper": 114.3401,
+        "level": 0.95,
+        "n": 5,
+        "indicative": true
+      },
+      "p95Ci": {
+        "estimate": 114.3401,
+        "lower": 47.0422,
+        "upper": 114.3401,
+        "level": 0.95,
+        "n": 5,
+        "indicative": true
+      }
+    },
+    "dryRunMs": 115.9655,
+    "reachable": 200,
+    "agentDocuments": 200,
+    "reachability": 1
+  },
+  "scenarios": [],
+  "stages": [
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/manifests/apply\",status_class=\"2xx\",tenant=\"ten_mv421hk4_jB37gedmYl3WPtzvXUI\"}",
+      "count": 13,
+      "total": 553.31,
+      "mean": 42.56230769230769,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"transaction\",provider=\"sqlite\",result=\"ok\",table=\"none\"}",
+      "count": 763,
+      "total": 86.30210000000082,
+      "mean": 0.11310891218872977,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"harness_profile_args\"}",
+      "count": 1200,
+      "total": 53.12529999999999,
+      "mean": 0.04427108333333332,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"GET\",route=\"/v1.0/api/tenants/{tenantId}/agents/{id}\",status_class=\"2xx\",tenant=\"ten_mv421hk4_jB37gedmYl3WPtzvXUI\"}",
+      "count": 200,
+      "total": 47.070000000000036,
+      "mean": 0.23535000000000017,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"agents\"}",
+      "count": 2002,
+      "total": 46.8769000000001,
+      "mean": 0.023415034965035015,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"harness_profiles\"}",
+      "count": 1200,
+      "total": 38.000299999999974,
+      "mean": 0.03166691666666665,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"prompt_template_variables\"}",
+      "count": 2241,
+      "total": 35.20729999999997,
+      "mean": 0.015710531012940638,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"prompt_templates\"}",
+      "count": 2321,
+      "total": 33.499799999999915,
+      "mean": 0.014433347694959032,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"harness_profile_exit_codes\"}",
+      "count": 1200,
+      "total": 17.644099999999952,
+      "mean": 0.014703416666666627,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"harness_profile_probe_args\"}",
+      "count": 1200,
+      "total": 16.704400000000035,
+      "mean": 0.013920333333333363,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"harness_profile_files\"}",
+      "count": 1200,
+      "total": 15.610899999999967,
+      "mean": 0.013009083333333307,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"agent_tags\"}",
+      "count": 1400,
+      "total": 14.403900000000005,
+      "mean": 0.010288500000000004,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"deployments\"}",
+      "count": 600,
+      "total": 12.430000000000014,
+      "mean": 0.02071666666666669,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"harness_profile_env\"}",
+      "count": 1200,
+      "total": 11.835999999999999,
+      "mean": 0.009863333333333332,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"insert\",provider=\"sqlite\",result=\"ok\",table=\"request_history_headers\"}",
+      "count": 2722,
+      "total": 11.591499999999783,
+      "mean": 0.004258449669360684,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"agent_skills\"}",
+      "count": 1400,
+      "total": 11.53819999999995,
+      "mean": 0.008241571428571393,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"agent_delegation_allowlist\"}",
+      "count": 1400,
+      "total": 9.919499999999967,
+      "mean": 0.00708535714285712,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"harness_profile_cred_env\"}",
+      "count": 1200,
+      "total": 8.404199999999983,
+      "mean": 0.007003499999999986,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"insert\",provider=\"sqlite\",result=\"ok\",table=\"manifest_apply_items\"}",
+      "count": 1328,
+      "total": 7.360700000000007,
+      "mean": 0.005542695783132535,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"tenants\"}",
+      "count": 226,
+      "total": 7.1037000000000186,
+      "mean": 0.031432300884955834,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_http_request_duration_seconds{method=\"POST\",route=\"/v1.0/api/tenants/{tenantId}/manifests/apply\",status_class=\"4xx\",tenant=\"ten_mv421hk4_jB37gedmYl3WPtzvXUI\"}",
+      "count": 6,
+      "total": 5.61,
+      "mean": 0.935,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"insert\",provider=\"sqlite\",result=\"ok\",table=\"request_history\"}",
+      "count": 223,
+      "total": 4.978900000000012,
+      "mean": 0.022326905829596465,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"deployment_parameters\"}",
+      "count": 200,
+      "total": 4.247300000000014,
+      "mean": 0.02123650000000007,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"select\",provider=\"sqlite\",result=\"ok\",table=\"deployment_prompt_bindings\"}",
+      "count": 200,
+      "total": 3.1973999999999894,
+      "mean": 0.015986999999999946,
+      "unit": "ms"
+    },
+    {
+      "series": "garrison_db_operation_duration_seconds{operation=\"insert\",provider=\"sqlite\",result=\"ok\",table=\"deployments\"}",
+      "count": 200,
+      "total": 2.754400000000001,
+      "mean": 0.013772000000000005,
+      "unit": "ms"
+    }
+  ],
+  "baselines": [
+    {
+      "metric": "(all)",
+      "source": "no comparable published result",
+      "link": "",
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets."
+    }
+  ],
+  "notes": []
+}

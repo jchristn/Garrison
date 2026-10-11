@@ -15,6 +15,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
     using Garrison.Server.Runtime;
+    using Garrison.Server.Services;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -225,6 +226,7 @@ namespace Garrison.Server.Routes
             context.Response.ServerSentEvents = true;
 
             _Context.Activity.StreamOpened();
+            StreamTelemetry.Opened("run_events");
             try
             {
                 using (RunSignalSubscription signal = _Signals.Subscribe(run.Id))
@@ -237,6 +239,7 @@ namespace Garrison.Server.Routes
                             // The replica is shutting down: end the stream; an EventSource reconnects to another replica and
                             // resumes after Last-Event-ID.
                             await context.Response.SendEvent(new ServerSentEvent { Event = "server.draining", Data = "{}" }, true, context.Token).ConfigureAwait(false);
+                            StreamTelemetry.Sent("run_events");
                             return;
                         }
                         Run? current = await _Context.Database.Runs.ReadAsync(run.TenantId, run.Id, context.Token).ConfigureAwait(false);
@@ -249,6 +252,7 @@ namespace Garrison.Server.Routes
                             message.Event = "run.event";
                             message.Data = Serializer.Serialize(evt);
                             await context.Response.SendEvent(message, false, context.Token).ConfigureAwait(false);
+                            StreamTelemetry.Sent("run_events");
                             after = evt.Sequence;
                         }
 
@@ -258,6 +262,7 @@ namespace Garrison.Server.Routes
                             done.Event = "run.completed";
                             done.Data = Serializer.Serialize(current);
                             await context.Response.SendEvent(done, true, context.Token).ConfigureAwait(false);
+                            StreamTelemetry.Sent("run_events");
                             return;
                         }
 
@@ -267,6 +272,7 @@ namespace Garrison.Server.Routes
                             status.Event = "run.status";
                             status.Data = "{\"status\":\"" + current.Status + "\"}";
                             await context.Response.SendEvent(status, false, context.Token).ConfigureAwait(false);
+                            StreamTelemetry.Sent("run_events");
                             lastKeepAlive = DateTime.UtcNow;
                         }
 
@@ -289,6 +295,7 @@ namespace Garrison.Server.Routes
             finally
             {
                 _Context.Activity.StreamClosed();
+                StreamTelemetry.Closed("run_events");
             }
         }
 

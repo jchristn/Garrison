@@ -80,6 +80,21 @@ namespace Garrison.Server.Settings
         public ArchiveSettings Archive { get; set; } = new ArchiveSettings();
 
         /// <summary>
+        /// Control-plane refresh of ChatGPT logins stored in CodexAuthJson secrets (G-22).
+        /// </summary>
+        public CodexSettings Codex
+        {
+            get
+            {
+                return _Codex;
+            }
+            set
+            {
+                _Codex = value ?? new CodexSettings();
+            }
+        }
+
+        /// <summary>
         /// Path the settings were loaded from.
         /// </summary>
         [JsonIgnore]
@@ -104,6 +119,12 @@ namespace Garrison.Server.Settings
                 return String.IsNullOrEmpty(host) ? Environment.MachineName : host;
             }
         }
+
+        #endregion
+
+        #region Private-Members
+
+        private CodexSettings _Codex = new CodexSettings();
 
         #endregion
 
@@ -189,10 +210,14 @@ namespace Garrison.Server.Settings
             Int("GARRISON_EXPECTED_REPLICAS", "Cluster.ExpectedReplicas", v => Cluster.ExpectedReplicas = v);
             Backplane("GARRISON_BACKPLANE", "Cluster.Backplane", v => Cluster.Backplane = v);
             Str("GARRISON_ARCHIVE_DIRECTORY", "Archive.Directory", v => Archive.Directory = v);
+            Str("GARRISON_CODEX_TOKEN_ENDPOINT", "Codex.TokenEndpoint", v => Codex.TokenEndpoint = v);
+            Str("GARRISON_CODEX_CLIENT_ID", "Codex.ClientId", v => Codex.ClientId = v);
+            Int("GARRISON_CODEX_REFRESH_BEFORE_EXPIRY_SECONDS", "Codex.RefreshBeforeExpirySeconds", v => Codex.RefreshBeforeExpirySeconds = v);
             Bool("GARRISON_SETTINGS_READONLY", "Cluster.SettingsFileReadOnly", v => Cluster.SettingsFileReadOnly = v);
             Bool("GARRISON_TELEMETRY_ENABLE", "Telemetry.Enabled", v => Telemetry.Enabled = v);
             Bool("GARRISON_OTLP_ENABLE", "Telemetry.OtlpEnable", v => Telemetry.OtlpEnable = v);
             Str("GARRISON_OTLP_ENDPOINT", "Telemetry.OtlpEndpoint", v => Telemetry.OtlpEndpoint = v);
+            Int("GARRISON_TELEMETRY_MAX_LABEL_VALUES", "Telemetry.MaxLabelValues", v => Telemetry.MaxLabelValues = v);
         }
 
         /// <summary>

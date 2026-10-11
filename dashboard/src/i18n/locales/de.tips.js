@@ -366,6 +366,10 @@ const tips = {
       Hosted: 'Gehostet: Garrison führt diesen Agenten selbst über seine Bereitstellungen auf Worker-Knoten aus.',
       Remote: 'Entfernt: Der Agent läuft anderswo, und Garrison leitet Aufrufe an seinen A2A- oder MCP-Endpunkt weiter.'
     },
+    secretStatus: {
+      Ok: 'Die Anmeldedaten sind nach Kenntnis von Garrison verwendbar. Ein neuer Wert setzt ein Geheimnis immer in diesen Zustand zurück.',
+      NeedsReauthentication: 'OpenAI hat die gespeicherte ChatGPT-Anmeldung endgültig abgelehnt, zum Beispiel weil ihr Refresh-Token schon verwendet wurde. Läufe mit diesem Geheimnis schlagen fehl, bis Sie den Wert durch eine neue Anmeldung ersetzen.'
+    },
     secretKind: {
       AnthropicApiKey: 'Ein Anthropic-API-Schlüssel, den das Claude-Code-Profil als ANTHROPIC_API_KEY einsetzt.',
       ClaudeCodeOAuthToken: 'Ein Claude-Code-Abonnement-Token. Prüfen Sie die Anbieterbedingungen, bevor Sie es auf gemeinsam genutzten Servern verwenden.',
@@ -597,6 +601,11 @@ const tips = {
       actions: { test: 'Jetzt eine Verbindung zum Server herstellen und seine Werkzeuge auflisten, um Adresse und Zugangsdaten zu prüfen.' }
     },
     secrets: {
+      status: 'Ob die gespeicherten Anmeldedaten noch funktionieren. Garrison markiert eine Codex-Anmeldung, die sich nicht mehr erneuern lässt, mit „Erneute Anmeldung nötig“.',
+      accessTokenExpiresUtc: 'Wann das Zugriffstoken einer gespeicherten Codex-ChatGPT-Anmeldung abläuft. Garrison erneuert es vorher und schreibt die neuen Token in das Geheimnis zurück.',
+      refreshedUtc: 'Wann Garrison diese Codex-Anmeldung zuletzt selbst erneuert hat. Läufe erhalten immer nur eine Kopie ohne Refresh-Token.',
+      statusMessage: 'Warum die Anmeldung nicht verwendet werden kann, wie vom Anbieter gemeldet.',
+      statusUtc: 'Wann Garrison festgestellt hat, dass sich die Anmeldung nicht mehr erneuern lässt.',
       add: 'Neue Zugangsdaten wie einen API-Schlüssel oder ein Token verschlüsselt speichern. Bereitstellungen referenzieren sie über einen Alias; der Wert wird nach dem Speichern nie wieder angezeigt.',
       name: 'Name des Geheimnisses. Bereitstellungen wählen das Geheimnis über diesen Namen und vergeben einen Alias.',
       kind: 'Um welche Art von Zugangsdaten es sich handelt. Integrierte Profile erkennen an der Art, welche Variable oder Datei sie befüllen.',
@@ -809,7 +818,7 @@ const tips = {
         detail: 'Ausgabe der Prüfung, hilfreich, wenn eine Harness nicht verfügbar ist.'
       },
       actions: {
-        grafana: 'Das Dashboard „Workers and Harnesses“ in Grafana in einem neuen Tab öffnen, gefiltert auf den Knoten {{node}}.',
+        grafana: 'Das Dashboard „Workers“ in Grafana in einem neuen Tab öffnen, gefiltert auf den Knoten {{node}}.',
         cordon: 'Keine neuen Läufe mehr an diesen Knoten senden. Bereits laufende Läufe enden normal.',
         uncordon: 'Diesen Knoten wieder neue Läufe annehmen lassen.',
         drain: 'Neue Läufe stoppen und aktuelle zu Ende laufen lassen, danach ist der Knoten untätig. Vor dem Herunterfahren verwenden.',
@@ -881,6 +890,23 @@ const tips = {
       },
       observabilityVersion: 'Version, die {{service}} bei der Integritätsprüfung des Servers gemeldet hat.',
       kpisGrafana: 'Das Garrison-Übersichts-Dashboard in Grafana in einem neuen Tab öffnen, um diese Zahlen im Zeitverlauf zu sehen.',
+      grafanaDashboards: 'Der Garrison-Ordner in Grafana enthält ein Dashboard pro Bereich. Jeder Link öffnet das Dashboard in einem neuen Tab.',
+      grafanaSections: {
+        overview: 'Zustand auf einen Blick: aktive Replikate und Worker, Lauf- und Anfrageraten, Fehler, Kosten und aktuelle Probleme.',
+        http: 'REST-Verkehr nach Route: Anfragerate, Latenz-Perzentile, Fehler, Nutzlastgrößen, Authentifizierungsfehler und laufende Anfragen.',
+        runs: 'Lebenszyklus der Läufe: erstellte und beendete Läufe nach Ergebnis, Phasendauern, Abbrüche, Validierung strukturierter Ausgaben und Reparaturen.',
+        agents: 'Leistung pro Agent: Aufrufe, Perzentile von Laufzeit und Wartezeit, Zeit bis zum ersten Token, Streaming-Zeit, Ergebnisse und Schutzauslösungen.',
+        models: 'Tokenverbrauch und Kosten nach Modell und Agent: Eingabe-, Ausgabe-, Cache- und Reasoning-Tokens, Kosten und Ausgabedurchsatz.',
+        workers: 'Worker-Knoten: Leases, Läufe pro Knoten, Abschlussmeldungen, Heartbeats, freie Slots und Aufrufe an die Steuerungsebene.',
+        kubernetes: 'Executor mit einem Pod pro Lauf: erstellte und gelöschte Jobs, Pod-Startlatenz, Pod-Fehler nach Ursache und Bereinigung verwaister Jobs.',
+        protocols: 'MCP, A2A und Streaming: Tool-Aufrufe und Dauern, Sitzungen, A2A-Methoden und Aufgabenzustände, SSE-Streams, WebSockets und Delegation.',
+        scheduler: 'Planung: Warteschlangentiefe nach Agent und Harness, Claim-Ergebnisse und Latenz, Lease-Long-Polls, blockierte Läufe und abgelaufene Leases.',
+        database: 'Datenbank: Anweisungslatenz nach Operation und Tabelle, Fehler, genutzte Verbindungen, Wartezeiten auf Schreibsperren und Aufbewahrung.',
+        controlPlane: 'Replikate der Steuerungsebene: Status, Leader-Wechsel, Backplane-Verkehr und Verzögerung, Heartbeats und Durchläufe der Hintergrunddienste.',
+        security: 'Authentifizierungsfehler nach Schema und Grund, Autorisierungsablehnungen, Ratenbegrenzung, ausgestellte Tokens, Entschlüsselung von Geheimnissen und Codex-Token-Aktualisierungen.',
+        integrations: 'Ausgehende Aufrufe nach Dienst: MCP-Servertests, Observability-Prüfungen, der MCP-Proxy, die Kubernetes-API und die Steuerungsebene aus Sicht der Worker.',
+        logs: 'Logvolumen, Fehler und Warnungen nach Komponente und Mandant, aktuelle Fehlerzeilen und Links zu Traces.'
+      },
       observabilityDocs: 'Die Telemetrie-Anleitung in einem neuen Tab öffnen: wie Sie Garrison-Metriken abrufen und Grafana, Prometheus, Tempo oder Loki anbinden.',
       observability: 'Links zu den Metrik-, Dashboard- und Tracing-Werkzeugen, die diese Installation als konfiguriert meldet. Nicht konfigurierte Dienste werden nicht angezeigt.',
       kpis: {
@@ -952,6 +978,7 @@ const tips = {
       name: 'Der Name, mit dem Aufrufende diesen Agenten aufrufen.',
       viewJson: 'Den vollständigen Agentendatensatz als JSON anzeigen.',
       invoke: 'Aufrufen mit diesem ausgewählten Agenten öffnen. Eine Bereitstellung wird nach Gewichtung gewählt, sofern Sie keine auswählen.',
+      grafana: 'Das Agenten-Dashboard in Grafana in einem neuen Tab öffnen, gefiltert auf diesen Agenten: Aufrufe, Laufzeit-Perzentile, Zeit bis zum ersten Token, Streaming-Zeit, Tokens, Kosten und Schutzauslösungen.',
       id: 'Kennung des Agenten für API-Aufrufe.',
       tabs: {
         deployments: 'Die Arten, wie dieser Agent läuft, mit ihren Gewichtungen und dem Verkehrsanteil, den jede erhält.',
@@ -1176,7 +1203,7 @@ const tips = {
     }
   },
   analytics: {
-    grafana: 'Das Dashboard „Runs and Scheduling“ in Grafana in einem neuen Tab öffnen, für denselben Zeitraum wie diese Seite.',
+    grafana: 'Das Dashboard „Runs“ in Grafana in einem neuen Tab öffnen, für denselben Zeitraum wie diese Seite.',
     filters: {
       ttft: 'Wenn aktiviert, lässt das Diagramm zur Zeit bis zum ersten Token die Wartezeit auf delegierte Agenten weg, damit delegierende Agenten fair mit direkt antwortenden verglichen werden.',
       range: 'Zeitfenster für alle Diagramme und Summen: die letzte Stunde, der letzte Tag, die letzte Woche, die letzten 30 Tage oder ein eigener Start und ein eigenes Ende.',

@@ -4,6 +4,7 @@ namespace Garrison.Server.Services
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
+    using Garrison.Core.Telemetry;
     using SyslogLogging;
 
     /// <summary>
@@ -74,9 +75,9 @@ namespace Garrison.Server.Services
         {
             DateTime now = DateTime.UtcNow;
             int total = 0;
-            total += await _Database.RequestHistory.PruneAsync(now.AddDays(-_Cluster.GetInt("RequestHistory.RetentionDays")), token).ConfigureAwait(false);
-            total += await _Database.Audit.PruneAsync(now.AddDays(-_Cluster.GetInt("Audit.RetentionDays")), token).ConfigureAwait(false);
-            total += await _Database.Sessions.PruneExpiredAsync(now.AddDays(-1), token).ConfigureAwait(false);
+            total += Pruned("request_history", await _Database.RequestHistory.PruneAsync(now.AddDays(-_Cluster.GetInt("RequestHistory.RetentionDays")), token).ConfigureAwait(false));
+            total += Pruned("audit", await _Database.Audit.PruneAsync(now.AddDays(-_Cluster.GetInt("Audit.RetentionDays")), token).ConfigureAwait(false));
+            total += Pruned("auth_sessions", await _Database.Sessions.PruneExpiredAsync(now.AddDays(-1), token).ConfigureAwait(false));
             return total;
         }
 
@@ -93,7 +94,12 @@ namespace Garrison.Server.Services
                 {
                     await Task.Delay(_IntervalMs, token).ConfigureAwait(false);
                     if (ShouldRun != null && !ShouldRun()) continue;
-                    int pruned = await PruneOnceAsync(token).ConfigureAwait(false);
+                    int pruned = 0;
+                    await GarrisonTracing.BackgroundAsync("retention", "prune", async ct =>
+                    {
+                        pruned = await PruneOnceAsync(ct).ConfigureAwait(false);
+                        return pruned > 0;
+                    }, token).ConfigureAwait(false);
                     if (pruned > 0) _Logging.Info("[Retention] pruned " + pruned + " rows");
                 }
                 catch (OperationCanceledException)
@@ -105,6 +111,16 @@ namespace Garrison.Server.Services
                     _Logging.Warn("[Retention] pass failed: " + e.Message);
                 }
             }
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private static int Pruned(string kind, int count)
+        {
+            if (count > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, count, GarrisonMetrics.Tags("kind", kind));
+            return count;
         }
 
         #endregion

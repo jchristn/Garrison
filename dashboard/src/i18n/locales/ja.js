@@ -243,6 +243,7 @@ const ja = {
     harnessType: { ClaudeCode: 'Claude Code', Codex: 'Codex', Mux: 'Mux', GeminiCli: 'Gemini CLI', Generic: '汎用' },
     agentKind: { Hosted: 'ホスト型', Remote: 'リモート' },
     delegationMode: { None: '委任なし', AllowList: '許可リスト', Any: '任意のエージェント' },
+    secretStatus: { Ok: '正常', NeedsReauthentication: '再認証が必要' },
     secretKind: {
       AnthropicApiKey: 'Anthropic API キー',
       ClaudeCodeOAuthToken: 'Claude Code OAuth トークン',
@@ -656,8 +657,10 @@ const ja = {
       errors: { expiryPast: '有効期限には未来の日時を選ぶか、期限なしにするには空のままにしてください。' },
       ...rp('シークレット', 'ハーネスと連携のための暗号化された認証情報です。値は書き込み専用です。', 'シークレットを追加', 'シークレットを作成', 'シークレットを編集', 'シークレットの詳細', 'シークレットを削除', 'シークレットはまだありません', 'エージェントに必要な API キーやトークン (例: Anthropic API キー) を追加してください。'),
       notSet: '未設定',
-      columns: { name: '名前', kind: '種類', valueLast4: '値', rotatedUtc: '最終変更', expiresUtc: '有効期限', active: '有効', id: 'ID' },
-      fields: { name: '名前', kind: '種類', description: '説明', value: '値', newValue: '新しい値', expiresUtc: '有効期限', active: '有効' },
+      neverRefreshed: 'まだありません',
+      reauth: { title: 'このログインは再認証が必要です', since: '{{time}} から', action: 'このシークレットを使う実行は、値を置き換えるまで失敗します。専用の CODEX_HOME で codex login を実行して再ログインし、「値を設定」で新しい auth.json を保存するか、デプロイメントを OpenAI API キーのシークレットに切り替えてください。同じログインを別のマシンで使い続けないでください。両方のコピーが 1 つのリフレッシュトークンを共有します。' },
+      columns: { status: '状態', accessTokenExpiresUtc: 'アクセストークンの有効期限', name: '名前', kind: '種類', valueLast4: '値', rotatedUtc: '最終変更', expiresUtc: '有効期限', active: '有効', id: 'ID' },
+      fields: { refreshedUtc: 'Garrison による最終更新', accessTokenExpiresUtc: 'アクセストークンの有効期限', name: '名前', kind: '種類', description: '説明', value: '値', newValue: '新しい値', expiresUtc: '有効期限', active: '有効' },
       hints: { expiresUtc: '未来の日時を指定してください。空のままにすると期限なしになります。', kind: '共有サーバーでサブスクリプショントークンを使うと、プロバイダーの規約に違反する場合があります。共有環境では API キーを推奨します。' },
       actions: { setValue: '値を設定', rotate: 'ローテーション' }
     },
@@ -892,6 +895,8 @@ const ja = {
       observabilityVersion: 'バージョン {{version}}',
       observabilityOpen: '{{service}} を開く',
       kpisGrafana: '概要を Grafana で開く',
+      grafanaDashboards: 'Grafana ダッシュボード',
+      grafanaSections: { overview: '概要', http: 'HTTP API', runs: '実行', agents: 'エージェント', models: 'モデルとトークン', workers: 'ワーカー', kubernetes: 'Kubernetes エグゼキューター', protocols: 'プロトコル', scheduler: 'スケジューラーとキュー', database: 'データベース', controlPlane: 'コントロールプレーン', security: 'セキュリティと認証', integrations: '連携', logs: 'ログとトレース' },
       observabilitySetup: 'オブザーバビリティを設定する',
       observabilityNone: 'この環境には、オブザーバビリティのサービス (Grafana、Prometheus、Tempo、Loki) が構成されていません。',
       observability: 'オブザーバビリティ',
@@ -1096,6 +1101,7 @@ const ja = {
     },
     agentDetail: {
       invoke: '呼び出し',
+      grafana: 'Grafana で開く',
       noActiveDeployment: 'このエージェントには有効なデプロイメントがないため、呼び出しは拒否されます。',
       deployments_one: 'デプロイメント ({{count}})',
       deployments_other: 'デプロイメント ({{count}})',
@@ -1261,7 +1267,7 @@ const ja = {
         ConfigMap: 'Kubernetes の ConfigMap で管理されています。マニフェストで変更してください。',
         other: 'この設定はここでは編集できません。'
       },
-      groups: { Archive: 'アーカイブ', General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査', Runtime: 'ランタイム', Observability: 'オブザーバビリティ' },
+      groups: { Codex: 'Codex', Archive: 'アーカイブ', General: '全般', Rest: 'REST', Mcp: 'MCP', Database: 'データベース', Logging: 'ログ', Auth: '認証', Security: 'セキュリティ', RequestHistory: 'リクエスト履歴', Telemetry: 'テレメトリー', Cluster: 'クラスター', Scheduling: 'スケジューリング', Runs: '実行', Audit: '監査', Runtime: 'ランタイム', Observability: 'オブザーバビリティ' },
       fields: {
         Observability: {
           GrafanaUrl: 'Grafana の URL',
@@ -1364,6 +1370,13 @@ const ja = {
           RetentionDays: '実行の保持期間 (日)',
           MaxDelegationDepth: '委任の最大深さ',
           DefaultTimeoutSeconds: '実行の既定タイムアウト (秒)'
+        },
+        Codex: {
+          RefreshBeforeExpirySeconds: '有効期限前に Codex ログインを更新 (秒)',
+          RefreshCheckIntervalSeconds: 'バックグラウンド確認の間隔 (秒)',
+          RefreshTimeoutSeconds: 'ログイン更新のタイムアウト (秒)',
+          TokenEndpoint: 'OAuth トークンエンドポイント',
+          ClientId: 'OAuth クライアント ID'
         },
         Runtime: {
           FailBlockedAfterSeconds: 'ブロックされた実行を失敗にするまでの時間 (秒)',

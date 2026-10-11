@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "datasets": [
+    {
+      "dataset": "*",
+      "kinds": [],
+      "note": "No public benchmark measures an agent-harness control plane (scheduling runs of headless CLI agents onto pull-based workers), so there is no published score to compare against. The closest public data, the Azure Functions and Alibaba cluster traces, are workloads without an oracle; see BENCHMARKING.md, Datasets.",
+      "results": []
+    },
+    {
+      "dataset": "synthetic-fleet",
+      "kinds": ["e2e"],
+      "note": "Prior internal measurement, not a published benchmark.",
+      "results": [
+        {
+          "metric": "garrison.queueMs.p50",
+          "value": 39,
+          "source": "docs/SCALING.md, Measured results (2026-10-10)",
+          "link": "docs/SCALING.md",
+          "note": "Claim latency (queued to leased) with no backlog, 0.5 s runs, 3 server replicas and 4 workers on k3d; this suite uses 1 replica and measures across all e2e probes."
+        },
+        {
+          "metric": "garrison.serverOverheadMs.p50",
+          "value": 140,
+          "source": "docs/SCALING.md, Measured results (2026-10-10)",
+          "link": "docs/SCALING.md",
+          "note": "SCALING.md reports runs finishing 140 to 230 ms after their harness time with no backlog; the low end is shown. serverOverheadMs is totalMs minus executionMs."
+        }
+      ]
+    },
+    {
+      "dataset": "synthetic-fleet",
+      "kinds": ["load"],
+      "note": "Prior internal measurement, not a published benchmark.",
+      "results": [
+        {
+          "metric": "load.garrison.closed.w2-c1.queueMs.p50",
+          "value": 39,
+          "source": "docs/SCALING.md, Measured results (2026-10-10)",
+          "link": "docs/SCALING.md",
+          "note": "Claim latency with no backlog (16 runs of 0.5 s on 16 slots); here one closed-loop client on 8 slots."
+        }
+      ]
+    }
+  ]
+}
