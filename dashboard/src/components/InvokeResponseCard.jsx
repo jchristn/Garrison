@@ -13,6 +13,8 @@ import { formatMs, formatRate } from '../utils/telemetry';
 import { enumTip } from '../utils/tips';
 import { useGrafana } from '../hooks/useServerInfo';
 import { traceUrl, logsUrl } from '../utils/grafana';
+import RunGuardNotice from './RunGuardNotice';
+import { guardOutcome } from '../utils/runGuards';
 
 /** Distance from the bottom (px) within which the preview counts as pinned and keeps following new output. */
 const PIN_SLACK = 24;
@@ -106,6 +108,7 @@ function StreamPreview({ run, events, clock, onShowResponse }) {
           {t('views.invoke.stream.codexNote')}
         </div>
       )}
+      {terminal && <RunGuardNotice run={run} testId="stream-guard-notice" />}
       {terminal && (
         <div className="stream-finished-hint" role="status" data-testid="stream-finished-hint">
           <span>{t('views.invoke.stream.finishedHint')}</span>
@@ -166,7 +169,8 @@ function RunResponse({ run }) {
         <GrafanaLink href={traceUrl(grafana, run)} label={t('views.runDetail.viewTrace')} tipText={t('tips.views.runDetail.viewTrace')} testId="invoke-view-trace" />
         <GrafanaLink href={logsUrl(grafana, run)} label={t('views.runDetail.viewLogs')} tipText={t('tips.views.runDetail.viewLogs')} testId="invoke-view-logs" />
       </div>
-      {run.errorMessage && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
+      <RunGuardNotice run={run} testId="response-guard-notice" />
+      {run.errorMessage && !guardOutcome(run) && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
       <h3 className="section-title">{t('views.runDetail.result')}</h3>
       <MarkdownView text={run.resultText} rawToggle testId="invoke-result" emptyText={terminal ? t('views.runDetail.noResult') : t('views.runDetail.pending')} />
       {run.structuredOutputJson && (

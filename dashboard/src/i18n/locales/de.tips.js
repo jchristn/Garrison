@@ -323,7 +323,7 @@ const tips = {
       NotCredentialed: 'Die Harness hatte keine verwendbaren Zugangsdaten. Binden Sie ein Geheimnis an die Bereitstellung.',
       McpPreflightFailed: 'Ein erforderlicher MCP-Server oder ein erforderliches Werkzeug war bei der Prüfung des Workers vor dem Start nicht erreichbar.',
       NodeLost: 'Der Worker-Knoten hat keine Heartbeats mehr gesendet, während er den Lauf hielt.',
-      OutputLimitExceeded: 'Die Harness hat mehr Ausgabe geschrieben, als das Profil erlaubt.',
+      OutputLimitExceeded: 'Der Lauf hat zu viel Ausgabe erzeugt: Seine Antwort hat die maximalen Assistentenzeichen der Bereitstellung überschritten (ein Laufwächter), oder der Harness hat mehr geschrieben, als das Harness-Profil erlaubt. Die bisherige Ausgabe bleibt erhalten.',
       SchemaValidationFailed: 'Das Ergebnis entsprach nicht dem JSON-Schema der Ausgabe des Agenten: nach einem Reparaturversuch oder sofort, wenn die Harness ihre Sitzung nicht fortsetzen kann.',
       TimedOut: 'Der Lauf hat seine Frist erreicht.',
       Cancelled: 'Der Lauf wurde auf Anforderung abgebrochen.',
@@ -332,7 +332,9 @@ const tips = {
       WorkspaceFailed: 'Der Arbeitsbereich konnte nicht vorbereitet werden, zum Beispiel weil ein Git-Klon fehlgeschlagen ist.',
       Rejected: 'Die Anfrage wurde abgelehnt, bevor ein Lauf starten konnte.',
       InternalError: 'In Garrison ist ein interner Fehler aufgetreten. Details stehen in den Serverprotokollen.',
-      NoCapableWorker: 'Der Lauf wartete länger in der Warteschlange, als die Clustereinstellung Runtime.FailBlockedAfterSeconds erlaubt, und kein bereiter Worker konnte ihn ausführen. Deshalb ist er fehlgeschlagen.'
+      NoCapableWorker: 'Der Lauf wartete länger in der Warteschlange, als die Clustereinstellung Runtime.FailBlockedAfterSeconds erlaubt, und kein bereiter Worker konnte ihn ausführen. Deshalb ist er fehlgeschlagen.',
+      RepetitionDetected: 'Ein Laufwächter hat den Lauf gestoppt, weil seine Antwort in immer denselben kurzen Text oder nur Leerraum und Satzzeichen abgeglitten ist. Die bisherige Ausgabe bleibt erhalten. Einstellbar mit dem Wiederholungswächter der Bereitstellung.',
+      NoProgress: 'Ein Laufwächter hat den Lauf gestoppt, weil länger als das Zeitlimit ohne Fortschritt der Bereitstellung kein Text, kein Denken und keine Toolaktivität kam. Die bisherige Ausgabe bleibt erhalten.'
     },
     controlNodeStatus: {
       Starting: 'Startet: Das Replikat wird initialisiert und bedient noch keinen Verkehr.',
@@ -725,7 +727,7 @@ const tips = {
         value: 'Label-Wert, den der Knoten haben muss.'
       },
       maxConcurrentRuns: 'Höchstzahl gleichzeitiger Läufe dieser Bereitstellung über alle Knoten. 0 bedeutet unbegrenzt.',
-      timeoutSeconds: 'Frist eines Laufs in Sekunden. Leer verwendet den Standard des Harness-Profils.',
+      timeoutSeconds: 'Frist des Laufs in Sekunden. Leer verwendet den Standard des Harness-Profils. Die Clustereinstellung Runtime.MaxRunSeconds begrenzt jeden Lauf, auch Zeitlimits pro Lauf.',
       maxAttempts: 'Wie oft ein Lauf insgesamt versucht werden darf. Zwischen 1 und 10.',
       retryOnNodeLoss: 'Den Lauf wieder in die Warteschlange stellen, wenn sein Knoten verschwindet, statt ihn fehlschlagen zu lassen.',
       steps: {
@@ -739,6 +741,13 @@ const tips = {
       actions: {
         compilePreview: 'Diese Bereitstellung mit einer Beispielnachricht kompilieren und genau die Befehlszeile, Dateien und Umgebung sehen, die ein Lauf erhalten würde.',
         test: 'Aufrufen mit dieser vorausgewählten Bereitstellung öffnen, um ihr eine echte Nachricht zu senden.'
+      },
+      repetitionGuard: 'Einen Lauf stoppen, wenn seine Antwort in immer denselben kurzen Text oder nur Leerraum und Satzzeichen abgleitet (Ergebnis „Wiederholung erkannt“). Nicht gesetzt folgt dem Cluster-Standard; setze oder entferne das Häkchen, um es für diese Bereitstellung festzulegen.',
+      maxAssistantChars: 'Höchstzahl an Zeichen Assistententext pro Lauf, bevor Garrison ihn stoppt (Ergebnis „Ausgabelimit überschritten“). 0 bedeutet unbegrenzt; leer verwendet den Cluster-Standard.',
+      noProgressSeconds: 'Einen Lauf stoppen, wenn so viele Sekunden lang kein Text, kein Denken, kein Toolaufruf und kein Toolergebnis kommt, während kein Toolaufruf läuft (Ergebnis „Kein Fortschritt“). 0 schaltet es aus; leer verwendet den Cluster-Standard.',
+      useClusterDefault: 'Die eigene Einstellung dieser Bereitstellung entfernen, damit der Wiederholungswächter wieder dem Cluster-Standard folgt.',
+      sections: {
+        guards: 'Laufwächter stoppen außer Kontrolle geratene Läufe frühzeitig, bei jedem Harness. Leer gelassen folgt jeder dem Cluster-Standard unter Einstellungen (Laufzeit).'
       }
     },
     nodePools: {
@@ -917,7 +926,10 @@ const tips = {
         children: 'Läufe, die dieser Lauf durch Aufrufe anderer Agenten gestartet hat.'
       },
       eventFilter: 'Nur eine Art von Ereignis anzeigen, etwa Werkzeugaufrufe oder Fehler.',
-      openChild: 'Diesen Unterlauf öffnen, der gestartet wurde, als dieser Lauf einen anderen Agenten aufgerufen hat.'
+      openChild: 'Diesen Unterlauf öffnen, der gestartet wurde, als dieser Lauf einen anderen Agenten aufgerufen hat.',
+      eventCodes: {
+        RunGuardTriggered: 'Ein Laufwächter hat diesen Lauf gestoppt. Die Meldung sagt, welcher Wächter ausgelöst hat und was er gesehen hat; der Lauf endet als Fehlgeschlagen mit dem Ergebnis dieses Wächters und behält seine Teilausgabe.'
+      }
     },
     agentDetail: {
       name: 'Der Name, mit dem Aufrufende diesen Agenten aufrufen.',
@@ -975,7 +987,15 @@ const tips = {
       parameter: 'Wert pro Lauf für {{name}}. Die Bereitstellung erlaubt Aufrufenden, ihn zu überschreiben; leer lassen für den Standard.',
       message: 'Was der Agent tun soll. Die Nachricht wird als Eingabe des Laufs gesendet und von der Aufgabenvorlage eingerahmt.',
       send: 'Einen Lauf mit dieser Nachricht starten und sein Protokoll hier streamen.',
-      openRun: 'Die vollständige Laufseite mit Ergebnis, Telemetrie und Stderr öffnen.'
+      openRun: 'Die vollständige Laufseite mit Ergebnis, Telemetrie und Stderr öffnen.',
+      stopOnLeave: 'Wenn aktiviert, bricht Garrison den laufenden Lauf ab, sobald du diese Seite verlässt, den Tab schließt oder eine neue Nachricht sendest, damit niemand für ungelesene Ausgabe zahlt. Deaktiviere es, um Läufe weiterlaufen zu lassen; sie bleiben auf der Seite Läufe. Wird in diesem Browser gespeichert.',
+      cancel: 'Diesen Lauf jetzt stoppen. Der Worker beendet den Harness-Prozess innerhalb weniger Sekunden, die bisherige Ausgabe bleibt erhalten.',
+      cancelling: 'Abbruch angefordert. Der Worker stoppt den Harness; die Anzeige wechselt zum Endstatus, sobald der Lauf „Abgebrochen“ meldet.',
+      sendReplaces: 'Den laufenden Lauf abbrechen und dann einen neuen Lauf mit dieser Nachricht starten. Deaktiviere „Lauf beim Verlassen stoppen“, um den aktuellen Lauf weiterlaufen zu lassen.',
+      sendKeeps: 'Einen neuen Lauf mit dieser Nachricht starten. Der laufende Lauf geht weiter, weil „Lauf beim Verlassen stoppen“ deaktiviert ist; du findest ihn auf der Seite Läufe.',
+      timeLimit: 'Optionale Frist für diesen Lauf in Sekunden, die diese Bereitstellung Aufrufern erlaubt. Leer lassen für den Standard der Bereitstellung. Der Lauf endet wegen Zeitüberschreitung, wenn er das Limit überschreitet.',
+      timePreset: 'Das Zeitlimit für diesen Lauf auf {{value}} setzen.',
+      timePresetClear: 'Das Zeitlimit entfernen, damit der Lauf den Standard der Bereitstellung verwendet.'
     },
     manifests: {
       planned: 'Was das Anwenden dieses Dokuments bewirken würde: den Datensatz erstellen, aktualisieren oder unverändert lassen. Eine Simulation prüft nur und ändert nichts.',
@@ -1106,7 +1126,7 @@ const tips = {
       testDatabase: 'Vor dem Speichern versuchen, mit den obigen Datenbankeinstellungen eine Verbindung herzustellen.',
       groups: {
         Observability: 'Wo Grafana, Prometheus, Loki und Tempo erreichbar sind. Browser-URLs speisen die Karten auf der Startseite und die Grafana-Links; interne URLs prüft der Server auf Erreichbarkeit. Leer bedeutet nicht konfiguriert.',
-        Runtime: 'Wie die Steuerungsebene wartende Läufe behandelt, etwa wie lange ein Lauf auf einen passenden Worker warten darf, bevor er fehlschlägt.',
+        Runtime: 'Wie die Steuerungsebene Läufe begrenzt: die längste Laufzeit, die Laufwächter-Standards für Bereitstellungen und wie lange ein wartender Lauf auf einen passenden Worker warten darf.',
         Rest: 'Wie die REST-API lauscht: Host, Port, TLS und öffentliche Adresse.',
         Mcp: 'Wie der MCP-Server lauscht und wie lange Werkzeugaufrufe warten dürfen.',
         Database: 'Welche Datenbank Garrison verwendet und wie die Verbindung hergestellt wird.',
@@ -1120,7 +1140,22 @@ const tips = {
         Scheduling: 'Lease-Dauern und Heartbeat-Zeitlimits für Worker-Knoten.',
         Runs: 'Standardwerte für Läufe und wie lange Läufe und Ereignisse aufbewahrt werden.',
         Audit: 'Wie lange Auditeinträge aufbewahrt werden.'
+      },
+      fields: {
+        Runtime: {
+          MaxRunSeconds: 'Die längste Dauer eines Laufs in Sekunden. Zeitlimits der Bereitstellungen, Zeitlimits pro Lauf und Profilstandards darüber werden darauf gesenkt.',
+          RepetitionGuard: 'Ob Bereitstellungen ohne eigenen Wiederholungswächter Läufe stoppen, deren Antwort in Wiederholung abgleitet (Ergebnis „Wiederholung erkannt“).',
+          MaxAssistantChars: 'Zeichen Assistententext, nach denen ein Lauf stoppt (Ergebnis „Ausgabelimit überschritten“), für Bereitstellungen ohne eigenes Limit. 0 ist unbegrenzt.',
+          NoProgressSeconds: 'Sekunden ohne Text, Denken oder Toolaktivität, nach denen ein Lauf stoppt (Ergebnis „Kein Fortschritt“), für Bereitstellungen ohne eigenes Limit. 0 schaltet es aus.'
+        },
+        Scheduling: {
+          PauseGraceMs: 'Nach einem Ruhezustand des Hosts oder einer VM-Pause wartet der Leader ein Heartbeat-Fenster plus so viele Millisekunden, bevor er Knoten als Verloren markiert oder ihre Läufe fehlschlagen lässt. Standard 5000.'
+        }
       }
+    },
+    runGuard: {
+      openDeployments: 'Zu den Bereitstellungen wechseln, um die Laufwächter einer Bereitstellung zu ändern: Wiederholungswächter, Maximale Assistentenzeichen und Zeitlimit ohne Fortschritt.',
+      openSettings: 'Zu den Einstellungen wechseln, um die Cluster-Standards (Laufzeit) zu ändern, denen Bereitstellungen ohne eigene Laufwächter folgen.'
     }
   },
   analytics: {

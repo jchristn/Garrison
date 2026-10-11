@@ -23,7 +23,7 @@ const resourcePage = (title, singular, subtitle, emptyBody) => ({
 
 const en = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Structured output invalid', RunBlocked: 'Run blocked', EventsDropped: 'Events dropped', HarnessExited: 'Harness exited', McpPreflightWarning: 'MCP preflight warning', McpPreflightPassed: 'MCP preflight passed', RepairAttemptStarted: 'Output repair started', WorkspacePrepared: 'Workspace prepared' },
+    eventCodes: { StructuredOutputInvalid: 'Structured output invalid', RunBlocked: 'Run blocked', EventsDropped: 'Events dropped', HarnessExited: 'Harness exited', McpPreflightWarning: 'MCP preflight warning', McpPreflightPassed: 'MCP preflight passed', RepairAttemptStarted: 'Output repair started', WorkspacePrepared: 'Workspace prepared', RunGuardTriggered: 'Run guard stopped the run' },
     fieldCodes: { ExpiryInPast: 'Choose a time in the future.', ParameterInvalid: 'This value is not valid for this parameter.', ParameterNotAllowed: 'This deployment does not let callers override this parameter.', SettingsFileReadOnly: 'The settings file is read-only, so this change cannot be saved.', OverriddenByEnvironment: 'An environment variable sets this value, so it cannot be changed here.', PathRequired: 'A setting path is required.', UnknownSetting: 'This server does not have this setting.', TooLong: 'This value is too long.', NotAllowedValue: 'Choose one of the allowed values.', NotABoolean: 'Choose true or false.', NotAnInteger: 'Enter a whole number.', OutOfRange: 'The value is outside the allowed range.' },
     serverText: {
       notApplied: 'Not applied because another document failed validation.',
@@ -44,7 +44,11 @@ const en = {
       harnessExitedCode: 'Harness exited with code {{code}}: {{status}} ({{outcome}}).',
       mcpPreflight: 'MCP preflight passed. Servers checked: {{count}}.',
       repairAttempt: 'Structured output repair attempt {{attempt}}: resuming the harness session in {{path}}.',
-      workspacePrepared: 'Workspace prepared at {{path}}.'
+      workspacePrepared: 'Workspace prepared at {{path}}.',
+      guardRepetitionUnit: 'Repetition guard: the last {{window}} characters of assistant text are the {{size}}-character unit "{{unit}}" repeated {{count}} times.',
+      guardDegenerate: 'Repetition guard: the last {{window}} characters of assistant text contain no letters or digits (only whitespace, punctuation, or symbols), ending with "{{tail}}".',
+      guardNoProgress: 'The run made no progress for {{seconds}} seconds (no assistant text, thinking, tool call, or tool result, and no tool call open); its noProgressSeconds limit is {{limit}}.',
+      guardOutputLimit: 'Assistant text passed the run\'s maxAssistantChars limit of {{limit}} characters.'
     },
     appName: 'Garrison',
     language: { label: 'Language' },
@@ -237,7 +241,9 @@ const en = {
       WorkspaceFailed: 'Workspace failed',
       Rejected: 'Rejected',
       InternalError: 'Internal error',
-      NoCapableWorker: 'No capable worker'
+      NoCapableWorker: 'No capable worker',
+      RepetitionDetected: 'Repetition detected',
+      NoProgress: 'No progress'
     },
     runEventType: {
       Lifecycle: 'Lifecycle',
@@ -772,7 +778,10 @@ const en = {
         maxConcurrentRuns: 'Maximum concurrent runs',
         timeoutSeconds: 'Timeout (seconds)',
         maxAttempts: 'Maximum attempts',
-        retryOnNodeLoss: 'Requeue when the node is lost'
+        retryOnNodeLoss: 'Requeue when the node is lost',
+        repetitionGuard: 'Repetition guard',
+        maxAssistantChars: 'Maximum assistant characters',
+        noProgressSeconds: 'No-progress timeout (seconds)'
       },
       hints: {
         secretsKinds: 'The harness profile {{profile}} needs any secret of kind {{kinds}}. Bind one under any alias.',
@@ -781,9 +790,28 @@ const en = {
         promptBindings: 'Map prompt roles (System, Task, DelegatedTask, and any role the harness profile uses) to templates. Leave the version empty to follow the latest.',
         resourceBindings: 'Aliases become template variables, for example {{secret.anthropic}}.',
         weight: 'Requests without an explicit deployment are split across active deployments by weight.',
-        maxConcurrentRuns: '0 means unlimited.'
+        maxConcurrentRuns: '0 means unlimited.',
+        timeoutCap: 'Every run is capped at {{value}} seconds by the cluster setting {{setting}}.',
+        zeroUnlimited: '0 means unlimited.',
+        zeroOff: '0 turns the guard off.',
+        guardDefault: 'Empty uses the cluster default, {{value}}, from {{setting}}.',
+        guardDefaultUnknown: 'Empty uses the cluster setting {{setting}}.',
+        guardOwn: 'Set on this deployment. The cluster default ({{setting}}) is {{value}}.',
+        guardOwnUnknown: 'Set on this deployment instead of the cluster setting {{setting}}.',
+        guardFollowing: 'Follows the cluster default, {{value}}, from {{setting}}.'
       },
-      actions: { compilePreview: 'Compile preview', test: 'Test invoke' }
+      actions: { compilePreview: 'Compile preview', test: 'Test invoke', useClusterDefault: 'Use cluster default' },
+      sections: {
+        guards: 'Run guards'
+      },
+      placeholders: {
+        clusterDefault: 'Cluster default ({{value}})',
+        clusterDefaultUnknown: 'Cluster default'
+      },
+      guardStates: {
+        on: 'on',
+        off: 'off'
+      }
     },
     nodePools: {
       ...resourcePage('Node Pools', 'node pool', 'Group worker nodes by label and optionally dedicate them to tenants.', 'Create a node pool to dedicate capacity.'),
@@ -973,7 +1001,27 @@ const en = {
       idleBody: 'Send a message to start a run. The transcript appears here as it streams.',
       noAgentsTitle: 'No agents to invoke',
       noAgentsBody: 'Create an agent and a deployment, or apply the sample manifest.',
-      applySample: 'Go to manifests'
+      applySample: 'Go to manifests',
+      stopOnLeave: 'Stop the run when I leave',
+      cancel: 'Cancel run',
+      cancelling: 'Cancelling...',
+      timeLimit: 'Time limit',
+      timeLimitPlaceholder: 'Deployment default',
+      timeLimitClear: 'Use the default',
+      timeLimitRange: 'Allowed: {{min}} to {{max}}.',
+      timeLimitAny: 'Seconds the run may take before it times out.',
+      timeLimitCap: 'The cluster stops every run after {{max}}.',
+      timeLimitErrors: {
+        notInteger: 'Enter a whole number of seconds.',
+        range: 'Enter a time limit from {{min}} to {{max}}.',
+        aboveCap: 'The cluster allows at most {{max}} per run.'
+      },
+      timeUnits: {
+        seconds: '{{value}} s',
+        minutes: '{{value}} min',
+        hours: '{{value}} h',
+        secondsWord: 'seconds'
+      }
     },
     runDetail: {
       viewTrace: 'View trace',
@@ -1317,7 +1365,8 @@ const en = {
           EventPollMs: 'Event polling interval (ms)',
           NodeHeartbeatTimeoutMs: 'Node heartbeat timeout (ms)',
           LeaseWaitMs: 'Lease long-poll wait (ms)',
-          LeaseDurationMs: 'Run lease duration (ms)'
+          LeaseDurationMs: 'Run lease duration (ms)',
+          PauseGraceMs: 'Grace after a host pause (ms)'
         },
         Runs: {
           EventRetentionDays: 'Run event retention (days)',
@@ -1326,7 +1375,11 @@ const en = {
           DefaultTimeoutSeconds: 'Default run timeout (seconds)'
         },
         Runtime: {
-          FailBlockedAfterSeconds: 'Fail blocked runs after (seconds)'
+          FailBlockedAfterSeconds: 'Fail blocked runs after (seconds)',
+          MaxRunSeconds: 'Maximum run time (seconds)',
+          RepetitionGuard: 'Repetition guard by default',
+          MaxAssistantChars: 'Default maximum assistant characters',
+          NoProgressSeconds: 'Default no-progress timeout (seconds)'
         },
         Audit: {
           RetentionDays: 'Audit retention (days)'
@@ -1449,6 +1502,25 @@ const en = {
       tenant: 'Tenant',
       expires: 'Session expires',
       features: 'Feature flags'
+    },
+    runGuard: {
+      titles: {
+        RepetitionDetected: 'Stopped: the model was repeating itself',
+        NoProgress: 'Stopped: the run stopped making progress',
+        OutputLimitExceeded: 'Stopped: the answer reached its size limit'
+      },
+      bodies: {
+        RepetitionDetected: 'The repetition guard saw the same short text written over and over (or only whitespace and punctuation), so Garrison stopped the run instead of letting it run until its deadline.',
+        NoProgress: 'No text, thinking, or tool activity arrived for longer than the no-progress timeout, so Garrison stopped the run.',
+        OutputLimitExceeded: 'The answer passed the maximum number of assistant characters allowed per run, so Garrison stopped the run.'
+      },
+      detected: 'What was detected: {{reason}}',
+      partialKept: 'The output written before the stop ({{chars}} characters) is kept as the run result.',
+      noPartial: 'The run wrote no output before it was stopped.',
+      tune: 'To change when this happens, edit the deployment {{deployment}}: its Placement and limits step has Repetition guard, Maximum assistant characters, and No-progress timeout. Left empty, they follow the cluster defaults in Settings (Runtime).',
+      tuneAny: 'To change when this happens, edit the deployment: its Placement and limits step has Repetition guard, Maximum assistant characters, and No-progress timeout. Left empty, they follow the cluster defaults in Settings (Runtime).',
+      openDeployments: 'Open deployments',
+      openSettings: 'Open settings'
     }
   },
   wizard: {

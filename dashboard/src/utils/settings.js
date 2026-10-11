@@ -116,3 +116,40 @@ export function settingsSaveFailed(result) {
   if (result.saved === false) return true;
   return !!(result.errors && typeof result.errors === 'object' && Object.keys(result.errors).length > 0);
 }
+
+/** Cluster settings that bound runs (P3.15), keyed by the name the dashboard uses. */
+export const RUNTIME_LIMIT_SETTINGS = {
+  maxRunSeconds: 'Runtime.MaxRunSeconds',
+  repetitionGuard: 'Runtime.RepetitionGuard',
+  maxAssistantChars: 'Runtime.MaxAssistantChars',
+  noProgressSeconds: 'Runtime.NoProgressSeconds'
+};
+
+/**
+ * Pick the run limit defaults out of a settings response: { maxRunSeconds, repetitionGuard, maxAssistantChars,
+ * noProgressSeconds }, each null when the server did not report it.
+ * @param {object} response GET /v1.0/api/settings body.
+ * @returns {object}
+ */
+export function runtimeLimits(response) {
+  const fields = normalizeSettings(response);
+  const out = {};
+  for (const [name, path] of Object.entries(RUNTIME_LIMIT_SETTINGS)) {
+    const f = fields.find((x) => x.path === path);
+    out[name] = f && f.value !== undefined && f.value !== null && f.value !== '' ? f.value : null;
+  }
+  return out;
+}
+
+/**
+ * Load the run limit defaults, or null when the caller may not read settings (403) or the server has none.
+ * @param {object} apiClient ApiClient.
+ * @returns {Promise<object|null>}
+ */
+export async function loadRuntimeLimits(apiClient) {
+  try {
+    return runtimeLimits(await apiClient.getSettings());
+  } catch {
+    return null;
+  }
+}

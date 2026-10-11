@@ -322,7 +322,7 @@ const tips = {
       NotCredentialed: 'Le harness n\'avait aucun identifiant utilisable. Liez un secret au déploiement.',
       McpPreflightFailed: 'Un serveur ou un outil MCP requis était injoignable lors de la vérification préalable du worker avant le lancement.',
       NodeLost: 'Le nœud worker a cessé d\'envoyer des signaux de vie alors qu\'il détenait l\'exécution.',
-      OutputLimitExceeded: 'Le harness a écrit plus de sortie que le profil ne l\'autorise.',
+      OutputLimitExceeded: 'L\'exécution a produit trop de sortie : sa réponse a dépassé le nombre maximal de caractères de l\'assistant du déploiement (une garde), ou le harness a écrit plus que ce que le profil de harness autorise. La sortie obtenue est conservée.',
       SchemaValidationFailed: 'Le résultat ne correspondait pas au JSON Schema de sortie de l\'agent : après une tentative de correction, ou immédiatement si le harness ne peut pas reprendre sa session.',
       TimedOut: 'L\'exécution a atteint son échéance.',
       Cancelled: 'L\'exécution a été annulée sur demande.',
@@ -331,7 +331,9 @@ const tips = {
       WorkspaceFailed: 'L\'espace de travail n\'a pas pu être préparé, par exemple parce qu\'un clonage Git a échoué.',
       Rejected: 'La requête a été rejetée avant qu\'une exécution puisse démarrer.',
       InternalError: 'Garrison a rencontré une erreur interne. Les journaux du serveur contiennent les détails.',
-      NoCapableWorker: 'L\'exécution a attendu dans la file d\'attente plus longtemps que ne le permet le paramètre de cluster Runtime.FailBlockedAfterSeconds, et aucun nœud worker prêt ne pouvait l\'exécuter : elle a donc échoué.'
+      NoCapableWorker: 'L\'exécution a attendu dans la file d\'attente plus longtemps que ne le permet le paramètre de cluster Runtime.FailBlockedAfterSeconds, et aucun nœud worker prêt ne pouvait l\'exécuter : elle a donc échoué.',
+      RepetitionDetected: 'Une garde a arrêté l\'exécution, car sa réponse a dégénéré en un même texte court répété encore et encore, ou en espaces et ponctuation seulement. La sortie obtenue est conservée. Réglez-la avec la Garde de répétition du déploiement.',
+      NoProgress: 'Une garde a arrêté l\'exécution, car aucun texte, raisonnement ni activité d\'outil n\'est arrivé pendant plus longtemps que le délai sans progression du déploiement. La sortie obtenue est conservée.'
     },
     controlNodeStatus: {
       Starting: 'Démarrage : le réplica s\'initialise et ne traite pas encore de trafic.',
@@ -724,7 +726,7 @@ const tips = {
         value: 'Valeur de l\'étiquette que le nœud doit avoir.'
       },
       maxConcurrentRuns: 'Nombre maximal d\'exécutions simultanées de ce déploiement sur l\'ensemble des nœuds. 0 signifie aucune limite.',
-      timeoutSeconds: 'Échéance de l\'exécution en secondes. Vide utilise la valeur par défaut du profil de harness.',
+      timeoutSeconds: 'Échéance de l\'exécution en secondes. Vide utilise la valeur du profil de harness. Le paramètre du cluster Runtime.MaxRunSeconds borne toute exécution, y compris les durées maximales par exécution.',
       maxAttempts: 'Nombre total de tentatives autorisées pour une exécution. Entre 1 et 10.',
       retryOnNodeLoss: 'Remettre l\'exécution en file d\'attente lorsque son nœud disparaît, au lieu de la faire échouer.',
       steps: {
@@ -738,6 +740,13 @@ const tips = {
       actions: {
         compilePreview: 'Compiler ce déploiement avec un message d\'exemple et voir la ligne de commande, les fichiers et l\'environnement exacts qu\'obtiendrait une exécution.',
         test: 'Ouvrir « Invoquer » avec ce déploiement présélectionné pour lui envoyer un vrai message.'
+      },
+      repetitionGuard: 'Arrêter une exécution quand sa réponse dégénère en un même texte court répété encore et encore, ou en espaces et ponctuation seulement (résultat Répétition détectée). Non défini, il suit la valeur du cluster ; cochez ou décochez la case pour le fixer sur ce déploiement.',
+      maxAssistantChars: 'Nombre maximal de caractères de texte de l\'assistant qu\'une exécution peut écrire avant que Garrison ne l\'arrête (résultat Limite de sortie dépassée). 0 signifie illimité ; vide utilise la valeur du cluster.',
+      noProgressSeconds: 'Arrêter une exécution quand aucun texte, raisonnement, appel d\'outil ni résultat d\'outil n\'arrive pendant ce nombre de secondes alors qu\'aucun appel d\'outil n\'est en cours (résultat Aucune progression). 0 la désactive ; vide utilise la valeur du cluster.',
+      useClusterDefault: 'Effacer le réglage propre à ce déploiement pour que la garde de répétition suive de nouveau la valeur du cluster.',
+      sections: {
+        guards: 'Les gardes d\'exécution arrêtent tôt les exécutions qui s\'emballent, sur tous les harness. Chacune laissée vide suit sa valeur du cluster dans Paramètres (Moteur d\'exécution).'
       }
     },
     nodePools: {
@@ -916,7 +925,10 @@ const tips = {
         children: 'Exécutions lancées par cette exécution en appelant d\'autres agents.'
       },
       eventFilter: 'Afficher un seul type d\'événement, comme les appels d\'outils ou les erreurs.',
-      openChild: 'Ouvrir cette exécution enfant, lancée lorsque cette exécution a appelé un autre agent.'
+      openChild: 'Ouvrir cette exécution enfant, lancée lorsque cette exécution a appelé un autre agent.',
+      eventCodes: {
+        RunGuardTriggered: 'Une garde a arrêté cette exécution. Le message indique quelle garde s\'est déclenchée et ce qu\'elle a vu ; l\'exécution se termine en Échouée avec le résultat de cette garde et conserve sa sortie partielle.'
+      }
     },
     agentDetail: {
       name: 'Le nom que les appelants utilisent pour invoquer cet agent.',
@@ -974,7 +986,15 @@ const tips = {
       parameter: 'Valeur de {{name}} pour cette exécution. Le déploiement autorise les appelants à la remplacer ; laissez vide pour la valeur par défaut.',
       message: 'Ce que vous voulez que l\'agent fasse. Le message est envoyé comme entrée de l\'exécution et enveloppé par le modèle de tâche.',
       send: 'Lancer une exécution avec ce message et diffuser sa transcription ici.',
-      openRun: 'Ouvrir la page complète de l\'exécution avec le résultat, la télémétrie et stderr.'
+      openRun: 'Ouvrir la page complète de l\'exécution avec le résultat, la télémétrie et stderr.',
+      stopOnLeave: 'Activé, Garrison annule l\'exécution en cours quand vous quittez cette page, fermez l\'onglet ou envoyez un nouveau message, pour que personne ne paie une sortie que personne ne lit. Désactivez-le pour laisser les exécutions continuer ; elles restent sur la page Exécutions. Mémorisé dans ce navigateur.',
+      cancel: 'Arrêter cette exécution maintenant. Le nœud worker termine le processus du harness en quelques secondes et la sortie obtenue est conservée.',
+      cancelling: 'Annulation demandée. Le nœud worker arrête le harness ; l\'affichage passe à l\'état final quand l\'exécution indique Annulée.',
+      sendReplaces: 'Annuler l\'exécution en cours, puis en lancer une nouvelle avec ce message. Désactivez « Arrêter l\'exécution quand je pars » pour laisser l\'exécution actuelle continuer.',
+      sendKeeps: 'Lancer une nouvelle exécution avec ce message. L\'exécution en cours continue, car « Arrêter l\'exécution quand je pars » est désactivé ; vous la trouverez sur la page Exécutions.',
+      timeLimit: 'Échéance facultative de cette exécution, en secondes, que ce déploiement permet de fixer. Laissez vide pour la valeur du déploiement. L\'exécution expire quand elle dépasse la limite.',
+      timePreset: 'Fixer la durée maximale de cette exécution à {{value}}.',
+      timePresetClear: 'Effacer la durée maximale pour que l\'exécution utilise la valeur du déploiement.'
     },
     manifests: {
       planned: 'Ce que ferait l\'application de ce document : créer l\'enregistrement, le mettre à jour ou le laisser inchangé. Une simulation valide sans rien modifier.',
@@ -1105,7 +1125,7 @@ const tips = {
       testDatabase: 'Tester la connexion avec les paramètres de base de données ci-dessus avant de les enregistrer.',
       groups: {
         Observability: 'Où se trouvent Grafana, Prometheus, Loki et Tempo. Les URL du navigateur alimentent les cartes de l\'accueil et les liens vers Grafana ; le serveur vérifie l\'accessibilité avec les URL internes. Vide signifie non configuré.',
-        Runtime: 'Comment le plan de contrôle traite les exécutions en file d\'attente, notamment combien de temps une exécution peut attendre un worker compatible avant d\'échouer.',
+        Runtime: 'Comment le plan de contrôle borne les exécutions : leur durée maximale, les valeurs de garde que suivent les déploiements et combien de temps une exécution en file peut attendre un nœud worker capable.',
         Rest: 'Comment l\'API REST écoute : hôte, port, TLS et adresse publique.',
         Mcp: 'Comment le serveur MCP écoute et combien de temps les appels d\'outils peuvent attendre.',
         Database: 'La base de données utilisée par Garrison et comment s\'y connecter.',
@@ -1119,7 +1139,22 @@ const tips = {
         Scheduling: 'Durées des baux et délais d\'expiration des signaux de vie pour les nœuds worker.',
         Runs: 'Valeurs par défaut des exécutions et durée de conservation des exécutions et des événements.',
         Audit: 'Durée de conservation des enregistrements d\'audit.'
+      },
+      fields: {
+        Runtime: {
+          MaxRunSeconds: 'Durée maximale de toute exécution, en secondes. Les délais des déploiements, les durées maximales par exécution et les valeurs de profil supérieurs y sont ramenés.',
+          RepetitionGuard: 'Indique si les déploiements qui laissent la Garde de répétition vide arrêtent les exécutions dont la réponse dégénère en répétition (résultat Répétition détectée).',
+          MaxAssistantChars: 'Caractères de texte de l\'assistant après lesquels une exécution s\'arrête (résultat Limite de sortie dépassée), pour les déploiements qui laissent la limite vide. 0 signifie illimité.',
+          NoProgressSeconds: 'Secondes sans texte, raisonnement ni activité d\'outil après lesquelles une exécution s\'arrête (résultat Aucune progression), pour les déploiements qui laissent la limite vide. 0 la désactive.'
+        },
+        Scheduling: {
+          PauseGraceMs: 'Après une mise en veille de l\'hôte ou une pause de la VM, le leader attend une fenêtre de signaux de vie plus ce nombre de millisecondes avant de marquer des nœuds comme Perdu ou de faire échouer leurs exécutions. Par défaut 5000.'
+        }
       }
+    },
+    runGuard: {
+      openDeployments: 'Aller aux Déploiements pour changer les gardes d\'un déploiement : Garde de répétition, Nombre maximal de caractères de l\'assistant et Délai sans progression.',
+      openSettings: 'Aller aux Paramètres pour changer les valeurs du cluster (Moteur d\'exécution) que suivent les déploiements sans gardes propres.'
     }
   },
   analytics: {

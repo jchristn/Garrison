@@ -32,6 +32,8 @@ import { enumLabel } from '../utils/enums';
 import GrafanaLink from '../components/GrafanaLink';
 import { useGrafana } from '../hooks/useServerInfo';
 import { traceUrl, logsUrl } from '../utils/grafana';
+import RunGuardNotice from '../components/RunGuardNotice';
+import { guardOutcome } from '../utils/runGuards';
 
 function Detail({ label, tip: tipText, children }) {
   return (
@@ -250,6 +252,7 @@ export default function RunDetailView({ recordId }) {
       />
 
       <BlockedRunNotice run={run} />
+      <RunGuardNotice run={run} detailed deploymentName={run.deploymentName || deployment?.name || null} />
       {retryBlocked && terminal && (
         <div className="info-banner" role="note" data-testid="agent-deleted">
           {retryBlocked}
@@ -305,7 +308,7 @@ export default function RunDetailView({ recordId }) {
 
       <RunTelemetryPanel run={run} />
 
-      {run.errorMessage && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
+      {run.errorMessage && !guardOutcome(run) && <div className="error-banner">{translateServerText(t, run.errorMessage)}</div>}
 
       <Tabs
         label={t('views.runDetail.title')}

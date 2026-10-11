@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const zhHant = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件已捨棄', HarnessExited: 'Harness 已結束', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '已開始修復輸出', WorkspacePrepared: '工作區已就緒' },
+    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件已捨棄', HarnessExited: 'Harness 已結束', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '已開始修復輸出', WorkspacePrepared: '工作區已就緒', RunGuardTriggered: '執行防護停止了執行' },
     fieldCodes: { ExpiryInPast: '請選擇未來的時間。', ParameterInvalid: '此值對這個參數無效。', ParameterNotAllowed: '此部署不允許呼叫端覆寫此參數。', SettingsFileReadOnly: '設定檔為唯讀，因此無法儲存此變更。', OverriddenByEnvironment: '此值由環境變數設定，因此無法在這裡變更。', PathRequired: '需要設定路徑。', UnknownSetting: '此伺服器沒有這項設定。', TooLong: '此值太長。', NotAllowedValue: '請選擇允許的值之一。', NotABoolean: '請選擇 true 或 false。', NotAnInteger: '請輸入整數。', OutOfRange: '值超出允許的範圍。' },
     serverText: {
       notApplied: '未套用，因為另一份文件未通過驗證。',
@@ -27,7 +27,11 @@ const zhHant = {
       harnessExitedCode: 'Harness 已結束，代碼 {{code}}：{{status}}（{{outcome}}）。',
       mcpPreflight: 'MCP 預檢已通過。已檢查的伺服器：{{count}}。',
       repairAttempt: '結構化輸出修復第 {{attempt}} 次嘗試：在 {{path}} 繼續 Harness 工作階段。',
-      workspacePrepared: '工作區已在 {{path}} 準備完成。'
+      workspacePrepared: '工作區已在 {{path}} 準備完成。',
+      guardRepetitionUnit: '重複防護：助理文字的最後 {{window}} 個字元是 {{size}} 個字元的單元「{{unit}}」重複了 {{count}} 次。',
+      guardDegenerate: '重複防護：助理文字的最後 {{window}} 個字元不含字母或數字（只有空白、標點或符號），結尾為「{{tail}}」。',
+      guardNoProgress: '執行在 {{seconds}} 秒內沒有進展（沒有助理文字、思考、工具呼叫或工具結果，也沒有未完成的工具呼叫）；其 noProgressSeconds 限制為 {{limit}}。',
+      guardOutputLimit: '助理文字超過了執行的 maxAssistantChars 上限 {{limit}} 個字元。'
     },
     appName: 'Garrison',
     language: { label: '語言' },
@@ -214,7 +218,9 @@ const zhHant = {
       WorkspaceFailed: '工作區失敗',
       Rejected: '已拒絕',
       InternalError: '內部錯誤',
-      NoCapableWorker: '沒有可執行的工作節點'
+      NoCapableWorker: '沒有可執行的工作節點',
+      RepetitionDetected: '偵測到重複',
+      NoProgress: '沒有進展'
     },
     runEventType: {
       Lifecycle: '生命週期',
@@ -747,7 +753,10 @@ const zhHant = {
         maxConcurrentRuns: '最大同時執行數',
         timeoutSeconds: '逾時（秒）',
         maxAttempts: '最大嘗試次數',
-        retryOnNodeLoss: '節點遺失時重新排入佇列'
+        retryOnNodeLoss: '節點遺失時重新排入佇列',
+        repetitionGuard: '重複防護',
+        maxAssistantChars: '最大助理字元數',
+        noProgressSeconds: '無進展逾時（秒）'
       },
       hints: {
         secretsKinds: 'Harness 設定檔 {{profile}} 需要任一類型為 {{kinds}} 的祕密。可用任何別名繫結。',
@@ -756,9 +765,28 @@ const zhHant = {
         promptBindings: '將提示角色（System、Task、DelegatedTask，以及 Harness 設定檔使用的任何角色）對應到範本。版本留空即可一律使用最新版本。',
         resourceBindings: '別名會成為範本變數，例如 {{secret.anthropic}}。',
         weight: '未明確指定部署的請求，會依權重分配到各個啟用中的部署。',
-        maxConcurrentRuns: '0 表示不限制。'
+        maxConcurrentRuns: '0 表示不限制。',
+        timeoutCap: '叢集設定 {{setting}} 將每個執行限制為 {{value}} 秒。',
+        zeroUnlimited: '0 表示不限制。',
+        zeroOff: '0 表示關閉此防護。',
+        guardDefault: '留空時使用 {{setting}} 中的叢集預設值 {{value}}。',
+        guardDefaultUnknown: '留空時使用叢集設定 {{setting}}。',
+        guardOwn: '已在此部署上設定。叢集預設值（{{setting}}）為 {{value}}。',
+        guardOwnUnknown: '已在此部署上設定，不使用叢集設定 {{setting}}。',
+        guardFollowing: '依照 {{setting}} 中的叢集預設值 {{value}}。'
       },
-      actions: { compilePreview: '編譯預覽', test: '測試呼叫' }
+      actions: { compilePreview: '編譯預覽', test: '測試呼叫', useClusterDefault: '使用叢集預設值' },
+      sections: {
+        guards: '執行防護'
+      },
+      placeholders: {
+        clusterDefault: '叢集預設值（{{value}}）',
+        clusterDefaultUnknown: '叢集預設值'
+      },
+      guardStates: {
+        on: '開啟',
+        off: '關閉'
+      }
     },
     nodePools: {
       ...rp('節點池', '依標籤將工作節點分組，並可選擇專供特定租用戶使用。', '新增節點池', '建立節點池', '編輯節點池', '節點池詳細資料', '刪除節點池', '尚無節點池', '建立節點池以提供專用容量。'),
@@ -947,7 +975,27 @@ const zhHant = {
       idleBody: '傳送訊息以開始執行。對話紀錄會在串流時顯示於此。',
       noAgentsTitle: '沒有可呼叫的代理程式',
       noAgentsBody: '建立代理程式與部署，或套用範例清單。',
-      applySample: '前往清單'
+      applySample: '前往清單',
+      stopOnLeave: '離開時停止執行',
+      cancel: '取消執行',
+      cancelling: '正在取消...',
+      timeLimit: '時間限制',
+      timeLimitPlaceholder: '部署預設值',
+      timeLimitClear: '使用預設值',
+      timeLimitRange: '允許範圍：{{min}} 到 {{max}}。',
+      timeLimitAny: '執行在逾時前可以使用的秒數。',
+      timeLimitCap: '叢集會在 {{max}} 後停止每個執行。',
+      timeLimitErrors: {
+        notInteger: '請輸入整數秒數。',
+        range: '請輸入 {{min}} 到 {{max}} 之間的時間限制。',
+        aboveCap: '叢集每個執行最多允許 {{max}}。'
+      },
+      timeUnits: {
+        seconds: '{{value}} 秒',
+        minutes: '{{value}} 分鐘',
+        hours: '{{value}} 小時',
+        secondsWord: '秒'
+      }
     },
     runDetail: {
       viewTrace: '檢視追蹤',
@@ -1291,7 +1339,8 @@ const zhHant = {
           EventPollMs: '事件輪詢間隔（毫秒）',
           NodeHeartbeatTimeoutMs: '節點活動訊號逾時（毫秒）',
           LeaseWaitMs: '租約長輪詢等待時間（毫秒）',
-          LeaseDurationMs: '執行租約時長（毫秒）'
+          LeaseDurationMs: '執行租約時長（毫秒）',
+          PauseGraceMs: '主機暫停後的寬限時間（毫秒）'
         },
         Runs: {
           EventRetentionDays: '執行事件保留天數',
@@ -1300,7 +1349,11 @@ const zhHant = {
           DefaultTimeoutSeconds: '預設執行逾時（秒）'
         },
         Runtime: {
-          FailBlockedAfterSeconds: '受阻執行在幾秒後失敗'
+          FailBlockedAfterSeconds: '受阻執行在幾秒後失敗',
+          MaxRunSeconds: '最長執行時間（秒）',
+          RepetitionGuard: '預設啟用重複防護',
+          MaxAssistantChars: '預設最大助理字元數',
+          NoProgressSeconds: '預設無進展逾時（秒）'
         },
         Audit: {
           RetentionDays: '稽核保留天數'
@@ -1423,6 +1476,25 @@ const zhHant = {
       tenant: '租用戶',
       expires: '工作階段到期',
       features: '功能旗標'
+    },
+    runGuard: {
+      titles: {
+        RepetitionDetected: '已停止：模型不斷重複',
+        NoProgress: '已停止：執行不再有進展',
+        OutputLimitExceeded: '已停止：回答達到大小上限'
+      },
+      bodies: {
+        RepetitionDetected: '重複防護發現同一段短文字被反覆寫出（或只有空白和標點），因此 Garrison 停止了執行，而不是讓它一直執行到截止時間。',
+        NoProgress: '超過無進展逾時時間仍沒有文字、思考或工具活動，因此 Garrison 停止了執行。',
+        OutputLimitExceeded: '回答超過了每次執行允許的最大助理字元數，因此 Garrison 停止了執行。'
+      },
+      detected: '偵測到的情況：{{reason}}',
+      partialKept: '停止前寫出的輸出（{{chars}} 個字元）已保留為執行結果。',
+      noPartial: '執行在停止前沒有寫出任何輸出。',
+      tune: '若要變更觸發條件，請編輯部署 {{deployment}}：其「排程放置與限制」步驟中有重複防護、最大助理字元數和無進展逾時。留空時，它們會依照設定（執行階段）中的叢集預設值。',
+      tuneAny: '若要變更觸發條件，請編輯部署：其「排程放置與限制」步驟中有重複防護、最大助理字元數和無進展逾時。留空時，它們會依照設定（執行階段）中的叢集預設值。',
+      openDeployments: '開啟部署',
+      openSettings: '開啟設定'
     }
   },
   wizard: {

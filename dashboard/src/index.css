@@ -1064,3 +1064,17 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .markdown-body th { background: var(--color-surface-alt); font-weight: 600; }
 .stream-preview .info-banner { margin-bottom: 0; }
 .stream-scroll { border-block-start: 1px solid var(--color-border); padding-block-start: var(--spacing-sm); }
+
+/* Run guard stop explanation (P3.15). */
+.guard-notice { flex-direction: column; align-items: stretch; gap: var(--spacing-xs); }
+.guard-notice p { margin: 0; overflow-wrap: anywhere; }
+.guard-notice-title { font-size: var(--font-size-base); }
+.stream-preview .guard-notice { margin-bottom: 0; }
+
+/* Invoke actions: Send, Cancel, and the stop-on-leave setting (P3.15). */
+.invoke-actions { flex-wrap: wrap; align-items: center; }
+.invoke-stop-on-leave { display: inline-flex; align-items: center; gap: var(--spacing-xs); font-size: var(--font-size-sm); cursor: pointer; white-space: nowrap; width: auto; margin: 0; }
+.invoke-stop-on-leave input { margin: 0; width: auto; flex: 0 0 auto; }
+.time-limit-row { display: flex; gap: var(--spacing-xs); flex-wrap: wrap; align-items: center; }
+.time-limit-row input { width: 12rem; flex: 0 0 auto; }
+.time-limit-row > span { font-size: var(--font-size-sm); }

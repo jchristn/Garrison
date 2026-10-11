@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const zhHans = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '结构化输出无效', RunBlocked: '运行受阻', EventsDropped: '事件已丢弃', HarnessExited: 'Harness 已退出', McpPreflightWarning: 'MCP 预检警告', McpPreflightPassed: 'MCP 预检通过', RepairAttemptStarted: '已开始修复输出', WorkspacePrepared: '工作区已就绪' },
+    eventCodes: { StructuredOutputInvalid: '结构化输出无效', RunBlocked: '运行受阻', EventsDropped: '事件已丢弃', HarnessExited: 'Harness 已退出', McpPreflightWarning: 'MCP 预检警告', McpPreflightPassed: 'MCP 预检通过', RepairAttemptStarted: '已开始修复输出', WorkspacePrepared: '工作区已就绪', RunGuardTriggered: '运行防护停止了运行' },
     fieldCodes: { ExpiryInPast: '请选择未来的时间。', ParameterInvalid: '此值对该参数无效。', ParameterNotAllowed: '此部署不允许调用方覆盖此参数。', SettingsFileReadOnly: '设置文件为只读，因此无法保存此更改。', OverriddenByEnvironment: '此值由环境变量设置，因此无法在此更改。', PathRequired: '需要设置路径。', UnknownSetting: '此服务器没有该设置。', TooLong: '此值过长。', NotAllowedValue: '请选择允许的值之一。', NotABoolean: '请选择 true 或 false。', NotAnInteger: '请输入整数。', OutOfRange: '值超出允许的范围。' },
     serverText: {
       notApplied: '未应用，因为另一个文档未通过验证。',
@@ -27,7 +27,11 @@ const zhHans = {
       harnessExitedCode: 'Harness 已退出，代码 {{code}}：{{status}}（{{outcome}}）。',
       mcpPreflight: 'MCP 预检已通过。已检查的服务器：{{count}}。',
       repairAttempt: '结构化输出修复第 {{attempt}} 次尝试：在 {{path}} 中恢复 Harness 会话。',
-      workspacePrepared: '工作区已在 {{path}} 准备就绪。'
+      workspacePrepared: '工作区已在 {{path}} 准备就绪。',
+      guardRepetitionUnit: '重复防护：助手文本的最后 {{window}} 个字符是 {{size}} 个字符的单元“{{unit}}”重复了 {{count}} 次。',
+      guardDegenerate: '重复防护：助手文本的最后 {{window}} 个字符不含字母或数字（只有空白、标点或符号），结尾为“{{tail}}”。',
+      guardNoProgress: '运行在 {{seconds}} 秒内没有进展（没有助手文本、思考、工具调用或工具结果，也没有未完成的工具调用）；其 noProgressSeconds 限制为 {{limit}}。',
+      guardOutputLimit: '助手文本超过了运行的 maxAssistantChars 限制 {{limit}} 个字符。'
     },
     appName: 'Garrison',
     language: { label: '语言' },
@@ -214,7 +218,9 @@ const zhHans = {
       WorkspaceFailed: '工作区失败',
       Rejected: '已拒绝',
       InternalError: '内部错误',
-      NoCapableWorker: '没有可用的工作节点'
+      NoCapableWorker: '没有可用的工作节点',
+      RepetitionDetected: '检测到重复',
+      NoProgress: '无进展'
     },
     runEventType: {
       Lifecycle: '生命周期',
@@ -747,7 +753,10 @@ const zhHans = {
         maxConcurrentRuns: '最大并发运行数',
         timeoutSeconds: '超时（秒）',
         maxAttempts: '最大尝试次数',
-        retryOnNodeLoss: '节点丢失时重新排队'
+        retryOnNodeLoss: '节点丢失时重新排队',
+        repetitionGuard: '重复防护',
+        maxAssistantChars: '最大助手字符数',
+        noProgressSeconds: '无进展超时（秒）'
       },
       hints: {
         secretsKinds: 'Harness 配置文件 {{profile}} 需要任意一个类型为 {{kinds}} 的机密。可用任意别名绑定。',
@@ -756,9 +765,28 @@ const zhHans = {
         promptBindings: '将提示词角色（System、Task、DelegatedTask，以及 Harness 配置文件使用的任何角色）映射到模板。版本留空则始终使用最新版本。',
         resourceBindings: '别名会成为模板变量，例如 {{secret.anthropic}}。',
         weight: '未显式指定部署的请求会按权重分配到各个启用的部署。',
-        maxConcurrentRuns: '0 表示不限制。'
+        maxConcurrentRuns: '0 表示不限制。',
+        timeoutCap: '集群设置 {{setting}} 将每个运行限制为 {{value}} 秒。',
+        zeroUnlimited: '0 表示不限制。',
+        zeroOff: '0 表示关闭此防护。',
+        guardDefault: '留空时使用 {{setting}} 中的集群默认值 {{value}}。',
+        guardDefaultUnknown: '留空时使用集群设置 {{setting}}。',
+        guardOwn: '已在此部署上设置。集群默认值（{{setting}}）为 {{value}}。',
+        guardOwnUnknown: '已在此部署上设置，不使用集群设置 {{setting}}。',
+        guardFollowing: '遵循 {{setting}} 中的集群默认值 {{value}}。'
       },
-      actions: { compilePreview: '编译预览', test: '测试调用' }
+      actions: { compilePreview: '编译预览', test: '测试调用', useClusterDefault: '使用集群默认值' },
+      sections: {
+        guards: '运行防护'
+      },
+      placeholders: {
+        clusterDefault: '集群默认值（{{value}}）',
+        clusterDefaultUnknown: '集群默认值'
+      },
+      guardStates: {
+        on: '开启',
+        off: '关闭'
+      }
     },
     nodePools: {
       ...rp('节点池', '按标签对工作节点分组，并可选择将其专供特定租户使用。', '添加节点池', '创建节点池', '编辑节点池', '节点池详情', '删除节点池', '暂无节点池', '创建节点池以分配专用容量。'),
@@ -947,7 +975,27 @@ const zhHans = {
       idleBody: '发送消息即可开始运行。对话记录会以流式方式显示在这里。',
       noAgentsTitle: '没有可调用的智能体',
       noAgentsBody: '创建智能体和部署，或应用示例清单。',
-      applySample: '前往清单'
+      applySample: '前往清单',
+      stopOnLeave: '离开时停止运行',
+      cancel: '取消运行',
+      cancelling: '正在取消...',
+      timeLimit: '时间限制',
+      timeLimitPlaceholder: '部署默认值',
+      timeLimitClear: '使用默认值',
+      timeLimitRange: '允许范围：{{min}} 到 {{max}}。',
+      timeLimitAny: '运行在超时前可以使用的秒数。',
+      timeLimitCap: '集群会在 {{max}} 后停止每个运行。',
+      timeLimitErrors: {
+        notInteger: '请输入整数秒数。',
+        range: '请输入 {{min}} 到 {{max}} 之间的时间限制。',
+        aboveCap: '集群每个运行最多允许 {{max}}。'
+      },
+      timeUnits: {
+        seconds: '{{value}} 秒',
+        minutes: '{{value}} 分钟',
+        hours: '{{value}} 小时',
+        secondsWord: '秒'
+      }
     },
     runDetail: {
       viewTrace: '查看追踪',
@@ -1291,7 +1339,8 @@ const zhHans = {
           EventPollMs: '事件轮询间隔（毫秒）',
           NodeHeartbeatTimeoutMs: '节点心跳超时（毫秒）',
           LeaseWaitMs: '租约长轮询等待时间（毫秒）',
-          LeaseDurationMs: '运行租约时长（毫秒）'
+          LeaseDurationMs: '运行租约时长（毫秒）',
+          PauseGraceMs: '主机暂停后的宽限时间（毫秒）'
         },
         Runs: {
           EventRetentionDays: '运行事件保留天数',
@@ -1300,7 +1349,11 @@ const zhHans = {
           DefaultTimeoutSeconds: '默认运行超时（秒）'
         },
         Runtime: {
-          FailBlockedAfterSeconds: '受阻运行在多少秒后失败'
+          FailBlockedAfterSeconds: '受阻运行在多少秒后失败',
+          MaxRunSeconds: '最长运行时间（秒）',
+          RepetitionGuard: '默认启用重复防护',
+          MaxAssistantChars: '默认最大助手字符数',
+          NoProgressSeconds: '默认无进展超时（秒）'
         },
         Audit: {
           RetentionDays: '审计保留天数'
@@ -1423,6 +1476,25 @@ const zhHans = {
       tenant: '租户',
       expires: '会话过期时间',
       features: '功能开关'
+    },
+    runGuard: {
+      titles: {
+        RepetitionDetected: '已停止：模型在不断重复',
+        NoProgress: '已停止：运行不再有进展',
+        OutputLimitExceeded: '已停止：回答达到了大小上限'
+      },
+      bodies: {
+        RepetitionDetected: '重复防护发现同一段短文本被反复写出（或只有空白和标点），因此 Garrison 停止了运行，而不是让它一直运行到截止时间。',
+        NoProgress: '超过无进展超时时间仍没有文本、思考或工具活动，因此 Garrison 停止了运行。',
+        OutputLimitExceeded: '回答超过了每次运行允许的最大助手字符数，因此 Garrison 停止了运行。'
+      },
+      detected: '检测到的情况：{{reason}}',
+      partialKept: '停止前写出的输出（{{chars}} 个字符）已保留为运行结果。',
+      noPartial: '运行在停止前没有写出任何输出。',
+      tune: '要更改触发条件，请编辑部署 {{deployment}}：其“调度放置和限制”步骤中有重复防护、最大助手字符数和无进展超时。留空时，它们遵循设置（运行时）中的集群默认值。',
+      tuneAny: '要更改触发条件，请编辑部署：其“调度放置和限制”步骤中有重复防护、最大助手字符数和无进展超时。留空时，它们遵循设置（运行时）中的集群默认值。',
+      openDeployments: '打开部署',
+      openSettings: '打开设置'
     }
   },
   wizard: {

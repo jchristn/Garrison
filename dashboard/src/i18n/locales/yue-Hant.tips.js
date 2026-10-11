@@ -323,7 +323,7 @@ const tips = {
       NotCredentialed: 'Harness 冇可用嘅憑證。將一個機密綁定到部署。',
       McpPreflightFailed: '工作節點喺啟動前檢查嗰陣，連唔到一個必需嘅 MCP 伺服器或工具。',
       NodeLost: '工作節點持有呢個執行期間停止咗發送心跳。',
-      OutputLimitExceeded: 'Harness 寫出嘅輸出超過設定檔容許嘅上限。',
+      OutputLimitExceeded: '個執行產生咗太多輸出：回答超過咗部署嘅最大助理字元數（一種執行防護），或者 Harness 寫出嘅內容多過 Harness 設定檔容許嘅量。到而家為止嘅輸出會保留。',
       SchemaValidationFailed: '結果唔符合代理程式嘅輸出 JSON Schema：修復過一次之後，或者 Harness 冇辦法恢復工作階段嗰陣即刻失敗。',
       TimedOut: '執行到咗期限。',
       Cancelled: '執行應要求被取消咗。',
@@ -332,7 +332,9 @@ const tips = {
       WorkspaceFailed: '工作區準備唔到，例如因為 Git 複製失敗。',
       Rejected: '請求喺執行開始之前已經被拒絕。',
       InternalError: 'Garrison 遇到內部錯誤。詳情睇伺服器日誌。',
-      NoCapableWorker: '呢個執行喺隊列等嘅時間超過咗叢集設定 Runtime.FailBlockedAfterSeconds 准許嘅時長，又冇就緒嘅工作節點做到佢，所以已經失敗。'
+      NoCapableWorker: '呢個執行喺隊列等嘅時間超過咗叢集設定 Runtime.FailBlockedAfterSeconds 准許嘅時長，又冇就緒嘅工作節點做到佢，所以已經失敗。',
+      RepetitionDetected: '執行防護停咗個執行，因為佢嘅回答變成不停重複同一段短文字，或者得空白同標點。到而家為止嘅輸出會保留。可以用部署嘅重複防護調整。',
+      NoProgress: '執行防護停咗個執行，因為超過部署嘅冇進展逾時時間都冇文字、思考或者工具活動。到而家為止嘅輸出會保留。'
     },
     controlNodeStatus: {
       Starting: '啟動緊：副本仲喺度初始化，未開始處理流量。',
@@ -725,7 +727,7 @@ const tips = {
         value: '節點必須有嘅標籤數值。'
       },
       maxConcurrentRuns: '呢個部署喺所有節點上最多可以同時有幾多個執行。0 即係冇上限。',
-      timeoutSeconds: '執行期限（秒）。留空就用 Harness 設定檔嘅預設值。',
+      timeoutSeconds: '執行截止時間（秒）。留空就用 Harness 設定檔嘅預設值。叢集設定 Runtime.MaxRunSeconds 會限制每個執行，包括每次執行嘅時間限制。',
       maxAttempts: '一個執行總共最多可以試幾多次。介乎 1 至 10。',
       retryOnNodeLoss: '節點消失時將執行放返入隊列，而唔係當佢失敗。',
       steps: {
@@ -739,6 +741,13 @@ const tips = {
       actions: {
         compilePreview: '用範例訊息編譯呢個部署，睇吓一個執行會得到嘅確實指令行、檔案同環境變數。',
         test: '打開「調用」頁並預先揀好呢個部署，傳一個真實訊息畀佢。'
+      },
+      repetitionGuard: '回答變成不停重複同一段短文字，或者得空白同標點嗰陣停止執行（結果係偵測到重複）。未設定就跟叢集預設值；剔或者唔剔個格就可以為呢個部署單獨設定。',
+      maxAssistantChars: '一次執行喺 Garrison 停佢之前最多可以寫幾多個助理文字字元（結果係輸出超出上限）。0 即係唔設上限；留空就用叢集預設值。',
+      noProgressSeconds: '冇工具呼叫進行緊嘅時候，如果咁多秒都冇文字、思考、工具呼叫或者工具結果，就停止執行（結果係冇進展）。0 即係熄咗佢；留空就用叢集預設值。',
+      useClusterDefault: '清除呢個部署自己嘅設定，等重複防護跟返叢集預設值。',
+      sections: {
+        guards: '執行防護會喺任何 Harness 上面盡早停止失控嘅執行。留空嘅每一項都會跟設定（執行階段）入面嘅叢集預設值。'
       }
     },
     nodePools: {
@@ -917,7 +926,10 @@ const tips = {
         children: '呢個執行透過呼叫其他代理程式而開始嘅執行。'
       },
       eventFilter: '只顯示一種事件，例如工具呼叫或者錯誤。',
-      openChild: '打開呢個子執行，佢係呢個執行呼叫另一個代理程式時開始嘅。'
+      openChild: '打開呢個子執行，佢係呢個執行呼叫另一個代理程式時開始嘅。',
+      eventCodes: {
+        RunGuardTriggered: '執行防護停咗呢個執行。訊息講明係邊個防護觸發同佢見到咩；個執行會以嗰個防護嘅結果失敗結束，並保留部分輸出。'
+      }
     },
     agentDetail: {
       name: '呼叫方調用呢個代理程式時用嘅名稱。',
@@ -975,7 +987,15 @@ const tips = {
       parameter: '{{name}} 每次執行嘅數值。部署容許呼叫方覆寫佢；留空就用預設值。',
       message: '你想代理程式做嘅事。佢會作為執行輸入傳送，並由任務範本包裝。',
       send: '用呢個訊息開始執行，並喺度串流顯示佢嘅對話記錄。',
-      openRun: '打開完整嘅執行頁面，睇結果、遙測數據同 stderr。'
+      openRun: '打開完整嘅執行頁面，睇結果、遙測數據同 stderr。',
+      stopOnLeave: '開咗嘅話，你離開呢頁、閂咗分頁或者傳送新訊息嗰陣，Garrison 會取消進行緊嘅執行，費事為冇人睇嘅輸出畀錢。熄咗嘅話執行會繼續，留喺執行頁面度。呢個選擇會儲存喺呢個瀏覽器。',
+      cancel: '即刻停止呢個執行。工作節點會喺幾秒內結束 Harness 程序，到而家為止嘅輸出會保留。',
+      cancelling: '已經要求取消。工作節點停緊 Harness；個執行回報已取消之後，呢度會顯示最終狀態。',
+      sendReplaces: '先取消進行緊嘅執行，再用呢個訊息開始新嘅執行。想目前個執行繼續，就熄咗「離開時停止執行」。',
+      sendKeeps: '用呢個訊息開始新嘅執行。因為「離開時停止執行」熄咗，進行緊嘅執行會繼續；可以喺執行頁面搵返佢。',
+      timeLimit: '呢個執行可選嘅截止時間（秒），呢個部署容許呼叫者設定。留空就用部署預設值。超過限制嘅話個執行會逾時。',
+      timePreset: '將呢個執行嘅時間限制設做 {{value}}。',
+      timePresetClear: '清除時間限制，等個執行用返部署預設值。'
     },
     manifests: {
       planned: '套用呢份文件會做嘅嘢：建立記錄、更新記錄，或者保持唔變。試行只會驗證，唔會改任何嘢。',
@@ -1106,7 +1126,7 @@ const tips = {
       testDatabase: '儲存之前，用上面嘅資料庫設定試吓連接。',
       groups: {
         Observability: 'Grafana、Prometheus、Loki 同 Tempo 喺邊度。瀏覽器 URL 用喺首頁卡片同 Grafana 連結；伺服器用內部 URL 檢查連唔連得到。留空即係未設定。',
-        Runtime: '控制平面點樣處理排緊隊嘅執行，包括執行喺失敗之前可以等幾耐先有工作節點做到。',
+        Runtime: '控制平面點樣限制執行：執行最長可以行幾耐、部署跟嘅執行防護預設值，同埋排緊隊嘅執行可以等合適嘅工作節點幾耐。',
         Rest: 'REST API 點樣監聽：主機、連接埠、TLS 同公開地址。',
         Mcp: 'MCP 伺服器點樣監聽，同埋工具呼叫可以等幾耐。',
         Database: 'Garrison 用邊個資料庫，同埋點樣連接。',
@@ -1120,7 +1140,22 @@ const tips = {
         Scheduling: '工作節點嘅租約長度同心跳逾時。',
         Runs: '執行預設值，同埋執行同事件保留幾耐。',
         Audit: '審計記錄保留幾耐。'
+      },
+      fields: {
+        Runtime: {
+          MaxRunSeconds: '任何執行最長可以行幾耐（秒）。超過呢個值嘅部署逾時、每次執行嘅時間限制同設定檔預設值都會降到呢個值。',
+          RepetitionGuard: '對於重複防護留空嘅部署，係咪停止回答變成重複嘅執行（結果係偵測到重複）。',
+          MaxAssistantChars: '對於限制留空嘅部署，執行嘅助理文字去到幾多個字元就停（結果係輸出超出上限）。0 即係唔設上限。',
+          NoProgressSeconds: '對於限制留空嘅部署，執行冇文字、思考或者工具活動幾多秒就停（結果係冇進展）。0 即係熄咗佢。'
+        },
+        Scheduling: {
+          PauseGraceMs: '主機休眠或者虛擬機暫停之後，領導者會等一個心跳時段再加呢啲毫秒，先至將節點標記做失聯或者令佢哋嘅執行失敗。預設值係 5000。'
+        }
       }
+    },
+    runGuard: {
+      openDeployments: '去部署頁面改部署嘅執行防護：重複防護、最大助理字元數同冇進展逾時。',
+      openSettings: '去設定頁面改叢集預設值（執行階段），冇自己執行防護嘅部署會跟呢啲值。'
     }
   },
   analytics: {

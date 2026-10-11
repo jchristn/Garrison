@@ -7,7 +7,10 @@ import { tip } from './Tooltip';
 const SERVER_TEXT_TYPES = new Set(['Lifecycle', 'Warning', 'Error']);
 
 /** Machine codes on run events Garrison writes (P9.17); null for harness or model text. */
-const EVENT_CODES = new Set(['WorkspacePrepared', 'RepairAttemptStarted', 'McpPreflightPassed', 'McpPreflightWarning', 'HarnessExited', 'EventsDropped', 'RunBlocked', 'StructuredOutputInvalid']);
+const EVENT_CODES = new Set(['WorkspacePrepared', 'RepairAttemptStarted', 'McpPreflightPassed', 'McpPreflightWarning', 'HarnessExited', 'EventsDropped', 'RunBlocked', 'StructuredOutputInvalid', 'RunGuardTriggered']);
+
+/** Codes that always show their label, even when the text is translated, because the label says what happened. */
+const ALWAYS_LABELED = new Set(['RunGuardTriggered']);
 
 const TONE = {
   AssistantText: 'text',
@@ -36,7 +39,7 @@ export default function RunTimeline({ events, filter = 'all' }) {
         // Text Garrison wrote: translate the known message; otherwise label it by its code and keep the server text.
         const serverText = e.text && (EVENT_CODES.has(e.code) || SERVER_TEXT_TYPES.has(e.eventType));
         const shown = serverText ? translateServerText(t, e.text) : e.text;
-        const codeLabel = EVENT_CODES.has(e.code) && shown === e.text ? t(`common.eventCodes.${e.code}`) : null;
+        const codeLabel = EVENT_CODES.has(e.code) && (shown === e.text || ALWAYS_LABELED.has(e.code)) ? t(`common.eventCodes.${e.code}`) : null;
         return (
           <li key={`${e.sequence}-${e.id || ''}`} className={`timeline-item timeline-${tone}`}>
             <div className="timeline-meta">
@@ -44,7 +47,7 @@ export default function RunTimeline({ events, filter = 'all' }) {
               <span className="timeline-type">{t(`enums.runEventType.${e.eventType}`, { defaultValue: e.eventType })}</span>
               <span className="timeline-time text-muted">{formatTime(e.timestampUtc, i18n.language, { timeStyle: 'medium' })}</span>
               {codeLabel && (
-                <span className="pill pill-neutral" data-event-code={e.code} {...tip(t('tips.views.runDetail.eventCode'))}>
+                <span className="pill pill-neutral" data-event-code={e.code} {...tip(t(ALWAYS_LABELED.has(e.code) ? `tips.views.runDetail.eventCodes.${e.code}` : 'tips.views.runDetail.eventCode'))}>
                   {codeLabel}
                 </span>
               )}

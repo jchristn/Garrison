@@ -9,9 +9,12 @@ import { RunStatus } from './runConfigs';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { TERMINAL_RUN_STATUSES } from '../utils/constants';
+import { TERMINAL_RUN_STATUSES, STORAGE_KEYS } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
-import { errorMessage } from '../utils/errors';
+import { errorMessage, fieldErrorMessages } from '../utils/errors';
+import { loadRuntimeLimits } from '../utils/settings';
+import { TIMEOUT_OVERRIDE, TIME_LIMIT_PRESETS, timeLimitBounds, validateTimeLimit, presetAllowed, secondsLabel } from '../utils/runGuards';
+import { formatNumber } from '../i18n/formatters';
 import { isModelOutput } from '../utils/streamPreview';
 import Explainer from '../components/Explainer';
 import { tip } from '../components/Tooltip';
@@ -21,9 +24,18 @@ const FLUSH_MS = 50;
 
 const EMPTY_CLOCK = { startedAt: null, firstOutputAt: null, lastOutputAt: null, finishedAt: null };
 
+/** Whether Invoke cancels its run when the page is left or a new run is sent (P3.15). Default on. */
+function savedStopOnLeave() {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.invokeStopOnLeave) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
 /** Interactive invoke: pick an agent and deployment, set allowed parameters, send a message, and stream the response. */
 export default function InvokeView() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { apiClient } = useAuth();
   const { tenantId } = useApp();
   const { addToast } = useToast();
@@ -51,6 +63,16 @@ export default function InvokeView() {
   const runIdRef = useRef(null);
   const pendingEvents = useRef([]);
   const flushTimer = useRef(null);
+  const [stopOnLeave, setStopOnLeave] = useState(savedStopOnLeave);
+  const [cancelling, setCancelling] = useState(null);
+  const [runtime, setRuntime] = useState(undefined);
+  const [timeLimitServerError, setTimeLimitServerError] = useState(null);
+  // The run that is still in progress (null once it ends), plus what leaving needs: refs, because the unmount and
+  // pagehide handlers run outside React's render cycle.
+  const liveRunRef = useRef(null);
+  const leaveRef = useRef({ apiClient: null, tenantId: null, stopOnLeave: true });
+  const unmountedRef = useRef(false);
+  leaveRef.current = { apiClient, tenantId, stopOnLeave };
 
   useEffect(() => {
     if (!apiClient) return;
@@ -85,6 +107,55 @@ export default function InvokeView() {
   // M1-26: say up front when the agent has nothing to route to, instead of letting the invoke fail.
   const noRoutableDeployment = deploymentsFor === agentId && !deployments.some((d) => d.active !== false && Number(d.weight) > 0);
   const overrides = deployment?.allowedRunOverrides || [];
+  const timeRule = overrides.find((o) => o.name === TIMEOUT_OVERRIDE) || null;
+  const otherOverrides = overrides.filter((o) => o.name !== TIMEOUT_OVERRIDE);
+
+  // The cluster cap on run time, read once a deployment offers a per-run time limit. Settings may not be readable
+  // (non-administrators); then the server's 400 field error is the only check beyond the deployment's range.
+  useEffect(() => {
+    if (!apiClient || !timeRule || runtime !== undefined) return;
+    loadRuntimeLimits(apiClient).then((r) => setRuntime(r));
+  }, [apiClient, timeRule, runtime]);
+  const timeBounds = timeLimitBounds(timeRule, runtime?.maxRunSeconds ?? null);
+  const timeLimitValue = timeRule ? params[TIMEOUT_OVERRIDE] || '' : '';
+  const timeLimitProblem = timeRule ? validateTimeLimit(timeLimitValue, timeBounds) : null;
+  const fmtSeconds = (n) => secondsLabel(t, n, (v) => formatNumber(v, {}, i18n.language));
+  const timeLimitError = timeLimitProblem
+    ? t(`views.invoke.timeLimitErrors.${timeLimitProblem.key}`, { min: fmtSeconds(timeLimitProblem.params.min ?? 0), max: fmtSeconds(timeLimitProblem.params.max ?? 0) })
+    : timeLimitServerError;
+  const setTimeLimit = (value) => {
+    setTimeLimitServerError(null);
+    const next = { ...params };
+    if (value === '' || value === null || value === undefined) delete next[TIMEOUT_OVERRIDE];
+    else next[TIMEOUT_OVERRIDE] = String(value);
+    setParams(next);
+  };
+  const toggleStopOnLeave = (value) => {
+    setStopOnLeave(value);
+    try {
+      localStorage.setItem(STORAGE_KEYS.invokeStopOnLeave, value ? 'true' : 'false');
+    } catch {
+      /* private mode: the choice lasts for this page only */
+    }
+  };
+
+  /** Cancel the in-progress run with a request that survives the page going away (route change or tab close). */
+  const cancelOnLeave = useCallback(() => {
+    const id = liveRunRef.current;
+    const { apiClient: client, tenantId: tenant, stopOnLeave: stop } = leaveRef.current;
+    if (!id || !stop || !client) return;
+    liveRunRef.current = null;
+    client.cancelRunKeepalive(tenant, id);
+  }, []);
+  useEffect(() => {
+    unmountedRef.current = false;
+    window.addEventListener('pagehide', cancelOnLeave);
+    return () => {
+      unmountedRef.current = true;
+      window.removeEventListener('pagehide', cancelOnLeave);
+      cancelOnLeave();
+    };
+  }, [cancelOnLeave]);
 
   const stopStream = () => {
     streamRef.current?.abort();
@@ -127,7 +198,10 @@ export default function InvokeView() {
   const applyRun = useCallback((r) => {
     if (!r || r.id !== runIdRef.current) return;
     setRun(r);
-    if (TERMINAL_RUN_STATUSES.includes(r.status)) setClock((c) => (c.finishedAt ? c : { ...c, finishedAt: Date.now() }));
+    if (TERMINAL_RUN_STATUSES.includes(r.status)) {
+      if (liveRunRef.current === r.id) liveRunRef.current = null;
+      setClock((c) => (c.finishedAt ? c : { ...c, finishedAt: Date.now() }));
+    }
   }, []);
 
   // Poll run status (and events when SSE is unavailable) while the run is active.
@@ -150,7 +224,10 @@ export default function InvokeView() {
   }, [run, apiClient, tenantId, append, applyRun]);
 
   const send = async () => {
-    if (!agentId || !message.trim()) return;
+    if (busy || !agentId || !message.trim() || timeLimitProblem) return;
+    // The run still in progress, if any: cancelled before the new one starts unless the user keeps runs going.
+    const previous = liveRunRef.current;
+    liveRunRef.current = null;
     // Reset the card before anything else, so nothing from the previous run stays on screen or can append later.
     stopStream();
     clearFlush();
@@ -162,12 +239,27 @@ export default function InvokeView() {
     setTab('preview');
     setBusy(true);
     setError(null);
+    setCancelling(null);
+    setTimeLimitServerError(null);
+    if (previous && stopOnLeave) {
+      try {
+        await apiClient.cancelRun(tenantId, previous);
+      } catch {
+        // Best effort: the previous run may have just finished; the new run starts either way.
+      }
+    }
     try {
       const body = { input: message, deploymentId: deploymentId || undefined, parameters: Object.keys(params).length ? params : undefined };
       const created = await apiClient.invokeAgent(tenantId, agentId, body, { wait: false });
       const created2 = created?.run || created;
       if (created2?.id) {
+        // Left the page while the invoke was in flight: stop the run that nobody is watching.
+        if (unmountedRef.current) {
+          if (leaveRef.current.stopOnLeave && !TERMINAL_RUN_STATUSES.includes(created2.status)) apiClient.cancelRunKeepalive(tenantId, created2.id);
+          return;
+        }
         runIdRef.current = created2.id;
+        if (!TERMINAL_RUN_STATUSES.includes(created2.status)) liveRunRef.current = created2.id;
         applyRun(created2);
         const runId = created2.id;
         const controller = apiClient.streamRunEvents(
@@ -188,6 +280,12 @@ export default function InvokeView() {
         setClock(EMPTY_CLOCK);
       }
     } catch (e) {
+      // A per-run time limit the server refused (400 with a field error) is shown under the field.
+      const fieldMessages = fieldErrorMessages(t, e, (key, code) =>
+        key === `parameters.${TIMEOUT_OVERRIDE}` && code === 'ParameterInvalid' && timeBounds.min !== null ? t('views.invoke.timeLimitErrors.range', { min: fmtSeconds(timeBounds.min), max: fmtSeconds(timeBounds.max) }) : null
+      );
+      const timeMessage = fieldMessages?.[`parameters.${TIMEOUT_OVERRIDE}`];
+      if (timeMessage) setTimeLimitServerError(timeMessage);
       setError(e);
       setClock(EMPTY_CLOCK);
     } finally {
@@ -196,15 +294,20 @@ export default function InvokeView() {
   };
 
   const cancel = async () => {
+    const id = run.id;
+    setCancelling(id);
     try {
-      await apiClient.cancelRun(tenantId, run.id);
-      addToast({ type: 'success', message: t('resources.runs.toasts.cancelRequested') });
+      const r = await apiClient.cancelRun(tenantId, id);
+      if (r?.id) applyRun(r);
     } catch (e) {
+      setCancelling(null);
       addToast({ type: 'error', message: errorMessage(t, e) });
     }
   };
 
   const active = run && !TERMINAL_RUN_STATUSES.includes(run.status);
+  // "Cancelling..." from the click until the run reports a final status.
+  const isCancelling = active && (cancelling === run.id || run.status === 'Cancelling');
 
   return (
     <div>
@@ -247,7 +350,7 @@ export default function InvokeView() {
                 ))}
               </select>
             </div>
-            {overrides.map((o) => (
+            {otherOverrides.map((o) => (
               <div className="field" key={o.name}>
                 <label htmlFor={`param-${o.name}`} {...tip(t('tips.views.invoke.parameter', { name: o.name }))}>{o.name}</label>
                 {o.validation === 'Enum' ? (
@@ -264,6 +367,49 @@ export default function InvokeView() {
                 )}
               </div>
             ))}
+            {timeRule && (
+              <div className={`field ${timeLimitError ? 'has-error' : ''}`} data-testid="invoke-time-limit">
+                <label htmlFor="invoke-time-limit" {...tip(t('tips.views.invoke.timeLimit'))}>{t('views.invoke.timeLimit')}</label>
+                <div className="time-limit-row">
+                  <input
+                    id="invoke-time-limit"
+                    type="number"
+                    inputMode="numeric"
+                    min={timeBounds.min ?? 1}
+                    max={timeBounds.max ?? timeBounds.cap ?? undefined}
+                    value={timeLimitValue}
+                    placeholder={t('views.invoke.timeLimitPlaceholder')}
+                    onChange={(e) => setTimeLimit(e.target.value)}
+                    aria-invalid={timeLimitError ? 'true' : undefined}
+                    {...tip(t('tips.views.invoke.timeLimit'))}
+                  />
+                  <span className="text-muted">{t('views.invoke.timeUnits.secondsWord')}</span>
+                  {TIME_LIMIT_PRESETS.filter((p) => presetAllowed(p, timeBounds)).map((p) => (
+                    <button key={p} type="button" className={`button-secondary button-sm ${String(p) === timeLimitValue ? 'active' : ''}`} aria-pressed={String(p) === timeLimitValue} onClick={() => setTimeLimit(p)} data-testid={`time-preset-${p}`} {...tip(t('tips.views.invoke.timePreset', { value: fmtSeconds(p) }))}>
+                      {fmtSeconds(p)}
+                    </button>
+                  ))}
+                  {timeLimitValue && (
+                    <button type="button" className="button-link" onClick={() => setTimeLimit('')} data-testid="time-preset-clear" {...tip(t('tips.views.invoke.timePresetClear'))}>
+                      {t('views.invoke.timeLimitClear')}
+                    </button>
+                  )}
+                </div>
+                <div className="field-hint" data-testid="invoke-time-limit-hint">
+                  {[
+                    timeBounds.min !== null ? t('views.invoke.timeLimitRange', { min: fmtSeconds(timeBounds.min), max: fmtSeconds(timeBounds.max) }) : t('views.invoke.timeLimitAny'),
+                    timeBounds.cap !== null ? t('views.invoke.timeLimitCap', { max: fmtSeconds(timeBounds.cap) }) : null
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                </div>
+                {timeLimitError && (
+                  <div className="field-error" role="alert" data-testid="invoke-time-limit-error">
+                    {timeLimitError}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="field">
               <label htmlFor="invoke-message" {...tip(t('tips.views.invoke.message'))}>{t('views.invoke.message')}</label>
               <textarea id="invoke-message" {...tip(t('tips.views.invoke.message'))} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('views.invoke.messagePlaceholder')} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()} />
@@ -275,15 +421,19 @@ export default function InvokeView() {
               </div>
             )}
             {error && <ErrorBanner message={errorMessage(t, error)} />}
-            <div className="flex gap-sm">
-              <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !message.trim() || active} data-testid="invoke-send" {...tip(t('tips.views.invoke.send'))}>
+            <div className="flex gap-sm invoke-actions">
+              <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !message.trim() || !!timeLimitProblem} data-testid="invoke-send" {...tip(t(active && stopOnLeave ? 'tips.views.invoke.sendReplaces' : active ? 'tips.views.invoke.sendKeeps' : 'tips.views.invoke.send'))}>
                 <SendIcon size={14} /> {busy ? t('views.invoke.sending') : t('views.invoke.send')}
               </button>
               {active && (
-                <button type="button" className="button-danger" onClick={cancel} {...tip(t('tips.resources.runs.actions.cancel'))}>
-                  <StopIcon size={14} /> {t('resources.runs.actions.cancel')}
+                <button type="button" className="button-danger" onClick={cancel} disabled={isCancelling} data-testid="invoke-cancel" {...tip(t(isCancelling ? 'tips.views.invoke.cancelling' : 'tips.views.invoke.cancel'))}>
+                  <StopIcon size={14} /> {isCancelling ? t('views.invoke.cancelling') : t('views.invoke.cancel')}
                 </button>
               )}
+              <label className="invoke-stop-on-leave" htmlFor="invoke-stop-on-leave" {...tip(t('tips.views.invoke.stopOnLeave'))}>
+                <input id="invoke-stop-on-leave" type="checkbox" checked={stopOnLeave} onChange={(e) => toggleStopOnLeave(e.target.checked)} data-testid="invoke-stop-on-leave" {...tip(t('tips.views.invoke.stopOnLeave'))} />
+                <span>{t('views.invoke.stopOnLeave')}</span>
+              </label>
             </div>
           </section>
           <section className="panel invoke-output" aria-label={t('views.invoke.stream.cardLabel')}>

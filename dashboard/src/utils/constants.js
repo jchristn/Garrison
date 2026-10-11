@@ -14,7 +14,8 @@ export const STORAGE_KEYS = {
   setupDismissed: 'garrison_setup_dismissed',
   tourDone: 'garrison_tour_done',
   sidebarCollapsed: 'garrison_sidebar_collapsed',
-  explainers: 'garrison_explainers_hidden'
+  explainers: 'garrison_explainers_hidden',
+  invokeStopOnLeave: 'garrison_invoke_stop_on_leave'
 };
 
 export const GITHUB_URL = 'https://github.com/jchristn/Garrison';
@@ -72,7 +73,7 @@ export const ENUMS = {
   controlNodeStatus: ['Starting', 'Ready', 'Draining', 'Offline'],
   backplane: ['Local', 'Polling', 'PostgresNotify'],
   runStatus: ['Pending', 'Queued', 'Leased', 'Running', 'Cancelling', 'Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected'],
-  runOutcome: ['None', 'Succeeded', 'HarnessFailed', 'NotInstalled', 'NotCredentialed', 'McpPreflightFailed', 'NodeLost', 'OutputLimitExceeded', 'SchemaValidationFailed', 'TimedOut', 'Cancelled', 'StaleLease', 'CompileFailed', 'WorkspaceFailed', 'Rejected', 'InternalError', 'NoCapableWorker'],
+  runOutcome: ['None', 'Succeeded', 'HarnessFailed', 'NotInstalled', 'NotCredentialed', 'McpPreflightFailed', 'NodeLost', 'OutputLimitExceeded', 'SchemaValidationFailed', 'TimedOut', 'Cancelled', 'StaleLease', 'CompileFailed', 'WorkspaceFailed', 'Rejected', 'InternalError', 'NoCapableWorker', 'RepetitionDetected', 'NoProgress'],
   runBlockedReason: ['NoReadyWorker', 'NoCapableWorker', 'NoMatchingPool'],
   runEventType: ['Lifecycle', 'AssistantText', 'Thinking', 'ToolCall', 'ToolResult', 'Usage', 'Progress', 'Warning', 'Error', 'Stdout', 'Stderr', 'Result'],
   permissionType: ['Permit', 'Deny'],

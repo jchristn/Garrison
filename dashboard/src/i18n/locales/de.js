@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const de = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Strukturierte Ausgabe ungültig', RunBlocked: 'Lauf blockiert', EventsDropped: 'Ereignisse verworfen', HarnessExited: 'Harness beendet', McpPreflightWarning: 'Warnung der MCP-Vorabprüfung', McpPreflightPassed: 'MCP-Vorabprüfung bestanden', RepairAttemptStarted: 'Reparatur der Ausgabe gestartet', WorkspacePrepared: 'Arbeitsbereich vorbereitet' },
+    eventCodes: { StructuredOutputInvalid: 'Strukturierte Ausgabe ungültig', RunBlocked: 'Lauf blockiert', EventsDropped: 'Ereignisse verworfen', HarnessExited: 'Harness beendet', McpPreflightWarning: 'Warnung der MCP-Vorabprüfung', McpPreflightPassed: 'MCP-Vorabprüfung bestanden', RepairAttemptStarted: 'Reparatur der Ausgabe gestartet', WorkspacePrepared: 'Arbeitsbereich vorbereitet', RunGuardTriggered: 'Laufwächter hat den Lauf gestoppt' },
     fieldCodes: { ExpiryInPast: 'Wählen Sie einen Zeitpunkt in der Zukunft.', ParameterInvalid: 'Dieser Wert ist für diesen Parameter ungültig.', ParameterNotAllowed: 'Diese Bereitstellung erlaubt Aufrufern nicht, diesen Parameter zu überschreiben.', SettingsFileReadOnly: 'Die Einstellungsdatei ist schreibgeschützt, daher kann diese Änderung nicht gespeichert werden.', OverriddenByEnvironment: 'Eine Umgebungsvariable setzt diesen Wert, daher kann er hier nicht geändert werden.', PathRequired: 'Ein Einstellungspfad ist erforderlich.', UnknownSetting: 'Diese Einstellung gibt es auf diesem Server nicht.', TooLong: 'Dieser Wert ist zu lang.', NotAllowedValue: 'Wählen Sie einen der zulässigen Werte.', NotABoolean: 'Wählen Sie wahr oder falsch.', NotAnInteger: 'Geben Sie eine ganze Zahl ein.', OutOfRange: 'Der Wert liegt außerhalb des zulässigen Bereichs.' },
     serverText: {
       notApplied: 'Nicht angewendet, weil ein anderes Dokument die Prüfung nicht bestanden hat.',
@@ -27,7 +27,11 @@ const de = {
       harnessExitedCode: 'Harness beendet mit Code {{code}}: {{status}} ({{outcome}}).',
       mcpPreflight: 'MCP-Vorabprüfung bestanden. Geprüfte Server: {{count}}.',
       repairAttempt: 'Reparaturversuch {{attempt}} für strukturierte Ausgabe: Die Harness-Sitzung wird in {{path}} fortgesetzt.',
-      workspacePrepared: 'Arbeitsbereich vorbereitet unter {{path}}.'
+      workspacePrepared: 'Arbeitsbereich vorbereitet unter {{path}}.',
+      guardRepetitionUnit: 'Wiederholungswächter: Die letzten {{window}} Zeichen des Assistententexts bestehen aus der {{size}} Zeichen langen Einheit „{{unit}}“, {{count}}-mal wiederholt.',
+      guardDegenerate: 'Wiederholungswächter: Die letzten {{window}} Zeichen des Assistententexts enthalten keine Buchstaben oder Ziffern (nur Leerraum, Satzzeichen oder Symbole) und enden mit „{{tail}}“.',
+      guardNoProgress: 'Der Lauf hat {{seconds}} Sekunden lang keinen Fortschritt gemacht (kein Assistententext, kein Denken, kein Toolaufruf oder Toolergebnis und kein offener Toolaufruf); sein Limit noProgressSeconds ist {{limit}}.',
+      guardOutputLimit: 'Der Assistententext hat das Limit maxAssistantChars des Laufs von {{limit}} Zeichen überschritten.'
     },
     appName: 'Garrison',
     language: { label: 'Sprache' },
@@ -235,7 +239,9 @@ const de = {
       WorkspaceFailed: 'Arbeitsbereich fehlgeschlagen',
       Rejected: 'Abgelehnt',
       InternalError: 'Interner Fehler',
-      NoCapableWorker: 'Kein passender Worker'
+      NoCapableWorker: 'Kein passender Worker',
+      RepetitionDetected: 'Wiederholung erkannt',
+      NoProgress: 'Kein Fortschritt'
     },
     runEventType: {
       Lifecycle: 'Lebenszyklus',
@@ -769,7 +775,10 @@ const de = {
         maxConcurrentRuns: 'Maximal gleichzeitige Läufe',
         timeoutSeconds: 'Zeitlimit (Sekunden)',
         maxAttempts: 'Maximale Versuche',
-        retryOnNodeLoss: 'Bei Knotenverlust neu einreihen'
+        retryOnNodeLoss: 'Bei Knotenverlust neu einreihen',
+        repetitionGuard: 'Wiederholungswächter',
+        maxAssistantChars: 'Maximale Assistentenzeichen',
+        noProgressSeconds: 'Zeitlimit ohne Fortschritt (Sekunden)'
       },
       hints: {
         secretsKinds: 'Das Harness-Profil {{profile}} braucht ein beliebiges Geheimnis der Art {{kinds}}. Binden Sie eines unter einem beliebigen Alias.',
@@ -778,9 +787,28 @@ const de = {
         promptBindings: 'Ordnen Sie Prompt-Rollen (System, Task, DelegatedTask und weitere vom Profil verwendete Rollen) Vorlagen zu. Ohne Version wird immer die neueste verwendet.',
         resourceBindings: 'Aliase werden zu Vorlagenvariablen, zum Beispiel {{secret.anthropic}}.',
         weight: 'Anfragen ohne explizite Bereitstellung werden nach Gewichtung auf aktive Bereitstellungen verteilt.',
-        maxConcurrentRuns: '0 bedeutet unbegrenzt.'
+        maxConcurrentRuns: '0 bedeutet unbegrenzt.',
+        timeoutCap: 'Jeder Lauf ist durch die Clustereinstellung {{setting}} auf {{value}} Sekunden begrenzt.',
+        zeroUnlimited: '0 bedeutet unbegrenzt.',
+        zeroOff: '0 schaltet den Wächter aus.',
+        guardDefault: 'Leer verwendet den Cluster-Standard {{value}} aus {{setting}}.',
+        guardDefaultUnknown: 'Leer verwendet die Clustereinstellung {{setting}}.',
+        guardOwn: 'Für diese Bereitstellung festgelegt. Der Cluster-Standard ({{setting}}) ist {{value}}.',
+        guardOwnUnknown: 'Für diese Bereitstellung festgelegt statt über die Clustereinstellung {{setting}}.',
+        guardFollowing: 'Folgt dem Cluster-Standard {{value}} aus {{setting}}.'
       },
-      actions: { compilePreview: 'Kompilierungsvorschau', test: 'Testaufruf' }
+      actions: { compilePreview: 'Kompilierungsvorschau', test: 'Testaufruf', useClusterDefault: 'Cluster-Standard verwenden' },
+      sections: {
+        guards: 'Laufwächter'
+      },
+      placeholders: {
+        clusterDefault: 'Cluster-Standard ({{value}})',
+        clusterDefaultUnknown: 'Cluster-Standard'
+      },
+      guardStates: {
+        on: 'an',
+        off: 'aus'
+      }
     },
     nodePools: {
       ...rp('Knotenpools', 'Worker-Knoten nach Labels gruppieren und optional Mandanten zuordnen.', 'Pool hinzufügen', 'Pool erstellen', 'Pool bearbeiten', 'Pooldetails', 'Pool löschen', 'Noch keine Knotenpools', 'Erstellen Sie einen Knotenpool, um Kapazität zuzuordnen.'),
@@ -968,7 +996,27 @@ const de = {
       idleBody: 'Senden Sie eine Nachricht, um einen Lauf zu starten. Das Protokoll erscheint hier live.',
       noAgentsTitle: 'Keine aufrufbaren Agenten',
       noAgentsBody: 'Erstellen Sie einen Agenten und eine Bereitstellung oder wenden Sie das Beispielmanifest an.',
-      applySample: 'Zu den Manifesten'
+      applySample: 'Zu den Manifesten',
+      stopOnLeave: 'Lauf beim Verlassen stoppen',
+      cancel: 'Lauf abbrechen',
+      cancelling: 'Wird abgebrochen...',
+      timeLimit: 'Zeitlimit',
+      timeLimitPlaceholder: 'Standard der Bereitstellung',
+      timeLimitClear: 'Standard verwenden',
+      timeLimitRange: 'Erlaubt: {{min}} bis {{max}}.',
+      timeLimitAny: 'Sekunden, die der Lauf dauern darf, bevor er wegen Zeitüberschreitung endet.',
+      timeLimitCap: 'Der Cluster stoppt jeden Lauf nach {{max}}.',
+      timeLimitErrors: {
+        notInteger: 'Gib eine ganze Zahl von Sekunden ein.',
+        range: 'Gib ein Zeitlimit von {{min}} bis {{max}} ein.',
+        aboveCap: 'Der Cluster erlaubt höchstens {{max}} pro Lauf.'
+      },
+      timeUnits: {
+        seconds: '{{value}} s',
+        minutes: '{{value}} min',
+        hours: '{{value}} h',
+        secondsWord: 'Sekunden'
+      }
     },
     runDetail: {
       viewTrace: 'Trace anzeigen',
@@ -1312,7 +1360,8 @@ const de = {
           EventPollMs: 'Abfrageintervall für Ereignisse (ms)',
           NodeHeartbeatTimeoutMs: 'Heartbeat-Zeitlimit für Knoten (ms)',
           LeaseWaitMs: 'Long-Poll-Wartezeit für Zuteilungen (ms)',
-          LeaseDurationMs: 'Dauer der Laufzuteilung (ms)'
+          LeaseDurationMs: 'Dauer der Laufzuteilung (ms)',
+          PauseGraceMs: 'Kulanz nach einer Host-Pause (ms)'
         },
         Runs: {
           EventRetentionDays: 'Aufbewahrung von Laufereignissen (Tage)',
@@ -1321,7 +1370,11 @@ const de = {
           DefaultTimeoutSeconds: 'Standard-Zeitlimit für Läufe (Sekunden)'
         },
         Runtime: {
-          FailBlockedAfterSeconds: 'Blockierte Läufe abbrechen nach (Sekunden)'
+          FailBlockedAfterSeconds: 'Blockierte Läufe abbrechen nach (Sekunden)',
+          MaxRunSeconds: 'Maximale Laufzeit (Sekunden)',
+          RepetitionGuard: 'Wiederholungswächter standardmäßig',
+          MaxAssistantChars: 'Standard für maximale Assistentenzeichen',
+          NoProgressSeconds: 'Standard-Zeitlimit ohne Fortschritt (Sekunden)'
         },
         Audit: {
           RetentionDays: 'Aufbewahrung des Audits (Tage)'
@@ -1457,6 +1510,25 @@ const de = {
       tenant: 'Mandant',
       expires: 'Sitzung läuft ab',
       features: 'Funktionsschalter'
+    },
+    runGuard: {
+      titles: {
+        RepetitionDetected: 'Gestoppt: Das Modell hat sich wiederholt',
+        NoProgress: 'Gestoppt: Der Lauf kam nicht mehr voran',
+        OutputLimitExceeded: 'Gestoppt: Die Antwort hat ihre Größengrenze erreicht'
+      },
+      bodies: {
+        RepetitionDetected: 'Der Wiederholungswächter hat immer wieder denselben kurzen Text gesehen (oder nur Leerraum und Satzzeichen), deshalb hat Garrison den Lauf gestoppt, statt ihn bis zu seiner Frist laufen zu lassen.',
+        NoProgress: 'Länger als das Zeitlimit ohne Fortschritt kam kein Text, kein Denken und keine Toolaktivität, deshalb hat Garrison den Lauf gestoppt.',
+        OutputLimitExceeded: 'Die Antwort hat die erlaubte Höchstzahl an Assistentenzeichen pro Lauf überschritten, deshalb hat Garrison den Lauf gestoppt.'
+      },
+      detected: 'Erkannt wurde: {{reason}}',
+      partialKept: 'Die bis zum Stopp geschriebene Ausgabe ({{chars}} Zeichen) bleibt als Ergebnis des Laufs erhalten.',
+      noPartial: 'Der Lauf hat vor dem Stopp keine Ausgabe geschrieben.',
+      tune: 'Um das zu ändern, bearbeite die Bereitstellung {{deployment}}: Im Schritt „Platzierung und Grenzen“ findest du Wiederholungswächter, Maximale Assistentenzeichen und Zeitlimit ohne Fortschritt. Leer gelassen gelten die Cluster-Standards unter Einstellungen (Laufzeit).',
+      tuneAny: 'Um das zu ändern, bearbeite die Bereitstellung: Im Schritt „Platzierung und Grenzen“ findest du Wiederholungswächter, Maximale Assistentenzeichen und Zeitlimit ohne Fortschritt. Leer gelassen gelten die Cluster-Standards unter Einstellungen (Laufzeit).',
+      openDeployments: 'Bereitstellungen öffnen',
+      openSettings: 'Einstellungen öffnen'
     }
   },
   wizard: {

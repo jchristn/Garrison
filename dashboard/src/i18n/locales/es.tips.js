@@ -322,7 +322,7 @@ const tips = {
       NotCredentialed: 'El harness no tenía credenciales utilizables. Vincula un secreto al despliegue.',
       McpPreflightFailed: 'Un servidor MCP o una herramienta obligatorios no estaban accesibles cuando el nodo de trabajo hizo la comprobación previa al lanzamiento.',
       NodeLost: 'El nodo de trabajo dejó de enviar latidos mientras tenía la ejecución.',
-      OutputLimitExceeded: 'El harness escribió más salida de la que permite el perfil.',
+      OutputLimitExceeded: 'La ejecución produjo demasiada salida: su respuesta superó el máximo de caracteres del asistente del despliegue (una protección) o el harness escribió más de lo que permite el perfil de harness. Se conserva la salida obtenida.',
       SchemaValidationFailed: 'El resultado no coincidía con el JSON Schema de salida del agente: tras un intento de reparación, o de inmediato si el harness no puede reanudar su sesión.',
       TimedOut: 'La ejecución alcanzó su plazo límite.',
       Cancelled: 'La ejecución se canceló a petición.',
@@ -331,7 +331,9 @@ const tips = {
       WorkspaceFailed: 'No se pudo preparar el espacio de trabajo, por ejemplo porque falló un clon de Git.',
       Rejected: 'La solicitud se rechazó antes de que pudiera iniciarse una ejecución.',
       InternalError: 'Garrison encontró un error interno. Los registros del servidor tienen los detalles.',
-      NoCapableWorker: 'La ejecución esperó en la cola más tiempo del que permite el ajuste de clúster Runtime.FailBlockedAfterSeconds y ningún nodo de trabajo listo podía ejecutarla, así que falló.'
+      NoCapableWorker: 'La ejecución esperó en la cola más tiempo del que permite el ajuste de clúster Runtime.FailBlockedAfterSeconds y ningún nodo de trabajo listo podía ejecutarla, así que falló.',
+      RepetitionDetected: 'Una protección detuvo la ejecución porque su respuesta degeneró en el mismo texto corto repetido una y otra vez, o solo en espacios y puntuación. Se conserva la salida obtenida. Ajústala con la Protección contra repeticiones del despliegue.',
+      NoProgress: 'Una protección detuvo la ejecución porque no llegó texto, razonamiento ni actividad de herramientas durante más tiempo que el límite sin avance del despliegue. Se conserva la salida obtenida.'
     },
     controlNodeStatus: {
       Starting: 'Iniciando: la réplica se está inicializando y todavía no atiende tráfico.',
@@ -724,7 +726,7 @@ const tips = {
         value: 'Valor de la etiqueta que debe tener el nodo.'
       },
       maxConcurrentRuns: 'Número máximo de ejecuciones simultáneas de este despliegue en todos los nodos. 0 significa sin límite.',
-      timeoutSeconds: 'Plazo límite de la ejecución en segundos. Vacío usa el valor predeterminado del perfil de harness.',
+      timeoutSeconds: 'Plazo de la ejecución en segundos. Vacío usa el valor del perfil de harness. El ajuste del clúster Runtime.MaxRunSeconds limita toda ejecución, incluidos los límites por ejecución.',
       maxAttempts: 'Cuántas veces en total se puede intentar una ejecución. Entre 1 y 10.',
       retryOnNodeLoss: 'Vuelve a poner la ejecución en la cola cuando su nodo desaparece, en lugar de marcarla como fallida.',
       steps: {
@@ -738,6 +740,13 @@ const tips = {
       actions: {
         compilePreview: 'Compila este despliegue con un mensaje de ejemplo y consulta la línea de comandos, los archivos y el entorno exactos que tendría una ejecución.',
         test: 'Abre "Invocar" con este despliegue preseleccionado para enviarle un mensaje real.'
+      },
+      repetitionGuard: 'Detiene una ejecución cuando su respuesta degenera en el mismo texto corto repetido una y otra vez, o solo en espacios y puntuación (resultado Repetición detectada). Sin definir sigue el valor del clúster; marca o desmarca la casilla para fijarlo en este despliegue.',
+      maxAssistantChars: 'Máximo de caracteres de texto del asistente que puede escribir una ejecución antes de que Garrison la detenga (resultado Límite de salida superado). 0 significa sin límite; vacío usa el valor del clúster.',
+      noProgressSeconds: 'Detiene una ejecución cuando no llega texto, razonamiento, llamada a herramienta ni resultado de herramienta durante estos segundos mientras no hay ninguna llamada a herramienta en curso (resultado Sin avance). 0 lo desactiva; vacío usa el valor del clúster.',
+      useClusterDefault: 'Borra el ajuste propio de este despliegue para que la protección contra repeticiones vuelva a seguir el valor del clúster.',
+      sections: {
+        guards: 'Las protecciones de ejecución detienen pronto las ejecuciones descontroladas en cualquier harness. Cada una que dejes vacía sigue su valor del clúster en Ajustes (Tiempo de ejecución).'
       }
     },
     nodePools: {
@@ -916,7 +925,10 @@ const tips = {
         children: 'Ejecuciones que inició esta ejecución al llamar a otros agentes.'
       },
       eventFilter: 'Muestra solo un tipo de evento, como llamadas a herramientas o errores.',
-      openChild: 'Abre esta ejecución secundaria, iniciada cuando esta ejecución llamó a otro agente.'
+      openChild: 'Abre esta ejecución secundaria, iniciada cuando esta ejecución llamó a otro agente.',
+      eventCodes: {
+        RunGuardTriggered: 'Una protección detuvo esta ejecución. El mensaje indica qué protección actuó y qué vio; la ejecución termina como Fallida con el resultado de esa protección y conserva su salida parcial.'
+      }
     },
     agentDetail: {
       name: 'El nombre que usan los clientes para invocar a este agente.',
@@ -974,7 +986,15 @@ const tips = {
       parameter: 'Valor por ejecución de {{name}}. El despliegue permite a los clientes sobrescribirlo; déjalo vacío para usar el predeterminado.',
       message: 'Lo que quieres que haga el agente. Se envía como entrada de la ejecución, envuelto por la plantilla de tarea.',
       send: 'Inicia una ejecución con este mensaje y transmite aquí su transcripción.',
-      openRun: 'Abre la página completa de la ejecución con el resultado, la telemetría y Stderr.'
+      openRun: 'Abre la página completa de la ejecución con el resultado, la telemetría y Stderr.',
+      stopOnLeave: 'Si está activado, Garrison cancela la ejecución en curso cuando sales de esta página, cierras la pestaña o envías un mensaje nuevo, para que nadie pague por una salida que nadie lee. Desactívalo para que las ejecuciones sigan; quedan en la página Ejecuciones. Se recuerda en este navegador.',
+      cancel: 'Detén esta ejecución ahora. El nodo de trabajo termina el proceso del harness en unos segundos y se conserva la salida obtenida.',
+      cancelling: 'Cancelación solicitada. El nodo de trabajo está deteniendo el harness; cambia al estado final cuando la ejecución informe Cancelada.',
+      sendReplaces: 'Cancela la ejecución en curso y luego inicia una nueva con este mensaje. Desactiva "Detener la ejecución al salir" para que la ejecución actual siga.',
+      sendKeeps: 'Inicia una ejecución nueva con este mensaje. La ejecución en curso sigue porque "Detener la ejecución al salir" está desactivado; la encontrarás en la página Ejecuciones.',
+      timeLimit: 'Plazo opcional de esta ejecución, en segundos, que este despliegue permite fijar. Déjalo vacío para usar el valor del despliegue. La ejecución agota el tiempo cuando supera el límite.',
+      timePreset: 'Fija el límite de tiempo de esta ejecución en {{value}}.',
+      timePresetClear: 'Quita el límite de tiempo para que la ejecución use el valor del despliegue.'
     },
     manifests: {
       planned: 'Lo que haría aplicar este documento: crear el registro, actualizarlo o dejarlo igual. Una simulación solo valida y no cambia nada.',
@@ -1105,7 +1125,7 @@ const tips = {
       testDatabase: 'Prueba a conectarte con los ajustes de base de datos de arriba antes de guardarlos.',
       groups: {
         Observability: 'Dónde están Grafana, Prometheus, Loki y Tempo. Las URL del navegador alimentan las tarjetas de Inicio y los enlaces a Grafana; las URL internas son las que el servidor comprueba. Vacío significa sin configurar.',
-        Runtime: 'Cómo trata el plano de control las ejecuciones en cola, incluido cuánto puede esperar una ejecución a un nodo de trabajo compatible antes de fallar.',
+        Runtime: 'Cómo limita el plano de control las ejecuciones: lo máximo que puede durar una ejecución, los valores de protección que siguen los despliegues y cuánto puede esperar una ejecución en cola a un nodo de trabajo capaz.',
         Rest: 'Cómo escucha la API REST: host, puerto, TLS y dirección pública.',
         Mcp: 'Cómo escucha el servidor MCP y cuánto pueden esperar las llamadas a herramientas.',
         Database: 'Qué base de datos usa Garrison y cómo conectarse a ella.',
@@ -1119,7 +1139,22 @@ const tips = {
         Scheduling: 'Duración de las concesiones y tiempos de espera de latido de los nodos de trabajo.',
         Runs: 'Valores predeterminados de las ejecuciones y cuánto tiempo se conservan las ejecuciones y los eventos.',
         Audit: 'Cuánto tiempo se conservan los registros de auditoría.'
+      },
+      fields: {
+        Runtime: {
+          MaxRunSeconds: 'Lo máximo que puede durar cualquier ejecución, en segundos. Los tiempos de espera de despliegues, los límites por ejecución y los valores de perfil superiores se reducen a este valor.',
+          RepetitionGuard: 'Si los despliegues que dejan vacía la Protección contra repeticiones detienen las ejecuciones cuya respuesta degenera en repeticiones (resultado Repetición detectada).',
+          MaxAssistantChars: 'Caracteres de texto del asistente tras los que se detiene una ejecución (resultado Límite de salida superado), para despliegues que dejan vacío el límite. 0 es sin límite.',
+          NoProgressSeconds: 'Segundos sin texto, razonamiento ni actividad de herramientas tras los que se detiene una ejecución (resultado Sin avance), para despliegues que dejan vacío el límite. 0 lo desactiva.'
+        },
+        Scheduling: {
+          PauseGraceMs: 'Tras una suspensión del host o una pausa de la VM, el líder espera una ventana de latidos más estos milisegundos antes de marcar nodos como Perdido o hacer fallar sus ejecuciones. Por defecto 5000.'
+        }
       }
+    },
+    runGuard: {
+      openDeployments: 'Ve a Despliegues para cambiar las protecciones de un despliegue: Protección contra repeticiones, Máximo de caracteres del asistente y Límite sin avance.',
+      openSettings: 'Ve a Ajustes para cambiar los valores del clúster (Tiempo de ejecución) que siguen los despliegues sin protecciones propias.'
     }
   },
   analytics: {

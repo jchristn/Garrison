@@ -323,7 +323,7 @@ const tips = {
       NotCredentialed: 'The harness had no usable credentials. Bind a secret to the deployment.',
       McpPreflightFailed: 'A required MCP server or tool was unreachable when the worker checked before launch.',
       NodeLost: 'The worker node stopped heartbeating while it held the run.',
-      OutputLimitExceeded: 'The harness wrote more output than the profile allows.',
+      OutputLimitExceeded: 'The run produced too much output: its answer passed the deployment\'s maximum assistant characters (a run guard), or the harness wrote more than the harness profile allows. The output so far is kept.',
       SchemaValidationFailed: 'The result did not match the agent\'s output JSON Schema: after one repair attempt, or at once when the harness cannot resume its session.',
       TimedOut: 'The run reached its deadline.',
       Cancelled: 'The run was cancelled on request.',
@@ -332,7 +332,9 @@ const tips = {
       WorkspaceFailed: 'The workspace could not be prepared, for example because a Git clone failed.',
       Rejected: 'The request was rejected before a run could start.',
       InternalError: 'Garrison hit an internal error. The server logs have details.',
-      NoCapableWorker: 'The run waited in the queue longer than the cluster setting Runtime.FailBlockedAfterSeconds allows, and no Ready worker could run it, so it was failed.'
+      NoCapableWorker: 'The run waited in the queue longer than the cluster setting Runtime.FailBlockedAfterSeconds allows, and no Ready worker could run it, so it was failed.',
+      RepetitionDetected: 'A run guard stopped the run because its answer degenerated into the same short text repeated over and over, or only whitespace and punctuation. The output so far is kept. Tune it with the deployment\'s Repetition guard.',
+      NoProgress: 'A run guard stopped the run because no text, thinking, or tool activity arrived for longer than the deployment\'s no-progress timeout. The output so far is kept.'
     },
     controlNodeStatus: {
       Starting: 'Starting: the replica is initializing and does not serve traffic yet.',
@@ -725,7 +727,7 @@ const tips = {
         value: 'Label value the node must have.'
       },
       maxConcurrentRuns: 'Most runs of this deployment at once across all nodes. 0 means no limit.',
-      timeoutSeconds: 'Run deadline in seconds. Empty uses the harness profile default.',
+      timeoutSeconds: 'Run deadline in seconds. Empty uses the harness profile default. The cluster setting Runtime.MaxRunSeconds caps every run, including per-run time limits.',
       maxAttempts: 'How many times a run may be attempted in total. Between 1 and 10.',
       retryOnNodeLoss: 'Put the run back in the queue when its node disappears, instead of failing it.',
       steps: {
@@ -739,6 +741,13 @@ const tips = {
       actions: {
         compilePreview: 'Compile this deployment with a sample message and see the exact command line, files, and environment a run would get.',
         test: 'Open Invoke with this deployment preselected to send it a real message.'
+      },
+      repetitionGuard: 'Stop a run when its answer degenerates into the same short text repeated over and over, or only whitespace and punctuation (outcome Repetition detected). Unset follows the cluster default; check or clear the box to set it for this deployment.',
+      maxAssistantChars: 'Most characters of assistant text one run may write before Garrison stops it (outcome Output limit exceeded). 0 means unlimited; empty uses the cluster default.',
+      noProgressSeconds: 'Stop a run when no text, thinking, tool call, or tool result arrives for this many seconds while no tool call is running (outcome No progress). 0 turns it off; empty uses the cluster default.',
+      useClusterDefault: 'Clear this deployment\'s own setting so the repetition guard follows the cluster default again.',
+      sections: {
+        guards: 'Run guards stop runaway runs early on every harness. Each one left empty follows its cluster default in Settings (Runtime).'
       }
     },
     nodePools: {
@@ -917,7 +926,10 @@ const tips = {
         children: 'Runs this run started by calling other agents.'
       },
       eventFilter: 'Show only one type of event, such as tool calls or errors.',
-      openChild: 'Open this child run, started when this run called another agent.'
+      openChild: 'Open this child run, started when this run called another agent.',
+      eventCodes: {
+        RunGuardTriggered: 'A run guard stopped this run. The message says which guard tripped and what it saw; the run ends Failed with that guard\'s outcome and keeps its partial output.'
+      }
     },
     agentDetail: {
       name: 'The name callers use to invoke this agent.',
@@ -975,7 +987,15 @@ const tips = {
       parameter: 'Per-run value for {{name}}. The deployment allows callers to override it; leave empty for the default.',
       message: 'What you want the agent to do. It is sent as the run input and wrapped by the task template.',
       send: 'Start a run with this message and stream its transcript here.',
-      openRun: 'Open the full run page with result, telemetry, and stderr.'
+      openRun: 'Open the full run page with result, telemetry, and stderr.',
+      stopOnLeave: 'When on, Garrison cancels the run in progress if you leave this page, close the tab, or send a new message, so nobody pays for output no one reads. Turn it off to keep runs going; they stay on the Runs page. Remembered in this browser.',
+      cancel: 'Stop this run now. The worker ends the harness process within a few seconds and the output so far is kept.',
+      cancelling: 'Cancel requested. The worker is stopping the harness; this changes to the final status when the run reports Cancelled.',
+      sendReplaces: 'Cancel the run in progress, then start a new run with this message. Turn off "Stop the run when I leave" to keep the current run going instead.',
+      sendKeeps: 'Start a new run with this message. The run in progress keeps going because "Stop the run when I leave" is off; find it on the Runs page.',
+      timeLimit: 'Optional deadline for this run, in seconds, which this deployment lets callers set. Leave empty for the deployment default. The run times out when it passes the limit.',
+      timePreset: 'Set the time limit for this run to {{value}}.',
+      timePresetClear: 'Clear the time limit so the run uses the deployment default.'
     },
     manifests: {
       planned: 'What applying this document would do: create the record, update it, or leave it unchanged. A dry run validates without changing anything.',
@@ -1106,7 +1126,7 @@ const tips = {
       testDatabase: 'Try connecting with the database settings above before saving them.',
       groups: {
         Observability: 'Where Grafana, Prometheus, Loki, and Tempo are. Browser URLs feed the Home cards and the Grafana links; internal URLs are what the server probes for reachability. Empty means not configured.',
-        Runtime: 'How the control plane treats queued runs, including how long a run may wait for a capable worker before it fails.',
+        Runtime: 'How the control plane bounds runs: the longest a run may take, the run guard defaults deployments follow, and how long a queued run may wait for a capable worker.',
         Rest: 'How the REST API listens: host, port, TLS, and public address.',
         Mcp: 'How the MCP server listens and how long tool calls may wait.',
         Database: 'Which database Garrison uses and how to connect.',
@@ -1120,7 +1140,22 @@ const tips = {
         Scheduling: 'Lease lengths and heartbeat timeouts for worker nodes.',
         Runs: 'Run defaults and how long runs and events are retained.',
         Audit: 'How long audit records are kept.'
+      },
+      fields: {
+        Runtime: {
+          MaxRunSeconds: 'The longest any run may take, in seconds. Deployment timeouts, per-run time limits, and profile defaults above it are lowered to it.',
+          RepetitionGuard: 'Whether deployments that leave Repetition guard empty stop runs whose answer degenerates into repetition (outcome Repetition detected).',
+          MaxAssistantChars: 'Characters of assistant text after which a run stops (outcome Output limit exceeded), for deployments that leave the limit empty. 0 is unlimited.',
+          NoProgressSeconds: 'Seconds without text, thinking, or tool activity after which a run stops (outcome No progress), for deployments that leave the limit empty. 0 turns it off.'
+        },
+        Scheduling: {
+          PauseGraceMs: 'After a host sleep or VM pause, the leader waits one heartbeat window plus this many milliseconds before it marks nodes Lost or fails their runs. Default 5000.'
+        }
       }
+    },
+    runGuard: {
+      openDeployments: 'Go to Deployments to change a deployment\'s run guards: Repetition guard, Maximum assistant characters, and No-progress timeout.',
+      openSettings: 'Go to Settings to change the cluster defaults (Runtime) that deployments without their own run guards follow.'
     }
   },
   analytics: {

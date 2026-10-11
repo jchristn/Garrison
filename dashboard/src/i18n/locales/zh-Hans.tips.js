@@ -322,7 +322,7 @@ const tips = {
       NotCredentialed: 'Harness 没有可用的凭据。请为部署绑定一个机密。',
       McpPreflightFailed: '工作节点在启动前检查时，某个必需的 MCP 服务器或工具无法访问。',
       NodeLost: '工作节点在持有该运行期间停止了心跳。',
-      OutputLimitExceeded: 'Harness 写出的输出超过了配置文件允许的上限。',
+      OutputLimitExceeded: '运行产生的输出过多：回答超过了部署的最大助手字符数（一种运行防护），或者 Harness 写出的内容超过了 Harness 配置文件允许的量。已保留到目前为止的输出。',
       SchemaValidationFailed: '结果不符合智能体的输出 JSON Schema：经过一次修复尝试后，或在 Harness 无法恢复会话时立即失败。',
       TimedOut: '运行达到了截止时间。',
       Cancelled: '运行已按请求取消。',
@@ -331,7 +331,9 @@ const tips = {
       WorkspaceFailed: '无法准备工作区，例如因为 Git 克隆失败。',
       Rejected: '请求在运行启动前被拒绝。',
       InternalError: 'Garrison 遇到内部错误。服务器日志中有详细信息。',
-      NoCapableWorker: '该运行在队列中等待的时间超过了集群设置 Runtime.FailBlockedAfterSeconds 允许的时长，且没有就绪的工作节点能运行它，因此已失败。'
+      NoCapableWorker: '该运行在队列中等待的时间超过了集群设置 Runtime.FailBlockedAfterSeconds 允许的时长，且没有就绪的工作节点能运行它，因此已失败。',
+      RepetitionDetected: '运行防护停止了运行，因为它的回答退化成了反复出现的同一段短文本，或者只有空白和标点。已保留到目前为止的输出。可以用部署的重复防护进行调整。',
+      NoProgress: '运行防护停止了运行，因为超过部署的无进展超时时间仍没有文本、思考或工具活动。已保留到目前为止的输出。'
     },
     controlNodeStatus: {
       Starting: '启动中：副本正在初始化，尚未处理流量。',
@@ -724,7 +726,7 @@ const tips = {
         value: '节点必须具有的标签值。'
       },
       maxConcurrentRuns: '此部署在所有节点上同时进行的运行数上限。0 表示不限制。',
-      timeoutSeconds: '运行截止时间（秒）。留空则使用 Harness 配置文件的默认值。',
+      timeoutSeconds: '运行截止时间（秒）。留空则使用 Harness 配置文件的默认值。集群设置 Runtime.MaxRunSeconds 会限制每个运行，包括每次运行的时间限制。',
       maxAttempts: '一个运行总共最多可以尝试多少次。范围为 1 到 10。',
       retryOnNodeLoss: '节点消失时将运行放回队列，而不是使其失败。',
       steps: {
@@ -738,6 +740,13 @@ const tips = {
       actions: {
         compilePreview: '使用示例消息编译此部署，查看运行将获得的确切命令行、文件和环境变量。',
         test: '打开“调用”页面并预先选中此部署，向它发送一条真实消息。'
+      },
+      repetitionGuard: '当回答退化成反复出现的同一段短文本，或者只有空白和标点时停止运行（结果为检测到重复）。未设置时遵循集群默认值；勾选或取消勾选即可为此部署单独设置。',
+      maxAssistantChars: '一次运行在 Garrison 停止它之前最多可以写出的助手文本字符数（结果为超出输出限制）。0 表示不限制；留空则使用集群默认值。',
+      noProgressSeconds: '在没有工具调用进行时，如果这么多秒内没有文本、思考、工具调用或工具结果，就停止运行（结果为无进展）。0 表示关闭；留空则使用集群默认值。',
+      useClusterDefault: '清除此部署自身的设置，让重复防护重新遵循集群默认值。',
+      sections: {
+        guards: '运行防护会在任何 Harness 上尽早停止失控的运行。留空的每一项都遵循设置（运行时）中的集群默认值。'
       }
     },
     nodePools: {
@@ -916,7 +925,10 @@ const tips = {
         children: '此运行通过调用其他智能体启动的运行。'
       },
       eventFilter: '只显示一种类型的事件，例如工具调用或错误。',
-      openChild: '打开此子运行，它是在此运行调用另一个智能体时启动的。'
+      openChild: '打开此子运行，它是在此运行调用另一个智能体时启动的。',
+      eventCodes: {
+        RunGuardTriggered: '运行防护停止了此运行。消息说明是哪种防护触发以及它检测到了什么；运行以该防护的结果失败结束，并保留部分输出。'
+      }
     },
     agentDetail: {
       name: '调用方调用此智能体时使用的名称。',
@@ -974,7 +986,15 @@ const tips = {
       parameter: '{{name}} 的按运行取值。该部署允许调用方覆盖它；留空则使用默认值。',
       message: '你希望智能体做什么。它会作为运行输入发送，并由任务模板包装。',
       send: '用这条消息启动一个运行，并在这里流式显示其对话记录。',
-      openRun: '打开完整的运行页面，查看结果、遥测数据和 stderr。'
+      openRun: '打开完整的运行页面，查看结果、遥测数据和 stderr。',
+      stopOnLeave: '开启后，当你离开此页面、关闭标签页或发送新消息时，Garrison 会取消正在进行的运行，避免为没人阅读的输出付费。关闭后运行会继续，并保留在运行页面上。此选择保存在当前浏览器中。',
+      cancel: '立即停止此运行。工作节点会在几秒内结束 Harness 进程，已保留到目前为止的输出。',
+      cancelling: '已请求取消。工作节点正在停止 Harness；运行报告已取消后，这里会显示最终状态。',
+      sendReplaces: '先取消正在进行的运行，再用这条消息开始新的运行。若要让当前运行继续，请关闭“离开时停止运行”。',
+      sendKeeps: '用这条消息开始新的运行。由于“离开时停止运行”已关闭，正在进行的运行会继续；可在运行页面找到它。',
+      timeLimit: '此运行的可选截止时间（秒），此部署允许调用方设置。留空则使用部署默认值。超过限制时运行会超时。',
+      timePreset: '将此运行的时间限制设为 {{value}}。',
+      timePresetClear: '清除时间限制，让运行使用部署默认值。'
     },
     manifests: {
       planned: '应用此文档会执行的操作：创建记录、更新记录或保持不变。试运行只做验证，不会更改任何内容。',
@@ -1105,7 +1125,7 @@ const tips = {
       testDatabase: '在保存之前，先尝试使用上面的数据库设置进行连接。',
       groups: {
         Observability: 'Grafana、Prometheus、Loki 和 Tempo 的地址。浏览器 URL 用于首页卡片和 Grafana 链接；服务器使用内部 URL 检查可访问性。为空表示未配置。',
-        Runtime: '控制平面如何处理排队的运行，包括运行在失败前可以等待可用工作节点多久。',
+        Runtime: '控制平面如何限制运行：运行的最长时间、部署遵循的运行防护默认值，以及排队的运行可以等待合适工作节点多久。',
         Rest: 'REST API 的监听方式：主机、端口、TLS 和公开地址。',
         Mcp: 'MCP 服务器的监听方式，以及工具调用可以等待多久。',
         Database: 'Garrison 使用哪个数据库以及如何连接。',
@@ -1119,7 +1139,22 @@ const tips = {
         Scheduling: '工作节点的租约时长和心跳超时。',
         Runs: '运行的默认值，以及运行和事件的保留时长。',
         Audit: '审计记录的保留时长。'
+      },
+      fields: {
+        Runtime: {
+          MaxRunSeconds: '任何运行可以持续的最长时间（秒）。超过此值的部署超时、每次运行的时间限制和配置文件默认值都会被降到此值。',
+          RepetitionGuard: '对于重复防护留空的部署，是否停止回答退化为重复的运行（结果为检测到重复）。',
+          MaxAssistantChars: '对于限制留空的部署，运行在助手文本达到多少字符后停止（结果为超出输出限制）。0 表示不限制。',
+          NoProgressSeconds: '对于限制留空的部署，运行在没有文本、思考或工具活动多少秒后停止（结果为无进展）。0 表示关闭。'
+        },
+        Scheduling: {
+          PauseGraceMs: '主机休眠或虚拟机暂停后，领导者会等待一个心跳窗口再加上这些毫秒，然后才将节点标记为丢失或让其运行失败。默认值为 5000。'
+        }
       }
+    },
+    runGuard: {
+      openDeployments: '前往部署页面，修改部署的运行防护：重复防护、最大助手字符数和无进展超时。',
+      openSettings: '前往设置页面，修改没有自身运行防护的部署所遵循的集群默认值（运行时）。'
     }
   },
   analytics: {

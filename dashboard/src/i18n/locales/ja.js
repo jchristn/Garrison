@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const ja = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '構造化出力が無効', RunBlocked: '実行がブロック中', EventsDropped: 'イベントの破棄', HarnessExited: 'ハーネス終了', McpPreflightWarning: 'MCP 事前チェックの警告', McpPreflightPassed: 'MCP 事前チェック合格', RepairAttemptStarted: '出力の修復を開始', WorkspacePrepared: 'ワークスペース準備完了' },
+    eventCodes: { StructuredOutputInvalid: '構造化出力が無効', RunBlocked: '実行がブロック中', EventsDropped: 'イベントの破棄', HarnessExited: 'ハーネス終了', McpPreflightWarning: 'MCP 事前チェックの警告', McpPreflightPassed: 'MCP 事前チェック合格', RepairAttemptStarted: '出力の修復を開始', WorkspacePrepared: 'ワークスペース準備完了', RunGuardTriggered: 'ランガードが実行を停止' },
     fieldCodes: { ExpiryInPast: '未来の日時を選んでください。', ParameterInvalid: 'この値はこのパラメーターには無効です。', ParameterNotAllowed: 'このデプロイメントでは、呼び出し元がこのパラメーターを上書きすることは許可されていません。', SettingsFileReadOnly: '設定ファイルが読み取り専用のため、この変更は保存できません。', OverriddenByEnvironment: '環境変数がこの値を設定しているため、ここでは変更できません。', PathRequired: '設定パスが必要です。', UnknownSetting: 'このサーバーにはこの設定がありません。', TooLong: '値が長すぎます。', NotAllowedValue: '許可された値のいずれかを選んでください。', NotABoolean: 'true または false を選んでください。', NotAnInteger: '整数を入力してください。', OutOfRange: '値が許可された範囲外です。' },
     serverText: {
       notApplied: '別のドキュメントが検証に失敗したため、適用されませんでした。',
@@ -27,7 +27,11 @@ const ja = {
       harnessExitedCode: 'ハーネスが終了コード {{code}} で終了しました: {{status}} ({{outcome}})。',
       mcpPreflight: 'MCP の事前チェックに合格しました。確認したサーバー: {{count}}。',
       repairAttempt: '構造化出力の修復試行 {{attempt}}: {{path}} でハーネスのセッションを再開します。',
-      workspacePrepared: 'ワークスペースを {{path}} に準備しました。'
+      workspacePrepared: 'ワークスペースを {{path}} に準備しました。',
+      guardRepetitionUnit: '繰り返しガード: アシスタントテキストの直近 {{window}} 文字が、{{size}} 文字の単位「{{unit}}」の {{count}} 回の繰り返しです。',
+      guardDegenerate: '繰り返しガード: アシスタントテキストの直近 {{window}} 文字に文字や数字がなく (空白、句読点、記号のみ)、「{{tail}}」で終わっています。',
+      guardNoProgress: '実行が {{seconds}} 秒間進行しませんでした (アシスタントテキスト、思考、ツール呼び出し、ツール結果がなく、開いているツール呼び出しもありません)。noProgressSeconds の上限は {{limit}} です。',
+      guardOutputLimit: 'アシスタントテキストが実行の maxAssistantChars の上限 {{limit}} 文字を超えました。'
     },
     appName: 'Garrison',
     language: { label: '言語' },
@@ -214,7 +218,9 @@ const ja = {
       WorkspaceFailed: 'ワークスペース失敗',
       Rejected: '拒否',
       InternalError: '内部エラー',
-      NoCapableWorker: '対応できるワーカーなし'
+      NoCapableWorker: '対応できるワーカーなし',
+      RepetitionDetected: '繰り返しを検出',
+      NoProgress: '進行なし'
     },
     runEventType: {
       Lifecycle: 'ライフサイクル',
@@ -746,7 +752,10 @@ const ja = {
         maxConcurrentRuns: '最大同時実行数',
         timeoutSeconds: 'タイムアウト (秒)',
         maxAttempts: '最大試行回数',
-        retryOnNodeLoss: 'ノード喪失時に再キュー'
+        retryOnNodeLoss: 'ノード喪失時に再キュー',
+        repetitionGuard: '繰り返しガード',
+        maxAssistantChars: '最大アシスタント文字数',
+        noProgressSeconds: '進行なしタイムアウト (秒)'
       },
       hints: {
         secretsKinds: 'ハーネスプロファイル {{profile}} には種類が {{kinds}} のシークレットが必要です。任意のエイリアスで 1 つ結び付けてください。',
@@ -755,9 +764,28 @@ const ja = {
         promptBindings: 'プロンプトのロール (System、Task、DelegatedTask、およびプロファイルが使うロール) をテンプレートに対応付けます。バージョンを空にすると常に最新版を使います。',
         resourceBindings: 'エイリアスはテンプレート変数になります。例: {{secret.anthropic}}。',
         weight: 'デプロイメントを指定しないリクエストは、有効なデプロイメントに重みに応じて振り分けられます。',
-        maxConcurrentRuns: '0 は無制限を意味します。'
+        maxConcurrentRuns: '0 は無制限を意味します。',
+        timeoutCap: 'すべての実行はクラスター設定 {{setting}} により {{value}} 秒に制限されます。',
+        zeroUnlimited: '0 は無制限です。',
+        zeroOff: '0 でガードをオフにします。',
+        guardDefault: '空の場合は {{setting}} のクラスター既定値 {{value}} を使います。',
+        guardDefaultUnknown: '空の場合はクラスター設定 {{setting}} を使います。',
+        guardOwn: 'このデプロイメントで設定済みです。クラスター既定値 ({{setting}}) は {{value}} です。',
+        guardOwnUnknown: 'クラスター設定 {{setting}} の代わりにこのデプロイメントで設定済みです。',
+        guardFollowing: '{{setting}} のクラスター既定値 {{value}} に従います。'
       },
-      actions: { compilePreview: 'コンパイルプレビュー', test: 'テスト呼び出し' }
+      actions: { compilePreview: 'コンパイルプレビュー', test: 'テスト呼び出し', useClusterDefault: 'クラスター既定値を使う' },
+      sections: {
+        guards: 'ランガード'
+      },
+      placeholders: {
+        clusterDefault: 'クラスター既定値 ({{value}})',
+        clusterDefaultUnknown: 'クラスター既定値'
+      },
+      guardStates: {
+        on: 'オン',
+        off: 'オフ'
+      }
     },
     nodePools: {
       ...rp('ノードプール', 'ワーカーノードをラベルでグループ化し、必要に応じてテナント専用にします。', 'プールを追加', 'プールを作成', 'プールを編集', 'プールの詳細', 'プールを削除', 'ノードプールはまだありません', '容量を専用化するにはノードプールを作成してください。'),
@@ -945,7 +973,27 @@ const ja = {
       idleBody: 'メッセージを送ると実行が始まり、記録がここに表示されます。',
       noAgentsTitle: '呼び出せるエージェントがありません',
       noAgentsBody: 'エージェントとデプロイメントを作成するか、サンプルマニフェストを適用してください。',
-      applySample: 'マニフェストへ移動'
+      applySample: 'マニフェストへ移動',
+      stopOnLeave: 'ページを離れたら実行を停止',
+      cancel: '実行をキャンセル',
+      cancelling: 'キャンセル中...',
+      timeLimit: '制限時間',
+      timeLimitPlaceholder: 'デプロイメントの既定値',
+      timeLimitClear: '既定値を使う',
+      timeLimitRange: '許可範囲: {{min}} から {{max}}。',
+      timeLimitAny: 'タイムアウトまでに実行が使える秒数。',
+      timeLimitCap: 'クラスターはすべての実行を {{max}} で停止します。',
+      timeLimitErrors: {
+        notInteger: '秒数を整数で入力してください。',
+        range: '{{min}} から {{max}} の制限時間を入力してください。',
+        aboveCap: 'クラスターが許可するのは 1 実行あたり最大 {{max}} です。'
+      },
+      timeUnits: {
+        seconds: '{{value}} 秒',
+        minutes: '{{value}} 分',
+        hours: '{{value}} 時間',
+        secondsWord: '秒'
+      }
     },
     runDetail: {
       viewTrace: 'トレースを表示',
@@ -1289,7 +1337,8 @@ const ja = {
           EventPollMs: 'イベントのポーリング間隔 (ms)',
           NodeHeartbeatTimeoutMs: 'ノードのハートビートタイムアウト (ms)',
           LeaseWaitMs: 'リースのロングポーリング待機時間 (ms)',
-          LeaseDurationMs: '実行リースの期間 (ms)'
+          LeaseDurationMs: '実行リースの期間 (ms)',
+          PauseGraceMs: 'ホスト一時停止後の猶予 (ms)'
         },
         Runs: {
           EventRetentionDays: '実行イベントの保持期間 (日)',
@@ -1298,7 +1347,11 @@ const ja = {
           DefaultTimeoutSeconds: '実行の既定タイムアウト (秒)'
         },
         Runtime: {
-          FailBlockedAfterSeconds: 'ブロックされた実行を失敗にするまでの時間 (秒)'
+          FailBlockedAfterSeconds: 'ブロックされた実行を失敗にするまでの時間 (秒)',
+          MaxRunSeconds: '最大実行時間 (秒)',
+          RepetitionGuard: '繰り返しガードの既定値',
+          MaxAssistantChars: '最大アシスタント文字数の既定値',
+          NoProgressSeconds: '進行なしタイムアウトの既定値 (秒)'
         },
         Audit: {
           RetentionDays: '監査の保持期間 (日)'
@@ -1424,6 +1477,25 @@ const ja = {
       tenant: 'テナント',
       expires: 'セッションの有効期限',
       features: '機能フラグ'
+    },
+    runGuard: {
+      titles: {
+        RepetitionDetected: '停止: モデルが同じ出力を繰り返していました',
+        NoProgress: '停止: 実行が進まなくなりました',
+        OutputLimitExceeded: '停止: 回答がサイズ上限に達しました'
+      },
+      bodies: {
+        RepetitionDetected: '繰り返しガードが、同じ短いテキスト (または空白と句読点だけ) が何度も書かれるのを検出したため、Garrison は期限まで実行を続けさせずに停止しました。',
+        NoProgress: '進行なしタイムアウトより長くテキスト、思考、ツールの動きがなかったため、Garrison は実行を停止しました。',
+        OutputLimitExceeded: '回答が 1 実行あたりのアシスタント文字数の上限を超えたため、Garrison は実行を停止しました。'
+      },
+      detected: '検出内容: {{reason}}',
+      partialKept: '停止までに書かれた出力 ({{chars}} 文字) は実行結果として保持されます。',
+      noPartial: '実行は停止前に何も出力しませんでした。',
+      tune: 'この動作を変えるには、デプロイメント {{deployment}} を編集してください。「配置と制限」ステップに繰り返しガード、最大アシスタント文字数、進行なしタイムアウトがあります。空のままにすると、設定 (ランタイム) のクラスター既定値に従います。',
+      tuneAny: 'この動作を変えるには、デプロイメントを編集してください。「配置と制限」ステップに繰り返しガード、最大アシスタント文字数、進行なしタイムアウトがあります。空のままにすると、設定 (ランタイム) のクラスター既定値に従います。',
+      openDeployments: 'デプロイメントを開く',
+      openSettings: '設定を開く'
     }
   },
   wizard: {

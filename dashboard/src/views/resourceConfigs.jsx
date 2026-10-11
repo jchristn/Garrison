@@ -19,7 +19,8 @@ import { tip } from '../components/Tooltip';
 import NamedId from '../components/NamedId';
 import CloneTemplateModal from '../components/CloneTemplateModal';
 import { PROMPT_ROLES, defaultTemplateFor, templatesForRole, profileSecretNeeds } from '../utils/deployments';
-import { formatList } from '../i18n/formatters';
+import { formatList, formatNumber } from '../i18n/formatters';
+import { loadRuntimeLimits } from '../utils/settings';
 
 // ---------------------------------------------------------------- helpers
 //
@@ -757,6 +758,37 @@ export const agentsConfig = {
   }
 };
 
+/** Cluster setting path behind each deployment run limit (P3.15). */
+const RUNTIME_PATHS = { maxRunSeconds: 'Runtime.MaxRunSeconds', repetitionGuard: 'Runtime.RepetitionGuard', maxAssistantChars: 'Runtime.MaxAssistantChars', noProgressSeconds: 'Runtime.NoProgressSeconds' };
+
+/** Placeholder and hint for a numeric run limit, showing the cluster default when settings are readable. */
+function runtimeHint(t, i18n, runtime, name) {
+  const setting = RUNTIME_PATHS[name];
+  const raw = runtime?.[name];
+  const known = raw !== null && raw !== undefined && raw !== '';
+  const value = known ? formatNumber(Number(raw), {}, i18n.language) : null;
+  if (name === 'maxRunSeconds') return known ? { hint: t('resources.deployments.hints.timeoutCap', { value, setting }) } : {};
+  const zero = t(name === 'maxAssistantChars' ? 'resources.deployments.hints.zeroUnlimited' : 'resources.deployments.hints.zeroOff');
+  return {
+    placeholder: known ? t('resources.deployments.placeholders.clusterDefault', { value }) : t('resources.deployments.placeholders.clusterDefaultUnknown'),
+    hint: `${known ? t('resources.deployments.hints.guardDefault', { value, setting }) : t('resources.deployments.hints.guardDefaultUnknown', { setting })} ${zero}`
+  };
+}
+
+/** The repetition guard toggle: the effective value, and whether it follows the cluster default. */
+function guardToggle(t, value, runtime) {
+  const setting = RUNTIME_PATHS.repetitionGuard;
+  const known = typeof runtime?.repetitionGuard === 'boolean';
+  // Runtime.RepetitionGuard defaults to true on the server when settings are not readable.
+  const clusterDefault = known ? runtime.repetitionGuard : true;
+  const state = t(`resources.deployments.guardStates.${clusterDefault ? 'on' : 'off'}`);
+  const own = value !== null && value !== undefined;
+  let hint;
+  if (own) hint = known ? t('resources.deployments.hints.guardOwn', { value: state, setting }) : t('resources.deployments.hints.guardOwnUnknown', { setting });
+  else hint = known ? t('resources.deployments.hints.guardFollowing', { value: state, setting }) : t('resources.deployments.hints.guardDefaultUnknown', { setting });
+  return { defaultValue: clusterDefault, hint, resetLabel: t('resources.deployments.actions.useClusterDefault'), resetTip: t('tips.resources.deployments.useClusterDefault') };
+}
+
 export const deploymentsConfig = {
   id: 'deployments',
   explainer: 'deployments',
@@ -764,7 +796,7 @@ export const deploymentsConfig = {
   api: tenantApi('listDeployments', 'createDeployment', 'updateDeployment', 'deleteDeployment'),
   steps: ['basics', 'harness', 'prompts', 'resources', 'overrides', 'placement'],
   loadOptions: async ({ apiClient, tenantId }) => {
-    const [agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools] = await Promise.all([
+    const [agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
       safeList(apiClient.listPromptTemplates(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
@@ -772,9 +804,11 @@ export const deploymentsConfig = {
       safeList(apiClient.listMcpServers(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listWorkspaceTemplates(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listArtifactStores(tenantId, { pageNumber: 1, pageSize: 1000 })),
-      safeList(apiClient.listNodePools({ pageNumber: 1, pageSize: 1000 }))
+      safeList(apiClient.listNodePools({ pageNumber: 1, pageSize: 1000 })),
+      // Cluster defaults for the run limits (P3.15); null when the caller may not read settings.
+      loadRuntimeLimits(apiClient)
     ]);
-    return { agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools };
+    return { agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime };
   },
   // Names for the Agent and Harness profile columns (M1-20).
   loadLookups: async ({ apiClient, tenantId }) => {
@@ -803,6 +837,9 @@ export const deploymentsConfig = {
     timeoutSeconds: null,
     maxAttempts: 1,
     retryOnNodeLoss: false,
+    repetitionGuard: null,
+    maxAssistantChars: null,
+    noProgressSeconds: null,
     weight: 100,
     nodePoolId: null,
     workspaceTemplateId: null,
@@ -961,9 +998,14 @@ export const deploymentsConfig = {
         ]
       }),
       field(id, t, 'maxConcurrentRuns', 'number', { min: 0, max: 100000, step: 5 }),
-      field(id, t, 'timeoutSeconds', 'number', { min: 5, max: 86400, step: 5 }),
+      field(id, t, 'timeoutSeconds', 'number', { min: 5, max: 86400, step: 5, ...runtimeHint(t, i18n, options.runtime, 'maxRunSeconds') }),
       field(id, t, 'maxAttempts', 'number', { min: 1, max: 10, step: 5 }),
-      field(id, t, 'retryOnNodeLoss', 'checkbox', { step: 5 })
+      field(id, t, 'retryOnNodeLoss', 'checkbox', { step: 5 }),
+      // Run guards (P3.15): empty follows the cluster default from Settings (Runtime.*).
+      section(id, t, 'guards', 5),
+      field(id, t, 'repetitionGuard', 'nullableToggle', { step: 5, ...guardToggle(t, d.repetitionGuard, options.runtime) }),
+      field(id, t, 'maxAssistantChars', 'number', { min: 0, max: 100000000, step: 5, ...runtimeHint(t, i18n, options.runtime, 'maxAssistantChars') }),
+      field(id, t, 'noProgressSeconds', 'number', { min: 0, max: 86400, step: 5, ...runtimeHint(t, i18n, options.runtime, 'noProgressSeconds') })
     ];
   },
   validate: (d, t) => {

@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const yueHant = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件丟棄咗', HarnessExited: 'Harness 結束咗', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '開始咗修復輸出', WorkspacePrepared: '工作區準備好咗' },
+    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件丟棄咗', HarnessExited: 'Harness 結束咗', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '開始咗修復輸出', WorkspacePrepared: '工作區準備好咗', RunGuardTriggered: '執行防護停咗個執行' },
     fieldCodes: { ExpiryInPast: '請揀一個將來嘅時間。', ParameterInvalid: '呢個值對呢個參數嚟講唔啱。', ParameterNotAllowed: '呢個部署唔畀調用者覆寫呢個參數。', SettingsFileReadOnly: '設定檔係唯讀嘅，所以呢個改動儲存唔到。', OverriddenByEnvironment: '呢個值係由環境變數設定嘅，所以喺度改唔到。', PathRequired: '一定要有設定路徑。', UnknownSetting: '呢部伺服器冇呢項設定。', TooLong: '呢個值太長。', NotAllowedValue: '請揀其中一個容許嘅值。', NotABoolean: '請揀 true 或者 false。', NotAnInteger: '請輸入整數。', OutOfRange: '個值超出咗容許範圍。' },
     serverText: {
       notApplied: '冇套用，因為另一份文件驗證唔通過。',
@@ -27,7 +27,11 @@ const yueHant = {
       harnessExitedCode: 'Harness 結束咗，代碼 {{code}}：{{status}}（{{outcome}}）。',
       mcpPreflight: 'MCP 預檢通過咗。檢查咗嘅伺服器：{{count}}。',
       repairAttempt: '結構化輸出修復第 {{attempt}} 次嘗試：喺 {{path}} 繼續 Harness 工作階段。',
-      workspacePrepared: '工作區已經喺 {{path}} 準備好。'
+      workspacePrepared: '工作區已經喺 {{path}} 準備好。',
+      guardRepetitionUnit: '重複防護：助理文字最後 {{window}} 個字元係 {{size}} 個字元嘅單元「{{unit}}」重複咗 {{count}} 次。',
+      guardDegenerate: '重複防護：助理文字最後 {{window}} 個字元冇字母亦冇數字（得空白、標點或者符號），結尾係「{{tail}}」。',
+      guardNoProgress: '個執行 {{seconds}} 秒都冇進展（冇助理文字、思考、工具呼叫或者工具結果，亦冇未完成嘅工具呼叫）；佢嘅 noProgressSeconds 上限係 {{limit}}。',
+      guardOutputLimit: '助理文字超過咗個執行嘅 maxAssistantChars 上限 {{limit}} 個字元。'
     },
     appName: 'Garrison',
     language: { label: '語言' },
@@ -214,7 +218,9 @@ const yueHant = {
       WorkspaceFailed: '工作區失敗',
       Rejected: '已拒絕',
       InternalError: '內部錯誤',
-      NoCapableWorker: '冇工作節點做到'
+      NoCapableWorker: '冇工作節點做到',
+      RepetitionDetected: '偵測到重複',
+      NoProgress: '冇進展'
     },
     runEventType: {
       Lifecycle: '生命週期',
@@ -746,7 +752,10 @@ const yueHant = {
         maxConcurrentRuns: '最大同時執行數',
         timeoutSeconds: '逾時（秒）',
         maxAttempts: '最多嘗試次數',
-        retryOnNodeLoss: '節點失聯時重新排隊'
+        retryOnNodeLoss: '節點失聯時重新排隊',
+        repetitionGuard: '重複防護',
+        maxAssistantChars: '最大助理字元數',
+        noProgressSeconds: '冇進展逾時（秒）'
       },
       hints: {
         secretsKinds: 'Harness 設定檔 {{profile}} 需要任何一個類型係 {{kinds}} 嘅機密。用咩別名綁定都得。',
@@ -755,9 +764,28 @@ const yueHant = {
         promptBindings: '將提示角色（System、Task、DelegatedTask，同 Harness 設定檔用到嘅任何角色）對應到範本。版本留空就會跟最新版本。',
         resourceBindings: '別名會變成範本變數，例如 {{secret.anthropic}}。',
         weight: '冇指明部署嘅請求，會按權重分配畀啟用中嘅部署。',
-        maxConcurrentRuns: '0 即係冇上限。'
+        maxConcurrentRuns: '0 即係冇上限。',
+        timeoutCap: '叢集設定 {{setting}} 將每個執行限制喺 {{value}} 秒。',
+        zeroUnlimited: '0 即係唔設上限。',
+        zeroOff: '0 即係熄咗呢個防護。',
+        guardDefault: '留空就用 {{setting}} 嘅叢集預設值 {{value}}。',
+        guardDefaultUnknown: '留空就用叢集設定 {{setting}}。',
+        guardOwn: '已經喺呢個部署設定咗。叢集預設值（{{setting}}）係 {{value}}。',
+        guardOwnUnknown: '已經喺呢個部署設定咗，唔用叢集設定 {{setting}}。',
+        guardFollowing: '跟緊 {{setting}} 嘅叢集預設值 {{value}}。'
       },
-      actions: { compilePreview: '編譯預覽', test: '測試調用' }
+      actions: { compilePreview: '編譯預覽', test: '測試調用', useClusterDefault: '用叢集預設值' },
+      sections: {
+        guards: '執行防護'
+      },
+      placeholders: {
+        clusterDefault: '叢集預設值（{{value}}）',
+        clusterDefaultUnknown: '叢集預設值'
+      },
+      guardStates: {
+        on: '開',
+        off: '熄'
+      }
     },
     nodePools: {
       ...rp('節點池', '按標籤將工作節點分組，亦可以專門分配畀指定租用戶。', '新增節點池', '建立節點池', '編輯節點池', '節點池詳情', '刪除節點池', '仲未有節點池', '建立一個節點池嚟預留專用容量。'),
@@ -946,7 +974,27 @@ const yueHant = {
       idleBody: '傳一個訊息就會開始執行，對話記錄會喺度即時串流出嚟。',
       noAgentsTitle: '冇代理程式可以調用',
       noAgentsBody: '建立一個代理程式同一個部署，或者套用範例清單。',
-      applySample: '去清單'
+      applySample: '去清單',
+      stopOnLeave: '離開時停止執行',
+      cancel: '取消執行',
+      cancelling: '取消緊...',
+      timeLimit: '時間限制',
+      timeLimitPlaceholder: '部署預設值',
+      timeLimitClear: '用返預設值',
+      timeLimitRange: '容許範圍：{{min}} 至 {{max}}。',
+      timeLimitAny: '執行喺逾時之前可以用嘅秒數。',
+      timeLimitCap: '叢集會喺 {{max}} 之後停止每個執行。',
+      timeLimitErrors: {
+        notInteger: '請輸入整數秒數。',
+        range: '請輸入 {{min}} 至 {{max}} 之間嘅時間限制。',
+        aboveCap: '叢集每個執行最多容許 {{max}}。'
+      },
+      timeUnits: {
+        seconds: '{{value}} 秒',
+        minutes: '{{value}} 分鐘',
+        hours: '{{value}} 小時',
+        secondsWord: '秒'
+      }
     },
     runDetail: {
       viewTrace: '睇追蹤',
@@ -1290,7 +1338,8 @@ const yueHant = {
           EventPollMs: '事件輪詢間隔（毫秒）',
           NodeHeartbeatTimeoutMs: '節點心跳逾時（毫秒）',
           LeaseWaitMs: '租約長輪詢等候時間（毫秒）',
-          LeaseDurationMs: '執行租約時長（毫秒）'
+          LeaseDurationMs: '執行租約時長（毫秒）',
+          PauseGraceMs: '主機暫停之後嘅寬限時間（毫秒）'
         },
         Runs: {
           EventRetentionDays: '執行事件保留日數',
@@ -1299,7 +1348,11 @@ const yueHant = {
           DefaultTimeoutSeconds: '預設執行逾時（秒）'
         },
         Runtime: {
-          FailBlockedAfterSeconds: '受阻執行幾多秒之後當失敗'
+          FailBlockedAfterSeconds: '受阻執行幾多秒之後當失敗',
+          MaxRunSeconds: '最長執行時間（秒）',
+          RepetitionGuard: '預設開啟重複防護',
+          MaxAssistantChars: '預設最大助理字元數',
+          NoProgressSeconds: '預設冇進展逾時（秒）'
         },
         Audit: {
           RetentionDays: '審計保留日數'
@@ -1422,6 +1475,25 @@ const yueHant = {
       tenant: '租用戶',
       expires: '工作階段到期',
       features: '功能旗標'
+    },
+    runGuard: {
+      titles: {
+        RepetitionDetected: '已停止：個模型不停重複',
+        NoProgress: '已停止：個執行冇再進展',
+        OutputLimitExceeded: '已停止：個回答去到大小上限'
+      },
+      bodies: {
+        RepetitionDetected: '重複防護見到同一段短文字不停咁寫出嚟（或者得空白同標點），所以 Garrison 停咗個執行，唔會俾佢一直行到截止時間。',
+        NoProgress: '超過冇進展逾時時間都冇文字、思考或者工具活動，所以 Garrison 停咗個執行。',
+        OutputLimitExceeded: '個回答超過咗每次執行容許嘅最大助理字元數，所以 Garrison 停咗個執行。'
+      },
+      detected: '偵測到嘅情況：{{reason}}',
+      partialKept: '停止之前寫咗嘅輸出（{{chars}} 個字元）會保留做執行結果。',
+      noPartial: '個執行喺停止之前冇寫過任何輸出。',
+      tune: '想改幾時觸發，就編輯部署 {{deployment}}：佢嘅「排程放置同限制」步驟有重複防護、最大助理字元數同冇進展逾時。留空嘅話，佢哋會跟設定（執行階段）入面嘅叢集預設值。',
+      tuneAny: '想改幾時觸發，就編輯個部署：佢嘅「排程放置同限制」步驟有重複防護、最大助理字元數同冇進展逾時。留空嘅話，佢哋會跟設定（執行階段）入面嘅叢集預設值。',
+      openDeployments: '打開部署',
+      openSettings: '打開設定'
     }
   },
   wizard: {

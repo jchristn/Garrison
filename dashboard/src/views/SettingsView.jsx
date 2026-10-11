@@ -231,7 +231,7 @@ export default function SettingsView() {
               const value = f.path in edits ? edits[f.path] : f.isSecret ? '' : f.value;
               const disabled = !canEdit || !f.editable || restarting;
               const label = settingLabel(t, f);
-              const fieldTip = [f.description || t('tips.views.settings.fieldGeneric', { path: f.path }), t('tips.views.settings.settingPath', { path: f.path }), t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart'), optionalText(t, `tips.views.settings.source.${f.source}`)]
+              const fieldTip = [optionalText(t, `tips.views.settings.fields.${f.path}`) || f.description || t('tips.views.settings.fieldGeneric', { path: f.path }), t('tips.views.settings.settingPath', { path: f.path }), t(f.applyMode === 'Live' ? 'tips.views.settings.applyLive' : 'tips.views.settings.applyRestart'), optionalText(t, `tips.views.settings.source.${f.source}`)]
                 .filter(Boolean)
                 .join(' ');
               return (

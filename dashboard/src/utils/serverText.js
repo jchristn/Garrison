@@ -7,6 +7,11 @@
 /** [regular expression, translation key under common.serverText, capture names]. Order matters: first match wins. */
 export const SERVER_TEXT_PATTERNS = [
   [/^Workspace prepared at (.+)\.$/, 'workspacePrepared', ['path']],
+  // Run guards (P3.15): RunGuardTriggered warnings and the run's errorMessage. Numbers arrive formatted as 1,000.
+  [/^Repetition guard: the last ([\d,]+) characters of assistant text are the ([\d,]+)-character unit "(.*)" repeated ([\d,]+) times\.$/s, 'guardRepetitionUnit', ['window', 'size', 'unit', 'count']],
+  [/^Repetition guard: the last ([\d,]+) characters of assistant text contain no letters or digits \(only whitespace, punctuation, or symbols\), ending with "(.*)"\.$/s, 'guardDegenerate', ['window', 'tail']],
+  [/^The run made no progress for ([\d,]+) seconds \(no assistant text, thinking, tool call, or tool result, and no tool call open\); its noProgressSeconds limit is ([\d,]+)\.$/, 'guardNoProgress', ['seconds', 'limit']],
+  [/^Assistant text passed the run's maxAssistantChars limit of ([\d,]+) characters\.$/, 'guardOutputLimit', ['limit']],
   [/^Structured output repair attempt (\d+): resuming the harness session in (.+)\.$/, 'repairAttempt', ['attempt', 'path']],
   [/^MCP pre-flight passed for (\d+) server\(s\)\.$/, 'mcpPreflight', ['count']],
   [/^Harness exited with code (-?\d+): (\w+) \((\w+)\)\.$/, 'harnessExitedCode', ['code', 'status', 'outcome']],

@@ -40,11 +40,22 @@ function base(prefix, i, extra = {}) {
   return record(prefix, i, { tenantId: TENANT, name: `${prefix}-${i}`, ...extra });
 }
 
+/** Run guard stops (P3.15): errorMessage and RunGuardTriggered text, exactly as the worker writes them. */
+export const GUARD_MESSAGES = {
+  RepetitionDetected: 'Repetition guard: the last 1,000 characters of assistant text contain no letters or digits (only whitespace, punctuation, or symbols), ending with " \\n* \\n* \\n* \\n*".',
+  NoProgress: 'The run made no progress for 300 seconds (no assistant text, thinking, tool call, or tool result, and no tool call open); its noProgressSeconds limit is 300.',
+  OutputLimitExceeded: "Assistant text passed the run's maxAssistantChars limit of 200,000 characters."
+};
+
+/** Partial output a guard stop keeps as the result: the start of an answer, then the loop. */
+export const GUARD_PARTIAL = `Here is the plan:\n\n${'* \n'.repeat(40)}`;
+
 function run(i) {
   const status = RUN_STATUSES[i % RUN_STATUSES.length];
   const terminal = !['Running', 'Queued'].includes(status);
   const queued = status === 'Queued';
-  const outcome = status === 'Failed' ? (i % 12 === 7 ? 'NoCapableWorker' : 'HarnessFailed') : status === 'Succeeded' ? 'Succeeded' : status === 'Cancelled' ? 'Cancelled' : 'None';
+  // P3.15: run_0013 is a run a repetition guard stopped.
+  const outcome = status === 'Failed' ? (i % 12 === 7 ? 'NoCapableWorker' : i === 13 ? 'RepetitionDetected' : 'HarnessFailed') : status === 'Succeeded' ? 'Succeeded' : status === 'Cancelled' ? 'Cancelled' : 'None';
   const out = record('run', i, {
     tenantId: TENANT,
     agentId: 'agt_0001',
@@ -115,7 +126,8 @@ function run(i) {
   }
   if (terminal) {
     Object.assign(out, { completedUtc: iso(i * 7 - 1), exitCode: status === 'Failed' ? 1 : 0, stderrTail: '', resultText: 'Hello from the fake harness.' });
-    if (status === 'Failed') out.errorMessage = outcome === 'NoCapableWorker' ? 'No Ready worker could run this run within Runtime.FailBlockedAfterSeconds.' : 'Harness reported error_during_execution (is_error).';
+    if (status === 'Failed') out.errorMessage = outcome === 'NoCapableWorker' ? 'No Ready worker could run this run within Runtime.FailBlockedAfterSeconds.' : outcome === 'RepetitionDetected' ? GUARD_MESSAGES.RepetitionDetected : 'Harness reported error_during_execution (is_error).';
+    if (outcome === 'RepetitionDetected') out.resultText = GUARD_PARTIAL;
   }
   if (status === 'Running') out.resultText = 'Hello from the fake harness.';
   return out;
@@ -237,6 +249,8 @@ const FACTORIES = {
       harnessProfileId: 'hp_0001',
       model: i === 2 ? 'gpt-oss:20b' : 'sonnet',
       timeoutSeconds: 300,
+      // P3.15 run guards: deployment-2 (the small local model) sets its own; the others follow the cluster defaults.
+      ...(i === 2 ? { repetitionGuard: true, maxAssistantChars: 50000, noProgressSeconds: 120 } : {}),
       maxConcurrentRuns: 0,
       maxAttempts: 1,
       retryOnNodeLoss: false,
@@ -259,7 +273,11 @@ const FACTORIES = {
       fileOverrides: [{ id: `chr_${id}_0000fil`, deploymentId: id, baseDirectory: 'Config', pathTemplate: 'extra.txt', contentTemplate: 'x', isSecret: false }],
       nodeSelector: [{ id: `chr_${id}_0000nod`, deploymentId: id, key: 'zone', value: 'a' }],
       parameters: [{ id: `chr_${id}_0000par`, deploymentId: id, name: 'format', value: 'claude' }],
-      allowedRunOverrides: [{ id: `chr_${id}_0000all`, deploymentId: id, name: 'format', validation: 'Any' }]
+      allowedRunOverrides: [
+        { id: `chr_${id}_0000all`, deploymentId: id, name: 'format', validation: 'Any' },
+        // P3.15: callers may set a per-run time limit on deployment-2, from 30 seconds to 30 minutes.
+        ...(i === 2 ? [{ id: `chr_${id}_0001all`, deploymentId: id, name: 'timeoutSeconds', validation: 'IntegerRange', pattern: '30,1800' }] : [])
+      ]
     });
   },
   // Node pools and nodes are cluster-wide records: no tenantId.
@@ -389,6 +407,12 @@ const SETTINGS = {
     { path: 'Database.Type', group: 'Database', description: 'Database provider.', type: 'enum', value: 'Sqlite', isSecret: false, isSet: true, source: 'File', applyMode: 'RestartRequired', editable: true, allowedValues: ['Sqlite', 'Postgresql'] },
     { path: 'Database.Password', group: 'Database', description: 'Database password.', type: 'secret', isSecret: true, isSet: true, value: '********', source: 'File', applyMode: 'RestartRequired', editable: true },
     { path: 'Scheduling.LeaseDurationMs', group: 'Scheduling', description: 'Run lease duration; heartbeats extend it.', type: 'int', value: '30000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 5000, maximum: 600000 },
+    { path: 'Scheduling.PauseGraceMs', group: 'Scheduling', description: 'Grace after a detected pause before nodes are marked Lost.', type: 'int', value: '5000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1000, maximum: 600000 },
+    // P3.15: the run cap and the run guard defaults deployments follow.
+    { path: 'Runtime.MaxRunSeconds', group: 'Runtime', description: "Cluster cap on any run's execution in seconds.", type: 'int', value: '1200', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 60, maximum: 604800 },
+    { path: 'Runtime.RepetitionGuard', group: 'Runtime', description: 'Default for deployments that do not set repetitionGuard.', type: 'bool', value: 'true', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true },
+    { path: 'Runtime.MaxAssistantChars', group: 'Runtime', description: 'Default for deployments that do not set maxAssistantChars. 0 is unlimited.', type: 'int', value: '200000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 100000000 },
+    { path: 'Runtime.NoProgressSeconds', group: 'Runtime', description: 'Default for deployments that do not set noProgressSeconds. 0 turns the guard off.', type: 'int', value: '300', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 86400 },
     { path: 'Runtime.FailBlockedAfterSeconds', group: 'Runtime', description: 'Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever.', type: 'int', value: '0', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 604800 },
     // P13.13: observability URLs are cluster string settings; empty means not configured.
     { path: 'Observability.GrafanaUrl', group: 'Observability', description: 'Browser-facing Grafana URL for the Home card and deep links, for example https://grafana.example.com. Empty means not configured.', type: 'string', value: '', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true },
@@ -536,6 +560,22 @@ const EVENTS = [
   event(6 + STREAM_DELTAS.length, 'Usage', { inputTokens: 1201, outputTokens: 341 }),
   event(7 + STREAM_DELTAS.length, 'Result', { text: 'Done.', rawEventJson: '{"type":"result","is_error":false}' })
 ];
+
+/** Transcript of a guard-stopped run: the loop, then one RunGuardTriggered warning and the exit. */
+export function guardEvents(outcome = 'RepetitionDetected') {
+  return [
+    event(1, 'Lifecycle', { text: 'Workspace prepared at /work/run_0013.', code: 'WorkspacePrepared' }),
+    event(2, 'AssistantText', { text: 'Here is the plan:\n\n' }),
+    ...Array.from({ length: 4 }, (_, k) => event(3 + k, 'AssistantText', { text: '* \n'.repeat(10) })),
+    event(7, 'Warning', { text: GUARD_MESSAGES[outcome], code: 'RunGuardTriggered' }),
+    event(8, 'Lifecycle', { text: `Harness exited with code 143: Failed (${outcome}).`, code: 'HarnessExited' })
+  ];
+}
+
+/** A run a run guard stopped, shaped like the server's. */
+export function guardRun(id, outcome = 'RepetitionDetected', extra = {}) {
+  return { ...run(13), id, outcome, errorMessage: GUARD_MESSAGES[outcome], resultText: GUARD_PARTIAL, ...extra };
+}
 
 const OVERVIEW = () => ({
   agents: 6,
@@ -711,7 +751,8 @@ export function respond(method, url) {
     if (collection === 'runs' && parts[2] === 'events') {
       // Same shape as the server: { runId, status, events, lastSequence, hasMore }.
       const after = Number(url.searchParams.get('afterSequence') || 0);
-      const events = EVENTS.filter((e) => e.sequence > after).map((e) => ({ ...e, runId: parts[1] }));
+      const source = parts[1] === 'run_0013' ? guardEvents() : EVENTS;
+      const events = source.filter((e) => e.sequence > after).map((e) => ({ ...e, runId: parts[1] }));
       return { runId: parts[1], status: 'Succeeded', events, lastSequence: events.length ? events[events.length - 1].sequence : after, hasMore: false };
     }
     if (collection === 'runs' && parts[2] === 'children') return { success: true, maxResults: 100, skip: 0, totalRecords: 1, recordsRemaining: 0, endOfResults: true, timestampUtc: iso(0), objects: [{ ...FACTORIES.runs(4), id: 'run_child', kind: 'Delegated', depth: 1, parentRunId: parts[1], rootRunId: parts[1] }] };

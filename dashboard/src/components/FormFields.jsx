@@ -7,7 +7,7 @@ import { tip } from './Tooltip';
 /**
  * Declarative form renderer. field: { name, type, label, tip?, hint?, options?, required?, min?, max?, rows?,
  * placeholder?, showIf?(data), readOnly?, fields? (objectList), span? }.
- * Types: text, textarea, code, number, checkbox, select, password, datetime, stringList, keyValue, objectList,
+ * Types: text, textarea, code, number, checkbox, nullableToggle (null follows `defaultValue`), select, password, datetime, stringList, keyValue, objectList,
  * multiselect, json.
  */
 export default function FormFields({ fields, data, onChange, errors = {}, disabled = false, idPrefix = 'f' }) {
@@ -41,6 +41,24 @@ export function FormField({ field, value, onChange, error, disabled, id }) {
     );
   }
   const wide = ['textarea', 'code', 'stringList', 'keyValue', 'objectList', 'json', 'multiselect'].includes(field.type) || field.span === 'full';
+  if (field.type === 'nullableToggle') {
+    // A boolean that may be left unset (null) to follow a default from elsewhere, such as a cluster setting. The box
+    // shows the effective value; the reset button clears the record's own value again.
+    const own = value !== null && value !== undefined;
+    const effective = own ? !!value : !!field.defaultValue;
+    return (
+      <div className="field field-checkbox">
+        <input id={id} type="checkbox" checked={effective} disabled={disabled} onChange={(e) => onChange(e.target.checked)} data-own={own ? 'true' : 'false'} {...tip(field.tip)} />
+        <label htmlFor={id} {...tip(field.tip)}>{field.label}</label>
+        {own && !disabled && field.resetLabel && (
+          <button type="button" className="button-link" onClick={() => onChange(null)} data-testid={`${id}-reset`} {...tip(field.resetTip)}>
+            {field.resetLabel}
+          </button>
+        )}
+        {field.hint && <div className="field-hint">{field.hint}</div>}
+      </div>
+    );
+  }
   if (field.type === 'checkbox') {
     return (
       <div className={`field field-checkbox ${wide ? 'span-full' : ''}`}>

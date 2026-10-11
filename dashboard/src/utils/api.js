@@ -668,6 +668,19 @@ class ApiClient {
     return this._request('POST', this._t(tenantId, `runs/${enc(id)}/cancel`));
   }
 
+  /**
+   * Cancel a run with a request that may outlive the page (fetch keepalive), used when the Invoke page is left or the
+   * tab is closed. navigator.sendBeacon cannot send the Authorization header the cancel route needs, so this uses
+   * fetch with keepalive. Best effort: it never throws.
+   */
+  cancelRunKeepalive(tenantId, id) {
+    try {
+      return fetch(this._url(this._t(tenantId, `runs/${enc(id)}/cancel`)), { method: 'POST', headers: this._headers(), keepalive: true }).catch(() => null);
+    } catch {
+      return Promise.resolve(null);
+    }
+  }
+
   retryRun(tenantId, id) {
     return this._request('POST', this._t(tenantId, `runs/${enc(id)}/retry`));
   }

@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const fr = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Sortie structurée non valide', RunBlocked: 'Exécution bloquée', EventsDropped: 'Événements abandonnés', HarnessExited: 'Harness arrêté', McpPreflightWarning: 'Avertissement de vérification préalable MCP', McpPreflightPassed: 'Vérification préalable MCP réussie', RepairAttemptStarted: 'Réparation de la sortie lancée', WorkspacePrepared: 'Espace de travail préparé' },
+    eventCodes: { StructuredOutputInvalid: 'Sortie structurée non valide', RunBlocked: 'Exécution bloquée', EventsDropped: 'Événements abandonnés', HarnessExited: 'Harness arrêté', McpPreflightWarning: 'Avertissement de vérification préalable MCP', McpPreflightPassed: 'Vérification préalable MCP réussie', RepairAttemptStarted: 'Réparation de la sortie lancée', WorkspacePrepared: 'Espace de travail préparé', RunGuardTriggered: 'Une garde a arrêté l\'exécution' },
     fieldCodes: { ExpiryInPast: 'Choisissez un moment dans le futur.', ParameterInvalid: 'Cette valeur n\'est pas valide pour ce paramètre.', ParameterNotAllowed: 'Ce déploiement ne permet pas aux appelants de remplacer ce paramètre.', SettingsFileReadOnly: 'Le fichier de paramètres est en lecture seule ; cette modification ne peut donc pas être enregistrée.', OverriddenByEnvironment: 'Une variable d\'environnement définit cette valeur ; elle ne peut donc pas être modifiée ici.', PathRequired: 'Un chemin de paramètre est requis.', UnknownSetting: 'Ce serveur ne connaît pas ce paramètre.', TooLong: 'Cette valeur est trop longue.', NotAllowedValue: 'Choisissez l\'une des valeurs autorisées.', NotABoolean: 'Choisissez vrai ou faux.', NotAnInteger: 'Saisissez un nombre entier.', OutOfRange: 'La valeur est hors de la plage autorisée.' },
     serverText: {
       notApplied: 'Non appliqué, car un autre document n\'a pas passé la validation.',
@@ -27,7 +27,11 @@ const fr = {
       harnessExitedCode: 'Le harness s\'est arrêté avec le code {{code}} : {{status}} ({{outcome}}).',
       mcpPreflight: 'Vérification préalable MCP réussie. Serveurs vérifiés : {{count}}.',
       repairAttempt: 'Tentative {{attempt}} de réparation de la sortie structurée : reprise de la session du harness dans {{path}}.',
-      workspacePrepared: 'Espace de travail préparé dans {{path}}.'
+      workspacePrepared: 'Espace de travail préparé dans {{path}}.',
+      guardRepetitionUnit: 'Garde de répétition : les {{window}} derniers caractères du texte de l\'assistant sont l\'unité de {{size}} caractères « {{unit}} » répétée {{count}} fois.',
+      guardDegenerate: 'Garde de répétition : les {{window}} derniers caractères du texte de l\'assistant ne contiennent ni lettre ni chiffre (seulement des espaces, de la ponctuation ou des symboles) et se terminent par « {{tail}} ».',
+      guardNoProgress: 'L\'exécution n\'a pas progressé pendant {{seconds}} secondes (aucun texte de l\'assistant, raisonnement, appel d\'outil ni résultat d\'outil, et aucun appel d\'outil ouvert) ; sa limite noProgressSeconds est {{limit}}.',
+      guardOutputLimit: 'Le texte de l\'assistant a dépassé la limite maxAssistantChars de l\'exécution, soit {{limit}} caractères.'
     },
     appName: 'Garrison',
     language: { label: 'Langue' },
@@ -240,7 +244,9 @@ const fr = {
       WorkspaceFailed: 'Échec de l\'espace de travail',
       Rejected: 'Rejetée',
       InternalError: 'Erreur interne',
-      NoCapableWorker: 'Aucun nœud worker compatible'
+      NoCapableWorker: 'Aucun nœud worker compatible',
+      RepetitionDetected: 'Répétition détectée',
+      NoProgress: 'Aucune progression'
     },
     runEventType: {
       Lifecycle: 'Cycle de vie',
@@ -784,7 +790,10 @@ const fr = {
         maxConcurrentRuns: 'Nombre maximal d\'exécutions simultanées',
         timeoutSeconds: 'Délai d\'expiration (secondes)',
         maxAttempts: 'Nombre maximal de tentatives',
-        retryOnNodeLoss: 'Remettre en file d\'attente en cas de perte du nœud'
+        retryOnNodeLoss: 'Remettre en file d\'attente en cas de perte du nœud',
+        repetitionGuard: 'Garde de répétition',
+        maxAssistantChars: 'Nombre maximal de caractères de l\'assistant',
+        noProgressSeconds: 'Délai sans progression (secondes)'
       },
       hints: {
         secretsKinds: 'Le profil de harness {{profile}} a besoin d\'un secret de type {{kinds}}. Liez-en un sous n\'importe quel alias.',
@@ -793,9 +802,28 @@ const fr = {
         promptBindings: 'Associez les rôles de prompt (System, Task, DelegatedTask et tout rôle utilisé par le profil de harness) à des modèles. Laissez la version vide pour suivre la plus récente.',
         resourceBindings: 'Les alias deviennent des variables de modèle, par exemple {{secret.anthropic}}.',
         weight: 'Les requêtes sans déploiement explicite sont réparties entre les déploiements actifs selon leur poids.',
-        maxConcurrentRuns: '0 signifie illimité.'
+        maxConcurrentRuns: '0 signifie illimité.',
+        timeoutCap: 'Le paramètre du cluster {{setting}} limite chaque exécution à {{value}} secondes.',
+        zeroUnlimited: '0 signifie illimité.',
+        zeroOff: '0 désactive la garde.',
+        guardDefault: 'Vide utilise la valeur du cluster, {{value}}, de {{setting}}.',
+        guardDefaultUnknown: 'Vide utilise le paramètre du cluster {{setting}}.',
+        guardOwn: 'Défini sur ce déploiement. La valeur du cluster ({{setting}}) est {{value}}.',
+        guardOwnUnknown: 'Défini sur ce déploiement au lieu du paramètre du cluster {{setting}}.',
+        guardFollowing: 'Suit la valeur du cluster, {{value}}, de {{setting}}.'
       },
-      actions: { compilePreview: 'Aperçu de la compilation', test: 'Tester l\'invocation' }
+      actions: { compilePreview: 'Aperçu de la compilation', test: 'Tester l\'invocation', useClusterDefault: 'Utiliser la valeur du cluster' },
+      sections: {
+        guards: 'Gardes d\'exécution'
+      },
+      placeholders: {
+        clusterDefault: 'Valeur du cluster ({{value}})',
+        clusterDefaultUnknown: 'Valeur du cluster'
+      },
+      guardStates: {
+        on: 'activée',
+        off: 'désactivée'
+      }
     },
     nodePools: {
       ...rp('Pools de nœuds', 'Regroupez les nœuds worker par étiquette et réservez-les éventuellement à des locataires.', 'Ajouter un pool de nœuds', 'Créer un pool de nœuds', 'Modifier le pool de nœuds', 'Détails du pool de nœuds', 'Supprimer le pool de nœuds', 'Aucun pool de nœuds pour l\'instant', 'Créez un pool de nœuds pour réserver de la capacité.'),
@@ -984,7 +1012,27 @@ const fr = {
       idleBody: 'Envoyez un message pour lancer une exécution. La transcription s\'affiche ici au fil du flux.',
       noAgentsTitle: 'Aucun agent à invoquer',
       noAgentsBody: 'Créez un agent et un déploiement, ou appliquez le manifeste d\'exemple.',
-      applySample: 'Aller aux manifestes'
+      applySample: 'Aller aux manifestes',
+      stopOnLeave: 'Arrêter l\'exécution quand je pars',
+      cancel: 'Annuler l\'exécution',
+      cancelling: 'Annulation...',
+      timeLimit: 'Durée maximale',
+      timeLimitPlaceholder: 'Valeur du déploiement',
+      timeLimitClear: 'Utiliser la valeur par défaut',
+      timeLimitRange: 'Autorisé : de {{min}} à {{max}}.',
+      timeLimitAny: 'Secondes dont l\'exécution dispose avant d\'expirer.',
+      timeLimitCap: 'Le cluster arrête toute exécution après {{max}}.',
+      timeLimitErrors: {
+        notInteger: 'Saisissez un nombre entier de secondes.',
+        range: 'Saisissez une durée maximale de {{min}} à {{max}}.',
+        aboveCap: 'Le cluster autorise au plus {{max}} par exécution.'
+      },
+      timeUnits: {
+        seconds: '{{value}} s',
+        minutes: '{{value}} min',
+        hours: '{{value}} h',
+        secondsWord: 'secondes'
+      }
     },
     runDetail: {
       viewTrace: 'Voir la trace',
@@ -1332,7 +1380,8 @@ const fr = {
           EventPollMs: 'Intervalle d\'interrogation des événements (ms)',
           NodeHeartbeatTimeoutMs: 'Délai de pulsation des nœuds (ms)',
           LeaseWaitMs: 'Attente de long polling des baux (ms)',
-          LeaseDurationMs: 'Durée du bail d\'exécution (ms)'
+          LeaseDurationMs: 'Durée du bail d\'exécution (ms)',
+          PauseGraceMs: 'Marge après une pause de l\'hôte (ms)'
         },
         Runs: {
           EventRetentionDays: 'Conservation des événements d\'exécution (jours)',
@@ -1341,7 +1390,11 @@ const fr = {
           DefaultTimeoutSeconds: 'Délai d\'exécution par défaut (secondes)'
         },
         Runtime: {
-          FailBlockedAfterSeconds: 'Faire échouer les exécutions bloquées après (secondes)'
+          FailBlockedAfterSeconds: 'Faire échouer les exécutions bloquées après (secondes)',
+          MaxRunSeconds: 'Durée maximale d\'une exécution (secondes)',
+          RepetitionGuard: 'Garde de répétition par défaut',
+          MaxAssistantChars: 'Nombre maximal de caractères de l\'assistant par défaut',
+          NoProgressSeconds: 'Délai sans progression par défaut (secondes)'
         },
         Audit: {
           RetentionDays: 'Conservation de l\'audit (jours)'
@@ -1465,6 +1518,25 @@ const fr = {
       tenant: 'Locataire',
       expires: 'Expiration de la session',
       features: 'Indicateurs de fonctionnalités'
+    },
+    runGuard: {
+      titles: {
+        RepetitionDetected: 'Arrêtée : le modèle se répétait',
+        NoProgress: 'Arrêtée : l\'exécution ne progressait plus',
+        OutputLimitExceeded: 'Arrêtée : la réponse a atteint sa taille maximale'
+      },
+      bodies: {
+        RepetitionDetected: 'La garde de répétition a vu le même texte court écrit encore et encore (ou seulement des espaces et de la ponctuation) ; Garrison a donc arrêté l\'exécution au lieu de la laisser tourner jusqu\'à son échéance.',
+        NoProgress: 'Aucun texte, raisonnement ni activité d\'outil n\'est arrivé pendant plus longtemps que le délai sans progression ; Garrison a donc arrêté l\'exécution.',
+        OutputLimitExceeded: 'La réponse a dépassé le nombre maximal de caractères de l\'assistant autorisé par exécution ; Garrison a donc arrêté l\'exécution.'
+      },
+      detected: 'Ce qui a été détecté : {{reason}}',
+      partialKept: 'La sortie écrite avant l\'arrêt ({{chars}} caractères) est conservée comme résultat de l\'exécution.',
+      noPartial: 'L\'exécution n\'a rien écrit avant d\'être arrêtée.',
+      tune: 'Pour changer quand cela se produit, modifiez le déploiement {{deployment}} : son étape Placement et limites contient Garde de répétition, Nombre maximal de caractères de l\'assistant et Délai sans progression. Laissés vides, ils suivent les valeurs du cluster dans Paramètres (Moteur d\'exécution).',
+      tuneAny: 'Pour changer quand cela se produit, modifiez le déploiement : son étape Placement et limites contient Garde de répétition, Nombre maximal de caractères de l\'assistant et Délai sans progression. Laissés vides, ils suivent les valeurs du cluster dans Paramètres (Moteur d\'exécution).',
+      openDeployments: 'Ouvrir les déploiements',
+      openSettings: 'Ouvrir les paramètres'
     }
   },
   wizard: {

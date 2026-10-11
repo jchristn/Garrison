@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const it = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Output strutturato non valido', RunBlocked: 'Esecuzione bloccata', EventsDropped: 'Eventi scartati', HarnessExited: 'Harness terminato', McpPreflightWarning: 'Avviso della verifica preliminare MCP', McpPreflightPassed: 'Verifica preliminare MCP superata', RepairAttemptStarted: 'Riparazione dell\'output avviata', WorkspacePrepared: 'Area di lavoro preparata' },
+    eventCodes: { StructuredOutputInvalid: 'Output strutturato non valido', RunBlocked: 'Esecuzione bloccata', EventsDropped: 'Eventi scartati', HarnessExited: 'Harness terminato', McpPreflightWarning: 'Avviso della verifica preliminare MCP', McpPreflightPassed: 'Verifica preliminare MCP superata', RepairAttemptStarted: 'Riparazione dell\'output avviata', WorkspacePrepared: 'Area di lavoro preparata', RunGuardTriggered: 'Una protezione ha fermato l\'esecuzione' },
     fieldCodes: { ExpiryInPast: 'Scegli un momento nel futuro.', ParameterInvalid: 'Questo valore non è valido per questo parametro.', ParameterNotAllowed: 'Questa distribuzione non consente ai chiamanti di sovrascrivere questo parametro.', SettingsFileReadOnly: 'Il file delle impostazioni è di sola lettura, quindi questa modifica non si può salvare.', OverriddenByEnvironment: 'Una variabile d\'ambiente imposta questo valore, quindi qui non si può cambiare.', PathRequired: 'Serve il percorso dell\'impostazione.', UnknownSetting: 'Questo server non ha questa impostazione.', TooLong: 'Questo valore è troppo lungo.', NotAllowedValue: 'Scegli uno dei valori consentiti.', NotABoolean: 'Scegli vero o falso.', NotAnInteger: 'Inserisci un numero intero.', OutOfRange: 'Il valore è fuori dall\'intervallo consentito.' },
     serverText: {
       notApplied: 'Non applicato perché un altro documento non ha superato la convalida.',
@@ -27,7 +27,11 @@ const it = {
       harnessExitedCode: 'L\'harness è terminato con codice {{code}}: {{status}} ({{outcome}}).',
       mcpPreflight: 'Verifica preliminare MCP superata. Server verificati: {{count}}.',
       repairAttempt: 'Tentativo {{attempt}} di riparazione dell\'output strutturato: ripresa della sessione dell\'harness in {{path}}.',
-      workspacePrepared: 'Area di lavoro preparata in {{path}}.'
+      workspacePrepared: 'Area di lavoro preparata in {{path}}.',
+      guardRepetitionUnit: 'Protezione dalle ripetizioni: gli ultimi {{window}} caratteri del testo dell\'assistente sono l\'unità di {{size}} caratteri "{{unit}}" ripetuta {{count}} volte.',
+      guardDegenerate: 'Protezione dalle ripetizioni: gli ultimi {{window}} caratteri del testo dell\'assistente non contengono lettere né cifre (solo spazi, punteggiatura o simboli) e terminano con "{{tail}}".',
+      guardNoProgress: 'L\'esecuzione non è avanzata per {{seconds}} secondi (nessun testo dell\'assistente, ragionamento, chiamata a strumento o risultato di strumento, e nessuna chiamata a strumento aperta); il suo limite noProgressSeconds è {{limit}}.',
+      guardOutputLimit: 'Il testo dell\'assistente ha superato il limite maxAssistantChars dell\'esecuzione, pari a {{limit}} caratteri.'
     },
     appName: 'Garrison',
     language: { label: 'Lingua' },
@@ -240,7 +244,9 @@ const it = {
       WorkspaceFailed: 'Errore dell\'area di lavoro',
       Rejected: 'Rifiutata',
       InternalError: 'Errore interno',
-      NoCapableWorker: 'Nessun nodo worker compatibile'
+      NoCapableWorker: 'Nessun nodo worker compatibile',
+      RepetitionDetected: 'Ripetizione rilevata',
+      NoProgress: 'Nessun avanzamento'
     },
     runEventType: {
       Lifecycle: 'Ciclo di vita',
@@ -784,7 +790,10 @@ const it = {
         maxConcurrentRuns: 'Numero massimo di esecuzioni simultanee',
         timeoutSeconds: 'Timeout (secondi)',
         maxAttempts: 'Numero massimo di tentativi',
-        retryOnNodeLoss: 'Rimetti in coda se il nodo viene perso'
+        retryOnNodeLoss: 'Rimetti in coda se il nodo viene perso',
+        repetitionGuard: 'Protezione dalle ripetizioni',
+        maxAssistantChars: 'Massimo di caratteri dell\'assistente',
+        noProgressSeconds: 'Limite senza avanzamento (secondi)'
       },
       hints: {
         secretsKinds: 'Il profilo harness {{profile}} richiede un segreto qualsiasi di tipo {{kinds}}. Collegane uno con un alias a scelta.',
@@ -793,9 +802,28 @@ const it = {
         promptBindings: 'Associa i ruoli dei prompt (System, Task, DelegatedTask e qualsiasi ruolo usato dal profilo harness) ai modelli. Lascia vuota la versione per seguire la più recente.',
         resourceBindings: 'Gli alias diventano variabili di modello, ad esempio {{secret.anthropic}}.',
         weight: 'Le richieste senza una distribuzione esplicita vengono ripartite tra le distribuzioni attive in base al peso.',
-        maxConcurrentRuns: '0 significa illimitato.'
+        maxConcurrentRuns: '0 significa illimitato.',
+        timeoutCap: 'L\'impostazione del cluster {{setting}} limita ogni esecuzione a {{value}} secondi.',
+        zeroUnlimited: '0 significa illimitato.',
+        zeroOff: '0 disattiva la protezione.',
+        guardDefault: 'Vuoto usa il valore del cluster, {{value}}, da {{setting}}.',
+        guardDefaultUnknown: 'Vuoto usa l\'impostazione del cluster {{setting}}.',
+        guardOwn: 'Impostato su questa distribuzione. Il valore del cluster ({{setting}}) è {{value}}.',
+        guardOwnUnknown: 'Impostato su questa distribuzione al posto dell\'impostazione del cluster {{setting}}.',
+        guardFollowing: 'Segue il valore del cluster, {{value}}, da {{setting}}.'
       },
-      actions: { compilePreview: 'Anteprima di compilazione', test: 'Invocazione di prova' }
+      actions: { compilePreview: 'Anteprima di compilazione', test: 'Invocazione di prova', useClusterDefault: 'Usa il valore del cluster' },
+      sections: {
+        guards: 'Protezioni dell\'esecuzione'
+      },
+      placeholders: {
+        clusterDefault: 'Valore del cluster ({{value}})',
+        clusterDefaultUnknown: 'Valore del cluster'
+      },
+      guardStates: {
+        on: 'attiva',
+        off: 'disattiva'
+      }
     },
     nodePools: {
       ...rp('Pool di nodi', 'Raggruppa i nodi worker per etichetta e, facoltativamente, dedicali a specifici tenant.', 'Aggiungi pool di nodi', 'Crea pool di nodi', 'Modifica pool di nodi', 'Dettagli del pool di nodi', 'Elimina pool di nodi', 'Ancora nessun pool di nodi', 'Crea un pool di nodi per dedicare capacità.'),
@@ -984,7 +1012,27 @@ const it = {
       idleBody: 'Invia un messaggio per avviare un\'esecuzione. La trascrizione compare qui man mano che arriva.',
       noAgentsTitle: 'Nessun agente da invocare',
       noAgentsBody: 'Crea un agente e una distribuzione, oppure applica il manifest di esempio.',
-      applySample: 'Vai ai manifest'
+      applySample: 'Vai ai manifest',
+      stopOnLeave: 'Ferma l\'esecuzione quando esco',
+      cancel: 'Annulla esecuzione',
+      cancelling: 'Annullamento...',
+      timeLimit: 'Limite di tempo',
+      timeLimitPlaceholder: 'Valore della distribuzione',
+      timeLimitClear: 'Usa il valore predefinito',
+      timeLimitRange: 'Consentito: da {{min}} a {{max}}.',
+      timeLimitAny: 'Secondi che l\'esecuzione può durare prima di andare in timeout.',
+      timeLimitCap: 'Il cluster ferma ogni esecuzione dopo {{max}}.',
+      timeLimitErrors: {
+        notInteger: 'Inserisci un numero intero di secondi.',
+        range: 'Inserisci un limite di tempo da {{min}} a {{max}}.',
+        aboveCap: 'Il cluster consente al massimo {{max}} per esecuzione.'
+      },
+      timeUnits: {
+        seconds: '{{value}} s',
+        minutes: '{{value}} min',
+        hours: '{{value}} h',
+        secondsWord: 'secondi'
+      }
     },
     runDetail: {
       viewTrace: 'Visualizza traccia',
@@ -1332,7 +1380,8 @@ const it = {
           EventPollMs: 'Intervallo di polling degli eventi (ms)',
           NodeHeartbeatTimeoutMs: 'Timeout dell\'heartbeat dei nodi (ms)',
           LeaseWaitMs: 'Attesa di long polling dei lease (ms)',
-          LeaseDurationMs: 'Durata del lease delle esecuzioni (ms)'
+          LeaseDurationMs: 'Durata del lease delle esecuzioni (ms)',
+          PauseGraceMs: 'Margine dopo una pausa dell\'host (ms)'
         },
         Runs: {
           EventRetentionDays: 'Conservazione degli eventi di esecuzione (giorni)',
@@ -1341,7 +1390,11 @@ const it = {
           DefaultTimeoutSeconds: 'Timeout predefinito delle esecuzioni (secondi)'
         },
         Runtime: {
-          FailBlockedAfterSeconds: 'Fai fallire le esecuzioni bloccate dopo (secondi)'
+          FailBlockedAfterSeconds: 'Fai fallire le esecuzioni bloccate dopo (secondi)',
+          MaxRunSeconds: 'Durata massima di un\'esecuzione (secondi)',
+          RepetitionGuard: 'Protezione dalle ripetizioni predefinita',
+          MaxAssistantChars: 'Massimo di caratteri dell\'assistente predefinito',
+          NoProgressSeconds: 'Limite senza avanzamento predefinito (secondi)'
         },
         Audit: {
           RetentionDays: 'Conservazione dell\'audit (giorni)'
@@ -1465,6 +1518,25 @@ const it = {
       tenant: 'Tenant',
       expires: 'Scadenza della sessione',
       features: 'Flag delle funzionalità'
+    },
+    runGuard: {
+      titles: {
+        RepetitionDetected: 'Fermata: il modello si stava ripetendo',
+        NoProgress: 'Fermata: l\'esecuzione aveva smesso di avanzare',
+        OutputLimitExceeded: 'Fermata: la risposta ha raggiunto il limite di dimensione'
+      },
+      bodies: {
+        RepetitionDetected: 'La protezione dalle ripetizioni ha visto lo stesso testo breve scritto più e più volte (o solo spazi e punteggiatura), quindi Garrison ha fermato l\'esecuzione invece di lasciarla proseguire fino alla scadenza.',
+        NoProgress: 'Per più tempo del limite senza avanzamento non sono arrivati testo, ragionamento né attività degli strumenti, quindi Garrison ha fermato l\'esecuzione.',
+        OutputLimitExceeded: 'La risposta ha superato il numero massimo di caratteri dell\'assistente consentito per esecuzione, quindi Garrison ha fermato l\'esecuzione.'
+      },
+      detected: 'Cosa è stato rilevato: {{reason}}',
+      partialKept: 'L\'output scritto prima dell\'arresto ({{chars}} caratteri) viene conservato come risultato dell\'esecuzione.',
+      noPartial: 'L\'esecuzione non ha scritto alcun output prima dell\'arresto.',
+      tune: 'Per cambiare quando succede, modifica la distribuzione {{deployment}}: il suo passaggio Posizionamento e limiti contiene Protezione dalle ripetizioni, Massimo di caratteri dell\'assistente e Limite senza avanzamento. Se li lasci vuoti, seguono i valori del cluster in Impostazioni (Motore di esecuzione).',
+      tuneAny: 'Per cambiare quando succede, modifica la distribuzione: il suo passaggio Posizionamento e limiti contiene Protezione dalle ripetizioni, Massimo di caratteri dell\'assistente e Limite senza avanzamento. Se li lasci vuoti, seguono i valori del cluster in Impostazioni (Motore di esecuzione).',
+      openDeployments: 'Apri le distribuzioni',
+      openSettings: 'Apri le impostazioni'
     }
   },
   wizard: {

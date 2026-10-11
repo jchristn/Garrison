@@ -322,7 +322,7 @@ const tips = {
       NotCredentialed: 'L\'harness non aveva credenziali utilizzabili. Associa un segreto alla distribuzione.',
       McpPreflightFailed: 'Un server MCP o uno strumento richiesto non era raggiungibile durante il controllo del worker prima dell\'avvio.',
       NodeLost: 'Il nodo worker ha smesso di inviare heartbeat mentre deteneva l\'esecuzione.',
-      OutputLimitExceeded: 'L\'harness ha scritto più output di quanto consentito dal profilo.',
+      OutputLimitExceeded: 'L\'esecuzione ha prodotto troppo output: la sua risposta ha superato il massimo di caratteri dell\'assistente della distribuzione (una protezione), oppure l\'harness ha scritto più di quanto consente il profilo harness. L\'output ottenuto viene conservato.',
       SchemaValidationFailed: 'Il risultato non corrispondeva al JSON Schema di output dell\'agente: dopo un tentativo di correzione, o subito se l\'harness non può riprendere la sessione.',
       TimedOut: 'L\'esecuzione ha raggiunto la scadenza.',
       Cancelled: 'L\'esecuzione è stata annullata su richiesta.',
@@ -331,7 +331,9 @@ const tips = {
       WorkspaceFailed: 'Non è stato possibile preparare l\'area di lavoro, per esempio perché un clone Git non è riuscito.',
       Rejected: 'La richiesta è stata rifiutata prima che un\'esecuzione potesse partire.',
       InternalError: 'Garrison ha riscontrato un errore interno. I log del server contengono i dettagli.',
-      NoCapableWorker: 'L\'esecuzione è rimasta in coda più a lungo di quanto consente l\'impostazione del cluster Runtime.FailBlockedAfterSeconds e nessun nodo worker pronto poteva eseguirla, quindi è fallita.'
+      NoCapableWorker: 'L\'esecuzione è rimasta in coda più a lungo di quanto consente l\'impostazione del cluster Runtime.FailBlockedAfterSeconds e nessun nodo worker pronto poteva eseguirla, quindi è fallita.',
+      RepetitionDetected: 'Una protezione ha fermato l\'esecuzione perché la sua risposta è degenerata nello stesso testo breve ripetuto più e più volte, o solo in spazi e punteggiatura. L\'output ottenuto viene conservato. Regolala con la Protezione dalle ripetizioni della distribuzione.',
+      NoProgress: 'Una protezione ha fermato l\'esecuzione perché per più tempo del limite senza avanzamento della distribuzione non sono arrivati testo, ragionamento né attività degli strumenti. L\'output ottenuto viene conservato.'
     },
     controlNodeStatus: {
       Starting: 'In avvio: la replica si sta inizializzando e non gestisce ancora traffico.',
@@ -724,7 +726,7 @@ const tips = {
         value: 'Valore dell\'etichetta che il nodo deve avere.'
       },
       maxConcurrentRuns: 'Numero massimo di esecuzioni contemporanee di questa distribuzione su tutti i nodi. 0 significa nessun limite.',
-      timeoutSeconds: 'Scadenza dell\'esecuzione in secondi. Se vuoto usa il valore predefinito del profilo harness.',
+      timeoutSeconds: 'Scadenza dell\'esecuzione in secondi. Vuoto usa il valore del profilo harness. L\'impostazione del cluster Runtime.MaxRunSeconds limita ogni esecuzione, compresi i limiti per esecuzione.',
       maxAttempts: 'Quante volte in totale si può tentare un\'esecuzione. Tra 1 e 10.',
       retryOnNodeLoss: 'Rimetti l\'esecuzione in coda quando il suo nodo scompare, invece di farla fallire.',
       steps: {
@@ -738,6 +740,13 @@ const tips = {
       actions: {
         compilePreview: 'Compila questa distribuzione con un messaggio di esempio e vedi esattamente riga di comando, file e ambiente che riceverebbe un\'esecuzione.',
         test: 'Apri Invoca con questa distribuzione preselezionata per inviarle un messaggio reale.'
+      },
+      repetitionGuard: 'Ferma un\'esecuzione quando la sua risposta degenera nello stesso testo breve ripetuto più e più volte, o solo in spazi e punteggiatura (esito Ripetizione rilevata). Se non impostato segue il valore del cluster; seleziona o deseleziona la casella per impostarlo su questa distribuzione.',
+      maxAssistantChars: 'Massimo di caratteri di testo dell\'assistente che un\'esecuzione può scrivere prima che Garrison la fermi (esito Limite di output superato). 0 significa illimitato; vuoto usa il valore del cluster.',
+      noProgressSeconds: 'Ferma un\'esecuzione quando per questi secondi non arrivano testo, ragionamento, chiamate a strumenti né risultati di strumenti mentre nessuna chiamata a strumento è in corso (esito Nessun avanzamento). 0 lo disattiva; vuoto usa il valore del cluster.',
+      useClusterDefault: 'Cancella l\'impostazione propria di questa distribuzione così la protezione dalle ripetizioni torna a seguire il valore del cluster.',
+      sections: {
+        guards: 'Le protezioni dell\'esecuzione fermano presto le esecuzioni fuori controllo, su ogni harness. Ognuna lasciata vuota segue il suo valore del cluster in Impostazioni (Motore di esecuzione).'
       }
     },
     nodePools: {
@@ -916,7 +925,10 @@ const tips = {
         children: 'Esecuzioni avviate da questa esecuzione chiamando altri agenti.'
       },
       eventFilter: 'Mostra solo un tipo di evento, come chiamate a strumenti o errori.',
-      openChild: 'Apri questa esecuzione figlia, avviata quando questa esecuzione ha chiamato un altro agente.'
+      openChild: 'Apri questa esecuzione figlia, avviata quando questa esecuzione ha chiamato un altro agente.',
+      eventCodes: {
+        RunGuardTriggered: 'Una protezione ha fermato questa esecuzione. Il messaggio dice quale protezione è scattata e cosa ha visto; l\'esecuzione termina come Non riuscita con l\'esito di quella protezione e conserva l\'output parziale.'
+      }
     },
     agentDetail: {
       name: 'Il nome che i chiamanti usano per invocare questo agente.',
@@ -974,7 +986,15 @@ const tips = {
       parameter: 'Valore per esecuzione di {{name}}. La distribuzione consente ai chiamanti di sovrascriverlo; lascia vuoto per il valore predefinito.',
       message: 'Cosa vuoi che faccia l\'agente. Viene inviato come input dell\'esecuzione e racchiuso dal modello di prompt Attività.',
       send: 'Avvia un\'esecuzione con questo messaggio e mostra qui la sua trascrizione in streaming.',
-      openRun: 'Apri la pagina completa dell\'esecuzione con risultato, telemetria e stderr.'
+      openRun: 'Apri la pagina completa dell\'esecuzione con risultato, telemetria e stderr.',
+      stopOnLeave: 'Se attivo, Garrison annulla l\'esecuzione in corso quando lasci questa pagina, chiudi la scheda o invii un nuovo messaggio, così nessuno paga per un output che nessuno legge. Disattivalo per lasciar proseguire le esecuzioni; restano nella pagina Esecuzioni. Viene ricordato in questo browser.',
+      cancel: 'Ferma subito questa esecuzione. Il nodo worker termina il processo dell\'harness in pochi secondi e l\'output ottenuto viene conservato.',
+      cancelling: 'Annullamento richiesto. Il nodo worker sta fermando l\'harness; passa allo stato finale quando l\'esecuzione segnala Annullata.',
+      sendReplaces: 'Annulla l\'esecuzione in corso, poi avviane una nuova con questo messaggio. Disattiva "Ferma l\'esecuzione quando esco" per lasciare proseguire l\'esecuzione attuale.',
+      sendKeeps: 'Avvia una nuova esecuzione con questo messaggio. L\'esecuzione in corso prosegue perché "Ferma l\'esecuzione quando esco" è disattivato; la trovi nella pagina Esecuzioni.',
+      timeLimit: 'Scadenza facoltativa di questa esecuzione, in secondi, che questa distribuzione consente di impostare. Lascia vuoto per il valore della distribuzione. L\'esecuzione va in timeout quando supera il limite.',
+      timePreset: 'Imposta il limite di tempo di questa esecuzione a {{value}}.',
+      timePresetClear: 'Togli il limite di tempo così l\'esecuzione usa il valore della distribuzione.'
     },
     manifests: {
       planned: 'Cosa farebbe l\'applicazione di questo documento: creare il record, aggiornarlo o lasciarlo invariato. Una simulazione convalida senza cambiare nulla.',
@@ -1105,7 +1125,7 @@ const tips = {
       testDatabase: 'Prova a connetterti con le impostazioni del database qui sopra prima di salvarle.',
       groups: {
         Observability: 'Dove si trovano Grafana, Prometheus, Loki e Tempo. Gli URL del browser alimentano le schede della Home e i collegamenti a Grafana; il server verifica la raggiungibilità con gli URL interni. Vuoto significa non configurato.',
-        Runtime: 'Come il piano di controllo gestisce le esecuzioni in coda, compreso quanto un\'esecuzione può attendere un worker compatibile prima di fallire.',
+        Runtime: 'Come il piano di controllo limita le esecuzioni: la durata massima, i valori delle protezioni seguiti dalle distribuzioni e quanto un\'esecuzione in coda può attendere un nodo worker adatto.',
         Rest: 'Come resta in ascolto la REST API: host, porta, TLS e indirizzo pubblico.',
         Mcp: 'Come resta in ascolto il server MCP e quanto possono attendere le chiamate agli strumenti.',
         Database: 'Quale database usa Garrison e come connettersi.',
@@ -1119,7 +1139,22 @@ const tips = {
         Scheduling: 'Durata dei lease e timeout degli heartbeat per i nodi worker.',
         Runs: 'Valori predefiniti delle esecuzioni e per quanto tempo vengono conservati esecuzioni ed eventi.',
         Audit: 'Per quanto tempo vengono conservati i record di audit.'
+      },
+      fields: {
+        Runtime: {
+          MaxRunSeconds: 'La durata massima di qualsiasi esecuzione, in secondi. Timeout delle distribuzioni, limiti per esecuzione e valori dei profili superiori vengono ridotti a questo valore.',
+          RepetitionGuard: 'Se le distribuzioni che lasciano vuota la Protezione dalle ripetizioni fermano le esecuzioni la cui risposta degenera in ripetizioni (esito Ripetizione rilevata).',
+          MaxAssistantChars: 'Caratteri di testo dell\'assistente dopo i quali un\'esecuzione si ferma (esito Limite di output superato), per le distribuzioni che lasciano vuoto il limite. 0 è illimitato.',
+          NoProgressSeconds: 'Secondi senza testo, ragionamento o attività degli strumenti dopo i quali un\'esecuzione si ferma (esito Nessun avanzamento), per le distribuzioni che lasciano vuoto il limite. 0 lo disattiva.'
+        },
+        Scheduling: {
+          PauseGraceMs: 'Dopo una sospensione dell\'host o una pausa della VM, il leader attende una finestra di heartbeat più questi millisecondi prima di segnare i nodi come Perso o di far fallire le loro esecuzioni. Predefinito 5000.'
+        }
       }
+    },
+    runGuard: {
+      openDeployments: 'Vai a Distribuzioni per cambiare le protezioni di una distribuzione: Protezione dalle ripetizioni, Massimo di caratteri dell\'assistente e Limite senza avanzamento.',
+      openSettings: 'Vai a Impostazioni per cambiare i valori del cluster (Motore di esecuzione) seguiti dalle distribuzioni senza protezioni proprie.'
     }
   },
   analytics: {
