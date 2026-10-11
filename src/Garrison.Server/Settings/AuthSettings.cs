@@ -70,6 +70,23 @@ namespace Garrison.Server.Settings
             }
         }
 
+        /// <summary>
+        /// PBKDF2-HMAC-SHA256 iterations for new password hashes. Minimum 10000, maximum 10000000, default 600000 (OWASP
+        /// guidance for PBKDF2-HMAC-SHA256). Existing hashes keep their own iteration count and are rehashed on the next
+        /// successful sign-in when they use fewer. Lower values are for tests only.
+        /// </summary>
+        public int PasswordHashIterations
+        {
+            get
+            {
+                return _PasswordHashIterations;
+            }
+            set
+            {
+                _PasswordHashIterations = Math.Clamp(value, 10000, 10000000);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -77,6 +94,7 @@ namespace Garrison.Server.Settings
         private int _TokenLifetimeMinutes = 480;
         private int _SignedRequestSkewSeconds = 300;
         private int _RateLimitPerMinute = 60;
+        private int _PasswordHashIterations = 600000;
 
         #endregion
     }

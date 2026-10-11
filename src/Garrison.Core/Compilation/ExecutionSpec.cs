@@ -3,6 +3,7 @@ namespace Garrison.Core.Compilation
     using System;
     using System.Collections.Generic;
     using Garrison.Core.Enums;
+    using Garrison.Core.Models;
 
     /// <summary>
     /// Fully resolved instructions for one harness invocation. Compiled by the control plane and sent to the worker with the lease; the worker never renders templates or reads the database.
@@ -171,5 +172,17 @@ namespace Garrison.Core.Compilation
         /// reuses the directories of the original execution and skips workspace preparation. Default 0.
         /// </summary>
         public int RepairAttempt { get; set; } = 0;
+
+        /// <summary>
+        /// Executor the run needs (from the run, resolved at creation). The worker runs Process specs as a subprocess and
+        /// KubernetesJob specs in a Job per run (plan D-033). Default Process.
+        /// </summary>
+        public RunExecutorEnum Executor { get; set; } = RunExecutorEnum.Process;
+
+        /// <summary>
+        /// Run pod resource requests and limits from the deployment, for KubernetesJob runs; null when the deployment
+        /// sets none or the run is a Process run. Unset values fall back to the worker's defaults.
+        /// </summary>
+        public RunPodResources? PodResources { get; set; } = null;
     }
 }

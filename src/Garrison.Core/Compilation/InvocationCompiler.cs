@@ -11,6 +11,7 @@ namespace Garrison.Core.Compilation
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
     using Garrison.Core.Templates;
@@ -142,6 +143,8 @@ namespace Garrison.Core.Compilation
             run.DeploymentVersion = inputs.Deployment.ConfigVersion;
             run.InputText = input ?? String.Empty;
             run.CallerName = "preview";
+            NodePool? pool = String.IsNullOrEmpty(inputs.Deployment.NodePoolId) ? null : await _Database.NodePools.ReadAsync(inputs.Deployment.NodePoolId, token).ConfigureAwait(false);
+            run.Executor = RunExecutors.Resolve(inputs.Deployment, pool);
             if (parameters != null)
             {
                 foreach (KeyValuePair<string, string> entry in parameters)
@@ -391,7 +394,15 @@ namespace Garrison.Core.Compilation
             spec.IsolateHome = profile.IsolateHome;
             spec.TraceParent = Activity.Current?.Id;
             spec.RepairAttempt = repair?.Attempt ?? 0;
-            spec.RetainForRepair = repair == null && profile.SupportsResume && !String.IsNullOrWhiteSpace(agent.OutputSchemaJson);
+            spec.Executor = run.Executor;
+            spec.PodResources = run.Executor == RunExecutorEnum.KubernetesJob && !deployment.PodResources.IsEmpty ? deployment.PodResources.Clone() : null;
+            if (spec.Workspace.Kind == WorkspaceKindEnum.PersistentVolume && run.Executor != RunExecutorEnum.KubernetesJob)
+            {
+                throw new CompilationException("ExecutorMismatch", "Workspace template " + (inputs.Workspace?.Name ?? String.Empty) + " is a PersistentVolume workspace, which needs the KubernetesJob executor; deployment " + deployment.Name + " runs with " + run.Executor + ".");
+            }
+            // A KubernetesJob run's home and workspace live on the run pod's emptyDir volumes and are gone when the pod
+            // ends, so a structured output repair could not resume the session there; such runs are not retained.
+            spec.RetainForRepair = repair == null && run.Executor == RunExecutorEnum.Process && profile.SupportsResume && !String.IsNullOrWhiteSpace(agent.OutputSchemaJson);
 
             foreach (McpServerEntry server in servers)
             {
@@ -969,6 +980,7 @@ namespace Garrison.Core.Compilation
             workspace.GitRef = template.GitRef;
             workspace.GitDepth = template.GitDepth;
             workspace.Retention = template.Retention;
+            if (template.Kind == WorkspaceKindEnum.PersistentVolume) workspace.PersistentVolumeClaim = template.PersistentVolumeClaim;
             foreach (WorkspaceFile file in template.Files)
             {
                 ValidateRelativePath(file.Path);

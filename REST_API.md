@@ -8,6 +8,8 @@ The server listens on port 8700 by default. MCP is on its own port (8701, see `M
 
 JSON bodies use camelCase property names. Enumerations travel as their string names (`"status": "Succeeded"`), timestamps are ISO 8601 in UTC, and properties whose value is null are omitted from responses. Identifiers are prefixed, K-sortable strings such as `agt_mv1pdwem_PWOwUcelVy0GXphYF11`; the prefix tells you the type (`ten_` tenant, `usr_` user, `crd_` credential, `ses_` session, `rol_` role, `prm_` permission, `agt_` agent, `dep_` deployment, `hrn_` harness profile, `tpl_` prompt template, `mcp_` MCP server, `sec_` secret, `wsp_` workspace template, `ast_` artifact store, `run_` run, `rev_` run event, `nod_` node, `npl_` node pool, `req_` request history entry, `aud_` audit record).
 
+Deleting one resource (`DELETE` on a path that ends in an identifier) answers 204 No Content with an empty body, for identity, runtime, and configuration resources alike, and 404 when the resource does not exist. Deletes that take a filter instead of an identifier (runs, audit records, request history) answer 200 with a `DeleteCountResponse`, because the count is the result. `DELETE /v1.0/token` is the one other exception: it answers 200 with `{"valid": false}` (see below).
+
 Tenant-owned resources live under `/v1.0/api/tenants/{tenantId}/...`. The tenant in the path must be the tenant your credentials belong to; a mismatched tenant answers 404 rather than 403 so that the existence of another tenant's resources does not leak. System administrators can address any tenant. Platform resources (tenants, nodes, node pools, settings, request history) sit directly under `/v1.0/api`.
 
 ### Enumeration
@@ -103,6 +105,8 @@ Every route except health, token issuance, and A2A agent cards requires credenti
 ### Session tokens
 
 `POST /v1.0/token` exchanges a user's email and password (with `tenantId`, which defaults to the Default tenant) or a credential's access and secret keys for an opaque token. The same values can be sent as headers instead of a body: `x-tenant-id`, `x-email`, `x-password`, `x-access-key`, `x-secret-key`.
+
+Passwords are stored as salted PBKDF2-HMAC-SHA256 hashes (`Auth.PasswordHashIterations`, 600,000 by default). A password stored by an earlier build as unsalted SHA-256 still works and is rehashed on its next successful sign-in, with no change for the client.
 
 ```bash
 curl -s -X POST http://127.0.0.1:8700/v1.0/token \
@@ -361,8 +365,7 @@ Delete a tenant and everything it owns.
 | | |
 |---|---|
 | Permission | Delete on `Tenant` |
-| Response | `DeleteCountResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default" \
@@ -1317,8 +1320,7 @@ Delete a harness profile.
 | | |
 |---|---|
 | Permission | Delete on `HarnessProfile` |
-| Response | `DeleteResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/harness-profiles/{id}" \
@@ -1436,8 +1438,7 @@ Delete a prompt template and its versions.
 | | |
 |---|---|
 | Permission | Delete on `PromptTemplate` |
-| Response | `DeleteResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/{id}" \
@@ -1615,8 +1616,7 @@ Delete an MCP server.
 | | |
 |---|---|
 | Permission | Delete on `McpServer` |
-| Response | `DeleteResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers/{id}" \
@@ -1753,8 +1753,7 @@ Delete a secret.
 | | |
 |---|---|
 | Permission | Delete on `Secret` |
-| Response | `DeleteResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/secrets/{id}" \
@@ -1836,8 +1835,7 @@ Delete a workspace template.
 | | |
 |---|---|
 | Permission | Delete on `Workspace` |
-| Response | `DeleteResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/workspace-templates/{id}" \
@@ -1919,8 +1917,7 @@ Delete an artifact store.
 | | |
 |---|---|
 | Permission | Delete on `ArtifactStore` |
-| Response | `DeleteResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-stores/{id}" \
@@ -2020,8 +2017,7 @@ Delete an agent and its deployments, addressed by identifier or name (identifier
 | | |
 |---|---|
 | Permission | Delete on `Agent` |
-| Response | `DeleteResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/{id}" \
@@ -2118,8 +2114,7 @@ Delete a deployment.
 | | |
 |---|---|
 | Permission | Delete on `Deployment` |
-| Response | `DeleteResponse` |
-| Success | 200 |
+| Success | 204 (no body) |
 
 ```bash
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{id}" \
@@ -3309,9 +3304,9 @@ Named agent capability exposed by Garrison.
 | `kind` | `AgentKindEnum` | Hosted or remote. |
 | `agentVersion` | `string?` | Agent version string advertised in the A2A card. |
 | `exposeA2A` | `bool` | Whether the agent is exposed over A2A. |
-| `exposeMcpTool` | `bool` | Whether the agent is exposed as its own MCP tool. |
-| `mcpToolName` | `string?` | MCP tool name override. |
-| `toolDescriptionTemplateId` | `string?` | Template for the MCP tool description. |
+| `exposeMcpTool` | `bool` | Whether the agent is offered as its own MCP tool to callers in its tenant (see `MCP_API.md`). |
+| `mcpToolName` | `string?` | MCP tool name; null uses the agent name. 1 to 64 letters, digits, underscores, dots, and hyphens, not starting with `garrison_`. |
+| `toolDescriptionTemplateId` | `string?` | Template for the MCP tool description; null uses the tenant's `mcp-tool-description` template or `builtin/mcp-tool-description`. |
 | `skillDescriptionTemplateId` | `string?` | Template for the A2A skill description. |
 | `inputMode` | `AgentInputModeEnum` | Input mode. |
 | `inputSchemaJson` | `string?` | JSON Schema for structured input (unmanaged JSON). |
@@ -3529,6 +3524,8 @@ Fully resolved instructions for one harness invocation. Compiled by the control 
 | `traceParent` | `string?` | W3C traceparent for span correlation. |
 | `retainForRepair` | `bool` | Whether the worker keeps the run directories after a successful execution because a structured output repair may follow (the agent has an output schema and the profile supports resume). Default false. |
 | `repairAttempt` | `int` | 0 for the original execution, 1 for a structured output repair, which reuses the original directories and skips workspace preparation. Default 0. |
+| `executor` | `RunExecutorEnum` | `Process` (subprocess) or `KubernetesJob` (a Job per run). From the run. |
+| `podResources` | `RunPodResources?` | Run pod requests and limits from the deployment for KubernetesJob runs; null otherwise. |
 
 #### `HarnessTypeEnum`
 
@@ -3574,10 +3571,32 @@ Workspace preparation instructions.
 | `gitPassword` | `string?` | Git password or token when credentials are bound (secret). |
 | `files` | `List<ExecutionWorkspaceFile>` | Seeded files. |
 | `retention` | `WorkspaceRetentionEnum` | Retention policy. |
+| `persistentVolumeClaim` | `string?` | PersistentVolumeClaim mounted at the workspace path, for PersistentVolume workspaces (KubernetesJob runs only). |
 
 #### `WorkspaceKindEnum`
 
-`Empty`, `GitRepository`, `Seeded`
+`Empty`, `GitRepository`, `Seeded`, `PersistentVolume`
+
+`PersistentVolume` mounts an existing PersistentVolumeClaim (the template's `persistentVolumeClaim`, in the worker's run namespace) at the run pod's workspace path. Its contents persist across runs and retention never deletes them. Only deployments with executor `KubernetesJob` may use it.
+
+#### `RunExecutorEnum`
+
+`Process`, `KubernetesJob`
+
+`Process` runs the harness as a subprocess of the worker. `KubernetesJob` runs it in its own Job and pod (see `docs/KUBERNETES.md`, "Pod-per-run executor"); only workers that report the `KubernetesJob` executor claim such runs.
+
+#### `RunPodResources`
+
+Requests and limits of a KubernetesJob run pod, as Kubernetes quantities (`500m`, `2`, `512Mi`, `4Gi`). Null fields use the worker's defaults. A request may not exceed its limit.
+
+| Field | Type | Description |
+|---|---|---|
+| `cpuRequest` | `string?` | CPU request. |
+| `cpuLimit` | `string?` | CPU limit. |
+| `memoryRequest` | `string?` | Memory request. |
+| `memoryLimit` | `string?` | Memory limit; a pod that exceeds it is OOMKilled and the run fails with `PodFailed`. |
+| `ephemeralStorageRequest` | `string?` | Ephemeral storage request (covers the emptyDir workspace, home, and temporary directories). |
+| `ephemeralStorageLimit` | `string?` | Ephemeral storage limit. |
 
 #### `ExecutionWorkspaceFile`
 
@@ -3724,15 +3743,6 @@ Bulk delete result.
 |---|---|---|
 | `deletedCount` | `long` | Records deleted. |
 
-#### `DeleteResponse`
-
-Delete result.
-
-| Field | Type | Description |
-|---|---|---|
-| `deleted` | `bool` | Whether something was deleted. |
-| `cascaded` | `int` | Dependent records deleted with it. |
-
 #### `Deployment`
 
 Binds an agent to a harness profile, prompts, resources, placement, and limits.
@@ -3756,9 +3766,11 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `maxAssistantChars` | `long?` | Run guard: most characters of assistant text per run (outcome OutputLimitExceeded); 0 is unlimited. Null uses `Runtime.MaxAssistantChars` (default 200,000). Minimum 0, maximum 100,000,000. |
 | `noProgressSeconds` | `int?` | Run guard: seconds without progress before a run stops (outcome NoProgress); 0 turns it off. Null uses `Runtime.NoProgressSeconds` (default 300). Minimum 0, maximum 86,400. |
 | `maxAttempts` | `int` | Maximum attempts. Minimum 1, maximum 10, default 1. |
-| `retryOnNodeLoss` | `bool` | Whether a running run is requeued when its node is lost. |
+| `retryOnNodeLoss` | `bool` | Whether a running run is requeued when its node is lost. For KubernetesJob runs this also covers a run pod that was evicted or deleted from outside Garrison. |
 | `weight` | `int` | Traffic weight among the agent's active deployments. Minimum 0, maximum 1000, default 100. |
 | `nodePoolId` | `string?` | Required node pool. |
+| `executor` | `RunExecutorEnum?` | `Process` or `KubernetesJob`. Null uses the node pool's `defaultExecutor`, then `Process`. A PersistentVolume workspace template requires `KubernetesJob`. |
+| `podResources` | `RunPodResources` | Run pod requests and limits for KubernetesJob runs; ignored for Process runs. |
 | `workspaceTemplateId` | `string?` | Workspace template. |
 | `artifactStoreId` | `string?` | Artifact store. |
 | `configVersion` | `int` | Configuration version, incremented on every change. |
@@ -4201,6 +4213,7 @@ Worker node (Post).
 | `lastUpdateUtc` | `DateTime` | Last update timestamp (UTC). |
 | `labels` | `List<NodeLabel>` | Labels. |
 | `capabilities` | `List<NodeCapability>` | Harness capabilities detected by probes. |
+| `executors` | `List<RunExecutorEnum>` | Executors the worker reports: always `Process`, plus `KubernetesJob` when it can create run Jobs. |
 
 #### `NodeStatusEnum`
 
@@ -4328,6 +4341,7 @@ Group of worker nodes, optionally dedicated to tenants.
 | `id` | `string` | Identifier. |
 | `name` | `string` | Pool name. |
 | `description` | `string?` | Description. |
+| `defaultExecutor` | `RunExecutorEnum?` | Executor for deployments in the pool that leave `executor` null. Null means `Process`. |
 | `active` | `bool` | Whether the record is active. |
 | `isProtected` | `bool` | Whether the record is protected from deletion. |
 | `createdUtc` | `DateTime` | Creation timestamp (UTC). |
@@ -4347,6 +4361,7 @@ Worker registration. Idempotent by node name.
 | `nodePool` | `string?` | Node pool name, or null for the default pool. |
 | `labels` | `Dictionary<string, string>` | Labels. |
 | `capabilities` | `List<NodeCapabilityReport>` | Harness capabilities. |
+| `executors` | `List<RunExecutorEnum>` | Executors the worker supports; empty means `Process` only. |
 
 #### `NodeCapabilityReport`
 
@@ -4444,6 +4459,7 @@ One invocation of one deployment.
 | `deploymentId` | `string` | Deployment identifier. |
 | `deploymentVersion` | `int` | Deployment configuration version used. |
 | `harnessType` | `HarnessTypeEnum` | Harness type required. |
+| `executor` | `RunExecutorEnum` | Executor the run needs, resolved at creation from the deployment and its node pool. |
 | `nodePoolId` | `string?` | Required node pool. |
 | `kind` | `RunKindEnum` | Run kind. |
 | `status` | `RunStatusEnum` | Status. |
@@ -4510,7 +4526,9 @@ One invocation of one deployment.
 
 #### `RunOutcomeEnum`
 
-`None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`, `RepetitionDetected`, `NoProgress`
+`None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`, `RepetitionDetected`, `NoProgress`, `PodFailed`
+
+`PodFailed` means the run pod of a KubernetesJob run failed outside the harness: it stayed Pending past the worker's pending timeout, its image could not be pulled, its configuration was invalid, it was OOMKilled, or `run-one` exited without reporting a completion. `errorMessage` names the cause. A pod evicted or deleted while running is treated as node loss instead (the lease expires and `retryOnNodeLoss` applies).
 
 `RepetitionDetected`, `NoProgress`, and `OutputLimitExceeded` (when the assistant text passed `maxAssistantChars`) are run guard stops; see [Run guards](#run-guards-repetitiondetected-outputlimitexceeded-noprogress). `OutputLimitExceeded` also means the harness wrote more than the profile's `maxOutputBytes` to stdout.
 
@@ -5210,6 +5228,7 @@ Defines how a run workspace is prepared.
 | `gitRef` | `string?` | Branch, tag, or commit. |
 | `gitDepth` | `int` | Clone depth. Minimum 0 (full), maximum 10000, default 1. |
 | `gitCredentialSecretId` | `string?` | Secret holding git credentials. |
+| `persistentVolumeClaim` | `string?` | For PersistentVolume workspaces: name of an existing PersistentVolumeClaim (DNS-1123) in the run namespace, mounted at the workspace path. |
 | `retention` | `WorkspaceRetentionEnum` | Retention policy. |
 | `active` | `bool` | Whether the record is active. |
 | `isProtected` | `bool` | Whether the record is protected from deletion. |

@@ -34,6 +34,9 @@ configMapGenerator:
   - name: garrison-alloy-config
     files:
       - config.alloy=config/config.alloy
+  - name: garrison-grafana-config
+    files:
+      - grafana.ini=config/grafana.ini
   - name: garrison-grafana-datasources
     files:
       - datasources.yaml=config/grafana-datasources.yaml

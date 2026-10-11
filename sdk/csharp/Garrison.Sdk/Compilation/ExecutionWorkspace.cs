@@ -48,5 +48,10 @@ namespace Garrison.Sdk.Compilation
         /// Retention policy.
         /// </summary>
         public WorkspaceRetentionEnum Retention { get; set; } = WorkspaceRetentionEnum.Delete;
+
+        /// <summary>
+        /// PersistentVolumeClaim mounted at the workspace path, for PersistentVolume workspaces.
+        /// </summary>
+        public string? PersistentVolumeClaim { get; set; } = null;
     }
 }

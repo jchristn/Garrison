@@ -43,5 +43,11 @@ namespace Garrison.Core.Protocol
         /// Harness capabilities.
         /// </summary>
         public List<NodeCapabilityReport> Capabilities { get; set; } = new List<NodeCapabilityReport>();
+
+        /// <summary>
+        /// Executors the worker supports. Process is always supported; KubernetesJob only when the worker runs in a
+        /// cluster with permission to create Jobs, Secrets, and read pod logs in its run namespace. Empty means Process.
+        /// </summary>
+        public List<RunExecutorEnum> Executors { get; set; } = new List<RunExecutorEnum>();
     }
 }

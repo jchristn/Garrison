@@ -153,41 +153,5 @@ namespace Garrison.Server.Protocols
             }
             return artifact;
         }
-
-        /// <summary>
-        /// Build an agent card.
-        /// </summary>
-        /// <param name="agent">Agent.</param>
-        /// <param name="url">JSON-RPC endpoint URL for the agent.</param>
-        /// <param name="skillDescription">Rendered skill description fallback.</param>
-        /// <returns>Card.</returns>
-        public static AgentCard Card(Agent agent, string url, string skillDescription)
-        {
-            AgentCard card = new AgentCard();
-            card.Name = agent.DisplayName ?? agent.Name;
-            card.Description = agent.Description ?? skillDescription;
-            card.Version = agent.AgentVersion ?? Garrison.Core.Constants.ProductVersion;
-            card.SupportedInterfaces.Add(new AgentInterface { Url = url, ProtocolBinding = "JSONRPC" });
-            card.Capabilities.Streaming = true;
-            card.Capabilities.PushNotifications = false;
-            card.Capabilities.StateTransitionHistory = false;
-            card.Provider = new AgentProvider { Organization = "Garrison", Url = Garrison.Core.Constants.RepositoryUrl };
-            card.DefaultInputModes = new List<string> { agent.InputMode == AgentInputModeEnum.Structured ? "application/json" : "text/plain" };
-            card.DefaultOutputModes = new List<string> { "text/plain", "application/json" };
-            if (agent.Skills.Count > 0)
-            {
-                card.Skills = agent.Skills.Select(s => new AgentSkill { Id = s.SkillId, Name = s.Name, Description = s.Description ?? skillDescription, Tags = agent.Tags.ToList() }).ToList();
-            }
-            else
-            {
-                card.Skills.Add(new AgentSkill { Id = agent.Name, Name = agent.DisplayName ?? agent.Name, Description = skillDescription, Tags = agent.Tags.ToList() });
-            }
-            HttpAuthSecurityScheme bearer = new HttpAuthSecurityScheme();
-            bearer.Scheme = "bearer";
-            bearer.Description = "Garrison session token from POST /v1.0/token, or a run token issued to a Garrison agent.";
-            card.SecuritySchemes = new Dictionary<string, SecurityScheme> { { "garrison", new SecurityScheme { HttpAuthSecurityScheme = bearer } } };
-            card.SecurityRequirements = new List<SecurityRequirement> { new SecurityRequirement { Schemes = new Dictionary<string, List<string>> { { "garrison", new List<string>() } } } };
-            return card;
-        }
     }
 }

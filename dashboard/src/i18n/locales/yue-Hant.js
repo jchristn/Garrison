@@ -220,7 +220,8 @@ const yueHant = {
       InternalError: '內部錯誤',
       NoCapableWorker: '冇工作節點做到',
       RepetitionDetected: '偵測到重複',
-      NoProgress: '冇進展'
+      NoProgress: '冇進展',
+      PodFailed: '執行 Pod 失敗'
     },
     runEventType: {
       Lifecycle: '生命週期',
@@ -254,7 +255,8 @@ const yueHant = {
       BasicAuth: '基本驗證',
       GitCredential: 'Git 憑證'
     },
-    workspaceKind: { Empty: '空白', GitRepository: 'Git 儲存庫', Seeded: '預置檔案' },
+    workspaceKind: { Empty: '空白', GitRepository: 'Git 儲存庫', Seeded: '預置檔案', PersistentVolume: '持久儲存卷' },
+    runExecutor: { Process: '程序', KubernetesJob: 'Kubernetes Job' },
     workspaceRetention: { Delete: '刪除', Keep: '保留', KeepOnFailure: '失敗時保留' },
     promptTemplateKind: { System: '系統', Task: '任務', Fragment: '片段', ToolDescription: '工具描述', ConfigFile: '設定檔', Other: '其他' },
     permissionType: { Permit: '允許', Deny: '拒絕' },
@@ -662,7 +664,9 @@ const yueHant = {
     workspaces: {
       ...rp('工作區', '執行工作區點樣準備：空白、由 Git 複製，或者預先放入檔案。', '新增工作區範本', '建立工作區範本', '編輯工作區範本', '工作區範本詳情', '刪除工作區範本', '仲未有工作區', '建立一個工作區範本，等部署可以由儲存庫或者檔案開始。'),
       columns: { name: '名稱', kind: '種類', gitUrl: '儲存庫', retention: '保留', active: '啟用', id: 'ID', createdUtc: '建立時間' },
-      fields: { name: '名稱', kind: '種類', description: '描述', gitUrl: '儲存庫 URL', gitRef: '分支、標記或者 commit', gitDepth: '複製深度', gitCredentialSecretId: 'Git 憑證', files: '檔案', filePath: '路徑', fileContent: '內容', retention: '保留', active: '啟用' }
+      fields: { name: '名稱', kind: '種類', description: '描述', gitUrl: '儲存庫 URL', gitRef: '分支、標記或者 commit', gitDepth: '複製深度', gitCredentialSecretId: 'Git 憑證', persistentVolumeClaim: 'PersistentVolumeClaim 名稱', files: '檔案', filePath: '路徑', fileContent: '內容', retention: '保留', active: '啟用' },
+      hints: { persistentVolumeClaim: '執行命名空間入面一個已經存在嘅 Claim。只有用 Kubernetes Job 執行器嘅部署先可以用呢個工作區；內容會喺每次執行之間保留。' },
+      errors: { claimName: '請用細楷字母、數字、連字號同句點，開頭同結尾要係字母或者數字。' }
     },
     artifactStores: {
       ...rp('成品存放區', '存放執行產生嘅檔案嘅地方。', '新增成品存放區', '建立成品存放區', '編輯成品存放區', '成品存放區詳情', '刪除成品存放區', '仲未有成品存放區', '建立一個成品存放區嚟保存執行輸出。'),
@@ -708,7 +712,7 @@ const yueHant = {
       promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行嘅任務包裝', Task: '任務包裝', System: '系統提示' },
       ...rp('部署', '將代理程式綁定到 Harness 設定檔、提示、機密、MCP 伺服器、排程放置同限制。', '新增部署', '建立部署', '編輯部署', '部署詳情', '刪除部署', '仲未有部署', '建立一個部署，等代理程式可以執行。'),
       steps: { basics: '基本', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置同限制' },
-      columns: { name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', weight: '權重', configVersion: '配置版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
+      columns: { name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', executor: '執行器', weight: '權重', configVersion: '配置版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
       fields: {
         name: '名稱',
         agentId: '代理程式',
@@ -755,7 +759,14 @@ const yueHant = {
         retryOnNodeLoss: '節點失聯時重新排隊',
         repetitionGuard: '重複防護',
         maxAssistantChars: '最大助理字元數',
-        noProgressSeconds: '冇進展逾時（秒）'
+        noProgressSeconds: '冇進展逾時（秒）',
+        executor: '執行器',
+        podCpuRequest: 'CPU 請求',
+        podCpuLimit: 'CPU 上限',
+        podMemoryRequest: '記憶體請求',
+        podMemoryLimit: '記憶體上限',
+        podEphemeralStorageRequest: '臨時儲存請求',
+        podEphemeralStorageLimit: '臨時儲存上限'
       },
       hints: {
         secretsKinds: 'Harness 設定檔 {{profile}} 需要任何一個類型係 {{kinds}} 嘅機密。用咩別名綁定都得。',
@@ -772,16 +783,23 @@ const yueHant = {
         guardDefaultUnknown: '留空就用叢集設定 {{setting}}。',
         guardOwn: '已經喺呢個部署設定咗。叢集預設值（{{setting}}）係 {{value}}。',
         guardOwnUnknown: '已經喺呢個部署設定咗，唔用叢集設定 {{setting}}。',
-        guardFollowing: '跟緊 {{setting}} 嘅叢集預設值 {{value}}。'
+        guardFollowing: '跟緊 {{setting}} 嘅叢集預設值 {{value}}。',
+        executorInherit: '留空就用節點池嘅預設值：{{executor}}。',
+        executorSet: '程序喺 worker 入面執行 harness；Kubernetes Job 就喺佢自己嘅 Pod 入面執行。',
+        podCpuRequest: 'Pod 資源只適用於 Kubernetes Job 執行。請用 Kubernetes 數量，例如 500m、2、512Mi 或者 4Gi；留空就用 worker 預設值。'
       },
       actions: { compilePreview: '編譯預覽', test: '測試調用', useClusterDefault: '用叢集預設值' },
       sections: {
-        guards: '執行防護'
+        guards: '執行防護',
+        execution: '執行器同 Pod 資源'
       },
       placeholders: {
         clusterDefault: '叢集預設值（{{value}}）',
         clusterDefaultUnknown: '叢集預設值'
       },
+      executorInherit: '節點池預設值',
+      executorInheritShort: '節點池預設',
+      errors: { quantity: '請用 Kubernetes 數量，例如 500m、2、512Mi 或者 4Gi。' },
       guardStates: {
         on: '開',
         off: '熄'
@@ -790,8 +808,8 @@ const yueHant = {
     nodePools: {
       ...rp('節點池', '按標籤將工作節點分組，亦可以專門分配畀指定租用戶。', '新增節點池', '建立節點池', '編輯節點池', '節點池詳情', '刪除節點池', '仲未有節點池', '建立一個節點池嚟預留專用容量。'),
       allTenants: '所有租用戶',
-      columns: { name: '名稱', description: '描述', tenants: '租用戶', active: '啟用', id: 'ID', createdUtc: '建立時間' },
-      fields: { name: '名稱', description: '描述', tenants: '允許嘅租用戶 ID', active: '啟用' },
+      columns: { name: '名稱', description: '描述', tenants: '租用戶', defaultExecutor: '預設執行器', active: '啟用', id: 'ID', createdUtc: '建立時間' },
+      fields: { name: '名稱', description: '描述', defaultExecutor: '預設執行器', tenants: '允許嘅租用戶 ID', active: '啟用' },
       hints: { tenants: '留空就允許所有租用戶。' }
     },
     runs: {
@@ -825,7 +843,7 @@ const yueHant = {
     },
     nodes: {
       ...rp('節點', '租用同執行任務嘅工作節點。維護之前請先封鎖或者清空節點。', '新增節點', '建立節點', '編輯節點', '節點詳情', '刪除節點', '仲未有節點', '工作節點啟動嗰陣會自動登記。請部署 worker StatefulSet，或者喺本機運行 Garrison.Worker。'),
-      columns: { name: '名稱', status: '狀態', capacity: '執行', harnesses: 'Harness', labels: '標籤', nodeVersion: '版本', lastHeartbeatUtc: '最後心跳', id: 'ID' },
+      columns: { name: '名稱', status: '狀態', capacity: '執行', harnesses: 'Harness', executors: '執行器', labels: '標籤', nodeVersion: '版本', lastHeartbeatUtc: '最後心跳', id: 'ID' },
       fields: { address: '地址', maxConcurrentRuns: '容量', activeRuns: '進行中嘅執行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '詳情' },
       actions: { cordon: '封鎖', uncordon: '解除封鎖', drain: '清空', runs: '睇執行', grafana: '喺 Grafana 打開' },
       toasts: { cordoned: '節點已封鎖。', uncordoned: '節點已解除封鎖。', draining: '節點清空緊。' }
@@ -1297,6 +1315,7 @@ const yueHant = {
         },
         Auth: {
           RateLimitPerMinute: '每分鐘登入嘗試次數',
+          PasswordHashIterations: '密碼雜湊迭代次數',
           SignedRequestSkewSeconds: '簽署要求容許嘅時鐘誤差（秒）',
           AdminApiKey: '管理員 API 金鑰',
           TokenLifetimeMinutes: '工作階段有效時間（分鐘）',

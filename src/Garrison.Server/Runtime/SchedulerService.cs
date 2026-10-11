@@ -9,6 +9,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Compilation;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Protocol;
     using Garrison.Core.Requests;
@@ -143,6 +144,27 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Why a claimed run must not start, or null when it may: its tenant, agent, or deployment was deactivated or
+        /// deleted after the run was queued.
+        /// </summary>
+        /// <param name="tenant">Tenant, or null when deleted.</param>
+        /// <param name="agent">Agent, or null when deleted.</param>
+        /// <param name="deployment">Deployment, or null when deleted.</param>
+        /// <param name="run">Run.</param>
+        /// <returns>Reason, or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
+        public static string? AdmissionRejection(Tenant? tenant, Agent? agent, Deployment? deployment, Run run)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            if (tenant == null || !tenant.Active) return "Tenant " + run.TenantId + " is inactive or was deleted after the run was queued, so the run was rejected before it started.";
+            if (agent == null) return "Agent " + run.AgentName + " was deleted after the run was queued, so the run was rejected before it started.";
+            if (!agent.Active) return "Agent " + agent.Name + " was deactivated after the run was queued, so the run was rejected before it started.";
+            if (deployment == null) return "Deployment " + run.DeploymentId + " was deleted after the run was queued, so the run was rejected before it started.";
+            if (!deployment.Active) return "Deployment " + deployment.Name + " was deactivated after the run was queued, so the run was rejected before it started.";
+            return null;
+        }
+
         #endregion
 
         #region Private-Methods
@@ -159,6 +181,7 @@ namespace Garrison.Server.Runtime
             ClaimCandidateFilter filter = new ClaimCandidateFilter();
             filter.HarnessTypes = harnessTypes;
             filter.NodePoolId = node.NodePoolId;
+            filter.Executors = RunExecutors.Of(node);
             filter.AllowedTenantIds = pool != null && pool.Tenants.Count > 0 ? pool.Tenants : null;
             filter.Limit = Math.Max(maxRuns * 4, 16);
             List<Run> candidates = await _Database.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
@@ -242,6 +265,17 @@ namespace Garrison.Server.Runtime
             {
                 Agent? agent = await _Database.Agents.ReadAsync(tenantId, run.AgentId, token).ConfigureAwait(false);
                 Deployment? deployment = await _Database.Deployments.ReadAsync(tenantId, run.DeploymentId, token).ConfigureAwait(false);
+
+                // Admission at start (G-5): a run accepted while its tenant, agent, and deployment were active is
+                // rejected, not started, when one of them was deactivated or deleted while it waited in the queue.
+                Tenant? tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
+                string? rejection = AdmissionRejection(tenant, agent, deployment, run);
+                if (rejection != null)
+                {
+                    await RejectAsync(run, node, epoch, rejection, token).ConfigureAwait(false);
+                    claim?.SetStatus(ActivityStatusCode.Error, "rejected");
+                    return null;
+                }
                 HarnessProfile? profile = deployment == null ? null : await _Database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
                 int timeoutSeconds = InvocationCompiler.EffectiveTimeoutSeconds(deployment, profile, run.Parameters, 1800, _Options.MaxRunSeconds);
                 DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
@@ -305,6 +339,24 @@ namespace Garrison.Server.Runtime
                 _Signals.Complete(run.Id);
                 return null;
             }
+        }
+
+        private async Task RejectAsync(Run run, Node node, long epoch, string reason, CancellationToken token)
+        {
+            _Logging.Info(_Header + "run " + run.Id + " rejected: " + reason + " " + RunTracing.LogFields(run.Id, run.TraceId));
+            RunTransition rejected = new RunTransition();
+            rejected.RunId = run.Id;
+            rejected.FromStatuses.Add(RunStatusEnum.Leased);
+            rejected.ToStatus = RunStatusEnum.Rejected;
+            rejected.Epoch = epoch;
+            rejected.NodeId = node.Id;
+            rejected.Outcome = RunOutcomeEnum.Rejected;
+            rejected.ErrorMessage = reason;
+            rejected.ClearLease = true;
+            rejected.SetCompleted = true;
+            await _Database.Runs.TransitionAsync(rejected, token).ConfigureAwait(false);
+            await _Database.Sessions.RevokeByRunAsync(run.Id, "Run rejected.", token).ConfigureAwait(false);
+            _Signals.Complete(run.Id);
         }
 
         #endregion

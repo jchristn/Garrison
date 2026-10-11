@@ -220,7 +220,7 @@ namespace Garrison.Worker.Execution
                 // Keep the directories when the control plane may ask for a repair in them; the worker host
                 // releases them once the run is finally reported.
                 bool keepForRepair = (spec.RetainForRepair && succeeded) || spec.RepairAttempt > 0;
-                if (!keepForRepair) Cleanup(directories, spec.Workspace.Retention, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
+                if (!keepForRepair) Cleanup(directories, spec.Workspace, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
             }
         }
 
@@ -229,7 +229,7 @@ namespace Garrison.Worker.Execution
         {
             if (assignment == null) throw new ArgumentNullException(nameof(assignment));
             ExecutionSpec spec = assignment.Spec ?? new ExecutionSpec();
-            Cleanup(new RunDirectories(_Options.WorkRoot, assignment.RunId), spec.Workspace.Retention, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
+            Cleanup(new RunDirectories(_Options.WorkRoot, assignment.RunId), spec.Workspace, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
         }
 
         #endregion
@@ -350,9 +350,11 @@ namespace Garrison.Worker.Execution
             return complete;
         }
 
-        private void Cleanup(RunDirectories directories, WorkspaceRetentionEnum retention, bool succeeded, string logFields)
+        private void Cleanup(RunDirectories directories, ExecutionWorkspace workspace, bool succeeded, string logFields)
         {
-            bool keepWorkspace = retention == WorkspaceRetentionEnum.Keep || (retention == WorkspaceRetentionEnum.KeepOnFailure && !succeeded);
+            WorkspaceRetentionEnum retention = workspace.Retention;
+            // A PersistentVolume workspace is a mounted claim whose contents outlive the run: never delete it.
+            bool keepWorkspace = workspace.Kind == WorkspaceKindEnum.PersistentVolume || retention == WorkspaceRetentionEnum.Keep || (retention == WorkspaceRetentionEnum.KeepOnFailure && !succeeded);
             try
             {
                 if (Directory.Exists(directories.Config)) Directory.Delete(directories.Config, true);

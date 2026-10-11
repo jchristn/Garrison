@@ -9,6 +9,7 @@ namespace Garrison.Core.Services
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Templates;
 
@@ -21,6 +22,7 @@ namespace Garrison.Core.Services
         #region Private-Members
 
         private static readonly Regex _AgentName = new Regex("^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$", RegexOptions.Compiled);
+        private static readonly Regex _McpToolName = new Regex("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$", RegexOptions.Compiled);
         private static readonly Regex _ServerName = new Regex("^[A-Za-z0-9_-]{1,64}$", RegexOptions.Compiled);
         private static readonly Regex _EnvName = new Regex("^[A-Za-z_][A-Za-z0-9_]{0,255}$", RegexOptions.Compiled);
 
@@ -161,11 +163,24 @@ namespace Garrison.Core.Services
             Json(agent.InputSchemaJson, errors, "inputSchemaJson");
             Json(agent.OutputSchemaJson, errors, "outputSchemaJson");
             if (agent.Kind == AgentKindEnum.Remote && String.IsNullOrWhiteSpace(agent.RemoteEndpointUrl)) errors["remoteEndpointUrl"] = "Remote agents need an endpoint URL.";
+            if (!String.IsNullOrWhiteSpace(agent.McpToolName) && !IsValidMcpToolName(agent.McpToolName.Trim())) errors["mcpToolName"] = "MCP tool names are 1 to 64 letters, digits, underscores, dots, and hyphens, not starting with a dot or hyphen, and cannot start with the reserved prefix garrison_.";
             foreach (string name in agent.DelegationAllowList)
             {
                 if (!_AgentName.IsMatch(name ?? String.Empty)) errors["delegationAllowList"] = "'" + name + "' is not a valid agent name.";
             }
             if (errors.Count > 0) throw new ValidationException("The agent is invalid.", errors);
+        }
+
+        /// <summary>
+        /// Whether a name can be used for an agent offered as its own MCP tool: 1 to 64 letters, digits, underscores, dots,
+        /// and hyphens, not starting with a dot or hyphen, and not starting with garrison_ (reserved for the built-in tools).
+        /// </summary>
+        /// <param name="name">Candidate tool name.</param>
+        /// <returns>True when usable.</returns>
+        public static bool IsValidMcpToolName(string? name)
+        {
+            if (String.IsNullOrEmpty(name) || !_McpToolName.IsMatch(name)) return false;
+            return !name.StartsWith("garrison_", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -179,6 +194,11 @@ namespace Garrison.Core.Services
             Dictionary<string, string> errors = new Dictionary<string, string>();
             Name(workspace.Name, errors);
             if (workspace.Kind == WorkspaceKindEnum.GitRepository && String.IsNullOrWhiteSpace(workspace.GitUrl)) errors["gitUrl"] = "Git workspaces need a repository URL.";
+            if (workspace.Kind == WorkspaceKindEnum.PersistentVolume)
+            {
+                if (String.IsNullOrWhiteSpace(workspace.PersistentVolumeClaim)) errors["persistentVolumeClaim"] = "PersistentVolume workspaces need the name of an existing PersistentVolumeClaim in the run namespace.";
+                else if (!KubernetesNames.IsSubdomain(workspace.PersistentVolumeClaim)) errors["persistentVolumeClaim"] = "'" + workspace.PersistentVolumeClaim + "' is not a valid PersistentVolumeClaim name (lowercase letters, digits, '-' and '.').";
+            }
             for (int i = 0; i < workspace.Files.Count; i++)
             {
                 string path = (workspace.Files[i].Path ?? String.Empty).Replace('\\', '/');
@@ -299,7 +319,18 @@ namespace Garrison.Core.Services
 
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false) == null) errors["workspaceTemplateId"] = "The workspace template does not exist in this tenant.";
             if (!String.IsNullOrEmpty(deployment.ArtifactStoreId) && await database.ArtifactStores.ReadAsync(tenantId, deployment.ArtifactStoreId, token).ConfigureAwait(false) == null) errors["artifactStoreId"] = "The artifact store does not exist in this tenant.";
-            if (!String.IsNullOrEmpty(deployment.NodePoolId) && await database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false) == null) errors["nodePoolId"] = "The node pool does not exist.";
+            NodePool? pool = String.IsNullOrEmpty(deployment.NodePoolId) ? null : await database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false);
+            if (!String.IsNullOrEmpty(deployment.NodePoolId) && pool == null) errors["nodePoolId"] = "The node pool does not exist.";
+
+            PodResources(deployment.PodResources, errors);
+            if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId))
+            {
+                WorkspaceTemplate? workspace = await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false);
+                if (workspace != null && workspace.Kind == WorkspaceKindEnum.PersistentVolume && RunExecutors.Resolve(deployment, pool) != RunExecutorEnum.KubernetesJob)
+                {
+                    errors["executor"] = "Workspace template " + workspace.Name + " is a PersistentVolume workspace, which needs the KubernetesJob executor.";
+                }
+            }
 
             if (errors.Count > 0) throw new ValidationException("The deployment is invalid.", errors);
         }
@@ -307,6 +338,33 @@ namespace Garrison.Core.Services
         #endregion
 
         #region Private-Methods
+
+        private static void PodResources(RunPodResources resources, Dictionary<string, string> errors)
+        {
+            if (resources == null) return;
+            Quantity(resources.CpuRequest, "podResources.cpuRequest", errors);
+            Quantity(resources.CpuLimit, "podResources.cpuLimit", errors);
+            Quantity(resources.MemoryRequest, "podResources.memoryRequest", errors);
+            Quantity(resources.MemoryLimit, "podResources.memoryLimit", errors);
+            Quantity(resources.EphemeralStorageRequest, "podResources.ephemeralStorageRequest", errors);
+            Quantity(resources.EphemeralStorageLimit, "podResources.ephemeralStorageLimit", errors);
+            RequestWithinLimit(resources.CpuRequest, resources.CpuLimit, "podResources.cpuRequest", errors);
+            RequestWithinLimit(resources.MemoryRequest, resources.MemoryLimit, "podResources.memoryRequest", errors);
+            RequestWithinLimit(resources.EphemeralStorageRequest, resources.EphemeralStorageLimit, "podResources.ephemeralStorageRequest", errors);
+        }
+
+        private static void RequestWithinLimit(string? request, string? limit, string field, Dictionary<string, string> errors)
+        {
+            if (errors.ContainsKey(field)) return;
+            if (!KubernetesNames.TryParseQuantity(request, out decimal requested) || !KubernetesNames.TryParseQuantity(limit, out decimal limited)) return;
+            if (requested > limited) errors[field] = "The request " + request + " is above the limit " + limit + ".";
+        }
+
+        private static void Quantity(string? value, string field, Dictionary<string, string> errors)
+        {
+            if (value == null) return;
+            if (!KubernetesNames.IsQuantity(value)) errors[field] = "'" + value + "' is not a Kubernetes quantity (for example 500m, 2, 512Mi, 4Gi).";
+        }
 
         private static void Json(string? json, Dictionary<string, string> errors, string field)
         {

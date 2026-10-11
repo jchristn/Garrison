@@ -122,3 +122,8 @@ podAntiAffinity:
 {{- fail (printf "server.podAntiAffinity must be soft, hard, or none (got %q)" $mode) -}}
 {{- end -}}
 {{- end -}}
+
+{{/* Namespace of run Jobs and pods (KubernetesJob executor): kubernetesExecutor.runNamespace or the release namespace. */}}
+{{- define "garrison.runNamespace" -}}
+{{- default (include "garrison.namespace" .) .Values.kubernetesExecutor.runNamespace -}}
+{{- end -}}

@@ -220,7 +220,8 @@ const zhHans = {
       InternalError: '内部错误',
       NoCapableWorker: '没有可用的工作节点',
       RepetitionDetected: '检测到重复',
-      NoProgress: '无进展'
+      NoProgress: '无进展',
+      PodFailed: '运行 Pod 失败'
     },
     runEventType: {
       Lifecycle: '生命周期',
@@ -254,7 +255,8 @@ const zhHans = {
       BasicAuth: '基本身份验证',
       GitCredential: 'Git 凭据'
     },
-    workspaceKind: { Empty: '空', GitRepository: 'Git 仓库', Seeded: '预置文件' },
+    workspaceKind: { Empty: '空', GitRepository: 'Git 仓库', Seeded: '预置文件', PersistentVolume: '持久卷' },
+    runExecutor: { Process: '进程', KubernetesJob: 'Kubernetes Job' },
     workspaceRetention: { Delete: '删除', Keep: '保留', KeepOnFailure: '失败时保留' },
     promptTemplateKind: { System: '系统', Task: '任务', Fragment: '片段', ToolDescription: '工具描述', ConfigFile: '配置文件', Other: '其他' },
     permissionType: { Permit: '允许', Deny: '拒绝' },
@@ -663,7 +665,9 @@ const zhHans = {
     workspaces: {
       ...rp('工作区', '运行工作区的准备方式：空目录、从 Git 克隆，或预置文件。', '添加工作区模板', '创建工作区模板', '编辑工作区模板', '工作区模板详情', '删除工作区模板', '暂无工作区', '创建工作区模板，让部署从仓库或文件开始。'),
       columns: { name: '名称', kind: '类别', gitUrl: '仓库', retention: '保留策略', active: '启用', id: 'ID', createdUtc: '创建时间' },
-      fields: { name: '名称', kind: '类别', description: '描述', gitUrl: '仓库 URL', gitRef: '分支、标签或提交', gitDepth: '克隆深度', gitCredentialSecretId: 'Git 凭据', files: '文件', filePath: '路径', fileContent: '内容', retention: '保留策略', active: '启用' }
+      fields: { name: '名称', kind: '类别', description: '描述', gitUrl: '仓库 URL', gitRef: '分支、标签或提交', gitDepth: '克隆深度', gitCredentialSecretId: 'Git 凭据', persistentVolumeClaim: 'PersistentVolumeClaim 名称', files: '文件', filePath: '路径', fileContent: '内容', retention: '保留策略', active: '启用' },
+      hints: { persistentVolumeClaim: '运行命名空间中已有的 Claim。只有使用 Kubernetes Job 执行器的部署才能使用此工作区；其内容在多次运行之间保留。' },
+      errors: { claimName: '请使用小写字母、数字、连字符和点，并以字母或数字开头和结尾。' }
     },
     artifactStores: {
       ...rp('制品存储', '运行生成的文件的存放位置。', '添加制品存储', '创建制品存储', '编辑制品存储', '制品存储详情', '删除制品存储', '暂无制品存储', '创建制品存储以保存运行输出。'),
@@ -709,7 +713,7 @@ const zhHans = {
       promptRoles: { Repair: '结构化输出修复', DelegatedTask: '委派运行的任务包装', Task: '任务包装', System: '系统提示词' },
       ...rp('部署', '将智能体绑定到 Harness 配置文件、提示词、机密、MCP 服务器、调度放置和限制。', '添加部署', '创建部署', '编辑部署', '部署详情', '删除部署', '暂无部署', '创建部署，使智能体可以运行。'),
       steps: { basics: '基本信息', harness: 'Harness', prompts: '提示词', resources: '资源', overrides: '覆盖', placement: '调度放置和限制' },
-      columns: { name: '名称', agentId: '智能体', harnessProfileId: 'Harness 配置文件', model: '模型', weight: '权重', configVersion: '配置版本', active: '启用', id: 'ID', createdUtc: '创建时间' },
+      columns: { name: '名称', agentId: '智能体', harnessProfileId: 'Harness 配置文件', model: '模型', executor: '执行器', weight: '权重', configVersion: '配置版本', active: '启用', id: 'ID', createdUtc: '创建时间' },
       fields: {
         name: '名称',
         agentId: '智能体',
@@ -756,7 +760,14 @@ const zhHans = {
         retryOnNodeLoss: '节点丢失时重新排队',
         repetitionGuard: '重复防护',
         maxAssistantChars: '最大助手字符数',
-        noProgressSeconds: '无进展超时（秒）'
+        noProgressSeconds: '无进展超时（秒）',
+        executor: '执行器',
+        podCpuRequest: 'CPU 请求',
+        podCpuLimit: 'CPU 上限',
+        podMemoryRequest: '内存请求',
+        podMemoryLimit: '内存上限',
+        podEphemeralStorageRequest: '临时存储请求',
+        podEphemeralStorageLimit: '临时存储上限'
       },
       hints: {
         secretsKinds: 'Harness 配置文件 {{profile}} 需要任意一个类型为 {{kinds}} 的机密。可用任意别名绑定。',
@@ -773,16 +784,23 @@ const zhHans = {
         guardDefaultUnknown: '留空时使用集群设置 {{setting}}。',
         guardOwn: '已在此部署上设置。集群默认值（{{setting}}）为 {{value}}。',
         guardOwnUnknown: '已在此部署上设置，不使用集群设置 {{setting}}。',
-        guardFollowing: '遵循 {{setting}} 中的集群默认值 {{value}}。'
+        guardFollowing: '遵循 {{setting}} 中的集群默认值 {{value}}。',
+        executorInherit: '留空则使用节点池默认值：{{executor}}。',
+        executorSet: '进程在 worker 内运行 harness；Kubernetes Job 在独立的 Pod 中运行它。',
+        podCpuRequest: 'Pod 资源仅适用于 Kubernetes Job 运行。请使用 Kubernetes 数量，例如 500m、2、512Mi 或 4Gi；留空则使用 worker 默认值。'
       },
       actions: { compilePreview: '编译预览', test: '测试调用', useClusterDefault: '使用集群默认值' },
       sections: {
-        guards: '运行防护'
+        guards: '运行防护',
+        execution: '执行器和 Pod 资源'
       },
       placeholders: {
         clusterDefault: '集群默认值（{{value}}）',
         clusterDefaultUnknown: '集群默认值'
       },
+      executorInherit: '节点池默认值',
+      executorInheritShort: '节点池默认',
+      errors: { quantity: '请使用 Kubernetes 数量，例如 500m、2、512Mi 或 4Gi。' },
       guardStates: {
         on: '开启',
         off: '关闭'
@@ -791,8 +809,8 @@ const zhHans = {
     nodePools: {
       ...rp('节点池', '按标签对工作节点分组，并可选择将其专供特定租户使用。', '添加节点池', '创建节点池', '编辑节点池', '节点池详情', '删除节点池', '暂无节点池', '创建节点池以分配专用容量。'),
       allTenants: '所有租户',
-      columns: { name: '名称', description: '描述', tenants: '租户', active: '启用', id: 'ID', createdUtc: '创建时间' },
-      fields: { name: '名称', description: '描述', tenants: '允许的租户 ID', active: '启用' },
+      columns: { name: '名称', description: '描述', tenants: '租户', defaultExecutor: '默认执行器', active: '启用', id: 'ID', createdUtc: '创建时间' },
+      fields: { name: '名称', description: '描述', defaultExecutor: '默认执行器', tenants: '允许的租户 ID', active: '启用' },
       hints: { tenants: '留空则允许所有租户。' }
     },
     runs: {
@@ -826,7 +844,7 @@ const zhHans = {
     },
     nodes: {
       ...rp('节点', '租用并执行运行的工作节点。维护前请先封锁或排空节点。', '添加节点', '创建节点', '编辑节点', '节点详情', '删除节点', '暂无节点', '工作节点启动时会自动注册。请部署工作节点 StatefulSet，或在本地运行 Garrison.Worker。'),
-      columns: { name: '名称', status: '状态', capacity: '运行数', harnesses: 'Harness', labels: '标签', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳', id: 'ID' },
+      columns: { name: '名称', status: '状态', capacity: '运行数', harnesses: 'Harness', executors: '执行器', labels: '标签', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳', id: 'ID' },
       fields: { address: '地址', maxConcurrentRuns: '容量', activeRuns: '活动运行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '详细信息' },
       actions: { cordon: '封锁', uncordon: '解除封锁', drain: '排空', runs: '查看运行', grafana: '在 Grafana 中打开' },
       toasts: { cordoned: '节点已封锁。', uncordoned: '节点已解除封锁。', draining: '节点正在排空。' }
@@ -1298,6 +1316,7 @@ const zhHans = {
         },
         Auth: {
           RateLimitPerMinute: '每分钟登录尝试次数',
+          PasswordHashIterations: '密码哈希迭代次数',
           SignedRequestSkewSeconds: '签名请求允许的时钟偏差（秒）',
           AdminApiKey: '管理员 API 密钥',
           TokenLifetimeMinutes: '会话有效期（分钟）',

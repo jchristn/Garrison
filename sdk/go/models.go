@@ -37,7 +37,66 @@ const (
 	RunOutcomeInternalError          = "InternalError"
 	RunOutcomeRepetitionDetected     = "RepetitionDetected"
 	RunOutcomeNoProgress             = "NoProgress"
+	// RunOutcomePodFailed means the run pod of a KubernetesJob run failed outside the harness (unschedulable,
+	// image pull failure, OOMKilled, evicted, or exited without reporting a completion).
+	RunOutcomePodFailed = "PodFailed"
 )
+
+// Run executors (Deployment.Executor, NodePool.DefaultExecutor, Run.Executor, Node.Executors).
+const (
+	// RunExecutorProcess runs the harness as a subprocess of the worker.
+	RunExecutorProcess = "Process"
+	// RunExecutorKubernetesJob runs the harness in its own Kubernetes Job (pod per run).
+	RunExecutorKubernetesJob = "KubernetesJob"
+)
+
+// Workspace kinds (WorkspaceTemplate.Kind).
+const (
+	WorkspaceKindEmpty         = "Empty"
+	WorkspaceKindGitRepository = "GitRepository"
+	WorkspaceKindSeeded        = "Seeded"
+	// WorkspaceKindPersistentVolume mounts WorkspaceTemplate.PersistentVolumeClaim at the workspace path
+	// (KubernetesJob runs only).
+	WorkspaceKindPersistentVolume = "PersistentVolume"
+)
+
+// RunPodResources are requests and limits for the run pod of a KubernetesJob run, as Kubernetes quantities (for
+// example "500m", "2", "512Mi", "4Gi"). Nil values use the worker's defaults.
+type RunPodResources struct {
+	CPURequest              *string `json:"cpuRequest,omitempty"`
+	CPULimit                *string `json:"cpuLimit,omitempty"`
+	MemoryRequest           *string `json:"memoryRequest,omitempty"`
+	MemoryLimit             *string `json:"memoryLimit,omitempty"`
+	EphemeralStorageRequest *string `json:"ephemeralStorageRequest,omitempty"`
+	EphemeralStorageLimit   *string `json:"ephemeralStorageLimit,omitempty"`
+}
+
+// NodePool groups worker nodes. DefaultExecutor applies to deployments in the pool that set none (nil is Process).
+type NodePool struct {
+	ID              string   `json:"id,omitempty"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description,omitempty"`
+	Tenants         []string `json:"tenants,omitempty"`
+	DefaultExecutor *string  `json:"defaultExecutor,omitempty"`
+}
+
+// Node is a worker node. Executors lists what it can run; empty means Process only.
+type Node struct {
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	Status     string   `json:"status"`
+	NodePoolID string   `json:"nodePoolId,omitempty"`
+	Executors  []string `json:"executors,omitempty"`
+}
+
+// WorkspaceTemplate defines how a run workspace is prepared.
+type WorkspaceTemplate struct {
+	ID                    string `json:"id,omitempty"`
+	TenantID              string `json:"tenantId,omitempty"`
+	Name                  string `json:"name"`
+	Kind                  string `json:"kind,omitempty"`
+	PersistentVolumeClaim string `json:"persistentVolumeClaim,omitempty"`
+}
 
 // TokenResponse is returned by POST /v1.0/token.
 type TokenResponse struct {
@@ -126,7 +185,11 @@ type Deployment struct {
 	Name             string `json:"name"`
 	HarnessProfileID string `json:"harnessProfileId"`
 	Model            string `json:"model,omitempty"`
-	CreatedUTC       string `json:"createdUtc,omitempty"`
+	// Executor is RunExecutorProcess or RunExecutorKubernetesJob; nil uses the node pool's default, then Process.
+	Executor *string `json:"executor,omitempty"`
+	// PodResources are the run pod requests and limits for KubernetesJob runs.
+	PodResources *RunPodResources `json:"podResources,omitempty"`
+	CreatedUTC   string           `json:"createdUtc,omitempty"`
 }
 
 // HarnessProfile describes how to run a harness CLI.
@@ -147,6 +210,7 @@ type Run struct {
 	DeploymentID string   `json:"deploymentId"`
 	Status       string   `json:"status"`
 	Outcome      string   `json:"outcome"`
+	Executor     string   `json:"executor,omitempty"`
 	InputText    string   `json:"inputText"`
 	ResultText   string   `json:"resultText"`
 	ErrorMessage string   `json:"errorMessage"`

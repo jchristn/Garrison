@@ -18,6 +18,12 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Seeded.
         /// </summary>
-        Seeded
+        Seeded,
+
+        /// <summary>
+        /// A Kubernetes PersistentVolumeClaim (named by the template's persistentVolumeClaim) mounted at the workspace
+        /// path of the run pod. Only runs with the KubernetesJob executor can use it; the contents persist across runs.
+        /// </summary>
+        PersistentVolume
     }
 }

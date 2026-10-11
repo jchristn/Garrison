@@ -220,7 +220,8 @@ const ja = {
       InternalError: '内部エラー',
       NoCapableWorker: '対応できるワーカーなし',
       RepetitionDetected: '繰り返しを検出',
-      NoProgress: '進行なし'
+      NoProgress: '進行なし',
+      PodFailed: '実行 Pod の失敗'
     },
     runEventType: {
       Lifecycle: 'ライフサイクル',
@@ -254,7 +255,8 @@ const ja = {
       BasicAuth: 'Basic 認証',
       GitCredential: 'Git 認証情報'
     },
-    workspaceKind: { Empty: '空', GitRepository: 'Git リポジトリ', Seeded: '初期ファイル付き' },
+    workspaceKind: { Empty: '空', GitRepository: 'Git リポジトリ', Seeded: '初期ファイル付き', PersistentVolume: '永続ボリューム' },
+    runExecutor: { Process: 'プロセス', KubernetesJob: 'Kubernetes Job' },
     workspaceRetention: { Delete: '削除', Keep: '保持', KeepOnFailure: '失敗時に保持' },
     promptTemplateKind: { System: 'システム', Task: 'タスク', Fragment: 'フラグメント', ToolDescription: 'ツール説明', ConfigFile: '設定ファイル', Other: 'その他' },
     permissionType: { Permit: '許可', Deny: '拒否' },
@@ -662,7 +664,9 @@ const ja = {
     workspaces: {
       ...rp('ワークスペース', '実行用ワークスペースの準備方法 (空、Git からクローン、ファイルを配置) です。', 'テンプレートを追加', 'テンプレートを作成', 'テンプレートを編集', 'テンプレートの詳細', 'テンプレートを削除', 'ワークスペースはまだありません', 'リポジトリやファイルから開始できるようにワークスペーステンプレートを作成してください。'),
       columns: { name: '名前', kind: '種類', gitUrl: 'リポジトリ', retention: '保持', active: '有効', id: 'ID', createdUtc: '作成日時' },
-      fields: { name: '名前', kind: '種類', description: '説明', gitUrl: 'リポジトリ URL', gitRef: 'ブランチ、タグ、またはコミット', gitDepth: 'クローンの深さ', gitCredentialSecretId: 'Git 認証情報', files: 'ファイル', filePath: 'パス', fileContent: '内容', retention: '保持', active: '有効' }
+      fields: { name: '名前', kind: '種類', description: '説明', gitUrl: 'リポジトリ URL', gitRef: 'ブランチ、タグ、またはコミット', gitDepth: 'クローンの深さ', gitCredentialSecretId: 'Git 認証情報', persistentVolumeClaim: 'PersistentVolumeClaim 名', files: 'ファイル', filePath: 'パス', fileContent: '内容', retention: '保持', active: '有効' },
+      hints: { persistentVolumeClaim: '実行用名前空間にある既存の Claim です。Kubernetes Job エグゼキューターのデプロイメントだけがこのワークスペースを使えます。内容は実行をまたいで保持されます。' },
+      errors: { claimName: '小文字、数字、ハイフン、ドットを使い、先頭と末尾は英字か数字にしてください。' }
     },
     artifactStores: {
       ...rp('成果物ストア', '実行で生成されたファイルの保存先です。', 'ストアを追加', 'ストアを作成', 'ストアを編集', 'ストアの詳細', 'ストアを削除', '成果物ストアはまだありません', '実行結果を保存するために成果物ストアを作成してください。'),
@@ -708,7 +712,7 @@ const ja = {
       promptRoles: { Repair: '構造化出力の修復', DelegatedTask: '委任された実行のタスクラッパー', Task: 'タスクのラッパー', System: 'システムプロンプト' },
       ...rp('デプロイメント', 'エージェントをハーネスプロファイル、プロンプト、シークレット、MCP サーバー、配置、制限に結び付けます。', 'デプロイメントを追加', 'デプロイメントを作成', 'デプロイメントを編集', 'デプロイメントの詳細', 'デプロイメントを削除', 'デプロイメントはまだありません', 'エージェントを実行できるようにデプロイメントを作成してください。'),
       steps: { basics: '基本', harness: 'ハーネス', prompts: 'プロンプト', resources: 'リソース', overrides: '上書き', placement: '配置と制限' },
-      columns: { name: '名前', agentId: 'エージェント', harnessProfileId: 'ハーネスプロファイル', model: 'モデル', weight: '重み', configVersion: '構成バージョン', active: '有効', id: 'ID', createdUtc: '作成日時' },
+      columns: { name: '名前', agentId: 'エージェント', harnessProfileId: 'ハーネスプロファイル', model: 'モデル', executor: 'エグゼキューター', weight: '重み', configVersion: '構成バージョン', active: '有効', id: 'ID', createdUtc: '作成日時' },
       fields: {
         name: '名前',
         agentId: 'エージェント',
@@ -755,7 +759,14 @@ const ja = {
         retryOnNodeLoss: 'ノード喪失時に再キュー',
         repetitionGuard: '繰り返しガード',
         maxAssistantChars: '最大アシスタント文字数',
-        noProgressSeconds: '進行なしタイムアウト (秒)'
+        noProgressSeconds: '進行なしタイムアウト (秒)',
+        executor: 'エグゼキューター',
+        podCpuRequest: 'CPU 要求',
+        podCpuLimit: 'CPU 上限',
+        podMemoryRequest: 'メモリ要求',
+        podMemoryLimit: 'メモリ上限',
+        podEphemeralStorageRequest: 'エフェメラルストレージ要求',
+        podEphemeralStorageLimit: 'エフェメラルストレージ上限'
       },
       hints: {
         secretsKinds: 'ハーネスプロファイル {{profile}} には種類が {{kinds}} のシークレットが必要です。任意のエイリアスで 1 つ結び付けてください。',
@@ -772,16 +783,23 @@ const ja = {
         guardDefaultUnknown: '空の場合はクラスター設定 {{setting}} を使います。',
         guardOwn: 'このデプロイメントで設定済みです。クラスター既定値 ({{setting}}) は {{value}} です。',
         guardOwnUnknown: 'クラスター設定 {{setting}} の代わりにこのデプロイメントで設定済みです。',
-        guardFollowing: '{{setting}} のクラスター既定値 {{value}} に従います。'
+        guardFollowing: '{{setting}} のクラスター既定値 {{value}} に従います。',
+        executorInherit: '空の場合はノードプールの既定値 ({{executor}}) を使います。',
+        executorSet: 'プロセスはワーカー内でハーネスを実行し、Kubernetes Job は専用の Pod で実行します。',
+        podCpuRequest: 'Pod のリソースは Kubernetes Job の実行にだけ適用されます。500m、2、512Mi、4Gi のような Kubernetes の数量で指定します。空はワーカーの既定値です。'
       },
       actions: { compilePreview: 'コンパイルプレビュー', test: 'テスト呼び出し', useClusterDefault: 'クラスター既定値を使う' },
       sections: {
-        guards: 'ランガード'
+        guards: 'ランガード',
+        execution: 'エグゼキューターと Pod リソース'
       },
       placeholders: {
         clusterDefault: 'クラスター既定値 ({{value}})',
         clusterDefaultUnknown: 'クラスター既定値'
       },
+      executorInherit: 'ノードプールの既定値',
+      executorInheritShort: 'プール既定値',
+      errors: { quantity: '500m、2、512Mi、4Gi のような Kubernetes の数量を指定してください。' },
       guardStates: {
         on: 'オン',
         off: 'オフ'
@@ -790,8 +808,8 @@ const ja = {
     nodePools: {
       ...rp('ノードプール', 'ワーカーノードをラベルでグループ化し、必要に応じてテナント専用にします。', 'プールを追加', 'プールを作成', 'プールを編集', 'プールの詳細', 'プールを削除', 'ノードプールはまだありません', '容量を専用化するにはノードプールを作成してください。'),
       allTenants: 'すべてのテナント',
-      columns: { name: '名前', description: '説明', tenants: 'テナント', active: '有効', id: 'ID', createdUtc: '作成日時' },
-      fields: { name: '名前', description: '説明', tenants: '許可するテナント ID', active: '有効' },
+      columns: { name: '名前', description: '説明', tenants: 'テナント', defaultExecutor: '既定のエグゼキューター', active: '有効', id: 'ID', createdUtc: '作成日時' },
+      fields: { name: '名前', description: '説明', defaultExecutor: '既定のエグゼキューター', tenants: '許可するテナント ID', active: '有効' },
       hints: { tenants: '空欄にするとすべてのテナントが利用できます。' }
     },
     runs: {
@@ -825,7 +843,7 @@ const ja = {
     },
     nodes: {
       ...rp('ノード', '実行をリースして処理するワーカーノードです。メンテナンス前には隔離またはドレインしてください。', 'ノードを追加', 'ノードを作成', 'ノードを編集', 'ノードの詳細', 'ノードを削除', 'ノードはまだありません', 'ワーカーノードは起動時に自動で登録されます。ワーカーの StatefulSet をデプロイするか、Garrison.Worker をローカルで起動してください。'),
-      columns: { name: '名前', status: '状態', capacity: '実行', harnesses: 'ハーネス', labels: 'ラベル', nodeVersion: 'バージョン', lastHeartbeatUtc: '最終ハートビート', id: 'ID' },
+      columns: { name: '名前', status: '状態', capacity: '実行', harnesses: 'ハーネス', executors: 'エグゼキューター', labels: 'ラベル', nodeVersion: 'バージョン', lastHeartbeatUtc: '最終ハートビート', id: 'ID' },
       fields: { address: 'アドレス', maxConcurrentRuns: '容量', activeRuns: '実行中', capabilities: '対応機能', detectedVersion: 'バージョン', available: '利用可能', detail: '詳細' },
       actions: { cordon: '隔離', uncordon: '隔離を解除', drain: 'ドレイン', runs: '実行を表示', grafana: 'Grafana で開く' },
       toasts: { cordoned: 'ノードを隔離しました。', uncordoned: 'ノードの隔離を解除しました。', draining: 'ノードをドレインしています。' }
@@ -1296,6 +1314,7 @@ const ja = {
         },
         Auth: {
           RateLimitPerMinute: '1 分あたりのサインイン試行回数',
+          PasswordHashIterations: 'パスワードハッシュの反復回数',
           SignedRequestSkewSeconds: '署名付きリクエストの許容時刻ずれ (秒)',
           AdminApiKey: '管理者 API キー',
           TokenLifetimeMinutes: 'セッションの有効期間 (分)',

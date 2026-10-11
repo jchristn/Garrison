@@ -135,6 +135,17 @@ metadata:
 data:
   dashboards.yaml: |
 {{ .Files.Get "files/observability/grafana-dashboards.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garrison-grafana-config
+  namespace: {{ $ns }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+data:
+  grafana.ini: |
+{{ .Files.Get "files/observability/grafana.ini" | indent 4 }}
 {{- range $path, $_ := .Files.Glob "files/observability/dashboards/*.json" }}
 ---
 apiVersion: v1
@@ -420,6 +431,7 @@ spec:
       labels: { app.kubernetes.io/name: garrison-grafana, app.kubernetes.io/component: observability }
       annotations:
         checksum/datasources: {{ .Files.Get "files/observability/grafana-datasources.yaml" | sha256sum }}
+        checksum/config: {{ .Files.Get "files/observability/grafana.ini" | sha256sum }}
     spec:
       serviceAccountName: garrison-observability
       automountServiceAccountToken: false
@@ -445,6 +457,7 @@ spec:
             - { name: GF_LOG_LEVEL, value: warn }
             - { name: GF_PLUGINS_PREINSTALL_DISABLED, value: "true" }
           volumeMounts:
+            - { name: config, mountPath: /etc/grafana/grafana.ini, subPath: grafana.ini, readOnly: true }
             - { name: datasources, mountPath: /etc/grafana/provisioning/datasources, readOnly: true }
             - { name: dashboard-provider, mountPath: /etc/grafana/provisioning/dashboards, readOnly: true }
             - { name: dashboards, mountPath: /etc/grafana/dashboards/garrison, readOnly: true }
@@ -456,6 +469,7 @@ spec:
           readinessProbe: { httpGet: { path: /api/health, port: http }, periodSeconds: 10, failureThreshold: 3 }
           livenessProbe: { httpGet: { path: /api/health, port: http }, initialDelaySeconds: 60, periodSeconds: 20, failureThreshold: 5 }
       volumes:
+        - { name: config, configMap: { name: garrison-grafana-config } }
         - { name: datasources, configMap: { name: garrison-grafana-datasources } }
         - { name: dashboard-provider, configMap: { name: garrison-grafana-dashboard-provider } }
         - name: dashboards

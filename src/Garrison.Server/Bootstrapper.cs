@@ -133,6 +133,7 @@ namespace Garrison.Server
             SeedOptions seed = new SeedOptions();
             seed.AdminEmail = settings.Security.AdminEmail;
             seed.AdminPassword = settings.Security.AdminPassword;
+            seed.PasswordHashIterations = settings.Auth.PasswordHashIterations;
             seed.DefaultAccessKey = settings.Security.DefaultAccessKey;
             seed.DefaultSecretKey = settings.Security.DefaultSecretKey;
             seed.NodeAccessKey = settings.Security.NodeAccessKey;

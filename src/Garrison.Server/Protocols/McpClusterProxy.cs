@@ -73,6 +73,13 @@ namespace Garrison.Server.Protocols
         }
 
         /// <summary>
+        /// Called with the authenticated caller and the body of every POST before it is relayed to the internal
+        /// endpoint, so the MCP server can prepare for it (it registers agent tools named in tools/call). Null to skip.
+        /// Exceptions are logged and the request is relayed anyway.
+        /// </summary>
+        public Func<RequestContext, byte[], CancellationToken, Task>? BeforeForward { get; set; } = null;
+
+        /// <summary>
         /// Sessions this replica currently maps to local sessions.
         /// </summary>
         public int LocalSessions
@@ -315,6 +322,18 @@ namespace Garrison.Server.Protocols
                 string? query = queryIndex >= 0 ? pathAndQuery.Substring(queryIndex + 1) : null;
                 caller = await _Context.Authentication.ResolveAsync(headers, method, path, query, body, clientAddress, token).ConfigureAwait(false);
                 if (!caller.IsAuthenticated) caller = null;
+            }
+
+            if (caller != null && body != null && body.Length > 0 && BeforeForward != null && String.Equals(method, "POST", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    await BeforeForward(caller, body, token).ConfigureAwait(false);
+                }
+                catch (Exception e) when (!(e is OperationCanceledException))
+                {
+                    _Context.Logging.Warn(_Header + "preparing a request failed: " + e.Message);
+                }
             }
 
             string? clusterId = headers[Voltaic.Mcp.McpProtocol.SessionIdHeader];

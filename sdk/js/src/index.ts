@@ -67,14 +67,53 @@ export interface Agent extends Json {
   delegationMode?: string; skills?: Json[]; tags?: string[];
 }
 
+/** How a worker executes a run: as a subprocess of the worker, or in its own Kubernetes Job (pod per run). */
+export type RunExecutor = "Process" | "KubernetesJob";
+
+/** Executors, in declaration order. */
+export const RUN_EXECUTORS: readonly RunExecutor[] = ["Process", "KubernetesJob"] as const;
+
+/**
+ * Requests and limits for the run pod of a KubernetesJob run, as Kubernetes quantities (for example "500m", "2",
+ * "512Mi", "4Gi"). Null or absent values use the worker's defaults. Ignored for Process runs.
+ */
+export interface RunPodResources {
+  cpuRequest?: string | null; cpuLimit?: string | null; memoryRequest?: string | null; memoryLimit?: string | null;
+  ephemeralStorageRequest?: string | null; ephemeralStorageLimit?: string | null;
+}
+
+/** Workspace kinds. PersistentVolume mounts a PersistentVolumeClaim at the workspace path (KubernetesJob runs only). */
+export type WorkspaceKind = "Empty" | "GitRepository" | "Seeded" | "PersistentVolume";
+
 export interface Deployment extends Json {
   id: string; tenantId: string; agentId: string; name: string; harnessProfileId: string; model?: string;
+  /** Executor; null uses the node pool's defaultExecutor, then Process. */
+  executor?: RunExecutor | null;
+  /** Run pod requests and limits for KubernetesJob runs. */
+  podResources?: RunPodResources;
+}
+
+/** A node pool. defaultExecutor applies to deployments in the pool that set no executor (null means Process). */
+export interface NodePool extends Json {
+  id: string; name: string; description?: string | null; tenants?: string[]; defaultExecutor?: RunExecutor | null;
+}
+
+/** A worker node. executors lists what it can run (Process, and KubernetesJob when it can create Jobs). */
+export interface WorkerNode extends Json {
+  id: string; name: string; status: string; nodePoolId?: string | null; executors?: RunExecutor[];
+}
+
+/** A workspace template. persistentVolumeClaim names the claim for PersistentVolume workspaces. */
+export interface WorkspaceTemplate extends Json {
+  id: string; tenantId: string; name: string; kind: WorkspaceKind; persistentVolumeClaim?: string | null;
 }
 
 export interface HarnessProfile extends Json { id: string; name: string; harnessType: string; executable: string; }
 
 export interface Run extends Json {
   id: string; tenantId: string; agentId: string; agentName: string; deploymentId: string; status: string; outcome: string;
+  /** Executor the run needs, resolved when it was created. */
+  executor?: RunExecutor;
   inputText?: string; resultText?: string; errorMessage?: string; inputTokens: number; outputTokens: number;
   costUsd?: number; createdUtc: string; startedUtc?: string; completedUtc?: string; depth: number; parentRunId?: string;
   cachedTokens?: number;
@@ -130,13 +169,14 @@ export interface Run extends Json {
 
 /**
  * Run outcome codes (Run.outcome). SchemaValidationFailed means the final output did not validate against the agent's
- * output schema, after the one repair attempt or at once when the harness cannot resume.
+ * output schema, after the one repair attempt or at once when the harness cannot resume. PodFailed means the run pod of a
+ * KubernetesJob run failed outside the harness (unschedulable, image pull, OOMKilled, evicted, or no completion).
  */
 export const RUN_OUTCOMES = [
   "None", "Succeeded", "HarnessFailed", "NotInstalled", "NotCredentialed", "McpPreflightFailed", "NodeLost",
   "OutputLimitExceeded", "SchemaValidationFailed", "TimedOut", "Cancelled", "StaleLease", "CompileFailed",
   "WorkspaceFailed", "Rejected", "NoCapableWorker", "InternalError",
-  "RepetitionDetected", "NoProgress"
+  "RepetitionDetected", "NoProgress", "PodFailed"
 ] as const;
 
 /** One of {@link RUN_OUTCOMES}. */

@@ -23,6 +23,8 @@ namespace Test.Shared.Suites
             unit.Add(new TestCaseDescriptor("identity-unit", "rbac-matrix", "RBAC: deny beats permit, resource scope, inheritance, Write expansion", IdentityUnitCases.RbacMatrixAsync));
             unit.Add(new TestCaseDescriptor("identity-unit", "secret-cipher", "Secrets: GCM round trip and tamper detection", IdentityUnitCases.SecretCipherAsync));
             unit.Add(new TestCaseDescriptor("identity-unit", "redaction", "Request history: secret headers and secret routes are redacted", IdentityUnitCases.RedactionAsync));
+            unit.Add(new TestCaseDescriptor("identity-unit", "password-hashing", "Passwords: PBKDF2 format, salts, wrong passwords, legacy SHA-256, rehash detection", IdentityUnitCases.PasswordHashingAsync));
+            unit.Add(new TestCaseDescriptor("identity-unit", "password-timing", "Passwords: constant-time comparison and unknown-user verification time", IdentityUnitCases.PasswordTimingAsync));
             suites.Add(new TestSuiteDescriptor("identity-unit", "Identity unit", unit));
 
             foreach (DatabaseTypeEnum provider in TestEnvironment.Providers())
@@ -40,6 +42,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "request-history", "Request history capture, redaction, list, and gap-filled summary (" + provider + ")", ct => IdentityHttpCases.RequestHistoryAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "audit", "Authorization denials are audited and queryable (" + provider + ")", ct => IdentityHttpCases.AuditAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "settings", "Settings metadata, validation, live cluster settings, and file writes (" + provider + ")", ct => IdentityHttpCases.SettingsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "password-upgrade", "Legacy SHA-256 password hashes are upgraded to PBKDF2 on sign-in (" + provider + ")", ct => IdentityHttpCases.PasswordUpgradeAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Identity over HTTP (" + provider + ")", cases));
             }
 

@@ -13,6 +13,7 @@ namespace Garrison.Worker.Hosting
     using Garrison.Core.Protocol;
     using Garrison.Core.Telemetry;
     using Garrison.Worker.Execution;
+    using Garrison.Worker.Kubernetes;
     using Garrison.Worker.Protocol;
     using Garrison.Worker.Reporting;
     using Garrison.Worker.Settings;
@@ -145,6 +146,8 @@ namespace Garrison.Worker.Hosting
         private readonly NodeProtocolClient _Client;
         private readonly IRunExecutor _Executor;
         private readonly CapabilityProber _Prober;
+        private readonly KubernetesRuntime? _Kubernetes = null;
+        private readonly KubernetesJobReconciler? _Reconciler = null;
         private readonly ConcurrentDictionary<string, ActiveRun> _Runs = new ConcurrentDictionary<string, ActiveRun>(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, Task> _RunTasks = new ConcurrentDictionary<string, Task>(StringComparer.Ordinal);
         private readonly Padlock<string> _RunLocks = new Padlock<string>();
@@ -181,7 +184,7 @@ namespace Garrison.Worker.Hosting
         /// </summary>
         /// <param name="settings">Settings.</param>
         /// <param name="logging">Logging.</param>
-        /// <param name="executor">Executor; null creates a process executor.</param>
+        /// <param name="executor">Executor; null creates a process executor, routed together with a Kubernetes Job executor when Kubernetes.Enabled is set.</param>
         /// <param name="client">Protocol client; null creates one from settings.</param>
         /// <exception cref="ArgumentNullException">Thrown when settings or logging is null.</exception>
         public WorkerHost(WorkerSettings settings, LoggingModule logging, IRunExecutor? executor = null, NodeProtocolClient? client = null)
@@ -194,7 +197,22 @@ namespace Garrison.Worker.Hosting
             options.WorkRoot = settings.WorkRoot;
             options.EnvironmentAllowlist = new List<string>(settings.EnvironmentAllowlist);
             options.McpPreflightTimeoutMs = settings.McpPreflightTimeoutMs;
-            _Executor = executor ?? new ProcessRunExecutor(options, message => _Logging.Debug(_Header + message));
+            if (executor != null)
+            {
+                _Executor = executor;
+            }
+            else
+            {
+                ProcessRunExecutor process = new ProcessRunExecutor(options, message => _Logging.Debug(_Header + message));
+                KubernetesJobRunExecutor? job = null;
+                if (settings.Kubernetes.Enabled)
+                {
+                    _Kubernetes = new KubernetesRuntime(settings.Kubernetes, message => _Logging.Info(_Header + message));
+                    _Reconciler = new KubernetesJobReconciler(_Kubernetes, settings.EffectiveNodeName, message => _Logging.Info(_Header + message));
+                    job = new KubernetesJobRunExecutor(_Kubernetes, settings.EffectiveNodeName, new List<string>(settings.EnvironmentAllowlist), settings.McpPreflightTimeoutMs, message => _Logging.Debug(_Header + message));
+                }
+                _Executor = new RoutingRunExecutor(process, job);
+            }
 
             _Prober = new CapabilityProber(settings);
             _Slots = new SemaphoreSlim(settings.MaxConcurrentRuns, settings.MaxConcurrentRuns);
@@ -323,6 +341,7 @@ namespace Garrison.Worker.Hosting
             }
             _Health?.Dispose();
             _Telemetry?.Dispose();
+            _Kubernetes?.Dispose();
             _Activity.Dispose();
             _Client.Dispose();
             _Stop.Dispose();
@@ -345,13 +364,16 @@ namespace Garrison.Worker.Hosting
                     _Logging.Info(_Header + "harness " + capability.HarnessType + " (" + capability.Executable + "): " + (capability.Available ? "available " + capability.Version : "unavailable, " + capability.Detail));
                 }
 
+                if (_Kubernetes != null) await _Kubernetes.InitializeAsync(_Settings.EffectiveNodeName, token).ConfigureAwait(false);
+
                 await RegisterUntilSuccessAsync(token).ConfigureAwait(false);
 
                 Task heartbeat = Task.Run(() => HeartbeatLoopAsync(token));
                 Task lease = Task.Run(() => LeaseLoopAsync(token));
                 Task probe = Task.Run(() => ProbeLoopAsync(token));
                 Task watch = Task.Run(() => WatchLoopAsync(token));
-                await Task.WhenAll(heartbeat, lease, probe, watch).ConfigureAwait(false);
+                Task reconcile = Task.Run(() => ReconcileLoopAsync(token));
+                await Task.WhenAll(heartbeat, lease, probe, watch, reconcile).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -394,6 +416,7 @@ namespace Garrison.Worker.Hosting
             request.Labels = new Dictionary<string, string>(_Settings.Labels);
             foreach (KeyValuePair<string, string> label in _Prober.CapabilityLabels(_Capabilities)) request.Labels[label.Key] = label.Value;
             request.Capabilities = _Capabilities;
+            request.Executors = Executors();
 
             NodeRegisterResponse response = await _Client.RegisterAsync(request, token).ConfigureAwait(false);
             _NodeId = response.NodeId;
@@ -402,7 +425,7 @@ namespace Garrison.Worker.Hosting
             Interlocked.Exchange(ref _Registered, 1);
             Interlocked.Exchange(ref _NeedsRegistration, 0);
             _LastError = null;
-            _Logging.Info(_Header + "registered as " + request.Name + " (" + _NodeId + ") with capacity " + request.MaxConcurrentRuns);
+            _Logging.Info(_Header + "registered as " + request.Name + " (" + _NodeId + ") with capacity " + request.MaxConcurrentRuns + " and executors " + String.Join(", ", request.Executors));
         }
 
         private async Task HeartbeatLoopAsync(CancellationToken token)
@@ -657,6 +680,23 @@ namespace Garrison.Worker.Hosting
                 {
                     RunCompleteRequest complete = await ExecuteOnceAsync(run, current, shipper, harness).ConfigureAwait(false);
                     lastSucceeded = complete.Status == RunStatusEnum.Succeeded;
+                    if (complete.Outcome == RunOutcomeEnum.NodeLost && current.Spec.Executor == RunExecutorEnum.KubernetesJob)
+                    {
+                        // The run pod was stopped from outside: do not report, so the lease expires and the control plane
+                        // requeues or fails the run under the deployment's retryOnNodeLoss, exactly as for a lost worker.
+                        using (CancellationTokenSource flush = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+                        {
+                            try
+                            {
+                                await shipper.FlushAsync(flush.Token).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                            }
+                        }
+                        _Logging.Warn(_Header + "run pod of run " + run.RunId + " was lost (" + complete.ErrorMessage + "); leaving the lease to expire " + run.LogFields);
+                        return;
+                    }
                     RunCompleteResponse? response;
 
                     using (CancellationTokenSource retry = new CancellationTokenSource(TimeSpan.FromSeconds(_Settings.CompletionRetrySeconds)))
@@ -679,7 +719,8 @@ namespace Garrison.Worker.Hosting
                         complete.NodeId = nodeId;
                         complete.Epoch = run.Epoch;
                         complete.RepairAttempt = repairAttempt;
-                        complete.SupportsRepair = true;
+                        // Repairs resume the harness session in the run's directories, which only Process runs keep.
+                        complete.SupportsRepair = current.Spec.Executor == RunExecutorEnum.Process;
                         response = await ReportCompletionAsync(run, complete, retry.Token).ConfigureAwait(false);
                     }
 
@@ -802,12 +843,41 @@ namespace Garrison.Worker.Hosting
                 await Task.Delay(TimeSpan.FromSeconds(_Settings.ProbeIntervalSeconds), token).ConfigureAwait(false);
                 List<NodeCapabilityReport> latest = await _Prober.ProbeAllAsync(token).ConfigureAwait(false);
                 bool changed = latest.Count != _Capabilities.Count || latest.Where((c, i) => c.Available != _Capabilities[i].Available || c.Version != _Capabilities[i].Version).Any();
+                if (_Kubernetes != null)
+                {
+                    bool before = _Kubernetes.Available;
+                    await _Kubernetes.InitializeAsync(_Settings.EffectiveNodeName, token).ConfigureAwait(false);
+                    if (before != _Kubernetes.Available) changed = true;
+                }
                 _Capabilities = latest;
                 if (changed)
                 {
                     _Logging.Info(_Header + "harness capabilities changed; re-registering");
                     Interlocked.Exchange(ref _NeedsRegistration, 1);
                 }
+            }
+        }
+
+        private List<RunExecutorEnum> Executors()
+        {
+            List<RunExecutorEnum> executors = new List<RunExecutorEnum> { RunExecutorEnum.Process };
+            if (_Kubernetes != null && _Kubernetes.Available) executors.Add(RunExecutorEnum.KubernetesJob);
+            return executors;
+        }
+
+        private async Task ReconcileLoopAsync(CancellationToken token)
+        {
+            // Deletes this worker's run Jobs for runs it does not hold: right after start (everything from before a
+            // restart is orphaned) and then periodically (P11.7).
+            if (_Kubernetes == null || _Reconciler == null) return;
+            while (!token.IsCancellationRequested)
+            {
+                if (_Kubernetes.Available)
+                {
+                    int deleted = await _Reconciler.ReconcileAsync(() => new HashSet<string>(_Runs.Values.Select(r => KubernetesJobReconciler.Key(r.RunId, r.Epoch)), StringComparer.Ordinal), token).ConfigureAwait(false);
+                    if (deleted > 0) _Telemetry?.Increment("garrison.worker.jobs.reconciled", new RadiantTag("result", "deleted"));
+                }
+                await Task.Delay(TimeSpan.FromSeconds(_Settings.Kubernetes.ReconcileIntervalSeconds), token).ConfigureAwait(false);
             }
         }
 

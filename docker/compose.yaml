@@ -310,6 +310,7 @@ services:
       GF_LOG_LEVEL: 'warn'
       GF_PLUGINS_PREINSTALL_DISABLED: 'true'
     volumes:
+      - ../k8s/components/observability/config/grafana.ini:/etc/grafana/grafana.ini:ro
       - ../k8s/components/observability/config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
       - ../k8s/components/observability/config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
       - ../k8s/components/observability/dashboards:/etc/grafana/dashboards/garrison:ro

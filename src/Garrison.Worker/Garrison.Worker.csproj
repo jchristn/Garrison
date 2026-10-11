@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="KubernetesClient" Version="19.0.2" />
     <PackageReference Include="Padlock" Version="1.2.1" />
     <PackageReference Include="SyslogLogging" Version="2.4.0" />
     <PackageReference Include="Watson" Version="7.3.0" />

@@ -18,6 +18,21 @@ namespace Garrison.Core.Services
         public string AdminPassword { get; set; } = "password";
 
         /// <summary>
+        /// PBKDF2 iterations for the seeded users' password hashes. Minimum 10000, maximum 10000000, default 600000.
+        /// </summary>
+        public int PasswordHashIterations
+        {
+            get
+            {
+                return _PasswordHashIterations;
+            }
+            set
+            {
+                _PasswordHashIterations = Math.Clamp(value, 10000, 10000000);
+            }
+        }
+
+        /// <summary>
         /// Default credential access key.
         /// </summary>
         public string DefaultAccessKey { get; set; } = "access_garrison_default";
@@ -36,5 +51,7 @@ namespace Garrison.Core.Services
         /// Node credential secret key.
         /// </summary>
         public string NodeSecretKey { get; set; } = "secret_garrison_node_change_me";
+
+        private int _PasswordHashIterations = 600000;
     }
 }

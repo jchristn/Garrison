@@ -220,6 +220,29 @@ namespace Garrison.Core.Models
         public string? NodePoolId { get; set; } = null;
 
         /// <summary>
+        /// How runs execute: Process (a subprocess of the worker) or KubernetesJob (a pod per run, plan D-033). Null uses
+        /// the node pool's defaultExecutor, then Process. Runs record the effective executor when they are created, and
+        /// only workers that report the executor claim them.
+        /// </summary>
+        public RunExecutorEnum? Executor { get; set; } = null;
+
+        /// <summary>
+        /// CPU, memory, and ephemeral storage requests and limits for the run pod of KubernetesJob runs. Ignored for
+        /// Process runs. Never null; unset values use the worker's defaults.
+        /// </summary>
+        public RunPodResources PodResources
+        {
+            get
+            {
+                return _PodResources;
+            }
+            set
+            {
+                _PodResources = value ?? new RunPodResources();
+            }
+        }
+
+        /// <summary>
         /// Workspace template.
         /// </summary>
         public string? WorkspaceTemplateId { get; set; } = null;
@@ -416,6 +439,7 @@ namespace Garrison.Core.Models
         private List<DeploymentEnvironmentOverride> _EnvironmentOverrides = new List<DeploymentEnvironmentOverride>();
         private List<DeploymentFileOverride> _FileOverrides = new List<DeploymentFileOverride>();
         private List<DeploymentNodeSelector> _NodeSelector = new List<DeploymentNodeSelector>();
+        private RunPodResources _PodResources = new RunPodResources();
         private List<DeploymentParameter> _Parameters = new List<DeploymentParameter>();
         private List<DeploymentRunOverrideRule> _AllowedRunOverrides = new List<DeploymentRunOverrideRule>();
 

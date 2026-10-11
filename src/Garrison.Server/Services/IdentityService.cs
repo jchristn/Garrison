@@ -26,6 +26,7 @@ namespace Garrison.Server.Services
         private readonly SecretCipher _Cipher;
         private readonly AuditService _Audit;
         private readonly AuthorizationService _Authorization;
+        private readonly Func<int> _PasswordHashIterations;
 
         #endregion
 
@@ -38,9 +39,11 @@ namespace Garrison.Server.Services
         /// <param name="cipher">Secret cipher.</param>
         /// <param name="audit">Audit.</param>
         /// <param name="authorization">Authorization service (cache invalidation and evaluation).</param>
+        /// <param name="passwordHashIterations">Returns the PBKDF2 iterations for new password hashes (read on each use, so live setting changes apply). Null uses PasswordHasher.DefaultIterations.</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public IdentityService(DatabaseDriverBase database, SecretCipher cipher, AuditService audit, AuthorizationService authorization)
+        public IdentityService(DatabaseDriverBase database, SecretCipher cipher, AuditService audit, AuthorizationService authorization, Func<int>? passwordHashIterations = null)
         {
+            _PasswordHashIterations = passwordHashIterations ?? (() => PasswordHasher.DefaultIterations);
             _Database = database ?? throw new ArgumentNullException(nameof(database));
             _Cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
             _Audit = audit ?? throw new ArgumentNullException(nameof(audit));
@@ -146,7 +149,7 @@ namespace Garrison.Server.Services
             User user = new User();
             user.TenantId = tenantId;
             user.Email = request.Email.Trim();
-            user.PasswordSha256 = PasswordHasher.Hash(request.Password!);
+            user.PasswordHash = PasswordHasher.Hash(request.Password!, _PasswordHashIterations());
             user.FirstName = request.FirstName;
             user.LastName = request.LastName;
             user.IsTenantAdmin = request.IsTenantAdmin ?? false;
@@ -192,7 +195,7 @@ namespace Garrison.Server.Services
                 if (await _Database.Users.ReadByEmailAsync(tenantId, request.Email.Trim(), token).ConfigureAwait(false) != null) throw new ConflictException("Duplicate", "A user with that email already exists in the tenant.");
                 user.Email = request.Email.Trim();
             }
-            if (request.Password != null) user.PasswordSha256 = PasswordHasher.Hash(request.Password);
+            if (request.Password != null) user.PasswordHash = PasswordHasher.Hash(request.Password, _PasswordHashIterations());
             if (request.FirstName != null) user.FirstName = request.FirstName;
             if (request.LastName != null) user.LastName = request.LastName;
             if (request.IsTenantAdmin.HasValue) user.IsTenantAdmin = request.IsTenantAdmin.Value;

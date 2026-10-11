@@ -333,7 +333,8 @@ const tips = {
       InternalError: 'Garrison encontró un error interno. Los registros del servidor tienen los detalles.',
       NoCapableWorker: 'La ejecución esperó en la cola más tiempo del que permite el ajuste de clúster Runtime.FailBlockedAfterSeconds y ningún nodo de trabajo listo podía ejecutarla, así que falló.',
       RepetitionDetected: 'Una protección detuvo la ejecución porque su respuesta degeneró en el mismo texto corto repetido una y otra vez, o solo en espacios y puntuación. Se conserva la salida obtenida. Ajústala con la Protección contra repeticiones del despliegue.',
-      NoProgress: 'Una protección detuvo la ejecución porque no llegó texto, razonamiento ni actividad de herramientas durante más tiempo que el límite sin avance del despliegue. Se conserva la salida obtenida.'
+      NoProgress: 'Una protección detuvo la ejecución porque no llegó texto, razonamiento ni actividad de herramientas durante más tiempo que el límite sin avance del despliegue. Se conserva la salida obtenida.',
+      PodFailed: 'El pod de ejecución falló fuera del harness: no se pudo programar, no se pudo descargar su imagen, se quedó sin memoria, fue desalojado o terminó sin informar. El mensaje de error indica la causa.'
     },
     controlNodeStatus: {
       Starting: 'Iniciando: la réplica se está inicializando y todavía no atiende tráfico.',
@@ -379,7 +380,12 @@ const tips = {
     workspaceKind: {
       Empty: 'Cada ejecución empieza en un directorio nuevo y vacío.',
       GitRepository: 'Cada ejecución empieza con un clon nuevo de un repositorio Git.',
-      Seeded: 'Cada ejecución empieza con los archivos indicados en la plantilla.'
+      Seeded: 'Cada ejecución empieza con los archivos indicados en la plantilla.',
+      PersistentVolume: 'Cada ejecución monta un PersistentVolumeClaim existente como espacio de trabajo, así que los archivos se conservan entre ejecuciones. Requiere el ejecutor Job de Kubernetes.'
+    },
+    runExecutor: {
+      Process: 'El harness se ejecuta como subproceso del worker, en su contenedor, con sus propios directorios de trabajo, home y configuración.',
+      KubernetesJob: 'El worker inicia un Job de Kubernetes por ejecución: el harness se ejecuta en su propio pod sin credenciales de Kubernetes ni de Garrison, con un sistema de archivos raíz de solo lectura y los límites de recursos de la implementación.'
     },
     promptTemplateKind: {
       System: 'Un prompt del sistema: las instrucciones permanentes que configuran el agente.',
@@ -616,6 +622,7 @@ const tips = {
       gitRef: 'Rama, etiqueta o commit que se extrae. Déjalo vacío para usar la rama predeterminada.',
       gitDepth: 'Cuántos commits se descargan. 1 es lo más rápido; 0 descarga todo el historial.',
       gitCredentialSecretId: 'Secreto que contiene el token o la contraseña para clonar un repositorio privado.',
+      persistentVolumeClaim: 'Nombre del PersistentVolumeClaim que se monta en la ruta del espacio de trabajo. Debe existir ya en el espacio de nombres de ejecución; Garrison nunca lo crea ni lo elimina.',
       files: 'Archivos que se escriben en el espacio de trabajo antes de que empiece la ejecución.',
       filesItems: {
         path: 'Ruta del archivo relativa a la raíz del espacio de trabajo.',
@@ -744,9 +751,17 @@ const tips = {
       repetitionGuard: 'Detiene una ejecución cuando su respuesta degenera en el mismo texto corto repetido una y otra vez, o solo en espacios y puntuación (resultado Repetición detectada). Sin definir sigue el valor del clúster; marca o desmarca la casilla para fijarlo en este despliegue.',
       maxAssistantChars: 'Máximo de caracteres de texto del asistente que puede escribir una ejecución antes de que Garrison la detenga (resultado Límite de salida superado). 0 significa sin límite; vacío usa el valor del clúster.',
       noProgressSeconds: 'Detiene una ejecución cuando no llega texto, razonamiento, llamada a herramienta ni resultado de herramienta durante estos segundos mientras no hay ninguna llamada a herramienta en curso (resultado Sin avance). 0 lo desactiva; vacío usa el valor del clúster.',
+      executor: 'Cómo se ejecutan las ejecuciones: Proceso (dentro del worker) o Job de Kubernetes (un pod por ejecución, mayor aislamiento). Vacío sigue el ejecutor predeterminado del grupo de nodos y, si no, Proceso.',
+      podCpuRequest: 'CPU que solicita el pod de ejecución, por ejemplo 250m. Vacío usa el valor predeterminado del worker.',
+      podCpuLimit: 'CPU máxima que puede usar el pod de ejecución, por ejemplo 2. Vacío usa el valor predeterminado del worker.',
+      podMemoryRequest: 'Memoria que solicita el pod de ejecución, por ejemplo 512Mi. Vacío usa el valor predeterminado del worker.',
+      podMemoryLimit: 'Memoria máxima que puede usar el pod de ejecución, por ejemplo 4Gi. Una ejecución que la supera se detiene con el resultado Falló el pod de ejecución.',
+      podEphemeralStorageRequest: 'Disco local que solicita el pod de ejecución para su espacio de trabajo, home y archivos temporales, por ejemplo 1Gi.',
+      podEphemeralStorageLimit: 'Disco local máximo que puede usar el pod de ejecución, por ejemplo 10Gi. Un pod que lo supera es desalojado y la ejecución falla.',
       useClusterDefault: 'Borra el ajuste propio de este despliegue para que la protección contra repeticiones vuelva a seguir el valor del clúster.',
       sections: {
-        guards: 'Las protecciones de ejecución detienen pronto las ejecuciones descontroladas en cualquier harness. Cada una que dejes vacía sigue su valor del clúster en Ajustes (Tiempo de ejecución).'
+        guards: 'Las protecciones de ejecución detienen pronto las ejecuciones descontroladas en cualquier harness. Cada una que dejes vacía sigue su valor del clúster en Ajustes (Tiempo de ejecución).',
+        execution: 'Elija dónde se ejecutan las ejecuciones y, para las de Job de Kubernetes, la CPU, la memoria y el disco del pod.'
       }
     },
     nodePools: {
@@ -754,6 +769,7 @@ const tips = {
       name: 'Nombre del grupo. Los nodos se unen a un grupo al registrarse, y los despliegues pueden exigir uno.',
       description: 'Qué hardware o propósito representa este grupo.',
       tenants: 'Inquilinos que pueden usar el grupo. Vacío significa todos los inquilinos.',
+      defaultExecutor: 'Ejecutor para las ejecuciones de implementaciones de este grupo que no eligen uno. Vacío significa Proceso.',
       active: 'Los grupos inactivos no aceptan ejecuciones nuevas.'
     },
     runs: {
@@ -776,6 +792,7 @@ const tips = {
       status: 'Si el nodo acepta ejecuciones nuevas. Acordona o drena un nodo antes del mantenimiento.',
       capacity: 'Ejecuciones que tiene el nodo ahora frente al máximo que acepta a la vez.',
       harnesses: 'Harnesses que el nodo encontró instalados y funcionando al comprobarlos durante el arranque.',
+      executors: 'Ejecutores que ofrece el nodo. Job de Kubernetes solo aparece cuando el worker se ejecuta en un clúster con permiso para crear Jobs.',
       labels: 'Etiquetas de clave y valor que anuncia el nodo. Los selectores de nodo de los despliegues se comparan con ellas.',
       nodeVersion: 'Versión del software de trabajo en el nodo.',
       lastHeartbeatUtc: 'Cuándo se reportó el nodo por última vez. Los nodos que dejan de reportarse se marcan como perdidos.',

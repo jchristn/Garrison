@@ -133,6 +133,7 @@ export const nodesConfig = {
         .join(', ') || '-',
       { csv: (r) => (r.capabilities || []).filter((c) => c.available).map((c) => c.harnessType).join(' ') }
     ),
+    col('nodes', t, 'executors', (r) => ((r.executors || []).length ? r.executors : ['Process']).map((x) => enumLabel(t, 'runExecutor', x)).join(', '), { csv: (r) => ((r.executors || []).length ? r.executors : ['Process']).join(' ') }),
     col('nodes', t, 'labels', (r) => (r.labels || []).map((l) => `${l.key}=${l.value}`).join(', ') || '-', { defaultHidden: true, csv: (r) => (Array.isArray(r.labels) ? r.labels.map((l) => `${l.key}=${l.value}`).join(' ') : '') }),
     col('nodes', t, 'nodeVersion', (r) => r.nodeVersion || '-', { defaultHidden: true }),
     col('nodes', t, 'lastHeartbeatUtc', (r) => (r.lastHeartbeatUtc ? formatRelativeTime(r.lastHeartbeatUtc, i18n.language) : '-')),

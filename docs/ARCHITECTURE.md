@@ -48,7 +48,7 @@ The control plane is assembled from four modules, each registering its routes an
 4. **Claimed.** A worker's long-poll lease request finds candidate runs it is eligible for (harness, node pool, and tenant dedication are filtered in SQL) and claims one with a single compare-and-set update that also increments the run's fencing epoch. Only one claim can succeed. When the deployment has `maxConcurrentRuns`, claims for that deployment are serialized in the database and the update counts its active runs, so the limit is exact across replicas. A long poll waiting on one replica is woken through the event backplane when a run is queued on another.
 5. **Compiled.** The claiming replica loads the deployment, profile, agent, prompt bindings, MCP servers, secrets, and workspace, issues a run token if the agent may delegate, and renders everything into an `ExecutionSpec`: executable, argument list, environment, files, stdin, parser, result source, success policy, timeouts, MCP checks, and the values to scrub. The template versions used are recorded on the run. A compile failure fails the run with `CompileFailed`.
 6. **Leased.** The spec goes back to the worker in the lease response, with the epoch and lease expiry.
-7. **Running.** The worker creates the run's directories, writes files, runs MCP pre-flight, starts the process, and reports `started`. It parses stdout into normalized events (text, tool calls, usage, results) and sends them in batches. Heartbeats extend the lease. The run guards watch the same events and stop the harness when its text degenerates into repetition, grows past `maxAssistantChars`, or nothing happens for `noProgressSeconds` (see `docs/HARNESSES.md`).
+7. **Running.** The worker creates the run's directories, writes files, runs MCP pre-flight, starts the process, and reports `started`. It parses stdout into normalized events (text, tool calls, usage, results) and sends them in batches. Heartbeats extend the lease. The run guards watch the same events and stop the harness when its text degenerates into repetition, grows past `maxAssistantChars`, or nothing happens for `noProgressSeconds` (see `docs/HARNESSES.md`). A run whose deployment uses the `KubernetesJob` executor follows the same steps inside a pod of its own: the worker creates a Job and a spec Secret, the pod's `garrison-worker run-one` does the work above, and the worker relays its nonce-prefixed stdout lines as events while it keeps the lease (`docs/KUBERNETES.md`, "Pod-per-run executor").
 8. **Finished.** When the process exits, the worker classifies the outcome, reads the result, scrubs secrets, reports `complete`, and cleans up. The control plane stores the result, usage, cost, served model, exit code, and stderr tail, revokes the run token, and wakes anyone waiting.
 9. **Delivered.** A waiting invoke returns the run. Streaming clients receive the final event over SSE, WebSocket, or A2A streaming.
 
@@ -74,11 +74,12 @@ Pending -> Queued -> Leased -> Running -> Succeeded | Failed | TimedOut | Cancel
               +---------+----------+   lease expired with attempts left (requeue)
            Queued/Leased/Running -> Cancelling -> Cancelled
            Queued -> Failed (outcome NoCapableWorker, only when Runtime.FailBlockedAfterSeconds > 0)
+           Leased -> Rejected (outcome Rejected: admission refused when the run is claimed)
 ```
 
-`Rejected` exists in the status list for future admission control; nothing sets it in this release.
+`Rejected` means the run was accepted but never started. When a worker claims a run, the control plane checks admission again before it compiles the run: if the run's tenant, agent, or deployment was deactivated or deleted while the run waited in the queue, the run ends `Rejected` with outcome `Rejected` and an error message that names what changed, instead of starting or failing to compile. The worker never sees it. A request that is refused up front (an inactive agent, no active deployment) still answers 409 and creates no run.
 
-A run's `outcome` explains a `Failed` status: `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `RepetitionDetected`, `NoProgress`, `CompileFailed`, and so on (see `docs/HARNESSES.md`).
+A run's `outcome` explains a `Failed` status: `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `RepetitionDetected`, `NoProgress`, `PodFailed`, `CompileFailed`, and so on (see `docs/HARNESSES.md`).
 
 ## Design decisions
 
@@ -97,6 +98,8 @@ A run's `outcome` explains a `Failed` status: `HarnessFailed`, `NotInstalled`, `
 **One migrator.** Replicas take a database startup lock (a PostgreSQL advisory lock) before migrating and seeding, so replicas starting together never race; the others wait, answering liveness but not readiness, until the schema is current.
 
 **Multi-tenant from the start.** Every tenant-owned row carries a tenant identifier, every query filters on the authenticated tenant, and cross-tenant reads answer 404.
+
+**Passwords are slow to guess.** User passwords are stored as PBKDF2-HMAC-SHA256 with a random 16-byte salt and 600,000 iterations (`Auth.PasswordHashIterations`), encoded as `pbkdf2-sha256$<iterations>$<salt>$<hash>` so the algorithm and work factor can change later without a migration. Hashes from earlier builds (unsalted SHA-256) still sign in, and the first successful sign-in replaces them; a hash with fewer iterations than configured is upgraded the same way. Comparisons are constant time, and an unknown or inactive account costs the same verification time as a real one, so response times do not reveal which accounts exist. Credential secret keys are not hashed: they are encrypted, because signed requests need the secret itself.
 
 **Structured storage.** Records are stored as columns and child tables, not JSON blobs, apart from a few deliberately unmanaged fields such as agent schemas and raw harness events.
 

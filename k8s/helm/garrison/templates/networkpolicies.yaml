@@ -39,4 +39,45 @@ spec:
             matchLabels: { app.kubernetes.io/name: garrison-server }
       ports: [ { port: 5432 } ]
 {{- end }}
+{{- if .Values.kubernetesExecutor.enabled }}
+---
+# Run pods (KubernetesJob executor): no ingress; egress to DNS, the Garrison MCP port (delegation), and runEgress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-run
+  namespace: {{ include "garrison.runNamespace" . }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: garrison-run }
+  policyTypes: ["Ingress", "Egress"]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports: [ { port: 53, protocol: UDP }, { port: 53, protocol: TCP } ]
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: garrison-server }
+          {{- if ne (include "garrison.runNamespace" .) (include "garrison.namespace" .) }}
+          namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ include "garrison.namespace" . }} }
+          {{- end }}
+      ports: [ { port: 8701 } ]
+    {{- range $rule := .Values.kubernetesExecutor.runEgress }}
+    - to:
+        - ipBlock:
+            cidr: {{ $rule.cidr }}
+            {{- with $rule.except }}
+            except:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+      {{- with $rule.ports }}
+      ports:
+        {{- range $port := . }}
+        - port: {{ $port }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }}
 {{- end }}

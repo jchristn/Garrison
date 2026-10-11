@@ -150,6 +150,7 @@ namespace Garrison.Server.Routes
             NodePool update = RouteHelpers.RequiredBody<NodePool>(context);
             existing.Name = String.IsNullOrWhiteSpace(update.Name) ? existing.Name : update.Name;
             existing.Description = update.Description;
+            existing.DefaultExecutor = update.DefaultExecutor;
             existing.Tenants = update.Tenants;
             existing.Active = update.Active;
             await _Context.Database.NodePools.UpdateAsync(existing, context.Token).ConfigureAwait(false);

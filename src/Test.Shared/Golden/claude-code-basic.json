@@ -84,7 +84,8 @@
       "credential-claude_code_basic"
     ],
     "retainForRepair": false,
-    "repairAttempt": 0
+    "repairAttempt": 0,
+    "executor": "Process"
   },
   "templateVersions": [
     {

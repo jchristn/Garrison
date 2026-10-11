@@ -3,6 +3,7 @@ namespace Garrison.Sdk.Compilation
     using System;
     using System.Collections.Generic;
     using Garrison.Sdk.Enums;
+    using Garrison.Sdk.Models;
 
     /// <summary>
     /// Fully resolved instructions for one harness invocation. Compiled by the control plane and sent to the worker with the lease; the worker never renders templates or reads the database.
@@ -151,5 +152,15 @@ namespace Garrison.Sdk.Compilation
         /// W3C traceparent for span correlation.
         /// </summary>
         public string? TraceParent { get; set; } = null;
+
+        /// <summary>
+        /// Executor the run needs. Default Process.
+        /// </summary>
+        public RunExecutorEnum Executor { get; set; } = RunExecutorEnum.Process;
+
+        /// <summary>
+        /// Run pod resources for KubernetesJob runs, or null.
+        /// </summary>
+        public RunPodResources? PodResources { get; set; } = null;
     }
 }

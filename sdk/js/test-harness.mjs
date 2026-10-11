@@ -178,7 +178,11 @@ await check("control nodes", async () => {
 
 await check("cleanup", async () => {
   if (state.deployment) await client.deployments.delete(state.deployment);
-  if (state.agent) await client.agents.delete(state.agent);
+  if (state.agent) {
+    // Single-resource deletes answer 204 No Content (G-7), which the SDK returns as undefined.
+    const deleted = await client.agents.delete(state.agent);
+    require(deleted === undefined, `agent delete returned a body: ${JSON.stringify(deleted)}`);
+  }
 });
 
 console.log(`\nPassed: ${passed}  Failed: ${failures.length}`);

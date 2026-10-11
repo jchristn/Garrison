@@ -55,7 +55,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.Deployment, OperationTypeEnum.Create, CreateAsync, "Create a deployment", "Deployments", typeof(Deployment), typeof(Deployment));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, ReadAsync, "Read a deployment", "Deployments", null, typeof(Deployment));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.Deployment, OperationTypeEnum.Update, UpdateAsync, "Update a deployment (increments its configuration version)", "Deployments", typeof(Deployment), typeof(Deployment));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Deployment, OperationTypeEnum.Delete, DeleteAsync, "Delete a deployment", "Deployments", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Deployment, OperationTypeEnum.Delete, DeleteAsync, "Delete a deployment", "Deployments");
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/compile-preview", ResourceTypeEnum.Deployment, OperationTypeEnum.Read, PreviewAsync, "Compile the deployment with sample input; secret values are redacted", "Deployments", typeof(CompilePreviewRequest), typeof(CompilePreviewResponse));
         }
 
@@ -114,10 +114,9 @@ namespace Garrison.Server.Routes
             string tenantId = RouteHelpers.Tenant(http);
             Deployment existing = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Deployment " + existing.Name);
-            DeleteResponse response = new DeleteResponse();
-            response.Deleted = await _Server.Database.Deployments.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
+            await _Server.Database.Deployments.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Deployment", existing.Id, "Deleted deployment " + existing.Name + ".").ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task PreviewAsync(HttpContextBase http)

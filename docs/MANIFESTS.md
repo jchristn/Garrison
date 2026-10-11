@@ -237,6 +237,8 @@ spec:
 
 `gitCredentialSecret` names a `GitCredential` secret for private repositories. `files` seeds files into the workspace.
 
+`kind: PersistentVolume` with `persistentVolumeClaim: <claim>` mounts an existing PersistentVolumeClaim at the workspace path of each run pod, so its contents persist between runs. Only deployments with `executor: KubernetesJob` can use it (see `docs/KUBERNETES.md`, "Pod-per-run executor").
+
 ### Agent
 
 ```yaml
@@ -307,6 +309,8 @@ spec:
 | `parameters`, `nodeSelector` | Maps of strings. Quote values YAML would read as numbers or booleans |
 | `allowedRunOverrides`, `argumentOverrides`, `environmentOverrides`, `fileOverrides` | Lists, as in the REST API |
 | `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd`, `timeoutSeconds`, `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | As in the REST API |
+| `executor` | `Process` or `KubernetesJob` (a pod per run). Omit it to use the node pool's default, then `Process` |
+| `podResources` | Run pod `cpuRequest`, `cpuLimit`, `memoryRequest`, `memoryLimit`, `ephemeralStorageRequest`, `ephemeralStorageLimit` for `KubernetesJob` runs. It is not called `resources` because that key holds the secret and MCP server bindings |
 
 ## A complete example on the fake harness
 

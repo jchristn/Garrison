@@ -243,7 +243,8 @@ const en = {
       InternalError: 'Internal error',
       NoCapableWorker: 'No capable worker',
       RepetitionDetected: 'Repetition detected',
-      NoProgress: 'No progress'
+      NoProgress: 'No progress',
+      PodFailed: 'Run pod failed'
     },
     runEventType: {
       Lifecycle: 'Lifecycle',
@@ -277,7 +278,8 @@ const en = {
       BasicAuth: 'Basic authentication',
       GitCredential: 'Git credential'
     },
-    workspaceKind: { Empty: 'Empty', GitRepository: 'Git repository', Seeded: 'Seeded files' },
+    workspaceKind: { Empty: 'Empty', GitRepository: 'Git repository', Seeded: 'Seeded files', PersistentVolume: 'Persistent volume' },
+    runExecutor: { Process: 'Process', KubernetesJob: 'Kubernetes Job' },
     workspaceRetention: { Delete: 'Delete', Keep: 'Keep', KeepOnFailure: 'Keep on failure' },
     promptTemplateKind: { System: 'System', Task: 'Task', Fragment: 'Fragment', ToolDescription: 'Tool description', ConfigFile: 'Config file', Other: 'Other' },
     permissionType: { Permit: 'Permit', Deny: 'Deny' },
@@ -688,7 +690,9 @@ const en = {
     workspaces: {
       ...resourcePage('Workspaces', 'workspace template', 'How a run workspace is prepared: empty, cloned from Git, or seeded with files.', 'Create a workspace template so deployments start from a repository or files.'),
       columns: { name: 'Name', kind: 'Kind', gitUrl: 'Repository', retention: 'Retention', active: 'Active', id: 'ID', createdUtc: 'Created' },
-      fields: { name: 'Name', kind: 'Kind', description: 'Description', gitUrl: 'Repository URL', gitRef: 'Branch, tag, or commit', gitDepth: 'Clone depth', gitCredentialSecretId: 'Git credential', files: 'Files', filePath: 'Path', fileContent: 'Content', retention: 'Retention', active: 'Active' }
+      fields: { name: 'Name', kind: 'Kind', description: 'Description', gitUrl: 'Repository URL', gitRef: 'Branch, tag, or commit', gitDepth: 'Clone depth', gitCredentialSecretId: 'Git credential', persistentVolumeClaim: 'PersistentVolumeClaim name', files: 'Files', filePath: 'Path', fileContent: 'Content', retention: 'Retention', active: 'Active' },
+      hints: { persistentVolumeClaim: 'An existing claim in the run namespace. Only deployments with the Kubernetes Job executor can use this workspace; its contents persist across runs.' },
+      errors: { claimName: 'Use lowercase letters, digits, hyphens, and dots, starting and ending with a letter or digit.' }
     },
     artifactStores: {
       ...resourcePage('Artifact Stores', 'artifact store', 'Where files produced by runs are kept.', 'Create an artifact store to keep run outputs.'),
@@ -734,7 +738,7 @@ const en = {
       promptRoles: { Repair: 'Structured output repair', DelegatedTask: 'Task wrapper for delegated runs', Task: 'Task wrapper', System: 'System prompt' },
       ...resourcePage('Deployments', 'deployment', 'Bind an agent to a harness profile, prompts, secrets, MCP servers, placement, and limits.', 'Create a deployment to make an agent runnable.'),
       steps: { basics: 'Basics', harness: 'Harness', prompts: 'Prompts', resources: 'Resources', overrides: 'Overrides', placement: 'Placement and limits' },
-      columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness profile', model: 'Model', weight: 'Weight', configVersion: 'Config version', active: 'Active', id: 'ID', createdUtc: 'Created' },
+      columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness profile', model: 'Model', executor: 'Executor', weight: 'Weight', configVersion: 'Config version', active: 'Active', id: 'ID', createdUtc: 'Created' },
       fields: {
         name: 'Name',
         agentId: 'Agent',
@@ -781,7 +785,14 @@ const en = {
         retryOnNodeLoss: 'Requeue when the node is lost',
         repetitionGuard: 'Repetition guard',
         maxAssistantChars: 'Maximum assistant characters',
-        noProgressSeconds: 'No-progress timeout (seconds)'
+        noProgressSeconds: 'No-progress timeout (seconds)',
+        executor: 'Executor',
+        podCpuRequest: 'CPU request',
+        podCpuLimit: 'CPU limit',
+        podMemoryRequest: 'Memory request',
+        podMemoryLimit: 'Memory limit',
+        podEphemeralStorageRequest: 'Ephemeral storage request',
+        podEphemeralStorageLimit: 'Ephemeral storage limit'
       },
       hints: {
         secretsKinds: 'The harness profile {{profile}} needs any secret of kind {{kinds}}. Bind one under any alias.',
@@ -798,16 +809,23 @@ const en = {
         guardDefaultUnknown: 'Empty uses the cluster setting {{setting}}.',
         guardOwn: 'Set on this deployment. The cluster default ({{setting}}) is {{value}}.',
         guardOwnUnknown: 'Set on this deployment instead of the cluster setting {{setting}}.',
-        guardFollowing: 'Follows the cluster default, {{value}}, from {{setting}}.'
+        guardFollowing: 'Follows the cluster default, {{value}}, from {{setting}}.',
+        executorInherit: 'Empty uses the node pool default: {{executor}}.',
+        executorSet: 'Process runs the harness inside the worker; Kubernetes Job runs it in a pod of its own.',
+        podCpuRequest: 'Pod resources apply to Kubernetes Job runs only. Use Kubernetes quantities such as 500m, 2, 512Mi, or 4Gi; empty uses the worker default.'
       },
       actions: { compilePreview: 'Compile preview', test: 'Test invoke', useClusterDefault: 'Use cluster default' },
       sections: {
-        guards: 'Run guards'
+        guards: 'Run guards',
+        execution: 'Executor and pod resources'
       },
       placeholders: {
         clusterDefault: 'Cluster default ({{value}})',
         clusterDefaultUnknown: 'Cluster default'
       },
+      executorInherit: 'Node pool default',
+      executorInheritShort: 'Pool default',
+      errors: { quantity: 'Use a Kubernetes quantity such as 500m, 2, 512Mi, or 4Gi.' },
       guardStates: {
         on: 'on',
         off: 'off'
@@ -816,8 +834,8 @@ const en = {
     nodePools: {
       ...resourcePage('Node Pools', 'node pool', 'Group worker nodes by label and optionally dedicate them to tenants.', 'Create a node pool to dedicate capacity.'),
       allTenants: 'All tenants',
-      columns: { name: 'Name', description: 'Description', tenants: 'Tenants', active: 'Active', id: 'ID', createdUtc: 'Created' },
-      fields: { name: 'Name', description: 'Description', tenants: 'Allowed tenant IDs', active: 'Active' },
+      columns: { name: 'Name', description: 'Description', tenants: 'Tenants', defaultExecutor: 'Default executor', active: 'Active', id: 'ID', createdUtc: 'Created' },
+      fields: { name: 'Name', description: 'Description', defaultExecutor: 'Default executor', tenants: 'Allowed tenant IDs', active: 'Active' },
       hints: { tenants: 'Leave empty to allow every tenant.' }
     },
     runs: {
@@ -851,7 +869,7 @@ const en = {
     },
     nodes: {
       ...resourcePage('Nodes', 'node', 'Worker nodes that lease and execute runs. Cordon or drain a node before maintenance.', 'Worker nodes register themselves when they start. Deploy the worker StatefulSet or run Garrison.Worker locally.'),
-      columns: { name: 'Name', status: 'Status', capacity: 'Runs', harnesses: 'Harnesses', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Last heartbeat', id: 'ID' },
+      columns: { name: 'Name', status: 'Status', capacity: 'Runs', harnesses: 'Harnesses', executors: 'Executors', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Last heartbeat', id: 'ID' },
       fields: { address: 'Address', maxConcurrentRuns: 'Capacity', activeRuns: 'Active runs', capabilities: 'Capabilities', detectedVersion: 'Version', available: 'Available', detail: 'Detail' },
       actions: { cordon: 'Cordon', uncordon: 'Uncordon', drain: 'Drain', runs: 'View runs', grafana: 'Open in Grafana' },
       toasts: { cordoned: 'Node cordoned.', uncordoned: 'Node uncordoned.', draining: 'Node is draining.' }
@@ -1324,6 +1342,7 @@ const en = {
         },
         Auth: {
           RateLimitPerMinute: 'Sign-in attempts per minute',
+          PasswordHashIterations: 'Password hash iterations',
           SignedRequestSkewSeconds: 'Signed request clock skew (seconds)',
           AdminApiKey: 'Administrator API key',
           TokenLifetimeMinutes: 'Session lifetime (minutes)',

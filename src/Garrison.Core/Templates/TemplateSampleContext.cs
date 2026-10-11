@@ -30,6 +30,8 @@ namespace Garrison.Core.Templates
             context.Set("agent.delegation.mode", "None");
             context.Set("agent.delegation.maxDepth", 2);
             context.Set("agent.delegation.allowList", new List<object?>());
+            context.Set("tool.name", "garrison_invoke_agent");
+            context.Set("tool.defaultDescription", "Ask another Garrison agent to do work and wait for its answer.");
             context.Set("deployment.name", "sample-agent-default");
             context.Set("deployment.model", "sample-model");
             context.Set("deployment.maxTurns", 20);

@@ -250,7 +250,8 @@ const es = {
       InternalError: 'Error interno',
       NoCapableWorker: 'Ningún nodo de trabajo compatible',
       RepetitionDetected: 'Repetición detectada',
-      NoProgress: 'Sin avance'
+      NoProgress: 'Sin avance',
+      PodFailed: 'Falló el pod de ejecución'
     },
     runEventType: {
       Lifecycle: 'Ciclo de vida',
@@ -284,7 +285,8 @@ const es = {
       BasicAuth: 'Autenticación básica',
       GitCredential: 'Credencial de Git'
     },
-    workspaceKind: { Empty: 'Vacío', GitRepository: 'Repositorio Git', Seeded: 'Archivos precargados' },
+    workspaceKind: { Empty: 'Vacío', GitRepository: 'Repositorio Git', Seeded: 'Archivos precargados', PersistentVolume: 'Volumen persistente' },
+    runExecutor: { Process: 'Proceso', KubernetesJob: 'Job de Kubernetes' },
     workspaceRetention: { Delete: 'Eliminar', Keep: 'Conservar', KeepOnFailure: 'Conservar si falla' },
     promptTemplateKind: { System: 'Sistema', Task: 'Tarea', Fragment: 'Fragmento', ToolDescription: 'Descripción de herramienta', ConfigFile: 'Archivo de configuración', Other: 'Otro' },
     permissionType: { Permit: 'Permitir', Deny: 'Denegar' },
@@ -703,7 +705,9 @@ const es = {
     workspaces: {
       ...rp('Espacios de trabajo', 'Cómo se prepara el espacio de trabajo de una ejecución: vacío, clonado desde Git o precargado con archivos.', 'Añadir plantilla de espacio de trabajo', 'Crear plantilla de espacio de trabajo', 'Editar plantilla de espacio de trabajo', 'Detalles de la plantilla de espacio de trabajo', 'Eliminar plantilla de espacio de trabajo', 'Aún no hay espacios de trabajo', 'Crea una plantilla de espacio de trabajo para que los despliegues partan de un repositorio o de archivos.'),
       columns: { name: 'Nombre', kind: 'Tipo', gitUrl: 'Repositorio', retention: 'Retención', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
-      fields: { name: 'Nombre', kind: 'Tipo', description: 'Descripción', gitUrl: 'URL del repositorio', gitRef: 'Rama, etiqueta o commit', gitDepth: 'Profundidad de clonado', gitCredentialSecretId: 'Credencial de Git', files: 'Archivos', filePath: 'Ruta', fileContent: 'Contenido', retention: 'Retención', active: 'Activo' }
+      fields: { name: 'Nombre', kind: 'Tipo', description: 'Descripción', gitUrl: 'URL del repositorio', gitRef: 'Rama, etiqueta o commit', gitDepth: 'Profundidad de clonado', gitCredentialSecretId: 'Credencial de Git', persistentVolumeClaim: 'Nombre del PersistentVolumeClaim', files: 'Archivos', filePath: 'Ruta', fileContent: 'Contenido', retention: 'Retención', active: 'Activo' },
+      hints: { persistentVolumeClaim: 'Un claim existente en el espacio de nombres de ejecución. Solo las implementaciones con el ejecutor Job de Kubernetes pueden usar este espacio de trabajo; su contenido se conserva entre ejecuciones.' },
+      errors: { claimName: 'Use minúsculas, dígitos, guiones y puntos, empezando y terminando con una letra o un dígito.' }
     },
     artifactStores: {
       ...rp('Almacenes de artefactos', 'Dónde se guardan los archivos que producen las ejecuciones.', 'Añadir almacén de artefactos', 'Crear almacén de artefactos', 'Editar almacén de artefactos', 'Detalles del almacén de artefactos', 'Eliminar almacén de artefactos', 'Aún no hay almacenes de artefactos', 'Crea un almacén de artefactos para conservar los resultados de las ejecuciones.'),
@@ -750,7 +754,7 @@ const es = {
       promptRoles: { Repair: 'Reparación de salida estructurada', DelegatedTask: 'Envoltorio de tarea para ejecuciones delegadas', Task: 'Envoltorio de tarea', System: 'Prompt del sistema' },
       ...rp('Despliegues', 'Vincula un agente a un perfil de harness, prompts, secretos, servidores MCP, ubicación y límites.', 'Añadir despliegue', 'Crear despliegue', 'Editar despliegue', 'Detalles del despliegue', 'Eliminar despliegue', 'Aún no hay despliegues', 'Crea un despliegue para que un agente se pueda ejecutar.'),
       steps: { basics: 'Datos básicos', harness: 'Harness', prompts: 'Prompts', resources: 'Recursos', overrides: 'Sobrescrituras', placement: 'Ubicación y límites' },
-      columns: { name: 'Nombre', agentId: 'Agente', harnessProfileId: 'Perfil de harness', model: 'Modelo', weight: 'Peso', configVersion: 'Versión de configuración', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
+      columns: { name: 'Nombre', agentId: 'Agente', harnessProfileId: 'Perfil de harness', model: 'Modelo', executor: 'Ejecutor', weight: 'Peso', configVersion: 'Versión de configuración', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
       fields: {
         name: 'Nombre',
         agentId: 'Agente',
@@ -797,7 +801,14 @@ const es = {
         retryOnNodeLoss: 'Volver a encolar si se pierde el nodo',
         repetitionGuard: 'Protección contra repeticiones',
         maxAssistantChars: 'Máximo de caracteres del asistente',
-        noProgressSeconds: 'Límite sin avance (segundos)'
+        noProgressSeconds: 'Límite sin avance (segundos)',
+        executor: 'Ejecutor',
+        podCpuRequest: 'Solicitud de CPU',
+        podCpuLimit: 'Límite de CPU',
+        podMemoryRequest: 'Solicitud de memoria',
+        podMemoryLimit: 'Límite de memoria',
+        podEphemeralStorageRequest: 'Solicitud de almacenamiento efímero',
+        podEphemeralStorageLimit: 'Límite de almacenamiento efímero'
       },
       hints: {
         secretsKinds: 'El perfil de harness {{profile}} necesita cualquier secreto de tipo {{kinds}}. Vincula uno con cualquier alias.',
@@ -814,16 +825,23 @@ const es = {
         guardDefaultUnknown: 'Vacío usa el ajuste del clúster {{setting}}.',
         guardOwn: 'Definido en este despliegue. El valor del clúster ({{setting}}) es {{value}}.',
         guardOwnUnknown: 'Definido en este despliegue en lugar del ajuste del clúster {{setting}}.',
-        guardFollowing: 'Sigue el valor del clúster, {{value}}, de {{setting}}.'
+        guardFollowing: 'Sigue el valor del clúster, {{value}}, de {{setting}}.',
+        executorInherit: 'Vacío usa el valor predeterminado del grupo de nodos: {{executor}}.',
+        executorSet: 'Proceso ejecuta el harness dentro del worker; Job de Kubernetes lo ejecuta en su propio pod.',
+        podCpuRequest: 'Los recursos del pod solo se aplican a ejecuciones con Job de Kubernetes. Use cantidades de Kubernetes como 500m, 2, 512Mi o 4Gi; vacío usa el valor predeterminado del worker.'
       },
       actions: { compilePreview: 'Vista previa de compilación', test: 'Invocación de prueba', useClusterDefault: 'Usar el valor del clúster' },
       sections: {
-        guards: 'Protecciones de ejecución'
+        guards: 'Protecciones de ejecución',
+        execution: 'Ejecutor y recursos del pod'
       },
       placeholders: {
         clusterDefault: 'Valor del clúster ({{value}})',
         clusterDefaultUnknown: 'Valor del clúster'
       },
+      executorInherit: 'Predeterminado del grupo de nodos',
+      executorInheritShort: 'Predeterminado del grupo',
+      errors: { quantity: 'Use una cantidad de Kubernetes como 500m, 2, 512Mi o 4Gi.' },
       guardStates: {
         on: 'activada',
         off: 'desactivada'
@@ -832,8 +850,8 @@ const es = {
     nodePools: {
       ...rp('Grupos de nodos', 'Agrupa los nodos de trabajo por etiqueta y, opcionalmente, dedícalos a inquilinos.', 'Añadir grupo de nodos', 'Crear grupo de nodos', 'Editar grupo de nodos', 'Detalles del grupo de nodos', 'Eliminar grupo de nodos', 'Aún no hay grupos de nodos', 'Crea un grupo de nodos para dedicar capacidad.'),
       allTenants: 'Todos los inquilinos',
-      columns: { name: 'Nombre', description: 'Descripción', tenants: 'Inquilinos', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
-      fields: { name: 'Nombre', description: 'Descripción', tenants: 'ID de inquilinos permitidos', active: 'Activo' },
+      columns: { name: 'Nombre', description: 'Descripción', tenants: 'Inquilinos', defaultExecutor: 'Ejecutor predeterminado', active: 'Activo', id: 'ID', createdUtc: 'Creado' },
+      fields: { name: 'Nombre', description: 'Descripción', defaultExecutor: 'Ejecutor predeterminado', tenants: 'ID de inquilinos permitidos', active: 'Activo' },
       hints: { tenants: 'Déjalo vacío para permitir todos los inquilinos.' }
     },
     runs: {
@@ -867,7 +885,7 @@ const es = {
     },
     nodes: {
       ...rp('Nodos', 'Nodos de trabajo que obtienen concesiones de ejecuciones y las ejecutan. Acordona o drena un nodo antes del mantenimiento.', 'Añadir nodo', 'Crear nodo', 'Editar nodo', 'Detalles del nodo', 'Eliminar nodo', 'Aún no hay nodos', 'Los nodos de trabajo se registran solos al iniciarse. Despliega el StatefulSet de los nodos de trabajo o ejecuta Garrison.Worker en local.'),
-      columns: { name: 'Nombre', status: 'Estado', capacity: 'Ejecuciones', harnesses: 'Harnesses', labels: 'Etiquetas', nodeVersion: 'Versión', lastHeartbeatUtc: 'Último latido', id: 'ID' },
+      columns: { name: 'Nombre', status: 'Estado', capacity: 'Ejecuciones', harnesses: 'Harnesses', executors: 'Ejecutores', labels: 'Etiquetas', nodeVersion: 'Versión', lastHeartbeatUtc: 'Último latido', id: 'ID' },
       fields: { address: 'Dirección', maxConcurrentRuns: 'Capacidad', activeRuns: 'Ejecuciones activas', capabilities: 'Capacidades', detectedVersion: 'Versión', available: 'Disponible', detail: 'Detalle' },
       actions: { cordon: 'Acordonar', uncordon: 'Quitar acordonamiento', drain: 'Drenar', runs: 'Ver ejecuciones', grafana: 'Abrir en Grafana' },
       toasts: { cordoned: 'Nodo acordonado.', uncordoned: 'Acordonamiento del nodo retirado.', draining: 'El nodo se está drenando.' }
@@ -1343,6 +1361,7 @@ const es = {
         },
         Auth: {
           RateLimitPerMinute: 'Intentos de inicio de sesión por minuto',
+          PasswordHashIterations: 'Iteraciones del hash de contraseñas',
           SignedRequestSkewSeconds: 'Desfase de reloj permitido en solicitudes firmadas (segundos)',
           AdminApiKey: 'Clave de API de administrador',
           TokenLifetimeMinutes: 'Duración de la sesión (minutos)',

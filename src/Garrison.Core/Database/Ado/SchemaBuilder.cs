@@ -78,6 +78,10 @@ namespace Garrison.Core.Database.Ado
             v8.BuildVersion8();
             migrations.Add(new SchemaMigration(8, "Run guard limits on deployments", v8._Statements, v8._Columns));
 
+            SchemaBuilder v9 = new SchemaBuilder(catalog, dialect);
+            v9.BuildVersion9();
+            migrations.Add(new SchemaMigration(9, "Run executors, run pod resources, and PersistentVolume workspaces", v9._Statements, v9._Columns));
+
             return migrations;
         }
 
@@ -143,6 +147,30 @@ namespace Garrison.Core.Database.Ado
             Column("deployments", "repetitionguard", d.TypeBool);
             Column("deployments", "maxassistantchars", d.TypeBigInt);
             Column("deployments", "noprogressseconds", d.TypeInt);
+        }
+
+        private void BuildVersion9()
+        {
+            SqlDialect d = _Dialect;
+
+            // Pod-per-run executor (plan D-033, Phase 11). Null executors mean Process (deployments: the pool default).
+            Column("deployments", "executor", "VARCHAR(64)");
+            Column("deployments", "podcpurequest", "VARCHAR(64)");
+            Column("deployments", "podcpulimit", "VARCHAR(64)");
+            Column("deployments", "podmemoryrequest", "VARCHAR(64)");
+            Column("deployments", "podmemorylimit", "VARCHAR(64)");
+            Column("deployments", "podephemeralstoragerequest", "VARCHAR(64)");
+            Column("deployments", "podephemeralstoragelimit", "VARCHAR(64)");
+            Column("node_pools", "defaultexecutor", "VARCHAR(64)");
+            Column("runs", "executor", "VARCHAR(64)");
+            Column("workspace_templates", "persistentvolumeclaim", "VARCHAR(256)");
+
+            // node_executors: executors a node reports at registration (none from older workers means Process)
+            Table("node_executors",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "nodeid " + d.TypeId + " NOT NULL",
+                "executor VARCHAR(64) NOT NULL");
+            Index("node_executors", "parent", false, "nodeid");
         }
 
         private void BuildVersion7()

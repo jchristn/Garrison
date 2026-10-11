@@ -47,7 +47,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.ArtifactStore, OperationTypeEnum.Create, CreateAsync, "Create an artifact store", "Artifact Stores", typeof(ArtifactStore), typeof(ArtifactStore));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.ArtifactStore, OperationTypeEnum.Read, ReadAsync, "Read an artifact store", "Artifact Stores", null, typeof(ArtifactStore));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.ArtifactStore, OperationTypeEnum.Update, UpdateAsync, "Update an artifact store", "Artifact Stores", typeof(ArtifactStore), typeof(ArtifactStore));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.ArtifactStore, OperationTypeEnum.Delete, DeleteAsync, "Delete an artifact store", "Artifact Stores", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.ArtifactStore, OperationTypeEnum.Delete, DeleteAsync, "Delete an artifact store", "Artifact Stores");
         }
 
         #endregion
@@ -98,10 +98,9 @@ namespace Garrison.Server.Routes
             ArtifactStore existing = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Artifact store " + existing.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.ArtifactStoreId == existing.Id, "Artifact store " + existing.Name, http.Token).ConfigureAwait(false);
-            DeleteResponse response = new DeleteResponse();
-            response.Deleted = await _Server.Database.ArtifactStores.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
+            await _Server.Database.ArtifactStores.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "ArtifactStore", existing.Id, "Deleted artifact store " + existing.Name + ".").ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task ValidateAsync(string tenantId, ArtifactStore store, string? currentId, HttpContextBase http)

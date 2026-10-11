@@ -334,7 +334,8 @@ const tips = {
       InternalError: 'Garrison hit an internal error. The server logs have details.',
       NoCapableWorker: 'The run waited in the queue longer than the cluster setting Runtime.FailBlockedAfterSeconds allows, and no Ready worker could run it, so it was failed.',
       RepetitionDetected: 'A run guard stopped the run because its answer degenerated into the same short text repeated over and over, or only whitespace and punctuation. The output so far is kept. Tune it with the deployment\'s Repetition guard.',
-      NoProgress: 'A run guard stopped the run because no text, thinking, or tool activity arrived for longer than the deployment\'s no-progress timeout. The output so far is kept.'
+      NoProgress: 'A run guard stopped the run because no text, thinking, or tool activity arrived for longer than the deployment\'s no-progress timeout. The output so far is kept.',
+      PodFailed: 'The run pod failed outside the harness: it could not be scheduled, its image could not be pulled, it ran out of memory, it was evicted, or it ended without reporting. The error message names the cause.'
     },
     controlNodeStatus: {
       Starting: 'Starting: the replica is initializing and does not serve traffic yet.',
@@ -380,7 +381,12 @@ const tips = {
     workspaceKind: {
       Empty: 'Each run starts in a new empty directory.',
       GitRepository: 'Each run starts with a fresh clone of a Git repository.',
-      Seeded: 'Each run starts with the files listed in the template.'
+      Seeded: 'Each run starts with the files listed in the template.',
+      PersistentVolume: 'Each run mounts an existing PersistentVolumeClaim as its workspace, so files persist between runs. Needs the Kubernetes Job executor.'
+    },
+    runExecutor: {
+      Process: 'The harness runs as a subprocess of the worker, in the worker\'s container, with its own work, home, and config directories.',
+      KubernetesJob: 'The worker starts a Kubernetes Job per run: the harness runs in its own pod with no Kubernetes or Garrison credentials, a read-only root filesystem, and the deployment\'s resource limits.'
     },
     promptTemplateKind: {
       System: 'A system prompt: the standing instructions that set up the agent.',
@@ -617,6 +623,7 @@ const tips = {
       gitRef: 'Branch, tag, or commit to check out. Leave empty for the default branch.',
       gitDepth: 'How many commits to fetch. 1 is fastest; 0 fetches the full history.',
       gitCredentialSecretId: 'Secret holding the token or password used to clone a private repository.',
+      persistentVolumeClaim: 'Name of the PersistentVolumeClaim to mount at the workspace path. It must already exist in the run namespace; Garrison never creates or deletes it.',
       files: 'Files written into the workspace before the run starts.',
       filesItems: {
         path: 'Path of the file relative to the workspace root.',
@@ -745,9 +752,17 @@ const tips = {
       repetitionGuard: 'Stop a run when its answer degenerates into the same short text repeated over and over, or only whitespace and punctuation (outcome Repetition detected). Unset follows the cluster default; check or clear the box to set it for this deployment.',
       maxAssistantChars: 'Most characters of assistant text one run may write before Garrison stops it (outcome Output limit exceeded). 0 means unlimited; empty uses the cluster default.',
       noProgressSeconds: 'Stop a run when no text, thinking, tool call, or tool result arrives for this many seconds while no tool call is running (outcome No progress). 0 turns it off; empty uses the cluster default.',
+      executor: 'How runs execute: Process (inside the worker) or Kubernetes Job (a pod per run, stronger isolation). Empty follows the node pool\'s default executor, then Process.',
+      podCpuRequest: 'CPU the run pod requests, for example 250m. Empty uses the worker default.',
+      podCpuLimit: 'Most CPU the run pod may use, for example 2. Empty uses the worker default.',
+      podMemoryRequest: 'Memory the run pod requests, for example 512Mi. Empty uses the worker default.',
+      podMemoryLimit: 'Most memory the run pod may use, for example 4Gi. A run above it is stopped with outcome Run pod failed.',
+      podEphemeralStorageRequest: 'Local disk the run pod requests for its workspace, home, and temporary files, for example 1Gi.',
+      podEphemeralStorageLimit: 'Most local disk the run pod may use, for example 10Gi. A pod above it is evicted and the run fails.',
       useClusterDefault: 'Clear this deployment\'s own setting so the repetition guard follows the cluster default again.',
       sections: {
-        guards: 'Run guards stop runaway runs early on every harness. Each one left empty follows its cluster default in Settings (Runtime).'
+        guards: 'Run guards stop runaway runs early on every harness. Each one left empty follows its cluster default in Settings (Runtime).',
+        execution: 'Choose where runs execute and, for Kubernetes Job runs, the run pod\'s CPU, memory, and disk.'
       }
     },
     nodePools: {
@@ -755,6 +770,7 @@ const tips = {
       name: 'Pool name. Nodes join a pool when they register, and deployments can require one.',
       description: 'What hardware or purpose this pool represents.',
       tenants: 'Tenants allowed to use the pool. Empty means every tenant.',
+      defaultExecutor: 'Executor for runs of deployments in this pool that do not choose one. Empty means Process.',
       active: 'Inactive pools accept no new runs.'
     },
     runs: {
@@ -777,6 +793,7 @@ const tips = {
       status: 'Whether the node accepts new runs. Cordon or drain a node before maintenance.',
       capacity: 'Runs the node holds now out of the most it accepts at once.',
       harnesses: 'Harnesses the node found installed and working when it probed them at startup.',
+      executors: 'Executors the node offers. Kubernetes Job appears only when the worker runs in a cluster with permission to create Jobs.',
       labels: 'Key and value labels the node advertises. Deployment node selectors match against them.',
       nodeVersion: 'Version of the worker software on the node.',
       lastHeartbeatUtc: 'When the node last checked in. Nodes that stop checking in are marked lost.',

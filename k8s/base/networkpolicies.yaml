@@ -29,3 +29,36 @@ spec:
         - port: 8700
         - port: 8701
         - port: 9464
+---
+# Run pods (KubernetesJob executor) accept no inbound traffic. They may resolve DNS, reach the Garrison MCP port on
+# the server (agent-to-agent delegation), and reach the internet on 443 only (model APIs, git over HTTPS). Widen or
+# narrow the last rule to the endpoints your harnesses need; the Helm chart's runEgress value does the same.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: garrison-run
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: garrison-run
+  policyTypes: ["Ingress", "Egress"]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: garrison-server
+      ports:
+        - port: 8701
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443

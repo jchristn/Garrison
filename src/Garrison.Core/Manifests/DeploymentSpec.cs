@@ -3,6 +3,7 @@ namespace Garrison.Core.Manifests
     using System;
     using System.Collections.Generic;
     using Garrison.Core.Enums;
+    using Garrison.Core.Models;
 
     /// <summary>
     /// Deployment manifest spec. References use names; prompts map a role to a template name, optionally pinned with name@version.
@@ -88,6 +89,18 @@ namespace Garrison.Core.Manifests
         /// Traffic weight.
         /// </summary>
         public int Weight { get; set; } = 100;
+
+        /// <summary>
+        /// Executor: Process or KubernetesJob. Null uses the node pool's default executor, then Process.
+        /// </summary>
+        public RunExecutorEnum? Executor { get; set; } = null;
+
+        /// <summary>
+        /// Run pod requests and limits for KubernetesJob runs (cpuRequest, cpuLimit, memoryRequest, memoryLimit,
+        /// ephemeralStorageRequest, ephemeralStorageLimit). Null for none. Named podResources because resources holds
+        /// the secret and MCP server bindings.
+        /// </summary>
+        public RunPodResources? PodResources { get; set; } = null;
 
         /// <summary>
         /// Workspace template name.

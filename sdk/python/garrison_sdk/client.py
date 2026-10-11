@@ -15,6 +15,8 @@ import requests
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8700"
 TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"}
+# Run executors: deployment "executor", node pool "defaultExecutor", run "executor", node "executors".
+RUN_EXECUTORS = ("Process", "KubernetesJob")
 
 
 class GarrisonError(Exception):

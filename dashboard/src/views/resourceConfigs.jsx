@@ -21,6 +21,7 @@ import CloneTemplateModal from '../components/CloneTemplateModal';
 import { PROMPT_ROLES, defaultTemplateFor, templatesForRole, profileSecretNeeds } from '../utils/deployments';
 import { formatList, formatNumber } from '../i18n/formatters';
 import { loadRuntimeLimits } from '../utils/settings';
+import { POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
 
 // ---------------------------------------------------------------- helpers
 //
@@ -610,7 +611,7 @@ export const workspacesConfig = {
   explainer: 'workspaces',
   api: tenantApi('listWorkspaceTemplates', 'createWorkspaceTemplate', 'updateWorkspaceTemplate', 'deleteWorkspaceTemplate'),
   loadOptions: async ({ apiClient, tenantId }) => ({ secrets: await safeList(apiClient.listSecrets(tenantId, { pageNumber: 1, pageSize: 1000 })) }),
-  blank: () => ({ name: '', description: '', kind: 'Empty', gitUrl: '', gitRef: '', gitDepth: 1, gitCredentialSecretId: null, retention: 'Delete', files: [], active: true }),
+  blank: () => ({ name: '', description: '', kind: 'Empty', gitUrl: '', gitRef: '', gitDepth: 1, gitCredentialSecretId: null, persistentVolumeClaim: '', retention: 'Delete', files: [], active: true }),
   columns: ({ t, i18n }) => [
     nameCol('workspaces', t),
     col('workspaces', t, 'kind', (r) => enumBadge(t, 'workspaceKind', r.kind)),
@@ -628,6 +629,7 @@ export const workspacesConfig = {
     field('workspaces', t, 'gitRef', 'text', { showIf: (x) => x.kind === 'GitRepository' }),
     field('workspaces', t, 'gitDepth', 'number', { min: 0, max: 10000, showIf: (x) => x.kind === 'GitRepository' }),
     field('workspaces', t, 'gitCredentialSecretId', 'select', { options: (options.secrets || []).map((s) => ({ value: s.id, label: s.name })), showIf: (x) => x.kind === 'GitRepository' }),
+    field('workspaces', t, 'persistentVolumeClaim', 'text', { required: true, placeholder: 'shared-repo', showIf: (x) => x.kind === 'PersistentVolume' }),
     field('workspaces', t, 'files', 'objectList', {
       showIf: (x) => x.kind === 'Seeded',
       fields: [
@@ -642,6 +644,10 @@ export const workspacesConfig = {
     const e = {};
     if (!d.name) e.name = t('common.errors.required');
     if (d.kind === 'GitRepository' && !d.gitUrl) e.gitUrl = t('common.errors.required');
+    if (d.kind === 'PersistentVolume') {
+      if (!d.persistentVolumeClaim) e.persistentVolumeClaim = t('common.errors.required');
+      else if (!/^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/.test(d.persistentVolumeClaim)) e.persistentVolumeClaim = t('resources.workspaces.errors.claimName');
+    }
     return e;
   }
 };
@@ -789,6 +795,14 @@ function guardToggle(t, value, runtime) {
   return { defaultValue: clusterDefault, hint, resetLabel: t('resources.deployments.actions.useClusterDefault'), resetTip: t('tips.resources.deployments.useClusterDefault') };
 }
 
+/** Hint under the executor select: what an empty choice resolves to, and where pod resources apply. */
+function executorHint(t, d, pools) {
+  const pool = (pools || []).find((p) => p.id === d.nodePoolId);
+  const inherited = pool?.defaultExecutor || 'Process';
+  if (d.executor) return t('resources.deployments.hints.executorSet');
+  return t('resources.deployments.hints.executorInherit', { executor: enumLabel(t, 'runExecutor', inherited) });
+}
+
 export const deploymentsConfig = {
   id: 'deployments',
   explainer: 'deployments',
@@ -840,6 +854,8 @@ export const deploymentsConfig = {
     repetitionGuard: null,
     maxAssistantChars: null,
     noProgressSeconds: null,
+    executor: null,
+    ...podResourcesToForm(null),
     weight: 100,
     nodePoolId: null,
     workspaceTemplateId: null,
@@ -862,6 +878,7 @@ export const deploymentsConfig = {
     col('deployments', t, 'agentId', (r) => <NamedId id={r.agentId} name={r.agentName || lookups?.agents?.[r.agentId]} />, { csv: (r) => r.agentName || lookups?.agents?.[r.agentId] || r.agentId }),
     col('deployments', t, 'harnessProfileId', (r) => <NamedId id={r.harnessProfileId} name={lookups?.profiles?.[r.harnessProfileId]} />, { csv: (r) => lookups?.profiles?.[r.harnessProfileId] || r.harnessProfileId }),
     col('deployments', t, 'model', (r) => r.model || '-'),
+    col('deployments', t, 'executor', (r) => (r.executor ? enumBadge(t, 'runExecutor', r.executor, r.executor === 'KubernetesJob' ? 'info' : 'neutral') : t('resources.deployments.executorInheritShort')), { csv: (r) => r.executor || '', defaultHidden: true }),
     col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right' }),
     col('deployments', t, 'configVersion', (r) => r.configVersion, { cellClass: 'right', defaultHidden: true }),
     activeCol('deployments', t),
@@ -1005,14 +1022,23 @@ export const deploymentsConfig = {
       section(id, t, 'guards', 5),
       field(id, t, 'repetitionGuard', 'nullableToggle', { step: 5, ...guardToggle(t, d.repetitionGuard, options.runtime) }),
       field(id, t, 'maxAssistantChars', 'number', { min: 0, max: 100000000, step: 5, ...runtimeHint(t, i18n, options.runtime, 'maxAssistantChars') }),
-      field(id, t, 'noProgressSeconds', 'number', { min: 0, max: 86400, step: 5, ...runtimeHint(t, i18n, options.runtime, 'noProgressSeconds') })
+      field(id, t, 'noProgressSeconds', 'number', { min: 0, max: 86400, step: 5, ...runtimeHint(t, i18n, options.runtime, 'noProgressSeconds') }),
+      // Executor and run pod resources (Phase 11): empty executor inherits the node pool default, then Process.
+      section(id, t, 'execution', 5),
+      field(id, t, 'executor', 'select', { step: 5, options: enumOptions(t, 'runExecutor'), noneLabel: t('resources.deployments.executorInherit'), hint: executorHint(t, d, options.pools) }),
+      ...POD_RESOURCE_KEYS.map((key) =>
+        field(id, t, podField(key), 'text', { step: 5, placeholder: POD_RESOURCE_EXAMPLES[key], showIf: (x) => x.executor !== 'Process' })
+      )
     ];
   },
+  toForm: (r) => deploymentToForm(r),
+  toBody: (d) => deploymentToBody(d),
   validate: (d, t) => {
     const e = {};
     if (!d.name) e.name = t('common.errors.required');
     if (!d.agentId) e.agentId = t('common.errors.required');
     if (!d.harnessProfileId) e.harnessProfileId = t('common.errors.required');
+    Object.assign(e, podResourceErrors(d, t('resources.deployments.errors.quantity')));
     return e;
   },
   rowActions: (r, ctx) => [
@@ -1030,16 +1056,23 @@ export const nodePoolsConfig = {
     update: (c, _t, id, b) => c.updateNodePool(id, b),
     remove: (c, _t, id) => c.deleteNodePool(id)
   },
-  blank: () => ({ name: '', description: '', tenants: [], active: true }),
+  blank: () => ({ name: '', description: '', defaultExecutor: null, tenants: [], active: true }),
   columns: ({ t, i18n }) => [
     nameCol('nodePools', t),
     col('nodePools', t, 'description', (r) => r.description || '-'),
     col('nodePools', t, 'tenants', (r) => ((r.tenants || []).length ? (r.tenants || []).join(', ') : t('resources.nodePools.allTenants'))),
+    col('nodePools', t, 'defaultExecutor', (r) => enumBadge(t, 'runExecutor', r.defaultExecutor || 'Process'), { csv: (r) => r.defaultExecutor || 'Process' }),
     activeCol('nodePools', t),
     idCol('nodePools', t),
     createdCol('nodePools', t, i18n)
   ],
-  fields: (_d, { t }) => [field('nodePools', t, 'name', 'text', { required: true }), field('nodePools', t, 'description', 'textarea'), field('nodePools', t, 'tenants', 'stringList'), field('nodePools', t, 'active', 'checkbox')],
+  fields: (_d, { t }) => [
+    field('nodePools', t, 'name', 'text', { required: true }),
+    field('nodePools', t, 'description', 'textarea'),
+    field('nodePools', t, 'defaultExecutor', 'select', { options: enumOptions(t, 'runExecutor'), noneLabel: enumLabel(t, 'runExecutor', 'Process') }),
+    field('nodePools', t, 'tenants', 'stringList'),
+    field('nodePools', t, 'active', 'checkbox')
+  ],
   validate: (d, t) => (!d.name ? { name: t('common.errors.required') } : null)
 };
 

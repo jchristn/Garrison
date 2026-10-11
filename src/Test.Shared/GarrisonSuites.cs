@@ -40,6 +40,7 @@ namespace Test.Shared
                 suites.AddRange(ObservabilitySuite.Build());
                 suites.AddRange(ScaleOutSuite.Build());
                 suites.AddRange(MultiReplicaSuite.Build());
+                suites.AddRange(KubernetesExecutorSuite.Build());
                 return suites;
             }
         }

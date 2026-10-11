@@ -241,6 +241,7 @@ A deployment binds one agent to one profile and adjusts it without touching the 
 | `workspaceTemplateId` | Empty directory, a git clone, or seeded files, and whether to keep the workspace afterwards |
 | `nodeSelector`, `nodePoolId` | Labels and pool a worker must have |
 | `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | Concurrency, retries, and traffic split among an agent's deployments |
+| `executor`, `podResources` | Run as a worker subprocess (`Process`) or in a pod per run (`KubernetesJob`) with these requests and limits; see `docs/KUBERNETES.md`, "Pod-per-run executor" |
 
 New deployments get the default prompt bindings (`builtin/default-system`, `builtin/default-task`, `builtin/delegated-task`) for any role you do not bind. `POST .../deployments/{id}/compile-preview` shows the exact `ExecutionSpec` a run would get, with secrets masked, and is the quickest way to check an override.
 
@@ -289,10 +290,12 @@ On the recorded gpt-oss:20b loop (`src/Test.Shared/Fixtures/mux/v1.3.0-repetitio
 | `OutputLimitExceeded` | Stdout passed `maxOutputBytes`, or the assistant text passed `maxAssistantChars` (run guard) |
 | `RepetitionDetected` | The repetition guard stopped a degenerate generation loop |
 | `NoProgress` | The no-progress guard stopped a harness that went quiet with no tool call open |
+| `PodFailed` | A `KubernetesJob` run's pod failed outside the harness: unschedulable past the pending timeout, image pull failure, invalid configuration, OOMKilled, or no completion reported |
 | `TimedOut`, `Cancelled` | Deadline reached or cancelled |
 | `NodeLost`, `StaleLease` | The worker disappeared or lost its lease |
 | `SchemaValidationFailed` | The output did not validate against the agent's output schema, after the one repair attempt or immediately when no repair was possible (decided by the control plane, see below) |
-| `CompileFailed`, `WorkspaceFailed`, `Rejected`, `InternalError` | Failures before or around the harness |
+| `CompileFailed`, `WorkspaceFailed`, `InternalError` | Failures before or around the harness |
+| `Rejected` | The run was never started: its tenant, agent, or deployment was deactivated or deleted while it was queued (status `Rejected`) |
 
 ### Structured output validation and repair
 

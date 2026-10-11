@@ -363,6 +363,21 @@ namespace Garrison.Worker.Settings
         }
 
         /// <summary>
+        /// KubernetesJob executor settings (pod-per-run, plan D-033). Disabled by default.
+        /// </summary>
+        public KubernetesExecutorSettings Kubernetes
+        {
+            get
+            {
+                return _Kubernetes;
+            }
+            set
+            {
+                _Kubernetes = value ?? new KubernetesExecutorSettings();
+            }
+        }
+
+        /// <summary>
         /// Settings file the values were loaded from.
         /// </summary>
         [JsonIgnore]
@@ -408,6 +423,7 @@ namespace Garrison.Worker.Settings
         private List<string> _EnvironmentAllowlist = new List<string> { "PATH", "LANG", "LC_ALL", "TZ", "USER", "TMPDIR", "TEMP", "TMP", "DOTNET_ROOT", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT" };
         private List<HarnessProbeSettings> _Probes = DefaultProbes();
         private WorkerLoggingSettings _Logging = new WorkerLoggingSettings();
+        private KubernetesExecutorSettings _Kubernetes = new KubernetesExecutorSettings();
 
         #endregion
 
@@ -479,6 +495,7 @@ namespace Garrison.Worker.Settings
             if (value != null && Boolean.TryParse(value, out bool otlpEnabled)) Telemetry.OtlpEnable = otlpEnabled;
             value = Env("GARRISON_WORKER_OTLP_ENDPOINT");
             if (value != null) Telemetry.OtlpEndpoint = value;
+            Kubernetes.ApplyEnvironment();
             value = Env("GARRISON_WORKER_LABELS");
             if (value != null)
             {

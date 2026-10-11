@@ -31,12 +31,24 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/garrison-tools-instructions` | Fragment | How to use the Garrison MCP tools to delegate, the allowlist, and the depth limit |
 | `builtin/structured-output-instructions` | Fragment | Output schema instructions for harnesses that cannot enforce a schema themselves |
 | `builtin/structured-output-repair` | Task | Repair prompt sent when a run's output fails validation against the agent's output schema (see [Structured output repair](#structured-output-repair)) |
-| `builtin/mcp-tool-description` | ToolDescription | Description of an agent offered as its own MCP tool |
+| `builtin/mcp-tool-description` | ToolDescription | Description of an agent offered as its own MCP tool (`exposeMcpTool`, see `MCP_API.md`) |
 | `builtin/a2a-skill-description` | ToolDescription | Description of an agent's A2A skill |
-| `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the eight Garrison MCP tools (see `MCP_API.md`) |
+| `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the eight Garrison MCP tools (see `MCP_API.md`). A tenant overrides one with its own template named `mcp-tool-garrison_<tool>` |
 | `builtin/claude-code-mcp-config` | ConfigFile | Claude Code `--mcp-config` file |
 | `builtin/mux-mcp-config`, `builtin/mux-endpoints`, `builtin/mux-settings`, `builtin/mux-subagents` | ConfigFile | Mux configuration directory |
 | `builtin/gemini-settings` | ConfigFile | Gemini CLI `settings.json` with MCP servers |
+
+### Tool and skill descriptions per tenant
+
+Run prompts are chosen per deployment through bindings, but tool and skill descriptions are read by name, so a tenant changes them by name too. A tenant template of kind `ToolDescription` named like a built-in without the `builtin/` prefix takes its place for that tenant's callers:
+
+| Tenant template name | Replaces | Used for |
+|---|---|---|
+| `mcp-tool-<tool name>`, for example `mcp-tool-garrison_invoke_agent` | `builtin/mcp-tool-<tool name>` | The description of a built-in Garrison MCP tool, for callers in the tenant |
+| `mcp-tool-description` | `builtin/mcp-tool-description` | Agents offered as their own MCP tools that have no `toolDescriptionTemplateId` |
+| `a2a-skill-description` | `builtin/a2a-skill-description` | Agent cards of agents that have no `skillDescriptionTemplateId` |
+
+An agent's own `toolDescriptionTemplateId` or `skillDescriptionTemplateId` still wins over both. The template must be active; a template of another kind is ignored. Tool description overrides can use `tool.name` and `tool.defaultDescription` (the built-in text) besides `tenant.id` and `garrison.version`; agent tool and skill descriptions also get `agent.name`, `agent.displayName`, `agent.description`, and `agent.tags`. `MCP_API.md` has an example.
 
 This is the whole default system prompt:
 
@@ -160,6 +172,7 @@ The variables available when a run is compiled (`tenant`, `agent`, `deployment`,
 | `repair.error`, `repair.schema`, `repair.previousOutput` | Only during a structured output repair (see above) |
 | `garrison.delegationEnabled`, `garrison.mcpServerName` | Whether this run can delegate, and the MCP server name to tell it about |
 | `harness.type`, `harness.nativeSchema` | Which harness will run the prompt |
+| `tool.name`, `tool.defaultDescription` | Only in tool description templates: the tool being described and its built-in description |
 
 Secrets are available as `secret.*`, but only to templates rendered into the execution spec. Previews never see secret values.
 
@@ -187,9 +200,3 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates/
 ```
 
 The dashboard's template editor calls the same endpoint as you type. To see every prompt and file a deployment would produce, together, use `POST .../deployments/{id}/compile-preview`.
-
-## Known gaps
-
-- The Garrison MCP tool descriptions (`builtin/mcp-tool-garrison_*`) are read at startup by their built-in names, and tenant templates cannot use `builtin/` names, so these descriptions cannot be changed yet.
-- The A2A gateway's agent card substitutes only `{{agent.name}}` and `{{agent.description}}` in the agent's skill description template, instead of rendering it with the full language. `GET .../agents/{id}/card` renders it fully.
-- `builtin/mcp-tool-description` is seeded, but no endpoint uses it yet: agents offered as their own MCP tools (`exposeMcpTool`) are planned.

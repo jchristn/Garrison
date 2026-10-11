@@ -51,7 +51,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.HarnessProfile, OperationTypeEnum.Create, CreateAsync, "Create a harness profile", "Harness Profiles", typeof(HarnessProfile), typeof(HarnessProfile));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.HarnessProfile, OperationTypeEnum.Read, ReadAsync, "Read a harness profile", "Harness Profiles", null, typeof(HarnessProfile));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.HarnessProfile, OperationTypeEnum.Update, UpdateAsync, "Update a harness profile", "Harness Profiles", typeof(HarnessProfile), typeof(HarnessProfile));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.HarnessProfile, OperationTypeEnum.Delete, DeleteAsync, "Delete a harness profile", "Harness Profiles", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.HarnessProfile, OperationTypeEnum.Delete, DeleteAsync, "Delete a harness profile", "Harness Profiles");
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/clone", ResourceTypeEnum.HarnessProfile, OperationTypeEnum.Create, CloneAsync, "Clone a harness profile (built-in or tenant) into a new tenant profile", "Harness Profiles", typeof(CloneRequest), typeof(HarnessProfile));
         }
 
@@ -124,10 +124,9 @@ namespace Garrison.Server.Routes
             HarnessProfile existing = await _Server.Database.HarnessProfiles.ReadAsync(tenantId, id, http.Token).ConfigureAwait(false) ?? throw new NotFoundException("Harness profile not found.");
             ConfigurationSupport.EnsureEditable(existing.TenantId, existing.IsBuiltIn, existing.IsProtected, tenantId, "Harness profile " + existing.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.HarnessProfileId == id, "Harness profile " + existing.Name, http.Token).ConfigureAwait(false);
-            DeleteResponse response = new DeleteResponse();
-            response.Deleted = await _Server.Database.HarnessProfiles.DeleteAsync(id, http.Token).ConfigureAwait(false);
+            await _Server.Database.HarnessProfiles.DeleteAsync(id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "HarnessProfile", id, "Deleted harness profile " + existing.Name + ".").ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task CloneAsync(HttpContextBase http)

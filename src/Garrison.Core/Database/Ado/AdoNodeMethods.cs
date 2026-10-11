@@ -3,6 +3,7 @@ namespace Garrison.Core.Database.Ado
     using System;
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database.Interfaces;
@@ -22,6 +23,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _Table;
         private readonly string _LabelsTable;
         private readonly string _CapabilitiesTable;
+        private readonly string _ExecutorsTable;
 
         #endregion
 
@@ -38,6 +40,7 @@ namespace Garrison.Core.Database.Ado
             _Table = driver.Table("nodes");
             _LabelsTable = driver.Table("node_labels");
             _CapabilitiesTable = driver.Table("node_capabilities");
+            _ExecutorsTable = driver.Table("node_executors");
         }
 
         #endregion
@@ -225,6 +228,17 @@ namespace Garrison.Core.Database.Ado
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
                 MapCapabilities,
                 token).ConfigureAwait(false);
+
+            List<string> executors = await _Driver.QueryAsync(
+                "SELECT * FROM " + _ExecutorsTable + " WHERE nodeid = @parentid ORDER BY id ASC;",
+                command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
+                reader => AdoConverters.Str(reader, "executor"),
+                token).ConfigureAwait(false);
+            obj.Executors = new List<RunExecutorEnum>();
+            foreach (string executor in executors)
+            {
+                if (Enum.TryParse<RunExecutorEnum>(executor, true, out RunExecutorEnum parsed) && !obj.Executors.Contains(parsed)) obj.Executors.Add(parsed);
+            }
         }
 
         /// <inheritdoc />
@@ -330,12 +344,28 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "detail", child.Detail);
                     }, token).ConfigureAwait(false);
             }
+
+            List<RunExecutorEnum> executors = obj.Executors.Distinct().ToList();
+            for (int i = 0; i < executors.Count; i++)
+            {
+                string id = batch + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + "exe";
+                RunExecutorEnum executor = executors[i];
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
+                    "INSERT INTO " + _ExecutorsTable + " (id, nodeid, executor) VALUES (@id, @nodeid, @executor);",
+                    command =>
+                    {
+                        AdoDatabaseDriver.Add(command, "id", id);
+                        AdoDatabaseDriver.Add(command, "nodeid", obj.Id);
+                        AdoDatabaseDriver.Add(command, "executor", executor.ToString());
+                    }, token).ConfigureAwait(false);
+            }
         }
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
         {
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _LabelsTable + " WHERE nodeid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _CapabilitiesTable + " WHERE nodeid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
+            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ExecutorsTable + " WHERE nodeid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
         }
 
         private static NodeLabel MapLabels(DbDataReader reader)

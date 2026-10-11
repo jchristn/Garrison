@@ -101,6 +101,13 @@ namespace Garrison.Core.Enums
         /// The worker's no-progress guard stopped the run: the harness produced no assistant text, thinking, tool
         /// call, or tool result for longer than the run's noProgressSeconds while no tool call was open.
         /// </summary>
-        NoProgress
+        NoProgress,
+
+        /// <summary>
+        /// The run pod of a KubernetesJob run failed outside the harness: it could not be scheduled or stayed Pending
+        /// too long, its image could not be pulled, its container was OOMKilled, it was evicted, or it exited without
+        /// reporting a completion. The error message names the cause.
+        /// </summary>
+        PodFailed
     }
 }

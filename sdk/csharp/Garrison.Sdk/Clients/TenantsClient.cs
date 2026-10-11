@@ -70,10 +70,10 @@ namespace Garrison.Sdk.Clients
         /// </summary>
         /// <param name="id">Tenant identifier.</param>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>Delete count.</returns>
-        public async Task<DeleteCountResponse> DeleteAsync(string id, CancellationToken token = default)
+        /// <returns>Task. The server answers 204 No Content.</returns>
+        public async Task DeleteAsync(string id, CancellationToken token = default)
         {
-            return await Transport.SendAsync<DeleteCountResponse>(HttpMethod.Delete, "/v1.0/api/tenants/" + Segment(id), null, null, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+            await Transport.SendTextAsync(HttpMethod.Delete, "/v1.0/api/tenants/" + Segment(id), token: token).ConfigureAwait(false);
         }
     }
 }

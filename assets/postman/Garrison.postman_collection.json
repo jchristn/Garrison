@@ -4748,7 +4748,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8437,7 +8437,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8470,7 +8470,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8503,7 +8503,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8536,7 +8536,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8569,7 +8569,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8602,7 +8602,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8635,7 +8635,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8668,7 +8668,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8701,7 +8701,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8734,7 +8734,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8767,7 +8767,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8800,7 +8800,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8833,7 +8833,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8866,7 +8866,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -8899,7 +8899,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }
@@ -9225,7 +9225,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             }

@@ -167,6 +167,21 @@ namespace Garrison.Sdk.Models
             }
         }
 
+        /// <summary>
+        /// Executors the node reports (Process, and KubernetesJob when it can create Jobs). Empty means Process only.
+        /// </summary>
+        public List<RunExecutorEnum> Executors
+        {
+            get
+            {
+                return _Executors;
+            }
+            set
+            {
+                _Executors = value ?? new List<RunExecutorEnum>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -178,6 +193,7 @@ namespace Garrison.Sdk.Models
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<NodeLabel> _Labels = new List<NodeLabel>();
         private List<NodeCapability> _Capabilities = new List<NodeCapability>();
+        private List<RunExecutorEnum> _Executors = new List<RunExecutorEnum>();
 
         #endregion
     }

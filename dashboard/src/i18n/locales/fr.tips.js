@@ -333,7 +333,8 @@ const tips = {
       InternalError: 'Garrison a rencontré une erreur interne. Les journaux du serveur contiennent les détails.',
       NoCapableWorker: 'L\'exécution a attendu dans la file d\'attente plus longtemps que ne le permet le paramètre de cluster Runtime.FailBlockedAfterSeconds, et aucun nœud worker prêt ne pouvait l\'exécuter : elle a donc échoué.',
       RepetitionDetected: 'Une garde a arrêté l\'exécution, car sa réponse a dégénéré en un même texte court répété encore et encore, ou en espaces et ponctuation seulement. La sortie obtenue est conservée. Réglez-la avec la Garde de répétition du déploiement.',
-      NoProgress: 'Une garde a arrêté l\'exécution, car aucun texte, raisonnement ni activité d\'outil n\'est arrivé pendant plus longtemps que le délai sans progression du déploiement. La sortie obtenue est conservée.'
+      NoProgress: 'Une garde a arrêté l\'exécution, car aucun texte, raisonnement ni activité d\'outil n\'est arrivé pendant plus longtemps que le délai sans progression du déploiement. La sortie obtenue est conservée.',
+      PodFailed: 'Le pod d\'exécution a échoué hors du harness : il n\'a pas pu être planifié, son image n\'a pas pu être téléchargée, il a manqué de mémoire, il a été évincé ou il s\'est arrêté sans rendre compte. Le message d\'erreur en donne la cause.'
     },
     controlNodeStatus: {
       Starting: 'Démarrage : le réplica s\'initialise et ne traite pas encore de trafic.',
@@ -379,7 +380,12 @@ const tips = {
     workspaceKind: {
       Empty: 'Chaque exécution démarre dans un nouveau répertoire vide.',
       GitRepository: 'Chaque exécution démarre avec un nouveau clone d\'un dépôt Git.',
-      Seeded: 'Chaque exécution démarre avec les fichiers listés dans le modèle.'
+      Seeded: 'Chaque exécution démarre avec les fichiers listés dans le modèle.',
+      PersistentVolume: 'Chaque exécution monte un PersistentVolumeClaim existant comme espace de travail, les fichiers sont donc conservés entre les exécutions. Nécessite l\'exécuteur Job Kubernetes.'
+    },
+    runExecutor: {
+      Process: 'Le harness s\'exécute comme sous-processus du worker, dans son conteneur, avec ses propres répertoires de travail, home et configuration.',
+      KubernetesJob: 'Le worker lance un Job Kubernetes par exécution : le harness tourne dans son propre pod, sans identifiants Kubernetes ni Garrison, avec un système de fichiers racine en lecture seule et les limites de ressources du déploiement.'
     },
     promptTemplateKind: {
       System: 'Un prompt système : les instructions permanentes qui configurent l\'agent.',
@@ -616,6 +622,7 @@ const tips = {
       gitRef: 'Branche, tag ou commit à extraire. Laissez vide pour la branche par défaut.',
       gitDepth: 'Nombre de commits à récupérer. 1 est le plus rapide ; 0 récupère tout l\'historique.',
       gitCredentialSecretId: 'Secret contenant le jeton ou le mot de passe utilisé pour cloner un dépôt privé.',
+      persistentVolumeClaim: 'Nom du PersistentVolumeClaim monté sur le chemin de l\'espace de travail. Il doit déjà exister dans l\'espace de noms d\'exécution ; Garrison ne le crée ni ne le supprime jamais.',
       files: 'Fichiers écrits dans l\'espace de travail avant le démarrage de l\'exécution.',
       filesItems: {
         path: 'Chemin du fichier relatif à la racine de l\'espace de travail.',
@@ -744,9 +751,17 @@ const tips = {
       repetitionGuard: 'Arrêter une exécution quand sa réponse dégénère en un même texte court répété encore et encore, ou en espaces et ponctuation seulement (résultat Répétition détectée). Non défini, il suit la valeur du cluster ; cochez ou décochez la case pour le fixer sur ce déploiement.',
       maxAssistantChars: 'Nombre maximal de caractères de texte de l\'assistant qu\'une exécution peut écrire avant que Garrison ne l\'arrête (résultat Limite de sortie dépassée). 0 signifie illimité ; vide utilise la valeur du cluster.',
       noProgressSeconds: 'Arrêter une exécution quand aucun texte, raisonnement, appel d\'outil ni résultat d\'outil n\'arrive pendant ce nombre de secondes alors qu\'aucun appel d\'outil n\'est en cours (résultat Aucune progression). 0 la désactive ; vide utilise la valeur du cluster.',
+      executor: 'Comment les exécutions s\'exécutent : Processus (dans le worker) ou Job Kubernetes (un pod par exécution, isolation plus forte). Vide suit l\'exécuteur par défaut du pool de nœuds, sinon Processus.',
+      podCpuRequest: 'CPU demandé par le pod d\'exécution, par exemple 250m. Vide utilise la valeur par défaut du worker.',
+      podCpuLimit: 'CPU maximal utilisable par le pod d\'exécution, par exemple 2. Vide utilise la valeur par défaut du worker.',
+      podMemoryRequest: 'Mémoire demandée par le pod d\'exécution, par exemple 512Mi. Vide utilise la valeur par défaut du worker.',
+      podMemoryLimit: 'Mémoire maximale utilisable par le pod d\'exécution, par exemple 4Gi. Une exécution au-delà est arrêtée avec le résultat Échec du pod d\'exécution.',
+      podEphemeralStorageRequest: 'Disque local demandé par le pod d\'exécution pour son espace de travail, son home et ses fichiers temporaires, par exemple 1Gi.',
+      podEphemeralStorageLimit: 'Disque local maximal utilisable par le pod d\'exécution, par exemple 10Gi. Un pod au-delà est évincé et l\'exécution échoue.',
       useClusterDefault: 'Effacer le réglage propre à ce déploiement pour que la garde de répétition suive de nouveau la valeur du cluster.',
       sections: {
-        guards: 'Les gardes d\'exécution arrêtent tôt les exécutions qui s\'emballent, sur tous les harness. Chacune laissée vide suit sa valeur du cluster dans Paramètres (Moteur d\'exécution).'
+        guards: 'Les gardes d\'exécution arrêtent tôt les exécutions qui s\'emballent, sur tous les harness. Chacune laissée vide suit sa valeur du cluster dans Paramètres (Moteur d\'exécution).',
+        execution: 'Choisissez où s\'exécutent les exécutions et, pour les exécutions Job Kubernetes, le CPU, la mémoire et le disque du pod.'
       }
     },
     nodePools: {
@@ -754,6 +769,7 @@ const tips = {
       name: 'Nom du pool. Les nœuds rejoignent un pool lors de leur enregistrement, et les déploiements peuvent en exiger un.',
       description: 'Le matériel ou l\'usage que représente ce pool.',
       tenants: 'Locataires autorisés à utiliser le pool. Vide signifie tous les locataires.',
+      defaultExecutor: 'Exécuteur des exécutions des déploiements de ce pool qui n\'en choisissent pas. Vide signifie Processus.',
       active: 'Les pools inactifs n\'acceptent aucune nouvelle exécution.'
     },
     runs: {
@@ -776,6 +792,7 @@ const tips = {
       status: 'Indique si le nœud accepte de nouvelles exécutions. Isolez ou drainez un nœud avant une maintenance.',
       capacity: 'Exécutions détenues actuellement par le nœud, sur le maximum qu\'il accepte simultanément.',
       harnesses: 'Harness que le nœud a trouvés installés et fonctionnels lors de leur sondage au démarrage.',
+      executors: 'Exécuteurs proposés par le nœud. Job Kubernetes n\'apparaît que si le worker tourne dans un cluster avec le droit de créer des Jobs.',
       labels: 'Étiquettes clé et valeur annoncées par le nœud. Les sélecteurs de nœuds des déploiements sont comparés à celles-ci.',
       nodeVersion: 'Version du logiciel worker sur le nœud.',
       lastHeartbeatUtc: 'Dernier signal de vie reçu du nœud. Les nœuds qui cessent d\'envoyer des signaux de vie passent au statut « Perdu ».',

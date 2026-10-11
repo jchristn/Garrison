@@ -86,7 +86,8 @@ spec:
         checksum/settings: {{ $settingsJson | sha256sum }}
     spec:
       serviceAccountName: garrison-worker
-      automountServiceAccountToken: false
+      # The token lets the worker create run Jobs (rbac.yaml); run pods never get one.
+      automountServiceAccountToken: {{ $.Values.kubernetesExecutor.enabled }}
       {{- with $.Values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -147,6 +148,33 @@ spec:
             - { name: GARRISON_WORKER_HEALTH_PORT, value: "8710" }
             - { name: GARRISON_WORKER_LABELS, value: {{ $labels | quote }} }
             - { name: GARRISON_WORKER_NODE_POOL, value: {{ $pool.name | quote }} }
+            {{- with $.Values.kubernetesExecutor }}
+            {{- if .enabled }}
+            - { name: GARRISON_WORKER_KUBERNETES_ENABLED, value: "true" }
+            - { name: GARRISON_WORKER_JOB_TTL_SECONDS, value: {{ .jobTtlSeconds | quote }} }
+            - { name: GARRISON_WORKER_RUN_PENDING_TIMEOUT_SECONDS, value: {{ .pendingTimeoutSeconds | quote }} }
+            {{- if and .egressCanary $.Values.networkPolicies.enabled }}
+            - { name: GARRISON_WORKER_RUN_EGRESS_CANARY, value: {{ tpl .egressCanary $ | quote }} }
+            {{- end }}
+            {{- if .runNamespace }}
+            - { name: GARRISON_WORKER_RUN_NAMESPACE, value: {{ .runNamespace | quote }} }
+            {{- end }}
+            {{- if .runImage }}
+            - { name: GARRISON_WORKER_RUN_IMAGE, value: {{ .runImage | quote }} }
+            {{- end }}
+            {{- if .imagePullSecrets }}
+            - { name: GARRISON_WORKER_RUN_IMAGE_PULL_SECRETS, value: {{ join "," .imagePullSecrets | quote }} }
+            {{- end }}
+            {{- if .runtimeClassName }}
+            - { name: GARRISON_WORKER_RUN_RUNTIME_CLASS, value: {{ .runtimeClassName | quote }} }
+            {{- end }}
+            {{- if .nodeSelector }}
+            {{- $pairs := list }}
+            {{- range $k, $v := .nodeSelector }}{{ $pairs = append $pairs (printf "%s=%s" $k $v) }}{{- end }}
+            - { name: GARRISON_WORKER_RUN_NODE_SELECTOR, value: {{ join "," $pairs | quote }} }
+            {{- end }}
+            {{- end }}
+            {{- end }}
             {{- if $.Values.observability.enabled }}
             - { name: GARRISON_WORKER_OTLP_ENABLE, value: {{ $.Values.observability.otlp.enabled | quote }} }
             - { name: GARRISON_WORKER_OTLP_ENDPOINT, value: "http://garrison-alloy:4317" }

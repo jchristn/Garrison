@@ -45,9 +45,9 @@ A signed request carries an HMAC-SHA256 signature over the method, path, query, 
 |---|---|
 | Garrison secrets (API keys and the like) | AES-256-GCM under `Security.MasterKey`, with the secret's identifier as associated data so a ciphertext cannot be moved to another record. Only the last four characters and a fingerprint are ever returned |
 | Credential secret keys | AES-256-GCM under the master key; they must be recoverable to verify signed requests. Returned once, at creation or rotation |
-| User passwords | SHA-256, compared in constant time |
+| User passwords | PBKDF2-HMAC-SHA256, random 16-byte salt, 600,000 iterations (`Auth.PasswordHashIterations`), constant-time comparison; legacy SHA-256 hashes are upgraded at the next successful sign-in |
 
-Passwords are hashed without a salt or work factor in this release, following the shared authentication model this project family uses. Treat the database as sensitive and prefer credentials or an identity provider in front of Garrison for anything beyond a trusted team.
+Passwords are stored as `pbkdf2-sha256$<iterations>$<salt>$<hash>`. Hashes written by earlier builds still verify and are replaced on the next successful sign-in. Signing in to an unknown or inactive account takes as long as a real verification, so timing does not reveal which accounts exist. Rolling the database back to an earlier build would leave upgraded users unable to sign in until their passwords are reset.
 
 Secret values never appear in API responses, manifest exports, logs, the compile preview, or the template preview. They exist in plaintext only inside the execution spec sent to the worker that leased the run, and in the harness process's environment or files.
 
@@ -105,24 +105,45 @@ Workers are shared by default. To keep a tenant's runs on its own workers, creat
 
 ## Harness isolation
 
-This is the most important limit to understand. In this release, each run is a subprocess of the worker, inside the worker's container, with:
+This is the most important limit to understand. Garrison has two executors, chosen per deployment (`executor`) or per node pool (`defaultExecutor`), and they protect against different things.
+
+### Process executor (default)
+
+Each run is a subprocess of the worker, inside the worker's container, with:
 
 - its own working directory, `HOME`, and configuration directory, deleted after the run (the workspace may be kept for debugging);
 - an environment that starts empty apart from an allowlist (`PATH`, locale, proxy and certificate settings), plus the variables the profile and deployment define;
-- a deadline, an output size limit, and a process-tree kill on cancellation;
+- a deadline, an output size limit, run guards, and a process-tree kill on cancellation;
 - relative paths for every file it writes, with absolute paths and `..` rejected;
 - secret values scrubbed from everything it prints before it leaves the node.
 
-It does **not** have its own filesystem namespace, network namespace, or user. A harness running with permissions such as Claude Code's `acceptEdits`, Codex's `workspace-write`, or Gemini's `yolo` can read anything the worker user can read, including other concurrent runs' directories, and can reach anything the worker pod can reach. Treat everyone who can configure deployments on a shared worker as able to see the others' runs.
+It does **not** have its own filesystem namespace, network namespace, or user. A harness running with permissions such as Claude Code's `acceptEdits`, Codex's `workspace-write`, or Gemini's `yolo` can read anything the worker user can read, including other concurrent runs' directories and the worker's node credential, and can reach anything the worker pod can reach. Treat everyone who can configure deployments on a shared worker as able to see the others' runs. In Kubernetes the worker's service account token is mounted (it creates run Jobs), so a harness on a Process worker can also use the worker's Role.
 
-Ways to reduce the exposure today:
+### KubernetesJob executor (pod per run)
 
-- Run one concurrent run per worker (`MaxConcurrentRuns: 1`) for sensitive tenants, and give those tenants dedicated node pools.
-- Use the harnesses' own sandboxes (`sandbox` parameter for Codex and Mux, `permissionMode` and `allowedTools` for Claude Code) as tightly as the work allows.
-- Apply the Kubernetes network policies in `k8s/` and add egress rules for the endpoints your agents actually need.
-- Keep the worker image minimal; it runs as UID 10001 with all capabilities dropped and privilege escalation disabled.
+Each run gets its own Job and pod (`docs/KUBERNETES.md`, "Pod-per-run executor"). The worker keeps every credential; the pod gets only the compiled spec for its own run through a Secret. The pod:
 
-A pod-per-run executor, which gives each run its own container, is planned and tracked in `GARRISON_PLAN.md`.
+- has its own filesystem: the work, home, config, and `/tmp` directories are emptyDir volumes that exist only for this run, so a run cannot see another run's files or the worker's;
+- has no Kubernetes credentials: `automountServiceAccountToken: false` and the `garrison-run` service account, which has no RoleBindings;
+- has no Garrison credentials besides the run token in its MCP configuration (needed for delegation, limited to its delegation tree, and revoked when the run ends) and the secrets its own deployment binds;
+- runs as UID 10001 with `runAsNonRoot`, a read-only root filesystem, every capability dropped, `allowPrivilegeEscalation: false`, the `RuntimeDefault` seccomp profile, and no service environment variables (`enableServiceLinks: false`);
+- is limited by the deployment's CPU, memory, and ephemeral storage requests and limits, so a runaway harness is OOMKilled or evicted instead of starving the node's other runs;
+- accepts no inbound traffic and may only resolve DNS, reach the Garrison MCP port, and make HTTPS connections (the `garrison-run` NetworkPolicy; adjust it to your harnesses' endpoints). Policies need a network plugin that enforces them; K3S's default one does;
+- can optionally run under gVisor or Kata Containers (`runtimeClassName`) for a kernel boundary as well.
+
+The worker trusts nothing the pod prints except lines that start with the run's random nonce, which only the worker and the pod's spec Secret know. JSON encoding keeps harness text on one line, and `run-one` marks itself non-dumpable so the harness, which runs as the same user with no capabilities, cannot open `run-one`'s stdout through `/proc`. A harness that reads its own spec file learns its own nonce and could, at worst, misreport its own run; it cannot affect other runs or the control plane.
+
+What it does not protect against: run pods still share the node's kernel unless you use a sandboxed runtime; the default egress rule allows HTTPS to anywhere, which a prompt-injected harness can use to send out what it can read (its workspace, its own secrets); and the worker's Role can create pods in the run namespace, which can mount that namespace's Secrets, so a compromised worker in the same namespace as `garrison-secrets` could read them.
+
+### Recommendations for untrusted prompts
+
+- Use `executor: KubernetesJob` for every deployment that handles prompts, documents, or repositories you do not control.
+- Put run pods in their own namespace (`kubernetesExecutor.runNamespace`) with the `restricted` Pod Security level, away from `garrison-secrets`.
+- Narrow `runEgress` from 443-anywhere to the model APIs and git hosts the harness needs.
+- Set `podResources` limits so one run cannot exhaust a node, and use a sandboxed `runtimeClassName` where the nodes support it.
+- Bind only the secrets and MCP servers the agent needs, keep delegation off or on a tight allowlist, and use the harnesses' own sandboxes (`sandbox` for Codex and Mux, `permissionMode` and `allowedTools` for Claude Code) as tightly as the work allows.
+- A worker with the KubernetesJob executor enabled mounts its service account token, which Process runs on that worker can read. Where Process deployments also take untrusted input, give them a separate worker pool with `GARRISON_WORKER_KUBERNETES_ENABLED=false` and `automountServiceAccountToken: false`, and keep the Job-capable pool for KubernetesJob deployments (pin them with a node pool or `nodeSelector`).
+- For Process deployments that must stay, run one concurrent run per worker (`MaxConcurrentRuns: 1`) and give sensitive tenants dedicated node pools.
 
 ## Delegation
 

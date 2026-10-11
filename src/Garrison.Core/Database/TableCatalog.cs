@@ -89,6 +89,7 @@ namespace Garrison.Core.Database
                 "nodes",
                 "node_labels",
                 "node_capabilities",
+                "node_executors",
                 "runs",
                 "run_parameters",
                 "run_requirements",

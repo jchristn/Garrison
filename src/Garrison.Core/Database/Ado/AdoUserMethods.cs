@@ -101,7 +101,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "firstname", obj.FirstName);
                     AdoDatabaseDriver.Add(command, "lastname", obj.LastName);
                     AdoDatabaseDriver.Add(command, "email", obj.Email);
-                    AdoDatabaseDriver.Add(command, "passwordsha256", obj.PasswordSha256);
+                    AdoDatabaseDriver.Add(command, "passwordsha256", obj.PasswordHash);
                     AdoDatabaseDriver.Add(command, "isadmin", obj.IsAdmin);
                     AdoDatabaseDriver.Add(command, "istenantadmin", obj.IsTenantAdmin);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
@@ -181,7 +181,7 @@ namespace Garrison.Core.Database.Ado
             obj.FirstName = AdoConverters.NullableStr(reader, "firstname");
             obj.LastName = AdoConverters.NullableStr(reader, "lastname");
             obj.Email = AdoConverters.Str(reader, "email");
-            obj.PasswordSha256 = AdoConverters.Str(reader, "passwordsha256");
+            obj.PasswordHash = AdoConverters.Str(reader, "passwordsha256");
             obj.IsAdmin = AdoConverters.Bool(reader, "isadmin");
             obj.IsTenantAdmin = AdoConverters.Bool(reader, "istenantadmin");
             obj.Active = AdoConverters.Bool(reader, "active");
@@ -222,7 +222,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "firstname", obj.FirstName);
                 AdoDatabaseDriver.Add(command, "lastname", obj.LastName);
                 AdoDatabaseDriver.Add(command, "email", obj.Email);
-                AdoDatabaseDriver.Add(command, "passwordsha256", obj.PasswordSha256);
+                AdoDatabaseDriver.Add(command, "passwordsha256", obj.PasswordHash);
                 AdoDatabaseDriver.Add(command, "isadmin", obj.IsAdmin);
                 AdoDatabaseDriver.Add(command, "istenantadmin", obj.IsTenantAdmin);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);

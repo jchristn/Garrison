@@ -101,7 +101,7 @@ namespace Garrison.Core.Services
                 admin.FirstName = "Garrison";
                 admin.LastName = "Administrator";
                 admin.Email = options.AdminEmail;
-                admin.PasswordSha256 = PasswordHasher.Hash(options.AdminPassword);
+                admin.PasswordHash = PasswordHasher.Hash(options.AdminPassword, options.PasswordHashIterations);
                 admin.IsAdmin = true;
                 admin.IsTenantAdmin = true;
                 admin.IsProtected = true;
@@ -120,7 +120,7 @@ namespace Garrison.Core.Services
                 nodeUser.FirstName = "Garrison";
                 nodeUser.LastName = "Nodes";
                 nodeUser.Email = NodeUserEmail;
-                nodeUser.PasswordSha256 = PasswordHasher.Hash(SecretGenerator.Alphanumeric(48));
+                nodeUser.PasswordHash = PasswordHasher.Hash(SecretGenerator.Alphanumeric(48), options.PasswordHashIterations);
                 nodeUser.IsProtected = true;
                 await _Database.Users.CreateAsync(nodeUser, token).ConfigureAwait(false);
                 await AssignAsync(tenant.Id, nodeUser.Id, BuiltInRoles.NodeAgent, token).ConfigureAwait(false);

@@ -126,6 +126,10 @@ Runs stopped by a worker run guard end `Failed` with `RunOutcomeEnum.RepetitionD
 
 When the agent has an output schema, the server validates each run's final output against it. `Run.OutputSchemaValid` (`bool?`) is true or false after validation and null when nothing was validated, `Run.SchemaValidationErrors` (`string?`) holds the first few errors of a failed validation, and `Run.RepairAttempts` (`int`, 0 or 1) counts the structured output repair Garrison makes when the harness can resume its session. A run whose output still does not validate fails with `RunOutcomeEnum.SchemaValidationFailed`. See "Structured output validation" in `REST_API.md`.
 
+## Executors and run pods
+
+`Deployment.Executor` chooses how runs execute: `RunExecutorEnum.Process` (a subprocess of the worker, the default) or `RunExecutorEnum.KubernetesJob` (a Kubernetes Job per run, in its own pod with no service account token and a hardened security context). Null uses the node pool's `NodePool.DefaultExecutor`, then Process. `Deployment.PodResources` (`RunPodResources`: `CpuRequest`, `CpuLimit`, `MemoryRequest`, `MemoryLimit`, `EphemeralStorageRequest`, `EphemeralStorageLimit`, as Kubernetes quantities such as `500m` or `2Gi`) sets the run pod's requests and limits. Each run records its executor in `Run.Executor`, and only nodes whose `Node.Executors` include it claim the run; a run nobody can take reports `RunBlockedReason` `NoCapableWorker`. `WorkspaceKindEnum.PersistentVolume` with `WorkspaceTemplate.PersistentVolumeClaim` mounts an existing claim at the workspace path (KubernetesJob runs only). Run pod failures outside the harness (unschedulable, image pull, OOMKilled, evicted) end with `RunOutcomeEnum.PodFailed` and a message naming the cause. See `docs/KUBERNETES.md`.
+
 ## Run analytics
 
 `Analytics.RunsAsync` returns totals and time-bucketed series of run counts, tokens, cost, latency percentiles, and throughput for the tenant.

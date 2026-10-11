@@ -246,7 +246,8 @@ const it = {
       InternalError: 'Errore interno',
       NoCapableWorker: 'Nessun nodo worker compatibile',
       RepetitionDetected: 'Ripetizione rilevata',
-      NoProgress: 'Nessun avanzamento'
+      NoProgress: 'Nessun avanzamento',
+      PodFailed: 'Pod di esecuzione non riuscito'
     },
     runEventType: {
       Lifecycle: 'Ciclo di vita',
@@ -280,7 +281,8 @@ const it = {
       BasicAuth: 'Autenticazione di base',
       GitCredential: 'Credenziali Git'
     },
-    workspaceKind: { Empty: 'Vuota', GitRepository: 'Repository Git', Seeded: 'File iniziali' },
+    workspaceKind: { Empty: 'Vuota', GitRepository: 'Repository Git', Seeded: 'File iniziali', PersistentVolume: 'Volume persistente' },
+    runExecutor: { Process: 'Processo', KubernetesJob: 'Job Kubernetes' },
     workspaceRetention: { Delete: 'Elimina', Keep: 'Conserva', KeepOnFailure: 'Conserva in caso di errore' },
     promptTemplateKind: { System: 'Sistema', Task: 'Attività', Fragment: 'Frammento', ToolDescription: 'Descrizione strumento', ConfigFile: 'File di configurazione', Other: 'Altro' },
     permissionType: { Permit: 'Consenti', Deny: 'Nega' },
@@ -699,7 +701,9 @@ const it = {
     workspaces: {
       ...rp('Aree di lavoro', 'Come viene preparata l\'area di lavoro di un\'esecuzione: vuota, clonata da Git o popolata con file.', 'Aggiungi modello di area di lavoro', 'Crea modello di area di lavoro', 'Modifica modello di area di lavoro', 'Dettagli del modello di area di lavoro', 'Elimina modello di area di lavoro', 'Ancora nessun\'area di lavoro', 'Crea un modello di area di lavoro per far partire le distribuzioni da un repository o da file.'),
       columns: { name: 'Nome', kind: 'Tipo', gitUrl: 'Repository', retention: 'Conservazione', active: 'Attivo', id: 'ID', createdUtc: 'Creato' },
-      fields: { name: 'Nome', kind: 'Tipo', description: 'Descrizione', gitUrl: 'URL del repository', gitRef: 'Branch, tag o commit', gitDepth: 'Profondità del clone', gitCredentialSecretId: 'Credenziali Git', files: 'File', filePath: 'Percorso', fileContent: 'Contenuto', retention: 'Conservazione', active: 'Attivo' }
+      fields: { name: 'Nome', kind: 'Tipo', description: 'Descrizione', gitUrl: 'URL del repository', gitRef: 'Branch, tag o commit', gitDepth: 'Profondità del clone', gitCredentialSecretId: 'Credenziali Git', persistentVolumeClaim: 'Nome del PersistentVolumeClaim', files: 'File', filePath: 'Percorso', fileContent: 'Contenuto', retention: 'Conservazione', active: 'Attivo' },
+      hints: { persistentVolumeClaim: 'Un claim esistente nello spazio dei nomi di esecuzione. Solo i deployment con l\'esecutore Job Kubernetes possono usare questo workspace; il suo contenuto resta tra un\'esecuzione e l\'altra.' },
+      errors: { claimName: 'Usa lettere minuscole, cifre, trattini e punti, iniziando e finendo con una lettera o una cifra.' }
     },
     artifactStores: {
       ...rp('Archivi di artefatti', 'Dove vengono conservati i file prodotti dalle esecuzioni.', 'Aggiungi archivio di artefatti', 'Crea archivio di artefatti', 'Modifica archivio di artefatti', 'Dettagli dell\'archivio di artefatti', 'Elimina archivio di artefatti', 'Ancora nessun archivio di artefatti', 'Crea un archivio di artefatti per conservare gli output delle esecuzioni.'),
@@ -746,7 +750,7 @@ const it = {
       promptRoles: { Repair: 'Riparazione dell\'output strutturato', DelegatedTask: 'Involucro dell\'attività per esecuzioni delegate', Task: 'Involucro dell\'attività', System: 'Prompt di sistema' },
       ...rp('Distribuzioni', 'Collega un agente a un profilo harness, prompt, segreti, server MCP, posizionamento e limiti.', 'Aggiungi distribuzione', 'Crea distribuzione', 'Modifica distribuzione', 'Dettagli della distribuzione', 'Elimina distribuzione', 'Ancora nessuna distribuzione', 'Crea una distribuzione per rendere eseguibile un agente.'),
       steps: { basics: 'Dati di base', harness: 'Harness', prompts: 'Prompt', resources: 'Risorse', overrides: 'Sostituzioni', placement: 'Posizionamento e limiti' },
-      columns: { name: 'Nome', agentId: 'Agente', harnessProfileId: 'Profilo harness', model: 'Modello', weight: 'Peso', configVersion: 'Versione config.', active: 'Attiva', id: 'ID', createdUtc: 'Creata' },
+      columns: { name: 'Nome', agentId: 'Agente', harnessProfileId: 'Profilo harness', model: 'Modello', executor: 'Esecutore', weight: 'Peso', configVersion: 'Versione config.', active: 'Attiva', id: 'ID', createdUtc: 'Creata' },
       fields: {
         name: 'Nome',
         agentId: 'Agente',
@@ -793,7 +797,14 @@ const it = {
         retryOnNodeLoss: 'Rimetti in coda se il nodo viene perso',
         repetitionGuard: 'Protezione dalle ripetizioni',
         maxAssistantChars: 'Massimo di caratteri dell\'assistente',
-        noProgressSeconds: 'Limite senza avanzamento (secondi)'
+        noProgressSeconds: 'Limite senza avanzamento (secondi)',
+        executor: 'Esecutore',
+        podCpuRequest: 'Richiesta CPU',
+        podCpuLimit: 'Limite CPU',
+        podMemoryRequest: 'Richiesta memoria',
+        podMemoryLimit: 'Limite memoria',
+        podEphemeralStorageRequest: 'Richiesta di archiviazione effimera',
+        podEphemeralStorageLimit: 'Limite di archiviazione effimera'
       },
       hints: {
         secretsKinds: 'Il profilo harness {{profile}} richiede un segreto qualsiasi di tipo {{kinds}}. Collegane uno con un alias a scelta.',
@@ -810,16 +821,23 @@ const it = {
         guardDefaultUnknown: 'Vuoto usa l\'impostazione del cluster {{setting}}.',
         guardOwn: 'Impostato su questa distribuzione. Il valore del cluster ({{setting}}) è {{value}}.',
         guardOwnUnknown: 'Impostato su questa distribuzione al posto dell\'impostazione del cluster {{setting}}.',
-        guardFollowing: 'Segue il valore del cluster, {{value}}, da {{setting}}.'
+        guardFollowing: 'Segue il valore del cluster, {{value}}, da {{setting}}.',
+        executorInherit: 'Vuoto usa il valore predefinito del pool di nodi: {{executor}}.',
+        executorSet: 'Processo esegue l\'harness dentro il worker; Job Kubernetes lo esegue in un pod dedicato.',
+        podCpuRequest: 'Le risorse del pod valgono solo per le esecuzioni Job Kubernetes. Usa quantità Kubernetes come 500m, 2, 512Mi o 4Gi; vuoto usa il valore predefinito del worker.'
       },
       actions: { compilePreview: 'Anteprima di compilazione', test: 'Invocazione di prova', useClusterDefault: 'Usa il valore del cluster' },
       sections: {
-        guards: 'Protezioni dell\'esecuzione'
+        guards: 'Protezioni dell\'esecuzione',
+        execution: 'Esecutore e risorse del pod'
       },
       placeholders: {
         clusterDefault: 'Valore del cluster ({{value}})',
         clusterDefaultUnknown: 'Valore del cluster'
       },
+      executorInherit: 'Predefinito del pool di nodi',
+      executorInheritShort: 'Predefinito del pool',
+      errors: { quantity: 'Usa una quantità Kubernetes come 500m, 2, 512Mi o 4Gi.' },
       guardStates: {
         on: 'attiva',
         off: 'disattiva'
@@ -828,8 +846,8 @@ const it = {
     nodePools: {
       ...rp('Pool di nodi', 'Raggruppa i nodi worker per etichetta e, facoltativamente, dedicali a specifici tenant.', 'Aggiungi pool di nodi', 'Crea pool di nodi', 'Modifica pool di nodi', 'Dettagli del pool di nodi', 'Elimina pool di nodi', 'Ancora nessun pool di nodi', 'Crea un pool di nodi per dedicare capacità.'),
       allTenants: 'Tutti i tenant',
-      columns: { name: 'Nome', description: 'Descrizione', tenants: 'Tenant', active: 'Attivo', id: 'ID', createdUtc: 'Creato' },
-      fields: { name: 'Nome', description: 'Descrizione', tenants: 'ID dei tenant consentiti', active: 'Attivo' },
+      columns: { name: 'Nome', description: 'Descrizione', tenants: 'Tenant', defaultExecutor: 'Esecutore predefinito', active: 'Attivo', id: 'ID', createdUtc: 'Creato' },
+      fields: { name: 'Nome', description: 'Descrizione', defaultExecutor: 'Esecutore predefinito', tenants: 'ID dei tenant consentiti', active: 'Attivo' },
       hints: { tenants: 'Lascia vuoto per consentire tutti i tenant.' }
     },
     runs: {
@@ -863,7 +881,7 @@ const it = {
     },
     nodes: {
       ...rp('Nodi', 'Nodi worker che prendono in lease ed eseguono le esecuzioni. Isola o svuota un nodo prima della manutenzione.', 'Aggiungi nodo', 'Crea nodo', 'Modifica nodo', 'Dettagli del nodo', 'Elimina nodo', 'Ancora nessun nodo', 'I nodi worker si registrano automaticamente all\'avvio. Distribuisci lo StatefulSet dei worker oppure avvia Garrison.Worker in locale.'),
-      columns: { name: 'Nome', status: 'Stato', capacity: 'Esecuzioni', harnesses: 'Harness', labels: 'Etichette', nodeVersion: 'Versione', lastHeartbeatUtc: 'Ultimo heartbeat', id: 'ID' },
+      columns: { name: 'Nome', status: 'Stato', capacity: 'Esecuzioni', harnesses: 'Harness', executors: 'Esecutori', labels: 'Etichette', nodeVersion: 'Versione', lastHeartbeatUtc: 'Ultimo heartbeat', id: 'ID' },
       fields: { address: 'Indirizzo', maxConcurrentRuns: 'Capacità', activeRuns: 'Esecuzioni attive', capabilities: 'Capacità harness', detectedVersion: 'Versione', available: 'Disponibile', detail: 'Dettaglio' },
       actions: { cordon: 'Isola', uncordon: 'Annulla isolamento', drain: 'Svuota', runs: 'Visualizza esecuzioni', grafana: 'Apri in Grafana' },
       toasts: { cordoned: 'Nodo isolato.', uncordoned: 'Isolamento del nodo annullato.', draining: 'Svuotamento del nodo in corso.' }
@@ -1339,6 +1357,7 @@ const it = {
         },
         Auth: {
           RateLimitPerMinute: 'Tentativi di accesso al minuto',
+          PasswordHashIterations: 'Iterazioni dell\'hash delle password',
           SignedRequestSkewSeconds: 'Scarto di orologio ammesso per le richieste firmate (secondi)',
           AdminApiKey: 'Chiave API dell\'amministratore',
           TokenLifetimeMinutes: 'Durata della sessione (minuti)',

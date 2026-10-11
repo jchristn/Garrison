@@ -105,6 +105,12 @@ namespace Garrison.Core.Models
         public string? NodePoolId { get; set; } = null;
 
         /// <summary>
+        /// Executor the run needs, resolved when the run is created (the deployment's executor, else its node pool's
+        /// default, else Process). Only workers reporting this executor claim the run.
+        /// </summary>
+        public RunExecutorEnum Executor { get; set; } = RunExecutorEnum.Process;
+
+        /// <summary>
         /// Run kind.
         /// </summary>
         public RunKindEnum Kind { get; set; } = RunKindEnum.Invoke;

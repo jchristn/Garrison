@@ -94,6 +94,7 @@ All database settings need a restart. Size the pool so that replicas times `Data
 | `Auth.AdminApiKey` | `garrisonadmin` | Live | System administrator key for `x-api-key`. Environment: `GARRISON_ADMIN_API_KEY` |
 | `Auth.SignedRequestSkewSeconds` | `300` | Live | Allowed clock difference for signed requests, 10 to 3600 |
 | `Auth.RateLimitPerMinute` | `60` | Live | Token requests allowed per source address per minute, counted in the database across all replicas |
+| `Auth.PasswordHashIterations` | `600000` | Live | PBKDF2-HMAC-SHA256 iterations for new password hashes, 10000 to 10000000. Existing hashes with fewer iterations, and legacy SHA-256 hashes, are rehashed at the next successful sign-in. Values below the default are for tests |
 
 ### Security
 
@@ -219,6 +220,7 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `McpPreflightTimeoutMs` | `20000` | Per-server MCP pre-flight timeout |
 | `EnvironmentAllowlist` | `PATH`, `LANG`, `LC_ALL`, `TZ`, `USER`, temp directories, `DOTNET_ROOT`, certificate and proxy variables, and Windows system variables | Variables copied from the worker's own environment into each harness. Everything else starts empty |
 | `Probes` | `claude`, `codex`, `mux`, `gemini`, `garrison-fake-harness`, each with `--version` | Harness checks run at startup. An available harness adds the label `garrison.io/harness-<label>=true` |
+| `Kubernetes` | disabled | The KubernetesJob (pod-per-run) executor: `Enabled`, `RunNamespace`, `RunImage`, `ImagePullPolicy`, `ImagePullSecrets`, `ServiceAccountName`, `RuntimeClassName`, `NodeSelector`, `PodLabels`, `JobTtlSeconds`, `PendingTimeoutSeconds`, `DefaultResources`, `RunAsUser`, `RunAsGroup`, `EmptyDirSizeLimit`, `EgressCanary`, `ReconcileIntervalSeconds`, and more. Environment: `GARRISON_WORKER_KUBERNETES_ENABLED` and `GARRISON_WORKER_RUN_*`. Every field is described in `docs/KUBERNETES.md`, "Pod-per-run executor" |
 | `Logging.ConsoleLogging`, `Logging.MinimumSeverity` | `true`, `1` | Logging |
 | `Telemetry` | service `garrison-worker`, Prometheus on `*:9465/metrics`, OTLP off, `/metrics` also served on the health port | Same fields as the server's `Telemetry` block; `ServeMetricsOnServicePort` applies to the health listener. Environment: `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT` |
 

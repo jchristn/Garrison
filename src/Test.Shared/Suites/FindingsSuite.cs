@@ -385,7 +385,7 @@ namespace Test.Shared.Suites
 
                 // M1-22: retrying a run of a deleted agent says the agent was deleted.
                 TestResponse deleted = await HttpTestHelpers.SendAsync(admin, HttpMethod.Delete, "/v1.0/api/tenants/" + tenant + "/agents/" + echo.Id, null, token).ConfigureAwait(false);
-                Assert.True(deleted.StatusCode == 200 || deleted.StatusCode == 204, "Agent deleted (" + deleted.Body + ")");
+                Assert.Equal(204, deleted.StatusCode, "Agent deleted (" + deleted.Body + ")");
                 TestResponse retry = await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, "/v1.0/api/tenants/" + tenant + "/runs/" + run.Id + "/retry", null, token).ConfigureAwait(false);
                 Assert.Equal(409, retry.StatusCode, "Retry of a deleted agent's run (" + retry.Body + ")");
                 ErrorResponse retryError = Serializer.Deserialize<ErrorResponse>(retry.Body) ?? throw new TestAssertionException("Empty error.");

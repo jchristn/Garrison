@@ -76,7 +76,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.McpServer, OperationTypeEnum.Create, CreateAsync, "Register an MCP server", "MCP Servers", typeof(McpServer), typeof(McpServer));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.McpServer, OperationTypeEnum.Read, ReadAsync, "Read an MCP server", "MCP Servers", null, typeof(McpServer));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.McpServer, OperationTypeEnum.Update, UpdateAsync, "Update an MCP server", "MCP Servers", typeof(McpServer), typeof(McpServer));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.McpServer, OperationTypeEnum.Delete, DeleteAsync, "Delete an MCP server", "MCP Servers", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.McpServer, OperationTypeEnum.Delete, DeleteAsync, "Delete an MCP server", "MCP Servers");
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/test", ResourceTypeEnum.McpServer, OperationTypeEnum.Update, TestAsync, "Connect to an HTTP MCP server and list its tools", "MCP Servers", null, typeof(McpServerTestResponse));
         }
 
@@ -132,10 +132,9 @@ namespace Garrison.Server.Routes
             McpServer existing = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "MCP server " + existing.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.ResourceBindings.Any(b => b.Kind == ResourceBindingKindEnum.McpServer && b.ResourceId == existing.Id), "MCP server " + existing.Name, http.Token).ConfigureAwait(false);
-            DeleteResponse response = new DeleteResponse();
-            response.Deleted = await _Server.Database.McpServers.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
+            await _Server.Database.McpServers.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "McpServer", existing.Id, "Deleted MCP server " + existing.Name + ".").ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task TestAsync(HttpContextBase http)

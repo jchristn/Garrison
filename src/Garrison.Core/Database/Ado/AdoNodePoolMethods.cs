@@ -7,6 +7,7 @@ namespace Garrison.Core.Database.Ado
     using System.Threading.Tasks;
     using Garrison.Core.Database.Interfaces;
     using Garrison.Core.Enumeration;
+    using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
 
@@ -91,7 +92,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET name = @name, description = @description, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET name = @name, description = @description, defaultexecutor = @defaultexecutor, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -100,6 +101,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "id", obj.Id);
                     AdoDatabaseDriver.Add(command, "name", obj.Name);
                     AdoDatabaseDriver.Add(command, "description", obj.Description);
+                    AdoDatabaseDriver.Add(command, "defaultexecutor", obj.DefaultExecutor.HasValue ? obj.DefaultExecutor.Value.ToString() : null);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                     AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
@@ -178,6 +180,7 @@ namespace Garrison.Core.Database.Ado
             obj.Id = AdoConverters.Str(reader, "id");
             obj.Name = AdoConverters.Str(reader, "name");
             obj.Description = AdoConverters.NullableStr(reader, "description");
+            obj.DefaultExecutor = AdoConverters.NullableEnum<RunExecutorEnum>(reader, "defaultexecutor");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
@@ -208,12 +211,13 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, NodePool obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, name, description, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @name, @description, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, name, description, defaultexecutor, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @name, @description, @defaultexecutor, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
                 AdoDatabaseDriver.Add(command, "name", obj.Name);
                 AdoDatabaseDriver.Add(command, "description", obj.Description);
+                AdoDatabaseDriver.Add(command, "defaultexecutor", obj.DefaultExecutor.HasValue ? obj.DefaultExecutor.Value.ToString() : null);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);
                 AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                 AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);

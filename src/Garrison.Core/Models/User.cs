@@ -69,18 +69,19 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
-        /// Lowercase hex SHA-256 of the password. Never returned by the API.
+        /// Encoded password hash (see PasswordHasher): pbkdf2-sha256$iterations$salt$hash, or a legacy unsalted lowercase hex
+        /// SHA-256 that is replaced on the next successful sign-in. Stored in the passwordsha256 column. Never returned by the API.
         /// </summary>
         [JsonIgnore]
-        public string PasswordSha256
+        public string PasswordHash
         {
             get
             {
-                return _PasswordSha256;
+                return _PasswordHash;
             }
             set
             {
-                _PasswordSha256 = value ?? String.Empty;
+                _PasswordHash = value ?? String.Empty;
             }
         }
 
@@ -141,7 +142,7 @@ namespace Garrison.Core.Models
         private string _Id = IdGenerator.NewUserId();
         private string _TenantId = String.Empty;
         private string _Email = String.Empty;
-        private string _PasswordSha256 = String.Empty;
+        private string _PasswordHash = String.Empty;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
 

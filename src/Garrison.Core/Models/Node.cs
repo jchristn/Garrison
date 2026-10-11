@@ -168,6 +168,22 @@ namespace Garrison.Core.Models
             }
         }
 
+        /// <summary>
+        /// Executors the node reports (Process, and KubernetesJob when it can create Jobs). An empty list from an older
+        /// worker means Process only. Runs are claimed only by nodes that report the run's executor.
+        /// </summary>
+        public List<RunExecutorEnum> Executors
+        {
+            get
+            {
+                return _Executors;
+            }
+            set
+            {
+                _Executors = value ?? new List<RunExecutorEnum>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -179,6 +195,7 @@ namespace Garrison.Core.Models
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<NodeLabel> _Labels = new List<NodeLabel>();
         private List<NodeCapability> _Capabilities = new List<NodeCapability>();
+        private List<RunExecutorEnum> _Executors = new List<RunExecutorEnum>();
 
         #endregion
     }

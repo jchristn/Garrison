@@ -11,6 +11,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Database;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Services;
@@ -130,6 +131,8 @@ namespace Garrison.Server.Runtime
             run.DeploymentVersion = deployment.ConfigVersion;
             run.HarnessType = profile.HarnessType;
             run.NodePoolId = deployment.NodePoolId;
+            NodePool? pool = !deployment.Executor.HasValue && !String.IsNullOrEmpty(deployment.NodePoolId) ? await _Database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false) : null;
+            run.Executor = RunExecutors.Resolve(deployment, pool);
             run.Kind = create.Kind;
             run.Priority = create.Priority;
             run.InputText = create.Input ?? String.Empty;

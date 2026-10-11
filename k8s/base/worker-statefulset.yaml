@@ -26,7 +26,8 @@ spec:
         prometheus.io/path: /metrics
     spec:
       serviceAccountName: garrison-worker
-      automountServiceAccountToken: false
+      # The token lets the worker create run Jobs (rbac.yaml). Run pods themselves never get a token.
+      automountServiceAccountToken: true
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -94,6 +95,15 @@ spec:
               value: garrison.io/pool=default
             - name: GARRISON_WORKER_NODE_POOL
               value: default
+            # KubernetesJob executor (pod-per-run): offered when the worker can create Jobs here (rbac.yaml). Runs of
+            # deployments with executor KubernetesJob get their own pod; the run image is this container's image.
+            - name: GARRISON_WORKER_KUBERNETES_ENABLED
+              value: "true"
+            # Run pods start the harness only once this address (blocked by the garrison-run NetworkPolicy) is
+            # unreachable, so the harness never runs before the policy is programmed. Remove it on clusters
+            # whose network plugin does not enforce NetworkPolicy.
+            - name: GARRISON_WORKER_RUN_EGRESS_CANARY
+              value: garrison-server:8700
           volumeMounts:
             - name: settings
               mountPath: /etc/garrison

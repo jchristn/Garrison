@@ -200,10 +200,23 @@ namespace Garrison.Server.Services
         {
             if (String.IsNullOrEmpty(tenantId) || String.IsNullOrEmpty(email) || String.IsNullOrEmpty(password)) return null;
             Tenant? tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
-            if (tenant == null || !tenant.Active) return null;
-            User? user = await _Database.Users.ReadByEmailAsync(tenantId, email, token).ConfigureAwait(false);
-            if (user == null || !user.Active) return null;
-            if (!PasswordHasher.Verify(password, user.PasswordSha256)) return null;
+            User? user = (tenant != null && tenant.Active) ? await _Database.Users.ReadByEmailAsync(tenantId, email, token).ConfigureAwait(false) : null;
+            if (user == null || !user.Active)
+            {
+                // Spend the time of a real verification so the response time does not reveal which accounts exist.
+                PasswordHasher.VerifyDummy(password);
+                return null;
+            }
+            if (!PasswordHasher.Verify(password, user.PasswordHash)) return null;
+
+            int iterations = _Settings.Auth.PasswordHashIterations;
+            if (PasswordHasher.NeedsRehash(user.PasswordHash, iterations))
+            {
+                // Transparent upgrade (G-2): replace a legacy unsalted SHA-256 hash, or a hash with fewer iterations than
+                // configured, now that the plain-text password is known to be correct.
+                user.PasswordHash = PasswordHasher.Hash(password, iterations);
+                await _Database.Users.UpdateAsync(user, token).ConfigureAwait(false);
+            }
             return user;
         }
 

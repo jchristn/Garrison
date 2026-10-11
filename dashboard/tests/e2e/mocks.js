@@ -63,6 +63,7 @@ function run(i) {
     deploymentId: 'dep_0001',
     deploymentVersion: 3,
     harnessType: 'ClaudeCode',
+    executor: 'Process',
     nodePoolId: 'np_0001',
     kind: 'Invoke',
     status,
@@ -251,6 +252,8 @@ const FACTORIES = {
       timeoutSeconds: 300,
       // P3.15 run guards: deployment-2 (the small local model) sets its own; the others follow the cluster defaults.
       ...(i === 2 ? { repetitionGuard: true, maxAssistantChars: 50000, noProgressSeconds: 120 } : {}),
+      // Phase 11: deployments carry run pod resources (empty unless set); executor is omitted to inherit the pool default.
+      podResources: i === 4 ? { cpuRequest: '250m', memoryLimit: '2Gi' } : {},
       maxConcurrentRuns: 0,
       maxAttempts: 1,
       retryOnNodeLoss: false,
@@ -281,7 +284,8 @@ const FACTORIES = {
     });
   },
   // Node pools and nodes are cluster-wide records: no tenantId.
-  'node-pools': (i) => record('np', i, { name: `np-${i}`, description: 'Pool', tenants: [] }),
+  // Phase 11: np-1 runs deployments without their own executor as Kubernetes Jobs.
+  'node-pools': (i) => record('np', i, { name: `np-${i}`, description: 'Pool', tenants: [], ...(i === 1 ? { defaultExecutor: 'KubernetesJob' } : {}) }),
   runs: run,
   nodes: (i) => {
     const id = `node_${pad(i)}`;
@@ -296,6 +300,7 @@ const FACTORIES = {
       lastHeartbeatUtc: iso(0),
       registeredUtc: iso(600),
       labels: [{ id: `chr_${id}_0000lab`, nodeId: id, key: 'zone', value: 'a' }],
+      executors: i === 1 ? ['Process', 'KubernetesJob'] : ['Process'],
       capabilities: [{ id: `chr_${id}_0000cap`, nodeId: id, harnessType: 'ClaudeCode', executable: 'claude', detectedVersion: '2.1.0', available: true, detail: '2.1.0 (Claude Code)' }]
     });
   },
@@ -621,11 +626,13 @@ const AGENT_CARD = {
   description: 'Sample agent',
   version: '0.1.0-alpha',
   supportedInterfaces: [{ url: `http://127.0.0.1:8700/v1.0/a2a/${TENANT}/echo-agent`, protocolBinding: 'JSONRPC', protocolVersion: '1.0' }],
-  capabilities: { streaming: true, pushNotifications: false },
+  provider: { organization: 'Garrison', url: 'https://github.com/jchristn/Garrison' },
+  capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false },
   skills: [{ id: 'echo', name: 'Echo', description: 'Echoes input', tags: ['sample'] }],
   defaultInputModes: ['text/plain'],
   defaultOutputModes: ['text/plain'],
-  securitySchemes: { bearer: { httpAuthSecurityScheme: { scheme: 'bearer', description: 'Garrison session token or run token.' } } }
+  securitySchemes: { garrison: { httpAuthSecurityScheme: { scheme: 'bearer', description: 'Garrison session token or run token.' } } },
+  securityRequirements: [{ schemes: { garrison: [] } }]
 };
 
 const SERVER_INFO = {

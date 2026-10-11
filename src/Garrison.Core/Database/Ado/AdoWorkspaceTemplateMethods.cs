@@ -117,7 +117,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, kind = @kind, giturl = @giturl, gitref = @gitref, gitdepth = @gitdepth, gitcredentialsecretid = @gitcredentialsecretid, retention = @retention, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, kind = @kind, giturl = @giturl, gitref = @gitref, gitdepth = @gitdepth, gitcredentialsecretid = @gitcredentialsecretid, persistentvolumeclaim = @persistentvolumeclaim, retention = @retention, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -132,6 +132,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "gitref", obj.GitRef);
                     AdoDatabaseDriver.Add(command, "gitdepth", obj.GitDepth);
                     AdoDatabaseDriver.Add(command, "gitcredentialsecretid", obj.GitCredentialSecretId);
+                    AdoDatabaseDriver.Add(command, "persistentvolumeclaim", obj.PersistentVolumeClaim);
                     AdoDatabaseDriver.Add(command, "retention", obj.Retention.ToString());
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
@@ -222,6 +223,7 @@ namespace Garrison.Core.Database.Ado
             obj.GitRef = AdoConverters.NullableStr(reader, "gitref");
             obj.GitDepth = AdoConverters.Int(reader, "gitdepth");
             obj.GitCredentialSecretId = AdoConverters.NullableStr(reader, "gitcredentialsecretid");
+            obj.PersistentVolumeClaim = AdoConverters.NullableStr(reader, "persistentvolumeclaim");
             obj.Retention = AdoConverters.Enum<WorkspaceRetentionEnum>(reader, "retention", WorkspaceRetentionEnum.Delete);
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
@@ -253,7 +255,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, WorkspaceTemplate obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, kind, giturl, gitref, gitdepth, gitcredentialsecretid, retention, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @kind, @giturl, @gitref, @gitdepth, @gitcredentialsecretid, @retention, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, kind, giturl, gitref, gitdepth, gitcredentialsecretid, persistentvolumeclaim, retention, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @kind, @giturl, @gitref, @gitdepth, @gitcredentialsecretid, @persistentvolumeclaim, @retention, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -265,6 +267,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "gitref", obj.GitRef);
                 AdoDatabaseDriver.Add(command, "gitdepth", obj.GitDepth);
                 AdoDatabaseDriver.Add(command, "gitcredentialsecretid", obj.GitCredentialSecretId);
+                AdoDatabaseDriver.Add(command, "persistentvolumeclaim", obj.PersistentVolumeClaim);
                 AdoDatabaseDriver.Add(command, "retention", obj.Retention.ToString());
                 AdoDatabaseDriver.Add(command, "active", obj.Active);
                 AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);

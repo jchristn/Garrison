@@ -49,6 +49,11 @@ namespace Garrison.Core.Models
         public string? Description { get; set; } = null;
 
         /// <summary>
+        /// Executor for runs of deployments in this pool that do not set their own executor. Null means Process.
+        /// </summary>
+        public RunExecutorEnum? DefaultExecutor { get; set; } = null;
+
+        /// <summary>
         /// Whether the record is active.
         /// </summary>
         public bool Active { get; set; } = true;

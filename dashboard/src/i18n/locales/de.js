@@ -241,7 +241,8 @@ const de = {
       InternalError: 'Interner Fehler',
       NoCapableWorker: 'Kein passender Worker',
       RepetitionDetected: 'Wiederholung erkannt',
-      NoProgress: 'Kein Fortschritt'
+      NoProgress: 'Kein Fortschritt',
+      PodFailed: 'Lauf-Pod fehlgeschlagen'
     },
     runEventType: {
       Lifecycle: 'Lebenszyklus',
@@ -275,7 +276,8 @@ const de = {
       BasicAuth: 'Basisauthentifizierung',
       GitCredential: 'Git-Zugangsdaten'
     },
-    workspaceKind: { Empty: 'Leer', GitRepository: 'Git-Repository', Seeded: 'Vorbefüllte Dateien' },
+    workspaceKind: { Empty: 'Leer', GitRepository: 'Git-Repository', Seeded: 'Vorbefüllte Dateien', PersistentVolume: 'Persistentes Volume' },
+    runExecutor: { Process: 'Prozess', KubernetesJob: 'Kubernetes-Job' },
     workspaceRetention: { Delete: 'Löschen', Keep: 'Behalten', KeepOnFailure: 'Bei Fehler behalten' },
     promptTemplateKind: { System: 'System', Task: 'Aufgabe', Fragment: 'Fragment', ToolDescription: 'Werkzeugbeschreibung', ConfigFile: 'Konfigurationsdatei', Other: 'Sonstiges' },
     permissionType: { Permit: 'Erlauben', Deny: 'Verweigern' },
@@ -685,7 +687,9 @@ const de = {
     workspaces: {
       ...rp('Arbeitsbereiche', 'Wie ein Arbeitsbereich für einen Lauf vorbereitet wird: leer, aus Git geklont oder mit Dateien befüllt.', 'Vorlage hinzufügen', 'Vorlage erstellen', 'Vorlage bearbeiten', 'Vorlagendetails', 'Vorlage löschen', 'Noch keine Arbeitsbereiche', 'Erstellen Sie eine Vorlage, damit Bereitstellungen mit einem Repository oder Dateien starten.'),
       columns: { name: 'Name', kind: 'Art', gitUrl: 'Repository', retention: 'Aufbewahrung', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
-      fields: { name: 'Name', kind: 'Art', description: 'Beschreibung', gitUrl: 'Repository-URL', gitRef: 'Branch, Tag oder Commit', gitDepth: 'Klontiefe', gitCredentialSecretId: 'Git-Zugangsdaten', files: 'Dateien', filePath: 'Pfad', fileContent: 'Inhalt', retention: 'Aufbewahrung', active: 'Aktiv' }
+      fields: { name: 'Name', kind: 'Art', description: 'Beschreibung', gitUrl: 'Repository-URL', gitRef: 'Branch, Tag oder Commit', gitDepth: 'Klontiefe', gitCredentialSecretId: 'Git-Zugangsdaten', persistentVolumeClaim: 'Name des PersistentVolumeClaim', files: 'Dateien', filePath: 'Pfad', fileContent: 'Inhalt', retention: 'Aufbewahrung', active: 'Aktiv' },
+      hints: { persistentVolumeClaim: 'Ein vorhandener Claim im Lauf-Namespace. Nur Bereitstellungen mit dem Executor Kubernetes-Job können diesen Arbeitsbereich nutzen; sein Inhalt bleibt zwischen Läufen erhalten.' },
+      errors: { claimName: 'Verwenden Sie Kleinbuchstaben, Ziffern, Bindestriche und Punkte, beginnend und endend mit einem Buchstaben oder einer Ziffer.' }
     },
     artifactStores: {
       ...rp('Artefaktspeicher', 'Wo Dateien aus Läufen aufbewahrt werden.', 'Speicher hinzufügen', 'Speicher erstellen', 'Speicher bearbeiten', 'Speicherdetails', 'Speicher löschen', 'Noch keine Artefaktspeicher', 'Erstellen Sie einen Artefaktspeicher für Ergebnisse von Läufen.'),
@@ -731,7 +735,7 @@ const de = {
       promptRoles: { Repair: 'Reparatur strukturierter Ausgabe', DelegatedTask: 'Aufgabenhülle für delegierte Läufe', Task: 'Aufgabenhülle', System: 'Systemprompt' },
       ...rp('Bereitstellungen', 'Bindet einen Agenten an Harness-Profil, Prompts, Geheimnisse, MCP-Server, Platzierung und Grenzen.', 'Bereitstellung hinzufügen', 'Bereitstellung erstellen', 'Bereitstellung bearbeiten', 'Bereitstellungsdetails', 'Bereitstellung löschen', 'Noch keine Bereitstellungen', 'Erstellen Sie eine Bereitstellung, um einen Agenten ausführbar zu machen.'),
       steps: { basics: 'Grundlagen', harness: 'Harness', prompts: 'Prompts', resources: 'Ressourcen', overrides: 'Überschreibungen', placement: 'Platzierung und Grenzen' },
-      columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness-Profil', model: 'Modell', weight: 'Gewichtung', configVersion: 'Konfigurationsversion', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
+      columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness-Profil', model: 'Modell', executor: 'Executor', weight: 'Gewichtung', configVersion: 'Konfigurationsversion', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
       fields: {
         name: 'Name',
         agentId: 'Agent',
@@ -778,7 +782,14 @@ const de = {
         retryOnNodeLoss: 'Bei Knotenverlust neu einreihen',
         repetitionGuard: 'Wiederholungswächter',
         maxAssistantChars: 'Maximale Assistentenzeichen',
-        noProgressSeconds: 'Zeitlimit ohne Fortschritt (Sekunden)'
+        noProgressSeconds: 'Zeitlimit ohne Fortschritt (Sekunden)',
+        executor: 'Executor',
+        podCpuRequest: 'CPU-Anforderung',
+        podCpuLimit: 'CPU-Limit',
+        podMemoryRequest: 'Speicheranforderung',
+        podMemoryLimit: 'Speicherlimit',
+        podEphemeralStorageRequest: 'Anforderung an flüchtigen Speicher',
+        podEphemeralStorageLimit: 'Limit für flüchtigen Speicher'
       },
       hints: {
         secretsKinds: 'Das Harness-Profil {{profile}} braucht ein beliebiges Geheimnis der Art {{kinds}}. Binden Sie eines unter einem beliebigen Alias.',
@@ -795,16 +806,23 @@ const de = {
         guardDefaultUnknown: 'Leer verwendet die Clustereinstellung {{setting}}.',
         guardOwn: 'Für diese Bereitstellung festgelegt. Der Cluster-Standard ({{setting}}) ist {{value}}.',
         guardOwnUnknown: 'Für diese Bereitstellung festgelegt statt über die Clustereinstellung {{setting}}.',
-        guardFollowing: 'Folgt dem Cluster-Standard {{value}} aus {{setting}}.'
+        guardFollowing: 'Folgt dem Cluster-Standard {{value}} aus {{setting}}.',
+        executorInherit: 'Leer verwendet den Standard des Knotenpools: {{executor}}.',
+        executorSet: 'Prozess führt den Harness im Worker aus; Kubernetes-Job führt ihn in einem eigenen Pod aus.',
+        podCpuRequest: 'Pod-Ressourcen gelten nur für Kubernetes-Job-Läufe. Verwenden Sie Kubernetes-Mengen wie 500m, 2, 512Mi oder 4Gi; leer verwendet den Worker-Standard.'
       },
       actions: { compilePreview: 'Kompilierungsvorschau', test: 'Testaufruf', useClusterDefault: 'Cluster-Standard verwenden' },
       sections: {
-        guards: 'Laufwächter'
+        guards: 'Laufwächter',
+        execution: 'Executor und Pod-Ressourcen'
       },
       placeholders: {
         clusterDefault: 'Cluster-Standard ({{value}})',
         clusterDefaultUnknown: 'Cluster-Standard'
       },
+      executorInherit: 'Standard des Knotenpools',
+      executorInheritShort: 'Pool-Standard',
+      errors: { quantity: 'Verwenden Sie eine Kubernetes-Menge wie 500m, 2, 512Mi oder 4Gi.' },
       guardStates: {
         on: 'an',
         off: 'aus'
@@ -813,8 +831,8 @@ const de = {
     nodePools: {
       ...rp('Knotenpools', 'Worker-Knoten nach Labels gruppieren und optional Mandanten zuordnen.', 'Pool hinzufügen', 'Pool erstellen', 'Pool bearbeiten', 'Pooldetails', 'Pool löschen', 'Noch keine Knotenpools', 'Erstellen Sie einen Knotenpool, um Kapazität zuzuordnen.'),
       allTenants: 'Alle Mandanten',
-      columns: { name: 'Name', description: 'Beschreibung', tenants: 'Mandanten', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
-      fields: { name: 'Name', description: 'Beschreibung', tenants: 'Zugelassene Mandanten-IDs', active: 'Aktiv' },
+      columns: { name: 'Name', description: 'Beschreibung', tenants: 'Mandanten', defaultExecutor: 'Standard-Executor', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
+      fields: { name: 'Name', description: 'Beschreibung', defaultExecutor: 'Standard-Executor', tenants: 'Zugelassene Mandanten-IDs', active: 'Aktiv' },
       hints: { tenants: 'Leer lassen, um alle Mandanten zuzulassen.' }
     },
     runs: {
@@ -848,7 +866,7 @@ const de = {
     },
     nodes: {
       ...rp('Knoten', 'Worker-Knoten, die Läufe übernehmen und ausführen. Sperren oder leeren Sie einen Knoten vor Wartungsarbeiten.', 'Knoten hinzufügen', 'Knoten erstellen', 'Knoten bearbeiten', 'Knotendetails', 'Knoten löschen', 'Noch keine Knoten', 'Worker-Knoten registrieren sich beim Start selbst. Stellen Sie das Worker-StatefulSet bereit oder starten Sie Garrison.Worker lokal.'),
-      columns: { name: 'Name', status: 'Status', capacity: 'Läufe', harnesses: 'Harnesses', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Letzter Heartbeat', id: 'ID' },
+      columns: { name: 'Name', status: 'Status', capacity: 'Läufe', harnesses: 'Harnesses', executors: 'Executors', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Letzter Heartbeat', id: 'ID' },
       fields: { address: 'Adresse', maxConcurrentRuns: 'Kapazität', activeRuns: 'Aktive Läufe', capabilities: 'Fähigkeiten', detectedVersion: 'Version', available: 'Verfügbar', detail: 'Detail' },
       actions: { cordon: 'Sperren', uncordon: 'Entsperren', drain: 'Leeren', runs: 'Läufe anzeigen', grafana: 'In Grafana öffnen' },
       toasts: { cordoned: 'Knoten gesperrt.', uncordoned: 'Knoten entsperrt.', draining: 'Knoten wird geleert.' }
@@ -1319,6 +1337,7 @@ const de = {
         },
         Auth: {
           RateLimitPerMinute: 'Anmeldeversuche pro Minute',
+          PasswordHashIterations: 'Iterationen für Passwort-Hashes',
           SignedRequestSkewSeconds: 'Zulässige Uhrabweichung signierter Anfragen (Sekunden)',
           AdminApiKey: 'Administrator-API-Schlüssel',
           TokenLifetimeMinutes: 'Sitzungsdauer (Minuten)',

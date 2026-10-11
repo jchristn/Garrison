@@ -16,6 +16,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Services;
     using Garrison.Server.Protocols;
     using Garrison.Server.Runtime;
+    using Garrison.Server.Services;
     using Radiant;
     using Voltaic.A2A;
     using Voltaic.Core;
@@ -363,11 +364,7 @@ namespace Garrison.Server.Routes
 
         private async Task<AgentCard> BuildCardAsync(HttpContextBase context, string tenantId, Agent agent)
         {
-            string skillDescription = agent.Description ?? agent.Name;
-            PromptTemplate? template = null;
-            if (!String.IsNullOrEmpty(agent.SkillDescriptionTemplateId)) template = await _Context.Database.PromptTemplates.ReadAsync(tenantId, agent.SkillDescriptionTemplateId, context.Token).ConfigureAwait(false);
-            if (template != null) skillDescription = template.Content.Replace("{{agent.name}}", agent.Name).Replace("{{agent.description}}", agent.Description ?? String.Empty);
-            return A2AMapper.Card(agent, BaseUrl(context) + "/v1.0/a2a/" + tenantId + "/" + agent.Name, skillDescription);
+            return await _Context.Get<AgentCardService>().BuildCardAsync(tenantId, agent, BaseUrl(context), context.Token).ConfigureAwait(false);
         }
 
         private string BaseUrl(HttpContextBase context)

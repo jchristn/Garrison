@@ -53,7 +53,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, "/v1.0/api/tenants", ResourceTypeEnum.Tenant, OperationTypeEnum.Create, CreateAsync, "Create a tenant", "Tenants", typeof(TenantRequest), typeof(Tenant));
             routes.Scoped(HttpMethod.GET, "/v1.0/api/tenants/{tenantId}", ResourceTypeEnum.Tenant, OperationTypeEnum.Read, ReadAsync, "Read a tenant", "Tenants", null, typeof(Tenant), "tenantId");
             routes.Scoped(HttpMethod.PUT, "/v1.0/api/tenants/{tenantId}", ResourceTypeEnum.Tenant, OperationTypeEnum.Update, UpdateAsync, "Update a tenant", "Tenants", typeof(TenantRequest), typeof(Tenant), "tenantId");
-            routes.Scoped(HttpMethod.DELETE, "/v1.0/api/tenants/{tenantId}", ResourceTypeEnum.Tenant, OperationTypeEnum.Delete, DeleteAsync, "Delete a tenant and everything it owns", "Tenants", null, typeof(DeleteCountResponse), "tenantId");
+            routes.Scoped(HttpMethod.DELETE, "/v1.0/api/tenants/{tenantId}", ResourceTypeEnum.Tenant, OperationTypeEnum.Delete, DeleteAsync, "Delete a tenant and everything it owns", "Tenants", null, null, "tenantId");
         }
 
         #endregion
@@ -103,8 +103,8 @@ namespace Garrison.Server.Routes
 
         private async Task DeleteAsync(HttpContextBase context)
         {
-            int deleted = await _Identity.DeleteTenantAsync(RouteHelpers.Context(context), RouteHelpers.Tenant(context), context.Token).ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(context, 200, new DeleteCountResponse { DeletedCount = deleted }).ConfigureAwait(false);
+            await _Identity.DeleteTenantAsync(RouteHelpers.Context(context), RouteHelpers.Tenant(context), context.Token).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(context).ConfigureAwait(false);
         }
 
         #endregion

@@ -1,5 +1,6 @@
 # Grafana: provisioned datasources (garrison-prometheus, garrison-loki, garrison-tempo) and the six Garrison
-# dashboards in the Garrison folder. Everything is provisioned, so Grafana keeps no state worth a volume.
+# dashboards in the Garrison folder. config/grafana.ini carries the settings that have no GF_* override (feature
+# toggles such as splashScreen). Everything is provisioned, so Grafana keeps no state worth a volume.
 # Admin credentials come from Secret garrison-grafana (keys admin-user, admin-password), created by
 # k8s/scripts/generate-secrets.sh. GF_SERVER_ROOT_URL matches the port-forward default; overlays that expose
 # Grafana elsewhere patch it together with GARRISON_GRAFANA_URL.
@@ -67,6 +68,10 @@ spec:
             - name: GF_PLUGINS_PREINSTALL_DISABLED
               value: "true"
           volumeMounts:
+            - name: config
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+              readOnly: true
             - name: datasources
               mountPath: /etc/grafana/provisioning/datasources
               readOnly: true
@@ -103,6 +108,9 @@ spec:
             periodSeconds: 20
             failureThreshold: 5
       volumes:
+        - name: config
+          configMap:
+            name: garrison-grafana-config
         - name: datasources
           configMap:
             name: garrison-grafana-datasources

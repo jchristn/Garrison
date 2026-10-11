@@ -159,7 +159,8 @@
       "run-token-golden"
     ],
     "retainForRepair": true,
-    "repairAttempt": 0
+    "repairAttempt": 0,
+    "executor": "Process"
   },
   "templateVersions": [
     {

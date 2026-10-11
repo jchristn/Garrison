@@ -11,13 +11,14 @@ Alloy to the `garrison` namespace. Enable it with `k8s/overlays/k3s-observabilit
 | `rbac.yaml` | Service accounts and namespaced Roles (Prometheus pod discovery; Alloy pod discovery and pod logs) |
 | `prometheus.yaml`, `loki.yaml`, `tempo.yaml`, `alloy.yaml`, `grafana.yaml` | Deployments, Services, and PVCs |
 | `garrison-env.yaml` | OTLP export and in-cluster observability URLs for the server and workers |
-| `config/` | Prometheus, Loki, Tempo, Alloy, and Grafana provisioning files |
+| `config/` | Prometheus, Loki, Tempo, Alloy, and Grafana provisioning files, plus `grafana.ini` (feature toggles) |
 | `dashboards/` | Grafana dashboards (`garrison-overview`, `garrison-http`, `garrison-runs`, `garrison-workers`, `garrison-protocols`, `garrison-integrations`) |
 
 Keep these copies in step:
 
 - `config/` and `dashboards/` are mirrored in `k8s/helm/garrison/files/observability` (the k8s CI workflow diffs them).
-- Docker Compose mounts `config/loki.yaml`, `config/tempo.yaml`, `config/grafana-*.yaml`, and `dashboards/` directly.
+- Docker Compose mounts `config/loki.yaml`, `config/tempo.yaml`, `config/grafana.ini`, `config/grafana-*.yaml`, and
+  `dashboards/` directly.
   Prometheus and Alloy have Compose-specific copies in `docker/observability`, because Compose has no pod discovery.
 - Image versions appear here, in the Helm values (`observability.*.image`), and in `docker/compose.yaml`.
 

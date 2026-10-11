@@ -198,6 +198,26 @@ namespace Garrison.Sdk.Models
         public string? NodePoolId { get; set; } = null;
 
         /// <summary>
+        /// Executor: Process or KubernetesJob. Null uses the node pool's defaultExecutor, then Process.
+        /// </summary>
+        public RunExecutorEnum? Executor { get; set; } = null;
+
+        /// <summary>
+        /// Run pod requests and limits for KubernetesJob runs. Ignored for Process runs. Never null.
+        /// </summary>
+        public RunPodResources PodResources
+        {
+            get
+            {
+                return _PodResources;
+            }
+            set
+            {
+                _PodResources = value ?? new RunPodResources();
+            }
+        }
+
+        /// <summary>
         /// Workspace template.
         /// </summary>
         public string? WorkspaceTemplateId { get; set; } = null;
@@ -376,6 +396,7 @@ namespace Garrison.Sdk.Models
 
         #region Private-Members
 
+        private RunPodResources _PodResources = new RunPodResources();
         private string _Id = String.Empty;
         private string _TenantId = String.Empty;
         private string _AgentId = String.Empty;

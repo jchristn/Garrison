@@ -54,7 +54,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, _Base + "/render", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, RenderAdHocAsync, "Render ad hoc template content with sample data", "Prompt Templates", typeof(PromptRenderRequest), typeof(PromptRenderResponse));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, ReadAsync, "Read a prompt template", "Prompt Templates", null, typeof(PromptTemplate));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Update, UpdateAsync, "Update a prompt template (content changes create a version)", "Prompt Templates", typeof(PromptTemplateRequest), typeof(PromptTemplate));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Delete, DeleteAsync, "Delete a prompt template and its versions", "Prompt Templates", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Delete, DeleteAsync, "Delete a prompt template and its versions", "Prompt Templates");
             routes.Scoped(HttpMethod.GET, _Base + "/{id}/versions", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, VersionsAsync, "List template versions, newest first", "Prompt Templates", null, typeof(List<PromptTemplateVersion>));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}/versions/{version}", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Read, VersionAsync, "Read one template version", "Prompt Templates", null, typeof(PromptTemplateVersion));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/restore/{version}", ResourceTypeEnum.PromptTemplate, OperationTypeEnum.Update, RestoreAsync, "Restore a version as a new version", "Prompt Templates", null, typeof(PromptTemplate));
@@ -119,11 +119,10 @@ namespace Garrison.Server.Routes
             PromptTemplate existing = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(existing.TenantId, existing.IsBuiltIn, existing.IsProtected, tenantId, "Prompt template " + existing.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.PromptBindings.Any(b => b.TemplateId == existing.Id), "Prompt template " + existing.Name, http.Token).ConfigureAwait(false);
-            DeleteResponse response = new DeleteResponse();
-            response.Cascaded = await _Server.Database.PromptTemplateVersions.DeleteByTemplateAsync(existing.Id, http.Token).ConfigureAwait(false);
-            response.Deleted = await _Server.Database.PromptTemplates.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
+            await _Server.Database.PromptTemplateVersions.DeleteByTemplateAsync(existing.Id, http.Token).ConfigureAwait(false);
+            await _Server.Database.PromptTemplates.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "PromptTemplate", existing.Id, "Deleted prompt template " + existing.Name + ".").ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task VersionsAsync(HttpContextBase http)

@@ -47,7 +47,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, _Base, ResourceTypeEnum.Workspace, OperationTypeEnum.Create, CreateAsync, "Create a workspace template", "Workspaces", typeof(WorkspaceTemplate), typeof(WorkspaceTemplate));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Workspace, OperationTypeEnum.Read, ReadAsync, "Read a workspace template", "Workspaces", null, typeof(WorkspaceTemplate));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.Workspace, OperationTypeEnum.Update, UpdateAsync, "Update a workspace template", "Workspaces", typeof(WorkspaceTemplate), typeof(WorkspaceTemplate));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Workspace, OperationTypeEnum.Delete, DeleteAsync, "Delete a workspace template", "Workspaces", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Workspace, OperationTypeEnum.Delete, DeleteAsync, "Delete a workspace template", "Workspaces");
         }
 
         #endregion
@@ -98,10 +98,9 @@ namespace Garrison.Server.Routes
             WorkspaceTemplate existing = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Workspace template " + existing.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.WorkspaceTemplateId == existing.Id, "Workspace template " + existing.Name, http.Token).ConfigureAwait(false);
-            DeleteResponse response = new DeleteResponse();
-            response.Deleted = await _Server.Database.WorkspaceTemplates.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
+            await _Server.Database.WorkspaceTemplates.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Workspace", existing.Id, "Deleted workspace template " + existing.Name + ".").ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task ValidateAsync(string tenantId, WorkspaceTemplate workspace, string? currentId, HttpContextBase http)

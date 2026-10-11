@@ -103,6 +103,11 @@ namespace Garrison.Sdk.Models
         public string? NodePoolId { get; set; } = null;
 
         /// <summary>
+        /// Executor the run needs, resolved when it was created.
+        /// </summary>
+        public RunExecutorEnum Executor { get; set; } = RunExecutorEnum.Process;
+
+        /// <summary>
         /// Run kind.
         /// </summary>
         public RunKindEnum Kind { get; set; } = RunKindEnum.Invoke;

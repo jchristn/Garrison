@@ -107,6 +107,8 @@ Then sign in to the dashboard. Fleet > Worker nodes lists `garrison-worker-1` an
 
 ## Observability
 
+Compose workers always run harnesses as subprocesses (the `Process` executor). The pod-per-run `KubernetesJob` executor needs the Kubernetes API, so Compose leaves it off; a deployment set to `executor: KubernetesJob` stays queued with `blockedReason: NoCapableWorker` here. Use the Kubernetes manifests for that (`docs/KUBERNETES.md`, "Pod-per-run executor").
+
 The `observability` profile adds Prometheus, Loki, Tempo, Grafana with the six Garrison dashboards, and Grafana Alloy, the same components and versions as the Kubernetes stack (`docs/KUBERNETES.md`, Observability). `compose.observability.yaml` turns on OTLP trace export on the server and workers and tells the server where the services are, so the dashboard's Home page shows them and runs link to their traces and logs. Use both together:
 
 ```bash

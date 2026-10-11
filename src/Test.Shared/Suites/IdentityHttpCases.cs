@@ -257,8 +257,8 @@ namespace Test.Shared.Suites
                 Assert.Equal(409, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, "/v1.0/api/tenants/" + host.TenantId, null, token).ConfigureAwait(false)).StatusCode, "Protected tenant delete");
                 Assert.Equal(409, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, "/v1.0/api/tenants/" + host.TenantId + "/credentials/" + (await host.Server.Context.Database.Credentials.ReadByAccessKeyAsync(host.Settings.Security.DefaultAccessKey, token).ConfigureAwait(false))!.Id, null, token).ConfigureAwait(false)).StatusCode, "Protected credential delete");
 
-                DeleteCountResponse deleted = await HttpTestHelpers.SendAsync<DeleteCountResponse>(host.AdminClient, HttpMethod.Delete, "/v1.0/api/tenants/" + doomed.Id, null, 200, token).ConfigureAwait(false);
-                Assert.True(deleted.DeletedCount >= 6, "Expected the cascade to delete several rows, got " + deleted.DeletedCount);
+                TestResponse deleted = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, "/v1.0/api/tenants/" + doomed.Id, null, token).ConfigureAwait(false);
+                Assert.Equal(204, deleted.StatusCode, "Tenant delete status (" + deleted.Body + ")");
                 Assert.True(await host.Server.Context.Database.Tenants.ReadAsync(doomed.Id, token).ConfigureAwait(false) == null, "Tenant remains.");
                 Assert.True(await host.Server.Context.Database.Users.ReadAsync(user.Id, token).ConfigureAwait(false) == null, "User remains.");
                 Assert.True(await host.Server.Context.Database.Credentials.ReadAsync(credential.Credential.Id, token).ConfigureAwait(false) == null, "Credential remains.");
@@ -436,6 +436,62 @@ namespace Test.Shared.Suites
         }
 
         #endregion
+
+        /// <summary>
+        /// A legacy unsalted SHA-256 password hash still signs in and is replaced by a PBKDF2 hash; a wrong password is
+        /// rejected and leaves the stored hash alone; created and updated passwords are stored as PBKDF2.
+        /// </summary>
+        /// <param name="provider">Provider.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        public static async Task PasswordUpgradeAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                User seededAdmin = Assert.NotNull(await host.Server.Context.Database.Users.ReadByEmailAsync(host.TenantId, "admin@garrison", token).ConfigureAwait(false), "Seeded administrator");
+                Assert.True(seededAdmin.PasswordHash.StartsWith("pbkdf2-sha256$600000$", StringComparison.Ordinal), "Seeded administrator hash format: " + seededAdmin.PasswordHash);
+
+                User created = await CreateUserAsync(host, host.TenantId, "legacy@example.com", null, token).ConfigureAwait(false);
+                User stored = Assert.NotNull(await host.Server.Context.Database.Users.ReadAsync(host.TenantId, created.Id, token).ConfigureAwait(false), "Created user");
+                Assert.True(stored.PasswordHash.StartsWith("pbkdf2-sha256$", StringComparison.Ordinal), "Created user hash format: " + stored.PasswordHash);
+                Assert.True(PasswordHasher.Verify("password123", stored.PasswordHash), "Created user hash does not verify.");
+
+                string legacy = PasswordHasher.LegacySha256("password123");
+                stored.PasswordHash = legacy;
+                await host.Server.Context.Database.Users.UpdateAsync(stored, token).ConfigureAwait(false);
+
+                using (HttpClient anonymous = new HttpClient())
+                {
+                    anonymous.BaseAddress = new Uri(host.BaseUrl);
+                    TestResponse wrong = await HttpTestHelpers.SendAsync(anonymous, HttpMethod.Post, "/v1.0/token", new TokenRequest { TenantId = host.TenantId, Email = "legacy@example.com", Password = "password124" }, token).ConfigureAwait(false);
+                    Assert.Equal(401, wrong.StatusCode, "Wrong password against a legacy hash");
+                    User afterWrong = Assert.NotNull(await host.Server.Context.Database.Users.ReadAsync(host.TenantId, created.Id, token).ConfigureAwait(false), "User after wrong password");
+                    Assert.Equal(legacy, afterWrong.PasswordHash, "A failed sign-in changed the stored hash");
+
+                    TestResponse unknown = await HttpTestHelpers.SendAsync(anonymous, HttpMethod.Post, "/v1.0/token", new TokenRequest { TenantId = host.TenantId, Email = "nobody@example.com", Password = "password123" }, token).ConfigureAwait(false);
+                    Assert.Equal(401, unknown.StatusCode, "Unknown user");
+                }
+
+                using (HttpClient upgraded = await host.UserClientAsync("legacy@example.com", "password123", host.TenantId, token).ConfigureAwait(false))
+                {
+                    Assert.Equal(200, (await HttpTestHelpers.SendAsync(upgraded, HttpMethod.Get, "/v1.0/token/details", null, token).ConfigureAwait(false)).StatusCode, "Session issued after the legacy sign-in");
+                }
+                User afterLogin = Assert.NotNull(await host.Server.Context.Database.Users.ReadAsync(host.TenantId, created.Id, token).ConfigureAwait(false), "User after sign-in");
+                Assert.True(afterLogin.PasswordHash.StartsWith("pbkdf2-sha256$600000$", StringComparison.Ordinal), "Legacy hash was not upgraded: " + afterLogin.PasswordHash);
+                Assert.True(PasswordHasher.Verify("password123", afterLogin.PasswordHash), "Upgraded hash does not verify.");
+
+                using (HttpClient again = await host.UserClientAsync("legacy@example.com", "password123", host.TenantId, token).ConfigureAwait(false))
+                {
+                    User unchanged = Assert.NotNull(await host.Server.Context.Database.Users.ReadAsync(host.TenantId, created.Id, token).ConfigureAwait(false), "User after second sign-in");
+                    Assert.Equal(afterLogin.PasswordHash, unchanged.PasswordHash, "A current hash was rewritten on sign-in");
+                }
+
+                await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Put, "/v1.0/api/tenants/" + host.TenantId + "/users/" + created.Id, new UserRequest { Password = "new-password-456" }, 200, token).ConfigureAwait(false);
+                User updated = Assert.NotNull(await host.Server.Context.Database.Users.ReadAsync(host.TenantId, created.Id, token).ConfigureAwait(false), "User after password change");
+                Assert.True(updated.PasswordHash.StartsWith("pbkdf2-sha256$", StringComparison.Ordinal) && PasswordHasher.Verify("new-password-456", updated.PasswordHash), "Updated password is not stored as PBKDF2.");
+                Assert.True(!PasswordHasher.Verify("password123", updated.PasswordHash), "Old password still verifies after the change.");
+            }
+        }
 
         #region Private-Methods
 

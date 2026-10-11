@@ -334,7 +334,8 @@ const tips = {
       InternalError: 'Garrison 遇到內部錯誤。詳情睇伺服器日誌。',
       NoCapableWorker: '呢個執行喺隊列等嘅時間超過咗叢集設定 Runtime.FailBlockedAfterSeconds 准許嘅時長，又冇就緒嘅工作節點做到佢，所以已經失敗。',
       RepetitionDetected: '執行防護停咗個執行，因為佢嘅回答變成不停重複同一段短文字，或者得空白同標點。到而家為止嘅輸出會保留。可以用部署嘅重複防護調整。',
-      NoProgress: '執行防護停咗個執行，因為超過部署嘅冇進展逾時時間都冇文字、思考或者工具活動。到而家為止嘅輸出會保留。'
+      NoProgress: '執行防護停咗個執行，因為超過部署嘅冇進展逾時時間都冇文字、思考或者工具活動。到而家為止嘅輸出會保留。',
+      PodFailed: '執行 Pod 喺 harness 以外失敗咗：可能排程唔到、拉唔到映像、記憶體唔夠、俾人驅逐，或者冇回報就結束咗。錯誤訊息會講明原因。'
     },
     controlNodeStatus: {
       Starting: '啟動緊：副本仲喺度初始化，未開始處理流量。',
@@ -380,7 +381,12 @@ const tips = {
     workspaceKind: {
       Empty: '每個執行都喺一個新嘅空白目錄開始。',
       GitRepository: '每個執行都由一個全新複製嘅 Git 儲存庫開始。',
-      Seeded: '每個執行開始時都有範本列出嘅檔案。'
+      Seeded: '每個執行開始時都有範本列出嘅檔案。',
+      PersistentVolume: '每次執行都會將一個已經存在嘅 PersistentVolumeClaim 掛載做工作區，所以檔案會喺執行之間保留。需要 Kubernetes Job 執行器。'
+    },
+    runExecutor: {
+      Process: 'Harness 以 worker 嘅子程序形式喺 worker 嘅容器入面執行，有自己嘅工作、home 同設定目錄。',
+      KubernetesJob: 'Worker 每次執行都會開一個 Kubernetes Job：harness 喺自己嘅 Pod 入面執行，冇 Kubernetes 或者 Garrison 憑證，根檔案系統唯讀，並受部署嘅資源上限限制。'
     },
     promptTemplateKind: {
       System: '系統提示：設定代理程式嘅常設指示。',
@@ -617,6 +623,7 @@ const tips = {
       gitRef: '要簽出嘅分支、標籤或者 commit。留空就用預設分支。',
       gitDepth: '要攞幾多個 commit。1 最快；0 會攞晒成個歷史。',
       gitCredentialSecretId: '存放複製私人儲存庫所用權杖或密碼嘅機密。',
+      persistentVolumeClaim: '掛載喺工作區路徑嘅 PersistentVolumeClaim 名稱。佢一定要已經喺執行命名空間入面存在；Garrison 永遠唔會建立或者刪除佢。',
       files: '執行開始之前寫入工作區嘅檔案。',
       filesItems: {
         path: '檔案相對於工作區根目錄嘅路徑。',
@@ -745,9 +752,17 @@ const tips = {
       repetitionGuard: '回答變成不停重複同一段短文字，或者得空白同標點嗰陣停止執行（結果係偵測到重複）。未設定就跟叢集預設值；剔或者唔剔個格就可以為呢個部署單獨設定。',
       maxAssistantChars: '一次執行喺 Garrison 停佢之前最多可以寫幾多個助理文字字元（結果係輸出超出上限）。0 即係唔設上限；留空就用叢集預設值。',
       noProgressSeconds: '冇工具呼叫進行緊嘅時候，如果咁多秒都冇文字、思考、工具呼叫或者工具結果，就停止執行（結果係冇進展）。0 即係熄咗佢；留空就用叢集預設值。',
+      executor: '執行方式：程序（喺 worker 入面）或者 Kubernetes Job（每次執行一個 Pod，隔離更強）。留空就跟節點池嘅預設執行器，再唔係就用程序。',
+      podCpuRequest: '執行 Pod 請求嘅 CPU，例如 250m。留空就用 worker 預設值。',
+      podCpuLimit: '執行 Pod 最多可以用嘅 CPU，例如 2。留空就用 worker 預設值。',
+      podMemoryRequest: '執行 Pod 請求嘅記憶體，例如 512Mi。留空就用 worker 預設值。',
+      podMemoryLimit: '執行 Pod 最多可以用嘅記憶體，例如 4Gi。超過嘅執行會以「執行 Pod 失敗」結果停止。',
+      podEphemeralStorageRequest: '執行 Pod 為工作區、home 同臨時檔案請求嘅本機磁碟，例如 1Gi。',
+      podEphemeralStorageLimit: '執行 Pod 最多可以用嘅本機磁碟，例如 10Gi。超過嘅 Pod 會俾人驅逐，執行就會失敗。',
       useClusterDefault: '清除呢個部署自己嘅設定，等重複防護跟返叢集預設值。',
       sections: {
-        guards: '執行防護會喺任何 Harness 上面盡早停止失控嘅執行。留空嘅每一項都會跟設定（執行階段）入面嘅叢集預設值。'
+        guards: '執行防護會喺任何 Harness 上面盡早停止失控嘅執行。留空嘅每一項都會跟設定（執行階段）入面嘅叢集預設值。',
+        execution: '揀執行喺邊度進行，如果係 Kubernetes Job 執行，就揀 Pod 嘅 CPU、記憶體同磁碟。'
       }
     },
     nodePools: {
@@ -755,6 +770,7 @@ const tips = {
       name: '節點池名稱。節點登記時會加入節點池，部署可以要求用某個節點池。',
       description: '呢個節點池代表咩硬件或者用途。',
       tenants: '可以用呢個節點池嘅租用戶。留空即係所有租用戶。',
+      defaultExecutor: '呢個池入面冇自己揀執行器嘅部署，佢哋嘅執行會用呢個執行器。留空即係程序。',
       active: '停用咗嘅節點池唔會接受新嘅執行。'
     },
     runs: {
@@ -777,6 +793,7 @@ const tips = {
       status: '節點會唔會接受新嘅執行。維護之前先封鎖或者清空節點。',
       capacity: '節點而家持有嘅執行數目，對比佢同時最多接受嘅數目。',
       harnesses: '節點喺啟動時探測到已安裝而且運作正常嘅 Harness。',
+      executors: '節點提供嘅執行器。只有 worker 喺叢集入面執行而且有權建立 Job，先會出現 Kubernetes Job。',
       labels: '節點公佈嘅鍵值標籤。部署嘅節點選擇器會用佢哋嚟比對。',
       nodeVersion: '節點上工作節點軟件嘅版本。',
       lastHeartbeatUtc: '節點最後一次報到嘅時間。停止報到嘅節點會被標為失聯。',

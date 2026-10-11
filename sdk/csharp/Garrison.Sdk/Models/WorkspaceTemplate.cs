@@ -98,6 +98,11 @@ namespace Garrison.Sdk.Models
         public string? GitCredentialSecretId { get; set; } = null;
 
         /// <summary>
+        /// PersistentVolumeClaim mounted at the workspace path for PersistentVolume workspaces (must exist in the run namespace).
+        /// </summary>
+        public string? PersistentVolumeClaim { get; set; } = null;
+
+        /// <summary>
         /// Retention policy.
         /// </summary>
         public WorkspaceRetentionEnum Retention { get; set; } = WorkspaceRetentionEnum.Delete;

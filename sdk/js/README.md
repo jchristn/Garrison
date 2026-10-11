@@ -105,6 +105,10 @@ Runs stopped by a worker run guard end `Failed` with outcome `RepetitionDetected
 
 When the agent has an output schema, the server validates each run's final output against it. `run.outputSchemaValid` (`boolean | null`) is true or false after validation and `null` when nothing was validated, `run.schemaValidationErrors` (`string | null`) holds the first few errors of a failed validation, and `run.repairAttempts` (`number`, 0 or 1) counts the structured output repair Garrison makes when the harness can resume its session. A run whose output still does not validate fails with outcome `SchemaValidationFailed`; `RUN_OUTCOMES` and the `RunOutcome` type list every outcome. See "Structured output validation" in `REST_API.md`.
 
+## Executors and run pods
+
+`Deployment.executor` (`RunExecutor`: `"Process"`, the default, or `"KubernetesJob"` for a Kubernetes Job per run) chooses how runs execute; null uses the node pool's `defaultExecutor`, then Process. `Deployment.podResources` (`RunPodResources`) sets the run pod's requests and limits as Kubernetes quantities. Runs carry `executor`, worker nodes (`WorkerNode`) list `executors`, and only nodes reporting a run's executor claim it. `WorkspaceTemplate` kind `"PersistentVolume"` mounts `persistentVolumeClaim` at the workspace path (KubernetesJob runs only). `RUN_OUTCOMES` includes `PodFailed` for run pods that fail outside the harness. See `docs/KUBERNETES.md`.
+
 ## Run analytics
 
 `analytics.runs(query)` calls `GET /v1.0/api/tenants/{tenantId}/analytics/runs` and returns totals plus time-bucketed series. Every query field is optional: `from`, `to` (ISO 8601 UTC strings or `Date`), `interval` (`minute`, `hour`, `day`, `week`, `auto`), `agentId`, `harnessType`, `deploymentId`, `model` (served model; `"unknown"` matches runs without a recorded model), and `groupBy` (`none`, `agent`, `harness`, `model`, `harnessModel`). With `harnessModel` each series key is `Harness|model` (for example `ClaudeCode|claude-sonnet-5-5`) and its label is `Harness / model`.

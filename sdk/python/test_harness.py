@@ -217,7 +217,9 @@ def t_cleanup():
     if "deployment" in state:
         client.deployments.delete(state["deployment"])
     if "agent" in state:
-        client.agents.delete(state["agent"])
+        # Single-resource deletes answer 204 No Content (G-7), which the SDK returns as None.
+        deleted = client.agents.delete(state["agent"])
+        assert deleted is None, f"agent delete returned a body: {deleted!r}"
 
 
 AUTH_HELP = (

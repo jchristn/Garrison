@@ -52,7 +52,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.Secret, OperationTypeEnum.Update, UpdateAsync, "Update secret metadata (and value when supplied)", "Secrets", typeof(SecretRequest), typeof(Secret));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}/value", ResourceTypeEnum.Secret, OperationTypeEnum.Update, SetValueAsync, "Set a secret value", "Secrets", typeof(SecretValueRequest), typeof(Secret));
             routes.Scoped(HttpMethod.POST, _Base + "/{id}/rotate", ResourceTypeEnum.Secret, OperationTypeEnum.Update, SetValueAsync, "Rotate a secret value", "Secrets", typeof(SecretValueRequest), typeof(Secret));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Secret, OperationTypeEnum.Delete, DeleteAsync, "Delete a secret", "Secrets", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Secret, OperationTypeEnum.Delete, DeleteAsync, "Delete a secret", "Secrets");
         }
 
         #endregion
@@ -127,10 +127,9 @@ namespace Garrison.Server.Routes
             Secret secret = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(secret.TenantId, false, secret.IsProtected, tenantId, "Secret " + secret.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.ResourceBindings.Any(b => b.Kind == ResourceBindingKindEnum.Secret && b.ResourceId == secret.Id), "Secret " + secret.Name, http.Token).ConfigureAwait(false);
-            DeleteResponse response = new DeleteResponse();
-            response.Deleted = await _Server.Database.Secrets.DeleteAsync(secret.Id, http.Token).ConfigureAwait(false);
+            await _Server.Database.Secrets.DeleteAsync(secret.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.SecretChanged, "Secret", secret.Id, "Deleted secret " + secret.Name + ".").ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private void SetValue(Secret secret, string value)

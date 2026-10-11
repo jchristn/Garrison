@@ -8,6 +8,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Database;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
 
     /// <summary>
@@ -92,7 +93,7 @@ namespace Garrison.Server.Runtime
             if (run.Status != RunStatusEnum.Queued) return null;
             if (snapshot.ReadyNodes.Count == 0) return RunBlockedReasonEnum.NoReadyWorker;
 
-            List<Node> capable = snapshot.ReadyNodes.Where(n => PlacementRules.Supports(n, run.HarnessType)).ToList();
+            List<Node> capable = snapshot.ReadyNodes.Where(n => PlacementRules.Supports(n, run.HarnessType) && RunExecutors.Supports(n, run.Executor)).ToList();
             if (capable.Count == 0) return RunBlockedReasonEnum.NoCapableWorker;
             if (!capable.Any(n => PlacementRules.MatchesPlacement(n, snapshot.PoolOf(n), run))) return RunBlockedReasonEnum.NoMatchingPool;
             return null;
@@ -114,6 +115,7 @@ namespace Garrison.Server.Runtime
                 case RunBlockedReasonEnum.NoReadyWorker:
                     return "No worker node is Ready. The run waits in the queue until a worker registers or returns to Ready.";
                 case RunBlockedReasonEnum.NoCapableWorker:
+                    if (run.Executor != RunExecutorEnum.Process) return "No Ready worker reports both the " + harness + " harness and the " + run.Executor + " executor. The run waits until one registers (a worker reports KubernetesJob only when it runs in a cluster with permission to create Jobs).";
                     return "No Ready worker reports the " + harness + " harness. The run waits until one registers.";
                 default:
                     return "Ready workers report the " + harness + " harness, but none matches this deployment's node pool or node selectors. The run waits until a matching worker registers.";
@@ -136,6 +138,7 @@ namespace Garrison.Server.Runtime
                 case RunBlockedReasonEnum.NoReadyWorker:
                     return "no worker node was Ready";
                 case RunBlockedReasonEnum.NoCapableWorker:
+                    if (run.Executor != RunExecutorEnum.Process) return "no Ready worker reported both the " + harness + " harness and the " + run.Executor + " executor";
                     return "no Ready worker reported the " + harness + " harness";
                 default:
                     return "no Ready worker with the " + harness + " harness matched the deployment's node pool or node selectors";

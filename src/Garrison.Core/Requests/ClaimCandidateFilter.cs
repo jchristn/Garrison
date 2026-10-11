@@ -43,6 +43,12 @@ namespace Garrison.Core.Requests
         public List<string>? AllowedTenantIds { get; set; } = null;
 
         /// <summary>
+        /// Executors the node supports. Runs needing another executor are excluded (runs created before executors
+        /// existed count as Process). Null applies no executor condition; an empty list means Process only.
+        /// </summary>
+        public List<RunExecutorEnum>? Executors { get; set; } = null;
+
+        /// <summary>
         /// Maximum candidates. Minimum 1, maximum 500, default 16.
         /// </summary>
         public int Limit

@@ -99,6 +99,13 @@ namespace Garrison.Core.Models
         public string? GitCredentialSecretId { get; set; } = null;
 
         /// <summary>
+        /// Name of the Kubernetes PersistentVolumeClaim mounted at the workspace path for PersistentVolume workspaces
+        /// (a DNS-1123 name in the worker's run namespace). The claim must exist; Garrison does not create it. Its
+        /// contents persist across runs and are never deleted by retention. Ignored for other kinds.
+        /// </summary>
+        public string? PersistentVolumeClaim { get; set; } = null;
+
+        /// <summary>
         /// Retention policy.
         /// </summary>
         public WorkspaceRetentionEnum Retention { get; set; } = WorkspaceRetentionEnum.Delete;

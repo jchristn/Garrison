@@ -133,6 +133,8 @@ namespace Garrison.Server.Runtime
                 label.Value = l.Value;
                 return label;
             }).ToList();
+            node.Executors = request.Executors.Count == 0 ? new List<RunExecutorEnum> { RunExecutorEnum.Process } : request.Executors.Distinct().ToList();
+            if (!node.Executors.Contains(RunExecutorEnum.Process)) node.Executors.Insert(0, RunExecutorEnum.Process);
             node.Capabilities = request.Capabilities.Select(c =>
             {
                 NodeCapability capability = new NodeCapability();

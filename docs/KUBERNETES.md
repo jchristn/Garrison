@@ -282,6 +282,84 @@ spec:
 
 A queued run that no pool can take says why: its `blockedReason` is `NoCapableWorker` when no Ready worker reports the harness, and `NoMatchingPool` when capable workers exist but none matches the node pool or selector.
 
+### Pod-per-run executor
+
+By default a run is a subprocess of the worker that leased it, inside the worker's container. A deployment can instead ask for its own pod per run: set `executor: KubernetesJob` on the deployment (or `defaultExecutor` on its node pool). The worker that leases such a run creates a Kubernetes Job for it, streams the pod's log, relays its events, keeps the lease, and reports the completion, exactly as for a subprocess run. The run pod never talks to the control plane or the Kubernetes API.
+
+What happens for one run:
+
+1. The worker creates a Job named `garrison-run-<run>-<hash>-<epoch>` in the run namespace, labelled `garrison.io/run-id`, `garrison.io/worker`, `garrison.io/tenant`, and `garrison.io/epoch`, with `backoffLimit: 0`, `ttlSecondsAfterFinished` (300 by default), and an `activeDeadlineSeconds` backstop of the run timeout plus the pending timeout plus grace.
+2. It then creates a Secret holding the compiled execution spec, with an owner reference to the Job, so Kubernetes deletes the Secret together with the Job.
+3. The pod runs the worker image with `garrison-worker run-one --spec /run/garrison/spec.json`. `run-one` builds the work, home, and config directories on emptyDir volumes, runs the harness with the same process executor and run guards as a subprocess run, and writes events and the completion to stdout. Each line starts with `@@garrison:<nonce>:<sequence>`, where the nonce is a random value the worker generated for this run and passed only inside the Secret. The worker ignores every line without that exact prefix at the start, so harness output that imitates the format is never taken as an event or a completion.
+4. Cancelling the run, or the run timing out, deletes the Job with foreground propagation: the pod gets SIGTERM, then SIGKILL after its grace period. A finished Job stays until its TTL so you can read its log.
+5. On start, and every minute after, each worker deletes the unfinished Jobs labelled with its own name for runs it no longer holds. After a worker restart that is every Job it had; the control plane requeues those runs (with `retryOnNodeLoss`) or fails them when their leases expire.
+
+Failures that never reach the harness end with outcome `PodFailed` and a message that says what happened: the pod stayed Pending longer than the pending timeout (with the scheduler's reason, for example `Insufficient memory`), the image could not be pulled, the container configuration was invalid, the container was OOMKilled (with its memory limit), the pod was evicted, or `run-one` exited without reporting a completion.
+
+**Resources.** `podResources` on the deployment sets the run pod's `cpuRequest`, `cpuLimit`, `memoryRequest`, `memoryLimit`, `ephemeralStorageRequest`, and `ephemeralStorageLimit` (Kubernetes quantities such as `500m`, `2`, `512Mi`, `4Gi`). Anything unset comes from the worker's `Kubernetes.DefaultResources` (requests 100m CPU and 256Mi memory, limits 2 CPU, 4Gi memory, and 10Gi ephemeral storage).
+
+```yaml
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: helper-isolated
+spec:
+  agent: claude-helper
+  harnessProfile: builtin/claude-code
+  executor: KubernetesJob
+  podResources:
+    cpuRequest: 500m
+    memoryLimit: 2Gi
+    ephemeralStorageLimit: 5Gi
+```
+
+**Workspaces.** Job runs use an emptyDir workspace that disappears with the pod. A workspace template of kind `PersistentVolume` names an existing PersistentVolumeClaim (`persistentVolumeClaim`) in the run namespace; the claim is mounted at the run's workspace path and its contents persist across runs. Garrison does not create the claim, and retention never deletes it. Use `ReadWriteMany` storage if several runs may use the claim at once. Only `KubernetesJob` deployments can use these templates. Structured output repairs resume the harness session in the directories of the original execution, which a run pod does not keep, so Job runs that fail schema validation are not repaired.
+
+**Placement.** Workers report the `KubernetesJob` executor only when `GARRISON_WORKER_KUBERNETES_ENABLED` is `true`, they run in a cluster (or have `GARRISON_WORKER_KUBECONFIG`), they know the run image, and a SelfSubjectAccessReview confirms their Role. The scheduler gives `KubernetesJob` runs only to such workers and keeps filtering in SQL, so a backlog of Job runs never starves Process-only workers. A queued Job run with no capable worker shows `blockedReason: NoCapableWorker` and a message naming the executor. Job runs still count against the worker's `MaxConcurrentRuns`, even though the harness does not run in the worker's container.
+
+**What the manifests set up.** `base/rbac.yaml` gives the `garrison-worker` service account a Role in its namespace: create, get, list, watch, and delete Jobs; create Secrets (never get, list, or watch them); get, list, and watch pods; get `pods/log`. Nothing is cluster-wide. The worker StatefulSet mounts its token and sets `GARRISON_WORKER_KUBERNETES_ENABLED=true`. `base/serviceaccounts.yaml` adds `garrison-run`, the run pods' account, which has no RoleBindings and whose token run pods never mount. `base/networkpolicies.yaml` adds `garrison-run`: no ingress, and egress only to DNS, the Garrison MCP port on the server (for delegation), and port 443 anywhere. Edit the last rule (or, in Helm, `kubernetesExecutor.runEgress`) to the endpoints your harnesses need.
+
+**Worker settings** (all under `Kubernetes` in `garrison-worker.json`, most also as environment variables):
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` (`GARRISON_WORKER_KUBERNETES_ENABLED`) | `false` (`true` in the Kubernetes manifests) | Offer the KubernetesJob executor |
+| `RunNamespace` (`GARRISON_WORKER_RUN_NAMESPACE`) | the worker's namespace | Where Jobs, Secrets, and pods go |
+| `RunImage` (`GARRISON_WORKER_RUN_IMAGE`) | the worker container's image | Image of the run pod; it must contain the worker and the harnesses |
+| `ImagePullPolicy` (`GARRISON_WORKER_RUN_IMAGE_PULL_POLICY`) | the worker container's policy | `Always`, `IfNotPresent`, or `Never` |
+| `ImagePullSecrets` (`GARRISON_WORKER_RUN_IMAGE_PULL_SECRETS`) | the worker pod's | Comma-separated Secret names for a private registry |
+| `ServiceAccountName` (`GARRISON_WORKER_RUN_SERVICE_ACCOUNT`) | `garrison-run` | Run pod service account |
+| `RuntimeClassName` (`GARRISON_WORKER_RUN_RUNTIME_CLASS`) | none | Sandboxed runtime, for example `gvisor` or `kata` |
+| `NodeSelector` (`GARRISON_WORKER_RUN_NODE_SELECTOR`) | none | `key=value` pairs for run pods |
+| `JobTtlSeconds` (`GARRISON_WORKER_JOB_TTL_SECONDS`) | `300` | How long finished Jobs and their Secrets stay |
+| `PendingTimeoutSeconds` (`GARRISON_WORKER_RUN_PENDING_TIMEOUT_SECONDS`) | `300` | How long a run pod may stay Pending |
+| `DefaultResources` | see above | Requests and limits when the deployment sets none |
+| `RunAsUser`, `RunAsGroup` | `10001` | Run pod user and group (never 0) |
+| `EmptyDirSizeLimit` | none | `sizeLimit` of the data and `/tmp` emptyDirs |
+| `PodLabels` | none | Extra labels on Jobs, pods, and Secrets |
+| `EgressCanary` (`GARRISON_WORKER_RUN_EGRESS_CANARY`) | none (`garrison-server:8700` in the manifests) | An address the run NetworkPolicy blocks. `run-one` starts the harness only once a connection to it fails, so the harness never runs before the policy controller has programmed the new pod (on K3S that took up to about a second in testing). If it is still reachable after `EgressCanaryTimeoutSeconds` (30), the run fails with `PodFailed`. Clear it on clusters that do not enforce NetworkPolicy |
+| `ReconcileIntervalSeconds` | `60` | How often orphaned Jobs are deleted |
+
+In Helm the same choices live under `kubernetesExecutor` (`enabled`, `runNamespace`, `runImage`, `imagePullSecrets`, `runtimeClassName`, `jobTtlSeconds`, `pendingTimeoutSeconds`, `nodeSelector`, `egressCanary`, `runEgress`).
+
+A run pod that is evicted, or whose Job is deleted outside Garrison, while the harness runs counts as node loss: the worker does not report the run, its lease expires, and the control plane requeues it when the deployment sets `retryOnNodeLoss` (and attempts remain) or fails it with `NodeLost`. A worker that is itself lost behaves the same way, and its replacement deletes the orphaned Jobs when it starts.
+
+**A separate run namespace.** Anyone who can create Jobs in a namespace can mount that namespace's Secrets, so a worker that creates run Jobs next to `garrison-secrets` could, if compromised, read them. For untrusted prompts put runs in their own namespace: create it (ideally with the `restricted` Pod Security level, which run pods satisfy), set `kubernetesExecutor.runNamespace` in Helm (the chart then puts the Role, the `garrison-run` account, and the run NetworkPolicy there, and lets the worker read its own pod), set `runImage`, and set `GARRISON_MCP_PUBLIC_URL` to the server's fully qualified name (`http://garrison-server.<namespace>.svc.cluster.local:8701`) so run pods can resolve it. With Kustomize, copy `base/rbac.yaml`, the `garrison-run` account, and the `garrison-run` NetworkPolicy into the run namespace, change the RoleBinding subject to `namespace: garrison`, and set the same environment variables on the worker.
+
+**Sandboxed runtimes.** Run pods share the node's kernel. gVisor (`runsc`) or Kata Containers give each pod its own kernel boundary. Install the runtime on the nodes, create its RuntimeClass, and set `kubernetesExecutor.runtimeClassName` (or `GARRISON_WORKER_RUN_RUNTIME_CLASS`):
+
+```yaml
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+handler: runsc
+```
+
+Run pods already run as non-root with a read-only root filesystem, so they work under gVisor and Kata unchanged; expect slower start-up and file I/O.
+
+**Docker Compose** has no Kubernetes API, so its workers keep `Kubernetes.Enabled` off and report only the Process executor. A `KubernetesJob` deployment stays queued with `blockedReason: NoCapableWorker` there.
+
 ### Backups
 
 `docs/BACKUP.md` covers backups and restores for PostgreSQL (in-cluster and managed) and Sqlite, including the nightly `pg_dump` CronJob in `components/postgres-backup`. Read the part about the master key before you need it: a database restored without the key it was written with keeps every record and loses every secret.

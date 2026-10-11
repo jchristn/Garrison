@@ -89,7 +89,7 @@ namespace Garrison.Server.Routes
         {
             Record(method, path, null, null, RouteAuthorizationEnum.Anonymous, summary, tag);
             Func<HttpContextBase, Task> wrapped = context => InvokeAsync(context, handler);
-            OpenApiRouteMetadata metadata = Metadata(path, summary, tag, requestBody, response, false);
+            OpenApiRouteMetadata metadata = Metadata(method, path, summary, tag, requestBody, response, false);
             if (path.Contains('{')) _Server.Routes.PreAuthentication.Parameter.Add(method, path, wrapped, null, openApiMetadata: metadata);
             else _Server.Routes.PreAuthentication.Static.Add(method, path, wrapped, null, openApiMetadata: metadata);
         }
@@ -124,7 +124,7 @@ namespace Garrison.Server.Routes
                 }
                 await InvokeAsync(context, handler).ConfigureAwait(false);
             };
-            OpenApiRouteMetadata metadata = Metadata(path, summary, tag, requestBody, response, true);
+            OpenApiRouteMetadata metadata = Metadata(method, path, summary, tag, requestBody, response, true);
             if (queryParameters != null && queryParameters.Count > 0)
             {
                 foreach (OpenApiParameterMetadata parameter in queryParameters) metadata.WithParameter(parameter);
@@ -147,7 +147,7 @@ namespace Garrison.Server.Routes
         {
             Record(method, path, null, null, RouteAuthorizationEnum.Handler, summary, tag);
             Func<HttpContextBase, Task> wrapped = context => InvokeAsync(context, handler);
-            Add(method, path, wrapped, Metadata(path, summary, tag, requestBody, response, true));
+            Add(method, path, wrapped, Metadata(method, path, summary, tag, requestBody, response, true));
         }
 
         /// <summary>
@@ -201,7 +201,7 @@ namespace Garrison.Server.Routes
             _Scopes.Add(scope);
         }
 
-        private static OpenApiRouteMetadata Metadata(string path, string summary, string tag, Type? requestBody, Type? response, bool secured)
+        private static OpenApiRouteMetadata Metadata(HttpMethod method, string path, string summary, string tag, Type? requestBody, Type? response, bool secured)
         {
             OpenApiRouteMetadata metadata = OpenApiRouteMetadata.Create(summary, tag);
             foreach (Match match in _ParameterPattern.Matches(path))
@@ -210,6 +210,7 @@ namespace Garrison.Server.Routes
             }
             if (requestBody != null) metadata.WithRequestBody(OpenApiRequestBodyMetadata.Json(OpenApiSchemaFactory.For(requestBody), requestBody.Name, true));
             if (response != null) metadata.WithResponse(200, OpenApiResponseMetadata.Json("Success.", OpenApiSchemaFactory.For(response)));
+            else if (method == HttpMethod.DELETE) metadata.WithResponse(204, OpenApiResponseMetadata.NoContent());
             if (secured)
             {
                 metadata.WithResponse(401, OpenApiResponseMetadata.Unauthorized());

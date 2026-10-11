@@ -6,16 +6,28 @@ namespace Garrison.Server.Services
     using System.Threading.Tasks;
     using Garrison.Core;
     using Garrison.Core.Database;
+    using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Templates;
     using Voltaic.A2A;
 
     /// <summary>
-    /// Builds A2A agent cards and MCP tool descriptions for agents from their templates (agent override, else the
-    /// built-in template). Published to the server context for the protocol module. Thread-safe.
+    /// The one renderer of A2A agent cards (the public A2A card route, the tenant card catalog, and the REST agent card
+    /// route all use it, G-4) and of MCP tool descriptions for agents offered as their own MCP tools. Descriptions come
+    /// from prompt templates (the agent's override, else the built-in) rendered with the template language. Published to
+    /// the server context. Thread-safe.
     /// </summary>
     public class AgentCardService
     {
+        #region Public-Members
+
+        /// <summary>
+        /// Key of the bearer security scheme in every card's securitySchemes and securityRequirements: garrison.
+        /// </summary>
+        public static readonly string SecuritySchemeName = "garrison";
+
+        #endregion
+
         #region Private-Members
 
         private readonly DatabaseDriverBase _Database;
@@ -93,27 +105,33 @@ namespace Garrison.Server.Services
         {
             if (agent == null) throw new ArgumentNullException(nameof(agent));
             if (baseUrl == null) throw new ArgumentNullException(nameof(baseUrl));
-            string description = await RenderAsync(tenantId, agent, agent.SkillDescriptionTemplateId, "builtin/a2a-skill-description", token).ConfigureAwait(false);
+            string rendered = (await RenderAsync(tenantId, agent, agent.SkillDescriptionTemplateId, "builtin/a2a-skill-description", token).ConfigureAwait(false)).Trim();
+            string skillDescription = String.IsNullOrWhiteSpace(rendered) ? (String.IsNullOrWhiteSpace(agent.Description) ? agent.Name : agent.Description!) : rendered;
 
             AgentCard card = new AgentCard();
-            card.Name = String.IsNullOrEmpty(agent.DisplayName) ? agent.Name : agent.DisplayName!;
-            card.Description = String.IsNullOrWhiteSpace(description) ? (agent.Description ?? agent.Name) : description.Trim();
-            card.Version = String.IsNullOrEmpty(agent.AgentVersion) ? Constants.ProductVersion : agent.AgentVersion!;
+            card.Name = String.IsNullOrWhiteSpace(agent.DisplayName) ? agent.Name : agent.DisplayName!;
+            card.Description = String.IsNullOrWhiteSpace(agent.Description) ? skillDescription : agent.Description!;
+            card.Version = String.IsNullOrWhiteSpace(agent.AgentVersion) ? Constants.ProductVersion : agent.AgentVersion!;
             AgentInterface endpoint = new AgentInterface();
             endpoint.Url = A2AUrl(tenantId, agent, baseUrl);
             endpoint.ProtocolBinding = "JSONRPC";
             card.SupportedInterfaces.Add(endpoint);
             card.Capabilities.Streaming = true;
             card.Capabilities.PushNotifications = false;
-            card.DefaultInputModes = new List<string> { agent.InputSchemaJson == null ? "text/plain" : "application/json", "text/plain" };
-            card.DefaultOutputModes = new List<string> { agent.OutputSchemaJson == null ? "text/plain" : "application/json" };
+            card.Capabilities.StateTransitionHistory = false;
+            AgentProvider provider = new AgentProvider();
+            provider.Organization = "Garrison";
+            provider.Url = Constants.RepositoryUrl;
+            card.Provider = provider;
+            card.DefaultInputModes = new List<string> { agent.InputMode == AgentInputModeEnum.Structured ? "application/json" : "text/plain" };
+            card.DefaultOutputModes = new List<string> { "text/plain", "application/json" };
 
             if (agent.Skills.Count == 0)
             {
                 AgentSkill skill = new AgentSkill();
                 skill.Id = agent.Name;
                 skill.Name = card.Name;
-                skill.Description = card.Description;
+                skill.Description = skillDescription;
                 skill.Tags = new List<string>(agent.Tags);
                 card.Skills.Add(skill);
             }
@@ -122,17 +140,20 @@ namespace Garrison.Server.Services
                 AgentSkill skill = new AgentSkill();
                 skill.Id = definition.SkillId;
                 skill.Name = definition.Name;
-                skill.Description = definition.Description ?? card.Description;
+                skill.Description = String.IsNullOrWhiteSpace(definition.Description) ? skillDescription : definition.Description!;
                 skill.Tags = new List<string>(agent.Tags);
                 card.Skills.Add(skill);
             }
 
-            SecurityScheme bearer = new SecurityScheme();
             HttpAuthSecurityScheme http = new HttpAuthSecurityScheme();
             http.Scheme = "bearer";
-            http.Description = "Garrison session token or run token.";
-            bearer.HttpAuthSecurityScheme = http;
-            card.SecuritySchemes = new Dictionary<string, SecurityScheme> { { "bearer", bearer } };
+            http.Description = "Garrison session token from POST /v1.0/token, or a run token issued to a Garrison agent.";
+            SecurityScheme scheme = new SecurityScheme();
+            scheme.HttpAuthSecurityScheme = http;
+            card.SecuritySchemes = new Dictionary<string, SecurityScheme> { { SecuritySchemeName, scheme } };
+            SecurityRequirement requirement = new SecurityRequirement();
+            requirement.Schemes = new Dictionary<string, List<string>> { { SecuritySchemeName, new List<string>() } };
+            card.SecurityRequirements = new List<SecurityRequirement> { requirement };
             return card;
         }
 
@@ -158,6 +179,13 @@ namespace Garrison.Server.Services
         {
             PromptTemplate? template = null;
             if (!String.IsNullOrEmpty(templateId)) template = await _Database.PromptTemplates.ReadAsync(tenantId, templateId, token).ConfigureAwait(false);
+            if (template == null && fallbackName.StartsWith(Constants.BuiltInPrefix, StringComparison.Ordinal))
+            {
+                // A tenant template named like the built-in without its prefix (mcp-tool-description,
+                // a2a-skill-description) replaces it for the tenant's agents that have no template of their own.
+                PromptTemplate? shadow = await _Database.PromptTemplates.ReadByNameAsync(tenantId, fallbackName.Substring(Constants.BuiltInPrefix.Length), token).ConfigureAwait(false);
+                if (shadow != null && shadow.TenantId == tenantId && shadow.Active && shadow.Kind == PromptTemplateKindEnum.ToolDescription) template = shadow;
+            }
             template ??= await _Database.PromptTemplates.ReadByNameAsync(tenantId, fallbackName, token).ConfigureAwait(false);
             if (template == null) return agent.Description ?? agent.Name;
 
@@ -167,6 +195,7 @@ namespace Garrison.Server.Services
             context.Set("agent.description", agent.Description);
             context.Set("agent.tags", new List<object?>(agent.Tags));
             context.Set("tenant.id", tenantId);
+            context.Set("tool.name", String.IsNullOrWhiteSpace(agent.McpToolName) ? agent.Name : agent.McpToolName!.Trim());
             context.Set("garrison.version", Constants.ProductVersion);
             try
             {

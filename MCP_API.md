@@ -76,6 +76,25 @@ Each tool checks the same permission its REST equivalent does. Every tool also a
 
 `garrison_list_agents` returns only active agents. `parameters` must be values the chosen deployment lets callers override, exactly as with `POST .../invoke`.
 
+### Agents as their own tools
+
+An agent with `exposeMcpTool` set is also listed as a tool of its own, for callers in its tenant. The tool is named by the agent's `mcpToolName`, or by the agent's name when that is empty. Calling it is the same as calling `garrison_invoke_agent` for that agent: it waits for the answer and returns the same run summary.
+
+| Argument | Required | Meaning |
+|---|---|---|
+| `input` | yes | The complete request for the agent |
+| `parameters` | no | Run parameters the agent's deployment lets callers override, as strings |
+| `waitSeconds` | no | 0 to `Mcp.MaxToolWaitSeconds`, default the maximum |
+
+Rules:
+
+- The permission is Execute on that agent. A caller only sees the agent tools it may execute; run tokens see only agents their run may delegate to (allowlist and recursion rules apply), and the delegation depth and cycle checks apply to the call.
+- `mcpToolName` is 1 to 64 letters, digits, underscores, dots, and hyphens, and cannot start with `garrison_`, which is reserved for the built-in tools. An invalid name is refused with 400 when the agent is saved.
+- When two agents in a tenant claim the same tool name, the older agent keeps it and the other is not listed.
+- The description is the agent's `toolDescriptionTemplateId` template, else the tenant's own `mcp-tool-description` template (see below), else `builtin/mcp-tool-description`. It is rendered with `agent.name`, `agent.displayName`, `agent.description`, `agent.tags`, `tool.name`, `tenant.id`, and `garrison.version`.
+- Agent tools appear in `tools/list` as soon as the agent is saved; no reconnect is needed. Garrison does not send `notifications/tools/list_changed`, so a client that caches the list sees a new agent tool the next time it lists tools.
+- A system administrator without a tenant sees agent tools only when it sends `x-tenant-id` (or passes `tenantId` in the call).
+
 ### Results
 
 A successful call returns one text content item holding a JSON object. The run tools return a run summary:
@@ -201,6 +220,25 @@ The instructions that teach an agent how to use these tools are prompt templates
 
 ## Tool descriptions
 
-Each tool's description is a built-in prompt template with the kind `ToolDescription`, named `builtin/mcp-tool-<tool name>` (for example `builtin/mcp-tool-garrison_invoke_agent`, identifier `tpl_builtin_mcp_tool_invoke_agent`). The server seeds them on first start and reads them once when it starts.
+Each tool's description is a built-in prompt template with the kind `ToolDescription`, named `builtin/mcp-tool-<tool name>` (for example `builtin/mcp-tool-garrison_invoke_agent`, identifier `tpl_builtin_mcp_tool_invoke_agent`). The server seeds them on first start and refreshes them when a release changes the text.
 
-In this release the descriptions cannot be changed through the API. Built-in templates are immutable, the server looks them up by their built-in name, and names starting with `builtin/` are reserved, so a tenant copy cannot take their place. Making these overridable is tracked as a known gap.
+A tenant can replace any of these descriptions for its own callers. Create a prompt template in the tenant, with the kind `ToolDescription`, named `mcp-tool-<tool name>` (the built-in name without `builtin/`):
+
+```bash
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/prompt-templates \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "mcp-tool-garrison_invoke_agent", "kind": "ToolDescription", "content": "Hand a task to one of our agents. {{tool.defaultDescription}}"}'
+```
+
+The override is read on every `tools/list`, so it takes effect for the next listing on every replica, without a restart. It is rendered with these variables:
+
+| Variable | Contents |
+|---|---|
+| `tool.name` | The tool name, for example `garrison_invoke_agent` |
+| `tool.defaultDescription` | The built-in description, so an override can add to it instead of replacing it |
+| `tenant.id` | The caller's tenant |
+| `garrison.version` | The Garrison version |
+
+Only an active template of kind `ToolDescription` in the caller's own tenant counts. A template of another kind, an inactive one, or one that fails to render is ignored, and the built-in description is used (a render failure is logged as a warning). Callers without a tenant, such as a system administrator using the API key without `x-tenant-id`, always see the built-in descriptions. The same rule covers agent tools: a tenant template named `mcp-tool-description` replaces `builtin/mcp-tool-description` for that tenant's agents that have no `toolDescriptionTemplateId`.
+
+Tool names, input schemas, and permissions are not affected by an override.

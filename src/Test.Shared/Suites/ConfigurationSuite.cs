@@ -42,6 +42,8 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "manifests", "Manifests dry-run, apply, re-apply unchanged, export, and reject bad references (" + provider + ")", ct => ManifestsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "agents", "Agent self-registration is idempotent and the A2A card renders (" + provider + ")", ct => AgentsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "agents-by-name", "Agent read, card, update, and delete accept a name; IDs take precedence (" + provider + ")", ct => AgentsByNameAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "delete-no-content", "Deleting one configuration resource answers 204 with no body, and a second delete 404 (" + provider + ")", ct => DeleteNoContentAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "agent-card-renderer", "The A2A card route, the tenant catalog, and the REST card route render one card with templates and the garrison scheme (" + provider + ")", ct => AgentCardRendererAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "external-urls", "A2A cards use the external URL or request host while runs get the internal URL (" + provider + ")", ct => ExternalUrlsAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Configuration API (" + provider + ")", cases));
             }
@@ -127,7 +129,8 @@ namespace Test.Shared.Suites
                 Assert.Equal(409, inUse.StatusCode, "in-use secret cannot be deleted");
                 await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/deployments/" + deploymentId, null, token).ConfigureAwait(false);
                 TestResponse deleted = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/secrets/" + secret.Id, null, token).ConfigureAwait(false);
-                Assert.Equal(200, deleted.StatusCode, "delete after unbinding");
+                Assert.Equal(204, deleted.StatusCode, "delete after unbinding");
+                Assert.True(String.IsNullOrEmpty(deleted.Body), "204 has no body: " + deleted.Body);
             }
         }
 
@@ -273,8 +276,8 @@ namespace Test.Shared.Suites
                 Agent shadowRead = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Get, T(host) + "/agents/" + shadow.Id, null, 200, token).ConfigureAwait(false);
                 Assert.Equal(alpha.Id, shadowRead.Name, "shadow agent still readable by its own ID");
 
-                DeleteResponse deleted = await HttpTestHelpers.SendAsync<DeleteResponse>(host.AdminClient, HttpMethod.Delete, T(host) + "/agents/alpha-agent", null, 200, token).ConfigureAwait(false);
-                Assert.True(deleted.Deleted, "delete by name");
+                TestResponse deleted = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, T(host) + "/agents/alpha-agent", null, token).ConfigureAwait(false);
+                Assert.Equal(204, deleted.StatusCode, "delete by name");
                 TestResponse gone = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/agents/alpha-agent", null, token).ConfigureAwait(false);
                 Assert.Equal(404, gone.StatusCode, "deleted agent is gone");
 
@@ -283,6 +286,90 @@ namespace Test.Shared.Suites
                 TestResponse crossTenant = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, "/v1.0/api/tenants/" + second.Id + "/agents/tenant-local", null, token).ConfigureAwait(false);
                 Assert.Equal(404, crossTenant.StatusCode, "names resolve within the tenant only");
             }
+        }
+
+        private static async Task DeleteNoContentAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                List<string> paths = new List<string>();
+                PromptTemplate template = await HttpTestHelpers.SendAsync<PromptTemplate>(host.AdminClient, HttpMethod.Post, T(host) + "/prompt-templates", new PromptTemplate { Name = "delete-me", Kind = PromptTemplateKindEnum.Fragment, Content = "x" }, 201, token).ConfigureAwait(false);
+                paths.Add(T(host) + "/prompt-templates/" + template.Id);
+                WorkspaceTemplate workspace = await HttpTestHelpers.SendAsync<WorkspaceTemplate>(host.AdminClient, HttpMethod.Post, T(host) + "/workspace-templates", new WorkspaceTemplate { Name = "delete-me" }, 201, token).ConfigureAwait(false);
+                paths.Add(T(host) + "/workspace-templates/" + workspace.Id);
+                McpServer server = await HttpTestHelpers.SendAsync<McpServer>(host.AdminClient, HttpMethod.Post, T(host) + "/mcp-servers", new McpServer { Name = "delete-me", Url = "http://127.0.0.1:9/mcp" }, 201, token).ConfigureAwait(false);
+                paths.Add(T(host) + "/mcp-servers/" + server.Id);
+                ArtifactStore store = await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, T(host) + "/artifact-stores", new ArtifactStore { Name = "delete-me" }, 201, token).ConfigureAwait(false);
+                paths.Add(T(host) + "/artifact-stores/" + store.Id);
+                HarnessProfile fake = Assert.NotNull(await host.Server.Context.Database.HarnessProfiles.ReadByNameAsync(host.TenantId, "builtin/fake", token).ConfigureAwait(false), "Fake profile");
+                HarnessProfile clone = await HttpTestHelpers.SendAsync<HarnessProfile>(host.AdminClient, HttpMethod.Post, T(host) + "/harness-profiles/" + fake.Id + "/clone", new CloneRequest { Name = "delete-me" }, 201, token).ConfigureAwait(false);
+                paths.Add(T(host) + "/harness-profiles/" + clone.Id);
+                Agent agent = await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "delete-me" }, 201, token).ConfigureAwait(false);
+                paths.Add(T(host) + "/agents/" + agent.Id);
+                User user = await HttpTestHelpers.SendAsync<User>(host.AdminClient, HttpMethod.Post, T(host) + "/users", new UserRequest { Email = "delete-me@example.com", Password = "password123" }, 201, token).ConfigureAwait(false);
+                paths.Add(T(host) + "/users/" + user.Id);
+                Tenant tenant = await HttpTestHelpers.SendAsync<Tenant>(host.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Delete me " + Guid.NewGuid().ToString("N").Substring(0, 6) }, 201, token).ConfigureAwait(false);
+                paths.Add("/v1.0/api/tenants/" + tenant.Id);
+
+                foreach (string path in paths)
+                {
+                    TestResponse first = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, path, null, token).ConfigureAwait(false);
+                    Assert.Equal(204, first.StatusCode, "DELETE " + path + " (" + first.Body + ")");
+                    Assert.True(String.IsNullOrEmpty(first.Body), "DELETE " + path + " returned a body: " + first.Body);
+                    TestResponse second = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Delete, path, null, token).ConfigureAwait(false);
+                    Assert.Equal(404, second.StatusCode, "Second DELETE " + path + " (" + second.Body + ")");
+                }
+            }
+        }
+
+        private static async Task AgentCardRendererAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                PromptTemplate skillTemplate = new PromptTemplate();
+                skillTemplate.Name = "card-skill";
+                skillTemplate.Kind = PromptTemplateKindEnum.ToolDescription;
+                skillTemplate.Content = "Skill of {{agent.name | upper}} in {{tenant.id}}{{#if agent.description}}: {{agent.description}}{{/if}}";
+                PromptTemplate createdSkill = await HttpTestHelpers.SendAsync<PromptTemplate>(host.AdminClient, HttpMethod.Post, T(host) + "/prompt-templates", skillTemplate, 201, token).ConfigureAwait(false);
+
+                Agent templated = new Agent { Name = "card-agent", DisplayName = "Card Agent", ExposeA2A = true, SkillDescriptionTemplateId = createdSkill.Id, InputMode = AgentInputModeEnum.Structured };
+                templated.Tags.Add("docs");
+                await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", templated, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<Agent>(host.AdminClient, HttpMethod.Post, T(host) + "/agents", new Agent { Name = "plain-agent", Description = "Plain description.", ExposeA2A = true }, 201, token).ConfigureAwait(false);
+
+                string hostHeader = "cards.example.com";
+                Voltaic.A2A.AgentCard viaRest = ParseCard(await GetWithHostAsync(host, T(host) + "/agents/card-agent/card", hostHeader, null, token).ConfigureAwait(false));
+                Voltaic.A2A.AgentCard viaA2A = ParseCard(await GetWithHostAsync(host, "/v1.0/a2a/" + host.TenantId + "/card-agent/.well-known/agent-card.json", hostHeader, null, token).ConfigureAwait(false));
+                string catalogJson = await GetWithHostAsync(host, "/v1.0/a2a/" + host.TenantId, hostHeader, null, token).ConfigureAwait(false);
+                List<Voltaic.A2A.AgentCard> catalog = System.Text.Json.JsonSerializer.Deserialize<List<Voltaic.A2A.AgentCard>>(catalogJson, Voltaic.A2A.A2AJson.DefaultOptions) ?? new List<Voltaic.A2A.AgentCard>();
+                Voltaic.A2A.AgentCard viaCatalog = Assert.NotNull(catalog.FirstOrDefault(c => c.Name == "Card Agent"), "Catalog card");
+
+                string expected = "Skill of CARD-AGENT in " + host.TenantId;
+                foreach (Voltaic.A2A.AgentCard card in new[] { viaRest, viaA2A, viaCatalog })
+                {
+                    Assert.Equal("Card Agent", card.Name, "Card name");
+                    Assert.Equal(expected, card.Description, "Card description is the rendered skill template");
+                    Assert.Equal(1, card.Skills.Count, "Skill count");
+                    Assert.Equal(expected, card.Skills[0].Description, "Skill description is the rendered skill template (filters and conditionals apply)");
+                    Assert.True(card.Skills[0].Tags.Contains("docs"), "Skill tags");
+                    Assert.Equal("application/json", card.DefaultInputModes.FirstOrDefault(), "Structured agents take JSON");
+                    Assert.True(card.SecuritySchemes != null && card.SecuritySchemes.Count == 1 && card.SecuritySchemes.ContainsKey("garrison"), "Security scheme key is garrison");
+                    Assert.Equal("bearer", card.SecuritySchemes!["garrison"].HttpAuthSecurityScheme?.Scheme, "Bearer scheme");
+                    Assert.True(card.SecurityRequirements != null && card.SecurityRequirements.Count == 1 && card.SecurityRequirements[0].Schemes?.ContainsKey("garrison") == true, "Security requirement names the garrison scheme");
+                    Assert.Equal("Garrison", card.Provider?.Organization, "Provider");
+                    Assert.Equal("http://" + hostHeader + "/v1.0/a2a/" + host.TenantId + "/card-agent", card.SupportedInterfaces[0].Url, "Interface URL");
+                }
+
+                Voltaic.A2A.AgentCard plain = ParseCard(await GetWithHostAsync(host, "/v1.0/a2a/" + host.TenantId + "/plain-agent/.well-known/agent-card.json", hostHeader, null, token).ConfigureAwait(false));
+                Assert.Equal("Plain description.", plain.Description, "Built-in skill template renders the description");
+                Assert.Equal("Plain description.", plain.Skills[0].Description, "Built-in skill description");
+                Assert.Equal("text/plain", plain.DefaultInputModes.FirstOrDefault(), "Text agents take text");
+            }
+        }
+
+        private static Voltaic.A2A.AgentCard ParseCard(string json)
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<Voltaic.A2A.AgentCard>(json, Voltaic.A2A.A2AJson.DefaultOptions) ?? throw new TestAssertionException("Card did not parse: " + json);
         }
 
         private static async Task ExternalUrlsAsync(DatabaseTypeEnum provider, CancellationToken token)

@@ -39,8 +39,10 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "sse-stream", "Event stream delivers events and the final run (" + provider + ")", ct => StreamAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "cancel", "Cancelling a running run stops it (" + provider + ")", ct => CancelAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp-tools", "MCP list and invoke through the Voltaic client (" + provider + ")", ct => McpAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "mcp-agent-tools", "Agents with exposeMcpTool are MCP tools in their tenant, and tenant templates override tool descriptions (" + provider + ")", ct => McpAgentToolsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "a2a", "A2A card, send, and stream through the Voltaic client (" + provider + ")", ct => A2AAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "delegation", "Run tokens delegate to allowed agents only (" + provider + ")", ct => DelegationAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "rejected-runs", "Queued runs whose deployment or agent was deactivated are Rejected when claimed, not started (" + provider + ")", ct => RejectedRunsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "blocked-runs", "Runs no worker can take report blockedReason over REST and MCP, count on the overview, get a warning event, and fail after the configured wait (" + provider + ")", ct => BlockedRunsAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "End to end (" + provider + ")", cases));
             }
@@ -225,6 +227,150 @@ namespace Test.Shared.Suites
                     Assert.True((typed.TimeToFirstTokenMs ?? -1) > 0 && typed.ExecutionMs.HasValue && typed.TotalMs.HasValue, "MCP run summary carries timing telemetry: " + text);
                     Assert.Equal(2L, typed.ReasoningTokens, "MCP run summary reasoning tokens");
                 }
+            }
+        }
+
+        private static async Task RejectedRunsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false))
+            {
+                string tenant = cluster.Server.TenantId;
+                Agent kept = await cluster.CreateAgentAsync("kept-agent", "builtin/fake", null, token).ConfigureAwait(false);
+                Agent dropped = await cluster.CreateAgentAsync("dropped-deployment", "builtin/fake", null, token).ConfigureAwait(false);
+                Agent inactive = await cluster.CreateAgentAsync("inactive-agent", "builtin/fake", null, token).ConfigureAwait(false);
+                Run keptRun = await InvokeAsync(cluster, kept, "Still wanted", false, token).ConfigureAwait(false);
+                Run droppedRun = await InvokeAsync(cluster, dropped, "Deployment goes away", false, token).ConfigureAwait(false);
+                Run inactiveRun = await InvokeAsync(cluster, inactive, "Agent goes away", false, token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.Queued, droppedRun.Status, "Queued with no worker");
+
+                Garrison.Core.Database.DatabaseDriverBase database = cluster.Server.Server.Context.Database;
+                Deployment deployment = Assert.NotNull(await database.Deployments.ReadAsync(tenant, droppedRun.DeploymentId, token).ConfigureAwait(false), "Deployment");
+                deployment.Active = false;
+                await database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                Agent agent = Assert.NotNull(await database.Agents.ReadAsync(tenant, inactive.Id, token).ConfigureAwait(false), "Agent");
+                agent.Active = false;
+                await database.Agents.UpdateAsync(agent, token).ConfigureAwait(false);
+
+                await cluster.AddWorkerAsync("rejecting-worker", token).ConfigureAwait(false);
+                Run keptDone = await WaitTerminalAsync(cluster, keptRun.Id, token).ConfigureAwait(false);
+                Run droppedDone = await WaitTerminalAsync(cluster, droppedRun.Id, token).ConfigureAwait(false);
+                Run inactiveDone = await WaitTerminalAsync(cluster, inactiveRun.Id, token).ConfigureAwait(false);
+
+                Assert.Equal(RunStatusEnum.Succeeded, keptDone.Status, "Unaffected run (" + keptDone.ErrorMessage + ")");
+                Assert.Equal(RunStatusEnum.Rejected, droppedDone.Status, "Run of a deactivated deployment");
+                Assert.Equal(RunOutcomeEnum.Rejected, droppedDone.Outcome, "Outcome of a deactivated deployment's run");
+                Assert.True((droppedDone.ErrorMessage ?? String.Empty).Contains("deactivated", StringComparison.Ordinal), "Rejection reason: " + droppedDone.ErrorMessage);
+                Assert.True(droppedDone.CompletedUtc.HasValue && String.IsNullOrEmpty(droppedDone.LeaseNodeId), "Rejected runs are completed and hold no lease");
+                Assert.True(droppedDone.StartedUtc == null, "Rejected runs never start");
+                Assert.Equal(RunStatusEnum.Rejected, inactiveDone.Status, "Run of a deactivated agent");
+                Assert.True((inactiveDone.ErrorMessage ?? String.Empty).Contains("Agent inactive-agent was deactivated", StringComparison.Ordinal), "Agent rejection reason: " + inactiveDone.ErrorMessage);
+            }
+        }
+
+        private static async Task<Run> WaitTerminalAsync(TestCluster cluster, string runId, CancellationToken token)
+        {
+            DateTime until = DateTime.UtcNow.AddSeconds(60);
+            while (true)
+            {
+                Run run = await HttpTestHelpers.SendAsync<Run>(cluster.Server.AdminClient, HttpMethod.Get, "/v1.0/api/tenants/" + cluster.Server.TenantId + "/runs/" + runId, null, 200, token).ConfigureAwait(false);
+                if (Garrison.Server.Runtime.RunService.IsTerminal(run.Status)) return run;
+                if (DateTime.UtcNow > until) throw new TestAssertionException("Run " + runId + " did not finish; status " + run.Status + ".");
+                await Task.Delay(200, token).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task McpAgentToolsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                string tenant = cluster.Server.TenantId;
+                string templates = "/v1.0/api/tenants/" + tenant + "/prompt-templates";
+                await cluster.CreateAgentAsync("tool-echo", "builtin/fake", a =>
+                {
+                    a.ExposeMcpTool = true;
+                    a.McpToolName = "echo_tool";
+                    a.Description = "Echoes its input.";
+                }, token).ConfigureAwait(false);
+                await cluster.CreateAgentAsync("named-tool", "builtin/fake", a => a.ExposeMcpTool = true, token).ConfigureAwait(false);
+                await cluster.CreateAgentAsync("not-exposed", "builtin/fake", null, token).ConfigureAwait(false);
+
+                TestResponse reserved = await HttpTestHelpers.SendAsync(cluster.Server.AdminClient, HttpMethod.Post, "/v1.0/api/tenants/" + tenant + "/agents", new Agent { Name = "reserved-tool", ExposeMcpTool = true, McpToolName = "garrison_list_agents" }, token).ConfigureAwait(false);
+                Assert.Equal(400, reserved.StatusCode, "Reserved MCP tool name (" + reserved.Body + ")");
+
+                // Before any override: built-in descriptions, and builtin/mcp-tool-description for agent tools.
+                Dictionary<string, string> before = await ListToolDescriptionsAsync(cluster, tenant).ConfigureAwait(false);
+                Assert.True(before["garrison_list_agents"].StartsWith("List the Garrison agents", StringComparison.Ordinal), "Built-in description: " + before["garrison_list_agents"]);
+                Assert.Equal("Echoes its input. Send a message to the Garrison agent \"tool-echo\" and receive its answer.", before["echo_tool"], "Agent tool uses builtin/mcp-tool-description");
+                Assert.True(before.ContainsKey("named-tool"), "An agent without mcpToolName is offered under its name");
+                Assert.True(!before.ContainsKey("not-exposed"), "Agents without exposeMcpTool are not tools");
+
+                PromptTemplate listOverride = new PromptTemplate { Name = "mcp-tool-garrison_list_agents", Kind = PromptTemplateKindEnum.ToolDescription, Content = "Tenant {{tenant.id}}: {{tool.name}} lists our agents. {{tool.defaultDescription | truncate: 25}}" };
+                await HttpTestHelpers.SendAsync<PromptTemplate>(cluster.Server.AdminClient, HttpMethod.Post, templates, listOverride, 201, token).ConfigureAwait(false);
+                PromptTemplate wrongKind = new PromptTemplate { Name = "mcp-tool-garrison_get_run", Kind = PromptTemplateKindEnum.Fragment, Content = "Should be ignored." };
+                await HttpTestHelpers.SendAsync<PromptTemplate>(cluster.Server.AdminClient, HttpMethod.Post, templates, wrongKind, 201, token).ConfigureAwait(false);
+                PromptTemplate agentDefault = new PromptTemplate { Name = "mcp-tool-description", Kind = PromptTemplateKindEnum.ToolDescription, Content = "Ask {{agent.name}} through {{tool.name}}." };
+                await HttpTestHelpers.SendAsync<PromptTemplate>(cluster.Server.AdminClient, HttpMethod.Post, templates, agentDefault, 201, token).ConfigureAwait(false);
+
+                Dictionary<string, string> after = await ListToolDescriptionsAsync(cluster, tenant).ConfigureAwait(false);
+                Assert.True(after["garrison_list_agents"].StartsWith("Tenant " + tenant + ": garrison_list_agents lists our agents. List the Garrison agents", StringComparison.Ordinal), "Tenant override rendered: " + after["garrison_list_agents"]);
+                Assert.True(after["garrison_get_run"].StartsWith("Get the status", StringComparison.Ordinal), "A template of another kind does not override: " + after["garrison_get_run"]);
+                Assert.Equal("Ask tool-echo through echo_tool.", after["echo_tool"], "Tenant mcp-tool-description replaces the built-in for agent tools");
+
+                // Another tenant sees the built-ins and none of the first tenant's agent tools.
+                Tenant other = await HttpTestHelpers.SendAsync<Tenant>(cluster.Server.AdminClient, HttpMethod.Post, "/v1.0/api/tenants", new TenantRequest { Name = "Other " + Guid.NewGuid().ToString("N").Substring(0, 6) }, 201, token).ConfigureAwait(false);
+                Dictionary<string, string> otherTools = await ListToolDescriptionsAsync(cluster, other.Id).ConfigureAwait(false);
+                Assert.True(otherTools["garrison_list_agents"].StartsWith("List the Garrison agents", StringComparison.Ordinal), "Overrides are per tenant: " + otherTools["garrison_list_agents"]);
+                Assert.True(!otherTools.ContainsKey("echo_tool"), "Agent tools are per tenant");
+
+                using (McpHttpClient client = new McpHttpClient())
+                {
+                    client.SetRequestHeader("x-api-key", cluster.Server.Settings.Auth.AdminApiKey);
+                    client.SetRequestHeader("x-tenant-id", tenant);
+                    await client.ConnectStreamableAsync(cluster.Server.McpUrl, "/mcp").ConfigureAwait(false);
+                    JsonElement invoked = await client.CallAsync<JsonElement>("tools/call", new { name = "echo_tool", arguments = new { input = "Ping the agent tool", waitSeconds = 60 } }, 90000).ConfigureAwait(false);
+                    string text = ToolText(invoked);
+                    using (JsonDocument summary = JsonDocument.Parse(text))
+                    {
+                        Assert.Equal("Succeeded", summary.RootElement.GetProperty("status").GetString(), "Agent tool run status (" + text + ")");
+                        Assert.Equal("tool-echo", summary.RootElement.GetProperty("agent").GetString(), "Agent tool invoked its agent");
+                        Assert.True((summary.RootElement.GetProperty("result").GetString() ?? String.Empty).StartsWith("Echo:", StringComparison.Ordinal), "Agent tool result: " + text);
+                    }
+                }
+
+                using (McpHttpClient client = new McpHttpClient())
+                {
+                    client.SetRequestHeader("x-api-key", cluster.Server.Settings.Auth.AdminApiKey);
+                    client.SetRequestHeader("x-tenant-id", other.Id);
+                    await client.ConnectStreamableAsync(cluster.Server.McpUrl, "/mcp").ConfigureAwait(false);
+                    string failure;
+                    try
+                    {
+                        JsonElement result = await client.CallAsync<JsonElement>("tools/call", new { name = "echo_tool", arguments = new { input = "x" } }, 90000).ConfigureAwait(false);
+                        failure = result.GetRawText();
+                    }
+                    catch (Exception e) when (e is not TestAssertionException)
+                    {
+                        failure = e.Message;
+                    }
+                    Assert.True(failure.Contains("NotFound", StringComparison.Ordinal) || failure.Contains("not found", StringComparison.OrdinalIgnoreCase), "Another tenant cannot call the agent tool: " + failure);
+                }
+            }
+        }
+
+        private static async Task<Dictionary<string, string>> ListToolDescriptionsAsync(TestCluster cluster, string tenantId)
+        {
+            using (McpHttpClient client = new McpHttpClient())
+            {
+                client.SetRequestHeader("x-api-key", cluster.Server.Settings.Auth.AdminApiKey);
+                client.SetRequestHeader("x-tenant-id", tenantId);
+                await client.ConnectStreamableAsync(cluster.Server.McpUrl, "/mcp").ConfigureAwait(false);
+                JsonElement tools = await client.CallAsync<JsonElement>("tools/list", new { }).ConfigureAwait(false);
+                Dictionary<string, string> descriptions = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (JsonElement tool in tools.GetProperty("tools").EnumerateArray())
+                {
+                    descriptions[tool.GetProperty("name").GetString() ?? String.Empty] = tool.GetProperty("description").GetString() ?? String.Empty;
+                }
+                return descriptions;
             }
         }
 

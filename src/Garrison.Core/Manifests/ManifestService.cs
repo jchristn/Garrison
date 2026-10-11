@@ -466,6 +466,8 @@ namespace Garrison.Core.Manifests
             deployment.NoProgressSeconds = spec.NoProgressSeconds;
             deployment.MaxAttempts = spec.MaxAttempts;
             deployment.RetryOnNodeLoss = spec.RetryOnNodeLoss;
+            deployment.Executor = spec.Executor;
+            deployment.PodResources = spec.PodResources == null ? new RunPodResources() : spec.PodResources.Clone();
             deployment.Weight = spec.Weight;
             if (!String.IsNullOrEmpty(spec.Workspace)) deployment.WorkspaceTemplateId = await resolver.RequireAsync("WorkspaceTemplate", spec.Workspace, "workspace", token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(spec.ArtifactStore))
@@ -756,6 +758,8 @@ namespace Garrison.Core.Manifests
             spec.NoProgressSeconds = deployment.NoProgressSeconds;
             spec.MaxAttempts = deployment.MaxAttempts;
             spec.RetryOnNodeLoss = deployment.RetryOnNodeLoss;
+            spec.Executor = deployment.Executor;
+            spec.PodResources = deployment.PodResources.IsEmpty ? null : deployment.PodResources.Clone();
             spec.Weight = deployment.Weight;
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId)) spec.Workspace = await resolver.NameAsync("WorkspaceTemplate", deployment.WorkspaceTemplateId, token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(deployment.ArtifactStoreId))

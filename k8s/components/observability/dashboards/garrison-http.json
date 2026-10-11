@@ -1122,7 +1122,7 @@
       "type": "prometheus",
       "uid": "garrison-prometheus"
      },
-     "expr": "sum by (http_route) (increase(http_server_request_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\", http_route=~\"$route\"}[$__range]))",
+     "expr": "round(sum by (http_route) (increase(http_server_request_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\", http_route=~\"$route\"}[$__range])))",
      "legendFormat": "__auto",
      "refId": "A",
      "range": false,
@@ -1135,7 +1135,7 @@
       "type": "prometheus",
       "uid": "garrison-prometheus"
      },
-     "expr": "sum by (http_route) (increase(http_server_request_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\", http_route=~\"$route\", http_response_status_code=~\"[45]..\"}[$__range]))",
+     "expr": "round(sum by (http_route) (increase(http_server_request_duration_seconds_count{job=\"garrison\", component=\"server\", node=~\"$node\", http_route=~\"$route\", http_response_status_code=~\"[45]..\"}[$__range])))",
      "legendFormat": "__auto",
      "refId": "B",
      "range": false,

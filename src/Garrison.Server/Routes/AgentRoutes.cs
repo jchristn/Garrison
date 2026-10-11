@@ -57,7 +57,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.POST, _Base + "/register", ResourceTypeEnum.Agent, OperationTypeEnum.Create, RegisterAsync, "Self-register an agent (idempotent by name)", "Agents", typeof(Agent), typeof(Agent));
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Read, ReadAsync, "Read an agent by identifier or name", "Agents", null, typeof(Agent));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Update, UpdateAsync, "Update an agent by identifier or name", "Agents", typeof(Agent), typeof(Agent));
-            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Delete, DeleteAsync, "Delete an agent (by identifier or name) and its deployments", "Agents", null, typeof(DeleteResponse));
+            routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.Agent, OperationTypeEnum.Delete, DeleteAsync, "Delete an agent (by identifier or name) and its deployments", "Agents");
             routes.Scoped(HttpMethod.GET, _Base + "/{id}/card", ResourceTypeEnum.Agent, OperationTypeEnum.Read, CardAsync, "Read the agent's A2A agent card (by identifier or name)", "Agents", null, typeof(AgentCard));
         }
 
@@ -143,15 +143,15 @@ namespace Garrison.Server.Routes
             Agent? existing = await LoadAsync(http, OperationTypeEnum.Delete).ConfigureAwait(false);
             if (existing == null) return;
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Agent " + existing.Name);
-            DeleteResponse response = new DeleteResponse();
+            int cascaded = 0;
             List<Deployment> deployments = await _Server.Database.Deployments.ListByAgentAsync(tenantId, existing.Id, http.Token).ConfigureAwait(false);
             foreach (Deployment deployment in deployments)
             {
-                if (await _Server.Database.Deployments.DeleteAsync(deployment.Id, http.Token).ConfigureAwait(false)) response.Cascaded++;
+                if (await _Server.Database.Deployments.DeleteAsync(deployment.Id, http.Token).ConfigureAwait(false)) cascaded++;
             }
-            response.Deleted = await _Server.Database.Agents.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Agent", existing.Id, "Deleted agent " + existing.Name + " and " + response.Cascaded + " deployment(s).").ConfigureAwait(false);
-            await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
+            await _Server.Database.Agents.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
+            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Agent", existing.Id, "Deleted agent " + existing.Name + " and " + cascaded + " deployment(s).").ConfigureAwait(false);
+            await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 
         private async Task CardAsync(HttpContextBase http)

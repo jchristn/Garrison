@@ -88,7 +88,7 @@ Rules for keeping the plan honest:
 | 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
 | 10 | Control plane high availability and scale-out | M2 | Complete | 18 / 18 |
-| 11 | Pod-per-run isolation executor | M2 | Not started | 0 / 13 |
+| 11 | Pod-per-run isolation executor | M2 | Complete | 13 / 13 |
 | 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | Not started | 0 / 29 |
 | 13 | Observability stack and dashboards | M2 | Complete | 19 / 19 |
 | 14 | Benchmarking | M3 | Not started | 0 / 14 |
@@ -99,7 +99,7 @@ Milestones:
 | Milestone | Definition | Phases |
 |---|---|---|
 | **M1: MVP** (signed off 2026-10-10, D-031) | One control node, two worker nodes, a Claude Code agent, a Mux agent, and a Codex agent running headless; dashboard, four SDKs, tests, Postman, and documentation; deployable to minikube and K3S. | 0 to 9 |
-| **M2: Scale** | N control-plane replicas behind a Service with HPA, leader-elected maintenance, event backplane, pod-per-run isolation, full observability stack. | 10, 11, 13 |
+| **M2: Scale** (complete 2026-10-10) | N control-plane replicas behind a Service with HPA, leader-elected maintenance, event backplane, pod-per-run isolation, full observability stack. | 10, 11, 13 |
 | **M3: Orchestration** | Multi-turn conversations, permission approvals relayed to humans, self-registered remote agents invoked over A2A/MCP, triggers, budgets and quotas, artifact storage, benchmarks. | 12, 14 |
 | **M4: 1.0** | Security review, simulated user testing, upgrade path, release process. | 15 |
 
@@ -1415,12 +1415,12 @@ Scripts and validation
 Found during M1 integration and not yet fixed. Each is actionable; annotate like any task.
 
 - [x] G-1 MCP sessions live in one server replica's memory; with more than one replica an unknown session ID returns 404. Add a shared session store or document `sessionAffinity: ClientIP` on the MCP Service (production overlay and Helm).  | claude 2026-10-10 Garrison fronts MCP and relays to Voltaic; mcp_sessions table lets any replica serve a session, no sticky routing
-- [ ] G-2 Passwords are unsalted SHA-256. Move to a salted, slow hash (PBKDF2 or Argon2id) with transparent upgrade on login.
-- [ ] G-3 MCP tool descriptions resolve only `builtin/` template names, so tenants cannot override them. Allow a tenant template to shadow a built-in by name.
-- [ ] G-4 `A2ARoutes` and `AgentCardService` render agent cards differently (template rendering, security scheme key `garrison` vs `bearer`). Use one renderer.
-- [ ] G-5 Unused surface: `exposeMcpTool`, `builtin/mcp-tool-description`, `builtin/structured-output-repair` (see P3.2.7), and the `Rejected` run status are never used. `builtin/structured-output-repair` is now used by P3.2.7.
+- [x] G-2 Passwords are unsalted SHA-256. Move to a salted, slow hash (PBKDF2 or Argon2id) with transparent upgrade on login.  | claude 2026-10-10 PBKDF2-HMAC-SHA256, 16-byte salt, `Auth.PasswordHashIterations` (default 600,000), constant-time; legacy and under-iterated hashes upgraded on sign-in; unknown accounts take equal time; fits the existing column, no migration
+- [x] G-3 MCP tool descriptions resolve only `builtin/` template names, so tenants cannot override them. Allow a tenant template to shadow a built-in by name.  | claude 2026-10-10 tenant `ToolDescription` template `mcp-tool-<toolName>` overrides `builtin/mcp-tool-<toolName>` per tenant, read on every listing; same for `mcp-tool-description` and `a2a-skill-description`
+- [x] G-4 `A2ARoutes` and `AgentCardService` render agent cards differently (template rendering, security scheme key `garrison` vs `bearer`). Use one renderer.  | claude 2026-10-10 AgentCardService is the only renderer (public card, catalog, REST /card); A2AMapper.Card removed; scheme key `garrison`; test asserts the three match
+- [x] G-5 Unused surface: `exposeMcpTool`, `builtin/mcp-tool-description`, `builtin/structured-output-repair` (see P3.2.7), and the `Rejected` run status are never used. `builtin/structured-output-repair` is now used by P3.2.7.  | claude 2026-10-10 wired, not removed: `exposeMcpTool` agents become MCP tools (`garrison_` prefix reserved); runs whose tenant, agent, or deployment went away before claim end `Rejected`
 - [x] G-6 Per-replica state: the signed-request nonce cache and token rate limiter are per replica, and per-deployment `maxConcurrentRuns` can be exceeded slightly under concurrent claims on several replicas.  | claude 2026-10-10 claims for a limited deployment serialized in the database; maxConcurrentRuns exact across replicas; nonces and rate limits shared
-- [ ] G-7 DELETE returns 204 for identity and runtime resources and 200 with a body for configuration resources. Pick one.
+- [x] G-7 DELETE returns 204 for identity and runtime resources and 200 with a body for configuration resources. Pick one.  | claude 2026-10-10 every single-resource DELETE answers 204 with no body (deployments included); filter deletes keep 200 with a count; DeleteResponse removed; C# Tenants.DeleteAsync returns Task (breaking, noted in CHANGELOG)
 - [ ] G-8 SyslogLogging: add an opt-in to skip the console probe (D-026), then switch Garrison to it.
 - [x] G-9 Codex agent not yet verified in the cluster (P9.9); needs `OPENAI_API_KEY` or a Codex `auth.json`.  | claude 2026-10-10 done, see P9.9
 - [x] G-10 Codex runs report no served model (`servedModel` is null); the Codex parser should take it from the session or turn events when present.  | claude 2026-10-10 worker reads turn_context.model from the run's CODEX_HOME session file (CodexSessionReader); live Codex run reports gpt-6.1-sol
@@ -1434,7 +1434,7 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [x] G-18 Mux endpoint quirks: the generated endpoint omits the adapter quirks Ollama models need for reliable tool calls (`assembleToolCallDeltas`, `enableMalformedToolCallRecovery`, `stripRequestFields`, `supportsParallelToolCalls`, `defaultFinishReason`). Expose them as deployment parameters with adapter-specific defaults.  | claude 2026-10-10 no change needed: Mux applies adapter defaults when an endpoint sets no quirks (Defaults.OllamaDefaults plus BackendQuirks defaults), and they match a hand-tuned Ollama endpoint exactly
 - [x] G-19 Delegation tool hygiene for weaker models: run-token MCP sessions show the administrator-only `tenantId` argument, and gpt-oss filled it and `deploymentId` with wrong values (one failed call before success). Hide administrator-only arguments from run-token sessions, tell models to omit optional fields they do not need, and make the deployment-not-found error suggest omitting `deploymentId`.  | claude 2026-10-10 Garrison answers tools/list itself: only system administrators (not run tokens) see tenantId; optional-field descriptions say to omit them; deployment-not-found says to omit deploymentId; stray tenantId accepted and ignored
 - [x] G-20 Verify session resume (structured-output repair) and `--output-schema` against real Mux, Claude Code, Codex, and Gemini CLI, not only the fake harness.  | claude 2026-10-10 verified with real CLIs: Claude Code 2.1.296 (--resume, --json-schema), Codex 0.159.3 (exec resume, --output-schema), Mux 1.3.0 on gpt-oss:20b (--output-schema; resume needed --session-id on the first run, now passed); Gemini CLI not installed. Recorded in docs/HARNESSES.md
-- [ ] G-21 Grafana polish: Grafana 13 shows a "Grafana Assistant" announcement modal on first sign-in (disable announcements and news in the provisioned configuration), and the Runs dashboard's "Outcomes in the selected range" stat shows fractional counts from `increase()` (round, or use a counting query).
+- [x] G-21 Grafana polish: Grafana 13 shows a "Grafana Assistant" announcement modal on first sign-in (disable announcements and news in the provisioned configuration), and the Runs dashboard's "Outcomes in the selected range" stat shows fractional counts from `increase()` (round, or use a counting query).  | claude 2026-10-10 provisioned grafana.ini sets `[feature_toggles] splashScreen = false` (env vars cannot set it); outcome stats use round() with 0 decimals; verified in a browser against grafana-oss 13.0.2
 
 ### Phase 10: Control plane high availability and scale-out (M2)
 
@@ -1476,19 +1476,19 @@ Design (decision D-033):
 - NetworkPolicy for run pods: egress to DNS, the Garrison MCP Service (delegation), and an allowlist (`runEgress` CIDRs and ports; default 0.0.0.0/0 on 443 only), no ingress.
 - RBAC: the worker's Role in the run namespace allows create, get, list, watch, delete on Jobs and Secrets and get, list, watch on Pods and pods/log; nothing cluster-wide.
 
-- [ ] P11.1 `KubernetesJobRunExecutor` implementing `IRunExecutor`: creates a Job per run from a pod template (image, resources, security context, service account, node selector), mounts the spec through a Secret, streams logs, reports through the worker.
-- [ ] P11.2 Runner entrypoint inside the job pod (`garrison-worker run-one`) reusing the process executor.
-- [ ] P11.3 Worker Role and RoleBinding for Jobs, Secrets, and Pods (logs) in its namespace only.
-- [ ] P11.4 Run namespace option and NetworkPolicy for run pods (egress allowlist).
-- [ ] P11.5 Resource limits per deployment (CPU, memory, ephemeral storage).
-- [ ] P11.6 `PersistentVolume` workspace kind.
-- [ ] P11.7 Cleanup of finished Jobs and Secrets (TTL after finished).
-- [ ] P11.8 Executor selection per deployment (`Process` or `KubernetesJob`) and per node pool.
-- [ ] P11.9 Tests on K3S: isolation, cancellation, timeout, node loss.
-- [ ] P11.10 gVisor or Kata runtime class option documented.
-- [ ] P11.11 Security context hardening (read-only root, dropped capabilities, seccomp).
-- [ ] P11.12 Image pull secrets and private registries.
-- [ ] P11.13 `docs/SECURITY.md` isolation section updated.
+- [x] P11.1 `KubernetesJobRunExecutor` implementing `IRunExecutor`: creates a Job per run from a pod template (image, resources, security context, service account, node selector), mounts the spec through a Secret, streams logs, reports through the worker.  | claude 2026-10-10 KubernetesJobRunExecutor (src/Garrison.Worker/Kubernetes) creates the Job first, then a spec Secret owned by it; stdout lines carry `@@garrison:<nonce>:<seq>` and the worker relays only those, reconnecting without duplicates; forged lines from a harness that read the nonce were rejected on k3d
+- [x] P11.2 Runner entrypoint inside the job pod (`garrison-worker run-one`) reusing the process executor.  | claude 2026-10-10 `garrison-worker run-one` reuses ProcessRunExecutor and run guards; waits for the garrison-run NetworkPolicy with an egress canary (36 to 771 ms on k3s) and fails PodFailed after 30 s if it stays open
+- [x] P11.3 Worker Role and RoleBinding for Jobs, Secrets, and Pods (logs) in its namespace only.  | claude 2026-10-10 k8s/base/rbac.yaml and Helm rbac.yaml; worker may create but never get or list Secrets (deviation from plan: reading would expose garrison-secrets)
+- [x] P11.4 Run namespace option and NetworkPolicy for run pods (egress allowlist).  | claude 2026-10-10 run namespace setting; garrison-run NetworkPolicy blocks server REST, Postgres, Kubernetes API, worker; allows 443 and the MCP port; verified on k3d
+- [x] P11.5 Resource limits per deployment (CPU, memory, ephemeral storage).  | claude 2026-10-10 deployment `podResources` (named so because `resources` already means secret and MCP bindings); a request above a worker default raises the limit, above the server cap is rejected; OOMKilled reports the limit
+- [x] P11.6 `PersistentVolume` workspace kind.  | claude 2026-10-10 `PersistentVolume` workspace kind mounts at /workspace with the work directory as a symlink; KubernetesJob deployments only; persistence across runs verified
+- [x] P11.7 Cleanup of finished Jobs and Secrets (TTL after finished).  | claude 2026-10-10 TTL after finished for Jobs; Secrets are owned by the Job and go with it; orphaned Jobs reconciled at worker start
+- [x] P11.8 Executor selection per deployment (`Process` or `KubernetesJob`) and per node pool.  | claude 2026-10-10 deployment `executor` (Process, KubernetesJob), node pool `defaultExecutor`, runs record the executor, migration 9; nodes advertise executors
+- [x] P11.9 Tests on K3S: isolation, cancellation, timeout, node loss.  | claude 2026-10-10 k3d: isolation, cancel (0.28 s, Job gone in 1.5 s), timeout (10 s limit ended at 11 s), node loss (retryOnNodeLoss requeued and succeeded on attempt 2, otherwise NodeLost), PodFailed for unschedulable, ImagePullBackOff, OOMKilled; a pod stopped outside Garrison counts as node loss; real Claude Code ran in a pod; KubernetesExecutorSuite (35 cases)
+- [x] P11.10 gVisor or Kata runtime class option documented.  | claude 2026-10-10 `runtimeClassName` per deployment; gVisor and Kata documented in docs/KUBERNETES.md
+- [x] P11.11 Security context hardening (read-only root, dropped capabilities, seccomp).  | claude 2026-10-10 no service account token, read-only root, UID 10001, all capabilities dropped, no-new-privileges, RuntimeDefault seccomp, emptyDir for work, home, config, /tmp; verified on k3d
+- [x] P11.12 Image pull secrets and private registries.  | claude 2026-10-10 image pull secrets in worker settings and Helm `kubernetesExecutor` values
+- [x] P11.13 `docs/SECURITY.md` isolation section updated.  | claude 2026-10-10 docs/SECURITY.md isolation section rewritten, including the trade-off that Process runs on an executor-enabled worker can read its service account token (use a separate pool)
 
 ### Phase 12: Advanced orchestration (M3)
 

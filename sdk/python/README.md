@@ -101,6 +101,17 @@ Runs stopped by a worker run guard end `Failed` with outcome `RepetitionDetected
 
 When the agent has an output schema, the server validates each run's final output against it. `run["outputSchemaValid"]` is `True` or `False` after validation and `None` when nothing was validated, `run["schemaValidationErrors"]` holds the first few errors of a failed validation, and `run["repairAttempts"]` (0 or 1) counts the structured output repair Garrison makes when the harness can resume its session. A run whose output still does not validate fails with outcome `SchemaValidationFailed`. See "Structured output validation" in `REST_API.md`.
 
+## Executors and run pods
+
+A deployment's `executor` is `"Process"` (a subprocess of the worker, the default) or `"KubernetesJob"` (a Kubernetes Job per run, in its own pod); `RUN_EXECUTORS` lists both. Leaving it out uses the node pool's `defaultExecutor`, then Process. `podResources` (`cpuRequest`, `cpuLimit`, `memoryRequest`, `memoryLimit`, `ephemeralStorageRequest`, `ephemeralStorageLimit`, as Kubernetes quantities) sets the run pod's requests and limits:
+
+```python
+client.deployments.create({"agentId": agent["id"], "name": "helper-pod", "harnessProfileId": profile_id,
+                           "executor": "KubernetesJob", "podResources": {"memoryLimit": "2Gi", "cpuLimit": "1"}})
+```
+
+Runs carry `executor`, nodes list `executors`, and only nodes reporting a run's executor claim it. Workspace templates of kind `"PersistentVolume"` mount the claim named by `persistentVolumeClaim` (KubernetesJob runs only). Run pod failures outside the harness end with outcome `PodFailed`. See `docs/KUBERNETES.md`.
+
 ## Run analytics
 
 ```python

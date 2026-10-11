@@ -1,0 +1,75 @@
+{{- if .Values.kubernetesExecutor.enabled }}
+{{- $runNs := include "garrison.runNamespace" . }}
+# The worker's permissions for the KubernetesJob executor (pod-per-run, plan D-033), in the run namespace only and
+# nothing cluster-wide: create a Job and a spec Secret per run (the Secret is owned by the Job), read the run pod's
+# status and log, and delete the Job on cancel, timeout, or reconciliation. Never get, list, or watch on Secrets.
+# Anyone who can create Jobs in a namespace can mount its Secrets, so prefer a separate kubernetesExecutor.runNamespace
+# for untrusted prompts.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: garrison-worker-runs
+  namespace: {{ $runNs }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: garrison-worker-runs
+  namespace: {{ $runNs }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: garrison-worker-runs
+subjects:
+  - kind: ServiceAccount
+    name: garrison-worker
+    namespace: {{ include "garrison.namespace" . }}
+{{- if ne $runNs (include "garrison.namespace" .) }}
+---
+# Lets the worker read its own pod (for the run image and pull secrets) when runs live in another namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: garrison-worker-self
+  namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: garrison-worker-self
+  namespace: {{ include "garrison.namespace" . }}
+  labels:
+    {{- include "garrison.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: garrison-worker-self
+subjects:
+  - kind: ServiceAccount
+    name: garrison-worker
+    namespace: {{ include "garrison.namespace" . }}
+{{- end }}
+{{- end }}

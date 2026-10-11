@@ -334,7 +334,8 @@ const tips = {
       InternalError: 'In Garrison ist ein interner Fehler aufgetreten. Details stehen in den Serverprotokollen.',
       NoCapableWorker: 'Der Lauf wartete länger in der Warteschlange, als die Clustereinstellung Runtime.FailBlockedAfterSeconds erlaubt, und kein bereiter Worker konnte ihn ausführen. Deshalb ist er fehlgeschlagen.',
       RepetitionDetected: 'Ein Laufwächter hat den Lauf gestoppt, weil seine Antwort in immer denselben kurzen Text oder nur Leerraum und Satzzeichen abgeglitten ist. Die bisherige Ausgabe bleibt erhalten. Einstellbar mit dem Wiederholungswächter der Bereitstellung.',
-      NoProgress: 'Ein Laufwächter hat den Lauf gestoppt, weil länger als das Zeitlimit ohne Fortschritt der Bereitstellung kein Text, kein Denken und keine Toolaktivität kam. Die bisherige Ausgabe bleibt erhalten.'
+      NoProgress: 'Ein Laufwächter hat den Lauf gestoppt, weil länger als das Zeitlimit ohne Fortschritt der Bereitstellung kein Text, kein Denken und keine Toolaktivität kam. Die bisherige Ausgabe bleibt erhalten.',
+      PodFailed: 'Der Lauf-Pod ist außerhalb des Harness fehlgeschlagen: Er konnte nicht eingeplant werden, sein Image ließ sich nicht laden, der Speicher reichte nicht, er wurde verdrängt oder er endete ohne Rückmeldung. Die Fehlermeldung nennt die Ursache.'
     },
     controlNodeStatus: {
       Starting: 'Startet: Das Replikat wird initialisiert und bedient noch keinen Verkehr.',
@@ -380,7 +381,12 @@ const tips = {
     workspaceKind: {
       Empty: 'Jeder Lauf beginnt in einem neuen, leeren Verzeichnis.',
       GitRepository: 'Jeder Lauf beginnt mit einem frischen Klon eines Git-Repositorys.',
-      Seeded: 'Jeder Lauf beginnt mit den in der Vorlage aufgeführten Dateien.'
+      Seeded: 'Jeder Lauf beginnt mit den in der Vorlage aufgeführten Dateien.',
+      PersistentVolume: 'Jeder Lauf bindet einen vorhandenen PersistentVolumeClaim als Arbeitsbereich ein, sodass Dateien zwischen Läufen erhalten bleiben. Erfordert den Executor Kubernetes-Job.'
+    },
+    runExecutor: {
+      Process: 'Der Harness läuft als Unterprozess des Workers in dessen Container, mit eigenen Arbeits-, Home- und Konfigurationsverzeichnissen.',
+      KubernetesJob: 'Der Worker startet pro Lauf einen Kubernetes-Job: Der Harness läuft in einem eigenen Pod ohne Kubernetes- oder Garrison-Zugangsdaten, mit schreibgeschütztem Root-Dateisystem und den Ressourcenlimits der Bereitstellung.'
     },
     promptTemplateKind: {
       System: 'Ein System-Prompt: die dauerhaften Anweisungen, die den Agenten einrichten.',
@@ -617,6 +623,7 @@ const tips = {
       gitRef: 'Branch, Tag oder Commit zum Auschecken. Leer lassen für den Standard-Branch.',
       gitDepth: 'Wie viele Commits abgerufen werden. 1 ist am schnellsten; 0 ruft den gesamten Verlauf ab.',
       gitCredentialSecretId: 'Geheimnis mit dem Token oder Passwort zum Klonen eines privaten Repositorys.',
+      persistentVolumeClaim: 'Name des PersistentVolumeClaim, der am Arbeitsbereichspfad eingebunden wird. Er muss im Lauf-Namespace bereits existieren; Garrison erstellt oder löscht ihn nie.',
       files: 'Dateien, die vor dem Start des Laufs in den Arbeitsbereich geschrieben werden.',
       filesItems: {
         path: 'Pfad der Datei relativ zum Stammverzeichnis des Arbeitsbereichs.',
@@ -745,9 +752,17 @@ const tips = {
       repetitionGuard: 'Einen Lauf stoppen, wenn seine Antwort in immer denselben kurzen Text oder nur Leerraum und Satzzeichen abgleitet (Ergebnis „Wiederholung erkannt“). Nicht gesetzt folgt dem Cluster-Standard; setze oder entferne das Häkchen, um es für diese Bereitstellung festzulegen.',
       maxAssistantChars: 'Höchstzahl an Zeichen Assistententext pro Lauf, bevor Garrison ihn stoppt (Ergebnis „Ausgabelimit überschritten“). 0 bedeutet unbegrenzt; leer verwendet den Cluster-Standard.',
       noProgressSeconds: 'Einen Lauf stoppen, wenn so viele Sekunden lang kein Text, kein Denken, kein Toolaufruf und kein Toolergebnis kommt, während kein Toolaufruf läuft (Ergebnis „Kein Fortschritt“). 0 schaltet es aus; leer verwendet den Cluster-Standard.',
+      executor: 'Wie Läufe ausgeführt werden: Prozess (im Worker) oder Kubernetes-Job (ein Pod pro Lauf, stärkere Isolation). Leer folgt dem Standard-Executor des Knotenpools, sonst Prozess.',
+      podCpuRequest: 'CPU, die der Lauf-Pod anfordert, zum Beispiel 250m. Leer verwendet den Worker-Standard.',
+      podCpuLimit: 'Höchstens nutzbare CPU des Lauf-Pods, zum Beispiel 2. Leer verwendet den Worker-Standard.',
+      podMemoryRequest: 'Speicher, den der Lauf-Pod anfordert, zum Beispiel 512Mi. Leer verwendet den Worker-Standard.',
+      podMemoryLimit: 'Höchstens nutzbarer Speicher des Lauf-Pods, zum Beispiel 4Gi. Ein Lauf darüber wird mit dem Ergebnis „Lauf-Pod fehlgeschlagen“ gestoppt.',
+      podEphemeralStorageRequest: 'Lokaler Datenträger, den der Lauf-Pod für Arbeitsbereich, Home und temporäre Dateien anfordert, zum Beispiel 1Gi.',
+      podEphemeralStorageLimit: 'Höchstens nutzbarer lokaler Datenträger des Lauf-Pods, zum Beispiel 10Gi. Ein Pod darüber wird verdrängt und der Lauf schlägt fehl.',
       useClusterDefault: 'Die eigene Einstellung dieser Bereitstellung entfernen, damit der Wiederholungswächter wieder dem Cluster-Standard folgt.',
       sections: {
-        guards: 'Laufwächter stoppen außer Kontrolle geratene Läufe frühzeitig, bei jedem Harness. Leer gelassen folgt jeder dem Cluster-Standard unter Einstellungen (Laufzeit).'
+        guards: 'Laufwächter stoppen außer Kontrolle geratene Läufe frühzeitig, bei jedem Harness. Leer gelassen folgt jeder dem Cluster-Standard unter Einstellungen (Laufzeit).',
+        execution: 'Wählen Sie, wo Läufe ausgeführt werden, und für Kubernetes-Job-Läufe CPU, Speicher und Datenträger des Lauf-Pods.'
       }
     },
     nodePools: {
@@ -755,6 +770,7 @@ const tips = {
       name: 'Poolname. Knoten treten einem Pool bei ihrer Registrierung bei, und Bereitstellungen können einen Pool voraussetzen.',
       description: 'Welche Hardware oder welchen Zweck dieser Pool darstellt.',
       tenants: 'Mandanten, die den Pool nutzen dürfen. Leer bedeutet alle Mandanten.',
+      defaultExecutor: 'Executor für Läufe von Bereitstellungen in diesem Pool, die keinen eigenen wählen. Leer bedeutet Prozess.',
       active: 'Inaktive Pools nehmen keine neuen Läufe an.'
     },
     runs: {
@@ -777,6 +793,7 @@ const tips = {
       status: 'Ob der Knoten neue Läufe annimmt. Sperren oder leeren Sie einen Knoten vor Wartungsarbeiten.',
       capacity: 'Läufe, die der Knoten gerade hält, im Verhältnis zur Höchstzahl, die er gleichzeitig annimmt.',
       harnesses: 'Harnesses, die der Knoten bei der Prüfung beim Start installiert und funktionsfähig vorgefunden hat.',
+      executors: 'Executors, die der Knoten anbietet. Kubernetes-Job erscheint nur, wenn der Worker in einem Cluster läuft und Jobs erstellen darf.',
       labels: 'Labels aus Schlüssel und Wert, die der Knoten meldet. Knotenauswahlen von Bereitstellungen werden damit abgeglichen.',
       nodeVersion: 'Version der Worker-Software auf dem Knoten.',
       lastHeartbeatUtc: 'Wann sich der Knoten zuletzt gemeldet hat. Knoten, die sich nicht mehr melden, werden als verloren markiert.',

@@ -28,6 +28,47 @@ namespace Garrison.Server.Protocols
 
         #region Private-Members
 
+        /// <summary>
+        /// Prefix of the built-in tool description templates: builtin/mcp-tool-. A tenant template named
+        /// <see cref="TenantOverridePrefix"/> plus the tool name (for example mcp-tool-garrison_invoke_agent) replaces
+        /// the built-in description for callers in that tenant (G-3).
+        /// </summary>
+        public static readonly string BuiltInDescriptionPrefix = "builtin/mcp-tool-";
+
+        /// <summary>
+        /// Prefix of tenant templates that override a tool description: mcp-tool-.
+        /// </summary>
+        public static readonly string TenantOverridePrefix = "mcp-tool-";
+
+        /// <summary>
+        /// Prefix reserved for the built-in Garrison tools: garrison_. Agents cannot be offered under a name with it.
+        /// </summary>
+        public static readonly string ReservedToolPrefix = "garrison_";
+
+        /// <summary>
+        /// Input schema of an agent offered as its own MCP tool (exposeMcpTool), as most callers see it.
+        /// </summary>
+        public static string AgentToolInputSchemaJson
+        {
+            get
+            {
+                return _AgentToolSchema;
+            }
+        }
+
+        /// <summary>
+        /// Input schema of an agent tool including the administrator-only tenantId argument.
+        /// </summary>
+        public static string AgentToolAdministratorInputSchemaJson
+        {
+            get
+            {
+                return WithTenantId(_AgentToolSchema);
+            }
+        }
+
+        private static readonly string _AgentToolSchema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\",\"description\":\"The complete request for the agent, with all the context it needs.\"},\"parameters\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"string\"},\"description\":\"Optional. Run parameters the agent allows, as string values. Omit it unless the tool description asks for parameters.\"},\"waitSeconds\":{\"type\":\"integer\",\"minimum\":0,\"description\":\"Optional. How long to wait for the answer. Omit it to use the server's maximum.\"}},\"required\":[\"input\"]}";
+
         private static readonly string _TenantIdDescription = "System administrators only: the tenant to act in when your credential is not bound to one. Omit it otherwise; every other caller always acts in its own tenant.";
 
         #endregion
@@ -78,13 +119,18 @@ namespace Garrison.Server.Protocols
             tool.Name = name;
             tool.ResourceType = resourceType;
             tool.Operation = operation;
-            tool.DescriptionTemplate = "builtin/mcp-tool-" + name;
+            tool.DescriptionTemplate = BuiltInDescriptionPrefix + name;
             tool.DefaultDescription = description;
             tool.InputSchemaJson = schema;
-            tool.AdministratorInputSchemaJson = schema.Replace(
+            tool.AdministratorInputSchemaJson = WithTenantId(schema);
+            return tool;
+        }
+
+        private static string WithTenantId(string schema)
+        {
+            return schema.Replace(
                 "\"properties\":{",
                 "\"properties\":{\"tenantId\":{\"type\":\"string\",\"description\":\"" + _TenantIdDescription + "\"},");
-            return tool;
         }
 
         #endregion

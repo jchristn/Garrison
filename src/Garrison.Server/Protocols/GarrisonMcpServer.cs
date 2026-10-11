@@ -5,6 +5,7 @@ namespace Garrison.Server.Protocols
     using System.Linq;
     using System.Net;
     using System.Net.Sockets;
+    using System.Text;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -17,8 +18,10 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
+    using Garrison.Core.Templates;
     using Garrison.Server.Routes;
     using Garrison.Server.Runtime;
+    using Garrison.Server.Services;
     using Radiant;
     using Voltaic.Core;
     using Voltaic.Mcp;
@@ -67,8 +70,13 @@ namespace Garrison.Server.Protocols
         private McpHttpServer? _Server = null;
         private CancellationTokenSource? _Cts = null;
         private Task? _ServerTask = null;
-        private List<ToolDefinition> _PublicTools = new List<ToolDefinition>();
-        private List<ToolDefinition> _AdministratorTools = new List<ToolDefinition>();
+        private Dictionary<string, string> _BuiltInDescriptions = new Dictionary<string, string>(StringComparer.Ordinal);
+        private Dictionary<string, JsonElement> _PublicSchemas = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        private Dictionary<string, JsonElement> _AdministratorSchemas = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        private JsonElement _AgentToolPublicSchema;
+        private JsonElement _AgentToolAdministratorSchema;
+        private readonly HashSet<string> _RegisteredAgentTools = new HashSet<string>(StringComparer.Ordinal);
+        private readonly object _AgentToolLock = new object();
         private McpClusterProxy? _Proxy = null;
         private int _InternalPort = 0;
         private readonly string _ProxySecret = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
@@ -115,6 +123,73 @@ namespace Garrison.Server.Protocols
                 scope.Summary = tool.DefaultDescription;
                 _Context.Scopes.Add(scope);
             }
+
+            OperationScope agentTools = new OperationScope();
+            agentTools.Method = "MCP";
+            agentTools.Path = "{mcpToolName}";
+            agentTools.ResourceType = ResourceTypeEnum.Agent;
+            agentTools.Operation = OperationTypeEnum.Execute;
+            agentTools.Authorization = RouteAuthorizationEnum.Scoped;
+            agentTools.Tag = "MCP";
+            agentTools.Summary = "An agent offered as its own MCP tool (exposeMcpTool): invokes the agent and waits for its answer.";
+            _Context.Scopes.Add(agentTools);
+        }
+
+        /// <summary>
+        /// The MCP tool name of an agent offered as its own tool: its mcpToolName when set, otherwise its name.
+        /// </summary>
+        /// <param name="agent">Agent.</param>
+        /// <returns>Tool name.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when agent is null.</exception>
+        public static string AgentToolName(Agent agent)
+        {
+            if (agent == null) throw new ArgumentNullException(nameof(agent));
+            return String.IsNullOrWhiteSpace(agent.McpToolName) ? agent.Name : agent.McpToolName!.Trim();
+        }
+
+        /// <summary>
+        /// Whether a name can be used for an agent tool (see ConfigurationValidator.IsValidMcpToolName).
+        /// </summary>
+        /// <param name="name">Candidate name.</param>
+        /// <returns>True when usable.</returns>
+        public static bool IsValidAgentToolName(string? name)
+        {
+            return ConfigurationValidator.IsValidMcpToolName(name);
+        }
+
+        /// <summary>
+        /// Resolve the description of a built-in tool for a caller's tenant (G-3): an active tenant prompt template of
+        /// kind ToolDescription named mcp-tool-&lt;tool name&gt; replaces the built-in builtin/mcp-tool-&lt;tool name&gt;. The
+        /// override is rendered with tool.name, tool.defaultDescription (the built-in text), tenant.id, and
+        /// garrison.version; when it is missing, inactive, of another kind, or fails to render, the built-in is used.
+        /// </summary>
+        /// <param name="tenantId">Caller's tenant, or null for the built-in description.</param>
+        /// <param name="tool">Built-in tool.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Description.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tool is null.</exception>
+        public async Task<string> ToolDescriptionAsync(string? tenantId, McpToolDefinition tool, CancellationToken token = default)
+        {
+            if (tool == null) throw new ArgumentNullException(nameof(tool));
+            string builtIn = _BuiltInDescriptions.TryGetValue(tool.Name, out string? loaded) ? loaded : tool.DefaultDescription;
+            if (String.IsNullOrEmpty(tenantId)) return builtIn;
+            PromptTemplate? template = await _Context.Database.PromptTemplates.ReadByNameAsync(tenantId, McpToolCatalog.TenantOverridePrefix + tool.Name, token).ConfigureAwait(false);
+            if (template == null || template.TenantId != tenantId || !template.Active || template.Kind != PromptTemplateKindEnum.ToolDescription) return builtIn;
+            TemplateContext context = new TemplateContext();
+            context.Set("tool.name", tool.Name);
+            context.Set("tool.defaultDescription", builtIn);
+            context.Set("tenant.id", tenantId);
+            context.Set("garrison.version", Constants.ProductVersion);
+            try
+            {
+                string rendered = TemplateRenderer.Render(template.Content, context, new TemplateRenderOptions { TemplateName = template.Name }).Trim();
+                return rendered.Length == 0 ? builtIn : rendered;
+            }
+            catch (TemplateException e)
+            {
+                _Context.Logging.Warn(_Header + "tool description override " + template.Name + " in tenant " + tenantId + " failed to render, using the built-in: " + e.Message);
+                return builtIn;
+            }
         }
 
         /// <summary>
@@ -141,8 +216,8 @@ namespace Garrison.Server.Protocols
             _Server.AuthenticationHandler = AuthenticateAsync;
             _Server.Log += (_, message) => _Context.Logging.Debug(_Header + message);
 
-            List<ToolDefinition> publicTools = new List<ToolDefinition>();
-            List<ToolDefinition> administratorTools = new List<ToolDefinition>();
+            Dictionary<string, JsonElement> publicSchemas = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            Dictionary<string, JsonElement> administratorSchemas = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (McpToolDefinition tool in McpToolCatalog.All())
             {
                 string description = descriptions.TryGetValue(tool.Name, out string? rendered) ? rendered : tool.DefaultDescription;
@@ -152,25 +227,36 @@ namespace Garrison.Server.Protocols
                     // Arguments are validated against the administrator schema, so a caller that sends tenantId anyway
                     // is accepted; DispatchAsync ignores it for anyone bound to a tenant.
                     _Server.RegisterTool(tool.Name, description, schema.RootElement.Clone(), (RpcParameters? args, RpcCallContext? call, CancellationToken ct) => DispatchAsync(captured, args, call, ct));
-                    administratorTools.Add(Definition(tool.Name, description, schema.RootElement.Clone()));
+                    administratorSchemas[tool.Name] = schema.RootElement.Clone();
                 }
                 using (JsonDocument schema = JsonDocument.Parse(tool.InputSchemaJson))
                 {
-                    publicTools.Add(Definition(tool.Name, description, schema.RootElement.Clone()));
+                    publicSchemas[tool.Name] = schema.RootElement.Clone();
                 }
             }
-            _PublicTools = publicTools;
-            _AdministratorTools = administratorTools;
+            using (JsonDocument schema = JsonDocument.Parse(McpToolCatalog.AgentToolInputSchemaJson))
+            {
+                _AgentToolPublicSchema = schema.RootElement.Clone();
+            }
+            using (JsonDocument schema = JsonDocument.Parse(McpToolCatalog.AgentToolAdministratorInputSchemaJson))
+            {
+                _AgentToolAdministratorSchema = schema.RootElement.Clone();
+            }
+            _BuiltInDescriptions = descriptions;
+            _PublicSchemas = publicSchemas;
+            _AdministratorSchemas = administratorSchemas;
 
             // Voltaic lists the same tools to every session, so tools/list is answered here per caller: only system
-            // administrators see the administrator-only tenantId argument (G-19).
-            _Server.RegisterMethod("tools/list", (RpcParameters? args, RpcCallContext? call, CancellationToken ct) => Task.FromResult<object>(ListTools(PrincipalClaims.Decode(call?.Claims))));
+            // administrators see the administrator-only tenantId argument (G-19), descriptions honor the caller's
+            // tenant overrides (G-3), and agents offered as their own tools are listed for their tenant (G-5).
+            _Server.RegisterMethod("tools/list", (RpcParameters? args, RpcCallContext? call, CancellationToken ct) => ListToolsAsync(PrincipalClaims.Decode(call?.Claims), ct));
 
             _ServerTask = _Server.StartAsync(_Cts.Token);
             await Task.Delay(100, token).ConfigureAwait(false);
             if (_ServerTask.IsFaulted) throw new InvalidOperationException("MCP server failed to start on internal port " + _InternalPort + ": " + _ServerTask.Exception?.GetBaseException().Message);
 
             _Proxy = new McpClusterProxy(_Context, _InternalPort, _ProxySecret, localId => _Server?.RemoveSession(localId));
+            _Proxy.BeforeForward = PrepareRequestAsync;
             _Proxy.Start();
             _Context.Logging.Info(_Header + "listening on " + _Context.Settings.Mcp.Hostname + ":" + _Context.Settings.Mcp.Port + _Context.Settings.Mcp.Path + " (internal endpoint 127.0.0.1:" + _InternalPort + ")");
         }
@@ -285,12 +371,109 @@ namespace Garrison.Server.Protocols
             return descriptions;
         }
 
-        private McpListToolsResult ListTools(RequestContext ctx)
+        private async Task<object> ListToolsAsync(RequestContext ctx, CancellationToken token)
         {
+            bool administrator = SeesAdministratorArguments(ctx);
+            string? tenantId = ctx.IsAuthenticated ? ctx.TenantId : null;
+            List<ToolDefinition> tools = new List<ToolDefinition>();
+            foreach (McpToolDefinition tool in McpToolCatalog.All())
+            {
+                string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
+                tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name]));
+            }
+            if (!String.IsNullOrEmpty(tenantId))
+            {
+                AgentCardService cards = _Context.Get<AgentCardService>();
+                foreach (Agent agent in await AgentToolsAsync(ctx, tenantId, token).ConfigureAwait(false))
+                {
+                    string description = await cards.ToolDescriptionAsync(tenantId, agent, token).ConfigureAwait(false);
+                    tools.Add(Definition(AgentToolName(agent), description, administrator ? _AgentToolAdministratorSchema : _AgentToolPublicSchema));
+                }
+            }
             McpListToolsResult result = new McpListToolsResult();
-            result.Tools = new List<ToolDefinition>(SeesAdministratorArguments(ctx) ? _AdministratorTools : _PublicTools);
+            result.Tools = tools;
             result.CacheScope = "private";
             return result;
+        }
+
+        private async Task<List<Agent>> AgentToolsAsync(RequestContext ctx, string tenantId, CancellationToken token)
+        {
+            // Agents offered as their own MCP tools that this caller may execute, one per tool name: when two agents
+            // claim the same name, the older agent keeps it. Run principals see only agents they may delegate to.
+            EnumerationQuery query = new EnumerationQuery();
+            query.MaxResults = 1000;
+            query.ActiveOnly = true;
+            EnumerationResult<Agent> page = await _Context.Database.Agents.EnumerateAsync(tenantId, query, token).ConfigureAwait(false);
+            List<Agent> exposed = page.Objects
+                .Where(a => a.ExposeMcpTool && a.Active && IsValidAgentToolName(AgentToolName(a)))
+                .OrderBy(a => a.CreatedUtc)
+                .ThenBy(a => a.Id, StringComparer.Ordinal)
+                .ToList();
+            exposed = await VisibleToRunAsync(ctx, tenantId, exposed, token).ConfigureAwait(false);
+
+            List<Agent> tools = new List<Agent>();
+            HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Agent agent in exposed)
+            {
+                if (!names.Add(AgentToolName(agent))) continue;
+                AuthorizationDecision decision = await _Context.Authorization.AuthorizeAsync(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id, token).ConfigureAwait(false);
+                if (decision.Permitted) tools.Add(agent);
+            }
+            return tools;
+        }
+
+        private async Task<List<Agent>> VisibleToRunAsync(RequestContext ctx, string tenantId, List<Agent> agents, CancellationToken token)
+        {
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run || String.IsNullOrEmpty(ctx.RunId)) return agents;
+            Run? parent = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
+            Agent? caller = parent == null ? null : await _Context.Database.Agents.ReadAsync(tenantId, parent.AgentId, token).ConfigureAwait(false);
+            if (caller == null || caller.DelegationMode == DelegationModeEnum.None) return new List<Agent>();
+            List<Agent> visible = agents;
+            if (caller.DelegationMode == DelegationModeEnum.AllowList) visible = visible.Where(a => caller.DelegationAllowList.Contains(a.Name)).ToList();
+            return visible.Where(a => a.Id != caller.Id || caller.DelegationAllowRecursion).ToList();
+        }
+
+        private async Task PrepareRequestAsync(RequestContext caller, byte[] body, CancellationToken token)
+        {
+            // Voltaic answers tools/call only for registered tools, so an agent tool is registered on this replica the
+            // first time any caller names one their tenant offers. Registration is permanent for the process; calls
+            // still resolve the agent in the caller's tenant each time, so a stale registration only yields NotFound.
+            if (_Server == null || body.Length > _Context.Settings.Mcp.MaxMessageSize) return;
+            McpToolCallEnvelope? envelope = null;
+            try
+            {
+                envelope = Serializer.Deserialize<McpToolCallEnvelope>(Encoding.UTF8.GetString(body));
+            }
+            catch (Exception e) when (e is JsonException || e is NotSupportedException || e is ArgumentException)
+            {
+                return;
+            }
+            if (envelope == null || !String.Equals(envelope.Method, "tools/call", StringComparison.Ordinal)) return;
+            string? name = envelope.Params?.Name;
+            if (!IsValidAgentToolName(name)) return;
+            lock (_AgentToolLock)
+            {
+                if (_RegisteredAgentTools.Contains(name!)) return;
+            }
+
+            string? tenantId = caller.TenantId;
+            if (String.IsNullOrEmpty(tenantId) && SeesAdministratorArguments(caller)) tenantId = envelope.Params?.Arguments?.TenantId;
+            if (String.IsNullOrEmpty(tenantId)) return;
+            List<Agent> offered = await AgentToolsAsync(caller, tenantId, token).ConfigureAwait(false);
+            if (!offered.Any(a => AgentToolName(a) == name)) return;
+
+            lock (_AgentToolLock)
+            {
+                if (!_RegisteredAgentTools.Add(name!)) return;
+            }
+            McpToolDefinition tool = new McpToolDefinition();
+            tool.Name = name!;
+            tool.ResourceType = ResourceTypeEnum.Agent;
+            tool.Operation = OperationTypeEnum.Execute;
+            tool.AgentTool = true;
+            tool.InputSchemaJson = McpToolCatalog.AgentToolInputSchemaJson;
+            tool.AdministratorInputSchemaJson = McpToolCatalog.AgentToolAdministratorInputSchemaJson;
+            _Server.RegisterTool(tool.Name, "Garrison agent " + tool.Name + ".", _AgentToolAdministratorSchema, (RpcParameters? args, RpcCallContext? call, CancellationToken ct) => DispatchAsync(tool, args, call, ct));
         }
 
         private static ToolDefinition Definition(string name, string description, JsonElement schema)
@@ -367,7 +550,7 @@ namespace Garrison.Server.Protocols
             string? tenantId = ctx.TenantId ?? args?.GetString("tenantId");
             if (String.IsNullOrEmpty(tenantId)) throw ToolError("TenantRequired", "No tenant could be resolved. System administrators must pass tenantId.");
 
-            _Context.Telemetry.Increment("garrison.mcp.tool.calls", new RadiantTag("tool", tool.Name));
+            _Context.Telemetry.Increment("garrison.mcp.tool.calls", new RadiantTag("tool", tool.AgentTool ? "agent" : tool.Name));
             try
             {
                 object result;
@@ -399,19 +582,21 @@ namespace Garrison.Server.Protocols
                         result = await ListRunsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     default:
-                        throw ToolError("UnknownTool", "Unknown tool " + tool.Name + ".");
+                        if (!tool.AgentTool) throw ToolError("UnknownTool", "Unknown tool " + tool.Name + ".");
+                        result = await AgentToolCallAsync(ctx, tenantId, tool.Name, args, token).ConfigureAwait(false);
+                        break;
                 }
-                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.Name), new RadiantTag("result", "ok"));
+                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.AgentTool ? "agent" : tool.Name), new RadiantTag("result", "ok"));
                 return McpToolCallResult.FromText(Serializer.SerializeReadable(result));
             }
             catch (McpToolException)
             {
-                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.Name), new RadiantTag("result", "error"));
+                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.AgentTool ? "agent" : tool.Name), new RadiantTag("result", "error"));
                 throw;
             }
             catch (Exception e) when (e is NotFoundException || e is ConflictException || e is ValidationException || e is ArgumentException)
             {
-                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.Name), new RadiantTag("result", "error"));
+                _Context.Telemetry.Increment("garrison.mcp.tool.results", new RadiantTag("tool", tool.AgentTool ? "agent" : tool.Name), new RadiantTag("result", "error"));
                 if (e is ValidationException validation) throw ToolError("ValidationFailed", validation.Describe());
                 if (e is ConflictException conflict) throw ToolError(conflict.Code, e.Message);
                 if (e is NotFoundException) throw ToolError("NotFound", e.Message);
@@ -434,15 +619,7 @@ namespace Garrison.Server.Protocols
             query.ActiveOnly = true;
             EnumerationResult<Agent> page = await _Context.Database.Agents.EnumerateAsync(tenantId, query, token).ConfigureAwait(false);
 
-            List<Agent> visible = page.Objects;
-            if (ctx.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(ctx.RunId))
-            {
-                Run? parent = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
-                Agent? caller = parent == null ? null : await _Context.Database.Agents.ReadAsync(tenantId, parent.AgentId, token).ConfigureAwait(false);
-                if (caller == null || caller.DelegationMode == DelegationModeEnum.None) visible = new List<Agent>();
-                else if (caller.DelegationMode == DelegationModeEnum.AllowList) visible = visible.Where(a => caller.DelegationAllowList.Contains(a.Name)).ToList();
-                visible = visible.Where(a => a.Id != caller?.Id || caller.DelegationAllowRecursion).ToList();
-            }
+            List<Agent> visible = await VisibleToRunAsync(ctx, tenantId, page.Objects, token).ConfigureAwait(false);
 
             McpAgentList list = new McpAgentList();
             list.Agents = visible.Select(Describe).ToList();
@@ -461,6 +638,18 @@ namespace Garrison.Server.Protocols
         {
             Agent agent = await _Invoker.ResolveAgentAsync(tenantId, args?.GetString("agent"), token).ConfigureAwait(false);
             await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id, token).ConfigureAwait(false);
+            return await InvokeAgentAsync(ctx, tenantId, agent, args, wait, wait ? "garrison_invoke_agent" : "garrison_start_run", token).ConfigureAwait(false);
+        }
+
+        private async Task<object> AgentToolCallAsync(RequestContext ctx, string tenantId, string toolName, RpcParameters? args, CancellationToken token)
+        {
+            List<Agent> offered = await AgentToolsAsync(ctx, tenantId, token).ConfigureAwait(false);
+            Agent agent = offered.FirstOrDefault(a => AgentToolName(a) == toolName) ?? throw ToolError("NotFound", "No agent you may invoke is offered as the MCP tool " + toolName + " in this tenant.");
+            return await InvokeAgentAsync(ctx, tenantId, agent, args, true, toolName, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> InvokeAgentAsync(RequestContext ctx, string tenantId, Agent agent, RpcParameters? args, bool wait, string toolName, CancellationToken token)
+        {
 
             InvocationOptions options = new InvocationOptions();
             options.Input = args?.GetString("input") ?? String.Empty;
@@ -471,10 +660,10 @@ namespace Garrison.Server.Protocols
             long requested = args?.GetInt64("waitSeconds") ?? _Context.Settings.Mcp.MaxToolWaitSeconds;
             options.WaitSeconds = (int)Math.Clamp(requested, 0, _Context.Settings.Mcp.MaxToolWaitSeconds);
             // Voltaic cancels the tool call's token when the client sends notifications/cancelled for it or the MCP
-            // session is deleted or closed; garrison_invoke_agent then cancels the run it is waiting on.
+            // session is deleted or closed; garrison_invoke_agent (and an agent tool) then cancels the run it is waiting on.
             options.CancelOnDisconnect = wait;
             options.CallerGone = () => !_Context.IsDraining;
-            options.DisconnectReason = "the MCP client cancelled garrison_invoke_agent or closed its session";
+            options.DisconnectReason = "the MCP client cancelled " + toolName + " or closed its session";
             Run run = await _Invoker.InvokeAsync(ctx, tenantId, agent, options, token).ConfigureAwait(false);
             return await SummarizeAsync(run, token).ConfigureAwait(false);
         }

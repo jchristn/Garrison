@@ -167,6 +167,35 @@ ingress:
 networkPolicies:
   enabled: true
 
+# KubernetesJob executor (pod-per-run, plan D-033): workers may run a deployment's runs in a Job per run. Deployments
+# opt in with executor: KubernetesJob (or a node pool's defaultExecutor); others keep running as worker subprocesses.
+# docs/KUBERNETES.md, "Pod-per-run executor", and docs/SECURITY.md, "Harness isolation", explain the options.
+kubernetesExecutor:
+  enabled: true
+  # Namespace for run Jobs, Secrets, and pods; empty uses the release namespace. A separate namespace must exist; the
+  # chart puts the worker Role, the garrison-run ServiceAccount, and the run NetworkPolicy there. Set runImage too.
+  runNamespace: ""
+  # Run pod image; empty uses the worker container's image (read from the worker's own pod).
+  runImage: ""
+  # Image pull secrets (names in the run namespace) for private registries; empty uses the worker pod's.
+  imagePullSecrets: []
+  # Sandboxed runtime for run pods, for example gvisor or kata (the RuntimeClass must exist).
+  runtimeClassName: ""
+  # Seconds a finished run Job (and its spec Secret) is kept.
+  jobTtlSeconds: 300
+  # Seconds a run pod may stay Pending before the run fails with outcome PodFailed.
+  pendingTimeoutSeconds: 300
+  # Node selector for run pods.
+  nodeSelector: {}
+  # Address the run NetworkPolicy blocks; run pods start the harness only once it is unreachable, so the harness
+  # never runs before the policy is programmed. Empty disables the check (needed when networkPolicies.enabled is
+  # false or the network plugin does not enforce policies).
+  egressCanary: '{{ include "garrison.serverHost" . }}:8700'
+  # Egress allowed from run pods besides DNS and the Garrison MCP port: CIDRs with optional except lists and ports.
+  runEgress:
+    - cidr: 0.0.0.0/0
+      ports: [443]
+
 smokeTest:
   enabled: false
   image: curlimages/curl:8.10.1
