@@ -81,7 +81,7 @@ Rules for keeping the plan honest:
 | 1 | Core foundation: settings, data layer, identity, RBAC, history, audit | M1 | Complete | 50 / 50 |
 | 2 | Configuration domain: harness profiles, prompts, resources, agents, deployments, manifests | M1 | Complete | 29 / 29 |
 | 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | Complete | 45 / 45 |
-| 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | In progress | 9 / 10 |
+| 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | Complete | 10 / 10 |
 | 5 | Dashboard | M1 | Complete | 51 / 51 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 37 / 38 |
@@ -1208,7 +1208,7 @@ Tests
 
 - [x] P4.1.1 `GarrisonMcpServer` on Voltaic `McpHttpServer` (port 8701, `/mcp`, legacy endpoints off, raised `MaxMessageSize`), `AuthenticationHandler` validating bearer tokens, access keys, and run tokens, mapping principal and tenant into claims.  | claude 2026-10-10 GarrisonMcpServer on Voltaic, own port
 - [x] P4.1.2 MCP tools in section 10.2 with `OperationScopeMap` entries; long waits bounded and returning run IDs for polling (Voltaic 100-second handshake call limit noted by Aegon).  | claude 2026-10-10 8 tools, descriptions from builtin/mcp-tool-* templates
-- [-] P4.1.3 Optional per-agent MCP tools, refreshed with `NotifyToolsChanged` when agents change.  | deferred 2026-10-10: one MCP server serves all tenants, so per-agent tools would leak agent names across tenants; revisit with per-tenant MCP paths in Phase 12
+- [x] P4.1.3 Optional per-agent MCP tools, refreshed with `NotifyToolsChanged` when agents change.  | claude 2026-10-10 delivered by G-5: agents with `exposeMcpTool` are MCP tools in their tenant, read on every tools listing so changes appear on all replicas without a notification
 - [x] P4.1.4 Bind address handling (`*` instead of `0.0.0.0`, startup detection of bind failure from the Voltaic log event).  | claude 2026-10-10 bind * and startup fault detection
 - [x] P4.2.1 A2A gateway routes on Watson using Voltaic A2A models and `A2AJson`: agent card per agent, catalog, JSON-RPC `message/send`, `message/stream` (SSE), `tasks/get`, `tasks/list`, `tasks/cancel`, `tasks/resubscribe`.  | claude 2026-10-10 A2ARoutes using Voltaic models
 - [x] P4.2.2 A2A task state mapping from run status; artifacts from result text and structured output.  | claude 2026-10-10 A2AMapper
@@ -1435,6 +1435,7 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [x] G-19 Delegation tool hygiene for weaker models: run-token MCP sessions show the administrator-only `tenantId` argument, and gpt-oss filled it and `deploymentId` with wrong values (one failed call before success). Hide administrator-only arguments from run-token sessions, tell models to omit optional fields they do not need, and make the deployment-not-found error suggest omitting `deploymentId`.  | claude 2026-10-10 Garrison answers tools/list itself: only system administrators (not run tokens) see tenantId; optional-field descriptions say to omit them; deployment-not-found says to omit deploymentId; stray tenantId accepted and ignored
 - [x] G-20 Verify session resume (structured-output repair) and `--output-schema` against real Mux, Claude Code, Codex, and Gemini CLI, not only the fake harness.  | claude 2026-10-10 verified with real CLIs: Claude Code 2.1.296 (--resume, --json-schema), Codex 0.159.3 (exec resume, --output-schema), Mux 1.3.0 on gpt-oss:20b (--output-schema; resume needed --session-id on the first run, now passed); Gemini CLI not installed. Recorded in docs/HARNESSES.md
 - [x] G-21 Grafana polish: Grafana 13 shows a "Grafana Assistant" announcement modal on first sign-in (disable announcements and news in the provisioned configuration), and the Runs dashboard's "Outcomes in the selected range" stat shows fractional counts from `increase()` (round, or use a counting query).  | claude 2026-10-10 provisioned grafana.ini sets `[feature_toggles] splashScreen = false` (env vars cannot set it); outcome stats use round() with 0 decimals; verified in a browser against grafana-oss 13.0.2
+- [ ] G-22 A stored `CodexAuthJson` secret breaks after its first token refresh. Each run copies the stored auth.json, Codex refreshes the expired access token inside the run, OpenAI rotates the refresh token, and the rotated file is discarded with the run. The next refresh presents a used token and every Codex run fails with `refresh_token_reused` (401 "workspace routing discovery unauthorized"); found 2026-10-11 when all codex-coder runs failed about 4 hours after the access token expired, and the same login on the operator machine was invalidated with it. Fix: the control plane owns the refresh (one refresh per secret under a lock, refreshed auth.json written back encrypted, runs handed a current access token), a `NeedsReauthentication` state on the secret surfaced in the dashboard, and docs recommending `OpenAiApiKey` for shared deployments until then.
 
 ### Phase 10: Control plane high availability and scale-out (M2)
 
