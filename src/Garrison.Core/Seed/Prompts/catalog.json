@@ -5,6 +5,7 @@
   { "key": "garrison-tools-instructions", "kind": "Fragment", "description": "Explains Garrison's delegation tools; included by system prompts when delegation is enabled." },
   { "key": "structured-output-instructions", "kind": "Fragment", "description": "Output schema instructions for harnesses without native schema support." },
   { "key": "structured-output-repair", "kind": "Task", "description": "Repair prompt sent when output fails schema validation." },
+  { "key": "conversation-fallback", "kind": "Task", "description": "Task prompt of a conversation turn that starts a fresh harness session because the original session could not be resumed: repeats the earlier turns, then the current task." },
   { "key": "mcp-tool-description", "kind": "ToolDescription", "description": "Description of an agent exposed as its own MCP tool." },
   { "key": "a2a-skill-description", "kind": "ToolDescription", "description": "Description of an agent's A2A skill." },
   { "key": "claude-code-mcp-config", "kind": "ConfigFile", "description": "Claude Code --mcp-config JSON file." },

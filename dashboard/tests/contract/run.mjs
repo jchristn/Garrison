@@ -323,6 +323,12 @@ async function seed(api) {
   const failed = await api.post(tp('runs'), { agentId: ids.agent, input: 'Fail please', parameters: { fail: 'true' }, wait: true, waitSeconds: 90 });
   ids.failedRun = failed.id;
   ids.queuedRun = (await api.post(tp('runs'), { agentId: ids.agent3, input: 'Nobody can take this' })).id;
+  // P12.1: a two-turn conversation, so the conversation routes and the run conversation fields have data.
+  const first = await api.post(tp(`agents/${ids.agent}/invoke?wait=true&waitSeconds=90`), { input: 'Start a conversation', startConversation: true });
+  if (!first.conversationId) throw new Error('startConversation did not name a conversation');
+  ids.conversation = first.conversationId;
+  const second = await api.post(tp(`agents/${ids.agent}/invoke?wait=true&waitSeconds=90`), { input: 'Continue the conversation', conversationId: ids.conversation });
+  ids.conversationRun = second.id;
   await sleep(1500);
   return ids;
 }
@@ -470,6 +476,12 @@ function routes(ids) {
     ['getRun (queued)', tp(`runs/${ids.queuedRun}`)],
     ['listRunEvents', tp(`runs/${ids.run}/events?afterSequence=0&limit=500`)],
     ['listRunChildren', tp(`runs/${ids.run}/children`)],
+    ['listConversations', tp(`conversations?${list}`)],
+    ['listConversations (agentId)', tp(`conversations?${list}&agentId=${ids.agent}`)],
+    ['getConversation', tp(`conversations/${ids.conversation}`)],
+    ['listConversationRuns', tp(`conversations/${ids.conversation}/runs?maxResults=1000&skip=0`)],
+    ['listRuns (conversationId)', tp(`runs?${list}&conversationId=${ids.conversation}`)],
+    ['getRun (conversation turn)', tp(`runs/${ids.conversationRun}`)],
     ['listNodes', `/v1.0/api/nodes?${list}`],
     ['getNode', `/v1.0/api/nodes/${ids.node}`],
     ['listNodePools', `/v1.0/api/node-pools?${list}`],

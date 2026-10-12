@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const zhHant = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件已捨棄', HarnessExited: 'Harness 已結束', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '已開始修復輸出', WorkspacePrepared: '工作區已就緒', RunGuardTriggered: '執行防護停止了執行' },
+    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件已捨棄', HarnessExited: 'Harness 已結束', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '已開始修復輸出', WorkspacePrepared: '工作區已就緒', RunGuardTriggered: '執行防護停止了執行', ConversationFallback: '對話回退', ConversationResumed: '對話已恢復', ConversationStateLost: '對話狀態遺失' },
     fieldCodes: { ExpiryInPast: '請選擇未來的時間。', ParameterInvalid: '此值對這個參數無效。', ParameterNotAllowed: '此部署不允許呼叫端覆寫此參數。', SettingsFileReadOnly: '設定檔為唯讀，因此無法儲存此變更。', OverriddenByEnvironment: '此值由環境變數設定，因此無法在這裡變更。', PathRequired: '需要設定路徑。', UnknownSetting: '此伺服器沒有這項設定。', TooLong: '此值太長。', NotAllowedValue: '請選擇允許的值之一。', NotABoolean: '請選擇 true 或 false。', NotAnInteger: '請輸入整數。', OutOfRange: '值超出允許的範圍。' },
     serverText: {
       notApplied: '未套用，因為另一份文件未通過驗證。',
@@ -134,7 +134,11 @@ const zhHant = {
     Http404: '找不到。',
     Http409: '與目前狀態衝突。',
     Http500: '伺服器發生內部錯誤。',
-    Http503: '伺服器無法使用。'
+    Http503: '伺服器無法使用。',
+    ConversationBusy: '此對話仍在處理上一輪。請等待該執行結束或將其取消，然後再試一次。',
+    ConversationAgentMismatch: '此對話屬於另一個代理程式。請將這一輪傳送給該代理程式，或開始新的對話。',
+    ConversationDeploymentMismatch: '對話的每一輪都在第一輪的部署上執行。請將部署留空，或開始新的對話。',
+    ConversationDeploymentUnavailable: '此對話所用的部署已被刪除，因此對話無法繼續。請開始新的對話。'
   },
   enums: {
     principalType: { Administrator: '系統管理員', User: '使用者', Credential: '存取金鑰', Run: '執行權杖' },
@@ -222,7 +226,8 @@ const zhHant = {
       NoCapableWorker: '沒有可執行的工作節點',
       RepetitionDetected: '偵測到重複',
       NoProgress: '沒有進展',
-      PodFailed: '執行 Pod 失敗'
+      PodFailed: '執行 Pod 失敗',
+      ConversationStateLost: '對話狀態遺失'
     },
     runEventType: {
       Lifecycle: '生命週期',
@@ -287,7 +292,17 @@ const zhHant = {
       ManifestApplied: '已套用清單',
       NodeRegistered: '節點已註冊',
       NodeStatusChanged: '節點狀態已變更',
-      RunCancelled: '執行已取消'
+      RunCancelled: '執行已取消',
+      ConversationDeleted: '對話已刪除'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: '親和節點未就緒',
+      AffinityWaitExpired: '親和等待已逾時',
+      WorkspaceLost: '工作區已遺失',
+      SessionMissing: '沒有可恢復的工作階段',
+      HarnessChanged: 'Harness 設定檔已變更',
+      ResumeUnsupported: '不支援恢復',
+      ExecutorWithoutState: '執行器不保留狀態'
     }
   },
   nav: {
@@ -336,7 +351,11 @@ const zhHant = {
       roles: { label: '角色', tip: '角色與權限' },
       assignments: { label: '指派', tip: '將角色授予使用者與存取金鑰' },
       settings: { label: '設定', tip: '編輯伺服器與叢集設定' },
-      serverInfo: { label: '伺服器資訊', tip: '端點、版本與你的身分' }
+      serverInfo: { label: '伺服器資訊', tip: '端點、版本與你的身分' },
+      conversations: {
+        label: '對話',
+        tip: '與代理程式的多輪交流'
+      }
     },
     setup: '設定精靈',
     setupTip: '設定憑證、套用範例代理程式並進行測試',
@@ -714,7 +733,7 @@ const zhHant = {
       errors: { dnsName: '請使用小寫字母、數字與連字號，且開頭與結尾必須是字母或數字。' }
     },
     deployments: {
-      promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行的任務包裝', Task: '任務包裝', System: '系統提示' },
+      promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行的任務包裝', Task: '任務包裝', System: '系統提示', ConversationFallback: '對話回退（紀錄）' },
       ...rp('部署', '將代理程式繫結到 Harness 設定檔、提示、祕密、MCP 伺服器、排程放置與限制。', '新增部署', '建立部署', '編輯部署', '部署詳細資料', '刪除部署', '尚無部署', '建立部署，讓代理程式可以執行。'),
       steps: { basics: '基本資訊', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置與限制' },
       columns: { name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', executor: '執行器', weight: '權重', configVersion: '設定版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
@@ -841,10 +860,12 @@ const zhHant = {
         costUsd: '成本',
         toolCallCount: '工具呼叫次數',
         depth: '深度',
-        createdUtc: '建立時間'
+        createdUtc: '建立時間',
+        conversationId: '對話'
       },
       actions: { cancel: '取消執行', retry: '重試執行' },
-      toasts: { cancelRequested: '已要求取消。', retried: '已開始重試。' }
+      toasts: { cancelRequested: '已要求取消。', retried: '已開始重試。' },
+      turn: '第 {{turn}} 輪'
     },
     nodes: {
       ...rp('節點', '取得執行租約並加以執行的工作節點。維護前請先封鎖或清空節點。', '新增節點', '建立節點', '編輯節點', '節點詳細資料', '刪除節點', '尚無節點', '工作節點啟動時會自行註冊。請部署 worker StatefulSet，或在本機執行 Garrison.Worker。'),
@@ -890,6 +911,42 @@ const zhHant = {
     manifestApplies: {
       ...rp('套用歷程', '每一次清單套用與試執行，以及各文件的結果。', '新增套用紀錄', '建立套用紀錄', '編輯套用紀錄', '套用詳細資料', '刪除套用紀錄', '尚無套用歷程', '套用或試執行清單後，紀錄會顯示在這裡。'),
       columns: { createdUtc: '時間', principalName: '套用者', dryRun: '試執行', counts: '結果' }
+    },
+    conversations: {
+      title: '對話',
+      subtitle: '與代理程式的多輪交流。每一輪都是一次執行，會恢復上一輪的 Harness 工作階段。',
+      add: '新增對話',
+      create: '建立對話',
+      edit: '編輯對話',
+      view: '對話詳細資料',
+      deleteTitle: '刪除對話',
+      emptyTitle: '還沒有對話',
+      emptyBody: '在「呼叫」頁面選擇「開始新對話」來建立一個，或傳送 A2A 訊息：每個 A2A 情境都是一個對話。',
+      untitled: '未命名對話',
+      columns: {
+        title: '標題',
+        agentName: '代理程式',
+        state: '狀態',
+        turnCount: '輪數',
+        affinityNodeName: '親和節點',
+        fallbackCount: '回退次數',
+        lastFallbackReason: '最近一次回退',
+        harnessType: 'Harness',
+        callerName: '發起者',
+        contextId: '情境 ID',
+        sessionId: '工作階段 ID',
+        lastActivityUtc: '最近活動',
+        createdUtc: '建立時間',
+        id: 'ID'
+      },
+      states: {
+        busy: '處理中',
+        idle: '閒置'
+      },
+      actions: {
+        continue: '繼續',
+        runs: '以執行形式檢視各輪'
+      }
     }
   },
   views: {
@@ -1019,6 +1076,20 @@ const zhHant = {
         minutes: '{{value}} 分鐘',
         hours: '{{value}} 小時',
         secondsWord: '秒'
+      },
+      conversation: {
+        mode: '對話',
+        modes: {
+          none: '單次執行（無對話）',
+          start: '開始新對話',
+          continue: '繼續對話'
+        },
+        pick: '要繼續的對話',
+        choose: '選擇對話',
+        option: '{{title}}（輪數：{{turns}}）',
+        pinned: '每一輪都在對話第一輪的部署上執行，因此這裡無法選擇部署。',
+        busy: '此對話仍在處理上一輪。在該執行結束之前，新的訊息會被拒絕。',
+        open: '開啟對話（第 {{turn}} 輪）'
       }
     },
     runDetail: {
@@ -1091,7 +1162,12 @@ const zhHant = {
           firstTokenUtc: '第一個 Token 時間點',
           lastTokenUtc: '最後一個 Token 時間點'
         }
-      }
+      },
+      conversation: '對話',
+      conversationSession: '工作階段',
+      resumeSessionId: '恢復的工作階段',
+      affinityNode: '親和節點',
+      affinityUntil: '直到 {{time}}'
     },
     queue: {
       title: '佇列',
@@ -1115,7 +1191,8 @@ const zhHant = {
       noDeploymentsBody: '建立部署，將此代理程式繫結到 Harness。',
       noRuns: '此代理程式尚未執行過。',
       selectionNote: '每次未明確指定部署的呼叫，都會依權重比例隨機分配到一個啟用中的部署。',
-      manageDeployments: '管理部署'
+      manageDeployments: '管理部署',
+      conversations: '對話'
     },
     templateEditor: {
       cloneToEdit: '複製後編輯',
@@ -1386,7 +1463,10 @@ const zhHant = {
           MaxRunSeconds: '最長執行時間（秒）',
           RepetitionGuard: '預設啟用重複防護',
           MaxAssistantChars: '預設最大助理字元數',
-          NoProgressSeconds: '預設無進展逾時（秒）'
+          NoProgressSeconds: '預設無進展逾時（秒）',
+          ConversationAffinityWaitMs: '對話親和等待時間（毫秒）',
+          ConversationTranscriptTurns: '回退紀錄的輪數',
+          ConversationTranscriptChars: '回退紀錄中每則訊息的字元數'
         },
         Audit: {
           RetentionDays: '稽核保留天數'
@@ -1528,6 +1608,42 @@ const zhHant = {
       tuneAny: '若要變更觸發條件，請編輯部署：其「排程放置與限制」步驟中有重複防護、最大助理字元數和無進展逾時。留空時，它們會依照設定（執行階段）中的叢集預設值。',
       openDeployments: '開啟部署',
       openSettings: '開啟設定'
+    },
+    conversationDetail: {
+      title: '對話',
+      notFoundTitle: '找不到對話',
+      notFoundBody: '它可能已被刪除，或屬於另一個租用戶。它的各輪仍保留在「執行」頁面。',
+      deployment: '部署',
+      activeRun: '未完成的一輪',
+      turns: '各輪',
+      turnsCount: '各輪 ({{count}})',
+      noTurns: '此對話還沒有任何一輪。',
+      pending: '等待結果',
+      columns: {
+        turn: '輪次',
+        run: '執行',
+        status: '狀態',
+        outcome: '結果',
+        session: '工作階段',
+        input: '輸入',
+        result: '回答',
+        node: '節點',
+        created: '建立時間'
+      },
+      session: {
+        first: '新工作階段',
+        resumed: '已恢復',
+        fallback: '全新工作階段',
+        pending: '尚未分配'
+      },
+      continueTitle: '繼續對話',
+      message: '下一則訊息',
+      messagePlaceholder: '提出後續問題或給出下一個指示...',
+      busyNotice: '上一輪仍在處理中。完成後即可傳送下一則訊息。',
+      send: '傳送這一輪',
+      turnStarted: '第 {{turn}} 輪已開始。',
+      openInvoke: '在「呼叫」中繼續',
+      confirmDelete: '要刪除對話「{{title}}」嗎？它的各輪會作為一般執行保留在「執行」頁面，但無法再有新的一輪繼續它。'
     }
   },
   wizard: {

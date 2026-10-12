@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const fr = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Sortie structurée non valide', RunBlocked: 'Exécution bloquée', EventsDropped: 'Événements abandonnés', HarnessExited: 'Harness arrêté', McpPreflightWarning: 'Avertissement de vérification préalable MCP', McpPreflightPassed: 'Vérification préalable MCP réussie', RepairAttemptStarted: 'Réparation de la sortie lancée', WorkspacePrepared: 'Espace de travail préparé', RunGuardTriggered: 'Une garde a arrêté l\'exécution' },
+    eventCodes: { StructuredOutputInvalid: 'Sortie structurée non valide', RunBlocked: 'Exécution bloquée', EventsDropped: 'Événements abandonnés', HarnessExited: 'Harness arrêté', McpPreflightWarning: 'Avertissement de vérification préalable MCP', McpPreflightPassed: 'Vérification préalable MCP réussie', RepairAttemptStarted: 'Réparation de la sortie lancée', WorkspacePrepared: 'Espace de travail préparé', RunGuardTriggered: 'Une garde a arrêté l\'exécution', ConversationFallback: 'Conversation reconstruite', ConversationResumed: 'Conversation reprise', ConversationStateLost: 'État de la conversation perdu' },
     fieldCodes: { ExpiryInPast: 'Choisissez un moment dans le futur.', ParameterInvalid: 'Cette valeur n\'est pas valide pour ce paramètre.', ParameterNotAllowed: 'Ce déploiement ne permet pas aux appelants de remplacer ce paramètre.', SettingsFileReadOnly: 'Le fichier de paramètres est en lecture seule ; cette modification ne peut donc pas être enregistrée.', OverriddenByEnvironment: 'Une variable d\'environnement définit cette valeur ; elle ne peut donc pas être modifiée ici.', PathRequired: 'Un chemin de paramètre est requis.', UnknownSetting: 'Ce serveur ne connaît pas ce paramètre.', TooLong: 'Cette valeur est trop longue.', NotAllowedValue: 'Choisissez l\'une des valeurs autorisées.', NotABoolean: 'Choisissez vrai ou faux.', NotAnInteger: 'Saisissez un nombre entier.', OutOfRange: 'La valeur est hors de la plage autorisée.' },
     serverText: {
       notApplied: 'Non appliqué, car un autre document n\'a pas passé la validation.',
@@ -134,7 +134,11 @@ const fr = {
     Http404: 'Introuvable.',
     Http409: 'Conflit avec l\'état actuel.',
     Http500: 'Le serveur a rencontré une erreur interne.',
-    Http503: 'Le serveur est indisponible.'
+    Http503: 'Le serveur est indisponible.',
+    ConversationBusy: 'Cette conversation traite encore son tour précédent. Attendez la fin de cette exécution, ou annulez-la, puis réessayez.',
+    ConversationAgentMismatch: 'Cette conversation appartient à un autre agent. Envoyez le tour à cet agent ou démarrez une nouvelle conversation.',
+    ConversationDeploymentMismatch: 'Chaque tour d\'une conversation s\'exécute sur le déploiement de son premier tour. Laissez le déploiement vide ou démarrez une nouvelle conversation.',
+    ConversationDeploymentUnavailable: 'Le déploiement de cette conversation a été supprimé, la conversation ne peut donc pas continuer. Démarrez une nouvelle conversation.'
   },
   enums: {
     principalType: { Administrator: 'Administrateur système', User: 'Utilisateur', Credential: 'Clé d\'accès', Run: 'Jeton d\'exécution' },
@@ -248,7 +252,8 @@ const fr = {
       NoCapableWorker: 'Aucun nœud worker compatible',
       RepetitionDetected: 'Répétition détectée',
       NoProgress: 'Aucune progression',
-      PodFailed: 'Échec du pod d\'exécution'
+      PodFailed: 'Échec du pod d\'exécution',
+      ConversationStateLost: 'État de la conversation perdu'
     },
     runEventType: {
       Lifecycle: 'Cycle de vie',
@@ -313,7 +318,17 @@ const fr = {
       ManifestApplied: 'Manifeste appliqué',
       NodeRegistered: 'Nœud enregistré',
       NodeStatusChanged: 'Statut du nœud modifié',
-      RunCancelled: 'Exécution annulée'
+      RunCancelled: 'Exécution annulée',
+      ConversationDeleted: 'Conversation supprimée'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'Nœud d\'affinité non prêt',
+      AffinityWaitExpired: 'Attente d\'affinité expirée',
+      WorkspaceLost: 'Espace de travail perdu',
+      SessionMissing: 'Aucune session à reprendre',
+      HarnessChanged: 'Profil de harness modifié',
+      ResumeUnsupported: 'Reprise non prise en charge',
+      ExecutorWithoutState: 'Exécuteur sans état'
     }
   },
   nav: {
@@ -362,7 +377,11 @@ const fr = {
       roles: { label: 'Rôles', tip: 'Rôles et autorisations' },
       assignments: { label: 'Attributions', tip: 'Attribuer des rôles aux utilisateurs et aux clés d\'accès' },
       settings: { label: 'Paramètres', tip: 'Modifier les paramètres du serveur et du cluster' },
-      serverInfo: { label: 'Infos serveur', tip: 'Points de terminaison, version et votre identité' }
+      serverInfo: { label: 'Infos serveur', tip: 'Points de terminaison, version et votre identité' },
+      conversations: {
+        label: 'Conversations',
+        tip: 'Échanges en plusieurs tours avec un agent'
+      }
     },
     setup: 'Assistant de configuration',
     setupTip: 'Configurer une clé d\'accès, appliquer un agent d\'exemple et le tester',
@@ -751,7 +770,7 @@ const fr = {
       errors: { dnsName: 'Utilisez des lettres minuscules, des chiffres et des traits d\'union, en commençant et en terminant par une lettre ou un chiffre.' }
     },
     deployments: {
-      promptRoles: { Repair: 'Réparation de sortie structurée', DelegatedTask: 'Enveloppe de tâche pour les exécutions déléguées', Task: 'Enveloppe de tâche', System: 'Prompt système' },
+      promptRoles: { Repair: 'Réparation de sortie structurée', DelegatedTask: 'Enveloppe de tâche pour les exécutions déléguées', Task: 'Enveloppe de tâche', System: 'Prompt système', ConversationFallback: 'Reconstruction de conversation (transcription)' },
       ...rp('Déploiements', 'Liez un agent à un profil de harness, des prompts, des secrets, des serveurs MCP, un placement et des limites.', 'Ajouter un déploiement', 'Créer un déploiement', 'Modifier le déploiement', 'Détails du déploiement', 'Supprimer le déploiement', 'Aucun déploiement pour l\'instant', 'Créez un déploiement pour rendre un agent exécutable.'),
       steps: { basics: 'Général', harness: 'Harness', prompts: 'Prompts', resources: 'Ressources', overrides: 'Remplacements', placement: 'Placement et limites' },
       columns: { name: 'Nom', agentId: 'Agent', harnessProfileId: 'Profil de harness', model: 'Modèle', executor: 'Exécuteur', weight: 'Poids', configVersion: 'Version de configuration', active: 'Actif', id: 'ID', createdUtc: 'Créé le' },
@@ -878,10 +897,12 @@ const fr = {
         costUsd: 'Coût',
         toolCallCount: 'Appels d\'outils',
         depth: 'Profondeur',
-        createdUtc: 'Créée le'
+        createdUtc: 'Créée le',
+        conversationId: 'Conversation'
       },
       actions: { cancel: 'Annuler l\'exécution', retry: 'Relancer l\'exécution' },
-      toasts: { cancelRequested: 'Annulation demandée.', retried: 'Nouvelle tentative lancée.' }
+      toasts: { cancelRequested: 'Annulation demandée.', retried: 'Nouvelle tentative lancée.' },
+      turn: 'tour {{turn}}'
     },
     nodes: {
       ...rp('Nœuds', 'Nœuds worker qui prennent à bail et exécutent les exécutions. Isolez ou drainez un nœud avant une maintenance.', 'Ajouter un nœud', 'Créer un nœud', 'Modifier le nœud', 'Détails du nœud', 'Supprimer le nœud', 'Aucun nœud pour l\'instant', 'Les nœuds worker s\'enregistrent eux-mêmes au démarrage. Déployez le StatefulSet worker ou lancez Garrison.Worker en local.'),
@@ -927,6 +948,42 @@ const fr = {
     manifestApplies: {
       ...rp('Historique des applications', 'Chaque application et simulation de manifeste, avec les résultats par document.', 'Ajouter une application', 'Créer une application', 'Modifier l\'application', 'Détails de l\'application', 'Supprimer l\'application', 'Aucune application pour l\'instant', 'Les applications apparaissent ici après que vous avez appliqué ou simulé un manifeste.'),
       columns: { createdUtc: 'Heure', principalName: 'Appliqué par', dryRun: 'Simulation', counts: 'Résultats' }
+    },
+    conversations: {
+      title: 'Conversations',
+      subtitle: 'Échanges en plusieurs tours avec un agent. Chaque tour est une exécution qui reprend la session de harness du tour précédent.',
+      add: 'Ajouter une conversation',
+      create: 'Créer une conversation',
+      edit: 'Modifier la conversation',
+      view: 'Détails de la conversation',
+      deleteTitle: 'Supprimer la conversation',
+      emptyTitle: 'Aucune conversation pour l\'instant',
+      emptyBody: 'Démarrez-en une sur la page Invoquer avec « Démarrer une nouvelle conversation », ou envoyez un message A2A : chaque contexte A2A est une conversation.',
+      untitled: 'Conversation sans titre',
+      columns: {
+        title: 'Titre',
+        agentName: 'Agent',
+        state: 'État',
+        turnCount: 'Tours',
+        affinityNodeName: 'Nœud d\'affinité',
+        fallbackCount: 'Reconstructions',
+        lastFallbackReason: 'Dernière reconstruction',
+        harnessType: 'Harness',
+        callerName: 'Démarrée par',
+        contextId: 'ID de contexte',
+        sessionId: 'ID de session',
+        lastActivityUtc: 'Dernière activité',
+        createdUtc: 'Créée',
+        id: 'ID'
+      },
+      states: {
+        busy: 'En cours',
+        idle: 'Inactive'
+      },
+      actions: {
+        continue: 'Continuer',
+        runs: 'Voir les tours comme exécutions'
+      }
     }
   },
   views: {
@@ -1056,6 +1113,20 @@ const fr = {
         minutes: '{{value}} min',
         hours: '{{value}} h',
         secondsWord: 'secondes'
+      },
+      conversation: {
+        mode: 'Mode de conversation',
+        modes: {
+          none: 'Exécution unique (sans conversation)',
+          start: 'Démarrer une nouvelle conversation',
+          continue: 'Poursuivre une conversation'
+        },
+        pick: 'Conversation à poursuivre',
+        choose: 'Choisissez une conversation',
+        option: '{{title}} (tours : {{turns}})',
+        pinned: 'Chaque tour s\'exécute sur le déploiement du premier tour de la conversation, le déploiement ne peut donc pas être choisi ici.',
+        busy: 'Cette conversation traite encore son tour précédent. Un nouveau message est refusé tant que cette exécution n\'est pas terminée.',
+        open: 'Ouvrir la conversation (tour {{turn}})'
       }
     },
     runDetail: {
@@ -1130,7 +1201,12 @@ const fr = {
           firstTokenUtc: 'Premier jeton à',
           lastTokenUtc: 'Dernier jeton à'
         }
-      }
+      },
+      conversation: 'Conversation liée',
+      conversationSession: 'Session de harness',
+      resumeSessionId: 'Session reprise',
+      affinityNode: 'Nœud d\'affinité',
+      affinityUntil: 'jusqu\'à {{time}}'
     },
     queue: {
       title: 'File d\'attente',
@@ -1155,7 +1231,8 @@ const fr = {
       noDeploymentsBody: 'Créez un déploiement pour lier cet agent à un harness.',
       noRuns: 'Cet agent n\'a encore jamais été exécuté.',
       selectionNote: 'Chaque invocation sans déploiement explicite est envoyée à un déploiement actif, choisi au hasard proportionnellement à son poids.',
-      manageDeployments: 'Gérer les déploiements'
+      manageDeployments: 'Gérer les déploiements',
+      conversations: 'Ses conversations'
     },
     templateEditor: {
       cloneToEdit: 'Cloner pour modifier',
@@ -1427,7 +1504,10 @@ const fr = {
           MaxRunSeconds: 'Durée maximale d\'une exécution (secondes)',
           RepetitionGuard: 'Garde de répétition par défaut',
           MaxAssistantChars: 'Nombre maximal de caractères de l\'assistant par défaut',
-          NoProgressSeconds: 'Délai sans progression par défaut (secondes)'
+          NoProgressSeconds: 'Délai sans progression par défaut (secondes)',
+          ConversationAffinityWaitMs: 'Attente d\'affinité des conversations (ms)',
+          ConversationTranscriptTurns: 'Tours dans la transcription de reconstruction',
+          ConversationTranscriptChars: 'Caractères par message dans la transcription de reconstruction'
         },
         Audit: {
           RetentionDays: 'Conservation de l\'audit (jours)'
@@ -1570,6 +1650,42 @@ const fr = {
       tuneAny: 'Pour changer quand cela se produit, modifiez le déploiement : son étape Placement et limites contient Garde de répétition, Nombre maximal de caractères de l\'assistant et Délai sans progression. Laissés vides, ils suivent les valeurs du cluster dans Paramètres (Moteur d\'exécution).',
       openDeployments: 'Ouvrir les déploiements',
       openSettings: 'Ouvrir les paramètres'
+    },
+    conversationDetail: {
+      title: 'Conversation',
+      notFoundTitle: 'Conversation introuvable',
+      notFoundBody: 'Elle a peut-être été supprimée, ou elle appartient à un autre locataire. Ses tours restent sur la page Exécutions.',
+      deployment: 'Déploiement',
+      activeRun: 'Tour inachevé',
+      turns: 'Tours',
+      turnsCount: 'Tours ({{count}})',
+      noTurns: 'Cette conversation n\'a encore aucun tour.',
+      pending: 'En attente du résultat',
+      columns: {
+        turn: 'Tour',
+        run: 'Exécution',
+        status: 'Statut',
+        outcome: 'Résultat',
+        session: 'Session de harness',
+        input: 'Entrée',
+        result: 'Réponse',
+        node: 'Nœud',
+        created: 'Créé'
+      },
+      session: {
+        first: 'Nouvelle session',
+        resumed: 'Reprise',
+        fallback: 'Session repartie de zéro',
+        pending: 'Pas encore placé'
+      },
+      continueTitle: 'Poursuivre la conversation',
+      message: 'Message suivant',
+      messagePlaceholder: 'Posez une question de suivi ou donnez l\'instruction suivante...',
+      busyNotice: 'Le tour précédent est encore en cours. Vous pourrez envoyer le message suivant quand il sera terminé.',
+      send: 'Envoyer le tour',
+      turnStarted: 'Tour {{turn}} démarré.',
+      openInvoke: 'Continuer dans Invoquer',
+      confirmDelete: 'Supprimer la conversation « {{title}} » ? Ses tours restent sur la page Exécutions comme des exécutions ordinaires, mais aucun nouveau tour ne pourra la poursuivre.'
     }
   },
   wizard: {

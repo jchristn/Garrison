@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const de = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Strukturierte Ausgabe ungültig', RunBlocked: 'Lauf blockiert', EventsDropped: 'Ereignisse verworfen', HarnessExited: 'Harness beendet', McpPreflightWarning: 'Warnung der MCP-Vorabprüfung', McpPreflightPassed: 'MCP-Vorabprüfung bestanden', RepairAttemptStarted: 'Reparatur der Ausgabe gestartet', WorkspacePrepared: 'Arbeitsbereich vorbereitet', RunGuardTriggered: 'Laufwächter hat den Lauf gestoppt' },
+    eventCodes: { StructuredOutputInvalid: 'Strukturierte Ausgabe ungültig', RunBlocked: 'Lauf blockiert', EventsDropped: 'Ereignisse verworfen', HarnessExited: 'Harness beendet', McpPreflightWarning: 'Warnung der MCP-Vorabprüfung', McpPreflightPassed: 'MCP-Vorabprüfung bestanden', RepairAttemptStarted: 'Reparatur der Ausgabe gestartet', WorkspacePrepared: 'Arbeitsbereich vorbereitet', RunGuardTriggered: 'Laufwächter hat den Lauf gestoppt', ConversationFallback: 'Konversation neu aufgebaut', ConversationResumed: 'Konversation fortgesetzt', ConversationStateLost: 'Konversationszustand verloren' },
     fieldCodes: { ExpiryInPast: 'Wählen Sie einen Zeitpunkt in der Zukunft.', ParameterInvalid: 'Dieser Wert ist für diesen Parameter ungültig.', ParameterNotAllowed: 'Diese Bereitstellung erlaubt Aufrufern nicht, diesen Parameter zu überschreiben.', SettingsFileReadOnly: 'Die Einstellungsdatei ist schreibgeschützt, daher kann diese Änderung nicht gespeichert werden.', OverriddenByEnvironment: 'Eine Umgebungsvariable setzt diesen Wert, daher kann er hier nicht geändert werden.', PathRequired: 'Ein Einstellungspfad ist erforderlich.', UnknownSetting: 'Diese Einstellung gibt es auf diesem Server nicht.', TooLong: 'Dieser Wert ist zu lang.', NotAllowedValue: 'Wählen Sie einen der zulässigen Werte.', NotABoolean: 'Wählen Sie wahr oder falsch.', NotAnInteger: 'Geben Sie eine ganze Zahl ein.', OutOfRange: 'Der Wert liegt außerhalb des zulässigen Bereichs.' },
     serverText: {
       notApplied: 'Nicht angewendet, weil ein anderes Dokument die Prüfung nicht bestanden hat.',
@@ -134,7 +134,11 @@ const de = {
     Http404: 'Nicht gefunden.',
     Http409: 'Konflikt mit dem aktuellen Zustand.',
     Http500: 'Interner Serverfehler.',
-    Http503: 'Der Server ist nicht verfügbar.'
+    Http503: 'Der Server ist nicht verfügbar.',
+    ConversationBusy: 'Diese Konversation arbeitet noch an ihrer vorherigen Runde. Warten Sie, bis dieser Lauf endet, oder brechen Sie ihn ab, und versuchen Sie es dann erneut.',
+    ConversationAgentMismatch: 'Diese Konversation gehört zu einem anderen Agenten. Senden Sie die Runde an diesen Agenten oder beginnen Sie eine neue Konversation.',
+    ConversationDeploymentMismatch: 'Jede Runde einer Konversation läuft auf der Bereitstellung ihrer ersten Runde. Lassen Sie die Bereitstellung leer oder beginnen Sie eine neue Konversation.',
+    ConversationDeploymentUnavailable: 'Die Bereitstellung dieser Konversation wurde gelöscht, daher kann die Konversation nicht weitergehen. Beginnen Sie eine neue Konversation.'
   },
   enums: {
     principalType: { Administrator: 'Systemadministrator', User: 'Benutzer', Credential: 'Zugriffsschlüssel', Run: 'Lauf-Token' },
@@ -243,7 +247,8 @@ const de = {
       NoCapableWorker: 'Kein passender Worker',
       RepetitionDetected: 'Wiederholung erkannt',
       NoProgress: 'Kein Fortschritt',
-      PodFailed: 'Lauf-Pod fehlgeschlagen'
+      PodFailed: 'Lauf-Pod fehlgeschlagen',
+      ConversationStateLost: 'Konversationszustand verloren'
     },
     runEventType: {
       Lifecycle: 'Lebenszyklus',
@@ -308,7 +313,17 @@ const de = {
       ManifestApplied: 'Manifest angewendet',
       NodeRegistered: 'Knoten registriert',
       NodeStatusChanged: 'Knotenstatus geändert',
-      RunCancelled: 'Lauf abgebrochen'
+      RunCancelled: 'Lauf abgebrochen',
+      ConversationDeleted: 'Konversation gelöscht'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'Affinitätsknoten nicht bereit',
+      AffinityWaitExpired: 'Affinitätswartezeit abgelaufen',
+      WorkspaceLost: 'Arbeitsbereich verloren',
+      SessionMissing: 'Keine Sitzung zum Fortsetzen',
+      HarnessChanged: 'Harness-Profil geändert',
+      ResumeUnsupported: 'Fortsetzen nicht unterstützt',
+      ExecutorWithoutState: 'Executor ohne Zustand'
     }
   },
   nav: {
@@ -357,7 +372,11 @@ const de = {
       roles: { label: 'Rollen', tip: 'Rollen und Berechtigungen' },
       assignments: { label: 'Zuweisungen', tip: 'Rollen an Benutzer und Schlüssel vergeben' },
       settings: { label: 'Einstellungen', tip: 'Server- und Clustereinstellungen bearbeiten' },
-      serverInfo: { label: 'Serverinfo', tip: 'Endpunkte, Version und Ihre Identität' }
+      serverInfo: { label: 'Serverinfo', tip: 'Endpunkte, Version und Ihre Identität' },
+      conversations: {
+        label: 'Konversationen',
+        tip: 'Mehrrundige Gespräche mit einem Agenten'
+      }
     },
     setup: 'Einrichtungsassistent',
     setupTip: 'Zugangsdaten hinterlegen, Beispielagenten anwenden und testen',
@@ -736,7 +755,7 @@ const de = {
       errors: { dnsName: 'Verwenden Sie Kleinbuchstaben, Ziffern und Bindestriche; Anfang und Ende müssen Buchstabe oder Ziffer sein.' }
     },
     deployments: {
-      promptRoles: { Repair: 'Reparatur strukturierter Ausgabe', DelegatedTask: 'Aufgabenhülle für delegierte Läufe', Task: 'Aufgabenhülle', System: 'Systemprompt' },
+      promptRoles: { Repair: 'Reparatur strukturierter Ausgabe', DelegatedTask: 'Aufgabenhülle für delegierte Läufe', Task: 'Aufgabenhülle', System: 'Systemprompt', ConversationFallback: 'Konversations-Neuaufbau (Verlauf)' },
       ...rp('Bereitstellungen', 'Bindet einen Agenten an Harness-Profil, Prompts, Geheimnisse, MCP-Server, Platzierung und Grenzen.', 'Bereitstellung hinzufügen', 'Bereitstellung erstellen', 'Bereitstellung bearbeiten', 'Bereitstellungsdetails', 'Bereitstellung löschen', 'Noch keine Bereitstellungen', 'Erstellen Sie eine Bereitstellung, um einen Agenten ausführbar zu machen.'),
       steps: { basics: 'Grundlagen', harness: 'Harness', prompts: 'Prompts', resources: 'Ressourcen', overrides: 'Überschreibungen', placement: 'Platzierung und Grenzen' },
       columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness-Profil', model: 'Modell', executor: 'Executor', weight: 'Gewichtung', configVersion: 'Konfigurationsversion', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
@@ -863,10 +882,12 @@ const de = {
         costUsd: 'Kosten',
         toolCallCount: 'Werkzeugaufrufe',
         depth: 'Tiefe',
-        createdUtc: 'Erstellt'
+        createdUtc: 'Erstellt',
+        conversationId: 'Konversation'
       },
       actions: { cancel: 'Lauf abbrechen', retry: 'Lauf wiederholen' },
-      toasts: { cancelRequested: 'Abbruch angefordert.', retried: 'Wiederholung gestartet.' }
+      toasts: { cancelRequested: 'Abbruch angefordert.', retried: 'Wiederholung gestartet.' },
+      turn: 'Runde {{turn}}'
     },
     nodes: {
       ...rp('Knoten', 'Worker-Knoten, die Läufe übernehmen und ausführen. Sperren oder leeren Sie einen Knoten vor Wartungsarbeiten.', 'Knoten hinzufügen', 'Knoten erstellen', 'Knoten bearbeiten', 'Knotendetails', 'Knoten löschen', 'Noch keine Knoten', 'Worker-Knoten registrieren sich beim Start selbst. Stellen Sie das Worker-StatefulSet bereit oder starten Sie Garrison.Worker lokal.'),
@@ -911,6 +932,42 @@ const de = {
     manifestApplies: {
       ...rp('Anwendungsverlauf', 'Jede Manifest-Anwendung und jeder Probelauf mit Ergebnissen pro Dokument.', 'Eintrag hinzufügen', 'Eintrag erstellen', 'Eintrag bearbeiten', 'Anwendungsdetails', 'Eintrag löschen', 'Noch keine Anwendungen', 'Anwendungen erscheinen hier, nachdem Sie ein Manifest anwenden oder testen.'),
       columns: { createdUtc: 'Zeit', principalName: 'Angewendet von', dryRun: 'Probelauf', counts: 'Ergebnisse' }
+    },
+    conversations: {
+      title: 'Konversationen',
+      subtitle: 'Mehrrundige Gespräche mit einem Agenten. Jede Runde ist ein Lauf, der die Harness-Sitzung der vorherigen Runde fortsetzt.',
+      add: 'Konversation hinzufügen',
+      create: 'Konversation erstellen',
+      edit: 'Konversation bearbeiten',
+      view: 'Konversationsdetails',
+      deleteTitle: 'Konversation löschen',
+      emptyTitle: 'Noch keine Konversationen',
+      emptyBody: 'Beginnen Sie eine auf der Seite Aufrufen mit „Neue Konversation beginnen“ oder senden Sie eine A2A-Nachricht: Jeder A2A-Kontext ist eine Konversation.',
+      untitled: 'Konversation ohne Titel',
+      columns: {
+        title: 'Titel',
+        agentName: 'Agent',
+        state: 'Zustand',
+        turnCount: 'Runden',
+        affinityNodeName: 'Affinitätsknoten',
+        fallbackCount: 'Neuaufbauten',
+        lastFallbackReason: 'Letzter Neuaufbau',
+        harnessType: 'Harness',
+        callerName: 'Begonnen von',
+        contextId: 'Kontext-ID',
+        sessionId: 'Sitzungs-ID',
+        lastActivityUtc: 'Letzte Aktivität',
+        createdUtc: 'Erstellt',
+        id: 'ID'
+      },
+      states: {
+        busy: 'Arbeitet',
+        idle: 'Bereit'
+      },
+      actions: {
+        continue: 'Fortsetzen',
+        runs: 'Runden als Läufe anzeigen'
+      }
     }
   },
   views: {
@@ -1040,6 +1097,20 @@ const de = {
         minutes: '{{value}} min',
         hours: '{{value}} h',
         secondsWord: 'Sekunden'
+      },
+      conversation: {
+        mode: 'Konversation',
+        modes: {
+          none: 'Einzelner Lauf (keine Konversation)',
+          start: 'Neue Konversation beginnen',
+          continue: 'Konversation fortsetzen'
+        },
+        pick: 'Fortzusetzende Konversation',
+        choose: 'Konversation auswählen',
+        option: '{{title}} (Runden: {{turns}})',
+        pinned: 'Jede Runde läuft auf der Bereitstellung der ersten Runde der Konversation, daher lässt sich die Bereitstellung hier nicht wählen.',
+        busy: 'Diese Konversation arbeitet noch an ihrer vorherigen Runde. Eine neue Nachricht wird abgelehnt, bis dieser Lauf endet.',
+        open: 'Konversation öffnen (Runde {{turn}})'
       }
     },
     runDetail: {
@@ -1112,7 +1183,12 @@ const de = {
           firstTokenUtc: 'Erstes Token um',
           lastTokenUtc: 'Letztes Token um'
         }
-      }
+      },
+      conversation: 'Konversation',
+      conversationSession: 'Sitzung',
+      resumeSessionId: 'Fortgesetzte Sitzung',
+      affinityNode: 'Affinitätsknoten',
+      affinityUntil: 'bis {{time}}'
     },
     queue: {
       title: 'Warteschlange',
@@ -1136,7 +1212,8 @@ const de = {
       noDeploymentsBody: 'Erstellen Sie eine Bereitstellung, um diesen Agenten an eine Harness zu binden.',
       noRuns: 'Dieser Agent wurde noch nicht ausgeführt.',
       selectionNote: 'Jeder Aufruf ohne explizite Bereitstellung geht an eine aktive Bereitstellung, die zufällig im Verhältnis zu ihrer Gewichtung gewählt wird.',
-      manageDeployments: 'Bereitstellungen verwalten'
+      manageDeployments: 'Bereitstellungen verwalten',
+      conversations: 'Konversationen'
     },
     templateEditor: {
       cloneToEdit: 'Zum Bearbeiten klonen',
@@ -1407,7 +1484,10 @@ const de = {
           MaxRunSeconds: 'Maximale Laufzeit (Sekunden)',
           RepetitionGuard: 'Wiederholungswächter standardmäßig',
           MaxAssistantChars: 'Standard für maximale Assistentenzeichen',
-          NoProgressSeconds: 'Standard-Zeitlimit ohne Fortschritt (Sekunden)'
+          NoProgressSeconds: 'Standard-Zeitlimit ohne Fortschritt (Sekunden)',
+          ConversationAffinityWaitMs: 'Affinitätswartezeit für Konversationen (ms)',
+          ConversationTranscriptTurns: 'Runden im Ersatzverlauf',
+          ConversationTranscriptChars: 'Zeichen pro Nachricht im Ersatzverlauf'
         },
         Audit: {
           RetentionDays: 'Aufbewahrung des Audits (Tage)'
@@ -1562,6 +1642,42 @@ const de = {
       tuneAny: 'Um das zu ändern, bearbeite die Bereitstellung: Im Schritt „Platzierung und Grenzen“ findest du Wiederholungswächter, Maximale Assistentenzeichen und Zeitlimit ohne Fortschritt. Leer gelassen gelten die Cluster-Standards unter Einstellungen (Laufzeit).',
       openDeployments: 'Bereitstellungen öffnen',
       openSettings: 'Einstellungen öffnen'
+    },
+    conversationDetail: {
+      title: 'Konversation',
+      notFoundTitle: 'Konversation nicht gefunden',
+      notFoundBody: 'Sie wurde vielleicht gelöscht oder gehört zu einem anderen Mandanten. Ihre Runden bleiben auf der Seite Läufe.',
+      deployment: 'Bereitstellung',
+      activeRun: 'Offene Runde',
+      turns: 'Runden',
+      turnsCount: 'Runden ({{count}})',
+      noTurns: 'Diese Konversation hat noch keine Runden.',
+      pending: 'Wartet auf das Ergebnis',
+      columns: {
+        turn: 'Runde',
+        run: 'Lauf',
+        status: 'Status',
+        outcome: 'Ergebnis',
+        session: 'Sitzung',
+        input: 'Eingabe',
+        result: 'Antwort',
+        node: 'Knoten',
+        created: 'Erstellt'
+      },
+      session: {
+        first: 'Neue Sitzung',
+        resumed: 'Fortgesetzt',
+        fallback: 'Frische Sitzung',
+        pending: 'Noch nicht platziert'
+      },
+      continueTitle: 'Konversation fortsetzen',
+      message: 'Nächste Nachricht',
+      messagePlaceholder: 'Stellen Sie eine Folgefrage oder geben Sie die nächste Anweisung...',
+      busyNotice: 'Die vorherige Runde arbeitet noch. Sie können die nächste Nachricht senden, sobald sie fertig ist.',
+      send: 'Runde senden',
+      turnStarted: 'Runde {{turn}} gestartet.',
+      openInvoke: 'In Aufrufen fortsetzen',
+      confirmDelete: 'Die Konversation „{{title}}“ löschen? Ihre Runden bleiben als gewöhnliche Läufe auf der Seite Läufe, aber keine neue Runde kann sie fortsetzen.'
     }
   },
   wizard: {

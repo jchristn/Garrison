@@ -90,6 +90,10 @@ namespace Garrison.Core.Database.Ado
             v11.BuildVersion11();
             migrations.Add(new SchemaMigration(11, "Run token lease epochs and manifest error codes", v11._Statements, v11._Columns));
 
+            SchemaBuilder v12 = new SchemaBuilder(catalog, dialect);
+            v12.BuildVersion12();
+            migrations.Add(new SchemaMigration(12, "Conversations: harness session resume, node affinity, and transcript fallback", v12._Statements, v12._Columns));
+
             return migrations;
         }
 
@@ -204,6 +208,53 @@ namespace Garrison.Core.Database.Ado
             // manifest_apply_items: stable error code and failing field of a failed document (G-26).
             Column("manifest_apply_items", "errorcode", "VARCHAR(64)");
             Column("manifest_apply_items", "errorfield", "VARCHAR(512)");
+        }
+
+        private void BuildVersion12()
+        {
+            SqlDialect d = _Dialect;
+
+            // conversations: multi-turn conversations with one agent (P12.1). The session to resume and the node that
+            // holds the conversation's directories live here; turns are runs with a conversationid.
+            Table("conversations",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL",
+                "agentname VARCHAR(256) NOT NULL",
+                "deploymentid " + d.TypeId,
+                "harnesstype VARCHAR(64) NOT NULL",
+                "contextid VARCHAR(256)",
+                "title VARCHAR(256)",
+                "callertype VARCHAR(64) NOT NULL",
+                "callerid " + d.TypeId,
+                "callername VARCHAR(256)",
+                "sessionid VARCHAR(256)",
+                "sessionharnessprofileid " + d.TypeId,
+                "affinitynodeid " + d.TypeId,
+                "affinitynodename VARCHAR(256)",
+                "activerunid " + d.TypeId,
+                "lastrunid " + d.TypeId,
+                "turncount " + d.TypeInt + " NOT NULL",
+                "fallbackcount " + d.TypeInt + " NOT NULL",
+                "lastfallbackreason VARCHAR(64)",
+                "lastfallbackutc " + d.TypeTimestamp,
+                "lastactivityutc " + d.TypeTimestamp,
+                "active " + d.TypeBool + " NOT NULL",
+                "isprotected " + d.TypeBool + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("conversations", "tenantcreated", false, "tenantid", "createdutc");
+            Index("conversations", "tenantagent", false, "tenantid", "agentid");
+            Index("conversations", "context", false, "tenantid", "agentid", "contextid");
+
+            // runs: the conversation a run is a turn of, the session it resumes, and its node affinity
+            Column("runs", "conversationid", d.TypeId);
+            Column("runs", "conversationturn", d.TypeInt + " NOT NULL DEFAULT 0");
+            Column("runs", "resumesessionid", "VARCHAR(256)");
+            Column("runs", "affinitynodeid", d.TypeId);
+            Column("runs", "affinityuntilutc", d.TypeTimestamp);
+            Column("runs", "conversationfallbackreason", "VARCHAR(64)");
+            Index("runs", "conversation", false, "conversationid", "createdutc");
         }
 
         private void BuildVersion7()

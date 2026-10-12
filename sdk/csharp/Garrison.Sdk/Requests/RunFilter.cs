@@ -60,6 +60,11 @@ namespace Garrison.Sdk.Requests
         public string? CallerId { get; set; } = null;
 
         /// <summary>
+        /// Conversation filter: only the turns of this conversation.
+        /// </summary>
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>
         /// Created at or after (UTC).
         /// </summary>
         public DateTime? FromUtc { get; set; } = null;

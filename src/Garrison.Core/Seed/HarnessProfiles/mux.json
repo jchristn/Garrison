@@ -1,6 +1,6 @@
 {
   "name": "builtin/mux",
-  "description": "Mux print mode (Mux 1.3.0) with JSONL events against a configurable OpenAI-compatible (or other) endpoint. The final answer comes from --output-last-message. Agents with an output schema run under --session-id <run id> so a structured output repair can --resume the session.",
+  "description": "Mux print mode (Mux 1.3.0) with JSONL events against a configurable OpenAI-compatible (or other) endpoint. The final answer comes from --output-last-message. Agents with an output schema, and conversation turns, run under --session-id <run id> so a structured output repair or the next turn can --resume the session.",
   "harnessType": "Mux",
   "executable": "mux",
   "promptDelivery": "Stdin",
@@ -120,15 +120,15 @@
     },
     {
       "template": "--no-session-persistence",
-      "condition": "{{#unless agent.outputSchema}}true{{/unless}}"
+      "condition": "{{#unless run.persistSession}}true{{/unless}}"
     },
     {
       "template": "--session-id",
-      "condition": "{{#if agent.outputSchema}}{{#unless run.resumeSessionId}}true{{/unless}}{{/if}}"
+      "condition": "{{#if run.persistSession}}{{#unless run.resumeSessionId}}true{{/unless}}{{/if}}"
     },
     {
       "template": "{{run.id}}",
-      "condition": "{{#if agent.outputSchema}}{{#unless run.resumeSessionId}}true{{/unless}}{{/if}}"
+      "condition": "{{#if run.persistSession}}{{#unless run.resumeSessionId}}true{{/unless}}{{/if}}"
     },
     {
       "template": "--resume",

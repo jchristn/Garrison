@@ -164,6 +164,11 @@ namespace Garrison.FakeHarness
             if (!String.IsNullOrEmpty(_Options.ScenarioFile) && File.Exists(_Options.ScenarioFile)) answer = File.ReadAllText(_Options.ScenarioFile).Trim();
             if (_Options.Answer != null) answer = _Options.Answer;
             if (_Resumed && _Options.ResumeAnswer != null) answer = _Options.ResumeAnswer;
+            if (_Options.ReportTurns)
+            {
+                string? file = SessionFile(threadId);
+                answer = "[turn " + Program.CountTurns(file == null ? null : Path.GetDirectoryName(file), threadId) + "] " + answer;
+            }
 
             for (int i = 0; i < _Options.ToolCalls; i++)
             {

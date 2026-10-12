@@ -91,7 +91,8 @@ const tips = {
       audit: 'Security and configuration events: sign-ins, denials, secret changes, manifest applies, and node changes.',
       explorer: 'Pick any API operation from the server\'s OpenAPI document, fill in parameters, and execute it live.',
       settings: 'Server and cluster settings with their source and whether a change applies live or needs a restart.',
-      serverInfo: 'REST, MCP, and A2A addresses, server and dashboard versions, and the identity you are signed in as.'
+      serverInfo: 'REST, MCP, and A2A addresses, server and dashboard versions, and the identity you are signed in as.',
+      conversations: 'Multi-turn conversations with agents: each turn is a run that resumes the session of the turn before it. Open one to read its turns and send the next message.'
     },
     subtabs: {
       roles: 'Roles group permissions under one name, such as Operator or Invoker. Assign a role to give someone all of its permissions.',
@@ -171,7 +172,8 @@ const tips = {
     pathContains: 'Show only requests whose path contains this text, for example /agents.',
     tenantId: 'Show only requests made in this tenant. Leave empty for every tenant.',
     apply: 'Run the search with the filter values above.',
-    clear: 'Reset every filter above to empty and search again.'
+    clear: 'Reset every filter above to empty and search again.',
+    agentId: 'Show only records that belong to one agent. Choose All to remove the filter.'
   },
   form: {
     option: 'Include {{option}} in {{field}}. Checked options are saved; unchecked ones are left out.',
@@ -335,7 +337,8 @@ const tips = {
       NoCapableWorker: 'The run waited in the queue longer than the cluster setting Runtime.FailBlockedAfterSeconds allows, and no Ready worker could run it, so it was failed.',
       RepetitionDetected: 'A run guard stopped the run because its answer degenerated into the same short text repeated over and over, or only whitespace and punctuation. The output so far is kept. Tune it with the deployment\'s Repetition guard.',
       NoProgress: 'A run guard stopped the run because no text, thinking, or tool activity arrived for longer than the deployment\'s no-progress timeout. The output so far is kept.',
-      PodFailed: 'The run pod failed outside the harness: it could not be scheduled, its image could not be pulled, it ran out of memory, it was evicted, or it ended without reporting. The error message names the cause.'
+      PodFailed: 'The run pod failed outside the harness: it could not be scheduled, its image could not be pulled, it ran out of memory, it was evicted, or it ended without reporting. The error message names the cause.',
+      ConversationStateLost: 'The node that was to resume this conversation turn no longer had the conversation\'s directories. Garrison requeues such a turn once as a fallback; this outcome stays only when that was not possible.'
     },
     controlNodeStatus: {
       Starting: 'Starting: the replica is initializing and does not serve traffic yet.',
@@ -440,7 +443,17 @@ const tips = {
       ManifestApplied: 'A manifest was applied to the tenant.',
       NodeRegistered: 'A worker node registered with the control plane.',
       NodeStatusChanged: 'A worker node was cordoned, drained, lost, or came back.',
-      RunCancelled: 'A run was cancelled by a user, an access key, or its parent run.'
+      RunCancelled: 'A run was cancelled by a user, an access key, or its parent run.',
+      ConversationDeleted: 'Someone deleted a conversation. Its turns are kept as ordinary runs.'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'The node holding the conversation was no longer ready (lost, draining, cordoned, or deleted), so another node took the turn.',
+      AffinityWaitExpired: 'The node holding the conversation stayed ready but did not claim the turn within Runtime.ConversationAffinityWaitMs, so another node took it.',
+      WorkspaceLost: 'The node claimed the turn, but the conversation\'s workspace and home directories were gone there.',
+      SessionMissing: 'Earlier turns exist, but none reported a harness session to resume, for example because they all failed early.',
+      HarnessChanged: 'The deployment\'s harness profile changed since the session was recorded, so the new profile cannot resume it.',
+      ResumeUnsupported: 'The deployment\'s harness profile does not support resuming a session, so every later turn starts from the transcript.',
+      ExecutorWithoutState: 'The turn runs as a Kubernetes Job, which starts with an empty home directory every time, so every later turn starts from the transcript.'
     }
   },
   resources: {
@@ -795,7 +808,9 @@ const tips = {
       actions: {
         cancel: 'Stop this run. The worker terminates the harness process and the run ends as Cancelled.',
         retry: 'Start a new run with the same input and deployment. The original run is kept.'
-      }
+      },
+      conversationId: 'The conversation this run is a turn of, with its turn number. Empty for runs outside a conversation.',
+      conversationTurn: 'Position of this run in its conversation, starting at 1 for the turn that started it.'
     },
     nodes: {
       name: 'Node name, usually the Kubernetes pod name of the worker.',
@@ -878,6 +893,31 @@ const tips = {
       principalName: 'Who applied it.',
       dryRun: 'Yes means it was only validated and nothing was written.',
       counts: 'How many documents created, updated, left unchanged, or failed records.'
+    },
+    conversations: {
+      title: 'The first line of the first message, which names the conversation. Click the row to open its turns.',
+      agentName: 'The agent the conversation is with. Every turn goes to this agent.',
+      state: 'Working while a turn is unfinished; a new message is refused until it ends. Idle when the next message can be sent.',
+      turnCount: 'How many turns (runs) the conversation has had, including failed ones.',
+      affinityNodeName: 'The worker node holding the conversation\'s workspace and harness session. The next turn prefers this node so it can resume.',
+      fallbackCount: 'How many turns could not resume the harness session and started a fresh one seeded with the transcript of the earlier turns.',
+      lastFallbackReason: 'Why the most recent fallback turn could not resume the session, for example the affinity node was not ready.',
+      harnessType: 'The harness that runs every turn, taken from the deployment of the first turn.',
+      callerName: 'Who started the conversation: a user, an access key, or another agent\'s run.',
+      contextId: 'The A2A context ID the client supplied, when the conversation came in over A2A. Empty for conversations started over REST or MCP.',
+      sessionId: 'The harness session the next turn resumes. Empty until a turn reports one.',
+      lastActivityUtc: 'When the latest turn was sent or finished. Hover the value for the exact time.',
+      createdUtc: 'When the first turn started the conversation. Hover the value for the exact time.',
+      id: 'Conversation identifier. Pass it as conversationId when invoking the agent to send the next turn.',
+      fallbackLast: 'Turns that started a fresh session from the transcript. The most recent reason: {{reason}}.',
+      states: {
+        busy: 'A turn of this conversation is still queued or running. Wait for it to finish, or cancel it, before sending the next message.',
+        idle: 'No turn is in progress. The next message continues the conversation.'
+      },
+      actions: {
+        continue: 'Open Invoke with this conversation selected, so the next message is sent as its next turn.',
+        runs: 'Open the Runs list filtered to the turns of this conversation, with every run column and filter.'
+      }
     }
   },
   views: {
@@ -971,8 +1011,15 @@ const tips = {
       eventFilter: 'Show only one type of event, such as tool calls or errors.',
       openChild: 'Open this child run, started when this run called another agent.',
       eventCodes: {
-        RunGuardTriggered: 'A run guard stopped this run. The message says which guard tripped and what it saw; the run ends Failed with that guard\'s outcome and keeps its partial output.'
-      }
+        RunGuardTriggered: 'A run guard stopped this run. The message says which guard tripped and what it saw; the run ends Failed with that guard\'s outcome and keeps its partial output.',
+        ConversationFallback: 'This turn could not resume the conversation\'s harness session, so it started a fresh session seeded with the transcript of the earlier turns. The message says why.',
+        ConversationStateLost: 'The node claimed this turn but the conversation\'s directories were gone, so the turn was returned to the queue to run as a fallback.'
+      },
+      conversation: 'The conversation this run is a turn of, and its turn number. Click to open the conversation.',
+      openConversation: 'Open the conversation with every turn and a box to send the next one.',
+      conversationSession: 'Whether this turn resumed the conversation\'s harness session or started a fresh one from the transcript, and why.',
+      resumeSessionId: 'The harness session this turn resumed, left by the turn before it.',
+      affinityNode: 'The node that holds the conversation\'s directories. Other nodes leave the turn alone until the time shown, unless this node stops being ready.'
     },
     agentDetail: {
       name: 'The name callers use to invoke this agent.',
@@ -995,7 +1042,8 @@ const tips = {
         weight: 'The raw traffic weight set on the deployment.',
         traffic: 'Share of invocations this deployment receives: its weight divided by the sum of active weights.',
         active: 'Only active deployments receive weighted traffic.'
-      }
+      },
+      conversations: 'Open the Conversations list filtered to this agent.'
     },
     queue: {
       queued: 'Runs waiting for a node. Click to list them.',
@@ -1039,7 +1087,13 @@ const tips = {
       sendKeeps: 'Start a new run with this message. The run in progress keeps going because "Stop the run when I leave" is off; find it on the Runs page.',
       timeLimit: 'Optional deadline for this run, in seconds, which this deployment lets callers set. Leave empty for the deployment default. The run times out when it passes the limit.',
       timePreset: 'Set the time limit for this run to {{value}}.',
-      timePresetClear: 'Clear the time limit so the run uses the deployment default.'
+      timePresetClear: 'Clear the time limit so the run uses the deployment default.',
+      conversation: {
+        mode: 'Run once, start a new conversation whose later turns resume this harness session, or send the next turn of an existing conversation.',
+        pick: 'The conversation to continue. Only this agent\'s conversations are listed; the newest come first.',
+        deploymentPinned: 'A conversation stays on the deployment of its first turn, so the deployment is fixed while continuing one.',
+        open: 'Open the conversation this run belongs to, with every turn and a box to send the next one.'
+      }
     },
     manifests: {
       planned: 'What applying this document would do: create the record, update it, or leave it unchanged. A dry run validates without changing anything.',
@@ -1190,7 +1244,10 @@ const tips = {
           MaxRunSeconds: 'The longest any run may take, in seconds. Deployment timeouts, per-run time limits, and profile defaults above it are lowered to it.',
           RepetitionGuard: 'Whether deployments that leave Repetition guard empty stop runs whose answer degenerates into repetition (outcome Repetition detected).',
           MaxAssistantChars: 'Characters of assistant text after which a run stops (outcome Output limit exceeded), for deployments that leave the limit empty. 0 is unlimited.',
-          NoProgressSeconds: 'Seconds without text, thinking, or tool activity after which a run stops (outcome No progress), for deployments that leave the limit empty. 0 turns it off.'
+          NoProgressSeconds: 'Seconds without text, thinking, or tool activity after which a run stops (outcome No progress), for deployments that leave the limit empty. 0 turns it off.',
+          ConversationAffinityWaitMs: 'How long a conversation turn waits for the node holding its harness session before another node takes it and starts a fresh session from the transcript. Other nodes take it at once when that node is not ready. 0 never waits.',
+          ConversationTranscriptTurns: 'Most earlier turns repeated to a conversation turn that falls back to a fresh harness session. The newest turns are kept.',
+          ConversationTranscriptChars: 'Most characters of each earlier message and answer repeated to a fallback turn. Longer ones are cut and marked as truncated.'
         },
         Scheduling: {
           PauseGraceMs: 'After a host sleep or VM pause, the leader waits one heartbeat window plus this many milliseconds before it marks nodes Lost or fails their runs. Default 5000.'
@@ -1200,6 +1257,39 @@ const tips = {
     runGuard: {
       openDeployments: 'Go to Deployments to change a deployment\'s run guards: Repetition guard, Maximum assistant characters, and No-progress timeout.',
       openSettings: 'Go to Settings to change the cluster defaults (Runtime) that deployments without their own run guards follow.'
+    },
+    conversationDetail: {
+      viewJson: 'Show the full conversation record as JSON.',
+      openInvoke: 'Open Invoke with this conversation selected, to send the next turn with the full streaming view.',
+      delete: 'Delete this conversation. Its turns stay on the Runs page as ordinary runs, but the conversation can no longer be continued.',
+      deleteBusy: 'A turn is still unfinished, so the server refuses to delete the conversation until that run ends or is cancelled.',
+      agent: 'The agent this conversation is with. Click to open the agent.',
+      openAgent: 'Open this agent\'s page with its deployments and recent runs.',
+      deployment: 'Every turn runs on this deployment: the one the first turn was routed to.',
+      activeRun: 'The turn that is still queued or running. The next message is refused until it finishes.',
+      openRun: 'Open this run\'s page with its full transcript, result, and telemetry.',
+      turns: 'Every turn of the conversation, oldest first. Each turn is a run.',
+      columns: {
+        turn: 'Position of the turn in the conversation, starting at 1.',
+        run: 'The run that executed this turn. Click to open its transcript.',
+        status: 'Where the turn\'s run is in its lifecycle: queued, running, or one of the finished states.',
+        outcome: 'Why the turn\'s run ended, in more detail than the status.',
+        session: 'Whether the turn resumed the harness session of the turn before it, or started a fresh session seeded with the transcript (and why).',
+        input: 'The start of the message sent for this turn. Hover for more of it.',
+        result: 'The start of the answer, or the error when the run failed. Hover for more of it.',
+        node: 'The worker node that ran the turn.',
+        created: 'When the turn was sent. Hover the value for the exact time.'
+      },
+      session: {
+        first: 'The first turn: it starts the harness session the later turns resume.',
+        resumed: 'This turn resumed the harness session {{session}} on the node that holds the conversation\'s directories, so the agent kept its full context.',
+        fallback: 'This turn could not resume the session, so it started a fresh harness session seeded with the transcript of the earlier turns.',
+        pending: 'The turn is waiting for a node, so it is not known yet whether it will resume the session or fall back.'
+      },
+      continueTitle: 'Send the next message as the next turn of this conversation. It runs on the same agent and deployment.',
+      message: 'The next message for the agent. It continues the conversation with the context of the earlier turns.',
+      send: 'Send this message as the next turn. The turn appears in the list above and refreshes until it finishes.',
+      sendBusy: 'The previous turn is still unfinished. The server refuses a new turn until it ends, so wait or cancel it first.'
     }
   },
   analytics: {
@@ -1428,6 +1518,12 @@ const explainers = {
     p1: 'Time to first token is from harness process start to the first model output, so it includes CLI startup. Streaming time runs from the first to the last model output, and execution time from process start to exit. Queue time is how long a run waited for a worker node. These are measured on the worker and server clocks.',
     p2: 'Token counts and cost come from what each harness reports. Cached tokens are input tokens served from the provider\'s prompt cache, and reasoning tokens appear only for harnesses that report them separately. Output tokens per second is output tokens divided by streaming time.',
     p3: 'Averages ignore runs where a value could not be measured. Percentiles show the tail: p95 means only one run in twenty was slower. Group by agent or harness to compare them side by side.'
+  },
+  conversations: {
+    title: 'Conversations and turns',
+    p1: 'A conversation is a series of runs with one agent. The first turn starts a harness session; each later turn resumes that session on the same worker node, so the agent keeps its files, tools, and context between messages.',
+    p2: 'Only one turn runs at a time: a new message is refused while the previous turn is unfinished. Every turn stays on the deployment of the first turn.',
+    p3: 'When a turn cannot resume (the node is gone or busy for too long, the files were removed, or the harness cannot resume), it falls back to a fresh session seeded with the transcript of the earlier turns. The Fallbacks column counts these turns and the turn list says why.'
   }
 };
 

@@ -176,6 +176,10 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
   for (const [path, context] of [
     ['/dashboard/runs/run_0001', 'run detail'],
     ['/dashboard/agents/agt_0001', 'agent detail'],
+    ['/dashboard/conversations/cnv_0001', 'conversation detail'],
+    ['/dashboard/conversations/cnv_0002', 'busy conversation detail'],
+    ['/dashboard/runs/run_0042', 'conversation turn run detail'],
+    ['/dashboard/invoke?agentId=agt_0001&conversationId=cnv_0001', 'invoke continuing a conversation'],
     ['/dashboard/prompt-templates/pt_0004', 'template editor'],
     ['/dashboard/prompt-templates/new', 'new template']
   ]) {

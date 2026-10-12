@@ -7,10 +7,10 @@ import { tip } from './Tooltip';
 const SERVER_TEXT_TYPES = new Set(['Lifecycle', 'Warning', 'Error']);
 
 /** Machine codes on run events Garrison writes (P9.17); null for harness or model text. */
-const EVENT_CODES = new Set(['WorkspacePrepared', 'RepairAttemptStarted', 'McpPreflightPassed', 'McpPreflightWarning', 'HarnessExited', 'EventsDropped', 'RunBlocked', 'StructuredOutputInvalid', 'RunGuardTriggered']);
+const EVENT_CODES = new Set(['WorkspacePrepared', 'RepairAttemptStarted', 'McpPreflightPassed', 'McpPreflightWarning', 'HarnessExited', 'EventsDropped', 'RunBlocked', 'StructuredOutputInvalid', 'RunGuardTriggered', 'ConversationFallback', 'ConversationResumed', 'ConversationStateLost']);
 
 /** Codes that always show their label, even when the text is translated, because the label says what happened. */
-const ALWAYS_LABELED = new Set(['RunGuardTriggered']);
+const ALWAYS_LABELED = new Set(['RunGuardTriggered', 'ConversationFallback', 'ConversationStateLost']);
 
 const TONE = {
   AssistantText: 'text',

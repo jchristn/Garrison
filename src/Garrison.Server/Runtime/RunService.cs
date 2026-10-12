@@ -60,6 +60,22 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Conversation service. When null, conversation fields on a creation request are ignored. Default null; the
+        /// runtime module sets it.
+        /// </summary>
+        public ConversationService? Conversations
+        {
+            get
+            {
+                return _Conversations;
+            }
+            set
+            {
+                _Conversations = value;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -69,6 +85,7 @@ namespace Garrison.Server.Runtime
         private readonly RuntimeOptions _Options;
         private readonly GarrisonTelemetry _Telemetry;
         private LoggingModule? _Logging = null;
+        private ConversationService? _Conversations = null;
 
         #endregion
 
@@ -105,6 +122,7 @@ namespace Garrison.Server.Runtime
         /// <exception cref="NotFoundException">Thrown when a requested deployment does not exist for the agent.</exception>
         /// <exception cref="ConflictException">Thrown when delegation depth is exceeded, or with NoActiveDeployment when the agent has no active deployment with a weight above zero.</exception>
         /// <exception cref="IdempotencyConflictException">Thrown when the idempotency key belongs to a run with different content.</exception>
+        /// <exception cref="ConflictException">Thrown with ConversationBusy when the requested conversation's previous turn is unfinished, or with ConversationAgentMismatch, ConversationDeploymentMismatch, or ConversationDeploymentUnavailable.</exception>
         public async Task<Run> CreateAsync(RunCreateContext create, CancellationToken token = default)
         {
             if (create == null) throw new ArgumentNullException(nameof(create));
@@ -118,6 +136,9 @@ namespace Garrison.Server.Runtime
                 Run? existing = await _Database.Runs.ReadByIdempotencyKeyAsync(create.TenantId, create.CallerId, create.IdempotencyKey, token).ConfigureAwait(false);
                 if (existing != null) return IdempotentRetry(create, existing);
             }
+
+            // A conversation turn runs on the conversation's deployment (P12.1).
+            ConversationTurnPlan? plan = _Conversations != null ? await _Conversations.ResolveAsync(create, token).ConfigureAwait(false) : null;
 
             Deployment deployment = await SelectDeploymentAsync(create, token).ConfigureAwait(false);
             HarnessProfile profile = await _Database.HarnessProfiles.ReadAsync(create.TenantId, deployment.HarnessProfileId, token).ConfigureAwait(false)
@@ -195,10 +216,25 @@ namespace Garrison.Server.Runtime
                     activity.SetTag("garrison.run_kind", run.Kind.ToString());
                     if (!String.IsNullOrEmpty(run.ParentRunId)) activity.SetTag("garrison.parent_run_id", run.ParentRunId);
                 }
-                Run stored = await _Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+                if (plan != null) await _Conversations!.BeginTurnAsync(plan, run, deployment, profile, create.Surface, token).ConfigureAwait(false);
+                Run stored;
+                try
+                {
+                    stored = await _Database.Runs.CreateAsync(run, token).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    if (plan != null) await _Conversations!.ReleaseTurnAsync(plan, run, CancellationToken.None).ConfigureAwait(false);
+                    throw;
+                }
 
                 // A retry with the same key that raced this one (possibly on another replica) created the run first.
-                if (!String.Equals(stored.Id, run.Id, StringComparison.Ordinal)) return IdempotentRetry(create, stored);
+                if (!String.Equals(stored.Id, run.Id, StringComparison.Ordinal))
+                {
+                    if (plan != null) await _Conversations!.ReleaseTurnAsync(plan, run, CancellationToken.None).ConfigureAwait(false);
+                    return IdempotentRetry(create, stored);
+                }
+                if (plan != null) await _Conversations!.TurnCreatedAsync(plan, run, token).ConfigureAwait(false);
             }
 
             _Logging?.Info("[Runs] run " + run.Id + " queued for agent " + run.AgentName + " (" + run.Kind + ", " + run.HarnessType + (String.IsNullOrEmpty(run.ParentRunId) ? String.Empty : ", parent " + run.ParentRunId) + ") " + RunTracing.LogFields(run.Id, run.TraceId)
@@ -352,6 +388,12 @@ namespace Garrison.Server.Runtime
             create.CallerId = callerId;
             create.CallerName = callerName;
             create.RetryOfRunId = original.Id;
+            // Retrying a conversation turn asks the same conversation again (a new turn), so it is refused with
+            // ConversationBusy while another turn is unfinished.
+            if (!String.IsNullOrEmpty(original.ConversationId) && _Conversations != null && await _Database.Conversations.ExistsAsync(original.ConversationId, token).ConfigureAwait(false))
+            {
+                create.ConversationId = original.ConversationId;
+            }
             return await CreateAsync(create, token).ConfigureAwait(false);
         }
 

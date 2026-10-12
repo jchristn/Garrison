@@ -284,6 +284,49 @@ namespace Garrison.Sdk.Models
         public string? SessionId { get; set; } = null;
 
         /// <summary>
+        /// Conversation this run is a turn of, or null for a run outside any conversation.
+        /// </summary>
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>
+        /// Turn number within the conversation, starting at 1; 0 for runs outside a conversation. Minimum 0.
+        /// </summary>
+        public int ConversationTurn
+        {
+            get
+            {
+                return _ConversationTurn;
+            }
+            set
+            {
+                _ConversationTurn = Math.Max(0, value);
+            }
+        }
+
+        /// <summary>
+        /// Harness session this conversation turn resumes on its affinity node, or null when the turn starts a new session
+        /// (the first turn, or a fallback).
+        /// </summary>
+        public string? ResumeSessionId { get; set; } = null;
+
+        /// <summary>
+        /// Node this conversation turn prefers because it holds the conversation's directories, or null.
+        /// </summary>
+        public string? AffinityNodeId { get; set; } = null;
+
+        /// <summary>
+        /// End of the affinity wait (UTC): after it any capable node may claim the turn, which then falls back to the
+        /// transcript. Null when the run has no affinity.
+        /// </summary>
+        public DateTime? AffinityUntilUtc { get; set; } = null;
+
+        /// <summary>
+        /// Why this conversation turn started a fresh session seeded with the transcript of the earlier turns instead of
+        /// resuming, or null when it resumed or is the first turn.
+        /// </summary>
+        public ConversationFallbackReasonEnum? ConversationFallbackReason { get; set; } = null;
+
+        /// <summary>
         /// Model that served the run.
         /// </summary>
         public string? ServedModel { get; set; } = null;
@@ -500,6 +543,7 @@ namespace Garrison.Sdk.Models
         private string _AgentName = String.Empty;
         private string _DeploymentId = String.Empty;
         private int _Priority = 0;
+        private int _ConversationTurn = 0;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<RunParameter> _Parameters = new List<RunParameter>();

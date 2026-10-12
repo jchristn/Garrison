@@ -16,21 +16,23 @@ export function trafficShares(deployments) {
   return out;
 }
 
-/** Prompt roles the invocation compiler reads (System, Task, DelegatedTask, Repair). */
-export const PROMPT_ROLES = ['System', 'Task', 'DelegatedTask', 'Repair'];
+/** Prompt roles the invocation compiler reads (System, Task, DelegatedTask, Repair, ConversationFallback). */
+export const PROMPT_ROLES = ['System', 'Task', 'DelegatedTask', 'Repair', 'ConversationFallback'];
 
 /** Built-in template each prompt role defaults to (M1-03), matching the server's DefaultPromptBindings. */
 export const ROLE_DEFAULT_TEMPLATES = {
   System: 'builtin/default-system',
   Task: 'builtin/default-task',
   DelegatedTask: 'builtin/delegated-task',
-  Repair: 'builtin/structured-output-repair'
+  Repair: 'builtin/structured-output-repair',
+  // P12.1: wraps a conversation turn that starts a fresh session with the transcript of the earlier turns.
+  ConversationFallback: 'builtin/conversation-fallback'
 };
 
 /** Template kind that fits a prompt role, or null for a custom role (any kind). */
 export function templateKindForRole(role) {
   if (role === 'System') return 'System';
-  if (role === 'Task' || role === 'DelegatedTask' || role === 'Repair') return 'Task';
+  if (role === 'Task' || role === 'DelegatedTask' || role === 'Repair' || role === 'ConversationFallback') return 'Task';
   return null;
 }
 

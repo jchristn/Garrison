@@ -308,6 +308,59 @@ namespace Garrison.Core.Models
         public string? ServedModel { get; set; } = null;
 
         /// <summary>
+        /// Conversation this run is a turn of, or null for a run outside any conversation. Always serialized, including
+        /// when null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>
+        /// Turn number within the conversation, starting at 1; 0 for runs outside a conversation.
+        /// </summary>
+        public int ConversationTurn
+        {
+            get
+            {
+                return _ConversationTurn;
+            }
+            set
+            {
+                if (value < 0) throw new ArgumentOutOfRangeException(nameof(ConversationTurn), "ConversationTurn cannot be negative.");
+                _ConversationTurn = value;
+            }
+        }
+
+        /// <summary>
+        /// Harness session this conversation turn resumes on its affinity node, or null when the turn starts a new
+        /// session (the first turn, or a fallback). Cleared when the turn falls back. Always serialized, including when
+        /// null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? ResumeSessionId { get; set; } = null;
+
+        /// <summary>
+        /// Node this conversation turn prefers because it holds the conversation's directories, or null. Other nodes
+        /// leave the run alone until <see cref="AffinityUntilUtc"/> unless the node stops being Ready. Always
+        /// serialized, including when null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? AffinityNodeId { get; set; } = null;
+
+        /// <summary>
+        /// End of the affinity wait (UTC): after it any capable node may claim the turn, which then falls back to the
+        /// transcript. Null when the run has no affinity.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public DateTime? AffinityUntilUtc { get; set; } = null;
+
+        /// <summary>
+        /// Why this conversation turn started a fresh session seeded with the transcript of the earlier turns instead of
+        /// resuming, or null when it resumed or is the first turn. Always serialized, including when null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public ConversationFallbackReasonEnum? ConversationFallbackReason { get; set; } = null;
+
+        /// <summary>
         /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, or null
         /// for runs created before trace IDs were recorded. Server spans (run:create, run:claim, run:compile) and the
         /// worker span (harness &lt;type&gt; exec) for the run share this trace. Always serialized, including when null.
@@ -577,6 +630,7 @@ namespace Garrison.Core.Models
         private string _DeploymentId = String.Empty;
         private int _Priority = 0;
         private int _RepairAttempts = 0;
+        private int _ConversationTurn = 0;
         private string? _TraceId = null;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;

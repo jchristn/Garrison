@@ -154,7 +154,7 @@ namespace Garrison.Core.Security
             auditor.Description = "Read-only access to security records and audit.";
             BuiltInPermission p_auditor_read = new BuiltInPermission();
             p_auditor_read.Name = "Auditor.Read";
-            p_auditor_read.ResourceTypes = new List<string> { "User", "Credential", "Session", "Role", "Permission", "Assignment", "Audit", "Tenant", "RequestHistory", "Run", "Agent", "Deployment" };
+            p_auditor_read.ResourceTypes = new List<string> { "User", "Credential", "Session", "Role", "Permission", "Assignment", "Audit", "Tenant", "RequestHistory", "Run", "Conversation", "Agent", "Deployment" };
             p_auditor_read.Operations = new List<string> { "Read" };
             auditor.Permissions.Add(p_auditor_read);
             roles.Add(auditor);
@@ -225,7 +225,7 @@ namespace Garrison.Core.Security
             agentdeveloper.Permissions.Add(p_agentdeveloper_execute);
             BuiltInPermission p_agentdeveloper_read = new BuiltInPermission();
             p_agentdeveloper_read.Name = "AgentDeveloper.Read";
-            p_agentdeveloper_read.ResourceTypes = new List<string> { "Secret", "Run", "Node", "NodePool" };
+            p_agentdeveloper_read.ResourceTypes = new List<string> { "Secret", "Run", "Conversation", "Node", "NodePool" };
             p_agentdeveloper_read.Operations = new List<string> { "Read" };
             agentdeveloper.Permissions.Add(p_agentdeveloper_read);
             roles.Add(agentdeveloper);
@@ -236,7 +236,7 @@ namespace Garrison.Core.Security
             agentoperator.Description = "Operate runs and observe nodes.";
             BuiltInPermission p_agentoperator_read = new BuiltInPermission();
             p_agentoperator_read.Name = "AgentOperator.Read";
-            p_agentoperator_read.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "Node", "NodePool", "Run" };
+            p_agentoperator_read.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "Node", "NodePool", "Run", "Conversation" };
             p_agentoperator_read.Operations = new List<string> { "Read" };
             agentoperator.Permissions.Add(p_agentoperator_read);
             BuiltInPermission p_agentoperator_execute = new BuiltInPermission();
@@ -246,7 +246,7 @@ namespace Garrison.Core.Security
             agentoperator.Permissions.Add(p_agentoperator_execute);
             BuiltInPermission p_agentoperator_runs = new BuiltInPermission();
             p_agentoperator_runs.Name = "AgentOperator.Runs";
-            p_agentoperator_runs.ResourceTypes = new List<string> { "Run" };
+            p_agentoperator_runs.ResourceTypes = new List<string> { "Run", "Conversation" };
             p_agentoperator_runs.Operations = new List<string> { "Update", "Delete" };
             agentoperator.Permissions.Add(p_agentoperator_runs);
             roles.Add(agentoperator);
@@ -262,7 +262,7 @@ namespace Garrison.Core.Security
             agentinvoker.Permissions.Add(p_agentinvoker_execute);
             BuiltInPermission p_agentinvoker_runs = new BuiltInPermission();
             p_agentinvoker_runs.Name = "AgentInvoker.Runs";
-            p_agentinvoker_runs.ResourceTypes = new List<string> { "Run" };
+            p_agentinvoker_runs.ResourceTypes = new List<string> { "Run", "Conversation" };
             p_agentinvoker_runs.Operations = new List<string> { "Read", "Create" };
             agentinvoker.Permissions.Add(p_agentinvoker_runs);
             roles.Add(agentinvoker);

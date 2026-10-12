@@ -78,7 +78,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -97,6 +97,42 @@ await foreach (RunStreamEvent item in client.Runs.StreamAsync(queued.Id))
 ```
 
 The stream ends after `run.completed`. `Runs.GetEventsAsync` polls instead, and `Runs.WaitForCompletionAsync` polls until the run reaches a terminal status.
+
+## Conversations
+
+A conversation is a multi-turn session with one agent. Each turn is a run, and every turn after the first resumes the harness session the earlier turns built, on the node that holds that session's directories. Set `StartConversation = true` on an `InvokeRequest` or `RunCreateRequest` (also accepted by `Deployments.TestAsync`) to start one; the returned run's `ConversationId` names it. Pass that ID as `ConversationId` to send the next turn.
+
+```csharp
+Run first = await client.Agents.InvokeAsync("my-agent", new InvokeRequest { Input = "Plan the migration", StartConversation = true });
+string conversationId = first.ConversationId!;
+
+Run second = await client.Agents.InvokeAsync("my-agent", new InvokeRequest { Input = "Now write step 1", ConversationId = conversationId });
+Console.WriteLine(second.ConversationTurn + ": " + second.ResultText);   // 2: ...
+
+Conversation conversation = await client.Conversations.GetAsync(conversationId);
+EnumerationResult<Run> turns = await client.Conversations.ListRunsAsync(conversationId);   // oldest first
+await client.Conversations.DeleteAsync(conversationId);   // the runs are kept
+```
+
+Turns of one conversation never overlap. A turn sent while the previous one is unfinished is refused, not queued, with 409 `ConversationBusy`; wait for the previous run (or cancel it) and send again:
+
+```csharp
+try
+{
+    await client.Agents.InvokeAsync("my-agent", new InvokeRequest { Input = "Next", ConversationId = conversationId });
+}
+catch (GarrisonException e) when (e.StatusCode == 409 && e.Error?.Code == "ConversationBusy")
+{
+    Conversation current = await client.Conversations.GetAsync(conversationId);
+    if (current.ActiveRunId != null) await client.Runs.WaitForCompletionAsync(current.ActiveRunId, TimeSpan.FromMinutes(5));
+}
+```
+
+Other 409 codes are `ConversationAgentMismatch` (the conversation belongs to another agent), `ConversationDeploymentMismatch` (the request names a deployment other than the conversation's), and `ConversationDeploymentUnavailable` (the conversation's deployment was deleted). An unknown `ConversationId` returns 404. `DeleteAsync` also returns 409 `ConversationBusy` while a turn is unfinished.
+
+`Conversations.ListAsync(ConversationFilter)` filters by `AgentId`, `ContextId` (the A2A context the conversation was created for), `CallerId`, and `Search`, with `Skip`, `MaxResults`, and `Ordering`. `RunFilter.ConversationId` lists a conversation's runs through `Runs.ListAsync`. A `Conversation` carries `TurnCount`, `SessionId`, `AffinityNodeId` and `AffinityNodeName`, `ActiveRunId`, `LastRunId`, `Busy` (true while a turn is unfinished), `FallbackCount`, and `LastFallbackReason`.
+
+Each turn's `Run` has `ConversationId`, `ConversationTurn` (1 for the first turn, 0 outside a conversation), `ResumeSessionId`, `AffinityNodeId`, `AffinityUntilUtc`, and `ConversationFallbackReason`. A fallback happens when the turn cannot resume and starts a fresh session seeded with the transcript of the earlier turns instead: `ConversationFallbackReasonEnum` is `AffinityNodeLost`, `AffinityWaitExpired`, `WorkspaceLost`, `SessionMissing`, `HarnessChanged`, `ResumeUnsupported`, or `ExecutorWithoutState`. A turn that could not even fall back ends with `RunOutcomeEnum.ConversationStateLost`. Deleting a conversation writes an `AuditEventTypeEnum.ConversationDeleted` record. See "Conversations" in `REST_API.md`.
 
 ## Run timing and usage
 

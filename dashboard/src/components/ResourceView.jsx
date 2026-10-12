@@ -286,9 +286,9 @@ export default function ResourceView({ config }) {
           <span className="sr-only">{f.label(t)}</span>
           <select {...tip(filterTip(f))} aria-label={f.label(t)} value={filters[f.name] || ''} onChange={(e) => setFilters((prev) => ({ ...prev, [f.name]: e.target.value }))}>
             <option value="">{f.label(t)}: {t('common.generic.all')}</option>
-            {f.options.map((o) => (
+            {(typeof f.options === 'function' ? f.options(lookups, filters) : f.options).map((o) => (
               <option key={o} value={o}>
-                {f.optionLabel ? f.optionLabel(o, t) : t(`enums.${f.enumGroup || f.name}.${o}`, { defaultValue: o })}
+                {f.optionLabel ? f.optionLabel(o, t, lookups) : t(`enums.${f.enumGroup || f.name}.${o}`, { defaultValue: o })}
               </option>
             ))}
           </select>

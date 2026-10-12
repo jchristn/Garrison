@@ -86,6 +86,9 @@ export default function AgentDetailView({ recordId }) {
             <button type="button" className="button-secondary" onClick={() => setJsonOpen(true)} {...tip(t('tips.views.agentDetail.viewJson'))}>
               {t('common.actions.viewJson')}
             </button>
+            <button type="button" className="button-secondary" onClick={() => navigate(pathFor('conversations', null, { agentId: agent.id }))} data-testid="agent-conversations" {...tip(t('tips.views.agentDetail.conversations'))}>
+              {t('views.agentDetail.conversations')}
+            </button>
             <button type="button" className="button-primary" onClick={() => navigate(pathFor('invoke', null, { agentId: agent.id }))} {...tip(t('tips.views.agentDetail.invoke'))}>
               <SendIcon size={14} /> {t('views.agentDetail.invoke')}
             </button>

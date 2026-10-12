@@ -198,6 +198,59 @@ def t_list_runs():
     require(all(r["agentId"] == state["agent"] for r in page["objects"]), "foreign runs")
 
 
+def t_conversation_start():
+    deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-turns", "agentId": state["agent"],
+                                            "harnessProfileId": state["fake"],
+                                            "parameters": [{"name": "reportTurns", "value": "true"}]})
+    state["conversation_deployment"] = deployment["id"]
+    run = client.agents.invoke(state["agent"], "First turn from the Python SDK", wait=True, wait_seconds=90,
+                               deployment_id=deployment["id"], start_conversation=True)
+    require(run["status"] == "Succeeded", f"status {run['status']} {run.get('errorMessage')}")
+    conversation_id = run.get("conversationId") or ""
+    require(conversation_id.startswith("cnv_"), f"conversationId {conversation_id}")
+    require(run.get("conversationTurn") == 1, f"conversationTurn {run.get('conversationTurn')}")
+    require((run.get("resultText") or "").startswith("[turn 1] "), f"result {run.get('resultText')}")
+    state["conversation"] = conversation_id
+
+
+def t_conversation_continue():
+    run = client.agents.invoke(state["agent"], "Second turn from the Python SDK", wait=True, wait_seconds=90,
+                               conversation_id=state["conversation"])
+    require(run["status"] == "Succeeded", f"status {run['status']} {run.get('errorMessage')}")
+    require(run.get("conversationId") == state["conversation"], f"conversationId {run.get('conversationId')}")
+    require(run.get("conversationTurn") == 2, f"conversationTurn {run.get('conversationTurn')}")
+    require((run.get("resultText") or "").startswith("[turn 2] "), f"result {run.get('resultText')}")
+
+
+def t_conversation_read():
+    conversation = client.conversations.get(state["conversation"])
+    require(conversation["turnCount"] == 2, f"turnCount {conversation['turnCount']}")
+    require(conversation.get("sessionId"), "sessionId empty")
+    require(conversation["deploymentId"] == state["conversation_deployment"], f"deploymentId {conversation['deploymentId']}")
+    require(conversation["busy"] is False, "busy")
+    page = client.conversations.list(agent_id=state["agent"])
+    require(any(c["id"] == state["conversation"] for c in page["objects"]), "conversation missing from list")
+    turns = client.conversations.list_runs(state["conversation"])["objects"]
+    require(len(turns) == 2, f"turns {len(turns)}")
+    require([r["conversationTurn"] for r in turns] == [1, 2], f"turn order {[r['conversationTurn'] for r in turns]}")
+    runs = client.runs.list(conversation_id=state["conversation"])
+    require(runs["totalRecords"] == 2, f"runs by conversationId {runs['totalRecords']}")
+
+
+def t_conversation_delete():
+    client.conversations.delete(state["conversation"])
+    try:
+        client.conversations.get(state["conversation"])
+        raise AssertionError("expected 404 after delete")
+    except GarrisonError as e:
+        require(e.status_code == 404, f"status {e.status_code}")
+    try:
+        client.agents.invoke(state["agent"], "Turn for a deleted conversation", conversation_id=state["conversation"])
+        raise AssertionError("expected 404 continuing a deleted conversation")
+    except GarrisonError as e:
+        require(e.status_code == 404, f"status {e.status_code}")
+
+
 def t_control_nodes():
     page = client.control_nodes.list()
     assert page.get("respondingNodeId"), "respondingNodeId empty"
@@ -214,6 +267,8 @@ def t_control_nodes():
 
 
 def t_cleanup():
+    if "conversation_deployment" in state:
+        client.deployments.delete(state["conversation_deployment"])
     if "deployment" in state:
         client.deployments.delete(state["deployment"])
     if "agent" in state:
@@ -237,7 +292,10 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("run analytics grouped by harness and model", t_analytics_harness_model),
                  ("run analytics dimensions", t_analytics_dimensions), ("run analytics filtered by model", t_analytics_model),
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
-                 ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs), ("control nodes", t_control_nodes),
+                 ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs),
+                 ("conversation start", t_conversation_start), ("conversation continue", t_conversation_continue),
+                 ("conversation read and list", t_conversation_read), ("conversation delete", t_conversation_delete),
+                 ("control nodes", t_control_nodes),
                  ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:

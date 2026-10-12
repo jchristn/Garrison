@@ -38,6 +38,7 @@ namespace Garrison.Server.Modules
         private RunAnalyticsService? _Analytics = null;
         private NodeService? _Nodes = null;
         private SchedulerService? _Scheduler = null;
+        private ConversationService? _Conversations = null;
         private DelegationPolicy? _Delegation = null;
         private AgentInvoker? _Invoker = null;
         private LeaderElectionService? _Leader = null;
@@ -79,6 +80,11 @@ namespace Garrison.Server.Modules
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
             _Scheduler.ShutdownToken = context.Stopping;
             _Scheduler.Activity = context.Activity;
+            _Conversations = new ConversationService(context.Database, _Options, _Signals);
+            _Conversations.Logging = context.Logging;
+            _Runs.Conversations = _Conversations;
+            _Events.Conversations = _Conversations;
+            _Scheduler.Conversations = _Conversations;
             _Leader = new LeaderElectionService(context.Database, _Options, context.Logging, context.NodeId);
             _Blocked = new BlockedRunService(context.Database);
             _Maintenance = new MaintenanceService(context.Database, _Leader, _Signals, _Options, context.Telemetry, context.Logging);
@@ -99,6 +105,7 @@ namespace Garrison.Server.Modules
             context.Register(_Delegation);
             context.Register(_Invoker);
             context.Register(_Scheduler);
+            context.Register(_Conversations);
             context.Register<ILeaderState>(_Leader);
             context.Register(_Maintenance);
             context.Register(_Blocked);
@@ -115,6 +122,7 @@ namespace Garrison.Server.Modules
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (routes == null) throw new ArgumentNullException(nameof(routes));
             new RunRoutes(context, _Runs!, _Events!, _Options!, _Signals!, _Invoker!, _Blocked!).Register(routes);
+            new ConversationRoutes(context, _Conversations!, _Blocked!).Register(routes);
             new AnalyticsRoutes(_Analytics!).Register(routes);
             new NodeProtocolRoutes(context, _Nodes!, _Scheduler!, _Events!).Register(routes);
             new NodeRoutes(context).Register(routes);
@@ -233,6 +241,9 @@ namespace Garrison.Server.Modules
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
             _Options.FailBlockedAfterSeconds = cluster.GetInt("Runtime.FailBlockedAfterSeconds");
             _Options.MaxRunSeconds = cluster.GetInt("Runtime.MaxRunSeconds");
+            _Options.ConversationAffinityWaitMs = cluster.GetInt("Runtime.ConversationAffinityWaitMs");
+            _Options.ConversationTranscriptTurns = cluster.GetInt("Runtime.ConversationTranscriptTurns");
+            _Options.ConversationTranscriptChars = cluster.GetInt("Runtime.ConversationTranscriptChars");
             if (_Compiler != null)
             {
                 _Compiler.DefaultTimeoutSeconds = cluster.GetInt("Runs.DefaultTimeoutSeconds");

@@ -162,6 +162,49 @@ await check("run analytics rejects from >= to", async () => {
   }
   throw new Error("expected 400");
 });
+await check("conversation start", async () => {
+  const deployment = await client.deployments.create({
+    name: `sdk-js-${suffix}-turns`, agentId: state.agent, harnessProfileId: state.fake,
+    parameters: [{ name: "reportTurns", value: "true" }],
+  });
+  state.conversationDeployment = deployment.id;
+  const run = await client.agents.invoke(state.agent, "First turn from the JavaScript SDK", { waitSeconds: 90, deploymentId: deployment.id, startConversation: true });
+  require(run.status === "Succeeded", `status ${run.status} ${run.errorMessage ?? ""}`);
+  require((run.conversationId ?? "").startsWith("cnv_"), `conversationId ${run.conversationId}`);
+  require(run.conversationTurn === 1, `conversationTurn ${run.conversationTurn}`);
+  require((run.resultText ?? "").startsWith("[turn 1] "), `result ${run.resultText}`);
+  state.conversation = run.conversationId;
+});
+await check("conversation continue", async () => {
+  const run = await client.agents.invoke(state.agent, "Second turn from the JavaScript SDK", { waitSeconds: 90, conversationId: state.conversation });
+  require(run.status === "Succeeded", `status ${run.status} ${run.errorMessage ?? ""}`);
+  require(run.conversationId === state.conversation, `conversationId ${run.conversationId}`);
+  require(run.conversationTurn === 2, `conversationTurn ${run.conversationTurn}`);
+  require((run.resultText ?? "").startsWith("[turn 2] "), `result ${run.resultText}`);
+});
+await check("conversation read and list", async () => {
+  const conversation = await client.conversations.get(state.conversation);
+  require(conversation.turnCount === 2, `turnCount ${conversation.turnCount}`);
+  require(conversation.sessionId, "sessionId empty");
+  require(conversation.deploymentId === state.conversationDeployment, `deploymentId ${conversation.deploymentId}`);
+  require(conversation.busy === false, "busy");
+  const page = await client.conversations.list({ agentId: state.agent });
+  require(page.objects.some((c) => c.id === state.conversation), "conversation missing from list");
+  const turns = (await client.conversations.listRuns(state.conversation)).objects;
+  require(turns.length === 2, `turns ${turns.length}`);
+  require(turns[0].conversationTurn === 1 && turns[1].conversationTurn === 2, `turn order ${turns.map((r) => r.conversationTurn).join(",")}`);
+  const runs = await client.runs.list({ conversationId: state.conversation });
+  require(runs.totalRecords === 2, `runs by conversationId ${runs.totalRecords}`);
+});
+await check("conversation delete", async () => {
+  await client.conversations.delete(state.conversation);
+  let status = 0;
+  try { await client.conversations.get(state.conversation); } catch (e) { if (!(e instanceof GarrisonError)) throw e; status = e.statusCode; }
+  require(status === 404, `expected 404 after delete, got ${status}`);
+  status = 0;
+  try { await client.agents.invoke(state.agent, "Turn for a deleted conversation", { conversationId: state.conversation }); } catch (e) { if (!(e instanceof GarrisonError)) throw e; status = e.statusCode; }
+  require(status === 404, `expected 404 continuing a deleted conversation, got ${status}`);
+});
 await check("control nodes", async () => {
   const page = await client.controlNodes.list();
   require(page.respondingNodeId, "respondingNodeId empty");
@@ -177,6 +220,7 @@ await check("control nodes", async () => {
 });
 
 await check("cleanup", async () => {
+  if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);
   if (state.agent) {
     // Single-resource deletes answer 204 No Content (G-7), which the SDK returns as undefined.

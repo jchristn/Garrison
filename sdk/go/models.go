@@ -40,6 +40,28 @@ const (
 	// RunOutcomePodFailed means the run pod of a KubernetesJob run failed outside the harness (unschedulable,
 	// image pull failure, OOMKilled, evicted, or exited without reporting a completion).
 	RunOutcomePodFailed = "PodFailed"
+	// RunOutcomeConversationStateLost means a conversation turn asked to resume a harness session on its affinity
+	// node, but the conversation's directories were gone there and the fallback requeue was not possible.
+	RunOutcomeConversationStateLost = "ConversationStateLost"
+)
+
+// Conversation fallback reasons (Run.ConversationFallbackReason, Conversation.LastFallbackReason): why a conversation
+// turn started a fresh harness session seeded with the transcript of the earlier turns instead of resuming.
+const (
+	// ConversationFallbackAffinityNodeLost means the affinity node is no longer Ready, so another node took the turn.
+	ConversationFallbackAffinityNodeLost = "AffinityNodeLost"
+	// ConversationFallbackAffinityWaitExpired means the affinity node did not claim the turn within the affinity wait.
+	ConversationFallbackAffinityWaitExpired = "AffinityWaitExpired"
+	// ConversationFallbackWorkspaceLost means the conversation's directories were gone on the affinity node.
+	ConversationFallbackWorkspaceLost = "WorkspaceLost"
+	// ConversationFallbackSessionMissing means no earlier turn reported a harness session to resume.
+	ConversationFallbackSessionMissing = "SessionMissing"
+	// ConversationFallbackHarnessChanged means the deployment's harness profile changed since the session was recorded.
+	ConversationFallbackHarnessChanged = "HarnessChanged"
+	// ConversationFallbackResumeUnsupported means the deployment's harness profile does not support resume.
+	ConversationFallbackResumeUnsupported = "ResumeUnsupported"
+	// ConversationFallbackExecutorWithoutState means the run's executor keeps no state between runs (KubernetesJob).
+	ConversationFallbackExecutorWithoutState = "ExecutorWithoutState"
 )
 
 // Run executors (Deployment.Executor, NodePool.DefaultExecutor, Run.Executor, Node.Executors).
@@ -303,6 +325,73 @@ type Run struct {
 	SchemaValidationErrors *string `json:"schemaValidationErrors"`
 	// RepairAttempts is the number of structured output repairs started (0 or 1). Default 0.
 	RepairAttempts int `json:"repairAttempts"`
+	// ConversationID is the conversation this run is a turn of; nil for a run outside any conversation.
+	ConversationID *string `json:"conversationId"`
+	// ConversationTurn is the turn number within the conversation, starting at 1; 0 outside a conversation.
+	ConversationTurn int `json:"conversationTurn"`
+	// ResumeSessionID is the harness session this turn resumes on its affinity node; nil when it starts a new session.
+	ResumeSessionID *string `json:"resumeSessionId"`
+	// AffinityNodeID is the node this turn prefers because it holds the conversation's directories; nil otherwise.
+	AffinityNodeID *string `json:"affinityNodeId"`
+	// AffinityUntilUTC is the end of the affinity wait (ISO 8601 UTC); nil when the run has no affinity.
+	AffinityUntilUTC *string `json:"affinityUntilUtc"`
+	// ConversationFallbackReason is one of the ConversationFallback constants when this turn started a fresh session
+	// from the transcript instead of resuming; nil otherwise.
+	ConversationFallbackReason *string `json:"conversationFallbackReason"`
+}
+
+// Conversation is a multi-turn session with one agent. Each turn is a run; a follow-up turn resumes the harness
+// session the earlier turns built. Turns are serialized: a turn sent while another is unfinished fails with HTTP 409
+// and code ConversationBusy.
+type Conversation struct {
+	// ID is the identifier (prefix cnv_).
+	ID        string `json:"id"`
+	TenantID  string `json:"tenantId"`
+	AgentID   string `json:"agentId"`
+	AgentName string `json:"agentName"`
+	// DeploymentID is the deployment every turn runs on, chosen for the first turn.
+	DeploymentID string `json:"deploymentId"`
+	HarnessType  string `json:"harnessType"`
+	// ContextID is the client-supplied A2A context identifier the conversation was created for; nil otherwise.
+	ContextID *string `json:"contextId"`
+	// Title is the first line of the first turn's input (at most 200 characters); nil before the first turn.
+	Title      *string `json:"title"`
+	CallerType string  `json:"callerType"`
+	CallerID   *string `json:"callerId"`
+	CallerName *string `json:"callerName"`
+	// SessionID is the harness session the next turn resumes; nil before the first successful turn.
+	SessionID               *string `json:"sessionId"`
+	SessionHarnessProfileID *string `json:"sessionHarnessProfileId"`
+	// AffinityNodeID is the node holding the conversation's workspace and home directories; nil when none does.
+	AffinityNodeID   *string `json:"affinityNodeId"`
+	AffinityNodeName *string `json:"affinityNodeName"`
+	// ActiveRunID is the run of the turn in progress (or the last one started); check Busy to know if it is unfinished.
+	ActiveRunID *string `json:"activeRunId"`
+	LastRunID   *string `json:"lastRunId"`
+	// TurnCount is the number of turns created, whatever their outcome.
+	TurnCount int `json:"turnCount"`
+	// FallbackCount is the number of turns that fell back to the transcript instead of resuming.
+	FallbackCount      int     `json:"fallbackCount"`
+	LastFallbackReason *string `json:"lastFallbackReason"`
+	LastFallbackUTC    *string `json:"lastFallbackUtc"`
+	LastActivityUTC    *string `json:"lastActivityUtc"`
+	// Busy is computed on read: true while a turn is unfinished, so a new turn or a delete would get 409 ConversationBusy.
+	Busy          bool   `json:"busy"`
+	Active        bool   `json:"active"`
+	IsProtected   bool   `json:"isProtected"`
+	CreatedUTC    string `json:"createdUtc"`
+	LastUpdateUTC string `json:"lastUpdateUtc"`
+}
+
+// ConversationFilter filters conversation listings. Empty fields are omitted.
+type ConversationFilter struct {
+	AgentID string
+	// ContextID matches the A2A context identifier the conversation was created for.
+	ContextID        string
+	CallerID         string
+	Search           string
+	Ordering         string
+	MaxResults, Skip int
 }
 
 // RunEvent is one normalized event emitted by a run.
@@ -344,6 +433,11 @@ type InvokeRequest struct {
 	Priority     int               `json:"priority,omitempty"`
 	// CancelOnDisconnect, when waiting, cancels the run if the client disconnects first. Nil means true.
 	CancelOnDisconnect *bool `json:"cancelOnDisconnect,omitempty"`
+	// ConversationID continues that conversation as its next turn. The server answers 409 ConversationBusy while the
+	// previous turn is unfinished (turns are refused, not queued) and 404 when the conversation does not exist.
+	ConversationID string `json:"conversationId,omitempty"`
+	// StartConversation starts a new conversation with this run as its first turn; the run's ConversationID names it.
+	StartConversation bool `json:"startConversation,omitempty"`
 }
 
 // RunCreateRequest is the body of POST .../runs.
@@ -358,12 +452,19 @@ type RunCreateRequest struct {
 	WaitSeconds  int               `json:"waitSeconds,omitempty"`
 	// CancelOnDisconnect, when waiting, cancels the run if the client disconnects first. Nil means true.
 	CancelOnDisconnect *bool `json:"cancelOnDisconnect,omitempty"`
+	// ConversationID continues that conversation as its next turn. The server answers 409 ConversationBusy while the
+	// previous turn is unfinished (turns are refused, not queued) and 404 when the conversation does not exist.
+	ConversationID string `json:"conversationId,omitempty"`
+	// StartConversation starts a new conversation with this run as its first turn; the run's ConversationID names it.
+	StartConversation bool `json:"startConversation,omitempty"`
 }
 
 // RunFilter filters run listings. Empty fields are omitted.
 type RunFilter struct {
 	Status, AgentID, DeploymentID, HarnessType, NodeID, ParentRunID, RootRunID, Outcome, Ordering string
 	MaxResults, Skip                                                                              int
+	// ConversationID keeps only the turns of this conversation.
+	ConversationID string
 }
 
 // ManifestApply is the result of applying manifests. Items is kept raw for forward compatibility; call

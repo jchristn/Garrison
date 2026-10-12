@@ -11,7 +11,7 @@ import JsonViewerModal from '../components/JsonViewerModal';
 import Tabs from '../components/Tabs';
 import { LoadingState, ErrorBanner, EmptyState } from '../components/States';
 import { StopIcon, RetryIcon, CodeIcon } from '../components/Icons';
-import { RunStatus } from './runConfigs';
+import { RunStatus, TurnSession } from './runConfigs';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -293,6 +293,42 @@ export default function RunDetailView({ recordId }) {
             '-'
           )}
         </Detail>
+        {run.conversationId && (
+          <>
+            <Detail label={t('views.runDetail.conversation')} tip={t('tips.views.runDetail.conversation')}>
+              <span className="inline-meta">
+                <a
+                  href={pathFor('conversations', run.conversationId)}
+                  data-testid="run-conversation-link"
+                  {...tip(t('tips.views.runDetail.openConversation'))}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(pathFor('conversations', run.conversationId));
+                  }}
+                >
+                  <code>{run.conversationId}</code>
+                </a>
+                <span className="text-muted">{t('resources.runs.turn', { turn: formatNumber(run.conversationTurn ?? 0) })}</span>
+              </span>
+            </Detail>
+            <Detail label={t('views.runDetail.conversationSession')} tip={t('tips.views.runDetail.conversationSession')}>
+              <TurnSession run={run} t={t} />
+            </Detail>
+            {run.resumeSessionId && (
+              <Detail label={t('views.runDetail.resumeSessionId')} tip={t('tips.views.runDetail.resumeSessionId')}>
+                <CopyableId value={run.resumeSessionId} max={40} />
+              </Detail>
+            )}
+            {run.affinityNodeId && (
+              <Detail label={t('views.runDetail.affinityNode')} tip={t('tips.views.runDetail.affinityNode')}>
+                <span className="inline-meta">
+                  <CopyableId value={run.affinityNodeId} max={30} />
+                  {run.affinityUntilUtc && <span className="text-muted">{t('views.runDetail.affinityUntil', { time: formatDateTime(run.affinityUntilUtc, i18n.language) })}</span>}
+                </span>
+              </Detail>
+            )}
+          </>
+        )}
         <Detail label={t('views.runDetail.attempt')} tip={t('tips.views.runDetail.attempt')}>{`${run.attempt ?? 1} / ${run.maxAttempts ?? 1}`}</Detail>
         {run.outputSchemaValid != null && (
           <Detail label={t('views.runDetail.outputSchema')} tip={t('tips.views.runDetail.outputSchema')}>

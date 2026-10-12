@@ -99,7 +99,7 @@ namespace Garrison.Server.Routes
             InvokeRequest request = RouteHelpers.Body<InvokeRequest>(context) ?? new InvokeRequest();
             Agent agent = await ResolveAgentAsync(tenantId, agentId, null, context).ConfigureAwait(false);
             if (agent.Id != agentId && _Routes != null && !await _Routes.RequireAsync(context, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id).ConfigureAwait(false)) return;
-            await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Invoke).ConfigureAwait(false);
+            await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Invoke, request.ConversationId, request.StartConversation).ConfigureAwait(false);
         }
 
         private async Task TestDeploymentAsync(HttpContextBase context)
@@ -111,7 +111,7 @@ namespace Garrison.Server.Routes
                 ?? throw new NotFoundException("Deployment " + deploymentId + " not found.");
             if (_Routes != null && !await _Routes.RequireAsync(context, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, deployment.AgentId).ConfigureAwait(false)) return;
             Agent agent = await ResolveAgentAsync(tenantId, deployment.AgentId, null, context).ConfigureAwait(false);
-            await CreateAndRespondAsync(context, tenantId, agent, deployment.Id, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Test).ConfigureAwait(false);
+            await CreateAndRespondAsync(context, tenantId, agent, deployment.Id, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Test, request.ConversationId, request.StartConversation).ConfigureAwait(false);
         }
 
         private async Task CreateAsync(HttpContextBase context)
@@ -120,10 +120,10 @@ namespace Garrison.Server.Routes
             RunCreateRequest request = RouteHelpers.RequiredBody<RunCreateRequest>(context);
             Agent agent = await ResolveAgentAsync(tenantId, request.AgentId, request.AgentName, context).ConfigureAwait(false);
             if (_Routes != null && !await _Routes.RequireAsync(context, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agent.Id).ConfigureAwait(false)) return;
-            await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Invoke).ConfigureAwait(false);
+            await CreateAndRespondAsync(context, tenantId, agent, request.DeploymentId, request.Input, request.InputContentType, request.Parameters, request.Priority, request.Wait, request.WaitSeconds, request.CancelOnDisconnect, RunKindEnum.Invoke, request.ConversationId, request.StartConversation).ConfigureAwait(false);
         }
 
-        private async Task CreateAndRespondAsync(HttpContextBase context, string tenantId, Agent agent, string? deploymentId, string input, string? contentType, Dictionary<string, string>? parameters, int priority, bool wait, int waitSeconds, bool? cancelOnDisconnect, RunKindEnum kind)
+        private async Task CreateAndRespondAsync(HttpContextBase context, string tenantId, Agent agent, string? deploymentId, string input, string? contentType, Dictionary<string, string>? parameters, int priority, bool wait, int waitSeconds, bool? cancelOnDisconnect, RunKindEnum kind, string? conversationId, bool startConversation)
         {
             InvocationOptions options = new InvocationOptions();
             options.Input = input ?? String.Empty;
@@ -132,6 +132,8 @@ namespace Garrison.Server.Routes
             options.Parameters = parameters ?? new Dictionary<string, string>();
             options.Priority = priority;
             options.Kind = kind;
+            options.ConversationId = conversationId;
+            options.StartConversation = startConversation;
             options.IdempotencyKey = context.Request.Headers[Constants.HeaderIdempotencyKey];
             options.Wait = RouteHelpers.QueryBool(context, "wait") ?? wait;
             options.WaitSeconds = RouteHelpers.QueryInt(context, "waitSeconds") ?? waitSeconds;
@@ -154,6 +156,7 @@ namespace Garrison.Server.Routes
             filter.NodeId = RouteHelpers.Query(context, "nodeId");
             filter.ParentRunId = RouteHelpers.Query(context, "parentRunId");
             filter.RootRunId = RouteHelpers.Query(context, "rootRunId");
+            filter.ConversationId = RouteHelpers.Query(context, "conversationId");
             filter.Outcome = RouteHelpers.QueryEnum<RunOutcomeEnum>(context, "outcome");
             filter.CallerId = RouteHelpers.Query(context, "callerId");
             filter.FromUtc = RouteHelpers.QueryDate(context, "fromUtc");

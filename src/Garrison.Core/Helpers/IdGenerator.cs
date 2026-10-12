@@ -488,6 +488,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a Conversation identifier (prefix cnv_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewConversationId()
+        {
+            return _Generator.GenerateKSortable("cnv_", _RandomLength);
+        }
+
+        /// <summary>
         /// Generate an identifier for a scalar child row.
         /// </summary>
         /// <returns>Identifier.</returns>

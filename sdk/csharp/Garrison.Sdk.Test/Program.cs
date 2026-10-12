@@ -289,6 +289,101 @@ namespace Garrison.Sdk.Test
                     Require(runs.Objects.All(r => r.AgentId == agentId), "foreign runs returned");
                 }).ConfigureAwait(false);
 
+                string? conversationDeploymentId = null;
+                string? conversationId = null;
+                await CheckAsync("conversation start", async () =>
+                {
+                    Deployment deployment = new Deployment();
+                    deployment.Name = "sdk-cs-" + suffix + "-turns";
+                    deployment.AgentId = agentId ?? throw new InvalidOperationException("no agent");
+                    deployment.HarnessProfileId = fakeProfileId ?? throw new InvalidOperationException("no fake profile");
+                    DeploymentParameter reportTurns = new DeploymentParameter();
+                    reportTurns.Name = "reportTurns";
+                    reportTurns.Value = "true";
+                    deployment.Parameters.Add(reportTurns);
+                    deployment = await client.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
+                    conversationDeploymentId = deployment.Id;
+
+                    InvokeRequest request = new InvokeRequest();
+                    request.Input = "First turn from the C# SDK";
+                    request.DeploymentId = deployment.Id;
+                    request.StartConversation = true;
+                    request.WaitSeconds = 90;
+                    Run run = await client.Agents.InvokeAsync(agentId, request, token).ConfigureAwait(false);
+                    Require(run.Status == RunStatusEnum.Succeeded, "status " + run.Status + " " + run.ErrorMessage);
+                    Require(!String.IsNullOrEmpty(run.ConversationId) && run.ConversationId!.StartsWith("cnv_", StringComparison.Ordinal), "conversationId " + run.ConversationId);
+                    Require(run.ConversationTurn == 1, "conversationTurn " + run.ConversationTurn);
+                    Require((run.ResultText ?? String.Empty).StartsWith("[turn 1] ", StringComparison.Ordinal), "result " + run.ResultText);
+                    conversationId = run.ConversationId;
+                }).ConfigureAwait(false);
+
+                await CheckAsync("conversation continue", async () =>
+                {
+                    InvokeRequest request = new InvokeRequest();
+                    request.Input = "Second turn from the C# SDK";
+                    request.ConversationId = conversationId ?? throw new InvalidOperationException("no conversation");
+                    request.WaitSeconds = 90;
+                    Run run = await client.Agents.InvokeAsync(agentId ?? throw new InvalidOperationException("no agent"), request, token).ConfigureAwait(false);
+                    Require(run.Status == RunStatusEnum.Succeeded, "status " + run.Status + " " + run.ErrorMessage);
+                    Require(run.ConversationId == conversationId, "conversationId " + run.ConversationId);
+                    Require(run.ConversationTurn == 2, "conversationTurn " + run.ConversationTurn);
+                    Require((run.ResultText ?? String.Empty).StartsWith("[turn 2] ", StringComparison.Ordinal), "result " + run.ResultText);
+                }).ConfigureAwait(false);
+
+                await CheckAsync("conversation read and list", async () =>
+                {
+                    string id = conversationId ?? throw new InvalidOperationException("no conversation");
+                    Conversation conversation = await client.Conversations.GetAsync(id, token).ConfigureAwait(false);
+                    Require(conversation.TurnCount == 2, "turnCount " + conversation.TurnCount);
+                    Require(!String.IsNullOrEmpty(conversation.SessionId), "sessionId empty");
+                    Require(conversation.DeploymentId == conversationDeploymentId, "deploymentId " + conversation.DeploymentId);
+                    Require(!conversation.Busy, "busy");
+
+                    ConversationFilter filter = new ConversationFilter();
+                    filter.AgentId = agentId;
+                    EnumerationResult<Conversation> page = await client.Conversations.ListAsync(filter, token).ConfigureAwait(false);
+                    Require(page.Objects.Any(c => c.Id == id), "conversation missing from list");
+
+                    EnumerationResult<Run> turns = await client.Conversations.ListRunsAsync(id, 25, 0, token).ConfigureAwait(false);
+                    Require(turns.Objects.Count == 2, "turns " + turns.Objects.Count);
+                    Require(turns.Objects[0].ConversationTurn == 1 && turns.Objects[1].ConversationTurn == 2, "turn order");
+
+                    RunFilter runFilter = new RunFilter();
+                    runFilter.ConversationId = id;
+                    EnumerationResult<Run> runs = await client.Runs.ListAsync(runFilter, token).ConfigureAwait(false);
+                    Require(runs.TotalRecords == 2, "runs by conversationId " + runs.TotalRecords);
+                }).ConfigureAwait(false);
+
+                await CheckAsync("conversation delete", async () =>
+                {
+                    string id = conversationId ?? throw new InvalidOperationException("no conversation");
+                    await client.Conversations.DeleteAsync(id, token).ConfigureAwait(false);
+                    bool missing = false;
+                    try
+                    {
+                        await client.Conversations.GetAsync(id, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404)
+                    {
+                        missing = true;
+                    }
+                    Require(missing, "expected 404 after delete");
+
+                    InvokeRequest request = new InvokeRequest();
+                    request.Input = "Turn for a deleted conversation";
+                    request.ConversationId = id;
+                    bool refused = false;
+                    try
+                    {
+                        await client.Agents.InvokeAsync(agentId ?? throw new InvalidOperationException("no agent"), request, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404)
+                    {
+                        refused = true;
+                    }
+                    Require(refused, "expected 404 continuing a deleted conversation");
+                }).ConfigureAwait(false);
+
                 await CheckAsync("control nodes", async () =>
                 {
                     ControlNodeListResponse list = await client.ControlNodes.ListAsync(null, token).ConfigureAwait(false);
@@ -306,6 +401,7 @@ namespace Garrison.Sdk.Test
 
                 await CheckAsync("cleanup", async () =>
                 {
+                    if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);
                     if (deploymentId != null) await client.Deployments.DeleteAsync(deploymentId, token).ConfigureAwait(false);
                     if (agentId != null) await client.Agents.DeleteAsync(agentId, token).ConfigureAwait(false);
                 }).ConfigureAwait(false);

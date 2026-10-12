@@ -129,6 +129,7 @@ namespace Garrison.Core.Database.Ado
             McpSessions = new AdoMcpSessionMethods(this);
             BackplaneMessages = new AdoBackplaneMessageMethods(this);
             ControlNodes = new AdoControlNodeMethods(this);
+            Conversations = new AdoConversationMethods(this);
         }
 
         #endregion

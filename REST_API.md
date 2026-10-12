@@ -86,7 +86,7 @@ Query string values are decoded the way browsers and HTTP clients encode them: p
 | 401 | Missing or invalid credentials (`AuthenticationRequired`, `InvalidCredentials`) |
 | 403 | Authenticated but not permitted (`AuthorizationDenied`) |
 | 404 | The resource does not exist or belongs to another tenant (`NotFound`, `RouteNotFound`). A system administrator who names a tenant that does not exist in a `/tenants/{tenantId}/...` path gets `TenantNotFound`; other callers get `NotFound` for any tenant but their own, so the response does not reveal which tenants exist |
-| 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound` |
+| 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound`, and the conversation codes `ConversationBusy` (the conversation's previous turn is unfinished), `ConversationAgentMismatch`, `ConversationDeploymentMismatch`, `ConversationDeploymentUnavailable` |
 | 429 | Too many authentication attempts from one address (`RateLimited`) |
 | 500 | An unexpected failure (`InternalError`); the server log has the request identifier |
 | 503 | The database cannot take the request right now: `DatabaseBusy` (the connection pool is exhausted, or PostgreSQL has no connection slots left) or `DatabaseUnavailable` (the database cannot be reached, is restarting, or is shutting down). Both carry a `Retry-After` header in seconds (`Rest.DatabaseRetryAfterSeconds`, default 2). Retrying is safe for reads and for creations that send an `Idempotency-Key`. `Cancelled` means the server is shutting down and dropped the request |
@@ -2273,6 +2273,21 @@ An `Idempotency-Key` header makes retries safe: the same key with the same agent
 
 A waiting call (`"wait": true`) that loses its client cancels the run: when the connection closes before the run finishes, the run moves to `Cancelling` and the worker stops the harness, so nobody pays for output that no one will read. To keep the run going after a disconnect (and read it later with `GET .../runs/{id}`), send `"cancelOnDisconnect": false` in the body or `?cancelOnDisconnect=false` on the URL; the query parameter wins. The wait timing out (`waitSeconds` elapsing, answered with 202) never cancels the run, and neither does a control-plane replica shutting down. See [Cancellation](#cancellation).
 
+To hold a conversation, send `"startConversation": true` with the first request and the returned run's `conversationId` with each follow-up. The follow-up becomes the conversation's next turn, and the harness resumes the session the earlier turns built. See [Conversations](#conversations).
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/helper/invoke" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Draft a release note for 0.2", "startConversation": true}'
+
+# The run carries "conversationId": "cnv_..."; send the next turn with it.
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/agents/helper/invoke" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Make it shorter", "conversationId": "cnv_..."}'
+```
+
 #### `POST /v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test`
 
 Invoke a specific deployment with a test input.
@@ -2584,6 +2599,109 @@ List runs delegated by a run.
 
 ```bash
 curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/children" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Conversations
+
+A conversation is a series of runs (turns) with one agent that share a harness session. The first turn starts the conversation (`"startConversation": true` on invoke, or any A2A message); each later turn names it with `conversationId` (or the A2A `contextId`) and resumes the session where the previous turn left it: Claude Code and Mux with `--resume <session>`, Codex with `codex exec resume <session>`, the Codex app-server profile with `thread/resume`, Gemini CLI with `--resume`. A conversation stays on the deployment of its first turn, because a session can only be resumed by the harness that created it.
+
+**One turn at a time.** A turn sent while the conversation's previous turn has not finished is refused with 409 `ConversationBusy`; the error names the unfinished run. Turns are refused rather than queued, so no caller holds a connection open behind someone else's turn. Wait for the run to finish (or cancel it) and send the turn again. A cancelled, failed, or timed-out turn frees the conversation like a successful one.
+
+**Where a turn runs.** A harness keeps its session in the run's home and config directories, so the conversation's turns run in one set of directories (`<WorkRoot>/conversations/<conversationId>/` on the worker) on the node that ran the last successful turn, the conversation's `affinityNodeId`. A follow-up turn waits for that node: other nodes leave it queued for up to `Runtime.ConversationAffinityWaitMs` (default 30 seconds) while the node is Ready. When the node is not Ready (Lost, Draining, Cordoned, or deleted), or the wait ends, another node takes the turn as a **fallback**: it starts a fresh harness session whose task prompt repeats the earlier turns (the `ConversationFallback` prompt role, `builtin/conversation-fallback` by default, limited to `Runtime.ConversationTranscriptTurns` turns of at most `Runtime.ConversationTranscriptChars` characters each) before the new request. A turn whose node no longer has the conversation's directories (the worker's work root was emptied, or the directories went unused for the worker's `ConversationRetentionHours`) reports `ConversationStateLost`, and the control plane queues it again as a fallback without using an attempt.
+
+Every fallback is recorded three ways: the run's `conversationFallbackReason`, a `ConversationFallback` lifecycle event on the run, and the conversation's `fallbackCount`, `lastFallbackReason`, and `lastFallbackUtc`. The node that runs a fallback turn becomes the new affinity node once the turn succeeds.
+
+| `conversationFallbackReason` | Meaning |
+|---|---|
+| `AffinityNodeLost` | The node holding the session is not Ready (or the conversation has no affinity node), so another node ran the turn. |
+| `AffinityWaitExpired` | The node holding the session stayed Ready but did not take the turn within `Runtime.ConversationAffinityWaitMs`. |
+| `WorkspaceLost` | The node holding the session no longer had the conversation's directories. |
+| `SessionMissing` | Earlier turns exist, but none reported a session to resume (for example, they all failed early). |
+| `HarnessChanged` | The deployment's harness profile changed since the session was recorded. |
+| `ResumeUnsupported` | The deployment's harness profile has `supportsResume` off. |
+| `ExecutorWithoutState` | The deployment runs on the KubernetesJob executor, whose run pods keep no home directory between runs, so every turn after the first starts from the transcript. |
+
+Runs carry `conversationId`, `conversationTurn` (1 for the first turn), `resumeSessionId` (the session the turn resumes, cleared by a fallback), `affinityNodeId` and `affinityUntilUtc` (the node the turn waits for and until when), and `conversationFallbackReason`. `GET .../runs?conversationId=cnv_...` lists a conversation's turns, as does `GET .../conversations/{id}/runs`.
+
+Conversations need the `Conversation` permission resource: Read to list and read them, Delete to delete them. Invoking a turn needs Execute on the agent, as for any invocation. A conversation from another tenant answers 404.
+
+#### `GET /v1.0/api/tenants/{tenantId}/conversations`
+
+List conversations, newest first.
+
+| Query parameter | Meaning |
+|---|---|
+| `agentId` | Only conversations with this agent (ID) |
+| `contextId` | Only the conversation created for this client-supplied A2A context identifier |
+| `callerId` | Only conversations started by this principal |
+| `search` | Case-insensitive part of the title |
+
+| | |
+|---|---|
+| Permission | Read on `Conversation` |
+| Response | `EnumerationResult<Conversation>` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/conversations?agentId=agt_..." \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### `GET /v1.0/api/tenants/{tenantId}/conversations/{id}`
+
+Read a conversation. `busy` is computed on read: true while a turn is unfinished.
+
+| | |
+|---|---|
+| Permission | Read on `Conversation` |
+| Response | `Conversation` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/conversations/{id}" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "id": "cnv_mv4m...",
+  "agentId": "agt_...", "agentName": "helper", "deploymentId": "dep_...", "harnessType": "ClaudeCode",
+  "title": "Draft a release note for 0.2",
+  "sessionId": "9c1d0f7e-...", "sessionHarnessProfileId": "hrn_builtin_claude_code",
+  "affinityNodeId": "nod_...", "affinityNodeName": "garrison-worker-0",
+  "activeRunId": "run_...", "lastRunId": "run_...",
+  "turnCount": 2, "fallbackCount": 0, "busy": false,
+  "lastActivityUtc": "2026-10-11T20:14:03.112Z", "createdUtc": "2026-10-11T20:12:40.008Z"
+}
+```
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/conversations/{id}`
+
+Delete a conversation. Its runs are kept (with their `conversationId`), so history and analytics are unchanged; a later turn naming the deleted conversation gets 404. A conversation with an unfinished turn answers 409 `ConversationBusy`. The deletion is audited (`ConversationDeleted`). The worker removes the conversation's directories when they have gone unused for its `ConversationRetentionHours`.
+
+| | |
+|---|---|
+| Permission | Delete on `Conversation` |
+| Success | 204 |
+
+```bash
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/conversations/{id}" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### `GET /v1.0/api/tenants/{tenantId}/conversations/{id}/runs`
+
+List a conversation's turns (runs), oldest first unless `ordering` is given.
+
+| | |
+|---|---|
+| Permission | Read on `Conversation` |
+| Response | `EnumerationResult<Run>` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/conversations/{id}/runs" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -3254,7 +3372,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors. Besides deployment parameters, a deployment can allow the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds` (validate it with an `IntegerRange` rule, for example `"pattern": "30,1800"`); a per-run `timeoutSeconds` is still capped by `Runtime.MaxRunSeconds`. A waiting call cancels its run when the client disconnects unless `cancelOnDisconnect` is false.
 
-**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
+**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
 **Run events.** `GET .../runs/{id}/events?afterSequence=0&limit=500` returns events with a sequence greater than `afterSequence`, in order, plus the run's current status. Poll with the last sequence you saw to follow a run.
 
@@ -3465,7 +3583,7 @@ Security and configuration audit record.
 
 #### `AuditEventTypeEnum`
 
-`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`
+`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`
 
 #### `AuthSchemeEnum`
 
@@ -4096,6 +4214,8 @@ Request to invoke an agent.
 | `wait` | `bool` | Whether to wait for completion before responding. |
 | `waitSeconds` | `int` | Maximum seconds to wait (1 to 600, default 60). |
 | `cancelOnDisconnect` | `bool?` | When waiting, whether the run is cancelled if the client disconnects before it finishes. Null means true; false keeps the run going. The query parameter `cancelOnDisconnect` overrides it. |
+| `conversationId` | `string?` | Conversation to continue: the run becomes its next turn and resumes the harness session of the earlier turns. 404 when it names no conversation of the tenant, 409 `ConversationAgentMismatch` for another agent's conversation, 409 `ConversationDeploymentMismatch` when `deploymentId` names another deployment, 409 `ConversationBusy` while the previous turn is unfinished. |
+| `startConversation` | `bool` | Start a new conversation with this run as its first turn; the run's `conversationId` names it. Ignored when `conversationId` is set. Default false. |
 
 #### `ManifestApply`
 
@@ -4519,6 +4639,12 @@ One invocation of one deployment.
 | `repairAttempts` | `int` | Structured output repair attempts started (0 or 1). |
 | `sessionId` | `string?` | Harness session identifier. |
 | `servedModel` | `string?` | Model that served the run. |
+| `conversationId` | `string?` | Conversation this run is a turn of, or `null`. Always present. See [Conversations](#conversations). |
+| `conversationTurn` | `int` | Turn number within the conversation, starting at 1; 0 outside a conversation. |
+| `resumeSessionId` | `string?` | Harness session this turn resumes on its affinity node, or `null` (first turn, fallback, or no conversation). Always present. |
+| `affinityNodeId` | `string?` | Node this turn waits for because it holds the conversation's directories, or `null`. Always present. |
+| `affinityUntilUtc` | `DateTime?` | End of the affinity wait; after it any capable node may take the turn as a fallback. Always present. |
+| `conversationFallbackReason` | `ConversationFallbackReasonEnum?` | Why this turn started a fresh session seeded with the transcript instead of resuming, or `null`. Always present. |
 | `traceId` | `string?` | W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in; the server's `run:create`, `run:claim`, and `run:compile` spans and the worker's `harness <type> exec` span share it, and delegated runs join their parent's trace. Use it to open the trace in Tempo or search logs (`trace=<traceId>`). `null` for runs created before schema migration 5. Always present. See `docs/TELEMETRY.md`. |
 | `exitCode` | `int?` | Process exit code. |
 | `stderrTail` | `string?` | Stderr tail (scrubbed). |
@@ -4550,13 +4676,53 @@ One invocation of one deployment.
 
 #### `RunOutcomeEnum`
 
-`None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`, `RepetitionDetected`, `NoProgress`, `PodFailed`
+`None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`, `RepetitionDetected`, `NoProgress`, `PodFailed`, `ConversationStateLost`
 
 `PodFailed` means the run pod of a KubernetesJob run failed outside the harness: it stayed Pending past the worker's pending timeout, its image could not be pulled, its configuration was invalid, it was OOMKilled, or `run-one` exited without reporting a completion. `errorMessage` names the cause. A pod evicted or deleted while running is treated as node loss instead (the lease expires and `retryOnNodeLoss` applies).
 
 `RepetitionDetected`, `NoProgress`, and `OutputLimitExceeded` (when the assistant text passed `maxAssistantChars`) are run guard stops; see [Run guards](#run-guards-repetitiondetected-outputlimitexceeded-noprogress). `OutputLimitExceeded` also means the harness wrote more than the profile's `maxOutputBytes` to stdout.
 
 `NoCapableWorker` means the run stayed queued with no Ready worker able to run it for longer than `Runtime.FailBlockedAfterSeconds`.
+
+`ConversationStateLost` means a conversation turn that should resume its harness session found the conversation's directories gone on its node. The control plane normally queues the turn again as a fallback, so a run only ends with this outcome when that was not possible (for example, it was cancelled at the same moment).
+
+#### `Conversation`
+
+A multi-turn conversation with one agent. See [Conversations](#conversations).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`cnv_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `agentId` | `string` | Agent the conversation is with. |
+| `agentName` | `string` | Agent name when the conversation started. |
+| `deploymentId` | `string` | Deployment every turn runs on (chosen for the first turn). |
+| `harnessType` | `HarnessTypeEnum` | Harness type of the deployment's profile. |
+| `contextId` | `string?` | Client-supplied A2A context identifier the conversation was created for, or `null` (the A2A context identifier is then the conversation identifier). |
+| `title` | `string?` | First line of the first turn's input, at most 200 characters. |
+| `callerType` | `PrincipalTypeEnum` | Principal type that started the conversation. |
+| `callerId` | `string?` | Principal that started the conversation. |
+| `callerName` | `string?` | Display name of that principal. |
+| `sessionId` | `string?` | Harness session the next turn resumes, from the last successful turn. |
+| `sessionHarnessProfileId` | `string?` | Harness profile that created the session. |
+| `affinityNodeId` | `string?` | Node holding the conversation's directories, or `null`. |
+| `affinityNodeName` | `string?` | Name of that node. |
+| `activeRunId` | `string?` | Run of the turn in progress or of the most recent turn. |
+| `lastRunId` | `string?` | Most recent turn's run. |
+| `turnCount` | `int` | Turns created (every run, whatever its outcome). |
+| `fallbackCount` | `int` | Turns that started a fresh session from the transcript. |
+| `lastFallbackReason` | `ConversationFallbackReasonEnum?` | Reason of the most recent fallback. |
+| `lastFallbackUtc` | `DateTime?` | Time of the most recent fallback. |
+| `lastActivityUtc` | `DateTime?` | Time of the most recent turn's start or success. |
+| `busy` | `bool` | Read-only and computed on read: true while a turn is unfinished. |
+| `active` | `bool` | Whether the record is active. |
+| `isProtected` | `bool` | Whether the record is protected from deletion. |
+| `createdUtc` | `DateTime` | Creation timestamp (UTC). |
+| `lastUpdateUtc` | `DateTime` | Last update timestamp (UTC). |
+
+#### `ConversationFallbackReasonEnum`
+
+`AffinityNodeLost`, `AffinityWaitExpired`, `WorkspaceLost`, `SessionMissing`, `HarnessChanged`, `ResumeUnsupported`, `ExecutorWithoutState`
 
 `NotCredentialed` also covers bound credentials the control plane cannot use (G-22). The run fails before it reaches a worker and `errorMessage` starts with a code: `SecretNeedsReauthentication:` when a `CodexAuthJson` secret's `status` is `NeedsReauthentication` (replace its value), or `SecretRefreshFailed:` when its access token is expired and the refresh failed for a reason worth retrying (retry the run).
 
@@ -4912,6 +5078,8 @@ Request to create a run.
 | `wait` | `bool` | Whether to wait for completion before responding. |
 | `waitSeconds` | `int` | Maximum seconds to wait (1 to 600). |
 | `cancelOnDisconnect` | `bool?` | When waiting, whether the run is cancelled if the client disconnects before it finishes. Null means true; false keeps the run going. The query parameter `cancelOnDisconnect` overrides it. |
+| `conversationId` | `string?` | Conversation to continue: the run becomes its next turn and resumes the harness session of the earlier turns. 404 when it names no conversation of the tenant, 409 `ConversationAgentMismatch` for another agent's conversation, 409 `ConversationDeploymentMismatch` when `deploymentId` names another deployment, 409 `ConversationBusy` while the previous turn is unfinished. |
+| `startConversation` | `bool` | Start a new conversation with this run as its first turn; the run's `conversationId` names it. Ignored when `conversationId` is set. Default false. |
 
 #### `RunEventsRequest`
 

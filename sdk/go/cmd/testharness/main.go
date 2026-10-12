@@ -374,6 +374,116 @@ func main() {
 		}
 		return nil
 	})
+	var conversationDeploymentID, conversationID string
+	check("conversation start", func(ctx context.Context) error {
+		body := map[string]any{
+			"name": "sdk-go-" + suffix + "-turns", "agentId": agentID, "harnessProfileId": fakeID,
+			"parameters": []map[string]string{{"name": "reportTurns", "value": "true"}},
+		}
+		var dep garrison.Deployment
+		if err := client.Deployments.Create(ctx, body, &dep); err != nil {
+			return err
+		}
+		conversationDeploymentID = dep.ID
+		run, err := client.Agents.Invoke(ctx, agentID, garrison.InvokeRequest{Input: "First turn from the Go SDK", Wait: true, WaitSeconds: 90, DeploymentID: dep.ID, StartConversation: true})
+		if err != nil {
+			return err
+		}
+		if run.Status != "Succeeded" {
+			return fmt.Errorf("status %s %s", run.Status, run.ErrorMessage)
+		}
+		if run.ConversationID == nil || !strings.HasPrefix(*run.ConversationID, "cnv_") {
+			return fmt.Errorf("conversationId %v", run.ConversationID)
+		}
+		if run.ConversationTurn != 1 {
+			return fmt.Errorf("conversationTurn %d", run.ConversationTurn)
+		}
+		if !strings.HasPrefix(run.ResultText, "[turn 1] ") {
+			return fmt.Errorf("result %q", run.ResultText)
+		}
+		conversationID = *run.ConversationID
+		return nil
+	})
+	check("conversation continue", func(ctx context.Context) error {
+		run, err := client.Agents.Invoke(ctx, agentID, garrison.InvokeRequest{Input: "Second turn from the Go SDK", Wait: true, WaitSeconds: 90, ConversationID: conversationID})
+		if err != nil {
+			return err
+		}
+		if run.Status != "Succeeded" {
+			return fmt.Errorf("status %s %s", run.Status, run.ErrorMessage)
+		}
+		if run.ConversationID == nil || *run.ConversationID != conversationID {
+			return fmt.Errorf("conversationId %v", run.ConversationID)
+		}
+		if run.ConversationTurn != 2 {
+			return fmt.Errorf("conversationTurn %d", run.ConversationTurn)
+		}
+		if !strings.HasPrefix(run.ResultText, "[turn 2] ") {
+			return fmt.Errorf("result %q", run.ResultText)
+		}
+		return nil
+	})
+	check("conversation read and list", func(ctx context.Context) error {
+		conversation, err := client.Conversations.Get(ctx, conversationID)
+		if err != nil {
+			return err
+		}
+		if conversation.TurnCount != 2 {
+			return fmt.Errorf("turnCount %d", conversation.TurnCount)
+		}
+		if conversation.SessionID == nil || *conversation.SessionID == "" {
+			return errors.New("sessionId empty")
+		}
+		if conversation.DeploymentID != conversationDeploymentID {
+			return fmt.Errorf("deploymentId %s", conversation.DeploymentID)
+		}
+		if conversation.Busy {
+			return errors.New("busy")
+		}
+		page, err := client.Conversations.List(ctx, garrison.ConversationFilter{AgentID: agentID})
+		if err != nil {
+			return err
+		}
+		found := false
+		for _, c := range page.Objects {
+			if c.ID == conversationID {
+				found = true
+			}
+		}
+		if !found {
+			return errors.New("conversation missing from list")
+		}
+		turns, err := client.Conversations.ListRuns(ctx, conversationID, 0, 0)
+		if err != nil {
+			return err
+		}
+		if len(turns.Objects) != 2 {
+			return fmt.Errorf("turns %d", len(turns.Objects))
+		}
+		if turns.Objects[0].ConversationTurn != 1 || turns.Objects[1].ConversationTurn != 2 {
+			return fmt.Errorf("turn order %d,%d", turns.Objects[0].ConversationTurn, turns.Objects[1].ConversationTurn)
+		}
+		runs, err := client.Runs.List(ctx, garrison.RunFilter{ConversationID: conversationID})
+		if err != nil {
+			return err
+		}
+		if runs.TotalRecords != 2 {
+			return fmt.Errorf("runs by conversationId %d", runs.TotalRecords)
+		}
+		return nil
+	})
+	check("conversation delete", func(ctx context.Context) error {
+		if err := client.Conversations.Delete(ctx, conversationID); err != nil {
+			return err
+		}
+		if _, err := client.Conversations.Get(ctx, conversationID); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("expected HTTP 404 after delete, got %v", err)
+		}
+		if _, err := client.Agents.Invoke(ctx, agentID, garrison.InvokeRequest{Input: "Turn for a deleted conversation", ConversationID: conversationID}); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("expected HTTP 404 continuing a deleted conversation, got %v", err)
+		}
+		return nil
+	})
 	check("control nodes", func(ctx context.Context) error {
 		page, err := client.ControlNodes.List(ctx, nil)
 		if err != nil {
@@ -404,6 +514,11 @@ func main() {
 		return nil
 	})
 	check("cleanup", func(ctx context.Context) error {
+		if conversationDeploymentID != "" {
+			if err := client.Deployments.Delete(ctx, conversationDeploymentID); err != nil {
+				return err
+			}
+		}
 		if deploymentID != "" {
 			if err := client.Deployments.Delete(ctx, deploymentID); err != nil {
 				return err

@@ -90,7 +90,8 @@ const tips = {
       audit: 'Eventi di sicurezza e configurazione: accessi, rifiuti, modifiche ai segreti, applicazioni di manifest e modifiche ai nodi.',
       explorer: 'Scegli qualsiasi operazione API dal documento OpenAPI del server, compila i parametri ed eseguila dal vivo.',
       settings: 'Impostazioni del server e del cluster, con la loro origine e l\'indicazione se una modifica si applica subito o richiede un riavvio.',
-      serverInfo: 'Indirizzi REST, MCP e A2A, versioni di server e dashboard e l\'identità con cui hai effettuato l\'accesso.'
+      serverInfo: 'Indirizzi REST, MCP e A2A, versioni di server e dashboard e l\'identità con cui hai effettuato l\'accesso.',
+      conversations: 'Conversazioni a più turni con gli agenti: ogni turno è un\'esecuzione che riprende la sessione del turno precedente. Aprine una per leggerne i turni e inviare il messaggio successivo.'
     },
     subtabs: {
       roles: 'I ruoli raggruppano autorizzazioni sotto un unico nome, come Operator o Invoker. Assegna un ruolo per concedere a qualcuno tutte le sue autorizzazioni.',
@@ -170,7 +171,8 @@ const tips = {
     pathContains: 'Mostra solo le richieste il cui percorso contiene questo testo, per esempio /agents.',
     tenantId: 'Mostra solo le richieste effettuate in questo tenant. Lascia vuoto per tutti i tenant.',
     apply: 'Esegui la ricerca con i valori dei filtri qui sopra.',
-    clear: 'Svuota tutti i filtri qui sopra e ripeti la ricerca.'
+    clear: 'Svuota tutti i filtri qui sopra e ripeti la ricerca.',
+    agentId: 'Mostra solo i record di un agente. Scegli Tutti per rimuovere il filtro.'
   },
   form: {
     option: 'Includi {{option}} in {{field}}. Le opzioni selezionate vengono salvate; quelle non selezionate vengono escluse.',
@@ -334,7 +336,8 @@ const tips = {
       NoCapableWorker: 'L\'esecuzione è rimasta in coda più a lungo di quanto consente l\'impostazione del cluster Runtime.FailBlockedAfterSeconds e nessun nodo worker pronto poteva eseguirla, quindi è fallita.',
       RepetitionDetected: 'Una protezione ha fermato l\'esecuzione perché la sua risposta è degenerata nello stesso testo breve ripetuto più e più volte, o solo in spazi e punteggiatura. L\'output ottenuto viene conservato. Regolala con la Protezione dalle ripetizioni della distribuzione.',
       NoProgress: 'Una protezione ha fermato l\'esecuzione perché per più tempo del limite senza avanzamento della distribuzione non sono arrivati testo, ragionamento né attività degli strumenti. L\'output ottenuto viene conservato.',
-      PodFailed: 'Il pod di esecuzione non è riuscito fuori dall\'harness: non è stato pianificato, la sua immagine non è stata scaricata, ha esaurito la memoria, è stato espulso o è terminato senza riferire. Il messaggio di errore indica la causa.'
+      PodFailed: 'Il pod di esecuzione non è riuscito fuori dall\'harness: non è stato pianificato, la sua immagine non è stata scaricata, ha esaurito la memoria, è stato espulso o è terminato senza riferire. Il messaggio di errore indica la causa.',
+      ConversationStateLost: 'Il nodo che doveva riprendere questo turno di conversazione non aveva più le cartelle della conversazione. Garrison rimette in coda un turno del genere una volta per ricostruirlo; questo esito resta solo quando non è stato possibile.'
     },
     controlNodeStatus: {
       Starting: 'In avvio: la replica si sta inizializzando e non gestisce ancora traffico.',
@@ -439,7 +442,17 @@ const tips = {
       ManifestApplied: 'Un manifest è stato applicato al tenant.',
       NodeRegistered: 'Un nodo worker si è registrato presso il piano di controllo.',
       NodeStatusChanged: 'Un nodo worker è stato isolato, svuotato, perso o è tornato disponibile.',
-      RunCancelled: 'Un\'esecuzione è stata annullata da un utente, da una chiave di accesso o dalla sua esecuzione padre.'
+      RunCancelled: 'Un\'esecuzione è stata annullata da un utente, da una chiave di accesso o dalla sua esecuzione padre.',
+      ConversationDeleted: 'Qualcuno ha eliminato una conversazione. I suoi turni restano come esecuzioni normali.'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'Il nodo che conserva la conversazione non era più pronto (perso, in svuotamento, isolato o eliminato), quindi un altro nodo ha preso il turno.',
+      AffinityWaitExpired: 'Il nodo che conserva la conversazione è rimasto pronto ma non ha preso il turno entro Runtime.ConversationAffinityWaitMs, quindi l\'ha preso un altro nodo.',
+      WorkspaceLost: 'Il nodo ha preso il turno, ma lì non c\'erano più l\'area di lavoro e la cartella home della conversazione.',
+      SessionMissing: 'Esistono turni precedenti, ma nessuno ha segnalato una sessione dell\'harness da riprendere, per esempio perché sono falliti tutti presto.',
+      HarnessChanged: 'Il profilo harness della distribuzione è cambiato da quando la sessione è stata registrata, quindi il nuovo profilo non può riprenderla.',
+      ResumeUnsupported: 'Il profilo harness della distribuzione non supporta la ripresa di una sessione, quindi ogni turno successivo parte dalla trascrizione.',
+      ExecutorWithoutState: 'Il turno viene eseguito come Kubernetes Job, che parte ogni volta con una cartella home vuota, quindi ogni turno successivo parte dalla trascrizione.'
     }
   },
   resources: {
@@ -794,7 +807,9 @@ const tips = {
       actions: {
         cancel: 'Ferma questa esecuzione. Il worker termina il processo dell\'harness e l\'esecuzione finisce come «Annullata».',
         retry: 'Avvia una nuova esecuzione con lo stesso input e la stessa distribuzione. L\'esecuzione originale viene conservata.'
-      }
+      },
+      conversationId: 'La conversazione di cui questa esecuzione è un turno, con il numero del turno. Vuoto per le esecuzioni fuori da una conversazione.',
+      conversationTurn: 'Posizione di questa esecuzione nella sua conversazione; il turno che l\'ha avviata è il numero 1.'
     },
     nodes: {
       name: 'Nome del nodo, di solito il nome del pod Kubernetes del worker.',
@@ -877,6 +892,31 @@ const tips = {
       principalName: 'Chi lo ha applicato.',
       dryRun: '«Sì» indica che è stato solo convalidato e non è stato scritto nulla.',
       counts: 'Quanti documenti hanno creato, aggiornato, lasciato invariati o fatto fallire record.'
+    },
+    conversations: {
+      title: 'La prima riga del primo messaggio, che dà il nome alla conversazione. Fai clic sulla riga per aprirne i turni.',
+      agentName: 'L\'agente con cui si svolge la conversazione. Ogni turno va a questo agente.',
+      state: 'In lavorazione finché un turno non è concluso; fino ad allora un nuovo messaggio viene rifiutato. In attesa quando si può inviare il messaggio successivo.',
+      turnCount: 'Quanti turni (esecuzioni) ha avuto la conversazione, compresi quelli falliti.',
+      affinityNodeName: 'Il nodo worker che conserva l\'area di lavoro e la sessione dell\'harness della conversazione. Il turno successivo preferisce questo nodo per poter riprendere.',
+      fallbackCount: 'Quanti turni non hanno potuto riprendere la sessione dell\'harness e ne hanno avviata una nuova con la trascrizione dei turni precedenti.',
+      lastFallbackReason: 'Perché il turno ricostruito più recente non ha potuto riprendere la sessione, per esempio perché il nodo di affinità non era pronto.',
+      harnessType: 'L\'harness che esegue ogni turno, preso dalla distribuzione del primo turno.',
+      callerName: 'Chi ha avviato la conversazione: un utente, una chiave di accesso o l\'esecuzione di un altro agente.',
+      contextId: 'L\'ID di contesto A2A fornito dal client, quando la conversazione è arrivata tramite A2A. Vuoto per le conversazioni avviate tramite REST o MCP.',
+      sessionId: 'La sessione dell\'harness che il turno successivo riprende. Vuoto finché un turno non ne segnala una.',
+      lastActivityUtc: 'Quando l\'ultimo turno è stato inviato o è terminato. Passa il puntatore sul valore per l\'ora esatta.',
+      createdUtc: 'Quando il primo turno ha avviato la conversazione. Passa il puntatore sul valore per l\'ora esatta.',
+      id: 'Identificatore della conversazione. Passalo come conversationId quando invochi l\'agente per inviare il turno successivo.',
+      fallbackLast: 'Turni che hanno avviato una nuova sessione dalla trascrizione. Motivo più recente: {{reason}}.',
+      states: {
+        busy: 'Un turno di questa conversazione è ancora in coda o in esecuzione. Attendi che finisca, o annullalo, prima di inviare il messaggio successivo.',
+        idle: 'Nessun turno è in corso. Il messaggio successivo continua la conversazione.'
+      },
+      actions: {
+        continue: 'Apri Invoca con questa conversazione selezionata, così il messaggio successivo viene inviato come suo turno successivo.',
+        runs: 'Apri l\'elenco Esecuzioni filtrato sui turni di questa conversazione, con tutte le colonne e i filtri delle esecuzioni.'
+      }
     }
   },
   views: {
@@ -970,8 +1010,15 @@ const tips = {
       eventFilter: 'Mostra solo un tipo di evento, come chiamate a strumenti o errori.',
       openChild: 'Apri questa esecuzione figlia, avviata quando questa esecuzione ha chiamato un altro agente.',
       eventCodes: {
-        RunGuardTriggered: 'Una protezione ha fermato questa esecuzione. Il messaggio dice quale protezione è scattata e cosa ha visto; l\'esecuzione termina come Non riuscita con l\'esito di quella protezione e conserva l\'output parziale.'
-      }
+        RunGuardTriggered: 'Una protezione ha fermato questa esecuzione. Il messaggio dice quale protezione è scattata e cosa ha visto; l\'esecuzione termina come Non riuscita con l\'esito di quella protezione e conserva l\'output parziale.',
+        ConversationFallback: 'Questo turno non ha potuto riprendere la sessione dell\'harness della conversazione, quindi ne ha avviata una nuova con la trascrizione dei turni precedenti. Il messaggio indica il motivo.',
+        ConversationStateLost: 'Il nodo ha preso questo turno ma le cartelle della conversazione mancavano, quindi il turno è tornato in coda per essere eseguito come ricostruzione.'
+      },
+      conversation: 'La conversazione di cui questa esecuzione è un turno, e il numero del turno. Fai clic per aprire la conversazione.',
+      openConversation: 'Apri la conversazione con tutti i turni e una casella per inviare il successivo.',
+      conversationSession: 'Se questo turno ha ripreso la sessione dell\'harness della conversazione o ne ha avviata una nuova dalla trascrizione, e perché.',
+      resumeSessionId: 'La sessione dell\'harness ripresa da questo turno, lasciata dal turno precedente.',
+      affinityNode: 'Il nodo che conserva le cartelle della conversazione. Gli altri nodi lasciano il turno fino all\'ora indicata, a meno che questo nodo non sia più pronto.'
     },
     agentDetail: {
       name: 'Il nome che i chiamanti usano per invocare questo agente.',
@@ -994,7 +1041,8 @@ const tips = {
         weight: 'Il peso del traffico grezzo impostato sulla distribuzione.',
         traffic: 'Quota di invocazioni ricevuta da questa distribuzione: il suo peso diviso per la somma dei pesi attivi.',
         active: 'Solo le distribuzioni attive ricevono traffico ponderato.'
-      }
+      },
+      conversations: 'Apri l\'elenco Conversazioni filtrato su questo agente.'
     },
     queue: {
       queued: 'Esecuzioni in attesa di un nodo. Fai clic per elencarle.',
@@ -1038,7 +1086,13 @@ const tips = {
       sendKeeps: 'Avvia una nuova esecuzione con questo messaggio. L\'esecuzione in corso prosegue perché "Ferma l\'esecuzione quando esco" è disattivato; la trovi nella pagina Esecuzioni.',
       timeLimit: 'Scadenza facoltativa di questa esecuzione, in secondi, che questa distribuzione consente di impostare. Lascia vuoto per il valore della distribuzione. L\'esecuzione va in timeout quando supera il limite.',
       timePreset: 'Imposta il limite di tempo di questa esecuzione a {{value}}.',
-      timePresetClear: 'Togli il limite di tempo così l\'esecuzione usa il valore della distribuzione.'
+      timePresetClear: 'Togli il limite di tempo così l\'esecuzione usa il valore della distribuzione.',
+      conversation: {
+        mode: 'Esegui una sola volta, avvia una nuova conversazione i cui turni successivi riprendono questa sessione dell\'harness, oppure invia il turno successivo di una conversazione esistente.',
+        pick: 'La conversazione da continuare. Sono elencate solo le conversazioni di questo agente, dalle più recenti.',
+        deploymentPinned: 'Una conversazione resta sulla distribuzione del suo primo turno, quindi la distribuzione è fissa mentre la continui.',
+        open: 'Apri la conversazione a cui appartiene questa esecuzione, con tutti i turni e una casella per inviare il successivo.'
+      }
     },
     manifests: {
       planned: 'Cosa farebbe l\'applicazione di questo documento: creare il record, aggiornarlo o lasciarlo invariato. Una simulazione convalida senza cambiare nulla.',
@@ -1189,7 +1243,10 @@ const tips = {
           MaxRunSeconds: 'La durata massima di qualsiasi esecuzione, in secondi. Timeout delle distribuzioni, limiti per esecuzione e valori dei profili superiori vengono ridotti a questo valore.',
           RepetitionGuard: 'Se le distribuzioni che lasciano vuota la Protezione dalle ripetizioni fermano le esecuzioni la cui risposta degenera in ripetizioni (esito Ripetizione rilevata).',
           MaxAssistantChars: 'Caratteri di testo dell\'assistente dopo i quali un\'esecuzione si ferma (esito Limite di output superato), per le distribuzioni che lasciano vuoto il limite. 0 è illimitato.',
-          NoProgressSeconds: 'Secondi senza testo, ragionamento o attività degli strumenti dopo i quali un\'esecuzione si ferma (esito Nessun avanzamento), per le distribuzioni che lasciano vuoto il limite. 0 lo disattiva.'
+          NoProgressSeconds: 'Secondi senza testo, ragionamento o attività degli strumenti dopo i quali un\'esecuzione si ferma (esito Nessun avanzamento), per le distribuzioni che lasciano vuoto il limite. 0 lo disattiva.',
+          ConversationAffinityWaitMs: 'Quanto un turno di conversazione attende il nodo che conserva la sua sessione dell\'harness prima che un altro nodo lo prenda e avvii una nuova sessione dalla trascrizione. Se quel nodo non è pronto, gli altri lo prendono subito. 0 non attende mai.',
+          ConversationTranscriptTurns: 'Numero massimo di turni precedenti passati a un turno di conversazione ricostruito in una nuova sessione dell\'harness. Si tengono i più recenti.',
+          ConversationTranscriptChars: 'Numero massimo di caratteri di ogni messaggio e risposta precedenti passati a un turno ricostruito. I testi più lunghi vengono tagliati e segnalati come troncati.'
         },
         Scheduling: {
           PauseGraceMs: 'Dopo una sospensione dell\'host o una pausa della VM, il leader attende una finestra di heartbeat più questi millisecondi prima di segnare i nodi come Perso o di far fallire le loro esecuzioni. Predefinito 5000.'
@@ -1199,6 +1256,39 @@ const tips = {
     runGuard: {
       openDeployments: 'Vai a Distribuzioni per cambiare le protezioni di una distribuzione: Protezione dalle ripetizioni, Massimo di caratteri dell\'assistente e Limite senza avanzamento.',
       openSettings: 'Vai a Impostazioni per cambiare i valori del cluster (Motore di esecuzione) seguiti dalle distribuzioni senza protezioni proprie.'
+    },
+    conversationDetail: {
+      viewJson: 'Mostra il record completo della conversazione in formato JSON.',
+      openInvoke: 'Apri Invoca con questa conversazione selezionata, per inviare il turno successivo con la vista in streaming completa.',
+      delete: 'Elimina questa conversazione. I suoi turni restano nella pagina Esecuzioni come esecuzioni normali, ma la conversazione non si può più continuare.',
+      deleteBusy: 'Un turno non è ancora concluso, quindi il server rifiuta di eliminare la conversazione finché quell\'esecuzione non termina o viene annullata.',
+      agent: 'L\'agente di questa conversazione. Fai clic per aprire l\'agente.',
+      openAgent: 'Apri la pagina di questo agente con le distribuzioni e le esecuzioni recenti.',
+      deployment: 'Ogni turno viene eseguito su questa distribuzione: quella a cui è stato indirizzato il primo turno.',
+      activeRun: 'Il turno ancora in coda o in esecuzione. Il messaggio successivo viene rifiutato finché non finisce.',
+      openRun: 'Apri la pagina di questa esecuzione con la trascrizione completa, il risultato e la telemetria.',
+      turns: 'Tutti i turni della conversazione, dal più vecchio. Ogni turno è un\'esecuzione.',
+      columns: {
+        turn: 'Posizione del turno nella conversazione, a partire da 1.',
+        run: 'L\'esecuzione che ha elaborato questo turno. Fai clic per aprirne la trascrizione.',
+        status: 'A che punto del ciclo di vita è l\'esecuzione del turno: in coda, in esecuzione o in uno degli stati finali.',
+        outcome: 'Perché l\'esecuzione del turno è terminata, con più dettaglio dello stato.',
+        session: 'Se il turno ha ripreso la sessione dell\'harness del turno precedente o ne ha avviata una nuova con la trascrizione (e perché).',
+        input: 'L\'inizio del messaggio inviato in questo turno. Passa il puntatore per vederne di più.',
+        result: 'L\'inizio della risposta, o l\'errore se l\'esecuzione è fallita. Passa il puntatore per vederne di più.',
+        node: 'Il nodo worker che ha eseguito il turno.',
+        created: 'Quando è stato inviato il turno. Passa il puntatore sul valore per l\'ora esatta.'
+      },
+      session: {
+        first: 'Il primo turno: avvia la sessione dell\'harness che i turni successivi riprendono.',
+        resumed: 'Questo turno ha ripreso la sessione dell\'harness {{session}} sul nodo che conserva le cartelle della conversazione, quindi l\'agente ha mantenuto tutto il suo contesto.',
+        fallback: 'Questo turno non ha potuto riprendere la sessione, quindi ha avviato una nuova sessione dell\'harness con la trascrizione dei turni precedenti.',
+        pending: 'Il turno attende un nodo, quindi non si sa ancora se riprenderà la sessione o verrà ricostruito.'
+      },
+      continueTitle: 'Invia il messaggio successivo come turno successivo di questa conversazione. Usa lo stesso agente e la stessa distribuzione.',
+      message: 'Il messaggio successivo per l\'agente. Continua la conversazione con il contesto dei turni precedenti.',
+      send: 'Invia questo messaggio come turno successivo. Il turno compare nell\'elenco sopra e si aggiorna finché non termina.',
+      sendBusy: 'Il turno precedente non è ancora concluso. Il server rifiuta un nuovo turno fino ad allora, quindi attendi o annullalo prima.'
     }
   },
   analytics: {
@@ -1427,6 +1517,12 @@ const explainers = {
     p1: 'Il tempo al primo token va dall\'avvio del processo dell\'harness al primo output del modello, quindi include l\'avvio della CLI. Il tempo di streaming va dal primo all\'ultimo output del modello, e il tempo di esecuzione dall\'avvio all\'uscita del processo. Il tempo in coda è quanto un\'esecuzione ha atteso un nodo worker. Sono misurati con gli orologi del worker e del server.',
     p2: 'Conteggi dei token e costi provengono da ciò che riporta ogni harness. I token in cache sono token di input serviti dalla cache dei prompt del provider, e i token di ragionamento compaiono solo per gli harness che li riportano separatamente. I token di output al secondo sono i token di output divisi per il tempo di streaming.',
     p3: 'Le medie ignorano le esecuzioni in cui un valore non è stato misurabile. I percentili mostrano la coda della distribuzione: p95 significa che solo un\'esecuzione su venti è stata più lenta. Raggruppa per agente o harness per confrontarli fianco a fianco.'
+  },
+  conversations: {
+    title: 'Conversazioni e turni',
+    p1: 'Una conversazione è una serie di esecuzioni con un agente. Il primo turno avvia una sessione dell\'harness; ogni turno successivo riprende quella sessione sullo stesso nodo worker, così l\'agente mantiene file, strumenti e contesto tra un messaggio e l\'altro.',
+    p2: 'Viene eseguito un solo turno alla volta: un nuovo messaggio viene rifiutato finché il turno precedente non è concluso. Ogni turno resta sulla distribuzione del primo turno.',
+    p3: 'Quando un turno non può riprendere (il nodo non c\'è più o resta occupato troppo a lungo, i file sono stati rimossi o l\'harness non sa riprendere), viene ricostruito in una nuova sessione che riceve la trascrizione dei turni precedenti. La colonna Ricostruzioni conta questi turni e l\'elenco dei turni ne indica il motivo.'
   }
 };
 

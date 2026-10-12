@@ -177,7 +177,7 @@ namespace Garrison.Server.Routes
                             GetTaskRequest get = Parse<GetTaskRequest>(parameters);
                             Run run = await RequireTaskAsync(ctx, tenantId, agent, get.Id, OperationTypeEnum.Read, context).ConfigureAwait(false);
                             CountTask(run);
-                            await SendRpcResultAsync(context, id, A2AMapper.Task(run)).ConfigureAwait(false);
+                            await SendRpcResultAsync(context, id, A2AMapper.Task(run, true, await ContextIdAsync(run, null, context).ConfigureAwait(false))).ConfigureAwait(false);
                             return;
                         case A2AProtocol.CancelTask:
                         case "tasks/cancel":
@@ -191,7 +191,7 @@ namespace Garrison.Server.Routes
                             }
                             Run cancelled = await _Runs.CancelAsync(toCancel, context.Token).ConfigureAwait(false);
                             CountTask(cancelled);
-                            await SendRpcResultAsync(context, id, A2AMapper.Task(cancelled)).ConfigureAwait(false);
+                            await SendRpcResultAsync(context, id, A2AMapper.Task(cancelled, true, await ContextIdAsync(cancelled, null, context).ConfigureAwait(false))).ConfigureAwait(false);
                             return;
                         case A2AProtocol.ListTasks:
                         case "tasks/list":
@@ -322,6 +322,12 @@ namespace Garrison.Server.Routes
             options.Input = A2AMapper.InputText(request.Message);
             if (String.IsNullOrWhiteSpace(options.Input)) throw new ValidationException("The message has no text or data parts.");
             options.IdempotencyKey = String.IsNullOrEmpty(request.Message.MessageId) ? null : "a2a:" + request.Message.MessageId;
+
+            // Every A2A message belongs to a conversation (P12.1): a known contextId continues it as the next turn, an
+            // unknown one starts a conversation for it, and a message without one starts a new conversation whose
+            // identifier is the contextId of the task.
+            options.ContextId = String.IsNullOrWhiteSpace(request.Message.ContextId) ? null : request.Message.ContextId;
+            options.StartConversation = true;
             if (request.Metadata != null)
             {
                 foreach (KeyValuePair<string, object?> entry in request.Metadata.Where(m => m.Key.StartsWith("garrison.parameter.", StringComparison.Ordinal)))
@@ -357,7 +363,7 @@ namespace Garrison.Server.Routes
             }
 
             SendMessageResponse response = new SendMessageResponse();
-            response.Task = A2AMapper.Task(run);
+            response.Task = A2AMapper.Task(run, true, await ContextIdAsync(run, null, context).ConfigureAwait(false));
             CountTask(run);
             await SendRpcResultAsync(context, id, response).ConfigureAwait(false);
         }
@@ -374,8 +380,9 @@ namespace Garrison.Server.Routes
             StreamTelemetry.Opened("a2a");
             try
             {
+                string contextId = await ContextIdAsync(run, null, context).ConfigureAwait(false);
                 StreamResponse first = new StreamResponse();
-                first.Task = A2AMapper.Task(run, false);
+                first.Task = A2AMapper.Task(run, false, contextId);
                 await SendStreamEventAsync(context, id, first, false).ConfigureAwait(false);
 
                 TaskState lastState = A2AMapper.State(run.Status);
@@ -391,14 +398,14 @@ namespace Garrison.Server.Routes
                         if (terminal && current.Status == RunStatusEnum.Succeeded)
                         {
                             StreamResponse artifact = new StreamResponse();
-                            artifact.ArtifactUpdate = new TaskArtifactUpdateEvent { TaskId = current.Id, ContextId = A2AMapper.Task(current, false).ContextId, Artifact = A2AMapper.ResultArtifact(current), Append = false, LastChunk = true };
+                            artifact.ArtifactUpdate = new TaskArtifactUpdateEvent { TaskId = current.Id, ContextId = contextId, Artifact = A2AMapper.ResultArtifact(current), Append = false, LastChunk = true };
                             await SendStreamEventAsync(context, id, artifact, false).ConfigureAwait(false);
                         }
 
                         if (state != lastState || terminal)
                         {
                             StreamResponse update = new StreamResponse();
-                            update.StatusUpdate = new TaskStatusUpdateEvent { TaskId = current.Id, ContextId = A2AMapper.Task(current, false).ContextId, Status = A2AMapper.Status(current) };
+                            update.StatusUpdate = new TaskStatusUpdateEvent { TaskId = current.Id, ContextId = contextId, Status = A2AMapper.Status(current) };
                             await SendStreamEventAsync(context, id, update, terminal).ConfigureAwait(false);
                             CountTask(current);
                             lastState = state;
@@ -433,12 +440,22 @@ namespace Garrison.Server.Routes
             RunFilter filter = new RunFilter();
             filter.TenantId = tenantId;
             filter.AgentId = agent.Id;
-            filter.RootRunId = request.ContextId;
+            if (!String.IsNullOrEmpty(request.ContextId))
+            {
+                // A conversation's context lists its turns; any other context identifier is a root run (delegation tree).
+                Conversation? conversation = await _Context.Database.Conversations.ReadAsync(tenantId, request.ContextId, context.Token).ConfigureAwait(false);
+                if (conversation == null || conversation.AgentId != agent.Id) conversation = await _Context.Database.Conversations.ReadByContextIdAsync(tenantId, agent.Id, request.ContextId, context.Token).ConfigureAwait(false);
+                if (conversation != null && conversation.AgentId == agent.Id) filter.ConversationId = conversation.Id;
+                else filter.RootRunId = request.ContextId;
+            }
             filter.MaxResults = Math.Clamp(request.PageSize ?? 50, 1, 100);
             if (!String.IsNullOrEmpty(request.PageToken) && Int32.TryParse(request.PageToken, out int skip)) filter.Skip = skip;
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false);
             ListTasksResponse response = new ListTasksResponse();
-            response.Tasks = page.Objects.Select(r => A2AMapper.Task(r, request.IncludeArtifacts ?? false)).ToList();
+            Dictionary<string, string> contexts = new Dictionary<string, string>(StringComparer.Ordinal);
+            List<AgentTask> tasks = new List<AgentTask>();
+            foreach (Run listed in page.Objects) tasks.Add(A2AMapper.Task(listed, request.IncludeArtifacts ?? false, await ContextIdAsync(listed, contexts, context).ConfigureAwait(false)));
+            response.Tasks = tasks;
             response.PageSize = filter.MaxResults;
             response.TotalSize = (int)Math.Min(page.TotalRecords, Int32.MaxValue);
             response.NextPageToken = page.EndOfResults ? String.Empty : (filter.Skip + page.Objects.Count).ToString();
@@ -451,6 +468,16 @@ namespace Garrison.Server.Routes
             if (run == null || run.AgentId != agent.Id) throw new NotFoundException("Task " + taskId + " not found.");
             await RequireAsync(ctx, tenantId, ResourceTypeEnum.Run, operation, run.Id, context).ConfigureAwait(false);
             return run;
+        }
+
+        private async Task<string> ContextIdAsync(Run run, Dictionary<string, string>? cache, HttpContextBase context)
+        {
+            if (String.IsNullOrEmpty(run.ConversationId)) return A2AMapper.ContextId(run);
+            if (cache != null && cache.TryGetValue(run.ConversationId, out string? cached)) return cached;
+            Conversation? conversation = await _Context.Database.Conversations.ReadAsync(run.TenantId, run.ConversationId, context.Token).ConfigureAwait(false);
+            string contextId = conversation?.EffectiveContextId() ?? run.ConversationId;
+            if (cache != null) cache[run.ConversationId] = contextId;
+            return contextId;
         }
 
         private async Task RequireAsync(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, HttpContextBase context)

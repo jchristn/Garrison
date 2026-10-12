@@ -102,8 +102,8 @@ Denials are audited with the permission that was missing, and the response carri
 | `Viewer` | Read domain resources |
 | `TenantMember` | Read agents and one's own profile |
 | `AgentDeveloper` | Author harness profiles, prompts, agents, deployments, MCP servers, and workspaces; invoke agents |
-| `AgentOperator` | Operate runs and observe nodes |
-| `AgentInvoker` | Invoke agents and read runs; meant for integration credentials |
+| `AgentOperator` | Operate runs and conversations (read, cancel, retry, delete) and observe nodes |
+| `AgentInvoker` | Invoke agents and read runs and conversations; meant for integration credentials |
 | `SecretManager` | Manage secrets |
 | `NodeAgent` | The node protocol only; for worker credentials |
 | `AgentRegistrar` | Self-registration of remote agents |
@@ -126,6 +126,7 @@ This is the most important limit to understand. Garrison has two executors, chos
 Each run is a subprocess of the worker, inside the worker's container, with:
 
 - its own working directory, `HOME`, and configuration directory, deleted after the run (the workspace may be kept for debugging);
+- for a conversation turn, the conversation's working, `HOME`, and configuration directories instead, which stay on the worker between turns (so the next turn can resume the harness session) until they go unused for the worker's `ConversationRetentionHours`. Files the profile writes there, such as a Codex `auth.json` or an MCP configuration with a run token, are rewritten every turn and the run token is revoked when its run ends, but they sit on the worker's disk between turns;
 - an environment that starts empty apart from an allowlist (`PATH`, locale, proxy and certificate settings), plus the variables the profile and deployment define;
 - a deadline, an output size limit, run guards, and a process-tree kill on cancellation;
 - relative paths for every file it writes, with absolute paths and `..` rejected;

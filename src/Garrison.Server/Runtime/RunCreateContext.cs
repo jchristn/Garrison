@@ -79,5 +79,28 @@ namespace Garrison.Server.Runtime
         /// Idempotency key.
         /// </summary>
         public string? IdempotencyKey { get; set; } = null;
+
+        /// <summary>
+        /// Conversation the run continues as its next turn, or null. Must name a conversation of the tenant with the
+        /// same agent.
+        /// </summary>
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>
+        /// Whether the run starts a new conversation (ignored when <see cref="ConversationId"/> or
+        /// <see cref="ContextId"/> is set). Default false.
+        /// </summary>
+        public bool StartConversation { get; set; } = false;
+
+        /// <summary>
+        /// A2A context identifier: names a conversation by identifier or by the client-supplied context identifier it was
+        /// created for; an unknown value starts a new conversation for it. Null otherwise.
+        /// </summary>
+        public string? ContextId { get; set; } = null;
+
+        /// <summary>
+        /// Protocol surface the run came from (rest, mcp, or a2a), used as a metric label. Default rest.
+        /// </summary>
+        public string Surface { get; set; } = "rest";
     }
 }

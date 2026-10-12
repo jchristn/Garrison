@@ -90,7 +90,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
   "result": {
     "task": {
       "id": "run_mv1r3xkn_Hek6UZChHh5Xc6g2Nep",
-      "contextId": "run_mv1r3xkn_Hek6UZChHh5Xc6g2Nep",
+      "contextId": "cnv_mv1r3xkm_P2vKq8sWd3Lr0Ty7AbN",
       "status": { "state": "TASK_STATE_COMPLETED", "timestamp": "2026-10-10T02:04:21.882039+00:00" },
       "artifacts": [
         { "artifactId": "run_mv1r3xkn_Hek6UZChHh5Xc6g2Nep-result", "name": "result", "parts": [ { "text": "Echo: Hello over A2A" } ] }
@@ -100,6 +100,8 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
         "garrison.outcome": "Succeeded",
         "garrison.servedModel": "fake-model",
         "garrison.traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "garrison.conversationId": "cnv_mv1r3xkm_P2vKq8sWd3Lr0Ty7AbN",
+        "garrison.conversationTurn": 1,
         "garrison.inputTokens": 12,
         "garrison.outputTokens": 7
       }
@@ -116,13 +118,30 @@ How the message becomes a run:
 - **Parameters.** Request metadata entries named `garrison.parameter.<name>` become run parameters, for example `"metadata": {"garrison.parameter.model": "sonnet"}`. They are validated against the deployment's allowed overrides exactly like REST parameters. A rejected parameter is named in the error message (for example `parameters.model: Deployment echo-default does not allow overriding model.`) and in `data.errors` and `data.fieldCodes`.
 - **Waiting.** The call waits up to `Mcp.MaxToolWaitSeconds` (90 by default) for the run to finish. Set `"configuration": {"returnImmediately": true}` to get the task back at once in the `TASK_STATE_SUBMITTED` state, then poll with `GetTask` or attach with `SubscribeToTask`.
 - **Disconnecting.** A blocking `SendMessage` whose client disconnects before the task finishes cancels the task (and any runs it delegated), so an abandoned request does not keep a model busy. The wait running out does not cancel it, and neither does a replica shutting down. To start work that outlives the connection, use `returnImmediately`.
+- **Context.** Every message belongs to a Garrison conversation (see Conversations in `REST_API.md`). A message without `contextId` starts a new conversation, and the task's `contextId` is the conversation identifier (`cnv_...`). A message whose `contextId` names a conversation of this agent becomes its next turn: the agent resumes the harness session the earlier messages built, so it remembers them. A `contextId` Garrison has not seen (one your client generated) starts a conversation for it, and later messages with the same value continue that conversation; the tasks report your value as their `contextId`.
+- **One message at a time per context.** A message sent while the context's previous task is still working is rejected with `-32602` and `data.code` `ConversationBusy`; the message names the working task. Wait for that task (or cancel it) and send again. Messages in different contexts run in parallel as usual.
+
+Continuing a conversation:
+
+```bash
+curl -s -X POST http://127.0.0.1:8700/v1.0/a2a/default/docs-echo \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "2",
+    "method": "SendMessage",
+    "params": {
+      "message": { "role": "ROLE_USER", "messageId": "'"$(uuidgen)"'", "contextId": "cnv_mv1r3xkm_P2vKq8sWd3Lr0Ty7AbN", "parts": [ { "text": "And now in French" } ] }
+    }
+  }'
+```
 
 ### Tasks
 
 | Garrison | A2A |
 |---|---|
 | Run identifier | Task `id` |
-| Root run of the delegation chain (the run itself when it has no parent) | `contextId` |
+| The run's conversation: its identifier, or the client `contextId` it was created for. Runs outside a conversation (REST runs and delegated runs) report their delegation chain's root run | `contextId` |
 | `Pending`, `Queued` | `TASK_STATE_SUBMITTED` |
 | `Leased`, `Running`, `Cancelling` | `TASK_STATE_WORKING` |
 | `Succeeded` | `TASK_STATE_COMPLETED` |
@@ -130,11 +149,11 @@ How the message becomes a run:
 | `Rejected` | `TASK_STATE_REJECTED` |
 | `Failed`, `TimedOut`, and anything else | `TASK_STATE_FAILED` |
 
-A completed task carries one artifact, `<runId>-result`, named `result`. It has a text part with the final answer and, when the agent produced structured output, a second data part with media type `application/json`. Failed and rejected tasks carry a status message made of the run's outcome and error message, in the form `<outcome>: <error>`. Every task has `garrison.agent`, `garrison.outcome`, `garrison.inputTokens`, `garrison.outputTokens`, `garrison.cachedTokens`, `garrison.reasoningTokens`, and `garrison.toolCallCount` in its metadata, and `garrison.servedModel` (the model the harness reported, or `null`), and `garrison.traceId` (the run's W3C trace ID, omitted for runs created before trace IDs were recorded). Once measured, it also has the run timing values `garrison.timeToFirstTokenMs`, `garrison.streamingMs`, `garrison.executionMs`, `garrison.queueMs`, `garrison.totalMs`, and `garrison.outputTokensPerSecond`, and once the run finishes `garrison.delegationWaitMs` and `garrison.timeToFirstTokenExcludingDelegationMs` (see `docs/TELEMETRY.md`).
+A completed task carries one artifact, `<runId>-result`, named `result`. It has a text part with the final answer and, when the agent produced structured output, a second data part with media type `application/json`. Failed and rejected tasks carry a status message made of the run's outcome and error message, in the form `<outcome>: <error>`. Tasks in a conversation also have `garrison.conversationId`, `garrison.conversationTurn`, and, when the turn started a fresh session from the transcript, `garrison.conversationFallbackReason`. Every task has `garrison.agent`, `garrison.outcome`, `garrison.inputTokens`, `garrison.outputTokens`, `garrison.cachedTokens`, `garrison.reasoningTokens`, and `garrison.toolCallCount` in its metadata, and `garrison.servedModel` (the model the harness reported, or `null`), and `garrison.traceId` (the run's W3C trace ID, omitted for runs created before trace IDs were recorded). Once measured, it also has the run timing values `garrison.timeToFirstTokenMs`, `garrison.streamingMs`, `garrison.executionMs`, `garrison.queueMs`, `garrison.totalMs`, and `garrison.outputTokensPerSecond`, and once the run finishes `garrison.delegationWaitMs` and `garrison.timeToFirstTokenExcludingDelegationMs` (see `docs/TELEMETRY.md`).
 
 `GetTask` takes `{"id": "<runId>"}`. A task that belongs to a different agent is reported as not found (`-32001`), even when it exists.
 
-`ListTasks` returns this agent's tasks, newest first. Parameters: `contextId` (only tasks in that delegation chain), `pageSize` (1 to 100, default 50), `pageToken` (the `nextPageToken` from the previous page), and `includeArtifacts` (default false). The response has `tasks`, `pageSize`, `totalSize`, and `nextPageToken`, which is empty on the last page.
+`ListTasks` returns this agent's tasks, newest first. Parameters: `contextId` (only the tasks of that conversation, or of that delegation chain for a root run identifier), `pageSize` (1 to 100, default 50), `pageToken` (the `nextPageToken` from the previous page), and `includeArtifacts` (default false). The response has `tasks`, `pageSize`, `totalSize`, and `nextPageToken`, which is empty on the last page.
 
 `CancelTask` takes `{"id": "<runId>"}` and returns the task. A run that already finished cannot be cancelled (`-32002`).
 
@@ -189,7 +208,7 @@ Garrison errors also carry `data` with a stable machine code, so clients do not 
 }
 ```
 
-`data.code` is `ValidationFailed`, `MessageIdConflict`, `InvalidParams`, `DatabaseBusy`, `DatabaseUnavailable`, or the REST conflict code (for example `NoActiveDeployment`). A failure before the JSON-RPC call is read (authentication, the tenant check, or authorization while the database is down) answers with the REST error shape instead: 503 `DatabaseUnavailable` or `DatabaseBusy` with `Retry-After`.
+`data.code` is `ValidationFailed`, `MessageIdConflict`, `InvalidParams`, `DatabaseBusy`, `DatabaseUnavailable`, or the REST conflict code (for example `NoActiveDeployment`, or `ConversationBusy` for a message whose context is still working on its previous task). A failure before the JSON-RPC call is read (authentication, the tenant check, or authorization while the database is down) answers with the REST error shape instead: 503 `DatabaseUnavailable` or `DatabaseBusy` with `Retry-After`.
 
 ## Calling Garrison agents from Garrison agents
 

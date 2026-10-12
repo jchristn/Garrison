@@ -1082,3 +1082,8 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .time-limit-row { display: flex; gap: var(--spacing-xs); flex-wrap: wrap; align-items: center; }
 .time-limit-row input { width: 12rem; flex: 0 0 auto; }
 .time-limit-row > span { font-size: var(--font-size-sm); }
+
+/* Conversations (P12.1): turn previews stay readable in the turns table; the continue box sits below it. */
+.conversation-preview { max-width: 28rem; overflow-wrap: anywhere; }
+.conversation-continue { margin-top: var(--spacing-md); }
+.conversation-continue textarea { width: 100%; }

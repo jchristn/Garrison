@@ -98,7 +98,9 @@ function run(i) {
     schemaValidationErrors: null,
     repairAttempts: 0,
     // P13.16: W3C trace ID (32 lowercase hex) of the trace the run was compiled in.
-    traceId: `4bf92f3577b34da6a3ce929d0e0e${pad(i)}`
+    traceId: `4bf92f3577b34da6a3ce929d0e0e${pad(i)}`,
+    // P12.1: always serialized; conversationTurn is 0 outside a conversation. Runs 36, 40, and 42 are the turns of cnv_0001.
+    ...conversationFields(i)
   });
   if (!queued) {
     Object.assign(out, {
@@ -132,6 +134,57 @@ function run(i) {
   }
   if (status === 'Running') out.resultText = 'Hello from the fake harness.';
   return out;
+}
+
+/**
+ * Conversation fields of run i (P12.1). Runs 36, 40, and 42 (all Succeeded) are turns 1 to 3 of cnv_0001: turn 1
+ * started the session, turn 2 resumed it on node_0001, turn 3 fell back to a fresh session because the affinity wait
+ * expired. Every other run is outside a conversation.
+ */
+export const CONVERSATION_TURN_RUNS = [36, 40, 42];
+
+function conversationFields(run) {
+  const none = { conversationId: null, conversationTurn: 0, resumeSessionId: null, affinityNodeId: null, affinityUntilUtc: null, conversationFallbackReason: null };
+  const i = CONVERSATION_TURN_RUNS.indexOf(run) + 1;
+  if (i === 0) return none;
+  return {
+    ...none,
+    conversationId: 'cnv_0001',
+    conversationTurn: i,
+    resumeSessionId: i === 2 ? 'ses-1' : null,
+    affinityNodeId: i > 1 ? 'node_0001' : null,
+    affinityUntilUtc: i > 1 ? iso(run * 7 - 0.5) : null,
+    conversationFallbackReason: i === 3 ? 'AffinityWaitExpired' : null
+  };
+}
+
+/** A conversation (P12.1). cnv_0001 has three turns (runs 36, 40, 42) and one fallback; cnv_0002 came in over A2A and is busy. */
+function conversation(i) {
+  const busy = i === 2;
+  return record('cnv', i, {
+    tenantId: TENANT,
+    agentId: 'agt_0001',
+    agentName: 'echo-agent',
+    deploymentId: 'dep_0001',
+    harnessType: 'ClaudeCode',
+    contextId: i === 2 ? 'ctx-a2a-0002' : null,
+    title: i === 3 ? null : `Plan the release ${i}`,
+    callerType: 'User',
+    callerId: 'usr_0001',
+    callerName: 'admin@garrison',
+    sessionId: `ses-${i}`,
+    sessionHarnessProfileId: 'hp_0001',
+    affinityNodeId: 'node_0001',
+    affinityNodeName: 'garrison-worker-0',
+    activeRunId: busy ? 'run_0004' : null,
+    lastRunId: i === 1 ? 'run_0042' : `run_${pad(i + 3)}`,
+    turnCount: i === 1 ? 3 : i,
+    fallbackCount: i === 1 ? 1 : 0,
+    lastFallbackReason: i === 1 ? 'AffinityWaitExpired' : null,
+    lastFallbackUtc: i === 1 ? iso(7) : null,
+    lastActivityUtc: iso(i * 2),
+    busy
+  });
 }
 
 const PROFILE_ARGS = (id) => [
@@ -303,6 +356,7 @@ const FACTORIES = {
   // Phase 11: np-1 runs deployments without their own executor as Kubernetes Jobs.
   'node-pools': (i) => record('np', i, { name: `np-${i}`, description: 'Pool', tenants: [], ...(i === 1 ? { defaultExecutor: 'KubernetesJob' } : {}) }),
   runs: run,
+  conversations: conversation,
   nodes: (i) => {
     const id = `node_${pad(i)}`;
     return record('node', i, {
@@ -434,6 +488,10 @@ const SETTINGS = {
     { path: 'Runtime.RepetitionGuard', group: 'Runtime', description: 'Default for deployments that do not set repetitionGuard.', type: 'bool', value: 'true', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true },
     { path: 'Runtime.MaxAssistantChars', group: 'Runtime', description: 'Default for deployments that do not set maxAssistantChars. 0 is unlimited.', type: 'int', value: '200000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 100000000 },
     { path: 'Runtime.NoProgressSeconds', group: 'Runtime', description: 'Default for deployments that do not set noProgressSeconds. 0 turns the guard off.', type: 'int', value: '300', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 86400 },
+    // P12.1: conversation affinity and the transcript a fallback turn receives.
+    { path: 'Runtime.ConversationAffinityWaitMs', group: 'Runtime', description: "Milliseconds a conversation turn waits for the node that holds the conversation's harness session before another node may take it and start a fresh session from the transcript. Other nodes take it at once when that node is not Ready. 0 never waits.", type: 'int', value: '30000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 600000 },
+    { path: 'Runtime.ConversationTranscriptTurns', group: 'Runtime', description: 'Most earlier turns repeated to a conversation turn that starts a fresh harness session (a fallback); the newest are kept.', type: 'int', value: '20', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 200 },
+    { path: 'Runtime.ConversationTranscriptChars', group: 'Runtime', description: 'Most characters of each earlier input and answer repeated to a fallback conversation turn; longer ones are truncated.', type: 'int', value: '4000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 200, maximum: 200000 },
     { path: 'Runtime.FailBlockedAfterSeconds', group: 'Runtime', description: 'Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever.', type: 'int', value: '0', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 604800 },
     // G-22: control-plane refresh of Codex ChatGPT logins; settings-file values that apply live.
     { path: 'Codex.RefreshBeforeExpirySeconds', group: 'Codex', description: 'Refresh a ChatGPT login stored in a CodexAuthJson secret when its access token expires within this many seconds (half the token lifetime for short-lived tokens). Keep it above Runtime.MaxRunSeconds.', type: 'int', value: '86400', isSecret: false, isSet: true, source: 'File', applyMode: 'Live', editable: true, minimum: 300, maximum: 2592000 },
@@ -796,6 +854,12 @@ export function respond(method, url) {
       const events = source.filter((e) => e.sequence > after).map((e) => ({ ...e, runId: parts[1] }));
       return { runId: parts[1], status: 'Succeeded', events, lastSequence: events.length ? events[events.length - 1].sequence : after, hasMore: false };
     }
+    // P12.1: a conversation's turns, oldest first.
+    if (collection === 'conversations' && parts[2] === 'runs') {
+      const turns = parts[1] === 'cnv_0001' ? CONVERSATION_TURN_RUNS.map(FACTORIES.runs) : [{ ...FACTORIES.runs(4), ...conversationFields(36), conversationId: parts[1], status: 'Running', outcome: 'None' }];
+      return { success: true, maxResults: 1000, skip: 0, totalRecords: turns.length, recordsRemaining: 0, endOfResults: true, timestampUtc: iso(0), objects: turns };
+    }
+    if (collection === 'conversations' && parts.length === 2 && method === 'GET') return { ...FACTORIES.conversations(/^cnv_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1), id: parts[1] };
     if (collection === 'runs' && parts[2] === 'children') return { success: true, maxResults: 100, skip: 0, totalRecords: 1, recordsRemaining: 0, endOfResults: true, timestampUtc: iso(0), objects: [{ ...FACTORIES.runs(4), id: 'run_child', kind: 'Delegated', depth: 1, parentRunId: parts[1], rootRunId: parts[1] }] };
     // run_0003 style IDs map to that factory row; any other ID gets run 7 (a failed run carrying every field).
     if (collection === 'runs' && parts.length === 2 && method === 'GET') return { ...FACTORIES.runs(/^run_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 7), id: parts[1] };

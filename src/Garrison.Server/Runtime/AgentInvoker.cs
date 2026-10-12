@@ -88,6 +88,10 @@ namespace Garrison.Server.Runtime
             create.Priority = options.Priority;
             create.Kind = options.Kind;
             create.IdempotencyKey = options.IdempotencyKey;
+            create.ConversationId = String.IsNullOrWhiteSpace(options.ConversationId) ? null : options.ConversationId.Trim();
+            create.StartConversation = options.StartConversation;
+            create.ContextId = String.IsNullOrWhiteSpace(options.ContextId) ? null : options.ContextId.Trim();
+            create.Surface = options.Surface;
 
             if (ctx.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(ctx.RunId))
             {

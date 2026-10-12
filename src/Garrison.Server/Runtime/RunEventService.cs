@@ -57,6 +57,13 @@ namespace Garrison.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Conversation service: a successful conversation turn records its harness session and node, and a turn whose
+        /// worker found the conversation's directories gone is requeued as a fallback. Null records reports without
+        /// conversation handling. Default null; the runtime module sets it.
+        /// </summary>
+        public ConversationService? Conversations { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -193,6 +200,16 @@ namespace Garrison.Server.Runtime
                 {
                     return await FinishAsync(run, request, RunStatusEnum.Failed, RunOutcomeEnum.CompileFailed, "Structured output repair could not be compiled: " + e.Code + " " + e.Message, token).ConfigureAwait(false);
                 }
+            }
+
+            // A conversation turn that could not resume because its directories were gone on this node runs again as a
+            // fresh session seeded with the transcript, on any capable node (P12.1).
+            if (Conversations != null && await Conversations.RequeueLostStateAsync(run, request, token).ConfigureAwait(false))
+            {
+                _Logging?.Info("[Runs] run " + run.Id + " requeued as a conversation fallback: node " + request.NodeId + " no longer has conversation " + run.ConversationId + " " + RunTracing.LogFields(run.Id, run.TraceId));
+                RunCompleteResponse requeued = new RunCompleteResponse();
+                requeued.Message = "Requeued as a conversation fallback (WorkspaceLost).";
+                return requeued;
             }
 
             RunStatusEnum status = request.Status;
@@ -385,6 +402,13 @@ namespace Garrison.Server.Runtime
             run.QueueMs = Run.ElapsedMs(run.QueuedUtc, run.LeasedUtc);
             run.TotalMs = Run.ElapsedMs(run.QueuedUtc, receivedUtc);
             await ApplyDelegationWaitAsync(run, receivedUtc, token).ConfigureAwait(false);
+
+            // Recorded before the run is marked finished, so the next turn (allowed once this run is terminal) already sees
+            // the session to resume and the node that holds it.
+            if (Conversations != null && run.Status == RunStatusEnum.Succeeded && !String.IsNullOrEmpty(run.ConversationId))
+            {
+                await Conversations.RecordSuccessAsync(run, request.NodeId, token).ConfigureAwait(false);
+            }
 
             if (!await _Database.Runs.CompleteAsync(run, request.NodeId, request.Epoch, token).ConfigureAwait(false))
             {

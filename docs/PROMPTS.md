@@ -31,6 +31,7 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/garrison-tools-instructions` | Fragment | How to use the Garrison MCP tools to delegate, the allowlist, and the depth limit |
 | `builtin/structured-output-instructions` | Fragment | Output schema instructions for harnesses that cannot enforce a schema themselves |
 | `builtin/structured-output-repair` | Task | Repair prompt sent when a run's output fails validation against the agent's output schema (see [Structured output repair](#structured-output-repair)) |
+| `builtin/conversation-fallback` | Task | Task prompt of a conversation turn that cannot resume its harness session and starts a fresh one: repeats the earlier turns, then the current task (see [Conversation fallback](#conversation-fallback)) |
 | `builtin/mcp-tool-description` | ToolDescription | Description of an agent offered as its own MCP tool (`exposeMcpTool`, see `MCP_API.md`) |
 | `builtin/a2a-skill-description` | ToolDescription | Description of an agent's A2A skill |
 | `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the eight Garrison MCP tools (see `MCP_API.md`). A tenant overrides one with its own template named `mcp-tool-garrison_<tool>` |
@@ -82,6 +83,7 @@ A deployment's `promptBindings` map roles to templates:
 | `Task` | `prompts.task`, delivered as the profile's `promptDelivery` says | Bound to `builtin/default-task` |
 | `DelegatedTask` | `prompts.task` for runs started by another agent | Bound to `builtin/delegated-task` |
 | `Repair` | The prompt of the structured output repair attempt | `builtin/structured-output-repair` is used |
+| `ConversationFallback` | The task prompt of a conversation turn that starts a fresh session from the transcript | `builtin/conversation-fallback` is used |
 
 If a deployment ends up with no `Task` binding at all, the caller's message is sent as is.
 
@@ -123,6 +125,37 @@ Required JSON Schema:
 ```
 
 To change it, clone the built-in and bind the clone to the `Repair` role. The template version used is added to the run's `templateVersions`.
+
+## Conversation fallback
+
+A conversation turn normally resumes the harness session of the earlier turns, so its prompt is just the rendered `Task` template, the same as for any run. When the turn cannot resume (the node holding the session is gone, its directories were removed, the harness changed, and the other reasons listed under Conversations in `REST_API.md`), it starts a fresh session instead, and its task prompt is rendered from the deployment's `ConversationFallback` binding, or from `builtin/conversation-fallback` when there is none, so the new session sees what was already said. The fallback template renders after the task template, with these variables added:
+
+| Variable | Contents |
+|---|---|
+| `conversation.turns` | The earlier successful turns, oldest first: each item has `turn`, `input`, `output`, `inputTruncated`, and `outputTruncated`. At most `Runtime.ConversationTranscriptTurns` turns (the newest), each input and answer cut at `Runtime.ConversationTranscriptChars` characters |
+| `conversation.omittedTurns` | How many older turns were left out |
+| `conversation.task` | The rendered `Task` (or `DelegatedTask`) prompt for the current request |
+| `conversation.id`, `conversation.turn` | The conversation and this turn's number; available to every template |
+| `conversation.resumed`, `conversation.fallback`, `conversation.fallbackReason` | Whether the turn resumes a session, whether it is a fallback, and why; available to every template |
+
+This is the built-in fallback prompt:
+
+```text
+This conversation continues in a new session, so its earlier turns are repeated below. Treat them as what was already said, and answer only the current request at the end.
+{{#each conversation.turns}}
+
+--- Turn {{this.turn}}: request ---
+{{this.input}}{{#if this.inputTruncated}} [cut short]{{/if}}
+
+--- Turn {{this.turn}}: your answer ---
+{{this.output}}{{#if this.outputTruncated}} [cut short]{{/if}}
+{{/each}}
+
+--- Current request ---
+{{conversation.task}}
+```
+
+A fallback with no successful earlier turn to repeat sends the task prompt alone. The template version used is added to the run's `templateVersions`.
 
 Configuration file templates are bound differently: harness profiles include them in file contents with `{{> name}}`. To change Claude Code's MCP configuration, clone `builtin/claude-code-mcp-config`, clone the profile, and point the profile's file at your template.
 

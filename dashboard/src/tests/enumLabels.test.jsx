@@ -38,6 +38,7 @@ const COLLECTIONS = {
   agents: 'agents',
   deployments: 'deployments',
   runs: 'runs',
+  conversations: 'conversations',
   audit: 'audit'
 };
 

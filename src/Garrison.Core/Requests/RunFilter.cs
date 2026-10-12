@@ -50,6 +50,11 @@ namespace Garrison.Core.Requests
         public string? RootRunId { get; set; } = null;
 
         /// <summary>
+        /// Conversation identifier filter (the conversation's turns).
+        /// </summary>
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>
         /// Outcome filter.
         /// </summary>
         public RunOutcomeEnum? Outcome { get; set; } = null;

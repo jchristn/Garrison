@@ -101,6 +101,7 @@ namespace Garrison.Sdk.Clients
                 query["rootRunId"] = filter.RootRunId;
                 query["outcome"] = filter.Outcome?.ToString();
                 query["callerId"] = filter.CallerId;
+                query["conversationId"] = filter.ConversationId;
                 query["fromUtc"] = QueryBuilder.Date(filter.FromUtc);
                 query["toUtc"] = QueryBuilder.Date(filter.ToUtc);
                 query["skip"] = filter.Skip.ToString();

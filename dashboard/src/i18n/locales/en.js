@@ -23,7 +23,7 @@ const resourcePage = (title, singular, subtitle, emptyBody) => ({
 
 const en = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Structured output invalid', RunBlocked: 'Run blocked', EventsDropped: 'Events dropped', HarnessExited: 'Harness exited', McpPreflightWarning: 'MCP preflight warning', McpPreflightPassed: 'MCP preflight passed', RepairAttemptStarted: 'Output repair started', WorkspacePrepared: 'Workspace prepared', RunGuardTriggered: 'Run guard stopped the run' },
+    eventCodes: { StructuredOutputInvalid: 'Structured output invalid', RunBlocked: 'Run blocked', EventsDropped: 'Events dropped', HarnessExited: 'Harness exited', McpPreflightWarning: 'MCP preflight warning', McpPreflightPassed: 'MCP preflight passed', RepairAttemptStarted: 'Output repair started', WorkspacePrepared: 'Workspace prepared', RunGuardTriggered: 'Run guard stopped the run', ConversationFallback: 'Conversation fallback', ConversationResumed: 'Conversation resumed', ConversationStateLost: 'Conversation state lost' },
     fieldCodes: { ExpiryInPast: 'Choose a time in the future.', ParameterInvalid: 'This value is not valid for this parameter.', ParameterNotAllowed: 'This deployment does not let callers override this parameter.', SettingsFileReadOnly: 'The settings file is read-only, so this change cannot be saved.', OverriddenByEnvironment: 'An environment variable sets this value, so it cannot be changed here.', PathRequired: 'A setting path is required.', UnknownSetting: 'This server does not have this setting.', TooLong: 'This value is too long.', NotAllowedValue: 'Choose one of the allowed values.', NotABoolean: 'Choose true or false.', NotAnInteger: 'Enter a whole number.', OutOfRange: 'The value is outside the allowed range.' },
     serverText: {
       notApplied: 'Not applied because another document failed validation.',
@@ -151,7 +151,11 @@ const en = {
     Http404: 'Not found.',
     Http409: 'Conflict with the current state.',
     Http500: 'The server hit an internal error.',
-    Http503: 'The server is unavailable.'
+    Http503: 'The server is unavailable.',
+    ConversationBusy: 'This conversation is still working on its previous turn. Wait for that run to finish, or cancel it, then try again.',
+    ConversationAgentMismatch: 'This conversation belongs to a different agent. Send the turn to that agent, or start a new conversation.',
+    ConversationDeploymentMismatch: 'Every turn of a conversation runs on the deployment of its first turn. Leave the deployment empty, or start a new conversation.',
+    ConversationDeploymentUnavailable: 'The deployment this conversation runs on was deleted, so the conversation cannot continue. Start a new conversation.'
   },
   enums: {
     principalType: { Administrator: 'Administrator', User: 'User', Credential: 'Access key', Run: 'Run token' },
@@ -245,7 +249,8 @@ const en = {
       NoCapableWorker: 'No capable worker',
       RepetitionDetected: 'Repetition detected',
       NoProgress: 'No progress',
-      PodFailed: 'Run pod failed'
+      PodFailed: 'Run pod failed',
+      ConversationStateLost: 'Conversation state lost'
     },
     runEventType: {
       Lifecycle: 'Lifecycle',
@@ -310,7 +315,17 @@ const en = {
       ManifestApplied: 'Manifest applied',
       NodeRegistered: 'Node registered',
       NodeStatusChanged: 'Node status changed',
-      RunCancelled: 'Run cancelled'
+      RunCancelled: 'Run cancelled',
+      ConversationDeleted: 'Conversation deleted'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'Affinity node not ready',
+      AffinityWaitExpired: 'Affinity wait expired',
+      WorkspaceLost: 'Workspace lost',
+      SessionMissing: 'No session to resume',
+      HarnessChanged: 'Harness profile changed',
+      ResumeUnsupported: 'Resume not supported',
+      ExecutorWithoutState: 'Executor keeps no state'
     }
   },
   nav: {
@@ -359,7 +374,11 @@ const en = {
       roles: { label: 'Roles', tip: 'Roles and permissions' },
       assignments: { label: 'Assignments', tip: 'Grant roles to users and credentials' },
       settings: { label: 'Settings', tip: 'Edit server and cluster settings' },
-      serverInfo: { label: 'Server Info', tip: 'Endpoints, version, and your identity' }
+      serverInfo: { label: 'Server Info', tip: 'Endpoints, version, and your identity' },
+      conversations: {
+        label: 'Conversations',
+        tip: 'Multi-turn exchanges with an agent'
+      }
     },
     setup: 'Setup wizard',
     setupTip: 'Configure a credential, apply a sample agent, and test it',
@@ -739,7 +758,7 @@ const en = {
       errors: { dnsName: 'Use lowercase letters, digits, and hyphens, starting and ending with a letter or digit.' }
     },
     deployments: {
-      promptRoles: { Repair: 'Structured output repair', DelegatedTask: 'Task wrapper for delegated runs', Task: 'Task wrapper', System: 'System prompt' },
+      promptRoles: { Repair: 'Structured output repair', DelegatedTask: 'Task wrapper for delegated runs', Task: 'Task wrapper', System: 'System prompt', ConversationFallback: 'Conversation fallback (transcript)' },
       ...resourcePage('Deployments', 'deployment', 'Bind an agent to a harness profile, prompts, secrets, MCP servers, placement, and limits.', 'Create a deployment to make an agent runnable.'),
       steps: { basics: 'Basics', harness: 'Harness', prompts: 'Prompts', resources: 'Resources', overrides: 'Overrides', placement: 'Placement and limits' },
       columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness profile', model: 'Model', executor: 'Executor', weight: 'Weight', configVersion: 'Config version', active: 'Active', id: 'ID', createdUtc: 'Created' },
@@ -866,10 +885,12 @@ const en = {
         costUsd: 'Cost',
         toolCallCount: 'Tool calls',
         depth: 'Depth',
-        createdUtc: 'Created'
+        createdUtc: 'Created',
+        conversationId: 'Conversation'
       },
       actions: { cancel: 'Cancel run', retry: 'Retry run' },
-      toasts: { cancelRequested: 'Cancellation requested.', retried: 'Retry started.' }
+      toasts: { cancelRequested: 'Cancellation requested.', retried: 'Retry started.' },
+      turn: 'turn {{turn}}'
     },
     nodes: {
       ...resourcePage('Nodes', 'node', 'Worker nodes that lease and execute runs. Cordon or drain a node before maintenance.', 'Worker nodes register themselves when they start. Deploy the worker StatefulSet or run Garrison.Worker locally.'),
@@ -916,6 +937,42 @@ const en = {
     manifestApplies: {
       ...resourcePage('Apply history', 'apply', 'Every manifest apply and dry run, with per-document results.', 'Applies appear here after you apply or dry-run a manifest.'),
       columns: { createdUtc: 'Time', principalName: 'Applied by', dryRun: 'Dry run', counts: 'Results' }
+    },
+    conversations: {
+      title: 'Conversations',
+      subtitle: 'Multi-turn exchanges with an agent. Each turn is a run that resumes the harness session of the turn before it.',
+      add: 'Add conversation',
+      create: 'Create conversation',
+      edit: 'Edit conversation',
+      view: 'Conversation details',
+      deleteTitle: 'Delete conversation',
+      emptyTitle: 'No conversations yet',
+      emptyBody: 'Start one on the Invoke page with "Start a new conversation", or send an A2A message: every A2A context is a conversation.',
+      untitled: 'Untitled conversation',
+      columns: {
+        title: 'Title',
+        agentName: 'Agent',
+        state: 'State',
+        turnCount: 'Turns',
+        affinityNodeName: 'Affinity node',
+        fallbackCount: 'Fallbacks',
+        lastFallbackReason: 'Last fallback',
+        harnessType: 'Harness',
+        callerName: 'Started by',
+        contextId: 'Context ID',
+        sessionId: 'Session ID',
+        lastActivityUtc: 'Last activity',
+        createdUtc: 'Created',
+        id: 'ID'
+      },
+      states: {
+        busy: 'Working',
+        idle: 'Idle'
+      },
+      actions: {
+        continue: 'Continue',
+        runs: 'View turns as runs'
+      }
     }
   },
   views: {
@@ -1045,6 +1102,20 @@ const en = {
         minutes: '{{value}} min',
         hours: '{{value}} h',
         secondsWord: 'seconds'
+      },
+      conversation: {
+        mode: 'Conversation',
+        modes: {
+          none: 'Single run (no conversation)',
+          start: 'Start a new conversation',
+          continue: 'Continue a conversation'
+        },
+        pick: 'Conversation to continue',
+        choose: 'Choose a conversation',
+        option: '{{title}} (turns: {{turns}})',
+        pinned: 'Every turn runs on the deployment of the conversation\'s first turn, so the deployment cannot be chosen here.',
+        busy: 'This conversation is still working on its previous turn. A new message is refused until that run finishes.',
+        open: 'Open conversation (turn {{turn}})'
       }
     },
     runDetail: {
@@ -1117,7 +1188,12 @@ const en = {
           firstTokenUtc: 'First token at',
           lastTokenUtc: 'Last token at'
         }
-      }
+      },
+      conversation: 'Conversation',
+      conversationSession: 'Session',
+      resumeSessionId: 'Resumed session',
+      affinityNode: 'Affinity node',
+      affinityUntil: 'until {{time}}'
     },
     queue: {
       title: 'Queue',
@@ -1141,7 +1217,8 @@ const en = {
       noDeploymentsBody: 'Create a deployment to bind this agent to a harness.',
       noRuns: 'This agent has not run yet.',
       selectionNote: 'Each invocation without an explicit deployment goes to one active deployment, chosen at random in proportion to its weight.',
-      manageDeployments: 'Manage deployments'
+      manageDeployments: 'Manage deployments',
+      conversations: 'Conversations'
     },
     templateEditor: {
       cloneToEdit: 'Clone to edit',
@@ -1412,7 +1489,10 @@ const en = {
           MaxRunSeconds: 'Maximum run time (seconds)',
           RepetitionGuard: 'Repetition guard by default',
           MaxAssistantChars: 'Default maximum assistant characters',
-          NoProgressSeconds: 'Default no-progress timeout (seconds)'
+          NoProgressSeconds: 'Default no-progress timeout (seconds)',
+          ConversationAffinityWaitMs: 'Conversation affinity wait (ms)',
+          ConversationTranscriptTurns: 'Fallback transcript turns',
+          ConversationTranscriptChars: 'Fallback transcript characters per message'
         },
         Audit: {
           RetentionDays: 'Audit retention (days)'
@@ -1554,6 +1634,42 @@ const en = {
       tuneAny: 'To change when this happens, edit the deployment: its Placement and limits step has Repetition guard, Maximum assistant characters, and No-progress timeout. Left empty, they follow the cluster defaults in Settings (Runtime).',
       openDeployments: 'Open deployments',
       openSettings: 'Open settings'
+    },
+    conversationDetail: {
+      title: 'Conversation',
+      notFoundTitle: 'Conversation not found',
+      notFoundBody: 'It may have been deleted, or it belongs to another tenant. Its turns stay on the Runs page.',
+      deployment: 'Deployment',
+      activeRun: 'Unfinished turn',
+      turns: 'Turns',
+      turnsCount: 'Turns ({{count}})',
+      noTurns: 'This conversation has no turns yet.',
+      pending: 'Waiting for the result',
+      columns: {
+        turn: 'Turn',
+        run: 'Run',
+        status: 'Status',
+        outcome: 'Outcome',
+        session: 'Session',
+        input: 'Input',
+        result: 'Result',
+        node: 'Node',
+        created: 'Created'
+      },
+      session: {
+        first: 'New session',
+        resumed: 'Resumed',
+        fallback: 'Fresh session',
+        pending: 'Not placed yet'
+      },
+      continueTitle: 'Continue the conversation',
+      message: 'Next message',
+      messagePlaceholder: 'Ask a follow-up question or give the next instruction...',
+      busyNotice: 'The previous turn is still working. You can send the next message when it finishes.',
+      send: 'Send turn',
+      turnStarted: 'Turn {{turn}} started.',
+      openInvoke: 'Continue in Invoke',
+      confirmDelete: 'Delete the conversation "{{title}}"? Its turns stay on the Runs page as ordinary runs, but no new turn can continue it.'
     }
   },
   wizard: {

@@ -65,7 +65,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `Conversation`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -80,6 +80,40 @@ for await (const item of client.runs.stream(queued.id)) {
 ```
 
 The iterator ends after `run.completed`. `runs.events` polls, and `runs.waitForCompletion` waits for a terminal status.
+
+## Conversations
+
+A conversation is a multi-turn session with one agent. Each turn is a run, and every turn after the first resumes the harness session the earlier turns built, on the node that holds that session's directories. Pass `{ startConversation: true }` to `agents.invoke`, `runs.create`, or `deployments.test` to start one; the returned run's `conversationId` names it. Pass that ID as `conversationId` to send the next turn.
+
+```ts
+const first = await client.agents.invoke("my-agent", "Plan the migration", { startConversation: true });
+const conversationId = first.conversationId!;
+
+const second = await client.agents.invoke("my-agent", "Now write step 1", { conversationId });
+console.log(second.conversationTurn, second.resultText);   // 2 ...
+
+const conversation = await client.conversations.get(conversationId);
+const turns = (await client.conversations.listRuns(conversationId)).objects;   // oldest first
+await client.conversations.delete(conversationId);                             // the runs are kept
+```
+
+Turns of one conversation never overlap. A turn sent while the previous one is unfinished is refused, not queued, with 409 `ConversationBusy`; wait for the previous run (or cancel it) and send again:
+
+```ts
+try {
+  await client.agents.invoke("my-agent", "Next", { conversationId });
+} catch (e) {
+  if (!(e instanceof GarrisonError) || e.statusCode !== 409 || e.code !== "ConversationBusy") throw e;
+  const { activeRunId } = await client.conversations.get(conversationId);
+  if (activeRunId) await client.runs.waitForCompletion(activeRunId);
+}
+```
+
+Other 409 codes are `ConversationAgentMismatch` (the conversation belongs to another agent), `ConversationDeploymentMismatch` (the request names a deployment other than the conversation's), and `ConversationDeploymentUnavailable` (the conversation's deployment was deleted). An unknown `conversationId` returns 404. `conversations.delete` also rejects with 409 `ConversationBusy` while a turn is unfinished.
+
+`conversations.list(filter)` takes a `ConversationFilter` (`agentId`, `contextId` for the A2A context the conversation was created for, `callerId`, `search`, `maxResults`, `skip`, `ordering`). `runs.list({ conversationId })` lists a conversation's runs. A `Conversation` carries `turnCount`, `sessionId`, `affinityNodeId` and `affinityNodeName`, `activeRunId`, `lastRunId`, `busy` (true while a turn is unfinished), `fallbackCount`, and `lastFallbackReason`.
+
+Each turn's `Run` has `conversationId`, `conversationTurn` (1 for the first turn, 0 outside a conversation), `resumeSessionId`, `affinityNodeId`, `affinityUntilUtc`, and `conversationFallbackReason`. A fallback happens when the turn cannot resume and starts a fresh session seeded with the transcript of the earlier turns instead; `CONVERSATION_FALLBACK_REASONS` and the `ConversationFallbackReason` type list the values (`AffinityNodeLost`, `AffinityWaitExpired`, `WorkspaceLost`, `SessionMissing`, `HarnessChanged`, `ResumeUnsupported`, `ExecutorWithoutState`). A turn that could not even fall back ends with outcome `ConversationStateLost`. Deleting a conversation writes a `ConversationDeleted` audit record. See "Conversations" in `REST_API.md`.
 
 ## Run timing and usage fields
 

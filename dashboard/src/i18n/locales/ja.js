@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const ja = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '構造化出力が無効', RunBlocked: '実行がブロック中', EventsDropped: 'イベントの破棄', HarnessExited: 'ハーネス終了', McpPreflightWarning: 'MCP 事前チェックの警告', McpPreflightPassed: 'MCP 事前チェック合格', RepairAttemptStarted: '出力の修復を開始', WorkspacePrepared: 'ワークスペース準備完了', RunGuardTriggered: 'ランガードが実行を停止' },
+    eventCodes: { StructuredOutputInvalid: '構造化出力が無効', RunBlocked: '実行がブロック中', EventsDropped: 'イベントの破棄', HarnessExited: 'ハーネス終了', McpPreflightWarning: 'MCP 事前チェックの警告', McpPreflightPassed: 'MCP 事前チェック合格', RepairAttemptStarted: '出力の修復を開始', WorkspacePrepared: 'ワークスペース準備完了', RunGuardTriggered: 'ランガードが実行を停止', ConversationFallback: '会話のフォールバック', ConversationResumed: '会話を再開', ConversationStateLost: '会話の状態が失われました' },
     fieldCodes: { ExpiryInPast: '未来の日時を選んでください。', ParameterInvalid: 'この値はこのパラメーターには無効です。', ParameterNotAllowed: 'このデプロイメントでは、呼び出し元がこのパラメーターを上書きすることは許可されていません。', SettingsFileReadOnly: '設定ファイルが読み取り専用のため、この変更は保存できません。', OverriddenByEnvironment: '環境変数がこの値を設定しているため、ここでは変更できません。', PathRequired: '設定パスが必要です。', UnknownSetting: 'このサーバーにはこの設定がありません。', TooLong: '値が長すぎます。', NotAllowedValue: '許可された値のいずれかを選んでください。', NotABoolean: 'true または false を選んでください。', NotAnInteger: '整数を入力してください。', OutOfRange: '値が許可された範囲外です。' },
     serverText: {
       notApplied: '別のドキュメントが検証に失敗したため、適用されませんでした。',
@@ -134,7 +134,11 @@ const ja = {
     Http404: '見つかりません。',
     Http409: '現在の状態と競合しています。',
     Http500: 'サーバー内部エラーが発生しました。',
-    Http503: 'サーバーを利用できません。'
+    Http503: 'サーバーを利用できません。',
+    ConversationBusy: 'この会話は前のターンをまだ処理しています。その実行が終わるのを待つか取り消してから、もう一度お試しください。',
+    ConversationAgentMismatch: 'この会話は別のエージェントのものです。そのエージェントにターンを送るか、新しい会話を始めてください。',
+    ConversationDeploymentMismatch: '会話のすべてのターンは最初のターンのデプロイメントで実行されます。デプロイメントを空にするか、新しい会話を始めてください。',
+    ConversationDeploymentUnavailable: 'この会話のデプロイメントが削除されたため、会話を続けられません。新しい会話を始めてください。'
   },
   enums: {
     principalType: { Administrator: 'システム管理者', User: 'ユーザー', Credential: 'アクセスキー', Run: '実行トークン' },
@@ -222,7 +226,8 @@ const ja = {
       NoCapableWorker: '対応できるワーカーなし',
       RepetitionDetected: '繰り返しを検出',
       NoProgress: '進行なし',
-      PodFailed: '実行 Pod の失敗'
+      PodFailed: '実行 Pod の失敗',
+      ConversationStateLost: '会話の状態が失われました'
     },
     runEventType: {
       Lifecycle: 'ライフサイクル',
@@ -287,7 +292,17 @@ const ja = {
       ManifestApplied: 'マニフェスト適用',
       NodeRegistered: 'ノード登録',
       NodeStatusChanged: 'ノード状態変更',
-      RunCancelled: '実行キャンセル'
+      RunCancelled: '実行キャンセル',
+      ConversationDeleted: '会話を削除'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'アフィニティノードが準備完了でない',
+      AffinityWaitExpired: 'アフィニティの待機時間切れ',
+      WorkspaceLost: 'ワークスペースが失われた',
+      SessionMissing: '再開するセッションがない',
+      HarnessChanged: 'ハーネスプロファイルが変更された',
+      ResumeUnsupported: '再開に未対応',
+      ExecutorWithoutState: '状態を保持しない実行方式'
     }
   },
   nav: {
@@ -336,7 +351,11 @@ const ja = {
       roles: { label: 'ロール', tip: 'ロールと権限' },
       assignments: { label: '割り当て', tip: 'ユーザーと認証キーへのロール付与' },
       settings: { label: '設定', tip: 'サーバーとクラスターの設定を編集' },
-      serverInfo: { label: 'サーバー情報', tip: 'エンドポイント、バージョン、現在の ID' }
+      serverInfo: { label: 'サーバー情報', tip: 'エンドポイント、バージョン、現在の ID' },
+      conversations: {
+        label: '会話',
+        tip: 'エージェントとの複数ターンのやり取り'
+      }
     },
     setup: 'セットアップウィザード',
     setupTip: '認証情報を登録し、サンプルエージェントを適用してテスト',
@@ -713,7 +732,7 @@ const ja = {
       errors: { dnsName: '英小文字、数字、ハイフンを使い、先頭と末尾は英字か数字にしてください。' }
     },
     deployments: {
-      promptRoles: { Repair: '構造化出力の修復', DelegatedTask: '委任された実行のタスクラッパー', Task: 'タスクのラッパー', System: 'システムプロンプト' },
+      promptRoles: { Repair: '構造化出力の修復', DelegatedTask: '委任された実行のタスクラッパー', Task: 'タスクのラッパー', System: 'システムプロンプト', ConversationFallback: '会話のフォールバック (履歴)' },
       ...rp('デプロイメント', 'エージェントをハーネスプロファイル、プロンプト、シークレット、MCP サーバー、配置、制限に結び付けます。', 'デプロイメントを追加', 'デプロイメントを作成', 'デプロイメントを編集', 'デプロイメントの詳細', 'デプロイメントを削除', 'デプロイメントはまだありません', 'エージェントを実行できるようにデプロイメントを作成してください。'),
       steps: { basics: '基本', harness: 'ハーネス', prompts: 'プロンプト', resources: 'リソース', overrides: '上書き', placement: '配置と制限' },
       columns: { name: '名前', agentId: 'エージェント', harnessProfileId: 'ハーネスプロファイル', model: 'モデル', executor: 'エグゼキューター', weight: '重み', configVersion: '構成バージョン', active: '有効', id: 'ID', createdUtc: '作成日時' },
@@ -840,10 +859,12 @@ const ja = {
         costUsd: 'コスト',
         toolCallCount: 'ツール呼び出し',
         depth: '深さ',
-        createdUtc: '作成日時'
+        createdUtc: '作成日時',
+        conversationId: '会話'
       },
       actions: { cancel: '実行をキャンセル', retry: '実行を再試行' },
-      toasts: { cancelRequested: 'キャンセルを要求しました。', retried: '再試行を開始しました。' }
+      toasts: { cancelRequested: 'キャンセルを要求しました。', retried: '再試行を開始しました。' },
+      turn: 'ターン {{turn}}'
     },
     nodes: {
       ...rp('ノード', '実行をリースして処理するワーカーノードです。メンテナンス前には隔離またはドレインしてください。', 'ノードを追加', 'ノードを作成', 'ノードを編集', 'ノードの詳細', 'ノードを削除', 'ノードはまだありません', 'ワーカーノードは起動時に自動で登録されます。ワーカーの StatefulSet をデプロイするか、Garrison.Worker をローカルで起動してください。'),
@@ -888,6 +909,42 @@ const ja = {
     manifestApplies: {
       ...rp('適用履歴', 'マニフェストの適用とドライランの履歴 (ドキュメントごとの結果付き) です。', '記録を追加', '記録を作成', '記録を編集', '適用の詳細', '記録を削除', '適用履歴はまだありません', 'マニフェストを適用またはドライランすると、ここに表示されます。'),
       columns: { createdUtc: '日時', principalName: '適用者', dryRun: 'ドライラン', counts: '結果' }
+    },
+    conversations: {
+      title: '会話',
+      subtitle: 'エージェントとの複数ターンのやり取りです。各ターンは、前のターンのハーネスセッションを再開する実行です。',
+      add: '会話を追加',
+      create: '会話を作成',
+      edit: '会話を編集',
+      view: '会話の詳細',
+      deleteTitle: '会話を削除',
+      emptyTitle: '会話はまだありません',
+      emptyBody: '呼び出しページで「新しい会話を開始」を選んで始めるか、A2A メッセージを送信してください。A2A のコンテキストはすべて会話になります。',
+      untitled: '無題の会話',
+      columns: {
+        title: 'タイトル',
+        agentName: 'エージェント',
+        state: '状態',
+        turnCount: 'ターン数',
+        affinityNodeName: 'アフィニティノード',
+        fallbackCount: 'フォールバック数',
+        lastFallbackReason: '直近のフォールバック',
+        harnessType: 'ハーネス',
+        callerName: '開始したユーザー',
+        contextId: 'コンテキスト ID',
+        sessionId: 'セッション ID',
+        lastActivityUtc: '最終アクティビティ',
+        createdUtc: '作成日時',
+        id: 'ID'
+      },
+      states: {
+        busy: '処理中',
+        idle: '待機中'
+      },
+      actions: {
+        continue: '続ける',
+        runs: 'ターンを実行として表示'
+      }
     }
   },
   views: {
@@ -1017,6 +1074,20 @@ const ja = {
         minutes: '{{value}} 分',
         hours: '{{value}} 時間',
         secondsWord: '秒'
+      },
+      conversation: {
+        mode: '会話',
+        modes: {
+          none: '単発の実行 (会話なし)',
+          start: '新しい会話を開始',
+          continue: '会話を続ける'
+        },
+        pick: '続ける会話',
+        choose: '会話を選択',
+        option: '{{title}} (ターン数: {{turns}})',
+        pinned: 'すべてのターンは会話の最初のターンのデプロイメントで実行されるため、ここではデプロイメントを選べません。',
+        busy: 'この会話は前のターンをまだ処理しています。その実行が終わるまで、新しいメッセージは拒否されます。',
+        open: '会話を開く (ターン {{turn}})'
       }
     },
     runDetail: {
@@ -1089,7 +1160,12 @@ const ja = {
           firstTokenUtc: '最初のトークンの日時',
           lastTokenUtc: '最後のトークンの日時'
         }
-      }
+      },
+      conversation: '会話',
+      conversationSession: 'セッション',
+      resumeSessionId: '再開したセッション',
+      affinityNode: 'アフィニティノード',
+      affinityUntil: '{{time}} まで'
     },
     queue: {
       title: 'キュー',
@@ -1113,7 +1189,8 @@ const ja = {
       noDeploymentsBody: 'このエージェントをハーネスに結び付けるデプロイメントを作成してください。',
       noRuns: 'このエージェントはまだ実行されていません。',
       selectionNote: 'デプロイメントを明示的に指定しない呼び出しは、有効なデプロイメントの 1 つに送られます。どのデプロイメントになるかは、重みに比例してランダムに選ばれます。',
-      manageDeployments: 'デプロイメントを管理'
+      manageDeployments: 'デプロイメントを管理',
+      conversations: '会話'
     },
     templateEditor: {
       cloneToEdit: '複製して編集',
@@ -1384,7 +1461,10 @@ const ja = {
           MaxRunSeconds: '最大実行時間 (秒)',
           RepetitionGuard: '繰り返しガードの既定値',
           MaxAssistantChars: '最大アシスタント文字数の既定値',
-          NoProgressSeconds: '進行なしタイムアウトの既定値 (秒)'
+          NoProgressSeconds: '進行なしタイムアウトの既定値 (秒)',
+          ConversationAffinityWaitMs: '会話のアフィニティ待機時間 (ms)',
+          ConversationTranscriptTurns: 'フォールバック時の履歴ターン数',
+          ConversationTranscriptChars: 'フォールバック時の履歴の 1 メッセージあたりの文字数'
         },
         Audit: {
           RetentionDays: '監査の保持期間 (日)'
@@ -1529,6 +1609,42 @@ const ja = {
       tuneAny: 'この動作を変えるには、デプロイメントを編集してください。「配置と制限」ステップに繰り返しガード、最大アシスタント文字数、進行なしタイムアウトがあります。空のままにすると、設定 (ランタイム) のクラスター既定値に従います。',
       openDeployments: 'デプロイメントを開く',
       openSettings: '設定を開く'
+    },
+    conversationDetail: {
+      title: '会話',
+      notFoundTitle: '会話が見つかりません',
+      notFoundBody: '削除されたか、別のテナントに属している可能性があります。そのターンは実行ページに残ります。',
+      deployment: 'デプロイメント',
+      activeRun: '未完了のターン',
+      turns: 'ターン',
+      turnsCount: 'ターン ({{count}})',
+      noTurns: 'この会話にはまだターンがありません。',
+      pending: '結果を待っています',
+      columns: {
+        turn: 'ターン',
+        run: '実行',
+        status: 'ステータス',
+        outcome: '結果',
+        session: 'セッション',
+        input: '入力',
+        result: '応答',
+        node: 'ノード',
+        created: '作成日時'
+      },
+      session: {
+        first: '新しいセッション',
+        resumed: '再開',
+        fallback: '新規セッション',
+        pending: '未配置'
+      },
+      continueTitle: '会話を続ける',
+      message: '次のメッセージ',
+      messagePlaceholder: '追加の質問や次の指示を入力...',
+      busyNotice: '前のターンがまだ処理中です。終わったら次のメッセージを送信できます。',
+      send: 'ターンを送信',
+      turnStarted: 'ターン {{turn}} を開始しました。',
+      openInvoke: '呼び出しで続ける',
+      confirmDelete: '会話「{{title}}」を削除しますか? ターンは通常の実行として実行ページに残りますが、新しいターンで続けることはできなくなります。'
     }
   },
   wizard: {
