@@ -70,6 +70,10 @@
       "condition": "{{deployment.parameters.structuredOutput}}"
     },
     {
+      "template": "--report-turns",
+      "condition": "{{deployment.parameters.reportTurns}}"
+    },
+    {
       "template": "--resume",
       "condition": "{{run.resumeSessionId}}"
     },

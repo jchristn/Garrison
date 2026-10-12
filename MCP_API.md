@@ -67,8 +67,8 @@ Each tool checks the same permission its REST equivalent does. Every tool also a
 |---|---|---|---|
 | `garrison_list_agents` | Read on Agent | none | `search` (part of a name), `maxResults` (1 to 100, default 25) |
 | `garrison_get_agent` | Read on Agent | `agent` (name or identifier) | none |
-| `garrison_invoke_agent` | Execute on Agent | `agent`, `input` | `parameters` (object of strings), `deploymentId`, `waitSeconds` (0 to `Mcp.MaxToolWaitSeconds`, default the maximum) |
-| `garrison_start_run` | Execute on Agent | `agent`, `input` | `parameters`, `deploymentId` |
+| `garrison_invoke_agent` | Execute on Agent | `agent`, `input` | `parameters` (object of strings), `deploymentId`, `waitSeconds` (0 to `Mcp.MaxToolWaitSeconds`, default the maximum), `startConversation` (boolean), `conversationId` |
+| `garrison_start_run` | Execute on Agent | `agent`, `input` | `parameters`, `deploymentId`, `startConversation`, `conversationId` |
 | `garrison_get_run` | Read on Run | `runId` | none |
 | `garrison_get_run_events` | Read on Run | `runId` | `afterSequence` (default 0), `limit` (1 to 500, default 100) |
 | `garrison_cancel_run` | Update on Run | `runId` | none |
@@ -95,6 +95,15 @@ Rules:
 - Agent tools appear in `tools/list` as soon as the agent is saved; no reconnect is needed. Garrison does not send `notifications/tools/list_changed`, so a client that caches the list sees a new agent tool the next time it lists tools.
 - A system administrator without a tenant sees agent tools only when it sends `x-tenant-id` (or passes `tenantId` in the call).
 
+### Conversations
+
+Pass `"startConversation": true` to `garrison_invoke_agent` or `garrison_start_run` to begin a conversation; the run summary then carries `conversationId` and `conversationTurn`. Pass that `conversationId` with the next request to the same agent and it becomes the conversation's next turn: the agent resumes the harness session of the earlier turns, so it remembers them without the caller repeating them. One turn of a conversation runs at a time; a request sent while the previous turn is unfinished fails with `ConversationBusy: ...` (see Errors). How turns are placed on workers, and what happens when the worker holding the session is gone, is described under Conversations in `REST_API.md`.
+
+```json
+{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"garrison_invoke_agent","arguments":{"agent":"docs-echo","input":"Draft a haiku about queues","startConversation":true}}}
+{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"garrison_invoke_agent","arguments":{"agent":"docs-echo","input":"Now make it rhyme","conversationId":"cnv_mv4m..."}}}
+```
+
 ### Results
 
 A successful call returns one text content item holding a JSON object. The run tools return a run summary:
@@ -110,6 +119,8 @@ A successful call returns one text content item holding a JSON object. The run t
   "result": "Echo: Hello from MCP",
   "servedModel": "fake-model",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "conversationId": "cnv_mv4m...",
+  "conversationTurn": 1,
   "inputTokens": 12,
   "outputTokens": 7,
   "costUsd": 0.0001,
@@ -194,7 +205,7 @@ Failures inside a tool (not found, not permitted, a missing argument, a rejected
 | `Forbidden` | The caller lacks the permission; the message names it |
 | `ValidationFailed` | A missing argument or a rejected value. Parameter errors name the parameter, for example `ValidationFailed: Run parameter model is not allowed for deployment echo-default: Deployment echo-default does not allow overriding model. parameters.model: ...` |
 | `TenantRequired`, `Unauthorized`, `UnknownTool`, `BadRequest` | The call could not be resolved |
-| Any REST conflict code | For example `RunFinished`, `NoActiveDeployment`, `DelegationNotAllowed`, `IdempotencyKeyConflict` (see the 409 codes in `REST_API.md`) |
+| Any REST conflict code | For example `RunFinished`, `NoActiveDeployment`, `DelegationNotAllowed`, `IdempotencyKeyConflict`, `ConversationBusy`, `ConversationAgentMismatch` (see the 409 codes in `REST_API.md`) |
 | `DatabaseBusy`, `DatabaseUnavailable` | The database had no free connections, or could not be reached, while the tool ran. Nothing was started; retry in a few seconds |
 
 Tool result text is JSON written with plain `\"` escapes, so quotes in run output read naturally.

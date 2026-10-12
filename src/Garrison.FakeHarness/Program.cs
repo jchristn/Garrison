@@ -3,6 +3,7 @@ namespace Garrison.FakeHarness
     using System;
     using System.Diagnostics;
     using System.IO;
+    using System.Linq;
     using System.Runtime.InteropServices;
     using System.Text.Json;
     using System.Threading;
@@ -17,7 +18,7 @@ namespace Garrison.FakeHarness
     /// [--fail] [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
     /// [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N] [--answer text]
     /// [--resume-answer text] [--resume sessionId] [--structured-output] [--ignore-sigterm] [--loop-text text]
-    /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval].
+    /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--session-id id] [resume sessionId] [--report-turns].
     /// </summary>
     public static class Program
     {
@@ -73,7 +74,12 @@ namespace Garrison.FakeHarness
                 sessionId = options.Resume;
                 if (options.ResumeAnswer != null) answer = options.ResumeAnswer;
             }
+            else if (!String.IsNullOrEmpty(options.SessionId))
+            {
+                sessionId = options.SessionId;
+            }
             SaveTurn(sessionDirectory, sessionId, prompt);
+            if (options.ReportTurns) answer = "[turn " + CountTurns(sessionDirectory, sessionId) + "] " + answer;
 
             FakeEmitter emitter = new FakeEmitter(options, sessionId);
             emitter.Start();
@@ -147,6 +153,27 @@ namespace Garrison.FakeHarness
         {
             if (directory == null || sessionId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || sessionId.Contains("..", StringComparison.Ordinal)) return null;
             return Path.Combine(directory, sessionId + ".txt");
+        }
+
+        /// <summary>
+        /// Number of turns recorded in a session file, or 1 when it cannot be read.
+        /// </summary>
+        /// <param name="directory">Session directory.</param>
+        /// <param name="sessionId">Session identifier.</param>
+        /// <returns>Turns.</returns>
+        internal static int CountTurns(string? directory, string sessionId)
+        {
+            string? file = SessionFile(directory, sessionId);
+            if (file == null || !File.Exists(file)) return 1;
+            try
+            {
+                int turns = File.ReadAllLines(file).Count(l => l.StartsWith("--- turn ", StringComparison.Ordinal));
+                return Math.Max(1, turns);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                return 1;
+            }
         }
 
         private static void SaveTurn(string? directory, string sessionId, string prompt)

@@ -139,7 +139,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, agentname = @agentname, deploymentid = @deploymentid, deploymentversion = @deploymentversion, harnesstype = @harnesstype, nodepoolid = @nodepoolid, executor = @executor, kind = @kind, status = @status, outcome = @outcome, priority = @priority, inputtext = @inputtext, inputcontenttype = @inputcontenttype, callertype = @callertype, callerid = @callerid, callername = @callername, parentrunid = @parentrunid, rootrunid = @rootrunid, depth = @depth, callchain = @callchain, idempotencykey = @idempotencykey, retryofrunid = @retryofrunid, attempt = @attempt, maxattempts = @maxattempts, leasenodeid = @leasenodeid, leasenodename = @leasenodename, leaseepoch = @leaseepoch, leaseexpiresutc = @leaseexpiresutc, queuedutc = @queuedutc, leasedutc = @leasedutc, startedutc = @startedutc, completedutc = @completedutc, deadlineutc = @deadlineutc, cancelrequested = @cancelrequested, resulttext = @resulttext, structuredoutputjson = @structuredoutputjson, sessionid = @sessionid, servedmodel = @servedmodel, exitcode = @exitcode, stderrtail = @stderrtail, errormessage = @errormessage, inputtokens = @inputtokens, outputtokens = @outputtokens, cachedtokens = @cachedtokens, costusd = @costusd, costestimated = @costestimated, reasoningtokens = @reasoningtokens, toolcallcount = @toolcallcount, outputschemavalid = @outputschemavalid, schemavalidationerrors = @schemavalidationerrors, repairattempts = @repairattempts, firsttokenutc = @firsttokenutc, lasttokenutc = @lasttokenutc, ttftms = @ttftms, streamingms = @streamingms, executionms = @executionms, queuems = @queuems, totalms = @totalms, delegationwaitms = @delegationwaitms, ttftexcldelegationms = @ttftexcldelegationms, lasteventsequence = @lasteventsequence, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, agentname = @agentname, deploymentid = @deploymentid, deploymentversion = @deploymentversion, harnesstype = @harnesstype, nodepoolid = @nodepoolid, executor = @executor, kind = @kind, status = @status, outcome = @outcome, priority = @priority, inputtext = @inputtext, inputcontenttype = @inputcontenttype, callertype = @callertype, callerid = @callerid, callername = @callername, parentrunid = @parentrunid, rootrunid = @rootrunid, depth = @depth, callchain = @callchain, idempotencykey = @idempotencykey, retryofrunid = @retryofrunid, attempt = @attempt, maxattempts = @maxattempts, leasenodeid = @leasenodeid, leasenodename = @leasenodename, leaseepoch = @leaseepoch, leaseexpiresutc = @leaseexpiresutc, queuedutc = @queuedutc, leasedutc = @leasedutc, startedutc = @startedutc, completedutc = @completedutc, deadlineutc = @deadlineutc, cancelrequested = @cancelrequested, resulttext = @resulttext, structuredoutputjson = @structuredoutputjson, sessionid = @sessionid, servedmodel = @servedmodel, exitcode = @exitcode, stderrtail = @stderrtail, errormessage = @errormessage, inputtokens = @inputtokens, outputtokens = @outputtokens, cachedtokens = @cachedtokens, costusd = @costusd, costestimated = @costestimated, reasoningtokens = @reasoningtokens, toolcallcount = @toolcallcount, outputschemavalid = @outputschemavalid, schemavalidationerrors = @schemavalidationerrors, repairattempts = @repairattempts, firsttokenutc = @firsttokenutc, lasttokenutc = @lasttokenutc, ttftms = @ttftms, streamingms = @streamingms, executionms = @executionms, queuems = @queuems, totalms = @totalms, delegationwaitms = @delegationwaitms, ttftexcldelegationms = @ttftexcldelegationms, lasteventsequence = @lasteventsequence, conversationid = @conversationid, conversationturn = @conversationturn, resumesessionid = @resumesessionid, affinitynodeid = @affinitynodeid, affinityuntilutc = @affinityuntilutc, conversationfallbackreason = @conversationfallbackreason, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -195,6 +195,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "costestimated", obj.CostEstimated);
                     AddTelemetry(command, obj);
                     AdoDatabaseDriver.Add(command, "lasteventsequence", obj.LastEventSequence);
+                    AddConversation(command, obj);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                     AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
@@ -327,6 +328,7 @@ namespace Garrison.Core.Database.Ado
             obj.CostUsd = AdoConverters.NullableDouble(reader, "costusd");
             obj.CostEstimated = AdoConverters.Bool(reader, "costestimated");
             MapTelemetry(reader, obj);
+            MapConversation(reader, obj);
             obj.LastEventSequence = AdoConverters.Long(reader, "lasteventsequence");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
@@ -561,6 +563,7 @@ namespace Garrison.Core.Database.Ado
             if (transition.IncrementAttempt) sets.Add("attempt = attempt + 1");
             if (transition.CancelRequested.HasValue) sets.Add("cancelrequested = @cancel");
             if (transition.DeadlineUtc.HasValue) sets.Add("deadlineutc = @deadline");
+            if (transition.ConversationFallback.HasValue) sets.Add("conversationfallbackreason = @fallback, resumesessionid = NULL, affinitynodeid = NULL, affinityuntilutc = NULL");
 
             List<string> from = new List<string>();
             for (int i = 0; i < transition.FromStatuses.Count; i++) from.Add("@f" + i);
@@ -577,6 +580,7 @@ namespace Garrison.Core.Database.Ado
                 if (transition.ErrorMessage != null) AdoDatabaseDriver.Add(command, "error", transition.ErrorMessage);
                 if (transition.CancelRequested.HasValue) AdoDatabaseDriver.Add(command, "cancel", transition.CancelRequested.Value);
                 if (transition.DeadlineUtc.HasValue) AdoDatabaseDriver.Add(command, "deadline", transition.DeadlineUtc.Value);
+                if (transition.ConversationFallback.HasValue) AdoDatabaseDriver.Add(command, "fallback", transition.ConversationFallback.Value.ToString());
                 for (int i = 0; i < transition.FromStatuses.Count; i++) AdoDatabaseDriver.Add(command, "f" + i, transition.FromStatuses[i].ToString());
                 if (transition.Epoch.HasValue) AdoDatabaseDriver.Add(command, "epoch", transition.Epoch.Value);
                 if (!String.IsNullOrEmpty(transition.NodeId)) AdoDatabaseDriver.Add(command, "node", transition.NodeId);
@@ -755,6 +759,7 @@ namespace Garrison.Core.Database.Ado
             if (!String.IsNullOrEmpty(filter.NodeId)) clauses.Add("leasenodeid = @nodeid");
             if (!String.IsNullOrEmpty(filter.ParentRunId)) clauses.Add("parentrunid = @parentrunid");
             if (!String.IsNullOrEmpty(filter.RootRunId)) clauses.Add("rootrunid = @rootrunid");
+            if (!String.IsNullOrEmpty(filter.ConversationId)) clauses.Add("conversationid = @conversationid");
             if (filter.Outcome.HasValue) clauses.Add("outcome = @outcome");
             if (!String.IsNullOrEmpty(filter.CallerId)) clauses.Add("callerid = @callerid");
             if (filter.FromUtc.HasValue) clauses.Add("createdutc >= @fromutc");
@@ -771,6 +776,7 @@ namespace Garrison.Core.Database.Ado
                 if (!String.IsNullOrEmpty(filter.NodeId)) AdoDatabaseDriver.Add(command, "nodeid", filter.NodeId);
                 if (!String.IsNullOrEmpty(filter.ParentRunId)) AdoDatabaseDriver.Add(command, "parentrunid", filter.ParentRunId);
                 if (!String.IsNullOrEmpty(filter.RootRunId)) AdoDatabaseDriver.Add(command, "rootrunid", filter.RootRunId);
+                if (!String.IsNullOrEmpty(filter.ConversationId)) AdoDatabaseDriver.Add(command, "conversationid", filter.ConversationId);
                 if (filter.Outcome.HasValue) AdoDatabaseDriver.Add(command, "outcome", filter.Outcome.Value.ToString());
                 if (!String.IsNullOrEmpty(filter.CallerId)) AdoDatabaseDriver.Add(command, "callerid", filter.CallerId);
                 if (filter.FromUtc.HasValue) AdoDatabaseDriver.Add(command, "fromutc", filter.FromUtc.Value);
@@ -1087,7 +1093,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Run obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, nodepoolid, executor, kind, status, outcome, priority, inputtext, inputcontenttype, callertype, callerid, callername, parentrunid, rootrunid, depth, callchain, idempotencykey, retryofrunid, attempt, maxattempts, leasenodeid, leasenodename, leaseepoch, leaseexpiresutc, queuedutc, leasedutc, startedutc, completedutc, deadlineutc, cancelrequested, resulttext, structuredoutputjson, sessionid, servedmodel, exitcode, stderrtail, errormessage, inputtokens, outputtokens, cachedtokens, costusd, costestimated, reasoningtokens, toolcallcount, outputschemavalid, schemavalidationerrors, repairattempts, firsttokenutc, lasttokenutc, ttftms, streamingms, executionms, queuems, totalms, delegationwaitms, ttftexcldelegationms, lasteventsequence, active, isprotected, traceid, traceparent, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @deploymentversion, @harnesstype, @nodepoolid, @executor, @kind, @status, @outcome, @priority, @inputtext, @inputcontenttype, @callertype, @callerid, @callername, @parentrunid, @rootrunid, @depth, @callchain, @idempotencykey, @retryofrunid, @attempt, @maxattempts, @leasenodeid, @leasenodename, @leaseepoch, @leaseexpiresutc, @queuedutc, @leasedutc, @startedutc, @completedutc, @deadlineutc, @cancelrequested, @resulttext, @structuredoutputjson, @sessionid, @servedmodel, @exitcode, @stderrtail, @errormessage, @inputtokens, @outputtokens, @cachedtokens, @costusd, @costestimated, @reasoningtokens, @toolcallcount, @outputschemavalid, @schemavalidationerrors, @repairattempts, @firsttokenutc, @lasttokenutc, @ttftms, @streamingms, @executionms, @queuems, @totalms, @delegationwaitms, @ttftexcldelegationms, @lasteventsequence, @active, @isprotected, @traceid, @traceparent, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, nodepoolid, executor, kind, status, outcome, priority, inputtext, inputcontenttype, callertype, callerid, callername, parentrunid, rootrunid, depth, callchain, idempotencykey, retryofrunid, attempt, maxattempts, leasenodeid, leasenodename, leaseepoch, leaseexpiresutc, queuedutc, leasedutc, startedutc, completedutc, deadlineutc, cancelrequested, resulttext, structuredoutputjson, sessionid, servedmodel, exitcode, stderrtail, errormessage, inputtokens, outputtokens, cachedtokens, costusd, costestimated, reasoningtokens, toolcallcount, outputschemavalid, schemavalidationerrors, repairattempts, firsttokenutc, lasttokenutc, ttftms, streamingms, executionms, queuems, totalms, delegationwaitms, ttftexcldelegationms, lasteventsequence, active, isprotected, traceid, traceparent, conversationid, conversationturn, resumesessionid, affinitynodeid, affinityuntilutc, conversationfallbackreason, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @deploymentversion, @harnesstype, @nodepoolid, @executor, @kind, @status, @outcome, @priority, @inputtext, @inputcontenttype, @callertype, @callerid, @callername, @parentrunid, @rootrunid, @depth, @callchain, @idempotencykey, @retryofrunid, @attempt, @maxattempts, @leasenodeid, @leasenodename, @leaseepoch, @leaseexpiresutc, @queuedutc, @leasedutc, @startedutc, @completedutc, @deadlineutc, @cancelrequested, @resulttext, @structuredoutputjson, @sessionid, @servedmodel, @exitcode, @stderrtail, @errormessage, @inputtokens, @outputtokens, @cachedtokens, @costusd, @costestimated, @reasoningtokens, @toolcallcount, @outputschemavalid, @schemavalidationerrors, @repairattempts, @firsttokenutc, @lasttokenutc, @ttftms, @streamingms, @executionms, @queuems, @totalms, @delegationwaitms, @ttftexcldelegationms, @lasteventsequence, @active, @isprotected, @traceid, @traceparent, @conversationid, @conversationturn, @resumesessionid, @affinitynodeid, @affinityuntilutc, @conversationfallbackreason, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -1132,6 +1138,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "servedmodel", obj.ServedModel);
                 AdoDatabaseDriver.Add(command, "traceid", obj.TraceId);
                 AdoDatabaseDriver.Add(command, "traceparent", obj.TraceParent);
+                AddConversation(command, obj);
                 AdoDatabaseDriver.Add(command, "exitcode", obj.ExitCode);
                 AdoDatabaseDriver.Add(command, "stderrtail", obj.StderrTail);
                 AdoDatabaseDriver.Add(command, "errormessage", obj.ErrorMessage);
@@ -1260,6 +1267,26 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "totalms", obj.TotalMs);
             AdoDatabaseDriver.Add(command, "delegationwaitms", obj.DelegationWaitMs);
             AdoDatabaseDriver.Add(command, "ttftexcldelegationms", obj.TimeToFirstTokenExcludingDelegationMs);
+        }
+
+        private static void AddConversation(DbCommand command, Run obj)
+        {
+            AdoDatabaseDriver.Add(command, "conversationid", obj.ConversationId);
+            AdoDatabaseDriver.Add(command, "conversationturn", obj.ConversationTurn);
+            AdoDatabaseDriver.Add(command, "resumesessionid", obj.ResumeSessionId);
+            AdoDatabaseDriver.Add(command, "affinitynodeid", obj.AffinityNodeId);
+            AdoDatabaseDriver.Add(command, "affinityuntilutc", obj.AffinityUntilUtc);
+            AdoDatabaseDriver.Add(command, "conversationfallbackreason", obj.ConversationFallbackReason?.ToString());
+        }
+
+        private static void MapConversation(DbDataReader reader, Run obj)
+        {
+            obj.ConversationId = AdoConverters.NullableStr(reader, "conversationid");
+            obj.ConversationTurn = Math.Max(0, AdoConverters.Int(reader, "conversationturn"));
+            obj.ResumeSessionId = AdoConverters.NullableStr(reader, "resumesessionid");
+            obj.AffinityNodeId = AdoConverters.NullableStr(reader, "affinitynodeid");
+            obj.AffinityUntilUtc = AdoConverters.NullableDate(reader, "affinityuntilutc");
+            obj.ConversationFallbackReason = AdoConverters.NullableEnum<ConversationFallbackReasonEnum>(reader, "conversationfallbackreason");
         }
 
         private static void MapTelemetry(DbDataReader reader, Run obj)

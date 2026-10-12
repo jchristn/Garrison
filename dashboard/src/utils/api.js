@@ -577,7 +577,11 @@ class ApiClient {
     return this._request('DELETE', this._t(tenantId, `agents/${enc(id)}`));
   }
 
-  /** Invoke an agent. options: { wait, waitSeconds }. Returns the run. */
+  /**
+   * Invoke an agent. options: { wait, waitSeconds }. Returns the run. The body may carry `startConversation: true`
+   * (the run is the first turn of a new conversation; the run's conversationId names it) or `conversationId` (the run
+   * is the next turn of that conversation). 409 ConversationBusy when the previous turn has not finished.
+   */
   invokeAgent(tenantId, id, body, { wait = false, waitSeconds } = {}) {
     return this._request('POST', this._t(tenantId, `agents/${enc(id)}/invoke`), {
       body,
@@ -649,9 +653,30 @@ class ApiClient {
     return this._request('GET', this._t(tenantId, `manifests/applies/${enc(id)}`));
   }
 
+  // ------------------------------------------------------------------ conversations
+
+  /** filters: agentId, contextId, callerId, search, ordering, pageNumber, pageSize. */
+  listConversations(tenantId, params) {
+    return this._list(this._t(tenantId, 'conversations'), params);
+  }
+
+  getConversation(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `conversations/${enc(id)}`));
+  }
+
+  /** 409 ConversationBusy while the conversation has an unfinished turn. The runs are kept. */
+  deleteConversation(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `conversations/${enc(id)}`));
+  }
+
+  /** The conversation's turns (runs), oldest first. */
+  listConversationRuns(tenantId, id, params = { pageNumber: 1, pageSize: 1000 }) {
+    return this._list(this._t(tenantId, `conversations/${enc(id)}/runs`), params);
+  }
+
   // ------------------------------------------------------------------ runs
 
-  /** filters: status, agentId, deploymentId, harnessType, nodeId, fromUtc, toUtc, pageNumber, pageSize. */
+  /** filters: status, agentId, deploymentId, harnessType, nodeId, conversationId, fromUtc, toUtc, pageNumber, pageSize. */
   listRuns(tenantId, params) {
     return this._list(this._t(tenantId, 'runs'), params);
   }

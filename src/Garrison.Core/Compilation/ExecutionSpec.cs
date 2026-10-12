@@ -76,6 +76,12 @@ namespace Garrison.Core.Compilation
         public ExecutionAppServer? AppServer { get; set; } = null;
 
         /// <summary>
+        /// Conversation settings when the run is a conversation turn on the Process executor: the worker then uses the
+        /// conversation's directories instead of per-run ones. Null otherwise.
+        /// </summary>
+        public ExecutionConversation? Conversation { get; set; } = null;
+
+        /// <summary>
         /// Workspace preparation.
         /// </summary>
         public ExecutionWorkspace Workspace { get; set; } = new ExecutionWorkspace();

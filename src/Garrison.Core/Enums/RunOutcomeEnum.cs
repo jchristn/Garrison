@@ -108,6 +108,14 @@ namespace Garrison.Core.Enums
         /// too long, its image could not be pulled, its container was OOMKilled, it was evicted, or it exited without
         /// reporting a completion. The error message names the cause.
         /// </summary>
-        PodFailed
+        PodFailed,
+
+        /// <summary>
+        /// A conversation turn asked to resume a harness session on its affinity node, but the conversation's
+        /// directories (workspace and home) were gone on that node. The control plane normally requeues such a turn as a
+        /// fallback (a fresh session seeded with the transcript), so a run only ends with this outcome when the requeue
+        /// was not possible.
+        /// </summary>
+        ConversationStateLost
     }
 }

@@ -94,6 +94,18 @@ namespace Garrison.FakeHarness
         public string? Resume { get; set; } = null;
 
         /// <summary>
+        /// Session identifier for a new session, the way Mux names one with --session-id. Ignored when resuming. Null
+        /// generates a random identifier.
+        /// </summary>
+        public string? SessionId { get; set; } = null;
+
+        /// <summary>
+        /// Prefix the answer with "[turn N] ", where N counts the turns recorded in the session (1 for a new session), so
+        /// tests can tell a resumed conversation from a fresh one. Default false.
+        /// </summary>
+        public bool ReportTurns { get; set; } = false;
+
+        /// <summary>
         /// Whether the Claude format result event also carries the answer as structured_output when it parses as
         /// JSON, the way Claude Code reports output produced with --json-schema. Default false.
         /// </summary>
@@ -190,6 +202,16 @@ namespace Garrison.FakeHarness
                         break;
                     case "--resume":
                         if (next != null) { options.Resume = next; i++; }
+                        break;
+                    case "resume":
+                        // Codex style: codex exec [options] resume <session> -
+                        if (next != null && !next.StartsWith("-", StringComparison.Ordinal)) { options.Resume = next; i++; }
+                        break;
+                    case "--session-id":
+                        if (next != null) { options.SessionId = next; i++; }
+                        break;
+                    case "--report-turns":
+                        options.ReportTurns = true;
                         break;
                     case "--structured-output":
                         options.StructuredOutput = true;

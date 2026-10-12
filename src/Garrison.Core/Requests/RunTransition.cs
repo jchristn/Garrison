@@ -78,5 +78,11 @@ namespace Garrison.Core.Requests
         /// Deadline to set.
         /// </summary>
         public DateTime? DeadlineUtc { get; set; } = null;
+
+        /// <summary>
+        /// When set, turn a conversation turn into a fallback: record this reason, clear the session to resume, and drop
+        /// the node affinity, so the turn starts a fresh session seeded with the transcript. Null leaves those fields.
+        /// </summary>
+        public ConversationFallbackReasonEnum? ConversationFallback { get; set; } = null;
     }
 }

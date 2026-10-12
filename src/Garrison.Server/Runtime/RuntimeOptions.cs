@@ -197,6 +197,58 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Milliseconds a conversation turn that resumes a harness session waits for its affinity node (the node holding
+        /// the conversation's directories) before any other capable node may claim it as a fallback. Other nodes take it
+        /// at once when the affinity node is not Ready. 0 never waits. Minimum 0, maximum 600000 (10 minutes), default
+        /// 30000. Refreshed from the cluster setting Runtime.ConversationAffinityWaitMs.
+        /// </summary>
+        public int ConversationAffinityWaitMs
+        {
+            get
+            {
+                return _ConversationAffinityWaitMs;
+            }
+            set
+            {
+                _ConversationAffinityWaitMs = Math.Clamp(value, 0, 600000);
+            }
+        }
+
+        /// <summary>
+        /// Most earlier turns repeated to a conversation turn that falls back to a fresh harness session; the newest ones
+        /// are kept. Minimum 1, maximum 200, default 20. Refreshed from the cluster setting
+        /// Runtime.ConversationTranscriptTurns.
+        /// </summary>
+        public int ConversationTranscriptTurns
+        {
+            get
+            {
+                return _ConversationTranscriptTurns;
+            }
+            set
+            {
+                _ConversationTranscriptTurns = Math.Clamp(value, 1, 200);
+            }
+        }
+
+        /// <summary>
+        /// Most characters of each earlier input and answer repeated to a fallback turn; longer ones are cut and marked
+        /// as truncated. Minimum 200, maximum 200000, default 4000. Refreshed from the cluster setting
+        /// Runtime.ConversationTranscriptChars.
+        /// </summary>
+        public int ConversationTranscriptChars
+        {
+            get
+            {
+                return _ConversationTranscriptChars;
+            }
+            set
+            {
+                _ConversationTranscriptChars = Math.Clamp(value, 200, 200000);
+            }
+        }
+
+        /// <summary>
         /// Interval at which this replica heartbeats its control node row, in milliseconds. Minimum 1000, maximum 60000,
         /// default 5000. Refreshed from the cluster setting ControlPlane.HeartbeatIntervalMs.
         /// </summary>
@@ -295,6 +347,9 @@ namespace Garrison.Server.Runtime
         private int _MaintenanceIntervalMs = 2000;
         private int _LeaderLeaseMs = 15000;
         private int _FailBlockedAfterSeconds = 0;
+        private int _ConversationAffinityWaitMs = 30000;
+        private int _ConversationTranscriptTurns = 20;
+        private int _ConversationTranscriptChars = 4000;
         private int _MaxRunSeconds = 3600;
         private int _ControlNodeHeartbeatMs = 5000;
         private int _ControlNodeOfflineAfterMs = 30000;

@@ -45,6 +45,24 @@ namespace Garrison.Server.Runtime
         public string? IdempotencyKey { get; set; } = null;
 
         /// <summary>
+        /// Conversation to continue with this invocation as its next turn, or null. A turn sent while the conversation's
+        /// previous turn is unfinished fails with 409 ConversationBusy.
+        /// </summary>
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>
+        /// Whether this invocation starts a new conversation; the run's conversationId then names it. Ignored when
+        /// <see cref="ConversationId"/> or <see cref="ContextId"/> is set. Default false.
+        /// </summary>
+        public bool StartConversation { get; set; } = false;
+
+        /// <summary>
+        /// A2A context identifier of the message, or null. Every A2A message belongs to a conversation: a known context
+        /// continues it, an unknown or missing one starts a new conversation.
+        /// </summary>
+        public string? ContextId { get; set; } = null;
+
+        /// <summary>
         /// Whether to wait for completion.
         /// </summary>
         public bool Wait { get; set; } = false;

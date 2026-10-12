@@ -90,7 +90,8 @@ const tips = {
       audit: 'Événements de sécurité et de configuration : connexions, refus, modifications de secrets, applications de manifestes et modifications de nœuds.',
       explorer: 'Choisir n\'importe quelle opération API dans le document OpenAPI du serveur, renseigner les paramètres et l\'exécuter en direct.',
       settings: 'Paramètres du serveur et du cluster, avec leur source et l\'indication qu\'une modification s\'applique à chaud ou nécessite un redémarrage.',
-      serverInfo: 'Adresses REST, MCP et A2A, versions du serveur et du tableau de bord, et identité avec laquelle vous êtes connecté.'
+      serverInfo: 'Adresses REST, MCP et A2A, versions du serveur et du tableau de bord, et identité avec laquelle vous êtes connecté.',
+      conversations: 'Conversations en plusieurs tours avec les agents : chaque tour est une exécution qui reprend la session du tour précédent. Ouvrez-en une pour lire ses tours et envoyer le message suivant.'
     },
     subtabs: {
       roles: 'Les rôles regroupent des autorisations sous un même nom, comme Operator ou Invoker. Attribuez un rôle pour accorder toutes ses autorisations.',
@@ -170,7 +171,8 @@ const tips = {
     pathContains: 'Afficher uniquement les requêtes dont le chemin contient ce texte, par exemple /agents.',
     tenantId: 'Afficher uniquement les requêtes effectuées dans ce locataire. Laissez vide pour tous les locataires.',
     apply: 'Lancer la recherche avec les valeurs de filtre ci-dessus.',
-    clear: 'Vider tous les filtres ci-dessus et relancer la recherche.'
+    clear: 'Vider tous les filtres ci-dessus et relancer la recherche.',
+    agentId: 'Afficher uniquement les enregistrements d\'un agent. Choisissez Tous pour retirer le filtre.'
   },
   form: {
     option: 'Inclure {{option}} dans {{field}}. Les options cochées sont enregistrées ; les options non cochées sont exclues.',
@@ -334,7 +336,8 @@ const tips = {
       NoCapableWorker: 'L\'exécution a attendu dans la file d\'attente plus longtemps que ne le permet le paramètre de cluster Runtime.FailBlockedAfterSeconds, et aucun nœud worker prêt ne pouvait l\'exécuter : elle a donc échoué.',
       RepetitionDetected: 'Une garde a arrêté l\'exécution, car sa réponse a dégénéré en un même texte court répété encore et encore, ou en espaces et ponctuation seulement. La sortie obtenue est conservée. Réglez-la avec la Garde de répétition du déploiement.',
       NoProgress: 'Une garde a arrêté l\'exécution, car aucun texte, raisonnement ni activité d\'outil n\'est arrivé pendant plus longtemps que le délai sans progression du déploiement. La sortie obtenue est conservée.',
-      PodFailed: 'Le pod d\'exécution a échoué hors du harness : il n\'a pas pu être planifié, son image n\'a pas pu être téléchargée, il a manqué de mémoire, il a été évincé ou il s\'est arrêté sans rendre compte. Le message d\'erreur en donne la cause.'
+      PodFailed: 'Le pod d\'exécution a échoué hors du harness : il n\'a pas pu être planifié, son image n\'a pas pu être téléchargée, il a manqué de mémoire, il a été évincé ou il s\'est arrêté sans rendre compte. Le message d\'erreur en donne la cause.',
+      ConversationStateLost: 'Le nœud qui devait reprendre ce tour de conversation n\'avait plus les répertoires de la conversation. Garrison remet un tel tour une fois en file d\'attente pour le reconstruire ; ce résultat ne reste que si ce n\'était pas possible.'
     },
     controlNodeStatus: {
       Starting: 'Démarrage : le réplica s\'initialise et ne traite pas encore de trafic.',
@@ -439,7 +442,17 @@ const tips = {
       ManifestApplied: 'Un manifeste a été appliqué au locataire.',
       NodeRegistered: 'Un nœud worker s\'est enregistré auprès du plan de contrôle.',
       NodeStatusChanged: 'Un nœud worker a été isolé, drainé, perdu ou est revenu.',
-      RunCancelled: 'Une exécution a été annulée par un utilisateur, une clé d\'accès ou son exécution parente.'
+      RunCancelled: 'Une exécution a été annulée par un utilisateur, une clé d\'accès ou son exécution parente.',
+      ConversationDeleted: 'Quelqu\'un a supprimé une conversation. Ses tours sont conservés comme des exécutions ordinaires.'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'Le nœud qui détient la conversation n\'était plus prêt (perdu, en drainage, isolé ou supprimé) : un autre nœud a pris le tour.',
+      AffinityWaitExpired: 'Le nœud qui détient la conversation est resté prêt mais n\'a pas pris le tour dans le délai Runtime.ConversationAffinityWaitMs : un autre nœud l\'a pris.',
+      WorkspaceLost: 'Le nœud a pris le tour, mais l\'espace de travail et le répertoire personnel de la conversation n\'y étaient plus.',
+      SessionMissing: 'Il existe des tours précédents, mais aucun n\'a signalé de session de harness à reprendre, par exemple parce qu\'ils ont tous échoué tôt.',
+      HarnessChanged: 'Le profil de harness du déploiement a changé depuis l\'enregistrement de la session : le nouveau profil ne peut pas la reprendre.',
+      ResumeUnsupported: 'Le profil de harness du déploiement ne permet pas de reprendre une session : chaque tour suivant part de la transcription.',
+      ExecutorWithoutState: 'Le tour s\'exécute comme Kubernetes Job, qui démarre chaque fois avec un répertoire personnel vide : chaque tour suivant part de la transcription.'
     }
   },
   resources: {
@@ -794,7 +807,9 @@ const tips = {
       actions: {
         cancel: 'Arrêter cette exécution. Le worker termine le processus de harness et l\'exécution se termine avec le statut « Annulée ».',
         retry: 'Lancer une nouvelle exécution avec la même entrée et le même déploiement. L\'exécution d\'origine est conservée.'
-      }
+      },
+      conversationId: 'La conversation dont cette exécution est un tour, avec son numéro de tour. Vide pour les exécutions hors conversation.',
+      conversationTurn: 'Position de cette exécution dans sa conversation ; le tour qui l\'a démarrée porte le numéro 1.'
     },
     nodes: {
       name: 'Nom du nœud, généralement le nom du pod Kubernetes du worker.',
@@ -877,6 +892,31 @@ const tips = {
       principalName: 'Qui l\'a appliqué.',
       dryRun: '« Oui » signifie qu\'il a seulement été validé et que rien n\'a été écrit.',
       counts: 'Nombre d\'enregistrements créés, mis à jour, inchangés ou en échec par les documents.'
+    },
+    conversations: {
+      title: 'La première ligne du premier message, qui donne son nom à la conversation. Cliquez sur la ligne pour ouvrir ses tours.',
+      agentName: 'L\'agent avec lequel la conversation a lieu. Chaque tour est envoyé à cet agent.',
+      state: 'En cours tant qu\'un tour n\'est pas terminé ; un nouveau message est refusé jusque-là. Inactive quand le message suivant peut être envoyé.',
+      turnCount: 'Le nombre de tours (exécutions) de la conversation, y compris ceux qui ont échoué.',
+      affinityNodeName: 'Le nœud worker qui détient l\'espace de travail et la session de harness de la conversation. Le tour suivant privilégie ce nœud pour pouvoir reprendre.',
+      fallbackCount: 'Le nombre de tours qui n\'ont pas pu reprendre la session de harness et ont démarré une nouvelle session avec la transcription des tours précédents.',
+      lastFallbackReason: 'Pourquoi le tour reconstruit le plus récent n\'a pas pu reprendre la session, par exemple parce que le nœud d\'affinité n\'était pas prêt.',
+      harnessType: 'Le harness qui exécute chaque tour, repris du déploiement du premier tour.',
+      callerName: 'Qui a démarré la conversation : un utilisateur, une clé d\'accès ou l\'exécution d\'un autre agent.',
+      contextId: 'L\'ID de contexte A2A fourni par le client, quand la conversation est arrivée par A2A. Vide pour les conversations démarrées par REST ou MCP.',
+      sessionId: 'La session de harness que reprend le tour suivant. Vide tant qu\'aucun tour n\'en a signalé une.',
+      lastActivityUtc: 'Quand le dernier tour a été envoyé ou s\'est terminé. Survolez la valeur pour l\'heure exacte.',
+      createdUtc: 'Quand le premier tour a démarré la conversation. Survolez la valeur pour l\'heure exacte.',
+      id: 'Identifiant de la conversation. Transmettez-le comme conversationId lors de l\'appel de l\'agent pour envoyer le tour suivant.',
+      fallbackLast: 'Tours qui ont démarré une nouvelle session à partir de la transcription. Motif le plus récent : {{reason}}.',
+      states: {
+        busy: 'Un tour de cette conversation est encore en file d\'attente ou en cours. Attendez sa fin, ou annulez-le, avant d\'envoyer le message suivant.',
+        idle: 'Aucun tour n\'est en cours. Le message suivant poursuit la conversation.'
+      },
+      actions: {
+        continue: 'Ouvrir Invoquer avec cette conversation sélectionnée, pour que le message suivant soit envoyé comme son prochain tour.',
+        runs: 'Ouvrir la liste des exécutions filtrée sur les tours de cette conversation, avec toutes les colonnes et filtres des exécutions.'
+      }
     }
   },
   views: {
@@ -970,8 +1010,15 @@ const tips = {
       eventFilter: 'Afficher un seul type d\'événement, comme les appels d\'outils ou les erreurs.',
       openChild: 'Ouvrir cette exécution enfant, lancée lorsque cette exécution a appelé un autre agent.',
       eventCodes: {
-        RunGuardTriggered: 'Une garde a arrêté cette exécution. Le message indique quelle garde s\'est déclenchée et ce qu\'elle a vu ; l\'exécution se termine en Échouée avec le résultat de cette garde et conserve sa sortie partielle.'
-      }
+        RunGuardTriggered: 'Une garde a arrêté cette exécution. Le message indique quelle garde s\'est déclenchée et ce qu\'elle a vu ; l\'exécution se termine en Échouée avec le résultat de cette garde et conserve sa sortie partielle.',
+        ConversationFallback: 'Ce tour n\'a pas pu reprendre la session de harness de la conversation : il a démarré une nouvelle session avec la transcription des tours précédents. Le message indique pourquoi.',
+        ConversationStateLost: 'Le nœud a pris ce tour mais les répertoires de la conversation avaient disparu : le tour a été remis en file d\'attente pour s\'exécuter en mode reconstruit.'
+      },
+      conversation: 'La conversation dont cette exécution est un tour, et son numéro de tour. Cliquez pour ouvrir la conversation.',
+      openConversation: 'Ouvrir la conversation avec tous ses tours et un champ pour envoyer le suivant.',
+      conversationSession: 'Si ce tour a repris la session de harness de la conversation ou en a démarré une nouvelle à partir de la transcription, et pourquoi.',
+      resumeSessionId: 'La session de harness que ce tour a reprise, laissée par le tour précédent.',
+      affinityNode: 'Le nœud qui détient les répertoires de la conversation. Les autres nœuds laissent le tour jusqu\'à l\'heure indiquée, sauf si ce nœud cesse d\'être prêt.'
     },
     agentDetail: {
       name: 'Le nom que les appelants utilisent pour invoquer cet agent.',
@@ -994,7 +1041,8 @@ const tips = {
         weight: 'Le poids de trafic brut défini sur le déploiement.',
         traffic: 'Part des invocations reçue par ce déploiement : son poids divisé par la somme des poids actifs.',
         active: 'Seuls les déploiements actifs reçoivent du trafic pondéré.'
-      }
+      },
+      conversations: 'Ouvrir la liste des conversations filtrée sur cet agent.'
     },
     queue: {
       queued: 'Exécutions en attente d\'un nœud. Cliquez pour les lister.',
@@ -1038,7 +1086,13 @@ const tips = {
       sendKeeps: 'Lancer une nouvelle exécution avec ce message. L\'exécution en cours continue, car « Arrêter l\'exécution quand je pars » est désactivé ; vous la trouverez sur la page Exécutions.',
       timeLimit: 'Échéance facultative de cette exécution, en secondes, que ce déploiement permet de fixer. Laissez vide pour la valeur du déploiement. L\'exécution expire quand elle dépasse la limite.',
       timePreset: 'Fixer la durée maximale de cette exécution à {{value}}.',
-      timePresetClear: 'Effacer la durée maximale pour que l\'exécution utilise la valeur du déploiement.'
+      timePresetClear: 'Effacer la durée maximale pour que l\'exécution utilise la valeur du déploiement.',
+      conversation: {
+        mode: 'Exécuter une seule fois, démarrer une nouvelle conversation dont les tours suivants reprennent cette session de harness, ou envoyer le tour suivant d\'une conversation existante.',
+        pick: 'La conversation à poursuivre. Seules les conversations de cet agent sont listées, les plus récentes en premier.',
+        deploymentPinned: 'Une conversation reste sur le déploiement de son premier tour : le déploiement est donc fixé quand vous en poursuivez une.',
+        open: 'Ouvrir la conversation à laquelle appartient cette exécution, avec tous ses tours et un champ pour envoyer le suivant.'
+      }
     },
     manifests: {
       planned: 'Ce que ferait l\'application de ce document : créer l\'enregistrement, le mettre à jour ou le laisser inchangé. Une simulation valide sans rien modifier.',
@@ -1189,7 +1243,10 @@ const tips = {
           MaxRunSeconds: 'Durée maximale de toute exécution, en secondes. Les délais des déploiements, les durées maximales par exécution et les valeurs de profil supérieurs y sont ramenés.',
           RepetitionGuard: 'Indique si les déploiements qui laissent la Garde de répétition vide arrêtent les exécutions dont la réponse dégénère en répétition (résultat Répétition détectée).',
           MaxAssistantChars: 'Caractères de texte de l\'assistant après lesquels une exécution s\'arrête (résultat Limite de sortie dépassée), pour les déploiements qui laissent la limite vide. 0 signifie illimité.',
-          NoProgressSeconds: 'Secondes sans texte, raisonnement ni activité d\'outil après lesquelles une exécution s\'arrête (résultat Aucune progression), pour les déploiements qui laissent la limite vide. 0 la désactive.'
+          NoProgressSeconds: 'Secondes sans texte, raisonnement ni activité d\'outil après lesquelles une exécution s\'arrête (résultat Aucune progression), pour les déploiements qui laissent la limite vide. 0 la désactive.',
+          ConversationAffinityWaitMs: 'Durée pendant laquelle un tour de conversation attend le nœud qui détient sa session de harness avant qu\'un autre nœud le prenne et démarre une nouvelle session à partir de la transcription. Si ce nœud n\'est pas prêt, les autres le prennent aussitôt. 0 n\'attend jamais.',
+          ConversationTranscriptTurns: 'Nombre maximal de tours précédents transmis à un tour de conversation reconstruit dans une nouvelle session de harness. Les tours les plus récents sont gardés.',
+          ConversationTranscriptChars: 'Nombre maximal de caractères de chaque message et réponse précédents transmis à un tour reconstruit. Les textes plus longs sont coupés et marqués comme tronqués.'
         },
         Scheduling: {
           PauseGraceMs: 'Après une mise en veille de l\'hôte ou une pause de la VM, le leader attend une fenêtre de signaux de vie plus ce nombre de millisecondes avant de marquer des nœuds comme Perdu ou de faire échouer leurs exécutions. Par défaut 5000.'
@@ -1199,6 +1256,39 @@ const tips = {
     runGuard: {
       openDeployments: 'Aller aux Déploiements pour changer les gardes d\'un déploiement : Garde de répétition, Nombre maximal de caractères de l\'assistant et Délai sans progression.',
       openSettings: 'Aller aux Paramètres pour changer les valeurs du cluster (Moteur d\'exécution) que suivent les déploiements sans gardes propres.'
+    },
+    conversationDetail: {
+      viewJson: 'Afficher l\'enregistrement complet de la conversation en JSON.',
+      openInvoke: 'Ouvrir Invoquer avec cette conversation sélectionnée, pour envoyer le tour suivant avec la vue de streaming complète.',
+      delete: 'Supprimer cette conversation. Ses tours restent sur la page Exécutions comme des exécutions ordinaires, mais la conversation ne peut plus être poursuivie.',
+      deleteBusy: 'Un tour est encore inachevé : le serveur refuse de supprimer la conversation tant que cette exécution n\'est pas terminée ou annulée.',
+      agent: 'L\'agent de cette conversation. Cliquez pour ouvrir l\'agent.',
+      openAgent: 'Ouvrir la page de cet agent avec ses déploiements et ses exécutions récentes.',
+      deployment: 'Chaque tour s\'exécute sur ce déploiement : celui vers lequel le premier tour a été dirigé.',
+      activeRun: 'Le tour encore en file d\'attente ou en cours. Le message suivant est refusé jusqu\'à sa fin.',
+      openRun: 'Ouvrir la page de cette exécution avec sa transcription complète, son résultat et sa télémétrie.',
+      turns: 'Tous les tours de la conversation, du plus ancien au plus récent. Chaque tour est une exécution.',
+      columns: {
+        turn: 'Position du tour dans la conversation, à partir de 1.',
+        run: 'L\'exécution qui a traité ce tour. Cliquez pour ouvrir sa transcription.',
+        status: 'Où en est l\'exécution du tour dans son cycle de vie : en file d\'attente, en cours ou dans l\'un des états finaux.',
+        outcome: 'Pourquoi l\'exécution du tour s\'est terminée, plus précisément que le statut.',
+        session: 'Si le tour a repris la session de harness du tour précédent ou démarré une nouvelle session avec la transcription (et pourquoi).',
+        input: 'Le début du message envoyé pour ce tour. Survolez pour en voir davantage.',
+        result: 'Le début de la réponse, ou l\'erreur si l\'exécution a échoué. Survolez pour en voir davantage.',
+        node: 'Le nœud worker qui a exécuté le tour.',
+        created: 'Quand le tour a été envoyé. Survolez la valeur pour l\'heure exacte.'
+      },
+      session: {
+        first: 'Le premier tour : il démarre la session de harness que reprennent les tours suivants.',
+        resumed: 'Ce tour a repris la session de harness {{session}} sur le nœud qui détient les répertoires de la conversation : l\'agent a donc gardé tout son contexte.',
+        fallback: 'Ce tour n\'a pas pu reprendre la session, il a donc démarré une nouvelle session de harness avec la transcription des tours précédents.',
+        pending: 'Le tour attend un nœud : on ne sait pas encore s\'il reprendra la session ou sera reconstruit.'
+      },
+      continueTitle: 'Envoyer le message suivant comme prochain tour de cette conversation. Il s\'exécute avec le même agent et le même déploiement.',
+      message: 'Le message suivant pour l\'agent. Il poursuit la conversation avec le contexte des tours précédents.',
+      send: 'Envoyer ce message comme prochain tour. Le tour apparaît dans la liste ci-dessus et se met à jour jusqu\'à sa fin.',
+      sendBusy: 'Le tour précédent n\'est pas encore terminé. Le serveur refuse un nouveau tour jusque-là : attendez ou annulez-le d\'abord.'
     }
   },
   analytics: {
@@ -1427,6 +1517,12 @@ const explainers = {
     p1: 'Le délai avant le premier jeton va du démarrage du processus de harness à la première sortie du modèle : il inclut donc le démarrage de la CLI. La durée de streaming va de la première à la dernière sortie du modèle, et la durée d\'exécution du démarrage à la fin du processus. Le temps en file d\'attente est la durée pendant laquelle une exécution a attendu un nœud worker. Ces valeurs sont mesurées avec les horloges du worker et du serveur.',
     p2: 'Le nombre de jetons et le coût proviennent de ce que signale chaque harness. Les jetons en cache sont des jetons d\'entrée servis depuis le cache de prompts du fournisseur, et les jetons de raisonnement n\'apparaissent que pour les harness qui les signalent séparément. Les jetons de sortie par seconde correspondent aux jetons de sortie divisés par la durée de streaming.',
     p3: 'Les moyennes ignorent les exécutions pour lesquelles une valeur n\'a pas pu être mesurée. Les centiles montrent la traîne : p95 signifie qu\'une seule exécution sur vingt a été plus lente. Regroupez par agent ou par harness pour les comparer côte à côte.'
+  },
+  conversations: {
+    title: 'Conversations et tours',
+    p1: 'Une conversation est une suite d\'exécutions avec un agent. Le premier tour démarre une session de harness ; chaque tour suivant reprend cette session sur le même nœud worker, si bien que l\'agent garde ses fichiers, ses outils et son contexte d\'un message à l\'autre.',
+    p2: 'Un seul tour s\'exécute à la fois : un nouveau message est refusé tant que le tour précédent n\'est pas terminé. Chaque tour reste sur le déploiement du premier tour.',
+    p3: 'Quand un tour ne peut pas reprendre (le nœud a disparu ou reste occupé trop longtemps, les fichiers ont été supprimés, ou le harness ne sait pas reprendre), il est reconstruit dans une nouvelle session qui reçoit la transcription des tours précédents. La colonne Reconstructions compte ces tours et la liste des tours en indique la raison.'
   }
 };
 

@@ -16,6 +16,7 @@ import { loadRuntimeLimits } from '../utils/settings';
 import { TIMEOUT_OVERRIDE, TIME_LIMIT_PRESETS, timeLimitBounds, validateTimeLimit, presetAllowed, secondsLabel } from '../utils/runGuards';
 import { formatNumber } from '../i18n/formatters';
 import { isModelOutput } from '../utils/streamPreview';
+import { CONVERSATION_MODES, conversationBody, textPreview } from '../utils/conversations';
 import Explainer from '../components/Explainer';
 import { tip } from '../components/Tooltip';
 
@@ -47,6 +48,10 @@ export default function InvokeView() {
   const [deploymentsFor, setDeploymentsFor] = useState(null);
   const [agentId, setAgentId] = useState(searchParams.get('agentId') || '');
   const [deploymentId, setDeploymentId] = useState(searchParams.get('deploymentId') || '');
+  // P12.1: a standalone run, the first turn of a new conversation, or the next turn of one (?conversationId= pre-fills it).
+  const [conversationMode, setConversationMode] = useState(searchParams.get('conversationId') ? 'continue' : 'none');
+  const [conversationId, setConversationId] = useState(searchParams.get('conversationId') || '');
+  const [conversations, setConversations] = useState([]);
   const [params, setParams] = useState({});
   const [message, setMessage] = useState('');
   const [run, setRun] = useState(null);
@@ -102,6 +107,23 @@ export default function InvokeView() {
         setDeploymentsFor(null);
       });
   }, [apiClient, tenantId, agentId]);
+
+  // The agent's recent conversations for the Continue picker. Best effort: without Conversation read access it stays empty
+  // and a conversation ID from the URL is still offered.
+  const loadConversations = useCallback(() => {
+    if (!apiClient || !agentId) {
+      setConversations([]);
+      return;
+    }
+    apiClient
+      .listConversations(tenantId, { pageNumber: 1, pageSize: 100, agentId })
+      .then((r) => setConversations(r.items || []))
+      .catch(() => setConversations([]));
+  }, [apiClient, tenantId, agentId]);
+  useEffect(loadConversations, [loadConversations]);
+  const continuing = conversationMode === 'continue';
+  const conversationOptions = conversationId && !conversations.some((c) => c.id === conversationId) ? [{ id: conversationId }, ...conversations] : conversations;
+  const selectedConversation = conversations.find((c) => c.id === conversationId) || null;
 
   const deployment = deployments.find((d) => d.id === deploymentId);
   // M1-26: say up front when the agent has nothing to route to, instead of letting the invoke fail.
@@ -224,7 +246,7 @@ export default function InvokeView() {
   }, [run, apiClient, tenantId, append, applyRun]);
 
   const send = async () => {
-    if (busy || !agentId || !message.trim() || timeLimitProblem) return;
+    if (busy || !agentId || !message.trim() || timeLimitProblem || (continuing && !conversationId)) return;
     // The run still in progress, if any: cancelled before the new one starts unless the user keeps runs going.
     const previous = liveRunRef.current;
     liveRunRef.current = null;
@@ -249,7 +271,13 @@ export default function InvokeView() {
       }
     }
     try {
-      const body = { input: message, deploymentId: deploymentId || undefined, parameters: Object.keys(params).length ? params : undefined };
+      // A conversation stays on the deployment of its first turn, so a continued turn never names one (409 otherwise).
+      const body = {
+        input: message,
+        deploymentId: (!continuing && deploymentId) || undefined,
+        parameters: Object.keys(params).length ? params : undefined,
+        ...conversationBody(conversationMode, conversationId)
+      };
       const created = await apiClient.invokeAgent(tenantId, agentId, body, { wait: false });
       const created2 = created?.run || created;
       if (created2?.id) {
@@ -259,6 +287,12 @@ export default function InvokeView() {
           return;
         }
         runIdRef.current = created2.id;
+        // The first turn names the new conversation: the next Send continues it.
+        if (conversationMode === 'start' && created2.conversationId) {
+          setConversationId(created2.conversationId);
+          setConversationMode('continue');
+          loadConversations();
+        }
         if (!TERMINAL_RUN_STATUSES.includes(created2.status)) liveRunRef.current = created2.id;
         applyRun(created2);
         const runId = created2.id;
@@ -331,7 +365,7 @@ export default function InvokeView() {
           <section className="panel invoke-form" aria-label={t('views.invoke.request')}>
             <div className="field">
               <label htmlFor="invoke-agent" {...tip(t('tips.views.invoke.agent'))}>{t('views.invoke.agent')}</label>
-              <select id="invoke-agent" {...tip(t('tips.views.invoke.agent'))} value={agentId} onChange={(e) => { setAgentId(e.target.value); setDeploymentId(''); setParams({}); }}>
+              <select id="invoke-agent" {...tip(t('tips.views.invoke.agent'))} value={agentId} onChange={(e) => { setAgentId(e.target.value); setDeploymentId(''); setParams({}); setConversationId(''); }}>
                 {agents.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.displayName || a.name}
@@ -340,8 +374,8 @@ export default function InvokeView() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="invoke-deployment" {...tip(t('tips.views.invoke.deployment'))}>{t('views.invoke.deployment')}</label>
-              <select id="invoke-deployment" {...tip(t('tips.views.invoke.deployment'))} value={deploymentId} onChange={(e) => { setDeploymentId(e.target.value); setParams({}); }}>
+              <label htmlFor="invoke-deployment" {...tip(t(continuing ? 'tips.views.invoke.conversation.deploymentPinned' : 'tips.views.invoke.deployment'))}>{t('views.invoke.deployment')}</label>
+              <select id="invoke-deployment" {...tip(t(continuing ? 'tips.views.invoke.conversation.deploymentPinned' : 'tips.views.invoke.deployment'))} disabled={continuing} value={continuing ? '' : deploymentId} onChange={(e) => { setDeploymentId(e.target.value); setParams({}); }}>
                 <option value="">{t('views.invoke.weighted')}</option>
                 {deployments.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -411,6 +445,35 @@ export default function InvokeView() {
               </div>
             )}
             <div className="field">
+              <label htmlFor="invoke-conversation-mode" {...tip(t('tips.views.invoke.conversation.mode'))}>{t('views.invoke.conversation.mode')}</label>
+              <select id="invoke-conversation-mode" data-testid="invoke-conversation-mode" {...tip(t('tips.views.invoke.conversation.mode'))} value={conversationMode} onChange={(e) => setConversationMode(e.target.value)}>
+                {CONVERSATION_MODES.map((m) => (
+                  <option key={m} value={m}>
+                    {t(`views.invoke.conversation.modes.${m}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {continuing && (
+              <div className="field" data-testid="invoke-conversation-field">
+                <label htmlFor="invoke-conversation" {...tip(t('tips.views.invoke.conversation.pick'))}>{t('views.invoke.conversation.pick')}</label>
+                <select id="invoke-conversation" data-testid="invoke-conversation" {...tip(t('tips.views.invoke.conversation.pick'))} value={conversationId} onChange={(e) => setConversationId(e.target.value)}>
+                  <option value="">{t('views.invoke.conversation.choose')}</option>
+                  {conversationOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.turnCount !== undefined ? t('views.invoke.conversation.option', { title: c.title ? textPreview(c.title, 60) : t('resources.conversations.untitled'), turns: formatNumber(c.turnCount ?? 0, {}, i18n.language) }) : c.id}
+                    </option>
+                  ))}
+                </select>
+                <div className="field-hint">{t('views.invoke.conversation.pinned')}</div>
+                {selectedConversation?.busy && (
+                  <div className="warning-banner" role="status" data-testid="invoke-conversation-busy">
+                    {t('views.invoke.conversation.busy')}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="field">
               <label htmlFor="invoke-message" {...tip(t('tips.views.invoke.message'))}>{t('views.invoke.message')}</label>
               <textarea id="invoke-message" {...tip(t('tips.views.invoke.message'))} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('views.invoke.messagePlaceholder')} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && send()} />
               <div className="field-hint">{t('views.invoke.shortcut')}</div>
@@ -422,7 +485,7 @@ export default function InvokeView() {
             )}
             {error && <ErrorBanner message={errorMessage(t, error)} />}
             <div className="flex gap-sm invoke-actions">
-              <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !message.trim() || !!timeLimitProblem} data-testid="invoke-send" {...tip(t(active && stopOnLeave ? 'tips.views.invoke.sendReplaces' : active ? 'tips.views.invoke.sendKeeps' : 'tips.views.invoke.send'))}>
+              <button type="button" className="button-primary" onClick={send} disabled={busy || !agentId || !message.trim() || !!timeLimitProblem || (continuing && !conversationId)} data-testid="invoke-send" {...tip(t(active && stopOnLeave ? 'tips.views.invoke.sendReplaces' : active ? 'tips.views.invoke.sendKeeps' : 'tips.views.invoke.send'))}>
                 <SendIcon size={14} /> {busy ? t('views.invoke.sending') : t('views.invoke.send')}
               </button>
               {active && (
@@ -452,9 +515,16 @@ export default function InvokeView() {
                     )}
                   </span>
                   {run && (
-                    <button type="button" className="button-secondary button-sm" onClick={() => navigate(pathFor('runs', run.id))} {...tip(t('tips.views.invoke.openRun'))}>
-                      {t('views.invoke.openRun')}
-                    </button>
+                    <span className="flex gap-sm">
+                      {run.conversationId && (
+                        <button type="button" className="button-secondary button-sm" onClick={() => navigate(pathFor('conversations', run.conversationId))} data-testid="invoke-open-conversation" {...tip(t('tips.views.invoke.conversation.open'))}>
+                          {t('views.invoke.conversation.open', { turn: formatNumber(run.conversationTurn || 1, {}, i18n.language) })}
+                        </button>
+                      )}
+                      <button type="button" className="button-secondary button-sm" onClick={() => navigate(pathFor('runs', run.id))} {...tip(t('tips.views.invoke.openRun'))}>
+                        {t('views.invoke.openRun')}
+                      </button>
+                    </span>
                   )}
                 </div>
                 <InvokeResponseCard run={run} events={events} clock={clock} tab={tab} onTab={setTab} />

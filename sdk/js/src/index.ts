@@ -165,18 +165,87 @@ export interface Run extends Json {
   schemaValidationErrors?: string | null;
   /** Structured output repairs started for the run: 0 or 1. */
   repairAttempts?: number;
+  /** Conversation this run is a turn of, or null for a run outside any conversation. */
+  conversationId?: string | null;
+  /** Turn number within the conversation, starting at 1; 0 for runs outside a conversation. */
+  conversationTurn?: number;
+  /** Harness session this turn resumes on its affinity node, or null when the turn starts a new session. */
+  resumeSessionId?: string | null;
+  /** Node this turn prefers because it holds the conversation's directories, or null. */
+  affinityNodeId?: string | null;
+  /** End of the affinity wait (UTC); after it any capable node may claim the turn. Null when the run has no affinity. */
+  affinityUntilUtc?: string | null;
+  /** Why this turn started a fresh session from the transcript instead of resuming, or null. */
+  conversationFallbackReason?: ConversationFallbackReason | null;
+}
+
+/**
+ * Why a conversation turn started a fresh harness session seeded with the transcript of the earlier turns instead of
+ * resuming the conversation's session (Run.conversationFallbackReason, Conversation.lastFallbackReason).
+ */
+export const CONVERSATION_FALLBACK_REASONS = [
+  "AffinityNodeLost", "AffinityWaitExpired", "WorkspaceLost", "SessionMissing", "HarnessChanged", "ResumeUnsupported",
+  "ExecutorWithoutState"
+] as const;
+
+/** One of {@link CONVERSATION_FALLBACK_REASONS}. */
+export type ConversationFallbackReason = typeof CONVERSATION_FALLBACK_REASONS[number];
+
+/**
+ * A multi-turn conversation with one agent. Each turn is a run; a follow-up turn resumes the harness session the earlier
+ * turns built. Turns are serialized: a turn sent while another is unfinished fails with 409 ConversationBusy.
+ */
+export interface Conversation extends Json {
+  /** Identifier (prefix cnv_). */
+  id: string;
+  tenantId: string; agentId: string; agentName: string;
+  /** Deployment every turn runs on, chosen for the first turn. Empty until the first turn is created. */
+  deploymentId: string;
+  harnessType: string;
+  /** Client-supplied A2A context identifier the conversation was created for, or null. */
+  contextId?: string | null;
+  /** First line of the first turn's input (at most 200 characters), or null. */
+  title?: string | null;
+  callerType: string; callerId?: string | null; callerName?: string | null;
+  /** Harness session the next turn resumes, or null before the first successful turn. */
+  sessionId?: string | null;
+  sessionHarnessProfileId?: string | null;
+  /** Node holding the conversation's workspace and home directories, or null. */
+  affinityNodeId?: string | null;
+  affinityNodeName?: string | null;
+  /** Run of the turn in progress (or the last one started); check busy to know whether it is unfinished. */
+  activeRunId?: string | null;
+  lastRunId?: string | null;
+  /** Turns created (every run, whatever its outcome). */
+  turnCount: number;
+  /** Turns that fell back to the transcript instead of resuming. */
+  fallbackCount: number;
+  lastFallbackReason?: ConversationFallbackReason | null;
+  lastFallbackUtc?: string | null;
+  lastActivityUtc?: string | null;
+  /** Computed on read: true while a turn is unfinished, so a new turn or a delete would get 409 ConversationBusy. */
+  busy: boolean;
+  active: boolean; isProtected: boolean; createdUtc: string; lastUpdateUtc: string;
+}
+
+/** Filters for GET /v1.0/api/tenants/{tenantId}/conversations. Every field is optional. */
+export interface ConversationFilter {
+  agentId?: string; contextId?: string; callerId?: string; search?: string;
+  maxResults?: number; skip?: number; ordering?: string;
 }
 
 /**
  * Run outcome codes (Run.outcome). SchemaValidationFailed means the final output did not validate against the agent's
  * output schema, after the one repair attempt or at once when the harness cannot resume. PodFailed means the run pod of a
  * KubernetesJob run failed outside the harness (unschedulable, image pull, OOMKilled, evicted, or no completion).
+ * ConversationStateLost means a conversation turn could not resume because its directories were gone on the affinity
+ * node and the fallback requeue was not possible.
  */
 export const RUN_OUTCOMES = [
   "None", "Succeeded", "HarnessFailed", "NotInstalled", "NotCredentialed", "McpPreflightFailed", "NodeLost",
   "OutputLimitExceeded", "SchemaValidationFailed", "TimedOut", "Cancelled", "StaleLease", "CompileFailed",
   "WorkspaceFailed", "Rejected", "NoCapableWorker", "InternalError",
-  "RepetitionDetected", "NoProgress", "PodFailed"
+  "RepetitionDetected", "NoProgress", "PodFailed", "ConversationStateLost"
 ] as const;
 
 /** One of {@link RUN_OUTCOMES}. */
@@ -223,11 +292,20 @@ export interface InvokeOptions {
   wait?: boolean; waitSeconds?: number; parameters?: Record<string, string>; deploymentId?: string; priority?: number;
   /** When waiting, cancel the run if the connection drops first (server default true). */
   cancelOnDisconnect?: boolean;
+  /**
+   * Continue this conversation: the run becomes its next turn. Rejects with GarrisonError 409 ConversationBusy while the
+   * previous turn is unfinished (turns are refused, not queued) and 404 when the conversation does not exist.
+   */
+  conversationId?: string;
+  /** Start a new conversation with this run as its first turn; the returned run's conversationId names it. */
+  startConversation?: boolean;
 }
 
 export interface RunFilter {
   status?: string; agentId?: string; deploymentId?: string; harnessType?: string; nodeId?: string; parentRunId?: string;
   rootRunId?: string; outcome?: string; callerId?: string; fromUtc?: string | Date; toUtc?: string | Date;
+  /** Only the turns of this conversation. */
+  conversationId?: string;
   maxResults?: number; skip?: number; ordering?: string;
 }
 
@@ -555,6 +633,7 @@ export class Agents extends Resource<Agent> {
     return this.t.request("POST", this.item(agent) + "/invoke", undefined, {
       input, wait: options.wait ?? true, waitSeconds: options.waitSeconds ?? 60, parameters: options.parameters ?? {},
       deploymentId: options.deploymentId, priority: options.priority ?? 0, cancelOnDisconnect: options.cancelOnDisconnect,
+      conversationId: options.conversationId, startConversation: options.startConversation,
     });
   }
   card(id: string): Promise<Json> { return this.t.request("GET", this.item(id) + "/card"); }
@@ -566,7 +645,10 @@ export class Deployments extends Resource<Deployment> {
     return this.t.request("POST", this.item(id) + "/compile-preview", undefined, { input, parameters });
   }
   test(id: string, input: string, options: InvokeOptions = {}): Promise<Run> {
-    return this.t.request("POST", this.item(id) + "/test", undefined, { input, wait: options.wait ?? true, waitSeconds: options.waitSeconds ?? 60 });
+    return this.t.request("POST", this.item(id) + "/test", undefined, {
+      input, wait: options.wait ?? true, waitSeconds: options.waitSeconds ?? 60,
+      conversationId: options.conversationId, startConversation: options.startConversation,
+    });
   }
 }
 
@@ -612,7 +694,7 @@ export class Runs {
   constructor(private readonly t: Transport) {}
   private p(suffix = ""): string { return this.t.tenantPath("/runs" + suffix); }
 
-  create(request: { input: string; agentId?: string; agentName?: string; deploymentId?: string; parameters?: Record<string, string>; priority?: number; wait?: boolean; waitSeconds?: number; cancelOnDisconnect?: boolean }): Promise<Run> {
+  create(request: { input: string; agentId?: string; agentName?: string; deploymentId?: string; parameters?: Record<string, string>; priority?: number; wait?: boolean; waitSeconds?: number; cancelOnDisconnect?: boolean; conversationId?: string; startConversation?: boolean }): Promise<Run> {
     return this.t.request("POST", this.p(), undefined, { parameters: {}, ...request });
   }
   get(id: string): Promise<Run> { return this.t.request("GET", this.p(`/${seg(id)}`)); }
@@ -641,6 +723,26 @@ export class Runs {
       if (TERMINAL_STATUSES.includes(run.status) || Date.now() >= deadline) return run;
       await new Promise((resolve) => setTimeout(resolve, this.pollIntervalMs));
     }
+  }
+}
+
+/**
+ * Multi-turn conversations. Start one with startConversation on agents.invoke, runs.create, or deployments.test, and
+ * continue it with conversationId.
+ */
+export class Conversations {
+  constructor(private readonly t: Transport) {}
+  private p(suffix = ""): string { return this.t.tenantPath("/conversations" + suffix); }
+
+  /** List conversations, optionally filtered by agent, A2A context, caller, or search text. */
+  list(filter: ConversationFilter = {}): Promise<EnumerationResult<Conversation>> { return this.t.request("GET", this.p(), filter as any); }
+  /** Read a conversation. Rejects with GarrisonError 404 when it does not exist. */
+  get(id: string): Promise<Conversation> { return this.t.request("GET", this.p(`/${seg(id)}`)); }
+  /** Delete a conversation (its runs are kept). Rejects with GarrisonError 409 ConversationBusy while a turn is unfinished. */
+  delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.p(`/${seg(id)}`)); }
+  /** A conversation's turns (runs), oldest first. */
+  listRuns(id: string, query: { maxResults?: number; skip?: number } = {}): Promise<EnumerationResult<Run>> {
+    return this.t.request("GET", this.p(`/${seg(id)}/runs`), query as any);
   }
 }
 
@@ -722,6 +824,7 @@ export class GarrisonClient {
   readonly artifactStores: Resource;
   readonly manifests: Manifests;
   readonly runs: Runs;
+  readonly conversations: Conversations;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
   readonly controlNodes: ControlNodes;
@@ -750,6 +853,7 @@ export class GarrisonClient {
     this.artifactStores = new Resource(t, "artifact-stores");
     this.manifests = new Manifests(t);
     this.runs = new Runs(t);
+    this.conversations = new Conversations(t);
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");
     this.controlNodes = new ControlNodes(t);

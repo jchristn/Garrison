@@ -91,7 +91,8 @@ const tips = {
       audit: 'Sicherheits- und Konfigurationsereignisse: Anmeldungen, Ablehnungen, Änderungen an Geheimnissen, Manifest-Anwendungen und Änderungen an Knoten.',
       explorer: 'Wählen Sie eine beliebige API-Operation aus dem OpenAPI-Dokument des Servers, füllen Sie die Parameter aus und führen Sie sie live aus.',
       settings: 'Server- und Clustereinstellungen mit ihrer Quelle und der Angabe, ob eine Änderung sofort wirkt oder einen Neustart erfordert.',
-      serverInfo: 'REST-, MCP- und A2A-Adressen, Server- und Dashboard-Versionen sowie die Identität, mit der Sie angemeldet sind.'
+      serverInfo: 'REST-, MCP- und A2A-Adressen, Server- und Dashboard-Versionen sowie die Identität, mit der Sie angemeldet sind.',
+      conversations: 'Mehrrundige Konversationen mit Agenten: Jede Runde ist ein Lauf, der die Sitzung der vorherigen Runde fortsetzt. Öffnen Sie eine, um ihre Runden zu lesen und die nächste Nachricht zu senden.'
     },
     subtabs: {
       roles: 'Rollen fassen Berechtigungen unter einem Namen zusammen, etwa Operator oder Invoker. Weisen Sie eine Rolle zu, um alle ihre Berechtigungen zu vergeben.',
@@ -171,7 +172,8 @@ const tips = {
     pathContains: 'Nur Anfragen anzeigen, deren Pfad diesen Text enthält, zum Beispiel /agents.',
     tenantId: 'Nur Anfragen in diesem Mandanten anzeigen. Leer lassen für alle Mandanten.',
     apply: 'Die Suche mit den obigen Filterwerten ausführen.',
-    clear: 'Alle obigen Filter leeren und erneut suchen.'
+    clear: 'Alle obigen Filter leeren und erneut suchen.',
+    agentId: 'Nur Datensätze eines Agenten anzeigen. Wählen Sie Alle, um den Filter zu entfernen.'
   },
   form: {
     option: '{{option}} in {{field}} aufnehmen. Ausgewählte Optionen werden gespeichert, nicht ausgewählte weggelassen.',
@@ -335,7 +337,8 @@ const tips = {
       NoCapableWorker: 'Der Lauf wartete länger in der Warteschlange, als die Clustereinstellung Runtime.FailBlockedAfterSeconds erlaubt, und kein bereiter Worker konnte ihn ausführen. Deshalb ist er fehlgeschlagen.',
       RepetitionDetected: 'Ein Laufwächter hat den Lauf gestoppt, weil seine Antwort in immer denselben kurzen Text oder nur Leerraum und Satzzeichen abgeglitten ist. Die bisherige Ausgabe bleibt erhalten. Einstellbar mit dem Wiederholungswächter der Bereitstellung.',
       NoProgress: 'Ein Laufwächter hat den Lauf gestoppt, weil länger als das Zeitlimit ohne Fortschritt der Bereitstellung kein Text, kein Denken und keine Toolaktivität kam. Die bisherige Ausgabe bleibt erhalten.',
-      PodFailed: 'Der Lauf-Pod ist außerhalb des Harness fehlgeschlagen: Er konnte nicht eingeplant werden, sein Image ließ sich nicht laden, der Speicher reichte nicht, er wurde verdrängt oder er endete ohne Rückmeldung. Die Fehlermeldung nennt die Ursache.'
+      PodFailed: 'Der Lauf-Pod ist außerhalb des Harness fehlgeschlagen: Er konnte nicht eingeplant werden, sein Image ließ sich nicht laden, der Speicher reichte nicht, er wurde verdrängt oder er endete ohne Rückmeldung. Die Fehlermeldung nennt die Ursache.',
+      ConversationStateLost: 'Der Knoten, der diese Konversationsrunde fortsetzen sollte, hatte die Verzeichnisse der Konversation nicht mehr. Garrison stellt eine solche Runde einmal zum Neuaufbau zurück in die Warteschlange; dieses Ergebnis bleibt nur, wenn das nicht möglich war.'
     },
     controlNodeStatus: {
       Starting: 'Startet: Das Replikat wird initialisiert und bedient noch keinen Verkehr.',
@@ -440,7 +443,17 @@ const tips = {
       ManifestApplied: 'Ein Manifest wurde auf den Mandanten angewendet.',
       NodeRegistered: 'Ein Worker-Knoten hat sich bei der Steuerungsebene registriert.',
       NodeStatusChanged: 'Ein Worker-Knoten wurde gesperrt, geleert, verloren oder ist zurückgekehrt.',
-      RunCancelled: 'Ein Lauf wurde von einem Benutzer, einem Zugangsschlüssel oder seinem übergeordneten Lauf abgebrochen.'
+      RunCancelled: 'Ein Lauf wurde von einem Benutzer, einem Zugangsschlüssel oder seinem übergeordneten Lauf abgebrochen.',
+      ConversationDeleted: 'Jemand hat eine Konversation gelöscht. Ihre Runden bleiben als gewöhnliche Läufe erhalten.'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'Der Knoten mit der Konversation war nicht mehr bereit (verloren, im Drain, abgeriegelt oder gelöscht), daher hat ein anderer Knoten die Runde übernommen.',
+      AffinityWaitExpired: 'Der Knoten mit der Konversation blieb bereit, hat die Runde aber nicht innerhalb von Runtime.ConversationAffinityWaitMs übernommen, daher hat ein anderer Knoten sie genommen.',
+      WorkspaceLost: 'Der Knoten hat die Runde übernommen, aber Arbeitsbereich und Home-Verzeichnis der Konversation fehlten dort.',
+      SessionMissing: 'Es gibt frühere Runden, aber keine hat eine Harness-Sitzung zum Fortsetzen gemeldet, zum Beispiel weil alle früh fehlschlugen.',
+      HarnessChanged: 'Das Harness-Profil der Bereitstellung hat sich seit dem Aufzeichnen der Sitzung geändert, daher kann das neue Profil sie nicht fortsetzen.',
+      ResumeUnsupported: 'Das Harness-Profil der Bereitstellung unterstützt das Fortsetzen einer Sitzung nicht, daher beginnt jede spätere Runde mit dem Verlauf.',
+      ExecutorWithoutState: 'Die Runde läuft als Kubernetes Job, der jedes Mal mit leerem Home-Verzeichnis startet, daher beginnt jede spätere Runde mit dem Verlauf.'
     }
   },
   resources: {
@@ -795,7 +808,9 @@ const tips = {
       actions: {
         cancel: 'Diesen Lauf stoppen. Der Worker beendet den Harness-Prozess, und der Lauf endet als Abgebrochen.',
         retry: 'Einen neuen Lauf mit derselben Eingabe und Bereitstellung starten. Der ursprüngliche Lauf bleibt erhalten.'
-      }
+      },
+      conversationId: 'Die Konversation, zu der dieser Lauf als Runde gehört, mit der Rundennummer. Leer bei Läufen außerhalb einer Konversation.',
+      conversationTurn: 'Position dieses Laufs in seiner Konversation, beginnend mit 1 für die Runde, die sie gestartet hat.'
     },
     nodes: {
       name: 'Knotenname, meist der Kubernetes-Pod-Name des Workers.',
@@ -878,6 +893,31 @@ const tips = {
       principalName: 'Wer es angewendet hat.',
       dryRun: 'Ja bedeutet, dass nur geprüft und nichts geschrieben wurde.',
       counts: 'Wie viele Dokumente Datensätze erstellt, aktualisiert, unverändert gelassen haben oder fehlgeschlagen sind.'
+    },
+    conversations: {
+      title: 'Die erste Zeile der ersten Nachricht, die der Konversation ihren Namen gibt. Klicken Sie auf die Zeile, um die Runden zu öffnen.',
+      agentName: 'Der Agent, mit dem die Konversation geführt wird. Jede Runde geht an diesen Agenten.',
+      state: 'Arbeitet, solange eine Runde offen ist; eine neue Nachricht wird bis zu ihrem Ende abgelehnt. Bereit, wenn die nächste Nachricht gesendet werden kann.',
+      turnCount: 'Wie viele Runden (Läufe) die Konversation hatte, einschließlich fehlgeschlagener.',
+      affinityNodeName: 'Der Worker-Knoten mit dem Arbeitsbereich und der Harness-Sitzung der Konversation. Die nächste Runde bevorzugt diesen Knoten, um fortsetzen zu können.',
+      fallbackCount: 'Wie viele Runden die Harness-Sitzung nicht fortsetzen konnten und eine frische Sitzung mit dem Verlauf der früheren Runden begonnen haben.',
+      lastFallbackReason: 'Warum die letzte neu aufgebaute Runde die Sitzung nicht fortsetzen konnte, zum Beispiel weil der Affinitätsknoten nicht bereit war.',
+      harnessType: 'Die Harness, die jede Runde ausführt, aus der Bereitstellung der ersten Runde.',
+      callerName: 'Wer die Konversation begonnen hat: ein Benutzer, ein Zugriffsschlüssel oder der Lauf eines anderen Agenten.',
+      contextId: 'Die A2A-Kontext-ID des Clients, wenn die Konversation über A2A kam. Leer bei Konversationen, die über REST oder MCP begonnen wurden.',
+      sessionId: 'Die Harness-Sitzung, die die nächste Runde fortsetzt. Leer, bis eine Runde eine meldet.',
+      lastActivityUtc: 'Wann die letzte Runde gesendet wurde oder endete. Für die genaue Zeit auf den Wert zeigen.',
+      createdUtc: 'Wann die erste Runde die Konversation begonnen hat. Für die genaue Zeit auf den Wert zeigen.',
+      id: 'Kennung der Konversation. Übergeben Sie sie beim Aufruf des Agenten als conversationId, um die nächste Runde zu senden.',
+      fallbackLast: 'Runden, die eine frische Sitzung aus dem Verlauf begonnen haben. Letzter Grund: {{reason}}.',
+      states: {
+        busy: 'Eine Runde dieser Konversation wartet noch oder läuft. Warten Sie, bis sie endet, oder brechen Sie sie ab, bevor Sie die nächste Nachricht senden.',
+        idle: 'Keine Runde läuft. Die nächste Nachricht setzt die Konversation fort.'
+      },
+      actions: {
+        continue: 'Aufrufen mit dieser Konversation öffnen, damit die nächste Nachricht als ihre nächste Runde gesendet wird.',
+        runs: 'Die Liste Läufe gefiltert auf die Runden dieser Konversation öffnen, mit allen Laufspalten und Filtern.'
+      }
     }
   },
   views: {
@@ -971,8 +1011,15 @@ const tips = {
       eventFilter: 'Nur eine Art von Ereignis anzeigen, etwa Werkzeugaufrufe oder Fehler.',
       openChild: 'Diesen Unterlauf öffnen, der gestartet wurde, als dieser Lauf einen anderen Agenten aufgerufen hat.',
       eventCodes: {
-        RunGuardTriggered: 'Ein Laufwächter hat diesen Lauf gestoppt. Die Meldung sagt, welcher Wächter ausgelöst hat und was er gesehen hat; der Lauf endet als Fehlgeschlagen mit dem Ergebnis dieses Wächters und behält seine Teilausgabe.'
-      }
+        RunGuardTriggered: 'Ein Laufwächter hat diesen Lauf gestoppt. Die Meldung sagt, welcher Wächter ausgelöst hat und was er gesehen hat; der Lauf endet als Fehlgeschlagen mit dem Ergebnis dieses Wächters und behält seine Teilausgabe.',
+        ConversationFallback: 'Diese Runde konnte die Harness-Sitzung der Konversation nicht fortsetzen und hat eine frische Sitzung mit dem Verlauf der früheren Runden begonnen. Die Meldung nennt den Grund.',
+        ConversationStateLost: 'Der Knoten hat diese Runde übernommen, aber die Verzeichnisse der Konversation fehlten, daher kam die Runde zurück in die Warteschlange, um neu aufgebaut zu laufen.'
+      },
+      conversation: 'Die Konversation, zu der dieser Lauf als Runde gehört, und die Rundennummer. Klicken, um die Konversation zu öffnen.',
+      openConversation: 'Die Konversation mit allen Runden und einem Feld für die nächste öffnen.',
+      conversationSession: 'Ob diese Runde die Harness-Sitzung der Konversation fortgesetzt oder eine frische aus dem Verlauf begonnen hat, und warum.',
+      resumeSessionId: 'Die Harness-Sitzung, die diese Runde fortgesetzt hat, hinterlassen von der vorherigen Runde.',
+      affinityNode: 'Der Knoten mit den Verzeichnissen der Konversation. Andere Knoten lassen die Runde bis zur angezeigten Zeit liegen, außer dieser Knoten ist nicht mehr bereit.'
     },
     agentDetail: {
       name: 'Der Name, mit dem Aufrufende diesen Agenten aufrufen.',
@@ -995,7 +1042,8 @@ const tips = {
         weight: 'Die in der Bereitstellung gesetzte Verkehrsgewichtung.',
         traffic: 'Anteil der Aufrufe, den diese Bereitstellung erhält: ihre Gewichtung geteilt durch die Summe der aktiven Gewichtungen.',
         active: 'Nur aktive Bereitstellungen erhalten gewichteten Verkehr.'
-      }
+      },
+      conversations: 'Die Liste Konversationen gefiltert auf diesen Agenten öffnen.'
     },
     queue: {
       queued: 'Läufe, die auf einen Knoten warten. Klicken Sie, um sie aufzulisten.',
@@ -1039,7 +1087,13 @@ const tips = {
       sendKeeps: 'Einen neuen Lauf mit dieser Nachricht starten. Der laufende Lauf geht weiter, weil „Lauf beim Verlassen stoppen“ deaktiviert ist; du findest ihn auf der Seite Läufe.',
       timeLimit: 'Optionale Frist für diesen Lauf in Sekunden, die diese Bereitstellung Aufrufern erlaubt. Leer lassen für den Standard der Bereitstellung. Der Lauf endet wegen Zeitüberschreitung, wenn er das Limit überschreitet.',
       timePreset: 'Das Zeitlimit für diesen Lauf auf {{value}} setzen.',
-      timePresetClear: 'Das Zeitlimit entfernen, damit der Lauf den Standard der Bereitstellung verwendet.'
+      timePresetClear: 'Das Zeitlimit entfernen, damit der Lauf den Standard der Bereitstellung verwendet.',
+      conversation: {
+        mode: 'Einmal ausführen, eine neue Konversation beginnen, deren spätere Runden diese Harness-Sitzung fortsetzen, oder die nächste Runde einer bestehenden Konversation senden.',
+        pick: 'Die fortzusetzende Konversation. Nur Konversationen dieses Agenten sind aufgeführt, die neuesten zuerst.',
+        deploymentPinned: 'Eine Konversation bleibt auf der Bereitstellung ihrer ersten Runde, daher ist die Bereitstellung beim Fortsetzen festgelegt.',
+        open: 'Die Konversation dieses Laufs öffnen, mit allen Runden und einem Feld für die nächste.'
+      }
     },
     manifests: {
       planned: 'Was das Anwenden dieses Dokuments bewirken würde: den Datensatz erstellen, aktualisieren oder unverändert lassen. Eine Simulation prüft nur und ändert nichts.',
@@ -1190,7 +1244,10 @@ const tips = {
           MaxRunSeconds: 'Die längste Dauer eines Laufs in Sekunden. Zeitlimits der Bereitstellungen, Zeitlimits pro Lauf und Profilstandards darüber werden darauf gesenkt.',
           RepetitionGuard: 'Ob Bereitstellungen ohne eigenen Wiederholungswächter Läufe stoppen, deren Antwort in Wiederholung abgleitet (Ergebnis „Wiederholung erkannt“).',
           MaxAssistantChars: 'Zeichen Assistententext, nach denen ein Lauf stoppt (Ergebnis „Ausgabelimit überschritten“), für Bereitstellungen ohne eigenes Limit. 0 ist unbegrenzt.',
-          NoProgressSeconds: 'Sekunden ohne Text, Denken oder Toolaktivität, nach denen ein Lauf stoppt (Ergebnis „Kein Fortschritt“), für Bereitstellungen ohne eigenes Limit. 0 schaltet es aus.'
+          NoProgressSeconds: 'Sekunden ohne Text, Denken oder Toolaktivität, nach denen ein Lauf stoppt (Ergebnis „Kein Fortschritt“), für Bereitstellungen ohne eigenes Limit. 0 schaltet es aus.',
+          ConversationAffinityWaitMs: 'Wie lange eine Konversationsrunde auf den Knoten mit ihrer Harness-Sitzung wartet, bevor ein anderer Knoten sie übernimmt und eine frische Sitzung aus dem Verlauf beginnt. Ist dieser Knoten nicht bereit, übernehmen andere sofort. 0 wartet nie.',
+          ConversationTranscriptTurns: 'Höchstzahl früherer Runden, die eine neu aufgebaute Konversationsrunde als Verlauf erhält. Die neuesten Runden bleiben erhalten.',
+          ConversationTranscriptChars: 'Höchstzahl der Zeichen jeder früheren Nachricht und Antwort im Verlauf einer neu aufgebauten Runde. Längere werden gekürzt und als gekürzt markiert.'
         },
         Scheduling: {
           PauseGraceMs: 'Nach einem Ruhezustand des Hosts oder einer VM-Pause wartet der Leader ein Heartbeat-Fenster plus so viele Millisekunden, bevor er Knoten als Verloren markiert oder ihre Läufe fehlschlagen lässt. Standard 5000.'
@@ -1200,6 +1257,39 @@ const tips = {
     runGuard: {
       openDeployments: 'Zu den Bereitstellungen wechseln, um die Laufwächter einer Bereitstellung zu ändern: Wiederholungswächter, Maximale Assistentenzeichen und Zeitlimit ohne Fortschritt.',
       openSettings: 'Zu den Einstellungen wechseln, um die Cluster-Standards (Laufzeit) zu ändern, denen Bereitstellungen ohne eigene Laufwächter folgen.'
+    },
+    conversationDetail: {
+      viewJson: 'Den vollständigen Konversationsdatensatz als JSON anzeigen.',
+      openInvoke: 'Aufrufen mit dieser Konversation öffnen, um die nächste Runde mit der vollständigen Streaming-Ansicht zu senden.',
+      delete: 'Diese Konversation löschen. Ihre Runden bleiben als gewöhnliche Läufe auf der Seite Läufe, aber die Konversation lässt sich nicht mehr fortsetzen.',
+      deleteBusy: 'Eine Runde ist noch offen, daher verweigert der Server das Löschen, bis dieser Lauf endet oder abgebrochen wird.',
+      agent: 'Der Agent dieser Konversation. Klicken, um den Agenten zu öffnen.',
+      openAgent: 'Die Seite dieses Agenten mit Bereitstellungen und letzten Läufen öffnen.',
+      deployment: 'Jede Runde läuft auf dieser Bereitstellung: der, an die die erste Runde geleitet wurde.',
+      activeRun: 'Die Runde, die noch wartet oder läuft. Die nächste Nachricht wird abgelehnt, bis sie endet.',
+      openRun: 'Die Seite dieses Laufs mit vollständigem Verlauf, Ergebnis und Telemetrie öffnen.',
+      turns: 'Alle Runden der Konversation, die älteste zuerst. Jede Runde ist ein Lauf.',
+      columns: {
+        turn: 'Position der Runde in der Konversation, beginnend mit 1.',
+        run: 'Der Lauf, der diese Runde ausgeführt hat. Klicken, um sein Protokoll zu öffnen.',
+        status: 'Wo der Lauf der Runde in seinem Lebenszyklus steht: wartend, laufend oder in einem der Endzustände.',
+        outcome: 'Warum der Lauf der Runde endete, genauer als der Status.',
+        session: 'Ob die Runde die Harness-Sitzung der vorherigen Runde fortgesetzt oder eine frische Sitzung mit dem Verlauf begonnen hat (und warum).',
+        input: 'Der Anfang der Nachricht dieser Runde. Für mehr Text darauf zeigen.',
+        result: 'Der Anfang der Antwort oder der Fehler, wenn der Lauf fehlschlug. Für mehr Text darauf zeigen.',
+        node: 'Der Worker-Knoten, der die Runde ausgeführt hat.',
+        created: 'Wann die Runde gesendet wurde. Für die genaue Zeit auf den Wert zeigen.'
+      },
+      session: {
+        first: 'Die erste Runde: Sie beginnt die Harness-Sitzung, die spätere Runden fortsetzen.',
+        resumed: 'Diese Runde hat die Harness-Sitzung {{session}} auf dem Knoten mit den Verzeichnissen der Konversation fortgesetzt, sodass der Agent seinen vollen Kontext behielt.',
+        fallback: 'Diese Runde konnte die Sitzung nicht fortsetzen und hat deshalb eine frische Harness-Sitzung mit dem Verlauf der früheren Runden begonnen.',
+        pending: 'Die Runde wartet auf einen Knoten, daher ist noch offen, ob sie die Sitzung fortsetzt oder neu aufbaut.'
+      },
+      continueTitle: 'Die nächste Nachricht als nächste Runde dieser Konversation senden. Sie läuft mit demselben Agenten und derselben Bereitstellung.',
+      message: 'Die nächste Nachricht an den Agenten. Sie setzt die Konversation mit dem Kontext der früheren Runden fort.',
+      send: 'Diese Nachricht als nächste Runde senden. Die Runde erscheint in der Liste oben und wird aktualisiert, bis sie endet.',
+      sendBusy: 'Die vorherige Runde ist noch offen. Der Server lehnt eine neue Runde bis zu ihrem Ende ab; warten Sie also oder brechen Sie sie zuerst ab.'
     }
   },
   analytics: {
@@ -1428,6 +1518,12 @@ const explainers = {
     p1: 'Die Zeit bis zum ersten Token reicht vom Start des Harness-Prozesses bis zur ersten Modellausgabe und enthält damit den CLI-Start. Die Streaming-Zeit reicht von der ersten bis zur letzten Modellausgabe, die Ausführungszeit vom Prozessstart bis zum Prozessende. Die Wartezeit gibt an, wie lange ein Lauf auf einen Worker-Knoten gewartet hat. Gemessen wird mit den Uhren von Worker und Server.',
     p2: 'Token-Zahlen und Kosten stammen aus den Meldungen der jeweiligen Harness. Cache-Token sind Eingabe-Token, die aus dem Prompt-Cache des Anbieters bedient wurden, und Reasoning-Token erscheinen nur bei Harnesses, die sie getrennt melden. Ausgabe-Token pro Sekunde sind Ausgabe-Token geteilt durch die Streaming-Zeit.',
     p3: 'Mittelwerte lassen Läufe außer Acht, bei denen ein Wert nicht gemessen werden konnte. Perzentile zeigen die langsamen Ausreißer: p95 bedeutet, dass nur einer von zwanzig Läufen langsamer war. Gruppieren Sie nach Agent oder Harness, um sie direkt zu vergleichen.'
+  },
+  conversations: {
+    title: 'Konversationen und Runden',
+    p1: 'Eine Konversation ist eine Folge von Läufen mit einem Agenten. Die erste Runde beginnt eine Harness-Sitzung; jede spätere Runde setzt diese Sitzung auf demselben Worker-Knoten fort, sodass der Agent Dateien, Tools und Kontext zwischen den Nachrichten behält.',
+    p2: 'Es läuft immer nur eine Runde: Eine neue Nachricht wird abgelehnt, solange die vorherige Runde offen ist. Jede Runde bleibt auf der Bereitstellung der ersten Runde.',
+    p3: 'Kann eine Runde nicht fortsetzen (der Knoten ist weg oder zu lange belegt, die Dateien wurden entfernt oder die Harness kann nicht fortsetzen), beginnt sie eine frische Sitzung mit dem Verlauf der früheren Runden. Die Spalte Neuaufbauten zählt diese Runden, und die Rundenliste nennt den Grund.'
   }
 };
 

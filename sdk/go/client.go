@@ -100,6 +100,7 @@ type Client struct {
 	ArtifactStores             *Resource
 	Manifests                  *ManifestsClient
 	Runs                       *RunsClient
+	Conversations              *ConversationsClient
 	Analytics                  *AnalyticsClient
 	Nodes                      *GlobalResource
 	ControlNodes               *ControlNodesClient
@@ -130,6 +131,7 @@ func NewClient(baseURL string) *Client {
 	c.ArtifactStores = &Resource{c: c, segment: "artifact-stores"}
 	c.Manifests = &ManifestsClient{c: c}
 	c.Runs = &RunsClient{c: c, PollInterval: 500 * time.Millisecond}
+	c.Conversations = &ConversationsClient{c: c}
 	c.Analytics = &AnalyticsClient{c: c}
 	c.Nodes = &GlobalResource{c: c, path: "/v1.0/api/nodes"}
 	c.ControlNodes = &ControlNodesClient{c: c}

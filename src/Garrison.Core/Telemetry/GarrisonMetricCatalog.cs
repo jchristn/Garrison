@@ -102,6 +102,15 @@ namespace Garrison.Core.Telemetry
         /// <summary>Structured output repairs.</summary>
         public static readonly MetricDescriptor Repairs = new MetricDescriptor("garrison.runs.repairs", MetricKindEnum.Counter, "{repair}", "harness, tenant, agent", "Structured output repair attempts started", "server", "Runs", "garrison-runs");
 
+        /// <summary>Conversation turns.</summary>
+        public static readonly MetricDescriptor ConversationTurns = new MetricDescriptor("garrison.conversation.turns", MetricKindEnum.Counter, "{turn}", "tenant, agent, mode", "Conversation turns created, by how the harness session starts: first (a new conversation), resume (the session on the affinity node), or fallback (a fresh session seeded with the transcript)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Conversation fallbacks.</summary>
+        public static readonly MetricDescriptor ConversationFallbacks = new MetricDescriptor("garrison.conversation.fallbacks", MetricKindEnum.Counter, "{turn}", "reason", "Conversation turns that could not resume their harness session and started a fresh one from the transcript, by reason (AffinityNodeLost, AffinityWaitExpired, WorkspaceLost, SessionMissing, HarnessChanged, ResumeUnsupported, ExecutorWithoutState)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Conversation turns refused because another turn was unfinished.</summary>
+        public static readonly MetricDescriptor ConversationBusy = new MetricDescriptor("garrison.conversation.busy", MetricKindEnum.Counter, "{request}", "surface", "Conversation turns refused with 409 ConversationBusy because the conversation's previous turn had not finished, by surface (rest, mcp, a2a)", "server", "Runs", "garrison-runs");
+
         /// <summary>Run events received.</summary>
         public static readonly MetricDescriptor RunEvents = new MetricDescriptor("garrison.run.events", MetricKindEnum.Counter, "{event}", "type", "Run events received from workers, by event type", "server", "Runs", "garrison-runs");
 
@@ -129,7 +138,7 @@ namespace Garrison.Core.Telemetry
         public static readonly MetricDescriptor RunsBlockedFailed = new MetricDescriptor("garrison.runs.blocked.failed", MetricKindEnum.Counter, "{run}", "reason", "Blocked runs failed with NoCapableWorker after Runtime.FailBlockedAfterSeconds", "server", "Scheduler", "garrison-scheduler");
 
         /// <summary>Claim attempts.</summary>
-        public static readonly MetricDescriptor Claims = new MetricDescriptor("garrison.claims", MetricKindEnum.Counter, "{claim}", "result, harness", "Lease claim attempts: won, lost (another node claimed first), limit (deployment at its concurrency limit)", "server", "Scheduler", "garrison-scheduler");
+        public static readonly MetricDescriptor Claims = new MetricDescriptor("garrison.claims", MetricKindEnum.Counter, "{claim}", "result, harness", "Lease claim attempts: won, lost (another node claimed first), limit (deployment at its concurrency limit), affinity (a conversation turn left for its affinity node)", "server", "Scheduler", "garrison-scheduler");
 
         /// <summary>Claim duration.</summary>
         public static readonly MetricDescriptor ClaimDuration = new MetricDescriptor("garrison.scheduler.claim.duration", MetricKindEnum.Histogram, "s", "result", "Time to find, claim, and compile a run inside one lease request (result assigned or empty)", "server", "Scheduler", "garrison-scheduler", TelemetryBuckets.Request);
@@ -311,6 +320,9 @@ namespace Garrison.Core.Telemetry
         /// <summary>Worker guard trips.</summary>
         public static readonly MetricDescriptor WorkerGuardTrips = new MetricDescriptor("garrison.worker.run.guard_trips", MetricKindEnum.Counter, "{run}", "guard, harness, agent", "Runs this worker stopped with a guard (repetition, no_progress, output_limit, timeout)", "worker", "Workers", "garrison-agents");
 
+        /// <summary>Conversation directories swept.</summary>
+        public static readonly MetricDescriptor WorkerConversationsSwept = new MetricDescriptor("garrison.worker.conversations.swept", MetricKindEnum.Counter, "{conversation}", "", "Conversation directories this worker deleted after they went unused for ConversationRetentionHours", "worker", "Workers", "garrison-workers");
+
         /// <summary>Completion reports.</summary>
         public static readonly MetricDescriptor WorkerCompletionReports = new MetricDescriptor("garrison.worker.completion_reports", MetricKindEnum.Counter, "{report}", "result", "Completion reports: accepted, stale (lease lost), abandoned (gave up after CompletionRetrySeconds)", "worker", "Workers", "garrison-workers");
 
@@ -363,7 +375,7 @@ namespace Garrison.Core.Telemetry
             HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, SchemaValidations, Repairs, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, CompileDuration,
             LeaseExpirations, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,
@@ -373,7 +385,7 @@ namespace Garrison.Core.Telemetry
             DbDuration, DbErrors, DbConnections, DbWriteLockWait, DbRetries, RetentionDeleted, RequestHistoryCaptured, ArchiveRuns,
             OutboundRequests, OutboundDuration, ObservabilityReachable,
             WorkerLeases, WorkerRuns, WorkerRunDuration, WorkerRunTtft, WorkerRunStreaming, WorkerRunStage,
-            WorkerTokens, WorkerCost, WorkerGuardTrips, WorkerCompletionReports, WorkerEvents, WorkerHeartbeats, WorkerPauses, WorkerProbes,
+            WorkerTokens, WorkerCost, WorkerGuardTrips, WorkerCompletionReports, WorkerConversationsSwept, WorkerEvents, WorkerHeartbeats, WorkerPauses, WorkerProbes,
             WorkerRunsActive, WorkerSlotsFree,
             K8sJobs, K8sPodStart, K8sPodFailures, K8sReconciled,
             LabelsFolded, TelemetryDiagnostics

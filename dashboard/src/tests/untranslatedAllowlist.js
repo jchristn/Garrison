@@ -39,7 +39,7 @@ export const UNTRANSLATED_ALLOWLIST = {
     'Actions', 'Active', 'Administration', 'Agent', 'Agents', 'Arguments', 'Assistant', 'Cluster', 'Condition',
     'Configuration', 'Description', 'Effort', 'Fragment', 'Invocation', 'Message', 'Mode', 'Navigation', 'Note',
     'Principal', 'Secret', 'Secrets', 'Tags', 'Total', 'Transport', 'Type', 'Validation', 'Version',
-    'Version {{version}}', 'Versions ({{count}})', 'Leader'
+    'Version {{version}}', 'Versions ({{count}})', 'Leader', 'Conversation', 'Conversations'
   ],
   it: [
     'Cluster', 'Database', 'Email', 'Endpoint', 'File system', 'Home', 'Input', 'Manifest', 'Logging', 'No', 'Offline', 'Output', 'Parser',

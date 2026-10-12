@@ -135,6 +135,11 @@ namespace Garrison.Sdk
         public RunsClient Runs { get; }
 
         /// <summary>
+        /// Conversations (multi-turn sessions with one agent).
+        /// </summary>
+        public ConversationsClient Conversations { get; }
+
+        /// <summary>
         /// Analytics.
         /// </summary>
         public AnalyticsClient Analytics { get; }
@@ -205,6 +210,7 @@ namespace Garrison.Sdk
             ArtifactStores = new ArtifactStoresClient(Transport);
             Manifests = new ManifestsClient(Transport);
             Runs = new RunsClient(Transport);
+            Conversations = new ConversationsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);
             ControlNodes = new ControlNodesClient(Transport);

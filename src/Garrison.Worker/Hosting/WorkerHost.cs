@@ -4,6 +4,7 @@ namespace Garrison.Worker.Hosting
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Reflection;
     using System.Threading;
@@ -146,6 +147,7 @@ namespace Garrison.Worker.Hosting
         private readonly LoggingModule _Logging;
         private readonly NodeProtocolClient _Client;
         private readonly IRunExecutor _Executor;
+        private readonly ProcessRunExecutor _ConversationSweeper;
         private readonly CapabilityProber _Prober;
         private readonly KubernetesRuntime? _Kubernetes = null;
         private readonly KubernetesJobReconciler? _Reconciler = null;
@@ -199,6 +201,7 @@ namespace Garrison.Worker.Hosting
             options.WorkRoot = settings.WorkRoot;
             options.EnvironmentAllowlist = new List<string>(settings.EnvironmentAllowlist);
             options.McpPreflightTimeoutMs = settings.McpPreflightTimeoutMs;
+            _ConversationSweeper = new ProcessRunExecutor(options, message => _Logging.Info(_Header + message));
             if (executor != null)
             {
                 _Executor = executor;
@@ -378,7 +381,8 @@ namespace Garrison.Worker.Hosting
                 Task probe = Task.Run(() => ProbeLoopAsync(token));
                 Task watch = Task.Run(() => WatchLoopAsync(token));
                 Task reconcile = Task.Run(() => ReconcileLoopAsync(token));
-                await Task.WhenAll(heartbeat, lease, probe, watch, reconcile).ConfigureAwait(false);
+                Task sweep = Task.Run(() => ConversationSweepLoopAsync(token));
+                await Task.WhenAll(heartbeat, lease, probe, watch, reconcile, sweep).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -946,6 +950,29 @@ namespace Garrison.Worker.Hosting
                     if (deleted > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.K8sReconciled, deleted, GarrisonMetrics.Tags("result", "deleted"));
                 }
                 await Task.Delay(TimeSpan.FromSeconds(_Settings.Kubernetes.ReconcileIntervalSeconds), token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ConversationSweepLoopAsync(CancellationToken token)
+        {
+            // Conversation directories outlive their turns so the next turn can resume the harness session (P12.1);
+            // the ones nobody used for ConversationRetentionHours are removed here.
+            if (_Settings.ConversationRetentionHours <= 0) return;
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    HashSet<string> active = new HashSet<string>(
+                        _Runs.Values.Select(r => r.Assignment.Spec.Conversation?.ConversationId).Where(id => !String.IsNullOrEmpty(id)).Select(id => id!),
+                        StringComparer.Ordinal);
+                    int deleted = _ConversationSweeper.SweepConversations(TimeSpan.FromHours(_Settings.ConversationRetentionHours), active);
+                    if (deleted > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerConversationsSwept, deleted, new TagList());
+                }
+                catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                {
+                    _Logging.Warn(_Header + "conversation sweep failed: " + e.Message);
+                }
+                await Task.Delay(TimeSpan.FromSeconds(_Settings.ConversationSweepIntervalSeconds), token).ConfigureAwait(false);
             }
         }
 

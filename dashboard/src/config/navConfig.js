@@ -31,6 +31,7 @@ export const NAV_SECTIONS = [
         icon: 'RunsIcon',
         tabs: [
           { id: 'runs', slug: 'runs', detail: true },
+          { id: 'conversations', slug: 'conversations', detail: true },
           { id: 'queue', slug: 'queue' }
         ]
       },

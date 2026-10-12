@@ -49,6 +49,18 @@ namespace Garrison.Core.Compilation
         public static readonly string RepairTemplateName = Constants.BuiltInPrefix + "structured-output-repair";
 
         /// <summary>
+        /// Deployment prompt role used for the task prompt of a conversation turn that falls back to a fresh harness
+        /// session: it repeats the earlier turns (<c>conversation.turns</c>) before the current task
+        /// (<c>conversation.task</c>).
+        /// </summary>
+        public static readonly string ConversationFallbackRole = "ConversationFallback";
+
+        /// <summary>
+        /// Built-in template used for the ConversationFallback role when a deployment binds none.
+        /// </summary>
+        public static readonly string ConversationFallbackTemplateName = Constants.BuiltInPrefix + "conversation-fallback";
+
+        /// <summary>
         /// Compiler options.
         /// </summary>
         public CompilerOptions Options
@@ -101,8 +113,27 @@ namespace Garrison.Core.Compilation
         public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
-            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token).ConfigureAwait(false);
-            return Compile(inputs, run, runToken);
+            return await CompileAsync(run, runToken, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Compile a run for execution, with the conversation inputs of a conversation turn. A turn with a
+        /// conversationFallbackReason renders its task prompt through the ConversationFallback prompt role (the
+        /// deployment's binding, else <c>builtin/conversation-fallback</c>) so the fresh session sees the earlier turns.
+        /// </summary>
+        /// <param name="run">Run (with parameters loaded).</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="conversation">Conversation inputs, or null for runs outside a conversation or turns that resume.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Compilation result.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
+        /// <exception cref="CompilationException">Thrown when the run cannot be compiled.</exception>
+        public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CompilationConversation? conversation, CancellationToken token = default)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            bool fallback = run.ConversationFallbackReason.HasValue && conversation != null && conversation.Turns.Count > 0;
+            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback).ConfigureAwait(false);
+            return Compile(inputs, run, runToken, null, fallback ? conversation : null);
         }
 
         /// <summary>
@@ -195,7 +226,7 @@ namespace Garrison.Core.Compilation
             return LoadCoreAsync(tenantId, deploymentId, includeRepair, false, token);
         }
 
-        private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token)
+        private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token, bool includeConversationFallback = false)
         {
             CompilationInputs inputs = new CompilationInputs();
             inputs.Tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
@@ -268,6 +299,19 @@ namespace Garrison.Core.Compilation
                 inputs.Prompts[RepairRole] = bound;
             }
 
+            if (includeConversationFallback && !inputs.Prompts.ContainsKey(ConversationFallbackRole))
+            {
+                PromptTemplate fallback = await _Database.PromptTemplates.ReadByNameAsync(tenantId, ConversationFallbackTemplateName, token).ConfigureAwait(false)
+                    ?? throw new CompilationException("ReferenceNotFound", "Prompt template " + ConversationFallbackTemplateName + " for role " + ConversationFallbackRole + " was not found.");
+                BoundPrompt bound = new BoundPrompt();
+                bound.Role = ConversationFallbackRole;
+                bound.TemplateId = fallback.Id;
+                bound.TemplateName = fallback.Name;
+                bound.Version = fallback.CurrentVersion;
+                bound.Content = fallback.Content;
+                inputs.Prompts[ConversationFallbackRole] = bound;
+            }
+
             await LoadIncludesAsync(tenantId, inputs, token).ConfigureAwait(false);
             return inputs;
         }
@@ -296,6 +340,22 @@ namespace Garrison.Core.Compilation
         /// <exception cref="CompilationException">Thrown when compilation fails.</exception>
         public CompilationResult Compile(CompilationInputs inputs, Run run, string? runToken, CompilationRepair? repair)
         {
+            return Compile(inputs, run, runToken, repair, null);
+        }
+
+        /// <summary>
+        /// Compile loaded inputs, optionally as a structured output repair, with the conversation inputs of a turn that
+        /// falls back to a fresh session.
+        /// </summary>
+        /// <param name="inputs">Inputs (loaded with the Repair role when repair is set, and with the ConversationFallback role when conversation is set).</param>
+        /// <param name="run">Run.</param>
+        /// <param name="runToken">Run token, or null.</param>
+        /// <param name="repair">Repair inputs, or null for the original execution.</param>
+        /// <param name="conversation">Transcript of the earlier turns for a fallback turn, or null.</param>
+        /// <returns>Result.</returns>
+        /// <exception cref="CompilationException">Thrown when compilation fails.</exception>
+        public CompilationResult Compile(CompilationInputs inputs, Run run, string? runToken, CompilationRepair? repair, CompilationConversation? conversation)
+        {
             if (inputs == null) throw new ArgumentNullException(nameof(inputs));
             if (run == null) throw new ArgumentNullException(nameof(run));
 
@@ -314,7 +374,7 @@ namespace Garrison.Core.Compilation
             Dictionary<string, string> parameters = RunOverrideValidator.Effective(deployment, run.Parameters);
             bool delegationEnabled = agent.DelegationMode != DelegationModeEnum.None && !String.IsNullOrEmpty(runToken);
 
-            TemplateContext context = BaseContext(inputs, run, parameters, delegationEnabled, repair);
+            TemplateContext context = BaseContext(inputs, run, parameters, delegationEnabled, repair, conversation);
             Dictionary<string, object?> secrets = SecretContext(inputs, scrub);
             context.Set("secret", secrets);
 
@@ -332,6 +392,15 @@ namespace Garrison.Core.Compilation
                 taskRole = RepairRole;
             }
             string task = inputs.Prompts.ContainsKey(taskRole) ? RenderPrompt(inputs, taskRole, context, includes, usedIncludes) : (run.InputText ?? String.Empty);
+            if (repair == null && conversation != null && conversation.Turns.Count > 0 && inputs.Prompts.ContainsKey(ConversationFallbackRole))
+            {
+                // A fresh session for a conversation that already had turns: the fallback prompt repeats them before the
+                // task, so the harness answers with the conversation's context (P12.1).
+                Dictionary<string, object?> conversationMap = context.Root.TryGetValue("conversation", out object? existing) && existing is Dictionary<string, object?> map ? map : TemplateContext.NewMap();
+                conversationMap["task"] = task;
+                context.Set("conversation", conversationMap);
+                task = RenderPrompt(inputs, ConversationFallbackRole, context, includes, usedIncludes);
+            }
             if (repair == null && profile.SystemPromptDelivery == SystemPromptDeliveryEnum.PrependToPrompt && system.Length > 0)
             {
                 task = system + Environment.NewLine + Environment.NewLine + task;
@@ -393,7 +462,7 @@ namespace Garrison.Core.Compilation
                     // output schema travel as typed settings because app-server takes them as request parameters.
                     spec.Stdin = task;
                     spec.AppServer = new ExecutionAppServer();
-                    spec.AppServer.ResumeThreadId = repair?.SessionId;
+                    spec.AppServer.ResumeThreadId = repair?.SessionId ?? run.ResumeSessionId;
                     spec.AppServer.OutputSchemaJson = CompactJson(agent.OutputSchemaJson, "output schema of agent " + agent.Name);
                     break;
             }
@@ -418,6 +487,14 @@ namespace Garrison.Core.Compilation
             spec.IsolateHome = profile.IsolateHome;
             spec.TraceParent = Activity.Current?.Id;
             spec.RepairAttempt = repair?.Attempt ?? 0;
+            if (!String.IsNullOrEmpty(run.ConversationId) && run.Executor == RunExecutorEnum.Process)
+            {
+                ExecutionConversation turn = new ExecutionConversation();
+                turn.ConversationId = run.ConversationId!;
+                turn.Turn = Math.Max(1, run.ConversationTurn);
+                turn.Resume = !String.IsNullOrEmpty(run.ResumeSessionId);
+                spec.Conversation = turn;
+            }
             spec.Executor = run.Executor;
             spec.PodResources = run.Executor == RunExecutorEnum.KubernetesJob && !deployment.PodResources.IsEmpty ? deployment.PodResources.Clone() : null;
             if (spec.Workspace.Kind == WorkspaceKindEnum.PersistentVolume && run.Executor != RunExecutorEnum.KubernetesJob)
@@ -529,7 +606,7 @@ namespace Garrison.Core.Compilation
             }
         }
 
-        private TemplateContext BaseContext(CompilationInputs inputs, Run run, Dictionary<string, string> parameters, bool delegationEnabled, CompilationRepair? repair)
+        private TemplateContext BaseContext(CompilationInputs inputs, Run run, Dictionary<string, string> parameters, bool delegationEnabled, CompilationRepair? repair, CompilationConversation? conversation)
         {
             Deployment deployment = inputs.Deployment;
             Agent agent = inputs.Agent;
@@ -601,8 +678,37 @@ namespace Garrison.Core.Compilation
             runMap["systemPromptPath"] = ExecutionPlaceholders.ConfigDir + "/system-prompt.md";
             List<string> chain = (run.CallChain ?? String.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
             runMap["callChain"] = chain.Cast<object?>().ToList();
-            runMap["resumeSessionId"] = repair?.SessionId;
+            runMap["resumeSessionId"] = repair?.SessionId ?? run.ResumeSessionId;
+            runMap["conversationId"] = run.ConversationId;
+            // Harnesses that keep no session unless asked (Mux print mode) persist one when a later execution may resume
+            // it: a structured output repair or the next conversation turn.
+            runMap["persistSession"] = !String.IsNullOrWhiteSpace(agent.OutputSchemaJson) || !String.IsNullOrEmpty(run.ConversationId);
             context.Set("run", runMap);
+
+            Dictionary<string, object?> conversationMap = TemplateContext.NewMap();
+            conversationMap["id"] = run.ConversationId;
+            conversationMap["turn"] = run.ConversationTurn;
+            conversationMap["resumed"] = !String.IsNullOrEmpty(run.ResumeSessionId);
+            conversationMap["fallback"] = run.ConversationFallbackReason.HasValue;
+            conversationMap["fallbackReason"] = run.ConversationFallbackReason?.ToString();
+            List<object?> turns = new List<object?>();
+            if (conversation != null)
+            {
+                foreach (ConversationTranscriptTurn earlier in conversation.Turns)
+                {
+                    Dictionary<string, object?> item = TemplateContext.NewMap();
+                    item["turn"] = earlier.Turn;
+                    item["input"] = earlier.Input;
+                    item["output"] = earlier.Output;
+                    item["inputTruncated"] = earlier.InputTruncated;
+                    item["outputTruncated"] = earlier.OutputTruncated;
+                    turns.Add(item);
+                }
+            }
+            conversationMap["turns"] = turns;
+            conversationMap["omittedTurns"] = conversation?.OmittedTurns ?? 0;
+            conversationMap["task"] = null;
+            context.Set("conversation", conversationMap);
 
             Dictionary<string, object?> repairMap = TemplateContext.NewMap();
             repairMap["error"] = repair?.Error;

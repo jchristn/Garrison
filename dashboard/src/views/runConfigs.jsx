@@ -1,4 +1,4 @@
-// ResourceView configurations for runs, worker nodes, control nodes, and audit records.
+// ResourceView configurations for runs, conversations, worker nodes, control nodes, and audit records.
 
 import CopyableId from '../components/CopyableId';
 import { Badge } from '../components/StatusBadge';
@@ -13,6 +13,7 @@ import { enumLabel } from '../utils/enums';
 import { runTelemetry, formatMs, formatCount, formatRate, formatUsd } from '../utils/telemetry';
 import { BlockedBadge } from '../components/BlockedRun';
 import { tip } from '../components/Tooltip';
+import { turnSessionMode, turnSessionTone } from '../utils/conversations';
 
 function col(id, t, key, render, extra = {}) {
   return { key, label: t(`resources.${id}.columns.${key}`), tip: resourceTip(t, id, key), render, ...extra };
@@ -46,11 +47,109 @@ export function RunStatus({ status, t }) {
   );
 }
 
+/** Whether a conversation has an unfinished turn (busy) or waits for the next one (idle). */
+export function ConversationState({ conversation, t }) {
+  const busy = !!conversation?.busy;
+  return (
+    <Badge tone={busy ? 'info' : 'neutral'} tip={t(busy ? 'tips.resources.conversations.states.busy' : 'tips.resources.conversations.states.idle')}>
+      {t(busy ? 'resources.conversations.states.busy' : 'resources.conversations.states.idle')}
+    </Badge>
+  );
+}
+
+/** Translated reason a conversation turn started a fresh session instead of resuming, with its explanation as tooltip. */
+export function FallbackReason({ reason, t }) {
+  if (!reason) return '-';
+  return (
+    <span data-fallback-reason={reason} {...tip(enumTip(t, 'conversationFallbackReason', reason))}>
+      {enumLabel(t, 'conversationFallbackReason', reason)}
+    </span>
+  );
+}
+
+/** How a conversation turn got its harness session: resumed, a fresh session after a fallback (with the reason), or the first turn. */
+export function TurnSession({ run, t }) {
+  const mode = turnSessionMode(run);
+  if (mode === 'none') return '-';
+  return (
+    <span className="inline-meta" data-turn-session={mode}>
+      <Badge tone={turnSessionTone(mode)} tip={t(`tips.views.conversationDetail.session.${mode}`, { session: run.resumeSessionId || '' })}>
+        {t(`views.conversationDetail.session.${mode}`)}
+      </Badge>
+      {mode === 'fallback' && <FallbackReason reason={run.conversationFallbackReason} t={t} />}
+    </span>
+  );
+}
+
+/** A conversation's title, or a muted placeholder for one whose first input had no text. */
+export function conversationTitle(t, c) {
+  return c?.title || t('resources.conversations.untitled');
+}
+
+export const conversationsConfig = {
+  id: 'conversations',
+  explainer: 'conversations',
+  autoRefresh: 15,
+  urlFilters: ['agentId', 'contextId', 'callerId'],
+  api: {
+    list: (c, tenant, p) => c.listConversations(tenant, p),
+    create: null,
+    update: null,
+    remove: (c, tenant, id) => c.deleteConversation(tenant, id)
+  },
+  // Agent names for the filter; an agent named in the URL stays selectable even before the names load.
+  loadLookups: async ({ apiClient, tenantId }) => {
+    const r = await apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 });
+    return { agents: Object.fromEntries((r.items || []).map((a) => [a.id, a.displayName || a.name])) };
+  },
+  filters: [
+    {
+      name: 'agentId',
+      label: (t) => t('resources.conversations.columns.agentName'),
+      options: (lookups, filters) => [...new Set([...Object.keys(lookups?.agents || {}), ...(filters?.agentId ? [filters.agentId] : [])])],
+      optionLabel: (o, _t, lookups) => lookups?.agents?.[o] || o
+    }
+  ],
+  canDuplicate: false,
+  isEditable: () => false,
+  // Deleting a conversation with an unfinished turn answers 409 ConversationBusy, shown as a translated message.
+  canDelete: () => true,
+  columns: ({ t, i18n }) => {
+    const lng = i18n.language;
+    const when = (v) => (v ? <span {...tip(formatDateTime(v, lng))}>{formatRelativeTime(v, lng)}</span> : '-');
+    return [
+      col('conversations', t, 'title', (r) => (r.title ? <strong>{r.title}</strong> : <span className="text-muted">{conversationTitle(t, r)}</span>), { pinned: true, sortable: true, serverSort: false, csv: (r) => r.title || '' }),
+      col('conversations', t, 'agentName', (r) => r.agentName || '-', { sortable: true, serverSort: false }),
+      col('conversations', t, 'state', (r) => <ConversationState conversation={r} t={t} />, { csv: (r) => (r.busy ? 'Busy' : 'Idle') }),
+      col('conversations', t, 'turnCount', (r) => formatNumber(r.turnCount ?? 0, {}, lng), { cellClass: 'right', sortable: true, serverSort: false, csv: (r) => r.turnCount ?? 0 }),
+      col('conversations', t, 'affinityNodeName', (r) => r.affinityNodeName || '-'),
+      col('conversations', t, 'fallbackCount', (r) =>
+        r.fallbackCount ? <span {...tip(t('tips.resources.conversations.fallbackLast', { reason: enumLabel(t, 'conversationFallbackReason', r.lastFallbackReason) }))}>{formatNumber(r.fallbackCount, {}, lng)}</span> : formatNumber(0, {}, lng),
+        { cellClass: 'right', sortable: true, serverSort: false, csv: (r) => r.fallbackCount ?? 0 }
+      ),
+      col('conversations', t, 'lastFallbackReason', (r) => <FallbackReason reason={r.lastFallbackReason} t={t} />, { defaultHidden: true, csv: (r) => r.lastFallbackReason || '' }),
+      col('conversations', t, 'harnessType', (r) => enumLabel(t, 'harnessType', r.harnessType), { defaultHidden: true, csv: (r) => r.harnessType || '' }),
+      col('conversations', t, 'callerName', (r) => r.callerName || r.callerId || '-', { defaultHidden: true }),
+      col('conversations', t, 'contextId', (r) => (r.contextId ? <CopyableId value={r.contextId} /> : '-'), { cellClass: 'cell-id', defaultHidden: true }),
+      col('conversations', t, 'sessionId', (r) => (r.sessionId ? <CopyableId value={r.sessionId} /> : '-'), { cellClass: 'cell-id', defaultHidden: true }),
+      col('conversations', t, 'lastActivityUtc', (r) => when(r.lastActivityUtc), { sortable: true, serverSort: false, cellClass: 'nowrap' }),
+      col('conversations', t, 'createdUtc', (r) => when(r.createdUtc), { sortable: true, cellClass: 'nowrap' }),
+      col('conversations', t, 'id', (r) => <CopyableId value={r.id} />, { cellClass: 'cell-id', defaultHidden: true })
+    ];
+  },
+  fields: () => [],
+  detailPath: (r) => pathFor('conversations', r.id),
+  rowActions: (r, ctx) => [
+    { label: ctx.t('resources.conversations.actions.continue'), tip: ctx.t('tips.resources.conversations.actions.continue'), onClick: () => ctx.navigate(pathFor('invoke', null, { agentId: r.agentId, conversationId: r.id })) },
+    { label: ctx.t('resources.conversations.actions.runs'), tip: ctx.t('tips.resources.conversations.actions.runs'), onClick: () => ctx.navigate(pathFor('runs', null, { conversationId: r.id })) }
+  ]
+};
+
 export const runsConfig = {
   id: 'runs',
   explainer: 'runs',
   autoRefresh: 5,
-  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId'],
+  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId'],
   api: {
     list: (c, tenant, p) => c.listRuns(tenant, p),
     create: null,
@@ -94,6 +193,15 @@ export const runsConfig = {
     telemetryCol(t, i18n, 'costUsd', formatUsd),
     telemetryCol(t, i18n, 'toolCallCount', formatCount, { defaultHidden: true }),
     col('runs', t, 'depth', (r) => r.depth ?? 0, { cellClass: 'right', defaultHidden: true }),
+    col('runs', t, 'conversationId', (r) =>
+      r.conversationId ? (
+        <>
+          <CopyableId value={r.conversationId} /> <span className="text-muted nowrap" {...tip(t('tips.resources.runs.conversationTurn'))}>{t('resources.runs.turn', { turn: r.conversationTurn ?? 0 })}</span>
+        </>
+      ) : (
+        '-'
+      ),
+    { cellClass: 'cell-id', defaultHidden: true, csv: (r) => r.conversationId || '' }),
     col('runs', t, 'createdUtc', (r) => <span {...tip(formatDateTime(r.createdUtc, i18n.language))}>{formatRelativeTime(r.createdUtc, i18n.language)}</span>, { sortable: true })
   ],
   fields: () => [],

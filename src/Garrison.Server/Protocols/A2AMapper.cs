@@ -11,7 +11,8 @@ namespace Garrison.Server.Protocols
 
     /// <summary>
     /// Maps between Garrison runs and A2A tasks, messages, and cards. A task identifier is the run identifier; the
-    /// context identifier is the root run identifier until conversations arrive in Phase 12. Thread-safe.
+    /// context identifier is the run's conversation (its identifier, or the client-supplied context identifier the
+    /// conversation was created for), and the root run identifier for runs outside a conversation. Thread-safe.
     /// </summary>
     public static class A2AMapper
     {
@@ -68,14 +69,15 @@ namespace Garrison.Server.Protocols
         /// </summary>
         /// <param name="run">Run.</param>
         /// <param name="includeArtifacts">Whether to include the result artifact.</param>
+        /// <param name="contextId">Context identifier to report, or null for <see cref="ContextId"/> of the run.</param>
         /// <returns>Task.</returns>
         /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
-        public static AgentTask Task(Run run, bool includeArtifacts = true)
+        public static AgentTask Task(Run run, bool includeArtifacts = true, string? contextId = null)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
             AgentTask task = new AgentTask();
             task.Id = run.Id;
-            task.ContextId = String.IsNullOrEmpty(run.RootRunId) ? run.Id : run.RootRunId;
+            task.ContextId = String.IsNullOrEmpty(contextId) ? ContextId(run) : contextId;
             task.Status = Status(run);
             if (includeArtifacts && run.Status == RunStatusEnum.Succeeded) task.Artifacts = new List<Artifact> { ResultArtifact(run) };
             task.Metadata = new Dictionary<string, object?>
@@ -90,6 +92,12 @@ namespace Garrison.Server.Protocols
                 { "garrison.toolCallCount", run.ToolCallCount }
             };
             if (!String.IsNullOrEmpty(run.TraceId)) task.Metadata["garrison.traceId"] = run.TraceId;
+            if (!String.IsNullOrEmpty(run.ConversationId))
+            {
+                task.Metadata["garrison.conversationId"] = run.ConversationId;
+                task.Metadata["garrison.conversationTurn"] = run.ConversationTurn;
+                if (run.ConversationFallbackReason.HasValue) task.Metadata["garrison.conversationFallbackReason"] = run.ConversationFallbackReason.Value.ToString();
+            }
             if (run.TimeToFirstTokenMs.HasValue) task.Metadata["garrison.timeToFirstTokenMs"] = run.TimeToFirstTokenMs.Value;
             if (run.StreamingMs.HasValue) task.Metadata["garrison.streamingMs"] = run.StreamingMs.Value;
             if (run.ExecutionMs.HasValue) task.Metadata["garrison.executionMs"] = run.ExecutionMs.Value;
@@ -100,6 +108,21 @@ namespace Garrison.Server.Protocols
             double? rate = run.OutputTokensPerSecond;
             if (rate.HasValue) task.Metadata["garrison.outputTokensPerSecond"] = rate.Value;
             return task;
+        }
+
+        /// <summary>
+        /// Default context identifier of a run: its conversation identifier, else its root run identifier, else its own
+        /// identifier. A conversation created for a client-supplied context identifier reports that one instead; callers
+        /// that know the conversation pass it to <see cref="Task(Run, bool, string?)"/>.
+        /// </summary>
+        /// <param name="run">Run.</param>
+        /// <returns>Context identifier.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
+        public static string ContextId(Run run)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            if (!String.IsNullOrEmpty(run.ConversationId)) return run.ConversationId!;
+            return String.IsNullOrEmpty(run.RootRunId) ? run.Id : run.RootRunId!;
         }
 
         /// <summary>

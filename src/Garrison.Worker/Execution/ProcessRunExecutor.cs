@@ -62,14 +62,34 @@ namespace Garrison.Worker.Execution
 
             ExecutionSpec spec = assignment.Spec ?? new ExecutionSpec();
             SecretScrubber scrubber = new SecretScrubber(CollectSecrets(spec));
-            RunDirectories directories = new RunDirectories(_Options.WorkRoot, assignment.RunId);
+            RunDirectories directories = RunDirectories.For(_Options.WorkRoot, assignment.RunId, spec);
             RunCompleteRequest complete = new RunCompleteRequest();
             HarnessTiming timing = new HarnessTiming();
             bool succeeded = false;
 
             try
             {
+                ExecutionConversation? conversation = spec.Conversation;
+                bool resuming = conversation != null && conversation.Resume && spec.RepairAttempt == 0;
+                if (conversation != null && spec.RepairAttempt == 0)
+                {
+                    if (resuming && !directories.Exists())
+                    {
+                        // The session this turn resumes lived in directories this node no longer has: report it without
+                        // launching, so the control plane requeues the turn as a fresh session seeded with the transcript.
+                        string lost = "The directories of conversation " + conversation.ConversationId + " are gone from this node, so turn " + conversation.Turn + " cannot resume its harness session here.";
+                        Emit(reporter, scrubber, RunEventTypeEnum.Warning, lost, "ConversationStateLost");
+                        _Log?.Invoke("run " + assignment.RunId + ": " + lost + " " + RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
+                        return Fail(complete, RunOutcomeEnum.ConversationStateLost, lost);
+                    }
+                    if (!resuming && Directory.Exists(directories.Root))
+                    {
+                        // A turn that starts a new session (the first turn, or a fallback) starts from fresh directories.
+                        Directory.Delete(directories.Root, true);
+                    }
+                }
                 directories.Create();
+                if (conversation != null) directories.Touch();
                 new PlaceholderResolver(directories).ResolveSpec(spec);
                 Dictionary<string, string> environment = BuildEnvironment(spec, directories);
 
@@ -78,8 +98,10 @@ namespace Garrison.Worker.Execution
                 {
                     try
                     {
-                        // A structured output repair resumes the session in the workspace the original execution left.
-                        if (spec.RepairAttempt == 0) await _Workspace.PrepareAsync(spec.Workspace, directories, environment, token).ConfigureAwait(false);
+                        // A structured output repair, or a conversation turn that resumes, continues the session in the
+                        // workspace the earlier execution left.
+                        if (spec.RepairAttempt == 0 && !resuming) await _Workspace.PrepareAsync(spec.Workspace, directories, environment, token).ConfigureAwait(false);
+                        if (conversation != null) DeleteStaleResult(spec, directories);
                         foreach (ExecutionFile file in spec.Files) await FileMaterializer.WriteAsync(file, directories, token).ConfigureAwait(false);
                         GarrisonTracing.Ok(workspaceSpan);
                     }
@@ -94,6 +116,7 @@ namespace Garrison.Worker.Execution
                     }
                 }
                 if (spec.RepairAttempt > 0) Lifecycle(reporter, "RepairAttemptStarted", "Structured output repair attempt " + spec.RepairAttempt + ": resuming the harness session in " + directories.Workspace + ".");
+                else if (resuming) Lifecycle(reporter, "ConversationResumed", "Conversation turn " + conversation!.Turn + ": resuming the harness session in " + directories.Workspace + ".");
                 else Lifecycle(reporter, "WorkspacePrepared", "Workspace prepared at " + directories.Workspace + ".");
 
                 if (spec.McpPreflight.Count > 0)
@@ -250,9 +273,11 @@ namespace Garrison.Worker.Execution
             finally
             {
                 // Keep the directories when the control plane may ask for a repair in them; the worker host
-                // releases them once the run is finally reported.
+                // releases them once the run is finally reported. A conversation keeps its directories for the next turn
+                // until the conversation sweep removes them.
                 bool keepForRepair = (spec.RetainForRepair && succeeded) || spec.RepairAttempt > 0;
-                if (!keepForRepair) Cleanup(directories, spec.Workspace, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
+                if (spec.Conversation != null) TouchConversation(directories);
+                else if (!keepForRepair) Cleanup(directories, spec.Workspace, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
             }
         }
 
@@ -261,7 +286,44 @@ namespace Garrison.Worker.Execution
         {
             if (assignment == null) throw new ArgumentNullException(nameof(assignment));
             ExecutionSpec spec = assignment.Spec ?? new ExecutionSpec();
+            if (spec.Conversation != null) return;
             Cleanup(new RunDirectories(_Options.WorkRoot, assignment.RunId), spec.Workspace, succeeded, RunTracing.LogFields(assignment.RunId, RunTracing.TraceIdOf(spec.TraceParent)));
+        }
+
+        /// <summary>
+        /// Delete the directories of conversations that no turn used for longer than the retention, skipping the
+        /// conversations of runs still executing on this worker. A later turn of a swept conversation finds its
+        /// directories gone and falls back to a fresh session seeded with the transcript.
+        /// </summary>
+        /// <param name="retention">How long a conversation's directories may sit unused. Zero or less sweeps nothing.</param>
+        /// <param name="activeConversationIds">Conversations with a run executing on this worker; never swept.</param>
+        /// <returns>Number of conversation directories deleted.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when activeConversationIds is null.</exception>
+        public int SweepConversations(TimeSpan retention, ISet<string> activeConversationIds)
+        {
+            if (activeConversationIds == null) throw new ArgumentNullException(nameof(activeConversationIds));
+            if (retention <= TimeSpan.Zero) return 0;
+            string root = RunDirectories.ConversationsRoot(_Options.WorkRoot);
+            if (!Directory.Exists(root)) return 0;
+            int deleted = 0;
+            DateTime cutoff = DateTime.UtcNow - retention;
+            foreach (string directory in Directory.GetDirectories(root))
+            {
+                string name = Path.GetFileName(directory);
+                if (activeConversationIds.Contains(name)) continue;
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(directory) >= cutoff) continue;
+                    Directory.Delete(directory, true);
+                    deleted++;
+                    _Log?.Invoke("removed the directories of conversation " + name + " (unused since before " + cutoff.ToString("o") + ")");
+                }
+                catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                {
+                    _Log?.Invoke("removing the directories of conversation " + name + " failed: " + e.Message);
+                }
+            }
+            return deleted;
         }
 
         #endregion
@@ -394,6 +456,27 @@ namespace Garrison.Worker.Execution
             complete.ErrorMessage = message;
             complete.CompletedUtc = DateTime.UtcNow;
             return complete;
+        }
+
+        private static void DeleteStaleResult(ExecutionSpec spec, RunDirectories directories)
+        {
+            // A conversation's config directory outlives each turn; a result file left by the previous turn must not be
+            // read as this turn's answer.
+            if (spec.ResultSource != ResultSourceEnum.LastMessageFile || String.IsNullOrEmpty(spec.ResultFileName)) return;
+            string path = SafePaths.Combine(directories.Config, spec.ResultFileName);
+            if (File.Exists(path)) File.Delete(path);
+        }
+
+        private void TouchConversation(RunDirectories directories)
+        {
+            try
+            {
+                directories.Touch();
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                _Log?.Invoke("could not mark " + directories.Root + " as used: " + e.Message);
+            }
         }
 
         private void Cleanup(RunDirectories directories, ExecutionWorkspace workspace, bool succeeded, string logFields)

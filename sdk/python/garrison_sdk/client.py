@@ -22,6 +22,11 @@ RUN_EXECUTORS = ("Process", "KubernetesJob")
 # token reused, expired, or revoked); runs that bind it fail with outcome NotCredentialed until the value is replaced.
 SECRET_STATUSES = ("Ok", "NeedsReauthentication")
 
+# Run["conversationFallbackReason"] and Conversation["lastFallbackReason"] values: why a conversation turn started a fresh
+# harness session seeded with the transcript of the earlier turns instead of resuming the conversation's session.
+CONVERSATION_FALLBACK_REASONS = ("AffinityNodeLost", "AffinityWaitExpired", "WorkspaceLost", "SessionMissing",
+                                 "HarnessChanged", "ResumeUnsupported", "ExecutorWithoutState")
+
 
 class GarrisonError(Exception):
     """Raised when the API returns a non-success status. Carries the parsed error body when present."""
@@ -60,6 +65,14 @@ def _clean(params: Optional[Dict[str, Any]]) -> Dict[str, str]:
         else:
             out[key] = str(value)
     return out
+
+
+def _conversation(body: Dict[str, Any], conversation_id: Optional[str], start_conversation: bool) -> Dict[str, Any]:
+    if conversation_id:
+        body["conversationId"] = conversation_id
+    if start_conversation:
+        body["startConversation"] = True
+    return body
 
 
 def _seg(value: str) -> str:
@@ -225,15 +238,18 @@ class Roles(Resource):
 
 class Agents(Resource):
     def invoke(self, agent: str, input: str, wait: bool = True, wait_seconds: int = 60, parameters: Optional[Dict[str, str]] = None,
-               deployment_id: Optional[str] = None, priority: int = 0, cancel_on_disconnect: Optional[bool] = None) -> Dict[str, Any]:
+               deployment_id: Optional[str] = None, priority: int = 0, cancel_on_disconnect: Optional[bool] = None,
+               conversation_id: Optional[str] = None, start_conversation: bool = False) -> Dict[str, Any]:
         """Invoke an agent by identifier or name. With wait=True the finished run is returned when it completes in time.
-        A waiting call that disconnects cancels its run unless cancel_on_disconnect is False."""
+        A waiting call that disconnects cancels its run unless cancel_on_disconnect is False. start_conversation=True
+        starts a conversation (the run's conversationId names it); conversation_id sends the next turn of one, and raises
+        GarrisonError 409 ConversationBusy while the previous turn is unfinished."""
         body = {"input": input, "wait": wait, "waitSeconds": wait_seconds, "parameters": parameters or {}, "priority": priority}
         if deployment_id:
             body["deploymentId"] = deployment_id
         if cancel_on_disconnect is not None:
             body["cancelOnDisconnect"] = cancel_on_disconnect
-        return self._t.request("POST", self._item(agent) + "/invoke", body=body)
+        return self._t.request("POST", self._item(agent) + "/invoke", body=_conversation(body, conversation_id, start_conversation))
 
     def card(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._item(id) + "/card")
@@ -246,8 +262,10 @@ class Deployments(Resource):
     def compile_preview(self, id: str, input: str = "Hello from the compile preview.", parameters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         return self._t.request("POST", self._item(id) + "/compile-preview", body={"input": input, "parameters": parameters or {}})
 
-    def test(self, id: str, input: str, wait: bool = True, wait_seconds: int = 60) -> Dict[str, Any]:
-        return self._t.request("POST", self._item(id) + "/test", body={"input": input, "wait": wait, "waitSeconds": wait_seconds})
+    def test(self, id: str, input: str, wait: bool = True, wait_seconds: int = 60, conversation_id: Optional[str] = None,
+             start_conversation: bool = False) -> Dict[str, Any]:
+        body: Dict[str, Any] = {"input": input, "wait": wait, "waitSeconds": wait_seconds}
+        return self._t.request("POST", self._item(id) + "/test", body=_conversation(body, conversation_id, start_conversation))
 
 
 class HarnessProfiles(Resource):
@@ -332,11 +350,13 @@ class Runs:
 
     def create(self, input: str, agent_id: Optional[str] = None, agent_name: Optional[str] = None, deployment_id: Optional[str] = None,
                parameters: Optional[Dict[str, str]] = None, priority: int = 0, wait: bool = False, wait_seconds: int = 60,
-               cancel_on_disconnect: Optional[bool] = None) -> Dict[str, Any]:
+               cancel_on_disconnect: Optional[bool] = None, conversation_id: Optional[str] = None,
+               start_conversation: bool = False) -> Dict[str, Any]:
         body = {"agentId": agent_id, "agentName": agent_name, "deploymentId": deployment_id, "input": input,
                 "parameters": parameters or {}, "priority": priority, "wait": wait, "waitSeconds": wait_seconds,
                 "cancelOnDisconnect": cancel_on_disconnect}
-        return self._t.request("POST", self._p(), body={k: v for k, v in body.items() if v is not None})
+        body = {k: v for k, v in body.items() if v is not None}
+        return self._t.request("POST", self._p(), body=_conversation(body, conversation_id, start_conversation))
 
     def get(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._p(f"/{_seg(id)}"))
@@ -345,11 +365,12 @@ class Runs:
              harness_type: Optional[str] = None, node_id: Optional[str] = None, parent_run_id: Optional[str] = None,
              root_run_id: Optional[str] = None, outcome: Optional[str] = None, from_utc: Optional[datetime] = None,
              to_utc: Optional[datetime] = None, max_results: Optional[int] = None, skip: Optional[int] = None,
-             ordering: Optional[str] = None) -> Dict[str, Any]:
+             ordering: Optional[str] = None, caller_id: Optional[str] = None, conversation_id: Optional[str] = None) -> Dict[str, Any]:
         return self._t.request("GET", self._p(), {
             "status": status, "agentId": agent_id, "deploymentId": deployment_id, "harnessType": harness_type, "nodeId": node_id,
             "parentRunId": parent_run_id, "rootRunId": root_run_id, "outcome": outcome, "fromUtc": from_utc, "toUtc": to_utc,
-            "maxResults": max_results, "skip": skip, "ordering": ordering})
+            "maxResults": max_results, "skip": skip, "ordering": ordering, "callerId": caller_id,
+            "conversationId": conversation_id})
 
     def cancel(self, id: str) -> Dict[str, Any]:
         return self._t.request("POST", self._p(f"/{_seg(id)}/cancel"))
@@ -385,6 +406,37 @@ class Runs:
             if run.get("status") in TERMINAL_STATUSES or time.monotonic() >= deadline:
                 return run
             time.sleep(poll_interval)
+
+
+class Conversations:
+    """Multi-turn conversations with one agent. Start one with start_conversation=True on agents.invoke, runs.create, or
+    deployments.test, and continue it with conversation_id. Each turn is a run."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def _p(self, suffix: str = "") -> str:
+        return self._t.tenant_path("/conversations" + suffix)
+
+    def list(self, agent_id: Optional[str] = None, context_id: Optional[str] = None, caller_id: Optional[str] = None,
+             search: Optional[str] = None, max_results: Optional[int] = None, skip: Optional[int] = None,
+             ordering: Optional[str] = None) -> Dict[str, Any]:
+        """List conversations. Returns an enumeration result whose objects are conversations."""
+        return self._t.request("GET", self._p(), {
+            "agentId": agent_id, "contextId": context_id, "callerId": caller_id, "search": search,
+            "maxResults": max_results, "skip": skip, "ordering": ordering})
+
+    def get(self, id: str) -> Dict[str, Any]:
+        """Read a conversation. Raises GarrisonError 404 when it does not exist."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}"))
+
+    def delete(self, id: str) -> Any:
+        """Delete a conversation (its runs are kept). Raises GarrisonError 409 ConversationBusy while a turn is unfinished."""
+        return self._t.request("DELETE", self._p(f"/{_seg(id)}"))
+
+    def list_runs(self, id: str, max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
+        """List a conversation's turns (runs), oldest first."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}/runs"), {"maxResults": max_results, "skip": skip})
 
 
 class Analytics:
@@ -560,6 +612,7 @@ class GarrisonClient:
         self.artifact_stores = Resource(t, "artifact-stores")
         self.manifests = Manifests(t)
         self.runs = Runs(t)
+        self.conversations = Conversations(t)
         self.analytics = Analytics(t)
         self.nodes = Nodes(t, "/v1.0/api/nodes")
         self.control_nodes = ControlNodes(t)

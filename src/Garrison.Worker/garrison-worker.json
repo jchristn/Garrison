@@ -9,6 +9,8 @@
   "NodePool": null,
   "MaxConcurrentRuns": 4,
   "WorkRoot": "workspaces",
+  "ConversationRetentionHours": 24,
+  "ConversationSweepIntervalSeconds": 600,
   "HealthHostname": "*",
   "HealthPort": 8710,
   "HeartbeatIntervalMs": 5000,

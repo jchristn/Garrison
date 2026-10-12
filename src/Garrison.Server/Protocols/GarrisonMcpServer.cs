@@ -700,6 +700,8 @@ namespace Garrison.Server.Protocols
             if (String.IsNullOrWhiteSpace(options.Input)) throw ToolError("ValidationFailed", "input is required.");
             options.DeploymentId = args?.GetString("deploymentId");
             options.Parameters = ReadParameters(args);
+            options.ConversationId = args?.GetString("conversationId");
+            options.StartConversation = args?.GetBoolean("startConversation") ?? false;
             options.Wait = wait;
             long requested = args?.GetInt64("waitSeconds") ?? _Context.Settings.Mcp.MaxToolWaitSeconds;
             options.WaitSeconds = (int)Math.Clamp(requested, 0, _Context.Settings.Mcp.MaxToolWaitSeconds);
@@ -816,6 +818,8 @@ namespace Garrison.Server.Protocols
             summary.Agent = run.AgentName;
             summary.Status = run.Status.ToString();
             summary.Outcome = run.Outcome.ToString();
+            summary.ConversationId = run.ConversationId;
+            summary.ConversationTurn = String.IsNullOrEmpty(run.ConversationId) ? null : run.ConversationTurn;
             summary.BlockedReason = run.BlockedReason?.ToString();
             summary.Finished = RunService.IsTerminal(run.Status);
             summary.Result = run.ResultText;

@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const zhHans = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '结构化输出无效', RunBlocked: '运行受阻', EventsDropped: '事件已丢弃', HarnessExited: 'Harness 已退出', McpPreflightWarning: 'MCP 预检警告', McpPreflightPassed: 'MCP 预检通过', RepairAttemptStarted: '已开始修复输出', WorkspacePrepared: '工作区已就绪', RunGuardTriggered: '运行防护停止了运行' },
+    eventCodes: { StructuredOutputInvalid: '结构化输出无效', RunBlocked: '运行受阻', EventsDropped: '事件已丢弃', HarnessExited: 'Harness 已退出', McpPreflightWarning: 'MCP 预检警告', McpPreflightPassed: 'MCP 预检通过', RepairAttemptStarted: '已开始修复输出', WorkspacePrepared: '工作区已就绪', RunGuardTriggered: '运行防护停止了运行', ConversationFallback: '对话回退', ConversationResumed: '对话已恢复', ConversationStateLost: '对话状态丢失' },
     fieldCodes: { ExpiryInPast: '请选择未来的时间。', ParameterInvalid: '此值对该参数无效。', ParameterNotAllowed: '此部署不允许调用方覆盖此参数。', SettingsFileReadOnly: '设置文件为只读，因此无法保存此更改。', OverriddenByEnvironment: '此值由环境变量设置，因此无法在此更改。', PathRequired: '需要设置路径。', UnknownSetting: '此服务器没有该设置。', TooLong: '此值过长。', NotAllowedValue: '请选择允许的值之一。', NotABoolean: '请选择 true 或 false。', NotAnInteger: '请输入整数。', OutOfRange: '值超出允许的范围。' },
     serverText: {
       notApplied: '未应用，因为另一个文档未通过验证。',
@@ -134,7 +134,11 @@ const zhHans = {
     Http404: '未找到。',
     Http409: '与当前状态冲突。',
     Http500: '服务器发生内部错误。',
-    Http503: '服务器不可用。'
+    Http503: '服务器不可用。',
+    ConversationBusy: '该对话仍在处理上一轮。请等待该运行结束或将其取消，然后重试。',
+    ConversationAgentMismatch: '该对话属于另一个智能体。请将这一轮发送给那个智能体，或开始新的对话。',
+    ConversationDeploymentMismatch: '对话的每一轮都在第一轮的部署上运行。请将部署留空，或开始新的对话。',
+    ConversationDeploymentUnavailable: '该对话所用的部署已被删除，因此对话无法继续。请开始新的对话。'
   },
   enums: {
     principalType: { Administrator: '系统管理员', User: '用户', Credential: '访问密钥', Run: '运行令牌' },
@@ -222,7 +226,8 @@ const zhHans = {
       NoCapableWorker: '没有可用的工作节点',
       RepetitionDetected: '检测到重复',
       NoProgress: '无进展',
-      PodFailed: '运行 Pod 失败'
+      PodFailed: '运行 Pod 失败',
+      ConversationStateLost: '对话状态丢失'
     },
     runEventType: {
       Lifecycle: '生命周期',
@@ -287,7 +292,17 @@ const zhHans = {
       ManifestApplied: '已应用清单',
       NodeRegistered: '节点已注册',
       NodeStatusChanged: '节点状态已更改',
-      RunCancelled: '运行已取消'
+      RunCancelled: '运行已取消',
+      ConversationDeleted: '对话已删除'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: '亲和节点未就绪',
+      AffinityWaitExpired: '亲和等待已超时',
+      WorkspaceLost: '工作区已丢失',
+      SessionMissing: '没有可恢复的会话',
+      HarnessChanged: 'Harness 配置文件已更改',
+      ResumeUnsupported: '不支持恢复',
+      ExecutorWithoutState: '执行器不保留状态'
     }
   },
   nav: {
@@ -336,7 +351,11 @@ const zhHans = {
       roles: { label: '角色', tip: '角色和权限' },
       assignments: { label: '分配', tip: '向用户和访问密钥授予角色' },
       settings: { label: '设置', tip: '编辑服务器和集群设置' },
-      serverInfo: { label: '服务器信息', tip: '端点、版本和你的身份' }
+      serverInfo: { label: '服务器信息', tip: '端点、版本和你的身份' },
+      conversations: {
+        label: '对话',
+        tip: '与智能体的多轮交流'
+      }
     },
     setup: '设置向导',
     setupTip: '配置凭据、应用示例智能体并进行测试',
@@ -714,7 +733,7 @@ const zhHans = {
       errors: { dnsName: '请使用小写字母、数字和连字符，并以字母或数字开头和结尾。' }
     },
     deployments: {
-      promptRoles: { Repair: '结构化输出修复', DelegatedTask: '委派运行的任务包装', Task: '任务包装', System: '系统提示词' },
+      promptRoles: { Repair: '结构化输出修复', DelegatedTask: '委派运行的任务包装', Task: '任务包装', System: '系统提示词', ConversationFallback: '对话回退（记录）' },
       ...rp('部署', '将智能体绑定到 Harness 配置文件、提示词、机密、MCP 服务器、调度放置和限制。', '添加部署', '创建部署', '编辑部署', '部署详情', '删除部署', '暂无部署', '创建部署，使智能体可以运行。'),
       steps: { basics: '基本信息', harness: 'Harness', prompts: '提示词', resources: '资源', overrides: '覆盖', placement: '调度放置和限制' },
       columns: { name: '名称', agentId: '智能体', harnessProfileId: 'Harness 配置文件', model: '模型', executor: '执行器', weight: '权重', configVersion: '配置版本', active: '启用', id: 'ID', createdUtc: '创建时间' },
@@ -841,10 +860,12 @@ const zhHans = {
         costUsd: '成本',
         toolCallCount: '工具调用',
         depth: '深度',
-        createdUtc: '创建时间'
+        createdUtc: '创建时间',
+        conversationId: '对话'
       },
       actions: { cancel: '取消运行', retry: '重试运行' },
-      toasts: { cancelRequested: '已请求取消。', retried: '已开始重试。' }
+      toasts: { cancelRequested: '已请求取消。', retried: '已开始重试。' },
+      turn: '第 {{turn}} 轮'
     },
     nodes: {
       ...rp('节点', '租用并执行运行的工作节点。维护前请先封锁或排空节点。', '添加节点', '创建节点', '编辑节点', '节点详情', '删除节点', '暂无节点', '工作节点启动时会自动注册。请部署工作节点 StatefulSet，或在本地运行 Garrison.Worker。'),
@@ -890,6 +911,42 @@ const zhHans = {
     manifestApplies: {
       ...rp('应用历史', '每次清单应用和试运行，以及每个文档的结果。', '添加应用记录', '创建应用记录', '编辑应用记录', '应用详情', '删除应用记录', '暂无应用历史', '应用清单或试运行清单后，记录会显示在这里。'),
       columns: { createdUtc: '时间', principalName: '应用者', dryRun: '试运行', counts: '结果' }
+    },
+    conversations: {
+      title: '对话',
+      subtitle: '与智能体的多轮交流。每一轮都是一次运行，会恢复上一轮的 Harness 会话。',
+      add: '添加对话',
+      create: '创建对话',
+      edit: '编辑对话',
+      view: '对话详情',
+      deleteTitle: '删除对话',
+      emptyTitle: '还没有对话',
+      emptyBody: '在“调用”页面选择“开始新对话”来创建一个，或发送 A2A 消息：每个 A2A 上下文都是一个对话。',
+      untitled: '无标题对话',
+      columns: {
+        title: '标题',
+        agentName: '智能体',
+        state: '状态',
+        turnCount: '轮数',
+        affinityNodeName: '亲和节点',
+        fallbackCount: '回退次数',
+        lastFallbackReason: '最近一次回退',
+        harnessType: 'Harness',
+        callerName: '发起者',
+        contextId: '上下文 ID',
+        sessionId: '会话 ID',
+        lastActivityUtc: '最近活动',
+        createdUtc: '创建时间',
+        id: 'ID'
+      },
+      states: {
+        busy: '处理中',
+        idle: '空闲'
+      },
+      actions: {
+        continue: '继续',
+        runs: '以运行形式查看各轮'
+      }
     }
   },
   views: {
@@ -1019,6 +1076,20 @@ const zhHans = {
         minutes: '{{value}} 分钟',
         hours: '{{value}} 小时',
         secondsWord: '秒'
+      },
+      conversation: {
+        mode: '对话',
+        modes: {
+          none: '单次运行（无对话）',
+          start: '开始新对话',
+          continue: '继续对话'
+        },
+        pick: '要继续的对话',
+        choose: '选择对话',
+        option: '{{title}}（轮数：{{turns}}）',
+        pinned: '每一轮都在对话第一轮的部署上运行，因此这里不能选择部署。',
+        busy: '该对话仍在处理上一轮。在该运行结束之前，新的消息会被拒绝。',
+        open: '打开对话（第 {{turn}} 轮）'
       }
     },
     runDetail: {
@@ -1091,7 +1162,12 @@ const zhHans = {
           firstTokenUtc: '首个 Token 时间',
           lastTokenUtc: '最后一个 Token 时间'
         }
-      }
+      },
+      conversation: '对话',
+      conversationSession: '会话',
+      resumeSessionId: '恢复的会话',
+      affinityNode: '亲和节点',
+      affinityUntil: '直到 {{time}}'
     },
     queue: {
       title: '队列',
@@ -1115,7 +1191,8 @@ const zhHans = {
       noDeploymentsBody: '创建部署，将此智能体绑定到 Harness。',
       noRuns: '此智能体尚未运行过。',
       selectionNote: '每次未显式指定部署的调用都会发往一个启用的部署，按权重比例随机选择。',
-      manageDeployments: '管理部署'
+      manageDeployments: '管理部署',
+      conversations: '对话'
     },
     templateEditor: {
       cloneToEdit: '克隆后编辑',
@@ -1386,7 +1463,10 @@ const zhHans = {
           MaxRunSeconds: '最长运行时间（秒）',
           RepetitionGuard: '默认启用重复防护',
           MaxAssistantChars: '默认最大助手字符数',
-          NoProgressSeconds: '默认无进展超时（秒）'
+          NoProgressSeconds: '默认无进展超时（秒）',
+          ConversationAffinityWaitMs: '对话亲和等待时间（毫秒）',
+          ConversationTranscriptTurns: '回退记录的轮数',
+          ConversationTranscriptChars: '回退记录中每条消息的字符数'
         },
         Audit: {
           RetentionDays: '审计保留天数'
@@ -1528,6 +1608,42 @@ const zhHans = {
       tuneAny: '要更改触发条件，请编辑部署：其“调度放置和限制”步骤中有重复防护、最大助手字符数和无进展超时。留空时，它们遵循设置（运行时）中的集群默认值。',
       openDeployments: '打开部署',
       openSettings: '打开设置'
+    },
+    conversationDetail: {
+      title: '对话',
+      notFoundTitle: '未找到对话',
+      notFoundBody: '它可能已被删除，或属于另一个租户。它的各轮仍保留在“运行”页面。',
+      deployment: '部署',
+      activeRun: '未完成的一轮',
+      turns: '各轮',
+      turnsCount: '各轮 ({{count}})',
+      noTurns: '该对话还没有任何一轮。',
+      pending: '等待结果',
+      columns: {
+        turn: '轮次',
+        run: '运行',
+        status: '状态',
+        outcome: '结果',
+        session: '会话',
+        input: '输入',
+        result: '回答',
+        node: '节点',
+        created: '创建时间'
+      },
+      session: {
+        first: '新会话',
+        resumed: '已恢复',
+        fallback: '全新会话',
+        pending: '尚未分配'
+      },
+      continueTitle: '继续对话',
+      message: '下一条消息',
+      messagePlaceholder: '提出后续问题或给出下一条指令...',
+      busyNotice: '上一轮仍在处理中。完成后即可发送下一条消息。',
+      send: '发送这一轮',
+      turnStarted: '第 {{turn}} 轮已开始。',
+      openInvoke: '在“调用”中继续',
+      confirmDelete: '删除对话“{{title}}”？它的各轮会作为普通运行保留在“运行”页面，但不能再有新的一轮继续它。'
     }
   },
   wizard: {

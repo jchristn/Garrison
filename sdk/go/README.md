@@ -63,7 +63,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Resources
 
-`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Manifests`, `Runs`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
+`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Manifests`, `Runs`, `Conversations`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
 
 Control-plane replicas are read-only: `client.ControlNodes.List(ctx, opts)` returns a `*garrison.ControlNodeList` (a page of `garrison.ControlNode` plus `RespondingNodeID`, the replica that answered) and `client.ControlNodes.Get(ctx, nodeID)` reads one replica. `Status` is one of the `ControlNodeStatus*` constants (`Starting`, `Ready`, `Draining`, `Offline`); `IsLeader` and `LeaderEpoch` (leader only) come from the coordination lease.
 
@@ -83,6 +83,40 @@ err := client.Runs.Stream(ctx, queued.ID, 0, func(item garrison.RunStreamItem) b
 ```
 
 The stream ends after `run.completed`. `Runs.Events` polls and `Runs.WaitForCompletion` waits for a terminal status.
+
+## Conversations
+
+A conversation is a multi-turn session with one agent. Each turn is a run, and every turn after the first resumes the harness session the earlier turns built, on the node that holds that session's directories. Set `StartConversation: true` on an `InvokeRequest` or `RunCreateRequest` to start one; the returned run's `ConversationID` names it. Set `ConversationID` to send the next turn. Deployment tests take the same body: `client.Deployments.Action(ctx, id, "test", garrison.InvokeRequest{...}, &run)`.
+
+```go
+first, err := client.Agents.Invoke(ctx, "my-agent", garrison.InvokeRequest{Input: "Plan the migration", Wait: true, StartConversation: true})
+conversationID := *first.ConversationID
+
+second, err := client.Agents.Invoke(ctx, "my-agent", garrison.InvokeRequest{Input: "Now write step 1", Wait: true, ConversationID: conversationID})
+fmt.Println(second.ConversationTurn, second.ResultText) // 2 ...
+
+conversation, err := client.Conversations.Get(ctx, conversationID)
+turns, err := client.Conversations.ListRuns(ctx, conversationID, 0, 0) // oldest first
+err = client.Conversations.Delete(ctx, conversationID)                // the runs are kept
+```
+
+Turns of one conversation never overlap. A turn sent while the previous one is unfinished is refused, not queued, with HTTP 409 and code `ConversationBusy`; wait for the previous run (or cancel it) and send again:
+
+```go
+_, err := client.Agents.Invoke(ctx, "my-agent", garrison.InvokeRequest{Input: "Next", Wait: true, ConversationID: conversationID})
+var apiErr *garrison.Error
+if errors.As(err, &apiErr) && apiErr.StatusCode == 409 && apiErr.Code == "ConversationBusy" {
+	if c, err := client.Conversations.Get(ctx, conversationID); err == nil && c.ActiveRunID != nil {
+		_, _ = client.Runs.WaitForCompletion(ctx, *c.ActiveRunID)
+	}
+}
+```
+
+Other 409 codes are `ConversationAgentMismatch` (the conversation belongs to another agent), `ConversationDeploymentMismatch` (the request names a deployment other than the conversation's), and `ConversationDeploymentUnavailable` (the conversation's deployment was deleted). An unknown `ConversationID` returns 404. `Conversations.Delete` also returns 409 `ConversationBusy` while a turn is unfinished.
+
+`Conversations.List(ctx, garrison.ConversationFilter{...})` filters by `AgentID`, `ContextID` (the A2A context the conversation was created for), `CallerID`, and `Search`, with `Ordering`, `MaxResults`, and `Skip`. `RunFilter.ConversationID` lists a conversation's runs through `Runs.List`. A `garrison.Conversation` carries `TurnCount`, `SessionID`, `AffinityNodeID` and `AffinityNodeName`, `ActiveRunID`, `LastRunID`, `Busy` (true while a turn is unfinished), `FallbackCount`, and `LastFallbackReason`.
+
+Each turn's `Run` has `ConversationID` (`*string`), `ConversationTurn` (`int`: 1 for the first turn, 0 outside a conversation), `ResumeSessionID`, `AffinityNodeID`, `AffinityUntilUTC`, and `ConversationFallbackReason`. A fallback happens when the turn cannot resume and starts a fresh session seeded with the transcript of the earlier turns instead; the `ConversationFallback*` constants list the values (`AffinityNodeLost`, `AffinityWaitExpired`, `WorkspaceLost`, `SessionMissing`, `HarnessChanged`, `ResumeUnsupported`, `ExecutorWithoutState`). A turn that could not even fall back ends with `RunOutcomeConversationStateLost`. See "Conversations" in `REST_API.md`.
 
 ## Run timing and usage fields
 

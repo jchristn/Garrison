@@ -224,6 +224,7 @@ func (r *RunsClient) List(ctx context.Context, f RunFilter) (*EnumerationResult[
 	set("rootRunId", f.RootRunID)
 	set("outcome", f.Outcome)
 	set("ordering", f.Ordering)
+	set("conversationId", f.ConversationID)
 	if f.MaxResults > 0 {
 		q.Set("maxResults", strconv.Itoa(f.MaxResults))
 	}
@@ -304,6 +305,72 @@ func (r *RunsClient) WaitForCompletion(ctx context.Context, id string) (*Run, er
 		case <-time.After(interval):
 		}
 	}
+}
+
+// ConversationsClient lists, reads, and deletes conversations. Start a conversation with
+// InvokeRequest.StartConversation (or RunCreateRequest.StartConversation) and continue it with ConversationID.
+type ConversationsClient struct {
+	c *Client
+}
+
+func (r *ConversationsClient) p(suffix string) string {
+	return r.c.TenantPath("/conversations" + suffix)
+}
+
+// List lists conversations matching filter.
+func (r *ConversationsClient) List(ctx context.Context, f ConversationFilter) (*EnumerationResult[Conversation], error) {
+	q := url.Values{}
+	set := func(k, v string) {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	set("agentId", f.AgentID)
+	set("contextId", f.ContextID)
+	set("callerId", f.CallerID)
+	set("search", f.Search)
+	set("ordering", f.Ordering)
+	if f.MaxResults > 0 {
+		q.Set("maxResults", strconv.Itoa(f.MaxResults))
+	}
+	if f.Skip > 0 {
+		q.Set("skip", strconv.Itoa(f.Skip))
+	}
+	var out EnumerationResult[Conversation]
+	if err := r.c.Do(ctx, http.MethodGet, r.p(""), q, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Get returns a conversation. A missing conversation is an *Error with StatusCode 404.
+func (r *ConversationsClient) Get(ctx context.Context, id string) (*Conversation, error) {
+	var out Conversation
+	if err := r.c.Do(ctx, http.MethodGet, r.p("/"+url.PathEscape(id)), nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Delete removes a conversation; its runs are kept. The server answers 409 ConversationBusy while a turn is unfinished.
+func (r *ConversationsClient) Delete(ctx context.Context, id string) error {
+	return r.c.Do(ctx, http.MethodDelete, r.p("/"+url.PathEscape(id)), nil, nil, nil)
+}
+
+// ListRuns lists a conversation's turns (runs), oldest first. Zero maxResults or skip use the server defaults.
+func (r *ConversationsClient) ListRuns(ctx context.Context, id string, maxResults, skip int) (*EnumerationResult[Run], error) {
+	q := url.Values{}
+	if maxResults > 0 {
+		q.Set("maxResults", strconv.Itoa(maxResults))
+	}
+	if skip > 0 {
+		q.Set("skip", strconv.Itoa(skip))
+	}
+	var out EnumerationResult[Run]
+	if err := r.c.Do(ctx, http.MethodGet, r.p("/"+url.PathEscape(id)+"/runs"), q, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // AnalyticsClient reports aggregate tenant analytics.

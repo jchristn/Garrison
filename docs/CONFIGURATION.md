@@ -174,6 +174,9 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Runtime.MaxAssistantChars` | `200000` | 0 to 100000000 | Default for deployments that leave `maxAssistantChars` null: characters of assistant text after which the worker stops a run with outcome `OutputLimitExceeded`. `0` is unlimited |
 | `Runtime.NoProgressSeconds` | `300` | 0 to 86400 | Default for deployments that leave `noProgressSeconds` null: seconds without assistant text, thinking, a tool call, or a tool result, while no tool call is open, after which the worker stops a run with outcome `NoProgress`. `0` turns the guard off |
 | `Runtime.FailBlockedAfterSeconds` | `0` | 0 to 604800 | How long a queued run may wait while no Ready worker can run it (its `blockedReason` is not null) before the leader fails it with outcome `NoCapableWorker`. The clock starts when the leader first sees the run blocked. `0` means wait forever |
+| `Runtime.ConversationAffinityWaitMs` | `30000` | 0 to 600000 | How long a conversation turn waits for the node that holds the conversation's harness session. Other nodes leave the turn queued for this long while that node is Ready, then take it and start a fresh session seeded with the transcript (a fallback). They take it at once when the node is not Ready. `0` never waits |
+| `Runtime.ConversationTranscriptTurns` | `20` | 1 to 200 | Most earlier turns repeated to a fallback turn; the newest are kept |
+| `Runtime.ConversationTranscriptChars` | `4000` | 200 to 200000 | Most characters of each earlier input and answer repeated to a fallback turn; longer ones are cut and marked |
 | `ControlPlane.HeartbeatIntervalMs` | `5000` | 1000 to 60000 | How often each control-plane replica heartbeats its row in `control_nodes` (status, activity counters) |
 | `ControlPlane.OfflineAfterMs` | `30000` | 5000 to 600000 | Silence after which the leader marks a control-plane replica `Offline`. Keep it several heartbeat intervals long |
 | `ControlPlane.OfflineRetentionHours` | `24` | 1 to 8760 | How long an `Offline` control-plane replica stays listed (counted from its last heartbeat) before the leader deletes its row |
@@ -222,7 +225,9 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `Labels` | `garrison.io/pool=default` | Labels matched by deployment node selectors. Environment: `GARRISON_WORKER_LABELS` as `key=value,key=value`, added to the file's labels |
 | `NodePool` | the default pool | Pool name. Environment: `GARRISON_WORKER_NODE_POOL` |
 | `MaxConcurrentRuns` | `4` | Runs at once, 1 to 256. Environment: `GARRISON_WORKER_MAX_CONCURRENT_RUNS` |
-| `WorkRoot` | `workspaces` | Root of per-run workspace, home, and config directories. Environment: `GARRISON_WORKER_WORK_ROOT` |
+| `WorkRoot` | `workspaces` | Root of per-run workspace, home, and config directories. Conversation turns use `<WorkRoot>/conversations/<conversationId>/` instead, kept between turns. Environment: `GARRISON_WORKER_WORK_ROOT` |
+| `ConversationRetentionHours` | `24` | Hours a conversation's directories may go unused before the worker deletes them, 0 to 8760; `0` keeps them until the work root is emptied. The next turn of a removed conversation starts a fresh session seeded with the transcript. Environment: `GARRISON_WORKER_CONVERSATION_RETENTION_HOURS` |
+| `ConversationSweepIntervalSeconds` | `600` | How often the worker looks for unused conversation directories, 10 to 86400 |
 | `HealthHostname`, `HealthPort` | `*`, `8710` | Health listener. Environment: `GARRISON_WORKER_HEALTH_PORT` |
 | `HeartbeatIntervalMs` | `5000` | Heartbeat interval; the server can override it at registration |
 | `PauseGraceMs` | `5000` | Pause tolerance, 1000 to 600000. When the heartbeat loop finds that more than its sleep plus this long passed (host sleep, frozen container, clock jump), it logs a Warning (`event=worker.pause`) and heartbeats at once, which renews every lease it holds |

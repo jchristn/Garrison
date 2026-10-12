@@ -190,6 +190,11 @@ namespace Garrison.Core.Database
         /// </summary>
         public IControlNodeMethods ControlNodes { get; protected set; } = null!;
 
+        /// <summary>
+        /// Conversation methods.
+        /// </summary>
+        public IConversationMethods Conversations { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

@@ -38,6 +38,16 @@ namespace Garrison.Server.Protocols
         public string? BlockedReason { get; set; } = null;
 
         /// <summary>
+        /// Conversation the run is a turn of, or null (omitted). Pass it as conversationId to send the next turn.
+        /// </summary>
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>
+        /// Turn number within the conversation, or null (omitted) outside a conversation.
+        /// </summary>
+        public int? ConversationTurn { get; set; } = null;
+
+        /// <summary>
         /// Whether the run finished.
         /// </summary>
         public bool Finished { get; set; } = false;

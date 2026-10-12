@@ -105,6 +105,7 @@ namespace Garrison.Core.Database
                 "mcp_sessions",
                 "backplane_messages",
                 "control_nodes",
+                "conversations",
         };
 
         private readonly SqlDialect _Dialect;

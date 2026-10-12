@@ -118,6 +118,39 @@ namespace Garrison.Worker.Settings
         }
 
         /// <summary>
+        /// Hours a conversation's work, home, and config directories (under &lt;WorkRoot&gt;/conversations) may go unused
+        /// before the worker deletes them. A later turn of that conversation then starts a fresh harness session seeded
+        /// with the transcript. 0 keeps them until the work root is emptied. Minimum 0, maximum 8760 (one year),
+        /// default 24. Environment override GARRISON_WORKER_CONVERSATION_RETENTION_HOURS.
+        /// </summary>
+        public int ConversationRetentionHours
+        {
+            get
+            {
+                return _ConversationRetentionHours;
+            }
+            set
+            {
+                _ConversationRetentionHours = Math.Clamp(value, 0, 8760);
+            }
+        }
+
+        /// <summary>
+        /// Seconds between sweeps for unused conversation directories. Minimum 10, maximum 86400, default 600.
+        /// </summary>
+        public int ConversationSweepIntervalSeconds
+        {
+            get
+            {
+                return _ConversationSweepIntervalSeconds;
+            }
+            set
+            {
+                _ConversationSweepIntervalSeconds = Math.Clamp(value, 10, 86400);
+            }
+        }
+
+        /// <summary>
         /// Health listener hostname. Default * (all interfaces).
         /// </summary>
         public string HealthHostname
@@ -407,6 +440,8 @@ namespace Garrison.Worker.Settings
         private Dictionary<string, string> _Labels = new Dictionary<string, string> { { "garrison.io/pool", "default" } };
         private int _MaxConcurrentRuns = 4;
         private string _WorkRoot = "workspaces";
+        private int _ConversationRetentionHours = 24;
+        private int _ConversationSweepIntervalSeconds = 600;
         private string _HealthHostname = "*";
         private int _HealthPort = 8710;
         private TelemetrySettings _Telemetry = DefaultTelemetry();
@@ -483,6 +518,8 @@ namespace Garrison.Worker.Settings
             if (value != null && Int32.TryParse(value, out int max)) MaxConcurrentRuns = max;
             value = Env("GARRISON_WORKER_WORK_ROOT");
             if (value != null) WorkRoot = value;
+            value = Env("GARRISON_WORKER_CONVERSATION_RETENTION_HOURS");
+            if (value != null && Int32.TryParse(value, out int retentionHours)) ConversationRetentionHours = retentionHours;
             value = Env("GARRISON_WORKER_HEALTH_PORT");
             if (value != null && Int32.TryParse(value, out int port)) HealthPort = port;
             value = Env("GARRISON_WORKER_NODE_POOL");

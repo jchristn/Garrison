@@ -39,6 +39,13 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public ControlNodeActivity? Activity { get; set; } = null;
 
+        /// <summary>
+        /// Conversation service: conversation turns wait for their affinity node, and a turn claimed elsewhere falls back
+        /// to a fresh session seeded with the transcript. Null claims conversation turns like any other run. Default
+        /// null; the runtime module sets it.
+        /// </summary>
+        public ConversationService? Conversations { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -195,11 +202,29 @@ namespace Garrison.Server.Runtime
 
             Dictionary<string, long> activeByDeployment = new Dictionary<string, long>(StringComparer.Ordinal);
             Dictionary<string, Deployment?> deployments = new Dictionary<string, Deployment?>(StringComparer.Ordinal);
+            Dictionary<string, Node?> affinityNodes = new Dictionary<string, Node?>(StringComparer.Ordinal);
+            DateTime now = DateTime.UtcNow;
 
             foreach (Run candidate in candidates)
             {
                 if (assignments.Count >= maxRuns) break;
                 if (!PlacementRules.MatchesPlacement(node, pool, candidate)) continue;
+
+                // A conversation turn that resumes a harness session waits (bounded) for the node holding the session
+                // (P12.1); other nodes take it once that node is not Ready or the wait is over, as a fallback.
+                if (Conversations != null && !String.IsNullOrEmpty(candidate.AffinityNodeId) && candidate.AffinityNodeId != node.Id)
+                {
+                    if (!affinityNodes.TryGetValue(candidate.AffinityNodeId, out Node? affinityNode))
+                    {
+                        affinityNode = await _Database.Nodes.ReadAsync(candidate.AffinityNodeId, token).ConfigureAwait(false);
+                        affinityNodes[candidate.AffinityNodeId] = affinityNode;
+                    }
+                    if (ConversationService.DefersToAffinityNode(candidate, node, affinityNode, now))
+                    {
+                        GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "affinity", "harness", candidate.HarnessType.ToString());
+                        continue;
+                    }
+                }
 
                 if (!deployments.TryGetValue(candidate.DeploymentId, out Deployment? deployment))
                 {
@@ -303,11 +328,20 @@ namespace Garrison.Server.Runtime
                     runToken = await _Authentication.IssueForRunAsync(run, epoch, deadline, token).ConfigureAwait(false);
                 }
 
+                // A conversation turn claimed away from its affinity node starts a fresh session from the transcript.
+                CompilationConversation? transcript = null;
+                if (Conversations != null && !String.IsNullOrEmpty(run.ConversationId))
+                {
+                    await Conversations.ApplyClaimFallbackAsync(run, node, epoch, token).ConfigureAwait(false);
+                    transcript = await Conversations.TranscriptAsync(run, token).ConfigureAwait(false);
+                }
+
                 CompilationResult compiled;
                 using (Activity? compile = RunTracing.Start("run:compile", claim?.Id ?? run.TraceParent))
                 {
                     compile?.SetTag("garrison.run_id", run.Id);
-                    compiled = await _Compiler().CompileAsync(run, runToken, token).ConfigureAwait(false);
+                    if (!String.IsNullOrEmpty(run.ConversationId)) compile?.SetTag("garrison.conversation_id", run.ConversationId);
+                    compiled = await _Compiler().CompileAsync(run, runToken, transcript, token).ConfigureAwait(false);
                 }
 
                 // A compile that waited on a credential refresh (G-22) may have used up part of the lease; give the

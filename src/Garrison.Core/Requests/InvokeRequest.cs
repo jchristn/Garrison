@@ -50,5 +50,18 @@ namespace Garrison.Core.Requests
         /// query parameter cancelOnDisconnect overrides this value. Ignored when not waiting.
         /// </summary>
         public bool? CancelOnDisconnect { get; set; } = null;
+
+        /// <summary>
+        /// Conversation to continue: the run becomes the conversation's next turn and resumes the harness session the
+        /// earlier turns built. Must be a conversation of the same agent. A turn sent while the previous turn is
+        /// unfinished fails with 409 ConversationBusy. Null runs outside a conversation unless startConversation is set.
+        /// </summary>
+        public string? ConversationId { get; set; } = null;
+
+        /// <summary>
+        /// Start a new conversation with this run as its first turn; the run's conversationId names it. Ignored when
+        /// conversationId is set. Default false.
+        /// </summary>
+        public bool StartConversation { get; set; } = false;
     }
 }

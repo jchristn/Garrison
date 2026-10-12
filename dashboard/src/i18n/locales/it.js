@@ -6,7 +6,7 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const it = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Output strutturato non valido', RunBlocked: 'Esecuzione bloccata', EventsDropped: 'Eventi scartati', HarnessExited: 'Harness terminato', McpPreflightWarning: 'Avviso della verifica preliminare MCP', McpPreflightPassed: 'Verifica preliminare MCP superata', RepairAttemptStarted: 'Riparazione dell\'output avviata', WorkspacePrepared: 'Area di lavoro preparata', RunGuardTriggered: 'Una protezione ha fermato l\'esecuzione' },
+    eventCodes: { StructuredOutputInvalid: 'Output strutturato non valido', RunBlocked: 'Esecuzione bloccata', EventsDropped: 'Eventi scartati', HarnessExited: 'Harness terminato', McpPreflightWarning: 'Avviso della verifica preliminare MCP', McpPreflightPassed: 'Verifica preliminare MCP superata', RepairAttemptStarted: 'Riparazione dell\'output avviata', WorkspacePrepared: 'Area di lavoro preparata', RunGuardTriggered: 'Una protezione ha fermato l\'esecuzione', ConversationFallback: 'Conversazione ricostruita', ConversationResumed: 'Conversazione ripresa', ConversationStateLost: 'Stato della conversazione perso' },
     fieldCodes: { ExpiryInPast: 'Scegli un momento nel futuro.', ParameterInvalid: 'Questo valore non è valido per questo parametro.', ParameterNotAllowed: 'Questa distribuzione non consente ai chiamanti di sovrascrivere questo parametro.', SettingsFileReadOnly: 'Il file delle impostazioni è di sola lettura, quindi questa modifica non si può salvare.', OverriddenByEnvironment: 'Una variabile d\'ambiente imposta questo valore, quindi qui non si può cambiare.', PathRequired: 'Serve il percorso dell\'impostazione.', UnknownSetting: 'Questo server non ha questa impostazione.', TooLong: 'Questo valore è troppo lungo.', NotAllowedValue: 'Scegli uno dei valori consentiti.', NotABoolean: 'Scegli vero o falso.', NotAnInteger: 'Inserisci un numero intero.', OutOfRange: 'Il valore è fuori dall\'intervallo consentito.' },
     serverText: {
       notApplied: 'Non applicato perché un altro documento non ha superato la convalida.',
@@ -134,7 +134,11 @@ const it = {
     Http404: 'Non trovato.',
     Http409: 'Conflitto con lo stato attuale.',
     Http500: 'Il server ha riscontrato un errore interno.',
-    Http503: 'Il server non è disponibile.'
+    Http503: 'Il server non è disponibile.',
+    ConversationBusy: 'Questa conversazione sta ancora elaborando il turno precedente. Attendi che quell\'esecuzione finisca, o annullala, e poi riprova.',
+    ConversationAgentMismatch: 'Questa conversazione appartiene a un altro agente. Invia il turno a quell\'agente o avvia una nuova conversazione.',
+    ConversationDeploymentMismatch: 'Ogni turno di una conversazione viene eseguito sulla distribuzione del suo primo turno. Lascia vuota la distribuzione o avvia una nuova conversazione.',
+    ConversationDeploymentUnavailable: 'La distribuzione di questa conversazione è stata eliminata, quindi la conversazione non può continuare. Avvia una nuova conversazione.'
   },
   enums: {
     principalType: { Administrator: 'Amministratore di sistema', User: 'Utente', Credential: 'Chiave di accesso', Run: 'Token di esecuzione' },
@@ -248,7 +252,8 @@ const it = {
       NoCapableWorker: 'Nessun nodo worker compatibile',
       RepetitionDetected: 'Ripetizione rilevata',
       NoProgress: 'Nessun avanzamento',
-      PodFailed: 'Pod di esecuzione non riuscito'
+      PodFailed: 'Pod di esecuzione non riuscito',
+      ConversationStateLost: 'Stato della conversazione perso'
     },
     runEventType: {
       Lifecycle: 'Ciclo di vita',
@@ -313,7 +318,17 @@ const it = {
       ManifestApplied: 'Manifest applicato',
       NodeRegistered: 'Nodo registrato',
       NodeStatusChanged: 'Stato del nodo modificato',
-      RunCancelled: 'Esecuzione annullata'
+      RunCancelled: 'Esecuzione annullata',
+      ConversationDeleted: 'Conversazione eliminata'
+    },
+    conversationFallbackReason: {
+      AffinityNodeLost: 'Nodo di affinità non pronto',
+      AffinityWaitExpired: 'Attesa di affinità scaduta',
+      WorkspaceLost: 'Area di lavoro persa',
+      SessionMissing: 'Nessuna sessione da riprendere',
+      HarnessChanged: 'Profilo harness cambiato',
+      ResumeUnsupported: 'Ripresa non supportata',
+      ExecutorWithoutState: 'Esecutore senza stato'
     }
   },
   nav: {
@@ -362,7 +377,11 @@ const it = {
       roles: { label: 'Ruoli', tip: 'Ruoli e autorizzazioni' },
       assignments: { label: 'Assegnazioni', tip: 'Concedi ruoli a utenti e chiavi di accesso' },
       settings: { label: 'Impostazioni', tip: 'Modifica le impostazioni del server e del cluster' },
-      serverInfo: { label: 'Info server', tip: 'Endpoint, versione e la tua identità' }
+      serverInfo: { label: 'Info server', tip: 'Endpoint, versione e la tua identità' },
+      conversations: {
+        label: 'Conversazioni',
+        tip: 'Scambi a più turni con un agente'
+      }
     },
     setup: 'Configurazione guidata',
     setupTip: 'Configura una chiave di accesso, applica un agente di esempio e provalo',
@@ -751,7 +770,7 @@ const it = {
       errors: { dnsName: 'Usa lettere minuscole, cifre e trattini, iniziando e terminando con una lettera o una cifra.' }
     },
     deployments: {
-      promptRoles: { Repair: 'Riparazione dell\'output strutturato', DelegatedTask: 'Involucro dell\'attività per esecuzioni delegate', Task: 'Involucro dell\'attività', System: 'Prompt di sistema' },
+      promptRoles: { Repair: 'Riparazione dell\'output strutturato', DelegatedTask: 'Involucro dell\'attività per esecuzioni delegate', Task: 'Involucro dell\'attività', System: 'Prompt di sistema', ConversationFallback: 'Ricostruzione della conversazione (trascrizione)' },
       ...rp('Distribuzioni', 'Collega un agente a un profilo harness, prompt, segreti, server MCP, posizionamento e limiti.', 'Aggiungi distribuzione', 'Crea distribuzione', 'Modifica distribuzione', 'Dettagli della distribuzione', 'Elimina distribuzione', 'Ancora nessuna distribuzione', 'Crea una distribuzione per rendere eseguibile un agente.'),
       steps: { basics: 'Dati di base', harness: 'Harness', prompts: 'Prompt', resources: 'Risorse', overrides: 'Sostituzioni', placement: 'Posizionamento e limiti' },
       columns: { name: 'Nome', agentId: 'Agente', harnessProfileId: 'Profilo harness', model: 'Modello', executor: 'Esecutore', weight: 'Peso', configVersion: 'Versione config.', active: 'Attiva', id: 'ID', createdUtc: 'Creata' },
@@ -878,10 +897,12 @@ const it = {
         costUsd: 'Costo',
         toolCallCount: 'Chiamate a strumenti',
         depth: 'Profondità',
-        createdUtc: 'Creata'
+        createdUtc: 'Creata',
+        conversationId: 'Conversazione'
       },
       actions: { cancel: 'Annulla esecuzione', retry: 'Riprova esecuzione' },
-      toasts: { cancelRequested: 'Annullamento richiesto.', retried: 'Nuovo tentativo avviato.' }
+      toasts: { cancelRequested: 'Annullamento richiesto.', retried: 'Nuovo tentativo avviato.' },
+      turn: 'turno {{turn}}'
     },
     nodes: {
       ...rp('Nodi', 'Nodi worker che prendono in lease ed eseguono le esecuzioni. Isola o svuota un nodo prima della manutenzione.', 'Aggiungi nodo', 'Crea nodo', 'Modifica nodo', 'Dettagli del nodo', 'Elimina nodo', 'Ancora nessun nodo', 'I nodi worker si registrano automaticamente all\'avvio. Distribuisci lo StatefulSet dei worker oppure avvia Garrison.Worker in locale.'),
@@ -927,6 +948,42 @@ const it = {
     manifestApplies: {
       ...rp('Cronologia delle applicazioni', 'Ogni applicazione e simulazione di manifest, con i risultati per documento.', 'Aggiungi applicazione', 'Crea applicazione', 'Modifica applicazione', 'Dettagli dell\'applicazione', 'Elimina applicazione', 'Ancora nessuna applicazione', 'Le applicazioni compaiono qui dopo che applichi o simuli un manifest.'),
       columns: { createdUtc: 'Ora', principalName: 'Applicato da', dryRun: 'Simulazione', counts: 'Risultati' }
+    },
+    conversations: {
+      title: 'Conversazioni',
+      subtitle: 'Scambi a più turni con un agente. Ogni turno è un\'esecuzione che riprende la sessione dell\'harness del turno precedente.',
+      add: 'Aggiungi conversazione',
+      create: 'Crea conversazione',
+      edit: 'Modifica conversazione',
+      view: 'Dettagli della conversazione',
+      deleteTitle: 'Elimina conversazione',
+      emptyTitle: 'Ancora nessuna conversazione',
+      emptyBody: 'Avviane una dalla pagina Invoca con «Avvia una nuova conversazione», oppure invia un messaggio A2A: ogni contesto A2A è una conversazione.',
+      untitled: 'Conversazione senza titolo',
+      columns: {
+        title: 'Titolo',
+        agentName: 'Agente',
+        state: 'Stato',
+        turnCount: 'Turni',
+        affinityNodeName: 'Nodo di affinità',
+        fallbackCount: 'Ricostruzioni',
+        lastFallbackReason: 'Ultima ricostruzione',
+        harnessType: 'Harness',
+        callerName: 'Avviata da',
+        contextId: 'ID contesto',
+        sessionId: 'ID sessione',
+        lastActivityUtc: 'Ultima attività',
+        createdUtc: 'Creata',
+        id: 'ID'
+      },
+      states: {
+        busy: 'In lavorazione',
+        idle: 'In attesa'
+      },
+      actions: {
+        continue: 'Continua',
+        runs: 'Vedi i turni come esecuzioni'
+      }
     }
   },
   views: {
@@ -1056,6 +1113,20 @@ const it = {
         minutes: '{{value}} min',
         hours: '{{value}} h',
         secondsWord: 'secondi'
+      },
+      conversation: {
+        mode: 'Conversazione',
+        modes: {
+          none: 'Esecuzione singola (nessuna conversazione)',
+          start: 'Avvia una nuova conversazione',
+          continue: 'Continua una conversazione'
+        },
+        pick: 'Conversazione da continuare',
+        choose: 'Scegli una conversazione',
+        option: '{{title}} (turni: {{turns}})',
+        pinned: 'Ogni turno viene eseguito sulla distribuzione del primo turno della conversazione, quindi qui non si può scegliere la distribuzione.',
+        busy: 'Questa conversazione sta ancora elaborando il turno precedente. Un nuovo messaggio viene rifiutato finché quell\'esecuzione non finisce.',
+        open: 'Apri conversazione (turno {{turn}})'
       }
     },
     runDetail: {
@@ -1130,7 +1201,12 @@ const it = {
           firstTokenUtc: 'Primo token alle',
           lastTokenUtc: 'Ultimo token alle'
         }
-      }
+      },
+      conversation: 'Conversazione',
+      conversationSession: 'Sessione',
+      resumeSessionId: 'Sessione ripresa',
+      affinityNode: 'Nodo di affinità',
+      affinityUntil: 'fino a {{time}}'
     },
     queue: {
       title: 'Coda',
@@ -1155,7 +1231,8 @@ const it = {
       noDeploymentsBody: 'Crea una distribuzione per collegare questo agente a un harness.',
       noRuns: 'Questo agente non è ancora stato eseguito.',
       selectionNote: 'Ogni invocazione senza una distribuzione esplicita va a una distribuzione attiva, scelta a caso in proporzione al suo peso.',
-      manageDeployments: 'Gestisci distribuzioni'
+      manageDeployments: 'Gestisci distribuzioni',
+      conversations: 'Conversazioni'
     },
     templateEditor: {
       cloneToEdit: 'Clona per modificare',
@@ -1427,7 +1504,10 @@ const it = {
           MaxRunSeconds: 'Durata massima di un\'esecuzione (secondi)',
           RepetitionGuard: 'Protezione dalle ripetizioni predefinita',
           MaxAssistantChars: 'Massimo di caratteri dell\'assistente predefinito',
-          NoProgressSeconds: 'Limite senza avanzamento predefinito (secondi)'
+          NoProgressSeconds: 'Limite senza avanzamento predefinito (secondi)',
+          ConversationAffinityWaitMs: 'Attesa di affinità delle conversazioni (ms)',
+          ConversationTranscriptTurns: 'Turni nella trascrizione di ricostruzione',
+          ConversationTranscriptChars: 'Caratteri per messaggio nella trascrizione di ricostruzione'
         },
         Audit: {
           RetentionDays: 'Conservazione dell\'audit (giorni)'
@@ -1570,6 +1650,42 @@ const it = {
       tuneAny: 'Per cambiare quando succede, modifica la distribuzione: il suo passaggio Posizionamento e limiti contiene Protezione dalle ripetizioni, Massimo di caratteri dell\'assistente e Limite senza avanzamento. Se li lasci vuoti, seguono i valori del cluster in Impostazioni (Motore di esecuzione).',
       openDeployments: 'Apri le distribuzioni',
       openSettings: 'Apri le impostazioni'
+    },
+    conversationDetail: {
+      title: 'Conversazione',
+      notFoundTitle: 'Conversazione non trovata',
+      notFoundBody: 'Potrebbe essere stata eliminata o appartenere a un altro tenant. I suoi turni restano nella pagina Esecuzioni.',
+      deployment: 'Distribuzione',
+      activeRun: 'Turno non concluso',
+      turns: 'Turni',
+      turnsCount: 'Turni ({{count}})',
+      noTurns: 'Questa conversazione non ha ancora turni.',
+      pending: 'In attesa del risultato',
+      columns: {
+        turn: 'Turno',
+        run: 'Esecuzione',
+        status: 'Stato',
+        outcome: 'Esito',
+        session: 'Sessione',
+        input: 'Messaggio',
+        result: 'Risposta',
+        node: 'Nodo',
+        created: 'Creato'
+      },
+      session: {
+        first: 'Nuova sessione',
+        resumed: 'Ripresa',
+        fallback: 'Sessione da zero',
+        pending: 'Non ancora assegnato'
+      },
+      continueTitle: 'Continua la conversazione',
+      message: 'Messaggio successivo',
+      messagePlaceholder: 'Fai una domanda di approfondimento o dai l\'istruzione successiva...',
+      busyNotice: 'Il turno precedente è ancora in corso. Potrai inviare il messaggio successivo quando sarà finito.',
+      send: 'Invia turno',
+      turnStarted: 'Turno {{turn}} avviato.',
+      openInvoke: 'Continua in Invoca',
+      confirmDelete: 'Eliminare la conversazione «{{title}}»? I suoi turni restano nella pagina Esecuzioni come esecuzioni normali, ma nessun nuovo turno potrà continuarla.'
     }
   },
   wizard: {
