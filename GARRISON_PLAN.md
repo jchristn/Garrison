@@ -89,7 +89,7 @@ Rules for keeping the plan honest:
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
 | 10 | Control plane high availability and scale-out | M2 | In progress | 21 / 25 |
 | 11 | Pod-per-run isolation executor | M2 | In progress | 13 / 20 |
-| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | In progress | 1 / 46 |
+| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | In progress | 2 / 46 |
 | 13 | Observability stack and dashboards | M2 | Complete | 28 / 28 |
 | 14 | Benchmarking | M3 | In progress | 14 / 15 |
 | 15 | Hardening, simulated user testing, and 1.0 release | M4 | Not started | 0 / 21 |
@@ -109,18 +109,18 @@ Work resumed after the pause. The correctness batch and Codex streaming landed (
 
 **State**
 
-- M1 done. M2 open: 11 tasks in phases 10 and 11 (Phase 13 complete). M3: Phase 12 at 1 of 46, Phase 14 at 14 of 15. M4 not started.
+- M1 done. M2 open: 11 tasks in phases 10 and 11 (Phase 13 complete). M3: Phase 12 at 2 of 46, Phase 14 at 14 of 15. M4 not started.
 - Last verified on the merged tree: build 0 warnings, Touchstone 418/419 on Sqlite and PostgreSQL (the one failure is the cancel-latency test, which fails only under full-suite load and passed 5 of 5 alone; seen before these changes too), xUnit, all four SDK harnesses, dashboard lint and 209 unit tests, every Kustomize overlay, Helm lint and template, mirror diffs, em-dash check. Benchmark round 1 confirms H5.
-- Schema is version 11 (run-token lease epoch, manifest apply `errorCode` and `errorField`). Workers must be upgraded with the server: an older worker launches before reporting start.
+- Schema is version 12 (11: run-token lease epoch, manifest apply `errorCode` and `errorField`; 12: conversations). Workers must be upgraded with the server: an older worker launches before reporting start.
 - `garrison-k3s` (kubeconfig `~/.kube/garrison-k3s.yaml`, namespace `garrison`): 2 server replicas, 2 workers, observability with 14 Grafana dashboards. Applying the overlay resets the server to 1 replica; scale it back to 2 afterwards. Port-forwards: REST 8700, MCP 8701, liveness 8702 (in-cluster only), dashboard 8081, Grafana 3000, Prometheus 9090 (log `~/.kube/garrison-port-forward.log`). Credentials: tenant `default`, `admin@garrison` / `password`; Grafana `admin` / `password`. Deployed `b1ff6bb`: schema 11, `max_connections` 200. `deploy-k3s.sh --build` does not restart the workers or dashboard when the image tag is unchanged; run `kubectl -n garrison rollout restart statefulset/garrison-worker deploy/garrison-dashboard`. Start port-forwards with `DASHBOARD_PORT=8081` (a local Clutch server holds 8080; the K3S ingress is on 18080). Validate with `examples/validate.sh --agents "claude-helper codex-coder mux-helper" --delegator claude-helper --delegate codex-coder` (25/25) and `GARRISON_DASHBOARD_URL=http://127.0.0.1:8081 npm run test:live` (6/6).
 
 **Pick up here, in order**
 
-1. P12.1 conversations on top of `CodexAppServerDriver` (thread start and resume), then P12.3 approvals (the driver's approval handler is replaceable).
+1. P12.3 approvals (the `CodexAppServerDriver` approval handler is replaceable; Claude `--permission-prompt-tool`).
 2. Budgets and cost (P12.6, P12.7, P12.35) and the QoSKit work (P12.36, P12.38, D-036). Design answers are in D-035.
 3. Remaining M2 work: P10.22 to P10.25, P11.14 to P11.20; then P14.15 and Phase 15. P10.23 also stops a `builtin/codex-app-server` run from storing one event per token.
 4. Close G-12 by switching `builtin/codex` to the app-server mode after a soak (MCP servers, output schema, thread resume, and whether `-c sandbox_mode` applies without a `thread/start` sandbox parameter).
-5. Small follow-ups: the dashboard does not show manifest `errorCode` yet; IMPROVEMENTS.md I-01 (synchronous invocation waits holding connections) is still open; make the cancel-latency test robust under load.
+5. Small follow-ups: the dashboard does not show manifest `errorCode` yet; IMPROVEMENTS.md I-01 (synchronous invocation waits holding connections) is still open; make the cancel-latency test robust under load; P12.1 leftovers: delete a conversation's worker directories on delete (today only the idle sweep), a conversation retention policy, an end-to-end test for affinity wait expiry, and the lease long-poll race (a long poll left open by a gone worker can still claim a run for it during `LeaseWaitMs`).
 
 **Waiting on the user**
 
@@ -1571,7 +1571,7 @@ Design (decision D-033):
 
 ### Phase 12: Advanced orchestration (M3)
 
-- [ ] P12.1 Conversations: `Conversation` entity, A2A `contextId`, harness session resume (`--resume`, `codex exec resume`, Mux `--resume`), node affinity for workspace locality, fallback when the affinity node is lost.
+- [x] P12.1 Conversations: `Conversation` entity, A2A `contextId`, harness session resume (`--resume`, `codex exec resume`, Mux `--resume`), node affinity for workspace locality, fallback when the affinity node is lost.  | claude 2026-10-11 `Conversation` entity (migration 12), invoke/runs/MCP/A2A take `startConversation`/`conversationId` (A2A `contextId` is the conversation id), 409 `ConversationBusy` (refuse, not wait), affinity to the last node for `Runtime.ConversationAffinityWaitMs` then transcript fallback (`builtin/conversation-fallback`, prompt role `ConversationFallback`), `ConversationStateLost` requeues without an attempt; resume via Claude/Mux/Gemini `--resume`, `codex exec resume`, app-server `thread/resume`; dashboard pages, SDKs, Postman, docs; 25 Touchstone tests. KubernetesJob turns always fall back until P12.2 snapshots
 - [ ] P12.2 Workspace snapshots to an artifact store for cross-node resume.
 - [x] P12.2a Codex streaming: drive Codex through `codex app-server` (JSON-RPC over stdio) as a new interactive delivery mode, mapping agent message deltas to `AssistantText` events, so Codex output streams like Claude Code and Mux. `codex exec --json` (0.159.3) emits each agent message only when it completes. The same driver serves P12.1 multi-turn conversations.  | claude 2026-10-11 opt-in profile `builtin/codex-app-server` (delivery `CodexAppServer`, parser `CodexAppServer`), CodexAppServerDriver exposes handshake, thread start/resume, turn start, and a replaceable approval handler for P12.1 and P12.3; real Codex 0.159.3 smoke: TTFT 4.8 s, 74 AssistantText events; `builtin/codex` stays on `codex exec --json` until a longer soak (G-12 stays open until then)
 - [ ] P12.3 Permission approvals: Claude `--permission-prompt-tool` through Garrison MCP, `Approval` entity, dashboard approvals inbox, rules (allow, deny, ask) per deployment, timeouts (Armada pattern).
