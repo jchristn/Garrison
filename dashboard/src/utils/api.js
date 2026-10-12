@@ -627,6 +627,40 @@ class ApiClient {
     return this._request('POST', this._t(tenantId, `deployments/${enc(id)}/test`), { body });
   }
 
+  /**
+   * Evaluate a deployment's saved approval rules for a sample tool call without recording anything (P12.3).
+   * body: { toolName, input?: { command, cwd, url, file_path, notebook_path, path, paths, pattern, query } }.
+   * Returns { action, source, ruleId, rulePattern, suggestedRule, approvalsEnabled }.
+   */
+  checkApproval(tenantId, deploymentId, body) {
+    return this._request('POST', this._t(tenantId, `deployments/${enc(deploymentId)}/approval-check`), { body });
+  }
+
+  // ------------------------------------------------------------------ approvals (P12.3)
+
+  /** filters: status, runId, rootRunId, agentId, deploymentId, decisionSource, fromUtc, toUtc, pageNumber, pageSize. */
+  listApprovals(tenantId, params) {
+    return this._list(this._t(tenantId, 'approvals'), params);
+  }
+
+  getApproval(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `approvals/${enc(id)}`));
+  }
+
+  /**
+   * Decide a pending approval. body: { decision: 'Allow'|'Deny', reason?, remember?, rulePattern? }. Throws 409
+   * ApprovalNotPending when it was already decided, and 403 when remember needs Deployment Update the caller lacks.
+   */
+  decideApproval(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `approvals/${enc(id)}/decide`), { body });
+  }
+
+  /** Number of approvals waiting for a person (one-row page, totalRecords). */
+  async countPendingApprovals(tenantId) {
+    const page = await this.listApprovals(tenantId, { status: 'Pending', pageNumber: 1, pageSize: 1 });
+    return page.totalCount ?? 0;
+  }
+
   // ------------------------------------------------------------------ manifests
 
   /** Apply a multi-document YAML or JSON manifest. */

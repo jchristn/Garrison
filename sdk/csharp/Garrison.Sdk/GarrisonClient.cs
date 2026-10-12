@@ -140,6 +140,11 @@ namespace Garrison.Sdk
         public ConversationsClient Conversations { get; }
 
         /// <summary>
+        /// Permission approvals.
+        /// </summary>
+        public ApprovalsClient Approvals { get; }
+
+        /// <summary>
         /// Analytics.
         /// </summary>
         public AnalyticsClient Analytics { get; }
@@ -211,6 +216,7 @@ namespace Garrison.Sdk
             Manifests = new ManifestsClient(Transport);
             Runs = new RunsClient(Transport);
             Conversations = new ConversationsClient(Transport);
+            Approvals = new ApprovalsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);
             ControlNodes = new ControlNodesClient(Transport);

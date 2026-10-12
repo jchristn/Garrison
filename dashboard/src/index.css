@@ -299,6 +299,30 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .sidebar-item svg { flex-shrink: 0; }
 .sidebar-collapsed .sidebar-item { justify-content: center; }
 .sidebar-collapsed .sidebar-item span { display: none; }
+/* Pending approvals count on the Approvals item (P12.3). Collapsed, it sits on the icon's corner. */
+.sidebar-item { position: relative; }
+.sidebar-badge {
+  margin-inline-start: auto;
+  min-width: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--color-warning);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: 1.35rem;
+  text-align: center;
+}
+.sidebar-collapsed .sidebar-item span.sidebar-badge {
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  inset-inline-end: 2px;
+  min-width: 1rem;
+  padding: 0 0.2rem;
+  line-height: 1rem;
+  font-size: 0.6rem;
+}
 .sidebar-footer {
   border-top: 1px solid var(--color-border);
   padding: var(--spacing-sm) var(--spacing-md);
@@ -1087,3 +1111,20 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .conversation-preview { max-width: 28rem; overflow-wrap: anywhere; }
 .conversation-continue { margin-top: var(--spacing-md); }
 .conversation-continue textarea { width: 100%; }
+/* Permission approvals (P12.3): decide dialog, rule tester, run approvals, and timeline links. */
+.approval-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--spacing-sm); margin: 0; }
+.approval-facts dt { font-size: var(--font-size-xs); color: var(--color-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.approval-facts dd { margin: 0.15rem 0 0; font-size: var(--font-size-sm); overflow-wrap: anywhere; }
+.approval-summary { font-family: var(--font-mono); font-size: var(--font-size-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
+.decision-choices { border: 0; padding: 0; margin: 0; }
+.decision-choices legend { font-size: var(--font-size-sm); font-weight: 600; margin-bottom: var(--spacing-xs); }
+.decision-choice.selected.decision-allow { border-color: var(--color-success); color: var(--color-success); }
+.decision-choice.selected.decision-deny { border-color: var(--color-danger); color: var(--color-danger); }
+.approval-check { display: flex; flex-direction: column; gap: var(--spacing-sm); padding-top: var(--spacing-sm); border-top: 1px solid var(--color-border); }
+.approval-check-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--spacing-sm); }
+.approval-check-row .field { flex: 1 1 160px; min-width: 0; }
+.approval-check-row .approval-check-value { flex: 3 1 260px; }
+.approval-check-result { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs) var(--spacing-sm); font-size: var(--font-size-sm); }
+.inline-actions { display: inline-flex; flex-wrap: wrap; gap: var(--spacing-xs); justify-content: flex-end; }
+.timeline-link { font-size: var(--font-size-xs); }
+.filter-text .filter-search { min-width: 180px; }

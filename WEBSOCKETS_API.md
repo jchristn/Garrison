@@ -39,10 +39,17 @@ Until the connection is authenticated, every message except `auth` and `ping` ge
 | `runs` | Read on Run in your tenant | `runs.changed` with the 25 most recent runs whenever any of them changes status or records a new event |
 | `run:{runId}` | Read on Run for that run | Every event of the run as `run.event`, in order, then `run.status` each time the status changes |
 | `nodes` | Read on Node | `nodes` with every node (up to 500) whenever a node's status or active run count changes |
+| `approvals` | Read on Approval in your tenant | `approvals.changed` with the pending count and the pending approvals (newest first, up to 100) whenever the pending set changes |
 
-A subscription starts with the current state: `runs` and `nodes` send their lists at once, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
+A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
 
-The `runs` and `run:{runId}` channels follow the tenant of the token, so they only ever show that tenant's runs.
+The `runs`, `run:{runId}`, and `approvals` channels follow the tenant of the token, so they only ever show that tenant's data. `runs` and `run:{runId}` also send an update when a run starts or stops waiting for a permission approval (`awaitingApproval`).
+
+The `approvals` channel is the push side of the approvals inbox: subscribe to it to show a badge or to notify someone (a chat hook, for example) when a harness is waiting for a decision. Decide over REST or MCP.
+
+```json
+{"type":"approvals.changed","pending":1,"approvals":[{"id":"apr_mv3k2a1b_7QxJm2LhR8sWcN4dTzEf","runId":"run_mv3k29zq_Hc8wPnB2dLx5rTq1VkYa","agentName":"release-helper","toolName":"Bash","summary":"git push origin main","status":"Pending","expiresUtc":"2026-10-11T21:09:03.502117Z", ...}]}
+```
 
 ```json
 {"type":"subscribe","channel":"run:run_mv1r5tum_PzmDRtwczukdCvf7i62"}
@@ -66,6 +73,7 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 | `pong` | none |
 | `runs.changed` | `runs` |
 | `nodes` | `nodes` |
+| `approvals.changed` | `pending`, `approvals` |
 | `run.event` | `runId`, `event` |
 | `run.status` | `run` |
 | `error` | `code`, `message`, and `channel` for subscription errors |

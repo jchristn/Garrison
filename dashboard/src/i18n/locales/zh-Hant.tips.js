@@ -1,6 +1,7 @@
 // Traditional Chinese tooltip (tips.*) and relationship explainer (explainers.*) text. Merged into zh-Hant.js. Mirrors en.tips.js key for key.
 
 const TELEMETRY = {
+  approvalWaitMs: '核准等候：此執行等候權限核准（由人員或逾時決定）所花費的總時間。由規則或部署預設值立即決定的呼叫不會增加時間。由伺服器測量；執行從未等候時顯示 n/a。',
   delegationWaitMs: '委派等待時間：此執行等待它透過 Garrison 啟動的子執行（即它委派的其他代理程式）的時間，依這些子執行的伺服器時間戳記計算。若執行未委派任何工作，則為零或不適用。',
   timeToFirstTokenExcludingDelegationMs: '第一個 Token 時間（不含委派）：第一個 Token 時間減去執行在第一個輸出前等待委派執行的時間。可用來公平比較會委派與不委派的代理程式。以伺服器時間戳記計算，絕不為負值。',
   timeToFirstTokenMs: '第一個 Token 時間：從工作節點啟動 Harness 程序開始，到模型產生第一個輸出（文字或思考）為止。其中包含 Harness 啟動時間，因此 CLI 啟動緩慢也會反映在這裡。由工作節點以單調時鐘量測。',
@@ -29,6 +30,33 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  approvals: {
+    awaiting_one: 'Harness 在工具呼叫前提出詢問，正在等候人員處理。請開啟「核准」分頁來允許或拒絕（{{count}} 個等候中）。',
+    awaiting_other: 'Harness 在工具呼叫前提出詢問，正在等候人員處理。請開啟「核准」分頁來允許或拒絕（{{count}} 個等候中）。',
+    decide: {
+      decision: '選擇 Harness 是否可以進行此工具呼叫。你送出後，執行會立即繼續。',
+      allow: '讓 Harness 進行此工具呼叫。執行會帶著這個呼叫繼續進行。',
+      deny: '拒絕此工具呼叫。Harness 會收到拒絕訊息，並在沒有此呼叫的情況下繼續。',
+      reason: '選填的備註，會與決定一起儲存並寫入稽核記錄。拒絕時，此備註會傳給代理程式。',
+      remember: '同時在此核准所屬的部署中新增規則，下次相同類型的呼叫就會自動決定。',
+      rulePattern: '要新增的規則，使用 Claude Code 規則語法。預設為建議的規則；儲存前可以放寬或縮小範圍。',
+      submitAllow: '立即允許此工具呼叫。此決定是最終決定，之後無法再變更。',
+      submitDeny: '立即拒絕此工具呼叫。此決定是最終決定，之後無法再變更。'
+    }
+  },
+  approvalCheck: {
+    toolName: 'Harness 回報的工具名稱，例如 Bash、Edit、WebFetch，或 mcp__github__create_issue 這類 MCP 工具。',
+    inputs: {
+      command: '要測試的 Shell 命令，例如 npm run build && npm test。每個子命令都必須被允許。',
+      url: '工具將要擷取的 URL。WebFetch 規則會依其網域比對。',
+      query: '工具將要送出的搜尋查詢，用來比對與此查詢相關的規則。',
+      file_path: '工具將要讀取或變更的檔案路徑，可以是相對於工作區的路徑或絕對路徑。',
+      notebook_path: '工具將要變更的筆記本路徑，用來比對與此筆記本相關的規則。',
+      pattern: '工具將要使用的 glob 或搜尋模式，用來比對與此模式相關的規則。'
+    },
+    run: '針對此工具呼叫評估部署已儲存的規則並顯示結果。不會記錄任何內容，也不會影響任何執行。',
+    suggestedRule: '「記住」會為此呼叫新增的規則。將它複製到上方的規則中，即可涵蓋類似的呼叫。'
+  },
   ids: { deleted: '此記錄已刪除。ID {{id}}。複製按鈕會複製此 ID。', named: 'ID {{id}}。使用複製按鈕複製此 ID，供 API、SDK 或支援要求使用。' },
   markdown: {
     column: '代理程式輸出中表格的 {{name}} 欄。較寬的表格可在其框內橫向捲動。',
@@ -54,7 +82,10 @@ const tips = {
     dismiss: '隱藏此說明。原位置會保留一個小型「關於」按鈕，讓你隨時可以重新開啟。'
   },
   nav: {
+    approvalsBadge_one: '有 {{count}} 個工具呼叫正在等候人員允許或拒絕。請開啟「核准」來決定。',
+    approvalsBadge_other: '有 {{count}} 個工具呼叫正在等候人員允許或拒絕。請開啟「核准」來決定。',
     hubs: {
+      approvals: '核准收件匣：代理程式要求進行、正在等候人員處理的工具呼叫，以及由規則、預設值、人員或逾時所做每項決定的歷程。',
       home: '從這裡開始：代理程式、執行與工作節點的即時數量、API 流量、近期失敗，以及常用工作的捷徑。',
       invoke: '直接在瀏覽器中傳送訊息給代理程式，並觀看對話紀錄即時串流，不需要撰寫任何程式碼。',
       runs: '每一次代理程式呼叫的對話紀錄、結果與遙測資料，以及等待節點的工作佇列。',
@@ -160,6 +191,8 @@ const tips = {
     bulkDelete: '刪除所有已選取的列。系統會先要求你確認。'
   },
   filters: {
+    decisionSource: '只顯示以特定方式決定的核准：由規則、部署預設值、人員、逾時或已停止的執行決定。',
+    runId: '只顯示單一執行的核准。貼上執行 ID，例如 run_...；停止輸入後清單就會更新。',
     status: '只顯示處於此狀態的紀錄。選擇「全部」即可移除篩選。',
     harnessType: '只顯示某一種 Harness 的紀錄，例如 Claude Code 或 Codex。',
     kind: '只顯示某一種類的紀錄。選擇「全部」即可移除篩選。',
@@ -233,6 +266,9 @@ const tips = {
     tenant: '顯示單一租用戶或伺服器上所有租用戶的請求活動。'
   },
   badges: {
+    approvalsOn_one: '核准已開啟：Harness 會在工具呼叫前詢問，並由 {{count}} 條規則自動決定其中一部分。',
+    approvalsOn_other: '核准已開啟：Harness 會在工具呼叫前詢問，並由 {{count}} 條規則自動決定其中一部分。',
+    approvalsOff: '核准已關閉：Harness 依照自身的權限設定進行工具呼叫，不會詢問。',
     active: '啟用：此紀錄正在使用中。',
     inactive: '停用：此紀錄會保留，但在重新啟用前會被忽略。',
     builtIn: '內建：隨 Garrison 提供且為唯讀。複製它即可建立可編輯的版本。',
@@ -299,6 +335,34 @@ const tips = {
     queueColumn: '這個群組中目前沒有就緒工作節點能執行的佇列中執行。將游標停在徽章上可查看原因與處理方式。'
   },
   enums: {
+    approvalStatus: {
+      Pending: '正在等候人員允許或拒絕。在此之前，Harness 會在此呼叫上暫停。',
+      Approved: '此工具呼叫已被允許，由規則、部署預設值、人員或逾時決定。',
+      Denied: '此工具呼叫已被拒絕。Harness 收到拒絕訊息，並在沒有此呼叫的情況下繼續。',
+      Expired: '沒有人在核准到期前及時決定，因此套用了部署的逾時決定。',
+      Cancelled: '核准仍在待處理時執行已停止，因此在沒有決定的情況下關閉。'
+    },
+    approvalDecision: {
+      Allow: '允許：Harness 獲准進行此工具呼叫，執行會帶著它繼續。',
+      Deny: '拒絕：Harness 的工具呼叫遭到拒絕，並被告知拒絕的原因。'
+    },
+    approvalSource: {
+      Rule: '由部署上的規則立即決定，不需等候。符合的規則會顯示在旁邊。',
+      Default: '此工具呼叫沒有符合任何規則，因此由部署的預設動作決定。',
+      User: '由人員在儀表板中、透過 API 或透過 MCP 決定。',
+      Timeout: '在核准到期前沒有人做出決定，因此套用了部署的逾時決定。',
+      Cancelled: '此核准仍在等候人員處理時，執行已停止，因此沒有做出決定。'
+    },
+    approvalRuleAction: {
+      Allow: '允許：符合此規則的工具呼叫會直接進行，不會詢問任何人。',
+      Deny: '拒絕：符合的工具呼叫會直接遭拒，不會詢問任何人。拒絕優先於其他所有規則。',
+      Ask: '詢問人員：符合的工具呼叫會在核准收件匣中等候決定。'
+    },
+    approvalKind: {
+      Tool: 'Claude Code 針對任何工具（包括 MCP 工具）提出的權限提示。',
+      Command: 'Codex app-server 執行想要執行的 Shell 命令。規則會將它當作 Bash 評估。',
+      FileChange: 'Codex app-server 執行想要進行的檔案變更。規則會將它當作 Edit 評估。'
+    },
     runBlockedReason: {
       NoReadyWorker: '受阻：沒有任何工作節點處於就緒狀態，因此沒有節點能接手這個執行。請啟動或註冊工作節點，然後在機群頁面檢查遺失、離線、清空中或已封鎖的節點。',
       NoCapableWorker: '受阻：有就緒的工作節點，但沒有節點回報這個執行的 Harness 可用。請啟動或註冊已安裝該 Harness 的工作節點，或在機群頁面檢查它的憑證與探測結果。',
@@ -423,6 +487,7 @@ const tips = {
       Validated: '試執行：此文件有效，將會被套用。'
     },
     auditEventType: {
+      ApprovalDecided: '有人允許或拒絕了待處理的工具呼叫。紀錄中會列出工具、執行與原因。',
       AuthSuccess: '有人成功登入或驗證了請求。',
       AuthFailure: '登入或驗證嘗試失敗。重複失敗可能代表有人在猜測密碼。',
       SessionIssued: '已核發工作階段權杖。',
@@ -456,6 +521,40 @@ const tips = {
     }
   },
   resources: {
+    approvals: {
+      createdUtc: 'Harness 提出詢問的時間。將游標停在值上可查看確切時間。',
+      agentName: '其執行要求進行此工具呼叫的代理程式，可開啟查看其詳細資料。',
+      toolName: 'Harness 想要使用的工具，例如 Bash、Edit、WebFetch 或 MCP 工具。',
+      summary: '呼叫的單行摘要：命令、URL、路徑或查詢，祕密已遮蔽。',
+      status: '決定前為「待處理」，之後為「已核准」、「已拒絕」、「已過期」（逾時）或「已取消」（執行已停止）。',
+      decision: '決定後為「允許」或「拒絕」；核准仍在待處理時為空白。',
+      decisionSource: '由什麼決定：規則、部署預設值、人員、逾時或已停止的執行。',
+      decidedBy: '由人員決定時，顯示做出此決定的人員或存取金鑰；其他情況為空白。',
+      expiresUtc: '待處理的核准會在何時逾時，屆時將套用部署設定的逾時決定。',
+      kind: '工具呼叫（Claude Code）、命令或檔案變更（Codex app-server）。',
+      harnessType: '提出詢問的 Harness：Claude Code 或 Codex。',
+      runId: '提出詢問的執行。開啟它即可查看呼叫前後的對話紀錄。',
+      rootRunId: '當提出詢問的執行是被委派的執行時，委派樹最上層的執行。',
+      deploymentId: '以其規則評估此呼叫的部署。記住的規則會新增到此部署。',
+      leaseEpoch: '提出詢問之執行嘗試的租約世代，確保決定絕不會送達之後的嘗試。',
+      requestedUtc: 'Harness 要求權限的時間，將游標停在值上可查看確切時間。',
+      decidedUtc: '做出允許或拒絕決定的時間，將游標停在值上可查看確切時間。',
+      waitMs: '此工具呼叫從 Harness 提出要求到做出決定之間等候了多久。',
+      timeoutDecision: '若在核准到期前沒有人決定會發生什麼，取自部署設定。',
+      toolCallId: 'Harness 為此工具呼叫指定的 ID，用於在對話紀錄中找到對應的呼叫。',
+      reason: '做出決定的人員所寫的備註（如果有的話），拒絕時也會傳給代理程式。',
+      inputPreview: 'Harness 送出的工具輸入，以 JSON 呈現，祕密與類似 Token 的值都已遮蔽。',
+      rulePattern: '當規則決定此呼叫或要求詢問人員時，符合此呼叫的部署規則。',
+      ruleId: '符合此呼叫的部署規則 ID，可用來在部署的核准規則中找到它。',
+      suggestedRule: '會符合此呼叫的規則。「記住為規則」會預先填入此規則。',
+      rememberedRuleId: '以「記住為規則」決定此核准時，新增到部署的那條規則的 ID。',
+      id: '核准識別碼（apr_...），供 API 與 MCP 工具使用。',
+      actions: {
+        allow: '允許此待處理的工具呼叫，可附上選填的原因，並可選擇記住為規則。',
+        deny: '拒絕此待處理的工具呼叫，可附上選填的原因，並可選擇記住為規則。',
+        openRun: '開啟提出詢問的執行，閱讀此工具呼叫前後的對話紀錄。'
+      }
+    },
     tenants: {
       add: '建立新的租用戶：一個彼此隔離的空間，擁有自己的使用者、代理程式、祕密與執行。',
       name: '租用戶的顯示名稱。使用者登入時是以租用戶 ID 選擇租用戶。',
@@ -695,6 +794,18 @@ const tips = {
       }
     },
     deployments: {
+      approvalsEnabled: '讓 Harness 在工具呼叫前先詢問。下方規則會決定大部分呼叫；其餘的會在核准收件匣中等候人員處理。僅適用於 Claude Code 與 Codex app-server 設定檔。',
+      approvalDefaultAction: '沒有規則符合某個工具呼叫時會發生什麼：允許、拒絕或詢問人員。',
+      approvalTimeoutSeconds: '呼叫等候人員處理多久後套用逾時決定，範圍為 10 至 3,600 秒。',
+      approvalTimeoutDecision: '沒有人及時回應時套用的決定。「拒絕」是安全的選擇。',
+      approvalRules: '使用 Claude Code 語法的有序規則。「拒絕」優先於「詢問」，「詢問」優先於「允許」；同一動作中會回報第一個符合的規則。',
+      approvalRulesItems: {
+        action: '符合此規則的工具呼叫會得到什麼結果：允許、拒絕或詢問人員。',
+        pattern: 'Claude Code 規則，例如 Bash(npm test)、Bash(npm run *)、Edit(src/**)、Read、WebFetch(domain:example.com) 或 mcp__github__*。',
+        inputPattern: '選用的 .NET 規則運算式，工具輸入 JSON 也必須符合，可提供比模式更精細的控制。',
+        description: '說明此規則存在的原因，提供給日後維護此規則的人員參考。'
+      },
+      approvalTest: '以部署已儲存的規則試驗一個工具呼叫，查看它會被允許、拒絕，還是交由人員決定。',
       add: '建立部署：代理程式的具體執行方式，包含 Harness 設定檔、模型、提示與資源。',
       name: '部署名稱，在租用戶內唯一，例如 reviewer-claude。',
       agentId: '此部署所執行的代理程式。呼叫該代理程式時可能會選中此部署。',
@@ -759,6 +870,7 @@ const tips = {
       maxAttempts: '一次執行總共最多可以嘗試幾次。介於 1 到 10 之間。',
       retryOnNodeLoss: '節點消失時將執行放回佇列，而不是將其標記為失敗。',
       steps: {
+        approvals: 'Harness 可以進行哪些工具呼叫、不可以進行哪些，以及哪些要等候人員處理。',
         basics: '名稱、代理程式與流量權重。',
         harness: 'Harness 設定檔、模型、限制與參數。',
         prompts: '每個提示角色由哪個範本填入。',
@@ -920,6 +1032,16 @@ const tips = {
     }
   },
   views: {
+    approvalDetail: {
+      openRun: '開啟提出詢問的執行，閱讀此工具呼叫前後的對話紀錄。',
+      openAgent: '開啟此代理程式的頁面，查看它的部署與最近的執行紀錄。',
+      openDeployment: '開啟已篩選為此部署的「部署」分頁，可在其中編輯它的核准規則。',
+      backToInbox: '返回核准收件匣，在那裡可以看到每一個仍在待處理的核准。',
+      viewJson: '以 JSON 顯示完整的核准紀錄，與 API 傳回的內容完全相同。',
+      request: 'Harness 要求做什麼：單行摘要，以及已遮蔽祕密的完整工具輸入。',
+      rules: '符合的部署規則、此呼叫建議的規則，以及從決定記住的規則。',
+      copyRule: '將建議的規則複製到剪貼簿，例如貼到部署的核准規則中使用。'
+    },
     home: {
       observabilityState: {
         reachable: '伺服器在最近 30 秒內透過內部 URL 連線到 {{service}}。',
@@ -980,6 +1102,9 @@ const tips = {
       serviceGeneric: '在新分頁中開啟此隨附的服務。'
     },
     runDetail: {
+      openApproval: '開啟此核准的詳細資料頁面，查看完整的工具輸入、規則與決定。',
+      reviewApprovals: '顯示此執行的核准，可在其中允許或拒絕待處理的工具呼叫。',
+      approvalActions: '允許或拒絕待處理的工具呼叫，或開啟核准查看所有欄位。',
       viewTrace: '在新分頁中以 Grafana Explore (Tempo) 開啟此執行的追蹤。它顯示伺服器與工作節點上的編譯、領取與 Harness 區段。',
       viewLogs: '在新分頁中以 Grafana Explore (Loki) 開啟伺服器與工作節點上關於此執行的日誌行，範圍限於此執行的時間區間。',
       traceId: '編譯此執行時所在追蹤的 W3C 追蹤 ID。可在 Tempo 中搜尋，或使用「檢視追蹤」。在開始記錄追蹤 ID 之前建立的執行為空。',
@@ -1001,6 +1126,7 @@ const tips = {
       completed: '執行到達最終狀態的時間。',
       exitCode: 'Harness 程序的結束代碼。成功與否通常依最終事件判定，而非此代碼。',
       tabs: {
+        approvals: '此執行要求權限的工具呼叫、每個呼叫的決定方式，以及待處理項目的「允許」與「拒絕」。',
         transcript: 'Harness 產生的每個事件：助理文字、思考、工具呼叫與結果，以及用量。',
         result: '最終答案以及任何結構化輸出。',
         input: '呼叫端傳送的內容、參數，以及實際使用的提示範本版本。',
@@ -1010,6 +1136,8 @@ const tips = {
       eventFilter: '只顯示某一類型的事件，例如工具呼叫或錯誤。',
       openChild: '開啟此子執行，它是在此執行呼叫另一個代理程式時啟動的。',
       eventCodes: {
+        ApprovalRequested: 'Harness 在工具呼叫前提出詢問，此呼叫正在等候人員處理。請在「核准」分頁中決定。',
+        ApprovalDecided: '權限要求已由規則、部署預設值、人員或逾時決定。文字會說明是哪一種。',
         RunGuardTriggered: '執行防護停止了此執行。訊息說明是哪一種防護觸發以及它偵測到什麼；執行以該防護的結果失敗結束，並保留部分輸出。',
         ConversationFallback: '這一輪無法恢復對話的 Harness 工作階段，因此以先前各輪的紀錄開始了全新工作階段。訊息中說明了原因。',
         ConversationStateLost: '節點領取了這一輪，但對話的目錄已不存在，因此這一輪被放回佇列，以回退方式執行。'
@@ -1389,6 +1517,12 @@ const tips = {
 };
 
 const explainers = {
+  approvals: {
+    title: '核准的運作方式',
+    p1: '已啟用核准的部署會讓其 Harness 在工具呼叫前詢問 Garrison：Claude Code 透過其權限提示工具詢問，Codex app-server 執行則針對命令與檔案變更詢問。',
+    p2: '每個要求都會依部署的規則檢查。「拒絕」優先於「詢問」，「詢問」優先於「允許」；沒有符合的規則時，套用部署預設值。「允許」與「拒絕」會立即回覆；「詢問」會將要求放在這裡，執行則會等候。',
+    p3: '可附上選填的原因來允許或拒絕待處理的要求。「記住為規則」會在部署中新增規則，下次類似的呼叫就會自動決定。沒有人決定的要求會在到期時套用部署的逾時決定。'
+  },
   diagram: {
     label: '圖示：呼叫端以名稱呼叫代理程式，Garrison 依權重挑選該代理程式的一個部署，再由該部署的繫結決定執行如何進行。',
     caller: { title: '呼叫端', body: 'REST、MCP、A2A 或其他代理程式', tip: '任何呼叫代理程式的對象：REST API、MCP 用戶端、A2A 代理程式，或其他代理程式的執行。呼叫端只知道代理程式名稱。' },

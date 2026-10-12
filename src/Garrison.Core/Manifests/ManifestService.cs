@@ -528,6 +528,11 @@ namespace Garrison.Core.Manifests
             foreach (KeyValuePair<string, string> parameter in spec.Parameters) deployment.Parameters.Add(new DeploymentParameter { Name = parameter.Key, Value = parameter.Value });
             foreach (KeyValuePair<string, string> selector in spec.NodeSelector) deployment.NodeSelector.Add(new DeploymentNodeSelector { Key = selector.Key, Value = selector.Value });
             deployment.AllowedRunOverrides = spec.AllowedRunOverrides;
+            deployment.ApprovalsEnabled = spec.ApprovalsEnabled;
+            deployment.ApprovalDefaultAction = spec.ApprovalDefaultAction;
+            deployment.ApprovalTimeoutSeconds = spec.ApprovalTimeoutSeconds;
+            deployment.ApprovalTimeoutDecision = spec.ApprovalTimeoutDecision;
+            deployment.ApprovalRules = spec.ApprovalRules;
             deployment.ArgumentOverrides = spec.ArgumentOverrides;
             deployment.EnvironmentOverrides = spec.EnvironmentOverrides;
             deployment.FileOverrides = spec.FileOverrides;
@@ -538,6 +543,12 @@ namespace Garrison.Core.Manifests
                 deployment.Id = existing.Id;
                 deployment.CreatedUtc = existing.CreatedUtc;
                 deployment.ConfigVersion = existing.ConfigVersion;
+                // Keep approval rule identifiers for unchanged rules: approvals record the rule that decided them.
+                foreach (DeploymentApprovalRule rule in deployment.ApprovalRules)
+                {
+                    DeploymentApprovalRule? same = existing.ApprovalRules.FirstOrDefault(r => r.Action == rule.Action && r.Pattern == rule.Pattern && r.InputPattern == rule.InputPattern);
+                    if (same != null && !deployment.ApprovalRules.Any(r => r.Id == same.Id)) rule.Id = same.Id;
+                }
             }
             Dictionary<string, string> errors = new Dictionary<string, string>();
             ConfigurationValidator.Name(deployment.Name, errors);
@@ -806,6 +817,11 @@ namespace Garrison.Core.Manifests
             foreach (DeploymentParameter parameter in deployment.Parameters) spec.Parameters[parameter.Name] = parameter.Value;
             foreach (DeploymentNodeSelector selector in deployment.NodeSelector) spec.NodeSelector[selector.Key] = selector.Value;
             spec.AllowedRunOverrides = deployment.AllowedRunOverrides;
+            spec.ApprovalsEnabled = deployment.ApprovalsEnabled;
+            spec.ApprovalDefaultAction = deployment.ApprovalDefaultAction;
+            spec.ApprovalTimeoutSeconds = deployment.ApprovalTimeoutSeconds;
+            spec.ApprovalTimeoutDecision = deployment.ApprovalTimeoutDecision;
+            spec.ApprovalRules = deployment.ApprovalRules;
             spec.ArgumentOverrides = deployment.ArgumentOverrides;
             spec.EnvironmentOverrides = deployment.EnvironmentOverrides;
             spec.FileOverrides = deployment.FileOverrides;

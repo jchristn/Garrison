@@ -19,7 +19,7 @@ import useAutoRefresh from '../hooks/useAutoRefresh';
 import useDebounce from '../hooks/useDebounce';
 import { DEFAULT_PAGE_SIZE, STORAGE_KEYS } from '../utils/constants';
 import { buildListParams, sortLocal, SERVER_SORT_KEYS, stripForDuplicate, toLocalInput, toUtcIso } from '../utils/query';
-import { errorMessage, errorDetail, isMissingEndpoint, fieldErrorMessages } from '../utils/errors';
+import { errorMessage, errorDetail, isMissingEndpoint, fieldErrorMessages, withListItemErrors } from '../utils/errors';
 
 function savedPageSize(tableId) {
   try {
@@ -40,10 +40,30 @@ function persistPageSize(tableId, size) {
   }
 }
 
+/** A free-text filter (for example a run ID) that applies after typing pauses, so each keystroke is not a request. */
+function TextFilter({ filter, value, onChange, tipText, t }) {
+  const [text, setText] = useState(value || '');
+  const debounced = useDebounce(text, 350);
+  useEffect(() => setText(value || ''), [value]);
+  useEffect(() => {
+    if ((debounced || '') !== (value || '')) onChange(debounced.trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debounced]);
+  const label = filter.label(t);
+  return (
+    <label className="filter-text" {...tip(tipText)}>
+      <span className="sr-only">{label}</span>
+      <input type="search" className="filter-search" value={text} placeholder={filter.placeholder ? filter.placeholder(t) : label} aria-label={label} data-filter={filter.name} {...tip(tipText)} onChange={(e) => setText(e.target.value)} />
+    </label>
+  );
+}
+
 /**
  * Generic record page: header with + Add, search and filter row, server-paginated table with Select Columns,
  * sortable headers, row actions (View, Edit, Duplicate, Delete, View JSON, extras), bulk delete, purpose-built
  * create/edit/view modal from field descriptors, custom confirmations, and loading/empty/error states.
+ * Filters are selects (options may be a function of the lookups), date pickers, or free text (type 'text');
+ * `search: false` hides the name search for lists the server cannot search.
  */
 export default function ResourceView({ config }) {
   const { t, i18n } = useTranslation();
@@ -58,7 +78,8 @@ export default function ResourceView({ config }) {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState({ pageNumber: 1, pageSize: savedPageSize(tableId), totalCount: 0 });
   const [sort, setSort] = useState({ key: config.defaultSort || 'createdUtc', dir: config.defaultSortDir || 'desc' });
-  const [search, setSearch] = useState('');
+  // ?search= preselects the name search, so other pages can link to one record (for example an approval's deployment).
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const debouncedSearch = useDebounce(search, 350);
   const [filters, setFilters] = useState(() => {
     const initial = { ...(config.defaultFilters || {}) };
@@ -176,7 +197,7 @@ export default function ResourceView({ config }) {
       if (config.afterCreate && editing.mode !== 'edit') config.afterCreate(result, { ...ctx, setExtraModal });
       load(page.pageNumber);
     } catch (e) {
-      const perField = fieldErrorMessages(t, e);
+      const perField = withListItemErrors(t, fieldErrorMessages(t, e));
       if (perField) setFieldErrors(perField);
       addToast({ type: 'error', message: `${errorMessage(t, e)} ${errorDetail(t, e)}`.trim() });
     } finally {
@@ -262,21 +283,29 @@ export default function ResourceView({ config }) {
   const noData = !loading && !error && items.length === 0 && !debouncedSearch && Object.values(filters).every((v) => !v);
 
   const filterTip = (f) => f.tip || t(`tips.filters.${f.name}`);
+  // Options may depend on the lookups (for example agent IDs with their names).
+  const filterOptions = (f) => (typeof f.options === 'function' ? f.options(lookups, filters) : f.options || []);
+  const defaults = config.defaultFilters || {};
+  const filtersChanged = [...new Set([...Object.keys(filters), ...Object.keys(defaults)])].some((k) => (filters[k] || '') !== (defaults[k] || ''));
   const addTip = t(`tips.resources.${config.id}.add`, { defaultValue: t('tips.actions.add') });
 
   const filterSlot = (
     <div className="filter-inline">
-      <input
-        type="search"
-        className="filter-search"
-        value={search}
-        placeholder={t('components.filters.searchName')}
-        aria-label={t('components.filters.searchName')}
-        {...tip(t('tips.table.search'))}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      {config.search !== false && (
+        <input
+          type="search"
+          className="filter-search"
+          value={search}
+          placeholder={t('components.filters.searchName')}
+          aria-label={t('components.filters.searchName')}
+          {...tip(t('tips.table.search'))}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      )}
       {(config.filters || []).map((f) =>
-        f.type === 'datetime' ? (
+        f.type === 'text' ? (
+          <TextFilter key={f.name} filter={f} value={filters[f.name]} t={t} tipText={filterTip(f)} onChange={(v) => setFilters((prev) => ({ ...prev, [f.name]: v }))} />
+        ) : f.type === 'datetime' ? (
           <label key={f.name} className="filter-date" {...tip(filterTip(f))}>
             <span>{f.label(t)}</span>
             <input {...tip(filterTip(f))} type="datetime-local" value={toLocalInput(filters[f.name])} onChange={(e) => setFilters((prev) => ({ ...prev, [f.name]: toUtcIso(e.target.value) || '' }))} />
@@ -286,7 +315,7 @@ export default function ResourceView({ config }) {
           <span className="sr-only">{f.label(t)}</span>
           <select {...tip(filterTip(f))} aria-label={f.label(t)} value={filters[f.name] || ''} onChange={(e) => setFilters((prev) => ({ ...prev, [f.name]: e.target.value }))}>
             <option value="">{f.label(t)}: {t('common.generic.all')}</option>
-            {(typeof f.options === 'function' ? f.options(lookups, filters) : f.options).map((o) => (
+            {filterOptions(f).map((o) => (
               <option key={o} value={o}>
                 {f.optionLabel ? f.optionLabel(o, t, lookups) : t(`enums.${f.enumGroup || f.name}.${o}`, { defaultValue: o })}
               </option>
@@ -295,7 +324,7 @@ export default function ResourceView({ config }) {
         </label>
         )
       )}
-      {(search || Object.values(filters).some(Boolean)) && (
+      {(search || filtersChanged) && (
         <button
           type="button"
           className="button-ghost button-sm"

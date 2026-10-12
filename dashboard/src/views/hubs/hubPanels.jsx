@@ -5,6 +5,8 @@ import RunDetailView from '../RunDetailView';
 import QueueView from '../QueueView';
 import ConversationsView from '../ConversationsView';
 import ConversationDetailView from '../ConversationDetailView';
+import ApprovalsView from '../ApprovalsView';
+import ApprovalDetailView from '../ApprovalDetailView';
 import AnalyticsView from '../AnalyticsView';
 import NodesView from '../NodesView';
 import ControlNodesView from '../ControlNodesView';
@@ -41,6 +43,7 @@ export const PAGE_VIEWS = {
   runs: RunsView,
   conversations: ConversationsView,
   queue: QueueView,
+  approvals: ApprovalsView,
   analytics: AnalyticsView,
   nodes: NodesView,
   controlNodes: ControlNodesView,
@@ -70,6 +73,7 @@ export const PAGE_VIEWS = {
 export const DETAIL_VIEWS = {
   runs: RunDetailView,
   conversations: ConversationDetailView,
+  approvals: ApprovalDetailView,
   agents: AgentDetailView,
   promptTemplates: PromptTemplateEditorView
 };

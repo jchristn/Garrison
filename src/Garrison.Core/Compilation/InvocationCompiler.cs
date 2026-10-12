@@ -28,6 +28,18 @@ namespace Garrison.Core.Compilation
         #region Public-Members
 
         /// <summary>
+        /// Name of the Garrison MCP tool that decides permission requests (P12.3): garrison_permission_prompt. Claude Code
+        /// addresses it as mcp__garrison__garrison_permission_prompt.
+        /// </summary>
+        public static string PermissionPromptTool
+        {
+            get
+            {
+                return "garrison_permission_prompt";
+            }
+        }
+
+        /// <summary>
         /// Text that replaces secret values in previews.
         /// </summary>
         public static readonly string Redacted = "[REDACTED]";
@@ -373,12 +385,26 @@ namespace Garrison.Core.Compilation
 
             Dictionary<string, string> parameters = RunOverrideValidator.Effective(deployment, run.Parameters);
             bool delegationEnabled = agent.DelegationMode != DelegationModeEnum.None && !String.IsNullOrEmpty(runToken);
+            if (deployment.ApprovalsEnabled && !Garrison.Core.Services.ConfigurationValidator.SupportsApprovals(profile))
+            {
+                throw new CompilationException("ApprovalsUnsupported", "Deployment " + deployment.Name + " has approvals enabled, but harness profile " + profile.Name + " cannot relay permission requests (only Claude Code and CodexAppServer delivery can).");
+            }
+            bool approvalsEnabled = deployment.ApprovalsEnabled && !String.IsNullOrEmpty(runToken);
+            if (approvalsEnabled && profile.HarnessType == HarnessTypeEnum.ClaudeCode)
+            {
+                // With approvals, Claude Code must ask before every tool that needs permission, so the defaults move to
+                // permission mode "default" and only Garrison's own tools pre-allowed. Deployment parameters still win, and
+                // the profile's argument templates stay the same so existing argument overrides keep matching.
+                if (!parameters.ContainsKey("permissionMode")) parameters["permissionMode"] = "default";
+                if (!parameters.ContainsKey("allowedTools")) parameters["allowedTools"] = "mcp__" + Constants.McpServerName;
+            }
 
             TemplateContext context = BaseContext(inputs, run, parameters, delegationEnabled, repair, conversation);
+            context.Set("approval", ApprovalContext(deployment, approvalsEnabled));
             Dictionary<string, object?> secrets = SecretContext(inputs, scrub);
             context.Set("secret", secrets);
 
-            List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled, spec, scrub);
+            List<McpServerEntry> servers = BuildMcpServers(inputs, context, runToken, delegationEnabled, approvalsEnabled, spec, scrub);
             context.Set("resources", ResourcesContext(inputs, servers));
 
             Func<string, string?> includes = name => inputs.Includes.TryGetValue(name, out BoundPrompt? include) ? include.Content : null;
@@ -464,6 +490,19 @@ namespace Garrison.Core.Compilation
                     spec.AppServer = new ExecutionAppServer();
                     spec.AppServer.ResumeThreadId = repair?.SessionId ?? run.ResumeSessionId;
                     spec.AppServer.OutputSchemaJson = CompactJson(agent.OutputSchemaJson, "output schema of agent " + agent.Name);
+                    if (approvalsEnabled)
+                    {
+                        // Codex asks before commands and file changes it does not trust; the worker relays each request to
+                        // garrison_permission_prompt with the run token. codexApprovalPolicy (untrusted, on-request, or
+                        // on-failure) overrides the policy.
+                        spec.AppServer.ApprovalPolicy = parameters.TryGetValue("codexApprovalPolicy", out string? policy) && !String.IsNullOrWhiteSpace(policy) ? policy : "untrusted";
+                        spec.ApprovalRelay = new ExecutionApprovalRelay();
+                        spec.ApprovalRelay.McpUrl = _Options.McpBaseUrl.TrimEnd('/');
+                        spec.ApprovalRelay.McpPath = String.IsNullOrEmpty(_Options.McpPath) ? "/mcp" : _Options.McpPath;
+                        spec.ApprovalRelay.BearerToken = runToken!;
+                        spec.ApprovalRelay.ToolName = PermissionPromptTool;
+                        spec.ApprovalRelay.TimeoutSeconds = deployment.ApprovalTimeoutSeconds + 120;
+                    }
                     break;
             }
 
@@ -473,6 +512,7 @@ namespace Garrison.Core.Compilation
             spec.ParserOptions.FinalField = profile.GenericFinalField;
             spec.ParserOptions.SuccessField = profile.GenericSuccessField;
             spec.ParserOptions.SuccessValue = profile.GenericSuccessValue;
+            spec.ParserOptions.ApprovalsRelayed = spec.ApprovalRelay != null;
             spec.ResultSource = profile.ResultSource;
             spec.ResultFileName = profile.ResultFileName;
             spec.SuccessPolicy = profile.SuccessPolicy;
@@ -604,6 +644,19 @@ namespace Garrison.Core.Compilation
                 inputs.Includes[name] = include;
                 Scan(template.Content);
             }
+        }
+
+        private static Dictionary<string, object?> ApprovalContext(Deployment deployment, bool enabled)
+        {
+            // approval.* lets harness profiles opt into permission approvals (P12.3). Disabled deployments see the values
+            // the built-in profiles used before approvals existed, so their command lines do not change.
+            Dictionary<string, object?> approval = TemplateContext.NewMap();
+            approval["enabled"] = enabled;
+            approval["promptTool"] = enabled ? "mcp__" + Constants.McpServerName + "__" + PermissionPromptTool : null;
+            approval["timeoutSeconds"] = deployment.ApprovalTimeoutSeconds;
+            long toolTimeoutMs = enabled ? Math.Max(600000L, (deployment.ApprovalTimeoutSeconds + 120L) * 1000L) : 600000L;
+            approval["mcpToolTimeoutMs"] = toolTimeoutMs.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return approval;
         }
 
         private TemplateContext BaseContext(CompilationInputs inputs, Run run, Dictionary<string, string> parameters, bool delegationEnabled, CompilationRepair? repair, CompilationConversation? conversation)
@@ -803,12 +856,12 @@ namespace Garrison.Core.Compilation
             }
         }
 
-        private List<McpServerEntry> BuildMcpServers(CompilationInputs inputs, TemplateContext context, string? runToken, bool delegationEnabled, ExecutionSpec spec, HashSet<string> scrub)
+        private List<McpServerEntry> BuildMcpServers(CompilationInputs inputs, TemplateContext context, string? runToken, bool delegationEnabled, bool approvalsEnabled, ExecutionSpec spec, HashSet<string> scrub)
         {
             List<McpServerEntry> servers = new List<McpServerEntry>();
             int index = 0;
 
-            if (delegationEnabled)
+            if (delegationEnabled || approvalsEnabled)
             {
                 McpServerEntry garrison = new McpServerEntry();
                 garrison.Name = Constants.McpServerName;
@@ -816,8 +869,9 @@ namespace Garrison.Core.Compilation
                 garrison.Url = _Options.McpBaseUrl.TrimEnd('/');
                 garrison.Path = String.IsNullOrEmpty(_Options.McpPath) ? "/mcp" : _Options.McpPath;
                 garrison.Required = true;
-                garrison.RequiredTools.Add("garrison_invoke_agent");
-                garrison.ToolTimeoutSeconds = 600;
+                if (delegationEnabled) garrison.RequiredTools.Add("garrison_invoke_agent");
+                if (approvalsEnabled) garrison.RequiredTools.Add(PermissionPromptTool);
+                garrison.ToolTimeoutSeconds = approvalsEnabled ? Math.Max(600, inputs.Deployment.ApprovalTimeoutSeconds + 120) : 600;
                 garrison.Headers.Add(Variable("Authorization", "Bearer " + runToken, true));
                 garrison.BearerToken = runToken;
                 servers.Add(garrison);
@@ -1237,6 +1291,7 @@ namespace Garrison.Core.Compilation
                 foreach (ExecutionEnvironmentVariable header in check.Headers) header.Value = Redacted;
             }
             if (spec.Workspace.GitPassword != null) spec.Workspace.GitPassword = Redacted;
+            if (spec.ApprovalRelay != null) spec.ApprovalRelay.BearerToken = Redacted;
             spec.Stdin = Clean(spec.Stdin);
             spec.ScrubValues = secrets.Select(s => Redacted).ToList();
         }

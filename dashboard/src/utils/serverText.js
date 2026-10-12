@@ -24,6 +24,9 @@ export const SERVER_TEXT_PATTERNS = [
   [/^Run started\.$/, 'runStarted', []],
   [/^Thread started\.$/, 'threadStarted', []],
   [/^Tool call denied: (.+)$/, 'toolCallDenied', ['id']],
+  // Permission approvals (P12.3): ApprovalRequested run events. Decided events keep the server text under their label.
+  [/^Waiting for a person to approve (.+); approval (\S+) expires at (.+)\.$/s, 'approvalWaitingExpires', ['subject', 'id', 'expires']],
+  [/^Waiting for a person to approve (.+); approval (\S+)\.$/s, 'approvalWaiting', ['subject', 'id']],
   [/^Agent (\S+) has no active deployment with a weight above zero\.$/, 'noActiveDeployment', ['agent']],
   [/^(.+) is used by deployment\(s\) (.+)\.$/, 'inUse', ['what', 'deployments']],
   [/^Would be created\.$/i, 'wouldBeCreated', []],

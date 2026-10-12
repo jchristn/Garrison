@@ -208,6 +208,57 @@ namespace Garrison.Core.Services
         }
 
         /// <summary>
+        /// Whether runs of a harness profile can relay permission approvals to Garrison (P12.3): Claude Code profiles
+        /// (through --permission-prompt-tool) and profiles with CodexAppServer delivery (through app-server approval
+        /// requests the worker relays).
+        /// </summary>
+        /// <param name="profile">Harness profile.</param>
+        /// <returns>True when approvals can be relayed.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when profile is null.</exception>
+        public static bool SupportsApprovals(HarnessProfile profile)
+        {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+            return profile.HarnessType == HarnessTypeEnum.ClaudeCode || profile.PromptDelivery == PromptDeliveryEnum.CodexAppServer;
+        }
+
+        /// <summary>
+        /// Validate deployment approval rules (P12.3): every pattern parses, input patterns are valid regular expressions,
+        /// and descriptions stay within 1000 characters. At most 500 rules.
+        /// </summary>
+        /// <param name="rules">Rules.</param>
+        /// <param name="errors">Field errors to add to.</param>
+        /// <exception cref="ArgumentNullException">Thrown when errors is null.</exception>
+        public static void ApprovalRules(List<DeploymentApprovalRule>? rules, Dictionary<string, string> errors)
+        {
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+            if (rules == null) return;
+            if (rules.Count > 500) errors["approvalRules"] = "A deployment can have at most 500 approval rules.";
+            for (int i = 0; i < rules.Count; i++)
+            {
+                DeploymentApprovalRule rule = rules[i];
+                string field = "approvalRules[" + i + "]";
+                if (rule == null)
+                {
+                    errors[field] = "A rule is required.";
+                    continue;
+                }
+                if (!Garrison.Core.Approvals.ApprovalRuleParser.TryParse(rule.Pattern, out Garrison.Core.Approvals.ParsedApprovalRule? _, out string? error)) errors[field + ".pattern"] = error ?? "The pattern is invalid.";
+                if (!String.IsNullOrWhiteSpace(rule.InputPattern))
+                {
+                    try
+                    {
+                        Regex.IsMatch(String.Empty, rule.InputPattern!, RegexOptions.None, TimeSpan.FromSeconds(1));
+                    }
+                    catch (ArgumentException)
+                    {
+                        errors[field + ".inputPattern"] = "The input pattern is not a valid regular expression.";
+                    }
+                }
+                if (rule.Description != null && rule.Description.Length > 1000) errors[field + ".description"] = "The description is longer than 1000 characters.";
+            }
+        }
+
+        /// <summary>
         /// Validate a deployment and its references (plan P2.6.2).
         /// </summary>
         /// <param name="database">Database.</param>
@@ -315,6 +366,12 @@ namespace Garrison.Core.Services
                     if (bounds.Length != 2 || !Int64.TryParse(bounds[0].Trim(), out long _) || !Int64.TryParse(bounds[1].Trim(), out long _)) errors[field + ".pattern"] = "Integer ranges use the form min,max.";
                 }
                 if (rule.Validation == RunOverrideValidationEnum.Enum && String.IsNullOrWhiteSpace(rule.Pattern)) errors[field + ".pattern"] = "Enum rules need comma-separated values.";
+            }
+
+            ApprovalRules(deployment.ApprovalRules, errors);
+            if (deployment.ApprovalsEnabled && profile != null && !SupportsApprovals(profile))
+            {
+                errors["approvalsEnabled"] = "Harness profile " + profile.Name + " cannot relay permission approvals. Approvals need a Claude Code profile (--permission-prompt-tool) or a Codex profile with CodexAppServer delivery; Codex exec, Mux, Gemini CLI, and generic profiles have no approval hook.";
             }
 
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false) == null) errors["workspaceTemplateId"] = "The workspace template does not exist in this tenant.";

@@ -2,6 +2,7 @@
 // Tooltips say what a control is and how it is used, never just the label again (D-030).
 
 const TELEMETRY = {
+  approvalWaitMs: 'Approval wait: total time this run spent waiting for permission approvals that a person or a timeout decided. Calls decided at once by a rule or the deployment default add nothing. Measured by the server; n/a when the run never waited.',
   delegationWaitMs: 'Delegation wait: how long this run waited on child runs it started through Garrison (other agents it delegated to), from the server timestamps of those child runs. Zero or n/a when the run delegated nothing.',
   timeToFirstTokenExcludingDelegationMs: 'Time to first token excluding delegation: time to first token minus the time the run spent waiting on runs it delegated to before its first output. Use it to compare agents that delegate with agents that do not. Measured from server timestamps; never negative.',
   timeToFirstTokenMs: 'Time to first token: from the moment the worker starts the harness process until the model produces its first output (text or thinking). It includes harness startup, so a slow CLI start shows up here. Measured on the worker with a monotonic clock.',
@@ -30,6 +31,33 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  approvals: {
+    awaiting_one: 'The harness asked before a tool call and is waiting for a person. Open the Approvals tab to allow or deny it ({{count}} waiting).',
+    awaiting_other: 'The harness asked before tool calls and is waiting for a person. Open the Approvals tab to allow or deny them ({{count}} waiting).',
+    decide: {
+      decision: 'Choose whether the harness may make this tool call. The run continues as soon as you submit.',
+      allow: 'Let the harness make this tool call. The run continues with it.',
+      deny: 'Refuse this tool call. The harness gets the denial message and continues without it.',
+      reason: 'Optional note saved with the decision and written to the audit log. A denial passes it on to the agent.',
+      remember: 'Also add a rule to this approval\'s deployment so the same kind of call is decided automatically next time.',
+      rulePattern: 'The rule to add, in Claude Code rule syntax. It starts as the suggested rule; widen or narrow it before saving.',
+      submitAllow: 'Allow the tool call now. The decision is final and cannot be changed afterwards.',
+      submitDeny: 'Deny the tool call now. The decision is final and cannot be changed afterwards.'
+    }
+  },
+  approvalCheck: {
+    toolName: 'Tool name as the harness reports it, such as Bash, Edit, WebFetch, or an MCP tool like mcp__github__create_issue.',
+    inputs: {
+      command: 'The shell command to test, for example npm run build && npm test. Every subcommand must be allowed.',
+      url: 'The URL the tool would fetch. WebFetch rules match on its domain.',
+      query: 'The search query the tool would send.',
+      file_path: 'Path of the file the tool would read or change, relative to the workspace or absolute.',
+      notebook_path: 'Path of the notebook the tool would change.',
+      pattern: 'The glob or search pattern the tool would use.'
+    },
+    run: 'Evaluate the deployment\'s saved rules for this tool call and show the result. Nothing is recorded and no run is affected.',
+    suggestedRule: 'The rule "remember" would add for this call. Copy it into the rules above to cover similar calls.'
+  },
   ids: { deleted: 'This record was deleted. ID {{id}}. The copy button copies the ID.', named: 'ID {{id}}. Use the copy button to copy the ID for the API, SDKs, or a support request.' },
   markdown: {
     column: 'Column {{name}} of a table in the agent output. Wide tables scroll sideways inside their frame.',
@@ -55,7 +83,10 @@ const tips = {
     dismiss: 'Hide this explanation. A small "About" button stays in its place so you can bring it back at any time.'
   },
   nav: {
+    approvalsBadge_one: '{{count}} tool call is waiting for a person to allow or deny it. Open Approvals to decide.',
+    approvalsBadge_other: '{{count}} tool calls are waiting for a person to allow or deny them. Open Approvals to decide.',
     hubs: {
+      approvals: 'The approvals inbox: tool calls agents asked to make that wait for a person, and the history of every decision by rule, default, person, or timeout.',
       home: 'Start here: live counts of agents, runs, and worker nodes, API traffic, recent failures, and shortcuts to common tasks.',
       invoke: 'Send a message to an agent from the browser and watch the transcript stream, without writing any code.',
       runs: 'Every agent invocation, its transcript, outcome, and telemetry, plus the queue of work waiting for a node.',
@@ -161,6 +192,8 @@ const tips = {
     bulkDelete: 'Delete every selected row. You will be asked to confirm first.'
   },
   filters: {
+    decisionSource: 'Show only approvals decided one way: by a rule, the deployment default, a person, a timeout, or a stopped run.',
+    runId: 'Show only the approvals of one run. Paste a run ID such as run_...; the list updates when you stop typing.',
     status: 'Show only records in this state. Choose All to remove the filter.',
     harnessType: 'Show only records for one harness, such as Claude Code or Codex.',
     kind: 'Show only records of one kind. Choose All to remove the filter.',
@@ -234,6 +267,9 @@ const tips = {
     tenant: 'Show request activity for one tenant or for every tenant on the server.'
   },
   badges: {
+    approvalsOn_one: 'Approvals are on: the harness asks before tool calls, and {{count}} rule decides some of them automatically.',
+    approvalsOn_other: 'Approvals are on: the harness asks before tool calls, and {{count}} rules decide some of them automatically.',
+    approvalsOff: 'Approvals are off: the harness makes tool calls under its own permission settings without asking.',
     active: 'Active: this record is in use.',
     inactive: 'Inactive: this record is kept but ignored until it is turned back on.',
     builtIn: 'Built-in: shipped with Garrison and read-only. Clone it to make a version you can edit.',
@@ -300,6 +336,34 @@ const tips = {
     queueColumn: 'Queued runs in this group that no Ready worker can run right now. Hover the badge for the reason and what to do.'
   },
   enums: {
+    approvalStatus: {
+      Pending: 'Waiting for a person to allow or deny it. The harness is blocked on this call until then.',
+      Approved: 'The tool call was allowed, by a rule, the deployment default, a person, or a timeout.',
+      Denied: 'The tool call was refused. The harness received the denial message and continued without it.',
+      Expired: 'Nobody decided in time, so the deployment\'s timeout decision was applied.',
+      Cancelled: 'The run stopped while the approval was pending, so it was closed without a decision.'
+    },
+    approvalDecision: {
+      Allow: 'Allow: the harness was permitted to make the tool call.',
+      Deny: 'Deny: the harness was refused and told why.'
+    },
+    approvalSource: {
+      Rule: 'Decided at once by a rule on the deployment. The matched rule is shown next to it.',
+      Default: 'No rule matched, so the deployment\'s default action decided it.',
+      User: 'A person decided it in the dashboard, over the API, or over MCP.',
+      Timeout: 'Nobody decided before it expired, so the deployment\'s timeout decision applied.',
+      Cancelled: 'The run stopped while this approval was waiting.'
+    },
+    approvalRuleAction: {
+      Allow: 'Allow: matching tool calls go ahead without asking anyone.',
+      Deny: 'Deny: matching tool calls are refused without asking anyone. Deny beats every other rule.',
+      Ask: 'Ask a person: matching tool calls wait in the Approvals inbox for a decision.'
+    },
+    approvalKind: {
+      Tool: 'A Claude Code permission prompt for any tool, including MCP tools.',
+      Command: 'A shell command a Codex app-server run wants to execute. Rules evaluate it as Bash.',
+      FileChange: 'A file change a Codex app-server run wants to make. Rules evaluate it as Edit.'
+    },
     runBlockedReason: {
       NoReadyWorker: 'Blocked: no worker node is Ready, so nothing can take this run. Start a worker or register a new one, then check the Fleet page for nodes that are Lost, Offline, Draining, or Cordoned.',
       NoCapableWorker: 'Blocked: worker nodes are Ready, but none reports this run\'s harness as available. Start or register a worker with the harness installed, or check its credentials and probe results on the Fleet page.',
@@ -424,6 +488,7 @@ const tips = {
       Validated: 'Dry run: this document is valid and would be applied.'
     },
     auditEventType: {
+      ApprovalDecided: 'A person allowed or denied a pending tool call. The record names the tool, the run, and the reason.',
       AuthSuccess: 'Someone signed in or authenticated a request successfully.',
       AuthFailure: 'A sign-in or authentication attempt failed. Repeated failures can mean someone is guessing.',
       SessionIssued: 'A session token was issued.',
@@ -457,6 +522,40 @@ const tips = {
     }
   },
   resources: {
+    approvals: {
+      createdUtc: 'When the harness asked. Hover the value for the exact time.',
+      agentName: 'The agent whose run asked for this tool call.',
+      toolName: 'The tool the harness wants to use, such as Bash, Edit, WebFetch, or an MCP tool.',
+      summary: 'One line about the call: the command, URL, paths, or query, with secrets redacted.',
+      status: 'Pending until decided, then Approved, Denied, Expired (timeout), or Cancelled (the run stopped).',
+      decision: 'Allow or Deny once decided; empty while the approval is pending.',
+      decisionSource: 'What decided it: a rule, the deployment default, a person, a timeout, or a stopped run.',
+      decidedBy: 'The person or access key that decided, when a person decided it.',
+      expiresUtc: 'When a pending approval times out and the deployment\'s timeout decision applies.',
+      kind: 'Tool call (Claude Code), Command, or File change (Codex app-server).',
+      harnessType: 'The harness that asked: Claude Code or Codex.',
+      runId: 'The run that asked. Open it to see the transcript around the call.',
+      rootRunId: 'The top-level run of the delegation tree, when the run that asked was delegated.',
+      deploymentId: 'The deployment whose rules evaluated this call. Remembered rules are added to it.',
+      leaseEpoch: 'Lease epoch of the run attempt that asked, so a decision never reaches a later attempt.',
+      requestedUtc: 'When the harness asked for permission.',
+      decidedUtc: 'When the decision was made.',
+      waitMs: 'How long the call waited from request to decision.',
+      timeoutDecision: 'What happens if nobody decides before the approval expires, from the deployment settings.',
+      toolCallId: 'The harness\'s own ID for this tool call, for matching it in the transcript.',
+      reason: 'The note the person who decided wrote, if any.',
+      inputPreview: 'The tool input the harness sent, as JSON, with secrets and token-like values redacted.',
+      rulePattern: 'The deployment rule that matched this call, when a rule decided it or asked for a person.',
+      ruleId: 'ID of the matched deployment rule.',
+      suggestedRule: 'A rule that would match this call. Remember as rule prefills it.',
+      rememberedRuleId: 'ID of the rule that was added to the deployment when this approval was decided with remember.',
+      id: 'Approval identifier (apr_...) for the API and MCP tools.',
+      actions: {
+        allow: 'Allow this pending tool call, with an optional reason and an option to remember it as a rule.',
+        deny: 'Deny this pending tool call, with an optional reason and an option to remember it as a rule.',
+        openRun: 'Open the run that asked, to read its transcript around this tool call.'
+      }
+    },
     tenants: {
       add: 'Create a new tenant: an isolated space with its own users, agents, secrets, and runs.',
       name: 'Display name of the tenant. People pick the tenant by its ID when they sign in.',
@@ -696,6 +795,18 @@ const tips = {
       }
     },
     deployments: {
+      approvalsEnabled: 'Make the harness ask before tool calls. Rules below decide most calls; the rest wait for a person in the Approvals inbox. Claude Code and Codex app-server profiles only.',
+      approvalDefaultAction: 'What happens when no rule matches a tool call: allow it, deny it, or ask a person.',
+      approvalTimeoutSeconds: 'How long a call waits for a person before the timeout decision applies, from 10 to 3,600 seconds.',
+      approvalTimeoutDecision: 'The decision applied when nobody answers in time. Deny is the safe choice.',
+      approvalRules: 'Ordered rules in Claude Code syntax. Deny beats Ask and Ask beats Allow; within one action the first match is reported.',
+      approvalRulesItems: {
+        action: 'What a matching call gets: Allow, Deny, or Ask a person.',
+        pattern: 'Claude Code rule, for example Bash(npm test), Bash(npm run *), Edit(src/**), Read, WebFetch(domain:example.com), or mcp__github__*.',
+        inputPattern: 'Optional .NET regular expression the tool input JSON must also match, for finer control than the pattern.',
+        description: 'Why this rule exists, for the people who maintain it.'
+      },
+      approvalTest: 'Try a tool call against the deployment\'s saved rules and see whether it would be allowed, denied, or sent to a person.',
       add: 'Create a deployment: the concrete way an agent runs, with a harness profile, model, prompts, and resources.',
       name: 'Deployment name, unique in the tenant, for example reviewer-claude.',
       agentId: 'The agent this deployment runs. Invoking that agent may pick this deployment.',
@@ -760,6 +871,7 @@ const tips = {
       maxAttempts: 'How many times a run may be attempted in total. Between 1 and 10.',
       retryOnNodeLoss: 'Put the run back in the queue when its node disappears, instead of failing it.',
       steps: {
+        approvals: 'Which tool calls the harness may make, which it may not, and which wait for a person.',
         basics: 'Name, agent, and traffic weight.',
         harness: 'Harness profile, model, limits, and parameters.',
         prompts: 'Which template fills each prompt role.',
@@ -921,6 +1033,16 @@ const tips = {
     }
   },
   views: {
+    approvalDetail: {
+      openRun: 'Open the run that asked, to read its transcript around this tool call.',
+      openAgent: 'Open the agent page with its deployments and recent runs.',
+      openDeployment: 'Open the Deployments tab filtered to this deployment, where its approval rules are edited.',
+      backToInbox: 'Go back to the approvals inbox with every pending approval.',
+      viewJson: 'Show the complete approval record as JSON, exactly as the API returns it.',
+      request: 'What the harness asked to do: the one-line summary and the full tool input with secrets redacted.',
+      rules: 'The deployment rule that matched, the rule this call suggests, and the rule remembered from the decision.',
+      copyRule: 'Copy the suggested rule, for example to paste it into the deployment\'s approval rules.'
+    },
     home: {
       observabilityState: {
         reachable: 'The server reached {{service}} at its internal URL in the last 30 seconds.',
@@ -981,6 +1103,9 @@ const tips = {
       serviceGeneric: 'Open this bundled service in a new tab.'
     },
     runDetail: {
+      openApproval: 'Open this approval with its full tool input, rule, and decision.',
+      reviewApprovals: 'Show this run\'s approvals, where you can allow or deny the pending tool calls.',
+      approvalActions: 'Allow or deny a pending tool call, or open the approval for every field.',
       viewTrace: 'Open this run\'s trace in Grafana Explore (Tempo) in a new tab. It shows the compile, claim, and harness spans across the server and the worker node.',
       viewLogs: 'Open the server and worker log lines about this run in Grafana Explore (Loki) in a new tab, limited to the run\'s time range.',
       traceId: 'W3C trace ID of the trace this run was compiled in. Search for it in Tempo, or use View trace. Empty for runs created before trace IDs were recorded.',
@@ -1002,6 +1127,7 @@ const tips = {
       completed: 'When the run reached its final state.',
       exitCode: 'Exit code of the harness process. Success is usually judged from the final event, not this code.',
       tabs: {
+        approvals: 'Tool calls this run asked permission for, how each was decided, and Allow and Deny for the pending ones.',
         transcript: 'Every event the harness produced: assistant text, thinking, tool calls and results, and usage.',
         result: 'The final answer and any structured output.',
         input: 'What the caller sent, the parameters, and the exact prompt template versions used.',
@@ -1011,6 +1137,8 @@ const tips = {
       eventFilter: 'Show only one type of event, such as tool calls or errors.',
       openChild: 'Open this child run, started when this run called another agent.',
       eventCodes: {
+        ApprovalRequested: 'The harness asked before a tool call and the call is waiting for a person. Decide it on the Approvals tab.',
+        ApprovalDecided: 'A permission request was decided by a rule, the deployment default, a person, or a timeout. The text says which.',
         RunGuardTriggered: 'A run guard stopped this run. The message says which guard tripped and what it saw; the run ends Failed with that guard\'s outcome and keeps its partial output.',
         ConversationFallback: 'This turn could not resume the conversation\'s harness session, so it started a fresh session seeded with the transcript of the earlier turns. The message says why.',
         ConversationStateLost: 'The node claimed this turn but the conversation\'s directories were gone, so the turn was returned to the queue to run as a fallback.'
@@ -1390,6 +1518,12 @@ const tips = {
 };
 
 const explainers = {
+  approvals: {
+    title: 'How approvals work',
+    p1: 'A deployment with approvals turned on makes its harness ask Garrison before tool calls: Claude Code through its permission prompt tool, and Codex app-server runs for commands and file changes.',
+    p2: 'Each request is checked against the deployment\'s rules. Deny beats Ask, and Ask beats Allow; when nothing matches, the deployment default applies. Allow and Deny answer at once; Ask puts the request here and the run waits.',
+    p3: 'Allow or deny a pending request with an optional reason. Remember as rule adds a rule to the deployment so the next similar call is decided automatically. Requests nobody decides expire with the deployment\'s timeout decision.'
+  },
   diagram: {
     label: 'Diagram: a caller invokes an agent by name, Garrison picks one of the agent\'s deployments by weight, and that deployment\'s bindings decide how the run executes.',
     caller: { title: 'Caller', body: 'REST, MCP, A2A, or another agent', tip: 'Anything that invokes an agent: the REST API, an MCP client, an A2A agent, or another agent\'s run. Callers only know the agent name.' },

@@ -535,6 +535,43 @@ namespace Garrison.Core.Models
         public RunBlockedReasonEnum? BlockedReason { get; set; } = null;
 
         /// <summary>
+        /// Permission approvals of this run waiting for a person (P12.3). Maintained by the approval service with
+        /// targeted updates; read-only on the API. While it is above zero the run keeps its status (Running) and its
+        /// worker slot, and <see cref="AwaitingApproval"/> is true.
+        /// </summary>
+        public int PendingApprovals
+        {
+            get
+            {
+                return _PendingApprovals;
+            }
+            set
+            {
+                _PendingApprovals = Math.Max(0, value);
+            }
+        }
+
+        /// <summary>
+        /// Whether the run's harness is blocked on a permission approval (PendingApprovals above zero). A substatus of
+        /// Running, not a status: the harness process and its slot stay in place. Computed; not stored.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public bool AwaitingApproval
+        {
+            get
+            {
+                return _PendingApprovals > 0;
+            }
+        }
+
+        /// <summary>
+        /// Total milliseconds the run spent waiting for approvals a person decided or that expired, or null when it never
+        /// waited. Rule decisions add nothing.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public long? ApprovalWaitMs { get; set; } = null;
+
+        /// <summary>
         /// Whether the record is active.
         /// </summary>
         public bool Active { get; set; } = true;
@@ -631,6 +668,7 @@ namespace Garrison.Core.Models
         private int _Priority = 0;
         private int _RepairAttempts = 0;
         private int _ConversationTurn = 0;
+        private int _PendingApprovals = 0;
         private string? _TraceId = null;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;

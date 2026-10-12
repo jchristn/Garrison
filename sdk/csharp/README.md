@@ -78,11 +78,34 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
 Models, enums, request types, and response types live in `Garrison.Sdk.Models`, `Garrison.Sdk.Enums`, `Garrison.Sdk.Requests`, and `Garrison.Sdk.Responses`. They mirror the server contracts.
+
+## Permission approvals
+
+When a deployment has `ApprovalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `ApprovalRules` (a list of `DeploymentApprovalRule` with `Action`, `Pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, optional `InputPattern`, and `Description`) decide each request, and `ApprovalDefaultAction` (`ApprovalRuleActionEnum`: `Allow`, `Deny`, `Ask`) covers requests no rule matches. `Ask` sends the request to a person, who has `ApprovalTimeoutSeconds` (10 to 3600, default 300) before `ApprovalTimeoutDecision` applies.
+
+```csharp
+ApprovalFilter filter = new ApprovalFilter();
+filter.Status = ApprovalStatusEnum.Pending;
+EnumerationResult<Approval> pending = await client.Approvals.ListAsync(filter);
+
+ApprovalDecideRequest decide = new ApprovalDecideRequest();
+decide.Decision = ApprovalDecisionEnum.Allow;
+decide.Remember = true; // also add an Allow rule (the approval's SuggestedRule) to the deployment
+Approval decided = await client.Approvals.DecideAsync(pending.Objects[0].Id, decide);
+
+ApprovalCheckRequest check = new ApprovalCheckRequest();
+check.ToolName = "Bash";
+check.Input = new ApprovalToolInput();
+check.Input.Command = "git status --short";
+ApprovalCheckResponse result = await client.Approvals.CheckAsync(deploymentId, check);
+```
+
+`Approvals.ListAsync` filters by status, run, root run, agent, deployment, decision source (`ApprovalSourceEnum`), and time range; for a pending count, filter on `Pending` with `MaxResults = 1` and read `TotalRecords`. `GetAsync` returns 404 for an approval outside the tenant. `DecideAsync` answers 409 (`ApprovalNotPending`) when the approval was already decided, and `Remember` needs Update on the approval's deployment. `CheckAsync` records nothing and returns the action, whether a rule or the default decided (`Source`), the matching rule, a `SuggestedRule`, and whether approvals are enabled. `Run` carries `PendingApprovals`, `AwaitingApproval` (the run stays `Running` while it waits), and `ApprovalWaitMs`.
 
 ## Streaming run events
 

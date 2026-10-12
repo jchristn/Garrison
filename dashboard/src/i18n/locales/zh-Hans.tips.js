@@ -1,6 +1,7 @@
 // Simplified Chinese tooltip (tips.*) and relationship explainer (explainers.*) text. Merged into zh-Hans.js. Mirrors en.tips.js key for key.
 
 const TELEMETRY = {
+  approvalWaitMs: '审批等待：此运行等待由人员或超时决定的权限审批所花费的总时间。由规则或部署默认设置立即决定的调用不计入。由服务器测量；运行从未等待时显示为 n/a。',
   delegationWaitMs: '委派等待时间：此运行等待其通过 Garrison 启动的子运行（即它委派的其他智能体）的时长，根据这些子运行的服务器时间戳计算。如果运行没有委派任何内容，则为零或不适用。',
   timeToFirstTokenExcludingDelegationMs: '首 Token 时间（不含委派）：首 Token 时间减去运行在首次输出前等待委派运行的时间。用它来公平比较会委派和不委派的智能体。基于服务器时间戳计算，绝不为负。',
   timeToFirstTokenMs: '首个 Token 时间：从工作节点启动 Harness 进程开始，到模型产生第一个输出（文本或思考）为止。其中包含 Harness 的启动时间，因此 CLI 启动缓慢会体现在这里。由工作节点使用单调时钟测量。',
@@ -29,6 +30,33 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  approvals: {
+    awaiting_one: 'Harness 在工具调用前发出询问，正在等待人员处理。打开“审批”标签页来允许或拒绝（{{count}} 个待处理）。',
+    awaiting_other: 'Harness 在工具调用前发出询问，正在等待人员处理。打开“审批”标签页来允许或拒绝（{{count}} 个待处理）。',
+    decide: {
+      decision: '选择 Harness 是否可以进行此工具调用。提交后运行会立即继续。',
+      allow: '让 Harness 进行此工具调用。运行将带着该调用继续。',
+      deny: '拒绝此工具调用。Harness 会收到拒绝消息，并在不进行该调用的情况下继续。',
+      reason: '可选备注，随决定一起保存并写入审计日志。拒绝时会转交给智能体。',
+      remember: '同时向此审批所属的部署添加一条规则，下次同类调用将自动决定。',
+      rulePattern: '要添加的规则，使用 Claude Code 规则语法。初始值为建议的规则；保存前可放宽或收窄。',
+      submitAllow: '立即允许此工具调用。该决定为最终决定，之后无法更改。',
+      submitDeny: '立即拒绝此工具调用。该决定为最终决定，之后无法更改。'
+    }
+  },
+  approvalCheck: {
+    toolName: 'Harness 报告的工具名称，例如 Bash、Edit、WebFetch，或 mcp__github__create_issue 这样的 MCP 工具。',
+    inputs: {
+      command: '要测试的 Shell 命令，例如 npm run build && npm test。每个子命令都必须被允许。',
+      url: '工具将要获取的 URL。WebFetch 规则按其域名匹配。',
+      query: '该工具在此次调用中将要发送出去的那条搜索查询内容。',
+      file_path: '工具将要读取或更改的文件路径，可以是相对于工作区的路径或绝对路径。',
+      notebook_path: '该工具在此次调用中将要更改的 Notebook 文件的路径。',
+      pattern: '该工具在此次调用中将要使用的 glob 模式或搜索模式。'
+    },
+    run: '针对此工具调用评估部署已保存的规则并显示结果。不会记录任何内容，也不会影响任何运行。',
+    suggestedRule: '“记住”会为此调用添加的规则。将其复制到上方的规则中，即可覆盖类似的调用。'
+  },
   ids: { deleted: '此记录已删除。ID {{id}}。复制按钮会复制此 ID。', named: 'ID {{id}}。使用复制按钮复制此 ID，用于 API、SDK 或支持请求。' },
   markdown: {
     column: '智能体输出中表格的 {{name}} 列。较宽的表格可在其框内横向滚动。',
@@ -54,7 +82,10 @@ const tips = {
     dismiss: '隐藏此说明。原位置会保留一个小的“关于”按钮，你可以随时重新打开。'
   },
   nav: {
+    approvalsBadge_one: '{{count}} 个工具调用正在等待人员允许或拒绝。打开“审批”进行决定。',
+    approvalsBadge_other: '{{count}} 个工具调用正在等待人员允许或拒绝。打开“审批”进行决定。',
     hubs: {
+      approvals: '审批收件箱：智能体请求进行且正在等待人员处理的工具调用，以及按规则、默认设置、人员或超时做出的每项决定的历史记录。',
       home: '从这里开始：智能体、运行和工作节点的实时计数、API 流量、近期失败，以及常用任务的快捷入口。',
       invoke: '直接在浏览器中向智能体发送消息，并实时查看对话记录，无需编写任何代码。',
       runs: '每一次智能体调用及其对话记录、结果和遥测数据，以及等待节点的工作队列。',
@@ -160,6 +191,8 @@ const tips = {
     bulkDelete: '删除所有已选行。系统会先请你确认。'
   },
   filters: {
+    decisionSource: '仅显示以某种方式决定的审批：规则、部署默认设置、人员、超时或运行停止。',
+    runId: '仅显示某个运行的审批。粘贴运行 ID（如 run_...）；停止输入后列表会更新。',
     status: '只显示处于此状态的记录。选择“全部”可取消筛选。',
     harnessType: '只显示某一种 Harness 的记录，例如 Claude Code 或 Codex。',
     kind: '只显示某一类记录。选择“全部”可取消筛选。',
@@ -233,6 +266,9 @@ const tips = {
     tenant: '显示单个租户或服务器上所有租户的请求活动。'
   },
   badges: {
+    approvalsOn_one: '审批已开启：Harness 会在工具调用前询问，{{count}} 条规则会自动决定其中一部分。',
+    approvalsOn_other: '审批已开启：Harness 会在工具调用前询问，{{count}} 条规则会自动决定其中一部分。',
+    approvalsOff: '审批已关闭：Harness 按其自身的权限设置进行工具调用，不会询问。',
     active: '启用：此记录正在使用中。',
     inactive: '停用：此记录会保留，但在重新启用之前会被忽略。',
     builtIn: '内置：随 Garrison 一起提供，为只读。克隆它即可得到一个可编辑的版本。',
@@ -299,6 +335,34 @@ const tips = {
     queueColumn: '此分组中目前没有就绪工作节点能运行的排队运行。将鼠标悬停在徽章上可查看原因和处理方法。'
   },
   enums: {
+    approvalStatus: {
+      Pending: '正在等待人员允许或拒绝。在此之前，Harness 会在此调用上阻塞。',
+      Approved: '该工具调用已被允许，决定来自规则、部署默认设置、人员或超时。',
+      Denied: '该工具调用已被拒绝。Harness 收到了拒绝消息，并在不进行该调用的情况下继续。',
+      Expired: '没有人在规定时间内做出决定，因此采用了部署设置的超时决定。',
+      Cancelled: '审批待处理期间运行已停止，因此审批在没有决定的情况下关闭。'
+    },
+    approvalDecision: {
+      Allow: '允许：Harness 已获得许可，可以进行这一次工具调用。',
+      Deny: '拒绝：Harness 的请求被拒绝，并且被告知了原因。'
+    },
+    approvalSource: {
+      Rule: '由部署上配置的规则立即决定。匹配到的规则会显示在旁边。',
+      Default: '没有任何规则与之匹配，因此由部署设置的默认操作来决定。',
+      User: '由人员在仪表板中、通过 API 或通过 MCP 决定。',
+      Timeout: '在审批过期之前没有人做出决定，因此采用了部署设置的超时决定。',
+      Cancelled: '在此审批仍处于等待状态时，发出请求的运行已经停止。'
+    },
+    approvalRuleAction: {
+      Allow: '允许：与规则匹配的工具调用无需询问任何人即可直接进行。',
+      Deny: '拒绝：匹配的工具调用会被拒绝，无需询问任何人。拒绝优先于其他所有规则。',
+      Ask: '询问人员：匹配的工具调用会在审批收件箱中等待决定。'
+    },
+    approvalKind: {
+      Tool: 'Claude Code 针对任意工具（包括 MCP 工具）发出的权限提示。',
+      Command: 'Codex app-server 运行想要执行的 Shell 命令。规则将其按 Bash 评估。',
+      FileChange: 'Codex app-server 运行想要进行的文件更改。规则将其按 Edit 评估。'
+    },
     runBlockedReason: {
       NoReadyWorker: '已阻塞：没有任何工作节点处于就绪状态，因此没有节点能接手此运行。请启动或注册一个工作节点，然后在机群页面检查丢失、离线、排空中或已封锁的节点。',
       NoCapableWorker: '已阻塞：有就绪的工作节点，但没有节点报告此运行的 Harness 可用。请启动或注册一个已安装该 Harness 的工作节点，或在机群页面检查它的凭据和探测结果。',
@@ -423,6 +487,7 @@ const tips = {
       Validated: '试运行：此文档有效，将会被应用。'
     },
     auditEventType: {
+      ApprovalDecided: '有人允许或拒绝了一个待处理的工具调用。记录中包含工具、运行和原因。',
       AuthSuccess: '有人成功登录或成功对请求进行了身份验证。',
       AuthFailure: '登录或身份验证尝试失败。反复失败可能意味着有人在猜测密码。',
       SessionIssued: '签发了一个会话令牌。',
@@ -456,6 +521,40 @@ const tips = {
     }
   },
   resources: {
+    approvals: {
+      createdUtc: 'Harness 发出询问的时间。将鼠标悬停在值上可查看确切时间。',
+      agentName: '发出请求的运行所属的智能体，即由它的运行请求了此工具调用。',
+      toolName: 'Harness 想要使用的工具，例如 Bash、Edit、WebFetch 或 MCP 工具。',
+      summary: '关于此调用的一行说明：命令、URL、路径或查询，机密已脱敏。',
+      status: '决定前为“待处理”，之后为“已批准”“已拒绝”“已过期”（超时）或“已取消”（运行已停止）。',
+      decision: '做出决定后显示“允许”或“拒绝”；审批仍待处理时此处为空。',
+      decisionSource: '决定方式：规则、部署默认设置、人员、超时或运行停止。',
+      decidedBy: '当审批由人员决定时，显示做出决定的那位人员或所用的访问密钥。',
+      expiresUtc: '待处理的审批在此时间超时，届时将采用部署设置的超时决定。',
+      kind: '工具调用（Claude Code）、命令或文件更改（Codex app-server）。',
+      harnessType: '发出询问的 Harness：Claude Code 或 Codex。',
+      runId: '发出询问的运行。打开它可查看此调用前后的对话记录。',
+      rootRunId: '当发出询问的运行是委派运行时，委派树中的顶层运行。',
+      deploymentId: '用其规则评估此调用的部署。记住的规则会添加到该部署。',
+      leaseEpoch: '发出询问的运行尝试的租约纪元，确保决定不会传到后续的尝试。',
+      requestedUtc: 'Harness 为此次工具调用发出权限请求的具体时间。',
+      decidedUtc: '做出此审批决定的时间，即审批从待处理变为允许或拒绝的那一刻。',
+      waitMs: '此工具调用从发出请求到做出决定之间所等待的总时长。',
+      timeoutDecision: '如果在审批过期之前无人决定会发生什么，此值取自部署设置。',
+      toolCallId: 'Harness 为此工具调用分配的 ID，用于在对话记录中找到它。',
+      reason: '做出决定的人员在决定时填写的备注内容（如果有的话）。',
+      inputPreview: 'Harness 发送的工具输入（JSON 格式），机密和类似令牌的值已脱敏。',
+      rulePattern: '当规则决定了此调用或要求询问人员时，与此调用匹配的部署规则。',
+      ruleId: '与此工具调用相匹配的那条部署规则的唯一标识 ID。',
+      suggestedRule: '一条能匹配此调用的规则。“记住为规则”会预先填入它。',
+      rememberedRuleId: '以“记住”方式决定此审批时添加到部署中的规则的 ID。',
+      id: '审批标识符（apr_...），供 API 和 MCP 工具使用。',
+      actions: {
+        allow: '允许此待处理的工具调用，可填写原因，并可选择将其记住为规则。',
+        deny: '拒绝此待处理的工具调用，可填写原因，并可选择将其记住为规则。',
+        openRun: '打开发出询问的运行，查看此工具调用前后的对话记录。'
+      }
+    },
     tenants: {
       add: '创建一个新租户：一个相互隔离的空间，拥有自己的用户、智能体、机密和运行。',
       name: '租户的显示名称。人们登录时通过租户 ID 选择租户。',
@@ -695,6 +794,18 @@ const tips = {
       }
     },
     deployments: {
+      approvalsEnabled: '让 Harness 在工具调用前询问。下方规则决定大部分调用；其余调用在审批收件箱中等待人员处理。仅适用于 Claude Code 和 Codex app-server 配置文件。',
+      approvalDefaultAction: '没有规则匹配工具调用时的处理方式：允许、拒绝或询问人员。',
+      approvalTimeoutSeconds: '调用等待人员处理多长时间后采用超时决定，范围为 10 到 3,600 秒。',
+      approvalTimeoutDecision: '在规定时间内无人响应时所采用的决定。拒绝是更安全的选择。',
+      approvalRules: '使用 Claude Code 语法的有序规则。拒绝优先于询问，询问优先于允许；同一操作内报告第一个匹配项。',
+      approvalRulesItems: {
+        action: '与此规则匹配的调用会得到什么结果：允许、拒绝或询问人员。',
+        pattern: 'Claude Code 规则，例如 Bash(npm test)、Bash(npm run *)、Edit(src/**)、Read、WebFetch(domain:example.com) 或 mcp__github__*。',
+        inputPattern: '可选的 .NET 正则表达式，工具输入 JSON 也必须与之匹配，可提供比模式更精细的控制。',
+        description: '说明此规则存在的原因，供日后维护这条规则的人员参考。'
+      },
+      approvalTest: '用部署已保存的规则试验一个工具调用，查看它会被允许、拒绝还是交给人员处理。',
       add: '创建一个部署：智能体的具体运行方式，包括 Harness 配置文件、模型、提示词和资源。',
       name: '部署名称，在租户内唯一，例如 reviewer-claude。',
       agentId: '此部署运行的智能体。调用该智能体时可能会选中此部署。',
@@ -759,6 +870,7 @@ const tips = {
       maxAttempts: '一个运行总共最多可以尝试多少次。范围为 1 到 10。',
       retryOnNodeLoss: '节点消失时将运行放回队列，而不是使其失败。',
       steps: {
+        approvals: 'Harness 可以进行哪些工具调用、不可以进行哪些，以及哪些需要等待人员处理。',
         basics: '名称、智能体和流量权重。',
         harness: 'Harness 配置文件、模型、限制和参数。',
         prompts: '每个提示词角色由哪个模板填充。',
@@ -920,6 +1032,16 @@ const tips = {
     }
   },
   views: {
+    approvalDetail: {
+      openRun: '打开发出询问的运行，查看此工具调用前后的对话记录。',
+      openAgent: '打开该智能体的页面，查看它的各个部署以及最近的运行。',
+      openDeployment: '打开已筛选到此部署的“部署”标签页，在那里编辑其审批规则。',
+      backToInbox: '返回审批收件箱，在那里可以查看所有仍待处理的审批。',
+      viewJson: '以 JSON 格式显示完整的审批记录，与 API 返回的内容完全一致。',
+      request: 'Harness 请求执行的操作：一行摘要和完整的工具输入，机密已脱敏。',
+      rules: '匹配的部署规则、此调用建议的规则，以及根据决定记住的规则。',
+      copyRule: '复制建议的规则，例如以便将其粘贴到部署的审批规则列表中。'
+    },
     home: {
       observabilityState: {
         reachable: '服务器在最近 30 秒内通过内部 URL 访问到了 {{service}}。',
@@ -980,6 +1102,9 @@ const tips = {
       serviceGeneric: '在新标签页中打开此捆绑服务。'
     },
     runDetail: {
+      openApproval: '打开此审批的详情，查看完整的工具输入、匹配的规则和决定。',
+      reviewApprovals: '显示此运行的审批，你可以在其中允许或拒绝待处理的工具调用。',
+      approvalActions: '允许或拒绝待处理的工具调用，或打开审批查看所有字段。',
       viewTrace: '在新标签页中用 Grafana Explore (Tempo) 打开此运行的追踪。它显示服务器和工作节点上的编译、领取和 Harness 跨度。',
       viewLogs: '在新标签页中用 Grafana Explore (Loki) 打开服务器和工作节点上与此运行相关的日志行，范围限于此运行的时间段。',
       traceId: '编译此运行时所在追踪的 W3C 追踪 ID。可在 Tempo 中搜索，或使用“查看追踪”。在开始记录追踪 ID 之前创建的运行为空。',
@@ -1001,6 +1126,7 @@ const tips = {
       completed: '运行达到最终状态的时间。',
       exitCode: 'Harness 进程的退出码。是否成功通常依据最终事件判断，而不是此退出码。',
       tabs: {
+        approvals: '此运行请求权限的工具调用、每个调用的决定方式，以及针对待处理调用的“允许”和“拒绝”。',
         transcript: 'Harness 产生的每个事件：助手文本、思考、工具调用及结果，以及用量。',
         result: '最终答案以及所有结构化输出。',
         input: '调用方发送的内容、参数，以及所用提示词模板的确切版本。',
@@ -1010,6 +1136,8 @@ const tips = {
       eventFilter: '只显示一种类型的事件，例如工具调用或错误。',
       openChild: '打开此子运行，它是在此运行调用另一个智能体时启动的。',
       eventCodes: {
+        ApprovalRequested: 'Harness 在工具调用前发出询问，该调用正在等待人员处理。请在“审批”标签页中决定。',
+        ApprovalDecided: '一个权限请求已由规则、部署默认设置、人员或超时决定。文本中注明了具体方式。',
         RunGuardTriggered: '运行防护停止了此运行。消息说明是哪种防护触发以及它检测到了什么；运行以该防护的结果失败结束，并保留部分输出。',
         ConversationFallback: '这一轮无法恢复对话的 Harness 会话，因此以先前各轮的记录开始了全新会话。消息中说明了原因。',
         ConversationStateLost: '节点领取了这一轮，但对话的目录已不存在，因此这一轮被放回队列，以回退方式运行。'
@@ -1389,6 +1517,12 @@ const tips = {
 };
 
 const explainers = {
+  approvals: {
+    title: '审批的工作原理',
+    p1: '启用了审批的部署会让其 Harness 在工具调用前询问 Garrison：Claude Code 通过其权限提示工具询问，Codex app-server 运行则针对命令和文件更改询问。',
+    p2: '每个请求都会根据部署的规则进行检查。拒绝优先于询问，询问优先于允许；没有匹配项时，采用部署默认设置。允许和拒绝会立即答复；询问会将请求放到这里，运行随之等待。',
+    p3: '可附带可选原因来允许或拒绝待处理的请求。“记住为规则”会向部署添加一条规则，下次类似的调用将自动决定。无人决定的请求会按部署的超时决定过期。'
+  },
   diagram: {
     label: '示意图：调用方按名称调用智能体，Garrison 按权重选择该智能体的一个部署，再由该部署的绑定决定运行如何执行。',
     caller: { title: '调用方', body: 'REST、MCP、A2A 或其他智能体', tip: '任何调用智能体的一方：REST API、MCP 客户端、A2A 智能体，或另一个智能体的运行。调用方只知道智能体的名称。' },

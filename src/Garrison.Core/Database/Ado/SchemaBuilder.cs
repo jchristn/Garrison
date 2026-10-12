@@ -93,6 +93,9 @@ namespace Garrison.Core.Database.Ado
             SchemaBuilder v12 = new SchemaBuilder(catalog, dialect);
             v12.BuildVersion12();
             migrations.Add(new SchemaMigration(12, "Conversations: harness session resume, node affinity, and transcript fallback", v12._Statements, v12._Columns));
+            SchemaBuilder v13 = new SchemaBuilder(catalog, dialect);
+            v13.BuildVersion13();
+            migrations.Add(new SchemaMigration(13, "Permission approvals and deployment approval rules", v13._Statements, v13._Columns));
 
             return migrations;
         }
@@ -255,6 +258,70 @@ namespace Garrison.Core.Database.Ado
             Column("runs", "affinityuntilutc", d.TypeTimestamp);
             Column("runs", "conversationfallbackreason", "VARCHAR(64)");
             Index("runs", "conversation", false, "conversationid", "createdutc");
+        }
+
+        private void BuildVersion13()
+        {
+            SqlDialect d = _Dialect;
+
+            // deployments: permission approvals (P12.3). Null means disabled, Ask, 300 seconds, and Deny.
+            Column("deployments", "approvalsenabled", d.TypeBool);
+            Column("deployments", "approvaldefaultaction", "VARCHAR(16)");
+            Column("deployments", "approvaltimeoutseconds", d.TypeInt);
+            Column("deployments", "approvaltimeoutdecision", "VARCHAR(16)");
+
+            // runs: approvals waiting for a person (targeted updates only) and total time spent waiting
+            Column("runs", "pendingapprovals", d.TypeInt + " NOT NULL DEFAULT 0");
+            Column("runs", "approvalwaitms", d.TypeBigInt);
+
+            // deployment_approval_rules: ordered allow, deny, and ask rules per deployment
+            Table("deployment_approval_rules",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "deploymentid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + "",
+                "position " + d.TypeInt + " NOT NULL",
+                "action VARCHAR(16) NOT NULL",
+                "pattern VARCHAR(1024) NOT NULL",
+                "inputpattern " + d.TypeText + "",
+                "description " + d.TypeText + "");
+            Index("deployment_approval_rules", "parent", false, "deploymentid");
+
+            // approvals: permission requests relayed by harnesses and their decisions
+            Table("approvals",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "runid " + d.TypeId + " NOT NULL",
+                "rootrunid " + d.TypeId + "",
+                "agentid " + d.TypeId + " NOT NULL",
+                "agentname VARCHAR(128) NOT NULL",
+                "deploymentid " + d.TypeId + " NOT NULL",
+                "leaseepoch " + d.TypeBigInt + " NOT NULL",
+                "harnesstype VARCHAR(64) NOT NULL",
+                "kind VARCHAR(32) NOT NULL",
+                "toolname VARCHAR(256) NOT NULL",
+                "toolcallid VARCHAR(256)",
+                "inputpreview " + d.TypeText + "",
+                "summary " + d.TypeText + "",
+                "suggestedrule VARCHAR(1024)",
+                "status VARCHAR(32) NOT NULL",
+                "decision VARCHAR(16)",
+                "decisionsource VARCHAR(32)",
+                "ruleid " + d.TypeId + "",
+                "rulepattern VARCHAR(1024)",
+                "rememberedruleid " + d.TypeId + "",
+                "decidedby VARCHAR(256)",
+                "decidedbyid " + d.TypeId + "",
+                "reason " + d.TypeText + "",
+                "timeoutdecision VARCHAR(16) NOT NULL",
+                "requestedutc " + d.TypeTimestamp + " NOT NULL",
+                "decidedutc " + d.TypeTimestamp + "",
+                "expiresutc " + d.TypeTimestamp + "",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("approvals", "tenantstatuscreated", false, "tenantid", "status", "createdutc");
+            Index("approvals", "tenantcreated", false, "tenantid", "createdutc");
+            Index("approvals", "run", false, "runid");
+            Index("approvals", "statusexpires", false, "status", "expiresutc");
         }
 
         private void BuildVersion7()

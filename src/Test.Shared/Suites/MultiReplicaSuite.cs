@@ -87,7 +87,10 @@ namespace Test.Shared.Suites
             await using (TestReplicaCluster cluster = await TestReplicaCluster.StartAsync(provider, 3, BackplaneModeEnum.Auto, null, token).ConfigureAwait(false))
             {
                 int latest = SchemaBuilder.LatestVersion;
-                Assert.Equal(latest, cluster.Replicas.Sum(r => r.Server.Context.Database.MigrationsApplied), "Migrations applied across replicas");
+                // Versions are tracked one by one and may have gaps (12 is reserved for conversations), so count them.
+                Garrison.Core.Database.Sql.SqlDialect dialect = new Garrison.Core.Database.Sqlite.Queries.SqliteDialect();
+                int count = SchemaBuilder.Build(new Garrison.Core.Database.TableCatalog(null, null, dialect), dialect).Count;
+                Assert.Equal(count, cluster.Replicas.Sum(r => r.Server.Context.Database.MigrationsApplied), "Migrations applied across replicas");
                 Assert.Equal(1, cluster.Replicas.Count(r => r.Server.Context.Database.MigrationsApplied > 0), "Replicas that applied migrations");
 
                 foreach (TestServerHost replica in cluster.Replicas)

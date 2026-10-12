@@ -84,12 +84,12 @@ Rules for keeping the plan honest:
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | Complete | 10 / 10 |
 | 5 | Dashboard | M1 | Complete | 52 / 52 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
-| 7 | Container images and Kubernetes assets | M1 | In progress | 37 / 39 |
+| 7 | Container images and Kubernetes assets | M1 | In progress | 37 / 38 |
 | 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
 | 10 | Control plane high availability and scale-out | M2 | In progress | 21 / 25 |
 | 11 | Pod-per-run isolation executor | M2 | In progress | 13 / 20 |
-| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | In progress | 2 / 46 |
+| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, budgets, artifacts | M3 | In progress | 3 / 46 active (1 dropped) |
 | 13 | Observability stack and dashboards | M2 | Complete | 28 / 28 |
 | 14 | Benchmarking | M3 | In progress | 14 / 15 |
 | 15 | Hardening, simulated user testing, and 1.0 release | M4 | Not started | 0 / 21 |
@@ -103,29 +103,32 @@ Milestones:
 | **M3: Orchestration** | Multi-turn conversations, permission approvals relayed to humans, self-registered remote agents invoked over A2A/MCP, triggers, budgets and quotas, artifact storage, benchmarks. | 12, 14 |
 | **M4: 1.0** | Security review, simulated user testing, upgrade path, release process. | 15 |
 
-### Current state and where to pick up (updated 2026-10-11)
+### Current state and where to pick up (updated 2026-10-12)
 
-Paused 2026-10-11 at the user's request; no agents or background jobs are running. Since the previous pause: the correctness batch and Codex streaming (`cb7ed8e`, `2cc2b44`, merged in `0f6295a`), then P12.1 conversations (`18c9cb2`, merged in `975d75a`). `main` is pushed. P12.3 approvals is built and committed on the unmerged branch `worktree-agent-a808f7add5e64672e` (`2df763a`, worktree `.claude/worktrees/agent-a808f7add5e64672e`).
+Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktree-agent-a808f7add5e64672e` (`2df763a`) is integrated with P12.1 conversations, validated, and deployed to `garrison-k3s`. All 59 conflicting files were resolved while retaining both features and migrations 12 and 13. Integration changes are ready for the merge commit and push.
 
 **State**
 
-- M1 done. M2 open: 11 tasks in phases 10 and 11 (Phase 13 complete). M3: Phase 12 at 2 of 46, Phase 14 at 14 of 15. M4 not started.
-- Last verified on `main` with P12.1 merged: build 0 warnings, Touchstone 444/444 on Sqlite and PostgreSQL, NUnit 444/444, all four SDK harnesses, dashboard lint and 228 unit tests, every CI mirror diff, Kustomize renders, Helm lint, em-dash check. Earlier, xUnit passed and the cancel-latency test failed once under full-suite load (passed 5 of 5 alone). Benchmark round 1 confirms H5.
-- P12.3 branch, verified on its own (it is based on `a4060dc`, before P12.1): build 0 warnings, Touchstone 444/444 (419 plus 25 approval cases), NUnit 290/290, all four SDK harnesses, dashboard lint, 234 unit tests, contract 66 routes with 0 mismatches, approvals Playwright 6/6, mirror diffs, em-dash check. It conflicts with `main`. It uses migration 13 and skips 12, which conversations already uses on `main`; two migration-count tests on the branch now count migrations instead of comparing to the highest version.
-- Schema on `main` is version 12 (11: run-token lease epoch, manifest apply `errorCode` and `errorField`; 12: conversations); P12.3 adds 13 (approvals). Workers must be upgraded with the server: an older worker launches before reporting start.
-- `garrison-k3s` (kubeconfig `~/.kube/garrison-k3s.yaml`, namespace `garrison`): 2 server replicas, 2 workers, observability with 14 Grafana dashboards. Applying the overlay resets the server to 1 replica; scale it back to 2 afterwards. Port-forwards: REST 8700, MCP 8701, liveness 8702 (in-cluster only), dashboard 8081, Grafana 3000, Prometheus 9090 (log `~/.kube/garrison-port-forward.log`). Credentials: tenant `default`, `admin@garrison` / `password`; Grafana `admin` / `password`. Deployed `b1ff6bb` (no conversations or approvals yet): schema 11, `max_connections` 200. `deploy-k3s.sh --build` does not restart the workers or dashboard when the image tag is unchanged; run `kubectl -n garrison rollout restart statefulset/garrison-worker deploy/garrison-dashboard`. Start port-forwards with `DASHBOARD_PORT=8081` (a local Clutch server holds 8080; the K3S ingress is on 18080). Validate with `examples/validate.sh --agents "claude-helper codex-coder mux-helper" --delegator claude-helper --delegate codex-coder` (25/25) and `GARRISON_DASHBOARD_URL=http://127.0.0.1:8081 npm run test:live` (6/6).
+- M1 done. M2 open: 11 tasks in phases 10 and 11 (Phase 13 complete). M3: Phase 12 at 3 of 46 active tasks, Phase 14 at 14 of 15. M4 not started. Phase 7 has 38 listed tasks, not 39; Phase 12 has 46 active tasks including P12.2a plus the deliberately dropped P12.30.
+- Combined .NET 8 and 10 build: zero errors/warnings. Full Touchstone net10 run: 469/469 on SQLite/PostgreSQL; four additional provider cases subsequently passed for approval/conversation interaction and upgrade from schema 12. The latest net8 database/approval suites pass 39/39 on both providers. xUnit net8 passed its all-suites fact; NUnit net10 passed 306/306 SQLite cases. All four SDK harnesses pass. Dashboard lint/build, 253 unit tests, 72 contract routes, and 123 Playwright browser tests pass. All CI mirror pairs, eight Kustomize overlays, Helm lint/template, and em-dash checks pass.
+- New integration regression: an approval pending during a conversation keeps it busy, refuses concurrent turns without consuming a turn number, clears approval counters on completion, and preserves the session for the next turn. Upgrade from schema 12 to 13 preserves the session/turn count, adds working approval storage, and applies no migration again on restart. Both providers pass.
+- Real Claude Code 2.1.296 smoke against the combined local server passed: a Bash request reached Garrison, a human-style REST Allow decision unblocked it, the harmless command wrote its test file, and Claude exited 0. Temporary test files/configuration were removed; no login was copied into the cluster. Approval waits over about an hour remain untested against MCP session idle timeouts.
+- Reference SQL schemas are regenerated from SchemaBuilder through migration 13 and execute on both providers. The old migration-12 gap on the approvals branch is resolved.
+- `garrison-k3s` was rolled out 2026-10-12 with the combined conversations/approvals tree: 2 server replicas, 2 workers, dashboard, and existing observability. Database schema confirmed 13. All six live dashboard tests pass. Real-harness validation is 21/25: stored `codex-auth-json` reports `SecretNeedsReauthentication`, blocking Codex REST/MCP/A2A and its SSE check. The delegation tree exists, but its Codex child fails before execution; this is not a successful delegation validation.
+- Cluster access: kubeconfig `~/.kube/garrison-k3s.yaml`, namespace `garrison`; REST 8700, MCP 8701, dashboard 8081, Grafana 3000, Prometheus 9090. REST/dashboard forwards were restarted after rollout. Applying the overlay resets server replicas to 1; restore 2 afterwards. Same-tag image deployments require explicit worker/dashboard rollout restarts.
 
 **Pick up here, in order**
 
-1. Merge the P12.3 branch into `main` by hand (likely overlaps: scheduler and run model, MCP server, fake harness, locale files, SDKs, docs, CHANGELOG), rerun the full checks on the combined tree, mark P12.3 done, push, deploy to `garrison-k3s` (rollout restart workers and dashboard, scale server to 2), run validate.sh and the live tests. P12.3 open items: not exercised against the real Claude Code CLI; approval waits over about an hour untested against MCP session idle timeouts; `reference/sql/*/schema.sql` is stale (covers migrations 1 to 7).
-2. Budgets and cost (P12.6, P12.7, P12.35) and the QoSKit work (P12.36, P12.38, D-036). Design answers are in D-035.
-3. Remaining M2 work: P10.22 to P10.25, P11.14 to P11.20; then P14.15 and Phase 15. P10.23 also stops a `builtin/codex-app-server` run from storing one event per token.
-4. Close G-12 by switching `builtin/codex` to the app-server mode after a soak (MCP servers, output schema, thread resume, and whether `-c sandbox_mode` applies without a `thread/start` sandbox parameter).
-5. Small follow-ups: the dashboard does not show manifest `errorCode` yet; IMPROVEMENTS.md I-01 (synchronous invocation waits holding connections) is still open; make the cancel-latency test robust under load; P12.1 leftovers: delete a conversation's worker directories on delete (today only the idle sweep), a conversation retention policy, an end-to-end test for affinity wait expiry, and the lease long-poll race (a long poll left open by a gone worker can still claim a run for it during `LeaseWaitMs`).
+1. After the user updates the separate Garrison Codex login, rerun `examples/validate.sh --agents "claude-helper codex-coder mux-helper" --delegator claude-helper --delegate codex-coder` and require all 25 checks plus a successful Codex child. Run an approval wait over an hour to verify MCP session idle behavior; this soak is still open.
+2. Budgets and cost (P12.6, P12.7, P12.35) and QoSKit (P12.36, P12.38, D-036). Design answers are in D-035. Correctness follow-up G-28 (stale lease long poll) can proceed while the credential update is pending.
+3. Remaining M2 work: P10.22 to P10.25, P11.14 to P11.20. Run P14.15 before P10.24 tuning, because tuning depends on its results; then Phase 15. P10.23 prevents storing one event per token for `builtin/codex-app-server`.
+4. Close G-12 by switching `builtin/codex` to app-server mode after a soak covering MCP servers, output schema, thread resume, and sandbox configuration.
+5. Other follow-ups: dashboard manifest `errorCode`; IMPROVEMENTS.md I-01 (synchronous invocation waits holding connections); cancel-latency robustness under load; conversation directory cleanup on delete, conversation retention, and affinity wait expiry end-to-end coverage.
+
 
 **Waiting on the user**
 
-- A separate Codex login for Garrison (for example `CODEX_HOME=/tmp/garrison-codex codex login`, then store that auth.json as the `codex-auth-json` secret). The stored secret is the same login as the operator's `~/.codex`; since G-22, Garrison refreshes it about a day before the access token expires (2026-10-21), which will sign out Codex on the operator's machine.
+- A separate Codex login for Garrison: `CODEX_HOME=/tmp/garrison-codex codex login`, then update `codex-auth-json` through the dashboard. On 2026-10-12 the stored secret reports `SecretNeedsReauthentication`. Requested during this execution; live Codex validation waits on this update. Do not reuse or copy the operator's active login, because rotating its refresh token can sign the operator out.
 - Publishing images and packages (P7.5, P6.20) stays deferred until the user asks.
 
 **Things to know when resuming**
@@ -1480,6 +1483,8 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [x] G-26 Manifest errors leak serializer internals (D-3): an invalid enum value returns type names and byte positions from `ManifestService` (around line 606). Map to a `ManifestInvalid` error naming the document, field, and allowed values.  | claude 2026-10-11 ManifestSpecError maps serializer errors to `ManifestInvalid` with document, field, value, and allowed values; apply items gain `errorCode` and `errorField` (migration 11); dashboard does not show `errorCode` yet
 - [x] G-27 Node registration race: two workers registering at once both try to create the default node pool and one gets a 500 from a duplicate-key error (seen in `garrison_db_errors_total` during P13.28). Create-if-missing must tolerate the conflict and re-read.  | claude 2026-10-11 duplicate-key on registration re-reads the pool or node; 12 parallel pool and 4 same-name node registrations on both providers
 
+- [ ] G-28 Stale lease long poll: recheck the worker's current registration and readiness on every claim pass; a poll opened before the worker becomes Lost, Offline, Draining, Cordoned, or deleted must not claim subsequently queued work. Regression coverage on SQLite and PostgreSQL.  | codex 2026-10-12 promoted from P12.1 pickup notes while Codex credential validation waits on the user
+
 ### AB_IMPROVEMENTS.md disposition (evaluated 2026-10-11)
 
 `AB_IMPROVEMENTS.md` compares Garrison with Kubernetes and Google AX and proposes seven strengths to amplify (A1 to A7) and twelve gaps to close (G1 to G12; written here as AB-A1 and AB-G1 so they do not collide with the known gaps above). Each item was checked against the code at `330be63` plus the uncommitted work in the tree. Two findings are real bugs today, not future features: an expired `Leased` run can execute twice (P10.20), and a requeued run's old token can still delegate (P10.21). The user answered the open design questions on 2026-10-11 (D-035, D-036); each task records its answer.
@@ -1578,7 +1583,7 @@ Design (decision D-033):
 - [x] P12.1 Conversations: `Conversation` entity, A2A `contextId`, harness session resume (`--resume`, `codex exec resume`, Mux `--resume`), node affinity for workspace locality, fallback when the affinity node is lost.  | claude 2026-10-11 `Conversation` entity (migration 12), invoke/runs/MCP/A2A take `startConversation`/`conversationId` (A2A `contextId` is the conversation id), 409 `ConversationBusy` (refuse, not wait), affinity to the last node for `Runtime.ConversationAffinityWaitMs` then transcript fallback (`builtin/conversation-fallback`, prompt role `ConversationFallback`), `ConversationStateLost` requeues without an attempt; resume via Claude/Mux/Gemini `--resume`, `codex exec resume`, app-server `thread/resume`; dashboard pages, SDKs, Postman, docs; 25 Touchstone tests. KubernetesJob turns always fall back until P12.2 snapshots
 - [ ] P12.2 Workspace snapshots to an artifact store for cross-node resume.
 - [x] P12.2a Codex streaming: drive Codex through `codex app-server` (JSON-RPC over stdio) as a new interactive delivery mode, mapping agent message deltas to `AssistantText` events, so Codex output streams like Claude Code and Mux. `codex exec --json` (0.159.3) emits each agent message only when it completes. The same driver serves P12.1 multi-turn conversations.  | claude 2026-10-11 opt-in profile `builtin/codex-app-server` (delivery `CodexAppServer`, parser `CodexAppServer`), CodexAppServerDriver exposes handshake, thread start/resume, turn start, and a replaceable approval handler for P12.1 and P12.3; real Codex 0.159.3 smoke: TTFT 4.8 s, 74 AssistantText events; `builtin/codex` stays on `codex exec --json` until a longer soak (G-12 stays open until then)
-- [ ] P12.3 Permission approvals: Claude `--permission-prompt-tool` through Garrison MCP, `Approval` entity, dashboard approvals inbox, rules (allow, deny, ask) per deployment, timeouts (Armada pattern).
+- [x] P12.3 Permission approvals: Claude `--permission-prompt-tool` through Garrison MCP, `Approval` entity, dashboard approvals inbox, rules (allow, deny, ask) per deployment, timeouts (Armada pattern).  | codex 2026-10-12 integrated with conversations and deployed, schema 13; full backend/dashboard/SDK checks pass; real Claude permission callback/Allow smoke passes; over-hour MCP idle soak remains open in section 2
 - [ ] P12.4 Remote agents: invoke self-registered A2A agents and MCP tools from a worker executor (`RemoteA2A`, `RemoteMcp`), health checks and TTL expiry for registrations.
 - [ ] P12.5 Triggers: scheduled runs (cron), webhook triggers with signed payloads.
 - [ ] P12.6 Budgets and quotas: per tenant, agent, and deployment limits on runs, concurrency, tokens, and cost; enforcement at admission and through `--max-budget-usd` where supported.
@@ -1724,8 +1729,8 @@ Contract shared by the infrastructure tasks (P13.1 to P13.11, P13.17) and the pr
 | Q-001 | Should Voltaic gain a public request dispatcher so MCP can share Watson's port? | Simplifies networking. | User decision; out of scope for Garrison M1. |
 | Q-002 | Should node credentials be per-node (issued at registration with a join token) instead of one shared node credential? | Better revocation granularity. | Recommended for Phase 10: join token exchanged for a per-node credential. |
 | Q-003 | Which model endpoint should the sample Mux agent default to? | Out-of-the-box experience. | Default to an OpenAI-compatible endpoint configured by `generate-secrets`; user to confirm. |
-| R-008 | `AUTHENTICATION.md` specifies unsalted SHA-256 password hashes; Armada already moved to PBKDF2-SHA256. | Weaker offline resistance if the database leaks. | MVP follows the requirement; Q-004 asks whether to adopt salted PBKDF2-SHA256 with a hash-version column (proposed for Phase 15). |
-| Q-004 | Adopt salted PBKDF2-SHA256 for passwords despite the SHA-256 wording in `AUTHENTICATION.md`? | Security posture. | User decision. |
+| R-008 | Legacy unsalted SHA-256 password hashes. | Resolved by G-2; old hashes upgrade transparently on sign-in. | PBKDF2-SHA256 with random salt and configurable iteration count implemented 2026-10-10. |
+| Q-004 | Adopt salted PBKDF2-SHA256 for passwords despite the SHA-256 wording in `AUTHENTICATION.md`? | Resolved. | Adopted in G-2 on 2026-10-10; no decision pending. |
 
 ---
 

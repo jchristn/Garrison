@@ -129,7 +129,7 @@ namespace Garrison.Server.Runtime
             DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
             string? runToken = null;
-            if (agent != null && agent.DelegationMode != DelegationModeEnum.None)
+            if (agent != null && (agent.DelegationMode != DelegationModeEnum.None || (deployment != null && deployment.ApprovalsEnabled)))
             {
                 runToken = await _Authentication.IssueForRunAsync(run, run.LeaseEpoch, deadline, token).ConfigureAwait(false);
             }

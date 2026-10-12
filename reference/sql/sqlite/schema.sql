@@ -1,10 +1,12 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 7).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 13).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
     description VARCHAR(1024) NOT NULL,
     appliedutc TEXT NOT NULL
 );
+
+-- Migration 1: Initial schema
 CREATE TABLE IF NOT EXISTS "tenants" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     name VARCHAR(256) NOT NULL,
@@ -14,7 +16,7 @@ CREATE TABLE IF NOT EXISTS "tenants" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE UNIQUE INDEX "idx_tenants_name" ON "tenants" ("name");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_tenants_name" ON "tenants" ("name");
 CREATE TABLE IF NOT EXISTS "users" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -29,8 +31,8 @@ CREATE TABLE IF NOT EXISTS "users" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_users_tenant" ON "users" ("tenantid");
-CREATE UNIQUE INDEX "idx_users_email" ON "users" ("tenantid", "email");
+CREATE INDEX IF NOT EXISTS "idx_users_tenant" ON "users" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_users_email" ON "users" ("tenantid", "email");
 CREATE TABLE IF NOT EXISTS "credentials" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -47,9 +49,9 @@ CREATE TABLE IF NOT EXISTS "credentials" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_credentials_tenant" ON "credentials" ("tenantid");
-CREATE UNIQUE INDEX "idx_credentials_accesskey" ON "credentials" ("accesskey");
-CREATE INDEX "idx_credentials_user" ON "credentials" ("tenantid", "userid");
+CREATE INDEX IF NOT EXISTS "idx_credentials_tenant" ON "credentials" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_credentials_accesskey" ON "credentials" ("accesskey");
+CREATE INDEX IF NOT EXISTS "idx_credentials_user" ON "credentials" ("tenantid", "userid");
 CREATE TABLE IF NOT EXISTS "authsessions" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -72,9 +74,9 @@ CREATE TABLE IF NOT EXISTS "authsessions" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_authsessions_tenant" ON "authsessions" ("tenantid");
-CREATE UNIQUE INDEX "idx_authsessions_tokenid" ON "authsessions" ("tokenid");
-CREATE INDEX "idx_authsessions_run" ON "authsessions" ("runid");
+CREATE INDEX IF NOT EXISTS "idx_authsessions_tenant" ON "authsessions" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_authsessions_tokenid" ON "authsessions" ("tokenid");
+CREATE INDEX IF NOT EXISTS "idx_authsessions_run" ON "authsessions" ("runid");
 CREATE TABLE IF NOT EXISTS "userroles" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -86,8 +88,8 @@ CREATE TABLE IF NOT EXISTS "userroles" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_userroles_tenant" ON "userroles" ("tenantid");
-CREATE INDEX "idx_userroles_name" ON "userroles" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_userroles_tenant" ON "userroles" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_userroles_name" ON "userroles" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "permissions" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -99,22 +101,22 @@ CREATE TABLE IF NOT EXISTS "permissions" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_permissions_tenant" ON "permissions" ("tenantid");
-CREATE INDEX "idx_permissions_name" ON "permissions" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_permissions_tenant" ON "permissions" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_permissions_name" ON "permissions" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "permission_resource_types" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     permissionid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64),
     resourcetype VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_permission_resource_types_parent" ON "permission_resource_types" ("permissionid");
+CREATE INDEX IF NOT EXISTS "idx_permission_resource_types_parent" ON "permission_resource_types" ("permissionid");
 CREATE TABLE IF NOT EXISTS "permission_operation_types" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     permissionid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64),
     operationtype VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_permission_operation_types_parent" ON "permission_operation_types" ("permissionid");
+CREATE INDEX IF NOT EXISTS "idx_permission_operation_types_parent" ON "permission_operation_types" ("permissionid");
 CREATE TABLE IF NOT EXISTS "rolepermissionmaps" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -125,9 +127,9 @@ CREATE TABLE IF NOT EXISTS "rolepermissionmaps" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_rolepermissionmaps_tenant" ON "rolepermissionmaps" ("tenantid");
-CREATE INDEX "idx_rolepermissionmaps_role" ON "rolepermissionmaps" ("roleid");
-CREATE UNIQUE INDEX "idx_rolepermissionmaps_rolepermission" ON "rolepermissionmaps" ("roleid", "permissionid");
+CREATE INDEX IF NOT EXISTS "idx_rolepermissionmaps_tenant" ON "rolepermissionmaps" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_rolepermissionmaps_role" ON "rolepermissionmaps" ("roleid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_rolepermissionmaps_rolepermission" ON "rolepermissionmaps" ("roleid", "permissionid");
 CREATE TABLE IF NOT EXISTS "userroleassignments" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -142,8 +144,8 @@ CREATE TABLE IF NOT EXISTS "userroleassignments" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_userroleassignments_tenant" ON "userroleassignments" ("tenantid");
-CREATE INDEX "idx_userroleassignments_user" ON "userroleassignments" ("tenantid", "userid");
+CREATE INDEX IF NOT EXISTS "idx_userroleassignments_tenant" ON "userroleassignments" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_userroleassignments_user" ON "userroleassignments" ("tenantid", "userid");
 CREATE TABLE IF NOT EXISTS "credentialscopeassignments" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -158,8 +160,8 @@ CREATE TABLE IF NOT EXISTS "credentialscopeassignments" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_credentialscopeassignments_tenant" ON "credentialscopeassignments" ("tenantid");
-CREATE INDEX "idx_credentialscopeassignments_credential" ON "credentialscopeassignments" ("tenantid", "credentialid");
+CREATE INDEX IF NOT EXISTS "idx_credentialscopeassignments_tenant" ON "credentialscopeassignments" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_credentialscopeassignments_credential" ON "credentialscopeassignments" ("tenantid", "credentialid");
 CREATE TABLE IF NOT EXISTS "audit_records" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -190,9 +192,9 @@ CREATE TABLE IF NOT EXISTS "audit_records" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_audit_records_tenant" ON "audit_records" ("tenantid");
-CREATE INDEX "idx_audit_records_created" ON "audit_records" ("tenantid", "createdutc");
-CREATE INDEX "idx_audit_records_eventtype" ON "audit_records" ("eventtype");
+CREATE INDEX IF NOT EXISTS "idx_audit_records_tenant" ON "audit_records" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_audit_records_created" ON "audit_records" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_audit_records_eventtype" ON "audit_records" ("eventtype");
 CREATE TABLE IF NOT EXISTS "request_history" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -213,9 +215,9 @@ CREATE TABLE IF NOT EXISTS "request_history" (
     createdutc TEXT NOT NULL,
     completedutc TEXT
 );
-CREATE INDEX "idx_request_history_tenant" ON "request_history" ("tenantid");
-CREATE INDEX "idx_request_history_created" ON "request_history" ("createdutc");
-CREATE INDEX "idx_request_history_tenantcreated" ON "request_history" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_request_history_tenant" ON "request_history" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_request_history_created" ON "request_history" ("createdutc");
+CREATE INDEX IF NOT EXISTS "idx_request_history_tenantcreated" ON "request_history" ("tenantid", "createdutc");
 CREATE TABLE IF NOT EXISTS "request_history_headers" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     requesthistoryentryid VARCHAR(64) NOT NULL,
@@ -224,7 +226,7 @@ CREATE TABLE IF NOT EXISTS "request_history_headers" (
     name VARCHAR(256) NOT NULL,
     value TEXT NOT NULL
 );
-CREATE INDEX "idx_request_history_headers_parent" ON "request_history_headers" ("requesthistoryentryid");
+CREATE INDEX IF NOT EXISTS "idx_request_history_headers_parent" ON "request_history_headers" ("requesthistoryentryid");
 CREATE TABLE IF NOT EXISTS "harness_profiles" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -259,8 +261,8 @@ CREATE TABLE IF NOT EXISTS "harness_profiles" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_harness_profiles_tenant" ON "harness_profiles" ("tenantid");
-CREATE INDEX "idx_harness_profiles_name" ON "harness_profiles" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_harness_profiles_tenant" ON "harness_profiles" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_harness_profiles_name" ON "harness_profiles" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "harness_profile_args" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     harnessprofileid VARCHAR(64) NOT NULL,
@@ -270,7 +272,7 @@ CREATE TABLE IF NOT EXISTS "harness_profile_args" (
     condition TEXT,
     repeatover VARCHAR(256)
 );
-CREATE INDEX "idx_harness_profile_args_parent" ON "harness_profile_args" ("harnessprofileid");
+CREATE INDEX IF NOT EXISTS "idx_harness_profile_args_parent" ON "harness_profile_args" ("harnessprofileid");
 CREATE TABLE IF NOT EXISTS "harness_profile_env" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     harnessprofileid VARCHAR(64) NOT NULL,
@@ -280,7 +282,7 @@ CREATE TABLE IF NOT EXISTS "harness_profile_env" (
     condition TEXT,
     issecret INTEGER NOT NULL
 );
-CREATE INDEX "idx_harness_profile_env_parent" ON "harness_profile_env" ("harnessprofileid");
+CREATE INDEX IF NOT EXISTS "idx_harness_profile_env_parent" ON "harness_profile_env" ("harnessprofileid");
 CREATE TABLE IF NOT EXISTS "harness_profile_files" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     harnessprofileid VARCHAR(64) NOT NULL,
@@ -292,14 +294,14 @@ CREATE TABLE IF NOT EXISTS "harness_profile_files" (
     mode VARCHAR(8),
     issecret INTEGER NOT NULL
 );
-CREATE INDEX "idx_harness_profile_files_parent" ON "harness_profile_files" ("harnessprofileid");
+CREATE INDEX IF NOT EXISTS "idx_harness_profile_files_parent" ON "harness_profile_files" ("harnessprofileid");
 CREATE TABLE IF NOT EXISTS "harness_profile_exit_codes" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     harnessprofileid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64),
     exitcode INTEGER NOT NULL
 );
-CREATE INDEX "idx_harness_profile_exit_codes_parent" ON "harness_profile_exit_codes" ("harnessprofileid");
+CREATE INDEX IF NOT EXISTS "idx_harness_profile_exit_codes_parent" ON "harness_profile_exit_codes" ("harnessprofileid");
 CREATE TABLE IF NOT EXISTS "harness_profile_probe_args" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     harnessprofileid VARCHAR(64) NOT NULL,
@@ -307,14 +309,14 @@ CREATE TABLE IF NOT EXISTS "harness_profile_probe_args" (
     position INTEGER NOT NULL,
     argument VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_harness_profile_probe_args_parent" ON "harness_profile_probe_args" ("harnessprofileid");
+CREATE INDEX IF NOT EXISTS "idx_harness_profile_probe_args_parent" ON "harness_profile_probe_args" ("harnessprofileid");
 CREATE TABLE IF NOT EXISTS "harness_profile_cred_env" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     harnessprofileid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64),
     name VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_harness_profile_cred_env_parent" ON "harness_profile_cred_env" ("harnessprofileid");
+CREATE INDEX IF NOT EXISTS "idx_harness_profile_cred_env_parent" ON "harness_profile_cred_env" ("harnessprofileid");
 CREATE TABLE IF NOT EXISTS "prompt_templates" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -330,8 +332,8 @@ CREATE TABLE IF NOT EXISTS "prompt_templates" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_prompt_templates_tenant" ON "prompt_templates" ("tenantid");
-CREATE INDEX "idx_prompt_templates_name" ON "prompt_templates" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_prompt_templates_tenant" ON "prompt_templates" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_prompt_templates_name" ON "prompt_templates" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "prompt_template_variables" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     prompttemplateid VARCHAR(64) NOT NULL,
@@ -341,7 +343,7 @@ CREATE TABLE IF NOT EXISTS "prompt_template_variables" (
     required INTEGER NOT NULL,
     defaultvalue TEXT
 );
-CREATE INDEX "idx_prompt_template_variables_parent" ON "prompt_template_variables" ("prompttemplateid");
+CREATE INDEX IF NOT EXISTS "idx_prompt_template_variables_parent" ON "prompt_template_variables" ("prompttemplateid");
 CREATE TABLE IF NOT EXISTS "prompt_template_versions" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64),
@@ -355,8 +357,8 @@ CREATE TABLE IF NOT EXISTS "prompt_template_versions" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_prompt_template_versions_tenant" ON "prompt_template_versions" ("tenantid");
-CREATE UNIQUE INDEX "idx_prompt_template_versions_templateversion" ON "prompt_template_versions" ("templateid", "version");
+CREATE INDEX IF NOT EXISTS "idx_prompt_template_versions_tenant" ON "prompt_template_versions" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_prompt_template_versions_templateversion" ON "prompt_template_versions" ("templateid", "version");
 CREATE TABLE IF NOT EXISTS "mcp_servers" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -373,8 +375,8 @@ CREATE TABLE IF NOT EXISTS "mcp_servers" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_mcp_servers_tenant" ON "mcp_servers" ("tenantid");
-CREATE UNIQUE INDEX "idx_mcp_servers_name" ON "mcp_servers" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_mcp_servers_tenant" ON "mcp_servers" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_mcp_servers_name" ON "mcp_servers" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "mcp_server_args" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     mcpserverid VARCHAR(64) NOT NULL,
@@ -382,7 +384,7 @@ CREATE TABLE IF NOT EXISTS "mcp_server_args" (
     position INTEGER NOT NULL,
     argument VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_mcp_server_args_parent" ON "mcp_server_args" ("mcpserverid");
+CREATE INDEX IF NOT EXISTS "idx_mcp_server_args_parent" ON "mcp_server_args" ("mcpserverid");
 CREATE TABLE IF NOT EXISTS "mcp_server_env" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     mcpserverid VARCHAR(64) NOT NULL,
@@ -390,7 +392,7 @@ CREATE TABLE IF NOT EXISTS "mcp_server_env" (
     name VARCHAR(256) NOT NULL,
     valuetemplate TEXT NOT NULL
 );
-CREATE INDEX "idx_mcp_server_env_parent" ON "mcp_server_env" ("mcpserverid");
+CREATE INDEX IF NOT EXISTS "idx_mcp_server_env_parent" ON "mcp_server_env" ("mcpserverid");
 CREATE TABLE IF NOT EXISTS "mcp_server_headers" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     mcpserverid VARCHAR(64) NOT NULL,
@@ -398,14 +400,14 @@ CREATE TABLE IF NOT EXISTS "mcp_server_headers" (
     name VARCHAR(256) NOT NULL,
     valuetemplate TEXT NOT NULL
 );
-CREATE INDEX "idx_mcp_server_headers_parent" ON "mcp_server_headers" ("mcpserverid");
+CREATE INDEX IF NOT EXISTS "idx_mcp_server_headers_parent" ON "mcp_server_headers" ("mcpserverid");
 CREATE TABLE IF NOT EXISTS "mcp_server_required_tools" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     mcpserverid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64),
     toolname VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_mcp_server_required_tools_parent" ON "mcp_server_required_tools" ("mcpserverid");
+CREATE INDEX IF NOT EXISTS "idx_mcp_server_required_tools_parent" ON "mcp_server_required_tools" ("mcpserverid");
 CREATE TABLE IF NOT EXISTS "secrets" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -423,8 +425,8 @@ CREATE TABLE IF NOT EXISTS "secrets" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_secrets_tenant" ON "secrets" ("tenantid");
-CREATE UNIQUE INDEX "idx_secrets_name" ON "secrets" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_secrets_tenant" ON "secrets" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_secrets_name" ON "secrets" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "workspace_templates" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -441,8 +443,8 @@ CREATE TABLE IF NOT EXISTS "workspace_templates" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_workspace_templates_tenant" ON "workspace_templates" ("tenantid");
-CREATE UNIQUE INDEX "idx_workspace_templates_name" ON "workspace_templates" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_workspace_templates_tenant" ON "workspace_templates" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_workspace_templates_name" ON "workspace_templates" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "workspace_template_files" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     workspacetemplateid VARCHAR(64) NOT NULL,
@@ -450,7 +452,7 @@ CREATE TABLE IF NOT EXISTS "workspace_template_files" (
     path TEXT NOT NULL,
     content TEXT NOT NULL
 );
-CREATE INDEX "idx_workspace_template_files_parent" ON "workspace_template_files" ("workspacetemplateid");
+CREATE INDEX IF NOT EXISTS "idx_workspace_template_files_parent" ON "workspace_template_files" ("workspacetemplateid");
 CREATE TABLE IF NOT EXISTS "artifact_stores" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -462,8 +464,8 @@ CREATE TABLE IF NOT EXISTS "artifact_stores" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_artifact_stores_tenant" ON "artifact_stores" ("tenantid");
-CREATE UNIQUE INDEX "idx_artifact_stores_name" ON "artifact_stores" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_artifact_stores_tenant" ON "artifact_stores" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_artifact_stores_name" ON "artifact_stores" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "agents" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -493,8 +495,8 @@ CREATE TABLE IF NOT EXISTS "agents" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_agents_tenant" ON "agents" ("tenantid");
-CREATE UNIQUE INDEX "idx_agents_name" ON "agents" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_agents_tenant" ON "agents" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_agents_name" ON "agents" ("tenantid", "name");
 CREATE TABLE IF NOT EXISTS "agent_skills" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     agentid VARCHAR(64) NOT NULL,
@@ -503,21 +505,21 @@ CREATE TABLE IF NOT EXISTS "agent_skills" (
     name VARCHAR(256) NOT NULL,
     description TEXT
 );
-CREATE INDEX "idx_agent_skills_parent" ON "agent_skills" ("agentid");
+CREATE INDEX IF NOT EXISTS "idx_agent_skills_parent" ON "agent_skills" ("agentid");
 CREATE TABLE IF NOT EXISTS "agent_tags" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     agentid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64),
     tag VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_agent_tags_parent" ON "agent_tags" ("agentid");
+CREATE INDEX IF NOT EXISTS "idx_agent_tags_parent" ON "agent_tags" ("agentid");
 CREATE TABLE IF NOT EXISTS "agent_delegation_allowlist" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     agentid VARCHAR(64) NOT NULL,
     tenantid VARCHAR(64),
     agentname VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_agent_delegation_allowlist_parent" ON "agent_delegation_allowlist" ("agentid");
+CREATE INDEX IF NOT EXISTS "idx_agent_delegation_allowlist_parent" ON "agent_delegation_allowlist" ("agentid");
 CREATE TABLE IF NOT EXISTS "deployments" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -544,9 +546,9 @@ CREATE TABLE IF NOT EXISTS "deployments" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_deployments_tenant" ON "deployments" ("tenantid");
-CREATE UNIQUE INDEX "idx_deployments_name" ON "deployments" ("tenantid", "name");
-CREATE INDEX "idx_deployments_agent" ON "deployments" ("tenantid", "agentid");
+CREATE INDEX IF NOT EXISTS "idx_deployments_tenant" ON "deployments" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_deployments_name" ON "deployments" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_deployments_agent" ON "deployments" ("tenantid", "agentid");
 CREATE TABLE IF NOT EXISTS "deployment_prompt_bindings" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     deploymentid VARCHAR(64) NOT NULL,
@@ -555,7 +557,7 @@ CREATE TABLE IF NOT EXISTS "deployment_prompt_bindings" (
     templateid VARCHAR(64) NOT NULL,
     pinnedversion INTEGER
 );
-CREATE INDEX "idx_deployment_prompt_bindings_parent" ON "deployment_prompt_bindings" ("deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_deployment_prompt_bindings_parent" ON "deployment_prompt_bindings" ("deploymentid");
 CREATE TABLE IF NOT EXISTS "deployment_resource_bindings" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     deploymentid VARCHAR(64) NOT NULL,
@@ -564,7 +566,7 @@ CREATE TABLE IF NOT EXISTS "deployment_resource_bindings" (
     alias VARCHAR(128) NOT NULL,
     resourceid VARCHAR(64) NOT NULL
 );
-CREATE INDEX "idx_deployment_resource_bindings_parent" ON "deployment_resource_bindings" ("deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_deployment_resource_bindings_parent" ON "deployment_resource_bindings" ("deploymentid");
 CREATE TABLE IF NOT EXISTS "deployment_arg_overrides" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     deploymentid VARCHAR(64) NOT NULL,
@@ -575,7 +577,7 @@ CREATE TABLE IF NOT EXISTS "deployment_arg_overrides" (
     template TEXT,
     condition TEXT
 );
-CREATE INDEX "idx_deployment_arg_overrides_parent" ON "deployment_arg_overrides" ("deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_deployment_arg_overrides_parent" ON "deployment_arg_overrides" ("deploymentid");
 CREATE TABLE IF NOT EXISTS "deployment_env_overrides" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     deploymentid VARCHAR(64) NOT NULL,
@@ -584,7 +586,7 @@ CREATE TABLE IF NOT EXISTS "deployment_env_overrides" (
     valuetemplate TEXT NOT NULL,
     issecret INTEGER NOT NULL
 );
-CREATE INDEX "idx_deployment_env_overrides_parent" ON "deployment_env_overrides" ("deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_deployment_env_overrides_parent" ON "deployment_env_overrides" ("deploymentid");
 CREATE TABLE IF NOT EXISTS "deployment_file_overrides" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     deploymentid VARCHAR(64) NOT NULL,
@@ -595,7 +597,7 @@ CREATE TABLE IF NOT EXISTS "deployment_file_overrides" (
     mode VARCHAR(8),
     issecret INTEGER NOT NULL
 );
-CREATE INDEX "idx_deployment_file_overrides_parent" ON "deployment_file_overrides" ("deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_deployment_file_overrides_parent" ON "deployment_file_overrides" ("deploymentid");
 CREATE TABLE IF NOT EXISTS "deployment_node_selectors" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     deploymentid VARCHAR(64) NOT NULL,
@@ -603,7 +605,7 @@ CREATE TABLE IF NOT EXISTS "deployment_node_selectors" (
     key VARCHAR(256) NOT NULL,
     value VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_deployment_node_selectors_parent" ON "deployment_node_selectors" ("deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_deployment_node_selectors_parent" ON "deployment_node_selectors" ("deploymentid");
 CREATE TABLE IF NOT EXISTS "deployment_parameters" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     deploymentid VARCHAR(64) NOT NULL,
@@ -611,7 +613,7 @@ CREATE TABLE IF NOT EXISTS "deployment_parameters" (
     name VARCHAR(128) NOT NULL,
     value TEXT NOT NULL
 );
-CREATE INDEX "idx_deployment_parameters_parent" ON "deployment_parameters" ("deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_deployment_parameters_parent" ON "deployment_parameters" ("deploymentid");
 CREATE TABLE IF NOT EXISTS "deployment_run_overrides" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     deploymentid VARCHAR(64) NOT NULL,
@@ -620,7 +622,7 @@ CREATE TABLE IF NOT EXISTS "deployment_run_overrides" (
     validation VARCHAR(64) NOT NULL,
     pattern TEXT
 );
-CREATE INDEX "idx_deployment_run_overrides_parent" ON "deployment_run_overrides" ("deploymentid");
+CREATE INDEX IF NOT EXISTS "idx_deployment_run_overrides_parent" ON "deployment_run_overrides" ("deploymentid");
 CREATE TABLE IF NOT EXISTS "node_pools" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
@@ -630,13 +632,13 @@ CREATE TABLE IF NOT EXISTS "node_pools" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE UNIQUE INDEX "idx_node_pools_name" ON "node_pools" ("name");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_node_pools_name" ON "node_pools" ("name");
 CREATE TABLE IF NOT EXISTS "node_pool_tenants" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     nodepoolid VARCHAR(64) NOT NULL,
     allowedtenantid VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_node_pool_tenants_parent" ON "node_pool_tenants" ("nodepoolid");
+CREATE INDEX IF NOT EXISTS "idx_node_pool_tenants_parent" ON "node_pool_tenants" ("nodepoolid");
 CREATE TABLE IF NOT EXISTS "nodes" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     name VARCHAR(256) NOT NULL,
@@ -654,14 +656,14 @@ CREATE TABLE IF NOT EXISTS "nodes" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE UNIQUE INDEX "idx_nodes_name" ON "nodes" ("name");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_nodes_name" ON "nodes" ("name");
 CREATE TABLE IF NOT EXISTS "node_labels" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     nodeid VARCHAR(64) NOT NULL,
     key VARCHAR(256) NOT NULL,
     value VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_node_labels_parent" ON "node_labels" ("nodeid");
+CREATE INDEX IF NOT EXISTS "idx_node_labels_parent" ON "node_labels" ("nodeid");
 CREATE TABLE IF NOT EXISTS "node_capabilities" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     nodeid VARCHAR(64) NOT NULL,
@@ -671,7 +673,7 @@ CREATE TABLE IF NOT EXISTS "node_capabilities" (
     available INTEGER NOT NULL,
     detail TEXT
 );
-CREATE INDEX "idx_node_capabilities_parent" ON "node_capabilities" ("nodeid");
+CREATE INDEX IF NOT EXISTS "idx_node_capabilities_parent" ON "node_capabilities" ("nodeid");
 CREATE TABLE IF NOT EXISTS "runs" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -725,15 +727,15 @@ CREATE TABLE IF NOT EXISTS "runs" (
     isprotected INTEGER NOT NULL,
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
-, firsttokenutc TEXT, lasttokenutc TEXT, ttftms BIGINT, streamingms BIGINT, executionms BIGINT, queuems BIGINT, totalms BIGINT, toolcallcount INTEGER NOT NULL DEFAULT 0, reasoningtokens BIGINT NOT NULL DEFAULT 0, outputschemavalid INTEGER, schemavalidationerrors TEXT, repairattempts INTEGER NOT NULL DEFAULT 0, delegationwaitms BIGINT, ttftexcldelegationms BIGINT, traceid VARCHAR(32), traceparent VARCHAR(64));
-CREATE INDEX "idx_runs_tenant" ON "runs" ("tenantid");
-CREATE INDEX "idx_runs_claim" ON "runs" ("status", "harnesstype", "priority", "createdutc");
-CREATE INDEX "idx_runs_tenantstatus" ON "runs" ("tenantid", "status");
-CREATE INDEX "idx_runs_deployment" ON "runs" ("deploymentid", "status");
-CREATE INDEX "idx_runs_parent" ON "runs" ("parentrunid");
-CREATE INDEX "idx_runs_lease" ON "runs" ("leasenodeid", "status");
-CREATE INDEX "idx_runs_idempotency" ON "runs" ("tenantid", "idempotencykey");
-CREATE INDEX "idx_runs_created" ON "runs" ("tenantid", "createdutc");
+);
+CREATE INDEX IF NOT EXISTS "idx_runs_tenant" ON "runs" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_runs_claim" ON "runs" ("status", "harnesstype", "priority", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_runs_tenantstatus" ON "runs" ("tenantid", "status");
+CREATE INDEX IF NOT EXISTS "idx_runs_deployment" ON "runs" ("deploymentid", "status");
+CREATE INDEX IF NOT EXISTS "idx_runs_parent" ON "runs" ("parentrunid");
+CREATE INDEX IF NOT EXISTS "idx_runs_lease" ON "runs" ("leasenodeid", "status");
+CREATE INDEX IF NOT EXISTS "idx_runs_idempotency" ON "runs" ("tenantid", "idempotencykey");
+CREATE INDEX IF NOT EXISTS "idx_runs_created" ON "runs" ("tenantid", "createdutc");
 CREATE TABLE IF NOT EXISTS "run_parameters" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     runid VARCHAR(64) NOT NULL,
@@ -741,7 +743,7 @@ CREATE TABLE IF NOT EXISTS "run_parameters" (
     name VARCHAR(128) NOT NULL,
     value TEXT NOT NULL
 );
-CREATE INDEX "idx_run_parameters_parent" ON "run_parameters" ("runid");
+CREATE INDEX IF NOT EXISTS "idx_run_parameters_parent" ON "run_parameters" ("runid");
 CREATE TABLE IF NOT EXISTS "run_requirements" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     runid VARCHAR(64) NOT NULL,
@@ -749,7 +751,7 @@ CREATE TABLE IF NOT EXISTS "run_requirements" (
     key VARCHAR(256) NOT NULL,
     value VARCHAR(256) NOT NULL
 );
-CREATE INDEX "idx_run_requirements_parent" ON "run_requirements" ("runid");
+CREATE INDEX IF NOT EXISTS "idx_run_requirements_parent" ON "run_requirements" ("runid");
 CREATE TABLE IF NOT EXISTS "run_template_versions" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     runid VARCHAR(64) NOT NULL,
@@ -758,7 +760,7 @@ CREATE TABLE IF NOT EXISTS "run_template_versions" (
     templatename VARCHAR(256) NOT NULL,
     version INTEGER NOT NULL
 );
-CREATE INDEX "idx_run_template_versions_parent" ON "run_template_versions" ("runid");
+CREATE INDEX IF NOT EXISTS "idx_run_template_versions_parent" ON "run_template_versions" ("runid");
 CREATE TABLE IF NOT EXISTS "run_events" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -774,9 +776,9 @@ CREATE TABLE IF NOT EXISTS "run_events" (
     outputtokens BIGINT,
     raweventjson TEXT,
     createdutc TEXT NOT NULL
-, code VARCHAR(64));
-CREATE INDEX "idx_run_events_tenant" ON "run_events" ("tenantid");
-CREATE UNIQUE INDEX "idx_run_events_runsequence" ON "run_events" ("runid", "sequence");
+);
+CREATE INDEX IF NOT EXISTS "idx_run_events_tenant" ON "run_events" ("tenantid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_run_events_runsequence" ON "run_events" ("runid", "sequence");
 CREATE TABLE IF NOT EXISTS "coordination_leases" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
@@ -787,7 +789,7 @@ CREATE TABLE IF NOT EXISTS "coordination_leases" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE UNIQUE INDEX "idx_coordination_leases_name" ON "coordination_leases" ("name");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_coordination_leases_name" ON "coordination_leases" ("name");
 CREATE TABLE IF NOT EXISTS "cluster_settings" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     settingkey VARCHAR(256) NOT NULL,
@@ -796,7 +798,7 @@ CREATE TABLE IF NOT EXISTS "cluster_settings" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE UNIQUE INDEX "idx_cluster_settings_key" ON "cluster_settings" ("settingkey");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_cluster_settings_key" ON "cluster_settings" ("settingkey");
 CREATE TABLE IF NOT EXISTS "manifest_applies" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     tenantid VARCHAR(64) NOT NULL,
@@ -812,7 +814,7 @@ CREATE TABLE IF NOT EXISTS "manifest_applies" (
     createdutc TEXT NOT NULL,
     lastupdateutc TEXT NOT NULL
 );
-CREATE INDEX "idx_manifest_applies_tenant" ON "manifest_applies" ("tenantid");
+CREATE INDEX IF NOT EXISTS "idx_manifest_applies_tenant" ON "manifest_applies" ("tenantid");
 CREATE TABLE IF NOT EXISTS "manifest_apply_items" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     manifestapplyid VARCHAR(64) NOT NULL,
@@ -823,8 +825,30 @@ CREATE TABLE IF NOT EXISTS "manifest_apply_items" (
     result VARCHAR(64) NOT NULL,
     resourceid VARCHAR(64),
     message TEXT
-, plannedresult VARCHAR(64));
-CREATE INDEX "idx_manifest_apply_items_parent" ON "manifest_apply_items" ("manifestapplyid");
+);
+CREATE INDEX IF NOT EXISTS "idx_manifest_apply_items_parent" ON "manifest_apply_items" ("manifestapplyid");
+
+-- Migration 2: Run timing telemetry
+ALTER TABLE "runs" ADD COLUMN firsttokenutc TEXT;
+ALTER TABLE "runs" ADD COLUMN lasttokenutc TEXT;
+ALTER TABLE "runs" ADD COLUMN ttftms BIGINT;
+ALTER TABLE "runs" ADD COLUMN streamingms BIGINT;
+ALTER TABLE "runs" ADD COLUMN executionms BIGINT;
+ALTER TABLE "runs" ADD COLUMN queuems BIGINT;
+ALTER TABLE "runs" ADD COLUMN totalms BIGINT;
+ALTER TABLE "runs" ADD COLUMN toolcallcount INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN reasoningtokens BIGINT NOT NULL DEFAULT 0;
+
+-- Migration 3: Structured output validation and repair
+ALTER TABLE "runs" ADD COLUMN outputschemavalid INTEGER;
+ALTER TABLE "runs" ADD COLUMN schemavalidationerrors TEXT;
+ALTER TABLE "runs" ADD COLUMN repairattempts INTEGER NOT NULL DEFAULT 0;
+
+-- Migration 4: Delegation wait telemetry, manifest field changes, and run event codes
+ALTER TABLE "runs" ADD COLUMN delegationwaitms BIGINT;
+ALTER TABLE "runs" ADD COLUMN ttftexcldelegationms BIGINT;
+ALTER TABLE "run_events" ADD COLUMN code VARCHAR(64);
+ALTER TABLE "manifest_apply_items" ADD COLUMN plannedresult VARCHAR(64);
 CREATE TABLE IF NOT EXISTS "manifest_apply_changes" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     manifestapplyid VARCHAR(64) NOT NULL,
@@ -835,19 +859,25 @@ CREATE TABLE IF NOT EXISTS "manifest_apply_changes" (
     beforevalue TEXT,
     aftervalue TEXT
 );
-CREATE INDEX "idx_manifest_apply_changes_parent" ON "manifest_apply_changes" ("manifestapplyid");
+CREATE INDEX IF NOT EXISTS "idx_manifest_apply_changes_parent" ON "manifest_apply_changes" ("manifestapplyid");
+
+-- Migration 5: Run trace identifiers
+ALTER TABLE "runs" ADD COLUMN traceid VARCHAR(32);
+ALTER TABLE "runs" ADD COLUMN traceparent VARCHAR(64);
+
+-- Migration 6: Multi-replica state (nonces, rate limits, MCP sessions, backplane) and read path indexes
 CREATE TABLE IF NOT EXISTS "request_nonces" (
     noncekey VARCHAR(512) NOT NULL PRIMARY KEY,
     expiresutc TEXT NOT NULL,
     createdutc TEXT NOT NULL
 );
-CREATE INDEX "idx_request_nonces_expires" ON "request_nonces" ("expiresutc");
+CREATE INDEX IF NOT EXISTS "idx_request_nonces_expires" ON "request_nonces" ("expiresutc");
 CREATE TABLE IF NOT EXISTS "rate_limit_buckets" (
     bucketkey VARCHAR(512) NOT NULL PRIMARY KEY,
     hits INTEGER NOT NULL,
     expiresutc TEXT NOT NULL
 );
-CREATE INDEX "idx_rate_limit_buckets_expires" ON "rate_limit_buckets" ("expiresutc");
+CREATE INDEX IF NOT EXISTS "idx_rate_limit_buckets_expires" ON "rate_limit_buckets" ("expiresutc");
 CREATE TABLE IF NOT EXISTS "mcp_sessions" (
     id VARCHAR(64) NOT NULL PRIMARY KEY,
     principal VARCHAR(512) NOT NULL,
@@ -858,7 +888,7 @@ CREATE TABLE IF NOT EXISTS "mcp_sessions" (
     lastseenutc TEXT NOT NULL,
     expiresutc TEXT NOT NULL
 );
-CREATE INDEX "idx_mcp_sessions_expires" ON "mcp_sessions" ("expiresutc");
+CREATE INDEX IF NOT EXISTS "idx_mcp_sessions_expires" ON "mcp_sessions" ("expiresutc");
 CREATE TABLE IF NOT EXISTS "backplane_messages" (
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
     kind VARCHAR(64) NOT NULL,
@@ -866,15 +896,17 @@ CREATE TABLE IF NOT EXISTS "backplane_messages" (
     origin VARCHAR(128) NOT NULL,
     createdutc TEXT NOT NULL
 );
-CREATE INDEX "idx_backplane_messages_created" ON "backplane_messages" ("createdutc");
-CREATE INDEX "idx_runs_tenantstatuscreated" ON "runs" ("tenantid", "status", "createdutc");
-CREATE INDEX "idx_runs_tenantagentcreated" ON "runs" ("tenantid", "agentid", "createdutc");
-CREATE INDEX "idx_runs_root" ON "runs" ("rootrunid");
-CREATE INDEX "idx_runs_leaseexpires" ON "runs" ("status", "leaseexpiresutc");
-CREATE INDEX "idx_runs_deadline" ON "runs" ("status", "deadlineutc");
-CREATE INDEX "idx_runs_completed" ON "runs" ("status", "completedutc");
-CREATE INDEX "idx_run_events_created" ON "run_events" ("createdutc");
-CREATE INDEX "idx_authsessions_expires" ON "authsessions" ("expiresutc");
+CREATE INDEX IF NOT EXISTS "idx_backplane_messages_created" ON "backplane_messages" ("createdutc");
+CREATE INDEX IF NOT EXISTS "idx_runs_tenantstatuscreated" ON "runs" ("tenantid", "status", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_runs_tenantagentcreated" ON "runs" ("tenantid", "agentid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_runs_root" ON "runs" ("rootrunid");
+CREATE INDEX IF NOT EXISTS "idx_runs_leaseexpires" ON "runs" ("status", "leaseexpiresutc");
+CREATE INDEX IF NOT EXISTS "idx_runs_deadline" ON "runs" ("status", "deadlineutc");
+CREATE INDEX IF NOT EXISTS "idx_runs_completed" ON "runs" ("status", "completedutc");
+CREATE INDEX IF NOT EXISTS "idx_run_events_created" ON "run_events" ("createdutc");
+CREATE INDEX IF NOT EXISTS "idx_authsessions_expires" ON "authsessions" ("expiresutc");
+
+-- Migration 7: Control-plane replicas (control nodes)
 CREATE TABLE IF NOT EXISTS "control_nodes" (
     id VARCHAR(256) NOT NULL PRIMARY KEY,
     name VARCHAR(256) NOT NULL,
@@ -890,4 +922,135 @@ CREATE TABLE IF NOT EXISTS "control_nodes" (
     openstreams INTEGER NOT NULL,
     heldlongpolls INTEGER NOT NULL
 );
-CREATE INDEX "idx_control_nodes_statusheartbeat" ON "control_nodes" ("status", "lastheartbeatutc");
+CREATE INDEX IF NOT EXISTS "idx_control_nodes_statusheartbeat" ON "control_nodes" ("status", "lastheartbeatutc");
+
+-- Migration 8: Run guard limits on deployments
+ALTER TABLE "deployments" ADD COLUMN repetitionguard INTEGER;
+ALTER TABLE "deployments" ADD COLUMN maxassistantchars BIGINT;
+ALTER TABLE "deployments" ADD COLUMN noprogressseconds INTEGER;
+
+-- Migration 9: Run executors, run pod resources, and PersistentVolume workspaces
+ALTER TABLE "deployments" ADD COLUMN executor VARCHAR(64);
+ALTER TABLE "deployments" ADD COLUMN podcpurequest VARCHAR(64);
+ALTER TABLE "deployments" ADD COLUMN podcpulimit VARCHAR(64);
+ALTER TABLE "deployments" ADD COLUMN podmemoryrequest VARCHAR(64);
+ALTER TABLE "deployments" ADD COLUMN podmemorylimit VARCHAR(64);
+ALTER TABLE "deployments" ADD COLUMN podephemeralstoragerequest VARCHAR(64);
+ALTER TABLE "deployments" ADD COLUMN podephemeralstoragelimit VARCHAR(64);
+ALTER TABLE "node_pools" ADD COLUMN defaultexecutor VARCHAR(64);
+ALTER TABLE "runs" ADD COLUMN executor VARCHAR(64);
+ALTER TABLE "workspace_templates" ADD COLUMN persistentvolumeclaim VARCHAR(256);
+CREATE TABLE IF NOT EXISTS "node_executors" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    nodeid VARCHAR(64) NOT NULL,
+    executor VARCHAR(64) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_node_executors_parent" ON "node_executors" ("nodeid");
+
+-- Migration 10: Secret credential status and Codex login refresh
+ALTER TABLE "secrets" ADD COLUMN status VARCHAR(64);
+ALTER TABLE "secrets" ADD COLUMN statusmessage TEXT;
+ALTER TABLE "secrets" ADD COLUMN statusutc TEXT;
+ALTER TABLE "secrets" ADD COLUMN refreshedutc TEXT;
+ALTER TABLE "secrets" ADD COLUMN accesstokenexpiresutc TEXT;
+CREATE INDEX IF NOT EXISTS "idx_secrets_kind" ON "secrets" ("kind");
+
+-- Migration 11: Run token lease epochs and manifest error codes
+ALTER TABLE "authsessions" ADD COLUMN leaseepoch BIGINT;
+ALTER TABLE "manifest_apply_items" ADD COLUMN errorcode VARCHAR(64);
+ALTER TABLE "manifest_apply_items" ADD COLUMN errorfield VARCHAR(512);
+
+-- Migration 12: Conversations: harness session resume, node affinity, and transcript fallback
+ALTER TABLE "runs" ADD COLUMN conversationid VARCHAR(64);
+ALTER TABLE "runs" ADD COLUMN conversationturn INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN resumesessionid VARCHAR(256);
+ALTER TABLE "runs" ADD COLUMN affinitynodeid VARCHAR(64);
+ALTER TABLE "runs" ADD COLUMN affinityuntilutc TEXT;
+ALTER TABLE "runs" ADD COLUMN conversationfallbackreason VARCHAR(64);
+CREATE TABLE IF NOT EXISTS "conversations" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    agentname VARCHAR(256) NOT NULL,
+    deploymentid VARCHAR(64),
+    harnesstype VARCHAR(64) NOT NULL,
+    contextid VARCHAR(256),
+    title VARCHAR(256),
+    callertype VARCHAR(64) NOT NULL,
+    callerid VARCHAR(64),
+    callername VARCHAR(256),
+    sessionid VARCHAR(256),
+    sessionharnessprofileid VARCHAR(64),
+    affinitynodeid VARCHAR(64),
+    affinitynodename VARCHAR(256),
+    activerunid VARCHAR(64),
+    lastrunid VARCHAR(64),
+    turncount INTEGER NOT NULL,
+    fallbackcount INTEGER NOT NULL,
+    lastfallbackreason VARCHAR(64),
+    lastfallbackutc TEXT,
+    lastactivityutc TEXT,
+    active INTEGER NOT NULL,
+    isprotected INTEGER NOT NULL,
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_conversations_tenantcreated" ON "conversations" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_conversations_tenantagent" ON "conversations" ("tenantid", "agentid");
+CREATE INDEX IF NOT EXISTS "idx_conversations_context" ON "conversations" ("tenantid", "agentid", "contextid");
+CREATE INDEX IF NOT EXISTS "idx_runs_conversation" ON "runs" ("conversationid", "createdutc");
+
+-- Migration 13: Permission approvals and deployment approval rules
+ALTER TABLE "deployments" ADD COLUMN approvalsenabled INTEGER;
+ALTER TABLE "deployments" ADD COLUMN approvaldefaultaction VARCHAR(16);
+ALTER TABLE "deployments" ADD COLUMN approvaltimeoutseconds INTEGER;
+ALTER TABLE "deployments" ADD COLUMN approvaltimeoutdecision VARCHAR(16);
+ALTER TABLE "runs" ADD COLUMN pendingapprovals INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN approvalwaitms BIGINT;
+CREATE TABLE IF NOT EXISTS "deployment_approval_rules" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    deploymentid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64),
+    position INTEGER NOT NULL,
+    action VARCHAR(16) NOT NULL,
+    pattern VARCHAR(1024) NOT NULL,
+    inputpattern TEXT,
+    description TEXT
+);
+CREATE INDEX IF NOT EXISTS "idx_deployment_approval_rules_parent" ON "deployment_approval_rules" ("deploymentid");
+CREATE TABLE IF NOT EXISTS "approvals" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    runid VARCHAR(64) NOT NULL,
+    rootrunid VARCHAR(64),
+    agentid VARCHAR(64) NOT NULL,
+    agentname VARCHAR(128) NOT NULL,
+    deploymentid VARCHAR(64) NOT NULL,
+    leaseepoch BIGINT NOT NULL,
+    harnesstype VARCHAR(64) NOT NULL,
+    kind VARCHAR(32) NOT NULL,
+    toolname VARCHAR(256) NOT NULL,
+    toolcallid VARCHAR(256),
+    inputpreview TEXT,
+    summary TEXT,
+    suggestedrule VARCHAR(1024),
+    status VARCHAR(32) NOT NULL,
+    decision VARCHAR(16),
+    decisionsource VARCHAR(32),
+    ruleid VARCHAR(64),
+    rulepattern VARCHAR(1024),
+    rememberedruleid VARCHAR(64),
+    decidedby VARCHAR(256),
+    decidedbyid VARCHAR(64),
+    reason TEXT,
+    timeoutdecision VARCHAR(16) NOT NULL,
+    requestedutc TEXT NOT NULL,
+    decidedutc TEXT,
+    expiresutc TEXT,
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_approvals_tenantstatuscreated" ON "approvals" ("tenantid", "status", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_approvals_tenantcreated" ON "approvals" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_approvals_run" ON "approvals" ("runid");
+CREATE INDEX IF NOT EXISTS "idx_approvals_statusexpires" ON "approvals" ("status", "expiresutc");

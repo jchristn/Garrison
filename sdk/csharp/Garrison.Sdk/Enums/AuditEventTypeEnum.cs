@@ -108,6 +108,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// ConversationDeleted.
         /// </summary>
-        ConversationDeleted
+        ConversationDeleted,
+
+        /// <summary>
+        /// A person decided a permission approval.
+        /// </summary>
+        ApprovalDecided
     }
 }

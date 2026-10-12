@@ -6,9 +6,11 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const zhHans = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '结构化输出无效', RunBlocked: '运行受阻', EventsDropped: '事件已丢弃', HarnessExited: 'Harness 已退出', McpPreflightWarning: 'MCP 预检警告', McpPreflightPassed: 'MCP 预检通过', RepairAttemptStarted: '已开始修复输出', WorkspacePrepared: '工作区已就绪', RunGuardTriggered: '运行防护停止了运行', ConversationFallback: '对话回退', ConversationResumed: '对话已恢复', ConversationStateLost: '对话状态丢失' },
+    eventCodes: { ApprovalRequested: '已请求审批', ApprovalDecided: '审批已决定', StructuredOutputInvalid: '结构化输出无效', RunBlocked: '运行受阻', EventsDropped: '事件已丢弃', HarnessExited: 'Harness 已退出', McpPreflightWarning: 'MCP 预检警告', McpPreflightPassed: 'MCP 预检通过', RepairAttemptStarted: '已开始修复输出', WorkspacePrepared: '工作区已就绪', RunGuardTriggered: '运行防护停止了运行', ConversationFallback: '对话回退', ConversationResumed: '对话已恢复', ConversationStateLost: '对话状态丢失' },
     fieldCodes: { ExpiryInPast: '请选择未来的时间。', ParameterInvalid: '此值对该参数无效。', ParameterNotAllowed: '此部署不允许调用方覆盖此参数。', SettingsFileReadOnly: '设置文件为只读，因此无法保存此更改。', OverriddenByEnvironment: '此值由环境变量设置，因此无法在此更改。', PathRequired: '需要设置路径。', UnknownSetting: '此服务器没有该设置。', TooLong: '此值过长。', NotAllowedValue: '请选择允许的值之一。', NotABoolean: '请选择 true 或 false。', NotAnInteger: '请输入整数。', OutOfRange: '值超出允许的范围。' },
     serverText: {
+      approvalWaitingExpires: '正在等待有人批准 {{subject}}；审批 {{id}} 将于 {{expires}} 过期。',
+      approvalWaiting: '正在等待有人批准 {{subject}}；审批 {{id}}。',
       notApplied: '未应用，因为另一个文档未通过验证。',
       wouldBeUnchanged: '已是最新，不会有任何变更。',
       wouldBeUpdated: '将被更新。',
@@ -67,6 +69,7 @@ const zhHans = {
       bulkDelete: '删除所选的 {{count}} 条记录？此操作无法撤销。'
     },
     errors: {
+      listItem: '第 {{index}} 项：{{message}}',
       chooseOne: '请至少选择一个选项。',
       fixFields: '部分字段需要处理，请检查突出显示的值。',
       invalidEmail: '请输入有效的电子邮件地址。',
@@ -108,6 +111,7 @@ const zhHans = {
     units: { msShort: '毫秒', sShort: '秒', mShort: '分钟', tokPerSec: 'Token/秒' }
   },
   errorCodes: {
+    ApprovalNotPending: '此审批已经决定，无法再次决定。',
     MessageIdConflict: '此 A2A 消息 ID 已用于不同的内容。请使用新的 ID 发送消息。',
     IdempotencyKeyConflict: '此幂等键已用于另一个请求。请使用新的键。',
     DeploymentDeleted: '此运行的部署已被删除，因此无法重试此运行。请改为再次调用智能体。',
@@ -141,6 +145,34 @@ const zhHans = {
     ConversationDeploymentUnavailable: '该对话所用的部署已被删除，因此对话无法继续。请开始新的对话。'
   },
   enums: {
+    approvalStatus: {
+      Pending: '待处理',
+      Approved: '已批准',
+      Denied: '已拒绝',
+      Expired: '已过期',
+      Cancelled: '已取消'
+    },
+    approvalDecision: {
+      Allow: '允许',
+      Deny: '拒绝'
+    },
+    approvalSource: {
+      Rule: '规则',
+      Default: '部署默认设置',
+      User: '人工',
+      Timeout: '超时',
+      Cancelled: '运行已停止'
+    },
+    approvalRuleAction: {
+      Allow: '允许',
+      Deny: '拒绝',
+      Ask: '询问人员'
+    },
+    approvalKind: {
+      Tool: '工具调用',
+      Command: '命令',
+      FileChange: '文件更改'
+    },
     principalType: { Administrator: '系统管理员', User: '用户', Credential: '访问密钥', Run: '运行令牌' },
     runBlockedReason: { NoReadyWorker: '没有就绪的工作节点', NoCapableWorker: '没有可用的工作节点', NoMatchingPool: '没有匹配的节点池' },
     promptDelivery: { Stdin: '标准输入', Argument: '命令行参数', File: '文件', CodexAppServer: 'Codex 应用服务器 (JSON-RPC)' },
@@ -273,6 +305,7 @@ const zhHans = {
     remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: '已创建', Updated: '已更新', Unchanged: '未更改', Failed: '失败', Validated: '已验证' },
     auditEventType: {
+      ApprovalDecided: '审批已决定',
       AuthSuccess: '登录成功',
       AuthFailure: '登录失败',
       SessionIssued: '已签发会话',
@@ -306,6 +339,8 @@ const zhHans = {
     }
   },
   nav: {
+    approvalsPending_one: '{{count}} 个审批待处理',
+    approvalsPending_other: '{{count}} 个审批待处理',
     primary: '主导航',
     sections: {
       operate: '运营',
@@ -313,6 +348,10 @@ const zhHans = {
       administration: '管理'
     },
     hubs: {
+      approvals: {
+        label: '审批',
+        tip: '等待人员处理的工具调用，以及每项决定'
+      },
       home: { label: '首页', tip: '一览机群与运行的健康状况' },
       invoke: { label: '调用', tip: '以交互方式试用智能体' },
       runs: { label: '运行', tip: '运行记录与调度队列' },
@@ -325,6 +364,10 @@ const zhHans = {
       system: { label: '系统', tip: '服务器设置和服务器信息' }
     },
     items: {
+      approvals: {
+        label: '审批',
+        tip: '允许或拒绝智能体请求进行的工具调用'
+      },
       home: { label: '首页', tip: '一览机群与运行的健康状况' },
       invoke: { label: '调用', tip: '以交互方式试用智能体' },
       runs: { label: '运行', tip: '查找、检查、取消和重试运行' },
@@ -400,6 +443,48 @@ const zhHans = {
     run: '运行令牌'
   },
   components: {
+    approvals: {
+      awaiting: '等待审批',
+      decideTitle: '决定 {{tool}}',
+      decision: '决定',
+      reason: '原因',
+      reasonPlaceholder: '可选。智能体和审计日志都会看到。',
+      remember: '记住为此部署的规则',
+      rulePattern: '规则模式',
+      rememberHint: '向部署添加一条操作为 {{action}} 的规则，之后匹配的调用无需询问即可决定。这还需要更新部署的权限。',
+      submitAllow: '允许',
+      submitDeny: '拒绝',
+      timeoutThen: '然后 {{decision}}',
+      toasts: {
+        allowed: '已允许 {{tool}}。',
+        denied: '已拒绝 {{tool}}。',
+        allowedRemembered: '已允许 {{tool}}，并添加了规则 {{pattern}}。',
+        deniedRemembered: '已拒绝 {{tool}}，并添加了规则 {{pattern}}。',
+        notPending: '此审批已由其他人或因超时而决定。列表现在显示结果。',
+        forbidden: '你可以查看审批，但不能决定。请向管理员申请 Approval Update 权限。',
+        forbiddenRemember: '记住规则还需要更新部署的权限。请在不记住规则的情况下决定，或申请 Deployment Update 权限。'
+      }
+    },
+    approvalCheck: {
+      title: '测试工具调用',
+      saveFirst: '请先保存部署。测试检查的是服务器已存储的规则。',
+      hint: '检查的是已保存的规则，因此请在测试前保存更改。不会记录任何内容。',
+      toolName: '工具',
+      inputs: {
+        command: '命令',
+        url: 'URL',
+        query: '搜索查询',
+        file_path: '文件路径',
+        notebook_path: 'Notebook 路径',
+        pattern: '模式'
+      },
+      run: '检查',
+      checking: '正在检查...',
+      byRule: '由此规则 {{action}}：',
+      byDefault: '没有规则匹配，因此由部署默认设置 {{action}}。',
+      suggestedRule: '建议的规则：',
+      disabled: '此部署的审批已关闭，因此其运行从不询问。请开启并保存以应用这些规则。'
+    },
     blocked: {
       title: '等待工作节点',
       body: '此运行已排队，但目前没有工作节点能接手。',
@@ -548,6 +633,63 @@ const zhHans = {
     }
   },
   resources: {
+    approvals: {
+      ...rp('审批', '智能体请求进行的工具调用，由部署规则、部署默认设置、人员或超时决定。待处理的审批等待你处理。', '添加审批', '创建审批', '编辑审批', '审批详情', '删除审批', '暂无审批', '当启用了审批的部署在工具调用前发出询问时，审批会显示在这里。'),
+      columns: {
+        createdUtc: '请求时间',
+        agentName: '智能体',
+        toolName: '工具',
+        summary: '请求',
+        status: '状态',
+        decision: '决定',
+        decisionSource: '来源',
+        decidedBy: '决定者',
+        expiresUtc: '过期时间',
+        kind: '类别',
+        harnessType: 'Harness',
+        runId: '运行',
+        waitMs: '等待',
+        reason: '原因',
+        decidedUtc: '决定时间',
+        id: 'ID'
+      },
+      fields: {
+        status: '状态',
+        decision: '决定',
+        decisionSource: '决定来源',
+        decidedBy: '决定者',
+        toolName: '工具',
+        kind: '类别',
+        harnessType: 'Harness',
+        agentName: '智能体',
+        runId: '运行',
+        rootRunId: '根运行',
+        deploymentId: '部署',
+        leaseEpoch: '租约纪元',
+        requestedUtc: '请求时间',
+        expiresUtc: '过期时间',
+        decidedUtc: '决定时间',
+        waitMs: '等待时长',
+        timeoutDecision: '超时后的决定',
+        toolCallId: '工具调用 ID',
+        reason: '原因',
+        summary: '摘要',
+        inputPreview: '输入（已脱敏）',
+        rulePattern: '匹配的规则',
+        ruleId: '规则 ID',
+        suggestedRule: '建议的规则',
+        rememberedRuleId: '已记住的规则 ID'
+      },
+      filters: {
+        runId: '运行 ID',
+        runIdPlaceholder: '运行 ID（run_...）'
+      },
+      actions: {
+        allow: '允许',
+        deny: '拒绝',
+        openRun: '打开运行'
+      }
+    },
     tenants: {
       ...rp('租户', '相互隔离的空间，每个租户拥有各自的用户、智能体、机密和运行。', '添加租户', '创建租户', '编辑租户', '租户详情', '删除租户', '暂无租户', '创建租户以隔离团队或客户。'),
       columns: { name: '名称', id: 'ID', description: '描述', active: '启用', createdUtc: '创建时间' },
@@ -733,11 +875,24 @@ const zhHans = {
       errors: { dnsName: '请使用小写字母、数字和连字符，并以字母或数字开头和结尾。' }
     },
     deployments: {
+      approvalsOn_one: '已开启，{{count}} 条规则',
+      approvalsOn_other: '已开启，{{count}} 条规则',
+      approvalsOff: '已关闭',
       promptRoles: { Repair: '结构化输出修复', DelegatedTask: '委派运行的任务包装', Task: '任务包装', System: '系统提示词', ConversationFallback: '对话回退（记录）' },
       ...rp('部署', '将智能体绑定到 Harness 配置文件、提示词、机密、MCP 服务器、调度放置和限制。', '添加部署', '创建部署', '编辑部署', '部署详情', '删除部署', '暂无部署', '创建部署，使智能体可以运行。'),
-      steps: { basics: '基本信息', harness: 'Harness', prompts: '提示词', resources: '资源', overrides: '覆盖', placement: '调度放置和限制' },
-      columns: { name: '名称', agentId: '智能体', harnessProfileId: 'Harness 配置文件', model: '模型', executor: '执行器', weight: '权重', configVersion: '配置版本', active: '启用', id: 'ID', createdUtc: '创建时间' },
+      steps: { approvals: '审批', basics: '基本信息', harness: 'Harness', prompts: '提示词', resources: '资源', overrides: '覆盖', placement: '调度放置和限制' },
+      columns: { approvalsEnabled: '审批', name: '名称', agentId: '智能体', harnessProfileId: 'Harness 配置文件', model: '模型', executor: '执行器', weight: '权重', configVersion: '配置版本', active: '启用', id: 'ID', createdUtc: '创建时间' },
       fields: {
+        approvalsEnabled: '工具调用前询问（审批）',
+        approvalDefaultAction: '没有规则匹配时',
+        approvalTimeoutSeconds: '审批超时（秒）',
+        approvalTimeoutDecision: '无人响应时的决定',
+        approvalRules: '审批规则',
+        ruleAction: '操作',
+        rulePattern: '规则',
+        ruleInputPattern: '输入模式',
+        ruleDescription: '描述',
+        approvalTest: '测试工具调用',
         name: '名称',
         agentId: '智能体',
         description: '描述',
@@ -793,6 +948,10 @@ const zhHans = {
         podEphemeralStorageLimit: '临时存储上限'
       },
       hints: {
+        approvalsEnabled: '适用于 Claude Code 配置文件以及使用 Codex app-server 的配置文件。其他 Harness 没有审批钩子，因此服务器会拒绝为它们启用此设置。',
+        approvalDefaultAction: '“询问人员”会在审批收件箱中等待，直到有人决定或超时。',
+        approvalTimeoutSeconds: '10 到 3,600 秒。留空则使用 300。',
+        approvalRules: '拒绝优先于询问，询问优先于允许。示例：Bash(npm test)、Bash(npm run *)、Edit(src/**)、WebFetch(domain:example.com)、mcp__github__*。',
         secretsKinds: 'Harness 配置文件 {{profile}} 需要任意一个类型为 {{kinds}} 的机密。可用任意别名绑定。',
         secretsAliases: 'Harness 配置文件 {{profile}} 读取以这些别名绑定的机密：{{aliases}}。',
         secretsNone: 'Harness 配置文件 {{profile}} 不读取任何机密，因此无需绑定机密。',
@@ -812,18 +971,19 @@ const zhHans = {
         executorSet: '进程在 worker 内运行 harness；Kubernetes Job 在独立的 Pod 中运行它。',
         podCpuRequest: 'Pod 资源仅适用于 Kubernetes Job 运行。请使用 Kubernetes 数量，例如 500m、2、512Mi 或 4Gi；留空则使用 worker 默认值。'
       },
-      actions: { compilePreview: '编译预览', test: '测试调用', useClusterDefault: '使用集群默认值' },
+      actions: { addRule: '添加规则', compilePreview: '编译预览', test: '测试调用', useClusterDefault: '使用集群默认值' },
       sections: {
         guards: '运行防护',
         execution: '执行器和 Pod 资源'
       },
       placeholders: {
+        ruleInputPattern: '可选，匹配输入 JSON 的正则表达式',
         clusterDefault: '集群默认值（{{value}}）',
         clusterDefaultUnknown: '集群默认值'
       },
       executorInherit: '节点池默认值',
       executorInheritShort: '节点池默认',
-      errors: { quantity: '请使用 Kubernetes 数量，例如 500m、2、512Mi 或 4Gi。' },
+      errors: { rulePatternRequired: '请输入规则模式。', rulePatternOneLine: '规则模式必须写在一行内。', rulePatternTooLong: '规则模式最多 1,000 个字符。', tooManyRules: '一个部署最多可有 500 条审批规则。', approvalTimeout: '请输入 10 到 3,600 之间的整数秒数。', quantity: '请使用 Kubernetes 数量，例如 500m、2、512Mi 或 4Gi。' },
       guardStates: {
         on: '开启',
         off: '关闭'
@@ -839,6 +999,7 @@ const zhHans = {
     runs: {
       ...rp('运行', '每次智能体调用的状态、节点、耗时和结果。', '添加运行', '创建运行', '编辑运行', '运行详情', '删除运行', '暂无运行', '调用智能体即可开始一次运行。'),
       columns: {
+        approvalWaitMs: '审批等待',
         delegationWaitMs: '委派等待时间',
         timeToFirstTokenExcludingDelegationMs: '首 Token 时间（不含委派）',
         id: '运行',
@@ -950,6 +1111,19 @@ const zhHans = {
     }
   },
   views: {
+    approvalDetail: {
+      title: '审批',
+      titleWithTool: '{{tool}} 的审批',
+      backToInbox: '所有审批',
+      pending: '正在等待有人允许或拒绝此工具调用。',
+      pendingExpires: '正在等待人员处理。如果无人决定，将于 {{when}} 过期，并采用决定 {{decision}}。',
+      request: '请求',
+      rules: '规则',
+      noRule: '没有匹配的规则',
+      noInput: '未记录任何输入。',
+      notFoundTitle: '未找到审批',
+      notFoundBody: '它可能属于其他租户，或者 ID 有误。'
+    },
     home: {
       observabilityState: { reachable: '可访问', unreachable: '无法访问', checking: '检查中', unknown: '状态未知' },
       observabilityVersion: '版本 {{version}}',
@@ -1093,6 +1267,13 @@ const zhHans = {
       }
     },
     runDetail: {
+      awaitingApproval_one: '此运行正在等待有人批准 {{count}} 个工具调用。',
+      awaitingApproval_other: '此运行正在等待有人批准 {{count}} 个工具调用。',
+      reviewApprovals: '审查',
+      approvals_one: '审批（{{count}}）',
+      approvals_other: '审批（{{count}}）',
+      noApprovals: '此运行未请求任何审批。',
+      openApproval: '打开审批',
       viewTrace: '查看追踪',
       viewLogs: '查看日志',
       traceId: '追踪 ID',
@@ -1140,11 +1321,13 @@ const zhHans = {
       notFoundTitle: '未找到运行',
       notFoundBody: '它可能已被删除，或属于其他租户。',
       telemetry: {
+        approvalNote: '此运行有 {{wait}} 用于等待审批决定。执行时间包含该等待。',
         delegationNote: '此运行等待委派运行 {{wait}}。首 Token 时间包含该等待为 {{ttft}}，不包含为 {{excluding}}；与不委派的智能体比较时请使用后者。',
         title: '遥测',
         phases: '各阶段运行时间',
         phase: { delegation: '等待委派运行', queue: '排队', startup: '启动至首个 Token', streaming: '流式输出', tail: '最后一个 Token 之后' },
         fields: {
+          approvalWaitMs: '审批等待',
           delegationWaitMs: '委派等待时间',
           timeToFirstTokenExcludingDelegationMs: '首 Token 时间（不含委派）',
           timeToFirstTokenMs: '首 Token 时间',

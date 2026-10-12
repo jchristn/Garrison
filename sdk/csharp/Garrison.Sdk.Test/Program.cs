@@ -399,6 +399,107 @@ namespace Garrison.Sdk.Test
                     Require(!String.IsNullOrEmpty(overview.LeaderNodeId), "overview leaderNodeId empty");
                 }).ConfigureAwait(false);
 
+                await CheckAsync("approvals list and read", async () =>
+                {
+                    ApprovalFilter filter = new ApprovalFilter();
+                    filter.Status = ApprovalStatusEnum.Pending;
+                    filter.MaxResults = 1;
+                    EnumerationResult<Approval> pending = await client.Approvals.ListAsync(filter, token).ConfigureAwait(false);
+                    Require(pending.Objects.All(a => a.Status == ApprovalStatusEnum.Pending), "non-pending approval in Pending list");
+                    Require(pending.TotalRecords >= pending.Objects.Count, "totalRecords " + pending.TotalRecords);
+                    ApprovalFilter byDeployment = new ApprovalFilter();
+                    byDeployment.DeploymentId = deploymentId ?? throw new InvalidOperationException("no deployment");
+                    EnumerationResult<Approval> scoped = await client.Approvals.ListAsync(byDeployment, token).ConfigureAwait(false);
+                    Require(scoped.Objects.Count == 0, "scratch deployment has " + scoped.Objects.Count + " approvals");
+                    int missingStatus = 0;
+                    try
+                    {
+                        await client.Approvals.GetAsync("apr_missing" + suffix, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404)
+                    {
+                        missingStatus = e.StatusCode;
+                    }
+                    Require(missingStatus == 404, "expected 404 reading a missing approval");
+                    int decideStatus = 0;
+                    try
+                    {
+                        ApprovalDecideRequest decide = new ApprovalDecideRequest();
+                        decide.Decision = ApprovalDecisionEnum.Allow;
+                        await client.Approvals.DecideAsync("apr_missing" + suffix, decide, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 404)
+                    {
+                        decideStatus = e.StatusCode;
+                    }
+                    Require(decideStatus == 404, "expected 404 deciding a missing approval");
+                }).ConfigureAwait(false);
+
+                await CheckAsync("approval rules and approval check", async () =>
+                {
+                    string id = deploymentId ?? throw new InvalidOperationException("no deployment");
+                    Deployment deployment = await client.Deployments.GetAsync(id, token).ConfigureAwait(false);
+                    Require(!deployment.ApprovalsEnabled, "approvalsEnabled defaulted to true");
+                    Require(deployment.ApprovalDefaultAction == ApprovalRuleActionEnum.Ask, "approvalDefaultAction " + deployment.ApprovalDefaultAction);
+                    Require(deployment.ApprovalTimeoutSeconds == 300, "approvalTimeoutSeconds " + deployment.ApprovalTimeoutSeconds);
+                    Require(deployment.ApprovalTimeoutDecision == ApprovalDecisionEnum.Deny, "approvalTimeoutDecision " + deployment.ApprovalTimeoutDecision);
+
+                    DeploymentApprovalRule allowGit = new DeploymentApprovalRule();
+                    allowGit.Action = ApprovalRuleActionEnum.Allow;
+                    allowGit.Pattern = "Bash(git status:*)";
+                    DeploymentApprovalRule denyRm = new DeploymentApprovalRule();
+                    denyRm.Action = ApprovalRuleActionEnum.Deny;
+                    denyRm.Pattern = "Bash(rm:*)";
+                    denyRm.Description = "C# SDK harness rule.";
+                    deployment.ApprovalRules = new List<DeploymentApprovalRule> { allowGit, denyRm };
+                    deployment.ApprovalDefaultAction = ApprovalRuleActionEnum.Deny;
+                    deployment.ApprovalTimeoutSeconds = 120;
+                    deployment = await client.Deployments.UpdateAsync(id, deployment, token).ConfigureAwait(false);
+                    Require(deployment.ApprovalRules.Count == 2, "rules " + deployment.ApprovalRules.Count);
+                    Require(deployment.ApprovalRules.All(r => r.Id.StartsWith("dar_", StringComparison.Ordinal)), "rule ids not assigned");
+                    Require(deployment.ApprovalTimeoutSeconds == 120, "approvalTimeoutSeconds " + deployment.ApprovalTimeoutSeconds);
+
+                    ApprovalCheckRequest gitStatus = new ApprovalCheckRequest();
+                    gitStatus.ToolName = "Bash";
+                    gitStatus.Input = new ApprovalToolInput();
+                    gitStatus.Input.Command = "git status --short";
+                    ApprovalCheckResponse allowed = await client.Approvals.CheckAsync(id, gitStatus, token).ConfigureAwait(false);
+                    Require(allowed.Action == ApprovalRuleActionEnum.Allow && allowed.Source == ApprovalSourceEnum.Rule, "git status " + allowed.Action + " " + allowed.Source);
+                    Require(allowed.RulePattern == "Bash(git status:*)", "git status rule " + allowed.RulePattern);
+                    Require(!allowed.ApprovalsEnabled, "approvalsEnabled true on a fake deployment");
+
+                    ApprovalCheckRequest rm = new ApprovalCheckRequest();
+                    rm.ToolName = "Bash";
+                    rm.Input = new ApprovalToolInput();
+                    rm.Input.Command = "rm -rf build";
+                    ApprovalCheckResponse denied = await client.Approvals.CheckAsync(id, rm, token).ConfigureAwait(false);
+                    Require(denied.Action == ApprovalRuleActionEnum.Deny && denied.Source == ApprovalSourceEnum.Rule, "rm " + denied.Action + " " + denied.Source);
+
+                    ApprovalCheckRequest edit = new ApprovalCheckRequest();
+                    edit.ToolName = "Edit";
+                    edit.Input = new ApprovalToolInput();
+                    edit.Input.FilePath = "src/app.cs";
+                    ApprovalCheckResponse fallback = await client.Approvals.CheckAsync(id, edit, token).ConfigureAwait(false);
+                    Require(fallback.Action == ApprovalRuleActionEnum.Deny && fallback.Source == ApprovalSourceEnum.Default, "edit " + fallback.Action + " " + fallback.Source);
+                    Require(!String.IsNullOrEmpty(fallback.SuggestedRule), "suggestedRule empty");
+
+                    deployment.ApprovalsEnabled = true;
+                    int enableStatus = 0;
+                    try
+                    {
+                        await client.Deployments.UpdateAsync(id, deployment, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 400)
+                    {
+                        enableStatus = e.StatusCode;
+                    }
+                    Require(enableStatus == 400, "expected 400 enabling approvals on a fake deployment");
+
+                    Run run = await client.Runs.GetAsync(invokedRun?.Id ?? throw new InvalidOperationException("no invoked run"), token).ConfigureAwait(false);
+                    Require(run.PendingApprovals == 0 && !run.AwaitingApproval, "run pendingApprovals " + run.PendingApprovals);
+                    Require(run.ApprovalWaitMs == null, "run approvalWaitMs " + run.ApprovalWaitMs);
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

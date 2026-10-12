@@ -108,6 +108,11 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// ConversationDeleted.
         /// </summary>
-        ConversationDeleted
+        ConversationDeleted,
+
+        /// <summary>
+        /// A person decided a permission approval (P12.3).
+        /// </summary>
+        ApprovalDecided
     }
 }

@@ -177,7 +177,8 @@ describe('principal and routes', () => {
   });
   it('keeps the sidebar small and redirects every pre-hub route', () => {
     expect(HUBS.length).toBeGreaterThanOrEqual(7);
-    expect(HUBS.length).toBeLessThanOrEqual(10);
+    // Ten consolidated hubs plus the Approvals inbox (P12.3), which needs its own item for the pending badge.
+    expect(HUBS.length).toBeLessThanOrEqual(11);
     const hubSlugs = new Set(HUBS.map((h) => h.slug));
     for (const p of PAGES) {
       const covered = hubSlugs.has(p.slug) || LEGACY_REDIRECTS.some((r) => r.from === p.slug);

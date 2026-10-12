@@ -138,6 +138,31 @@ namespace Garrison.Core.Manifests
         public List<Garrison.Core.Models.DeploymentRunOverrideRule> AllowedRunOverrides { get; set; } = new List<Garrison.Core.Models.DeploymentRunOverrideRule>();
 
         /// <summary>
+        /// Permission approvals (P12.3): relay Claude Code and Codex app-server permission requests to Garrison. Default false.
+        /// </summary>
+        public bool ApprovalsEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Action for requests no approval rule matches: Allow, Deny, or Ask. Default Ask.
+        /// </summary>
+        public Garrison.Core.Enums.ApprovalRuleActionEnum ApprovalDefaultAction { get; set; } = Garrison.Core.Enums.ApprovalRuleActionEnum.Ask;
+
+        /// <summary>
+        /// Seconds a pending approval waits for a person (10 to 3600). Default 300.
+        /// </summary>
+        public int ApprovalTimeoutSeconds { get; set; } = 300;
+
+        /// <summary>
+        /// Decision applied when a pending approval expires. Default Deny.
+        /// </summary>
+        public Garrison.Core.Enums.ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = Garrison.Core.Enums.ApprovalDecisionEnum.Deny;
+
+        /// <summary>
+        /// Permission approval rules in order (action, pattern, optional inputPattern and description).
+        /// </summary>
+        public List<Garrison.Core.Models.DeploymentApprovalRule> ApprovalRules { get; set; } = new List<Garrison.Core.Models.DeploymentApprovalRule>();
+
+        /// <summary>
         /// Argument overrides.
         /// </summary>
         public List<Garrison.Core.Models.DeploymentArgumentOverride> ArgumentOverrides { get; set; } = new List<Garrison.Core.Models.DeploymentArgumentOverride>();

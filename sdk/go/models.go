@@ -249,7 +249,157 @@ type Deployment struct {
 	Executor *string `json:"executor,omitempty"`
 	// PodResources are the run pod requests and limits for KubernetesJob runs.
 	PodResources *RunPodResources `json:"podResources,omitempty"`
-	CreatedUTC   string           `json:"createdUtc,omitempty"`
+	// ApprovalsEnabled turns on permission approvals. Only Claude Code profiles and Codex profiles with
+	// CodexAppServer delivery accept true. Default false.
+	ApprovalsEnabled bool `json:"approvalsEnabled,omitempty"`
+	// ApprovalDefaultAction (an ApprovalRuleAction* constant) applies when no rule matches; empty means Ask.
+	ApprovalDefaultAction string `json:"approvalDefaultAction,omitempty"`
+	// ApprovalTimeoutSeconds is how long a pending approval waits for a person (10 to 3600); 0 means 300.
+	ApprovalTimeoutSeconds int `json:"approvalTimeoutSeconds,omitempty"`
+	// ApprovalTimeoutDecision (an ApprovalDecision* constant) applies when a pending approval expires; empty means Deny.
+	ApprovalTimeoutDecision string `json:"approvalTimeoutDecision,omitempty"`
+	// ApprovalRules are the approval rules in display order (at most 500). Deny beats Ask, Ask beats Allow.
+	ApprovalRules []DeploymentApprovalRule `json:"approvalRules,omitempty"`
+	CreatedUTC    string                   `json:"createdUtc,omitempty"`
+}
+
+// Permission approval statuses (Approval.Status). Pending is the only state that can change.
+const (
+	ApprovalStatusPending   = "Pending"
+	ApprovalStatusApproved  = "Approved"
+	ApprovalStatusDenied    = "Denied"
+	ApprovalStatusExpired   = "Expired"
+	ApprovalStatusCancelled = "Cancelled"
+)
+
+// Permission approval decisions (Approval.Decision and TimeoutDecision, ApprovalDecideRequest.Decision).
+const (
+	ApprovalDecisionAllow = "Allow"
+	ApprovalDecisionDeny  = "Deny"
+)
+
+// Permission approval decision sources (Approval.DecisionSource, ApprovalCheckResponse.Source).
+const (
+	ApprovalSourceRule      = "Rule"
+	ApprovalSourceDefault   = "Default"
+	ApprovalSourceUser      = "User"
+	ApprovalSourceTimeout   = "Timeout"
+	ApprovalSourceCancelled = "Cancelled"
+)
+
+// Approval rule actions (DeploymentApprovalRule.Action, Deployment.ApprovalDefaultAction).
+const (
+	ApprovalRuleActionAllow = "Allow"
+	ApprovalRuleActionDeny  = "Deny"
+	ApprovalRuleActionAsk   = "Ask"
+)
+
+// Permission approval kinds (Approval.Kind): a Claude Code tool call, a Codex command (evaluated as Bash), or a
+// Codex file change (evaluated as Edit).
+const (
+	ApprovalKindTool       = "Tool"
+	ApprovalKindCommand    = "Command"
+	ApprovalKindFileChange = "FileChange"
+)
+
+// DeploymentApprovalRule is one approval rule of a deployment. Pattern uses Claude Code rule syntax, for example
+// Bash(git status:*), Edit(src/**), WebFetch(domain:example.com), or mcp__github__*.
+type DeploymentApprovalRule struct {
+	// ID (dar_) is stable across updates; leave empty for a new rule.
+	ID           string `json:"id,omitempty"`
+	DeploymentID string `json:"deploymentId,omitempty"`
+	// Action is an ApprovalRuleAction* constant; empty means Ask.
+	Action  string `json:"action,omitempty"`
+	Pattern string `json:"pattern"`
+	// InputPattern is an optional .NET regular expression over the tool input JSON.
+	InputPattern *string `json:"inputPattern,omitempty"`
+	Description  *string `json:"description,omitempty"`
+}
+
+// Approval is a permission request a harness relayed to Garrison and its decision. Decision and DecisionSource
+// are nil while Pending; ExpiresUTC is set on approvals waiting for a person.
+type Approval struct {
+	ID               string  `json:"id"`
+	TenantID         string  `json:"tenantId"`
+	RunID            string  `json:"runId"`
+	RootRunID        *string `json:"rootRunId"`
+	AgentID          string  `json:"agentId"`
+	AgentName        string  `json:"agentName"`
+	DeploymentID     string  `json:"deploymentId"`
+	LeaseEpoch       int64   `json:"leaseEpoch"`
+	HarnessType      string  `json:"harnessType"`
+	Kind             string  `json:"kind"`
+	ToolName         string  `json:"toolName"`
+	ToolCallID       *string `json:"toolCallId"`
+	InputPreview     *string `json:"inputPreview"`
+	Summary          *string `json:"summary"`
+	SuggestedRule    *string `json:"suggestedRule"`
+	Status           string  `json:"status"`
+	Decision         *string `json:"decision"`
+	DecisionSource   *string `json:"decisionSource"`
+	RuleID           *string `json:"ruleId"`
+	RulePattern      *string `json:"rulePattern"`
+	RememberedRuleID *string `json:"rememberedRuleId"`
+	DecidedBy        *string `json:"decidedBy"`
+	DecidedByID      *string `json:"decidedById"`
+	Reason           *string `json:"reason"`
+	TimeoutDecision  string  `json:"timeoutDecision"`
+	RequestedUTC     string  `json:"requestedUtc"`
+	DecidedUTC       *string `json:"decidedUtc"`
+	ExpiresUTC       *string `json:"expiresUtc"`
+	// WaitMs is milliseconds between request and decision; nil while Pending.
+	WaitMs        *int64 `json:"waitMs"`
+	CreatedUTC    string `json:"createdUtc"`
+	LastUpdateUTC string `json:"lastUpdateUtc"`
+}
+
+// ApprovalFilter filters approval listings. Empty fields are omitted. FromUTC and ToUTC are ISO 8601 UTC times.
+type ApprovalFilter struct {
+	Status, RunID, RootRunID, AgentID, DeploymentID, DecisionSource, FromUTC, ToUTC, Ordering string
+	MaxResults, Skip                                                                          int
+}
+
+// ApprovalDecideRequest is the body of POST .../approvals/{id}/decide.
+type ApprovalDecideRequest struct {
+	// Decision is ApprovalDecisionAllow or ApprovalDecisionDeny. Required.
+	Decision string `json:"decision"`
+	// Reason is optional (at most 4000 characters) and shown to the harness when denying.
+	Reason string `json:"reason,omitempty"`
+	// Remember also adds a matching rule to the approval's deployment (needs Update on the deployment).
+	Remember bool `json:"remember,omitempty"`
+	// RulePattern is the remembered rule's pattern; empty uses the approval's suggested rule.
+	RulePattern string `json:"rulePattern,omitempty"`
+}
+
+// ApprovalToolInput holds the tool input fields approval rules look at. JSON names follow Claude Code tool inputs.
+type ApprovalToolInput struct {
+	Command      string   `json:"command,omitempty"`
+	Cwd          string   `json:"cwd,omitempty"`
+	URL          string   `json:"url,omitempty"`
+	FilePath     string   `json:"file_path,omitempty"`
+	NotebookPath string   `json:"notebook_path,omitempty"`
+	Path         string   `json:"path,omitempty"`
+	Paths        []string `json:"paths,omitempty"`
+	Pattern      string   `json:"pattern,omitempty"`
+	Query        string   `json:"query,omitempty"`
+}
+
+// ApprovalCheckRequest is a sample tool call to evaluate against a deployment's approval rules.
+type ApprovalCheckRequest struct {
+	ToolName string             `json:"toolName"`
+	Input    *ApprovalToolInput `json:"input,omitempty"`
+}
+
+// ApprovalCheckResponse is what a deployment's approval rules would do with a request. Nothing is recorded.
+type ApprovalCheckResponse struct {
+	// Action is an ApprovalRuleAction* constant.
+	Action string `json:"action"`
+	// Source is ApprovalSourceRule when a rule matched, ApprovalSourceDefault when the deployment default applied.
+	Source           string  `json:"source"`
+	RuleID           *string `json:"ruleId"`
+	RulePattern      *string `json:"rulePattern"`
+	SuggestedRule    *string `json:"suggestedRule"`
+	ApprovalsEnabled bool    `json:"approvalsEnabled"`
 }
 
 // HarnessProfile describes how to run a harness CLI.
@@ -325,6 +475,13 @@ type Run struct {
 	SchemaValidationErrors *string `json:"schemaValidationErrors"`
 	// RepairAttempts is the number of structured output repairs started (0 or 1). Default 0.
 	RepairAttempts int `json:"repairAttempts"`
+	// PendingApprovals is the number of permission approvals of this run waiting for a person (read-only).
+	PendingApprovals int `json:"pendingApprovals"`
+	// AwaitingApproval is true while PendingApprovals is above zero; the run stays Running.
+	AwaitingApproval bool `json:"awaitingApproval"`
+	// ApprovalWaitMs is the total time spent waiting for approvals decided by a person or a timeout; nil when the
+	// run never waited.
+	ApprovalWaitMs *int64 `json:"approvalWaitMs"`
 	// ConversationID is the conversation this run is a turn of; nil for a run outside any conversation.
 	ConversationID *string `json:"conversationId"`
 	// ConversationTurn is the turn number within the conversation, starting at 1; 0 outside a conversation.

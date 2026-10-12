@@ -605,6 +605,18 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_runs":
                         result = await ListRunsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_permission_prompt":
+                        result = await PermissionPromptAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_approvals":
+                        result = await ListApprovalsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_get_approval":
+                        result = await RequireApprovalAsync(ctx, tenantId, args, OperationTypeEnum.Read, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_decide_approval":
+                        result = await DecideApprovalAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
                     default:
                         if (!tool.AgentTool) throw ToolError("UnknownTool", "Unknown tool " + tool.Name + ".");
                         result = await AgentToolCallAsync(ctx, tenantId, tool.Name, args, token).ConfigureAwait(false);
@@ -745,6 +757,101 @@ namespace Garrison.Server.Protocols
             return list;
         }
 
+        private async Task<object> PermissionPromptAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            // Only a run may ask about its own tool calls; the run comes from the run token, never from the arguments.
+            if (ctx.PrincipalType != PrincipalTypeEnum.Run || String.IsNullOrEmpty(ctx.RunId)) throw ToolError("Forbidden", "Only a run token may call garrison_permission_prompt.");
+            ApprovalService approvals = _Context.TryGet<ApprovalService>() ?? throw ToolError("Unavailable", "Approvals are not available on this server.");
+            Run run = await _Context.Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Run " + ctx.RunId + " not found.");
+
+            PermissionPromptArguments? arguments = null;
+            if (args != null && !String.IsNullOrEmpty(args.RawJson))
+            {
+                try
+                {
+                    arguments = Serializer.Deserialize<PermissionPromptArguments>(args.RawJson);
+                }
+                catch (Exception e) when (e is JsonException || e is NotSupportedException)
+                {
+                    throw ToolError("ValidationFailed", "The arguments are not valid: " + e.Message);
+                }
+            }
+            if (arguments == null || String.IsNullOrWhiteSpace(arguments.ToolName)) throw ToolError("ValidationFailed", "tool_name is required.");
+
+            ApprovalRequestInput input = new ApprovalRequestInput();
+            input.ToolName = arguments.ToolName!;
+            input.InputJson = arguments.Input.HasValue && arguments.Input.Value.ValueKind != JsonValueKind.Undefined ? arguments.Input.Value.GetRawText() : "{}";
+            input.ToolCallId = arguments.ToolUseId;
+            if (!String.IsNullOrEmpty(arguments.Kind) && Enum.TryParse<ApprovalKindEnum>(arguments.Kind, true, out ApprovalKindEnum kind)) input.Kind = kind;
+
+            ApprovalOutcome outcome = await approvals.RequestAsync(run, input, token).ConfigureAwait(false);
+            PermissionPromptResult result = new PermissionPromptResult();
+            result.ApprovalId = outcome.Approval?.Id;
+            result.ApprovalStatus = outcome.Approval?.Status.ToString();
+            if (outcome.Decision == ApprovalDecisionEnum.Allow)
+            {
+                result.Behavior = "allow";
+                if (arguments.Input.HasValue && arguments.Input.Value.ValueKind == JsonValueKind.Object)
+                {
+                    result.UpdatedInput = arguments.Input.Value.Clone();
+                }
+                else
+                {
+                    using (JsonDocument empty = JsonDocument.Parse("{}"))
+                    {
+                        result.UpdatedInput = empty.RootElement.Clone();
+                    }
+                }
+            }
+            else
+            {
+                result.Behavior = "deny";
+                result.Message = outcome.Message ?? "Garrison denied this tool call.";
+            }
+            return result;
+        }
+
+        private async Task<object> ListApprovalsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.Approval, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            ApprovalFilter filter = new ApprovalFilter();
+            filter.TenantId = tenantId;
+            string? status = args?.GetString("status");
+            if (!String.IsNullOrEmpty(status))
+            {
+                if (!Enum.TryParse<ApprovalStatusEnum>(status, true, out ApprovalStatusEnum parsed)) throw ToolError("ValidationFailed", "status must be Pending, Approved, Denied, Expired, or Cancelled.");
+                filter.Status = parsed;
+            }
+            filter.RunId = args?.GetString("runId");
+            string? agentRef = args?.GetString("agent");
+            if (!String.IsNullOrEmpty(agentRef)) filter.AgentId = (await _Invoker.ResolveAgentAsync(tenantId, agentRef, token).ConfigureAwait(false)).Id;
+            filter.MaxResults = (int)Math.Clamp(args?.GetInt64("maxResults") ?? 25, 1, 100);
+            return await _Context.Database.Approvals.EnumerateAsync(filter, token).ConfigureAwait(false);
+        }
+
+        private async Task<Approval> RequireApprovalAsync(RequestContext ctx, string tenantId, RpcParameters? args, OperationTypeEnum operation, CancellationToken token)
+        {
+            string? approvalId = args?.GetString("approvalId");
+            if (String.IsNullOrEmpty(approvalId)) throw ToolError("ValidationFailed", "approvalId is required.");
+            await Require(ctx, tenantId, ResourceTypeEnum.Approval, operation, approvalId, token).ConfigureAwait(false);
+            return await _Context.Database.Approvals.ReadAsync(tenantId, approvalId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Approval " + approvalId + " not found.");
+        }
+
+        private async Task<object> DecideApprovalAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            Approval approval = await RequireApprovalAsync(ctx, tenantId, args, OperationTypeEnum.Update, token).ConfigureAwait(false);
+            ApprovalService approvals = _Context.TryGet<ApprovalService>() ?? throw ToolError("Unavailable", "Approvals are not available on this server.");
+            ApprovalDecideRequest request = new ApprovalDecideRequest();
+            string? decision = args?.GetString("decision");
+            if (String.IsNullOrEmpty(decision) || !Enum.TryParse<ApprovalDecisionEnum>(decision, true, out ApprovalDecisionEnum parsed)) throw ToolError("ValidationFailed", "decision must be Allow or Deny.");
+            request.Decision = parsed;
+            request.Reason = args?.GetString("reason");
+            request.Remember = args?.GetBoolean("remember") ?? false;
+            request.RulePattern = args?.GetString("rulePattern");
+            if (request.Remember) await Require(ctx, tenantId, ResourceTypeEnum.Deployment, OperationTypeEnum.Update, approval.DeploymentId, token).ConfigureAwait(false);
+            return await approvals.DecideAsync(ctx, approval, request, token).ConfigureAwait(false);
+        }
+
         private async Task<Run> RequireRunAsync(RequestContext ctx, string tenantId, RpcParameters? args, OperationTypeEnum operation, CancellationToken token)
         {
             string? runId = args?.GetString("runId");
@@ -821,6 +928,7 @@ namespace Garrison.Server.Protocols
             summary.ConversationId = run.ConversationId;
             summary.ConversationTurn = String.IsNullOrEmpty(run.ConversationId) ? null : run.ConversationTurn;
             summary.BlockedReason = run.BlockedReason?.ToString();
+            summary.AwaitingApproval = run.AwaitingApproval;
             summary.Finished = RunService.IsTerminal(run.Status);
             summary.Result = run.ResultText;
             summary.StructuredOutputJson = run.StructuredOutputJson;

@@ -513,6 +513,96 @@ func main() {
 		}
 		return nil
 	})
+	check("approvals list and read", func(ctx context.Context) error {
+		pending, err := client.Approvals.List(ctx, garrison.ApprovalFilter{Status: garrison.ApprovalStatusPending, MaxResults: 1})
+		if err != nil {
+			return err
+		}
+		for _, a := range pending.Objects {
+			if a.Status != garrison.ApprovalStatusPending {
+				return fmt.Errorf("approval %s has status %s in Pending list", a.ID, a.Status)
+			}
+		}
+		if pending.TotalRecords < int64(len(pending.Objects)) {
+			return fmt.Errorf("totalRecords %d", pending.TotalRecords)
+		}
+		scoped, err := client.Approvals.List(ctx, garrison.ApprovalFilter{DeploymentID: deploymentID})
+		if err != nil {
+			return err
+		}
+		if len(scoped.Objects) != 0 {
+			return fmt.Errorf("scratch deployment has %d approvals", len(scoped.Objects))
+		}
+		if _, err := client.Approvals.Get(ctx, "apr_missing"+suffix); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("read missing approval: expected HTTP 404, got %v", err)
+		}
+		if _, err := client.Approvals.Decide(ctx, "apr_missing"+suffix, garrison.ApprovalDecideRequest{Decision: garrison.ApprovalDecisionAllow}); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("decide missing approval: expected HTTP 404, got %v", err)
+		}
+		return nil
+	})
+	check("approval rules and approval check", func(ctx context.Context) error {
+		var typed garrison.Deployment
+		if err := client.Deployments.Get(ctx, deploymentID, &typed); err != nil {
+			return err
+		}
+		if typed.ApprovalsEnabled || typed.ApprovalDefaultAction != garrison.ApprovalRuleActionAsk || typed.ApprovalTimeoutSeconds != 300 || typed.ApprovalTimeoutDecision != garrison.ApprovalDecisionDeny {
+			return fmt.Errorf("defaults enabled=%v default=%s timeout=%d timeoutDecision=%s", typed.ApprovalsEnabled, typed.ApprovalDefaultAction, typed.ApprovalTimeoutSeconds, typed.ApprovalTimeoutDecision)
+		}
+		var raw map[string]any
+		if err := client.Deployments.Get(ctx, deploymentID, &raw); err != nil {
+			return err
+		}
+		note := "Go SDK harness rule."
+		raw["approvalRules"] = []garrison.DeploymentApprovalRule{
+			{Action: garrison.ApprovalRuleActionAllow, Pattern: "Bash(git status:*)"},
+			{Action: garrison.ApprovalRuleActionDeny, Pattern: "Bash(rm:*)", Description: &note},
+		}
+		raw["approvalDefaultAction"] = garrison.ApprovalRuleActionDeny
+		var updated garrison.Deployment
+		if err := client.Deployments.Update(ctx, deploymentID, raw, &updated); err != nil {
+			return err
+		}
+		if len(updated.ApprovalRules) != 2 || !strings.HasPrefix(updated.ApprovalRules[0].ID, "dar_") || !strings.HasPrefix(updated.ApprovalRules[1].ID, "dar_") {
+			return fmt.Errorf("rules %+v", updated.ApprovalRules)
+		}
+		allowed, err := client.Approvals.Check(ctx, deploymentID, garrison.ApprovalCheckRequest{ToolName: "Bash", Input: &garrison.ApprovalToolInput{Command: "git status --short"}})
+		if err != nil {
+			return err
+		}
+		if allowed.Action != garrison.ApprovalRuleActionAllow || allowed.Source != garrison.ApprovalSourceRule || allowed.RulePattern == nil || *allowed.RulePattern != "Bash(git status:*)" || allowed.ApprovalsEnabled {
+			return fmt.Errorf("git status %+v", allowed)
+		}
+		denied, err := client.Approvals.Check(ctx, deploymentID, garrison.ApprovalCheckRequest{ToolName: "Bash", Input: &garrison.ApprovalToolInput{Command: "rm -rf build"}})
+		if err != nil {
+			return err
+		}
+		if denied.Action != garrison.ApprovalRuleActionDeny || denied.Source != garrison.ApprovalSourceRule {
+			return fmt.Errorf("rm %+v", denied)
+		}
+		fallback, err := client.Approvals.Check(ctx, deploymentID, garrison.ApprovalCheckRequest{ToolName: "Edit", Input: &garrison.ApprovalToolInput{FilePath: "src/app.go"}})
+		if err != nil {
+			return err
+		}
+		if fallback.Action != garrison.ApprovalRuleActionDeny || fallback.Source != garrison.ApprovalSourceDefault || fallback.SuggestedRule == nil || *fallback.SuggestedRule == "" {
+			return fmt.Errorf("edit %+v", fallback)
+		}
+		raw["approvalsEnabled"] = true
+		if err := client.Deployments.Update(ctx, deploymentID, raw, nil); !garrison.IsStatus(err, http.StatusBadRequest) {
+			return fmt.Errorf("enable approvals on a fake deployment: expected HTTP 400, got %v", err)
+		}
+		if finished == nil {
+			return errors.New("no finished run")
+		}
+		run, err := client.Runs.Get(ctx, finished.ID)
+		if err != nil {
+			return err
+		}
+		if run.PendingApprovals != 0 || run.AwaitingApproval || run.ApprovalWaitMs != nil {
+			return fmt.Errorf("run pendingApprovals %d awaitingApproval %v approvalWaitMs %v", run.PendingApprovals, run.AwaitingApproval, run.ApprovalWaitMs)
+		}
+		return nil
+	})
 	check("cleanup", func(ctx context.Context) error {
 		if conversationDeploymentID != "" {
 			if err := client.Deployments.Delete(ctx, conversationDeploymentID); err != nil {

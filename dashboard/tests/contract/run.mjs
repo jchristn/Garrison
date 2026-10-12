@@ -329,8 +329,63 @@ async function seed(api) {
   ids.conversation = first.conversationId;
   const second = await api.post(tp(`agents/${ids.agent}/invoke?wait=true&waitSeconds=90`), { input: 'Continue the conversation', conversationId: ids.conversation });
   ids.conversationRun = second.id;
+  await seedApprovals(api, ids);
   await sleep(1500);
   return ids;
+}
+
+/**
+ * Permission approvals (P12.3): builtin/claude-code cloned onto the fake harness, which asks for each
+ * --permission-request through garrison_permission_prompt on the Garrison MCP server, the way Claude Code does. One
+ * request matches an Allow rule and one falls to the deployment default (Deny), so the run finishes on its own and
+ * leaves two decided approvals behind.
+ */
+async function seedApprovals(api, ids) {
+  const builtin = (await api.get('/v1.0/api/harness-profiles/builtin')).find((p) => p.name === 'builtin/claude-code');
+  if (!builtin) throw new Error('builtin/claude-code harness profile not found');
+  const clone = await api.post(tp(`harness-profiles/${builtin.id}/clone`), { name: 'contract-fake-claude' });
+  const profile = await api.get(tp(`harness-profiles/${clone.id}`));
+  const keep = (profile.arguments || []).map((a) => ({ template: a.template, condition: a.condition ?? null }));
+  const requests = [1, 2].flatMap((n) => {
+    const condition = `{{deployment.parameters.permissionRequest${n}}}`;
+    return [
+      { template: '--permission-request', condition },
+      { template: condition, condition }
+    ];
+  });
+  await api.put(tp(`harness-profiles/${clone.id}`), {
+    ...profile,
+    executable: 'garrison-fake-harness',
+    arguments: [{ template: '--format' }, { template: 'claude' }, ...keep, ...requests].map((a, position) => ({ ...a, position }))
+  });
+  ids.approvalAgent = (await api.post(tp('agents'), { name: 'contract-approvals', description: 'Asks before tool calls' })).id;
+  ids.approvalDeployment = (
+    await api.post(tp('deployments'), {
+      name: 'contract-approvals-fake',
+      agentId: ids.approvalAgent,
+      harnessProfileId: clone.id,
+      approvalsEnabled: true,
+      approvalDefaultAction: 'Deny',
+      approvalTimeoutSeconds: 60,
+      approvalTimeoutDecision: 'Deny',
+      approvalRules: [
+        { action: 'Allow', pattern: 'Bash(git status:*)', description: 'Read-only status checks' },
+        { action: 'Ask', pattern: 'Bash(git push:*)' }
+      ],
+      parameters: [
+        { name: 'permissionRequest1', value: 'Bash={"command":"git status --short"}' },
+        { name: 'permissionRequest2', value: 'WebFetch={"url":"https://example.com"}' }
+      ],
+      timeoutSeconds: 90
+    })
+  ).id;
+  const run = await api.post(tp(`agents/${ids.approvalAgent}/invoke?wait=true&waitSeconds=90`), { input: 'Check the status' });
+  if (run.status !== 'Succeeded') throw new Error(`approval seed run ended ${run.status}: ${run.errorMessage || ''} ${run.stderrTail || ''}`);
+  ids.approvalRun = run.id;
+  const approvals = (await api.get(tp(`approvals?runId=${run.id}&maxResults=25&skip=0`))).objects || [];
+  const byRule = approvals.find((a) => a.decisionSource === 'Rule');
+  if (!byRule) throw new Error(`approval seed run recorded no rule decision (${approvals.length} approvals)`);
+  ids.approval = byRule.id;
 }
 
 // ---------------------------------------------------------------- shape comparison
@@ -482,6 +537,11 @@ function routes(ids) {
     ['listConversationRuns', tp(`conversations/${ids.conversation}/runs?maxResults=1000&skip=0`)],
     ['listRuns (conversationId)', tp(`runs?${list}&conversationId=${ids.conversation}`)],
     ['getRun (conversation turn)', tp(`runs/${ids.conversationRun}`)],
+    ['listApprovals', tp(`approvals?${list}`)],
+    ['listApprovals (runId)', tp(`approvals?runId=${ids.approvalRun}&maxResults=100&skip=0`)],
+    ['getApproval', tp(`approvals/${ids.approval}`)],
+    ['getDeployment (approvals)', tp(`deployments/${ids.approvalDeployment}`)],
+    ['getRun (approvals)', tp(`runs/${ids.approvalRun}`)],
     ['listNodes', `/v1.0/api/nodes?${list}`],
     ['getNode', `/v1.0/api/nodes/${ids.node}`],
     ['listNodePools', `/v1.0/api/node-pools?${list}`],

@@ -218,6 +218,51 @@ await check("control nodes", async () => {
   require((overview.controlNodesByStatus || []).some((c) => c.status === "Ready" && c.count >= 1), "overview controlNodesByStatus");
   require(overview.leaderNodeId, "overview leaderNodeId empty");
 });
+async function expectStatus(status, fn) {
+  try {
+    await fn();
+  } catch (e) {
+    require(e instanceof GarrisonError && e.statusCode === status, `unexpected error ${e.message}, expected ${status}`);
+    return;
+  }
+  throw new Error(`expected ${status}`);
+}
+await check("approvals list and read", async () => {
+  const pending = await client.approvals.list({ status: "Pending", maxResults: 1 });
+  require(pending.objects.every((a) => a.status === "Pending"), "non-pending approval in Pending list");
+  require(pending.totalRecords >= pending.objects.length, `totalRecords ${pending.totalRecords}`);
+  const scoped = await client.approvals.list({ deploymentId: state.deployment });
+  require(scoped.objects.length === 0, `scratch deployment has ${scoped.objects.length} approvals`);
+  await expectStatus(404, () => client.approvals.get(`apr_missing${suffix}`));
+  await expectStatus(404, () => client.approvals.decide(`apr_missing${suffix}`, { decision: "Allow" }));
+});
+await check("approval rules and approval check", async () => {
+  let deployment = await client.deployments.get(state.deployment);
+  require(deployment.approvalsEnabled === false, `approvalsEnabled ${deployment.approvalsEnabled}`);
+  require(deployment.approvalDefaultAction === "Ask", `approvalDefaultAction ${deployment.approvalDefaultAction}`);
+  require(deployment.approvalTimeoutSeconds === 300, `approvalTimeoutSeconds ${deployment.approvalTimeoutSeconds}`);
+  require(deployment.approvalTimeoutDecision === "Deny", `approvalTimeoutDecision ${deployment.approvalTimeoutDecision}`);
+  deployment.approvalRules = [
+    { action: "Allow", pattern: "Bash(git status:*)" },
+    { action: "Deny", pattern: "Bash(rm:*)", description: "JavaScript SDK harness rule." },
+  ];
+  deployment.approvalDefaultAction = "Deny";
+  deployment = await client.deployments.update(state.deployment, deployment);
+  require(deployment.approvalRules.length === 2 && deployment.approvalRules.every((r) => r.id.startsWith("dar_")), `rules ${JSON.stringify(deployment.approvalRules)}`);
+  const allowed = await client.approvals.check(state.deployment, { toolName: "Bash", input: { command: "git status --short" } });
+  require(allowed.action === "Allow" && allowed.source === "Rule", `git status ${JSON.stringify(allowed)}`);
+  require(allowed.rulePattern === "Bash(git status:*)", `rulePattern ${allowed.rulePattern}`);
+  require(allowed.approvalsEnabled === false, "approvalsEnabled true on a fake deployment");
+  const denied = await client.approvals.check(state.deployment, { toolName: "Bash", input: { command: "rm -rf build" } });
+  require(denied.action === "Deny" && denied.source === "Rule", `rm ${JSON.stringify(denied)}`);
+  const fallback = await client.approvals.check(state.deployment, { toolName: "Edit", input: { file_path: "src/app.ts" } });
+  require(fallback.action === "Deny" && fallback.source === "Default", `edit ${JSON.stringify(fallback)}`);
+  require(fallback.suggestedRule, "suggestedRule empty");
+  deployment.approvalsEnabled = true;
+  await expectStatus(400, () => client.deployments.update(state.deployment, deployment));
+  const run = await client.runs.get(state.run.id);
+  require(run.pendingApprovals === 0 && run.awaitingApproval === false, `run pendingApprovals ${run.pendingApprovals} awaitingApproval ${run.awaitingApproval}`);
+});
 
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);

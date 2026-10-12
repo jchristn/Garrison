@@ -19,6 +19,9 @@ namespace Garrison.FakeHarness
     /// [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N] [--answer text]
     /// [--resume-answer text] [--resume sessionId] [--structured-output] [--ignore-sigterm] [--loop-text text]
     /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--session-id id] [resume sessionId] [--report-turns].
+    /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--approval-command text]
+    /// [--request-file-approval path] [--permission-prompt-tool mcp__server__tool] [--mcp-config file]
+    /// [--permission-request Tool=inputJson].
     /// </summary>
     public static class Program
     {
@@ -96,6 +99,22 @@ namespace Garrison.FakeHarness
 
             for (int i = 0; i < options.LargeOutputLines; i++) emitter.Filler(i);
             for (int i = 0; i < options.ToolCalls; i++) emitter.ToolCall("fake_tool", "ok " + (i + 1), true);
+
+            foreach (string request in options.PermissionRequests)
+            {
+                // Claude Code asks its --permission-prompt-tool before running a tool that needs permission (P12.3).
+                int equals = request.IndexOf('=');
+                string tool = equals > 0 ? request.Substring(0, equals) : request;
+                string inputJson = equals > 0 ? request.Substring(equals + 1) : "{}";
+                string toolUseId = "toolu_" + Guid.NewGuid().ToString("N").Substring(0, 12);
+                using (JsonDocument input = JsonDocument.Parse(String.IsNullOrWhiteSpace(inputJson) ? "{}" : inputJson))
+                {
+                    emitter.ToolUse(toolUseId, tool, input.RootElement);
+                }
+                FakePermissionAnswer permission = await FakePermissionPrompt.AskAsync(options, tool, inputJson, toolUseId).ConfigureAwait(false);
+                emitter.ToolResult(toolUseId, permission.Allowed ? "ran " + tool : (permission.Message ?? "denied"), permission.Allowed);
+                answer = answer + "\npermission " + tool + ": " + (permission.Allowed ? "allow" : "deny");
+            }
 
             if (!String.IsNullOrEmpty(options.McpCall))
             {

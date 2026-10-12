@@ -102,12 +102,14 @@ Denials are audited with the permission that was missing, and the response carri
 | `Viewer` | Read domain resources |
 | `TenantMember` | Read agents and one's own profile |
 | `AgentDeveloper` | Author harness profiles, prompts, agents, deployments, MCP servers, and workspaces; invoke agents |
-| `AgentOperator` | Operate runs and conversations (read, cancel, retry, delete) and observe nodes |
+| `AgentOperator` | Operate runs and conversations (read, cancel, retry, delete), decide permission approvals, and observe nodes |
 | `AgentInvoker` | Invoke agents and read runs and conversations; meant for integration credentials |
 | `SecretManager` | Manage secrets |
 | `NodeAgent` | The node protocol only; for worker credentials |
 | `AgentRegistrar` | Self-registration of remote agents |
 | `Custom` | No permissions; a starting point for tenant-defined roles |
+
+Permission approvals (resource type `Approval`): `Viewer`, `Auditor`, `AgentDeveloper`, and `AgentOperator` can read them; `Editor`, `AgentOperator`, `ResourceAdmin`, and `TenantAdmin` can decide them (Update on `Approval`). Deciding with `remember`, which adds a rule to the deployment, also needs Update on that deployment.
 
 Built-in roles and permissions cannot be changed. Create custom roles and map permissions to them with `POST .../role-permissions`.
 
@@ -174,13 +176,24 @@ An agent can only delegate when its `delegationMode` is not `None`. The run toke
 
 Violations fail the invocation with `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, or `DelegationDepthExceeded`.
 
+## Permission approvals
+
+Approvals (P12.3) put a person, or rules a person wrote, between a Claude Code or Codex app-server run and the tools it wants to use. What they do and do not guarantee:
+
+- A run can ask, never decide. `garrison_permission_prompt` takes the run from the run token, so a run can only ask about itself, and run tokens are refused by the approval list, read, and decide tools and routes. Every decision a person makes is audited (`ApprovalDecided`); rule decisions are recorded as approvals with source `Rule` or `Default`.
+- Rules follow D-025: Deny beats Ask and Ask beats Allow, an Allow rule for `Bash` must cover every command of a compound line, and a line with command or process substitution is never allowed by a rule. A bare `Bash` (or `Bash(*)`, `Bash(:*)`) Allow rule allows every command; prefer narrow prefixes. Interpreters (`python -c`, `node -e`), `find -exec`, `xargs`, and variable expansion are not inspected, so `Bash(python:*)` is as broad as `Bash`.
+- Rules are not a sandbox. Tools the deployment pre-allows through the `allowedTools` parameter, and read-only tools in Claude Code's `default` permission mode, never reach the rules; keep the harness sandbox and `allowedTools` tight.
+- Previews redact the values of the deployment's bound secrets and common credential shapes (bearer tokens, `sk-` and GitHub tokens, AWS key IDs, private keys, `password=`-style assignments) and keep at most 4,000 characters. The full tool input is never stored; the harness gets its own input back on allow.
+- A request that cannot be decided in time is denied by default (`approvalTimeoutDecision`). Cancelling a run, its completion, or a lost lease cancels its pending approvals and the waiting harness is told no. Decisions are compare-and-set in the database, so two people deciding at once on different replicas produce one decision; the second gets 409 `ApprovalNotPending`.
+- The Codex relay uses the run token, so a worker that lost its lease cannot ask on behalf of a newer attempt.
+
 ## Prompts and untrusted input
 
 Callers' messages, parameters, and other agents' replies are inserted into prompts as text. Garrison does not and cannot stop a harness from following instructions embedded in that text. Limit what an agent can do (tools, MCP servers, secrets, sandbox, delegation allowlist) to what its job needs, and expose agents that hold powerful credentials only to callers you trust. Run parameters can only set values a deployment explicitly allows, each with a validation rule, so callers cannot inject arbitrary command-line flags.
 
 ## Audit
 
-Garrison records authentication successes and failures, sessions issued and revoked, credential creation, rotation, and use, authorization denials and administrator bypasses, changes to roles, permissions, assignments, configuration, secrets, and settings, restarts, manifest applies, node registration and status changes, and run cancellations. Read them at `GET .../audit` with the `Audit` permission. They are kept for `Audit.RetentionDays` (365).
+Garrison records authentication successes and failures, sessions issued and revoked, credential creation, rotation, and use, authorization denials and administrator bypasses, changes to roles, permissions, assignments, configuration, secrets, and settings, restarts, manifest applies, node registration and status changes, run cancellations, and permission approval decisions. Read them at `GET .../audit` with the `Audit` permission. They are kept for `Audit.RetentionDays` (365).
 
 ## Reporting a vulnerability
 

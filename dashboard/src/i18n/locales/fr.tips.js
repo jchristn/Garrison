@@ -1,6 +1,7 @@
 // French tooltip (tips.*) and relationship explainer (explainers.*) text. Merged into fr.js. Mirrors en.tips.js key for key.
 
 const TELEMETRY = {
+  approvalWaitMs: 'Attente d\'approbation : temps total que cette exécution a passé à attendre des approbations d\'autorisation décidées par une personne ou un délai d\'expiration. Les appels décidés immédiatement par une règle ou la valeur par défaut du déploiement n\'ajoutent rien. Mesuré par le serveur ; n/d si l\'exécution n\'a jamais attendu.',
   delegationWaitMs: 'Attente de délégation : combien de temps cette exécution a attendu les exécutions enfants lancées via Garrison (les autres agents à qui elle a délégué), d\'après les horodatages du serveur de ces exécutions. Zéro ou n/d si l\'exécution n\'a rien délégué.',
   timeToFirstTokenExcludingDelegationMs: 'Délai avant le premier jeton hors délégation : le délai avant le premier jeton moins le temps que l\'exécution a passé à attendre les exécutions déléguées avant sa première sortie. Utilisez-le pour comparer les agents qui délèguent à ceux qui ne délèguent pas. Mesuré avec les horodatages du serveur ; jamais négatif.',
   timeToFirstTokenMs: 'Délai avant le premier jeton : du démarrage du processus de harness par le worker jusqu\'à la première sortie du modèle (texte ou réflexion). Il inclut le démarrage du harness, donc une CLI lente à démarrer apparaît ici. Mesuré sur le worker avec une horloge monotone.',
@@ -29,6 +30,34 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  approvals: {
+    awaiting_one: 'Le harness a demandé l\'accord avant un appel d\'outil et attend une personne. Ouvrez l\'onglet Approbations pour l\'autoriser ou le refuser ({{count}} en attente).',
+    awaiting_other: 'Le harness a demandé l\'accord avant des appels d\'outil et attend une personne. Ouvrez l\'onglet Approbations pour les autoriser ou les refuser ({{count}} en attente).',
+    awaiting_many: 'Le harness a demandé l\'accord avant des appels d\'outil et attend une personne. Ouvrez l\'onglet Approbations pour les autoriser ou les refuser ({{count}} en attente).',
+    decide: {
+      decision: 'Choisissez si le harness peut effectuer cet appel d\'outil. L\'exécution reprend dès que vous validez.',
+      allow: 'Laisser le harness effectuer cet appel d\'outil. L\'exécution continue avec lui.',
+      deny: 'Refuser cet appel d\'outil. Le harness reçoit le message de refus et continue sans lui.',
+      reason: 'Note facultative enregistrée avec la décision et écrite dans le journal d\'audit. En cas de refus, elle est transmise à l\'agent.',
+      remember: 'Ajouter aussi une règle au déploiement de cette approbation, pour que le même type d\'appel soit décidé automatiquement la prochaine fois.',
+      rulePattern: 'La règle à ajouter, dans la syntaxe des règles Claude Code. Elle part de la règle suggérée ; élargissez-la ou restreignez-la avant d\'enregistrer.',
+      submitAllow: 'Autoriser l\'appel d\'outil maintenant. La décision est définitive et ne peut plus être modifiée ensuite.',
+      submitDeny: 'Refuser l\'appel d\'outil maintenant. La décision est définitive et ne peut plus être modifiée ensuite.'
+    }
+  },
+  approvalCheck: {
+    toolName: 'Nom de l\'outil tel que le harness le signale, par exemple Bash, Edit, WebFetch ou un outil MCP comme mcp__github__create_issue.',
+    inputs: {
+      command: 'La commande shell à tester, par exemple npm run build && npm test. Chaque sous-commande doit être autorisée.',
+      url: 'L\'URL que l\'outil récupérerait. Les règles WebFetch portent sur son domaine.',
+      query: 'La requête de recherche que l\'outil enverrait.',
+      file_path: 'Chemin du fichier que l\'outil lirait ou modifierait, relatif à l\'espace de travail ou absolu.',
+      notebook_path: 'Chemin du notebook que l\'outil modifierait.',
+      pattern: 'Le motif glob ou de recherche que l\'outil utiliserait.'
+    },
+    run: 'Évaluer les règles enregistrées du déploiement pour cet appel d\'outil et afficher le résultat. Rien n\'est consigné et aucune exécution n\'est affectée.',
+    suggestedRule: 'La règle que « mémoriser » ajouterait pour cet appel. Copiez-la dans les règles ci-dessus pour couvrir des appels similaires.'
+  },
   ids: { deleted: 'Cet enregistrement a été supprimé. ID {{id}}. Le bouton de copie copie l\'ID.', named: 'ID {{id}}. Le bouton de copie copie l\'ID pour l\'API, les SDK ou une demande d\'assistance.' },
   markdown: {
     column: 'Colonne {{name}} d\'un tableau de la sortie de l\'agent. Les tableaux larges défilent horizontalement dans leur cadre.',
@@ -54,7 +83,11 @@ const tips = {
     dismiss: 'Masquer cette explication. Un petit bouton « À propos » reste à sa place pour la rouvrir à tout moment.'
   },
   nav: {
+    approvalsBadge_one: '{{count}} appel d\'outil attend qu\'une personne l\'autorise ou le refuse. Ouvrez Approbations pour décider.',
+    approvalsBadge_other: '{{count}} appels d\'outil attendent qu\'une personne les autorise ou les refuse. Ouvrez Approbations pour décider.',
+    approvalsBadge_many: '{{count}} appels d\'outil attendent qu\'une personne les autorise ou les refuse. Ouvrez Approbations pour décider.',
     hubs: {
+      approvals: 'La boîte de réception des approbations : les appels d\'outil demandés par les agents qui attendent une personne, et l\'historique de chaque décision par règle, valeur par défaut, personne ou délai d\'expiration.',
       home: 'Commencez ici : nombres en direct d\'agents, d\'exécutions et de nœuds worker, trafic API, échecs récents et raccourcis vers les tâches courantes.',
       invoke: 'Envoyer un message à un agent depuis le navigateur et suivre la transcription en direct, sans écrire de code.',
       runs: 'Chaque invocation d\'agent, avec sa transcription, son résultat et sa télémétrie, ainsi que la file d\'attente du travail en attente d\'un nœud.',
@@ -160,6 +193,8 @@ const tips = {
     bulkDelete: 'Supprimer toutes les lignes sélectionnées. Une confirmation vous sera d\'abord demandée.'
   },
   filters: {
+    decisionSource: 'Afficher uniquement les approbations décidées d\'une certaine façon : par une règle, la valeur par défaut du déploiement, une personne, un délai d\'expiration ou une exécution arrêtée.',
+    runId: 'Afficher uniquement les approbations d\'une exécution. Collez un ID d\'exécution comme run_... ; la liste se met à jour quand vous arrêtez de taper.',
     status: 'Afficher uniquement les enregistrements dans cet état. Choisissez « Tous » pour retirer le filtre.',
     harnessType: 'Afficher uniquement les enregistrements d\'un harness, comme Claude Code ou Codex.',
     kind: 'Afficher uniquement les enregistrements d\'un type. Choisissez « Tous » pour retirer le filtre.',
@@ -233,6 +268,10 @@ const tips = {
     tenant: 'Afficher l\'activité des requêtes pour un locataire ou pour tous les locataires du serveur.',
   },
   badges: {
+    approvalsOn_one: 'Approbations activées : le harness demande avant les appels d\'outil, et {{count}} règle en décide certains automatiquement.',
+    approvalsOn_other: 'Approbations activées : le harness demande avant les appels d\'outil, et {{count}} règles en décident certains automatiquement.',
+    approvalsOn_many: 'Approbations activées : le harness demande avant les appels d\'outil, et {{count}} règles en décident certains automatiquement.',
+    approvalsOff: 'Approbations désactivées : le harness effectue les appels d\'outil selon ses propres paramètres d\'autorisation, sans demander.',
     active: 'Actif : cet enregistrement est en service.',
     inactive: 'Inactif : cet enregistrement est conservé mais ignoré jusqu\'à sa réactivation.',
     builtIn: 'Intégré : fourni avec Garrison et en lecture seule. Clonez-le pour créer une version modifiable.',
@@ -299,6 +338,34 @@ const tips = {
     queueColumn: 'Exécutions en file d\'attente de ce groupe qu\'aucun worker prêt ne peut exécuter pour l\'instant. Survolez le badge pour connaître la raison et la marche à suivre.'
   },
   enums: {
+    approvalStatus: {
+      Pending: 'En attente qu\'une personne l\'autorise ou la refuse. D\'ici là, le harness reste bloqué sur cet appel.',
+      Approved: 'L\'appel d\'outil a été autorisé, par une règle, la valeur par défaut du déploiement, une personne ou un délai d\'expiration.',
+      Denied: 'L\'appel d\'outil a été refusé. Le harness a reçu le message de refus et a continué sans lui.',
+      Expired: 'Personne n\'a décidé à temps ; la décision d\'expiration du déploiement a donc été appliquée.',
+      Cancelled: 'L\'exécution s\'est arrêtée pendant que l\'approbation était en attente ; elle a donc été close sans décision.'
+    },
+    approvalDecision: {
+      Allow: 'Autoriser : le harness a été autorisé à effectuer l\'appel d\'outil.',
+      Deny: 'Refuser : le harness a reçu un refus avec son motif.'
+    },
+    approvalSource: {
+      Rule: 'Décidée immédiatement par une règle du déploiement. La règle correspondante est affichée à côté.',
+      Default: 'Aucune règle ne correspondait ; l\'action par défaut du déploiement a donc décidé.',
+      User: 'Une personne a décidé dans le tableau de bord, via l\'API ou via MCP.',
+      Timeout: 'Personne n\'a décidé avant l\'expiration ; la décision d\'expiration du déploiement s\'est donc appliquée.',
+      Cancelled: 'L\'exécution s\'est arrêtée pendant que cette approbation était en attente.'
+    },
+    approvalRuleAction: {
+      Allow: 'Autoriser : les appels d\'outil correspondants s\'exécutent sans demander à personne.',
+      Deny: 'Refuser : les appels d\'outil correspondants sont refusés sans demander à personne. Refuser l\'emporte sur toute autre règle.',
+      Ask: 'Demander à une personne : les appels d\'outil correspondants attendent une décision dans la boîte de réception Approbations.'
+    },
+    approvalKind: {
+      Tool: 'Une demande d\'autorisation de Claude Code pour n\'importe quel outil, y compris les outils MCP.',
+      Command: 'Une commande shell qu\'une exécution de l\'app-server Codex veut lancer. Les règles l\'évaluent comme Bash.',
+      FileChange: 'Une modification de fichier qu\'une exécution de l\'app-server Codex veut effectuer. Les règles l\'évaluent comme Edit.'
+    },
     runBlockedReason: {
       NoReadyWorker: 'Bloquée : aucun nœud worker n\'est prêt, donc rien ne peut prendre cette exécution. Démarrez un worker ou enregistrez-en un nouveau, puis vérifiez sur la page Flotte les nœuds perdus, hors ligne, en drainage ou isolés.',
       NoCapableWorker: 'Bloquée : des nœuds worker sont prêts, mais aucun ne signale le harness de cette exécution comme disponible. Démarrez ou enregistrez un worker sur lequel le harness est installé, ou vérifiez ses identifiants et les résultats de ses sondes sur la page Flotte.',
@@ -423,6 +490,7 @@ const tips = {
       Validated: 'Simulation : ce document est valide et serait appliqué.'
     },
     auditEventType: {
+      ApprovalDecided: 'Une personne a autorisé ou refusé un appel d\'outil en attente. L\'enregistrement indique l\'outil, l\'exécution et le motif.',
       AuthSuccess: 'Quelqu\'un s\'est connecté ou a authentifié une requête avec succès.',
       AuthFailure: 'Une tentative de connexion ou d\'authentification a échoué. Des échecs répétés peuvent indiquer que quelqu\'un essaie de deviner.',
       SessionIssued: 'Un jeton de session a été émis.',
@@ -456,6 +524,40 @@ const tips = {
     }
   },
   resources: {
+    approvals: {
+      createdUtc: 'Quand le harness a demandé. Survolez la valeur pour voir l\'heure exacte.',
+      agentName: 'L\'agent dont l\'exécution a demandé cet appel d\'outil.',
+      toolName: 'L\'outil que le harness veut utiliser, par exemple Bash, Edit, WebFetch ou un outil MCP.',
+      summary: 'Une ligne sur l\'appel : la commande, l\'URL, les chemins ou la requête, avec les secrets masqués.',
+      status: 'En attente jusqu\'à la décision, puis Approuvée, Refusée, Expirée (délai dépassé) ou Annulée (l\'exécution s\'est arrêtée).',
+      decision: 'Autoriser ou Refuser une fois décidée ; vide tant que l\'approbation est en attente.',
+      decisionSource: 'Ce qui a décidé : une règle, la valeur par défaut du déploiement, une personne, un délai d\'expiration ou une exécution arrêtée.',
+      decidedBy: 'La personne ou la clé d\'accès qui a décidé, lorsqu\'une personne a décidé.',
+      expiresUtc: 'Quand une approbation en attente expire et que la décision d\'expiration du déploiement s\'applique.',
+      kind: 'Appel d\'outil (Claude Code), Commande ou Modification de fichier (app-server Codex).',
+      harnessType: 'Le harness qui a demandé : Claude Code ou Codex.',
+      runId: 'L\'exécution qui a demandé. Ouvrez-la pour voir la transcription autour de l\'appel.',
+      rootRunId: 'L\'exécution de premier niveau de l\'arbre de délégation, lorsque l\'exécution qui a demandé était déléguée.',
+      deploymentId: 'Le déploiement dont les règles ont évalué cet appel. Les règles mémorisées y sont ajoutées.',
+      leaseEpoch: 'Époque du bail de la tentative d\'exécution qui a demandé, pour qu\'une décision n\'atteigne jamais une tentative ultérieure.',
+      requestedUtc: 'Quand le harness a demandé l\'autorisation.',
+      decidedUtc: 'Quand la décision a été prise.',
+      waitMs: 'Combien de temps l\'appel a attendu entre la demande et la décision.',
+      timeoutDecision: 'Ce qui se passe si personne ne décide avant l\'expiration de l\'approbation, selon les paramètres du déploiement.',
+      toolCallId: 'L\'ID propre au harness pour cet appel d\'outil, pour le retrouver dans la transcription.',
+      reason: 'La note rédigée par la personne qui a décidé, le cas échéant.',
+      inputPreview: 'L\'entrée d\'outil envoyée par le harness, en JSON, avec les secrets et les valeurs ressemblant à des jetons masqués.',
+      rulePattern: 'La règle du déploiement qui correspondait à cet appel, lorsqu\'une règle l\'a décidé ou a demandé une personne.',
+      ruleId: 'ID de la règle du déploiement correspondante.',
+      suggestedRule: 'Une règle qui correspondrait à cet appel. Mémoriser comme règle la préremplit.',
+      rememberedRuleId: 'ID de la règle ajoutée au déploiement lorsque cette approbation a été décidée avec mémorisation.',
+      id: 'Identifiant de l\'approbation (apr_...) pour l\'API et les outils MCP.',
+      actions: {
+        allow: 'Autoriser cet appel d\'outil en attente, avec un motif facultatif et la possibilité de le mémoriser comme règle.',
+        deny: 'Refuser cet appel d\'outil en attente, avec un motif facultatif et la possibilité de le mémoriser comme règle.',
+        openRun: 'Ouvrir l\'exécution qui a demandé, pour lire sa transcription autour de cet appel d\'outil.'
+      }
+    },
     tenants: {
       add: 'Créer un nouveau locataire : un espace isolé avec ses propres utilisateurs, agents, secrets et exécutions.',
       name: 'Nom d\'affichage du locataire. Les personnes choisissent le locataire par son ID lors de la connexion.',
@@ -695,6 +797,18 @@ const tips = {
       }
     },
     deployments: {
+      approvalsEnabled: 'Faire demander le harness avant les appels d\'outil. Les règles ci-dessous décident la plupart des appels ; les autres attendent une personne dans la boîte de réception Approbations. Profils Claude Code et app-server Codex uniquement.',
+      approvalDefaultAction: 'Ce qui se passe quand aucune règle ne correspond à un appel d\'outil : l\'autoriser, le refuser ou demander à une personne.',
+      approvalTimeoutSeconds: 'Combien de temps un appel attend une personne avant que la décision d\'expiration s\'applique, de 10 à 3 600 secondes.',
+      approvalTimeoutDecision: 'La décision appliquée quand personne ne répond à temps. Refuser est le choix sûr.',
+      approvalRules: 'Règles ordonnées dans la syntaxe Claude Code. Refuser l\'emporte sur Demander et Demander sur Autoriser ; pour une même action, la première correspondance est signalée.',
+      approvalRulesItems: {
+        action: 'Ce que reçoit un appel correspondant : Autoriser, Refuser ou Demander à une personne.',
+        pattern: 'Règle Claude Code, par exemple Bash(npm test), Bash(npm run *), Edit(src/**), Read, WebFetch(domain:example.com) ou mcp__github__*.',
+        inputPattern: 'Expression régulière .NET facultative à laquelle le JSON d\'entrée de l\'outil doit aussi correspondre, pour un contrôle plus fin que le motif.',
+        description: 'Pourquoi cette règle existe, à l\'intention des personnes qui la maintiennent.'
+      },
+      approvalTest: 'Tester un appel d\'outil avec les règles enregistrées du déploiement et voir s\'il serait autorisé, refusé ou soumis à une personne.',
       add: 'Créer un déploiement : la manière concrète dont un agent s\'exécute, avec un profil de harness, un modèle, des prompts et des ressources.',
       name: 'Nom du déploiement, unique dans le locataire, par exemple reviewer-claude.',
       agentId: 'L\'agent que ce déploiement exécute. L\'invocation de cet agent peut choisir ce déploiement.',
@@ -759,6 +873,7 @@ const tips = {
       maxAttempts: 'Nombre total de tentatives autorisées pour une exécution. Entre 1 et 10.',
       retryOnNodeLoss: 'Remettre l\'exécution en file d\'attente lorsque son nœud disparaît, au lieu de la faire échouer.',
       steps: {
+        approvals: 'Quels appels d\'outil le harness peut effectuer, lesquels sont interdits et lesquels attendent une personne.',
         basics: 'Nom, agent et poids de trafic.',
         harness: 'Profil de harness, modèle, limites et paramètres.',
         prompts: 'Le modèle qui remplit chaque rôle de prompt.',
@@ -920,6 +1035,16 @@ const tips = {
     }
   },
   views: {
+    approvalDetail: {
+      openRun: 'Ouvrir l\'exécution qui a demandé, pour lire sa transcription autour de cet appel d\'outil.',
+      openAgent: 'Ouvrir la page de l\'agent avec ses déploiements et ses exécutions récentes.',
+      openDeployment: 'Ouvrir l\'onglet Déploiements filtré sur ce déploiement, où ses règles d\'approbation se modifient.',
+      backToInbox: 'Revenir à la boîte de réception des approbations avec toutes les approbations en attente.',
+      viewJson: 'Afficher l\'enregistrement complet de l\'approbation en JSON, exactement tel que l\'API le renvoie.',
+      request: 'Ce que le harness a demandé de faire : le résumé d\'une ligne et l\'entrée complète de l\'outil avec les secrets masqués.',
+      rules: 'La règle du déploiement qui correspondait, la règle que suggère cet appel et la règle mémorisée lors de la décision.',
+      copyRule: 'Copier la règle suggérée, par exemple pour la coller dans les règles d\'approbation du déploiement.'
+    },
     home: {
       observabilityState: {
         reachable: 'Le serveur a joint {{service}} à son URL interne au cours des 30 dernières secondes.',
@@ -980,6 +1105,9 @@ const tips = {
       serviceGeneric: 'Ouvrir ce service fourni dans un nouvel onglet.'
     },
     runDetail: {
+      openApproval: 'Ouvrir cette approbation avec l\'entrée complète de l\'outil, la règle et la décision.',
+      reviewApprovals: 'Afficher les approbations de cette exécution, où vous pouvez autoriser ou refuser les appels d\'outil en attente.',
+      approvalActions: 'Autoriser ou refuser un appel d\'outil en attente, ou ouvrir l\'approbation pour voir tous les champs.',
       viewTrace: 'Ouvrir la trace de cette exécution dans Grafana Explore (Tempo) dans un nouvel onglet. Elle montre les spans de compilation, de prise en charge et du harness sur le serveur et le nœud worker.',
       viewLogs: 'Ouvrir les lignes de journal du serveur et du worker concernant cette exécution dans Grafana Explore (Loki) dans un nouvel onglet, sur la période de l\'exécution.',
       traceId: 'ID de trace W3C de la trace dans laquelle cette exécution a été compilée. Cherchez-le dans Tempo ou utilisez Voir la trace. Vide pour les exécutions créées avant l\'enregistrement des ID de trace.',
@@ -1001,6 +1129,7 @@ const tips = {
       completed: 'Moment où l\'exécution a atteint son état final.',
       exitCode: 'Code de sortie du processus de harness. La réussite est généralement déterminée par l\'événement final, pas par ce code.',
       tabs: {
+        approvals: 'Appels d\'outil pour lesquels cette exécution a demandé l\'autorisation, la manière dont chacun a été décidé, et Autoriser et Refuser pour ceux en attente.',
         transcript: 'Tous les événements produits par le harness : texte de l\'assistant, réflexion, appels et résultats d\'outils, et consommation.',
         result: 'La réponse finale et toute sortie structurée.',
         input: 'Ce que l\'appelant a envoyé, les paramètres et les versions exactes des modèles de prompt utilisées.',
@@ -1010,6 +1139,8 @@ const tips = {
       eventFilter: 'Afficher un seul type d\'événement, comme les appels d\'outils ou les erreurs.',
       openChild: 'Ouvrir cette exécution enfant, lancée lorsque cette exécution a appelé un autre agent.',
       eventCodes: {
+        ApprovalRequested: 'Le harness a demandé l\'accord avant un appel d\'outil et l\'appel attend une personne. Décidez-en dans l\'onglet Approbations.',
+        ApprovalDecided: 'Une demande d\'autorisation a été décidée par une règle, la valeur par défaut du déploiement, une personne ou un délai d\'expiration. Le texte précise lequel.',
         RunGuardTriggered: 'Une garde a arrêté cette exécution. Le message indique quelle garde s\'est déclenchée et ce qu\'elle a vu ; l\'exécution se termine en Échouée avec le résultat de cette garde et conserve sa sortie partielle.',
         ConversationFallback: 'Ce tour n\'a pas pu reprendre la session de harness de la conversation : il a démarré une nouvelle session avec la transcription des tours précédents. Le message indique pourquoi.',
         ConversationStateLost: 'Le nœud a pris ce tour mais les répertoires de la conversation avaient disparu : le tour a été remis en file d\'attente pour s\'exécuter en mode reconstruit.'
@@ -1389,6 +1520,12 @@ const tips = {
 };
 
 const explainers = {
+  approvals: {
+    title: 'Fonctionnement des approbations',
+    p1: 'Un déploiement dont les approbations sont activées fait demander à son harness l\'accord de Garrison avant les appels d\'outil : Claude Code via son outil de demande d\'autorisation, et les exécutions de l\'app-server Codex pour les commandes et les modifications de fichiers.',
+    p2: 'Chaque demande est vérifiée par rapport aux règles du déploiement. Refuser l\'emporte sur Demander, et Demander sur Autoriser ; si rien ne correspond, la valeur par défaut du déploiement s\'applique. Autoriser et Refuser répondent immédiatement ; Demander place la demande ici et l\'exécution attend.',
+    p3: 'Autorisez ou refusez une demande en attente avec un motif facultatif. Mémoriser comme règle ajoute une règle au déploiement, pour que le prochain appel similaire soit décidé automatiquement. Les demandes que personne ne décide expirent avec la décision d\'expiration du déploiement.'
+  },
   diagram: {
     label: 'Schéma : un appelant invoque un agent par son nom, Garrison choisit l\'un des déploiements de l\'agent selon son poids, et les liaisons de ce déploiement déterminent comment l\'exécution se déroule.',
     caller: { title: 'Appelant', body: 'REST, MCP, A2A ou un autre agent', tip: 'Tout ce qui invoque un agent : l\'API REST, un client MCP, un agent A2A ou l\'exécution d\'un autre agent. Les appelants ne connaissent que le nom de l\'agent.' },

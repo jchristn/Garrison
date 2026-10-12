@@ -249,7 +249,9 @@ namespace Test.Shared.Suites
             {
                 await Task.WhenAll(drivers.Select(d => Task.Run(() => d.InitializeAsync(token), token))).ConfigureAwait(false);
                 int latest = SchemaBuilder.LatestVersion;
-                Assert.Equal(latest, drivers.Sum(d => d.MigrationsApplied), "Migrations applied across drivers");
+                // Versions are tracked one by one and may have gaps (12 is reserved for conversations), so count them.
+                int count = SchemaBuilder.Build(new TableCatalog(null, null, new Garrison.Core.Database.Sqlite.Queries.SqliteDialect()), new Garrison.Core.Database.Sqlite.Queries.SqliteDialect()).Count;
+                Assert.Equal(count, drivers.Sum(d => d.MigrationsApplied), "Migrations applied across drivers");
                 Assert.Equal(1, drivers.Count(d => d.MigrationsApplied > 0), "Drivers that applied migrations");
                 foreach (DatabaseDriverBase driver in drivers)
                 {

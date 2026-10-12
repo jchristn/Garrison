@@ -23,6 +23,7 @@ export default function RunTelemetryPanel({ run }) {
     ['timeToFirstTokenMs', formatMs(tel.timeToFirstTokenMs, lng, na)],
     ['timeToFirstTokenExcludingDelegationMs', formatMs(tel.timeToFirstTokenExcludingDelegationMs, lng, na)],
     ['delegationWaitMs', formatMs(tel.delegationWaitMs, lng, na)],
+    ['approvalWaitMs', formatMs(tel.approvalWaitMs, lng, na)],
     ['streamingMs', formatMs(tel.streamingMs, lng, na)],
     ['executionMs', formatMs(tel.executionMs, lng, na)],
     ['queueMs', formatMs(tel.queueMs, lng, na)],
@@ -88,6 +89,11 @@ export default function RunTelemetryPanel({ run }) {
             ttft: formatMs(tel.timeToFirstTokenMs, lng, na),
             excluding: formatMs(tel.timeToFirstTokenExcludingDelegationMs, lng, na)
           })}
+        </p>
+      )}
+      {tel.approvalWaitMs !== null && tel.approvalWaitMs > 0 && (
+        <p className="text-muted telemetry-note" data-testid="approval-wait-note">
+          {t('views.runDetail.telemetry.approvalNote', { wait: formatMs(tel.approvalWaitMs, lng, na) })}
         </p>
       )}
       <div className="telemetry-grid">

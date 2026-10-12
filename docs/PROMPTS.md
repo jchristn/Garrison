@@ -34,10 +34,11 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/conversation-fallback` | Task | Task prompt of a conversation turn that cannot resume its harness session and starts a fresh one: repeats the earlier turns, then the current task (see [Conversation fallback](#conversation-fallback)) |
 | `builtin/mcp-tool-description` | ToolDescription | Description of an agent offered as its own MCP tool (`exposeMcpTool`, see `MCP_API.md`) |
 | `builtin/a2a-skill-description` | ToolDescription | Description of an agent's A2A skill |
-| `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the eight Garrison MCP tools (see `MCP_API.md`). A tenant overrides one with its own template named `mcp-tool-garrison_<tool>` |
+| `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the Garrison MCP tools (see `MCP_API.md`). A tenant overrides one with its own template named `mcp-tool-garrison_<tool>` |
 | `builtin/claude-code-mcp-config` | ConfigFile | Claude Code `--mcp-config` file |
 | `builtin/mux-mcp-config`, `builtin/mux-endpoints`, `builtin/mux-settings`, `builtin/mux-subagents` | ConfigFile | Mux configuration directory |
 | `builtin/gemini-settings` | ConfigFile | Gemini CLI `settings.json` with MCP servers |
+| `builtin/approval-denied` | Other | The message a harness receives when Garrison denies a permission request (P12.3). Rendered with `approval.id`, `approval.toolName`, `approval.summary`, `approval.reason`, `approval.rulePattern`, `approval.decidedBy`, `approval.source`, `approval.timeoutSeconds`, and one flag per source (`approval.byUser`, `approval.byRule`, `approval.byDefault`, `approval.byTimeout`, `approval.byCancel`). A tenant template named `approval-denied` of kind `Other` replaces it for that tenant |
 
 ### Tool and skill descriptions per tenant
 

@@ -8,24 +8,30 @@ import { tip } from './Tooltip';
  * Declarative form renderer. field: { name, type, label, tip?, hint?, options?, required?, min?, max?, rows?,
  * placeholder?, showIf?(data), readOnly?, fields? (objectList), span? }.
  * Types: text, textarea, code, number, checkbox, nullableToggle (null follows `defaultValue`), select, password, datetime, stringList, keyValue, objectList,
- * multiselect, json.
+ * multiselect, json, custom (`render(data, { disabled })` draws a whole-row panel, for example a live test helper).
  */
 export default function FormFields({ fields, data, onChange, errors = {}, disabled = false, idPrefix = 'f' }) {
   return (
     <div className="form-grid">
       {fields
         .filter((f) => !f.showIf || f.showIf(data))
-        .map((f) => (
-          <FormField
-            key={f.name}
-            field={f}
-            value={data?.[f.name]}
-            onChange={(v) => onChange({ ...data, [f.name]: v })}
-            error={errors?.[f.name]}
-            disabled={disabled || (typeof f.readOnly === 'function' ? f.readOnly(data) : !!f.readOnly)}
-            id={`${idPrefix}-${f.name}`}
-          />
-        ))}
+        .map((f) =>
+          f.type === 'custom' ? (
+            <div key={f.name} className="field span-full" data-field={f.name}>
+              {f.render(data, { disabled })}
+            </div>
+          ) : (
+            <FormField
+              key={f.name}
+              field={f}
+              value={data?.[f.name]}
+              onChange={(v) => onChange({ ...data, [f.name]: v })}
+              error={errors?.[f.name]}
+              disabled={disabled || (typeof f.readOnly === 'function' ? f.readOnly(data) : !!f.readOnly)}
+              id={`${idPrefix}-${f.name}`}
+            />
+          )
+        )}
     </div>
   );
 }

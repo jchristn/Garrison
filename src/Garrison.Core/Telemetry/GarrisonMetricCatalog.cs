@@ -96,6 +96,18 @@ namespace Garrison.Core.Telemetry
         /// <summary>Run cancellations.</summary>
         public static readonly MetricDescriptor RunCancellations = new MetricDescriptor("garrison.runs.cancellations", MetricKindEnum.Counter, "{run}", "tenant, agent, reason", "Cancellation requests accepted, by reason (request, disconnect, parent)", "server", "Runs", "garrison-runs");
 
+        /// <summary>Permission requests evaluated (P12.3).</summary>
+        public static readonly MetricDescriptor ApprovalsRequested = new MetricDescriptor("garrison.approvals.requested", MetricKindEnum.Counter, "{request}", "tenant, agent, kind, action", "Permission requests relayed by harnesses, by the action the deployment's rules chose (allow, deny, ask)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Permission approvals decided (P12.3).</summary>
+        public static readonly MetricDescriptor ApprovalsDecided = new MetricDescriptor("garrison.approvals.decided", MetricKindEnum.Counter, "{approval}", "tenant, agent, source, decision", "Permission approvals decided, by who decided (rule, default, user, timeout, cancelled) and the decision (allow, deny)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Time pending approvals waited (P12.3).</summary>
+        public static readonly MetricDescriptor ApprovalWait = new MetricDescriptor("garrison.approval.wait", MetricKindEnum.Histogram, "s", "source, decision", "Time a pending approval waited for a person, the timeout, or a cancellation", "server", "Runs", "garrison-runs", TelemetryBuckets.Run);
+
+        /// <summary>Pending approvals (P12.3).</summary>
+        public static readonly MetricDescriptor ApprovalsPending = new MetricDescriptor("garrison.approvals.pending", MetricKindEnum.ObservableGauge, "{approval}", "", "Approvals waiting for a person, as of the leader's last sweep; aggregate with max", "server", "Runs", "garrison-runs");
+
         /// <summary>Structured output validations.</summary>
         public static readonly MetricDescriptor SchemaValidations = new MetricDescriptor("garrison.runs.schema_validations", MetricKindEnum.Counter, "{validation}", "result, execution, harness, tenant, agent", "Validations of run output against the agent's output schema", "server", "Runs", "garrison-runs");
 
@@ -375,7 +387,7 @@ namespace Garrison.Core.Telemetry
             HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, CompileDuration,
             LeaseExpirations, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,

@@ -2,6 +2,7 @@
 // Tooltips say what a control is and how it is used, never just the label again (D-030).
 
 const TELEMETRY = {
+  approvalWaitMs: '批核等候：呢個執行等權限批核（由人或者逾時決定）嘅總時間。由規則或者部署預設即刻決定嘅呼叫唔會加時間。由伺服器量度；個執行從來冇等過就顯示 n/a。',
   delegationWaitMs: '委派等候時間：呢個執行等佢經 Garrison 開嘅子執行（即係佢委派咗嘅其他代理程式）等咗幾耐，用嗰啲子執行嘅伺服器時間戳記計。如果執行冇委派過任何嘢，就係零或者不適用。',
   timeToFirstTokenExcludingDelegationMs: '第一個 Token 時間（唔計委派）：第一個 Token 時間減去執行喺第一個輸出之前等委派執行嘅時間。可以用嚟公平噉比較會委派同唔會委派嘅代理程式。用伺服器時間戳記計，永遠唔會係負數。',
   timeToFirstTokenMs: '第一個 Token 時間：由工作節點啟動 Harness 程序開始，計到模型產生第一個輸出（文字或思考）為止。呢個時間包埋 Harness 啟動，所以 CLI 啟動得慢都會喺度反映出嚟。由工作節點用單調時鐘量度。',
@@ -30,6 +31,33 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  approvals: {
+    awaiting_one: 'Harness 喺工具呼叫之前問咗一聲，而家等緊有人處理。打開「批核」分頁去允許或者拒絕（{{count}} 個等緊）。',
+    awaiting_other: 'Harness 喺工具呼叫之前問咗一聲，而家等緊有人處理。打開「批核」分頁去允許或者拒絕（{{count}} 個等緊）。',
+    decide: {
+      decision: '揀 Harness 可唔可以做呢個工具呼叫。你一提交，個執行就會即刻繼續。',
+      allow: '畀 Harness 做呢個工具呼叫。個執行會連同呢個呼叫繼續落去。',
+      deny: '拒絕呢個工具呼叫。Harness 會收到拒絕訊息，然後唔用呢個呼叫繼續落去。',
+      reason: '可選嘅備註，會同決定一齊儲存，並寫入審計記錄。拒絕嘅話，備註會傳畀代理程式。',
+      remember: '同時喺呢個批核所屬嘅部署加一條規則，咁下次同類嘅呼叫就會自動決定。',
+      rulePattern: '要加嘅規則，用 Claude Code 規則語法。一開始係建議規則；儲存之前可以放闊或者收窄。',
+      submitAllow: '即刻允許呢個工具呼叫。決定係最終嘅，之後唔可以再改。',
+      submitDeny: '即刻拒絕呢個工具呼叫。決定係最終嘅，之後唔可以再改。'
+    }
+  },
+  approvalCheck: {
+    toolName: 'Harness 報告嘅工具名稱，例如 Bash、Edit、WebFetch，或者 mcp__github__create_issue 呢類 MCP 工具。',
+    inputs: {
+      command: '要測試嘅 Shell 指令，例如 npm run build && npm test。每個子指令都一定要允許。',
+      url: '工具會擷取嘅 URL。WebFetch 規則會按佢嘅網域比對。',
+      query: '工具會傳送嘅搜尋查詢，用嚟比對同呢個查詢有關嘅規則。',
+      file_path: '工具會讀取或者更改嘅檔案路徑，可以係相對於工作區嘅路徑或者絕對路徑。',
+      notebook_path: '工具會更改嘅筆記本路徑，用嚟比對同呢本筆記本有關嘅規則。',
+      pattern: '工具會用嘅 glob 或者搜尋模式，用嚟比對同呢個模式有關嘅規則。'
+    },
+    run: '用部署已儲存嘅規則評估呢個工具呼叫，再顯示結果。唔會記錄任何嘢，亦唔會影響任何執行。',
+    suggestedRule: '「記住」會為呢個呼叫加嘅規則。將佢複製去上面嘅規則，就可以涵蓋類似嘅呼叫。'
+  },
   ids: { deleted: '呢條記錄已經刪咗。ID {{id}}。複製掣會複製呢個 ID。', named: 'ID {{id}}。撳複製掣就可以複製呢個 ID，畀 API、SDK 或者支援要求用。' },
   markdown: {
     column: '代理程式輸出入面表格嘅 {{name}} 欄。闊嘅表格可以喺框入面打橫捲動。',
@@ -55,7 +83,10 @@ const tips = {
     dismiss: '收埋呢段說明。原位會留低一個細細嘅「關於」按鈕，你隨時可以撳返出嚟。'
   },
   nav: {
+    approvalsBadge_one: '有 {{count}} 個工具呼叫等緊有人允許或者拒絕。打開「批核」去決定。',
+    approvalsBadge_other: '有 {{count}} 個工具呼叫等緊有人允許或者拒絕。打開「批核」去決定。',
     hubs: {
+      approvals: '批核收件匣：代理程式要求做、等緊有人處理嘅工具呼叫，同埋由規則、預設、人手或者逾時做嘅每個決定嘅歷史。',
       home: '由呢度開始：代理程式、執行同工作節點嘅即時數目、API 流量、最近嘅失敗，仲有常用工作嘅捷徑。',
       invoke: '喺瀏覽器直接發訊息畀代理程式，睇住對話記錄串流出嚟，唔使寫任何程式。',
       runs: '每一次代理程式調用、佢嘅對話記錄、結果同遙測數據，仲有等緊節點嘅工作隊列。',
@@ -161,6 +192,8 @@ const tips = {
     bulkDelete: '刪除所有已揀嘅行。系統會先叫你確認。'
   },
   filters: {
+    decisionSource: '只顯示用某種方式決定嘅批核：由規則、部署預設、人手、逾時或者已停止嘅執行決定。',
+    runId: '只顯示某一個執行嘅批核。貼上執行 ID，例如 run_...；你停低唔打字，清單就會更新。',
     status: '只顯示處於呢個狀態嘅記錄。揀「全部」就會移除篩選。',
     harnessType: '只顯示某一個 Harness 嘅記錄，例如 Claude Code 或 Codex。',
     kind: '只顯示某一種類嘅記錄。揀「全部」就會移除篩選。',
@@ -234,6 +267,9 @@ const tips = {
     tenant: '顯示某一個租用戶，或者伺服器上所有租用戶嘅請求活動。'
   },
   badges: {
+    approvalsOn_one: '批核開咗：Harness 會喺工具呼叫之前問，而 {{count}} 條規則會自動決定其中一部分。',
+    approvalsOn_other: '批核開咗：Harness 會喺工具呼叫之前問，而 {{count}} 條規則會自動決定其中一部分。',
+    approvalsOff: '批核關咗：Harness 會跟自己嘅權限設定做工具呼叫，唔會問任何人。',
     active: '啟用：呢筆記錄使用緊。',
     inactive: '停用：呢筆記錄會保留，但喺重新啟用之前會被忽略。',
     builtIn: '內置：隨 Garrison 提供，只可以讀取。複製一份就可以得到你可以編輯嘅版本。',
@@ -300,6 +336,34 @@ const tips = {
     queueColumn: '呢個群組入面而家冇就緒工作節點做到嘅排隊執行。將游標停喺徽章上面就睇到原因同處理方法。'
   },
   enums: {
+    approvalStatus: {
+      Pending: '等緊有人允許或者拒絕。喺嗰之前，Harness 會卡喺呢個呼叫度。',
+      Approved: '呢個工具呼叫已經允許咗，由規則、部署預設、人手或者逾時決定。',
+      Denied: '呢個工具呼叫俾人拒絕咗。Harness 收到拒絕訊息，冇用呢個呼叫繼續落去。',
+      Expired: '批核到期之前冇人及時決定，所以套用咗部署嘅逾時決定。',
+      Cancelled: '批核仲等緊嘅時候個執行停咗，所以冇做決定就直接關閉咗。'
+    },
+    approvalDecision: {
+      Allow: '允許：Harness 獲准做呢個工具呼叫，個執行會連同佢繼續。',
+      Deny: '拒絕：Harness 嘅工具呼叫俾人拒絕咗，並且畀人話知點解。'
+    },
+    approvalSource: {
+      Rule: '由部署上面嘅規則即刻決定。符合嘅規則會喺旁邊顯示。',
+      Default: '呢個工具呼叫冇符合任何規則，所以由部署嘅預設動作決定。',
+      User: '有人喺儀表板、經 API 或者經 MCP 決定咗。',
+      Timeout: '批核到期之前都冇人做決定，所以套用咗部署嘅逾時決定。',
+      Cancelled: '呢個批核仲等緊嘅時候，個執行停咗，所以冇做到決定。'
+    },
+    approvalRuleAction: {
+      Allow: '允許：符合呢條規則嘅工具呼叫會直接進行，唔使問任何人。',
+      Deny: '拒絕：符合嘅工具呼叫會直接俾人拒絕，唔使問任何人。拒絕凌駕其他所有規則。',
+      Ask: '問人：符合呢條規則嘅工具呼叫會喺批核收件匣度等人決定。'
+    },
+    approvalKind: {
+      Tool: 'Claude Code 為任何工具（包括 MCP 工具）彈出嘅權限提示。',
+      Command: 'Codex app-server 執行想行嘅 Shell 指令。規則會當佢係 Bash 咁評估。',
+      FileChange: 'Codex app-server 執行想做嘅檔案變更。規則會當佢係 Edit 咁評估。'
+    },
     runBlockedReason: {
       NoReadyWorker: '塞住咗：冇任何工作節點係就緒狀態，所以冇節點可以接呢個執行。請啟動或者註冊一個工作節點，再喺機群頁面睇吓邊啲節點失聯、離線、清空緊或者已封鎖。',
       NoCapableWorker: '塞住咗：有就緒嘅工作節點，但係冇一個話呢個執行嘅 Harness 用得。請啟動或者註冊一個裝咗嗰個 Harness 嘅工作節點，或者喺機群頁面睇吓佢嘅憑證同探測結果。',
@@ -424,6 +488,7 @@ const tips = {
       Validated: '試行：呢份文件有效，會被套用。'
     },
     auditEventType: {
+      ApprovalDecided: '有人允許或者拒絕咗一個等候中嘅工具呼叫。記錄會列出工具、執行同原因。',
       AuthSuccess: '有人成功登入，或者成功驗證咗一個請求。',
       AuthFailure: '有一次登入或驗證失敗。重複失敗可能代表有人喺度估密碼。',
       SessionIssued: '發出咗一個工作階段權杖。',
@@ -457,6 +522,40 @@ const tips = {
     }
   },
   resources: {
+    approvals: {
+      createdUtc: 'Harness 問嘅時間。將滑鼠停喺數值上面就可以睇到確實時間。',
+      agentName: '佢嘅執行要求做呢個工具呼叫嘅代理程式，可以打開睇詳情。',
+      toolName: 'Harness 想用嘅工具，例如 Bash、Edit、WebFetch 或者 MCP 工具。',
+      summary: '呢個呼叫嘅一行摘要：指令、URL、路徑或者查詢，機密已經遮蓋咗。',
+      status: '決定之前係「等候中」，之後係「已批准」、「已拒絕」、「已過期」（逾時）或者「已取消」（執行停咗）。',
+      decision: '決定咗之後係「允許」或者「拒絕」；批核仲等緊嘅時候係空白。',
+      decisionSource: '由咩決定：規則、部署預設、人手、逾時或者已停止嘅執行。',
+      decidedBy: '由人決定嘅時候，呢度顯示做決定嘅人或者存取金鑰；其他情況係空白。',
+      expiresUtc: '等候中嘅批核幾時會逾時，到時就會套用部署設定嘅逾時決定。',
+      kind: '工具呼叫（Claude Code）、指令或者檔案變更（Codex app-server）。',
+      harnessType: '提出要求嘅 Harness：Claude Code 或者 Codex。',
+      runId: '提出要求嘅執行。打開佢就可以睇呢個呼叫前後嘅對話記錄。',
+      rootRunId: '如果提出要求嘅執行係委派出嚟嘅，呢個就係委派樹最頂層嘅執行。',
+      deploymentId: '用佢嘅規則評估呢個呼叫嘅部署。記住咗嘅規則會加落佢度。',
+      leaseEpoch: '提出要求嗰次執行嘗試嘅租約世代，確保決定唔會送到之後嘅嘗試。',
+      requestedUtc: 'Harness 要求權限嘅時間，將滑鼠停喺數值上面就睇到確實時間。',
+      decidedUtc: '做決定嘅時間，將滑鼠停喺數值上面就可以睇到確實時間。',
+      waitMs: '呢個工具呼叫由 Harness 提出要求到有決定之間等咗幾耐。',
+      timeoutDecision: '如果批核到期之前冇人決定會點，呢個值嚟自部署設定。',
+      toolCallId: 'Harness 自己畀呢個工具呼叫嘅 ID，用嚟喺對話記錄度搵返對應嘅呼叫。',
+      reason: '做決定嘅人寫低嘅備註（如果有），拒絕嘅話亦會傳畀代理程式。',
+      inputPreview: 'Harness 傳送嘅工具輸入，以 JSON 顯示，機密同似 Token 嘅數值都遮蓋咗。',
+      rulePattern: '當規則決定咗呢個呼叫或者要求問人嘅時候，符合呢個呼叫嘅部署規則。',
+      ruleId: '符合呢個呼叫嘅部署規則 ID，可以用嚟喺部署嘅批核規則度搵返佢。',
+      suggestedRule: '一條會符合呢個呼叫嘅規則。「記住做規則」會預先填好佢。',
+      rememberedRuleId: '用「記住」決定呢個批核嗰陣，加咗落部署嘅規則 ID。',
+      id: '批核識別碼（apr_...），畀 API 同 MCP 工具用。',
+      actions: {
+        allow: '允許呢個等候中嘅工具呼叫，可以附上原因，亦可以揀記住做規則。',
+        deny: '拒絕呢個等候中嘅工具呼叫，可以附上原因，亦可以揀記住做規則。',
+        openRun: '打開提出要求嘅執行，睇呢個工具呼叫前後嘅對話記錄。'
+      }
+    },
     tenants: {
       add: '建立新租用戶：一個獨立空間，有自己嘅用戶、代理程式、機密同執行。',
       name: '租用戶嘅顯示名稱。登入嗰陣大家係用租用戶 ID 嚟揀。',
@@ -696,6 +795,18 @@ const tips = {
       }
     },
     deployments: {
+      approvalsEnabled: '令 Harness 喺工具呼叫之前先問。下面啲規則會決定大部分呼叫；其餘嘅會喺批核收件匣度等人處理。只適用於 Claude Code 同 Codex app-server 設定檔。',
+      approvalDefaultAction: '冇規則符合某個工具呼叫嘅時候會點：允許、拒絕，定係問人。',
+      approvalTimeoutSeconds: '一個呼叫等人處理幾耐之後就套用逾時決定，由 10 至 3,600 秒。',
+      approvalTimeoutDecision: '冇人及時回應嘅時候套用嘅決定。「拒絕」係安全嘅選擇。',
+      approvalRules: '用 Claude Code 語法、有次序嘅規則。「拒絕」凌駕「問人」，「問人」凌駕「允許」；同一個動作入面會報告第一個符合嘅規則。',
+      approvalRulesItems: {
+        action: '符合呢條規則嘅工具呼叫會得到咩結果：允許、拒絕，或者問人。',
+        pattern: 'Claude Code 規則，例如 Bash(npm test)、Bash(npm run *)、Edit(src/**)、Read、WebFetch(domain:example.com) 或者 mcp__github__*。',
+        inputPattern: '可選嘅 .NET 正規表達式，工具輸入 JSON 都要符合，可以做到比模式更精細嘅控制。',
+        description: '講明點解要有呢條規則，等日後負責維護佢嘅人都睇得明。'
+      },
+      approvalTest: '用部署已儲存嘅規則試一個工具呼叫，睇下佢會俾允許、拒絕，定係交畀人決定。',
       add: '建立部署：代理程式實際嘅運行方式，包括 Harness 設定檔、模型、提示同資源。',
       name: '部署名稱，喺租用戶入面唯一，例如 reviewer-claude。',
       agentId: '呢個部署運行嘅代理程式。調用嗰個代理程式時可能會揀中呢個部署。',
@@ -760,6 +871,7 @@ const tips = {
       maxAttempts: '一個執行總共最多可以試幾多次。介乎 1 至 10。',
       retryOnNodeLoss: '節點消失時將執行放返入隊列，而唔係當佢失敗。',
       steps: {
+        approvals: 'Harness 可以做邊啲工具呼叫、唔可以做邊啲，同埋邊啲要等人處理。',
         basics: '名稱、代理程式同流量權重。',
         harness: 'Harness 設定檔、模型、限制同參數。',
         prompts: '每個提示角色由邊個範本填入。',
@@ -921,6 +1033,16 @@ const tips = {
     }
   },
   views: {
+    approvalDetail: {
+      openRun: '打開提出要求嘅執行，睇呢個工具呼叫前後嘅對話記錄。',
+      openAgent: '打開呢個代理程式嘅頁面，睇佢嘅部署同最近嘅執行記錄。',
+      openDeployment: '打開篩選咗呢個部署嘅「部署」分頁，喺度可以編輯佢嘅批核規則。',
+      backToInbox: '返去批核收件匣，喺嗰度可以睇到每一個仲等緊嘅批核。',
+      viewJson: '以 JSON 顯示完整嘅批核記錄，同 API 傳返嘅內容一模一樣。',
+      request: 'Harness 要求做咩：一行摘要，同埋遮蓋咗機密嘅完整工具輸入。',
+      rules: '符合嘅部署規則、呢個呼叫建議嘅規則，同埋由決定記住咗嘅規則。',
+      copyRule: '將建議規則複製到剪貼簿，例如貼去部署嘅批核規則度用。'
+    },
     home: {
       observabilityState: {
         reachable: '伺服器喺過去 30 秒內經內部 URL 連到 {{service}}。',
@@ -981,6 +1103,9 @@ const tips = {
       serviceGeneric: '喺新分頁打開呢個隨附嘅服務。'
     },
     runDetail: {
+      openApproval: '打開呢個批核嘅詳情頁面，睇佢完整嘅工具輸入、規則同決定。',
+      reviewApprovals: '顯示呢個執行嘅批核，喺度可以允許或者拒絕等候中嘅工具呼叫。',
+      approvalActions: '允許或者拒絕等候中嘅工具呼叫，或者打開批核睇所有欄位。',
       viewTrace: '喺新分頁用 Grafana Explore (Tempo) 打開呢個執行嘅追蹤。佢會顯示伺服器同工作節點上面嘅編譯、領取同 Harness 區段。',
       viewLogs: '喺新分頁用 Grafana Explore (Loki) 打開伺服器同工作節點關於呢個執行嘅日誌，範圍限於呢個執行嘅時間。',
       traceId: '編譯呢個執行嗰陣所屬追蹤嘅 W3C 追蹤 ID。可以喺 Tempo 搵，或者撳「睇追蹤」。喺開始記錄追蹤 ID 之前建立嘅執行係空嘅。',
@@ -1002,6 +1127,7 @@ const tips = {
       completed: '執行去到最終狀態嘅時間。',
       exitCode: 'Harness 程序嘅結束碼。成功與否通常睇最終事件，而唔係呢個結束碼。',
       tabs: {
+        approvals: '呢個執行要求過權限嘅工具呼叫、每個點樣決定，同埋等候中嗰啲嘅「允許」同「拒絕」。',
         transcript: 'Harness 產生嘅每一個事件：助理文字、思考、工具呼叫同結果，同埋用量。',
         result: '最終答案同任何結構化輸出。',
         input: '呼叫方傳送咗啲乜、參數，同埋實際用咗嘅提示範本版本。',
@@ -1011,6 +1137,8 @@ const tips = {
       eventFilter: '只顯示一種事件，例如工具呼叫或者錯誤。',
       openChild: '打開呢個子執行，佢係呢個執行呼叫另一個代理程式時開始嘅。',
       eventCodes: {
+        ApprovalRequested: 'Harness 喺工具呼叫之前問咗一聲，呢個呼叫等緊有人處理。喺「批核」分頁度決定佢。',
+        ApprovalDecided: '一個權限要求已經由規則、部署預設、人手或者逾時決定咗。文字會講明係邊種。',
         RunGuardTriggered: '執行防護停咗呢個執行。訊息講明係邊個防護觸發同佢見到咩；個執行會以嗰個防護嘅結果失敗結束，並保留部分輸出。',
         ConversationFallback: '呢一輪冇辦法恢復對話嘅 Harness 工作階段，因此以先前各輪嘅紀錄開始了全新工作階段。訊息中說明了原因。',
         ConversationStateLost: '節點領取了呢一輪，但對話嘅目錄已唔存在，因此呢一輪被放回佇列，以回退方式執行。'
@@ -1390,6 +1518,12 @@ const tips = {
 };
 
 const explainers = {
+  approvals: {
+    title: '批核點樣運作',
+    p1: '開咗批核嘅部署會令佢嘅 Harness 喺工具呼叫之前問 Garrison：Claude Code 經佢嘅權限提示工具問，Codex app-server 執行就會為指令同檔案變更問。',
+    p2: '每個要求都會用部署嘅規則檢查。「拒絕」凌駕「問人」，「問人」凌駕「允許」；冇嘢符合嘅話，就用部署預設。「允許」同「拒絕」會即刻回覆；「問人」會將要求放喺呢度，個執行就會等。',
+    p3: '你可以附上原因，允許或者拒絕等候中嘅要求。「記住做規則」會喺部署加一條規則，咁下次類似嘅呼叫就會自動決定。冇人決定嘅要求到期時會套用部署嘅逾時決定。'
+  },
   diagram: {
     label: '圖表：呼叫方用名稱調用代理程式，Garrison 按權重揀代理程式其中一個部署，再由嗰個部署嘅綁定決定執行點樣進行。',
     caller: { title: '呼叫方', body: 'REST、MCP、A2A，或者另一個代理程式', tip: '任何調用代理程式嘅嘢：REST API、MCP 用戶端、A2A 代理程式，或者另一個代理程式嘅執行。呼叫方只知道代理程式名稱。' },

@@ -45,6 +45,12 @@ namespace Garrison.Server.Runtime
         };
 
         /// <summary>
+        /// Permission approvals (P12.3); pending approvals of runs that stop here are cancelled. Null (the default)
+        /// leaves them to the leader's sweep.
+        /// </summary>
+        public ApprovalService? Approvals { get; set; } = null;
+
+        /// <summary>
         /// Logging for run lifecycle lines (each carries run=&lt;runId&gt; trace=&lt;traceId&gt;). Null disables them.
         /// Default null; the runtime module sets it.
         /// </summary>
@@ -324,6 +330,7 @@ namespace Garrison.Server.Runtime
             }
 
             _Signals.Notify(run.Id);
+            if (Approvals != null) await Approvals.CancelPendingAsync(run.Id, "The run was cancelled.", token).ConfigureAwait(false);
             GarrisonMetrics.Count(GarrisonMetricCatalog.RunCancellations, "tenant", run.TenantId, "agent", run.AgentName, "reason", reason);
             _Logging?.Info("[Runs] cancellation requested for run " + run.Id + " " + RunTracing.LogFields(run.Id, run.TraceId) + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName));
             Run? updated = await _Database.Runs.ReadAsync(run.TenantId, run.Id, token).ConfigureAwait(false);

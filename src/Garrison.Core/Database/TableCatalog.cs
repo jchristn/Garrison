@@ -106,6 +106,8 @@ namespace Garrison.Core.Database
                 "backplane_messages",
                 "control_nodes",
                 "conversations",
+                "deployment_approval_rules",
+                "approvals",
         };
 
         private readonly SqlDialect _Dialect;

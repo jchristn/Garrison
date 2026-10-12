@@ -82,6 +82,13 @@ namespace Garrison.Core.Compilation
         public ExecutionConversation? Conversation { get; set; } = null;
 
         /// <summary>
+        /// Where the worker relays permission requests the harness raises over its own protocol (Codex app-server
+        /// approvals, P12.3), or null when the deployment has approvals off or the harness asks Garrison directly (Claude
+        /// Code calls garrison_permission_prompt itself).
+        /// </summary>
+        public ExecutionApprovalRelay? ApprovalRelay { get; set; } = null;
+
+        /// <summary>
         /// Workspace preparation.
         /// </summary>
         public ExecutionWorkspace Workspace { get; set; } = new ExecutionWorkspace();

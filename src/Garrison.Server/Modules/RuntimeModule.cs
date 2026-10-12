@@ -51,6 +51,7 @@ namespace Garrison.Server.Modules
         private RunGaugeService? _Gauges = null;
         private CompilerOptions? _Compiler = null;
         private CodexCredentialService? _Codex = null;
+        private ApprovalService? _Approvals = null;
 
         #endregion
 
@@ -89,6 +90,11 @@ namespace Garrison.Server.Modules
             _Blocked = new BlockedRunService(context.Database);
             _Maintenance = new MaintenanceService(context.Database, _Leader, _Signals, _Options, context.Telemetry, context.Logging);
             _Maintenance.BlockedRuns = _Blocked;
+            _Approvals = new ApprovalService(context.Database, _Signals, context.Cipher, context.Audit, context.Logging);
+            _Approvals.IsLeader = () => _Leader.IsLeader;
+            _Runs.Approvals = _Approvals;
+            _Events.Approvals = _Approvals;
+            _Maintenance.Approvals = _Approvals;
             if (context.Settings.Archive.Enabled)
             {
                 _Maintenance.Archiver = new RunArchiver(context.Database, context.Settings.Archive.Directory!, context.Logging);
@@ -109,6 +115,7 @@ namespace Garrison.Server.Modules
             context.Register<ILeaderState>(_Leader);
             context.Register(_Maintenance);
             context.Register(_Blocked);
+            context.Register(_Approvals);
             _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
             context.Register(_Gauges);
             _Codex = new CodexCredentialService(context.Database, context.Cipher, () => context.Settings.Codex, context.NodeId, context.Logging);
@@ -127,6 +134,7 @@ namespace Garrison.Server.Modules
             new NodeProtocolRoutes(context, _Nodes!, _Scheduler!, _Events!).Register(routes);
             new NodeRoutes(context).Register(routes);
             new ControlNodeRoutes(context).Register(routes);
+            new ApprovalRoutes(context, _Approvals!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             WatsonWebserver.Webserver server = context.Get<WatsonWebserver.Webserver>();
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
@@ -208,6 +216,7 @@ namespace Garrison.Server.Modules
             if (_Maintenance != null) await _Maintenance.StopAsync().ConfigureAwait(false);
             if (_Leader != null) await _Leader.StopAsync(token).ConfigureAwait(false);
             _Maintenance?.Dispose();
+            _Approvals?.Dispose();
             _Leader?.Dispose();
         }
 

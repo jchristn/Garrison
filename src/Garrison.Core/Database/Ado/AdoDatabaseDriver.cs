@@ -130,6 +130,7 @@ namespace Garrison.Core.Database.Ado
             BackplaneMessages = new AdoBackplaneMessageMethods(this);
             ControlNodes = new AdoControlNodeMethods(this);
             Conversations = new AdoConversationMethods(this);
+            Approvals = new AdoApprovalMethods(this);
         }
 
         #endregion

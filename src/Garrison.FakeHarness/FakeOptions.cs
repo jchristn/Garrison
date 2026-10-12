@@ -1,6 +1,7 @@
 namespace Garrison.FakeHarness
 {
     using System;
+    using System.Collections.Generic;
     using System.Globalization;
 
     /// <summary>
@@ -140,6 +141,34 @@ namespace Garrison.FakeHarness
         /// </summary>
         public bool RequestApproval { get; set; } = false;
 
+        /// <summary>
+        /// Command named in the codex-app-server approval request (--request-approval). Default rm -rf build.
+        /// </summary>
+        public string ApprovalCommand { get; set; } = "rm -rf build";
+
+        /// <summary>
+        /// In codex-app-server format, also ask to approve a file change of this path (an
+        /// <c>item/fileChange/requestApproval</c> request after an item/started fileChange item), or null.
+        /// </summary>
+        public string? RequestFileApproval { get; set; } = null;
+
+        /// <summary>
+        /// Claude Code's --permission-prompt-tool (mcp__server__tool), or null. In Claude format, each
+        /// --permission-request is asked through it.
+        /// </summary>
+        public string? PermissionPromptTool { get; set; } = null;
+
+        /// <summary>
+        /// Claude Code's --mcp-config file, read to find the permission prompt tool's server, or null.
+        /// </summary>
+        public string? McpConfig { get; set; } = null;
+
+        /// <summary>
+        /// Tool calls that need permission, as Tool=inputJson (repeatable), for example Bash={"command":"git push"}. Each
+        /// is emitted as a tool call whose result is the permission answer.
+        /// </summary>
+        public List<string> PermissionRequests { get; set; } = new List<string>();
+
         #endregion
 
         #region Public-Methods
@@ -230,6 +259,21 @@ namespace Garrison.FakeHarness
                         break;
                     case "--request-approval":
                         options.RequestApproval = true;
+                        break;
+                    case "--approval-command":
+                        if (next != null) { options.ApprovalCommand = next; i++; }
+                        break;
+                    case "--request-file-approval":
+                        if (next != null) { options.RequestFileApproval = next; i++; }
+                        break;
+                    case "--permission-prompt-tool":
+                        if (next != null) { options.PermissionPromptTool = next; i++; }
+                        break;
+                    case "--mcp-config":
+                        if (next != null) { options.McpConfig = next; i++; }
+                        break;
+                    case "--permission-request":
+                        if (next != null) { options.PermissionRequests.Add(next); i++; }
                         break;
                     case "--stderr":
                         if (next != null) { options.Stderr = next; i++; }

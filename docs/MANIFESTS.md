@@ -317,6 +317,7 @@ spec:
 | `workspace`, `artifactStore` | By name |
 | `parameters`, `nodeSelector` | Maps of strings. Quote values YAML would read as numbers or booleans |
 | `allowedRunOverrides`, `argumentOverrides`, `environmentOverrides`, `fileOverrides` | Lists, as in the REST API |
+| `approvalsEnabled`, `approvalDefaultAction`, `approvalTimeoutSeconds`, `approvalTimeoutDecision`, `approvalRules` | Permission approvals, as in the REST API. Rules are a list of `action`, `pattern`, and optional `inputPattern` and `description`; applying a manifest keeps the identifiers of rules that did not change |
 | `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd`, `timeoutSeconds`, `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | As in the REST API |
 | `executor` | `Process` or `KubernetesJob` (a pod per run). Omit it to use the node pool's default, then `Process` |
 | `podResources` | Run pod `cpuRequest`, `cpuLimit`, `memoryRequest`, `memoryLimit`, `ephemeralStorageRequest`, `ephemeralStorageLimit` for `KubernetesJob` runs. It is not called `resources` because that key holds the secret and MCP server bindings |
