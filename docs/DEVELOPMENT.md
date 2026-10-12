@@ -107,6 +107,8 @@ docker run -d --name garrison-pg -p 127.0.0.1:55432:5432 \
 GARRISON_TEST_PROVIDERS=sqlite,postgresql dotnet run --project src/Test.Automated -f net10.0
 ```
 
+`scripts/benchmark-event-inserts.sh f947551` compares direct event insertion with a baseline revision; set `GARRISON_TEST_PROVIDERS=sqlite,postgresql` to measure both. See `docs/SCALING.md` for workload, results, and parameter limits.
+
 `src/Test.Shared/Fixtures/RECORDING.md` explains how the harness output fixtures were captured and how to re-record them cheaply.
 
 Other checks:

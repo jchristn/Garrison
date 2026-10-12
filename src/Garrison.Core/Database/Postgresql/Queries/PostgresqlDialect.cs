@@ -22,6 +22,15 @@ namespace Garrison.Core.Database.Postgresql.Queries
         }
 
         /// <inheritdoc />
+        public override int MaximumParametersPerStatement
+        {
+            get
+            {
+                return 65535;
+            }
+        }
+
+        /// <inheritdoc />
         public override bool SupportsReturning
         {
             get

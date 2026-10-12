@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Event batches use provider-limited multi-row SQL with replay deduplication and one transaction across every chunk. SQLite reuses small prepared chunks; single-event batches retain their lightweight path. A reproducible database microbenchmark and measured before/after results are documented in `docs/SCALING.md` (P10.22).
+
 - Lease long polls recheck node readiness and registration before each claim pass. Requests opened before a worker is lost, cordoned, disabled, deleted, or registered again cannot claim newly queued work; current capabilities and placement are used after each wakeup (G-28).
 
 - Watson 7 host with per-feature route registrars, OpenAPI at `/openapi.json`, CORS, request history capture, and a central operation scope map that records the permission every route and MCP tool requires.

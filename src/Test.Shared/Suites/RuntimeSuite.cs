@@ -2,11 +2,13 @@ namespace Test.Shared.Suites
 {
     using System;
     using System.Collections.Generic;
+    using System.Data.Common;
     using System.Linq;
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
+    using Garrison.Core.Database.Ado;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Protocol;
@@ -25,6 +27,8 @@ namespace Test.Shared.Suites
     /// </summary>
     public static class RuntimeSuite
     {
+        #region Public-Methods
+
         /// <summary>
         /// Build the suites.
         /// </summary>
@@ -42,6 +46,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "lease-reaper", "Expired leases requeue with attempts left and fail with NodeLost otherwise (" + provider + ")", ct => ReaperAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "leader-election", "Only one holder leads; leadership moves after expiry with a higher epoch (" + provider + ")", ct => LeaderAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "events-idempotent", "Re-sent event batches are ignored by sequence (" + provider + ")", ct => EventsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "events-large-batch", "Large event batches cross provider parameter limits, keep order/deduplication, and roll back all chunks on a late failure (" + provider + ")", ct => LargeEventBatchAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "blocked-reasons", "Queued runs report NoReadyWorker, NoCapableWorker, and NoMatchingPool from node state (" + provider + ")", ct => BlockedReasonsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "blocked-maintenance", "The leader explains blocked runs once per reason and fails them after Runtime.FailBlockedAfterSeconds (" + provider + ")", ct => BlockedMaintenanceAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "delegation-policy", "Delegation allowlist, cycle, and depth rules (" + provider + ")", ct => DelegationAsync(provider, ct)));
@@ -49,6 +54,10 @@ namespace Test.Shared.Suites
             }
             return suites;
         }
+
+        #endregion
+
+        #region Private-Methods
 
         private static Run NewRun(string tenantId, string deploymentId)
         {
@@ -225,6 +234,74 @@ namespace Test.Shared.Suites
                 Assert.Equal(2L, bLater ?? 0, "B epoch after expiry");
                 long? aLater = await db.CoordinationLeases.TryAcquireAsync("leader", "A", 2000, token).ConfigureAwait(false);
                 Assert.True(aLater == null, "A must not reclaim while B leads.");
+            }
+        }
+
+        private static async Task LargeEventBatchAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                ((AdoRunEventMethods)db.RunEvents).BatchRowLimit = 5000;
+                Run run = await db.Runs.CreateAsync(NewRun("ten_batch", "dep_batch"), token).ConfigureAwait(false);
+                List<RunEvent> batch = new List<RunEvent>();
+                for (int sequence = 4400; sequence >= 1; sequence--)
+                {
+                    RunEvent evt = new RunEvent();
+                    evt.TenantId = run.TenantId;
+                    evt.RunId = run.Id;
+                    evt.Sequence = sequence;
+                    evt.EventType = RunEventTypeEnum.AssistantText;
+                    evt.Text = "event " + sequence;
+                    evt.RawEventJson = "{\"sequence\":" + sequence + "}";
+                    batch.Add(evt);
+                }
+                RunEvent detail = batch[0];
+                detail.TimestampUtc = new DateTime(2026, 10, 12, 12, 0, 0, DateTimeKind.Utc);
+                detail.EventType = RunEventTypeEnum.ToolResult;
+                detail.Code = "batch-test";
+                detail.ToolName = "test_tool";
+                detail.ToolCallId = "tool_batch";
+                detail.Success = false;
+                detail.InputTokens = 12;
+                detail.OutputTokens = 34;
+                batch.Add(batch[0]);
+                batch.Add(batch[66]);
+                batch.Add(batch[4369]);
+                Assert.Equal(4400, await db.RunEvents.InsertBatchAsync(batch, token).ConfigureAwait(false), "Only distinct run sequences count across chunks");
+                Assert.Equal(0, await db.RunEvents.InsertBatchAsync(batch, token).ConfigureAwait(false), "Resending the whole batch inserts nothing");
+                Assert.Equal(0, await db.RunEvents.InsertBatchAsync(new List<RunEvent> { batch[0] }, token).ConfigureAwait(false), "Single-event replay also inserts nothing");
+                List<RunEvent> stored = await db.RunEvents.ListAfterAsync(run.Id, 0, 5000, token).ConfigureAwait(false);
+                Assert.Equal(4400, stored.Count, "Every distinct event is stored");
+                for (int index = 0; index < stored.Count; index++) Assert.Equal(index + 1L, stored[index].Sequence, "Reads preserve sequence order despite reverse insertion");
+                RunEvent saved = stored[stored.Count - 1];
+                Assert.Equal(detail.TimestampUtc, saved.TimestampUtc, "Timestamp round trip");
+                Assert.Equal(detail.Text, saved.Text, "Text round trip");
+                Assert.Equal(detail.RawEventJson, saved.RawEventJson, "Raw event round trip");
+                Assert.Equal(detail.EventType, saved.EventType, "Event type round trip");
+                Assert.Equal(detail.Code, saved.Code, "Code round trip");
+                Assert.Equal(detail.ToolName, saved.ToolName, "Tool name round trip");
+                Assert.Equal(detail.ToolCallId, saved.ToolCallId, "Tool call ID round trip");
+                Assert.Equal(detail.Success, saved.Success, "False is not converted to null");
+                Assert.Equal(detail.InputTokens, saved.InputTokens, "Input tokens round trip");
+                Assert.Equal(detail.OutputTokens, saved.OutputTokens, "Output tokens round trip");
+                Assert.True(stored[0].Success == null && stored[0].ToolName == null, "Null optional fields round trip");
+
+                Run rollback = await db.Runs.CreateAsync(NewRun("ten_batch", "dep_batch"), token).ConfigureAwait(false);
+                List<RunEvent> invalid = new List<RunEvent>();
+                for (int sequence = 1; sequence <= 4400; sequence++) invalid.Add(new RunEvent { TenantId = rollback.TenantId, RunId = rollback.Id, Sequence = sequence, Text = "rollback" });
+                // A primary-key collision in a later chunk is not the allowed (runid, sequence) replay conflict.
+                invalid[invalid.Count - 1].Id = detail.Id;
+                bool rejected = false;
+                try
+                {
+                    await db.RunEvents.InsertBatchAsync(invalid, token).ConfigureAwait(false);
+                }
+                catch (DbException)
+                {
+                    rejected = true;
+                }
+                Assert.True(rejected, "A primary-key collision is rejected");
+                Assert.Equal(0, (await db.RunEvents.ListAfterAsync(rollback.Id, 0, 5000, token).ConfigureAwait(false)).Count, "A late-chunk failure rolls back the whole batch");
             }
         }
 
@@ -482,5 +559,6 @@ namespace Test.Shared.Suites
             }
             throw new TestAssertionException("Expected conflict " + code + ".");
         }
+        #endregion
     }
 }

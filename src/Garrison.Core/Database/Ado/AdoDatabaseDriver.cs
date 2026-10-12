@@ -460,6 +460,34 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <summary>
+        /// Execute a reusable command without disposing it, retaining statement telemetry for every execution.
+        /// The caller owns the command, connection, transaction, parameter values, and preparation.
+        /// </summary>
+        /// <param name="command">Configured command.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Affected rows.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when command is null.</exception>
+        public static async Task<int> ExecuteAsync(DbCommand command, CancellationToken token = default)
+        {
+            if (command == null) throw new ArgumentNullException(nameof(command));
+            DatabaseStatement statement = DatabaseTelemetry.Describe(command.CommandText);
+            string provider = DatabaseTelemetry.Provider(command.Connection);
+            long start = Stopwatch.GetTimestamp();
+            Activity? activity = DatabaseTelemetry.Start(statement, provider);
+            try
+            {
+                int affected = await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                DatabaseTelemetry.End(activity, statement, provider, start, null);
+                return affected;
+            }
+            catch (Exception e)
+            {
+                DatabaseTelemetry.End(activity, statement, provider, start, e);
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Execute a query on an existing connection and transaction and map each row.
         /// </summary>
         /// <typeparam name="T">Row type.</typeparam>

@@ -3,11 +3,14 @@ namespace Garrison.Core.Database.Ado
     using System;
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Globalization;
+    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database.Interfaces;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
 
     /// <summary>
@@ -15,10 +18,32 @@ namespace Garrison.Core.Database.Ado
     /// </summary>
     public class AdoRunEventMethods : IRunEventMethods
     {
+        #region Public-Members
+
+        /// <summary>
+        /// Maximum rows per event INSERT. Minimum 1, maximum 5000; defaults to 2 on SQLite and 4369 on PostgreSQL.
+        /// The dialect's parameter limit also caps the effective size. Small SQLite chunks avoid expensive named
+        /// parameter binding; the prepared command is reused within a batch. Changes affect subsequent batches.
+        /// </summary>
+        public int BatchRowLimit
+        {
+            get
+            {
+                return _BatchRowLimit;
+            }
+            set
+            {
+                _BatchRowLimit = Math.Clamp(value, 1, 5000);
+            }
+        }
+
+        #endregion
+
         #region Private-Members
 
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
+        private int _BatchRowLimit = 2;
 
         #endregion
 
@@ -33,6 +58,7 @@ namespace Garrison.Core.Database.Ado
         {
             _Driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _Table = driver.Table("run_events");
+            if (driver.Dialect.DatabaseType == DatabaseTypeEnum.Postgresql) _BatchRowLimit = driver.Dialect.MaximumParametersPerStatement / 15;
         }
 
         #endregion
@@ -46,7 +72,7 @@ namespace Garrison.Core.Database.Ado
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
-                await InsertRowAsync(connection, transaction, obj, ct).ConfigureAwait(false);
+                await InsertRowAsync(connection, transaction, obj, false, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
 
             return obj;
@@ -199,33 +225,65 @@ namespace Garrison.Core.Database.Ado
         {
             if (events == null) throw new ArgumentNullException(nameof(events));
             if (events.Count == 0) return 0;
+            if (events.Count == 1)
+            {
+                // Keep the small-batch path free of multi-row SQL construction and preparation overhead.
+                int single = 0;
+                await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
+                {
+                    single = await InsertRowAsync(connection, transaction, events[0], true, ct).ConfigureAwait(false);
+                }, token).ConfigureAwait(false);
+                return single;
+            }
 
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, runid, sequence, eventtype, timestamputc, text, code, toolname, toolcallid, success, inputtokens, outputtokens, raweventjson, createdutc) " +
-                         "VALUES (@id, @tenantid, @runid, @sequence, @eventtype, @timestamputc, @text, @code, @toolname, @toolcallid, @success, @inputtokens, @outputtokens, @raweventjson, @createdutc) ON CONFLICT (runid, sequence) DO NOTHING;";
+            string[] columns = new[] { "id", "tenantid", "runid", "sequence", "eventtype", "timestamputc", "text", "code", "toolname", "toolcallid", "success", "inputtokens", "outputtokens", "raweventjson", "createdutc" };
+            int rowsPerStatement = Math.Min(BatchRowLimit, Math.Max(1, _Driver.Dialect.MaximumParametersPerStatement / columns.Length));
             int inserted = 0;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
+                // Retry the entire transaction, including its count. A failure in a later chunk must roll back earlier
+                // chunks, and a retry must not include their discarded count (P10.22).
                 inserted = 0;
-                foreach (RunEvent evt in events)
+                using (DbCommand command = connection.CreateCommand())
                 {
-                    inserted += await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
+                    command.Transaction = transaction;
+                    for (int start = 0; start < events.Count; start += rowsPerStatement)
                     {
-                        AdoDatabaseDriver.Add(command, "id", evt.Id);
-                        AdoDatabaseDriver.Add(command, "tenantid", evt.TenantId);
-                        AdoDatabaseDriver.Add(command, "runid", evt.RunId);
-                        AdoDatabaseDriver.Add(command, "sequence", evt.Sequence);
-                        AdoDatabaseDriver.Add(command, "eventtype", evt.EventType.ToString());
-                        AdoDatabaseDriver.Add(command, "timestamputc", evt.TimestampUtc);
-                        AdoDatabaseDriver.Add(command, "text", evt.Text);
-                        AdoDatabaseDriver.Add(command, "code", evt.Code);
-                        AdoDatabaseDriver.Add(command, "toolname", evt.ToolName);
-                        AdoDatabaseDriver.Add(command, "toolcallid", evt.ToolCallId);
-                        AdoDatabaseDriver.Add(command, "success", evt.Success);
-                        AdoDatabaseDriver.Add(command, "inputtokens", evt.InputTokens);
-                        AdoDatabaseDriver.Add(command, "outputtokens", evt.OutputTokens);
-                        AdoDatabaseDriver.Add(command, "raweventjson", evt.RawEventJson);
-                        AdoDatabaseDriver.Add(command, "createdutc", DateTime.UtcNow);
-                    }, ct).ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
+                        int count = Math.Min(rowsPerStatement, events.Count - start);
+                        bool rebuild = command.Parameters.Count != count * columns.Length;
+                        if (rebuild)
+                        {
+                            command.Parameters.Clear();
+                            StringBuilder sql = new StringBuilder("INSERT INTO " + _Table + " (" + String.Join(", ", columns) + ") VALUES ");
+                            for (int row = 0; row < count; row++)
+                            {
+                                if (row > 0) sql.Append(", ");
+                                sql.Append('(');
+                                for (int column = 0; column < columns.Length; column++)
+                                {
+                                    if (column > 0) sql.Append(", ");
+                                    string parameter = "p" + (row * columns.Length + column).ToString(CultureInfo.InvariantCulture);
+                                    sql.Append('@').Append(parameter);
+                                    AdoDatabaseDriver.Add(command, parameter, null);
+                                }
+                                sql.Append(')');
+                            }
+                            sql.Append(" ON CONFLICT (runid, sequence) DO NOTHING;");
+                            command.CommandText = sql.ToString();
+                        }
+                        DateTime created = DateTime.UtcNow;
+                        for (int row = 0; row < count; row++)
+                        {
+                            RunEvent evt = events[start + row];
+                            object?[] values = new object?[] { evt.Id, evt.TenantId, evt.RunId, evt.Sequence, evt.EventType.ToString(), TimestampHelper.Normalize(evt.TimestampUtc), evt.Text, evt.Code, evt.ToolName, evt.ToolCallId, evt.Success, evt.InputTokens, evt.OutputTokens, evt.RawEventJson, created };
+                            for (int column = 0; column < values.Length; column++) command.Parameters[row * columns.Length + column].Value = values[column] ?? DBNull.Value;
+                        }
+                        // SQLite benefits from retaining the compiled statement and parameter objects across chunks.
+                        // PostgreSQL keeps its normal execution path; preparing it would add a round trip per batch.
+                        if (rebuild && _Driver.Dialect.DatabaseType == DatabaseTypeEnum.Sqlite) await command.PrepareAsync(ct).ConfigureAwait(false);
+                        inserted += await AdoDatabaseDriver.ExecuteAsync(command, ct).ConfigureAwait(false);
+                    }
                 }
             }, token).ConfigureAwait(false);
             return inserted;
@@ -297,10 +355,10 @@ namespace Garrison.Core.Database.Ado
 
         #region Private-Methods
 
-        private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, RunEvent obj, CancellationToken token)
+        private async Task<int> InsertRowAsync(DbConnection connection, DbTransaction transaction, RunEvent obj, bool ignoreReplay, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, runid, sequence, eventtype, timestamputc, text, code, toolname, toolcallid, success, inputtokens, outputtokens, raweventjson, createdutc) VALUES (@id, @tenantid, @runid, @sequence, @eventtype, @timestamputc, @text, @code, @toolname, @toolcallid, @success, @inputtokens, @outputtokens, @raweventjson, @createdutc);";
-            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, runid, sequence, eventtype, timestamputc, text, code, toolname, toolcallid, success, inputtokens, outputtokens, raweventjson, createdutc) VALUES (@id, @tenantid, @runid, @sequence, @eventtype, @timestamputc, @text, @code, @toolname, @toolcallid, @success, @inputtokens, @outputtokens, @raweventjson, @createdutc)" + (ignoreReplay ? " ON CONFLICT (runid, sequence) DO NOTHING;" : ";");
+            return await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
                 AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
@@ -309,14 +367,14 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "eventtype", obj.EventType.ToString());
                 AdoDatabaseDriver.Add(command, "timestamputc", obj.TimestampUtc);
                 AdoDatabaseDriver.Add(command, "text", obj.Text);
-                    AdoDatabaseDriver.Add(command, "code", obj.Code);
+                AdoDatabaseDriver.Add(command, "code", obj.Code);
                 AdoDatabaseDriver.Add(command, "toolname", obj.ToolName);
                 AdoDatabaseDriver.Add(command, "toolcallid", obj.ToolCallId);
                 AdoDatabaseDriver.Add(command, "success", obj.Success);
                 AdoDatabaseDriver.Add(command, "inputtokens", obj.InputTokens);
                 AdoDatabaseDriver.Add(command, "outputtokens", obj.OutputTokens);
                 AdoDatabaseDriver.Add(command, "raweventjson", obj.RawEventJson);
-                AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);
+                AdoDatabaseDriver.Add(command, "createdutc", ignoreReplay ? DateTime.UtcNow : obj.CreatedUtc);
             }, token).ConfigureAwait(false);
         }
 

@@ -18,6 +18,18 @@ namespace Garrison.Core.Database.Sql
         public abstract DatabaseTypeEnum DatabaseType { get; }
 
         /// <summary>
+        /// Conservative maximum bind parameters in one statement. Defaults to 999 for SQLite compatibility;
+        /// providers with a larger protocol limit override it. Batch writers must chunk below this limit.
+        /// </summary>
+        public virtual int MaximumParametersPerStatement
+        {
+            get
+            {
+                return 999;
+            }
+        }
+
+        /// <summary>
         /// Whether UPDATE and DELETE statements support a RETURNING clause.
         /// </summary>
         public virtual bool SupportsReturning

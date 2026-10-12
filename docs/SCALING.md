@@ -268,3 +268,26 @@ Measured on 2026-10-10 on a laptop: a k3d cluster capped at 4 GB in a Docker VM 
 With no backlog, the control plane adds about 40 to 190 ms between a run being queued and a worker leasing it, and runs finished 140 to 230 ms after their harness time. Under load, throughput sat at the slot limit (16 slots divided by the run length), so the workers, not the control plane, were the bottleneck: add workers or slots to go faster. The plan's full size (3 servers, 10 workers, 1000 runs) needs more memory than this laptop's Docker VM; use the commands above on a larger machine and add the results here.
 
 Read claim latency with the backlog in mind. When `RUNS` is larger than the cluster's slots (`WORKERS` times `WORKER_CONCURRENCY`, 16 by default), most of a run's wait is its place in the queue, and the percentiles describe the backlog. For the scheduler's own overhead, run with `RUNS` at or below the slot count; for throughput, keep the backlog.
+
+## Event insertion microbenchmark (P10.22)
+
+Event ingestion uses multi-row inserts with `(runid, sequence)` replay deduplication. All chunks share one transaction, so a late failure rolls back the whole batch. PostgreSQL chunks at 4,369 rows (15 parameters per row, protocol limit 65,535). SQLite uses two-row chunks with a reused prepared command, because large named-parameter statements measured slower than small ones; its conservative parameter budget remains 999. `AdoRunEventMethods.BatchRowLimit` can tune chunk size (1 to 5,000), with the parameter budget as a second cap. Single-event batches retain the original lightweight path.
+
+Measured 2026-10-12 on Apple M5 Max, .NET 10.0.401, SQLite locally and PostgreSQL 17.11 in Docker. Each cell is the median of five rounds of 3,000 events; events carry 128-character assistant text and raw JSON. Setup/allocation and one warmup batch are excluded; transaction/connection cost is included. Baseline is `f947551` with the same microbenchmark harness copied in. These are direct database measurements, not the fleet capacity ceiling (P14.15 remains open).
+
+| Provider | Batch size | Before events/s | After events/s | Ratio |
+|---|---:|---:|---:|---:|
+| sqlite | 1 | 25,091 | 25,427 | 1.01x |
+| sqlite | 10 | 74,825 | 84,976 | 1.14x |
+| sqlite | 100 | 121,777 | 136,749 | 1.12x |
+| postgresql | 1 | 1,640 | 1,656 | 1.01x |
+| postgresql | 10 | 3,424 | 13,010 | 3.80x |
+| postgresql | 100 | 3,901 | 43,760 | 11.22x |
+
+Raw results and environment are local generated artifacts (ignored by Git): `benchmarks/results/20261012-event-inserts/{before.csv,after.csv,provenance.txt}`. The table above preserves the measured medians; this five-round microbenchmark does not establish statistical significance or a fleet throughput target. Reproduce the comparison with an available PostgreSQL test server:
+
+```bash
+GARRISON_TEST_PROVIDERS=sqlite,postgresql scripts/benchmark-event-inserts.sh f947551
+```
+
+For one revision, run `dotnet run --project src/Test.Automated -f net10.0 -- --event-insert-benchmark --providers sqlite,postgresql --benchmark-events 3000 --benchmark-rounds 5`. Provider connection overrides are the existing `GARRISON_TEST_PG_*` variables. The comparison script preserves CSV/build logs and removes its temporary baseline worktree.
