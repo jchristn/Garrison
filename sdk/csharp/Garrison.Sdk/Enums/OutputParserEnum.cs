@@ -33,6 +33,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// PlainText.
         /// </summary>
-        PlainText
+        PlainText,
+
+        /// <summary>
+        /// CodexAppServer.
+        /// </summary>
+        CodexAppServer
     }
 }

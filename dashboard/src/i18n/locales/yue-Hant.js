@@ -139,12 +139,13 @@ const yueHant = {
   enums: {
     principalType: { Administrator: '系統管理員', User: '用戶', Credential: '存取金鑰', Run: '執行權杖' },
     runBlockedReason: { NoReadyWorker: '冇就緒嘅工作節點', NoCapableWorker: '冇工作節點做到', NoMatchingPool: '冇相符嘅節點池' },
-    promptDelivery: { Stdin: '標準輸入', Argument: '命令列參數', File: '檔案' },
+    promptDelivery: { Stdin: '標準輸入', Argument: '命令列參數', File: '檔案', CodexAppServer: 'Codex 應用程式伺服器 (JSON-RPC)' },
     systemPromptDelivery: { File: '檔案', Argument: '命令列參數', Environment: '環境變數', PrependToPrompt: '加喺提示前面', None: '唔傳遞' },
     mcpConfigFormat: { None: '冇 MCP 設定', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI 設定' },
     outputParser: {
       ClaudeStreamJson: 'Claude Code 串流 JSON',
       CodexJsonl: 'Codex JSONL',
+      CodexAppServer: 'Codex 應用程式伺服器 JSON-RPC',
       MuxJsonl: 'Mux JSONL',
       GeminiStreamJson: 'Gemini CLI 串流 JSON',
       GenericJsonl: '通用 JSONL',

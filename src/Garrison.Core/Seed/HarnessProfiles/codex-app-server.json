@@ -1,0 +1,142 @@
+{
+  "name": "builtin/codex-app-server",
+  "description": "Codex CLI driven over the app-server JSON-RPC protocol, so output streams as it is generated. The worker sends the prompt as one turn, model instructions come from a file, MCP servers are --config overrides with bearer tokens read from environment variables.",
+  "harnessType": "Codex",
+  "executable": "codex",
+  "promptDelivery": "CodexAppServer",
+  "systemPromptDelivery": "File",
+  "systemPromptTarget": "system-prompt.md",
+  "mcpConfigFormat": "CodexToml",
+  "outputParser": "CodexAppServer",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEvent",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "supportsResume": true,
+  "arguments": [
+    {
+      "template": "app-server"
+    },
+    {
+      "template": "-c"
+    },
+    {
+      "template": "project_doc_max_bytes=0"
+    },
+    {
+      "template": "-c"
+    },
+    {
+      "template": "sandbox_mode={{deployment.parameters.sandbox | default: \"workspace-write\" | toml}}"
+    },
+    {
+      "template": "-c",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "model={{deployment.model | toml}}",
+      "condition": "{{deployment.model}}"
+    },
+    {
+      "template": "-c",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "model_reasoning_effort={{deployment.effort | toml}}",
+      "condition": "{{deployment.effort}}"
+    },
+    {
+      "template": "-c",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "model_instructions_file=\"$GARRISON_CONFIG_DIR/system-prompt.md\"",
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.url={{this.endpoint | toml}}",
+      "repeatOver": "resources.httpMcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.env_http_headers={ {{#each this.headers}}{{this.name | toml}} = {{this.envName | toml}}{{#unless @last}}, {{/unless}}{{/each}} }",
+      "condition": "{{this.headers}}",
+      "repeatOver": "resources.httpMcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.required={{this.required}}",
+      "repeatOver": "resources.mcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.tool_timeout_sec={{this.toolTimeoutSeconds}}",
+      "repeatOver": "resources.mcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.default_tools_approval_mode=\"approve\"",
+      "repeatOver": "resources.mcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.command={{this.command | toml}}",
+      "repeatOver": "resources.stdioMcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.args={{this.args | toml}}",
+      "repeatOver": "resources.stdioMcpServers"
+    },
+    {
+      "template": "--config=mcp_servers.{{this.name}}.env={ {{#each this.env}}{{this.name | toml}} = {{this.value | toml}}{{#unless @last}}, {{/unless}}{{/each}} }",
+      "condition": "{{this.env}}",
+      "repeatOver": "resources.stdioMcpServers"
+    }
+  ],
+  "environment": [
+    {
+      "name": "CODEX_API_KEY",
+      "valueTemplate": "{{secret.kind.OpenAiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "valueTemplate": "{{secret.kind.OpenAiApiKey}}",
+      "isSecret": true
+    },
+    {
+      "name": "OPENAI_BASE_URL",
+      "valueTemplate": "{{deployment.parameters.openaiBaseUrl}}",
+      "isSecret": false
+    },
+    {
+      "name": "CODEX_REFRESH_TOKEN_URL_OVERRIDE",
+      "valueTemplate": "http://127.0.0.1:9/garrison-refresh-disabled",
+      "isSecret": false,
+      "condition": "{{secret.kind.CodexAuthJson}}"
+    }
+  ],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "system-prompt.md",
+      "contentTemplate": "{{prompts.system}}",
+      "isSecret": false,
+      "condition": "{{prompts.system}}"
+    },
+    {
+      "baseDirectory": "Home",
+      "pathTemplate": ".codex/auth.json",
+      "contentTemplate": "{{secret.kind.CodexAuthJson | codexRunAuth}}",
+      "isSecret": true,
+      "condition": "{{secret.kind.CodexAuthJson}}",
+      "mode": "600"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "CODEX_API_KEY",
+    "OPENAI_API_KEY"
+  ]
+}

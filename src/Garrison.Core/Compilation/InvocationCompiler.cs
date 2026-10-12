@@ -388,6 +388,14 @@ namespace Garrison.Core.Compilation
                     string promptFile = String.IsNullOrWhiteSpace(profile.PromptArgumentTemplate) ? "prompt.md" : Render(profile.PromptArgumentTemplate, context, includes, usedIncludes, false, scrub, "promptArgument");
                     spec.Files.Add(File(FileBaseDirectoryEnum.Config, promptFile, task, null, false));
                     break;
+                case PromptDeliveryEnum.CodexAppServer:
+                    // The worker sends the prompt as the input of one turn over JSON-RPC; the thread to resume and the
+                    // output schema travel as typed settings because app-server takes them as request parameters.
+                    spec.Stdin = task;
+                    spec.AppServer = new ExecutionAppServer();
+                    spec.AppServer.ResumeThreadId = repair?.SessionId;
+                    spec.AppServer.OutputSchemaJson = CompactJson(agent.OutputSchemaJson, "output schema of agent " + agent.Name);
+                    break;
             }
 
             spec.Workspace = Workspace(inputs, scrub);

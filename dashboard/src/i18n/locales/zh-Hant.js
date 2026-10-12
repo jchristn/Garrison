@@ -139,12 +139,13 @@ const zhHant = {
   enums: {
     principalType: { Administrator: '系統管理員', User: '使用者', Credential: '存取金鑰', Run: '執行權杖' },
     runBlockedReason: { NoReadyWorker: '沒有就緒的工作節點', NoCapableWorker: '沒有可執行的工作節點', NoMatchingPool: '沒有相符的節點池' },
-    promptDelivery: { Stdin: '標準輸入', Argument: '命令列引數', File: '檔案' },
+    promptDelivery: { Stdin: '標準輸入', Argument: '命令列引數', File: '檔案', CodexAppServer: 'Codex 應用程式伺服器 (JSON-RPC)' },
     systemPromptDelivery: { File: '檔案', Argument: '命令列引數', Environment: '環境變數', PrependToPrompt: '加在提示前面', None: '不傳遞' },
     mcpConfigFormat: { None: '無 MCP 設定', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI 設定' },
     outputParser: {
       ClaudeStreamJson: 'Claude Code 串流 JSON',
       CodexJsonl: 'Codex JSONL',
+      CodexAppServer: 'Codex 應用程式伺服器 JSON-RPC',
       MuxJsonl: 'Mux JSONL',
       GeminiStreamJson: 'Gemini CLI 串流 JSON',
       GenericJsonl: '通用 JSONL',

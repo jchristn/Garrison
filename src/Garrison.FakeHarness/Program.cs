@@ -11,12 +11,13 @@ namespace Garrison.FakeHarness
 
     /// <summary>
     /// Deterministic fake agent harness. Reads the prompt from stdin and answers "Echo: " followed by the first 200
-    /// characters of the prompt, in Claude stream-json, Codex JSONL, Mux JSONL, or plain text format.
-    /// Usage: garrison-fake-harness --version | --format claude|codex|mux|plain [--scenario file] [--delay-ms N]
+    /// characters of the prompt, in Claude stream-json, Codex JSONL, Mux JSONL, or plain text format, or serves the
+    /// Codex app-server JSON-RPC protocol (format codex-app-server).
+    /// Usage: garrison-fake-harness --version | --format claude|codex|codex-app-server|mux|plain [--scenario file] [--delay-ms N]
     /// [--fail] [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
     /// [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N] [--answer text]
     /// [--resume-answer text] [--resume sessionId] [--structured-output] [--ignore-sigterm] [--loop-text text]
-    /// [--spawn-child pidfile] [--tool-sleep-ms N].
+    /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval].
     /// </summary>
     public static class Program
     {
@@ -46,6 +47,13 @@ namespace Garrison.FakeHarness
                 sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, context => context.Cancel = true);
             }
             if (!String.IsNullOrEmpty(options.SpawnChildPidFile)) SpawnChild(options.SpawnChildPidFile);
+
+            if (options.Format == "codex-app-server")
+            {
+                int code = await new FakeAppServer(options).RunAsync().ConfigureAwait(false);
+                GC.KeepAlive(sigterm);
+                return code;
+            }
 
             string prompt = Console.IsInputRedirected ? await Console.In.ReadToEndAsync().ConfigureAwait(false) : String.Empty;
             string answer = "Echo: " + (prompt.Length > 200 ? prompt.Substring(0, 200) : prompt).Trim();

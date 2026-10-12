@@ -33,6 +33,12 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// PlainText.
         /// </summary>
-        PlainText
+        PlainText,
+
+        /// <summary>
+        /// CodexAppServer: JSON-RPC messages from <c>codex app-server</c> (agent message and reasoning deltas, items,
+        /// token usage, turn completion).
+        /// </summary>
+        CodexAppServer
     }
 }

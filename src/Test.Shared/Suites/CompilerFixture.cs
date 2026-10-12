@@ -131,6 +131,7 @@ namespace Test.Shared.Suites
             {
                 "claude-code" => SecretKindEnum.ClaudeCodeOAuthToken,
                 "codex" => SecretKindEnum.OpenAiApiKey,
+                "codex-app-server" => SecretKindEnum.OpenAiApiKey,
                 "mux" => SecretKindEnum.OpenAiApiKey,
                 "gemini-cli" => SecretKindEnum.GeminiApiKey,
                 _ => SecretKindEnum.GenericEnv

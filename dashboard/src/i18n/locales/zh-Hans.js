@@ -139,12 +139,13 @@ const zhHans = {
   enums: {
     principalType: { Administrator: '系统管理员', User: '用户', Credential: '访问密钥', Run: '运行令牌' },
     runBlockedReason: { NoReadyWorker: '没有就绪的工作节点', NoCapableWorker: '没有可用的工作节点', NoMatchingPool: '没有匹配的节点池' },
-    promptDelivery: { Stdin: '标准输入', Argument: '命令行参数', File: '文件' },
+    promptDelivery: { Stdin: '标准输入', Argument: '命令行参数', File: '文件', CodexAppServer: 'Codex 应用服务器 (JSON-RPC)' },
     systemPromptDelivery: { File: '文件', Argument: '命令行参数', Environment: '环境变量', PrependToPrompt: '加在提示词前面', None: '不传递' },
     mcpConfigFormat: { None: '无 MCP 配置', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI 设置' },
     outputParser: {
       ClaudeStreamJson: 'Claude Code 流式 JSON',
       CodexJsonl: 'Codex JSONL',
+      CodexAppServer: 'Codex 应用服务器 JSON-RPC',
       MuxJsonl: 'Mux JSONL',
       GeminiStreamJson: 'Gemini CLI 流式 JSON',
       GenericJsonl: '通用 JSONL',

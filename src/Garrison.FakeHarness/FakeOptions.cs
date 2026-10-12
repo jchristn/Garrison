@@ -11,7 +11,8 @@ namespace Garrison.FakeHarness
         #region Public-Members
 
         /// <summary>
-        /// Output format: claude, codex, mux, or plain. Default plain.
+        /// Output format: claude, codex, codex-app-server (JSON-RPC over stdin and stdout, see
+        /// <see cref="FakeAppServer"/>), mux, or plain. Default plain.
         /// </summary>
         public string Format { get; set; } = "plain";
 
@@ -120,6 +121,13 @@ namespace Garrison.FakeHarness
         /// </summary>
         public int ToolSleepMs { get; set; } = 0;
 
+        /// <summary>
+        /// In codex-app-server format, ask the client to approve a command (an
+        /// <c>item/commandExecution/requestApproval</c> request) before answering, and report the decision as a
+        /// command item (declined unless the client accepts). Default false.
+        /// </summary>
+        public bool RequestApproval { get; set; } = false;
+
         #endregion
 
         #region Public-Methods
@@ -197,6 +205,9 @@ namespace Garrison.FakeHarness
                         break;
                     case "--tool-sleep-ms":
                         if (next != null) { options.ToolSleepMs = Math.Max(0, Int32.Parse(next, CultureInfo.InvariantCulture)); i++; }
+                        break;
+                    case "--request-approval":
+                        options.RequestApproval = true;
                         break;
                     case "--stderr":
                         if (next != null) { options.Stderr = next; i++; }

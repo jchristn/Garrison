@@ -139,12 +139,13 @@ const ja = {
   enums: {
     principalType: { Administrator: 'システム管理者', User: 'ユーザー', Credential: 'アクセスキー', Run: '実行トークン' },
     runBlockedReason: { NoReadyWorker: '準備完了のワーカーなし', NoCapableWorker: '対応できるワーカーなし', NoMatchingPool: '一致するプールなし' },
-    promptDelivery: { Stdin: '標準入力', Argument: 'コマンドライン引数', File: 'ファイル' },
+    promptDelivery: { Stdin: '標準入力', Argument: 'コマンドライン引数', File: 'ファイル', CodexAppServer: 'Codex アプリサーバー (JSON-RPC)' },
     systemPromptDelivery: { File: 'ファイル', Argument: 'コマンドライン引数', Environment: '環境変数', PrependToPrompt: 'プロンプトの先頭に追加', None: '渡さない' },
     mcpConfigFormat: { None: 'MCP 設定なし', ClaudeJson: 'Claude Code JSON', CodexToml: 'Codex TOML', MuxJson: 'Mux JSON', GeminiSettings: 'Gemini CLI 設定' },
     outputParser: {
       ClaudeStreamJson: 'Claude Code ストリーム JSON',
       CodexJsonl: 'Codex JSONL',
+      CodexAppServer: 'Codex アプリサーバー JSON-RPC',
       MuxJsonl: 'Mux JSONL',
       GeminiStreamJson: 'Gemini CLI ストリーム JSON',
       GenericJsonl: '汎用 JSONL',

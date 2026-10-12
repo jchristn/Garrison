@@ -36,6 +36,13 @@ namespace Garrison.Harnesses.Execution
         public string? Stdin { get; set; } = null;
 
         /// <summary>
+        /// Interactive stdin driver. When set, <see cref="Stdin"/> is ignored: the runner hands stdin (UTF-8, no byte
+        /// order mark) to the driver and closes it when the driver returns. Null writes <see cref="Stdin"/> and closes
+        /// stdin right away.
+        /// </summary>
+        public IStdinDriver? StdinDriver { get; set; } = null;
+
+        /// <summary>
         /// Deadline in seconds from start.
         /// </summary>
         public int TimeoutSeconds { get; set; } = 1800;

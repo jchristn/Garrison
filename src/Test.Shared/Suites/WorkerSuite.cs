@@ -38,6 +38,10 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("worker-executor", "success-claude", "Executor: fake harness success in Claude format", ct => FormatSuccessAsync("claude", OutputParserEnum.ClaudeStreamJson, ct)),
                 new TestCaseDescriptor("worker-executor", "success-codex", "Executor: fake harness success in Codex format", ct => FormatSuccessAsync("codex", OutputParserEnum.CodexJsonl, ct)),
                 new TestCaseDescriptor("worker-executor", "success-plain", "Executor: fake harness success in plain format", ct => FormatSuccessAsync("plain", OutputParserEnum.PlainText, ct)),
+                new TestCaseDescriptor("worker-executor", "codex-app-server-stream", "Executor: Codex app-server delivery streams deltas with real TTFT and streaming time, then closes stdin", AppServerStreamAsync),
+                new TestCaseDescriptor("worker-executor", "codex-app-server-login-schema", "Executor: Codex app-server delivery logs in with the API key from the environment and sends the output schema; the key is scrubbed", AppServerLoginSchemaAsync),
+                new TestCaseDescriptor("worker-executor", "codex-app-server-approval", "Executor: Codex app-server approval requests are declined and reported", AppServerApprovalAsync),
+                new TestCaseDescriptor("worker-executor", "codex-app-server-failures", "Executor: Codex app-server failed turn, unknown resume thread, and a hung turn hitting the deadline", AppServerFailuresAsync),
                 new TestCaseDescriptor("worker-executor", "failure", "Executor: harness failure maps to HarnessFailed", FailureAsync),
                 new TestCaseDescriptor("worker-executor", "not-installed", "Executor: missing executable maps to NotInstalled", NotInstalledAsync),
                 new TestCaseDescriptor("worker-executor", "timeout", "Executor: deadline kills a hung harness", TimeoutAsync),
@@ -160,6 +164,99 @@ namespace Test.Shared.Suites
                 Assert.True(streaming >= 15, "The fake harness pauses after thinking, so streaming is measurable (was " + streaming + ").");
                 Assert.Equal(2L, complete.ReasoningTokens, "Reasoning tokens reported by the fake harness");
             }
+        }
+
+        private static RunAssignment AppServerAssignment(string prompt, params string[] extraArguments)
+        {
+            RunAssignment assignment = Assignment("codex-app-server", OutputParserEnum.CodexAppServer, prompt, extraArguments);
+            ExecutionSpec spec = assignment.Spec!;
+            spec.HarnessType = HarnessTypeEnum.Codex;
+            spec.AppServer = new ExecutionAppServer();
+            return assignment;
+        }
+
+        private static async Task AppServerStreamAsync(CancellationToken token)
+        {
+            RunAssignment assignment = AppServerAssignment("hello streaming garrison world", "--delay-ms", "15", "--tool-calls", "1");
+            InMemoryRunReporter reporter = new InMemoryRunReporter();
+            Stopwatch elapsed = Stopwatch.StartNew();
+            RunCompleteRequest complete = await Executor().ExecuteAsync(assignment, reporter, token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.Succeeded, complete.Status, "Status (" + complete.ErrorMessage + "; stderr " + complete.StderrTail + ")");
+            Assert.Equal("Echo: hello streaming garrison world", complete.ResultText, "Result text");
+            Assert.Equal(0, complete.ExitCode, "The app-server exits 0 once stdin closes");
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(30), "The run ends when the turn completes, not at the deadline");
+
+            List<RunEventReport> events = reporter.Events();
+            AssertSequences(events);
+            List<RunEventReport> text = events.Where(e => e.EventType == RunEventTypeEnum.AssistantText).ToList();
+            Assert.Equal(5, text.Count, "One AssistantText event per streamed delta");
+            Assert.Equal("Echo: hello streaming garrison world", String.Concat(text.Select(e => e.Text)), "Deltas add up to the answer");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Thinking), "Reasoning delta");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Result), "Result");
+            Assert.Equal(1, complete.ToolCallCount, "Command item counted as a tool call");
+
+            Assert.True(!String.IsNullOrEmpty(complete.SessionId), "Thread id recorded as the session id");
+            Assert.Equal("fake-app-server-model", complete.ServedModel, "Served model from thread/start");
+            Assert.Equal(100L, complete.InputTokens, "Input tokens");
+            Assert.Equal(40L, complete.CachedTokens, "Cached tokens");
+            Assert.Equal(2L, complete.ReasoningTokens, "Reasoning tokens");
+            Assert.Equal(7L, complete.OutputTokens, "Output tokens (five chunks plus two reasoning)");
+
+            long ttft = complete.TimeToFirstTokenMs ?? -1;
+            long streaming = complete.StreamingMs ?? -1;
+            Assert.True(ttft > 0, "TTFT measured (was " + ttft + ")");
+            Assert.True(streaming >= 60, "Streaming covers the pauses between deltas (was " + streaming + ")");
+            Assert.True((complete.ExecutionMs ?? -1) >= ttft + streaming, "Execution covers TTFT plus streaming");
+            Assert.True((complete.StderrTail ?? String.Empty).Contains("approval policy \"never\"", StringComparison.Ordinal), "Approval policy never sent on thread/start: " + complete.StderrTail);
+        }
+
+        private static async Task AppServerLoginSchemaAsync(CancellationToken token)
+        {
+            RunAssignment assignment = AppServerAssignment("structured please", "--answer", "{\"answer\":\"sk-fake-app-server-key-1234\"}");
+            ExecutionSpec spec = assignment.Spec!;
+            spec.Environment.Add(new ExecutionEnvironmentVariable { Name = "CODEX_API_KEY", Value = "sk-fake-app-server-key-1234", IsSecret = true });
+            spec.AppServer!.OutputSchemaJson = "{\"type\":\"object\",\"properties\":{\"answer\":{\"type\":\"string\"}}}";
+            InMemoryRunReporter reporter = new InMemoryRunReporter();
+            RunCompleteRequest complete = await Executor().ExecuteAsync(assignment, reporter, token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.Succeeded, complete.Status, "Status (" + complete.ErrorMessage + ")");
+            string stderr = complete.StderrTail ?? String.Empty;
+            Assert.True(stderr.Contains("api key login", StringComparison.Ordinal), "Logged in with the API key: " + stderr);
+            Assert.True(stderr.Contains("output schema received", StringComparison.Ordinal), "Output schema sent on turn/start: " + stderr);
+            Assert.True((complete.ResultText ?? String.Empty).Contains("[REDACTED]", StringComparison.Ordinal), "Secret scrubbed from the result: " + complete.ResultText);
+            Assert.True(reporter.Events().All(e => (e.Text ?? String.Empty).IndexOf("sk-fake-app-server-key-1234", StringComparison.Ordinal) < 0), "Secret scrubbed from events");
+        }
+
+        private static async Task AppServerApprovalAsync(CancellationToken token)
+        {
+            RunAssignment assignment = AppServerAssignment("needs approval", "--request-approval");
+            InMemoryRunReporter reporter = new InMemoryRunReporter();
+            RunCompleteRequest complete = await Executor().ExecuteAsync(assignment, reporter, token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.Succeeded, complete.Status, "Status (" + complete.ErrorMessage + ")");
+            Assert.True((complete.StderrTail ?? String.Empty).Contains("approval answered \"decline\"", StringComparison.Ordinal), "Approval declined: " + complete.StderrTail);
+            List<RunEventReport> events = reporter.Events();
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Warning && (e.Text ?? String.Empty).Contains("requestApproval", StringComparison.Ordinal)), "The approval request is visible");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolCallId == "call_approval" && e.Success == false), "The declined command failed");
+        }
+
+        private static async Task AppServerFailuresAsync(CancellationToken token)
+        {
+            RunCompleteRequest failed = await Executor().ExecuteAsync(AppServerAssignment("fail please", "--fail"), new InMemoryRunReporter(), token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.Failed, failed.Status, "Failed turn status");
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, failed.Outcome, "Failed turn outcome");
+            Assert.Equal("Fake failure.", failed.ErrorMessage, "Failed turn message");
+
+            RunAssignment resume = AppServerAssignment("resume me");
+            resume.Spec!.AppServer!.ResumeThreadId = "thr-does-not-exist";
+            RunCompleteRequest missing = await Executor().ExecuteAsync(resume, new InMemoryRunReporter(), token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.Failed, missing.Status, "Unknown thread status");
+            Assert.True((missing.ErrorMessage ?? String.Empty).Contains("no rollout found", StringComparison.Ordinal), "Unknown thread message: " + missing.ErrorMessage);
+
+            RunAssignment hang = AppServerAssignment("hang", "--hang");
+            hang.Spec!.TimeoutSeconds = 3;
+            Stopwatch elapsed = Stopwatch.StartNew();
+            RunCompleteRequest timedOut = await Executor().ExecuteAsync(hang, new InMemoryRunReporter(), token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.TimedOut, timedOut.Status, "Hung turn status");
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(20), "The driver does not outlive the deadline (took " + elapsed.Elapsed + ")");
         }
 
         private static async Task ToolCallCountAsync(CancellationToken token)

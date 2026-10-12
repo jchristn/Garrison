@@ -156,7 +156,7 @@ const en = {
   enums: {
     principalType: { Administrator: 'Administrator', User: 'User', Credential: 'Access key', Run: 'Run token' },
     runBlockedReason: { NoReadyWorker: 'No ready worker', NoCapableWorker: 'No capable worker', NoMatchingPool: 'No matching pool' },
-    promptDelivery: { Stdin: 'Standard input', Argument: 'Command-line argument', File: 'File' },
+    promptDelivery: { Stdin: 'Standard input', Argument: 'Command-line argument', File: 'File', CodexAppServer: 'Codex app-server (JSON-RPC)' },
     systemPromptDelivery: {
       File: 'File',
       Argument: 'Command-line argument',
@@ -168,6 +168,7 @@ const en = {
     outputParser: {
       ClaudeStreamJson: 'Claude Code stream JSON',
       CodexJsonl: 'Codex JSONL',
+      CodexAppServer: 'Codex app-server JSON-RPC',
       MuxJsonl: 'Mux JSONL',
       GeminiStreamJson: 'Gemini CLI stream JSON',
       GenericJsonl: 'Generic JSONL',
