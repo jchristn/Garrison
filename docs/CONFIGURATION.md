@@ -42,6 +42,8 @@ Keep secrets (`Auth.SigningKey`, `Auth.AdminApiKey`, `Security.*` keys, `Databas
 | `Rest.Ssl` | `false` | Restart | Serve TLS on the listener. Usually TLS ends at the ingress instead |
 | `Rest.PublicBaseUrl` | none | Restart | Internal URL handed to runs (the `garrison.apiUrl` template variable) so harnesses on workers can call back, for example `http://garrison-server:8700`. Never shown in A2A agent cards. Defaults to the bind address (`http://127.0.0.1:<port>` when bound to every interface). The name is kept for compatibility. Environment: `GARRISON_PUBLIC_BASE_URL` |
 | `Rest.ExternalBaseUrl` | none | Live | External URL that people and clients outside the cluster use, for example `https://garrison.example.com`. Used in A2A agent cards and server info. When unset, Garrison uses the scheme (`X-Forwarded-Proto` when present) and `Host` header of each request. Environment: `GARRISON_EXTERNAL_BASE_URL` |
+| `Rest.LivenessPort` | `8702` | Restart | Separate liveness port, 0 to 65535 (0 turns it off). It answers only `GET /v1.0/api/health/live`, from its own thread, from the moment the process starts, without the database or the REST request queue, so liveness probes keep passing under overload. Must differ from `Rest.Port` and `Mcp.Port`. Environment: `GARRISON_LIVENESS_PORT` |
+| `Rest.DatabaseRetryAfterSeconds` | `2` | Live | Seconds in the `Retry-After` header of `503 DatabaseBusy` and `503 DatabaseUnavailable` answers, 1 to 300 |
 
 Garrison keeps two REST URLs because they answer different questions. `Rest.PublicBaseUrl` (with `Mcp.PublicUrl`) is where workers inside the cluster or Compose network reach the server, so it is usually a service name. `Rest.ExternalBaseUrl` is what an A2A agent card fetched from outside should advertise, so it is usually your ingress host. Earlier builds used `Rest.PublicBaseUrl` for both, so cards fetched from outside showed the internal host.
 
@@ -75,14 +77,14 @@ Garrison supports Sqlite and PostgreSQL. Sqlite is fine for one control-plane re
 | `Database.Schema` | none | PostgreSQL schema. Environment: `GARRISON_DB_SCHEMA` |
 | `Database.TablePrefix` | none | Prefix for every table name |
 | `Database.ManageSchema` | `true` | Create and migrate tables at startup. When false, Garrison only checks that they exist, for environments where a DBA runs migrations |
-| `Database.MaxPoolSize` | `100` | Most pooled connections per replica, 1 to 1000. Environment: `GARRISON_DB_MAX_POOL_SIZE` |
+| `Database.MaxPoolSize` | `100` | Most pooled connections per replica, 1 to 1000. The shipped `garrison.json` files (Kubernetes, Helm, Docker Compose) set 40, and the production overlay and Helm production values set 20 through the environment. Environment: `GARRISON_DB_MAX_POOL_SIZE` |
 | `Database.MinPoolSize` | `0` | Connections each replica keeps open while idle (PostgreSQL), 0 to 1000. Environment: `GARRISON_DB_MIN_POOL_SIZE` |
 | `Database.ConnectionTimeoutSeconds` | `15` | How long to wait for a pooled connection before failing (PostgreSQL), 1 to 600. Environment: `GARRISON_DB_CONNECTION_TIMEOUT` |
 | `Database.CommandTimeoutSeconds` | `30` | How long one command may run (PostgreSQL), 0 (no limit) to 3600. Environment: `GARRISON_DB_COMMAND_TIMEOUT` |
 | `Database.ConnectionIdleLifetimeSeconds` | `300` | How long an idle pooled connection is kept (PostgreSQL), 1 to 3600 |
 | `Database.AdditionalOptions` | none | Appended verbatim to the provider connection string, for example `SSL Mode=Require` |
 
-All database settings need a restart. Size the pool so that replicas times `Database.MaxPoolSize`, plus one listen connection per replica for the PostgreSQL backplane and one short-lived connection per replica during startup, stays below the server's `max_connections`; `docs/SCALING.md` has the arithmetic.
+All database settings need a restart. Size the pool so that `max_connections >= maxReplicas x (Database.MaxPoolSize + 2) + 13`: the 2 are the listen connection for the PostgreSQL backplane and the short-lived startup lock connection, and the 13 are PostgreSQL's reserved connections plus room for the bootstrap Job and operators. `docs/SCALING.md` has the table for each shipped configuration. When the pool is exhausted anyway, requests answer `503 DatabaseBusy` with `Retry-After` instead of failing with a 500.
 
 ### Auth
 

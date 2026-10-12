@@ -12,6 +12,7 @@ namespace Garrison.Server.Protocols
     using System.Threading.Tasks;
     using Garrison.Core;
     using Garrison.Core.Enumeration;
+    using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
@@ -515,7 +516,22 @@ namespace Garrison.Server.Protocols
                 return proxied;
             }
 
-            RequestContext ctx = await _Context.Authentication.ResolveAsync(request.Headers, request.HttpMethod, request.Url?.AbsolutePath ?? "/", request.Url?.Query?.TrimStart('?'), null, request.RemoteEndPoint?.Address?.ToString(), CancellationToken.None).ConfigureAwait(false);
+            RequestContext ctx;
+            try
+            {
+                ctx = await _Context.Authentication.ResolveAsync(request.Headers, request.HttpMethod, request.Url?.AbsolutePath ?? "/", request.Url?.Query?.TrimStart('?'), null, request.RemoteEndPoint?.Address?.ToString(), CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e) when (DatabaseFailures.Classify(e) != DatabaseFailureEnum.None)
+            {
+                DatabaseFailureEnum failure = DatabaseFailures.Classify(e);
+                _Context.Logging.Warn(_Header + "database " + failure.ToString().ToLowerInvariant() + " while authenticating an MCP request: " + e.Message);
+                AuthenticationResult unavailable = new AuthenticationResult();
+                unavailable.IsAuthenticated = false;
+                unavailable.StatusCode = 503;
+                unavailable.ErrorMessage = failure == DatabaseFailureEnum.Busy ? "DatabaseBusy: the database has no free connections right now; retry later." : "DatabaseUnavailable: the database cannot be reached right now; retry later.";
+                unavailable.Headers["Retry-After"] = Math.Max(1, _Context.Settings.Rest.DatabaseRetryAfterSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                return unavailable;
+            }
             if (!ctx.IsAuthenticated) return AuthenticationResult.BearerChallenge(null, "invalid_token", "Authentication is required.");
             AuthenticationResult result = new AuthenticationResult();
             result.IsAuthenticated = true;
@@ -610,6 +626,13 @@ namespace Garrison.Server.Protocols
                 if (e is ConflictException conflict) throw ToolError(conflict.Code, e.Message);
                 if (e is NotFoundException) throw ToolError("NotFound", e.Message);
                 throw ToolError("BadRequest", e.Message);
+            }
+            catch (Exception e) when (DatabaseFailures.Classify(e) != DatabaseFailureEnum.None)
+            {
+                // A database outage or an exhausted pool is a retryable tool error, not an internal error (G-25).
+                GarrisonTracing.Fail(span, e);
+                if (DatabaseFailures.Classify(e) == DatabaseFailureEnum.Busy) throw ToolError("DatabaseBusy", "The database has no free connections right now. Retry in a few seconds.");
+                throw ToolError("DatabaseUnavailable", "The database cannot be reached right now. Retry in a few seconds.");
             }
             catch (Exception e)
             {

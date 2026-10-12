@@ -43,6 +43,7 @@ namespace Test.Shared
                 suites.AddRange(MultiReplicaSuite.Build());
                 suites.AddRange(KubernetesExecutorSuite.Build());
                 suites.AddRange(CodexCredentialSuite.Build());
+                suites.AddRange(CorrectnessSuite.Build());
                 return suites;
             }
         }

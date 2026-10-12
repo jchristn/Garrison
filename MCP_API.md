@@ -20,7 +20,7 @@ The server speaks MCP streamable HTTP (protocol version `2025-06-18`) on its own
 
 ## Connecting
 
-Send the same credentials you would send to REST: a bearer session token, `x-access-key` and `x-secret-key`, `x-api-key`, or a signed request (the signature covers the JSON-RPC body, and each nonce is accepted once across all replicas). Requests without valid credentials get `401` with `WWW-Authenticate: Bearer error="invalid_token"`.
+Send the same credentials you would send to REST: a bearer session token, `x-access-key` and `x-secret-key`, `x-api-key`, or a signed request (the signature covers the JSON-RPC body, and each nonce is accepted once across all replicas). Requests without valid credentials get `401` with `WWW-Authenticate: Bearer error="invalid_token"`. When the database cannot be reached or its connection pool is exhausted while a request is authenticated, the answer is `503` with a `Retry-After` header and a message starting `DatabaseUnavailable:` or `DatabaseBusy:`; retry after that many seconds.
 
 ```bash
 TOKEN=$(curl -s -X POST http://127.0.0.1:8700/v1.0/token \
@@ -195,6 +195,7 @@ Failures inside a tool (not found, not permitted, a missing argument, a rejected
 | `ValidationFailed` | A missing argument or a rejected value. Parameter errors name the parameter, for example `ValidationFailed: Run parameter model is not allowed for deployment echo-default: Deployment echo-default does not allow overriding model. parameters.model: ...` |
 | `TenantRequired`, `Unauthorized`, `UnknownTool`, `BadRequest` | The call could not be resolved |
 | Any REST conflict code | For example `RunFinished`, `NoActiveDeployment`, `DelegationNotAllowed`, `IdempotencyKeyConflict` (see the 409 codes in `REST_API.md`) |
+| `DatabaseBusy`, `DatabaseUnavailable` | The database had no free connections, or could not be reached, while the tool ran. Nothing was started; retry in a few seconds |
 
 Tool result text is JSON written with plain `\"` escapes, so quotes in run output read naturally.
 
@@ -214,7 +215,8 @@ A run token is narrower than the person who started the chain:
 - `garrison_list_agents` shows only the agents the calling agent may delegate to: none when its delegation mode is `None`, the names on its allowlist when the mode is `AllowList`, and never itself unless recursion is allowed.
 - Invocations are checked against the delegation depth limit, cycles, and the allowlist, and fail with the reason when they break a rule.
 - Run lookups are limited to runs in the same delegation tree.
-- The token is revoked when the run finishes, times out, or loses its lease.
+- The token is revoked when the run finishes, times out, or loses its lease, including when an expired lease is requeued for another attempt.
+- The token is fenced by the lease epoch it was minted for: it works only while its run is active at that epoch. A harness that kept running after its lease expired (a partitioned worker, for example) cannot delegate, read runs, or open an MCP session with it, even before revocation reaches it; the new attempt gets a new token (see `docs/SECURITY.md`).
 
 The instructions that teach an agent how to use these tools are prompt templates (`builtin/garrison-tools-instructions` for the tool guidance and `builtin/delegated-task` for the task a child run receives, see `docs/PROMPTS.md`), so you can change how agents are told to delegate per deployment.
 

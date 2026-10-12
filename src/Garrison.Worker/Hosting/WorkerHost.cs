@@ -698,13 +698,46 @@ namespace Garrison.Worker.Hosting
             string harness = run.Assignment.Spec.HarnessType.ToString();
             bool retained = run.Assignment.Spec.RetainForRepair;
             bool lastSucceeded = false;
+            bool launched = false;
             try
             {
+                // Start gate (P10.20): nothing is launched until the control plane has moved the run to Running at this
+                // lease epoch. A run cancelled while waiting is reported Cancelled without launching; a run whose start
+                // is refused (stale) or cannot be acknowledged before its lease expires is abandoned, and the control
+                // plane requeues it knowing it never started.
+                bool cancelledBeforeStart = false;
+                try
+                {
+                    if (!await shipper.AcknowledgeStartAsync(run.Assignment.LeaseExpiresUtc, run.Cancellation.Token).ConfigureAwait(false))
+                    {
+                        _Logging.Warn(_Header + "run " + run.RunId + " was not started: the control plane " + (shipper.Stale ? "reports the lease as stale" : "did not acknowledge the start before the lease expired")
+                            + "; leaving it to the control plane" + PauseContext() + " " + run.LogFields);
+                        return;
+                    }
+                }
+                catch (OperationCanceledException) when (run.Cancellation.IsCancellationRequested)
+                {
+                    cancelledBeforeStart = true;
+                }
+
                 RunAssignment current = run.Assignment;
                 int repairAttempt = 0;
                 while (true)
                 {
-                    RunCompleteRequest complete = await ExecuteOnceAsync(run, current, shipper, harness).ConfigureAwait(false);
+                    RunCompleteRequest complete;
+                    if (cancelledBeforeStart)
+                    {
+                        complete = new RunCompleteRequest();
+                        complete.Status = RunStatusEnum.Cancelled;
+                        complete.Outcome = RunOutcomeEnum.Cancelled;
+                        complete.ErrorMessage = "Run was cancelled before it started.";
+                        complete.CompletedUtc = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        launched = true;
+                        complete = await ExecuteOnceAsync(run, current, shipper, harness).ConfigureAwait(false);
+                    }
                     lastSucceeded = complete.Status == RunStatusEnum.Succeeded;
                     if (complete.Outcome == RunOutcomeEnum.NodeLost && current.Spec.Executor == RunExecutorEnum.KubernetesJob)
                     {
@@ -778,7 +811,7 @@ namespace Garrison.Worker.Hosting
             }
             finally
             {
-                if (retained)
+                if (retained && launched)
                 {
                     try
                     {

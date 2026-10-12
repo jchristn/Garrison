@@ -203,6 +203,7 @@ namespace Garrison.Server.Settings
             Str("GARRISON_NODE_ACCESS_KEY", "Security.NodeAccessKey", v => Security.NodeAccessKey = v);
             Str("GARRISON_NODE_SECRET_KEY", "Security.NodeSecretKey", v => Security.NodeSecretKey = v);
             Int("GARRISON_REST_PORT", "Rest.Port", v => Rest.Port = v);
+            Int("GARRISON_LIVENESS_PORT", "Rest.LivenessPort", v => Rest.LivenessPort = v);
             Str("GARRISON_PUBLIC_BASE_URL", "Rest.PublicBaseUrl", v => Rest.PublicBaseUrl = v);
             Str("GARRISON_EXTERNAL_BASE_URL", "Rest.ExternalBaseUrl", v => Rest.ExternalBaseUrl = v);
             Int("GARRISON_MCP_PORT", "Mcp.Port", v => Mcp.Port = v);
@@ -234,6 +235,10 @@ namespace Garrison.Server.Settings
             if (Rest.Port == Mcp.Port && Mcp.Enable)
             {
                 throw new InvalidOperationException("Rest.Port and Mcp.Port must differ (Voltaic hosts MCP on its own listener).");
+            }
+            if (Rest.LivenessPort != 0 && (Rest.LivenessPort == Rest.Port || (Mcp.Enable && Rest.LivenessPort == Mcp.Port)))
+            {
+                throw new InvalidOperationException("Rest.LivenessPort must differ from Rest.Port and Mcp.Port, or be 0 to turn the liveness listener off.");
             }
             if (Mcp.Enable && Mcp.InternalPort != 0 && (Mcp.InternalPort == Mcp.Port || Mcp.InternalPort == Rest.Port))
             {

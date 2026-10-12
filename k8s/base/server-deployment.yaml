@@ -73,6 +73,8 @@ spec:
               containerPort: 8701
             - name: metrics
               containerPort: 9464
+            - name: liveness
+              containerPort: 8702
           env:
             - name: GARRISON_SETTINGS_FILE
               value: /etc/garrison/garrison.json
@@ -177,12 +179,14 @@ spec:
             timeoutSeconds: 4
             failureThreshold: 2
             successThreshold: 2
+          # Liveness has its own port and thread (G-24): it answers without the database or the REST request queue, so
+          # overload never restarts the server. Readiness on 8700 is what sheds traffic.
           livenessProbe:
             exec:
-              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8700/v1.0/api/health/live"]
-            periodSeconds: 5
-            timeoutSeconds: 4
-            failureThreshold: 2
+              command: ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8702/v1.0/api/health/live"]
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
             successThreshold: 1
           lifecycle:
             preStop:

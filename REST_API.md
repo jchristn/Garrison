@@ -89,6 +89,9 @@ Query string values are decoded the way browsers and HTTP clients encode them: p
 | 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound` |
 | 429 | Too many authentication attempts from one address (`RateLimited`) |
 | 500 | An unexpected failure (`InternalError`); the server log has the request identifier |
+| 503 | The database cannot take the request right now: `DatabaseBusy` (the connection pool is exhausted, or PostgreSQL has no connection slots left) or `DatabaseUnavailable` (the database cannot be reached, is restarting, or is shutting down). Both carry a `Retry-After` header in seconds (`Rest.DatabaseRetryAfterSeconds`, default 2). Retrying is safe for reads and for creations that send an `Idempotency-Key`. `Cancelled` means the server is shutting down and dropped the request |
+
+Every failure answers with this JSON shape, including failures while authenticating the request, checking that the tenant in the path exists, or authorizing it; Garrison never sends an HTML error page.
 
 ## Authentication
 
@@ -186,7 +189,9 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/health/ready"
 
 #### `GET /v1.0/api/health/live`
 
-Liveness. Answers 200 whenever the process is up, including while it waits for another replica's migrations, migrates, seeds (`status` `starting`), or drains (`status` `draining`). It does not touch the database, so a slow migration or a database outage never gets a replica restarted. Use it as the liveness probe.
+Liveness. Answers 200 whenever the process is up, including while it waits for another replica's migrations, migrates, seeds (`status` `starting`), or drains (`status` `draining`). It does not touch the database, so a slow migration or a database outage never gets a replica restarted.
+
+The same answer is served on a separate liveness port, `Rest.LivenessPort` (default 8702, `GARRISON_LIVENESS_PORT`), by one dedicated thread that never waits behind the REST listener's request queue, the database pool, or the thread pool. Point liveness probes there (`http://127.0.0.1:8702/v1.0/api/health/live`, as the shipped Kubernetes manifests do), so an overloaded replica sheds traffic through readiness instead of being restarted. Any other path on that port answers 404.
 
 | | |
 |---|---|
@@ -195,7 +200,7 @@ Liveness. Answers 200 whenever the process is up, including while it waits for a
 | Success | 200 |
 
 ```bash
-curl -s -X GET "http://127.0.0.1:8700/v1.0/api/health/live"
+curl -s -X GET "http://127.0.0.1:8702/v1.0/api/health/live"
 ```
 
 #### `GET /metrics`
@@ -2174,6 +2179,15 @@ Add `?dryRun=true` to see what would happen without writing anything. Each item 
 | `changes` | For `Updated` documents, one entry per changed field: `{ "field", "before", "after" }`. Values are text, truncated to 200 characters, `null` when the field was not set. Secret values are never shown; a changed value appears as field `value` with `(hidden)` and `(hidden, changed)` |
 | `resourceId` | The record's ID; `null` in a dry run for a record that does not exist yet |
 | `message` | For people, for example `Would be updated: content, description.` |
+| `errorCode`, `errorField` | For a failed document, a stable code and the failing field's path. `ManifestInvalid` means a spec field has the wrong type or a value that is not allowed; the message then names the document, field, value, and the allowed values, never internal type names |
+
+A document whose spec has a value the field does not accept fails like this (the apply answers 400 and writes nothing):
+
+```json
+{ "kind": "Secret", "name": "mux-api-key", "result": "Failed", "plannedResult": "Failed",
+  "errorCode": "ManifestInvalid", "errorField": "documents[1].spec.kind",
+  "message": "Secret mux-api-key (documents[1]) has an invalid spec: spec.kind is 'Generic', which is not an allowed value. Allowed values: GenericEnv, GenericFile." }
+```
 
 In a dry run, `createdCount`, `updatedCount`, and `unchangedCount` count what would happen. The applied record, including `changes`, is stored and returned again by `GET .../manifests/applies/{id}`.
 
@@ -3135,7 +3149,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/drain" \
 
 #### `POST /v1.0/api/node/runs/{runId}/started`
 
-Report a run started.
+Start gate. A worker calls this before it launches the harness and launches only after a 200: it moves the run from Leased to Running at the given epoch. 409 `StaleLease` means the lease was lost (expired, requeued, or claimed again) and the worker must not launch. A second call for a run already Running at the same epoch and node (for example the report of the harness process identifier) answers 200 and changes nothing.
 
 | | |
 |---|---|
@@ -3285,10 +3299,12 @@ Workers authenticate with a credential that holds the `NodeAgent` role (by defau
 | `POST /v1.0/api/node/register` | Register or re-register by node name with labels, capacity, version, and harness capabilities. Returns the node identifier and the heartbeat, lease wait, and lease duration to use. |
 | `POST /v1.0/api/node/heartbeat` | Report held leases and free capacity. Extends held leases and returns runs to cancel (`cancelRunIds`), leases the node lost (`lostRunIds`), and whether to drain. |
 | `POST /v1.0/api/node/lease` | Long poll for up to `maxRuns` runs, waiting up to `waitMs`. Each assignment carries the run identifier, the epoch, the lease expiry, and the compiled `ExecutionSpec`. |
-| `POST /v1.0/api/node/runs/{runId}/started` | The harness started. Moves the run from Leased to Running. |
+| `POST /v1.0/api/node/runs/{runId}/started` | Start gate: the worker asks before it launches the harness, and launches only when the server answers 200, which moves the run from Leased to Running. A worker that cannot get the acknowledgement before its lease expires abandons the run without launching it. |
 | `POST /v1.0/api/node/runs/{runId}/events` | A batch of normalized events with worker-assigned sequences starting after the assignment's `eventSequenceStart` (1 for a run with no events yet). Re-sent sequences are ignored. |
 | `POST /v1.0/api/node/runs/{runId}/complete` | Terminal status, outcome, result, structured output, usage, cost, session identifier, served model, exit code, and stderr tail. The response may carry a structured output repair to run in the same lease (see the route above). |
 | `POST /v1.0/api/node/drain` | The worker is draining (body is a heartbeat). The node becomes Draining, or Offline when it holds no runs. |
+
+When a lease expires, the leader's reaper requeues a run that is still Leased (it never started, so no harness ran), and treats a Running run by its deployment's `retryOnNodeLoss`: false (the default) fails it with `NodeLost`, true requeues it. Every requeue revokes the run tokens minted for the expired attempt, and run tokens only work while the run is active at the lease epoch they were minted for (see `docs/SECURITY.md`).
 
 The `ExecutionSpec` is fully resolved: executable, argument list, environment, files, stdin, workspace instructions, parser, timeouts, MCP pre-flight checks, and values to scrub. Paths in it use the placeholders `$GARRISON_CONFIG_DIR`, `$GARRISON_WORKSPACE_DIR`, and `$GARRISON_HOME_DIR`, which the worker replaces with the run's directories. See `docs/HARNESSES.md`.
 
@@ -4115,7 +4131,9 @@ Child record of ManifestApply: per-document results.
 | `name` | `string` | Document name. |
 | `result` | `ManifestApplyResultEnum` | Result. |
 | `resourceId` | `string?` | Resulting resource identifier; null in a dry run for a record that does not exist yet. |
-| `message` | `string?` | Message. |
+| `message` | `string?` | Message. For a spec field with the wrong type or a value that is not allowed, it names the document, the field, the value, and what the field accepts (for an enumeration, every allowed value). |
+| `errorCode` | `string?` | Stable code of a failed document: `ManifestInvalid` (a spec field has the wrong type or a value that is not allowed), `ValidationFailed`, or a reference or template code such as `ReferenceNotFound`. Null unless the document failed. |
+| `errorField` | `string?` | Path of the field that failed, for example `documents[1].spec.kind`. Null when the failure is not about one field. |
 | `plannedResult` | `ManifestApplyResultEnum?` | What the apply does or, in a dry run, would do: Created, Updated, Unchanged, or Failed. |
 | `changes` | `List<ManifestFieldChange>` | Changed fields of an Updated document; empty otherwise. |
 
@@ -4963,13 +4981,13 @@ Normalized event emitted by a run.
 
 #### `RunStartedRequest`
 
-Worker report that a run's harness started.
+Worker start gate request, sent before the harness is launched (and optionally again with the process identifier once it runs).
 
 | Field | Type | Description |
 |---|---|---|
 | `nodeId` | `string` | Node identifier. |
 | `epoch` | `long` | Fencing epoch. |
-| `processId` | `int?` | Process identifier. |
+| `processId` | `int?` | Process identifier; null on the start gate call made before launching. |
 | `startedUtc` | `DateTime` | Start time (UTC). |
 
 #### `Secret`

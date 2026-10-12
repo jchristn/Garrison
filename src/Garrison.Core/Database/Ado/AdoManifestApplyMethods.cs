@@ -271,7 +271,7 @@ namespace Garrison.Core.Database.Ado
                 child.ManifestApplyId = obj.Id;
                 child.Position = i;
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _ItemsTable + " (id, manifestapplyid, tenantid, position, kind, name, result, resourceid, message, plannedresult) VALUES (@id, @manifestapplyid, @tenantid, @position, @kind, @name, @result, @resourceid, @message, @plannedresult);",
+                    "INSERT INTO " + _ItemsTable + " (id, manifestapplyid, tenantid, position, kind, name, result, resourceid, message, plannedresult, errorcode, errorfield) VALUES (@id, @manifestapplyid, @tenantid, @position, @kind, @name, @result, @resourceid, @message, @plannedresult, @errorcode, @errorfield);",
                     command =>
                     {
                         AdoDatabaseDriver.Add(command, "id", child.Id);
@@ -284,6 +284,8 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "resourceid", child.ResourceId);
                         AdoDatabaseDriver.Add(command, "message", child.Message);
                         AdoDatabaseDriver.Add(command, "plannedresult", child.PlannedResult?.ToString());
+                        AdoDatabaseDriver.Add(command, "errorcode", child.ErrorCode);
+                        AdoDatabaseDriver.Add(command, "errorfield", child.ErrorField);
                     }, token).ConfigureAwait(false);
 
                 for (int j = 0; j < child.Changes.Count; j++)
@@ -325,6 +327,8 @@ namespace Garrison.Core.Database.Ado
             child.Result = AdoConverters.Enum<ManifestApplyResultEnum>(reader, "result", ManifestApplyResultEnum.Validated);
             child.ResourceId = AdoConverters.NullableStr(reader, "resourceid");
             child.Message = AdoConverters.NullableStr(reader, "message");
+            child.ErrorCode = AdoConverters.NullableStr(reader, "errorcode");
+            child.ErrorField = AdoConverters.NullableStr(reader, "errorfield");
             string? planned = AdoConverters.NullableStr(reader, "plannedresult");
             if (!String.IsNullOrEmpty(planned) && Enum.TryParse<ManifestApplyResultEnum>(planned, true, out ManifestApplyResultEnum parsed)) child.PlannedResult = parsed;
             return child;

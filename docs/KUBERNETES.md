@@ -7,7 +7,7 @@ Everything lives under `k8s/`:
 | Path | What it is |
 |---|---|
 | `k8s/base` | The workloads, services, network policies, the bootstrap Job, and the sample agent manifests. No secrets and no database. |
-| `k8s/components/postgres` | An in-cluster PostgreSQL 17 StatefulSet for installs that do not have a database yet. |
+| `k8s/components/postgres` | An in-cluster PostgreSQL 17 StatefulSet for installs that do not have a database yet, with `max_connections` 200 (room for four server replicas at the shipped pool of 40; `docs/SCALING.md`, "Connections"). |
 | `k8s/components/smoke-test` | A fake-harness agent and a Job that invokes it end to end. |
 | `k8s/components/observability` | Prometheus, Loki, Tempo, Grafana, and Alloy (see "Observability"). |
 | `k8s/components/worker-pools` | A second worker StatefulSet (a Mux pool) next to the default pool, each with its own harness set. |
@@ -209,6 +209,10 @@ Scaling down is safe. A worker that receives SIGTERM stops leasing new runs and 
 The control plane scales the same way on PostgreSQL. Replicas are interchangeable because workers pull work and never need to be reached by the server, so REST, A2A, and event streams need no session affinity (`docs/SCALING.md` covers MCP). Set `GARRISON_EXPECTED_REPLICAS` to match so the startup checks know the deployment is clustered. Each server pod registers itself under its pod name as a control node; `GET /v1.0/api/control-nodes` lists them with their status, version, and which one leads (`docs/SCALING.md`).
 
 Both the Kustomize base and the chart roll the server out with `maxSurge: 1` and `maxUnavailable: 0`: a new replica has to pass its readiness probe before an old one is told to stop, so an upgrade never drops below the current replica count. Each old replica gets five seconds (`preStop`) to leave the Service endpoints before SIGTERM, and 30 seconds in total to finish.
+
+The server's probes split the work. The startup probe calls `/v1.0/api/health/live` on 8700, which answers while the replica migrates. Readiness calls `/v1.0/api/health/ready` on 8700 every 5 seconds and is what takes an overloaded or database-less replica out of the Service. Liveness calls `/v1.0/api/health/live` on the separate liveness port 8702 every 10 seconds with a 10-second timeout and restarts the container only after 6 failures in a row (a minute). That port is answered by its own thread and never waits for the database or the REST request queue, so overload makes a replica unready, never restarted.
+
+Every replica's connection pool has to fit PostgreSQL's `max_connections`: `maxReplicas x (Database.MaxPoolSize + 2) + 13`. The base sets the pool to 40 and the postgres component allows 200 connections (four replicas); the production overlay sets the pool to 20 for up to ten HPA replicas, which needs at least 250 connections on your PostgreSQL. With Helm, `server.dbMaxPoolSize` and `database.embedded.maxConnections` set the two, and the chart refuses to render an embedded combination that does not fit. `docs/SCALING.md` has the table.
 
 ### Autoscaling
 

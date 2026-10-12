@@ -78,7 +78,7 @@ Written while the harness was being built, before the round 0 run. Smoke runs du
 | H2 | **End-to-end overhead per run.** With no backlog, Garrison adds under 150 ms at p50 over invoking the same harness directly (overheadMs and clientOverheadMs), well under the 140 to 230 ms SCALING.md observed with three replicas | Confirmed: 17.7 ms paired p50 |
 | H3 | **Event latency.** Events are stored within 300 ms (p95) of the worker stamping them (the worker flushes every 250 ms or 100 events), and an SSE subscriber sees each stored event within 1 s (p95), the poll fallback | Confirmed: 208 ms and 16 ms at p95 |
 | H4 | **Scale-out linearity.** With a backlog, throughput with 2 and 3 workers is at least 1.8 and 2.6 times the 1-worker throughput | Confirmed: 1.93x and 2.66x |
-| H5 | **Correctness under normal and failed operation.** Every routing and e2e probe passes; no run is lost or duplicated when a worker, the server, or the database crashes under load; every error response is a JSON error body | Refuted: D-1, and past capacity D-4 and D-5 |
+| H5 | **Correctness under normal and failed operation.** Every routing and e2e probe passes; no run is lost or duplicated when a worker, the server, or the database crashes under load; every error response is a JSON error body | Refuted: D-1, and past capacity D-4 and D-5. Round 1: holds after the fixes (`benchmarks/RESULTS.md`) |
 | H6 | **Load path.** The 440-document synthetic fleet applies in under 5 s with nothing failed, a re-apply reports everything Unchanged, and every agent is readable afterwards; a 4040-document fleet applies without timeouts | Confirmed |
 
 ## Product hooks

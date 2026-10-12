@@ -59,6 +59,13 @@ namespace Garrison.Core.Models
         public string? OriginPrincipalId { get; set; } = null;
 
         /// <summary>
+        /// For run tokens, the run's lease epoch the token was minted for (P10.21). A run token is accepted only while the
+        /// run is active and its lease epoch still equals this value, so a token handed to an attempt that lost its
+        /// lease stops working even before it is revoked. Null for every other session.
+        /// </summary>
+        public long? LeaseEpoch { get; set; } = null;
+
+        /// <summary>
         /// Principal type.
         /// </summary>
         public PrincipalTypeEnum PrincipalType { get; set; } = PrincipalTypeEnum.User;

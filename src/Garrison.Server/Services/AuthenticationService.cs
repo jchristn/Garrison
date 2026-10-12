@@ -285,20 +285,23 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
-        /// Issue a run token used by a harness to call Garrison's MCP tools on behalf of the run's caller.
+        /// Issue a run token used by a harness to call Garrison's MCP tools on behalf of the run's caller. The token is
+        /// fenced by the lease epoch: it is accepted only while the run is active at that epoch (P10.21).
         /// </summary>
         /// <param name="run">Run.</param>
+        /// <param name="leaseEpoch">Lease epoch of the attempt the token is for. Minimum 0.</param>
         /// <param name="expiresUtc">Expiry (UTC).</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Opaque token.</returns>
         /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
-        public async Task<string> IssueForRunAsync(Run run, DateTime expiresUtc, CancellationToken token = default)
+        public async Task<string> IssueForRunAsync(Run run, long leaseEpoch, DateTime expiresUtc, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
             AuthSession session = NewSession(run.TenantId, PrincipalTypeEnum.Run, AuthSchemeEnum.RunToken, null, "garrison-run", expiresUtc);
             session.RunId = run.Id;
             session.OriginPrincipalType = run.CallerType;
             session.OriginPrincipalId = run.CallerId;
+            session.LeaseEpoch = Math.Max(0, leaseEpoch);
             await _Database.Sessions.CreateAsync(session, token).ConfigureAwait(false);
             TokenPayload payload = Payload(session);
             payload.RunId = run.Id;
@@ -402,6 +405,16 @@ namespace Garrison.Server.Services
 
             if (payload.PrincipalType == PrincipalTypeEnum.Run && !String.IsNullOrEmpty(payload.RunId) && !String.IsNullOrEmpty(payload.TenantId))
             {
+                // Epoch fencing (P10.21): a run token works only while its run is active at the lease epoch it was
+                // minted for. A requeued run's old attempt, or a harness that outlived its lease, is refused even if
+                // revoking its session was missed.
+                Run? run = await _Database.Runs.ReadAsync(payload.TenantId, payload.RunId, token).ConfigureAwait(false);
+                if (run == null) return await FailAsync(ctx, AuthSchemeEnum.RunToken, AuthResultEnum.NotFound, "Run not found.", token).ConfigureAwait(false);
+                bool active = run.Status == RunStatusEnum.Leased || run.Status == RunStatusEnum.Running || run.Status == RunStatusEnum.Cancelling;
+                if (!active || (session.LeaseEpoch.HasValue && session.LeaseEpoch.Value != run.LeaseEpoch))
+                {
+                    return await FailAsync(ctx, AuthSchemeEnum.RunToken, AuthResultEnum.Inactive, "Run token belongs to an attempt that no longer holds the run's lease.", token).ConfigureAwait(false);
+                }
                 ctx.IsAuthenticated = true;
                 ctx.AuthResult = AuthResultEnum.Success;
                 ctx.AuthScheme = AuthSchemeEnum.RunToken;

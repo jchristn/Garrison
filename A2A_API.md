@@ -168,8 +168,9 @@ A task can also fail on its own when a worker run guard stops it: the status mes
 | `-32001` | The agent or task was not found |
 | `-32002` | The task already finished and cannot be cancelled |
 | `-32007` | The caller does not have the needed permission |
+| `-32603` | The database had no free connections (`data.code` `DatabaseBusy`) or could not be reached (`DatabaseUnavailable`). Sent with HTTP 503 and a `Retry-After` header; retry after that many seconds |
 
-Conflicts that REST reports as 409, such as an inactive agent, an agent with no active deployment, or a delegation rule violation, come back as `-32602` with the Garrison error code at the start of the message, for example `NoActiveDeployment: Agent docs-echo has no active deployment with a weight above zero, so it cannot run. ...`. JSON-RPC errors are sent with HTTP 200, except a reused `messageId` with different content, which is sent with HTTP 409.
+Conflicts that REST reports as 409, such as an inactive agent, an agent with no active deployment, or a delegation rule violation, come back as `-32602` with the Garrison error code at the start of the message, for example `NoActiveDeployment: Agent docs-echo has no active deployment with a weight above zero, so it cannot run. ...`. JSON-RPC errors are sent with HTTP 200, except a reused `messageId` with different content, which is sent with HTTP 409, and database failures, which are sent with HTTP 503.
 
 Garrison errors also carry `data` with a stable machine code, so clients do not need to parse the message:
 
@@ -188,7 +189,7 @@ Garrison errors also carry `data` with a stable machine code, so clients do not 
 }
 ```
 
-`data.code` is `ValidationFailed`, `MessageIdConflict`, `InvalidParams`, or the REST conflict code (for example `NoActiveDeployment`).
+`data.code` is `ValidationFailed`, `MessageIdConflict`, `InvalidParams`, `DatabaseBusy`, `DatabaseUnavailable`, or the REST conflict code (for example `NoActiveDeployment`). A failure before the JSON-RPC call is read (authentication, the tenant check, or authorization while the database is down) answers with the REST error shape instead: 503 `DatabaseUnavailable` or `DatabaseBusy` with `Retry-After`.
 
 ## Calling Garrison agents from Garrison agents
 

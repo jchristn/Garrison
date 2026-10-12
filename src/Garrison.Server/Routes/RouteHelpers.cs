@@ -84,6 +84,28 @@ namespace Garrison.Server.Routes
         }
 
         /// <summary>
+        /// Send 503 for a database that has no free connections (DatabaseBusy) or cannot be reached (DatabaseUnavailable),
+        /// with a Retry-After header. Retrying later is safe for idempotent requests and for creations that carry an
+        /// Idempotency-Key.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="failure">Failure kind; None is reported as DatabaseUnavailable.</param>
+        /// <param name="retryAfterSeconds">Seconds for the Retry-After header, minimum 1.</param>
+        /// <returns>Task.</returns>
+        public static async Task DatabaseFailureAsync(HttpContextBase context, DatabaseFailureEnum failure, int retryAfterSeconds)
+        {
+            context.Response.Headers["Retry-After"] = Math.Max(1, retryAfterSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (failure == DatabaseFailureEnum.Busy)
+            {
+                await ErrorAsync(context, 503, "DatabaseBusy", "The database has no free connections right now. Retry after the number of seconds in Retry-After.").ConfigureAwait(false);
+            }
+            else
+            {
+                await ErrorAsync(context, 503, "DatabaseUnavailable", "The database cannot be reached right now. Retry after the number of seconds in Retry-After.").ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Send a 404 response.
         /// </summary>
         /// <param name="context">HTTP context.</param>
@@ -117,7 +139,22 @@ namespace Garrison.Server.Routes
         /// <returns>Task.</returns>
         public static async Task ValidationAsync(HttpContextBase context, string message, Dictionary<string, string>? fields, Dictionary<string, string>? codes)
         {
-            ErrorResponse error = new ErrorResponse("BadRequest", "ValidationFailed", message);
+            await ValidationAsync(context, "ValidationFailed", message, fields, codes).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Send a 400 validation response with a specific error code (for example ManifestInvalid), field errors, and
+        /// their machine codes.
+        /// </summary>
+        /// <param name="context">HTTP context.</param>
+        /// <param name="code">Stable error code; null or empty means ValidationFailed.</param>
+        /// <param name="message">Message.</param>
+        /// <param name="fields">Field errors, or null.</param>
+        /// <param name="codes">Machine codes keyed by field path, or null.</param>
+        /// <returns>Task.</returns>
+        public static async Task ValidationAsync(HttpContextBase context, string? code, string message, Dictionary<string, string>? fields, Dictionary<string, string>? codes)
+        {
+            ErrorResponse error = new ErrorResponse("BadRequest", String.IsNullOrEmpty(code) ? "ValidationFailed" : code, message);
             error.RequestId = Context(context).RequestId;
             if (fields != null && fields.Count > 0)
             {
@@ -126,7 +163,7 @@ namespace Garrison.Server.Routes
                 error.FieldCodes = new Dictionary<string, string>();
                 foreach (string path in fields.Keys)
                 {
-                    error.FieldCodes[path] = codes != null && codes.TryGetValue(path, out string? code) && !String.IsNullOrEmpty(code) ? code : "Invalid";
+                    error.FieldCodes[path] = codes != null && codes.TryGetValue(path, out string? fieldCode) && !String.IsNullOrEmpty(fieldCode) ? fieldCode : "Invalid";
                 }
             }
             await JsonAsync(context, 400, error).ConfigureAwait(false);

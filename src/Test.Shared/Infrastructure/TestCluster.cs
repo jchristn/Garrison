@@ -88,9 +88,10 @@ namespace Test.Shared.Infrastructure
         /// <param name="name">Node name.</param>
         /// <param name="configure">Optional settings customization.</param>
         /// <param name="token">Cancellation token.</param>
+        /// <param name="executor">Optional executor replacing the process executor (for example a recording one).</param>
         /// <returns>Worker.</returns>
         /// <exception cref="TestAssertionException">Thrown when the worker does not register within 20 seconds.</exception>
-        public static async Task<WorkerHost> StartWorkerAsync(string serverUrl, string name, Action<WorkerSettings>? configure, CancellationToken token = default)
+        public static async Task<WorkerHost> StartWorkerAsync(string serverUrl, string name, Action<WorkerSettings>? configure, CancellationToken token = default, Garrison.Worker.Execution.IRunExecutor? executor = null)
         {
             EnsureFakeHarnessOnPath();
             WorkerSettings settings = new WorkerSettings();
@@ -112,7 +113,7 @@ namespace Test.Shared.Infrastructure
 
             LoggingModule logging = new LoggingModule();
             logging.Settings.EnableConsole = settings.Logging.ConsoleLogging;
-            WorkerHost worker = new WorkerHost(settings, logging);
+            WorkerHost worker = new WorkerHost(settings, logging, executor);
             await worker.StartAsync(false).ConfigureAwait(false);
 
             DateTime deadline = DateTime.UtcNow.AddSeconds(20);

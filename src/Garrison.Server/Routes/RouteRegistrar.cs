@@ -20,7 +20,10 @@ namespace Garrison.Server.Routes
     /// <summary>
     /// Registers routes on Watson with OpenAPI metadata, records each route's permission in the operation scope map,
     /// authorizes scoped routes before the handler runs (tenant from the {tenantId} parameter, resource from the
-    /// resource parameter), and maps domain exceptions to HTTP responses. Thread-safe after registration.
+    /// resource parameter), and maps domain exceptions to HTTP responses. The tenant check, the authorization decision,
+    /// and the handler all run inside one exception mapping, so every failure answers with the JSON error shape; a
+    /// database that cannot be reached or has no free connections answers 503 with Retry-After (G-25, G-23).
+    /// Thread-safe after registration.
     /// </summary>
     public class RouteRegistrar
     {
@@ -37,6 +40,22 @@ namespace Garrison.Server.Routes
             }
         }
 
+        /// <summary>
+        /// Seconds sent in the Retry-After header of 503 DatabaseBusy and DatabaseUnavailable responses. Read on every
+        /// such response. Default returns 2. Null is treated as the default.
+        /// </summary>
+        public Func<int> DatabaseRetryAfterSeconds
+        {
+            get
+            {
+                return _DatabaseRetryAfterSeconds;
+            }
+            set
+            {
+                _DatabaseRetryAfterSeconds = value ?? (() => 2);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -49,6 +68,7 @@ namespace Garrison.Server.Routes
         private readonly OperationScopeMap _Scopes;
         private readonly LoggingModule _Logging;
         private readonly string _Header = "[Routes] ";
+        private Func<int> _DatabaseRetryAfterSeconds = () => 2;
 
         #endregion
 
@@ -112,7 +132,7 @@ namespace Garrison.Server.Routes
         public void Scoped(HttpMethod method, string path, ResourceTypeEnum resourceType, OperationTypeEnum operation, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null, string resourceParameter = "id", List<OpenApiParameterMetadata>? queryParameters = null)
         {
             Record(method, path, resourceType, operation, RouteAuthorizationEnum.Scoped, summary, tag);
-            Func<HttpContextBase, Task> wrapped = async context =>
+            Func<HttpContextBase, Task> authorized = async context =>
             {
                 RequestContext ctx = RouteHelpers.Context(context);
                 string? tenantId = RouteHelpers.Param(context, "tenantId");
@@ -123,7 +143,7 @@ namespace Garrison.Server.Routes
                     await DenyAsync(context, ctx, decision, resourceType, operation, tenantId).ConfigureAwait(false);
                     return;
                 }
-                await InvokeAsync(context, handler).ConfigureAwait(false);
+                await handler(context).ConfigureAwait(false);
             };
             OpenApiRouteMetadata metadata = Metadata(method, path, summary, tag, requestBody, response, true);
             if (queryParameters != null && queryParameters.Count > 0)
@@ -131,7 +151,7 @@ namespace Garrison.Server.Routes
                 foreach (OpenApiParameterMetadata parameter in queryParameters) metadata.WithParameter(parameter);
                 metadata.WithResponse(400, OpenApiResponseMetadata.Json("Invalid query parameters.", OpenApiSchemaFactory.For(typeof(ErrorResponse))));
             }
-            Add(method, path, wrapped, metadata);
+            Add(method, path, authorized, metadata);
         }
 
         /// <summary>
@@ -147,8 +167,7 @@ namespace Garrison.Server.Routes
         public void Authenticated(HttpMethod method, string path, Func<HttpContextBase, Task> handler, string summary, string tag, Type? requestBody = null, Type? response = null)
         {
             Record(method, path, null, null, RouteAuthorizationEnum.Handler, summary, tag);
-            Func<HttpContextBase, Task> wrapped = context => InvokeAsync(context, handler);
-            Add(method, path, wrapped, Metadata(method, path, summary, tag, requestBody, response, true));
+            Add(method, path, handler, Metadata(method, path, summary, tag, requestBody, response, true));
         }
 
         /// <summary>
@@ -176,17 +195,20 @@ namespace Garrison.Server.Routes
         private void Add(HttpMethod method, string path, Func<HttpContextBase, Task> handler, OpenApiRouteMetadata metadata)
         {
             // Every authenticated route under /tenants/{tenantId} checks here, once, that the tenant exists (M1-13).
+            Func<HttpContextBase, Task> inner = handler;
             if (path.Contains("/tenants/{tenantId}", StringComparison.Ordinal))
             {
-                Func<HttpContextBase, Task> inner = handler;
-                handler = async context =>
+                inner = async context =>
                 {
                     if (await TenantMissingAsync(context).ConfigureAwait(false)) return;
-                    await inner(context).ConfigureAwait(false);
+                    await handler(context).ConfigureAwait(false);
                 };
             }
-            if (path.Contains('{')) _Server.Routes.PostAuthentication.Parameter.Add(method, path, handler, null, openApiMetadata: metadata);
-            else _Server.Routes.PostAuthentication.Static.Add(method, path, handler, null, openApiMetadata: metadata);
+            // The tenant check and the authorization decision read the database, so they run inside the same exception
+            // mapping as the handler (G-25).
+            Func<HttpContextBase, Task> wrapped = context => InvokeAsync(context, inner);
+            if (path.Contains('{')) _Server.Routes.PostAuthentication.Parameter.Add(method, path, wrapped, null, openApiMetadata: metadata);
+            else _Server.Routes.PostAuthentication.Static.Add(method, path, wrapped, null, openApiMetadata: metadata);
         }
 
         private void Record(HttpMethod method, string path, ResourceTypeEnum? resourceType, OperationTypeEnum? operation, RouteAuthorizationEnum authorization, string summary, string tag)
@@ -259,7 +281,7 @@ namespace Garrison.Server.Routes
             }
             catch (ValidationException e)
             {
-                await RouteHelpers.ValidationAsync(context, e.Message, e.Fields.Count > 0 ? e.Fields : null, e.Codes).ConfigureAwait(false);
+                await RouteHelpers.ValidationAsync(context, e.Code, e.Message, e.Fields.Count > 0 ? e.Fields : null, e.Codes).ConfigureAwait(false);
             }
             catch (NotFoundException e)
             {
@@ -280,6 +302,13 @@ namespace Garrison.Server.Routes
             catch (OperationCanceledException)
             {
                 if (!context.Response.ResponseSent) await RouteHelpers.ErrorAsync(context, 503, "Cancelled", "The request was cancelled.").ConfigureAwait(false);
+            }
+            catch (Exception e) when (DatabaseFailures.Classify(e) != DatabaseFailureEnum.None)
+            {
+                DatabaseFailureEnum failure = DatabaseFailures.Classify(e);
+                _Logging.Warn(_Header + context.Request.Method + " " + context.Request.Url.RawWithoutQuery + " failed: database " + failure.ToString().ToLowerInvariant() + ": " + e.Message + " "
+                    + GarrisonTracing.LogFields("route", RequestTelemetry.RouteTemplate(context), "tenant", RequestTelemetry.Tenant(context), "trace", System.Diagnostics.Activity.Current?.TraceId.ToHexString()));
+                if (!context.Response.ResponseSent) await RouteHelpers.DatabaseFailureAsync(context, failure, _DatabaseRetryAfterSeconds()).ConfigureAwait(false);
             }
             catch (Exception e)
             {

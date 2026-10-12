@@ -6,7 +6,9 @@
     "Ssl": false,
     "PublicBaseUrl": null,
     "ExternalBaseUrl": null,
-    "CorsOrigins": []
+    "CorsOrigins": [],
+    "LivenessPort": 8702,
+    "DatabaseRetryAfterSeconds": 2
   },
   "Mcp": {
     "Enable": true,
@@ -27,7 +29,7 @@
     "Schema": null,
     "TablePrefix": null,
     "ManageSchema": true,
-    "MaxPoolSize": 100
+    "MaxPoolSize": 40
   },
   "Logging": {
     "ConsoleLogging": true,

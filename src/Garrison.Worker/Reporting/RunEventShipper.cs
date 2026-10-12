@@ -112,6 +112,54 @@ namespace Garrison.Worker.Reporting
 
         #region Public-Methods
 
+        /// <summary>
+        /// Start gate (P10.20): ask the control plane to acknowledge the start of this attempt, which moves the run from
+        /// Leased to Running at this lease epoch. The worker launches the harness only after this returns true, so a
+        /// run whose lease expires before the acknowledgement is requeued without having started anywhere, and a run
+        /// that did start follows the deployment's retryOnNodeLoss rule. Retries with backoff while the control plane is
+        /// unreachable, until it acknowledges, reports the lease stale (409), or <paramref name="deadlineUtc"/> passes
+        /// (normally the assignment's lease expiry, after which the run can no longer be acknowledged for this epoch).
+        /// At least three attempts are made.
+        /// </summary>
+        /// <param name="deadlineUtc">Stop retrying after this time (UTC).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when the control plane acknowledged the start; false when it refused or could not be reached.</returns>
+        /// <exception cref="OperationCanceledException">Thrown when the token is cancelled.</exception>
+        public async Task<bool> AcknowledgeStartAsync(DateTime deadlineUtc, CancellationToken token)
+        {
+            RunStartedRequest request = new RunStartedRequest();
+            request.NodeId = _NodeId;
+            request.Epoch = _Epoch;
+            request.ProcessId = null;
+            request.StartedUtc = DateTime.UtcNow;
+            int attempt = 0;
+            while (!Stale)
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    await _Client.StartedAsync(_RunId, request, token).ConfigureAwait(false);
+                    return true;
+                }
+                catch (StaleLeaseException)
+                {
+                    MarkStale();
+                    return false;
+                }
+                catch (NodeProtocolException e)
+                {
+                    _Log?.Invoke("start acknowledgement for " + _RunId + " failed (attempt " + (attempt + 1) + "): " + e.Message);
+                }
+                attempt++;
+                DateTime now = DateTime.UtcNow;
+                if (now >= deadlineUtc && attempt >= 3) break;
+                int delay = Backoff(attempt);
+                if (now < deadlineUtc) delay = (int)Math.Min(delay, Math.Max(50, (deadlineUtc - now).TotalMilliseconds));
+                await Task.Delay(delay, token).ConfigureAwait(false);
+            }
+            return false;
+        }
+
         /// <inheritdoc />
         public async Task StartedAsync(int? processId, CancellationToken token)
         {

@@ -698,7 +698,13 @@ namespace Garrison.Server.Runtime
                     GarrisonMetrics.Count(GarrisonMetricCatalog.LeaseExpirations, "action", requeue ? "requeued" : "failed");
                     _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()) + " " + RunTracing.LogFields(run.Id, run.TraceId)
                         + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", deployment?.Name, "node", run.LeaseNodeName ?? run.LeaseNodeId));
-                    if (requeue) _Signals.NotifyQueue();
+                    if (requeue)
+                    {
+                        // Fence the old attempt (P10.21): its run token, minted for this epoch, stops working now, so a
+                        // harness that outlived its lease cannot delegate. Tokens of a newer attempt are left alone.
+                        await _Database.Sessions.RevokeByRunEpochAsync(run.Id, run.LeaseEpoch, "Run lease expired; the run was requeued.", token).ConfigureAwait(false);
+                        _Signals.NotifyQueue();
+                    }
                     else
                     {
                         await _Database.Sessions.RevokeByRunAsync(run.Id, "Run lease expired.", token).ConfigureAwait(false);

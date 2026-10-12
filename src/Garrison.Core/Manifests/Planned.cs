@@ -36,6 +36,18 @@ namespace Garrison.Core.Manifests
         public string? Message { get; set; } = null;
 
         /// <summary>
+        /// Stable error code when the document failed (for example ManifestInvalid, ValidationFailed, or
+        /// ReferenceNotFound); null otherwise.
+        /// </summary>
+        public string? ErrorCode { get; set; } = null;
+
+        /// <summary>
+        /// Path of the field that failed, for example documents[2].spec.kind; null when the failure is not about one
+        /// field.
+        /// </summary>
+        public string? ErrorField { get; set; } = null;
+
+        /// <summary>
         /// For prompt templates, whether the content changed (a version is written).
         /// </summary>
         public bool ContentChanged { get; set; } = false;

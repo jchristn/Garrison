@@ -97,6 +97,7 @@ namespace Test.Shared.Infrastructure
             settings.Rest.Port = FreePort();
             settings.Mcp.Hostname = "127.0.0.1";
             settings.Mcp.Port = FreePort();
+            settings.Rest.LivenessPort = FreePort();
             settings.Database = TestEnvironment.IsolatedSettings(provider);
             settings.Logging.ConsoleLogging = Environment.GetEnvironmentVariable("GARRISON_TEST_LOGS") == "true";
             settings.Telemetry.Enabled = false;

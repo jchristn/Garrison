@@ -1,6 +1,6 @@
 {
   "NodeId": null,
-  "Rest": { "Hostname": "*", "Port": 8700, "Ssl": false, "PublicBaseUrl": null, "ExternalBaseUrl": null, "CorsOrigins": [] },
+  "Rest": { "Hostname": "*", "Port": 8700, "Ssl": false, "PublicBaseUrl": null, "ExternalBaseUrl": null, "CorsOrigins": [], "LivenessPort": 8702, "DatabaseRetryAfterSeconds": 2 },
   "Mcp": { "Enable": true, "Hostname": "*", "Port": 8701, "Path": "/mcp", "PublicUrl": null, "MaxMessageSize": 16777216, "MaxToolWaitSeconds": 90 },
   "Database": {
     "Type": "Postgresql",
@@ -12,7 +12,7 @@
     "Schema": null,
     "TablePrefix": null,
     "ManageSchema": true,
-    "MaxPoolSize": 100
+    "MaxPoolSize": 40
   },
   "Logging": { "ConsoleLogging": true, "FileLogging": false, "LogDirectory": "logs/", "LogFilename": "garrison.log", "MinimumSeverity": 1 },
   "Auth": { "Issuer": "garrison", "TokenLifetimeMinutes": 480, "SignedRequestSkewSeconds": 300, "RateLimitPerMinute": 60 },

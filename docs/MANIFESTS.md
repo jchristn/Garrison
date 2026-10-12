@@ -85,6 +85,15 @@ A successful apply answers 200. If any document fails, the response is 400 with 
 { "kind": "Gadget", "name": "x", "result": "Failed", "message": "Document 1 has unknown kind 'Gadget'. Supported: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, Agent, Deployment." }
 ```
 
+A failed item also carries `errorCode` and, when one field is at fault, `errorField`. A spec field with the wrong type or a value it does not accept gives `ManifestInvalid`, and the message names the document, the field, the value, and what the field accepts:
+
+```json
+{ "kind": "Secret", "name": "mux-api-key", "result": "Failed", "errorCode": "ManifestInvalid", "errorField": "documents[1].spec.kind",
+  "message": "Secret mux-api-key (documents[1]) has an invalid spec: spec.kind is 'Generic', which is not an allowed value. Allowed values: GenericEnv, GenericFile." }
+```
+
+Other failures use `ValidationFailed` (for example a name that breaks the naming rules) or the code of a reference or template problem, such as `ReferenceNotFound`.
+
 Every apply, including dry runs, is recorded. `GET .../manifests/applies` lists them and `GET .../manifests/applies/{id}` returns one with its items.
 
 Manifests never delete anything. Removing a document from a manifest leaves the record in place; delete it through the API or dashboard.

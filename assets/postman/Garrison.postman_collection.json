@@ -79,7 +79,7 @@
                 "live"
               ]
             },
-            "description": "Always 200 while the process runs, including during migrations and draining. Use it as the liveness probe.",
+            "description": "Always 200 while the process runs, including during migrations and draining. The same answer is served on the separate liveness port (Rest.LivenessPort, default 8702) from its own thread; point liveness probes there.",
             "auth": {
               "type": "noauth"
             }
@@ -6697,6 +6697,61 @@
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('nothing failed', function () { pm.expect(pm.response.json().failedCount).to.eql(0); });",
                   "pm.test('every item plans a result', function () { pm.response.json().items.forEach(function (i) { pm.expect(i.result).to.eql('Validated'); pm.expect(['Created', 'Updated', 'Unchanged']).to.include(i.plannedResult); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply manifest with an invalid value returns ManifestInvalid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/yaml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/manifests/apply?dryRun=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "manifests",
+                "apply"
+              ],
+              "query": [
+                {
+                  "key": "dryRun",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "A dry run of a Secret whose spec.kind is not an allowed value. The document fails with errorCode ManifestInvalid, errorField documents[0].spec.kind, and a message that lists the allowed values.",
+            "body": {
+              "mode": "raw",
+              "raw": "apiVersion: garrison/v1\nkind: Secret\nmetadata:\n  name: postman-invalid-{{suffix}}\nspec:\n  kind: Generic\n",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('the document fails with ManifestInvalid', function () { var item = pm.response.json().items[0]; pm.expect(item.result).to.eql('Failed'); pm.expect(item.errorCode).to.eql('ManifestInvalid'); pm.expect(item.errorField).to.eql('documents[0].spec.kind'); });",
+                  "pm.test('the message lists the allowed values and no internals', function () { var m = pm.response.json().items[0].message; pm.expect(m).to.include('GenericEnv'); pm.expect(m).to.not.include('Garrison.Core'); pm.expect(m).to.not.include('BytePosition'); });"
                 ]
               }
             }

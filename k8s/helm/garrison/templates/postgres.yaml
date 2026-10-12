@@ -40,6 +40,7 @@ spec:
       containers:
         - name: postgres
           image: {{ .Values.database.embedded.image }}
+          args: ["-c", "max_connections={{ .Values.database.embedded.maxConnections }}"]
           ports:
             - { name: postgres, containerPort: 5432 }
           env:

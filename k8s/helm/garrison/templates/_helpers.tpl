@@ -25,8 +25,8 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 {{- define "garrison.probe" -}}
 exec:
   command: ["curl", "-fsS", "-o", "/dev/null", {{ .url | quote }}]
-periodSeconds: 5
-timeoutSeconds: 4
+periodSeconds: {{ .period | default 5 }}
+timeoutSeconds: {{ .timeout | default 4 }}
 failureThreshold: {{ .failure }}
 successThreshold: {{ .success }}
 {{- end -}}

@@ -94,6 +94,18 @@ namespace Garrison.Core.Models
         public string? Message { get; set; } = null;
 
         /// <summary>
+        /// Stable error code when the document failed: ManifestInvalid (a spec field has the wrong type or a value
+        /// that is not allowed), ValidationFailed, or a compile code such as ReferenceNotFound. Null otherwise.
+        /// </summary>
+        public string? ErrorCode { get; set; } = null;
+
+        /// <summary>
+        /// Path of the field that failed, for example documents[2].spec.kind. Null when the failure is not about one
+        /// field.
+        /// </summary>
+        public string? ErrorField { get; set; } = null;
+
+        /// <summary>
         /// What the apply does (or, in a dry run, would do) with this document: Created, Updated, or Unchanged; Failed
         /// when it failed validation. In a dry run Result is Validated and this carries the planned outcome.
         /// </summary>

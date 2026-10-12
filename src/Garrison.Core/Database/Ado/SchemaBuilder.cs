@@ -86,6 +86,10 @@ namespace Garrison.Core.Database.Ado
             v10.BuildVersion10();
             migrations.Add(new SchemaMigration(10, "Secret credential status and Codex login refresh", v10._Statements, v10._Columns));
 
+            SchemaBuilder v11 = new SchemaBuilder(catalog, dialect);
+            v11.BuildVersion11();
+            migrations.Add(new SchemaMigration(11, "Run token lease epochs and manifest error codes", v11._Statements, v11._Columns));
+
             return migrations;
         }
 
@@ -188,6 +192,18 @@ namespace Garrison.Core.Database.Ado
             Column("secrets", "refreshedutc", d.TypeTimestamp);
             Column("secrets", "accesstokenexpiresutc", d.TypeTimestamp);
             Index("secrets", "kind", false, "kind");
+        }
+
+        private void BuildVersion11()
+        {
+            SqlDialect d = _Dialect;
+
+            // authsessions: the lease epoch a run token was minted for (P10.21). Null for every other session.
+            Column("authsessions", "leaseepoch", d.TypeBigInt);
+
+            // manifest_apply_items: stable error code and failing field of a failed document (G-26).
+            Column("manifest_apply_items", "errorcode", "VARCHAR(64)");
+            Column("manifest_apply_items", "errorfield", "VARCHAR(512)");
         }
 
         private void BuildVersion7()

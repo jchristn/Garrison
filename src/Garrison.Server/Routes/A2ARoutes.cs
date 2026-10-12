@@ -9,6 +9,7 @@ namespace Garrison.Server.Routes
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Database;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
@@ -252,6 +253,17 @@ namespace Garrison.Server.Routes
                     error.Data = new A2AErrorData { Code = "InvalidParams" };
                     result = "error";
                     await SendRpcErrorAsync(context, id, error).ConfigureAwait(false);
+                }
+                catch (Exception e) when (DatabaseFailures.Classify(e) != DatabaseFailureEnum.None && !context.Response.ResponseSent)
+                {
+                    // A database outage or an exhausted pool: a JSON-RPC error with HTTP 503 and Retry-After (G-25).
+                    bool busy = DatabaseFailures.Classify(e) == DatabaseFailureEnum.Busy;
+                    string code = busy ? "DatabaseBusy" : "DatabaseUnavailable";
+                    JsonRpcError error = Error(-32603, code + ": " + (busy ? "The database has no free connections right now." : "The database cannot be reached right now.") + " Retry after the number of seconds in Retry-After.");
+                    error.Data = new A2AErrorData { Code = code };
+                    result = "error";
+                    context.Response.Headers["Retry-After"] = Math.Max(1, _Context.Settings.Rest.DatabaseRetryAfterSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    await SendRpcErrorAsync(context, id, error, 503).ConfigureAwait(false);
                 }
             }
             catch (Exception e)

@@ -383,6 +383,10 @@ type ManifestApplyItem struct {
 	Result     string `json:"result"`
 	ResourceID string `json:"resourceId,omitempty"`
 	Message    string `json:"message,omitempty"`
+	// ErrorCode is the stable code of a failed document, for example ManifestInvalid; empty otherwise.
+	ErrorCode string `json:"errorCode,omitempty"`
+	// ErrorField is the path of the field that failed, for example documents[1].spec.kind.
+	ErrorField string `json:"errorField,omitempty"`
 	// Changes lists field-level changes for Updated items (dry runs report them too); empty otherwise.
 	Changes []ManifestFieldChange `json:"changes,omitempty"`
 }

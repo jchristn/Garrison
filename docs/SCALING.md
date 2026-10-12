@@ -100,7 +100,7 @@ REST, A2A, SSE, WebSocket, MCP, and node protocol traffic need no affinity.
 
 ### Startup, readiness, and shutdown
 
-A starting replica first answers on its REST port with a small startup listener: `GET /v1.0/api/health/live` answers 200 and everything else 503 (`starting`) while it waits for the startup lock, migrates, and seeds. Then the real listener takes the port. Readiness (`GET /v1.0/api/health` or `/v1.0/api/health/ready`) answers 200 only when the database answers, its schema is at least the version this build needs, and the replica is not draining. Point the readiness probe at `/v1.0/api/health/ready` and the liveness probe at `/v1.0/api/health/live`, so a long migration or a database outage never restarts a pod.
+A starting replica first answers on its REST port with a small startup listener: `GET /v1.0/api/health/live` answers 200 and everything else 503 (`starting`) while it waits for the startup lock, migrates, and seeds. Then the real listener takes the port. Readiness (`GET /v1.0/api/health` or `/v1.0/api/health/ready`) answers 200 only when the database answers, its schema is at least the version this build needs, and the replica is not draining. Point the readiness probe at `/v1.0/api/health/ready` and the liveness probe at the separate liveness port, `http://127.0.0.1:8702/v1.0/api/health/live` (`Rest.LivenessPort`), so a long migration, a database outage, or overload never restarts a pod. The liveness port is served from its own thread from the moment the process starts: it never waits for the database, the REST listener's request queue, or the thread pool, so a saturated replica keeps answering it while readiness takes it out of rotation. The shipped manifests probe liveness every 10 seconds with a 10-second timeout and restart only after 6 failures in a row.
 
 On SIGTERM a replica drains: readiness answers 503 (`draining`) at once, waiting lease long polls return empty so their workers re-poll another replica, SSE streams send `server.draining` and close (an `EventSource` reconnects elsewhere and resumes with `Last-Event-ID`), A2A streams, WebSockets, and synchronous waits end, and in-flight requests get up to 15 seconds. Then background work and the listeners stop. The whole sequence fits a 30-second termination grace period.
 
@@ -138,7 +138,24 @@ PostgreSQL carries all coordination, so it is the component to size first.
 
 ### Connections
 
-Each replica opens at most `Database.MaxPoolSize` pooled connections (100 by default, `GARRISON_DB_MAX_POOL_SIZE`), plus one unpooled `LISTEN` connection for the `PostgresNotify` backplane and, briefly at startup, one for the startup lock. Keep `replicas x (MaxPoolSize + 2)` below PostgreSQL's `max_connections`, minus what other clients need. Most requests hold a connection for one query, so a pool of 20 to 50 per replica is usually plenty, and a smaller pool with `Database.ConnectionTimeoutSeconds` (15) fails fast instead of piling up waiters. `Database.MinPoolSize` keeps warm connections, and `Database.CommandTimeoutSeconds` (30) bounds any single statement. Behind PgBouncer in transaction mode, use `Cluster.Backplane` `Polling`, because `LISTEN` needs a session.
+Each replica opens at most `Database.MaxPoolSize` pooled connections (`GARRISON_DB_MAX_POOL_SIZE`; 100 when unset, 40 in every shipped configuration), plus one unpooled `LISTEN` connection for the `PostgresNotify` backplane and, briefly at startup, one for the startup lock. Size the pool against the most replicas that can run at once, which is the HPA's `maxReplicas` when autoscaling is on:
+
+```
+max_connections >= maxReplicas x (MaxPoolSize + 2) + 13
+```
+
+The 13 covers PostgreSQL's `superuser_reserved_connections` (3) and about 10 for the bootstrap Job, backups, migrations run by hand, and an operator's `psql`. Add whatever other clients share the server.
+
+| Configuration | Replicas (most) | `MaxPoolSize` | Connections needed | `max_connections` |
+|---|---|---|---|---|
+| Kustomize base with `components/postgres`, Helm `database.mode: embedded` | 4 | 40 | 4 x 42 + 13 = 181 | 200 (set by the component and `database.embedded.maxConnections`) |
+| `overlays/production` and `values-production.yaml` (external PostgreSQL, HPA up to 10) | 10 | 20 | 10 x 22 + 13 = 233 | at least 250 on your PostgreSQL |
+| Docker Compose | 1 | 40 | 55 | 100 (PostgreSQL's default) |
+| `k8s/tests` scale overlay | 3 to 5 | 40 | up to 223 | 300 |
+
+The Helm chart checks the embedded case when it renders and refuses a combination that does not fit. Raise `max_connections` (each connection costs PostgreSQL a few megabytes) or lower the pool when you add replicas.
+
+Most requests hold a connection for one query, so a pool of 20 to 50 per replica is usually plenty, and a smaller pool with `Database.ConnectionTimeoutSeconds` (15) fails fast instead of piling up waiters. When the pool is exhausted, or PostgreSQL itself is out of connection slots, requests answer `503 DatabaseBusy` with `Retry-After` (`Rest.DatabaseRetryAfterSeconds`, default 2), and when the database cannot be reached they answer `503 DatabaseUnavailable`; neither is ever a 500. Clients and SDK callers should retry these after the advertised delay. `Database.MinPoolSize` keeps warm connections, and `Database.CommandTimeoutSeconds` (30) bounds any single statement. Behind PgBouncer in transaction mode, use `Cluster.Backplane` `Polling`, because `LISTEN` needs a session.
 
 ### Read path
 
@@ -170,10 +187,11 @@ Workers heartbeat every 5 seconds by default, and the server's registration resp
 
 | Failure | What happens |
 |---|---|
-| A worker crashes | Its leases stop being renewed. After the lease expires, the leader requeues each run if the deployment allows another attempt (`maxAttempts`, `retryOnNodeLoss`) or fails it with `NodeLost` |
+| A worker crashes | Its leases stop being renewed. After the lease expires, the leader requeues a run that never started (still Leased) if it has attempts left; a run that started is requeued only when the deployment sets `retryOnNodeLoss` and has attempts left, and otherwise fails with `NodeLost` |
 | A worker loses the control plane | It keeps running its harnesses, buffers events (up to `MaxBufferedEvents` per run), and retries completion for up to `CompletionRetrySeconds`. If its lease was taken away in the meantime, its reports are refused and the run's later attempt wins |
 | A control-plane replica crashes | Clients and workers retry against another replica. If it was the leader, another replica takes over maintenance within the leader lease |
-| The database is unavailable | The control plane cannot accept or hand out work. Workers keep running what they have and retry |
+| The database is unavailable | The control plane cannot accept or hand out work: API calls answer `503 DatabaseUnavailable` (JSON, with `Retry-After`), readiness answers 503, and liveness keeps answering 200. Workers keep running what they have and retry |
+| A worker is partitioned after it claims a run | The worker asks the control plane to acknowledge the start before it launches the harness (the start gate). Without the acknowledgement it never launches; the lease expires and the leader requeues the run, which therefore runs once. A run whose start was acknowledged follows `retryOnNodeLoss` when its lease expires: `NodeLost` by default, a new attempt only when the deployment allows it, and the old attempt's run token stops working either way |
 | A run hangs | The worker kills it at the deadline. If the worker cannot, the leader fails the run after the deadline plus a grace period |
 | The host sleeps, or the container or VM is frozen | Every timestamp looks old on resume. The leader notices the gap, holds off for one heartbeat window, and judges nodes and runs only after they have had a chance to report (below) |
 

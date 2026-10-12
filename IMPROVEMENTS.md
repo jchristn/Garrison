@@ -22,6 +22,8 @@ Defect fixes come first: tuning on top of a defect tunes the wrong thing. None o
 | 12 | I-12 | Count database operations per run | Product hook | Medium: cost per run without diffing server-wide counters | Medium | DB operations per run in every load report |
 | 13 | I-13 | Raise slot efficiency: a slot is busy for exec plus about 40 ms of worker and server steps, and closed-loop throughput reached 80 to 85% of what 8 slots allow | Throughput | Medium | Unknown until profiled (lease long-poll turnaround after a completion is the first suspect) | closed-loop c8 and c16 throughput against slots / run time |
 
+Status after round 1 (2026-10-12): I-01 (pool sizing and 503 `DatabaseBusy`; the invocation waits were not changed), I-02 (separate liveness listener), I-03 (JSON 503 `DatabaseUnavailable`), I-04 (fixed by P13.22), and I-07 (`ManifestInvalid`) are done. Open-loop 60 to 90 runs/s finished with 0 failures and no restarts, and `resilience database-restart` had 0 unclean errors (`benchmarks/RESULTS.md`, round 1).
+
 ## Evidence
 
 ### I-01 / D-4: the shipped pool can exhaust the shipped PostgreSQL

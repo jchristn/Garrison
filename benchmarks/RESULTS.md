@@ -129,9 +129,50 @@ From `Garrison.Benchmark history --rounds R0=round0` (headline rows only; the fu
 
 There is one round so far, so there is no net change between rounds yet.
 
+## Round 1 (label `round1`, 2026-10-12): the H5 rerun
+
+Round 1 reruns the parts of round 0 that refuted H5, after the fixes for D-1, D-4, and D-5 (plan G-23 to G-27, P10.20, and P10.21; D-2 was already fixed by the P13.22 telemetry work). Same machine and stack recipe as round 0: `benchmarks/stack-up.sh` built the images from the working tree (commit `d236478` plus the uncommitted fixes) into a fresh `garrison-bench` k3d cluster, 1 server on PostgreSQL 17 (now with the shipped `max_connections` 200 and pool 40), 2 alpha workers and 1 beta worker, 4 slots each. The `garrison-k3s` cluster and two test PostgreSQL containers shared the Docker VM, so latency and throughput are indicative. Reports: `20261012-003647-resilience-synthetic-fleet-round1`, `20261012-003932-load-synthetic-fleet-round1-open`, `20261012-004127-load-synthetic-fleet-round1-repro-open70`, `20261012-004255-routing-synthetic-fleet-round1`, and `20261012-004316-e2e-synthetic-fleet-round1`.
+
+### Resilience
+
+| Scenario | Result | Runs | Lost | Duplicates | Client errors | Unclean | Recovery |
+|---|---|---|---|---|---|---|---|
+| harness-failure | pass | 10 | 0 | 0 | 0 | 0 | all `Failed/HarnessFailed` |
+| harness-timeout | pass | 3 | 0 | 0 | 0 | 0 | all `TimedOut` |
+| worker-kill (SIGKILL) | pass | 55 | 0 | 0 | 0 | 0 | 3 runs requeued; the last finished 32.3 s after the kill |
+| server-kill (SIGKILL, 1 replica) | pass | 99 | 0 | 0 | 13 transport errors while it restarted | 0 | 5.6 s |
+| database-restart (SIGKILL) | **pass** | 71 | 0 | 0 | 4, all `503 DatabaseUnavailable` with JSON bodies | **0** (round 0: 18 HTML 500 pages) | 4.6 s |
+
+During the database restart the server logged `database unavailable: 57P01: terminating connection due to unexpected postmaster exit` for each refused request, and `garrison_http_requests_total` shows only `503` in the `5xx` class (4 run reads and 4 authentications of requests that arrived while PostgreSQL was down).
+
+### Load, open loop (2 workers, 8 slots)
+
+| Rate | Started | Succeeded | Failed | Throughput (ops/s) | p50 / p95 (ms) | Round 0 |
+|---|---|---|---|---|---|---|
+| 20/s | 400 | 400 | 0 | 19.95 | 92 / 100 | 400 of 400, 123 / 184 ms |
+| 40/s | 800 | 800 | 0 | 39.85 | 105 / 114 | 800 of 800, 144 / 224 ms |
+| 60/s | 1200 | 1200 | 0 | 59.70 | 121 / 259 | **204 failed** (203 `500 InternalError`), 10.83 ops/s, p50 70.6 s |
+| 80/s | 1600 | 1600 | 0 | 64.77 | 2448 / 4658 | 1600 of 1600, ran after a liveness restart |
+| 70/s (repro) | 1400 | 1400 | 0 | 57.03 | 2959 / 4602 | connection exhaustion |
+| 90/s (repro) | 1800 | 1800 | 0 | 61.40 | 5141 / 9110 | 1073 of 2700 failed, PostgreSQL `53300`, liveness restart |
+
+Above the slot ceiling (about 60 runs/s here) Garrison now degrades the way it should: runs wait in the queue (queue p50 2.3 s at 80/s), nothing fails, and nothing restarts. The server's restart count did not change during either load run (its one restart is the server-kill scenario's SIGKILL), the cluster recorded no `Unhealthy` probe events, and the server logged no `53300` or "too many clients".
+
+### Correctness probes
+
+Routing 24 of 24 and e2e 69 of 69 (direct arm 45 of 45), as in round 0.
+
+### Hypotheses
+
+| ID | Verdict | Evidence |
+|---|---|---|
+| H5 correctness under failure | **Holds** | Every routing and e2e probe passes; no run lost or duplicated in any crash scenario; every error response in every scenario and load level carried a JSON body, and the database restart produced only `503 DatabaseUnavailable`. Past capacity (70 to 90 runs/s on 8 slots) there were no failures, no connection exhaustion, and no liveness restarts |
+
+H1 to H4 and H6 were not rerun in round 1.
+
 ## Defects found by the benchmarks
 
-None is fixed yet: the suite was built under an instruction not to change product code. Each has an entry in `IMPROVEMENTS.md`.
+Round 0 found these while the suite was built under an instruction not to change product code; each has an entry in `IMPROVEMENTS.md`. D-1, D-3, D-4, and D-5 are fixed (plan G-23 to G-26): round 1 rechecked D-1, D-4, and D-5, and D-3 is covered by the `correctness-unit.manifest-invalid` test. D-2 was fixed by the P13.22 telemetry work.
 
 | ID | Defect | Where | Found by |
 |---|---|---|---|

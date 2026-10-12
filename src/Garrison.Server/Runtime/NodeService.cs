@@ -90,6 +90,7 @@ namespace Garrison.Server.Runtime
         /// <returns>Registration response.</returns>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
         /// <exception cref="ValidationException">Thrown when the name is missing.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when a pool or node created concurrently cannot be read back.</exception>
         public async Task<NodeRegisterResponse> RegisterAsync(RequestContext ctx, NodeRegisterRequest request, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -102,10 +103,19 @@ namespace Garrison.Server.Runtime
                 NodePool? pool = await _Database.NodePools.ReadByNameAsync(request.NodePool, token).ConfigureAwait(false);
                 if (pool == null)
                 {
-                    pool = new NodePool();
-                    pool.Name = request.NodePool;
-                    pool.Description = "Created by node registration.";
-                    await _Database.NodePools.CreateAsync(pool, token).ConfigureAwait(false);
+                    NodePool created = new NodePool();
+                    created.Name = request.NodePool;
+                    created.Description = "Created by node registration.";
+                    try
+                    {
+                        pool = await _Database.NodePools.CreateAsync(created, token).ConfigureAwait(false);
+                    }
+                    catch (Exception e) when (DatabaseFailures.IsUniqueViolation(e))
+                    {
+                        // Another worker registering at the same moment created the pool first (G-27): use theirs.
+                        pool = await _Database.NodePools.ReadByNameAsync(request.NodePool, token).ConfigureAwait(false)
+                            ?? throw new InvalidOperationException("Node pool " + request.NodePool + " was created concurrently but could not be read back.", e);
+                    }
                 }
                 poolId = pool.Id;
             }
@@ -147,8 +157,27 @@ namespace Garrison.Server.Runtime
                 return capability;
             }).ToList();
 
-            if (create) await _Database.Nodes.CreateAsync(node, token).ConfigureAwait(false);
-            else await _Database.Nodes.UpdateAsync(node, token).ConfigureAwait(false);
+            if (create)
+            {
+                try
+                {
+                    await _Database.Nodes.CreateAsync(node, token).ConfigureAwait(false);
+                }
+                catch (Exception e) when (DatabaseFailures.IsUniqueViolation(e))
+                {
+                    // The same node registered twice at once (a retry racing the first attempt): update the row that won.
+                    Node existing = await _Database.Nodes.ReadByNameAsync(request.Name, token).ConfigureAwait(false)
+                        ?? throw new InvalidOperationException("Node " + request.Name + " was registered concurrently but could not be read back.", e);
+                    node.Id = existing.Id;
+                    node.Status = existing.Status == NodeStatusEnum.Lost || existing.Status == NodeStatusEnum.Offline || existing.Status == NodeStatusEnum.Draining ? NodeStatusEnum.Ready : existing.Status;
+                    node.CreatedUtc = existing.CreatedUtc;
+                    await _Database.Nodes.UpdateAsync(node, token).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                await _Database.Nodes.UpdateAsync(node, token).ConfigureAwait(false);
+            }
             GarrisonMetrics.Count(GarrisonMetricCatalog.NodeTransitions, "status", "Registered");
 
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.NodeRegistered, "Node", node.Id, "Node " + node.Name + " registered with " + node.Capabilities.Count(c => c.Available) + " available harnesses.", null, token).ConfigureAwait(false);

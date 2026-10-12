@@ -13,6 +13,7 @@ namespace Garrison.Server.Protocols
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
@@ -306,6 +307,17 @@ namespace Garrison.Server.Protocols
             {
                 _Context.Logging.Warn(_Header + "internal MCP endpoint failed: " + e.Message);
                 if (!context.Response.ResponseStarted) await SendJsonErrorAsync(context, 502, null, -32603, "The MCP endpoint is not available.").ConfigureAwait(false);
+            }
+            catch (Exception e) when (DatabaseFailures.Classify(e) != DatabaseFailureEnum.None)
+            {
+                // Authentication and session lookups read the database; an outage answers a retryable JSON-RPC error.
+                DatabaseFailureEnum failure = DatabaseFailures.Classify(e);
+                _Context.Logging.Warn(_Header + "database " + failure.ToString().ToLowerInvariant() + " while relaying an MCP request: " + e.Message);
+                if (!context.Response.ResponseStarted)
+                {
+                    context.Response.Headers["Retry-After"] = Math.Max(1, _Context.Settings.Rest.DatabaseRetryAfterSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    await SendJsonErrorAsync(context, 503, null, -32603, failure == DatabaseFailureEnum.Busy ? "DatabaseBusy: the database has no free connections right now; retry later." : "DatabaseUnavailable: the database cannot be reached right now; retry later.").ConfigureAwait(false);
+                }
             }
         }
 

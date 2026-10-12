@@ -21,6 +21,24 @@ namespace Garrison.Core.Services
         public Dictionary<string, string> Codes { get; } = new Dictionary<string, string>();
 
         /// <summary>
+        /// Stable error code for the whole response. Default ValidationFailed; manifest spec errors use ManifestInvalid.
+        /// Never null or empty.
+        /// </summary>
+        public string Code
+        {
+            get
+            {
+                return _Code;
+            }
+            set
+            {
+                _Code = String.IsNullOrWhiteSpace(value) ? "ValidationFailed" : value;
+            }
+        }
+
+        private string _Code = "ValidationFailed";
+
+        /// <summary>
         /// Instantiate.
         /// </summary>
         /// <param name="message">Message.</param>

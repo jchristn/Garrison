@@ -15,8 +15,8 @@ components:
   - ../../components/postgres
 
 configMapGenerator:
-  # Same as base/config/garrison.json except Database.MaxPoolSize 40: 3 replicas x 40 stays well under the
-  # max_connections of 300 set below. Scale both together for more replicas (P10.10 covers sizing).
+  # Same as base/config/garrison.json (Database.MaxPoolSize 40). The max_connections of 300 set below fits up to
+  # 6 replicas: replicas x (40 + 2) + 13 <= 300. Scale both together for more (docs/SCALING.md, "Connections").
   - name: garrison-server-settings
     behavior: replace
     files:

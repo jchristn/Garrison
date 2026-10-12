@@ -6,6 +6,9 @@ database:
 server:
   replicas: 3
   expectedReplicas: 3
+  # Up to 10 replicas (hpa.maxReplicas) x (20 + 2) + 13 = 233 connections: give the external PostgreSQL a
+  # max_connections of at least 250 (docs/SCALING.md, "Database connections").
+  dbMaxPoolSize: 20
   # What A2A agent cards advertise. Match ingress.host.
   externalBaseUrl: https://garrison.example.com
   resources:

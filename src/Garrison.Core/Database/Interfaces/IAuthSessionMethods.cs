@@ -97,6 +97,18 @@ namespace Garrison.Core.Database.Interfaces
         Task<int> RevokeByRunAsync(string runId, string reason, CancellationToken token = default);
 
         /// <summary>
+        /// Revoke the sessions bound to a run that were minted for a lease epoch at or below a given epoch (and any
+        /// run session without an epoch), leaving tokens minted for later attempts alone. Used when an expired lease is
+        /// requeued (P10.21).
+        /// </summary>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="maxEpoch">Highest lease epoch to revoke.</param>
+        /// <param name="reason">Reason.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Sessions revoked.</returns>
+        Task<int> RevokeByRunEpochAsync(string runId, long maxEpoch, string reason, CancellationToken token = default);
+
+        /// <summary>
         /// Record a use of the session.
         /// </summary>
         /// <param name="id">Session identifier.</param>

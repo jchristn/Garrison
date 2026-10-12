@@ -25,5 +25,5 @@ COPY --from=build --chown=10001:10001 /out/ /app/
 USER 10001
 ENV GARRISON_SETTINGS_FILE=/app/garrison.json \
     DOTNET_CLI_TELEMETRY_OPTOUT=1
-EXPOSE 8700 8701 9464
+EXPOSE 8700 8701 8702 9464
 ENTRYPOINT ["dotnet", "Garrison.Server.dll"]

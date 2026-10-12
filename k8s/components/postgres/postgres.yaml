@@ -38,6 +38,9 @@ spec:
       containers:
         - name: postgres
           image: postgres:17
+          # Room for every server replica's pool: replicas x (Database.MaxPoolSize + 2) + 13 must stay at or below this
+          # (docs/SCALING.md, "Database connections"). 200 fits 4 replicas at the shipped pool of 40.
+          args: ["-c", "max_connections=200"]
           ports:
             - name: postgres
               containerPort: 5432

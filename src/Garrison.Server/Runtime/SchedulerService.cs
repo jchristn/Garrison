@@ -300,7 +300,7 @@ namespace Garrison.Server.Runtime
                 string? runToken = null;
                 if (agent != null && agent.DelegationMode != DelegationModeEnum.None)
                 {
-                    runToken = await _Authentication.IssueForRunAsync(run, deadline, token).ConfigureAwait(false);
+                    runToken = await _Authentication.IssueForRunAsync(run, epoch, deadline, token).ConfigureAwait(false);
                 }
 
                 CompilationResult compiled;

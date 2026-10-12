@@ -66,3 +66,6 @@ Thumbs.db
 # Secrets / local settings overrides
 *.local.json
 .env
+
+# Claude Code agent worktrees
+.claude/worktrees/

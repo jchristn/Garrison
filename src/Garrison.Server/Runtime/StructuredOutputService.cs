@@ -131,7 +131,7 @@ namespace Garrison.Server.Runtime
             string? runToken = null;
             if (agent != null && agent.DelegationMode != DelegationModeEnum.None)
             {
-                runToken = await _Authentication.IssueForRunAsync(run, deadline, token).ConfigureAwait(false);
+                runToken = await _Authentication.IssueForRunAsync(run, run.LeaseEpoch, deadline, token).ConfigureAwait(false);
             }
 
             CompilationResult compiled = await _Compiler().CompileRepairAsync(run, runToken, repair, token).ConfigureAwait(false);

@@ -93,6 +93,17 @@ namespace Garrison.Sdk.Models
         public string? Message { get; set; } = null;
 
         /// <summary>
+        /// Stable error code of a failed document: ManifestInvalid (a spec field has the wrong type or a value that is
+        /// not allowed), ValidationFailed, or a reference or template code such as ReferenceNotFound. Null otherwise.
+        /// </summary>
+        public string? ErrorCode { get; set; } = null;
+
+        /// <summary>
+        /// Path of the field that failed, for example documents[1].spec.kind; null when the failure is not about one field.
+        /// </summary>
+        public string? ErrorField { get; set; } = null;
+
+        /// <summary>
         /// Field-level changes for Updated items (also reported by dry runs): one entry per changed field, with values as strings truncated to 200 characters. Empty for other results.
         /// </summary>
         public List<ManifestFieldChange> Changes

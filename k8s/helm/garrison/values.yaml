@@ -22,6 +22,9 @@ database:
   mode: embedded
   embedded:
     image: postgres:17
+    # PostgreSQL max_connections. The chart refuses to render when the most server replicas (server.hpa.maxReplicas
+    # with the HPA on, otherwise server.replicas) x (pool + 2) + 13 exceeds it (docs/SCALING.md).
+    maxConnections: 200
     storage: 5Gi
     storageClassName: ""
   external:
@@ -30,6 +33,9 @@ database:
 server:
   replicas: 1
   expectedReplicas: 1
+  # Database.MaxPoolSize per replica (GARRISON_DB_MAX_POOL_SIZE). Empty keeps files/garrison.json (40). Size it so the
+  # most replicas x (pool + 2) + 13 fits PostgreSQL's max_connections (docs/SCALING.md, "Database connections").
+  dbMaxPoolSize: null
   resources:
     requests: { cpu: 100m, memory: 256Mi }
     limits: { cpu: "2", memory: 1Gi }

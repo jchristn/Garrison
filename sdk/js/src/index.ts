@@ -334,6 +334,10 @@ export interface ManifestApplyItem extends Json {
   /** Created, Updated, Unchanged, Failed, or Validated. */
   result: string;
   resourceId?: string; message?: string;
+  /** Stable code of a failed document, for example ManifestInvalid; absent otherwise. */
+  errorCode?: string;
+  /** Path of the field that failed, for example documents[1].spec.kind. */
+  errorField?: string;
   /** Field-level changes for items that are (or, in a dry run, would be) Updated; empty or absent otherwise. */
   changes?: ManifestFieldChange[];
 }

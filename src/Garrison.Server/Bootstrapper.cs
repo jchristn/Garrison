@@ -72,13 +72,34 @@ namespace Garrison.Server
 
             settings.Validate();
 
+            // The liveness port answers from its own thread for the whole life of the process, before migrations and
+            // under overload, without the database or the REST request queue (G-24).
+            LivenessListener? liveness = null;
+            if (settings.Rest.LivenessPort > 0)
+            {
+                liveness = new LivenessListener(settings.Rest.Hostname, settings.Rest.LivenessPort, settings.EffectiveNodeId);
+                if (liveness.Start()) logging.Info("[Garrison] liveness listening on " + settings.Rest.Hostname + ":" + settings.Rest.LivenessPort + "/v1.0/api/health/live");
+                else logging.Warn("[Garrison] liveness port " + settings.Rest.LivenessPort + " could not be bound; /v1.0/api/health/live is still served on the REST port");
+            }
+
             // Until the real listener starts, liveness answers 200 and readiness 503, so a replica waiting for another
             // replica's migrations (or running them) is neither killed nor sent traffic (P10.9).
             StartupHealthListener startupHealth = new StartupHealthListener(settings.Rest.Hostname, settings.Rest.Port, settings.EffectiveNodeId);
             startupHealth.Start();
             try
             {
-                return await StartCoreAsync(settings, logging, startupHealth, token).ConfigureAwait(false);
+                GarrisonServer server = await StartCoreAsync(settings, logging, startupHealth, token).ConfigureAwait(false);
+                if (liveness != null)
+                {
+                    liveness.Status = () => server.Context.IsDraining ? "draining" : "alive";
+                    server.Liveness = liveness;
+                }
+                return server;
+            }
+            catch
+            {
+                liveness?.Dispose();
+                throw;
             }
             finally
             {

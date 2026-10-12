@@ -91,7 +91,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, userid = @userid, credentialid = @credentialid, runid = @runid, originprincipaltype = @originprincipaltype, originprincipalid = @originprincipalid, principaltype = @principaltype, authscheme = @authscheme, tokenid = @tokenid, sourceip = @sourceip, useragent = @useragent, expiresutc = @expiresutc, lastusedutc = @lastusedutc, revokedutc = @revokedutc, revocationreason = @revocationreason, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, userid = @userid, credentialid = @credentialid, runid = @runid, originprincipaltype = @originprincipaltype, originprincipalid = @originprincipalid, leaseepoch = @leaseepoch, principaltype = @principaltype, authscheme = @authscheme, tokenid = @tokenid, sourceip = @sourceip, useragent = @useragent, expiresutc = @expiresutc, lastusedutc = @lastusedutc, revokedutc = @revokedutc, revocationreason = @revocationreason, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -104,6 +104,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "runid", obj.RunId);
                     AdoDatabaseDriver.Add(command, "originprincipaltype", obj.OriginPrincipalType?.ToString());
                     AdoDatabaseDriver.Add(command, "originprincipalid", obj.OriginPrincipalId);
+                    AdoDatabaseDriver.Add(command, "leaseepoch", obj.LeaseEpoch);
                     AdoDatabaseDriver.Add(command, "principaltype", obj.PrincipalType.ToString());
                     AdoDatabaseDriver.Add(command, "authscheme", obj.AuthScheme.ToString());
                     AdoDatabaseDriver.Add(command, "tokenid", obj.TokenId);
@@ -192,6 +193,7 @@ namespace Garrison.Core.Database.Ado
             obj.RunId = AdoConverters.NullableStr(reader, "runid");
             obj.OriginPrincipalType = AdoConverters.NullableEnum<PrincipalTypeEnum>(reader, "originprincipaltype");
             obj.OriginPrincipalId = AdoConverters.NullableStr(reader, "originprincipalid");
+            obj.LeaseEpoch = AdoConverters.NullableLong(reader, "leaseepoch");
             obj.PrincipalType = AdoConverters.Enum<PrincipalTypeEnum>(reader, "principaltype", PrincipalTypeEnum.User);
             obj.AuthScheme = AdoConverters.Enum<AuthSchemeEnum>(reader, "authscheme", AuthSchemeEnum.BearerToken);
             obj.TokenId = AdoConverters.Str(reader, "tokenid");
@@ -256,6 +258,24 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<int> RevokeByRunEpochAsync(string runId, long maxEpoch, string reason, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+
+            return await _Driver.NonQueryAsync(
+                "UPDATE " + _Table + " SET revokedutc = @now, revocationreason = @reason, active = @inactive, lastupdateutc = @now WHERE runid = @runid AND revokedutc IS NULL AND (leaseepoch IS NULL OR leaseepoch <= @maxepoch);",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "runid", runId);
+                    AdoDatabaseDriver.Add(command, "maxepoch", maxEpoch);
+                    AdoDatabaseDriver.Add(command, "reason", reason);
+                    AdoDatabaseDriver.Add(command, "inactive", false);
+                    AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+                },
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task TouchLastUsedAsync(string id, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
@@ -299,7 +319,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, AuthSession obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, userid, credentialid, runid, originprincipaltype, originprincipalid, principaltype, authscheme, tokenid, sourceip, useragent, expiresutc, lastusedutc, revokedutc, revocationreason, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @userid, @credentialid, @runid, @originprincipaltype, @originprincipalid, @principaltype, @authscheme, @tokenid, @sourceip, @useragent, @expiresutc, @lastusedutc, @revokedutc, @revocationreason, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, userid, credentialid, runid, originprincipaltype, originprincipalid, leaseepoch, principaltype, authscheme, tokenid, sourceip, useragent, expiresutc, lastusedutc, revokedutc, revocationreason, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @userid, @credentialid, @runid, @originprincipaltype, @originprincipalid, @leaseepoch, @principaltype, @authscheme, @tokenid, @sourceip, @useragent, @expiresutc, @lastusedutc, @revokedutc, @revocationreason, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -309,6 +329,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "runid", obj.RunId);
                 AdoDatabaseDriver.Add(command, "originprincipaltype", obj.OriginPrincipalType?.ToString());
                 AdoDatabaseDriver.Add(command, "originprincipalid", obj.OriginPrincipalId);
+                    AdoDatabaseDriver.Add(command, "leaseepoch", obj.LeaseEpoch);
                 AdoDatabaseDriver.Add(command, "principaltype", obj.PrincipalType.ToString());
                 AdoDatabaseDriver.Add(command, "authscheme", obj.AuthScheme.ToString());
                 AdoDatabaseDriver.Add(command, "tokenid", obj.TokenId);

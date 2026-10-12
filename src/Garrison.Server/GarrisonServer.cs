@@ -8,6 +8,9 @@ namespace Garrison.Server
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core;
+    using Garrison.Core.Database;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Security;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Backplane;
     using Garrison.Server.Modules;
@@ -106,6 +109,12 @@ namespace Garrison.Server
         public Action? BeforeListen { get; set; } = null;
 
         /// <summary>
+        /// Separate liveness listener (G-24), owned and disposed by this server once set. The bootstrapper starts it
+        /// before migrations and hands it over; null when <c>Rest.LivenessPort</c> is 0 or the server was built directly.
+        /// </summary>
+        public LivenessListener? Liveness { get; set; } = null;
+
+        /// <summary>
         /// Route registrar (exposes the operation scope map).
         /// </summary>
         public RouteRegistrar Routes
@@ -186,6 +195,7 @@ namespace Garrison.Server
             context.Register(_ControlNode);
 
             _Routes = new RouteRegistrar(_Server, context.Authorization, context.Database, context.Scopes, context.Logging);
+            _Routes.DatabaseRetryAfterSeconds = () => context.Settings.Rest.DatabaseRetryAfterSeconds;
             _InFlightGauge = GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.HttpInFlight, () => _InFlight.Count);
             if (context.Settings.Rest.CorsOrigins.Count > 0) _CorsOrigin = String.Join(" ", context.Settings.Rest.CorsOrigins);
         }
@@ -309,6 +319,7 @@ namespace Garrison.Server
                 _Stopping.Dispose();
                 _InFlightGauge.Dispose();
                 _ControlNode.Dispose();
+                Liveness?.Dispose();
                 if (_Server is IDisposable disposable) disposable.Dispose();
                 if (_OwnsBackplane) _Backplane.Dispose();
             }
@@ -321,7 +332,8 @@ namespace Garrison.Server
 
         private void ConfigureServer()
         {
-            _Server.Routes.AuthenticateRequest = _Context.Authentication.AuthenticateRequestAsync;
+            _Server.Routes.AuthenticateRequest = AuthenticateAsync;
+            _Server.Routes.Exception = ExceptionRouteAsync;
             _Server.Routes.Preflight = PreflightAsync;
             _Server.Routes.PreRouting = PreRoutingAsync;
             _Server.Routes.PostRouting = PostRoutingAsync;
@@ -331,6 +343,35 @@ namespace Garrison.Server
                 openApi.Info.Version = Constants.ProductVersion;
                 openApi.Info.Description = "Garrison control plane: agents, deployments, harness profiles, prompt templates, runs, nodes, and administration.";
             });
+        }
+
+        private async Task AuthenticateAsync(HttpContextBase context)
+        {
+            // Authentication reads sessions, credentials, and users. A database failure here must answer with the JSON
+            // error shape (503 with Retry-After), never Watson's HTML page (G-25).
+            try
+            {
+                await _Context.Authentication.AuthenticateRequestAsync(context).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                context.Metadata = RequestContext.Unauthenticated();
+                DatabaseFailureEnum failure = DatabaseFailures.Classify(e);
+                _Context.Logging.Warn(_Header + "authenticating " + context.Request.Method + " " + context.Request.Url.RawWithoutQuery + " failed: " + (failure == DatabaseFailureEnum.None ? e.ToString() : "database " + failure.ToString().ToLowerInvariant() + ": " + e.Message));
+                if (context.Response.ResponseSent) return;
+                if (failure != DatabaseFailureEnum.None) await RouteHelpers.DatabaseFailureAsync(context, failure, _Context.Settings.Rest.DatabaseRetryAfterSeconds).ConfigureAwait(false);
+                else await RouteHelpers.ErrorAsync(context, 500, "InternalError", "An internal error occurred. See server logs with the request identifier.").ConfigureAwait(false);
+            }
+        }
+
+        private async Task ExceptionRouteAsync(HttpContextBase context, Exception e)
+        {
+            // Last resort for anything that escaped a route's own exception mapping: answer with the JSON error shape.
+            DatabaseFailureEnum failure = DatabaseFailures.Classify(e);
+            _Context.Logging.Warn(_Header + context.Request.Method + " " + context.Request.Url.RawWithoutQuery + " escaped the route exception mapping: " + e);
+            if (context.Response.ResponseSent) return;
+            if (failure != DatabaseFailureEnum.None) await RouteHelpers.DatabaseFailureAsync(context, failure, _Context.Settings.Rest.DatabaseRetryAfterSeconds).ConfigureAwait(false);
+            else await RouteHelpers.ErrorAsync(context, 500, "InternalError", "An internal error occurred. See server logs with the request identifier.").ConfigureAwait(false);
         }
 
         private async Task PreflightAsync(HttpContextBase context)

@@ -67,12 +67,50 @@ namespace Garrison.Server.Settings
         /// </summary>
         public List<string> CorsOrigins { get; set; } = new List<string>();
 
+        /// <summary>
+        /// Port of the separate liveness listener, which answers GET /v1.0/api/health/live on its own thread without
+        /// touching the database or waiting behind the REST listener's request queue, so an overloaded replica is not
+        /// restarted by its liveness probe. It binds to <see cref="Hostname"/> as soon as the process starts. 0 turns it
+        /// off (the REST port still answers /v1.0/api/health/live). Minimum 0, maximum 65535, default 8702. Must differ
+        /// from <see cref="Port"/> and the MCP port. Environment: GARRISON_LIVENESS_PORT. Changes require a restart.
+        /// </summary>
+        public int LivenessPort
+        {
+            get
+            {
+                return _LivenessPort;
+            }
+            set
+            {
+                _LivenessPort = Math.Clamp(value, 0, 65535);
+            }
+        }
+
+        /// <summary>
+        /// Seconds sent in the Retry-After header of 503 DatabaseBusy and DatabaseUnavailable responses, which answer
+        /// requests that fail because the database connection pool is exhausted or the database cannot be reached.
+        /// Minimum 1, maximum 300, default 2. Applies live.
+        /// </summary>
+        public int DatabaseRetryAfterSeconds
+        {
+            get
+            {
+                return _DatabaseRetryAfterSeconds;
+            }
+            set
+            {
+                _DatabaseRetryAfterSeconds = Math.Clamp(value, 1, 300);
+            }
+        }
+
         #endregion
 
         #region Private-Members
 
         private string _Hostname = "*";
         private int _Port = 8700;
+        private int _LivenessPort = 8702;
+        private int _DatabaseRetryAfterSeconds = 2;
 
         #endregion
     }

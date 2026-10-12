@@ -75,6 +75,10 @@ spec:
                   key: password
             - name: GARRISON_EXPECTED_REPLICAS
               value: "3"
+            # Up to 10 replicas (hpa.yaml) x (20 + 2) + 13 = 233 connections: give the external PostgreSQL a
+            # max_connections of at least 250 (docs/SCALING.md, "Database connections").
+            - name: GARRISON_DB_MAX_POOL_SIZE
+              value: "20"
             # What A2A agent cards advertise. Match the Ingress host.
             - name: GARRISON_EXTERNAL_BASE_URL
               value: https://garrison.example.com

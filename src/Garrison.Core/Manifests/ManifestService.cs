@@ -102,12 +102,15 @@ namespace Garrison.Core.Manifests
                 catch (ValidationException e)
                 {
                     planned.Result = ManifestApplyResultEnum.Failed;
-                    planned.Message = e.Message + (e.Fields.Count > 0 ? " " + String.Join("; ", e.Fields.Select(f => f.Key + ": " + f.Value)) : String.Empty);
+                    planned.Message = e.Code == ManifestSpecError.Code ? e.Message : e.Message + (e.Fields.Count > 0 ? " " + String.Join("; ", e.Fields.Select(f => f.Key + ": " + f.Value)) : String.Empty);
+                    planned.ErrorCode = e.Code;
+                    planned.ErrorField = e.Fields.Keys.FirstOrDefault();
                 }
                 catch (CompilationException e)
                 {
                     planned.Result = ManifestApplyResultEnum.Failed;
                     planned.Message = e.Message;
+                    planned.ErrorCode = e.Code;
                 }
                 plan.Add(planned);
             }
@@ -126,6 +129,8 @@ namespace Garrison.Core.Manifests
                     {
                         planned.Result = ManifestApplyResultEnum.Failed;
                         planned.Message = e.Message + (e.Fields.Count > 0 ? " " + String.Join("; ", e.Fields.Select(f => f.Key + ": " + f.Value)) : String.Empty);
+                        planned.ErrorCode = e.Code;
+                        planned.ErrorField = e.Fields.Keys.FirstOrDefault();
                     }
                 }
             }
@@ -160,6 +165,11 @@ namespace Garrison.Core.Manifests
                     item.Result = planned.Result;
                 }
                 item.Message = planned.Message;
+                if (planned.Result == ManifestApplyResultEnum.Failed)
+                {
+                    item.ErrorCode = planned.ErrorCode;
+                    item.ErrorField = planned.ErrorField;
+                }
                 apply.Items.Add(item);
             }
 
@@ -603,7 +613,8 @@ namespace Garrison.Core.Manifests
             }
             catch (System.Text.Json.JsonException e)
             {
-                throw new ValidationException(document.Kind + " " + document.Metadata.Name + " has an invalid spec: " + e.Message);
+                // Name the field and what it accepts; never pass the serializer's type names and positions through (G-26).
+                throw ManifestSpecError.From(document, typeof(T), e);
             }
         }
 
