@@ -48,6 +48,14 @@
       "template": "{{deployment.parameters.permissionMode | default: \"acceptEdits\"}}"
     },
     {
+      "template": "--permission-prompt-tool",
+      "condition": "{{approval.enabled}}"
+    },
+    {
+      "template": "{{approval.promptTool}}",
+      "condition": "{{approval.enabled}}"
+    },
+    {
       "template": "--system-prompt-file",
       "condition": "{{prompts.system}}"
     },
@@ -155,7 +163,7 @@
     },
     {
       "name": "MCP_TOOL_TIMEOUT",
-      "valueTemplate": "{{deployment.parameters.mcpToolTimeoutMs | default: \"600000\"}}",
+      "valueTemplate": "{{deployment.parameters.mcpToolTimeoutMs | default: approval.mcpToolTimeoutMs}}",
       "isSecret": false
     }
   ],

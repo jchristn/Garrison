@@ -2,6 +2,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { usePendingApprovals } from '../context/ApprovalsContext';
+import { formatNumber } from '../i18n/formatters';
 import { NAV_SECTIONS, DASHBOARD_BASE, hubIsActive } from '../config/navConfig';
 import { allowed } from '../utils/principal';
 import { APP_VERSION } from '../utils/constants';
@@ -19,8 +21,9 @@ function hubVisible(hub, principal) {
  * wizard, tour, version). Each item is a hub; tabbed hubs show their pages as in-page tabs.
  */
 export default function Sidebar({ onNavigateMobile }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { pending } = usePendingApprovals();
   const { pathname } = useLocation();
   const { principal } = useAuth();
   const { setWizardOpen, setTourOpen } = useApp();
@@ -64,6 +67,11 @@ export default function Sidebar({ onNavigateMobile }) {
                   >
                     {Icon && <Icon size={18} />}
                     <span>{label}</span>
+                    {hub.key === 'approvals' && pending > 0 && (
+                      <span className="sidebar-badge" data-testid="approvals-badge" aria-label={t('nav.approvalsPending', { count: pending })} {...tip(t('tips.nav.approvalsBadge', { count: pending }))}>
+                        {pending > 99 ? '99+' : formatNumber(pending, {}, i18n.language)}
+                      </span>
+                    )}
                   </a>
                 );
               })}

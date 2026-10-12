@@ -6,9 +6,11 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const de = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Strukturierte Ausgabe ungültig', RunBlocked: 'Lauf blockiert', EventsDropped: 'Ereignisse verworfen', HarnessExited: 'Harness beendet', McpPreflightWarning: 'Warnung der MCP-Vorabprüfung', McpPreflightPassed: 'MCP-Vorabprüfung bestanden', RepairAttemptStarted: 'Reparatur der Ausgabe gestartet', WorkspacePrepared: 'Arbeitsbereich vorbereitet', RunGuardTriggered: 'Laufwächter hat den Lauf gestoppt' },
+    eventCodes: { ApprovalRequested: 'Freigabe angefordert', ApprovalDecided: 'Freigabe entschieden', StructuredOutputInvalid: 'Strukturierte Ausgabe ungültig', RunBlocked: 'Lauf blockiert', EventsDropped: 'Ereignisse verworfen', HarnessExited: 'Harness beendet', McpPreflightWarning: 'Warnung der MCP-Vorabprüfung', McpPreflightPassed: 'MCP-Vorabprüfung bestanden', RepairAttemptStarted: 'Reparatur der Ausgabe gestartet', WorkspacePrepared: 'Arbeitsbereich vorbereitet', RunGuardTriggered: 'Laufwächter hat den Lauf gestoppt' },
     fieldCodes: { ExpiryInPast: 'Wählen Sie einen Zeitpunkt in der Zukunft.', ParameterInvalid: 'Dieser Wert ist für diesen Parameter ungültig.', ParameterNotAllowed: 'Diese Bereitstellung erlaubt Aufrufern nicht, diesen Parameter zu überschreiben.', SettingsFileReadOnly: 'Die Einstellungsdatei ist schreibgeschützt, daher kann diese Änderung nicht gespeichert werden.', OverriddenByEnvironment: 'Eine Umgebungsvariable setzt diesen Wert, daher kann er hier nicht geändert werden.', PathRequired: 'Ein Einstellungspfad ist erforderlich.', UnknownSetting: 'Diese Einstellung gibt es auf diesem Server nicht.', TooLong: 'Dieser Wert ist zu lang.', NotAllowedValue: 'Wählen Sie einen der zulässigen Werte.', NotABoolean: 'Wählen Sie wahr oder falsch.', NotAnInteger: 'Geben Sie eine ganze Zahl ein.', OutOfRange: 'Der Wert liegt außerhalb des zulässigen Bereichs.' },
     serverText: {
+      approvalWaitingExpires: 'Wartet auf die Freigabe von {{subject}} durch eine Person; Freigabe {{id}} läuft um {{expires}} ab.',
+      approvalWaiting: 'Wartet auf die Freigabe von {{subject}} durch eine Person; Freigabe {{id}}.',
       notApplied: 'Nicht angewendet, weil ein anderes Dokument die Prüfung nicht bestanden hat.',
       wouldBeUnchanged: 'Bereits aktuell; nichts würde sich ändern.',
       wouldBeUpdated: 'Würde aktualisiert.',
@@ -67,6 +69,7 @@ const de = {
       bulkDelete: '{{count}} ausgewählte Datensätze löschen? Dies kann nicht rückgängig gemacht werden.'
     },
     errors: {
+      listItem: 'Eintrag {{index}}: {{message}}',
       chooseOne: 'Wählen Sie mindestens eine Option.',
       fixFields: 'Einige Felder müssen korrigiert werden. Prüfen Sie die markierten Werte.',
       invalidEmail: 'Geben Sie eine gültige E-Mail-Adresse ein.',
@@ -108,6 +111,7 @@ const de = {
     units: { msShort: 'ms', sShort: 's', mShort: 'Min.', tokPerSec: 'Tok./s' }
   },
   errorCodes: {
+    ApprovalNotPending: 'Diese Freigabe wurde bereits entschieden und kann nicht erneut entschieden werden.',
     MessageIdConflict: 'Diese A2A-Nachrichten-ID wurde bereits mit anderem Inhalt verwendet. Senden Sie die Nachricht mit einer neuen ID.',
     IdempotencyKeyConflict: 'Dieser Idempotenzschlüssel wurde bereits für eine andere Anfrage verwendet. Verwenden Sie einen neuen Schlüssel.',
     DeploymentDeleted: 'Die Bereitstellung dieses Laufs wurde gelöscht, daher kann der Lauf nicht wiederholt werden. Rufen Sie den Agenten stattdessen erneut auf.',
@@ -137,6 +141,34 @@ const de = {
     Http503: 'Der Server ist nicht verfügbar.'
   },
   enums: {
+    approvalStatus: {
+      Pending: 'Ausstehend',
+      Approved: 'Erlaubt',
+      Denied: 'Verweigert',
+      Expired: 'Abgelaufen',
+      Cancelled: 'Abgebrochen'
+    },
+    approvalDecision: {
+      Allow: 'Erlauben',
+      Deny: 'Verweigern'
+    },
+    approvalSource: {
+      Rule: 'Regel',
+      Default: 'Standard der Bereitstellung',
+      User: 'Durch eine Person',
+      Timeout: 'Zeitüberschreitung',
+      Cancelled: 'Lauf gestoppt'
+    },
+    approvalRuleAction: {
+      Allow: 'Erlauben',
+      Deny: 'Verweigern',
+      Ask: 'Person fragen'
+    },
+    approvalKind: {
+      Tool: 'Werkzeugaufruf',
+      Command: 'Befehl',
+      FileChange: 'Dateiänderung'
+    },
     principalType: { Administrator: 'Systemadministrator', User: 'Benutzer', Credential: 'Zugriffsschlüssel', Run: 'Lauf-Token' },
     runBlockedReason: { NoReadyWorker: 'Kein bereiter Worker', NoCapableWorker: 'Kein passender Worker', NoMatchingPool: 'Kein passender Pool' },
     promptDelivery: { Stdin: 'Standardeingabe', Argument: 'Befehlszeilenargument', File: 'Datei', CodexAppServer: 'Codex-App-Server (JSON-RPC)' },
@@ -289,6 +321,7 @@ const de = {
     remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: 'Erstellt', Updated: 'Aktualisiert', Unchanged: 'Unverändert', Failed: 'Fehlgeschlagen', Validated: 'Validiert' },
     auditEventType: {
+      ApprovalDecided: 'Freigabe entschieden',
       AuthSuccess: 'Anmeldung erfolgreich',
       AuthFailure: 'Anmeldung fehlgeschlagen',
       SessionIssued: 'Sitzung ausgestellt',
@@ -312,6 +345,8 @@ const de = {
     }
   },
   nav: {
+    approvalsPending_one: '{{count}} Freigabe wartet',
+    approvalsPending_other: '{{count}} Freigaben warten',
     primary: 'Hauptnavigation',
     sections: {
       operate: 'Betrieb',
@@ -319,6 +354,10 @@ const de = {
       administration: 'Verwaltung'
     },
     hubs: {
+      approvals: {
+        label: 'Freigaben',
+        tip: 'Werkzeugaufrufe, die auf eine Person warten, und alle Entscheidungen'
+      },
       home: { label: 'Startseite', tip: 'Zustand von Flotte und Läufen auf einen Blick' },
       invoke: { label: 'Aufrufen', tip: 'Einen Agenten interaktiv ausprobieren' },
       runs: { label: 'Läufe', tip: 'Läufe und die Warteschlange' },
@@ -331,6 +370,10 @@ const de = {
       system: { label: 'System', tip: 'Servereinstellungen und Serverinfo' }
     },
     items: {
+      approvals: {
+        label: 'Freigaben',
+        tip: 'Werkzeugaufrufe von Agenten erlauben oder verweigern'
+      },
       home: { label: 'Startseite', tip: 'Zustand von Flotte und Läufen auf einen Blick' },
       invoke: { label: 'Aufrufen', tip: 'Einen Agenten interaktiv ausprobieren' },
       runs: { label: 'Läufe', tip: 'Läufe finden, prüfen, abbrechen und wiederholen' },
@@ -402,6 +445,48 @@ const de = {
     run: 'Lauf-Token'
   },
   components: {
+    approvals: {
+      awaiting: 'Wartet auf Freigabe',
+      decideTitle: '{{tool}} entscheiden',
+      decision: 'Entscheidung',
+      reason: 'Begründung',
+      reasonPlaceholder: 'Optional. Der Agent und das Audit-Protokoll sehen sie.',
+      remember: 'Als Regel für diese Bereitstellung merken',
+      rulePattern: 'Regelmuster',
+      rememberHint: 'Fügt der Bereitstellung eine Regel mit der Aktion {{action}} hinzu, sodass passende Aufrufe ohne Nachfrage entschieden werden. Dafür ist auch die Berechtigung zum Aktualisieren der Bereitstellung nötig.',
+      submitAllow: 'Erlauben',
+      submitDeny: 'Verweigern',
+      timeoutThen: 'dann {{decision}}',
+      toasts: {
+        allowed: '{{tool}} erlaubt.',
+        denied: '{{tool}} verweigert.',
+        allowedRemembered: '{{tool}} erlaubt und die Regel {{pattern}} hinzugefügt.',
+        deniedRemembered: '{{tool}} verweigert und die Regel {{pattern}} hinzugefügt.',
+        notPending: 'Diese Freigabe wurde bereits von einer anderen Person oder durch ihr Zeitlimit entschieden. Die Liste zeigt jetzt das Ergebnis.',
+        forbidden: 'Sie dürfen Freigaben lesen, aber nicht entscheiden. Bitten Sie eine Administratorin oder einen Administrator um die Berechtigung Approval Update.',
+        forbiddenRemember: 'Das Merken einer Regel erfordert auch die Berechtigung zum Aktualisieren der Bereitstellung. Entscheiden Sie ohne Merken, oder fordern Sie Deployment Update an.'
+      }
+    },
+    approvalCheck: {
+      title: 'Werkzeugaufruf testen',
+      saveFirst: 'Speichern Sie zuerst die Bereitstellung. Der Test prüft die Regeln, die der Server gespeichert hat.',
+      hint: 'Prüft die gespeicherten Regeln, speichern Sie Ihre Änderungen also vor dem Testen. Es wird nichts aufgezeichnet.',
+      toolName: 'Werkzeug',
+      inputs: {
+        command: 'Befehl',
+        url: 'URL',
+        query: 'Suchanfrage',
+        file_path: 'Dateipfad',
+        notebook_path: 'Notebook-Pfad',
+        pattern: 'Muster'
+      },
+      run: 'Prüfen',
+      checking: 'Wird geprüft...',
+      byRule: '{{action}} durch diese Regel:',
+      byDefault: '{{action}} durch den Standard der Bereitstellung, da keine Regel zutraf.',
+      suggestedRule: 'Vorgeschlagene Regel:',
+      disabled: 'Freigaben sind für diese Bereitstellung deaktiviert, daher fragen ihre Läufe nie nach. Aktivieren Sie sie und speichern Sie, um diese Regeln anzuwenden.'
+    },
     blocked: {
       title: 'Wartet auf einen Worker',
       body: 'Dieser Lauf ist in der Warteschlange, aber gerade kann kein Worker ihn übernehmen.',
@@ -552,6 +637,63 @@ const de = {
     }
   },
   resources: {
+    approvals: {
+      ...rp('Freigaben', 'Werkzeugaufrufe, die Agenten ausführen wollten, entschieden durch eine Regel der Bereitstellung, den Standard der Bereitstellung, eine Person oder eine Zeitüberschreitung. Ausstehende warten auf Sie.', 'Freigabe hinzufügen', 'Freigabe erstellen', 'Freigabe bearbeiten', 'Freigabedetails', 'Freigabe löschen', 'Noch keine Freigaben', 'Freigaben erscheinen, wenn eine Bereitstellung mit aktivierten Freigaben vor einem Werkzeugaufruf nachfragt.'),
+      columns: {
+        createdUtc: 'Angefordert',
+        agentName: 'Agent',
+        toolName: 'Werkzeug',
+        summary: 'Anfrage',
+        status: 'Status',
+        decision: 'Entscheidung',
+        decisionSource: 'Quelle',
+        decidedBy: 'Entschieden von',
+        expiresUtc: 'Läuft ab',
+        kind: 'Art',
+        harnessType: 'Harness',
+        runId: 'Lauf',
+        waitMs: 'Wartezeit',
+        reason: 'Begründung',
+        decidedUtc: 'Entschieden',
+        id: 'ID'
+      },
+      fields: {
+        status: 'Status',
+        decision: 'Entscheidung',
+        decisionSource: 'Entscheidungsquelle',
+        decidedBy: 'Entschieden von',
+        toolName: 'Werkzeug',
+        kind: 'Art',
+        harnessType: 'Harness',
+        agentName: 'Agent',
+        runId: 'Lauf',
+        rootRunId: 'Stammlauf',
+        deploymentId: 'Bereitstellung',
+        leaseEpoch: 'Lease-Epoche',
+        requestedUtc: 'Angefordert',
+        expiresUtc: 'Läuft ab',
+        decidedUtc: 'Entschieden',
+        waitMs: 'Wartezeit',
+        timeoutDecision: 'Entscheidung bei Zeitüberschreitung',
+        toolCallId: 'Werkzeugaufruf-ID',
+        reason: 'Begründung',
+        summary: 'Zusammenfassung',
+        inputPreview: 'Eingabe (geschwärzt)',
+        rulePattern: 'Zutreffende Regel',
+        ruleId: 'Regel-ID',
+        suggestedRule: 'Vorgeschlagene Regel',
+        rememberedRuleId: 'ID der gemerkten Regel'
+      },
+      filters: {
+        runId: 'Lauf-ID',
+        runIdPlaceholder: 'Lauf-ID (run_...)'
+      },
+      actions: {
+        allow: 'Erlauben',
+        deny: 'Verweigern',
+        openRun: 'Lauf öffnen'
+      }
+    },
     tenants: {
       ...rp('Mandanten', 'Isolierte Bereiche mit eigenen Benutzern, Agenten, Geheimnissen und Läufen.', 'Mandant hinzufügen', 'Mandant erstellen', 'Mandant bearbeiten', 'Mandantendetails', 'Mandant löschen', 'Noch keine Mandanten', 'Erstellen Sie einen Mandanten, um ein Team oder eine Kundschaft zu isolieren.'),
       columns: { name: 'Name', id: 'ID', description: 'Beschreibung', active: 'Aktiv', createdUtc: 'Erstellt' },
@@ -736,11 +878,24 @@ const de = {
       errors: { dnsName: 'Verwenden Sie Kleinbuchstaben, Ziffern und Bindestriche; Anfang und Ende müssen Buchstabe oder Ziffer sein.' }
     },
     deployments: {
+      approvalsOn_one: 'An, {{count}} Regel',
+      approvalsOn_other: 'An, {{count}} Regeln',
+      approvalsOff: 'Aus',
       promptRoles: { Repair: 'Reparatur strukturierter Ausgabe', DelegatedTask: 'Aufgabenhülle für delegierte Läufe', Task: 'Aufgabenhülle', System: 'Systemprompt' },
       ...rp('Bereitstellungen', 'Bindet einen Agenten an Harness-Profil, Prompts, Geheimnisse, MCP-Server, Platzierung und Grenzen.', 'Bereitstellung hinzufügen', 'Bereitstellung erstellen', 'Bereitstellung bearbeiten', 'Bereitstellungsdetails', 'Bereitstellung löschen', 'Noch keine Bereitstellungen', 'Erstellen Sie eine Bereitstellung, um einen Agenten ausführbar zu machen.'),
-      steps: { basics: 'Grundlagen', harness: 'Harness', prompts: 'Prompts', resources: 'Ressourcen', overrides: 'Überschreibungen', placement: 'Platzierung und Grenzen' },
-      columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness-Profil', model: 'Modell', executor: 'Executor', weight: 'Gewichtung', configVersion: 'Konfigurationsversion', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
+      steps: { approvals: 'Freigaben', basics: 'Grundlagen', harness: 'Harness', prompts: 'Prompts', resources: 'Ressourcen', overrides: 'Überschreibungen', placement: 'Platzierung und Grenzen' },
+      columns: { approvalsEnabled: 'Freigaben', name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness-Profil', model: 'Modell', executor: 'Executor', weight: 'Gewichtung', configVersion: 'Konfigurationsversion', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },
       fields: {
+        approvalsEnabled: 'Vor Werkzeugaufrufen fragen (Freigaben)',
+        approvalDefaultAction: 'Wenn keine Regel zutrifft',
+        approvalTimeoutSeconds: 'Zeitlimit für Freigaben (Sekunden)',
+        approvalTimeoutDecision: 'Entscheidung, wenn niemand antwortet',
+        approvalRules: 'Freigaberegeln',
+        ruleAction: 'Aktion',
+        rulePattern: 'Regel',
+        ruleInputPattern: 'Eingabemuster',
+        ruleDescription: 'Beschreibung',
+        approvalTest: 'Werkzeugaufruf testen',
         name: 'Name',
         agentId: 'Agent',
         description: 'Beschreibung',
@@ -796,6 +951,10 @@ const de = {
         podEphemeralStorageLimit: 'Limit für flüchtigen Speicher'
       },
       hints: {
+        approvalsEnabled: 'Funktioniert mit Claude Code-Profilen und Profilen, die den Codex app-server verwenden. Andere Harnesses haben keinen Freigabe-Hook, daher lehnt der Server diese Einstellung für sie ab.',
+        approvalDefaultAction: 'Person fragen wartet unter Freigaben, bis jemand entscheidet oder das Zeitlimit abläuft.',
+        approvalTimeoutSeconds: 'Von 10 bis 3.600 Sekunden. Leer bedeutet 300.',
+        approvalRules: 'Verweigern geht vor Fragen, und Fragen geht vor Erlauben. Beispiele: Bash(npm test), Bash(npm run *), Edit(src/**), WebFetch(domain:example.com), mcp__github__*.',
         secretsKinds: 'Das Harness-Profil {{profile}} braucht ein beliebiges Geheimnis der Art {{kinds}}. Binden Sie eines unter einem beliebigen Alias.',
         secretsAliases: 'Das Harness-Profil {{profile}} liest Geheimnisse, die unter diesen Aliasen gebunden sind: {{aliases}}.',
         secretsNone: 'Das Harness-Profil {{profile}} liest kein Geheimnis, daher ist keine Geheimnisbindung nötig.',
@@ -815,18 +974,19 @@ const de = {
         executorSet: 'Prozess führt den Harness im Worker aus; Kubernetes-Job führt ihn in einem eigenen Pod aus.',
         podCpuRequest: 'Pod-Ressourcen gelten nur für Kubernetes-Job-Läufe. Verwenden Sie Kubernetes-Mengen wie 500m, 2, 512Mi oder 4Gi; leer verwendet den Worker-Standard.'
       },
-      actions: { compilePreview: 'Kompilierungsvorschau', test: 'Testaufruf', useClusterDefault: 'Cluster-Standard verwenden' },
+      actions: { addRule: 'Regel hinzufügen', compilePreview: 'Kompilierungsvorschau', test: 'Testaufruf', useClusterDefault: 'Cluster-Standard verwenden' },
       sections: {
         guards: 'Laufwächter',
         execution: 'Executor und Pod-Ressourcen'
       },
       placeholders: {
+        ruleInputPattern: 'Optionaler regulärer Ausdruck über das Eingabe-JSON',
         clusterDefault: 'Cluster-Standard ({{value}})',
         clusterDefaultUnknown: 'Cluster-Standard'
       },
       executorInherit: 'Standard des Knotenpools',
       executorInheritShort: 'Pool-Standard',
-      errors: { quantity: 'Verwenden Sie eine Kubernetes-Menge wie 500m, 2, 512Mi oder 4Gi.' },
+      errors: { rulePatternRequired: 'Geben Sie ein Regelmuster ein.', rulePatternOneLine: 'Ein Regelmuster muss in eine Zeile passen.', rulePatternTooLong: 'Ein Regelmuster darf höchstens 1.000 Zeichen lang sein.', tooManyRules: 'Eine Bereitstellung darf höchstens 500 Freigaberegeln haben.', approvalTimeout: 'Geben Sie eine ganze Zahl von Sekunden zwischen 10 und 3.600 ein.', quantity: 'Verwenden Sie eine Kubernetes-Menge wie 500m, 2, 512Mi oder 4Gi.' },
       guardStates: {
         on: 'an',
         off: 'aus'
@@ -842,6 +1002,7 @@ const de = {
     runs: {
       ...rp('Läufe', 'Jeder Agentenaufruf mit Status, Knoten, Dauer und Ergebnis.', 'Lauf hinzufügen', 'Lauf erstellen', 'Lauf bearbeiten', 'Laufdetails', 'Lauf löschen', 'Noch keine Läufe', 'Rufen Sie einen Agenten auf, um einen Lauf zu starten.'),
       columns: {
+        approvalWaitMs: 'Freigabe-Wartezeit',
         delegationWaitMs: 'Delegationswartezeit',
         timeToFirstTokenExcludingDelegationMs: 'TTFT ohne Delegation',
         id: 'Lauf',
@@ -914,6 +1075,19 @@ const de = {
     }
   },
   views: {
+    approvalDetail: {
+      title: 'Freigabe',
+      titleWithTool: 'Freigabe für {{tool}}',
+      backToInbox: 'Alle Freigaben',
+      pending: 'Wartet darauf, dass eine Person diesen Werkzeugaufruf erlaubt oder verweigert.',
+      pendingExpires: 'Wartet auf eine Person. Wenn niemand entscheidet, läuft sie {{when}} mit der Entscheidung {{decision}} ab.',
+      request: 'Anfrage',
+      rules: 'Regeln',
+      noRule: 'Keine Regel hat zugetroffen',
+      noInput: 'Es wurde keine Eingabe aufgezeichnet.',
+      notFoundTitle: 'Freigabe nicht gefunden',
+      notFoundBody: 'Sie gehört möglicherweise zu einem anderen Mandanten, oder die ID ist falsch.'
+    },
     home: {
       observabilityState: { reachable: 'Erreichbar', unreachable: 'Nicht erreichbar', checking: 'Wird geprüft', unknown: 'Status unbekannt' },
       observabilityVersion: 'Version {{version}}',
@@ -1043,6 +1217,13 @@ const de = {
       }
     },
     runDetail: {
+      awaitingApproval_one: 'Dieser Lauf wartet darauf, dass eine Person {{count}} Werkzeugaufruf freigibt.',
+      awaitingApproval_other: 'Dieser Lauf wartet darauf, dass eine Person {{count}} Werkzeugaufrufe freigibt.',
+      reviewApprovals: 'Prüfen',
+      approvals_one: 'Freigaben ({{count}})',
+      approvals_other: 'Freigaben ({{count}})',
+      noApprovals: 'Dieser Lauf hat keine Freigaben angefordert.',
+      openApproval: 'Freigabe öffnen',
       viewTrace: 'Trace anzeigen',
       viewLogs: 'Logs anzeigen',
       traceId: 'Trace-ID',
@@ -1090,11 +1271,13 @@ const de = {
       notFoundTitle: 'Lauf nicht gefunden',
       notFoundBody: 'Er wurde möglicherweise gelöscht oder gehört zu einem anderen Mandanten.',
       telemetry: {
+        approvalNote: 'Dieser Lauf hat {{wait}} auf Freigabeentscheidungen gewartet. Die Ausführungszeit enthält diese Wartezeit.',
         delegationNote: 'Dieser Lauf hat {{wait}} auf delegierte Läufe gewartet. Die Zeit bis zum ersten Token beträgt {{ttft}} mit dieser Wartezeit und {{excluding}} ohne sie; der zweite Wert ist mit Agenten vergleichbar, die nicht delegieren.',
         title: 'Telemetrie',
         phases: 'Laufzeit nach Phase',
         phase: { delegation: 'Warten auf delegierte Läufe', queue: 'Warteschlange', startup: 'Start bis zum ersten Token', streaming: 'Streaming', tail: 'Nach dem letzten Token' },
         fields: {
+          approvalWaitMs: 'Freigabe-Wartezeit',
           delegationWaitMs: 'Delegationswartezeit',
           timeToFirstTokenExcludingDelegationMs: 'Zeit bis zum ersten Token ohne Delegation',
           timeToFirstTokenMs: 'Zeit bis zum ersten Token',

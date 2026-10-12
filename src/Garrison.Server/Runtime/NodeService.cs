@@ -244,6 +244,7 @@ namespace Garrison.Server.Runtime
             if (watched.Count == 0) return response;
             DateTime deadline = DateTime.UtcNow.AddMilliseconds(Math.Clamp(request.WaitMs, 0, 60000));
 
+            HashSet<string> known = new HashSet<string>(request.KnownApprovals ?? new List<string>(), StringComparer.Ordinal);
             using (RunSignalSubscription? subscription = _Signals?.SubscribeNode(node.Id))
             {
                 while (true)
@@ -252,7 +253,15 @@ namespace Garrison.Server.Runtime
                     long version = subscription?.Signal.Version ?? 0;
                     List<Run> held = await _Database.Runs.ListActiveByNodeAsync(node.Id, token).ConfigureAwait(false);
                     response.CancelRunIds = held.Where(r => watched.Contains(r.Id) && (r.CancelRequested || r.Status == RunStatusEnum.Cancelling)).Select(r => r.Id).ToList();
-                    if (response.CancelRunIds.Count > 0) return response;
+                    if (request.RelayApprovals)
+                    {
+                        // Approvals of runs this node holds, in states the worker has not recorded (P12.3); the worker writes
+                        // them into the run's event stream, since it is the only writer of a leased run's events.
+                        List<string> heldWatched = held.Where(r => watched.Contains(r.Id)).Select(r => r.Id).ToList();
+                        List<Approval> approvals = heldWatched.Count == 0 ? new List<Approval>() : await _Database.Approvals.ListByRunsAsync(heldWatched, 500, token).ConfigureAwait(false);
+                        response.Approvals = approvals.Where(a => !known.Contains(NodeApprovalNotice.KeyOf(a.Id, a.Status))).Select(Notice).ToList();
+                    }
+                    if (response.CancelRunIds.Count > 0 || response.Approvals.Count > 0) return response;
 
                     int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
                     if (remaining <= 0) return response;
@@ -261,6 +270,29 @@ namespace Garrison.Server.Runtime
                     else await Task.Delay(wait, token).ConfigureAwait(false);
                 }
             }
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private static NodeApprovalNotice Notice(Approval approval)
+        {
+            NodeApprovalNotice notice = new NodeApprovalNotice();
+            notice.RunId = approval.RunId;
+            notice.ApprovalId = approval.Id;
+            notice.Status = approval.Status;
+            notice.Decision = approval.Decision;
+            notice.DecisionSource = approval.DecisionSource;
+            notice.ToolName = approval.ToolName;
+            notice.Summary = approval.Summary;
+            notice.RulePattern = approval.RulePattern;
+            notice.DecidedBy = approval.DecidedBy;
+            notice.Reason = approval.Reason;
+            notice.ExpiresUtc = approval.ExpiresUtc;
+            notice.RequestedUtc = approval.RequestedUtc;
+            notice.DecidedUtc = approval.DecidedUtc;
+            return notice;
         }
 
         #endregion

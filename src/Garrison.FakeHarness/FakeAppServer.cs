@@ -175,11 +175,26 @@ namespace Garrison.FakeHarness
 
             if (_Options.RequestApproval)
             {
-                JsonElement decision = await AskAsync("approval-1", "item/commandExecution/requestApproval", new { threadId = threadId, turnId = turnId, itemId = "call_approval", command = "rm -rf build" }).ConfigureAwait(false);
+                string command = _Options.ApprovalCommand;
+                Notify("item/started", new { threadId = threadId, turnId = turnId, item = new { type = "commandExecution", id = "call_approval", command = command, cwd = Environment.CurrentDirectory, status = "inProgress" } });
+                JsonElement decision = await AskAsync("approval-1", "item/commandExecution/requestApproval", new { threadId = threadId, turnId = turnId, itemId = "call_approval", command = command, cwd = Environment.CurrentDirectory, startedAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }).ConfigureAwait(false);
                 string verdict = decision.ValueKind == JsonValueKind.Object && decision.TryGetProperty("decision", out JsonElement d) ? d.GetRawText() : decision.GetRawText();
                 Console.Error.WriteLine("fake app-server: approval answered " + verdict);
                 bool accepted = verdict == "\"accept\"" || verdict == "\"acceptForSession\"";
-                Notify("item/completed", new { threadId = threadId, turnId = turnId, item = new { type = "commandExecution", id = "call_approval", command = "rm -rf build", status = accepted ? "completed" : "declined", exitCode = accepted ? 0 : (int?)null, aggregatedOutput = (string?)null } });
+                Notify("item/completed", new { threadId = threadId, turnId = turnId, item = new { type = "commandExecution", id = "call_approval", command = command, status = accepted ? "completed" : "declined", exitCode = accepted ? 0 : (int?)null, aggregatedOutput = (string?)null } });
+                answer = answer + "\ncommand approval: " + (accepted ? "accept" : "decline");
+            }
+
+            if (!String.IsNullOrEmpty(_Options.RequestFileApproval))
+            {
+                string path = _Options.RequestFileApproval;
+                Notify("item/started", new { threadId = threadId, turnId = turnId, item = new { type = "fileChange", id = "call_file", changes = new[] { new { path = path, kind = new { type = "update" } } }, status = "inProgress" } });
+                JsonElement decision = await AskAsync("approval-2", "item/fileChange/requestApproval", new { threadId = threadId, turnId = turnId, itemId = "call_file", startedAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }).ConfigureAwait(false);
+                string verdict = decision.ValueKind == JsonValueKind.Object && decision.TryGetProperty("decision", out JsonElement d) ? d.GetRawText() : decision.GetRawText();
+                Console.Error.WriteLine("fake app-server: file approval answered " + verdict);
+                bool accepted = verdict == "\"accept\"" || verdict == "\"acceptForSession\"";
+                Notify("item/completed", new { threadId = threadId, turnId = turnId, item = new { type = "fileChange", id = "call_file", changes = new[] { new { path = path, kind = new { type = "update" } } }, status = accepted ? "completed" : "declined" } });
+                answer = answer + "\nfile approval: " + (accepted ? "accept" : "decline");
             }
 
             string reasoningId = "rs_" + turnId;

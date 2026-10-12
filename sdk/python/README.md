@@ -62,9 +62,22 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `approvals`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
 
 Control-plane replicas are read-only: `client.control_nodes.list(max_results, skip, search)` returns a page with `respondingNodeId` (the replica that answered), and `client.control_nodes.get(node_id)` reads one replica. Each record carries `status` (`Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
+
+## Permission approvals
+
+When a deployment has `approvalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `approvalRules` (each with `action`, a `pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, an optional `inputPattern`, and a `description`) decide each request, and `approvalDefaultAction` (`Allow`, `Deny`, or `Ask`) covers requests no rule matches. `Ask` sends the request to a person, who has `approvalTimeoutSeconds` (10 to 3600, default 300) before `approvalTimeoutDecision` applies.
+
+```python
+pending = client.approvals.list(status="Pending")
+decided = client.approvals.decide(pending["objects"][0]["id"], "Allow", reason="Looks safe", remember=True)
+result = client.approvals.check(deployment_id, "Bash", {"command": "git status --short"})
+print(result["action"], result["source"], result.get("rulePattern"))
+```
+
+`approvals.list` filters by `status`, `run_id`, `root_run_id`, `agent_id`, `deployment_id`, `decision_source`, `from_utc`, and `to_utc`; for a pending count, pass `status="Pending", max_results=1` and read `totalRecords`. `approvals.get` raises `GarrisonError` (404) for an approval outside the tenant. `approvals.decide` raises 409 (`ApprovalNotPending`) when the approval was already decided, and `remember=True` adds a rule to the deployment (`rule_pattern`, or the approval's `suggestedRule`) and needs Update on that deployment. `approvals.check` records nothing; the input uses Claude Code tool input names (`command`, `cwd`, `url`, `file_path`, `notebook_path`, `path`, `paths`, `pattern`, `query`). Runs carry `pendingApprovals`, `awaitingApproval` (the run stays `Running` while it waits), and `approvalWaitMs`. The module exports `APPROVAL_STATUSES`, `APPROVAL_DECISIONS`, `APPROVAL_SOURCES`, `APPROVAL_RULE_ACTIONS`, and `APPROVAL_KINDS`.
 
 ## Streaming run events
 

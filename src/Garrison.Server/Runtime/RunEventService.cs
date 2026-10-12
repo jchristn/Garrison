@@ -42,6 +42,12 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Permission approvals (P12.3); pending approvals of runs that stop here are cancelled. Null (the default)
+        /// leaves them to the leader's sweep.
+        /// </summary>
+        public ApprovalService? Approvals { get; set; } = null;
+
+        /// <summary>
         /// Logging for run lifecycle lines (each carries run=&lt;runId&gt; trace=&lt;traceId&gt;). Null disables them.
         /// Default null; the runtime module sets it.
         /// </summary>
@@ -392,6 +398,7 @@ namespace Garrison.Server.Runtime
             }
 
             await _Database.Sessions.RevokeByRunAsync(run.Id, "Run finished.", token).ConfigureAwait(false);
+            if (Approvals != null && run.PendingApprovals > 0) await Approvals.CancelPendingAsync(run.Id, "The run finished (" + status + ").", token).ConfigureAwait(false);
             RunMetricLabels labels = await RunTelemetry.LabelsAsync(_Database, run, token).ConfigureAwait(false);
             RunTelemetry.Finished(run, labels);
             _Signals.Complete(run.Id);

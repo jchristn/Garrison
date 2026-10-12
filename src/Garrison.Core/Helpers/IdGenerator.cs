@@ -362,6 +362,24 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a DeploymentApprovalRule identifier (prefix dar_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewDeploymentApprovalRuleId()
+        {
+            return _Generator.GenerateKSortable("dar_", _RandomLength);
+        }
+
+        /// <summary>
+        /// Generate an Approval identifier (prefix apr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewApprovalId()
+        {
+            return _Generator.GenerateKSortable("apr_", _RandomLength);
+        }
+
+        /// <summary>
         /// Generate a NodePool identifier (prefix npl_).
         /// </summary>
         /// <returns>Identifier.</returns>

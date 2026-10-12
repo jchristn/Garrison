@@ -1,10 +1,13 @@
 namespace Garrison.Worker.Hosting
 {
     using System;
+    using System.Collections.Generic;
+    using System.Linq;
     using System.Threading;
     using Garrison.Core.Compilation;
     using Garrison.Core.Protocol;
     using Garrison.Core.Telemetry;
+    using Garrison.Worker.Execution;
 
     /// <summary>
     /// A run currently held by this worker. Thread-safe for the members it exposes.
@@ -66,10 +69,42 @@ namespace Garrison.Worker.Hosting
             }
         }
 
+        /// <summary>
+        /// Event reporter of the run once it is executing, or null. Approval notices from the watch are recorded through it.
+        /// </summary>
+        public IRunReporter? Reporter
+        {
+            get
+            {
+                return Volatile.Read(ref _Reporter);
+            }
+            set
+            {
+                Volatile.Write(ref _Reporter, value);
+            }
+        }
+
+        /// <summary>
+        /// Approval notice keys (approvalId:Status) already recorded for this run (P12.3).
+        /// </summary>
+        public List<string> KnownApprovals
+        {
+            get
+            {
+                lock (_ApprovalLock)
+                {
+                    return _KnownApprovals.ToList();
+                }
+            }
+        }
+
         #endregion
 
         #region Private-Members
 
+        private IRunReporter? _Reporter = null;
+        private readonly HashSet<string> _KnownApprovals = new HashSet<string>(StringComparer.Ordinal);
+        private readonly object _ApprovalLock = new object();
         private int _Lost = 0;
         private bool _Disposed = false;
 
@@ -93,6 +128,20 @@ namespace Garrison.Worker.Hosting
         #endregion
 
         #region Public-Methods
+
+        /// <summary>
+        /// Remember an approval notice key.
+        /// </summary>
+        /// <param name="key">Key (approvalId:Status).</param>
+        /// <returns>True when the key is new and the notice should be recorded.</returns>
+        public bool AddApproval(string key)
+        {
+            if (String.IsNullOrEmpty(key)) return false;
+            lock (_ApprovalLock)
+            {
+                return _KnownApprovals.Add(key);
+            }
+        }
 
         /// <summary>
         /// Mark the lease as lost and cancel the process.

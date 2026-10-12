@@ -28,6 +28,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _NodeSelectorTable;
         private readonly string _ParametersTable;
         private readonly string _AllowedRunOverridesTable;
+        private readonly string _ApprovalRulesTable;
 
         #endregion
 
@@ -50,6 +51,7 @@ namespace Garrison.Core.Database.Ado
             _NodeSelectorTable = driver.Table("deployment_node_selectors");
             _ParametersTable = driver.Table("deployment_parameters");
             _AllowedRunOverridesTable = driver.Table("deployment_run_overrides");
+            _ApprovalRulesTable = driver.Table("deployment_approval_rules");
         }
 
         #endregion
@@ -131,7 +133,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, name = @name, description = @description, harnessprofileid = @harnessprofileid, model = @model, fallbackmodel = @fallbackmodel, effort = @effort, maxturns = @maxturns, maxbudgetusd = @maxbudgetusd, maxconcurrentruns = @maxconcurrentruns, timeoutseconds = @timeoutseconds, repetitionguard = @repetitionguard, maxassistantchars = @maxassistantchars, noprogressseconds = @noprogressseconds, maxattempts = @maxattempts, retryonnodeloss = @retryonnodeloss, executor = @executor, podcpurequest = @podcpurequest, podcpulimit = @podcpulimit, podmemoryrequest = @podmemoryrequest, podmemorylimit = @podmemorylimit, podephemeralstoragerequest = @podephemeralstoragerequest, podephemeralstoragelimit = @podephemeralstoragelimit, weight = @weight, nodepoolid = @nodepoolid, workspacetemplateid = @workspacetemplateid, artifactstoreid = @artifactstoreid, configversion = @configversion, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, name = @name, description = @description, harnessprofileid = @harnessprofileid, model = @model, fallbackmodel = @fallbackmodel, effort = @effort, maxturns = @maxturns, maxbudgetusd = @maxbudgetusd, maxconcurrentruns = @maxconcurrentruns, timeoutseconds = @timeoutseconds, repetitionguard = @repetitionguard, maxassistantchars = @maxassistantchars, noprogressseconds = @noprogressseconds, maxattempts = @maxattempts, retryonnodeloss = @retryonnodeloss, executor = @executor, podcpurequest = @podcpurequest, podcpulimit = @podcpulimit, podmemoryrequest = @podmemoryrequest, podmemorylimit = @podmemorylimit, podephemeralstoragerequest = @podephemeralstoragerequest, podephemeralstoragelimit = @podephemeralstoragelimit, weight = @weight, nodepoolid = @nodepoolid, workspacetemplateid = @workspacetemplateid, artifactstoreid = @artifactstoreid, approvalsenabled = @approvalsenabled, approvaldefaultaction = @approvaldefaultaction, approvaltimeoutseconds = @approvaltimeoutseconds, approvaltimeoutdecision = @approvaltimeoutdecision, configversion = @configversion, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -166,6 +168,10 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "nodepoolid", obj.NodePoolId);
                     AdoDatabaseDriver.Add(command, "workspacetemplateid", obj.WorkspaceTemplateId);
                     AdoDatabaseDriver.Add(command, "artifactstoreid", obj.ArtifactStoreId);
+                    AdoDatabaseDriver.Add(command, "approvalsenabled", obj.ApprovalsEnabled);
+                    AdoDatabaseDriver.Add(command, "approvaldefaultaction", obj.ApprovalDefaultAction.ToString());
+                    AdoDatabaseDriver.Add(command, "approvaltimeoutseconds", obj.ApprovalTimeoutSeconds);
+                    AdoDatabaseDriver.Add(command, "approvaltimeoutdecision", obj.ApprovalTimeoutDecision.ToString());
                     AdoDatabaseDriver.Add(command, "configversion", obj.ConfigVersion);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
@@ -276,6 +282,10 @@ namespace Garrison.Core.Database.Ado
             obj.NodePoolId = AdoConverters.NullableStr(reader, "nodepoolid");
             obj.WorkspaceTemplateId = AdoConverters.NullableStr(reader, "workspacetemplateid");
             obj.ArtifactStoreId = AdoConverters.NullableStr(reader, "artifactstoreid");
+            obj.ApprovalsEnabled = AdoConverters.NullableBool(reader, "approvalsenabled") ?? false;
+            obj.ApprovalDefaultAction = AdoConverters.Enum<ApprovalRuleActionEnum>(reader, "approvaldefaultaction", ApprovalRuleActionEnum.Ask);
+            obj.ApprovalTimeoutSeconds = AdoConverters.NullableInt(reader, "approvaltimeoutseconds") ?? 300;
+            obj.ApprovalTimeoutDecision = AdoConverters.Enum<ApprovalDecisionEnum>(reader, "approvaltimeoutdecision", ApprovalDecisionEnum.Deny);
             obj.ConfigVersion = AdoConverters.Int(reader, "configversion");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
@@ -341,6 +351,12 @@ namespace Garrison.Core.Database.Ado
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
                 MapAllowedRunOverrides,
                 token).ConfigureAwait(false);
+
+            obj.ApprovalRules = await _Driver.QueryAsync(
+                "SELECT * FROM " + _ApprovalRulesTable + " WHERE deploymentid = @parentid ORDER BY position ASC;",
+                command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
+                MapApprovalRules,
+                token).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -382,7 +398,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Deployment obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, name, description, harnessprofileid, model, fallbackmodel, effort, maxturns, maxbudgetusd, maxconcurrentruns, timeoutseconds, repetitionguard, maxassistantchars, noprogressseconds, maxattempts, retryonnodeloss, executor, podcpurequest, podcpulimit, podmemoryrequest, podmemorylimit, podephemeralstoragerequest, podephemeralstoragelimit, weight, nodepoolid, workspacetemplateid, artifactstoreid, configversion, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @name, @description, @harnessprofileid, @model, @fallbackmodel, @effort, @maxturns, @maxbudgetusd, @maxconcurrentruns, @timeoutseconds, @repetitionguard, @maxassistantchars, @noprogressseconds, @maxattempts, @retryonnodeloss, @executor, @podcpurequest, @podcpulimit, @podmemoryrequest, @podmemorylimit, @podephemeralstoragerequest, @podephemeralstoragelimit, @weight, @nodepoolid, @workspacetemplateid, @artifactstoreid, @configversion, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, name, description, harnessprofileid, model, fallbackmodel, effort, maxturns, maxbudgetusd, maxconcurrentruns, timeoutseconds, repetitionguard, maxassistantchars, noprogressseconds, maxattempts, retryonnodeloss, executor, podcpurequest, podcpulimit, podmemoryrequest, podmemorylimit, podephemeralstoragerequest, podephemeralstoragelimit, weight, nodepoolid, workspacetemplateid, artifactstoreid, approvalsenabled, approvaldefaultaction, approvaltimeoutseconds, approvaltimeoutdecision, configversion, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @name, @description, @harnessprofileid, @model, @fallbackmodel, @effort, @maxturns, @maxbudgetusd, @maxconcurrentruns, @timeoutseconds, @repetitionguard, @maxassistantchars, @noprogressseconds, @maxattempts, @retryonnodeloss, @executor, @podcpurequest, @podcpulimit, @podmemoryrequest, @podmemorylimit, @podephemeralstoragerequest, @podephemeralstoragelimit, @weight, @nodepoolid, @workspacetemplateid, @artifactstoreid, @approvalsenabled, @approvaldefaultaction, @approvaltimeoutseconds, @approvaltimeoutdecision, @configversion, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -414,6 +430,10 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "nodepoolid", obj.NodePoolId);
                 AdoDatabaseDriver.Add(command, "workspacetemplateid", obj.WorkspaceTemplateId);
                 AdoDatabaseDriver.Add(command, "artifactstoreid", obj.ArtifactStoreId);
+                AdoDatabaseDriver.Add(command, "approvalsenabled", obj.ApprovalsEnabled);
+                AdoDatabaseDriver.Add(command, "approvaldefaultaction", obj.ApprovalDefaultAction.ToString());
+                AdoDatabaseDriver.Add(command, "approvaltimeoutseconds", obj.ApprovalTimeoutSeconds);
+                AdoDatabaseDriver.Add(command, "approvaltimeoutdecision", obj.ApprovalTimeoutDecision.ToString());
                 AdoDatabaseDriver.Add(command, "configversion", obj.ConfigVersion);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);
                 AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
@@ -571,6 +591,33 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "pattern", child.Pattern);
                     }, token).ConfigureAwait(false);
             }
+
+            // Approval rule identifiers stay stable across updates, because approvals record the rule that decided them.
+            HashSet<string> ruleIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < obj.ApprovalRules.Count; i++)
+            {
+                DeploymentApprovalRule child = obj.ApprovalRules[i];
+                if (!child.Id.StartsWith("dar_", StringComparison.Ordinal) || !ruleIds.Add(child.Id))
+                {
+                    child.Id = IdGenerator.NewDeploymentApprovalRuleId();
+                    ruleIds.Add(child.Id);
+                }
+                child.DeploymentId = obj.Id;
+                int position = i;
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
+                    "INSERT INTO " + _ApprovalRulesTable + " (id, deploymentid, tenantid, position, action, pattern, inputpattern, description) VALUES (@id, @deploymentid, @tenantid, @position, @action, @pattern, @inputpattern, @description);",
+                    command =>
+                    {
+                        AdoDatabaseDriver.Add(command, "id", child.Id);
+                        AdoDatabaseDriver.Add(command, "deploymentid", obj.Id);
+                        AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
+                        AdoDatabaseDriver.Add(command, "position", position);
+                        AdoDatabaseDriver.Add(command, "action", child.Action.ToString());
+                        AdoDatabaseDriver.Add(command, "pattern", child.Pattern);
+                        AdoDatabaseDriver.Add(command, "inputpattern", child.InputPattern);
+                        AdoDatabaseDriver.Add(command, "description", child.Description);
+                    }, token).ConfigureAwait(false);
+            }
         }
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
@@ -583,6 +630,7 @@ namespace Garrison.Core.Database.Ado
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _NodeSelectorTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ParametersTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _AllowedRunOverridesTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
+            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ApprovalRulesTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
         }
 
         private static DeploymentPromptBinding MapPromptBindings(DbDataReader reader)
@@ -672,6 +720,18 @@ namespace Garrison.Core.Database.Ado
             child.Name = AdoConverters.Str(reader, "name");
             child.Validation = AdoConverters.Enum<RunOverrideValidationEnum>(reader, "validation", RunOverrideValidationEnum.Any);
             child.Pattern = AdoConverters.NullableStr(reader, "pattern");
+            return child;
+        }
+
+        private static DeploymentApprovalRule MapApprovalRules(DbDataReader reader)
+        {
+            DeploymentApprovalRule child = new DeploymentApprovalRule();
+            child.Id = AdoConverters.Str(reader, "id");
+            child.DeploymentId = AdoConverters.Str(reader, "deploymentid");
+            child.Action = AdoConverters.Enum<ApprovalRuleActionEnum>(reader, "action", ApprovalRuleActionEnum.Ask);
+            child.Pattern = AdoConverters.Str(reader, "pattern");
+            child.InputPattern = AdoConverters.NullableStr(reader, "inputpattern");
+            child.Description = AdoConverters.NullableStr(reader, "description");
             return child;
         }
 

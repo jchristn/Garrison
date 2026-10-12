@@ -6,9 +6,11 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const fr = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Sortie structurée non valide', RunBlocked: 'Exécution bloquée', EventsDropped: 'Événements abandonnés', HarnessExited: 'Harness arrêté', McpPreflightWarning: 'Avertissement de vérification préalable MCP', McpPreflightPassed: 'Vérification préalable MCP réussie', RepairAttemptStarted: 'Réparation de la sortie lancée', WorkspacePrepared: 'Espace de travail préparé', RunGuardTriggered: 'Une garde a arrêté l\'exécution' },
+    eventCodes: { ApprovalRequested: 'Approbation demandée', ApprovalDecided: 'Approbation décidée', StructuredOutputInvalid: 'Sortie structurée non valide', RunBlocked: 'Exécution bloquée', EventsDropped: 'Événements abandonnés', HarnessExited: 'Harness arrêté', McpPreflightWarning: 'Avertissement de vérification préalable MCP', McpPreflightPassed: 'Vérification préalable MCP réussie', RepairAttemptStarted: 'Réparation de la sortie lancée', WorkspacePrepared: 'Espace de travail préparé', RunGuardTriggered: 'Une garde a arrêté l\'exécution' },
     fieldCodes: { ExpiryInPast: 'Choisissez un moment dans le futur.', ParameterInvalid: 'Cette valeur n\'est pas valide pour ce paramètre.', ParameterNotAllowed: 'Ce déploiement ne permet pas aux appelants de remplacer ce paramètre.', SettingsFileReadOnly: 'Le fichier de paramètres est en lecture seule ; cette modification ne peut donc pas être enregistrée.', OverriddenByEnvironment: 'Une variable d\'environnement définit cette valeur ; elle ne peut donc pas être modifiée ici.', PathRequired: 'Un chemin de paramètre est requis.', UnknownSetting: 'Ce serveur ne connaît pas ce paramètre.', TooLong: 'Cette valeur est trop longue.', NotAllowedValue: 'Choisissez l\'une des valeurs autorisées.', NotABoolean: 'Choisissez vrai ou faux.', NotAnInteger: 'Saisissez un nombre entier.', OutOfRange: 'La valeur est hors de la plage autorisée.' },
     serverText: {
+      approvalWaitingExpires: 'En attente qu\'une personne approuve {{subject}} ; l\'approbation {{id}} expire le {{expires}}.',
+      approvalWaiting: 'En attente qu\'une personne approuve {{subject}} ; approbation {{id}}.',
       notApplied: 'Non appliqué, car un autre document n\'a pas passé la validation.',
       wouldBeUnchanged: 'Déjà à jour ; rien ne changerait.',
       wouldBeUpdated: 'Serait mis à jour.',
@@ -67,6 +69,7 @@ const fr = {
       bulkDelete: 'Supprimer les {{count}} enregistrements sélectionnés ? Cette action est irréversible.'
     },
     errors: {
+      listItem: 'Élément {{index}} : {{message}}',
       chooseOne: 'Choisissez au moins une option.',
       fixFields: 'Certains champs nécessitent votre attention. Vérifiez les valeurs mises en évidence.',
       invalidEmail: 'Saisissez une adresse e-mail valide.',
@@ -108,6 +111,7 @@ const fr = {
     units: { msShort: 'ms', sShort: 's', mShort: 'min', tokPerSec: 'jetons/s' }
   },
   errorCodes: {
+    ApprovalNotPending: 'Cette approbation a déjà été décidée ; elle ne peut donc pas l\'être à nouveau.',
     MessageIdConflict: 'Cet ID de message A2A a déjà servi avec un autre contenu. Envoyez le message avec un nouvel ID.',
     IdempotencyKeyConflict: 'Cette clé d\'idempotence a déjà servi pour une autre requête. Utilisez une nouvelle clé.',
     DeploymentDeleted: 'Le déploiement de cette exécution a été supprimé ; l\'exécution ne peut donc pas être relancée. Invoquez plutôt l\'agent à nouveau.',
@@ -137,6 +141,34 @@ const fr = {
     Http503: 'Le serveur est indisponible.'
   },
   enums: {
+    approvalStatus: {
+      Pending: 'En attente',
+      Approved: 'Approuvée',
+      Denied: 'Refusée',
+      Expired: 'Expirée',
+      Cancelled: 'Annulée'
+    },
+    approvalDecision: {
+      Allow: 'Autoriser',
+      Deny: 'Refuser'
+    },
+    approvalSource: {
+      Rule: 'Règle',
+      Default: 'Valeur par défaut du déploiement',
+      User: 'Personne',
+      Timeout: 'Délai dépassé',
+      Cancelled: 'Exécution arrêtée'
+    },
+    approvalRuleAction: {
+      Allow: 'Autoriser',
+      Deny: 'Refuser',
+      Ask: 'Demander à une personne'
+    },
+    approvalKind: {
+      Tool: 'Appel d\'outil',
+      Command: 'Commande',
+      FileChange: 'Modification de fichier'
+    },
     principalType: { Administrator: 'Administrateur système', User: 'Utilisateur', Credential: 'Clé d\'accès', Run: 'Jeton d\'exécution' },
     runBlockedReason: { NoReadyWorker: 'Aucun nœud worker prêt', NoCapableWorker: 'Aucun nœud worker compatible', NoMatchingPool: 'Aucun pool de nœuds correspondant' },
     promptDelivery: { Stdin: 'Entrée standard', Argument: 'Argument de ligne de commande', File: 'Fichier', CodexAppServer: 'Serveur d\'application Codex (JSON-RPC)' },
@@ -294,6 +326,7 @@ const fr = {
     remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: 'Créé', Updated: 'Mis à jour', Unchanged: 'Inchangé', Failed: 'Échec', Validated: 'Validé' },
     auditEventType: {
+      ApprovalDecided: 'Approbation décidée',
       AuthSuccess: 'Connexion réussie',
       AuthFailure: 'Échec de connexion',
       SessionIssued: 'Session émise',
@@ -317,6 +350,9 @@ const fr = {
     }
   },
   nav: {
+    approvalsPending_one: '{{count}} approbation en attente',
+    approvalsPending_other: '{{count}} approbations en attente',
+    approvalsPending_many: '{{count}} approbations en attente',
     primary: 'Navigation principale',
     sections: {
       operate: 'Exploitation',
@@ -324,6 +360,10 @@ const fr = {
       administration: 'Administration'
     },
     hubs: {
+      approvals: {
+        label: 'Approbations',
+        tip: 'Appels d\'outil en attente d\'une personne, et toutes les décisions'
+      },
       home: { label: 'Accueil', tip: 'Santé de la flotte et des exécutions en un coup d\'œil' },
       invoke: { label: 'Invoquer', tip: 'Essayer un agent de manière interactive' },
       runs: { label: 'Exécutions', tip: 'Exécutions et file d\'attente de planification' },
@@ -336,6 +376,10 @@ const fr = {
       system: { label: 'Système', tip: 'Paramètres et informations du serveur' }
     },
     items: {
+      approvals: {
+        label: 'Approbations',
+        tip: 'Autoriser ou refuser les appels d\'outil demandés par les agents'
+      },
       home: { label: 'Accueil', tip: 'Santé de la flotte et des exécutions en un coup d\'œil' },
       invoke: { label: 'Invoquer', tip: 'Essayer un agent de manière interactive' },
       runs: { label: 'Exécutions', tip: 'Rechercher, inspecter, annuler et relancer des exécutions' },
@@ -407,6 +451,48 @@ const fr = {
     run: 'Jeton d\'exécution'
   },
   components: {
+    approvals: {
+      awaiting: 'En attente d\'approbation',
+      decideTitle: 'Décider pour {{tool}}',
+      decision: 'Décision',
+      reason: 'Motif',
+      reasonPlaceholder: 'Facultatif. L\'agent et le journal d\'audit le voient.',
+      remember: 'Mémoriser comme règle pour ce déploiement',
+      rulePattern: 'Motif de règle',
+      rememberHint: 'Ajoute au déploiement une règle avec l\'action {{action}}, pour que les appels correspondants soient décidés sans demander. Cela nécessite aussi l\'autorisation de mettre à jour le déploiement.',
+      submitAllow: 'Autoriser',
+      submitDeny: 'Refuser',
+      timeoutThen: 'puis {{decision}}',
+      toasts: {
+        allowed: '{{tool}} autorisé.',
+        denied: '{{tool}} refusé.',
+        allowedRemembered: '{{tool}} autorisé et règle {{pattern}} ajoutée.',
+        deniedRemembered: '{{tool}} refusé et règle {{pattern}} ajoutée.',
+        notPending: 'Cette approbation a déjà été décidée par quelqu\'un d\'autre ou par son délai d\'expiration. La liste affiche maintenant le résultat.',
+        forbidden: 'Vous pouvez consulter les approbations, mais pas les décider. Demandez à un administrateur l\'autorisation Approval Update.',
+        forbiddenRemember: 'Mémoriser une règle nécessite aussi l\'autorisation de mettre à jour le déploiement. Décidez sans mémoriser, ou demandez Deployment Update.'
+      }
+    },
+    approvalCheck: {
+      title: 'Tester un appel d\'outil',
+      saveFirst: 'Enregistrez d\'abord le déploiement. Le test vérifie les règles enregistrées sur le serveur.',
+      hint: 'Vérifie les règles enregistrées ; enregistrez donc vos modifications avant de les tester. Rien n\'est consigné.',
+      toolName: 'Outil',
+      inputs: {
+        command: 'Commande',
+        url: 'URL',
+        query: 'Requête de recherche',
+        file_path: 'Chemin du fichier',
+        notebook_path: 'Chemin du notebook',
+        pattern: 'Motif'
+      },
+      run: 'Vérifier',
+      checking: 'Vérification...',
+      byRule: '{{action}} par cette règle :',
+      byDefault: '{{action}} par la valeur par défaut du déploiement, car aucune règle ne correspond.',
+      suggestedRule: 'Règle suggérée :',
+      disabled: 'Les approbations sont désactivées pour ce déploiement ; ses exécutions ne demandent donc jamais. Activez-les et enregistrez pour appliquer ces règles.'
+    },
     blocked: {
       title: 'En attente d\'un worker',
       body: 'Cette exécution est dans la file d\'attente, mais aucun worker ne peut la prendre pour l\'instant.',
@@ -564,6 +650,63 @@ const fr = {
     }
   },
   resources: {
+    approvals: {
+      ...rp('Approbations', 'Appels d\'outil demandés par les agents, décidés par une règle du déploiement, la valeur par défaut du déploiement, une personne ou un délai d\'expiration. Ceux en attente attendent votre décision.', 'Ajouter une approbation', 'Créer une approbation', 'Modifier l\'approbation', 'Détails de l\'approbation', 'Supprimer l\'approbation', 'Aucune approbation pour l\'instant', 'Les approbations apparaissent lorsqu\'un déploiement dont les approbations sont activées demande l\'accord avant un appel d\'outil.'),
+      columns: {
+        createdUtc: 'Demandée',
+        agentName: 'Agent',
+        toolName: 'Outil',
+        summary: 'Requête',
+        status: 'État',
+        decision: 'Décision',
+        decisionSource: 'Origine',
+        decidedBy: 'Décidée par',
+        expiresUtc: 'Expiration',
+        kind: 'Type',
+        harnessType: 'Harness',
+        runId: 'Exécution',
+        waitMs: 'Attente',
+        reason: 'Motif',
+        decidedUtc: 'Décidée',
+        id: 'ID'
+      },
+      fields: {
+        status: 'État',
+        decision: 'Décision',
+        decisionSource: 'Origine de la décision',
+        decidedBy: 'Décidée par',
+        toolName: 'Outil',
+        kind: 'Type',
+        harnessType: 'Harness',
+        agentName: 'Agent',
+        runId: 'Exécution',
+        rootRunId: 'Exécution racine',
+        deploymentId: 'Déploiement',
+        leaseEpoch: 'Époque du bail',
+        requestedUtc: 'Demandée',
+        expiresUtc: 'Expiration',
+        decidedUtc: 'Décidée',
+        waitMs: 'Durée d\'attente',
+        timeoutDecision: 'Décision à l\'expiration du délai',
+        toolCallId: 'ID de l\'appel d\'outil',
+        reason: 'Motif',
+        summary: 'Résumé',
+        inputPreview: 'Entrée (masquée)',
+        rulePattern: 'Règle correspondante',
+        ruleId: 'ID de la règle',
+        suggestedRule: 'Règle suggérée',
+        rememberedRuleId: 'ID de la règle mémorisée'
+      },
+      filters: {
+        runId: 'ID d\'exécution',
+        runIdPlaceholder: 'ID d\'exécution (run_...)'
+      },
+      actions: {
+        allow: 'Autoriser',
+        deny: 'Refuser',
+        openRun: 'Ouvrir l\'exécution'
+      }
+    },
     tenants: {
       ...rp('Locataires', 'Espaces isolés, chacun avec ses propres utilisateurs, agents, secrets et exécutions.', 'Ajouter un locataire', 'Créer un locataire', 'Modifier le locataire', 'Détails du locataire', 'Supprimer le locataire', 'Aucun locataire pour l\'instant', 'Créez un locataire pour isoler une équipe ou un client.'),
       columns: { name: 'Nom', id: 'ID', description: 'Description', active: 'Actif', createdUtc: 'Créé le' },
@@ -751,11 +894,25 @@ const fr = {
       errors: { dnsName: 'Utilisez des lettres minuscules, des chiffres et des traits d\'union, en commençant et en terminant par une lettre ou un chiffre.' }
     },
     deployments: {
+      approvalsOn_one: 'Activées, {{count}} règle',
+      approvalsOn_other: 'Activées, {{count}} règles',
+      approvalsOn_many: 'Activées, {{count}} règles',
+      approvalsOff: 'Désactivées',
       promptRoles: { Repair: 'Réparation de sortie structurée', DelegatedTask: 'Enveloppe de tâche pour les exécutions déléguées', Task: 'Enveloppe de tâche', System: 'Prompt système' },
       ...rp('Déploiements', 'Liez un agent à un profil de harness, des prompts, des secrets, des serveurs MCP, un placement et des limites.', 'Ajouter un déploiement', 'Créer un déploiement', 'Modifier le déploiement', 'Détails du déploiement', 'Supprimer le déploiement', 'Aucun déploiement pour l\'instant', 'Créez un déploiement pour rendre un agent exécutable.'),
-      steps: { basics: 'Général', harness: 'Harness', prompts: 'Prompts', resources: 'Ressources', overrides: 'Remplacements', placement: 'Placement et limites' },
-      columns: { name: 'Nom', agentId: 'Agent', harnessProfileId: 'Profil de harness', model: 'Modèle', executor: 'Exécuteur', weight: 'Poids', configVersion: 'Version de configuration', active: 'Actif', id: 'ID', createdUtc: 'Créé le' },
+      steps: { approvals: 'Approbations', basics: 'Général', harness: 'Harness', prompts: 'Prompts', resources: 'Ressources', overrides: 'Remplacements', placement: 'Placement et limites' },
+      columns: { approvalsEnabled: 'Approbations', name: 'Nom', agentId: 'Agent', harnessProfileId: 'Profil de harness', model: 'Modèle', executor: 'Exécuteur', weight: 'Poids', configVersion: 'Version de configuration', active: 'Actif', id: 'ID', createdUtc: 'Créé le' },
       fields: {
+        approvalsEnabled: 'Demander avant les appels d\'outil (approbations)',
+        approvalDefaultAction: 'Si aucune règle ne correspond',
+        approvalTimeoutSeconds: 'Délai d\'approbation (secondes)',
+        approvalTimeoutDecision: 'Décision si personne ne répond',
+        approvalRules: 'Règles d\'approbation',
+        ruleAction: 'Action de la règle',
+        rulePattern: 'Règle',
+        ruleInputPattern: 'Motif d\'entrée',
+        ruleDescription: 'Description',
+        approvalTest: 'Tester un appel d\'outil',
         name: 'Nom',
         agentId: 'Agent',
         description: 'Description',
@@ -811,6 +968,10 @@ const fr = {
         podEphemeralStorageLimit: 'Limite de stockage éphémère'
       },
       hints: {
+        approvalsEnabled: 'Fonctionne avec les profils Claude Code et les profils qui utilisent l\'app-server Codex. Les autres harness n\'ont pas de point d\'accroche d\'approbation ; le serveur refuse donc ce paramètre pour eux.',
+        approvalDefaultAction: 'Demander à une personne attend dans la boîte de réception Approbations jusqu\'à ce que quelqu\'un décide ou que le délai expire.',
+        approvalTimeoutSeconds: 'De 10 à 3 600 secondes. Vide : 300 secondes.',
+        approvalRules: 'Refuser l\'emporte sur Demander, et Demander sur Autoriser. Exemples : Bash(npm test), Bash(npm run *), Edit(src/**), WebFetch(domain:example.com), mcp__github__*.',
         secretsKinds: 'Le profil de harness {{profile}} a besoin d\'un secret de type {{kinds}}. Liez-en un sous n\'importe quel alias.',
         secretsAliases: 'Le profil de harness {{profile}} lit les secrets liés sous ces alias : {{aliases}}.',
         secretsNone: 'Le profil de harness {{profile}} ne lit aucun secret ; aucune liaison de secret n\'est donc nécessaire.',
@@ -830,18 +991,19 @@ const fr = {
         executorSet: 'Processus exécute le harness dans le worker ; Job Kubernetes l\'exécute dans son propre pod.',
         podCpuRequest: 'Les ressources du pod ne s\'appliquent qu\'aux exécutions Job Kubernetes. Utilisez des quantités Kubernetes comme 500m, 2, 512Mi ou 4Gi ; vide utilise la valeur par défaut du worker.'
       },
-      actions: { compilePreview: 'Aperçu de la compilation', test: 'Tester l\'invocation', useClusterDefault: 'Utiliser la valeur du cluster' },
+      actions: { addRule: 'Ajouter une règle', compilePreview: 'Aperçu de la compilation', test: 'Tester l\'invocation', useClusterDefault: 'Utiliser la valeur du cluster' },
       sections: {
         guards: 'Gardes d\'exécution',
         execution: 'Exécuteur et ressources du pod'
       },
       placeholders: {
+        ruleInputPattern: 'Expression régulière facultative sur le JSON d\'entrée',
         clusterDefault: 'Valeur du cluster ({{value}})',
         clusterDefaultUnknown: 'Valeur du cluster'
       },
       executorInherit: 'Valeur par défaut du pool de nœuds',
       executorInheritShort: 'Défaut du pool',
-      errors: { quantity: 'Utilisez une quantité Kubernetes comme 500m, 2, 512Mi ou 4Gi.' },
+      errors: { rulePatternRequired: 'Saisissez un motif de règle.', rulePatternOneLine: 'Un motif de règle doit tenir sur une seule ligne.', rulePatternTooLong: 'Un motif de règle peut comporter au maximum 1 000 caractères.', tooManyRules: 'Un déploiement peut avoir au maximum 500 règles d\'approbation.', approvalTimeout: 'Saisissez un nombre entier de secondes entre 10 et 3 600.', quantity: 'Utilisez une quantité Kubernetes comme 500m, 2, 512Mi ou 4Gi.' },
       guardStates: {
         on: 'activée',
         off: 'désactivée'
@@ -857,6 +1019,7 @@ const fr = {
     runs: {
       ...rp('Exécutions', 'Chaque invocation d\'agent avec son statut, son nœud, sa durée et son résultat.', 'Ajouter une exécution', 'Créer une exécution', 'Modifier l\'exécution', 'Détails de l\'exécution', 'Supprimer l\'exécution', 'Aucune exécution pour l\'instant', 'Invoquez un agent pour lancer une exécution.'),
       columns: {
+        approvalWaitMs: 'Attente d\'approbation',
         delegationWaitMs: 'Attente de délégation',
         timeToFirstTokenExcludingDelegationMs: 'TTFT hors délégation',
         id: 'Exécution',
@@ -930,6 +1093,19 @@ const fr = {
     }
   },
   views: {
+    approvalDetail: {
+      title: 'Approbation',
+      titleWithTool: 'Approbation pour {{tool}}',
+      backToInbox: 'Toutes les approbations',
+      pending: 'En attente qu\'une personne autorise ou refuse cet appel d\'outil.',
+      pendingExpires: 'En attente d\'une personne. Si personne ne décide, elle expire {{when}} avec la décision {{decision}}.',
+      request: 'Requête',
+      rules: 'Règles',
+      noRule: 'Aucune règle ne correspond',
+      noInput: 'Aucune entrée n\'a été enregistrée.',
+      notFoundTitle: 'Approbation introuvable',
+      notFoundBody: 'Elle appartient peut-être à un autre locataire, ou l\'ID est incorrect.'
+    },
     home: {
       observabilityState: { reachable: 'Accessible', unreachable: 'Inaccessible', checking: 'Vérification', unknown: 'Statut inconnu' },
       observabilityVersion: 'Version {{version}}',
@@ -1059,6 +1235,15 @@ const fr = {
       }
     },
     runDetail: {
+      awaitingApproval_one: 'Cette exécution attend qu\'une personne approuve {{count}} appel d\'outil.',
+      awaitingApproval_other: 'Cette exécution attend qu\'une personne approuve {{count}} appels d\'outil.',
+      awaitingApproval_many: 'Cette exécution attend qu\'une personne approuve {{count}} appels d\'outil.',
+      reviewApprovals: 'Examiner',
+      approvals_one: 'Approbations ({{count}})',
+      approvals_other: 'Approbations ({{count}})',
+      approvals_many: 'Approbations ({{count}})',
+      noApprovals: 'Cette exécution n\'a demandé aucune approbation.',
+      openApproval: 'Ouvrir l\'approbation',
       viewTrace: 'Voir la trace',
       viewLogs: 'Voir les journaux',
       traceId: 'ID de trace',
@@ -1108,11 +1293,13 @@ const fr = {
       notFoundTitle: 'Exécution introuvable',
       notFoundBody: 'Elle a peut-être été supprimée, ou elle appartient à un autre locataire.',
       telemetry: {
+        approvalNote: 'Cette exécution a passé {{wait}} à attendre des décisions d\'approbation. La durée d\'exécution inclut cette attente.',
         delegationNote: 'Cette exécution a attendu {{wait}} des exécutions déléguées. Le délai avant le premier jeton est de {{ttft}} avec cette attente et de {{excluding}} sans elle ; c\'est ce second chiffre qui se compare aux agents qui ne délèguent pas.',
         title: 'Télémétrie',
         phases: 'Durée de l\'exécution par phase',
         phase: { delegation: 'Attente des exécutions déléguées', queue: 'File d\'attente', startup: 'Démarrage jusqu\'au premier jeton', streaming: 'Streaming', tail: 'Après le dernier jeton' },
         fields: {
+          approvalWaitMs: 'Attente d\'approbation',
           delegationWaitMs: 'Attente de délégation',
           timeToFirstTokenExcludingDelegationMs: 'Délai avant le premier jeton hors délégation',
           timeToFirstTokenMs: 'Délai avant le premier jeton',

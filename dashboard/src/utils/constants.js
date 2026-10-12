@@ -82,7 +82,13 @@ export const ENUMS = {
   resourceScope: ['Tenant', 'Resource'],
   resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact'],
   operationType: ['All', 'Create', 'Read', 'Write', 'Update', 'Delete', 'Execute', 'Admin'],
-  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled'],
+  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ApprovalDecided'],
+  // Permission approvals (P12.3).
+  approvalStatus: ['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled'],
+  approvalDecision: ['Allow', 'Deny'],
+  approvalSource: ['Rule', 'Default', 'User', 'Timeout', 'Cancelled'],
+  approvalRuleAction: ['Allow', 'Deny', 'Ask'],
+  approvalKind: ['Tool', 'Command', 'FileChange'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -108,6 +114,40 @@ export function runStatusTone(status) {
       return 'neutral';
   }
 }
+
+/** Semantic tone for an approval status pill: Pending needs a person, Approved and Denied are final verdicts. */
+export function approvalStatusTone(status) {
+  switch (status) {
+    case 'Pending':
+      return 'warning';
+    case 'Approved':
+      return 'success';
+    case 'Denied':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for an approval decision or rule action pill (Allow, Deny, Ask). */
+export function approvalActionTone(action) {
+  switch (action) {
+    case 'Allow':
+      return 'success';
+    case 'Deny':
+      return 'danger';
+    case 'Ask':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Approval timeout range in seconds (deployment approvalTimeoutSeconds), and the server default. */
+export const APPROVAL_TIMEOUT = { min: 10, max: 3600, default: 300 };
+
+/** How often the sidebar badge re-reads the pending approval count, in milliseconds, when no live push arrives. */
+export const APPROVAL_POLL_MS = 30000;
 
 /** Semantic tone for a node status pill. */
 export function nodeStatusTone(status) {

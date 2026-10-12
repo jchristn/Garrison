@@ -218,6 +218,7 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("approvals") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
                 affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -528,6 +529,7 @@ namespace Garrison.Core.Database.Ado
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("approvals") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
                 affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -943,6 +945,26 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<bool> AdjustPendingApprovalsAsync(string runId, int delta, long addWaitMs, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+            string set = delta >= 0
+                ? "pendingapprovals = pendingapprovals + @delta"
+                : "pendingapprovals = CASE WHEN pendingapprovals + @delta < 0 THEN 0 ELSE pendingapprovals + @delta END";
+            if (addWaitMs > 0) set += ", approvalwaitms = COALESCE(approvalwaitms, 0) + @wait";
+            int affected = await _Driver.NonQueryAsync(
+                "UPDATE " + _Table + " SET " + set + " WHERE id = @id;",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "id", runId);
+                    AdoDatabaseDriver.Add(command, "delta", delta);
+                    if (addWaitMs > 0) AdoDatabaseDriver.Add(command, "wait", addWaitMs);
+                },
+                token).ConfigureAwait(false);
+            return affected > 0;
+        }
+
+        /// <inheritdoc />
         public async Task<int> PruneFinishedAsync(DateTime olderThanUtc, CancellationToken token = default)
         {
             List<string> ids = await _Driver.QueryAsync(
@@ -1281,6 +1303,8 @@ namespace Garrison.Core.Database.Ado
             obj.TotalMs = AdoConverters.NullableLong(reader, "totalms") ?? Run.ElapsedMs(obj.QueuedUtc, obj.CompletedUtc);
             obj.DelegationWaitMs = AdoConverters.NullableLong(reader, "delegationwaitms");
             obj.TimeToFirstTokenExcludingDelegationMs = AdoConverters.NullableLong(reader, "ttftexcldelegationms");
+            obj.PendingApprovals = AdoConverters.Int(reader, "pendingapprovals");
+            obj.ApprovalWaitMs = AdoConverters.NullableLong(reader, "approvalwaitms");
         }
 
         private static RunParameter MapParameters(DbDataReader reader)

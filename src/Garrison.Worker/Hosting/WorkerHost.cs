@@ -543,6 +543,8 @@ namespace Garrison.Worker.Hosting
                     request.NodeId = _NodeId;
                     request.Runs = watched.Select(r => new NodeRunLease { RunId = r.RunId, Epoch = r.Epoch }).ToList();
                     request.WaitMs = _WatchWaitMs;
+                    request.RelayApprovals = true;
+                    request.KnownApprovals = watched.SelectMany(r => r.KnownApprovals).ToList();
                     using (CancellationTokenSource call = CancellationTokenSource.CreateLinkedTokenSource(token))
                     {
                         Interlocked.Exchange(ref _WatchCall, call);
@@ -550,6 +552,7 @@ namespace Garrison.Worker.Hosting
                         {
                             NodeWatchResponse response = await _Client.WatchAsync(request, call.Token).ConfigureAwait(false);
                             failures = 0;
+                            RecordApprovals(response.Approvals);
                             foreach (string runId in response.CancelRunIds) await TransitionAsync(runId, false, token).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException) when (!token.IsCancellationRequested)
@@ -571,6 +574,56 @@ namespace Garrison.Worker.Hosting
                     _Logging.Debug(_Header + "cancellation watch failed: " + e.Message);
                     await Task.Delay(delay, token).ConfigureAwait(false);
                 }
+            }
+        }
+
+        private async Task CatchUpApprovalsAsync(ActiveRun run, RunAssignment assignment)
+        {
+            // A harness can finish moments after its last approval was decided, before the watch delivered the notice;
+            // ask once more without waiting so the timeline is complete before the completion report (P12.3).
+            ExecutionSpec spec = assignment.Spec ?? new ExecutionSpec();
+            bool approvals = spec.ApprovalRelay != null || spec.McpPreflight.Any(c => c.RequiredTools.Contains(InvocationCompiler.PermissionPromptTool));
+            if (!approvals || _NodeId == null || run.Lost) return;
+            NodeWatchRequest request = new NodeWatchRequest();
+            request.NodeId = _NodeId;
+            request.Runs = new List<NodeRunLease> { new NodeRunLease { RunId = run.RunId, Epoch = run.Epoch } };
+            request.WaitMs = 0;
+            request.RelayApprovals = true;
+            request.KnownApprovals = run.KnownApprovals;
+            try
+            {
+                using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                {
+                    NodeWatchResponse response = await _Client.WatchAsync(request, timeout.Token).ConfigureAwait(false);
+                    RecordApprovals(response.Approvals);
+                }
+            }
+            catch (Exception e) when (e is NodeProtocolException || e is OperationCanceledException || e is System.Net.Http.HttpRequestException)
+            {
+                _Logging.Debug(_Header + "could not read the final approvals of run " + run.RunId + ": " + e.Message + " " + run.LogFields);
+            }
+        }
+
+        private void RecordApprovals(List<NodeApprovalNotice>? notices)
+        {
+            // Permission approvals (P12.3) of runs held here: record each state once in the run's event stream, so the
+            // timeline shows when the harness started waiting and who decided.
+            if (notices == null) return;
+            foreach (NodeApprovalNotice notice in notices)
+            {
+                if (!_Runs.TryGetValue(notice.RunId, out ActiveRun? run)) continue;
+                IRunReporter? reporter = run.Reporter;
+                if (reporter == null || !run.AddApproval(notice.Key)) continue;
+                RunEventReport report = new RunEventReport();
+                report.EventType = RunEventTypeEnum.Lifecycle;
+                report.Code = notice.EventCode;
+                DateTime? at = notice.Status == ApprovalStatusEnum.Pending ? notice.RequestedUtc : notice.DecidedUtc;
+                if (at.HasValue) report.TimestampUtc = at.Value;
+                report.Text = notice.Describe();
+                report.ToolName = notice.ToolName;
+                report.RawEventJson = Garrison.Core.Serialization.Serializer.Serialize(notice);
+                reporter.Emit(report);
+                _Logging.Debug(_Header + "run " + notice.RunId + " " + report.Text + " " + run.LogFields);
             }
         }
 
@@ -695,6 +748,7 @@ namespace Garrison.Worker.Hosting
                 },
                 message => _Logging.Debug(_Header + message + " " + run.LogFields),
                 run.Assignment.EventSequenceStart);
+            run.Reporter = shipper;
             string harness = run.Assignment.Spec.HarnessType.ToString();
             bool retained = run.Assignment.Spec.RetainForRepair;
             bool lastSucceeded = false;
@@ -737,6 +791,7 @@ namespace Garrison.Worker.Hosting
                     {
                         launched = true;
                         complete = await ExecuteOnceAsync(run, current, shipper, harness).ConfigureAwait(false);
+                        await CatchUpApprovalsAsync(run, current).ConfigureAwait(false);
                     }
                     lastSucceeded = complete.Status == RunStatusEnum.Succeeded;
                     if (complete.Outcome == RunOutcomeEnum.NodeLost && current.Spec.Executor == RunExecutorEnum.KubernetesJob)

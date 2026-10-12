@@ -4,13 +4,14 @@ A summary of what the Garrison operator console contains, how it is checked, and
 
 ## Navigation
 
-Ten sidebar hubs in three sections, defined in one place (`src/config/navConfig.js`). Hubs with more than one page use tabs synced to `?tab=`. Every route from before the consolidation redirects to its hub and tab.
+Eleven sidebar hubs in three sections, defined in one place (`src/config/navConfig.js`). Hubs with more than one page use tabs synced to `?tab=`. Every route from before the consolidation redirects to its hub and tab.
 
 | Section | Hub | Tabs | Who sees it |
 |---|---|---|---|
 | Operate | Home | none | everyone signed in |
 | | Invoke | none | everyone signed in |
 | | Runs | Runs, Queue | everyone signed in |
+| | Approvals | none (badge with the pending count) | everyone signed in |
 | | Analytics | none | everyone signed in |
 | | Agents | Agents, Deployments | everyone signed in |
 | Platform | Configuration | Harness Profiles, Prompt Templates, MCP Servers, Secrets, Workspaces, Artifact Stores, Manifests | everyone signed in |
@@ -21,7 +22,9 @@ Ten sidebar hubs in three sections, defined in one place (`src/config/navConfig.
 
 The sidebar only hides what the table above lists. Everything else is enforced by the server: a page a user may not read shows a permission message instead of data.
 
-Detail pages: `/dashboard/runs/:id`, `/dashboard/agents/:id`, `/dashboard/prompt-templates/:id`. They highlight their hub in the sidebar.
+Detail pages: `/dashboard/runs/:id`, `/dashboard/agents/:id`, `/dashboard/prompt-templates/:id`, `/dashboard/approvals/:id`. They highlight their hub in the sidebar.
+
+Approvals (P12.3) is the inbox for permission requests from deployments with approvals turned on. The sidebar item shows how many are pending, read from `GET approvals?status=Pending&maxResults=1` every 30 seconds and updated at once by the WebSocket `approvals` channel when the live connection is up; it disappears for callers without Approval Read. The inbox opens on Pending and filters by status, agent, decision source, and run ID; Allow and Deny open a dialog with a reason and "remember as rule" (an editable pattern prefilled from the suggested rule). A 409 `ApprovalNotPending` and a 403 end in a toast. The detail page shows every field, the redacted input preview, the matched and suggested rules, and links to the run, agent, and deployment. Run detail shows an "Awaiting approval" badge and banner, the approval wait in telemetry, an Approvals tab with Allow and Deny, and labels `ApprovalRequested` and `ApprovalDecided` events in the transcript with a link to the approval. The deployment form has an Approvals step: the on switch, the default action, the timeout and its decision, an ordered rules editor that keeps rule IDs, and a "Test a tool call" panel that posts to `approval-check` (saved deployments only).
 
 Invoke's response card has two tabs (P5.52). Preview streams the assistant text over SSE and renders it as Markdown, with reasoning in a collapsed block, tool calls as chips, and live timing; it stays selected when the run ends and points to Response, which shows the result text, structured output, outcome, errors, and telemetry. Sending again clears the card and drops late frames from the previous run. Sending again also cancels the run still in progress, and leaving Invoke (route change, reload, or tab close via `pagehide`) cancels it with `fetch` `keepalive` (a beacon cannot carry the `Authorization` header), unless the "Stop the run when I leave" setting next to Send is off (`localStorage` key `garrison_invoke_stop_on_leave`). Cancel reads "Cancelling..." until the run reports Cancelled. A deployment that allows a `timeoutSeconds` override gets a Time limit field with presets, validated against the override's range and `Runtime.MaxRunSeconds` when settings are readable (P3.15). Run guard stops (`RepetitionDetected`, `NoProgress`, `OutputLimitExceeded` from `maxAssistantChars`) get a `RunGuardNotice` in Preview, Response, and Run detail; the deployment form's Placement and limits step has Repetition guard, Maximum assistant characters, and No-progress timeout with the cluster defaults shown. Model output is rendered by `MarkdownView` (marked for GitHub-flavored Markdown, DOMPurify for sanitizing: no scripts, event handlers, frames, forms, inline styles, or URL schemes other than http, https, and mailto), which Run detail uses for the result too, with a raw text toggle.
 
@@ -44,7 +47,7 @@ Home shows "Control plane ready x / y" next to "Nodes ready" (from the overview'
 | Lint | `npm run lint` | ESLint, no warnings allowed |
 | Unit | `npm test` | Markdown rendering and sanitizing, formatters per locale, i18n key and placeholder parity, untranslated strings, enum labels, telemetry and analytics helpers, exporters, tooltips for generated controls |
 | Browser (mocked) | `npx playwright test` | every route and tab, forms and modals, tooltips on every element (about 13,200 checks), redirects, keyboard tabs, exports, languages, RTL overflow |
-| API contract | `npm run test:contract` | starts a real server and worker, seeds every resource, and compares 61 GET responses (including both control-node routes) with the mocks the browser tests use |
+| API contract | `npm run test:contract` | starts a real server and worker, seeds every resource (including approvals decided by a rule and the deployment default), and compares 66 GET responses (including both control-node routes) with the mocks the browser tests use |
 | Live | `npm run test:live` | signs in to a deployed stack and visits every page, Analytics, and a run's telemetry and transcript |
 
 Run Playwright with `caffeinate -dims` on a laptop that may sleep; a sleeping host stalls a test until it times out.
@@ -60,7 +63,7 @@ Landmarks and labels on every page, keyboard access to tabs (arrow keys, Home, E
 ## Not done yet
 
 - Observability cards and deep links into Grafana, Prometheus, Loki, and Tempo (plan P13.12 to P13.19).
-- Approvals inbox and conversations (Phase 12).
+- Conversations (Phase 12).
 - Codex output does not stream until the app-server driver exists (P12.2a); the run still completes normally.
 - New-locale translations are marked beta until a native speaker reviews them (`docs/I18N.md` lists the strings to check).
 

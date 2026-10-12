@@ -120,6 +120,12 @@ namespace Garrison.Server.Runtime
         public BlockedRunService? BlockedRuns { get; set; } = null;
 
         /// <summary>
+        /// Permission approvals (P12.3); pending approvals of runs that stop here are cancelled. Null (the default)
+        /// leaves them to the leader's sweep.
+        /// </summary>
+        public ApprovalService? Approvals { get; set; } = null;
+
+        /// <summary>
         /// Interval between blocked-run passes in the leader loop, in milliseconds. Minimum 1000, maximum 300000, default
         /// 5000. <see cref="RunOnceAsync"/> always runs a pass.
         /// </summary>
@@ -313,6 +319,7 @@ namespace Garrison.Server.Runtime
             await MarkLostNodesAsync(token).ConfigureAwait(false);
             await MarkOfflineControlNodesAsync(token).ConfigureAwait(false);
             await CheckBlockedRunsAsync(token).ConfigureAwait(false);
+            if (Approvals != null) await Approvals.SweepAsync(token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -444,6 +451,8 @@ namespace Garrison.Server.Runtime
                     if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "enforce_deadlines", EnforceDeadlinesAsync, token).ConfigureAwait(false);
                     if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "mark_lost_nodes", MarkLostNodesAsync, token).ConfigureAwait(false);
                     if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "mark_offline_control_nodes", MarkOfflineControlNodesAsync, token).ConfigureAwait(false);
+                    ApprovalService? approvals = Approvals;
+                    if (approvals != null && await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "approvals", approvals.SweepAsync, token).ConfigureAwait(false);
                     if ((forceBlockedCheck || (Now - _LastBlockedCheckUtc).TotalMilliseconds >= _BlockedCheckIntervalMs) && await AwakeAsync(token).ConfigureAwait(false))
                     {
                         _LastBlockedCheckUtc = Now;

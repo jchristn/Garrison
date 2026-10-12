@@ -228,6 +228,40 @@ namespace Garrison.Sdk.Models
         public string? ArtifactStoreId { get; set; } = null;
 
         /// <summary>
+        /// Permission approvals. When true, Claude Code runs relay permission prompts to Garrison through
+        /// <c>--permission-prompt-tool</c>, and Codex app-server runs relay command and file change approvals; the
+        /// deployment's rules decide each request or send it to a person. Only harness profiles that can relay
+        /// approvals accept it (Claude Code, and Codex with CodexAppServer delivery). Default false.
+        /// </summary>
+        public bool ApprovalsEnabled { get; set; } = false;
+
+        /// <summary>
+        /// What happens to a permission request no rule matches: Allow, Deny, or Ask (a person decides). Default Ask.
+        /// </summary>
+        public ApprovalRuleActionEnum ApprovalDefaultAction { get; set; } = ApprovalRuleActionEnum.Ask;
+
+        /// <summary>
+        /// Seconds a pending approval waits for a person before the timeout decision applies. The wait never outlasts
+        /// the run's deadline. Minimum 10, maximum 3600, default 300.
+        /// </summary>
+        public int ApprovalTimeoutSeconds
+        {
+            get
+            {
+                return _ApprovalTimeoutSeconds;
+            }
+            set
+            {
+                _ApprovalTimeoutSeconds = Math.Clamp(value, 10, 3600);
+            }
+        }
+
+        /// <summary>
+        /// Decision applied when a pending approval expires. Default Deny.
+        /// </summary>
+        public ApprovalDecisionEnum ApprovalTimeoutDecision { get; set; } = ApprovalDecisionEnum.Deny;
+
+        /// <summary>
         /// Configuration version, incremented on every change.
         /// </summary>
         public int ConfigVersion { get; set; } = 1;
@@ -392,6 +426,22 @@ namespace Garrison.Sdk.Models
             }
         }
 
+        /// <summary>
+        /// Permission approval rules in display order, at most 500. Deny beats Ask and Ask beats Allow when several
+        /// match; a request no rule matches gets <see cref="ApprovalDefaultAction"/>.
+        /// </summary>
+        public List<DeploymentApprovalRule> ApprovalRules
+        {
+            get
+            {
+                return _ApprovalRules;
+            }
+            set
+            {
+                _ApprovalRules = value ?? new List<DeploymentApprovalRule>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -415,6 +465,8 @@ namespace Garrison.Sdk.Models
         private List<DeploymentNodeSelector> _NodeSelector = new List<DeploymentNodeSelector>();
         private List<DeploymentParameter> _Parameters = new List<DeploymentParameter>();
         private List<DeploymentRunOverrideRule> _AllowedRunOverrides = new List<DeploymentRunOverrideRule>();
+        private List<DeploymentApprovalRule> _ApprovalRules = new List<DeploymentApprovalRule>();
+        private int _ApprovalTimeoutSeconds = 300;
 
         #endregion
     }

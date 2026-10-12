@@ -360,6 +360,10 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 | `garrison_sse_streams_active` | gauge | `stream` | server | garrison-protocols | Server-sent event streams open on this replica (run_events, a2a) |
 | `garrison_websocket_messages_total` | counter | `direction` | server | garrison-protocols | Live-update WebSocket messages (received, sent) |
 | `garrison_websocket_sessions_active` | gauge | none | server | garrison-protocols | Live-update WebSocket sessions open on this replica |
+| `garrison_approval_wait_seconds` | histogram, seconds | `source`, `decision` | server | garrison-runs | Time a pending approval waited for a person, the timeout, or a cancellation |
+| `garrison_approvals_decided_total` | counter | `tenant`, `agent`, `source`, `decision` | server | garrison-runs | Permission approvals decided, by who decided (rule, default, user, timeout, cancelled) and the decision (allow, deny) |
+| `garrison_approvals_pending` | gauge | none | server | garrison-runs | Approvals waiting for a person, as of the leader's last sweep; aggregate with max |
+| `garrison_approvals_requested_total` | counter | `tenant`, `agent`, `kind`, `action` | server | garrison-runs | Permission requests relayed by harnesses, by the action the deployment's rules chose (allow, deny, ask) |
 | `garrison_event_batch_size` | histogram | none | server | garrison-runs | Events per batch received from workers |
 | `garrison_run_events_total` | counter | `type` | server | garrison-runs | Run events received from workers, by event type |
 | `garrison_run_stage_duration_seconds` | histogram, seconds | `stage`, `tenant`, `agent`, `deployment`, `harness`, `model` | server | garrison-agents | Per-run stage durations: queue (queued to leased), claim (scheduler claim and compile inside the lease request), startup (leased to harness start), first_token (TTFT), first_token_excl_delegation, streaming (first to last output), execution (harness start to exit), delegation_wait, total (queued to completion received) |
@@ -473,6 +477,9 @@ Every route registers through the route registrar, which records it in the opera
 | GET | `/v1.0/api/tenants/{tenantId}/agents/{id}/card` | `route="/v1.0/api/tenants/{tenantId}/agents/{id}/card"` | `GET /v1.0/api/tenants/{tenantId}/agents/{id}/card` | `route=/v1.0/api/tenants/{tenantId}/agents/{id}/card` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/analytics/runs` | `route="/v1.0/api/tenants/{tenantId}/analytics/runs"` | `GET /v1.0/api/tenants/{tenantId}/analytics/runs` | `route=/v1.0/api/tenants/{tenantId}/analytics/runs` | garrison-http, garrison-runs |
 | GET | `/v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` | `route="/v1.0/api/tenants/{tenantId}/analytics/runs/dimensions"` | `GET /v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` | `route=/v1.0/api/tenants/{tenantId}/analytics/runs/dimensions` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/approvals` | `route="/v1.0/api/tenants/{tenantId}/approvals"` | `GET /v1.0/api/tenants/{tenantId}/approvals` | `route=/v1.0/api/tenants/{tenantId}/approvals` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/approvals/{id}` | `route="/v1.0/api/tenants/{tenantId}/approvals/{id}"` | `GET /v1.0/api/tenants/{tenantId}/approvals/{id}` | `route=/v1.0/api/tenants/{tenantId}/approvals/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/approvals/{id}/decide` | `route="/v1.0/api/tenants/{tenantId}/approvals/{id}/decide"` | `POST /v1.0/api/tenants/{tenantId}/approvals/{id}/decide` | `route=/v1.0/api/tenants/{tenantId}/approvals/{id}/decide` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/artifact-stores` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores"` | `GET /v1.0/api/tenants/{tenantId}/artifact-stores` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/artifact-stores` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores"` | `POST /v1.0/api/tenants/{tenantId}/artifact-stores` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores` | garrison-http |
 | DELETE | `/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | garrison-http |
@@ -496,6 +503,7 @@ Every route registers through the route registrar, which records it in the opera
 | POST | `/v1.0/api/tenants/{tenantId}/credentials/{id}/rotate` | `route="/v1.0/api/tenants/{tenantId}/credentials/{id}/rotate"` | `POST /v1.0/api/tenants/{tenantId}/credentials/{id}/rotate` | `route=/v1.0/api/tenants/{tenantId}/credentials/{id}/rotate` | garrison-http, garrison-security |
 | GET | `/v1.0/api/tenants/{tenantId}/deployments` | `route="/v1.0/api/tenants/{tenantId}/deployments"` | `GET /v1.0/api/tenants/{tenantId}/deployments` | `route=/v1.0/api/tenants/{tenantId}/deployments` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/deployments` | `route="/v1.0/api/tenants/{tenantId}/deployments"` | `POST /v1.0/api/tenants/{tenantId}/deployments` | `route=/v1.0/api/tenants/{tenantId}/deployments` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/approval-check` | `route="/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/approval-check"` | `POST /v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/approval-check` | `route=/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/approval-check` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test` | `route="/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test"` | `POST /v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test` | `route=/v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/test` | garrison-http |
 | DELETE | `/v1.0/api/tenants/{tenantId}/deployments/{id}` | `route="/v1.0/api/tenants/{tenantId}/deployments/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/deployments/{id}` | `route=/v1.0/api/tenants/{tenantId}/deployments/{id}` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/deployments/{id}` | `route="/v1.0/api/tenants/{tenantId}/deployments/{id}"` | `GET /v1.0/api/tenants/{tenantId}/deployments/{id}` | `route=/v1.0/api/tenants/{tenantId}/deployments/{id}` | garrison-http |
@@ -593,12 +601,16 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | Tool | Metric series | Span | Log | Panels |
 |---|---|---|---|---|
 | `garrison_cancel_run` | `tool="garrison_cancel_run"` | `mcp garrison_cancel_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_decide_approval` | `tool="garrison_decide_approval"` | `mcp garrison_decide_approval` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_agent` | `tool="garrison_get_agent"` | `mcp garrison_get_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_approval` | `tool="garrison_get_approval"` | `mcp garrison_get_approval` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_run` | `tool="garrison_get_run"` | `mcp garrison_get_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_run_events` | `tool="garrison_get_run_events"` | `mcp garrison_get_run_events` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_invoke_agent` | `tool="garrison_invoke_agent"` | `mcp garrison_invoke_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_agents` | `tool="garrison_list_agents"` | `mcp garrison_list_agents` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_approvals` | `tool="garrison_list_approvals"` | `mcp garrison_list_approvals` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_runs` | `tool="garrison_list_runs"` | `mcp garrison_list_runs` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_permission_prompt` | `tool="garrison_permission_prompt"` | `mcp garrison_permission_prompt` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_start_run` | `tool="garrison_start_run"` | `mcp garrison_start_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `{mcpToolName}` (agent tools, one per exposed agent) | `tool="agent"` | `mcp agent` | `[Mcp]` lines, `tenant=`, `agent=` | garrison-protocols, garrison-agents |
 <!-- /telemetry-coverage:mcp-tools -->

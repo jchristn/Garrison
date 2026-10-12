@@ -86,6 +86,10 @@ function run(i) {
     cachedTokens: 800 + i,
     costEstimated: false,
     reasoningTokens: i % 2 ? 0 : 64,
+    // P12.3: run_0002 (Running) waits for a person to approve one tool call; finished runs report the time they waited.
+    pendingApprovals: i === 2 ? 1 : 0,
+    awaitingApproval: i === 2,
+    approvalWaitMs: terminal && i % 4 === 1 ? 42000 : null,
     toolCallCount: i % 4,
     lastEventSequence: queued ? 0 : 4,
     parameters: [{ id: `rpa_${pad(i)}`, runId: `run_${pad(i)}`, name: 'format', value: 'claude' }],
@@ -292,6 +296,19 @@ const FACTORIES = {
       fileOverrides: [{ id: `chr_${id}_0000fil`, deploymentId: id, baseDirectory: 'Config', pathTemplate: 'extra.txt', contentTemplate: 'x', isSecret: false }],
       nodeSelector: [{ id: `chr_${id}_0000nod`, deploymentId: id, key: 'zone', value: 'a' }],
       parameters: [{ id: `chr_${id}_0000par`, deploymentId: id, name: 'format', value: 'claude' }],
+      // P12.3: deployment-1 asks before tool calls, with three ordered rules; the others leave approvals off.
+      approvalsEnabled: i === 1,
+      approvalDefaultAction: 'Ask',
+      approvalTimeoutSeconds: 300,
+      approvalTimeoutDecision: 'Deny',
+      approvalRules:
+        i === 1
+          ? [
+              { id: 'dar_0001', deploymentId: id, action: 'Allow', pattern: 'Bash(git status:*)', description: 'Read-only status checks' },
+              { id: 'dar_0002', deploymentId: id, action: 'Deny', pattern: 'Bash(rm:*)', description: 'Never delete files' },
+              { id: 'dar_0003', deploymentId: id, action: 'Ask', pattern: 'WebFetch', inputPattern: '"url":"https://internal\\.' }
+            ]
+          : [],
       allowedRunOverrides: [
         { id: `chr_${id}_0000all`, deploymentId: id, name: 'format', validation: 'Any' },
         // P3.15: callers may set a per-run time limit on deployment-2, from 30 seconds to 30 minutes.
@@ -393,6 +410,78 @@ const FACTORIES = {
 };
 
 const TOTALS = { runs: 137, 'request-history': 64, audit: 42 };
+
+/**
+ * Permission approvals (P12.3), shaped like the server's Approval: apr_0001 and apr_0002 wait for a person on
+ * run_0002; the rest show every way a request is decided (rule, person with remember, timeout, deployment default).
+ * Garrison records itself ("garrison") as the decider when a rule, the default, or a timeout decides.
+ */
+const APPROVAL_ROWS = [
+  { status: 'Pending', kind: 'Tool', toolName: 'Bash', summary: 'git push origin main', input: { command: 'git push origin main' }, suggestedRule: 'Bash(git push:*)', runId: 'run_0002' },
+  { status: 'Pending', kind: 'Tool', toolName: 'WebFetch', summary: 'https://internal.example.com/wiki', input: { url: 'https://internal.example.com/wiki', prompt: 'Summarize' }, suggestedRule: 'WebFetch(domain:internal.example.com)', runId: 'run_0002', ruleId: 'dar_0003', rulePattern: 'WebFetch' },
+  { status: 'Approved', kind: 'Tool', toolName: 'Bash', summary: 'git status --short', input: { command: 'git status --short' }, suggestedRule: 'Bash(git status:*)', decision: 'Allow', decisionSource: 'Rule', ruleId: 'dar_0001', rulePattern: 'Bash(git status:*)', decidedBy: 'garrison', waitMs: 3 },
+  { status: 'Denied', kind: 'Tool', toolName: 'Bash', summary: 'rm -rf build', input: { command: 'rm -rf build', token: '[redacted]' }, suggestedRule: 'Bash(rm:*)', decision: 'Deny', decisionSource: 'User', decidedBy: 'admin@garrison', decidedById: 'usr_0001', reason: 'Do not delete the build output.', rememberedRuleId: 'dar_0002', waitMs: 95000 },
+  { status: 'Expired', kind: 'Tool', toolName: 'mcp__github__create_issue', summary: 'mcp__github__create_issue', input: { title: 'Flaky test' }, suggestedRule: 'mcp__github__create_issue', decision: 'Deny', decisionSource: 'Timeout', decidedBy: 'garrison', waitMs: 300000 },
+  { status: 'Approved', kind: 'Command', toolName: 'Bash', summary: 'npm test', input: { command: 'npm test', cwd: '/work/run_0005' }, suggestedRule: 'Bash(npm test:*)', decision: 'Allow', decisionSource: 'Default', decidedBy: 'garrison', waitMs: 2, harnessType: 'Codex' }
+];
+
+/** One approval record by row number (1-based). */
+export function approval(i) {
+  const row = APPROVAL_ROWS[(i - 1) % APPROVAL_ROWS.length];
+  const pending = row.status === 'Pending';
+  const out = {
+    id: `apr_${pad(i)}`,
+    tenantId: TENANT,
+    runId: row.runId || `run_${pad(i)}`,
+    agentId: 'agt_0001',
+    agentName: 'echo-agent',
+    deploymentId: 'dep_0001',
+    leaseEpoch: 1,
+    harnessType: row.harnessType || 'ClaudeCode',
+    kind: row.kind,
+    toolName: row.toolName,
+    toolCallId: `toolu_${pad(i)}`,
+    inputPreview: JSON.stringify(row.input),
+    summary: row.summary,
+    suggestedRule: row.suggestedRule,
+    status: row.status,
+    timeoutDecision: 'Deny',
+    requestedUtc: iso(i * 5),
+    createdUtc: iso(i * 5),
+    lastUpdateUtc: iso(i * 5 - 1)
+  };
+  for (const key of ['decision', 'decisionSource', 'ruleId', 'rulePattern', 'rememberedRuleId', 'decidedBy', 'decidedById', 'reason']) if (row[key]) out[key] = row[key];
+  if (pending) out.expiresUtc = iso(i * 5 - 5);
+  else {
+    out.decidedUtc = iso(i * 5 - 1);
+    out.waitMs = row.waitMs;
+  }
+  return out;
+}
+
+/** GET /approvals with the filters the inbox and run detail send (status, runId, agentId, decisionSource). */
+function approvalList(url) {
+  let rows = APPROVAL_ROWS.map((_, k) => approval(k + 1));
+  for (const key of ['status', 'runId', 'agentId', 'decisionSource', 'deploymentId']) {
+    const value = url.searchParams.get(key);
+    if (value) rows = rows.filter((r) => r[key] === value);
+  }
+  const maxResults = Number(url.searchParams.get('maxResults') || 25);
+  const skip = Number(url.searchParams.get('skip') || 0);
+  const objects = rows.slice(skip, skip + maxResults);
+  return { success: true, maxResults, skip, totalRecords: rows.length, recordsRemaining: Math.max(0, rows.length - skip - objects.length), endOfResults: skip + objects.length >= rows.length, timestampUtc: iso(0), objects };
+}
+
+/** POST /approvals/{id}/decide: the approval as a person allowed it. */
+export function decidedApproval(id) {
+  const source = approval(/^apr_\d+$/.test(id) ? Number(id.slice(4)) : 1);
+  const out = { ...source, id, status: 'Approved', decision: 'Allow', decisionSource: 'User', decidedBy: 'admin@garrison', decidedById: 'usr_0001', decidedUtc: iso(0), waitMs: 60000 };
+  delete out.expiresUtc;
+  return out;
+}
+
+/** POST /deployments/{id}/approval-check: what the saved rules do with a tool call. Nothing is recorded. */
+export const APPROVAL_CHECK = { action: 'Allow', source: 'Rule', ruleId: 'dar_0001', rulePattern: 'Bash(git status:*)', suggestedRule: 'Bash(git status:*)', approvalsEnabled: true };
 
 /** EnumerationResult: the maxResults and skip envelope most list routes return. */
 function enumerate(collection, url) {
@@ -804,6 +893,11 @@ export function respond(method, url) {
     if ((collection === 'users' || collection === 'credentials') && parts[2] === 'permissions') return PERMISSIONS(collection === 'users' ? 'User' : 'Credential', parts[1]);
     if (collection === 'prompt-templates' && parts[1] === 'render') return { rendered: 'You are echo-agent. Task: hello', missingVariables: [] };
     if (collection === 'prompt-templates' && parts[2] === 'versions') return parts.length === 4 ? FACTORIES['prompt-template-versions'](Number(parts[3]) || 1) : [1, 2].map(FACTORIES['prompt-template-versions']);
+    if (collection === 'approvals' && parts.length === 1 && method === 'GET') return approvalList(url);
+    if (collection === 'approvals' && parts[2] === 'decide') return decidedApproval(parts[1]);
+    // apr_0003 style IDs map to that row; any other ID gets row 3 (decided by a rule, the shape the contract test seeds).
+    if (collection === 'approvals' && parts.length === 2) return { ...approval(/^apr_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 3), id: parts[1] };
+    if (collection === 'deployments' && parts[2] === 'approval-check') return APPROVAL_CHECK;
     if (parts.length === 1) return method === 'GET' ? enumerate(collection, url) : FACTORIES[collection]?.(99) || {};
     if (parts.length === 2 && FACTORIES[collection]) return FACTORIES[collection](1);
     return {};

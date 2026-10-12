@@ -190,6 +190,11 @@ namespace Garrison.Core.Database
         /// </summary>
         public IControlNodeMethods ControlNodes { get; protected set; } = null!;
 
+        /// <summary>
+        /// Permission approval methods (P12.3).
+        /// </summary>
+        public IApprovalMethods Approvals { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

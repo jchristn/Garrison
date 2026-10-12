@@ -6,9 +6,11 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const ja = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '構造化出力が無効', RunBlocked: '実行がブロック中', EventsDropped: 'イベントの破棄', HarnessExited: 'ハーネス終了', McpPreflightWarning: 'MCP 事前チェックの警告', McpPreflightPassed: 'MCP 事前チェック合格', RepairAttemptStarted: '出力の修復を開始', WorkspacePrepared: 'ワークスペース準備完了', RunGuardTriggered: 'ランガードが実行を停止' },
+    eventCodes: { ApprovalRequested: '承認を要求', ApprovalDecided: '承認を決定', StructuredOutputInvalid: '構造化出力が無効', RunBlocked: '実行がブロック中', EventsDropped: 'イベントの破棄', HarnessExited: 'ハーネス終了', McpPreflightWarning: 'MCP 事前チェックの警告', McpPreflightPassed: 'MCP 事前チェック合格', RepairAttemptStarted: '出力の修復を開始', WorkspacePrepared: 'ワークスペース準備完了', RunGuardTriggered: 'ランガードが実行を停止' },
     fieldCodes: { ExpiryInPast: '未来の日時を選んでください。', ParameterInvalid: 'この値はこのパラメーターには無効です。', ParameterNotAllowed: 'このデプロイメントでは、呼び出し元がこのパラメーターを上書きすることは許可されていません。', SettingsFileReadOnly: '設定ファイルが読み取り専用のため、この変更は保存できません。', OverriddenByEnvironment: '環境変数がこの値を設定しているため、ここでは変更できません。', PathRequired: '設定パスが必要です。', UnknownSetting: 'このサーバーにはこの設定がありません。', TooLong: '値が長すぎます。', NotAllowedValue: '許可された値のいずれかを選んでください。', NotABoolean: 'true または false を選んでください。', NotAnInteger: '整数を入力してください。', OutOfRange: '値が許可された範囲外です。' },
     serverText: {
+      approvalWaitingExpires: '{{subject}} の承認を人が行うのを待っています。承認 {{id}} は {{expires}} に期限切れになります。',
+      approvalWaiting: '{{subject}} の承認を人が行うのを待っています。承認 {{id}}。',
       notApplied: '別のドキュメントが検証に失敗したため、適用されませんでした。',
       wouldBeUnchanged: 'すでに最新の状態です。変更はありません。',
       wouldBeUpdated: '更新されます。',
@@ -67,6 +69,7 @@ const ja = {
       bulkDelete: '選択した {{count}} 件を削除しますか? この操作は元に戻せません。'
     },
     errors: {
+      listItem: '項目 {{index}}: {{message}}',
       chooseOne: '少なくとも 1 つ選択してください。',
       fixFields: '確認が必要な項目があります。強調表示された値を確認してください。',
       invalidEmail: '有効なメールアドレスを入力してください。',
@@ -108,6 +111,7 @@ const ja = {
     units: { msShort: 'ミリ秒', sShort: '秒', mShort: '分', tokPerSec: 'トークン/秒' }
   },
   errorCodes: {
+    ApprovalNotPending: 'この承認はすでに決定済みのため、再度決定することはできません。',
     MessageIdConflict: 'この A2A メッセージ ID は別の内容ですでに使われています。新しい ID でメッセージを送ってください。',
     IdempotencyKeyConflict: 'この冪等性キーは別のリクエストですでに使われています。新しいキーを使ってください。',
     DeploymentDeleted: 'この実行のデプロイメントは削除されたため、実行を再試行できません。代わりにエージェントをもう一度呼び出してください。',
@@ -137,6 +141,34 @@ const ja = {
     Http503: 'サーバーを利用できません。'
   },
   enums: {
+    approvalStatus: {
+      Pending: '保留中',
+      Approved: '許可済み',
+      Denied: '拒否済み',
+      Expired: '期限切れ',
+      Cancelled: 'キャンセル済み'
+    },
+    approvalDecision: {
+      Allow: '許可',
+      Deny: '拒否'
+    },
+    approvalSource: {
+      Rule: 'ルール',
+      Default: 'デプロイメントの既定値',
+      User: '人',
+      Timeout: 'タイムアウト',
+      Cancelled: '実行の停止'
+    },
+    approvalRuleAction: {
+      Allow: '許可',
+      Deny: '拒否',
+      Ask: '人に確認'
+    },
+    approvalKind: {
+      Tool: 'ツール呼び出し',
+      Command: 'コマンド',
+      FileChange: 'ファイル変更'
+    },
     principalType: { Administrator: 'システム管理者', User: 'ユーザー', Credential: 'アクセスキー', Run: '実行トークン' },
     runBlockedReason: { NoReadyWorker: '準備完了のワーカーなし', NoCapableWorker: '対応できるワーカーなし', NoMatchingPool: '一致するプールなし' },
     promptDelivery: { Stdin: '標準入力', Argument: 'コマンドライン引数', File: 'ファイル', CodexAppServer: 'Codex アプリサーバー (JSON-RPC)' },
@@ -268,6 +300,7 @@ const ja = {
     remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: '作成', Updated: '更新', Unchanged: '変更なし', Failed: '失敗', Validated: '検証済み' },
     auditEventType: {
+      ApprovalDecided: '承認を決定',
       AuthSuccess: 'サインイン成功',
       AuthFailure: 'サインイン失敗',
       SessionIssued: 'セッション発行',
@@ -291,6 +324,8 @@ const ja = {
     }
   },
   nav: {
+    approvalsPending_one: '{{count}} 件の承認待ち',
+    approvalsPending_other: '{{count}} 件の承認待ち',
     primary: 'メインナビゲーション',
     sections: {
       operate: '運用',
@@ -298,6 +333,10 @@ const ja = {
       administration: '管理'
     },
     hubs: {
+      approvals: {
+        label: '承認',
+        tip: '人を待っているツール呼び出しと、すべての決定'
+      },
       home: { label: 'ホーム', tip: 'フリートと実行の状態を一目で確認' },
       invoke: { label: '呼び出し', tip: 'エージェントを対話的に試す' },
       runs: { label: '実行', tip: '実行とスケジューリングキュー' },
@@ -310,6 +349,10 @@ const ja = {
       system: { label: 'システム', tip: 'サーバー設定とサーバー情報' }
     },
     items: {
+      approvals: {
+        label: '承認',
+        tip: 'エージェントが要求したツール呼び出しを許可または拒否'
+      },
       home: { label: 'ホーム', tip: 'フリートと実行の状態を一目で確認' },
       invoke: { label: '呼び出し', tip: 'エージェントを対話的に試す' },
       runs: { label: '実行', tip: '実行の検索、確認、キャンセル、再試行' },
@@ -381,6 +424,48 @@ const ja = {
     run: '実行トークン'
   },
   components: {
+    approvals: {
+      awaiting: '承認待ち',
+      decideTitle: '{{tool}} を決定',
+      decision: '決定',
+      reason: '理由',
+      reasonPlaceholder: '任意。エージェントと監査ログに表示されます。',
+      remember: 'このデプロイメントのルールとして記憶する',
+      rulePattern: 'ルールパターン',
+      rememberHint: 'アクション {{action}} のルールをデプロイメントに追加し、一致する呼び出しを確認なしで決定します。デプロイメントを更新する権限も必要です。',
+      submitAllow: '許可',
+      submitDeny: '拒否',
+      timeoutThen: 'その後 {{decision}}',
+      toasts: {
+        allowed: '{{tool}} を許可しました。',
+        denied: '{{tool}} を拒否しました。',
+        allowedRemembered: '{{tool}} を許可し、ルール {{pattern}} を追加しました。',
+        deniedRemembered: '{{tool}} を拒否し、ルール {{pattern}} を追加しました。',
+        notPending: 'この承認は、他の人またはタイムアウトによってすでに決定されています。一覧に結果が表示されています。',
+        forbidden: '承認を閲覧できますが、決定はできません。管理者に Approval Update 権限を依頼してください。',
+        forbiddenRemember: 'ルールを記憶するには、デプロイメントを更新する権限も必要です。記憶せずに決定するか、Deployment Update を依頼してください。'
+      }
+    },
+    approvalCheck: {
+      title: 'ツール呼び出しをテスト',
+      saveFirst: '先にデプロイメントを保存してください。テストはサーバーに保存されたルールを確認します。',
+      hint: '保存済みのルールを確認するため、テストの前に変更を保存してください。何も記録されません。',
+      toolName: 'ツール',
+      inputs: {
+        command: 'コマンド',
+        url: 'URL',
+        query: '検索クエリ',
+        file_path: 'ファイルパス',
+        notebook_path: 'ノートブックのパス',
+        pattern: 'パターン'
+      },
+      run: 'チェック',
+      checking: 'チェック中...',
+      byRule: 'このルールにより {{action}}:',
+      byDefault: 'どのルールにも一致しなかったため、デプロイメントの既定値により {{action}}。',
+      suggestedRule: '提案されたルール:',
+      disabled: 'このデプロイメントでは承認がオフのため、その実行は確認を求めません。これらのルールを適用するには、承認をオンにして保存してください。'
+    },
     blocked: {
       title: 'ワーカー待ち',
       body: 'この実行はキューにありますが、現在引き受けられるワーカーがありません。',
@@ -529,6 +614,63 @@ const ja = {
     }
   },
   resources: {
+    approvals: {
+      ...rp('承認', 'エージェントが要求したツール呼び出しです。デプロイメントのルール、デプロイメントの既定値、人、またはタイムアウトによって決定されます。保留中のものはあなたの判断を待っています。', '承認を追加', '承認を作成', '承認を編集', '承認の詳細', '承認を削除', '承認はまだありません', '承認を有効にしたデプロイメントがツール呼び出しの前に確認すると、承認が表示されます。'),
+      columns: {
+        createdUtc: '要求日時',
+        agentName: 'エージェント',
+        toolName: 'ツール',
+        summary: '要求',
+        status: '状態',
+        decision: '決定',
+        decisionSource: '決定元',
+        decidedBy: '決定者',
+        expiresUtc: '期限',
+        kind: '種類',
+        harnessType: 'ハーネス',
+        runId: '実行',
+        waitMs: '待機',
+        reason: '理由',
+        decidedUtc: '決定日時',
+        id: 'ID'
+      },
+      fields: {
+        status: '状態',
+        decision: '決定',
+        decisionSource: '決定元',
+        decidedBy: '決定者',
+        toolName: 'ツール',
+        kind: '種類',
+        harnessType: 'ハーネス',
+        agentName: 'エージェント',
+        runId: '実行',
+        rootRunId: 'ルート実行',
+        deploymentId: 'デプロイメント',
+        leaseEpoch: 'リースエポック',
+        requestedUtc: '要求日時',
+        expiresUtc: '期限',
+        decidedUtc: '決定日時',
+        waitMs: '待機時間',
+        timeoutDecision: 'タイムアウト時の決定',
+        toolCallId: 'ツール呼び出し ID',
+        reason: '理由',
+        summary: '概要',
+        inputPreview: '入力 (秘匿済み)',
+        rulePattern: '一致したルール',
+        ruleId: 'ルール ID',
+        suggestedRule: '提案されたルール',
+        rememberedRuleId: '記憶したルールの ID'
+      },
+      filters: {
+        runId: '実行 ID',
+        runIdPlaceholder: '実行 ID (run_...)'
+      },
+      actions: {
+        allow: '許可',
+        deny: '拒否',
+        openRun: '実行を開く'
+      }
+    },
     tenants: {
       ...rp('テナント', 'ユーザー、エージェント、シークレット、実行をそれぞれ持つ分離された領域です。', 'テナントを追加', 'テナントを作成', 'テナントを編集', 'テナントの詳細', 'テナントを削除', 'テナントはまだありません', 'チームや顧客を分離するためにテナントを作成してください。'),
       columns: { name: '名前', id: 'ID', description: '説明', active: '有効', createdUtc: '作成日時' },
@@ -713,11 +855,24 @@ const ja = {
       errors: { dnsName: '英小文字、数字、ハイフンを使い、先頭と末尾は英字か数字にしてください。' }
     },
     deployments: {
+      approvalsOn_one: 'オン、ルール {{count}} 件',
+      approvalsOn_other: 'オン、ルール {{count}} 件',
+      approvalsOff: 'オフ',
       promptRoles: { Repair: '構造化出力の修復', DelegatedTask: '委任された実行のタスクラッパー', Task: 'タスクのラッパー', System: 'システムプロンプト' },
       ...rp('デプロイメント', 'エージェントをハーネスプロファイル、プロンプト、シークレット、MCP サーバー、配置、制限に結び付けます。', 'デプロイメントを追加', 'デプロイメントを作成', 'デプロイメントを編集', 'デプロイメントの詳細', 'デプロイメントを削除', 'デプロイメントはまだありません', 'エージェントを実行できるようにデプロイメントを作成してください。'),
-      steps: { basics: '基本', harness: 'ハーネス', prompts: 'プロンプト', resources: 'リソース', overrides: '上書き', placement: '配置と制限' },
-      columns: { name: '名前', agentId: 'エージェント', harnessProfileId: 'ハーネスプロファイル', model: 'モデル', executor: 'エグゼキューター', weight: '重み', configVersion: '構成バージョン', active: '有効', id: 'ID', createdUtc: '作成日時' },
+      steps: { approvals: '承認', basics: '基本', harness: 'ハーネス', prompts: 'プロンプト', resources: 'リソース', overrides: '上書き', placement: '配置と制限' },
+      columns: { approvalsEnabled: '承認', name: '名前', agentId: 'エージェント', harnessProfileId: 'ハーネスプロファイル', model: 'モデル', executor: 'エグゼキューター', weight: '重み', configVersion: '構成バージョン', active: '有効', id: 'ID', createdUtc: '作成日時' },
       fields: {
+        approvalsEnabled: 'ツール呼び出しの前に確認 (承認)',
+        approvalDefaultAction: 'どのルールにも一致しない場合',
+        approvalTimeoutSeconds: '承認のタイムアウト (秒)',
+        approvalTimeoutDecision: '誰も応答しない場合の決定',
+        approvalRules: '承認ルール',
+        ruleAction: 'アクション',
+        rulePattern: 'ルール',
+        ruleInputPattern: '入力パターン',
+        ruleDescription: '説明',
+        approvalTest: 'ツール呼び出しをテスト',
         name: '名前',
         agentId: 'エージェント',
         description: '説明',
@@ -773,6 +928,10 @@ const ja = {
         podEphemeralStorageLimit: 'エフェメラルストレージ上限'
       },
       hints: {
+        approvalsEnabled: 'Claude Code のプロファイルと、Codex app-server を使うプロファイルで動作します。他のハーネスには承認フックがないため、サーバーはそれらに対するこの設定を拒否します。',
+        approvalDefaultAction: '「人に確認」は、誰かが決定するかタイムアウトになるまで承認の受信トレイで待機します。',
+        approvalTimeoutSeconds: '10 から 3,600 秒まで。空の場合は 300 を使います。',
+        approvalRules: '拒否は確認より優先され、確認は許可より優先されます。例: Bash(npm test)、Bash(npm run *)、Edit(src/**)、WebFetch(domain:example.com)、mcp__github__*。',
         secretsKinds: 'ハーネスプロファイル {{profile}} には種類が {{kinds}} のシークレットが必要です。任意のエイリアスで 1 つ結び付けてください。',
         secretsAliases: 'ハーネスプロファイル {{profile}} は次のエイリアスで結び付けられたシークレットを読み取ります: {{aliases}}。',
         secretsNone: 'ハーネスプロファイル {{profile}} はシークレットを読み取らないため、シークレットの結び付けは不要です。',
@@ -792,18 +951,19 @@ const ja = {
         executorSet: 'プロセスはワーカー内でハーネスを実行し、Kubernetes Job は専用の Pod で実行します。',
         podCpuRequest: 'Pod のリソースは Kubernetes Job の実行にだけ適用されます。500m、2、512Mi、4Gi のような Kubernetes の数量で指定します。空はワーカーの既定値です。'
       },
-      actions: { compilePreview: 'コンパイルプレビュー', test: 'テスト呼び出し', useClusterDefault: 'クラスター既定値を使う' },
+      actions: { addRule: 'ルールを追加', compilePreview: 'コンパイルプレビュー', test: 'テスト呼び出し', useClusterDefault: 'クラスター既定値を使う' },
       sections: {
         guards: 'ランガード',
         execution: 'エグゼキューターと Pod リソース'
       },
       placeholders: {
+        ruleInputPattern: '入力 JSON に対する任意の正規表現',
         clusterDefault: 'クラスター既定値 ({{value}})',
         clusterDefaultUnknown: 'クラスター既定値'
       },
       executorInherit: 'ノードプールの既定値',
       executorInheritShort: 'プール既定値',
-      errors: { quantity: '500m、2、512Mi、4Gi のような Kubernetes の数量を指定してください。' },
+      errors: { rulePatternRequired: 'ルールパターンを入力してください。', rulePatternOneLine: 'ルールパターンは 1 行に収める必要があります。', rulePatternTooLong: 'ルールパターンは最大 1,000 文字です。', tooManyRules: '1 つのデプロイメントに設定できる承認ルールは最大 500 件です。', approvalTimeout: '10 から 3,600 までの整数の秒数を入力してください。', quantity: '500m、2、512Mi、4Gi のような Kubernetes の数量を指定してください。' },
       guardStates: {
         on: 'オン',
         off: 'オフ'
@@ -819,6 +979,7 @@ const ja = {
     runs: {
       ...rp('実行', 'すべてのエージェント呼び出しの状態、ノード、所要時間、結果です。', '実行を追加', '実行を作成', '実行を編集', '実行の詳細', '実行を削除', '実行はまだありません', 'エージェントを呼び出すと実行が開始されます。'),
       columns: {
+        approvalWaitMs: '承認待ち時間',
         delegationWaitMs: '委任の待機時間',
         timeToFirstTokenExcludingDelegationMs: '委任を除く TTFT',
         id: '実行',
@@ -891,6 +1052,19 @@ const ja = {
     }
   },
   views: {
+    approvalDetail: {
+      title: '承認',
+      titleWithTool: '{{tool}} の承認',
+      backToInbox: 'すべての承認',
+      pending: 'このツール呼び出しを人が許可または拒否するのを待っています。',
+      pendingExpires: '人の判断を待っています。誰も決定しない場合、{{when}} に決定 {{decision}} で期限切れになります。',
+      request: '要求',
+      rules: 'ルール',
+      noRule: '一致したルールはありません',
+      noInput: '入力は記録されていません。',
+      notFoundTitle: '承認が見つかりません',
+      notFoundBody: '別のテナントに属しているか、ID が間違っている可能性があります。'
+    },
     home: {
       observabilityState: { reachable: '到達可能', unreachable: '到達不可', checking: '確認中', unknown: '状態不明' },
       observabilityVersion: 'バージョン {{version}}',
@@ -1020,6 +1194,13 @@ const ja = {
       }
     },
     runDetail: {
+      awaitingApproval_one: 'この実行は {{count}} 件のツール呼び出しを人が承認するのを待っています。',
+      awaitingApproval_other: 'この実行は {{count}} 件のツール呼び出しを人が承認するのを待っています。',
+      reviewApprovals: '確認する',
+      approvals_one: '承認 ({{count}})',
+      approvals_other: '承認 ({{count}})',
+      noApprovals: 'この実行は承認を要求していません。',
+      openApproval: '承認を開く',
       viewTrace: 'トレースを表示',
       viewLogs: 'ログを表示',
       traceId: 'トレース ID',
@@ -1067,11 +1248,13 @@ const ja = {
       notFoundTitle: '実行が見つかりません',
       notFoundBody: '削除されたか、別のテナントに属している可能性があります。',
       telemetry: {
+        approvalNote: 'この実行は承認の決定を {{wait}} 待ちました。実行時間にはこの待機が含まれます。',
         delegationNote: 'この実行は委任先の実行を {{wait}} 待ちました。最初のトークンまでの時間は、この待機を含めると {{ttft}}、除くと {{excluding}} です。委任しないエージェントと比べるには後者を使ってください。',
         title: 'テレメトリー',
         phases: 'フェーズ別の実行時間',
         phase: { delegation: '委任先の実行を待機', queue: 'キュー待ち', startup: '起動から最初のトークンまで', streaming: 'ストリーミング', tail: '最後のトークン以降' },
         fields: {
+          approvalWaitMs: '承認待ち時間',
           delegationWaitMs: '委任の待機時間',
           timeToFirstTokenExcludingDelegationMs: '委任を除いた最初のトークンまでの時間',
           timeToFirstTokenMs: '最初のトークンまでの時間',

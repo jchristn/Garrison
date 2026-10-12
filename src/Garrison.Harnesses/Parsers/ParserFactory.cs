@@ -24,7 +24,10 @@ namespace Garrison.Harnesses.Parsers
             {
                 case OutputParserEnum.ClaudeStreamJson: return new ClaudeStreamJsonParser(requiredMcpServers);
                 case OutputParserEnum.CodexJsonl: return new CodexJsonlParser();
-                case OutputParserEnum.CodexAppServer: return new CodexAppServerParser(requiredMcpServers);
+                case OutputParserEnum.CodexAppServer:
+                    CodexAppServerParser appServer = new CodexAppServerParser(requiredMcpServers);
+                    appServer.ApprovalsRelayed = options?.ApprovalsRelayed ?? false;
+                    return appServer;
                 case OutputParserEnum.MuxJsonl: return new MuxJsonlParser(requiredMcpServers);
                 case OutputParserEnum.GeminiStreamJson: return new GeminiStreamJsonParser();
                 case OutputParserEnum.GenericJsonl: return new GenericJsonlParser(options ?? new ExecutionParserOptions());

@@ -44,6 +44,7 @@ More than one replica needs PostgreSQL. Garrison refuses to start on Sqlite when
 | Revocation | Sessions are database rows, so revoking a token takes effect on every replica |
 | New work | Queuing a run wakes waiting long polls on every replica through the backplane. Without a message, a long poll still re-checks every `LeasePollMs` (500 ms) |
 | Run events | Event ingestion on any replica wakes that run's SSE, A2A, and synchronous-invoke waiters on every replica. Without a message, they re-read every `4 x Scheduling.EventPollMs` (1 second) |
+| Permission approvals | A harness call waiting on an approval is held by the replica that received it. A decision on any replica is a compare-and-set update of the `approvals` row and publishes `ApprovalChanged`, which wakes the waiter wherever it is; without a message the waiter re-reads the row every 2 seconds. The leader's sweep cancels approvals of runs that stopped and expires approvals nobody is waiting on any more |
 | Signed-request replay | Nonces are stored in `request_nonces` until twice `Auth.SignedRequestSkewSeconds` has passed, so a captured request cannot be replayed on any replica |
 | Token rate limit | `Auth.RateLimitPerMinute` is counted in `rate_limit_buckets`, so the limit is the same however many replicas run |
 | MCP sessions | Session identifiers (`mcs_...`) name rows in `mcp_sessions`, so any replica serves any session (below) |
@@ -81,6 +82,7 @@ Every piece of state a replica keeps in memory, and why it is safe with several 
 | Cluster settings cache | Per replica | Reloaded on `SettingsChanged` and every 3 seconds |
 | Runtime options derived from settings | Per replica | Re-applied whenever the settings cache changes |
 | Run signals (SSE, A2A streaming, synchronous REST and MCP invoke waits) | Per replica, one entry per watched run | Woken locally and through the backplane; an entry exists only while someone waits on it; waiters re-read the database every second regardless |
+| Approval waits | Per replica, one entry per pending approval with a waiting harness call | Woken locally and through `ApprovalChanged`; re-read every 2 seconds regardless; a waiter lost with its replica is resolved by the leader's sweep (expiry plus 30 seconds) |
 | Queue signal (lease long polls) | Per replica | Woken locally and through `QueueChanged`; long polls re-check every 500 ms regardless |
 | WebSocket subscriptions | Per connection | Each connection polls the database about once a second, so it is correct on any replica |
 | Blocked-run node snapshot | Per replica, 3 seconds | Read-only advice (`blockedReason`); a few seconds of staleness is acceptable |

@@ -91,6 +91,102 @@ export interface Deployment extends Json {
   executor?: RunExecutor | null;
   /** Run pod requests and limits for KubernetesJob runs. */
   podResources?: RunPodResources;
+  /** Permission approvals. Only Claude Code profiles and Codex profiles with CodexAppServer delivery accept true. Default false. */
+  approvalsEnabled?: boolean;
+  /** What happens to a request no rule matches. Default Ask. */
+  approvalDefaultAction?: ApprovalRuleAction;
+  /** Seconds a pending approval waits for a person (10 to 3600, default 300). */
+  approvalTimeoutSeconds?: number;
+  /** Decision applied when a pending approval expires. Default Deny. */
+  approvalTimeoutDecision?: ApprovalDecision;
+  /** Approval rules in display order (at most 500). Deny beats Ask, Ask beats Allow. */
+  approvalRules?: DeploymentApprovalRule[];
+}
+
+/** State of a permission approval. Pending is the only state that can change. */
+export type ApprovalStatus = "Pending" | "Approved" | "Denied" | "Expired" | "Cancelled";
+/** What the harness is told. */
+export type ApprovalDecision = "Allow" | "Deny";
+/** Who or what decided an approval. */
+export type ApprovalSource = "Rule" | "Default" | "User" | "Timeout" | "Cancelled";
+/** Action of an approval rule or of the deployment default. */
+export type ApprovalRuleAction = "Allow" | "Deny" | "Ask";
+/** Where a permission request came from: a Claude Code tool call, a Codex command (evaluated as Bash), or a Codex file change (evaluated as Edit). */
+export type ApprovalKind = "Tool" | "Command" | "FileChange";
+
+/** One approval rule of a deployment. pattern uses Claude Code rule syntax, for example Bash(git status:*) or mcp__github__*. */
+export interface DeploymentApprovalRule extends Json {
+  /** dar_ identifier, stable across updates; omit or leave empty for a new rule. */
+  id?: string;
+  deploymentId?: string;
+  /** Default Ask. */
+  action?: ApprovalRuleAction;
+  pattern: string;
+  /** Optional .NET regular expression over the tool input JSON. */
+  inputPattern?: string | null;
+  description?: string | null;
+}
+
+/** A permission request a harness relayed to Garrison and its decision. */
+export interface Approval extends Json {
+  id: string; tenantId: string; runId: string; rootRunId?: string | null; agentId: string; agentName: string; deploymentId: string;
+  leaseEpoch: number; harnessType: string; kind: ApprovalKind; toolName: string; toolCallId?: string | null;
+  /** Redacted tool input JSON, at most 4000 characters. */
+  inputPreview?: string | null;
+  /** One-line summary (command, URL, paths, or query), redacted, at most 500 characters. */
+  summary?: string | null;
+  /** A rule pattern that would cover this request, used when deciding with remember. */
+  suggestedRule?: string | null;
+  status: ApprovalStatus;
+  /** Null while Pending. */
+  decision?: ApprovalDecision | null;
+  /** Null while Pending. */
+  decisionSource?: ApprovalSource | null;
+  ruleId?: string | null; rulePattern?: string | null; rememberedRuleId?: string | null;
+  decidedBy?: string | null; decidedById?: string | null; reason?: string | null;
+  timeoutDecision: ApprovalDecision;
+  requestedUtc: string; decidedUtc?: string | null;
+  /** Set on approvals waiting for a person. */
+  expiresUtc?: string | null;
+  /** Milliseconds between request and decision; null while Pending. */
+  waitMs?: number | null;
+  createdUtc: string; lastUpdateUtc: string;
+}
+
+/** Approval list filter. */
+export interface ApprovalFilter {
+  status?: ApprovalStatus; runId?: string; rootRunId?: string; agentId?: string; deploymentId?: string;
+  decisionSource?: ApprovalSource; fromUtc?: string | Date; toUtc?: string | Date;
+  maxResults?: number; skip?: number; ordering?: string;
+}
+
+/** A decision on a pending approval. */
+export interface ApprovalDecideRequest {
+  decision: ApprovalDecision;
+  /** At most 4000 characters; shown to the harness when denying. */
+  reason?: string;
+  /** Also add a matching rule to the approval's deployment (needs Update on the deployment). Default false. */
+  remember?: boolean;
+  /** Pattern of the remembered rule; defaults to the approval's suggestedRule. */
+  rulePattern?: string;
+}
+
+/** Tool input fields approval rules look at. Names follow Claude Code tool inputs (file_path, notebook_path). */
+export interface ApprovalToolInput {
+  command?: string; cwd?: string; url?: string; file_path?: string; notebook_path?: string; path?: string;
+  paths?: string[]; pattern?: string; query?: string;
+}
+
+/** A sample tool call to evaluate against a deployment's approval rules. */
+export interface ApprovalCheckRequest { toolName: string; input?: ApprovalToolInput; }
+
+/** What a deployment's approval rules would do with a request. Nothing is recorded. */
+export interface ApprovalCheckResponse {
+  action: ApprovalRuleAction;
+  /** Rule when a rule matched, Default when the deployment default applied. */
+  source: "Rule" | "Default";
+  ruleId?: string | null; rulePattern?: string | null; suggestedRule?: string | null;
+  approvalsEnabled: boolean;
 }
 
 /** A node pool. defaultExecutor applies to deployments in the pool that set no executor (null means Process). */
@@ -165,6 +261,12 @@ export interface Run extends Json {
   schemaValidationErrors?: string | null;
   /** Structured output repairs started for the run: 0 or 1. */
   repairAttempts?: number;
+  /** Permission approvals of this run waiting for a person (read-only). */
+  pendingApprovals?: number;
+  /** True while pendingApprovals is above zero. The run stays Running. */
+  awaitingApproval?: boolean;
+  /** Total milliseconds spent waiting for approvals decided by a person or a timeout; null when it never waited. */
+  approvalWaitMs?: number | null;
 }
 
 /**
@@ -644,6 +746,22 @@ export class Runs {
   }
 }
 
+/** Permission approvals: list, read, decide, and approval check against a deployment's rules. */
+export class Approvals {
+  constructor(private readonly t: Transport) {}
+  /** List approvals. For a pending count, pass { status: "Pending", maxResults: 1 } and read totalRecords. */
+  list(filter: ApprovalFilter = {}): Promise<EnumerationResult<Approval>> { return this.t.request("GET", this.t.tenantPath("/approvals"), filter as any); }
+  get(id: string): Promise<Approval> { return this.t.request("GET", this.t.tenantPath(`/approvals/${seg(id)}`)); }
+  /** Decide a pending approval. Rejects with GarrisonError (409, ApprovalNotPending) when it was already decided. */
+  decide(id: string, request: ApprovalDecideRequest): Promise<Approval> {
+    return this.t.request("POST", this.t.tenantPath(`/approvals/${seg(id)}/decide`), undefined, request);
+  }
+  /** Evaluate a deployment's approval rules against a sample tool call without recording anything. */
+  check(deploymentId: string, request: ApprovalCheckRequest): Promise<ApprovalCheckResponse> {
+    return this.t.request("POST", this.t.tenantPath(`/deployments/${seg(deploymentId)}/approval-check`), undefined, request);
+  }
+}
+
 /** Tenant analytics. */
 export class Analytics {
   constructor(private readonly t: Transport) {}
@@ -722,6 +840,7 @@ export class GarrisonClient {
   readonly artifactStores: Resource;
   readonly manifests: Manifests;
   readonly runs: Runs;
+  readonly approvals: Approvals;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
   readonly controlNodes: ControlNodes;
@@ -750,6 +869,7 @@ export class GarrisonClient {
     this.artifactStores = new Resource(t, "artifact-stores");
     this.manifests = new Manifests(t);
     this.runs = new Runs(t);
+    this.approvals = new Approvals(t);
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");
     this.controlNodes = new ControlNodes(t);

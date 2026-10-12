@@ -155,6 +155,67 @@ func (n *ControlNodesClient) Get(ctx context.Context, id string) (*ControlNode, 
 	return &out, nil
 }
 
+// ApprovalsClient lists, reads, and decides permission approvals and evaluates a deployment's approval rules.
+type ApprovalsClient struct{ c *Client }
+
+// List returns a page of approvals. For a pending count, filter on ApprovalStatusPending with MaxResults 1 and read
+// TotalRecords.
+func (a *ApprovalsClient) List(ctx context.Context, f ApprovalFilter) (*EnumerationResult[Approval], error) {
+	q := url.Values{}
+	set := func(k, v string) {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	set("status", f.Status)
+	set("runId", f.RunID)
+	set("rootRunId", f.RootRunID)
+	set("agentId", f.AgentID)
+	set("deploymentId", f.DeploymentID)
+	set("decisionSource", f.DecisionSource)
+	set("fromUtc", f.FromUTC)
+	set("toUtc", f.ToUTC)
+	set("ordering", f.Ordering)
+	if f.MaxResults > 0 {
+		q.Set("maxResults", strconv.Itoa(f.MaxResults))
+	}
+	if f.Skip > 0 {
+		q.Set("skip", strconv.Itoa(f.Skip))
+	}
+	var out EnumerationResult[Approval]
+	if err := a.c.Do(ctx, http.MethodGet, a.c.TenantPath("/approvals"), q, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Get reads one approval.
+func (a *ApprovalsClient) Get(ctx context.Context, id string) (*Approval, error) {
+	var out Approval
+	if err := a.c.Do(ctx, http.MethodGet, a.c.TenantPath("/approvals/"+url.PathEscape(id)), nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Decide decides a pending approval. The server answers 409 (ApprovalNotPending) when it was already decided.
+func (a *ApprovalsClient) Decide(ctx context.Context, id string, req ApprovalDecideRequest) (*Approval, error) {
+	var out Approval
+	if err := a.c.Do(ctx, http.MethodPost, a.c.TenantPath("/approvals/"+url.PathEscape(id)+"/decide"), nil, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Check evaluates a deployment's approval rules against a sample tool call without recording anything.
+func (a *ApprovalsClient) Check(ctx context.Context, deploymentID string, req ApprovalCheckRequest) (*ApprovalCheckResponse, error) {
+	var out ApprovalCheckResponse
+	if err := a.c.Do(ctx, http.MethodPost, a.c.TenantPath("/deployments/"+url.PathEscape(deploymentID)+"/approval-check"), nil, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // ManifestsClient applies and exports declarative manifests.
 type ManifestsClient struct{ c *Client }
 

@@ -125,7 +125,9 @@
       "retention": "Delete"
     },
     "parser": "MuxJsonl",
-    "parserOptions": {},
+    "parserOptions": {
+      "approvalsRelayed": false
+    },
     "resultSource": "LastMessageFile",
     "resultFileName": "last-message.txt",
     "successPolicy": "FinalEventAndExitCode",

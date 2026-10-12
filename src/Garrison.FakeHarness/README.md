@@ -9,7 +9,8 @@ garrison-fake-harness --format claude|codex|codex-app-server|mux|plain [--scenar
                       [--output-last-message file] [--stderr text] [--tool-calls N] [--think-ms N]
                       [--answer text] [--resume-answer text] [--resume sessionId] [--structured-output]
                       [--ignore-sigterm] [--loop-text text] [--spawn-child pidfile] [--tool-sleep-ms N]
-                      [--request-approval]
+                      [--request-approval] [--approval-command text] [--request-file-approval path]
+                      [--permission-prompt-tool mcp__server__tool] [--mcp-config file] [--permission-request Tool=inputJson]
 ```
 
 | Option | Effect |
@@ -34,6 +35,11 @@ garrison-fake-harness --format claude|codex|codex-app-server|mux|plain [--scenar
 | `--spawn-child pidfile` | Start a child process (`sleep 600`) that inherits stdout and write its process ID to `pidfile`. Used to check that stopping a harness also stops its children. Unix only. |
 | `--tool-sleep-ms N` | Pause N milliseconds between each fake tool call and its result (with `--tool-calls`). Used to check that a long tool execution does not count as no progress. |
 | `--request-approval` | In `codex-app-server` format, send an `item/commandExecution/requestApproval` request before answering, print the client's decision to stderr (`fake app-server: approval answered ...`), and report the command as declined unless it was accepted. |
+| `--approval-command text` | The command named in the `--request-approval` request. Default `rm -rf build`. The fake sends an `item/started` command item first, like Codex, and appends `command approval: accept` or `decline` to the answer. |
+| `--request-file-approval path` | In `codex-app-server` format, also send an `item/started` file change item for `path` and an `item/fileChange/requestApproval` request for it, print the decision to stderr, and append `file approval: accept` or `decline` to the answer. |
+| `--permission-prompt-tool name` | Claude Code's flag (`mcp__<server>__<tool>`). In Claude format, each `--permission-request` is asked through that tool on the server of that name in `--mcp-config`, with `tool_name`, `input`, and `tool_use_id`, the way Claude Code does. Without it every request is denied, like Claude Code in print mode. |
+| `--mcp-config file` | Claude Code's flag: the MCP configuration file, read for the permission prompt tool's URL and headers. |
+| `--permission-request Tool=inputJson` | Repeatable. In Claude format, emit a `tool_use` for the tool with that input, ask for permission, emit the `tool_result` (the denial message as an error when denied), and append `permission <Tool>: allow` or `deny` to the answer. Used by the approval tests. |
 | `--think-ms N` | Pause between the thinking event and the first answer chunk. Default 20, so every run has a measurable time to first token and streaming time. |
 
 In the Claude, Codex, and Mux formats the answer is preceded by one thinking event (a `thinking_delta`, a `reasoning` item, or `assistant_thinking`), and the final usage reports 2 reasoning tokens (`output_tokens_details.thinking_tokens` for Claude, `reasoning_output_tokens` for Codex). Plain format has no thinking event.

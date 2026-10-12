@@ -23,9 +23,11 @@ const resourcePage = (title, singular, subtitle, emptyBody) => ({
 
 const en = {
   common: {
-    eventCodes: { StructuredOutputInvalid: 'Structured output invalid', RunBlocked: 'Run blocked', EventsDropped: 'Events dropped', HarnessExited: 'Harness exited', McpPreflightWarning: 'MCP preflight warning', McpPreflightPassed: 'MCP preflight passed', RepairAttemptStarted: 'Output repair started', WorkspacePrepared: 'Workspace prepared', RunGuardTriggered: 'Run guard stopped the run' },
+    eventCodes: { ApprovalRequested: 'Approval requested', ApprovalDecided: 'Approval decided', StructuredOutputInvalid: 'Structured output invalid', RunBlocked: 'Run blocked', EventsDropped: 'Events dropped', HarnessExited: 'Harness exited', McpPreflightWarning: 'MCP preflight warning', McpPreflightPassed: 'MCP preflight passed', RepairAttemptStarted: 'Output repair started', WorkspacePrepared: 'Workspace prepared', RunGuardTriggered: 'Run guard stopped the run' },
     fieldCodes: { ExpiryInPast: 'Choose a time in the future.', ParameterInvalid: 'This value is not valid for this parameter.', ParameterNotAllowed: 'This deployment does not let callers override this parameter.', SettingsFileReadOnly: 'The settings file is read-only, so this change cannot be saved.', OverriddenByEnvironment: 'An environment variable sets this value, so it cannot be changed here.', PathRequired: 'A setting path is required.', UnknownSetting: 'This server does not have this setting.', TooLong: 'This value is too long.', NotAllowedValue: 'Choose one of the allowed values.', NotABoolean: 'Choose true or false.', NotAnInteger: 'Enter a whole number.', OutOfRange: 'The value is outside the allowed range.' },
     serverText: {
+      approvalWaitingExpires: 'Waiting for a person to approve {{subject}}; approval {{id}} expires at {{expires}}.',
+      approvalWaiting: 'Waiting for a person to approve {{subject}}; approval {{id}}.',
       notApplied: 'Not applied because another document failed validation.',
       wouldBeUnchanged: 'Already up to date; nothing would change.',
       wouldBeUpdated: 'Would be updated.',
@@ -84,6 +86,7 @@ const en = {
       bulkDelete: 'Delete {{count}} selected records? This cannot be undone.'
     },
     errors: {
+      listItem: 'Item {{index}}: {{message}}',
       chooseOne: 'Choose at least one option.',
       fixFields: 'Some fields need attention. Review the highlighted values.',
       invalidEmail: 'Enter a valid email address.',
@@ -125,6 +128,7 @@ const en = {
     units: { msShort: 'ms', sShort: 's', mShort: 'min', tokPerSec: 'tok/s' }
   },
   errorCodes: {
+    ApprovalNotPending: 'This approval was already decided, so it cannot be decided again.',
     MessageIdConflict: 'This A2A message ID was already used with different content. Send the message with a new ID.',
     IdempotencyKeyConflict: 'This idempotency key was already used for a different request. Use a new key.',
     DeploymentDeleted: 'The deployment of this run was deleted, so the run cannot be retried. Invoke the agent again instead.',
@@ -154,6 +158,34 @@ const en = {
     Http503: 'The server is unavailable.'
   },
   enums: {
+    approvalStatus: {
+      Pending: 'Pending',
+      Approved: 'Approved',
+      Denied: 'Denied',
+      Expired: 'Expired',
+      Cancelled: 'Cancelled'
+    },
+    approvalDecision: {
+      Allow: 'Allow',
+      Deny: 'Deny'
+    },
+    approvalSource: {
+      Rule: 'Rule',
+      Default: 'Deployment default',
+      User: 'Person',
+      Timeout: 'Timeout',
+      Cancelled: 'Run stopped'
+    },
+    approvalRuleAction: {
+      Allow: 'Allow',
+      Deny: 'Deny',
+      Ask: 'Ask a person'
+    },
+    approvalKind: {
+      Tool: 'Tool call',
+      Command: 'Command',
+      FileChange: 'File change'
+    },
     principalType: { Administrator: 'Administrator', User: 'User', Credential: 'Access key', Run: 'Run token' },
     runBlockedReason: { NoReadyWorker: 'No ready worker', NoCapableWorker: 'No capable worker', NoMatchingPool: 'No matching pool' },
     promptDelivery: { Stdin: 'Standard input', Argument: 'Command-line argument', File: 'File', CodexAppServer: 'Codex app-server (JSON-RPC)' },
@@ -291,6 +323,7 @@ const en = {
     remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: 'Created', Updated: 'Updated', Unchanged: 'Unchanged', Failed: 'Failed', Validated: 'Validated' },
     auditEventType: {
+      ApprovalDecided: 'Approval decided',
       AuthSuccess: 'Sign-in succeeded',
       AuthFailure: 'Sign-in failed',
       SessionIssued: 'Session issued',
@@ -314,6 +347,8 @@ const en = {
     }
   },
   nav: {
+    approvalsPending_one: '{{count}} approval waiting',
+    approvalsPending_other: '{{count}} approvals waiting',
     primary: 'Primary navigation',
     sections: {
       operate: 'Operate',
@@ -321,6 +356,10 @@ const en = {
       administration: 'Administration'
     },
     hubs: {
+      approvals: {
+        label: 'Approvals',
+        tip: 'Tool calls waiting for a person, and every decision'
+      },
       home: { label: 'Home', tip: 'Fleet and run health at a glance' },
       invoke: { label: 'Invoke', tip: 'Try an agent interactively' },
       runs: { label: 'Runs', tip: 'Runs and the scheduling queue' },
@@ -333,6 +372,10 @@ const en = {
       system: { label: 'System', tip: 'Server settings and server info' }
     },
     items: {
+      approvals: {
+        label: 'Approvals',
+        tip: 'Allow or deny tool calls agents asked to make'
+      },
       home: { label: 'Home', tip: 'Fleet and run health at a glance' },
       invoke: { label: 'Invoke', tip: 'Try an agent interactively' },
       runs: { label: 'Runs', tip: 'Find, inspect, cancel, and retry runs' },
@@ -404,6 +447,48 @@ const en = {
     run: 'Run token'
   },
   components: {
+    approvals: {
+      awaiting: 'Awaiting approval',
+      decideTitle: 'Decide {{tool}}',
+      decision: 'Decision',
+      reason: 'Reason',
+      reasonPlaceholder: 'Optional. The agent and the audit log see it.',
+      remember: 'Remember as a rule for this deployment',
+      rulePattern: 'Rule pattern',
+      rememberHint: 'Adds a rule with the action {{action}} to the deployment, so matching calls are decided without asking. This also needs permission to update the deployment.',
+      submitAllow: 'Allow',
+      submitDeny: 'Deny',
+      timeoutThen: 'then {{decision}}',
+      toasts: {
+        allowed: 'Allowed {{tool}}.',
+        denied: 'Denied {{tool}}.',
+        allowedRemembered: 'Allowed {{tool}} and added the rule {{pattern}}.',
+        deniedRemembered: 'Denied {{tool}} and added the rule {{pattern}}.',
+        notPending: 'This approval was already decided by someone else or by its timeout. The list now shows the result.',
+        forbidden: 'You may read approvals but not decide them. Ask an administrator for the Approval Update permission.',
+        forbiddenRemember: 'Remembering a rule also needs permission to update the deployment. Decide without remembering, or ask for Deployment Update.'
+      }
+    },
+    approvalCheck: {
+      title: 'Test a tool call',
+      saveFirst: 'Save the deployment first. The test checks the rules the server has stored.',
+      hint: 'Checks the saved rules, so save your changes before testing them. Nothing is recorded.',
+      toolName: 'Tool',
+      inputs: {
+        command: 'Command',
+        url: 'URL',
+        query: 'Search query',
+        file_path: 'File path',
+        notebook_path: 'Notebook path',
+        pattern: 'Pattern'
+      },
+      run: 'Check',
+      checking: 'Checking...',
+      byRule: '{{action}} by this rule:',
+      byDefault: '{{action}} by the deployment default, because no rule matched.',
+      suggestedRule: 'Suggested rule:',
+      disabled: 'Approvals are off for this deployment, so its runs never ask. Turn them on and save to apply these rules.'
+    },
     blocked: {
       title: 'Waiting for a worker',
       body: 'This run is queued, but no worker can take it right now.',
@@ -554,6 +639,64 @@ const en = {
     }
   },
   resources: {
+    approvals: {
+      ...resourcePage('Approvals', 'approval', 'Tool calls agents asked to make, decided by a deployment rule, the deployment default, a person, or a timeout. Pending ones wait for you.', 'Approvals appear when a deployment with approvals turned on asks before a tool call.'),
+      emptyTitle: 'No approvals yet',
+      columns: {
+        createdUtc: 'Requested',
+        agentName: 'Agent',
+        toolName: 'Tool',
+        summary: 'Request',
+        status: 'Status',
+        decision: 'Decision',
+        decisionSource: 'Source',
+        decidedBy: 'Decided by',
+        expiresUtc: 'Expires',
+        kind: 'Kind',
+        harnessType: 'Harness',
+        runId: 'Run',
+        waitMs: 'Wait',
+        reason: 'Reason',
+        decidedUtc: 'Decided',
+        id: 'ID'
+      },
+      fields: {
+        status: 'Status',
+        decision: 'Decision',
+        decisionSource: 'Decision source',
+        decidedBy: 'Decided by',
+        toolName: 'Tool',
+        kind: 'Kind',
+        harnessType: 'Harness',
+        agentName: 'Agent',
+        runId: 'Run',
+        rootRunId: 'Root run',
+        deploymentId: 'Deployment',
+        leaseEpoch: 'Lease epoch',
+        requestedUtc: 'Requested',
+        expiresUtc: 'Expires',
+        decidedUtc: 'Decided',
+        waitMs: 'Wait time',
+        timeoutDecision: 'Decision on timeout',
+        toolCallId: 'Tool call ID',
+        reason: 'Reason',
+        summary: 'Summary',
+        inputPreview: 'Input (redacted)',
+        rulePattern: 'Matched rule',
+        ruleId: 'Rule ID',
+        suggestedRule: 'Suggested rule',
+        rememberedRuleId: 'Remembered rule ID'
+      },
+      filters: {
+        runId: 'Run ID',
+        runIdPlaceholder: 'Run ID (run_...)'
+      },
+      actions: {
+        allow: 'Allow',
+        deny: 'Deny',
+        openRun: 'Open run'
+      }
+    },
     tenants: {
       ...resourcePage('Tenants', 'tenant', 'Isolated workspaces, each with its own users, agents, secrets, and runs.', 'Create a tenant to isolate a team or customer.'),
       columns: { name: 'Name', id: 'ID', description: 'Description', active: 'Active', createdUtc: 'Created' },
@@ -739,11 +882,24 @@ const en = {
       errors: { dnsName: 'Use lowercase letters, digits, and hyphens, starting and ending with a letter or digit.' }
     },
     deployments: {
+      approvalsOn_one: 'On, {{count}} rule',
+      approvalsOn_other: 'On, {{count}} rules',
+      approvalsOff: 'Off',
       promptRoles: { Repair: 'Structured output repair', DelegatedTask: 'Task wrapper for delegated runs', Task: 'Task wrapper', System: 'System prompt' },
       ...resourcePage('Deployments', 'deployment', 'Bind an agent to a harness profile, prompts, secrets, MCP servers, placement, and limits.', 'Create a deployment to make an agent runnable.'),
-      steps: { basics: 'Basics', harness: 'Harness', prompts: 'Prompts', resources: 'Resources', overrides: 'Overrides', placement: 'Placement and limits' },
-      columns: { name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness profile', model: 'Model', executor: 'Executor', weight: 'Weight', configVersion: 'Config version', active: 'Active', id: 'ID', createdUtc: 'Created' },
+      steps: { approvals: 'Approvals', basics: 'Basics', harness: 'Harness', prompts: 'Prompts', resources: 'Resources', overrides: 'Overrides', placement: 'Placement and limits' },
+      columns: { approvalsEnabled: 'Approvals', name: 'Name', agentId: 'Agent', harnessProfileId: 'Harness profile', model: 'Model', executor: 'Executor', weight: 'Weight', configVersion: 'Config version', active: 'Active', id: 'ID', createdUtc: 'Created' },
       fields: {
+        approvalsEnabled: 'Ask before tool calls (approvals)',
+        approvalDefaultAction: 'When no rule matches',
+        approvalTimeoutSeconds: 'Approval timeout (seconds)',
+        approvalTimeoutDecision: 'Decision when nobody answers',
+        approvalRules: 'Approval rules',
+        ruleAction: 'Action',
+        rulePattern: 'Rule',
+        ruleInputPattern: 'Input pattern',
+        ruleDescription: 'Description',
+        approvalTest: 'Test a tool call',
         name: 'Name',
         agentId: 'Agent',
         description: 'Description',
@@ -799,6 +955,10 @@ const en = {
         podEphemeralStorageLimit: 'Ephemeral storage limit'
       },
       hints: {
+        approvalsEnabled: 'Works with Claude Code profiles and profiles that use the Codex app-server. Other harnesses have no approval hook, so the server refuses this setting for them.',
+        approvalDefaultAction: 'Ask a person waits in the Approvals inbox until someone decides or the timeout passes.',
+        approvalTimeoutSeconds: 'From 10 to 3,600 seconds. Empty uses 300.',
+        approvalRules: 'Deny beats Ask, and Ask beats Allow. Examples: Bash(npm test), Bash(npm run *), Edit(src/**), WebFetch(domain:example.com), mcp__github__*.',
         secretsKinds: 'The harness profile {{profile}} needs any secret of kind {{kinds}}. Bind one under any alias.',
         secretsAliases: 'The harness profile {{profile}} reads secrets bound with these aliases: {{aliases}}.',
         secretsNone: 'The harness profile {{profile}} does not read any secret, so no secret binding is needed.',
@@ -818,18 +978,19 @@ const en = {
         executorSet: 'Process runs the harness inside the worker; Kubernetes Job runs it in a pod of its own.',
         podCpuRequest: 'Pod resources apply to Kubernetes Job runs only. Use Kubernetes quantities such as 500m, 2, 512Mi, or 4Gi; empty uses the worker default.'
       },
-      actions: { compilePreview: 'Compile preview', test: 'Test invoke', useClusterDefault: 'Use cluster default' },
+      actions: { addRule: 'Add rule', compilePreview: 'Compile preview', test: 'Test invoke', useClusterDefault: 'Use cluster default' },
       sections: {
         guards: 'Run guards',
         execution: 'Executor and pod resources'
       },
       placeholders: {
+        ruleInputPattern: 'Optional regular expression over the input JSON',
         clusterDefault: 'Cluster default ({{value}})',
         clusterDefaultUnknown: 'Cluster default'
       },
       executorInherit: 'Node pool default',
       executorInheritShort: 'Pool default',
-      errors: { quantity: 'Use a Kubernetes quantity such as 500m, 2, 512Mi, or 4Gi.' },
+      errors: { rulePatternRequired: 'Enter a rule pattern.', rulePatternOneLine: 'A rule pattern must fit on one line.', rulePatternTooLong: 'A rule pattern can be at most 1,000 characters.', tooManyRules: 'A deployment can have at most 500 approval rules.', approvalTimeout: 'Enter a whole number of seconds from 10 to 3,600.', quantity: 'Use a Kubernetes quantity such as 500m, 2, 512Mi, or 4Gi.' },
       guardStates: {
         on: 'on',
         off: 'off'
@@ -845,6 +1006,7 @@ const en = {
     runs: {
       ...resourcePage('Runs', 'run', 'Every agent invocation with its status, node, duration, and outcome.', 'Invoke an agent to start a run.'),
       columns: {
+        approvalWaitMs: 'Approval wait',
         delegationWaitMs: 'Delegation wait',
         timeToFirstTokenExcludingDelegationMs: 'TTFT excl. delegation',
         id: 'Run',
@@ -919,6 +1081,19 @@ const en = {
     }
   },
   views: {
+    approvalDetail: {
+      title: 'Approval',
+      titleWithTool: 'Approval for {{tool}}',
+      backToInbox: 'All approvals',
+      pending: 'Waiting for a person to allow or deny this tool call.',
+      pendingExpires: 'Waiting for a person. If nobody decides, it expires {{when}} with the decision {{decision}}.',
+      request: 'Request',
+      rules: 'Rules',
+      noRule: 'No rule matched',
+      noInput: 'No input was recorded.',
+      notFoundTitle: 'Approval not found',
+      notFoundBody: 'It may belong to another tenant, or the ID is wrong.'
+    },
     home: {
       observabilityState: { reachable: 'Reachable', unreachable: 'Unreachable', checking: 'Checking', unknown: 'Status unknown' },
       observabilityVersion: 'Version {{version}}',
@@ -1048,6 +1223,13 @@ const en = {
       }
     },
     runDetail: {
+      awaitingApproval_one: 'This run is waiting for a person to approve {{count}} tool call.',
+      awaitingApproval_other: 'This run is waiting for a person to approve {{count}} tool calls.',
+      reviewApprovals: 'Review',
+      approvals_one: 'Approvals ({{count}})',
+      approvals_other: 'Approvals ({{count}})',
+      noApprovals: 'This run has not asked for any approvals.',
+      openApproval: 'Open approval',
       viewTrace: 'View trace',
       viewLogs: 'View logs',
       traceId: 'Trace ID',
@@ -1095,11 +1277,13 @@ const en = {
       notFoundTitle: 'Run not found',
       notFoundBody: 'It may have been deleted, or it belongs to another tenant.',
       telemetry: {
+        approvalNote: 'This run spent {{wait}} waiting for approval decisions. Execution time includes that wait.',
         delegationNote: 'This run waited {{wait}} on runs it delegated to. Time to first token is {{ttft}} including that wait and {{excluding}} without it, which is the figure to compare with agents that do not delegate.',
         title: 'Telemetry',
         phases: 'Run time by phase',
         phase: { delegation: 'Waiting on delegated runs', queue: 'Queue', startup: 'Startup to first token', streaming: 'Streaming', tail: 'After last token' },
         fields: {
+          approvalWaitMs: 'Approval wait',
           delegationWaitMs: 'Delegation wait',
           timeToFirstTokenExcludingDelegationMs: 'Time to first token excluding delegation',
           timeToFirstTokenMs: 'Time to first token',

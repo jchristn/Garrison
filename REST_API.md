@@ -2085,6 +2085,18 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments" \
   -d '{"agentId": "agt_...", "name": "helper-claude", "harnessProfileId": "hrn_builtin_claude_code", "model": "sonnet", "maxTurns": 8, "timeoutSeconds": 600, "resourceBindings": [{"kind": "Secret", "alias": "anthropic", "resourceId": "sec_..."}], "allowedRunOverrides": [{"name": "model", "validation": "Enum", "pattern": "sonnet,haiku"}]}'
 ```
 
+#### Deployment approval fields
+
+| Field | Meaning |
+|---|---|
+| `approvalsEnabled` | Relay permission requests to Garrison (default false). Accepted only for Claude Code profiles and profiles with `CodexAppServer` delivery; `codex exec`, Mux, Gemini CLI, and generic profiles have no approval hook, and a deployment that enables approvals on them is rejected with 400 (field `approvalsEnabled`). |
+| `approvalDefaultAction` | `Allow`, `Deny`, or `Ask` (default) for requests no rule matches |
+| `approvalTimeoutSeconds` | How long a pending approval waits for a person: 10 to 3,600, default 300. The wait never outlasts the run's deadline. |
+| `approvalTimeoutDecision` | `Deny` (default) or `Allow`, applied when a pending approval expires |
+| `approvalRules` | Ordered rules: `action` (`Allow`, `Deny`, `Ask`), `pattern`, optional `inputPattern` (a regular expression the tool input JSON must also match), optional `description`. Rule IDs (`dar_`) stay stable across updates. At most 500 rules. |
+
+Patterns use Claude Code's rule syntax: a tool name (`Bash`, `Edit`, `Read`, `WebFetch`, `mcp__github__create_issue`), a tool with a specifier (`Bash(git status:*)` for a command prefix, `Bash(npm test)` for an exact command, `Bash(npm run *)` for a glob, `Edit(src/**)` for workspace-relative paths, `Edit(//etc/**)` for absolute ones, `WebFetch(domain:example.com)`), or an MCP server wildcard (`mcp__github__*`). When several rules match, Deny beats Ask and Ask beats Allow. A rule named `Edit` also covers `Write`, `MultiEdit`, and `NotebookEdit`, and `Read` covers `Glob`, `Grep`, and `LS`. For `Bash`, an Allow rule must cover every command of the line (split on `;`, `&&`, `||`, `|`, `&`, and new lines), and a line with command substitution (`$(...)`, backticks, `<(...)`) is never allowed by a rule, so it falls to the default; Deny and Ask rules match when any command of the line matches. Use [approval-check](#post-v10apitenantstenantiddeploymentsdeploymentidapproval-check) to test rules.
+
 #### `GET /v1.0/api/tenants/{tenantId}/deployments/{id}`
 
 Read a deployment.
@@ -2556,7 +2568,7 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/events"
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Events whose text Garrison writes itself (rather than the harness or the model) carry a stable `code` so clients can show a translated label next to, or instead of, the English `text`: `WorkspacePrepared`, `RepairAttemptStarted`, `McpPreflightPassed`, `McpPreflightWarning`, `HarnessExited`, `EventsDropped`, `RunBlocked` (the run's `blockedReason` says why), and `StructuredOutputInvalid`. Other events have no `code`.
+Events whose text Garrison writes itself (rather than the harness or the model) carry a stable `code` so clients can show a translated label next to, or instead of, the English `text`: `WorkspacePrepared`, `RepairAttemptStarted`, `McpPreflightPassed`, `McpPreflightWarning`, `HarnessExited`, `EventsDropped`, `RunBlocked` (the run's `blockedReason` says why), `StructuredOutputInvalid`, `ApprovalRequested` (a permission request is waiting for a person), and `ApprovalDecided` (a permission request was decided by a rule, the deployment default, a person, the timeout, or a cancellation). The two approval events are `Lifecycle` events the worker records from the control plane; their `rawEventJson` carries the approval ID, status, decision, and source. Other events have no `code`.
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream`
 
@@ -2585,6 +2597,157 @@ List runs delegated by a run.
 ```bash
 curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/children" \
   -H "Authorization: Bearer $TOKEN"
+```
+
+### Approvals
+
+Permission approvals (P12.3) let a person, or a deployment's rules, decide the tool calls a harness asks permission for. Claude Code asks through `--permission-prompt-tool mcp__garrison__garrison_permission_prompt` (see [MCP_API.md](MCP_API.md)); for Codex with the `CodexAppServer` delivery, the worker relays the app-server's command and file change approval requests to the same tool with the run token. Turn approvals on per deployment with `approvalsEnabled` (see [Deployment approval fields](#deployment-approval-fields)).
+
+Every request is evaluated against the deployment's `approvalRules`. A matching Allow or Deny rule, or the deployment's `approvalDefaultAction` when no rule matches, decides at once and the decision is recorded. Ask creates a `Pending` approval: the harness call blocks, the run stays `Running` with `awaitingApproval: true`, and the approval waits until a person decides it here (or over MCP or the dashboard), it expires (`approvalTimeoutSeconds`, then `approvalTimeoutDecision` applies, Deny by default), or the run stops. Decisions are compare-and-set updates in the database, so they work from any replica: a decision on one replica wakes the call waiting on another through the event backplane.
+
+| Field | Meaning |
+|---|---|
+| `id` | `apr_` identifier |
+| `runId`, `rootRunId`, `agentId`, `agentName`, `deploymentId`, `leaseEpoch` | The run (attempt) that asked, and the deployment whose rules applied |
+| `harnessType`, `kind` | `Tool` (Claude Code), `Command` (Codex command, evaluated as `Bash`), or `FileChange` (Codex file change, evaluated as `Edit`) |
+| `toolName`, `toolCallId` | The tool and the harness's call identifier |
+| `inputPreview` | The tool input as JSON, with secrets redacted (values of the deployment's bound secrets, bearer tokens, API keys, `password=`-style assignments, private keys) and cut to 4,000 characters. The full input is never stored. |
+| `summary` | One line for lists: the command, URL, paths, or query, redacted |
+| `suggestedRule` | A rule pattern covering this request, used by `remember` |
+| `status` | `Pending`, `Approved`, `Denied`, `Expired`, or `Cancelled` |
+| `decision` | What the harness was told: `Allow` or `Deny` (null while pending) |
+| `decisionSource` | `Rule`, `Default`, `User`, `Timeout`, or `Cancelled` |
+| `ruleId`, `rulePattern` | The rule that matched, if any |
+| `rememberedRuleId` | The rule a decision with `remember` added |
+| `decidedBy`, `decidedById`, `reason` | Who decided and why (Garrison writes the reason for timeouts and cancellations) |
+| `timeoutDecision` | The decision applied if the approval expires, copied from the deployment |
+| `requestedUtc`, `decidedUtc`, `expiresUtc`, `waitMs` | Timing; pending approvals expire before the run's deadline |
+
+#### `GET /v1.0/api/tenants/{tenantId}/approvals`
+
+List approvals, newest first. Filters: `status`, `runId`, `rootRunId` (every approval in a delegation tree), `agentId`, `deploymentId`, `decisionSource`, `fromUtc`, `toUtc`, plus the [enumeration](#enumeration) parameters. For an inbox badge, ask for `status=Pending&maxResults=1` and read `totalRecords`.
+
+| | |
+|---|---|
+| Permission | Read on `Approval` |
+| Response | `EnumerationResult<Approval>` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/approvals?status=Pending" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "success": true,
+  "maxResults": 25,
+  "skip": 0,
+  "totalRecords": 1,
+  "recordsRemaining": 0,
+  "endOfResults": true,
+  "timestampUtc": "2026-10-11T21:04:12.118034Z",
+  "objects": [
+    {
+      "id": "apr_mv3k2a1b_7QxJm2LhR8sWcN4dTzEf",
+      "tenantId": "default",
+      "runId": "run_mv3k29zq_Hc8wPnB2dLx5rTq1VkYa",
+      "rootRunId": null,
+      "agentId": "agt_mv1a0c4e_2nKqLw9ZtBv7XsRm",
+      "agentName": "release-helper",
+      "deploymentId": "dep_mv1a0c5f_Pq7RtLw2ZxYv9NmK",
+      "leaseEpoch": 1,
+      "harnessType": "ClaudeCode",
+      "kind": "Tool",
+      "toolName": "Bash",
+      "toolCallId": "toolu_01JmH6x9",
+      "inputPreview": "{\"command\":\"git push origin main\",\"description\":\"Push the release branch\"}",
+      "summary": "git push origin main",
+      "suggestedRule": "Bash(git push:*)",
+      "status": "Pending",
+      "decision": null,
+      "decisionSource": null,
+      "ruleId": null,
+      "rulePattern": null,
+      "rememberedRuleId": null,
+      "decidedBy": null,
+      "decidedById": null,
+      "reason": null,
+      "timeoutDecision": "Deny",
+      "requestedUtc": "2026-10-11T21:04:03.502117Z",
+      "decidedUtc": null,
+      "expiresUtc": "2026-10-11T21:09:03.502117Z",
+      "waitMs": null,
+      "createdUtc": "2026-10-11T21:04:03.509871Z",
+      "lastUpdateUtc": "2026-10-11T21:04:03.509871Z"
+    }
+  ]
+}
+```
+
+#### `GET /v1.0/api/tenants/{tenantId}/approvals/{id}`
+
+Read an approval. Approvals of other tenants return 404.
+
+| | |
+|---|---|
+| Permission | Read on `Approval` |
+| Response | `Approval` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/approvals/{id}" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/approvals/{id}/decide`
+
+Allow or deny a pending approval. The waiting harness continues at once; a denial's `reason` is part of the message the harness receives. With `remember: true`, Garrison also adds a rule to the approval's deployment (an Allow rule for Allow, a Deny rule for Deny) with `rulePattern`, or the approval's `suggestedRule` when it is omitted; the deployment's configuration version goes up and the change is audited. Remember also needs Update on the deployment.
+
+| | |
+|---|---|
+| Permission | Update on `Approval` (and Update on `Deployment` with `remember`) |
+| Request body | `ApprovalDecideRequest`: `decision` (`Allow` or `Deny`, required), `reason` (optional, up to 4,000 characters), `remember` (default false), `rulePattern` (optional) |
+| Response | `Approval` |
+| Success | 200 |
+| Errors | 409 `ApprovalNotPending` when the approval was already decided, expired, or cancelled; 400 `ValidationFailed` for a missing decision or an invalid `rulePattern` |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/approvals/{id}/decide" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"decision": "Allow", "reason": "Release approved in the change ticket", "remember": false}'
+```
+
+Every decision a person makes writes an `ApprovalDecided` audit record.
+
+#### `POST /v1.0/api/tenants/{tenantId}/deployments/{deploymentId}/approval-check`
+
+Evaluate a deployment's approval rules against a sample tool call without recording anything, for testing rules. The `input` object uses the tool input field names (`command`, `cwd`, `url`, `file_path`, `notebook_path`, `path`, `paths`, `pattern`, `query`).
+
+| | |
+|---|---|
+| Permission | Read on `Deployment` |
+| Request body | `ApprovalCheckRequest`: `toolName`, `input` |
+| Response | `ApprovalCheckResponse`: `action` (`Allow`, `Deny`, `Ask`), `source` (`Rule` or `Default`), `ruleId`, `rulePattern`, `suggestedRule`, `approvalsEnabled` |
+| Success | 200 |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{deploymentId}/approval-check" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"toolName": "Bash", "input": {"command": "git status && rm -rf build"}}'
+```
+
+```json
+{
+  "action": "Deny",
+  "source": "Rule",
+  "ruleId": "dar_mv1a0c5g_4TzLq8WbNx2YvRkP",
+  "rulePattern": "Bash(rm:*)",
+  "suggestedRule": "Bash(git status:*)",
+  "approvalsEnabled": true
+}
 ```
 
 ### Analytics
@@ -3377,6 +3540,91 @@ Child record of Agent: a2A skills.
 | `name` | `string` | Skill name. |
 | `description` | `string?` | Skill description. |
 
+#### `Approval`
+
+A permission request relayed from a harness and its decision (P12.3). See [Approvals](#approvals).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`apr_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `runId` | `string` | Run that asked. |
+| `rootRunId` | `string?` | Root of the run's delegation tree, or null for a root run. |
+| `agentId` | `string` | Agent of the run. |
+| `agentName` | `string` | Agent name at request time. |
+| `deploymentId` | `string` | Deployment whose rules were evaluated. |
+| `leaseEpoch` | `long` | Lease epoch of the run attempt that asked. |
+| `harnessType` | `HarnessTypeEnum` | Harness type of the run. |
+| `kind` | `ApprovalKindEnum` | Where the request came from. |
+| `toolName` | `string` | Tool the rules were evaluated against (Codex commands are `Bash`, Codex file changes `Edit`). |
+| `toolCallId` | `string?` | The harness's tool call identifier. |
+| `inputPreview` | `string?` | Tool input JSON with secrets redacted, at most 4,000 characters. |
+| `summary` | `string?` | One-line summary (command, URL, paths, or query), redacted, at most 500 characters. |
+| `suggestedRule` | `string?` | A rule pattern covering the request, used by remember. |
+| `status` | `ApprovalStatusEnum` | State. |
+| `decision` | `ApprovalDecisionEnum?` | What the harness was told; null while pending. |
+| `decisionSource` | `ApprovalSourceEnum?` | Who or what decided; null while pending. |
+| `ruleId` | `string?` | Rule that matched. |
+| `rulePattern` | `string?` | Pattern of the rule that matched. |
+| `rememberedRuleId` | `string?` | Rule added by a decision with remember. |
+| `decidedBy` | `string?` | Name of the principal that decided, `rule ...`, `deployment default`, or `garrison`. |
+| `decidedById` | `string?` | User or credential identifier of the decider. |
+| `reason` | `string?` | Reason given with the decision, or the reason Garrison decided. |
+| `timeoutDecision` | `ApprovalDecisionEnum` | Decision applied on expiry. |
+| `requestedUtc` | `DateTime` | When the harness asked. |
+| `decidedUtc` | `DateTime?` | When it was decided. |
+| `expiresUtc` | `DateTime?` | When a pending approval expires. |
+| `waitMs` | `long?` | Milliseconds from request to decision. Computed. |
+| `createdUtc` | `DateTime` | Creation timestamp (UTC). |
+| `lastUpdateUtc` | `DateTime` | Last update timestamp (UTC). |
+
+#### `ApprovalStatusEnum`
+
+`Pending`, `Approved`, `Denied`, `Expired`, `Cancelled`
+
+#### `ApprovalDecisionEnum`
+
+`Allow`, `Deny`
+
+#### `ApprovalSourceEnum`
+
+`Rule`, `Default`, `User`, `Timeout`, `Cancelled`
+
+#### `ApprovalKindEnum`
+
+`Tool` (Claude Code permission prompt), `Command` (Codex app-server command approval), `FileChange` (Codex app-server file change approval)
+
+#### `ApprovalRuleActionEnum`
+
+`Allow`, `Deny`, `Ask`
+
+#### `ApprovalDecideRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `decision` | `ApprovalDecisionEnum` | `Allow` or `Deny`. Required. |
+| `reason` | `string?` | Optional reason, at most 4,000 characters. |
+| `remember` | `bool` | Also add a rule to the deployment. Default false. |
+| `rulePattern` | `string?` | Pattern of the remembered rule; null uses the approval's `suggestedRule`. |
+
+#### `ApprovalCheckRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `toolName` | `string` | Tool name. Required. |
+| `input` | `object?` | Tool input fields: `command`, `cwd`, `url`, `file_path`, `notebook_path`, `path`, `paths`, `pattern`, `query`. |
+
+#### `ApprovalCheckResponse`
+
+| Field | Type | Description |
+|---|---|---|
+| `action` | `ApprovalRuleActionEnum` | What the rules would do. |
+| `source` | `ApprovalSourceEnum` | `Rule` or `Default`. |
+| `ruleId` | `string?` | Matching rule. |
+| `rulePattern` | `string?` | Matching rule pattern. |
+| `suggestedRule` | `string?` | A rule pattern covering the request. |
+| `approvalsEnabled` | `bool` | Whether the deployment has approvals enabled. |
+
 #### `ArtifactStore`
 
 Where run artifacts are stored.
@@ -3465,7 +3713,7 @@ Security and configuration audit record.
 
 #### `AuditEventTypeEnum`
 
-`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`
+`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ApprovalDecided`
 
 #### `AuthSchemeEnum`
 
@@ -3795,6 +4043,10 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `podResources` | `RunPodResources` | Run pod requests and limits for KubernetesJob runs; ignored for Process runs. |
 | `workspaceTemplateId` | `string?` | Workspace template. |
 | `artifactStoreId` | `string?` | Artifact store. |
+| `approvalsEnabled` | `bool` | Relay permission requests to Garrison (Claude Code, Codex app-server). Default false. See [Deployment approval fields](#deployment-approval-fields). |
+| `approvalDefaultAction` | `ApprovalRuleActionEnum` | Action when no rule matches. Default `Ask`. |
+| `approvalTimeoutSeconds` | `int` | Seconds a pending approval waits. Minimum 10, maximum 3600, default 300. |
+| `approvalTimeoutDecision` | `ApprovalDecisionEnum` | Decision on expiry. Default `Deny`. |
 | `configVersion` | `int` | Configuration version, incremented on every change. |
 | `active` | `bool` | Whether the record is active. |
 | `isProtected` | `bool` | Whether the record is protected from deletion. |
@@ -3808,6 +4060,7 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `nodeSelector` | `List<DeploymentNodeSelector>` | Node label requirements. |
 | `parameters` | `List<DeploymentParameter>` | Named parameters exposed to templates as deployment.parameters. |
 | `allowedRunOverrides` | `List<DeploymentRunOverrideRule>` | Parameters callers may override per run. |
+| `approvalRules` | `List<DeploymentApprovalRule>` | Permission approval rules in order. |
 
 #### `DeploymentPromptBinding`
 
@@ -3902,6 +4155,17 @@ Child record of Deployment: named parameters exposed to templates as deployment.
 | `deploymentId` | `string` | Parent Deployment identifier. |
 | `name` | `string` | Parameter name. |
 | `value` | `string` | Default value. |
+
+#### `DeploymentApprovalRule`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`dar_`), stable across deployment updates. |
+| `deploymentId` | `string` | Owning deployment. |
+| `action` | `ApprovalRuleActionEnum` | `Allow`, `Deny`, or `Ask`. Default `Ask`. |
+| `pattern` | `string` | Claude Code rule syntax, for example `Bash(git status:*)` or `mcp__github__*`. Required, one line, at most 1,000 characters. |
+| `inputPattern` | `string?` | Regular expression the tool input JSON must also match. |
+| `description` | `string?` | Note shown in the dashboard. |
 
 #### `DeploymentRunOverrideRule`
 
@@ -4532,6 +4796,9 @@ One invocation of one deployment.
 | `blockedReason` | `RunBlockedReasonEnum?` | Read-only and computed on read: why the queued run cannot be handed to any worker right now, or `null`. Always present. See [Blocked runs](#blocked-runs-blockedreason). |
 | `delegationWaitMs` | `long?` | Milliseconds spent waiting on child runs this run delegated to, from server timestamps; 0 when it delegated nothing. See [Run timing and usage fields](#run-timing-and-usage-fields). |
 | `timeToFirstTokenExcludingDelegationMs` | `long?` | `timeToFirstTokenMs` minus the delegation wait before the first output, never negative. |
+| `pendingApprovals` | `int` | Permission approvals of the run waiting for a person. Read-only. |
+| `awaitingApproval` | `bool` | Whether the harness is blocked on an approval (`pendingApprovals` above 0). The run stays `Running`; this is a substatus. Computed and always present. |
+| `approvalWaitMs` | `long?` | Total milliseconds spent waiting for approvals decided by a person or by the timeout. |
 | `active` | `bool` | Whether the record is active. |
 | `isProtected` | `bool` | Whether the record is protected from deletion. |
 | `createdUtc` | `DateTime` | Creation timestamp (UTC). |

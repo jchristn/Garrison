@@ -8,7 +8,9 @@ Example:
     print(run["status"], run.get("resultText"))
 """
 
-from .client import GarrisonClient, GarrisonError, RUN_EXECUTORS, SECRET_STATUSES, TERMINAL_STATUSES
+from .client import (APPROVAL_DECISIONS, APPROVAL_KINDS, APPROVAL_RULE_ACTIONS, APPROVAL_SOURCES, APPROVAL_STATUSES,
+                     GarrisonClient, GarrisonError, RUN_EXECUTORS, SECRET_STATUSES, TERMINAL_STATUSES)
 
-__all__ = ["GarrisonClient", "GarrisonError", "RUN_EXECUTORS", "SECRET_STATUSES", "TERMINAL_STATUSES"]
+__all__ = ["APPROVAL_DECISIONS", "APPROVAL_KINDS", "APPROVAL_RULE_ACTIONS", "APPROVAL_SOURCES", "APPROVAL_STATUSES",
+           "GarrisonClient", "GarrisonError", "RUN_EXECUTORS", "SECRET_STATUSES", "TERMINAL_STATUSES"]
 __version__ = "0.1.0-alpha"

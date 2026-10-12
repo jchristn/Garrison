@@ -34,6 +34,10 @@ import { useGrafana } from '../hooks/useServerInfo';
 import { traceUrl, logsUrl } from '../utils/grafana';
 import RunGuardNotice from '../components/RunGuardNotice';
 import { guardOutcome } from '../utils/runGuards';
+import RunApprovals from '../components/RunApprovals';
+import ApprovalDecideModal from '../components/ApprovalDecideModal';
+import { AwaitingApprovalBadge } from '../components/ApprovalBadges';
+import { errorDetail } from '../utils/errors';
 
 function Detail({ label, tip: tipText, children }) {
   return (
@@ -84,6 +88,10 @@ export default function RunDetailView({ recordId }) {
   const [live, setLive] = useState(false);
   const [deployment, setDeployment] = useState(null);
   const [agentState, setAgentState] = useState(null);
+  const [approvals, setApprovals] = useState([]);
+  const [approvalsLoading, setApprovalsLoading] = useState(false);
+  const [approvalsError, setApprovalsError] = useState(null);
+  const [deciding, setDeciding] = useState(null);
   const lastSeq = useRef(0);
   const grafana = useGrafana();
 
@@ -135,6 +143,25 @@ export default function RunDetailView({ recordId }) {
   }, [apiClient, tenantId, recordId, loadRun, pollEvents]);
 
   const terminal = run && TERMINAL_RUN_STATUSES.includes(run.status);
+
+  // Permission approvals of this run (P12.3), reloaded whenever the run's pending count or status changes.
+  const loadApprovals = useCallback(() => {
+    if (!apiClient || !recordId) return;
+    setApprovalsLoading(true);
+    apiClient
+      .listApprovals(tenantId, { runId: recordId, pageNumber: 1, pageSize: 100 })
+      .then((r) => {
+        setApprovals(r.items || []);
+        setApprovalsError(null);
+      })
+      .catch((e) => setApprovalsError(`${errorMessage(t, e)} ${errorDetail(t, e)}`.trim()))
+      .finally(() => setApprovalsLoading(false));
+  }, [apiClient, tenantId, recordId, t]);
+  const pendingApprovals = run?.pendingApprovals ?? 0;
+  const runStatus = run?.status;
+  useEffect(() => {
+    if (runStatus) loadApprovals();
+  }, [loadApprovals, pendingApprovals, runStatus]);
 
   // Names for the deployment and agent (M1-20), and whether the agent still exists so Retry can explain itself (M1-22).
   const deploymentId = run?.deploymentId;
@@ -227,7 +254,7 @@ export default function RunDetailView({ recordId }) {
         title={t('views.runDetail.titleWithAgent', { agent: run.agentName })}
         subtitle={
           <span className="inline-meta">
-            <CopyableId value={run.id} max={40} /> <RunStatus status={run.status} t={t} /> <BlockedBadge run={run} t={t} /> {live && <span className="pill pill-info" {...tip(t('tips.views.runDetail.live'))}>{t('topbar.live')}</span>}
+            <CopyableId value={run.id} max={40} /> <RunStatus status={run.status} t={t} /> <BlockedBadge run={run} t={t} /> <AwaitingApprovalBadge run={run} t={t} /> {live && <span className="pill pill-info" {...tip(t('tips.views.runDetail.live'))}>{t('topbar.live')}</span>}
           </span>
         }
         actions={
@@ -252,6 +279,14 @@ export default function RunDetailView({ recordId }) {
       />
 
       <BlockedRunNotice run={run} />
+      {run.awaitingApproval && (
+        <div className="warning-banner" role="status" data-testid="awaiting-approval">
+          <span>{t('views.runDetail.awaitingApproval', { count: run.pendingApprovals || 1 })}</span>
+          <button type="button" className="button-secondary button-sm" onClick={() => setTab('approvals')} {...tip(t('tips.views.runDetail.reviewApprovals'))}>
+            {t('views.runDetail.reviewApprovals')}
+          </button>
+        </div>
+      )}
       <RunGuardNotice run={run} detailed deploymentName={run.deploymentName || deployment?.name || null} />
       {retryBlocked && terminal && (
         <div className="info-banner" role="note" data-testid="agent-deleted">
@@ -319,7 +354,8 @@ export default function RunDetailView({ recordId }) {
           { id: 'result', label: t('views.runDetail.result'), tip: t('tips.views.runDetail.tabs.result') },
           { id: 'input', label: t('views.runDetail.input'), tip: t('tips.views.runDetail.tabs.input') },
           { id: 'stderr', label: t('views.runDetail.stderr'), tip: t('tips.views.runDetail.tabs.stderr') },
-          { id: 'children', label: t('views.runDetail.children', { count: children.length }), tip: t('tips.views.runDetail.tabs.children') }
+          { id: 'children', label: t('views.runDetail.children', { count: children.length }), tip: t('tips.views.runDetail.tabs.children') },
+          { id: 'approvals', label: t('views.runDetail.approvals', { count: approvals.length }), tip: t('tips.views.runDetail.tabs.approvals') }
         ]}
       />
 
@@ -396,8 +432,21 @@ export default function RunDetailView({ recordId }) {
               ))}
             </ul>
           ))}
+        {tab === 'approvals' && <RunApprovals approvals={approvals} loading={approvalsLoading} error={approvalsError} onDecide={(approval, decision) => setDeciding({ approval, decision })} />}
       </div>
 
+      {deciding && (
+        <ApprovalDecideModal
+          approval={deciding.approval}
+          initialDecision={deciding.decision}
+          onClose={() => setDeciding(null)}
+          onDecided={() => {
+            setDeciding(null);
+            loadApprovals();
+            loadRun();
+          }}
+        />
+      )}
       <ConfirmModal open={confirmCancel} danger title={t('resources.runs.actions.cancel')} message={t('views.runDetail.confirmCancel')} confirmLabel={t('resources.runs.actions.cancel')} confirmTip={t('tips.resources.runs.actions.cancel')} onConfirm={cancel} onCancel={() => setConfirmCancel(false)} />
       <JsonViewerModal open={jsonOpen} value={run} onClose={() => setJsonOpen(false)} />
     </div>

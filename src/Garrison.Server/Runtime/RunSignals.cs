@@ -111,6 +111,29 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Subscribe to changes of a permission approval (P12.3).
+        /// </summary>
+        /// <param name="approvalId">Approval identifier.</param>
+        /// <returns>Subscription; dispose to release.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when approvalId is null or empty.</exception>
+        public RunSignalSubscription SubscribeApproval(string approvalId)
+        {
+            if (String.IsNullOrEmpty(approvalId)) throw new ArgumentNullException(nameof(approvalId));
+            return Subscribe(ApprovalSubject(approvalId));
+        }
+
+        /// <summary>
+        /// Signal that a permission approval was created or decided, here and on every other replica.
+        /// </summary>
+        /// <param name="approvalId">Approval identifier; null or empty is ignored.</param>
+        public void NotifyApproval(string? approvalId)
+        {
+            if (String.IsNullOrEmpty(approvalId)) return;
+            SignalLocal(ApprovalSubject(approvalId));
+            Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.ApprovalChanged, approvalId));
+        }
+
+        /// <summary>
         /// A run finished: wake its waiters here and on other replicas.
         /// </summary>
         /// <param name="runId">Run identifier.</param>
@@ -145,6 +168,9 @@ namespace Garrison.Server.Runtime
                     break;
                 case BackplaneMessageKindEnum.QueueChanged:
                     QueueChanged.Signal();
+                    break;
+                case BackplaneMessageKindEnum.ApprovalChanged:
+                    if (!String.IsNullOrEmpty(message.Subject)) SignalLocal(ApprovalSubject(message.Subject!));
                     break;
             }
         }
@@ -181,6 +207,11 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private static string ApprovalSubject(string approvalId)
+        {
+            return "approval:" + approvalId;
+        }
 
         private static string NodeSubject(string nodeId)
         {

@@ -22,6 +22,14 @@ RUN_EXECUTORS = ("Process", "KubernetesJob")
 # token reused, expired, or revoked); runs that bind it fail with outcome NotCredentialed until the value is replaced.
 SECRET_STATUSES = ("Ok", "NeedsReauthentication")
 
+# Permission approvals. Approval["status"], ["decision"] and ["timeoutDecision"], ["decisionSource"], and ["kind"];
+# deployment "approvalDefaultAction" and approval rule "action" take APPROVAL_RULE_ACTIONS.
+APPROVAL_STATUSES = ("Pending", "Approved", "Denied", "Expired", "Cancelled")
+APPROVAL_DECISIONS = ("Allow", "Deny")
+APPROVAL_SOURCES = ("Rule", "Default", "User", "Timeout", "Cancelled")
+APPROVAL_RULE_ACTIONS = ("Allow", "Deny", "Ask")
+APPROVAL_KINDS = ("Tool", "Command", "FileChange")
+
 
 class GarrisonError(Exception):
     """Raised when the API returns a non-success status. Carries the parsed error body when present."""
@@ -387,6 +395,45 @@ class Runs:
             time.sleep(poll_interval)
 
 
+class Approvals:
+    """Permission approvals: list, read, decide, and evaluate a deployment's approval rules (approval check)."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def list(self, status: Optional[str] = None, run_id: Optional[str] = None, root_run_id: Optional[str] = None,
+             agent_id: Optional[str] = None, deployment_id: Optional[str] = None, decision_source: Optional[str] = None,
+             from_utc: Optional[datetime] = None, to_utc: Optional[datetime] = None, max_results: Optional[int] = None,
+             skip: Optional[int] = None, ordering: Optional[str] = None) -> Dict[str, Any]:
+        """GET /v1.0/api/tenants/{tenantId}/approvals. status is one of APPROVAL_STATUSES, decision_source one of
+        APPROVAL_SOURCES. For a pending count, pass status="Pending", max_results=1 and read totalRecords."""
+        return self._t.request("GET", self._t.tenant_path("/approvals"), {
+            "status": status, "runId": run_id, "rootRunId": root_run_id, "agentId": agent_id,
+            "deploymentId": deployment_id, "decisionSource": decision_source, "fromUtc": from_utc, "toUtc": to_utc,
+            "maxResults": max_results, "skip": skip, "ordering": ordering})
+
+    def get(self, id: str) -> Dict[str, Any]:
+        return self._t.request("GET", self._t.tenant_path(f"/approvals/{_seg(id)}"))
+
+    def decide(self, id: str, decision: str, reason: Optional[str] = None, remember: bool = False,
+               rule_pattern: Optional[str] = None) -> Dict[str, Any]:
+        """Decide a pending approval: decision is "Allow" or "Deny". remember=True also adds a matching rule to the
+        approval's deployment (rule_pattern, or the approval's suggestedRule) and needs Update on that deployment.
+        Raises GarrisonError (409, code ApprovalNotPending) when the approval was already decided."""
+        body = {"decision": decision, "reason": reason, "remember": remember, "rulePattern": rule_pattern}
+        return self._t.request("POST", self._t.tenant_path(f"/approvals/{_seg(id)}/decide"),
+                               body={k: v for k, v in body.items() if v is not None})
+
+    def check(self, deployment_id: str, tool_name: str, input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Evaluate a deployment's approval rules against a sample tool call without recording anything. input uses
+        Claude Code tool input names (command, cwd, url, file_path, notebook_path, path, paths, pattern, query).
+        Returns {action, source, ruleId, rulePattern, suggestedRule, approvalsEnabled}."""
+        body: Dict[str, Any] = {"toolName": tool_name}
+        if input is not None:
+            body["input"] = input
+        return self._t.request("POST", self._t.tenant_path(f"/deployments/{_seg(deployment_id)}/approval-check"), body=body)
+
+
 class Analytics:
     """Tenant analytics. Responses are dictionaries with the server's camelCase field names."""
 
@@ -560,6 +607,7 @@ class GarrisonClient:
         self.artifact_stores = Resource(t, "artifact-stores")
         self.manifests = Manifests(t)
         self.runs = Runs(t)
+        self.approvals = Approvals(t)
         self.analytics = Analytics(t)
         self.nodes = Nodes(t, "/v1.0/api/nodes")
         self.control_nodes = ControlNodes(t)

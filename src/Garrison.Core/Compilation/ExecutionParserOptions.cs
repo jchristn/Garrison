@@ -28,5 +28,12 @@ namespace Garrison.Core.Compilation
         /// Success field value meaning success.
         /// </summary>
         public string? SuccessValue { get; set; } = null;
+
+        /// <summary>
+        /// Whether the worker relays the harness's approval requests to Garrison (P12.3). When false, the Codex app-server
+        /// parser notes that a headless run declines approval requests; when true, approvals appear as run events the
+        /// worker records from the control plane instead.
+        /// </summary>
+        public bool ApprovalsRelayed { get; set; } = false;
     }
 }

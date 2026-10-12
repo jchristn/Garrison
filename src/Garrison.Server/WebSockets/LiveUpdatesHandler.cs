@@ -210,8 +210,13 @@ namespace Garrison.Server.WebSockets
                 return nodes.Permitted ? null : nodes.Reason;
             }
             if (String.IsNullOrEmpty(ctx.TenantId)) return "Subscriptions to runs require a tenant-bound session.";
+            if (channel == "approvals")
+            {
+                AuthorizationDecision approvals = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Approval, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                return approvals.Permitted ? null : approvals.Reason;
+            }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, approvals, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -231,6 +236,7 @@ namespace Garrison.Server.WebSockets
                         {
                             if (subscription.Key == "runs") await PumpRunsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "nodes") await PumpNodesAsync(session, subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key == "approvals") await PumpApprovalsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
                         }
                     }
@@ -249,12 +255,27 @@ namespace Garrison.Server.WebSockets
             filter.TenantId = ctx.TenantId;
             filter.MaxResults = 25;
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, token).ConfigureAwait(false);
-            string fingerprint = String.Join("|", page.Objects.Select(r => r.Id + ":" + r.Status + ":" + r.LastEventSequence));
+            string fingerprint = String.Join("|", page.Objects.Select(r => r.Id + ":" + r.Status + ":" + r.LastEventSequence + ":" + r.PendingApprovals));
             await _Blocked.AnnotateManyAsync(page.Objects, token).ConfigureAwait(false);
             fingerprint += "|" + String.Join(",", page.Objects.Where(r => r.BlockedReason != null).Select(r => r.Id + ":" + r.BlockedReason));
             if (fingerprint == state.Fingerprint) return;
             state.Fingerprint = fingerprint;
             await SendAsync(session, sendLock, new { type = "runs.changed", runs = page.Objects }, token).ConfigureAwait(false);
+        }
+
+        private async Task PumpApprovalsAsync(WebSocketSession session, RequestContext ctx, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            // Pending permission approvals of the tenant (P12.3): pushed whenever the set changes, so an inbox or a hook can
+            // react without polling REST.
+            ApprovalFilter filter = new ApprovalFilter();
+            filter.TenantId = ctx.TenantId;
+            filter.Status = ApprovalStatusEnum.Pending;
+            filter.MaxResults = 100;
+            EnumerationResult<Approval> page = await _Context.Database.Approvals.EnumerateAsync(filter, token).ConfigureAwait(false);
+            string fingerprint = page.TotalRecords + "|" + String.Join("|", page.Objects.Select(a => a.Id));
+            if (fingerprint == state.Fingerprint) return;
+            state.Fingerprint = fingerprint;
+            await SendAsync(session, sendLock, new { type = "approvals.changed", pending = page.TotalRecords, approvals = page.Objects }, token).ConfigureAwait(false);
         }
 
         private async Task PumpNodesAsync(WebSocketSession session, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
@@ -278,7 +299,7 @@ namespace Garrison.Server.WebSockets
                 await SendAsync(session, sendLock, new { type = "run.event", runId = run.Id, @event = evt }, token).ConfigureAwait(false);
                 state.LastSequence = evt.Sequence;
             }
-            string status = run.Status.ToString();
+            string status = run.Status + ":" + run.PendingApprovals;
             if (status != state.Fingerprint)
             {
                 state.Fingerprint = status;

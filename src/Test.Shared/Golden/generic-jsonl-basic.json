@@ -28,7 +28,8 @@
       "textField": "text",
       "finalField": "result",
       "successField": "type",
-      "successValue": "result"
+      "successValue": "result",
+      "approvalsRelayed": false
     },
     "resultSource": "ParserFinalEvent",
     "successPolicy": "FinalEventAndExitCode",

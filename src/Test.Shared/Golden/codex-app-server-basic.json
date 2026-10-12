@@ -49,7 +49,9 @@
       "retention": "Delete"
     },
     "parser": "CodexAppServer",
-    "parserOptions": {},
+    "parserOptions": {
+      "approvalsRelayed": false
+    },
     "resultSource": "ParserFinalEvent",
     "successPolicy": "FinalEvent",
     "successExitCodes": [

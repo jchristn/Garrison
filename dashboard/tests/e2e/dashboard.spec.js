@@ -54,7 +54,8 @@ test('sidebar shows the consolidated hubs', async ({ page }) => {
   await login(page);
   const items = page.locator('.sidebar-item');
   await expect(items).toHaveCount(HUBS.length);
-  expect(HUBS.length).toBeLessThanOrEqual(10);
+  // Ten consolidated hubs plus the Approvals inbox (P12.3), which needs its own item for the pending badge.
+  expect(HUBS.length).toBeLessThanOrEqual(11);
   await expect(page.locator('.sidebar-group-label')).toHaveText(['Operate', 'Platform', 'Administration']);
 });
 

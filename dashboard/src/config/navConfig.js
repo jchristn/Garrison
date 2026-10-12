@@ -11,6 +11,7 @@
 //   hub:     { key (i18n nav.hubs.<key>.label/.tip, data-nav), slug, icon (name in components/Icons),
 //              page? (standalone page id), tabs? (array of pages) }
 //   page:    { id (view id and i18n nav.items.<id>), slug (URL segment and tab key), requires?, detail? }
+//   A standalone page with `detail: true` also owns `/dashboard/<slug>/<id>` (for example an approval).
 //
 // requires: undefined (everyone), 'admin' (system or tenant admin), 'systemAdmin'.
 // Client-side gating is UX only; the server enforces authorization.
@@ -34,6 +35,8 @@ export const NAV_SECTIONS = [
           { id: 'queue', slug: 'queue' }
         ]
       },
+      // Permission approvals (P12.3): the inbox of tool calls waiting for a person, with a pending-count badge.
+      { key: 'approvals', slug: 'approvals', icon: 'ShieldCheckIcon', page: { id: 'approvals', slug: 'approvals', detail: true } },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },
       {
         key: 'agents',

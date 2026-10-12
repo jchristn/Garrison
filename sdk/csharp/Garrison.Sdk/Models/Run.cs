@@ -406,6 +406,34 @@ namespace Garrison.Sdk.Models
         public RunBlockedReasonEnum? BlockedReason { get; set; } = null;
 
         /// <summary>
+        /// Read-only: permission approvals of this run waiting for a person. While it is above zero the run keeps its
+        /// status (Running) and its worker slot, and <see cref="AwaitingApproval"/> is true. Minimum 0.
+        /// </summary>
+        public int PendingApprovals
+        {
+            get
+            {
+                return _PendingApprovals;
+            }
+            set
+            {
+                _PendingApprovals = Math.Max(0, value);
+            }
+        }
+
+        /// <summary>
+        /// Read-only, computed by the server: whether the run's harness is blocked on a permission approval
+        /// (PendingApprovals above zero). A substatus of Running, not a status.
+        /// </summary>
+        public bool AwaitingApproval { get; set; } = false;
+
+        /// <summary>
+        /// Total milliseconds the run spent waiting for approvals a person decided or that expired, or null when it
+        /// never waited. Rule decisions add nothing.
+        /// </summary>
+        public long? ApprovalWaitMs { get; set; } = null;
+
+        /// <summary>
         /// Whether the record is active.
         /// </summary>
         public bool Active { get; set; } = true;
@@ -500,6 +528,7 @@ namespace Garrison.Sdk.Models
         private string _AgentName = String.Empty;
         private string _DeploymentId = String.Empty;
         private int _Priority = 0;
+        private int _PendingApprovals = 0;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<RunParameter> _Parameters = new List<RunParameter>();

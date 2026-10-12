@@ -38,16 +38,20 @@ Built-in profiles cannot be edited. Clone one (`POST .../harness-profiles/{id}/c
 
 ```text
 claude -p --output-format stream-json --verbose [--include-partial-messages] --setting-sources "" --disable-slash-commands
-       --permission-mode <permissionMode, default acceptEdits>
+       --permission-mode <permissionMode, default acceptEdits; default with approvals>
+       [--permission-prompt-tool mcp__garrison__garrison_permission_prompt]   (approvals enabled)
        [--system-prompt-file $GARRISON_CONFIG_DIR/system-prompt.md]
        [--model <model>] [--fallback-model <fallbackModel>] [--effort <effort>]
        --max-turns <maxTurns, default 20> [--max-budget-usd <maxBudgetUsd>]
        [--mcp-config $GARRISON_CONFIG_DIR/mcp.json] --strict-mcp-config
-       --allowedTools <allowedTools, default Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,mcp__garrison>
+       --allowedTools <allowedTools, default Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,mcp__garrison;
+                       mcp__garrison with approvals>
        [--json-schema <agent output schema>] [--resume <session>]
 ```
 
 `--setting-sources ""` and `--strict-mcp-config` keep the harness from picking up user settings or MCP servers that happen to exist on the worker. Credentials come from a secret of kind `AnthropicApiKey` (as `ANTHROPIC_API_KEY`) or `ClaudeCodeOAuthToken` (as `CLAUDE_CODE_OAUTH_TOKEN`). Deployment parameters: `permissionMode`, `allowedTools`, `anthropicBaseUrl`, `mcpToolTimeoutMs` (default 600000), and `disablePartialMessages`.
+
+With `approvalsEnabled` on the deployment (see [Permission approvals](#permission-approvals)), the profile adds `--permission-prompt-tool`, switches the default permission mode to `default` and the default allowed tools to `mcp__garrison` (so every tool that needs permission goes through Garrison), and raises `MCP_TOOL_TIMEOUT` to cover the approval timeout. Setting `permissionMode` or `allowedTools` still wins: tools you pre-allow there never reach the approval rules.
 
 `--include-partial-messages` makes Claude Code print text as it is generated, so runs stream token by token in Invoke and over SSE. Each chunk becomes an `AssistantText` event. Set `disablePartialMessages` to `true` on a deployment to drop the flag, which reduces the number of stored events; text then arrives one message at a time.
 
@@ -95,7 +99,7 @@ This profile uses the prompt delivery mode `CodexAppServer`. Instead of writing 
 
 1. `initialize`, then the `initialized` notification.
 2. `account/login/start` with the API key, when the deployment binds an `OpenAiApiKey` secret. The app-server does not read `CODEX_API_KEY` or `OPENAI_API_KEY` from its environment the way `codex exec` does, so the worker logs in with the value of the first of those two variables that is set. A `CodexAuthJson` login needs no step: it is the same `$HOME/.codex/auth.json` (without its refresh token) and the same closed `CODEX_REFRESH_TOKEN_URL_OVERRIDE` as for `builtin/codex`.
-3. `thread/start` with the workspace as `cwd` and approval policy `never`, or `thread/resume` with the saved thread ID for a structured output repair.
+3. `thread/start` with the workspace as `cwd` and approval policy `never` (`untrusted` when the deployment has approvals enabled, or the `codexApprovalPolicy` parameter), or `thread/resume` with the saved thread ID for a structured output repair.
 4. `turn/start` with the prompt as one text input and the agent's output schema, if it has one, as `outputSchema`.
 5. When `turn/completed` arrives, the worker closes stdin and the app-server exits.
 
@@ -113,11 +117,11 @@ The `CodexAppServer` parser reads the same stdout:
 | `error` | `Warning` when Codex will retry, `Error` when it will not |
 | an error response to one of the worker's requests | `Error` and a failed run (for example `thread/resume` for a thread that no longer exists) |
 | `mcpServer/startupStatus/updated` with status `failed` | `Warning`; the run fails when the server is required |
-| an approval or elicitation request | `Warning`; the worker declines it |
+| an approval or elicitation request | `Warning`; the worker declines it (no warning for approvals the worker relays to Garrison) |
 
 Deltas go through the same event path as every other event (D-034 in `GARRISON_PLAN.md`): the worker reports them, the control plane stores them, and live readers tail the database. There is no separate broadcast path for raw deltas.
 
-Requests from the app-server get headless answers: command and file change approvals are declined, MCP elicitations are declined, and everything else (including `account/chatgptAuthTokens/refresh`, since the control plane owns token refresh) gets a JSON-RPC error. With approval policy `never` Codex should not ask in the first place.
+Requests from the app-server get headless answers: command and file change approvals are declined unless the deployment has approvals enabled (then the worker relays them, see [Permission approvals](#permission-approvals)), MCP elicitations are declined, and everything else (including `account/chatgptAuthTokens/refresh`, since the control plane owns token refresh) gets a JSON-RPC error. With approval policy `never` Codex should not ask in the first place.
 
 Differences from `builtin/codex`: the app-server has no `--ignore-user-config`, so the profile relies on `isolateHome` (each run gets its own `CODEX_HOME`); a clone with `isolateHome` turned off would read the worker's own Codex configuration. Model, sandbox, and effort are `-c` overrides instead of flags. The app-server is marked experimental in Codex 0.159.3, which is why `builtin/codex` still uses `codex exec` and this profile is opt-in: point a deployment's `harnessProfile` at `builtin/codex-app-server` to use it. The driver (`CodexAppServerDriver` in `Garrison.Harnesses`) exposes the handshake, thread start or resume, and each turn as separate steps, so multi-turn conversations (P12.1) can reuse it.
 
@@ -264,6 +268,7 @@ Every string in a profile is rendered with the Garrison template language (see `
 | `resources` | `mcpServers`, `httpMcpServers`, `stdioMcpServers` (each with `name`, `transport`, `endpoint`, `url`, `path`, `command`, `args`, `required`, `requiredTools`, `toolTimeoutSeconds`, `toolTimeoutMs`, `headers`, `env`, `bearerEnvName`, `bearerEnvRef`), `hasMcpServers`, `mcpServerNames`, `workspace` |
 | `secret` | Bound secrets by alias (`secret.anthropic`), and the first bound secret of each kind (`secret.kind.AnthropicApiKey`) |
 | `garrison` | `mcpUrl`, `apiUrl`, `version`, `mcpServerName`, `delegationEnabled` |
+| `approval` | `enabled` (the deployment has approvals on and the run has a token), `promptTool` (`mcp__garrison__garrison_permission_prompt` when enabled), `timeoutSeconds`, `mcpToolTimeoutMs` (600000, or the approval timeout plus two minutes when that is longer) |
 | `harness` | `type`, `profile`, `model`, `nativeSchema` (whether the harness enforces output schemas itself) |
 | `now` | Compile time (UTC) |
 
@@ -298,8 +303,24 @@ A deployment binds one agent to one profile and adjusts it without touching the 
 | `nodeSelector`, `nodePoolId` | Labels and pool a worker must have |
 | `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | Concurrency, retries, and traffic split among an agent's deployments |
 | `executor`, `podResources` | Run as a worker subprocess (`Process`) or in a pod per run (`KubernetesJob`) with these requests and limits; see `docs/KUBERNETES.md`, "Pod-per-run executor" |
+| `approvalsEnabled`, `approvalDefaultAction`, `approvalTimeoutSeconds`, `approvalTimeoutDecision`, `approvalRules` | Permission approvals; see [Permission approvals](#permission-approvals) |
 
 New deployments get the default prompt bindings (`builtin/default-system`, `builtin/default-task`, `builtin/delegated-task`) for any role you do not bind. `POST .../deployments/{id}/compile-preview` shows the exact `ExecutionSpec` a run would get, with secrets masked, and is the quickest way to check an override.
+
+## Permission approvals
+
+A deployment with `approvalsEnabled` relays its harness's permission requests to Garrison (P12.3). Each request is checked against the deployment's `approvalRules` (Claude Code rule syntax; Deny beats Ask, Ask beats Allow); Allow and Deny answer at once, and Ask waits for a person in the approvals inbox, REST (`POST .../approvals/{id}/decide`), or MCP (`garrison_decide_approval`). While it waits the run stays `Running` with `awaitingApproval` set and keeps its worker slot; the wait ends with the decision, with `approvalTimeoutDecision` after `approvalTimeoutSeconds`, or with a denial when the run is cancelled or stops. Every request, including the ones rules decide, is recorded as an `Approval`, and the worker writes `ApprovalRequested` and `ApprovalDecided` events into the run's timeline. See `REST_API.md`, "Approvals".
+
+| Harness | Supported | How |
+|---|---|---|
+| Claude Code (`builtin/claude-code`) | Yes | `--permission-prompt-tool mcp__garrison__garrison_permission_prompt`; Claude calls the tool with the run token through the `garrison` MCP server, which the run gets whenever approvals are on |
+| Codex with `CodexAppServer` delivery (`builtin/codex-app-server`) | Yes | Approval policy `untrusted`; the worker answers `item/commandExecution/requestApproval` (evaluated as `Bash` with `command` and `cwd`) and `item/fileChange/requestApproval` (evaluated as `Edit` with the changed paths) by calling `garrison_permission_prompt` with the run token. MCP elicitations and `item/permissions/requestApproval` stay declined. |
+| `codex exec` (`builtin/codex`) | No | `codex exec` has no way to ask a client; use `builtin/codex-app-server` |
+| Mux, Gemini CLI, generic profiles | No | No approval hook; a deployment that turns approvals on for them is rejected |
+
+Because Codex requests are evaluated as `Bash` and `Edit`, one set of rules covers both harnesses. The worker relays through the run token rather than its node credentials, so it works the same from run pods (`KubernetesJob`), which have no node credentials, and an attempt that lost its lease cannot ask (the token is fenced by its lease epoch).
+
+A custom Claude Code profile opts in with the `approval.*` template variables, for example the arguments `--permission-prompt-tool` and `{{approval.promptTool}}`, each with the condition `{{approval.enabled}}`.
 
 ## On the worker
 

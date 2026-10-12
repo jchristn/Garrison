@@ -65,9 +65,21 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `approvals`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
+
+## Permission approvals
+
+When a deployment has `approvalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `approvalRules` (`DeploymentApprovalRule`: `action`, a `pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, optional `inputPattern`, and `description`) decide each request, and `approvalDefaultAction` (`ApprovalRuleAction`: `Allow`, `Deny`, `Ask`) covers requests no rule matches. `Ask` sends the request to a person, who has `approvalTimeoutSeconds` (10 to 3600, default 300) before `approvalTimeoutDecision` applies.
+
+```ts
+const pending = await client.approvals.list({ status: "Pending" });
+const decided = await client.approvals.decide(pending.objects[0].id, { decision: "Allow", reason: "Looks safe", remember: true });
+const result = await client.approvals.check(deploymentId, { toolName: "Bash", input: { command: "git status --short" } });
+```
+
+`approvals.list` takes an `ApprovalFilter` (`status`, `runId`, `rootRunId`, `agentId`, `deploymentId`, `decisionSource`, `fromUtc`, `toUtc`); for a pending count, pass `{ status: "Pending", maxResults: 1 }` and read `totalRecords`. `approvals.get` rejects with `GarrisonError` (404) for an approval outside the tenant. `approvals.decide` rejects with 409 (`ApprovalNotPending`) when the approval was already decided, and `remember` needs Update on the approval's deployment. `approvals.check` records nothing and resolves to an `ApprovalCheckResponse` (`action`, `source`, `ruleId`, `rulePattern`, `suggestedRule`, `approvalsEnabled`); its input uses Claude Code tool input names (`file_path`, `notebook_path`). `Approval` is typed, and `Run` has `pendingApprovals`, `awaitingApproval` (the run stays `Running` while it waits), and `approvalWaitMs`.
 
 ## Streaming run events
 

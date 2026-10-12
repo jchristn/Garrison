@@ -1,4 +1,4 @@
-// ResourceView configurations for runs, worker nodes, control nodes, and audit records.
+// ResourceView configurations for runs, permission approvals, worker nodes, control nodes, and audit records.
 
 import CopyableId from '../components/CopyableId';
 import { Badge } from '../components/StatusBadge';
@@ -13,6 +13,10 @@ import { enumLabel } from '../utils/enums';
 import { runTelemetry, formatMs, formatCount, formatRate, formatUsd } from '../utils/telemetry';
 import { BlockedBadge } from '../components/BlockedRun';
 import { tip } from '../components/Tooltip';
+import NamedId from '../components/NamedId';
+import ApprovalDecideModal from '../components/ApprovalDecideModal';
+import { ApprovalStatusBadge, ApprovalDecisionBadge, AwaitingApprovalBadge } from '../components/ApprovalBadges';
+import { truncate } from '../i18n/formatters';
 
 function col(id, t, key, render, extra = {}) {
   return { key, label: t(`resources.${id}.columns.${key}`), tip: resourceTip(t, id, key), render, ...extra };
@@ -72,6 +76,7 @@ export const runsConfig = {
       <>
         <RunStatus status={r.status} t={t} />
         <BlockedBadge run={r} t={t} />
+        <AwaitingApprovalBadge run={r} t={t} />
       </>
     ), { sortable: true, serverSort: false, csv: (r) => (r.blockedReason && r.status === 'Queued' ? `${r.status} (${r.blockedReason})` : r.status) }),
     col('runs', t, 'outcome', (r) =>
@@ -82,6 +87,7 @@ export const runsConfig = {
     telemetryCol(t, i18n, 'timeToFirstTokenMs', formatMs),
     telemetryCol(t, i18n, 'timeToFirstTokenExcludingDelegationMs', formatMs, { defaultHidden: true }),
     telemetryCol(t, i18n, 'delegationWaitMs', formatMs, { defaultHidden: true }),
+    telemetryCol(t, i18n, 'approvalWaitMs', formatMs, { defaultHidden: true }),
     telemetryCol(t, i18n, 'streamingMs', formatMs, { defaultHidden: true }),
     telemetryCol(t, i18n, 'executionMs', formatMs),
     telemetryCol(t, i18n, 'queueMs', formatMs, { defaultHidden: true }),
@@ -101,6 +107,101 @@ export const runsConfig = {
   rowActions: (r, ctx) => [
     { label: ctx.t('resources.runs.actions.cancel'), tip: ctx.t('tips.resources.runs.actions.cancel'), hidden: TERMINAL_RUN_STATUSES.includes(r.status), onClick: () => act(ctx, () => ctx.apiClient.cancelRun(ctx.tenantId, r.id), 'resources.runs.toasts.cancelRequested') },
     { label: ctx.t('resources.runs.actions.retry'), tip: ctx.t('tips.resources.runs.actions.retry'), hidden: !TERMINAL_RUN_STATUSES.includes(r.status), onClick: () => act(ctx, () => ctx.apiClient.retryRun(ctx.tenantId, r.id), 'resources.runs.toasts.retried') }
+  ]
+};
+
+const safeList = (promise) => promise.then((r) => r.items || []).catch(() => []);
+const aCol = (t, key, render, extra) => col('approvals', t, key, render, extra);
+const when = (value, lng) => (value ? <span {...tip(formatDateTime(value, lng))}>{formatRelativeTime(value, lng)}</span> : '-');
+
+/** Open the decide dialog for an approval from a list; reloads the list once it is decided (or found decided). */
+export function openDecide(ctx, approval, decision) {
+  ctx.setExtraModal(
+    <ApprovalDecideModal
+      approval={approval}
+      initialDecision={decision}
+      onClose={() => ctx.setExtraModal(null)}
+      onDecided={() => {
+        ctx.setExtraModal(null);
+        ctx.reload();
+      }}
+    />
+  );
+}
+
+/**
+ * Permission approvals (P12.3): tool calls a harness asked to make, decided by a deployment rule, the deployment
+ * default, a person, or a timeout. Opens on the pending ones; row actions allow or deny without leaving the inbox.
+ */
+export const approvalsConfig = {
+  id: 'approvals',
+  explainer: 'approvals',
+  autoRefresh: 10,
+  search: false,
+  defaultFilters: { status: 'Pending' },
+  urlFilters: ['status', 'agentId', 'runId', 'rootRunId', 'deploymentId', 'decisionSource'],
+  api: {
+    list: (c, tenant, p) => c.listApprovals(tenant, p),
+    create: null,
+    update: null,
+    remove: null
+  },
+  filters: [
+    { name: 'status', label: (t) => t('resources.approvals.columns.status'), options: ENUMS.approvalStatus, enumGroup: 'approvalStatus' },
+    { name: 'agentId', label: (t) => t('resources.approvals.columns.agentName'), options: (lookups) => Object.keys(lookups?.agents || {}), optionLabel: (o, _t, lookups) => lookups?.agents?.[o] || o },
+    { name: 'decisionSource', label: (t) => t('resources.approvals.columns.decisionSource'), options: ENUMS.approvalSource, enumGroup: 'approvalSource' },
+    { name: 'runId', type: 'text', label: (t) => t('resources.approvals.filters.runId'), placeholder: (t) => t('resources.approvals.filters.runIdPlaceholder') }
+  ],
+  // Agent names for the agent filter.
+  loadLookups: async ({ apiClient, tenantId }) => {
+    const agents = await safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 }));
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])) };
+  },
+  canDuplicate: false,
+  isEditable: () => false,
+  canDelete: () => false,
+  columns: ({ t, i18n }) => {
+    const lng = i18n.language;
+    const na = t('common.generic.notAvailable');
+    return [
+      aCol(t, 'createdUtc', (r) => when(r.requestedUtc || r.createdUtc, lng), { sortable: true, pinned: true, cellClass: 'nowrap', csv: (r) => r.requestedUtc || r.createdUtc || '' }),
+      aCol(t, 'agentName', (r) => (r.agentName ? <strong>{r.agentName}</strong> : <NamedId id={r.agentId} />), { sortable: true, serverSort: false, csv: (r) => r.agentName || r.agentId || '' }),
+      aCol(t, 'toolName', (r) => <code>{r.toolName}</code>, { sortable: true, serverSort: false, csv: (r) => r.toolName || '' }),
+      aCol(t, 'summary', (r) => (r.summary ? <code className="approval-summary" {...tip(r.summary)}>{truncate(r.summary, 80)}</code> : '-'), { csv: (r) => r.summary || '' }),
+      aCol(t, 'status', (r) => <ApprovalStatusBadge status={r.status} t={t} />, { sortable: true, serverSort: false, csv: (r) => r.status || '' }),
+      aCol(t, 'decision', (r) => <ApprovalDecisionBadge decision={r.decision} t={t} />, { csv: (r) => r.decision || '' }),
+      aCol(t, 'decisionSource', (r) =>
+        r.decisionSource ? (
+          <span {...tip(enumTip(t, 'approvalSource', r.decisionSource))}>
+            {enumLabel(t, 'approvalSource', r.decisionSource)}
+            {r.decisionSource === 'Rule' && r.rulePattern ? (
+              <>
+                {' '}
+                <code>{r.rulePattern}</code>
+              </>
+            ) : null}
+          </span>
+        ) : (
+          '-'
+        ),
+      { csv: (r) => [r.decisionSource, r.rulePattern].filter(Boolean).join(' ') }),
+      aCol(t, 'decidedBy', (r) => r.decidedBy || '-'),
+      aCol(t, 'expiresUtc', (r) => (r.status === 'Pending' ? when(r.expiresUtc, lng) : '-'), { cellClass: 'nowrap', csv: (r) => r.expiresUtc || '' }),
+      aCol(t, 'kind', (r) => (r.kind ? <span {...tip(enumTip(t, 'approvalKind', r.kind))}>{enumLabel(t, 'approvalKind', r.kind)}</span> : '-'), { defaultHidden: true, csv: (r) => r.kind || '' }),
+      aCol(t, 'harnessType', (r) => enumLabel(t, 'harnessType', r.harnessType), { defaultHidden: true, csv: (r) => r.harnessType || '' }),
+      aCol(t, 'runId', (r) => <CopyableId value={r.runId} />, { cellClass: 'cell-id', defaultHidden: true }),
+      aCol(t, 'waitMs', (r) => formatMs(r.waitMs ?? null, lng, na), { cellClass: 'right nowrap', defaultHidden: true, sortable: true, serverSort: false }),
+      aCol(t, 'reason', (r) => r.reason || '-', { defaultHidden: true }),
+      aCol(t, 'decidedUtc', (r) => when(r.decidedUtc, lng), { defaultHidden: true, csv: (r) => r.decidedUtc || '' }),
+      aCol(t, 'id', (r) => <CopyableId value={r.id} />, { cellClass: 'cell-id', defaultHidden: true })
+    ];
+  },
+  fields: () => [],
+  detailPath: (r) => pathFor('approvals', r.id),
+  rowActions: (r, ctx) => [
+    { label: ctx.t('resources.approvals.actions.allow'), tip: ctx.t('tips.resources.approvals.actions.allow'), hidden: r.status !== 'Pending', onClick: () => openDecide(ctx, r, 'Allow') },
+    { label: ctx.t('resources.approvals.actions.deny'), tip: ctx.t('tips.resources.approvals.actions.deny'), hidden: r.status !== 'Pending', onClick: () => openDecide(ctx, r, 'Deny') },
+    { label: ctx.t('resources.approvals.actions.openRun'), tip: ctx.t('tips.resources.approvals.actions.openRun'), hidden: !r.runId, onClick: () => ctx.navigate(pathFor('runs', r.runId)) }
   ]
 };
 

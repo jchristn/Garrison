@@ -76,3 +76,22 @@ export function fieldErrorMessages(t, err, special) {
   }
   return out;
 }
+
+/**
+ * Validation errors for list items arrive keyed by item, for example approvalRules[2].pattern. Forms show errors per
+ * field, so each one is also added under its list (approvalRules) as "Item 3: message", keeping the original keys.
+ * @param {Function} t i18next translate function.
+ * @param {Object<string, string>|null} fields Field errors from fieldErrorMessages.
+ * @returns {Object<string, string>|null}
+ */
+export function withListItemErrors(t, fields) {
+  if (!fields) return fields;
+  const out = { ...fields };
+  for (const [key, message] of Object.entries(fields)) {
+    const m = /^([A-Za-z0-9_]+)\[(\d+)\](?:\.[A-Za-z0-9_]+)?$/.exec(key);
+    if (!m) continue;
+    const text = t('common.errors.listItem', { index: Number(m[2]) + 1, message });
+    out[m[1]] = out[m[1]] && out[m[1]] !== text ? `${out[m[1]]} ${text}` : text;
+  }
+  return out;
+}

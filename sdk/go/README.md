@@ -63,9 +63,25 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Resources
 
-`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Manifests`, `Runs`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
+`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Manifests`, `Runs`, `Approvals`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
 
 Control-plane replicas are read-only: `client.ControlNodes.List(ctx, opts)` returns a `*garrison.ControlNodeList` (a page of `garrison.ControlNode` plus `RespondingNodeID`, the replica that answered) and `client.ControlNodes.Get(ctx, nodeID)` reads one replica. `Status` is one of the `ControlNodeStatus*` constants (`Starting`, `Ready`, `Draining`, `Offline`); `IsLeader` and `LeaderEpoch` (leader only) come from the coordination lease.
+
+## Permission approvals
+
+When a deployment has `ApprovalsEnabled` set (Claude Code profiles, and Codex profiles with CodexAppServer delivery), the harness relays permission prompts to Garrison. The deployment's `ApprovalRules` (`garrison.DeploymentApprovalRule`: `Action`, a `Pattern` in Claude Code rule syntax such as `Bash(git status:*)` or `mcp__github__*`, optional `InputPattern`, and `Description`) decide each request, and `ApprovalDefaultAction` (one of the `ApprovalRuleAction*` constants) covers requests no rule matches. `Ask` sends the request to a person, who has `ApprovalTimeoutSeconds` (10 to 3600, default 300) before `ApprovalTimeoutDecision` applies.
+
+```go
+pending, err := client.Approvals.List(ctx, garrison.ApprovalFilter{Status: garrison.ApprovalStatusPending})
+decided, err := client.Approvals.Decide(ctx, pending.Objects[0].ID, garrison.ApprovalDecideRequest{
+	Decision: garrison.ApprovalDecisionAllow, Reason: "Looks safe", Remember: true,
+})
+result, err := client.Approvals.Check(ctx, deploymentID, garrison.ApprovalCheckRequest{
+	ToolName: "Bash", Input: &garrison.ApprovalToolInput{Command: "git status --short"},
+})
+```
+
+`Approvals.List` filters by status, run, root run, agent, deployment, decision source, and time range (`FromUTC`, `ToUTC`); for a pending count, use `MaxResults: 1` and read `TotalRecords`. `Approvals.Get` returns an error matching `garrison.IsStatus(err, 404)` for an approval outside the tenant. `Approvals.Decide` fails with 409 (`ApprovalNotPending`) when the approval was already decided, and `Remember` needs Update on the approval's deployment. `Approvals.Check` records nothing and returns a `*garrison.ApprovalCheckResponse`. `garrison.Run` has `PendingApprovals`, `AwaitingApproval` (the run stays `Running` while it waits), and `ApprovalWaitMs`. The deployment approval fields use `omitempty`: zero values are left out of requests and the server applies its defaults.
 
 ## Streaming run events
 

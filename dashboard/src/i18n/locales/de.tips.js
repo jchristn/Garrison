@@ -2,6 +2,7 @@
 // Mirrors en.tips.js key for key. Tooltips erklären, was ein Element ist und wie es verwendet wird (D-030).
 
 const TELEMETRY = {
+  approvalWaitMs: 'Freigabe-Wartezeit: Gesamtzeit, die dieser Lauf auf Berechtigungsfreigaben gewartet hat, die eine Person oder eine Zeitüberschreitung entschieden hat. Aufrufe, die sofort durch eine Regel oder den Standard der Bereitstellung entschieden wurden, zählen nicht. Vom Server gemessen; n/a, wenn der Lauf nie gewartet hat.',
   delegationWaitMs: 'Delegationswartezeit: wie lange dieser Lauf auf Kindläufe gewartet hat, die er über Garrison gestartet hat (andere Agenten, an die er delegiert hat), gemessen an den Server-Zeitstempeln dieser Kindläufe. Null oder k. A., wenn der Lauf nichts delegiert hat.',
   timeToFirstTokenExcludingDelegationMs: 'Zeit bis zum ersten Token ohne Delegation: die Zeit bis zum ersten Token abzüglich der Zeit, die der Lauf vor seiner ersten Ausgabe auf delegierte Läufe gewartet hat. Damit vergleichen Sie delegierende Agenten fair mit Agenten, die nicht delegieren. Gemessen mit Server-Zeitstempeln; nie negativ.',
   timeToFirstTokenMs: 'Zeit bis zum ersten Token: vom Start des Harness-Prozesses durch den Worker bis zur ersten Ausgabe des Modells (Text oder Überlegung). Der Start der Harness ist enthalten, ein langsamer CLI-Start zeigt sich also hier. Gemessen auf dem Worker mit einer monotonen Uhr.',
@@ -30,6 +31,33 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  approvals: {
+    awaiting_one: 'Die Harness hat vor einem Werkzeugaufruf nachgefragt und wartet auf eine Person. Öffnen Sie den Tab Freigaben, um ihn zu erlauben oder zu verweigern ({{count}} wartet).',
+    awaiting_other: 'Die Harness hat vor Werkzeugaufrufen nachgefragt und wartet auf eine Person. Öffnen Sie den Tab Freigaben, um sie zu erlauben oder zu verweigern ({{count}} warten).',
+    decide: {
+      decision: 'Wählen Sie, ob die Harness diesen Werkzeugaufruf ausführen darf. Der Lauf geht weiter, sobald Sie absenden.',
+      allow: 'Die Harness darf diesen Werkzeugaufruf ausführen. Der Lauf geht damit weiter.',
+      deny: 'Diesen Werkzeugaufruf ablehnen. Die Harness erhält die Ablehnungsmeldung und macht ohne ihn weiter.',
+      reason: 'Optionale Notiz, die mit der Entscheidung gespeichert und ins Audit-Protokoll geschrieben wird. Bei einer Ablehnung wird sie an den Agenten weitergegeben.',
+      remember: 'Zusätzlich eine Regel zur Bereitstellung dieser Freigabe hinzufügen, damit gleichartige Aufrufe beim nächsten Mal automatisch entschieden werden.',
+      rulePattern: 'Die hinzuzufügende Regel in Claude Code-Regelsyntax. Sie beginnt als vorgeschlagene Regel; erweitern oder verengen Sie sie vor dem Speichern.',
+      submitAllow: 'Den Werkzeugaufruf jetzt erlauben. Die Entscheidung ist endgültig und kann danach nicht geändert werden.',
+      submitDeny: 'Den Werkzeugaufruf jetzt verweigern. Die Entscheidung ist endgültig und kann danach nicht geändert werden.'
+    }
+  },
+  approvalCheck: {
+    toolName: 'Werkzeugname, wie die Harness ihn meldet, etwa Bash, Edit, WebFetch oder ein MCP-Werkzeug wie mcp__github__create_issue.',
+    inputs: {
+      command: 'Der zu testende Shell-Befehl, zum Beispiel npm run build && npm test. Jeder Teilbefehl muss erlaubt sein.',
+      url: 'Die URL, die das Werkzeug abrufen würde. WebFetch-Regeln prüfen ihre Domain.',
+      query: 'Die Suchanfrage, die das Werkzeug senden würde.',
+      file_path: 'Pfad der Datei, die das Werkzeug lesen oder ändern würde, relativ zum Arbeitsbereich oder absolut.',
+      notebook_path: 'Pfad des Notebooks, das das Werkzeug ändern würde.',
+      pattern: 'Das Glob- oder Suchmuster, das das Werkzeug verwenden würde.'
+    },
+    run: 'Die gespeicherten Regeln der Bereitstellung für diesen Werkzeugaufruf auswerten und das Ergebnis anzeigen. Es wird nichts aufgezeichnet und kein Lauf beeinflusst.',
+    suggestedRule: 'Die Regel, die "Merken" für diesen Aufruf hinzufügen würde. Kopieren Sie sie in die Regeln oben, um ähnliche Aufrufe abzudecken.'
+  },
   ids: { deleted: 'Dieser Datensatz wurde gelöscht. ID {{id}}. Die Kopierschaltfläche kopiert die ID.', named: 'ID {{id}}. Mit der Kopierschaltfläche kopieren Sie die ID für die API, SDKs oder eine Supportanfrage.' },
   markdown: {
     column: 'Spalte {{name}} einer Tabelle aus der Ausgabe des Agenten. Breite Tabellen scrollen seitlich in ihrem Rahmen.',
@@ -55,7 +83,10 @@ const tips = {
     dismiss: 'Diese Erklärung ausblenden. An ihrer Stelle bleibt eine kleine Schaltfläche "Über", mit der Sie sie jederzeit wieder einblenden können.'
   },
   nav: {
+    approvalsBadge_one: '{{count}} Werkzeugaufruf wartet darauf, dass eine Person ihn erlaubt oder verweigert. Öffnen Sie Freigaben, um zu entscheiden.',
+    approvalsBadge_other: '{{count}} Werkzeugaufrufe warten darauf, dass eine Person sie erlaubt oder verweigert. Öffnen Sie Freigaben, um zu entscheiden.',
     hubs: {
+      approvals: 'Die Freigaben: Werkzeugaufrufe von Agenten, die auf eine Person warten, und der Verlauf aller Entscheidungen durch Regel, Standard, Person oder Zeitüberschreitung.',
       home: 'Ihr Ausgangspunkt: aktuelle Zahlen zu Agenten, Läufen und Worker-Knoten, API-Verkehr, aktuelle Fehler und Verknüpfungen zu häufigen Aufgaben.',
       invoke: 'Senden Sie einem Agenten aus dem Browser eine Nachricht und verfolgen Sie das Protokoll live, ohne Code zu schreiben.',
       runs: 'Jeder Agentenaufruf mit Protokoll, Ergebnis und Telemetrie, dazu die Warteschlange der Arbeit, die auf einen Knoten wartet.',
@@ -160,6 +191,9 @@ const tips = {
     bulkDelete: 'Alle ausgewählten Zeilen löschen. Sie werden zuerst um Bestätigung gebeten.'
   },
   filters: {
+    agentId: 'Nur Einträge eines Agenten anzeigen. Wählen Sie Alle, um den Filter zu entfernen.',
+    decisionSource: 'Nur Freigaben anzeigen, die auf eine bestimmte Weise entschieden wurden: durch eine Regel, den Standard der Bereitstellung, eine Person, eine Zeitüberschreitung oder einen gestoppten Lauf.',
+    runId: 'Nur die Freigaben eines Laufs anzeigen. Fügen Sie eine Lauf-ID wie run_... ein; die Liste wird aktualisiert, wenn Sie aufhören zu tippen.',
     status: 'Nur Datensätze in diesem Zustand anzeigen. Wählen Sie Alle, um den Filter zu entfernen.',
     harnessType: 'Nur Datensätze für eine Harness anzeigen, etwa Claude Code oder Codex.',
     kind: 'Nur Datensätze einer Art anzeigen. Wählen Sie Alle, um den Filter zu entfernen.',
@@ -232,6 +266,9 @@ const tips = {
     tenant: 'Anfrageaktivität für einen Mandanten oder für alle Mandanten des Servers anzeigen.'
   },
   badges: {
+    approvalsOn_one: 'Freigaben sind aktiviert: Die Harness fragt vor Werkzeugaufrufen nach, und {{count}} Regel entscheidet einige davon automatisch.',
+    approvalsOn_other: 'Freigaben sind aktiviert: Die Harness fragt vor Werkzeugaufrufen nach, und {{count}} Regeln entscheiden einige davon automatisch.',
+    approvalsOff: 'Freigaben sind deaktiviert: Die Harness führt Werkzeugaufrufe nach ihren eigenen Berechtigungseinstellungen ohne Nachfrage aus.',
     active: 'Aktiv: Dieser Datensatz wird verwendet.',
     inactive: 'Inaktiv: Dieser Datensatz bleibt erhalten, wird aber ignoriert, bis er wieder eingeschaltet wird.',
     builtIn: 'Integriert: mit Garrison ausgeliefert und schreibgeschützt. Klonen Sie ihn, um eine bearbeitbare Version zu erstellen.',
@@ -298,6 +335,34 @@ const tips = {
     queueColumn: 'Wartende Läufe dieser Gruppe, die gerade kein bereiter Worker ausführen kann. Zeigen Sie auf das Abzeichen für Grund und Abhilfe.'
   },
   enums: {
+    approvalStatus: {
+      Pending: 'Wartet darauf, dass eine Person ihn erlaubt oder verweigert. Bis dahin ist die Harness bei diesem Aufruf blockiert.',
+      Approved: 'Der Werkzeugaufruf wurde erlaubt, durch eine Regel, den Standard der Bereitstellung, eine Person oder eine Zeitüberschreitung.',
+      Denied: 'Der Werkzeugaufruf wurde abgelehnt. Die Harness hat die Ablehnungsmeldung erhalten und ohne ihn weitergemacht.',
+      Expired: 'Niemand hat rechtzeitig entschieden, daher wurde die Zeitlimit-Entscheidung der Bereitstellung angewendet.',
+      Cancelled: 'Der Lauf wurde gestoppt, während die Freigabe ausstand, daher wurde sie ohne Entscheidung geschlossen.'
+    },
+    approvalDecision: {
+      Allow: 'Erlauben: Die Harness durfte den Werkzeugaufruf ausführen.',
+      Deny: 'Verweigern: Die Harness wurde abgewiesen und hat den Grund erfahren.'
+    },
+    approvalSource: {
+      Rule: 'Sofort durch eine Regel der Bereitstellung entschieden. Die zutreffende Regel wird daneben angezeigt.',
+      Default: 'Keine Regel traf zu, daher hat die Standardaktion der Bereitstellung entschieden.',
+      User: 'Eine Person hat im Dashboard, über die API oder über MCP entschieden.',
+      Timeout: 'Niemand hat vor dem Ablauf entschieden, daher galt die Zeitlimit-Entscheidung der Bereitstellung.',
+      Cancelled: 'Der Lauf wurde gestoppt, während diese Freigabe wartete.'
+    },
+    approvalRuleAction: {
+      Allow: 'Erlauben: Passende Werkzeugaufrufe werden ohne Nachfrage ausgeführt.',
+      Deny: 'Verweigern: Passende Werkzeugaufrufe werden ohne Nachfrage abgelehnt. Verweigern geht vor jeder anderen Regel.',
+      Ask: 'Person fragen: Passende Werkzeugaufrufe warten unter Freigaben auf eine Entscheidung.'
+    },
+    approvalKind: {
+      Tool: 'Eine Claude Code-Berechtigungsabfrage für ein beliebiges Werkzeug, einschließlich MCP-Werkzeugen.',
+      Command: 'Ein Shell-Befehl, den ein Lauf mit Codex app-server ausführen möchte. Regeln werten ihn als Bash aus.',
+      FileChange: 'Eine Dateiänderung, die ein Lauf mit Codex app-server vornehmen möchte. Regeln werten sie als Edit aus.'
+    },
     runBlockedReason: {
       NoReadyWorker: 'Blockiert: Kein Worker-Knoten ist bereit, daher kann niemand diesen Lauf übernehmen. Starten Sie einen Worker oder registrieren Sie einen neuen und prüfen Sie auf der Seite Flotte, welche Knoten verloren, offline, im Leeren oder gesperrt sind.',
       NoCapableWorker: 'Blockiert: Worker-Knoten sind bereit, aber keiner meldet den Harness dieses Laufs als verfügbar. Starten oder registrieren Sie einen Worker mit installiertem Harness, oder prüfen Sie dessen Anmeldedaten und Prüfergebnisse auf der Seite Flotte.',
@@ -421,6 +486,7 @@ const tips = {
       Validated: 'Probelauf: Dieses Dokument ist gültig und würde angewendet.'
     },
     auditEventType: {
+      ApprovalDecided: 'Eine Person hat einen ausstehenden Werkzeugaufruf erlaubt oder verweigert. Der Eintrag nennt Werkzeug, Lauf und Begründung.',
       AuthSuccess: 'Jemand hat sich angemeldet oder eine Anfrage erfolgreich authentifiziert.',
       AuthFailure: 'Ein Anmelde- oder Authentifizierungsversuch ist fehlgeschlagen. Wiederholte Fehlschläge können bedeuten, dass jemand rät.',
       SessionIssued: 'Ein Sitzungstoken wurde ausgestellt.',
@@ -444,6 +510,40 @@ const tips = {
     }
   },
   resources: {
+    approvals: {
+      createdUtc: 'Wann die Harness nachgefragt hat. Bewegen Sie den Mauszeiger über den Wert, um die genaue Zeit zu sehen.',
+      agentName: 'Der Agent, dessen Lauf diesen Werkzeugaufruf angefordert hat.',
+      toolName: 'Das Werkzeug, das die Harness verwenden möchte, etwa Bash, Edit, WebFetch oder ein MCP-Werkzeug.',
+      summary: 'Eine Zeile zum Aufruf: Befehl, URL, Pfade oder Suchanfrage, mit geschwärzten Geheimnissen.',
+      status: 'Ausstehend bis zur Entscheidung, dann Erlaubt, Verweigert, Abgelaufen (Zeitüberschreitung) oder Abgebrochen (der Lauf wurde gestoppt).',
+      decision: 'Erlauben oder Verweigern nach der Entscheidung; leer, solange die Freigabe aussteht.',
+      decisionSource: 'Was entschieden hat: eine Regel, der Standard der Bereitstellung, eine Person, eine Zeitüberschreitung oder ein gestoppter Lauf.',
+      decidedBy: 'Die Person oder der Zugangsschlüssel, die entschieden hat, wenn eine Person entschieden hat.',
+      expiresUtc: 'Wann eine ausstehende Freigabe abläuft und die Zeitlimit-Entscheidung der Bereitstellung greift.',
+      kind: 'Werkzeugaufruf (Claude Code), Befehl oder Dateiänderung (Codex app-server).',
+      harnessType: 'Die Harness, die nachgefragt hat: Claude Code oder Codex.',
+      runId: 'Der Lauf, der nachgefragt hat. Öffnen Sie ihn, um das Transkript rund um den Aufruf zu sehen.',
+      rootRunId: 'Der oberste Lauf des Delegationsbaums, wenn der nachfragende Lauf delegiert wurde.',
+      deploymentId: 'Die Bereitstellung, deren Regeln diesen Aufruf ausgewertet haben. Gemerkte Regeln werden ihr hinzugefügt.',
+      leaseEpoch: 'Lease-Epoche des nachfragenden Laufversuchs, damit eine Entscheidung nie einen späteren Versuch erreicht.',
+      requestedUtc: 'Wann die Harness um Berechtigung gebeten hat.',
+      decidedUtc: 'Wann die Entscheidung getroffen wurde.',
+      waitMs: 'Wie lange der Aufruf von der Anfrage bis zur Entscheidung gewartet hat.',
+      timeoutDecision: 'Was passiert, wenn niemand vor Ablauf der Freigabe entscheidet, laut den Einstellungen der Bereitstellung.',
+      toolCallId: 'Die eigene ID der Harness für diesen Werkzeugaufruf, um ihn im Transkript zuzuordnen.',
+      reason: 'Die Notiz der entscheidenden Person, falls vorhanden.',
+      inputPreview: 'Die Werkzeugeingabe, die die Harness gesendet hat, als JSON, mit geschwärzten Geheimnissen und tokenartigen Werten.',
+      rulePattern: 'Die Regel der Bereitstellung, die diesen Aufruf getroffen hat, wenn eine Regel entschieden oder eine Person angefragt hat.',
+      ruleId: 'ID der zutreffenden Regel der Bereitstellung.',
+      suggestedRule: 'Eine Regel, die diesen Aufruf treffen würde. Als Regel merken füllt sie vorab aus.',
+      rememberedRuleId: 'ID der Regel, die der Bereitstellung hinzugefügt wurde, als diese Freigabe mit Merken entschieden wurde.',
+      id: 'Freigabe-Kennung (apr_...) für die API und die MCP-Werkzeuge.',
+      actions: {
+        allow: 'Diesen ausstehenden Werkzeugaufruf erlauben, mit optionaler Begründung und der Möglichkeit, ihn als Regel zu merken.',
+        deny: 'Diesen ausstehenden Werkzeugaufruf verweigern, mit optionaler Begründung und der Möglichkeit, ihn als Regel zu merken.',
+        openRun: 'Den nachfragenden Lauf öffnen, um sein Transkript rund um diesen Werkzeugaufruf zu lesen.'
+      }
+    },
     tenants: {
       add: 'Einen neuen Mandanten erstellen: einen isolierten Bereich mit eigenen Benutzern, Agenten, Geheimnissen und Läufen.',
       name: 'Anzeigename des Mandanten. Bei der Anmeldung wählen Personen den Mandanten über seine ID.',
@@ -683,6 +783,18 @@ const tips = {
       }
     },
     deployments: {
+      approvalsEnabled: 'Die Harness fragt vor Werkzeugaufrufen nach. Die Regeln unten entscheiden die meisten Aufrufe; der Rest wartet unter Freigaben auf eine Person. Nur für Claude Code- und Codex app-server-Profile.',
+      approvalDefaultAction: 'Was passiert, wenn keine Regel auf einen Werkzeugaufruf zutrifft: erlauben, verweigern oder eine Person fragen.',
+      approvalTimeoutSeconds: 'Wie lange ein Aufruf auf eine Person wartet, bevor die Zeitlimit-Entscheidung greift, von 10 bis 3.600 Sekunden.',
+      approvalTimeoutDecision: 'Die Entscheidung, die gilt, wenn niemand rechtzeitig antwortet. Verweigern ist die sichere Wahl.',
+      approvalRules: 'Geordnete Regeln in Claude Code-Syntax. Verweigern geht vor Fragen und Fragen vor Erlauben; innerhalb einer Aktion wird der erste Treffer gemeldet.',
+      approvalRulesItems: {
+        action: 'Was ein passender Aufruf erhält: Erlauben, Verweigern oder Person fragen.',
+        pattern: 'Claude Code-Regel, zum Beispiel Bash(npm test), Bash(npm run *), Edit(src/**), Read, WebFetch(domain:example.com) oder mcp__github__*.',
+        inputPattern: 'Optionaler regulärer .NET-Ausdruck, auf den das Eingabe-JSON des Werkzeugs zusätzlich passen muss, für feinere Steuerung als das Muster.',
+        description: 'Warum diese Regel existiert, für die Personen, die sie pflegen.'
+      },
+      approvalTest: 'Einen Werkzeugaufruf gegen die gespeicherten Regeln der Bereitstellung testen und sehen, ob er erlaubt, verweigert oder an eine Person geschickt würde.',
       add: 'Eine Bereitstellung erstellen: die konkrete Art, wie ein Agent läuft, mit Harness-Profil, Modell, Prompts und Ressourcen.',
       name: 'Name der Bereitstellung, eindeutig im Mandanten, zum Beispiel reviewer-claude.',
       agentId: 'Der Agent, den diese Bereitstellung ausführt. Ein Aufruf dieses Agenten kann diese Bereitstellung wählen.',
@@ -747,6 +859,7 @@ const tips = {
       maxAttempts: 'Wie oft ein Lauf insgesamt versucht werden darf. Zwischen 1 und 10.',
       retryOnNodeLoss: 'Den Lauf wieder in die Warteschlange stellen, wenn sein Knoten verschwindet, statt ihn fehlschlagen zu lassen.',
       steps: {
+        approvals: 'Welche Werkzeugaufrufe die Harness ausführen darf, welche nicht und welche auf eine Person warten.',
         basics: 'Name, Agent und Verkehrsgewichtung.',
         harness: 'Harness-Profil, Modell, Grenzen und Parameter.',
         prompts: 'Welche Vorlage jede Prompt-Rolle füllt.',
@@ -881,6 +994,16 @@ const tips = {
     }
   },
   views: {
+    approvalDetail: {
+      openRun: 'Den nachfragenden Lauf öffnen, um sein Transkript rund um diesen Werkzeugaufruf zu lesen.',
+      openAgent: 'Die Agentenseite mit ihren Bereitstellungen und letzten Läufen öffnen.',
+      openDeployment: 'Den Tab Bereitstellungen gefiltert auf diese Bereitstellung öffnen, wo ihre Freigaberegeln bearbeitet werden.',
+      backToInbox: 'Zurück zu den Freigaben mit allen ausstehenden Freigaben.',
+      viewJson: 'Den vollständigen Freigabe-Datensatz als JSON anzeigen, genau so, wie die API ihn liefert.',
+      request: 'Was die Harness tun wollte: die einzeilige Zusammenfassung und die vollständige Werkzeugeingabe mit geschwärzten Geheimnissen.',
+      rules: 'Die zutreffende Regel der Bereitstellung, die von diesem Aufruf vorgeschlagene Regel und die aus der Entscheidung gemerkte Regel.',
+      copyRule: 'Die vorgeschlagene Regel kopieren, etwa um sie in die Freigaberegeln der Bereitstellung einzufügen.'
+    },
     home: {
       observabilityState: {
         reachable: 'Der Server hat {{service}} in den letzten 30 Sekunden über die interne URL erreicht.',
@@ -941,6 +1064,9 @@ const tips = {
       serviceGeneric: 'Diesen mitgelieferten Dienst in einem neuen Tab öffnen.'
     },
     runDetail: {
+      openApproval: 'Diese Freigabe mit vollständiger Werkzeugeingabe, Regel und Entscheidung öffnen.',
+      reviewApprovals: 'Die Freigaben dieses Laufs anzeigen, wo Sie die ausstehenden Werkzeugaufrufe erlauben oder verweigern können.',
+      approvalActions: 'Einen ausstehenden Werkzeugaufruf erlauben oder verweigern, oder die Freigabe mit allen Feldern öffnen.',
       viewTrace: 'Den Trace dieses Laufs in Grafana Explore (Tempo) in einem neuen Tab öffnen. Er zeigt die Spans für Kompilieren, Übernehmen und Harness auf Server und Worker-Knoten.',
       viewLogs: 'Die Server- und Worker-Logzeilen zu diesem Lauf in Grafana Explore (Loki) in einem neuen Tab öffnen, begrenzt auf den Zeitraum des Laufs.',
       traceId: 'W3C-Trace-ID des Traces, in dem dieser Lauf kompiliert wurde. Suchen Sie sie in Tempo oder nutzen Sie „Trace anzeigen“. Leer bei Läufen, die vor der Erfassung von Trace-IDs erstellt wurden.',
@@ -962,6 +1088,7 @@ const tips = {
       completed: 'Wann der Lauf seinen Endzustand erreicht hat.',
       exitCode: 'Exit-Code des Harness-Prozesses. Über Erfolg wird meist anhand des letzten Ereignisses entschieden, nicht anhand dieses Codes.',
       tabs: {
+        approvals: 'Werkzeugaufrufe, für die dieser Lauf um Berechtigung gebeten hat, wie jeder entschieden wurde, sowie Erlauben und Verweigern für ausstehende.',
         transcript: 'Jedes Ereignis, das die Harness erzeugt hat: Assistententext, Überlegungen, Werkzeugaufrufe und -ergebnisse sowie Verbrauch.',
         result: 'Die endgültige Antwort und gegebenenfalls strukturierte Ausgabe.',
         input: 'Was der Aufrufer gesendet hat, die Parameter und die genauen verwendeten Versionen der Prompt-Vorlagen.',
@@ -971,6 +1098,8 @@ const tips = {
       eventFilter: 'Nur eine Art von Ereignis anzeigen, etwa Werkzeugaufrufe oder Fehler.',
       openChild: 'Diesen Unterlauf öffnen, der gestartet wurde, als dieser Lauf einen anderen Agenten aufgerufen hat.',
       eventCodes: {
+        ApprovalRequested: 'Die Harness hat vor einem Werkzeugaufruf nachgefragt, und der Aufruf wartet auf eine Person. Entscheiden Sie ihn im Tab Freigaben.',
+        ApprovalDecided: 'Eine Berechtigungsanfrage wurde durch eine Regel, den Standard der Bereitstellung, eine Person oder eine Zeitüberschreitung entschieden. Der Text nennt die Quelle.',
         RunGuardTriggered: 'Ein Laufwächter hat diesen Lauf gestoppt. Die Meldung sagt, welcher Wächter ausgelöst hat und was er gesehen hat; der Lauf endet als Fehlgeschlagen mit dem Ergebnis dieses Wächters und behält seine Teilausgabe.'
       }
     },
@@ -1300,6 +1429,12 @@ const tips = {
 };
 
 const explainers = {
+  approvals: {
+    title: 'So funktionieren Freigaben',
+    p1: 'Eine Bereitstellung mit aktivierten Freigaben lässt ihre Harness vor Werkzeugaufrufen bei Garrison nachfragen: Claude Code über sein Werkzeug für Berechtigungsabfragen, Läufe mit Codex app-server bei Befehlen und Dateiänderungen.',
+    p2: 'Jede Anfrage wird gegen die Regeln der Bereitstellung geprüft. Verweigern geht vor Fragen, und Fragen geht vor Erlauben; trifft nichts zu, gilt der Standard der Bereitstellung. Erlauben und Verweigern antworten sofort; Fragen legt die Anfrage hier ab, und der Lauf wartet.',
+    p3: 'Erlauben oder verweigern Sie eine ausstehende Anfrage mit optionaler Begründung. Als Regel merken fügt der Bereitstellung eine Regel hinzu, sodass der nächste ähnliche Aufruf automatisch entschieden wird. Anfragen, die niemand entscheidet, laufen mit der Zeitlimit-Entscheidung der Bereitstellung ab.'
+  },
   diagram: {
     label: 'Diagramm: Ein Aufrufer ruft einen Agenten über seinen Namen auf, Garrison wählt nach Gewichtung eine der Bereitstellungen des Agenten, und die Bindungen dieser Bereitstellung bestimmen, wie der Lauf ausgeführt wird.',
     caller: { title: 'Aufrufer', body: 'REST, MCP, A2A oder ein anderer Agent', tip: 'Alles, was einen Agenten aufruft: die REST-API, ein MCP-Client, ein A2A-Agent oder der Lauf eines anderen Agenten. Aufrufende kennen nur den Agentennamen.' },

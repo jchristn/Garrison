@@ -41,6 +41,12 @@ namespace Garrison.Core.Enums
         /// relays the cancellation to its local session. Subject: cluster session identifier, a line feed, and the raw
         /// JSON request identifier.
         /// </summary>
-        McpRequestCancelled
+        McpRequestCancelled,
+
+        /// <summary>
+        /// A permission approval was created or decided (P12.3); the subject is the approval identifier. Wakes harness
+        /// calls waiting on that approval on every replica.
+        /// </summary>
+        ApprovalChanged
     }
 }

@@ -46,6 +46,8 @@ export function runTelemetry(run) {
     // M1-08: time spent waiting on child runs this run delegated to, and TTFT without the wait before the first token.
     delegationWaitMs: finiteOrNull(r.delegationWaitMs),
     timeToFirstTokenExcludingDelegationMs: finiteOrNull(r.timeToFirstTokenExcludingDelegationMs),
+    // P12.3: time spent waiting for approvals a person or a timeout decided; null when nothing waited.
+    approvalWaitMs: finiteOrNull(r.approvalWaitMs),
     streamingMs,
     executionMs: reported(r, 'executionMs') ? finiteOrNull(r.executionMs) : r.completedUtc ? between(r.startedUtc, r.completedUtc) : null,
     queueMs: reported(r, 'queueMs') ? finiteOrNull(r.queueMs) : between(r.queuedUtc, r.leasedUtc),

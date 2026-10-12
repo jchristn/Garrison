@@ -6,9 +6,11 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const zhHant = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件已捨棄', HarnessExited: 'Harness 已結束', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '已開始修復輸出', WorkspacePrepared: '工作區已就緒', RunGuardTriggered: '執行防護停止了執行' },
+    eventCodes: { ApprovalRequested: '已要求核准', ApprovalDecided: '已決定核准', StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件已捨棄', HarnessExited: 'Harness 已結束', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '已開始修復輸出', WorkspacePrepared: '工作區已就緒', RunGuardTriggered: '執行防護停止了執行' },
     fieldCodes: { ExpiryInPast: '請選擇未來的時間。', ParameterInvalid: '此值對這個參數無效。', ParameterNotAllowed: '此部署不允許呼叫端覆寫此參數。', SettingsFileReadOnly: '設定檔為唯讀，因此無法儲存此變更。', OverriddenByEnvironment: '此值由環境變數設定，因此無法在這裡變更。', PathRequired: '需要設定路徑。', UnknownSetting: '此伺服器沒有這項設定。', TooLong: '此值太長。', NotAllowedValue: '請選擇允許的值之一。', NotABoolean: '請選擇 true 或 false。', NotAnInteger: '請輸入整數。', OutOfRange: '值超出允許的範圍。' },
     serverText: {
+      approvalWaitingExpires: '正在等候人員核准 {{subject}}；核准 {{id}} 將於 {{expires}} 到期。',
+      approvalWaiting: '正在等候人員核准 {{subject}}；核准 {{id}}。',
       notApplied: '未套用，因為另一份文件未通過驗證。',
       wouldBeUnchanged: '已是最新狀態，不會有任何變更。',
       wouldBeUpdated: '將會更新。',
@@ -67,6 +69,7 @@ const zhHant = {
       bulkDelete: '要刪除選取的 {{count}} 筆紀錄嗎？此操作無法復原。'
     },
     errors: {
+      listItem: '第 {{index}} 項：{{message}}',
       chooseOne: '請至少選擇一個選項。',
       fixFields: '部分欄位需要處理，請檢查標示的值。',
       invalidEmail: '請輸入有效的電子郵件地址。',
@@ -108,6 +111,7 @@ const zhHant = {
     units: { msShort: '毫秒', sShort: '秒', mShort: '分鐘', tokPerSec: 'Token/秒' }
   },
   errorCodes: {
+    ApprovalNotPending: '此核准已經決定，因此無法再次決定。',
     MessageIdConflict: '此 A2A 訊息 ID 已用於不同的內容。請使用新的 ID 傳送訊息。',
     IdempotencyKeyConflict: '此冪等金鑰已用於另一個要求。請使用新的金鑰。',
     DeploymentDeleted: '此執行的部署已刪除，因此無法重試此執行。請改為再次呼叫代理程式。',
@@ -137,6 +141,34 @@ const zhHant = {
     Http503: '伺服器無法使用。'
   },
   enums: {
+    approvalStatus: {
+      Pending: '待處理',
+      Approved: '已核准',
+      Denied: '已拒絕',
+      Expired: '已過期',
+      Cancelled: '已取消'
+    },
+    approvalDecision: {
+      Allow: '允許',
+      Deny: '拒絕'
+    },
+    approvalSource: {
+      Rule: '規則',
+      Default: '部署預設值',
+      User: '人員',
+      Timeout: '逾時',
+      Cancelled: '執行已停止'
+    },
+    approvalRuleAction: {
+      Allow: '允許',
+      Deny: '拒絕',
+      Ask: '詢問人員'
+    },
+    approvalKind: {
+      Tool: '工具呼叫',
+      Command: '命令',
+      FileChange: '檔案變更'
+    },
     principalType: { Administrator: '系統管理員', User: '使用者', Credential: '存取金鑰', Run: '執行權杖' },
     runBlockedReason: { NoReadyWorker: '沒有就緒的工作節點', NoCapableWorker: '沒有可執行的工作節點', NoMatchingPool: '沒有相符的節點池' },
     promptDelivery: { Stdin: '標準輸入', Argument: '命令列引數', File: '檔案', CodexAppServer: 'Codex 應用程式伺服器 (JSON-RPC)' },
@@ -268,6 +300,7 @@ const zhHant = {
     remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: '已建立', Updated: '已更新', Unchanged: '未變更', Failed: '失敗', Validated: '已驗證' },
     auditEventType: {
+      ApprovalDecided: '已決定核准',
       AuthSuccess: '登入成功',
       AuthFailure: '登入失敗',
       SessionIssued: '已核發工作階段',
@@ -291,6 +324,8 @@ const zhHant = {
     }
   },
   nav: {
+    approvalsPending_one: '{{count}} 個核准等候中',
+    approvalsPending_other: '{{count}} 個核准等候中',
     primary: '主要導覽',
     sections: {
       operate: '營運',
@@ -298,6 +333,10 @@ const zhHant = {
       administration: '管理'
     },
     hubs: {
+      approvals: {
+        label: '核准',
+        tip: '等候人員處理的工具呼叫，以及每一項決定'
+      },
       home: { label: '首頁', tip: '一覽機群與執行的健康狀態' },
       invoke: { label: '呼叫', tip: '以互動方式試用代理程式' },
       runs: { label: '執行', tip: '執行與排程佇列' },
@@ -310,6 +349,10 @@ const zhHant = {
       system: { label: '系統', tip: '伺服器設定與伺服器資訊' }
     },
     items: {
+      approvals: {
+        label: '核准',
+        tip: '允許或拒絕代理程式要求進行的工具呼叫'
+      },
       home: { label: '首頁', tip: '一覽機群與執行的健康狀態' },
       invoke: { label: '呼叫', tip: '以互動方式試用代理程式' },
       runs: { label: '執行', tip: '尋找、檢查、取消與重試執行' },
@@ -381,6 +424,48 @@ const zhHant = {
     run: '執行權杖'
   },
   components: {
+    approvals: {
+      awaiting: '等候核准',
+      decideTitle: '決定 {{tool}}',
+      decision: '決定',
+      reason: '原因',
+      reasonPlaceholder: '選填。代理程式與稽核記錄都會看到。',
+      remember: '記住為此部署的規則',
+      rulePattern: '規則模式',
+      rememberHint: '在部署中新增動作為 {{action}} 的規則，讓符合的呼叫不必詢問即可決定。這也需要更新部署的權限。',
+      submitAllow: '允許',
+      submitDeny: '拒絕',
+      timeoutThen: '然後 {{decision}}',
+      toasts: {
+        allowed: '已允許 {{tool}}。',
+        denied: '已拒絕 {{tool}}。',
+        allowedRemembered: '已允許 {{tool}}，並新增規則 {{pattern}}。',
+        deniedRemembered: '已拒絕 {{tool}}，並新增規則 {{pattern}}。',
+        notPending: '此核准已由其他人或因逾時而決定。清單現在會顯示結果。',
+        forbidden: '你可以讀取核准，但不能決定。請向管理員申請 Approval Update 權限。',
+        forbiddenRemember: '記住規則也需要更新部署的權限。請不記住規則直接決定，或申請 Deployment Update。'
+      }
+    },
+    approvalCheck: {
+      title: '測試工具呼叫',
+      saveFirst: '請先儲存部署。測試會檢查伺服器已儲存的規則。',
+      hint: '檢查的是已儲存的規則，因此請先儲存變更再測試。不會記錄任何內容。',
+      toolName: '工具',
+      inputs: {
+        command: '命令',
+        url: 'URL',
+        query: '搜尋查詢',
+        file_path: '檔案路徑',
+        notebook_path: '筆記本路徑',
+        pattern: '模式'
+      },
+      run: '檢查',
+      checking: '檢查中...',
+      byRule: '依此規則 {{action}}：',
+      byDefault: '依部署預設值 {{action}}，因為沒有符合的規則。',
+      suggestedRule: '建議的規則：',
+      disabled: '此部署已關閉核准，因此其執行永遠不會詢問。請開啟並儲存，才能套用這些規則。'
+    },
     blocked: {
       title: '等待工作節點',
       body: '這個執行已排入佇列，但目前沒有工作節點能接手。',
@@ -529,6 +614,63 @@ const zhHant = {
     }
   },
   resources: {
+    approvals: {
+      ...rp('核准', '代理程式要求進行的工具呼叫，由部署規則、部署預設值、人員或逾時決定。待處理的項目會等候你處理。', '新增核准', '建立核准', '編輯核准', '核准詳細資料', '刪除核准', '尚無核准', '已啟用核准的部署在工具呼叫前提出詢問時，核准就會顯示在這裡。'),
+      columns: {
+        createdUtc: '要求時間',
+        agentName: '代理程式',
+        toolName: '工具',
+        summary: '要求',
+        status: '狀態',
+        decision: '決定',
+        decisionSource: '來源',
+        decidedBy: '決定者',
+        expiresUtc: '到期時間',
+        kind: '種類',
+        harnessType: 'Harness',
+        runId: '執行',
+        waitMs: '等候',
+        reason: '原因',
+        decidedUtc: '決定時間',
+        id: 'ID'
+      },
+      fields: {
+        status: '狀態',
+        decision: '決定',
+        decisionSource: '決定來源',
+        decidedBy: '決定者',
+        toolName: '工具',
+        kind: '種類',
+        harnessType: 'Harness',
+        agentName: '代理程式',
+        runId: '執行',
+        rootRunId: '根執行',
+        deploymentId: '部署',
+        leaseEpoch: '租約世代',
+        requestedUtc: '要求時間',
+        expiresUtc: '到期時間',
+        decidedUtc: '決定時間',
+        waitMs: '等候時間',
+        timeoutDecision: '逾時時的決定',
+        toolCallId: '工具呼叫 ID',
+        reason: '原因',
+        summary: '摘要',
+        inputPreview: '輸入（已遮蔽）',
+        rulePattern: '符合的規則',
+        ruleId: '規則 ID',
+        suggestedRule: '建議的規則',
+        rememberedRuleId: '已記住的規則 ID'
+      },
+      filters: {
+        runId: '執行 ID',
+        runIdPlaceholder: '執行 ID（run_...）'
+      },
+      actions: {
+        allow: '允許',
+        deny: '拒絕',
+        openRun: '開啟執行'
+      }
+    },
     tenants: {
       ...rp('租用戶', '彼此隔離的工作空間，各自擁有使用者、代理程式、祕密與執行。', '新增租用戶', '建立租用戶', '編輯租用戶', '租用戶詳細資料', '刪除租用戶', '尚無租用戶', '建立租用戶以隔離團隊或客戶。'),
       columns: { name: '名稱', id: 'ID', description: '描述', active: '啟用', createdUtc: '建立時間' },
@@ -714,11 +856,24 @@ const zhHant = {
       errors: { dnsName: '請使用小寫字母、數字與連字號，且開頭與結尾必須是字母或數字。' }
     },
     deployments: {
+      approvalsOn_one: '開啟，{{count}} 條規則',
+      approvalsOn_other: '開啟，{{count}} 條規則',
+      approvalsOff: '關閉',
       promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行的任務包裝', Task: '任務包裝', System: '系統提示' },
       ...rp('部署', '將代理程式繫結到 Harness 設定檔、提示、祕密、MCP 伺服器、排程放置與限制。', '新增部署', '建立部署', '編輯部署', '部署詳細資料', '刪除部署', '尚無部署', '建立部署，讓代理程式可以執行。'),
-      steps: { basics: '基本資訊', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置與限制' },
-      columns: { name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', executor: '執行器', weight: '權重', configVersion: '設定版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
+      steps: { approvals: '核准', basics: '基本資訊', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置與限制' },
+      columns: { approvalsEnabled: '核准', name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', executor: '執行器', weight: '權重', configVersion: '設定版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
       fields: {
+        approvalsEnabled: '工具呼叫前先詢問（核准）',
+        approvalDefaultAction: '沒有規則符合時',
+        approvalTimeoutSeconds: '核准逾時（秒）',
+        approvalTimeoutDecision: '無人回應時的決定',
+        approvalRules: '核准規則',
+        ruleAction: '動作',
+        rulePattern: '規則',
+        ruleInputPattern: '輸入模式',
+        ruleDescription: '說明',
+        approvalTest: '測試工具呼叫',
         name: '名稱',
         agentId: '代理程式',
         description: '描述',
@@ -774,6 +929,10 @@ const zhHant = {
         podEphemeralStorageLimit: '暫時性儲存上限'
       },
       hints: {
+        approvalsEnabled: '適用於 Claude Code 設定檔，以及使用 Codex app-server 的設定檔。其他 Harness 沒有核准掛鉤，因此伺服器會拒絕為它們套用此設定。',
+        approvalDefaultAction: '「詢問人員」會在核准收件匣中等候，直到有人決定或逾時為止。',
+        approvalTimeoutSeconds: '範圍為 10 至 3,600 秒。留空時使用 300。',
+        approvalRules: '「拒絕」優先於「詢問」，「詢問」優先於「允許」。範例：Bash(npm test)、Bash(npm run *)、Edit(src/**)、WebFetch(domain:example.com)、mcp__github__*。',
         secretsKinds: 'Harness 設定檔 {{profile}} 需要任一類型為 {{kinds}} 的祕密。可用任何別名繫結。',
         secretsAliases: 'Harness 設定檔 {{profile}} 會讀取以這些別名繫結的祕密：{{aliases}}。',
         secretsNone: 'Harness 設定檔 {{profile}} 不讀取任何祕密，因此不需要繫結祕密。',
@@ -793,18 +952,19 @@ const zhHant = {
         executorSet: '處理程序會在 worker 內執行 harness；Kubernetes Job 會在獨立的 Pod 中執行。',
         podCpuRequest: 'Pod 資源只適用於 Kubernetes Job 執行。請使用 Kubernetes 數量，例如 500m、2、512Mi 或 4Gi；留空則使用 worker 預設值。'
       },
-      actions: { compilePreview: '編譯預覽', test: '測試呼叫', useClusterDefault: '使用叢集預設值' },
+      actions: { addRule: '新增規則', compilePreview: '編譯預覽', test: '測試呼叫', useClusterDefault: '使用叢集預設值' },
       sections: {
         guards: '執行防護',
         execution: '執行器與 Pod 資源'
       },
       placeholders: {
+        ruleInputPattern: '選用，比對輸入 JSON 的規則運算式',
         clusterDefault: '叢集預設值（{{value}}）',
         clusterDefaultUnknown: '叢集預設值'
       },
       executorInherit: '節點集區預設值',
       executorInheritShort: '集區預設',
-      errors: { quantity: '請使用 Kubernetes 數量，例如 500m、2、512Mi 或 4Gi。' },
+      errors: { rulePatternRequired: '請輸入規則模式。', rulePatternOneLine: '規則模式必須寫在同一行。', rulePatternTooLong: '規則模式最多 1,000 個字元。', tooManyRules: '一個部署最多可以有 500 條核准規則。', approvalTimeout: '請輸入 10 至 3,600 之間的整數秒數。', quantity: '請使用 Kubernetes 數量，例如 500m、2、512Mi 或 4Gi。' },
       guardStates: {
         on: '開啟',
         off: '關閉'
@@ -820,6 +980,7 @@ const zhHant = {
     runs: {
       ...rp('執行', '每一次代理程式呼叫，以及其狀態、節點、持續時間與結果。', '新增執行', '建立執行', '編輯執行', '執行詳細資料', '刪除執行', '尚無執行', '呼叫代理程式以開始執行。'),
       columns: {
+        approvalWaitMs: '核准等候',
         delegationWaitMs: '委派等待時間',
         timeToFirstTokenExcludingDelegationMs: 'TTFT（不含委派）',
         id: '執行',
@@ -893,6 +1054,19 @@ const zhHant = {
     }
   },
   views: {
+    approvalDetail: {
+      title: '核准',
+      titleWithTool: '{{tool}} 的核准',
+      backToInbox: '所有核准',
+      pending: '正在等候人員允許或拒絕此工具呼叫。',
+      pendingExpires: '正在等候人員處理。若無人決定，將於 {{when}} 到期，並套用決定 {{decision}}。',
+      request: '要求',
+      rules: '規則',
+      noRule: '沒有符合的規則',
+      noInput: '未記錄任何輸入。',
+      notFoundTitle: '找不到核准',
+      notFoundBody: '它可能屬於其他租用戶，或 ID 有誤。'
+    },
     home: {
       observabilityState: { reachable: '可連線', unreachable: '無法連線', checking: '檢查中', unknown: '狀態不明' },
       observabilityVersion: '版本 {{version}}',
@@ -1022,6 +1196,13 @@ const zhHant = {
       }
     },
     runDetail: {
+      awaitingApproval_one: '此執行正在等候人員核准 {{count}} 個工具呼叫。',
+      awaitingApproval_other: '此執行正在等候人員核准 {{count}} 個工具呼叫。',
+      reviewApprovals: '審查',
+      approvals_one: '核准（{{count}}）',
+      approvals_other: '核准（{{count}}）',
+      noApprovals: '此執行尚未要求任何核准。',
+      openApproval: '開啟核准',
       viewTrace: '檢視追蹤',
       viewLogs: '檢視日誌',
       traceId: '追蹤 ID',
@@ -1069,11 +1250,13 @@ const zhHant = {
       notFoundTitle: '找不到執行',
       notFoundBody: '它可能已被刪除，或屬於其他租用戶。',
       telemetry: {
+        approvalNote: '此執行花了 {{wait}} 等候核准決定。執行時間包含這段等候。',
         delegationNote: '此執行等待委派執行 {{wait}}。第一個 Token 時間含此等待為 {{ttft}}，不含為 {{excluding}}；與不委派的代理程式比較時請用後者。',
         title: '遙測',
         phases: '各階段執行時間',
         phase: { delegation: '等待委派執行', queue: '佇列', startup: '啟動至第一個 Token', streaming: '串流', tail: '最後一個 Token 之後' },
         fields: {
+          approvalWaitMs: '核准等候',
           delegationWaitMs: '委派等待時間',
           timeToFirstTokenExcludingDelegationMs: '第一個 Token 時間（不含委派）',
           timeToFirstTokenMs: '第一個 Token 時間',

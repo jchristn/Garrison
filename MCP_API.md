@@ -73,6 +73,12 @@ Each tool checks the same permission its REST equivalent does. Every tool also a
 | `garrison_get_run_events` | Read on Run | `runId` | `afterSequence` (default 0), `limit` (1 to 500, default 100) |
 | `garrison_cancel_run` | Update on Run | `runId` | none |
 | `garrison_list_runs` | Read on Run | none | `status`, `agent`, `maxResults` (1 to 100, default 25) |
+| `garrison_list_approvals` | Read on Approval | none | `status` (`Pending`, `Approved`, `Denied`, `Expired`, `Cancelled`), `runId`, `agent`, `maxResults` (1 to 100, default 25) |
+| `garrison_get_approval` | Read on Approval | `approvalId` | none |
+| `garrison_decide_approval` | Update on Approval (and Update on Deployment with `remember`) | `approvalId`, `decision` (`Allow` or `Deny`) | `reason`, `remember` (default false), `rulePattern` |
+| `garrison_permission_prompt` | Run tokens only | `tool_name`, `input` (object) | `tool_use_id` |
+
+Run summaries (`garrison_get_run`, `garrison_list_runs`, and the invoke tools) include `awaitingApproval`, true while the run's harness waits for a person to decide a permission approval. `garrison_list_approvals` returns the same page as `GET .../approvals` and `garrison_get_approval` and `garrison_decide_approval` return an `Approval` (see REST_API.md). A run token can neither list nor decide approvals, so an agent cannot approve its own requests.
 
 `garrison_list_agents` returns only active agents. `parameters` must be values the chosen deployment lets callers override, exactly as with `POST .../invoke`.
 
@@ -211,7 +217,7 @@ When an agent's delegation mode is anything other than `None`, the control plane
 
 A run token is narrower than the person who started the chain:
 
-- It can only use the eight tools above, and only within the run's tenant.
+- It can only use the run and agent tools above and `garrison_permission_prompt`, and only within the run's tenant. The approval list, read, and decide tools refuse it.
 - `garrison_list_agents` shows only the agents the calling agent may delegate to: none when its delegation mode is `None`, the names on its allowlist when the mode is `AllowList`, and never itself unless recursion is allowed.
 - Invocations are checked against the delegation depth limit, cycles, and the allowlist, and fail with the reason when they break a rule.
 - Run lookups are limited to runs in the same delegation tree.
@@ -219,6 +225,28 @@ A run token is narrower than the person who started the chain:
 - The token is fenced by the lease epoch it was minted for: it works only while its run is active at that epoch. A harness that kept running after its lease expired (a partitioned worker, for example) cannot delegate, read runs, or open an MCP session with it, even before revocation reaches it; the new attempt gets a new token (see `docs/SECURITY.md`).
 
 The instructions that teach an agent how to use these tools are prompt templates (`builtin/garrison-tools-instructions` for the tool guidance and `builtin/delegated-task` for the task a child run receives, see `docs/PROMPTS.md`), so you can change how agents are told to delegate per deployment.
+
+## Permission approvals from inside a run
+
+When a deployment has `approvalsEnabled`, the control plane adds the `garrison` MCP server to its runs even when delegation is off, and the worker's pre-flight check requires `garrison_permission_prompt`. Claude Code is started with `--permission-prompt-tool mcp__garrison__garrison_permission_prompt`, so before it runs a tool that needs permission it calls:
+
+```json
+{"name": "garrison_permission_prompt", "arguments": {"tool_name": "Bash", "input": {"command": "git push origin main"}, "tool_use_id": "toolu_01JmH6x9"}}
+```
+
+The tool evaluates the deployment's approval rules. Allow and Deny answer at once; Ask creates a pending approval and the call blocks until a person decides it (REST, `garrison_decide_approval`, or the dashboard), it expires, or the run stops. The result is one text content item in the shape Claude Code reads, plus the approval identifier and status:
+
+```json
+{"behavior": "allow", "updatedInput": {"command": "git push origin main"}, "approvalId": "apr_mv3k2a1b_7QxJm2LhR8sWcN4dTzEf", "approvalStatus": "Approved"}
+```
+
+```json
+{"behavior": "deny", "message": "A person reviewing this run in Garrison denied this Bash call (apr_mv3k2a1b_7QxJm2LhR8sWcN4dTzEf). Reason: not during the freeze Do not retry the same call; continue without it, or explain in your answer what you need and why.", "approvalId": "apr_mv3k2a1b_7QxJm2LhR8sWcN4dTzEf", "approvalStatus": "Denied"}
+```
+
+The denial message is rendered from the prompt template `builtin/approval-denied`; a tenant template named `approval-denied` with the kind `Other` replaces it for that tenant. Only a run token may call the tool, and only about its own run (the run comes from the token, never from the arguments). Claude Code's own MCP tool timeout is raised to cover the wait (`MCP_TOOL_TIMEOUT` is at least the approval timeout plus two minutes). If the MCP client cancels the call or the run is cancelled, the approval is cancelled and the answer is a denial.
+
+For Codex with the `CodexAppServer` delivery, the worker calls the same tool with the run token for each `item/commandExecution/requestApproval` (as `Bash`, input `command` and `cwd`) and `item/fileChange/requestApproval` (as `Edit`, input `paths`), and answers Codex with `accept` or `decline`.
 
 ## Tool descriptions
 

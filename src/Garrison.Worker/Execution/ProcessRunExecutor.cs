@@ -138,7 +138,7 @@ namespace Garrison.Worker.Execution
 
                 // Codex app-server delivery (P12.2a): the driver holds stdin open, sends the prompt as one turn over
                 // JSON-RPC, and returns when the turn completes so stdin closes and the app-server exits.
-                CodexAppServerDriver? appServer = spec.AppServer != null ? AppServerDriver(spec, environment, directories) : null;
+                CodexAppServerDriver? appServer = spec.AppServer != null ? AppServerDriver(spec, environment, directories, _Log == null ? null : line => _Log("run " + assignment.RunId + " " + line)) : null;
                 if (appServer != null)
                 {
                     request.Stdin = null;
@@ -282,7 +282,7 @@ namespace Garrison.Worker.Execution
             }
         }
 
-        private static CodexAppServerDriver AppServerDriver(ExecutionSpec spec, Dictionary<string, string> environment, RunDirectories directories)
+        private static CodexAppServerDriver AppServerDriver(ExecutionSpec spec, Dictionary<string, string> environment, RunDirectories directories, Action<string>? log)
         {
             ExecutionAppServer settings = spec.AppServer ?? new ExecutionAppServer();
             CodexAppServerOptions options = new CodexAppServerOptions();
@@ -293,7 +293,16 @@ namespace Garrison.Worker.Execution
             options.ApprovalPolicy = settings.ApprovalPolicy;
             options.ClientVersion = typeof(ProcessRunExecutor).Assembly.GetName().Version?.ToString() ?? "0.0.0";
             options.UseApiKeyFrom(environment);
-            return new CodexAppServerDriver(options);
+            CodexAppServerDriver driver = new CodexAppServerDriver(options);
+            if (spec.ApprovalRelay != null)
+            {
+                // Permission approvals (P12.3): command and file change requests go to garrison_permission_prompt with the
+                // run token; everything else keeps the headless answer.
+                CodexApprovalRelay relay = new CodexApprovalRelay(spec.ApprovalRelay);
+                relay.Log = log;
+                relay.Attach(driver);
+            }
+            return driver;
         }
 
         private Dictionary<string, string> BuildEnvironment(ExecutionSpec spec, RunDirectories directories)

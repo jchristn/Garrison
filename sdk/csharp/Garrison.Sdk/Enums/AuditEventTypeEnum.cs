@@ -103,6 +103,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// RunCancelled.
         /// </summary>
-        RunCancelled
+        RunCancelled,
+
+        /// <summary>
+        /// A person decided a permission approval.
+        /// </summary>
+        ApprovalDecided
     }
 }

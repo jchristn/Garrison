@@ -8,7 +8,7 @@ import ValuePromptModal from '../components/ValuePromptModal';
 import EffectivePermissionsModal from '../components/EffectivePermissionsModal';
 import McpTestModal from '../components/McpTestModal';
 import CompilePreviewModal from '../components/CompilePreviewModal';
-import { ENUMS } from '../utils/constants';
+import { ENUMS, APPROVAL_TIMEOUT } from '../utils/constants';
 import { pathFor } from '../config/navConfig';
 import { formatDateTime, formatRelativeTime } from '../i18n/formatters';
 import { errorMessage } from '../utils/errors';
@@ -21,6 +21,8 @@ import CloneTemplateModal from '../components/CloneTemplateModal';
 import { PROMPT_ROLES, defaultTemplateFor, templatesForRole, profileSecretNeeds } from '../utils/deployments';
 import { formatList, formatNumber } from '../i18n/formatters';
 import { loadRuntimeLimits } from '../utils/settings';
+import ApprovalCheckPanel from '../components/ApprovalCheckPanel';
+import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../utils/approvals';
 import { POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
 
 // ---------------------------------------------------------------- helpers
@@ -845,7 +847,7 @@ export const deploymentsConfig = {
   explainer: 'deployments',
   explainerDiagram: () => <AgentRelationDiagram />,
   api: tenantApi('listDeployments', 'createDeployment', 'updateDeployment', 'deleteDeployment'),
-  steps: ['basics', 'harness', 'prompts', 'resources', 'overrides', 'placement'],
+  steps: ['basics', 'harness', 'prompts', 'resources', 'overrides', 'placement', 'approvals'],
   loadOptions: async ({ apiClient, tenantId }) => {
     const [agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
@@ -908,6 +910,7 @@ export const deploymentsConfig = {
     nodeSelector: [],
     parameters: [],
     allowedRunOverrides: [],
+    ...approvalFormDefaults(null),
     active: true
   }),
   columns: ({ t, i18n, lookups }) => [
@@ -918,6 +921,13 @@ export const deploymentsConfig = {
     col('deployments', t, 'executor', (r) => (r.executor ? enumBadge(t, 'runExecutor', r.executor, r.executor === 'KubernetesJob' ? 'info' : 'neutral') : t('resources.deployments.executorInheritShort')), { csv: (r) => r.executor || '', defaultHidden: true }),
     col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right' }),
     col('deployments', t, 'configVersion', (r) => r.configVersion, { cellClass: 'right', defaultHidden: true }),
+    col('deployments', t, 'approvalsEnabled', (r) =>
+      r.approvalsEnabled ? (
+        <Badge tone="info" tip={t('tips.badges.approvalsOn', { count: (r.approvalRules || []).length })}>{t('resources.deployments.approvalsOn', { count: (r.approvalRules || []).length })}</Badge>
+      ) : (
+        <Badge tip={t('tips.badges.approvalsOff')}>{t('resources.deployments.approvalsOff')}</Badge>
+      ),
+    { defaultHidden: true, csv: (r) => (r.approvalsEnabled ? 'true' : 'false') }),
     activeCol('deployments', t),
     idCol('deployments', t),
     createdCol('deployments', t, i18n)
@@ -1065,17 +1075,43 @@ export const deploymentsConfig = {
       field(id, t, 'executor', 'select', { step: 5, options: enumOptions(t, 'runExecutor'), noneLabel: t('resources.deployments.executorInherit'), hint: executorHint(t, d, options.pools) }),
       ...POD_RESOURCE_KEYS.map((key) =>
         field(id, t, podField(key), 'text', { step: 5, placeholder: POD_RESOURCE_EXAMPLES[key], showIf: (x) => x.executor !== 'Process' })
-      )
+      ),
+      // Permission approvals (P12.3): which tool calls the harness may make, which it may not, and which wait for a person.
+      field(id, t, 'approvalsEnabled', 'checkbox', { step: 6 }),
+      field(id, t, 'approvalDefaultAction', 'select', { step: 6, required: true, options: enumOptions(t, 'approvalRuleAction') }),
+      field(id, t, 'approvalTimeoutSeconds', 'number', { step: 6, min: APPROVAL_TIMEOUT.min, max: APPROVAL_TIMEOUT.max, placeholder: String(APPROVAL_TIMEOUT.default) }),
+      field(id, t, 'approvalTimeoutDecision', 'select', { step: 6, required: true, options: enumOptions(t, 'approvalDecision') }),
+      field(id, t, 'approvalRules', 'objectList', {
+        step: 6,
+        ordered: true,
+        addLabel: t('resources.deployments.actions.addRule'),
+        fields: [
+          { name: 'action', type: 'select', label: t('resources.deployments.fields.ruleAction'), required: true, default: 'Ask', options: enumOptions(t, 'approvalRuleAction') },
+          { name: 'pattern', type: 'text', label: t('resources.deployments.fields.rulePattern'), required: true, placeholder: 'Bash(npm test)' },
+          { name: 'inputPattern', type: 'text', label: t('resources.deployments.fields.ruleInputPattern'), placeholder: t('resources.deployments.placeholders.ruleInputPattern') },
+          { name: 'description', type: 'text', label: t('resources.deployments.fields.ruleDescription') }
+        ]
+      }),
+      field(id, t, 'approvalTest', 'custom', { step: 6, render: (data) => <ApprovalCheckPanel deploymentId={data?.id || null} /> })
     ];
   },
-  toForm: (r) => deploymentToForm(r),
-  toBody: (d) => deploymentToBody(d),
+  toForm: (r) => ({ ...deploymentToForm(r), ...approvalFormDefaults(r) }),
+  toBody: (d) => {
+    const body = deploymentToBody(d);
+    body.approvalsEnabled = !!d.approvalsEnabled;
+    body.approvalDefaultAction = d.approvalDefaultAction || 'Ask';
+    body.approvalTimeoutSeconds = d.approvalTimeoutSeconds ?? APPROVAL_TIMEOUT.default;
+    body.approvalTimeoutDecision = d.approvalTimeoutDecision || 'Deny';
+    body.approvalRules = approvalRulesToBody(d.approvalRules);
+    return body;
+  },
   validate: (d, t) => {
     const e = {};
     if (!d.name) e.name = t('common.errors.required');
     if (!d.agentId) e.agentId = t('common.errors.required');
     if (!d.harnessProfileId) e.harnessProfileId = t('common.errors.required');
     Object.assign(e, podResourceErrors(d, t('resources.deployments.errors.quantity')));
+    Object.assign(e, approvalErrors(d, t));
     return e;
   },
   rowActions: (r, ctx) => [

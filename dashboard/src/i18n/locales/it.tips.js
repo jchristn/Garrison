@@ -1,6 +1,7 @@
 // Italian tooltip (tips.*) and relationship explainer (explainers.*) text. Merged into it.js. Mirrors en.tips.js key for key.
 
 const TELEMETRY = {
+  approvalWaitMs: 'Attesa di approvazione: tempo totale che questa esecuzione ha passato in attesa di approvazioni di autorizzazione decise da una persona o da un timeout. Le chiamate decise subito da una regola o dal predefinito della distribuzione non aggiungono nulla. Misurato dal server; n/d quando l\'esecuzione non ha mai atteso.',
   delegationWaitMs: 'Attesa di delega: quanto questa esecuzione ha atteso le esecuzioni figlie avviate tramite Garrison (altri agenti a cui ha delegato), in base ai timestamp del server di quelle esecuzioni. Zero o n/d se l\'esecuzione non ha delegato nulla.',
   timeToFirstTokenExcludingDelegationMs: 'Tempo al primo token senza delega: il tempo al primo token meno il tempo che l\'esecuzione ha passato ad attendere le esecuzioni delegate prima del suo primo output. Usalo per confrontare gli agenti che delegano con quelli che non lo fanno. Misurato con i timestamp del server; mai negativo.',
   timeToFirstTokenMs: 'Tempo al primo token: dal momento in cui il worker avvia il processo dell\'harness fino a quando il modello produce il primo output (testo o ragionamento). Include l\'avvio dell\'harness, quindi una CLI lenta ad avviarsi si nota qui. Misurato sul worker con un orologio monotono.',
@@ -29,6 +30,34 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  approvals: {
+    awaiting_one: 'L\'harness ha chiesto prima di una chiamata a strumento e attende una persona. Apri la scheda Approvazioni per consentirla o negarla ({{count}} in attesa).',
+    awaiting_other: 'L\'harness ha chiesto prima di alcune chiamate a strumenti e attende una persona. Apri la scheda Approvazioni per consentirle o negarle ({{count}} in attesa).',
+    awaiting_many: 'L\'harness ha chiesto prima di alcune chiamate a strumenti e attende una persona. Apri la scheda Approvazioni per consentirle o negarle ({{count}} in attesa).',
+    decide: {
+      decision: 'Scegli se l\'harness può effettuare questa chiamata a strumento. L\'esecuzione prosegue appena invii.',
+      allow: 'Lascia che l\'harness effettui questa chiamata a strumento. L\'esecuzione prosegue con essa.',
+      deny: 'Rifiuta questa chiamata a strumento. L\'harness riceve il messaggio di rifiuto e prosegue senza di essa.',
+      reason: 'Nota facoltativa salvata con la decisione e scritta nel log di audit. In caso di rifiuto viene inoltrata all\'agente.',
+      remember: 'Aggiunge anche una regola alla distribuzione di questa approvazione, così lo stesso tipo di chiamata viene deciso automaticamente la prossima volta.',
+      rulePattern: 'La regola da aggiungere, nella sintassi delle regole di Claude Code. Parte dalla regola suggerita; allargala o restringila prima di salvare.',
+      submitAllow: 'Consenti ora la chiamata a strumento. La decisione è definitiva e non si può cambiare in seguito.',
+      submitDeny: 'Nega ora la chiamata a strumento. La decisione è definitiva e non si può cambiare in seguito.'
+    }
+  },
+  approvalCheck: {
+    toolName: 'Nome dello strumento come lo riporta l\'harness, per esempio Bash, Edit, WebFetch o uno strumento MCP come mcp__github__create_issue.',
+    inputs: {
+      command: 'Il comando shell da provare, per esempio npm run build && npm test. Ogni sottocomando deve essere consentito.',
+      url: 'L\'URL che lo strumento recupererebbe. Le regole WebFetch confrontano il suo dominio.',
+      query: 'La query di ricerca che lo strumento invierebbe.',
+      file_path: 'Percorso del file che lo strumento leggerebbe o modificherebbe, relativo all\'area di lavoro o assoluto.',
+      notebook_path: 'Percorso del notebook che lo strumento modificherebbe.',
+      pattern: 'Il pattern glob o di ricerca che lo strumento userebbe.'
+    },
+    run: 'Valuta le regole salvate della distribuzione per questa chiamata a strumento e mostra il risultato. Non viene registrato nulla e nessuna esecuzione è interessata.',
+    suggestedRule: 'La regola che «memorizza» aggiungerebbe per questa chiamata. Copiala nelle regole qui sopra per coprire chiamate simili.'
+  },
   ids: { deleted: 'Questo record è stato eliminato. ID {{id}}. Il pulsante di copia copia l\'ID.', named: 'ID {{id}}. Il pulsante di copia copia l\'ID per l\'API, gli SDK o una richiesta di assistenza.' },
   markdown: {
     column: 'Colonna {{name}} di una tabella nell\'output dell\'agente. Le tabelle larghe scorrono in orizzontale nella loro cornice.',
@@ -54,7 +83,11 @@ const tips = {
     dismiss: 'Nascondi questa spiegazione. Al suo posto resta un piccolo pulsante «Informazioni su» per riaprirla in qualsiasi momento.'
   },
   nav: {
+    approvalsBadge_one: '{{count}} chiamata a strumento attende che una persona la consenta o la neghi. Apri Approvazioni per decidere.',
+    approvalsBadge_other: '{{count}} chiamate a strumenti attendono che una persona le consenta o le neghi. Apri Approvazioni per decidere.',
+    approvalsBadge_many: '{{count}} chiamate a strumenti attendono che una persona le consenta o le neghi. Apri Approvazioni per decidere.',
     hubs: {
+      approvals: 'La casella delle approvazioni: chiamate a strumenti richieste dagli agenti che attendono una persona, e lo storico di ogni decisione per regola, predefinito, persona o timeout.',
       home: 'Inizia da qui: conteggi in tempo reale di agenti, esecuzioni e nodi worker, traffico API, errori recenti e scorciatoie per le attività comuni.',
       invoke: 'Invia un messaggio a un agente dal browser e segui la trascrizione in streaming, senza scrivere codice.',
       runs: 'Ogni invocazione di agente, con trascrizione, esito e telemetria, più la coda del lavoro in attesa di un nodo.',
@@ -159,6 +192,9 @@ const tips = {
     bulkDelete: 'Elimina tutte le righe selezionate. Ti verrà chiesta prima una conferma.'
   },
   filters: {
+    agentId: 'Mostra solo i record di un agente. Scegli Tutti per rimuovere il filtro.',
+    decisionSource: 'Mostra solo le approvazioni decise in un certo modo: da una regola, dal predefinito della distribuzione, da una persona, da un timeout o da un\'esecuzione fermata.',
+    runId: 'Mostra solo le approvazioni di un\'esecuzione. Incolla un ID di esecuzione come run_...; l\'elenco si aggiorna quando smetti di digitare.',
     status: 'Mostra solo i record in questo stato. Scegli Tutti per rimuovere il filtro.',
     harnessType: 'Mostra solo i record di un harness, come Claude Code o Codex.',
     kind: 'Mostra solo i record di un tipo. Scegli Tutti per rimuovere il filtro.',
@@ -231,6 +267,10 @@ const tips = {
     tenant: 'Mostra l\'attività delle richieste per un tenant o per tutti i tenant del server.'
   },
   badges: {
+    approvalsOn_one: 'Approvazioni attive: l\'harness chiede prima delle chiamate a strumenti, e {{count}} regola ne decide alcune automaticamente.',
+    approvalsOn_other: 'Approvazioni attive: l\'harness chiede prima delle chiamate a strumenti, e {{count}} regole ne decidono alcune automaticamente.',
+    approvalsOn_many: 'Approvazioni attive: l\'harness chiede prima delle chiamate a strumenti, e {{count}} regole ne decidono alcune automaticamente.',
+    approvalsOff: 'Approvazioni disattivate: l\'harness effettua le chiamate a strumenti secondo le proprie impostazioni di autorizzazione, senza chiedere.',
     active: 'Attivo: questo record è in uso.',
     inactive: 'Inattivo: questo record viene conservato ma ignorato finché non viene riattivato.',
     builtIn: 'Predefinito: fornito con Garrison e di sola lettura. Clonalo per creare una versione modificabile.',
@@ -297,6 +337,34 @@ const tips = {
     queueColumn: 'Esecuzioni in coda di questo gruppo che al momento nessun worker pronto può eseguire. Passa sul badge per vedere motivo e rimedio.'
   },
   enums: {
+    approvalStatus: {
+      Pending: 'In attesa che una persona la consenta o la neghi. Fino ad allora l\'harness resta bloccato su questa chiamata.',
+      Approved: 'La chiamata a strumento è stata consentita, da una regola, dal predefinito della distribuzione, da una persona o da un timeout.',
+      Denied: 'La chiamata a strumento è stata rifiutata. L\'harness ha ricevuto il messaggio di rifiuto ed è proseguito senza di essa.',
+      Expired: 'Nessuno ha deciso in tempo, quindi è stata applicata la decisione di timeout della distribuzione.',
+      Cancelled: 'L\'esecuzione si è fermata mentre l\'approvazione era in sospeso, quindi è stata chiusa senza decisione.'
+    },
+    approvalDecision: {
+      Allow: 'Consenti: l\'harness è stato autorizzato a effettuare la chiamata a strumento.',
+      Deny: 'Nega: l\'harness è stato respinto e ha ricevuto il motivo.'
+    },
+    approvalSource: {
+      Rule: 'Decisa subito da una regola della distribuzione. La regola corrispondente è mostrata accanto.',
+      Default: 'Nessuna regola corrispondeva, quindi ha deciso l\'azione predefinita della distribuzione.',
+      User: 'Una persona ha deciso nella dashboard, tramite API o tramite MCP.',
+      Timeout: 'Nessuno ha deciso prima della scadenza, quindi si è applicata la decisione di timeout della distribuzione.',
+      Cancelled: 'L\'esecuzione si è fermata mentre questa approvazione era in attesa.'
+    },
+    approvalRuleAction: {
+      Allow: 'Consenti: le chiamate a strumenti corrispondenti procedono senza chiedere a nessuno.',
+      Deny: 'Nega: le chiamate a strumenti corrispondenti vengono rifiutate senza chiedere a nessuno. Nega prevale su ogni altra regola.',
+      Ask: 'Chiedi a una persona: le chiamate a strumenti corrispondenti attendono una decisione nella casella Approvazioni.'
+    },
+    approvalKind: {
+      Tool: 'Una richiesta di autorizzazione di Claude Code per qualsiasi strumento, compresi gli strumenti MCP.',
+      Command: 'Un comando shell che un\'esecuzione con l\'app-server di Codex vuole eseguire. Le regole lo valutano come Bash.',
+      FileChange: 'Una modifica di file che un\'esecuzione con l\'app-server di Codex vuole applicare. Le regole la valutano come Edit.'
+    },
     runBlockedReason: {
       NoReadyWorker: 'Bloccata: nessun nodo worker è pronto, quindi nessuno può prendere questa esecuzione. Avvia un worker o registrane uno nuovo, poi controlla nella pagina Flotta i nodi persi, offline, in svuotamento o isolati.',
       NoCapableWorker: 'Bloccata: ci sono nodi worker pronti, ma nessuno segnala come disponibile l\'harness di questa esecuzione. Avvia o registra un worker con l\'harness installato, oppure controlla le sue credenziali e i risultati delle verifiche nella pagina Flotta.',
@@ -420,6 +488,7 @@ const tips = {
       Validated: 'Simulazione: questo documento è valido e verrebbe applicato.'
     },
     auditEventType: {
+      ApprovalDecided: 'Una persona ha consentito o negato una chiamata a strumento in sospeso. Il record indica lo strumento, l\'esecuzione e il motivo.',
       AuthSuccess: 'Qualcuno ha effettuato l\'accesso o autenticato una richiesta con successo.',
       AuthFailure: 'Un tentativo di accesso o di autenticazione non è riuscito. Errori ripetuti possono indicare che qualcuno sta tentando di indovinare.',
       SessionIssued: 'È stato emesso un token di sessione.',
@@ -443,6 +512,40 @@ const tips = {
     }
   },
   resources: {
+    approvals: {
+      createdUtc: 'Quando l\'harness ha chiesto. Passa il mouse sul valore per l\'ora esatta.',
+      agentName: 'L\'agente la cui esecuzione ha richiesto questa chiamata a strumento.',
+      toolName: 'Lo strumento che l\'harness vuole usare, per esempio Bash, Edit, WebFetch o uno strumento MCP.',
+      summary: 'Una riga sulla chiamata: il comando, URL, percorsi o query, con i segreti oscurati.',
+      status: 'In sospeso finché non viene decisa, poi Approvata, Negata, Scaduta (timeout) o Annullata (l\'esecuzione si è fermata).',
+      decision: 'Consenti o Nega una volta decisa; vuoto finché l\'approvazione è in sospeso.',
+      decisionSource: 'Cosa l\'ha decisa: una regola, il predefinito della distribuzione, una persona, un timeout o un\'esecuzione fermata.',
+      decidedBy: 'La persona o la chiave di accesso che ha deciso, quando ha deciso una persona.',
+      expiresUtc: 'Quando un\'approvazione in sospeso va in timeout e si applica la decisione di timeout della distribuzione.',
+      kind: 'Chiamata a strumento (Claude Code), Comando o Modifica di file (app-server di Codex).',
+      harnessType: 'L\'harness che ha chiesto: Claude Code o Codex.',
+      runId: 'L\'esecuzione che ha chiesto. Aprila per vedere la trascrizione attorno alla chiamata.',
+      rootRunId: 'L\'esecuzione di primo livello dell\'albero di delega, quando l\'esecuzione che ha chiesto era delegata.',
+      deploymentId: 'La distribuzione le cui regole hanno valutato questa chiamata. Le regole memorizzate vengono aggiunte a essa.',
+      leaseEpoch: 'Epoca del lease del tentativo di esecuzione che ha chiesto, così una decisione non raggiunge mai un tentativo successivo.',
+      requestedUtc: 'Quando l\'harness ha chiesto l\'autorizzazione.',
+      decidedUtc: 'Quando è stata presa la decisione.',
+      waitMs: 'Quanto la chiamata ha atteso dalla richiesta alla decisione.',
+      timeoutDecision: 'Cosa succede se nessuno decide prima che l\'approvazione scada, secondo le impostazioni della distribuzione.',
+      toolCallId: 'L\'ID che l\'harness assegna a questa chiamata a strumento, per ritrovarla nella trascrizione.',
+      reason: 'La nota scritta dalla persona che ha deciso, se presente.',
+      inputPreview: 'L\'input dello strumento inviato dall\'harness, come JSON, con segreti e valori simili a token oscurati.',
+      rulePattern: 'La regola della distribuzione che corrisponde a questa chiamata, quando una regola l\'ha decisa o ha chiesto a una persona.',
+      ruleId: 'ID della regola della distribuzione corrispondente.',
+      suggestedRule: 'Una regola che corrisponderebbe a questa chiamata. «Memorizza come regola» la precompila.',
+      rememberedRuleId: 'ID della regola aggiunta alla distribuzione quando questa approvazione è stata decisa con l\'opzione di memorizzazione.',
+      id: 'Identificatore dell\'approvazione (apr_...) per l\'API e gli strumenti MCP.',
+      actions: {
+        allow: 'Consenti questa chiamata a strumento in sospeso, con un motivo facoltativo e l\'opzione di memorizzarla come regola.',
+        deny: 'Nega questa chiamata a strumento in sospeso, con un motivo facoltativo e l\'opzione di memorizzarla come regola.',
+        openRun: 'Apri l\'esecuzione che ha chiesto, per leggerne la trascrizione attorno a questa chiamata a strumento.'
+      }
+    },
     tenants: {
       add: 'Crea un nuovo tenant: uno spazio isolato con i propri utenti, agenti, segreti ed esecuzioni.',
       name: 'Nome visualizzato del tenant. Le persone scelgono il tenant tramite il suo ID quando accedono.',
@@ -682,6 +785,18 @@ const tips = {
       }
     },
     deployments: {
+      approvalsEnabled: 'Fa chiedere all\'harness prima delle chiamate a strumenti. Le regole qui sotto decidono la maggior parte delle chiamate; le altre attendono una persona nella casella Approvazioni. Solo profili Claude Code e app-server di Codex.',
+      approvalDefaultAction: 'Cosa succede quando nessuna regola corrisponde a una chiamata a strumento: consentirla, negarla o chiedere a una persona.',
+      approvalTimeoutSeconds: 'Quanto una chiamata attende una persona prima che si applichi la decisione di timeout, da 10 a 3.600 secondi.',
+      approvalTimeoutDecision: 'La decisione applicata quando nessuno risponde in tempo. Nega è la scelta sicura.',
+      approvalRules: 'Regole ordinate nella sintassi di Claude Code. Nega prevale su Chiedi e Chiedi prevale su Consenti; all\'interno di una stessa azione viene riportata la prima corrispondenza.',
+      approvalRulesItems: {
+        action: 'Cosa ottiene una chiamata corrispondente: Consenti, Nega o Chiedi a una persona.',
+        pattern: 'Regola di Claude Code, per esempio Bash(npm test), Bash(npm run *), Edit(src/**), Read, WebFetch(domain:example.com) o mcp__github__*.',
+        inputPattern: 'Espressione regolare .NET facoltativa a cui deve corrispondere anche il JSON dell\'input dello strumento, per un controllo più fine del pattern.',
+        description: 'Perché esiste questa regola, per le persone che la mantengono.'
+      },
+      approvalTest: 'Prova una chiamata a strumento con le regole salvate della distribuzione e scopri se verrebbe consentita, negata o inviata a una persona.',
       add: 'Crea una distribuzione: il modo concreto in cui viene eseguito un agente, con profilo harness, modello, prompt e risorse.',
       name: 'Nome della distribuzione, univoco nel tenant, per esempio reviewer-claude.',
       agentId: 'L\'agente eseguito da questa distribuzione. Invocando quell\'agente può essere scelta questa distribuzione.',
@@ -746,6 +861,7 @@ const tips = {
       maxAttempts: 'Quante volte in totale si può tentare un\'esecuzione. Tra 1 e 10.',
       retryOnNodeLoss: 'Rimetti l\'esecuzione in coda quando il suo nodo scompare, invece di farla fallire.',
       steps: {
+        approvals: 'Quali chiamate a strumenti l\'harness può effettuare, quali no e quali attendono una persona.',
         basics: 'Nome, agente e peso del traffico.',
         harness: 'Profilo harness, modello, limiti e parametri.',
         prompts: 'Quale modello riempie ciascun ruolo di prompt.',
@@ -880,6 +996,16 @@ const tips = {
     }
   },
   views: {
+    approvalDetail: {
+      openRun: 'Apri l\'esecuzione che ha chiesto, per leggerne la trascrizione attorno a questa chiamata a strumento.',
+      openAgent: 'Apri la pagina dell\'agente con le sue distribuzioni e le esecuzioni recenti.',
+      openDeployment: 'Apri la scheda Distribuzioni filtrata su questa distribuzione, dove si modificano le sue regole di approvazione.',
+      backToInbox: 'Torna alla casella delle approvazioni con tutte le approvazioni in sospeso.',
+      viewJson: 'Mostra il record completo dell\'approvazione come JSON, esattamente come lo restituisce l\'API.',
+      request: 'Cosa ha chiesto di fare l\'harness: il riepilogo di una riga e l\'input completo dello strumento con i segreti oscurati.',
+      rules: 'La regola della distribuzione che ha corrisposto, la regola suggerita da questa chiamata e la regola memorizzata dalla decisione.',
+      copyRule: 'Copia la regola suggerita, per esempio per incollarla nelle regole di approvazione della distribuzione.'
+    },
     home: {
       observabilityState: {
         reachable: 'Il server ha raggiunto {{service}} al suo URL interno negli ultimi 30 secondi.',
@@ -940,6 +1066,9 @@ const tips = {
       serviceGeneric: 'Apri questo servizio incluso in una nuova scheda.'
     },
     runDetail: {
+      openApproval: 'Apri questa approvazione con l\'input completo dello strumento, la regola e la decisione.',
+      reviewApprovals: 'Mostra le approvazioni di questa esecuzione, dove puoi consentire o negare le chiamate a strumenti in sospeso.',
+      approvalActions: 'Consenti o nega una chiamata a strumento in sospeso, oppure apri l\'approvazione per vedere tutti i campi.',
       viewTrace: 'Apri in una nuova scheda la traccia di questa esecuzione in Grafana Explore (Tempo). Mostra gli span di compilazione, acquisizione e harness sul server e sul nodo worker.',
       viewLogs: 'Apri in una nuova scheda le righe di log del server e del worker su questa esecuzione in Grafana Explore (Loki), limitate all\'intervallo dell\'esecuzione.',
       traceId: 'ID traccia W3C della traccia in cui è stata compilata questa esecuzione. Cercalo in Tempo oppure usa Visualizza traccia. Vuoto per le esecuzioni create prima che gli ID traccia venissero registrati.',
@@ -961,6 +1090,7 @@ const tips = {
       completed: 'Quando l\'esecuzione ha raggiunto lo stato finale.',
       exitCode: 'Codice di uscita del processo dell\'harness. Il successo di solito si valuta dall\'evento finale, non da questo codice.',
       tabs: {
+        approvals: 'Chiamate a strumenti per cui questa esecuzione ha chiesto autorizzazione, come è stata decisa ciascuna, e Consenti e Nega per quelle in sospeso.',
         transcript: 'Ogni evento prodotto dall\'harness: testo dell\'assistente, ragionamento, chiamate a strumenti e risultati, e utilizzo.',
         result: 'La risposta finale ed eventuale output strutturato.',
         input: 'Cosa ha inviato il chiamante, i parametri e le versioni esatte dei modelli di prompt usati.',
@@ -970,6 +1100,8 @@ const tips = {
       eventFilter: 'Mostra solo un tipo di evento, come chiamate a strumenti o errori.',
       openChild: 'Apri questa esecuzione figlia, avviata quando questa esecuzione ha chiamato un altro agente.',
       eventCodes: {
+        ApprovalRequested: 'L\'harness ha chiesto prima di una chiamata a strumento e la chiamata attende una persona. Decidila nella scheda Approvazioni.',
+        ApprovalDecided: 'Una richiesta di autorizzazione è stata decisa da una regola, dal predefinito della distribuzione, da una persona o da un timeout. Il testo indica quale.',
         RunGuardTriggered: 'Una protezione ha fermato questa esecuzione. Il messaggio dice quale protezione è scattata e cosa ha visto; l\'esecuzione termina come Non riuscita con l\'esito di quella protezione e conserva l\'output parziale.'
       }
     },
@@ -1299,6 +1431,12 @@ const tips = {
 };
 
 const explainers = {
+  approvals: {
+    title: 'Come funzionano le approvazioni',
+    p1: 'Una distribuzione con le approvazioni attive fa chiedere al suo harness il permesso a Garrison prima delle chiamate a strumenti: Claude Code tramite il suo strumento di richiesta di autorizzazione, e le esecuzioni con l\'app-server di Codex per comandi e modifiche di file.',
+    p2: 'Ogni richiesta viene confrontata con le regole della distribuzione. Nega prevale su Chiedi, e Chiedi prevale su Consenti; quando nulla corrisponde, si applica il predefinito della distribuzione. Consenti e Nega rispondono subito; Chiedi mette la richiesta qui e l\'esecuzione attende.',
+    p3: 'Consenti o nega una richiesta in sospeso con un motivo facoltativo. «Memorizza come regola» aggiunge una regola alla distribuzione, così la prossima chiamata simile viene decisa automaticamente. Le richieste che nessuno decide scadono con la decisione di timeout della distribuzione.'
+  },
   diagram: {
     label: 'Diagramma: un chiamante invoca un agente per nome, Garrison sceglie una delle distribuzioni dell\'agente in base al peso e le associazioni di quella distribuzione decidono come viene eseguita l\'esecuzione.',
     caller: { title: 'Chiamante', body: 'REST, MCP, A2A o un altro agente', tip: 'Qualsiasi cosa invochi un agente: la REST API, un client MCP, un agente A2A o l\'esecuzione di un altro agente. I chiamanti conoscono solo il nome dell\'agente.' },

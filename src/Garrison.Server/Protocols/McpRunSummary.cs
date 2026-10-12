@@ -38,6 +38,11 @@ namespace Garrison.Server.Protocols
         public string? BlockedReason { get; set; } = null;
 
         /// <summary>
+        /// Whether the run is waiting for a person to decide a permission approval (P12.3).
+        /// </summary>
+        public bool AwaitingApproval { get; set; } = false;
+
+        /// <summary>
         /// Whether the run finished.
         /// </summary>
         public bool Finished { get; set; } = false;

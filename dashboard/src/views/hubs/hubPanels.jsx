@@ -3,6 +3,8 @@ import InvokeView from '../InvokeView';
 import RunsView from '../RunsView';
 import RunDetailView from '../RunDetailView';
 import QueueView from '../QueueView';
+import ApprovalsView from '../ApprovalsView';
+import ApprovalDetailView from '../ApprovalDetailView';
 import AnalyticsView from '../AnalyticsView';
 import NodesView from '../NodesView';
 import ControlNodesView from '../ControlNodesView';
@@ -38,6 +40,7 @@ export const PAGE_VIEWS = {
   invoke: InvokeView,
   runs: RunsView,
   queue: QueueView,
+  approvals: ApprovalsView,
   analytics: AnalyticsView,
   nodes: NodesView,
   controlNodes: ControlNodesView,
@@ -66,6 +69,7 @@ export const PAGE_VIEWS = {
 /** Detail views for `/dashboard/<slug>/<id>`, keyed by page id (pages marked `detail: true`). */
 export const DETAIL_VIEWS = {
   runs: RunDetailView,
+  approvals: ApprovalDetailView,
   agents: AgentDetailView,
   promptTemplates: PromptTemplateEditorView
 };

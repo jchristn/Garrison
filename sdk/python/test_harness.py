@@ -213,6 +213,53 @@ def t_control_nodes():
     assert overview.get("leaderNodeId"), "overview leaderNodeId empty"
 
 
+def _expect_status(status, fn, *args, **kwargs):
+    try:
+        fn(*args, **kwargs)
+    except GarrisonError as e:
+        require(e.status_code == status, f"status {e.status_code}, expected {status}")
+        return
+    raise AssertionError(f"expected {status}")
+
+
+def t_approvals():
+    pending = client.approvals.list(status="Pending", max_results=1)
+    require(all(a["status"] == "Pending" for a in pending["objects"]), "non-pending approval in Pending list")
+    require(pending["totalRecords"] >= len(pending["objects"]), f"totalRecords {pending['totalRecords']}")
+    scoped = client.approvals.list(deployment_id=state["deployment"])
+    require(len(scoped["objects"]) == 0, f"scratch deployment has {len(scoped['objects'])} approvals")
+    _expect_status(404, client.approvals.get, f"apr_missing{SUFFIX}")
+    _expect_status(404, client.approvals.decide, f"apr_missing{SUFFIX}", "Allow")
+
+
+def t_approval_check():
+    deployment = client.deployments.get(state["deployment"])
+    require(deployment.get("approvalsEnabled") is False, f"approvalsEnabled {deployment.get('approvalsEnabled')}")
+    require(deployment.get("approvalDefaultAction") == "Ask", f"approvalDefaultAction {deployment.get('approvalDefaultAction')}")
+    require(deployment.get("approvalTimeoutSeconds") == 300, f"approvalTimeoutSeconds {deployment.get('approvalTimeoutSeconds')}")
+    require(deployment.get("approvalTimeoutDecision") == "Deny", f"approvalTimeoutDecision {deployment.get('approvalTimeoutDecision')}")
+    deployment["approvalRules"] = [{"action": "Allow", "pattern": "Bash(git status:*)"},
+                                   {"action": "Deny", "pattern": "Bash(rm:*)", "description": "Python SDK harness rule."}]
+    deployment["approvalDefaultAction"] = "Deny"
+    deployment = client.deployments.update(state["deployment"], deployment)
+    rules = deployment["approvalRules"]
+    require(len(rules) == 2 and all(r["id"].startswith("dar_") for r in rules), f"rules {rules}")
+    allowed = client.approvals.check(state["deployment"], "Bash", {"command": "git status --short"})
+    require(allowed["action"] == "Allow" and allowed["source"] == "Rule", f"git status {allowed}")
+    require(allowed["rulePattern"] == "Bash(git status:*)", f"rulePattern {allowed['rulePattern']}")
+    require(allowed["approvalsEnabled"] is False, "approvalsEnabled true on a fake deployment")
+    denied = client.approvals.check(state["deployment"], "Bash", {"command": "rm -rf build"})
+    require(denied["action"] == "Deny" and denied["source"] == "Rule", f"rm {denied}")
+    fallback = client.approvals.check(state["deployment"], "Edit", {"file_path": "src/app.py"})
+    require(fallback["action"] == "Deny" and fallback["source"] == "Default", f"edit {fallback}")
+    require(fallback.get("suggestedRule"), "suggestedRule empty")
+    deployment["approvalsEnabled"] = True
+    _expect_status(400, client.deployments.update, state["deployment"], deployment)
+    run = client.runs.get(state["run"])
+    require(run.get("pendingApprovals") == 0 and run.get("awaitingApproval") is False,
+            f"run pendingApprovals {run.get('pendingApprovals')} awaitingApproval {run.get('awaitingApproval')}")
+
+
 def t_cleanup():
     if "deployment" in state:
         client.deployments.delete(state["deployment"])
@@ -238,6 +285,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("run analytics dimensions", t_analytics_dimensions), ("run analytics filtered by model", t_analytics_model),
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
                  ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs), ("control nodes", t_control_nodes),
+                 ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:

@@ -294,6 +294,18 @@ namespace Garrison.Core.Database.Interfaces
         Task UpdateLastEventSequenceAsync(string runId, long sequence, CancellationToken token = default);
 
         /// <summary>
+        /// Adjust a run's pending approval count (P12.3) with a targeted update, never below zero, and add to its total
+        /// approval wait. Only the approval service calls this; full run updates never write these columns.
+        /// </summary>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="delta">Change to the pending count (+1 when an approval starts waiting, -1 when it is decided).</param>
+        /// <param name="addWaitMs">Milliseconds to add to the run's approval wait; 0 or less adds nothing.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when the run exists.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when runId is null or empty.</exception>
+        Task<bool> AdjustPendingApprovalsAsync(string runId, int delta, long addWaitMs, CancellationToken token = default);
+
+        /// <summary>
         /// Delete finished runs completed before a cutoff, including their events and child rows.
         /// </summary>
         /// <param name="olderThanUtc">Cutoff (UTC).</param>

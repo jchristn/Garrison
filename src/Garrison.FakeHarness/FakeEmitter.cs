@@ -136,6 +136,30 @@ namespace Garrison.FakeHarness
         }
 
         /// <summary>
+        /// Emit a tool call with an input object, in Claude format; other formats get a plain tool call line.
+        /// </summary>
+        /// <param name="id">Tool use identifier.</param>
+        /// <param name="tool">Tool name.</param>
+        /// <param name="input">Input object.</param>
+        public void ToolUse(string id, string tool, JsonElement input)
+        {
+            if (_Options.Format == "claude") Line(new { type = "assistant", message = new { content = new object[] { new { type = "tool_use", id, name = tool, input } } } });
+            else Console.Out.WriteLine("[tool " + tool + "] " + input.GetRawText());
+        }
+
+        /// <summary>
+        /// Emit the result of a tool call started with <see cref="ToolUse"/>.
+        /// </summary>
+        /// <param name="id">Tool use identifier.</param>
+        /// <param name="result">Result text.</param>
+        /// <param name="success">Whether the call succeeded.</param>
+        public void ToolResult(string id, string result, bool success)
+        {
+            if (_Options.Format == "claude") Line(new { type = "user", message = new { content = new object[] { new { type = "tool_result", tool_use_id = id, is_error = !success, content = result } } } });
+            else Console.Out.WriteLine("[tool result] " + result);
+        }
+
+        /// <summary>
         /// Emit the answer text and the final event.
         /// </summary>
         /// <param name="answer">Answer.</param>

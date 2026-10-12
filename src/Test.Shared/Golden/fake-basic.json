@@ -28,7 +28,9 @@
       "retention": "Delete"
     },
     "parser": "ClaudeStreamJson",
-    "parserOptions": {},
+    "parserOptions": {
+      "approvalsRelayed": false
+    },
     "resultSource": "ParserFinalEvent",
     "successPolicy": "FinalEvent",
     "successExitCodes": [

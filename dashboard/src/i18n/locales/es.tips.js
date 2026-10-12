@@ -1,6 +1,7 @@
 // Spanish tooltip (tips.*) and relationship explainer (explainers.*) text. Merged into es.js. Mirrors en.tips.js key for key.
 
 const TELEMETRY = {
+  approvalWaitMs: 'Espera de aprobación: tiempo total que esta ejecución pasó esperando aprobaciones de permisos que decidió una persona o un tiempo de espera. Las llamadas que una regla o el valor predeterminado del despliegue deciden al instante no suman nada. Lo mide el servidor; n/d cuando la ejecución nunca esperó.',
   delegationWaitMs: 'Espera por delegación: cuánto esperó esta ejecución a las ejecuciones hijas que inició mediante Garrison (otros agentes a los que delegó), según las marcas de tiempo del servidor de esas ejecuciones. Cero o n/d si la ejecución no delegó nada.',
   timeToFirstTokenExcludingDelegationMs: 'Tiempo hasta el primer token sin delegación: el tiempo hasta el primer token menos el tiempo que la ejecución esperó a las ejecuciones que delegó antes de su primera salida. Úsalo para comparar agentes que delegan con agentes que no lo hacen. Se mide con marcas de tiempo del servidor y nunca es negativo.',
   timeToFirstTokenMs: 'Tiempo hasta el primer token: desde que el nodo de trabajo inicia el proceso del harness hasta que el modelo produce su primera salida (texto o razonamiento). Incluye el arranque del harness, así que un inicio lento de la CLI se refleja aquí. Se mide en el nodo de trabajo con un reloj monotónico.',
@@ -29,6 +30,34 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  approvals: {
+    awaiting_one: 'El harness preguntó antes de una llamada a herramienta y espera a una persona. Abre la pestaña Aprobaciones para permitirla o denegarla ({{count}} en espera).',
+    awaiting_other: 'El harness preguntó antes de unas llamadas a herramientas y espera a una persona. Abre la pestaña Aprobaciones para permitirlas o denegarlas ({{count}} en espera).',
+    awaiting_many: 'El harness preguntó antes de unas llamadas a herramientas y espera a una persona. Abre la pestaña Aprobaciones para permitirlas o denegarlas ({{count}} en espera).',
+    decide: {
+      decision: 'Elige si el harness puede hacer esta llamada a herramienta. La ejecución continúa en cuanto envías la decisión.',
+      allow: 'Deja que el harness haga esta llamada a herramienta. La ejecución continúa con ella.',
+      deny: 'Rechaza esta llamada a herramienta. El harness recibe el mensaje de denegación y continúa sin ella.',
+      reason: 'Nota opcional que se guarda con la decisión y se escribe en el registro de auditoría. Una denegación se la transmite al agente.',
+      remember: 'Añade también una regla al despliegue de esta aprobación, para que el mismo tipo de llamada se decida automáticamente la próxima vez.',
+      rulePattern: 'La regla que se añadirá, con la sintaxis de reglas de Claude Code. Empieza como la regla sugerida; amplíala o restríngela antes de guardar.',
+      submitAllow: 'Permite la llamada a herramienta ahora. La decisión es definitiva y no se puede cambiar después.',
+      submitDeny: 'Deniega la llamada a herramienta ahora. La decisión es definitiva y no se puede cambiar después.'
+    }
+  },
+  approvalCheck: {
+    toolName: 'Nombre de la herramienta tal como lo informa el harness, por ejemplo Bash, Edit, WebFetch o una herramienta MCP como mcp__github__create_issue.',
+    inputs: {
+      command: 'El comando de shell que quieres probar, por ejemplo npm run build && npm test. Cada subcomando debe estar permitido.',
+      url: 'La URL que obtendría la herramienta. Las reglas de WebFetch coinciden según su dominio.',
+      query: 'La consulta de búsqueda que enviaría la herramienta.',
+      file_path: 'Ruta del archivo que la herramienta leería o cambiaría, relativa al espacio de trabajo o absoluta.',
+      notebook_path: 'Ruta del notebook que la herramienta cambiaría.',
+      pattern: 'El patrón glob o de búsqueda que usaría la herramienta.'
+    },
+    run: 'Evalúa las reglas guardadas del despliegue para esta llamada a herramienta y muestra el resultado. No se registra nada y ninguna ejecución se ve afectada.',
+    suggestedRule: 'La regla que añadiría «recordar» para esta llamada. Cópiala en las reglas de arriba para cubrir llamadas similares.'
+  },
   ids: { deleted: 'Este registro se eliminó. ID {{id}}. El botón de copiar copia el ID.', named: 'ID {{id}}. Usa el botón de copiar para copiar el ID para la API, los SDK o una solicitud de soporte.' },
   markdown: {
     column: 'Columna {{name}} de una tabla de la salida del agente. Las tablas anchas se desplazan en horizontal dentro de su marco.',
@@ -54,7 +83,11 @@ const tips = {
     dismiss: 'Oculta esta explicación. En su lugar queda un pequeño botón "Acerca de" para que puedas recuperarla en cualquier momento.'
   },
   nav: {
+    approvalsBadge_one: '{{count}} llamada a herramienta espera a que una persona la permita o la deniegue. Abre Aprobaciones para decidir.',
+    approvalsBadge_other: '{{count}} llamadas a herramientas esperan a que una persona las permita o las deniegue. Abre Aprobaciones para decidir.',
+    approvalsBadge_many: '{{count}} llamadas a herramientas esperan a que una persona las permita o las deniegue. Abre Aprobaciones para decidir.',
     hubs: {
+      approvals: 'La bandeja de aprobaciones: llamadas a herramientas que los agentes pidieron hacer y que esperan a una persona, y el historial de todas las decisiones por regla, valor predeterminado, persona o tiempo de espera.',
       home: 'Empieza aquí: recuentos en vivo de agentes, ejecuciones y nodos de trabajo, tráfico de la API, fallos recientes y accesos directos a tareas comunes.',
       invoke: 'Envía un mensaje a un agente desde el navegador y observa cómo se transmite la transcripción, sin escribir código.',
       runs: 'Cada invocación de agente, con su transcripción, resultado y telemetría, además de la cola de trabajo que espera un nodo.',
@@ -159,6 +192,9 @@ const tips = {
     bulkDelete: 'Elimina todas las filas seleccionadas. Primero se te pedirá confirmación.'
   },
   filters: {
+    agentId: 'Muestra solo los registros de un agente. Elige Todos para quitar el filtro.',
+    decisionSource: 'Muestra solo las aprobaciones decididas de una forma: por una regla, el valor predeterminado del despliegue, una persona, un tiempo de espera o una ejecución detenida.',
+    runId: 'Muestra solo las aprobaciones de una ejecución. Pega un ID de ejecución como run_...; la lista se actualiza cuando dejas de escribir.',
     status: 'Muestra solo los registros en este estado. Elige "Todos" para quitar el filtro.',
     harnessType: 'Muestra solo los registros de un harness, como Claude Code o Codex.',
     kind: 'Muestra solo los registros de un tipo. Elige "Todos" para quitar el filtro.',
@@ -231,6 +267,10 @@ const tips = {
     tenant: 'Muestra la actividad de solicitudes de un inquilino o de todos los inquilinos del servidor.'
   },
   badges: {
+    approvalsOn_one: 'Las aprobaciones están activadas: el harness pregunta antes de las llamadas a herramientas, y {{count}} regla decide algunas automáticamente.',
+    approvalsOn_other: 'Las aprobaciones están activadas: el harness pregunta antes de las llamadas a herramientas, y {{count}} reglas deciden algunas automáticamente.',
+    approvalsOn_many: 'Las aprobaciones están activadas: el harness pregunta antes de las llamadas a herramientas, y {{count}} reglas deciden algunas automáticamente.',
+    approvalsOff: 'Las aprobaciones están desactivadas: el harness hace llamadas a herramientas según su propia configuración de permisos, sin preguntar.',
     active: 'Activo: este registro está en uso.',
     inactive: 'Inactivo: este registro se conserva pero se ignora hasta que se vuelva a activar.',
     builtIn: 'Integrado: viene con Garrison y es de solo lectura. Clónalo para crear una versión que puedas editar.',
@@ -297,6 +337,34 @@ const tips = {
     queueColumn: 'Ejecuciones en cola de este grupo que ahora mismo ningún nodo de trabajo listo puede ejecutar. Pasa el cursor por la insignia para ver el motivo y qué hacer.'
   },
   enums: {
+    approvalStatus: {
+      Pending: 'Espera a que una persona la permita o la deniegue. Hasta entonces, el harness queda bloqueado en esta llamada.',
+      Approved: 'La llamada a herramienta se permitió, por una regla, el valor predeterminado del despliegue, una persona o un tiempo de espera.',
+      Denied: 'La llamada a herramienta se rechazó. El harness recibió el mensaje de denegación y continuó sin ella.',
+      Expired: 'Nadie decidió a tiempo, así que se aplicó la decisión por tiempo de espera del despliegue.',
+      Cancelled: 'La ejecución se detuvo mientras la aprobación estaba pendiente, así que se cerró sin decisión.'
+    },
+    approvalDecision: {
+      Allow: 'Permitir: el harness tuvo permiso para hacer la llamada a herramienta.',
+      Deny: 'Denegar: el harness recibió un rechazo con el motivo.'
+    },
+    approvalSource: {
+      Rule: 'La decidió al instante una regla del despliegue. La regla coincidente se muestra al lado.',
+      Default: 'Ninguna regla coincidió, así que la decidió la acción predeterminada del despliegue.',
+      User: 'La decidió una persona en el panel, mediante la API o mediante MCP.',
+      Timeout: 'Nadie decidió antes de que caducara, así que se aplicó la decisión por tiempo de espera del despliegue.',
+      Cancelled: 'La ejecución se detuvo mientras esta aprobación estaba en espera.'
+    },
+    approvalRuleAction: {
+      Allow: 'Permitir: las llamadas a herramientas coincidentes siguen adelante sin preguntar a nadie.',
+      Deny: 'Denegar: las llamadas a herramientas coincidentes se rechazan sin preguntar a nadie. Denegar prevalece sobre cualquier otra regla.',
+      Ask: 'Preguntar a una persona: las llamadas a herramientas coincidentes esperan una decisión en la bandeja de Aprobaciones.'
+    },
+    approvalKind: {
+      Tool: 'Una solicitud de permiso de Claude Code para cualquier herramienta, incluidas las herramientas MCP.',
+      Command: 'Un comando de shell que una ejecución del app-server de Codex quiere ejecutar. Las reglas lo evalúan como Bash.',
+      FileChange: 'Un cambio de archivo que una ejecución del app-server de Codex quiere hacer. Las reglas lo evalúan como Edit.'
+    },
     runBlockedReason: {
       NoReadyWorker: 'Bloqueada: ningún nodo de trabajo está listo, así que nadie puede tomar esta ejecución. Inicia un nodo de trabajo o registra uno nuevo y revisa en la página Flota los nodos perdidos, desconectados, drenando o acordonados.',
       NoCapableWorker: 'Bloqueada: hay nodos de trabajo listos, pero ninguno informa del harness de esta ejecución como disponible. Inicia o registra un nodo de trabajo con el harness instalado, o revisa sus credenciales y los resultados de las sondas en la página Flota.',
@@ -420,6 +488,7 @@ const tips = {
       Validated: 'Simulación: este documento es válido y se aplicaría.'
     },
     auditEventType: {
+      ApprovalDecided: 'Una persona permitió o denegó una llamada a herramienta pendiente. El registro indica la herramienta, la ejecución y el motivo.',
       AuthSuccess: 'Alguien inició sesión o autenticó una solicitud correctamente.',
       AuthFailure: 'Falló un intento de inicio de sesión o de autenticación. Los fallos repetidos pueden indicar que alguien está adivinando.',
       SessionIssued: 'Se emitió un token de sesión.',
@@ -443,6 +512,40 @@ const tips = {
     }
   },
   resources: {
+    approvals: {
+      createdUtc: 'Cuándo preguntó el harness. Pasa el cursor sobre el valor para ver la hora exacta.',
+      agentName: 'El agente cuya ejecución pidió esta llamada a herramienta.',
+      toolName: 'La herramienta que el harness quiere usar, por ejemplo Bash, Edit, WebFetch o una herramienta MCP.',
+      summary: 'Una línea sobre la llamada: el comando, la URL, las rutas o la consulta, con los secretos censurados.',
+      status: 'Pendiente hasta que se decide; después Aprobada, Denegada, Caducada (tiempo de espera) o Cancelada (la ejecución se detuvo).',
+      decision: 'Permitir o Denegar una vez decidida; vacío mientras la aprobación está pendiente.',
+      decisionSource: 'Qué la decidió: una regla, el valor predeterminado del despliegue, una persona, un tiempo de espera o una ejecución detenida.',
+      decidedBy: 'La persona o la clave de acceso que decidió, cuando la decidió una persona.',
+      expiresUtc: 'Cuándo se agota el tiempo de una aprobación pendiente y se aplica la decisión por tiempo de espera del despliegue.',
+      kind: 'Llamada a herramienta (Claude Code), Comando o Cambio de archivo (app-server de Codex).',
+      harnessType: 'El harness que preguntó: Claude Code o Codex.',
+      runId: 'La ejecución que preguntó. Ábrela para ver la transcripción alrededor de la llamada.',
+      rootRunId: 'La ejecución de nivel superior del árbol de delegación, cuando la ejecución que preguntó era delegada.',
+      deploymentId: 'El despliegue cuyas reglas evaluaron esta llamada. Las reglas recordadas se añaden a él.',
+      leaseEpoch: 'Época de la concesión del intento de ejecución que preguntó, para que una decisión nunca llegue a un intento posterior.',
+      requestedUtc: 'Cuándo pidió permiso el harness.',
+      decidedUtc: 'Cuándo se tomó la decisión.',
+      waitMs: 'Cuánto esperó la llamada desde la solicitud hasta la decisión.',
+      timeoutDecision: 'Qué ocurre si nadie decide antes de que caduque la aprobación, según la configuración del despliegue.',
+      toolCallId: 'El ID propio del harness para esta llamada a herramienta, para localizarla en la transcripción.',
+      reason: 'La nota que escribió la persona que decidió, si la hay.',
+      inputPreview: 'La entrada de la herramienta que envió el harness, como JSON, con los secretos y los valores similares a tokens censurados.',
+      rulePattern: 'La regla del despliegue que coincidió con esta llamada, cuando una regla la decidió o pidió a una persona.',
+      ruleId: 'ID de la regla del despliegue que coincidió.',
+      suggestedRule: 'Una regla que coincidiría con esta llamada. Recordar como regla la rellena de antemano.',
+      rememberedRuleId: 'ID de la regla que se añadió al despliegue cuando esta aprobación se decidió con la opción de recordar.',
+      id: 'Identificador de la aprobación (apr_...) para la API y las herramientas MCP.',
+      actions: {
+        allow: 'Permite esta llamada a herramienta pendiente, con un motivo opcional y la opción de recordarla como regla.',
+        deny: 'Deniega esta llamada a herramienta pendiente, con un motivo opcional y la opción de recordarla como regla.',
+        openRun: 'Abre la ejecución que preguntó, para leer su transcripción alrededor de esta llamada a herramienta.'
+      }
+    },
     tenants: {
       add: 'Crea un inquilino nuevo: un espacio aislado con sus propios usuarios, agentes, secretos y ejecuciones.',
       name: 'Nombre visible del inquilino. Las personas eligen el inquilino por su ID al iniciar sesión.',
@@ -682,6 +785,18 @@ const tips = {
       }
     },
     deployments: {
+      approvalsEnabled: 'Hace que el harness pregunte antes de las llamadas a herramientas. Las reglas de abajo deciden la mayoría de las llamadas; el resto espera a una persona en la bandeja de Aprobaciones. Solo perfiles de Claude Code y del app-server de Codex.',
+      approvalDefaultAction: 'Qué ocurre cuando ninguna regla coincide con una llamada a herramienta: permitirla, denegarla o preguntar a una persona.',
+      approvalTimeoutSeconds: 'Cuánto espera una llamada a una persona antes de que se aplique la decisión por tiempo de espera, de 10 a 3.600 segundos.',
+      approvalTimeoutDecision: 'La decisión que se aplica cuando nadie responde a tiempo. Denegar es la opción segura.',
+      approvalRules: 'Reglas ordenadas con la sintaxis de Claude Code. Denegar prevalece sobre Preguntar y Preguntar sobre Permitir; dentro de una misma acción se informa de la primera coincidencia.',
+      approvalRulesItems: {
+        action: 'Lo que recibe una llamada coincidente: Permitir, Denegar o Preguntar a una persona.',
+        pattern: 'Regla de Claude Code, por ejemplo Bash(npm test), Bash(npm run *), Edit(src/**), Read, WebFetch(domain:example.com) o mcp__github__*.',
+        inputPattern: 'Expresión regular de .NET opcional con la que también debe coincidir el JSON de entrada de la herramienta, para un control más fino que el patrón.',
+        description: 'Por qué existe esta regla, para las personas que la mantienen.'
+      },
+      approvalTest: 'Prueba una llamada a herramienta contra las reglas guardadas del despliegue y comprueba si se permitiría, se denegaría o se enviaría a una persona.',
       add: 'Crea un despliegue: la forma concreta en que se ejecuta un agente, con un perfil de harness, un modelo, prompts y recursos.',
       name: 'Nombre del despliegue, único en el inquilino, por ejemplo reviewer-claude.',
       agentId: 'El agente que ejecuta este despliegue. Al invocar ese agente se puede elegir este despliegue.',
@@ -746,6 +861,7 @@ const tips = {
       maxAttempts: 'Cuántas veces en total se puede intentar una ejecución. Entre 1 y 10.',
       retryOnNodeLoss: 'Vuelve a poner la ejecución en la cola cuando su nodo desaparece, en lugar de marcarla como fallida.',
       steps: {
+        approvals: 'Qué llamadas a herramientas puede hacer el harness, cuáles no y cuáles esperan a una persona.',
         basics: 'Nombre, agente y peso de tráfico.',
         harness: 'Perfil de harness, modelo, límites y parámetros.',
         prompts: 'Qué plantilla cubre cada rol de prompt.',
@@ -880,6 +996,16 @@ const tips = {
     }
   },
   views: {
+    approvalDetail: {
+      openRun: 'Abre la ejecución que preguntó, para leer su transcripción alrededor de esta llamada a herramienta.',
+      openAgent: 'Abre la página del agente con sus despliegues y ejecuciones recientes.',
+      openDeployment: 'Abre la pestaña Despliegues filtrada por este despliegue, donde se editan sus reglas de aprobación.',
+      backToInbox: 'Vuelve a la bandeja de aprobaciones con todas las aprobaciones pendientes.',
+      viewJson: 'Muestra el registro completo de la aprobación como JSON, exactamente como lo devuelve la API.',
+      request: 'Lo que el harness pidió hacer: el resumen de una línea y la entrada completa de la herramienta con los secretos censurados.',
+      rules: 'La regla del despliegue que coincidió, la regla que sugiere esta llamada y la regla recordada a partir de la decisión.',
+      copyRule: 'Copia la regla sugerida, por ejemplo para pegarla en las reglas de aprobación del despliegue.'
+    },
     home: {
       observabilityState: {
         reachable: 'El servidor alcanzó {{service}} en su URL interna en los últimos 30 segundos.',
@@ -940,6 +1066,9 @@ const tips = {
       serviceGeneric: 'Abre este servicio incluido en una pestaña nueva.'
     },
     runDetail: {
+      openApproval: 'Abre esta aprobación con la entrada completa de la herramienta, la regla y la decisión.',
+      reviewApprovals: 'Muestra las aprobaciones de esta ejecución, donde puedes permitir o denegar las llamadas a herramientas pendientes.',
+      approvalActions: 'Permite o deniega una llamada a herramienta pendiente, o abre la aprobación para ver todos los campos.',
       viewTrace: 'Abre en una pestaña nueva la traza de esta ejecución en Grafana Explore (Tempo). Muestra los tramos de compilación, asignación y harness en el servidor y en el nodo de trabajo.',
       viewLogs: 'Abre en una pestaña nueva las líneas de registro del servidor y del worker sobre esta ejecución en Grafana Explore (Loki), limitadas al intervalo de la ejecución.',
       traceId: 'ID de traza W3C de la traza en la que se compiló esta ejecución. Búscalo en Tempo o usa Ver traza. Vacío en las ejecuciones creadas antes de que se registraran los ID de traza.',
@@ -961,6 +1090,7 @@ const tips = {
       completed: 'Cuándo llegó la ejecución a su estado final.',
       exitCode: 'Código de salida del proceso del harness. El éxito suele decidirse por el evento final, no por este código.',
       tabs: {
+        approvals: 'Llamadas a herramientas para las que esta ejecución pidió permiso, cómo se decidió cada una, y Permitir y Denegar para las pendientes.',
         transcript: 'Todos los eventos que produjo el harness: texto del asistente, razonamiento, llamadas a herramientas y sus resultados, y uso.',
         result: 'La respuesta final y cualquier salida estructurada.',
         input: 'Lo que envió el cliente, los parámetros y las versiones exactas de las plantillas de prompt usadas.',
@@ -970,6 +1100,8 @@ const tips = {
       eventFilter: 'Muestra solo un tipo de evento, como llamadas a herramientas o errores.',
       openChild: 'Abre esta ejecución secundaria, iniciada cuando esta ejecución llamó a otro agente.',
       eventCodes: {
+        ApprovalRequested: 'El harness preguntó antes de una llamada a herramienta y la llamada espera a una persona. Decídela en la pestaña Aprobaciones.',
+        ApprovalDecided: 'Una solicitud de permiso se decidió por una regla, el valor predeterminado del despliegue, una persona o un tiempo de espera. El texto indica cuál.',
         RunGuardTriggered: 'Una protección detuvo esta ejecución. El mensaje indica qué protección actuó y qué vio; la ejecución termina como Fallida con el resultado de esa protección y conserva su salida parcial.'
       }
     },
@@ -1299,6 +1431,12 @@ const tips = {
 };
 
 const explainers = {
+  approvals: {
+    title: 'Cómo funcionan las aprobaciones',
+    p1: 'Un despliegue con aprobaciones activadas hace que su harness pregunte a Garrison antes de las llamadas a herramientas: Claude Code mediante su herramienta de solicitud de permisos, y las ejecuciones del app-server de Codex para comandos y cambios de archivos.',
+    p2: 'Cada solicitud se comprueba con las reglas del despliegue. Denegar prevalece sobre Preguntar, y Preguntar sobre Permitir; cuando nada coincide, se aplica el valor predeterminado del despliegue. Permitir y Denegar responden al instante; Preguntar deja la solicitud aquí y la ejecución espera.',
+    p3: 'Permite o deniega una solicitud pendiente con un motivo opcional. Recordar como regla añade una regla al despliegue, para que la próxima llamada similar se decida automáticamente. Las solicitudes que nadie decide caducan con la decisión por tiempo de espera del despliegue.'
+  },
   diagram: {
     label: 'Diagrama: un cliente invoca a un agente por nombre, Garrison elige uno de los despliegues del agente por peso y los vínculos de ese despliegue deciden cómo se ejecuta la ejecución.',
     caller: { title: 'Cliente', body: 'REST, MCP, A2A u otro agente', tip: 'Cualquier cosa que invoque a un agente: la API REST, un cliente MCP, un agente A2A o la ejecución de otro agente. Los clientes solo conocen el nombre del agente.' },

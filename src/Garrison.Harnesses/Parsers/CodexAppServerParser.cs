@@ -34,7 +34,17 @@ namespace Garrison.Harnesses.Parsers
 
         #endregion
 
-        #region Constructors-and-Factories
+        #region Public-Members
+
+        /// <summary>
+        /// Whether the worker relays command and file change approvals to Garrison (P12.3). When true those requests add
+        /// no warning; the approval events come from the control plane. Default false.
+        /// </summary>
+        public bool ApprovalsRelayed { get; set; } = false;
+
+        #endregion
+
+                #region Constructors-and-Factories
 
         /// <summary>
         /// Instantiate.
@@ -160,12 +170,15 @@ namespace Garrison.Harnesses.Parsers
             if (!String.IsNullOrEmpty(model) && String.IsNullOrEmpty(state.ServedModel)) state.ServedModel = model;
         }
 
-        private static void HandleServerRequest(string method, HarnessRunState state, string raw)
+        private void HandleServerRequest(string method, HarnessRunState state, string raw)
         {
             switch (method)
             {
                 case "item/commandExecution/requestApproval":
                 case "item/fileChange/requestApproval":
+                    if (ApprovalsRelayed) break;
+                    state.Emit(Event(RunEventTypeEnum.Warning, "Codex asked for approval (" + method + "); headless runs decline approval requests.", raw));
+                    break;
                 case "mcpServer/elicitation/request":
                     state.Emit(Event(RunEventTypeEnum.Warning, "Codex asked for approval (" + method + "); headless runs decline approval requests.", raw));
                     break;

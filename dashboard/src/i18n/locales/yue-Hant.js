@@ -6,9 +6,11 @@ const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, e
 
 const yueHant = {
   common: {
-    eventCodes: { StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件丟棄咗', HarnessExited: 'Harness 結束咗', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '開始咗修復輸出', WorkspacePrepared: '工作區準備好咗', RunGuardTriggered: '執行防護停咗個執行' },
+    eventCodes: { ApprovalRequested: '已要求批核', ApprovalDecided: '已決定批核', StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件丟棄咗', HarnessExited: 'Harness 結束咗', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '開始咗修復輸出', WorkspacePrepared: '工作區準備好咗', RunGuardTriggered: '執行防護停咗個執行' },
     fieldCodes: { ExpiryInPast: '請揀一個將來嘅時間。', ParameterInvalid: '呢個值對呢個參數嚟講唔啱。', ParameterNotAllowed: '呢個部署唔畀調用者覆寫呢個參數。', SettingsFileReadOnly: '設定檔係唯讀嘅，所以呢個改動儲存唔到。', OverriddenByEnvironment: '呢個值係由環境變數設定嘅，所以喺度改唔到。', PathRequired: '一定要有設定路徑。', UnknownSetting: '呢部伺服器冇呢項設定。', TooLong: '呢個值太長。', NotAllowedValue: '請揀其中一個容許嘅值。', NotABoolean: '請揀 true 或者 false。', NotAnInteger: '請輸入整數。', OutOfRange: '個值超出咗容許範圍。' },
     serverText: {
+      approvalWaitingExpires: '等緊有人批核 {{subject}}；批核 {{id}} 會喺 {{expires}} 到期。',
+      approvalWaiting: '等緊有人批核 {{subject}}；批核 {{id}}。',
       notApplied: '冇套用，因為另一份文件驗證唔通過。',
       wouldBeUnchanged: '已經係最新，乜都唔會改。',
       wouldBeUpdated: '會更新。',
@@ -67,6 +69,7 @@ const yueHant = {
       bulkDelete: '確定要刪除揀咗嘅 {{count}} 筆記錄？刪咗就冇得復原。'
     },
     errors: {
+      listItem: '第 {{index}} 項：{{message}}',
       chooseOne: '請最少揀一個選項。',
       fixFields: '有啲欄位要跟進，請檢查標示咗嘅數值。',
       invalidEmail: '請輸入有效嘅電郵地址。',
@@ -108,6 +111,7 @@ const yueHant = {
     units: { msShort: '毫秒', sShort: '秒', mShort: '分鐘', tokPerSec: 'Token/秒' }
   },
   errorCodes: {
+    ApprovalNotPending: '呢個批核已經決定咗，所以唔可以再決定。',
     MessageIdConflict: '呢個 A2A 訊息 ID 已經用過喺唔同嘅內容度。請用新嘅 ID 傳送訊息。',
     IdempotencyKeyConflict: '呢個冪等金鑰已經用咗喺另一個要求度。請用新嘅金鑰。',
     DeploymentDeleted: '呢個執行嘅部署已經刪咗，所以冇得重試。請再調用代理程式一次。',
@@ -137,6 +141,34 @@ const yueHant = {
     Http503: '伺服器暫時用唔到。'
   },
   enums: {
+    approvalStatus: {
+      Pending: '等候中',
+      Approved: '已批准',
+      Denied: '已拒絕',
+      Expired: '已過期',
+      Cancelled: '已取消'
+    },
+    approvalDecision: {
+      Allow: '允許',
+      Deny: '拒絕'
+    },
+    approvalSource: {
+      Rule: '規則',
+      Default: '部署預設',
+      User: '人手',
+      Timeout: '逾時',
+      Cancelled: '執行已停止'
+    },
+    approvalRuleAction: {
+      Allow: '允許',
+      Deny: '拒絕',
+      Ask: '問人'
+    },
+    approvalKind: {
+      Tool: '工具呼叫',
+      Command: '指令',
+      FileChange: '檔案變更'
+    },
     principalType: { Administrator: '系統管理員', User: '用戶', Credential: '存取金鑰', Run: '執行權杖' },
     runBlockedReason: { NoReadyWorker: '冇就緒嘅工作節點', NoCapableWorker: '冇工作節點做到', NoMatchingPool: '冇相符嘅節點池' },
     promptDelivery: { Stdin: '標準輸入', Argument: '命令列參數', File: '檔案', CodexAppServer: 'Codex 應用程式伺服器 (JSON-RPC)' },
@@ -268,6 +300,7 @@ const yueHant = {
     remoteProtocol: { A2A: 'A2A', Mcp: 'MCP' },
     manifestApplyResult: { Created: '已建立', Updated: '已更新', Unchanged: '冇變更', Failed: '失敗', Validated: '已驗證' },
     auditEventType: {
+      ApprovalDecided: '已決定批核',
       AuthSuccess: '登入成功',
       AuthFailure: '登入失敗',
       SessionIssued: '已發出工作階段',
@@ -291,6 +324,8 @@ const yueHant = {
     }
   },
   nav: {
+    approvalsPending_one: '{{count}} 個批核等緊',
+    approvalsPending_other: '{{count}} 個批核等緊',
     primary: '主要導覽',
     sections: {
       operate: '運作',
@@ -298,6 +333,10 @@ const yueHant = {
       administration: '管理'
     },
     hubs: {
+      approvals: {
+        label: '批核',
+        tip: '等緊有人處理嘅工具呼叫，同埋每一個決定'
+      },
       home: { label: '主頁', tip: '一眼睇晒機群同執行嘅健康狀況' },
       invoke: { label: '調用', tip: '互動咁試用代理程式' },
       runs: { label: '執行', tip: '執行記錄同排程隊列' },
@@ -310,6 +349,10 @@ const yueHant = {
       system: { label: '系統', tip: '伺服器設定同伺服器資訊' }
     },
     items: {
+      approvals: {
+        label: '批核',
+        tip: '允許或者拒絕代理程式要求做嘅工具呼叫'
+      },
       home: { label: '主頁', tip: '一眼睇晒機群同執行嘅健康狀況' },
       invoke: { label: '調用', tip: '互動咁試用代理程式' },
       runs: { label: '執行', tip: '搜尋、檢查、取消同重試執行' },
@@ -381,6 +424,48 @@ const yueHant = {
     run: '執行權杖'
   },
   components: {
+    approvals: {
+      awaiting: '等緊批核',
+      decideTitle: '決定 {{tool}}',
+      decision: '決定',
+      reason: '原因',
+      reasonPlaceholder: '可選。代理程式同審計記錄都會睇到。',
+      remember: '記住做呢個部署嘅規則',
+      rulePattern: '規則模式',
+      rememberHint: '喺部署度加一條動作係 {{action}} 嘅規則，咁符合嘅呼叫就唔使問都會決定。呢個亦都需要更新部署嘅權限。',
+      submitAllow: '允許',
+      submitDeny: '拒絕',
+      timeoutThen: '然後 {{decision}}',
+      toasts: {
+        allowed: '已允許 {{tool}}。',
+        denied: '已拒絕 {{tool}}。',
+        allowedRemembered: '已允許 {{tool}}，仲加咗規則 {{pattern}}。',
+        deniedRemembered: '已拒絕 {{tool}}，仲加咗規則 {{pattern}}。',
+        notPending: '呢個批核已經俾其他人或者逾時決定咗。清單而家會顯示結果。',
+        forbidden: '你可以睇批核，但唔可以決定。請搵管理員攞 Approval Update 權限。',
+        forbiddenRemember: '記住規則亦都需要更新部署嘅權限。你可以唔記住就直接決定，或者申請 Deployment Update。'
+      }
+    },
+    approvalCheck: {
+      title: '測試工具呼叫',
+      saveFirst: '請先儲存部署。測試會檢查伺服器儲存咗嘅規則。',
+      hint: '檢查嘅係已儲存嘅規則，所以測試之前要先儲存你嘅更改。唔會記錄任何嘢。',
+      toolName: '工具',
+      inputs: {
+        command: '指令',
+        url: 'URL',
+        query: '搜尋查詢',
+        file_path: '檔案路徑',
+        notebook_path: '筆記本路徑',
+        pattern: '模式'
+      },
+      run: '檢查',
+      checking: '檢查緊...',
+      byRule: '由呢條規則 {{action}}：',
+      byDefault: '由部署預設 {{action}}，因為冇規則符合。',
+      suggestedRule: '建議規則：',
+      disabled: '呢個部署關咗批核，所以佢嘅執行永遠唔會問。開返佢再儲存，先會套用呢啲規則。'
+    },
     blocked: {
       title: '等緊工作節點',
       body: '呢個執行排緊隊，但係而家冇工作節點接得到。',
@@ -529,6 +614,63 @@ const yueHant = {
     }
   },
   resources: {
+    approvals: {
+      ...rp('批核', '代理程式要求做嘅工具呼叫，由部署規則、部署預設、人手或者逾時決定。等候中嘅就等你處理。', '新增批核', '建立批核', '編輯批核', '批核詳情', '刪除批核', '仲未有批核', '開咗批核嘅部署喺工具呼叫之前問一聲，批核就會喺度出現。'),
+      columns: {
+        createdUtc: '要求時間',
+        agentName: '代理程式',
+        toolName: '工具',
+        summary: '要求',
+        status: '狀態',
+        decision: '決定',
+        decisionSource: '來源',
+        decidedBy: '決定者',
+        expiresUtc: '到期時間',
+        kind: '類型',
+        harnessType: 'Harness',
+        runId: '執行',
+        waitMs: '等候',
+        reason: '原因',
+        decidedUtc: '決定時間',
+        id: 'ID'
+      },
+      fields: {
+        status: '狀態',
+        decision: '決定',
+        decisionSource: '決定來源',
+        decidedBy: '決定者',
+        toolName: '工具',
+        kind: '類型',
+        harnessType: 'Harness',
+        agentName: '代理程式',
+        runId: '執行',
+        rootRunId: '根執行',
+        deploymentId: '部署',
+        leaseEpoch: '租約世代',
+        requestedUtc: '要求時間',
+        expiresUtc: '到期時間',
+        decidedUtc: '決定時間',
+        waitMs: '等候時間',
+        timeoutDecision: '逾時嘅決定',
+        toolCallId: '工具呼叫 ID',
+        reason: '原因',
+        summary: '摘要',
+        inputPreview: '輸入（已遮蓋）',
+        rulePattern: '符合嘅規則',
+        ruleId: '規則 ID',
+        suggestedRule: '建議規則',
+        rememberedRuleId: '已記住嘅規則 ID'
+      },
+      filters: {
+        runId: '執行 ID',
+        runIdPlaceholder: '執行 ID（run_...）'
+      },
+      actions: {
+        allow: '允許',
+        deny: '拒絕',
+        openRun: '打開執行'
+      }
+    },
     tenants: {
       ...rp('租用戶', '互相隔離嘅空間，每個都有自己嘅用戶、代理程式、機密同執行。', '新增租用戶', '建立租用戶', '編輯租用戶', '租用戶詳情', '刪除租用戶', '仲未有租用戶', '建立一個租用戶，將一個團隊或者客戶隔離開。'),
       columns: { name: '名稱', id: 'ID', description: '描述', active: '啟用', createdUtc: '建立時間' },
@@ -713,11 +855,24 @@ const yueHant = {
       errors: { dnsName: '請用細楷字母、數字同連字號，開頭同結尾一定要係字母或者數字。' }
     },
     deployments: {
+      approvalsOn_one: '開咗，{{count}} 條規則',
+      approvalsOn_other: '開咗，{{count}} 條規則',
+      approvalsOff: '關閉',
       promptRoles: { Repair: '結構化輸出修復', DelegatedTask: '委派執行嘅任務包裝', Task: '任務包裝', System: '系統提示' },
       ...rp('部署', '將代理程式綁定到 Harness 設定檔、提示、機密、MCP 伺服器、排程放置同限制。', '新增部署', '建立部署', '編輯部署', '部署詳情', '刪除部署', '仲未有部署', '建立一個部署，等代理程式可以執行。'),
-      steps: { basics: '基本', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置同限制' },
-      columns: { name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', executor: '執行器', weight: '權重', configVersion: '配置版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
+      steps: { approvals: '批核', basics: '基本', harness: 'Harness', prompts: '提示', resources: '資源', overrides: '覆寫', placement: '排程放置同限制' },
+      columns: { approvalsEnabled: '批核', name: '名稱', agentId: '代理程式', harnessProfileId: 'Harness 設定檔', model: '模型', executor: '執行器', weight: '權重', configVersion: '配置版本', active: '啟用', id: 'ID', createdUtc: '建立時間' },
       fields: {
+        approvalsEnabled: '工具呼叫前先問（批核）',
+        approvalDefaultAction: '冇規則符合嘅時候',
+        approvalTimeoutSeconds: '批核逾時（秒）',
+        approvalTimeoutDecision: '冇人回應嘅決定',
+        approvalRules: '批核規則',
+        ruleAction: '動作',
+        rulePattern: '規則',
+        ruleInputPattern: '輸入模式',
+        ruleDescription: '描述',
+        approvalTest: '測試工具呼叫',
         name: '名稱',
         agentId: '代理程式',
         description: '描述',
@@ -773,6 +928,10 @@ const yueHant = {
         podEphemeralStorageLimit: '臨時儲存上限'
       },
       hints: {
+        approvalsEnabled: '適用於 Claude Code 設定檔，同埋用 Codex app-server 嘅設定檔。其他 Harness 冇批核掛鈎，所以伺服器會拒絕佢哋用呢個設定。',
+        approvalDefaultAction: '「問人」會喺批核收件匣度等，直至有人決定或者過咗逾時時間。',
+        approvalTimeoutSeconds: '由 10 至 3,600 秒。留空就用 300。',
+        approvalRules: '「拒絕」凌駕「問人」，「問人」凌駕「允許」。例子：Bash(npm test)、Bash(npm run *)、Edit(src/**)、WebFetch(domain:example.com)、mcp__github__*。',
         secretsKinds: 'Harness 設定檔 {{profile}} 需要任何一個類型係 {{kinds}} 嘅機密。用咩別名綁定都得。',
         secretsAliases: 'Harness 設定檔 {{profile}} 會讀用呢啲別名綁定嘅機密：{{aliases}}。',
         secretsNone: 'Harness 設定檔 {{profile}} 唔會讀任何機密，所以唔使綁定機密。',
@@ -792,18 +951,19 @@ const yueHant = {
         executorSet: '程序喺 worker 入面執行 harness；Kubernetes Job 就喺佢自己嘅 Pod 入面執行。',
         podCpuRequest: 'Pod 資源只適用於 Kubernetes Job 執行。請用 Kubernetes 數量，例如 500m、2、512Mi 或者 4Gi；留空就用 worker 預設值。'
       },
-      actions: { compilePreview: '編譯預覽', test: '測試調用', useClusterDefault: '用叢集預設值' },
+      actions: { addRule: '新增規則', compilePreview: '編譯預覽', test: '測試調用', useClusterDefault: '用叢集預設值' },
       sections: {
         guards: '執行防護',
         execution: '執行器同 Pod 資源'
       },
       placeholders: {
+        ruleInputPattern: '可選，用嚟比對輸入 JSON 嘅正規表達式',
         clusterDefault: '叢集預設值（{{value}}）',
         clusterDefaultUnknown: '叢集預設值'
       },
       executorInherit: '節點池預設值',
       executorInheritShort: '節點池預設',
-      errors: { quantity: '請用 Kubernetes 數量，例如 500m、2、512Mi 或者 4Gi。' },
+      errors: { rulePatternRequired: '請輸入規則模式。', rulePatternOneLine: '規則模式一定要寫喺同一行。', rulePatternTooLong: '規則模式最多只可以有 1,000 個字元。', tooManyRules: '一個部署最多只可以有 500 條批核規則。', approvalTimeout: '請輸入 10 至 3,600 之間嘅整數秒數。', quantity: '請用 Kubernetes 數量，例如 500m、2、512Mi 或者 4Gi。' },
       guardStates: {
         on: '開',
         off: '熄'
@@ -819,6 +979,7 @@ const yueHant = {
     runs: {
       ...rp('執行', '每次代理程式調用，連同佢嘅狀態、節點、時長同結果。', '新增執行', '建立執行', '編輯執行', '執行詳情', '刪除執行', '仲未有執行', '調用一個代理程式就會開始一次執行。'),
       columns: {
+        approvalWaitMs: '批核等候',
         delegationWaitMs: '委派等候時間',
         timeToFirstTokenExcludingDelegationMs: 'TTFT（唔計委派）',
         id: '執行',
@@ -892,6 +1053,19 @@ const yueHant = {
     }
   },
   views: {
+    approvalDetail: {
+      title: '批核',
+      titleWithTool: '{{tool}} 嘅批核',
+      backToInbox: '所有批核',
+      pending: '等緊有人允許或者拒絕呢個工具呼叫。',
+      pendingExpires: '等緊有人處理。如果冇人決定，佢會喺 {{when}} 到期，並用 {{decision}} 呢個決定。',
+      request: '要求',
+      rules: '規則',
+      noRule: '冇規則符合',
+      noInput: '冇記錄到任何輸入。',
+      notFoundTitle: '搵唔到批核',
+      notFoundBody: '佢可能屬於另一個租用戶，或者 ID 唔啱。'
+    },
     home: {
       observabilityState: { reachable: '連得到', unreachable: '連唔到', checking: '檢查緊', unknown: '狀態未知' },
       observabilityVersion: '版本 {{version}}',
@@ -1021,6 +1195,13 @@ const yueHant = {
       }
     },
     runDetail: {
+      awaitingApproval_one: '呢個執行等緊有人批核 {{count}} 個工具呼叫。',
+      awaitingApproval_other: '呢個執行等緊有人批核 {{count}} 個工具呼叫。',
+      reviewApprovals: '審閱',
+      approvals_one: '批核（{{count}}）',
+      approvals_other: '批核（{{count}}）',
+      noApprovals: '呢個執行未有要求過任何批核。',
+      openApproval: '打開批核',
       viewTrace: '睇追蹤',
       viewLogs: '睇日誌',
       traceId: '追蹤 ID',
@@ -1068,11 +1249,13 @@ const yueHant = {
       notFoundTitle: '搵唔到呢次執行',
       notFoundBody: '佢可能已經被刪除，或者屬於另一個租用戶。',
       telemetry: {
+        approvalNote: '呢個執行用咗 {{wait}} 等批核決定。執行時間包括呢段等候。',
         delegationNote: '呢個執行等咗委派執行 {{wait}}。第一個 Token 時間計埋呢段等候係 {{ttft}}，唔計就係 {{excluding}}；同唔委派嘅代理程式比較就要用後者。',
         title: '遙測',
         phases: '各階段執行時間',
         phase: { delegation: '等緊委派執行', queue: '排隊', startup: '啟動至第一個 Token', streaming: '串流', tail: '最後一個 Token 之後' },
         fields: {
+          approvalWaitMs: '批核等候',
           delegationWaitMs: '委派等候時間',
           timeToFirstTokenExcludingDelegationMs: '第一個 Token 時間（唔計委派）',
           timeToFirstTokenMs: '第一個 Token 時間',
