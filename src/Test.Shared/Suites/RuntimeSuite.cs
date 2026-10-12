@@ -3,11 +3,13 @@ namespace Test.Shared.Suites
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
+    using Garrison.Core.Protocol;
     using Garrison.Core.Requests;
     using Garrison.Core.Services;
     using Garrison.Core.Settings;
@@ -35,6 +37,7 @@ namespace Test.Shared.Suites
                 string id = "runtime-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "claim-race", "Parallel claimers: exactly one wins each run (" + provider + ")", ct => ClaimRaceAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "stale-long-poll", "An old lease poll cannot claim after its node becomes unavailable or registers again (" + provider + ")", ct => StaleLongPollAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "fencing", "Stale epochs and other nodes are fenced out (" + provider + ")", ct => FencingAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "lease-reaper", "Expired leases requeue with attempts left and fail with NodeLost otherwise (" + provider + ")", ct => ReaperAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "leader-election", "Only one holder leads; leadership moves after expiry with a higher epoch (" + provider + ")", ct => LeaderAsync(provider, ct)));
@@ -59,6 +62,60 @@ namespace Test.Shared.Suites
             run.QueuedUtc = DateTime.UtcNow;
             run.InputText = "hello";
             return run;
+        }
+
+        private static async Task StaleLongPollAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            foreach (string change in new[] { "Lost", "Offline", "Draining", "Cordoned", "Inactive", "Reregistered", "CapabilitiesChanged", "Deleted" })
+            {
+                await using (TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false))
+                {
+                    DatabaseDriverBase db = cluster.Server.Server.Context.Database;
+                    Agent agent = await cluster.CreateAgentAsync("stale-poll", "builtin/fake", null, token).ConfigureAwait(false);
+                    Node node = new Node();
+                    node.Name = "stale-poll";
+                    node.RegisteredUtc = DateTime.UtcNow;
+                    node.LastHeartbeatUtc = DateTime.UtcNow;
+                    node.Capabilities.Add(new NodeCapability { HarnessType = HarnessTypeEnum.Generic, Executable = "garrison-fake-harness", Available = true });
+                    await db.Nodes.CreateAsync(node, token).ConfigureAwait(false);
+                    Node snapshot = Assert.NotNull(await db.Nodes.ReadAsync(node.Id, token).ConfigureAwait(false), "Node snapshot");
+                    SchedulerService scheduler = cluster.Server.Server.Context.Get<SchedulerService>();
+                    Task<NodeLeaseResponse> pending = scheduler.LeaseAsync(snapshot, new NodeLeaseRequest { NodeId = node.Id, MaxRuns = 1, WaitMs = 2000 }, token);
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(3);
+                    while (cluster.Server.Server.Context.Activity.HeldLongPolls == 0)
+                    {
+                        Assert.True(DateTime.UtcNow < deadline, "Lease request reaches its wait before node changes");
+                        await Task.Delay(10, token).ConfigureAwait(false);
+                    }
+                    if (change == "Deleted") await db.Nodes.DeleteAsync(node.Id, token).ConfigureAwait(false);
+                    else
+                    {
+                        Node current = Assert.NotNull(await db.Nodes.ReadAsync(node.Id, token).ConfigureAwait(false), "Current node");
+                        if (change == "CapabilitiesChanged") current.Capabilities[0].Available = false;
+                        else if (change == "Inactive") current.Active = false;
+                        else if (change == "Reregistered") current.RegisteredUtc = current.RegisteredUtc!.Value.AddSeconds(1);
+                        else current.Status = Enum.Parse<NodeStatusEnum>(change);
+                        await db.Nodes.UpdateAsync(current, token).ConfigureAwait(false);
+                    }
+                    Run queued = await HttpTestHelpers.SendAsync<Run>(cluster.Server.AdminClient, HttpMethod.Post, "/v1.0/api/tenants/" + cluster.Server.TenantId + "/agents/" + agent.Id + "/invoke", new InvokeRequest { Input = "Queued after node changes", Wait = false }, 202, token).ConfigureAwait(false);
+                    NodeLeaseResponse response = await pending.WaitAsync(TimeSpan.FromSeconds(3), token).ConfigureAwait(false);
+                    Assert.Equal(0, response.Assignments.Count, change + ": old poll receives no assignment");
+                    Run untouched = Assert.NotNull(await db.Runs.ReadAsync(queued.Id, token).ConfigureAwait(false), "Queued run");
+                    Assert.Equal(RunStatusEnum.Queued, untouched.Status, change + ": run stays queued");
+                    Assert.True(untouched.LeaseNodeId == null, change + ": run is not leased to the old node");
+                    Assert.Equal(0, cluster.Server.Server.Context.Activity.HeldLongPolls, "Poll accounting clears");
+
+                    Node replacement = new Node();
+                    replacement.Name = "replacement";
+                    replacement.LastHeartbeatUtc = DateTime.UtcNow;
+                    replacement.Capabilities.Add(new NodeCapability { HarnessType = HarnessTypeEnum.Generic, Executable = "garrison-fake-harness", Available = true });
+                    await db.Nodes.CreateAsync(replacement, token).ConfigureAwait(false);
+                    replacement = Assert.NotNull(await db.Nodes.ReadAsync(replacement.Id, token).ConfigureAwait(false), "Replacement node");
+                    NodeLeaseResponse next = await scheduler.LeaseAsync(replacement, new NodeLeaseRequest { NodeId = replacement.Id, MaxRuns = 1, WaitMs = 0 }, token).ConfigureAwait(false);
+                    Assert.Equal(1, next.Assignments.Count, change + ": a Ready replacement still claims the run");
+                    Assert.Equal(queued.Id, next.Assignments[0].RunId, "Replacement claims the same queued run");
+                }
+            }
         }
 
         private static async Task ClaimRaceAsync(DatabaseTypeEnum provider, CancellationToken token)

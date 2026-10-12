@@ -273,8 +273,15 @@ if [ "${SKIP_DELEGATION}" = "0" ]; then
     child="$(curl -s -m 10 "${API}/runs/${parent}/children" -H "Authorization: Bearer ${TOKEN}" \
       | jq -c --arg d "${DELEGATE}" '[(.objects // .)[] | select(.agentName == $d)][0] // empty' 2>/dev/null)"
     if [ -n "${child}" ] && [ "$(printf '%s' "${child}" | jq -r .parentRunId)" = "${parent}" ]; then
-      pass "run tree: ${DELEGATOR} -> ${DELEGATE}"
-      info "child $(printf '%s' "${child}" | jq -r '"\(.id) depth \(.depth) chain \(.callChain) status \(.status)"')"
+      case "$(printf '%s' "${child}" | jq -r '.status // empty')" in
+        Queued|Leased|Running|Cancelling) child="$(wait_run "$(printf '%s' "${child}" | jq -r .id)")" ;;
+      esac
+      if [ "$(printf '%s' "${child}" | jq -r '.status // empty')" = "Succeeded" ]; then
+        pass "run tree: ${DELEGATOR} -> ${DELEGATE}"
+        info "child $(printf '%s' "${child}" | jq -r '"\(.id) depth \(.depth) chain \(.callChain) status \(.status)"')"
+      else
+        fail "run tree: ${DELEGATOR} -> ${DELEGATE}" "child did not succeed: $(describe "${child}")"
+      fi
     else
       fail "run tree: ${DELEGATOR} -> ${DELEGATE}" "no child run of ${DELEGATE} under ${parent}; the agent may not have called the tool"
     fi

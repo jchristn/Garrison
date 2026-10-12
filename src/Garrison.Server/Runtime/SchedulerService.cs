@@ -105,6 +105,7 @@ namespace Garrison.Server.Runtime
             NodeLeaseResponse response = new NodeLeaseResponse();
             if (node.Status != NodeStatusEnum.Ready || ShutdownToken.IsCancellationRequested) return response;
 
+            DateTime? registration = node.RegisteredUtc;
             int maxRuns = Math.Clamp(request.MaxRuns, 1, 64);
             int waitMs = Math.Clamp(request.WaitMs, 0, Math.Min(60000, _Options.LeaseWaitMs));
             DateTime deadline = DateTime.UtcNow.AddMilliseconds(waitMs);
@@ -120,7 +121,14 @@ namespace Garrison.Server.Runtime
                 while (true)
                 {
                     token.ThrowIfCancellationRequested();
+                    if (ShutdownToken.IsCancellationRequested) return response;
                     long claimStart = Stopwatch.GetTimestamp();
+                    // A long poll holds the node snapshot read when its request arrived. Recheck before every claim,
+                    // including after a queue wakeup: a lost, cordoned, deleted, or replaced registration cannot lease
+                    // work through an old request (G-28). Use the current capabilities and placement for this pass.
+                    Node? current = await _Database.Nodes.ReadAsync(node.Id, token).ConfigureAwait(false);
+                    if (current == null || !current.Active || current.Status != NodeStatusEnum.Ready || current.RegisteredUtc != registration) return response;
+                    node = current;
                     List<RunAssignment> claimed = await ClaimAsync(node, maxRuns - response.Assignments.Count, token).ConfigureAwait(false);
                     GarrisonMetrics.Observe(GarrisonMetricCatalog.ClaimDuration, GarrisonMetrics.SecondsSince(claimStart), "result", claimed.Count > 0 ? "assigned" : "empty");
                     response.Assignments.AddRange(claimed);

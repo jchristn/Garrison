@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Lease long polls recheck node readiness and registration before each claim pass. Requests opened before a worker is lost, cordoned, disabled, deleted, or registered again cannot claim newly queued work; current capabilities and placement are used after each wakeup (G-28).
+
 - Watson 7 host with per-feature route registrars, OpenAPI at `/openapi.json`, CORS, request history capture, and a central operation scope map that records the permission every route and MCP tool requires.
 - Data layer for Sqlite and Postgresql with versioned, idempotent migrations, structured tables and child tables for every entity, and first-boot seeding.
 - Authentication with bearer session tokens (AES-256 with a random IV plus HMAC), credential headers, AWS-style signed requests with replay protection, the administrator API key, and run tokens for delegation.

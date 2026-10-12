@@ -105,7 +105,7 @@ Milestones:
 
 ### Current state and where to pick up (updated 2026-10-12)
 
-Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktree-agent-a808f7add5e64672e` (`2df763a`) is integrated with P12.1 conversations, validated, and deployed to `garrison-k3s`. All 59 conflicting files were resolved while retaining both features and migrations 12 and 13. Integration changes are ready for the merge commit and push.
+Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktree-agent-a808f7add5e64672e` (`2df763a`) is integrated with P12.1 conversations, validated, and deployed to `garrison-k3s`. All 59 conflicting files were resolved while retaining both features and migrations 12 and 13. Integration merge `fa189a0` is committed and pushed to `main`.
 
 **State**
 
@@ -115,12 +115,13 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 - Real Claude Code 2.1.296 smoke against the combined local server passed: a Bash request reached Garrison, a human-style REST Allow decision unblocked it, the harmless command wrote its test file, and Claude exited 0. Temporary test files/configuration were removed; no login was copied into the cluster. Approval waits over about an hour remain untested against MCP session idle timeouts.
 - Reference SQL schemas are regenerated from SchemaBuilder through migration 13 and execute on both providers. The old migration-12 gap on the approvals branch is resolved.
 - `garrison-k3s` was rolled out 2026-10-12 with the combined conversations/approvals tree: 2 server replicas, 2 workers, dashboard, and existing observability. Database schema confirmed 13. All six live dashboard tests pass. Real-harness validation is 21/25: stored `codex-auth-json` reports `SecretNeedsReauthentication`, blocking Codex REST/MCP/A2A and its SSE check. The delegation tree exists, but its Codex child fails before execution; this is not a successful delegation validation.
+- G-28 is fixed and verified on both providers/frameworks; the updated server image is being rolled out. The validation script now requires a delegated child to succeed instead of accepting a failed child as a passing run-tree check. Both verdict paths were checked; live Claude/Mux validation passes 20/20 with a successful delegated Mux child and SSE. The stored Codex credential still needs the user's update; the all-three-agent run is not green.
 - Cluster access: kubeconfig `~/.kube/garrison-k3s.yaml`, namespace `garrison`; REST 8700, MCP 8701, dashboard 8081, Grafana 3000, Prometheus 9090. REST/dashboard forwards were restarted after rollout. Applying the overlay resets server replicas to 1; restore 2 afterwards. Same-tag image deployments require explicit worker/dashboard rollout restarts.
 
 **Pick up here, in order**
 
 1. After the user updates the separate Garrison Codex login, rerun `examples/validate.sh --agents "claude-helper codex-coder mux-helper" --delegator claude-helper --delegate codex-coder` and require all 25 checks plus a successful Codex child. Run an approval wait over an hour to verify MCP session idle behavior; this soak is still open.
-2. Budgets and cost (P12.6, P12.7, P12.35) and QoSKit (P12.36, P12.38, D-036). Design answers are in D-035. Correctness follow-up G-28 (stale lease long poll) can proceed while the credential update is pending.
+2. Budgets and cost (P12.6, P12.7, P12.35) and QoSKit (P12.36, P12.38, D-036). Design answers are in D-035. G-28 is complete. Event ingestion improvements (P10.22/P10.23) can proceed while the credential update is pending.
 3. Remaining M2 work: P10.22 to P10.25, P11.14 to P11.20. Run P14.15 before P10.24 tuning, because tuning depends on its results; then Phase 15. P10.23 prevents storing one event per token for `builtin/codex-app-server`.
 4. Close G-12 by switching `builtin/codex` to app-server mode after a soak covering MCP servers, output schema, thread resume, and sandbox configuration.
 5. Other follow-ups: dashboard manifest `errorCode`; IMPROVEMENTS.md I-01 (synchronous invocation waits holding connections); cancel-latency robustness under load; conversation directory cleanup on delete, conversation retention, and affinity wait expiry end-to-end coverage.
@@ -1483,7 +1484,7 @@ Found during M1 integration and not yet fixed. Each is actionable; annotate like
 - [x] G-26 Manifest errors leak serializer internals (D-3): an invalid enum value returns type names and byte positions from `ManifestService` (around line 606). Map to a `ManifestInvalid` error naming the document, field, and allowed values.  | claude 2026-10-11 ManifestSpecError maps serializer errors to `ManifestInvalid` with document, field, value, and allowed values; apply items gain `errorCode` and `errorField` (migration 11); dashboard does not show `errorCode` yet
 - [x] G-27 Node registration race: two workers registering at once both try to create the default node pool and one gets a 500 from a duplicate-key error (seen in `garrison_db_errors_total` during P13.28). Create-if-missing must tolerate the conflict and re-read.  | claude 2026-10-11 duplicate-key on registration re-reads the pool or node; 12 parallel pool and 4 same-name node registrations on both providers
 
-- [ ] G-28 Stale lease long poll: recheck the worker's current registration and readiness on every claim pass; a poll opened before the worker becomes Lost, Offline, Draining, Cordoned, or deleted must not claim subsequently queued work. Regression coverage on SQLite and PostgreSQL.  | codex 2026-10-12 promoted from P12.1 pickup notes while Codex credential validation waits on the user
+- [x] G-28 Stale lease long poll: recheck the worker's current registration and readiness on every claim pass; a poll opened before the worker becomes Lost, Offline, Draining, Cordoned, or deleted must not claim subsequently queued work. Regression coverage on SQLite and PostgreSQL.  | codex 2026-10-12 fixed; scheduler reloads current node on every claim pass and rejects changed RegisteredUtc; regression first failed on both providers, then passed eight transitions (Lost, Offline, Draining, Cordoned, inactive, re-registered, capabilities removed, deleted), with a Ready replacement claiming the untouched run; net10 related suites 74/74, net8 runtime/replica/executor suites 61/61; build zero warnings
 
 ### AB_IMPROVEMENTS.md disposition (evaluated 2026-10-11)
 
