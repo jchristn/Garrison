@@ -528,7 +528,7 @@ const tips = {
         condition: 'Template expression; when it renders empty or false this argument is skipped.',
         repeatOver: 'Name of a list variable; the argument is emitted once per element.'
       },
-      promptDelivery: 'How the task prompt reaches the harness: on standard input, as an argument, or in a file.',
+      promptDelivery: 'How the task prompt reaches the harness: on standard input, as an argument, in a file, or as one turn over the Codex app-server protocol (JSON-RPC on stdin and stdout, so output streams).',
       promptArgumentTemplate: 'The argument or file name used when the prompt is not sent on standard input.',
       systemPromptDelivery: 'How the system prompt reaches the harness: a file, an argument, an environment variable, prepended to the task, or not at all.',
       systemPromptTarget: 'The flag, variable, or file name that carries the system prompt.',

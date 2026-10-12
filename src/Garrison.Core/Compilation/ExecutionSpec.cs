@@ -64,9 +64,16 @@ namespace Garrison.Core.Compilation
         public List<ExecutionFile> Files { get; set; } = new List<ExecutionFile>();
 
         /// <summary>
-        /// Text written to stdin before it is closed. Null closes stdin immediately.
+        /// Text written to stdin before it is closed. Null closes stdin immediately. When <see cref="AppServer"/> is
+        /// set, this is the prompt the worker sends as the turn input over the app-server protocol instead.
         /// </summary>
         public string? Stdin { get; set; } = null;
+
+        /// <summary>
+        /// Codex app-server session settings when the profile delivers the prompt with <c>CodexAppServer</c>; the
+        /// worker then keeps stdin open and drives the harness over JSON-RPC. Null for every other delivery mode.
+        /// </summary>
+        public ExecutionAppServer? AppServer { get; set; } = null;
 
         /// <summary>
         /// Workspace preparation.

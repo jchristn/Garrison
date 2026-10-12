@@ -3635,7 +3635,7 @@ Seeded workspace file.
 
 #### `OutputParserEnum`
 
-`ClaudeStreamJson`, `CodexJsonl`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, `PlainText`
+`ClaudeStreamJson`, `CodexJsonl`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, `PlainText`, `CodexAppServer`
 
 #### `ExecutionParserOptions`
 
@@ -4016,7 +4016,7 @@ Describes how to run one harness headless.
 
 #### `PromptDeliveryEnum`
 
-`Stdin`, `Argument`, `File`
+`Stdin`, `Argument`, `File`, `CodexAppServer`
 
 #### `SystemPromptDeliveryEnum`
 

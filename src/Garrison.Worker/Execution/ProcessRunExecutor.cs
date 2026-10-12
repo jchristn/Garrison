@@ -13,6 +13,7 @@ namespace Garrison.Worker.Execution
     using Garrison.Core.Serialization;
     using Garrison.Core.Telemetry;
     using Garrison.Harnesses;
+    using Garrison.Harnesses.AppServer;
     using Garrison.Harnesses.Execution;
     using Garrison.Harnesses.Parsers;
     using Garrison.Harnesses.Preflight;
@@ -135,7 +136,17 @@ namespace Garrison.Worker.Execution
                 request.StderrTailBytes = spec.StderrTailBytes;
                 request.Timing = timing;
 
+                // Codex app-server delivery (P12.2a): the driver holds stdin open, sends the prompt as one turn over
+                // JSON-RPC, and returns when the turn completes so stdin closes and the app-server exits.
+                CodexAppServerDriver? appServer = spec.AppServer != null ? AppServerDriver(spec, environment, directories) : null;
+                if (appServer != null)
+                {
+                    request.Stdin = null;
+                    request.StdinDriver = appServer;
+                }
+
                 ProcessRunResult process;
+                using (appServer)
                 using (CancellationTokenSource guardStop = new CancellationTokenSource())
                 using (CancellationTokenSource idleLoop = CancellationTokenSource.CreateLinkedTokenSource(token))
                 {
@@ -163,6 +174,7 @@ namespace Garrison.Worker.Execution
                             request,
                             line =>
                             {
+                                appServer?.HandleLine(line);
                                 parser.ParseLine(line, state);
                                 foreach (RunEventReport report in state.Drain())
                                 {
@@ -268,6 +280,20 @@ namespace Garrison.Worker.Execution
                     return;
                 }
             }
+        }
+
+        private static CodexAppServerDriver AppServerDriver(ExecutionSpec spec, Dictionary<string, string> environment, RunDirectories directories)
+        {
+            ExecutionAppServer settings = spec.AppServer ?? new ExecutionAppServer();
+            CodexAppServerOptions options = new CodexAppServerOptions();
+            options.Prompt = spec.Stdin ?? String.Empty;
+            options.Cwd = directories.Workspace;
+            options.ResumeThreadId = settings.ResumeThreadId;
+            options.OutputSchemaJson = settings.OutputSchemaJson;
+            options.ApprovalPolicy = settings.ApprovalPolicy;
+            options.ClientVersion = typeof(ProcessRunExecutor).Assembly.GetName().Version?.ToString() ?? "0.0.0";
+            options.UseApiKeyFrom(environment);
+            return new CodexAppServerDriver(options);
         }
 
         private Dictionary<string, string> BuildEnvironment(ExecutionSpec spec, RunDirectories directories)

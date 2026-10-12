@@ -26,6 +26,7 @@ Everything that varies by harness is in the profile, and everything is a templat
 |---|---|---|---|---|---|---|
 | `builtin/claude-code` | `claude` | stdin | `--system-prompt-file` | `--mcp-config` JSON file with `--strict-mcp-config` | `ClaudeStreamJson` | final event |
 | `builtin/codex` | `codex` | stdin | `-c model_instructions_file=...` | one `--config=mcp_servers.<name>...` override per setting | `CodexJsonl` | final event |
+| `builtin/codex-app-server` | `codex` | one `turn/start` over JSON-RPC (`CodexAppServer`) | `-c model_instructions_file=...` | one `--config=mcp_servers.<name>...` override per setting | `CodexAppServer` | final event |
 | `builtin/mux` | `mux` | stdin | `--system-prompt` file | `--mcp-config` JSON file with `--strict-mcp-config` | `MuxJsonl` | `--output-last-message` file |
 | `builtin/gemini-cli` | `gemini` | stdin | `GEMINI_SYSTEM_MD` file | `settings.json` in an isolated `GEMINI_CLI_HOME` | `GeminiStreamJson` | final event |
 | `builtin/generic-jsonl` | from the `executable` parameter | stdin | prepended to the prompt | none | `GenericJsonl` | final event |
@@ -79,7 +80,46 @@ The Secrets list shows each login's status, when Garrison last refreshed it (`re
 
 Do not keep using a login on another machine after you store it in Garrison, and do not store the `auth.json` you use yourself: both copies share one refresh token, so whichever refreshes second breaks. Sign in with a separate `CODEX_HOME` (`CODEX_HOME=$(mktemp -d) codex login`) and store that file. For deployments that several people share, an `OpenAiApiKey` secret is simpler and has none of these constraints.
 
-Codex output does not stream: `codex exec --json` prints each agent message only when it is complete, so a short answer arrives in one piece at the end of the run. Streaming needs Codex's experimental `app-server` protocol, which is planned (P12.2a in `GARRISON_PLAN.md`).
+`builtin/codex` does not stream: `codex exec --json` prints each agent message only when it is complete, so a short answer arrives in one piece at the end of the run, and the run's time to first token is close to its whole duration. Use `builtin/codex-app-server` when you want Codex to stream.
+
+#### Streaming with `codex app-server` (`builtin/codex-app-server`)
+
+```text
+codex app-server -c project_doc_max_bytes=0 -c sandbox_mode=<sandbox, default workspace-write>
+      [-c model=<model>] [-c model_reasoning_effort=<effort>]
+      [-c model_instructions_file="$GARRISON_CONFIG_DIR/system-prompt.md"]
+      --config=mcp_servers.<name>.url=... (and the same MCP settings as builtin/codex)
+```
+
+This profile uses the prompt delivery mode `CodexAppServer`. Instead of writing the prompt to stdin and closing it, the worker keeps stdin open and talks to the app-server in JSON-RPC, one JSON object per line:
+
+1. `initialize`, then the `initialized` notification.
+2. `account/login/start` with the API key, when the deployment binds an `OpenAiApiKey` secret. The app-server does not read `CODEX_API_KEY` or `OPENAI_API_KEY` from its environment the way `codex exec` does, so the worker logs in with the value of the first of those two variables that is set. A `CodexAuthJson` login needs no step: it is the same `$HOME/.codex/auth.json` (without its refresh token) and the same closed `CODEX_REFRESH_TOKEN_URL_OVERRIDE` as for `builtin/codex`.
+3. `thread/start` with the workspace as `cwd` and approval policy `never`, or `thread/resume` with the saved thread ID for a structured output repair.
+4. `turn/start` with the prompt as one text input and the agent's output schema, if it has one, as `outputSchema`.
+5. When `turn/completed` arrives, the worker closes stdin and the app-server exits.
+
+The `CodexAppServer` parser reads the same stdout:
+
+| App-server message | Garrison event or field |
+|---|---|
+| `item/agentMessage/delta` | `AssistantText`, one per delta, as it arrives (no raw JSON is kept for a delta) |
+| `item/reasoning/textDelta`, `item/reasoning/summaryTextDelta` | `Thinking` |
+| `item/completed` for an agent message or reasoning item | Nothing more when its deltas were streamed; otherwise one `AssistantText` or `Thinking` event. The last agent message is the result text. |
+| `item/started` and `item/completed` for `commandExecution`, `mcpToolCall`, `fileChange`, `dynamicToolCall`, `webSearch` | `ToolCall` and `ToolResult` (`shell`, `<server>.<tool>`, `file_change`, the tool name, `web_search`) |
+| `thread/tokenUsage/updated` | Input, cached, output, and reasoning tokens for this turn only (thread totals minus what the thread had before the turn), with output including reasoning as in exec mode; one `Usage` event at the end of the turn |
+| response to `thread/start` or `thread/resume`, `thread/started`, `model/rerouted` | Session ID (the thread ID) and served model |
+| `turn/completed` | `Result` when the status is `completed`; otherwise `Error` and a failed run. A 401 from the model provider makes the outcome `NotCredentialed`. |
+| `error` | `Warning` when Codex will retry, `Error` when it will not |
+| an error response to one of the worker's requests | `Error` and a failed run (for example `thread/resume` for a thread that no longer exists) |
+| `mcpServer/startupStatus/updated` with status `failed` | `Warning`; the run fails when the server is required |
+| an approval or elicitation request | `Warning`; the worker declines it |
+
+Deltas go through the same event path as every other event (D-034 in `GARRISON_PLAN.md`): the worker reports them, the control plane stores them, and live readers tail the database. There is no separate broadcast path for raw deltas.
+
+Requests from the app-server get headless answers: command and file change approvals are declined, MCP elicitations are declined, and everything else (including `account/chatgptAuthTokens/refresh`, since the control plane owns token refresh) gets a JSON-RPC error. With approval policy `never` Codex should not ask in the first place.
+
+Differences from `builtin/codex`: the app-server has no `--ignore-user-config`, so the profile relies on `isolateHome` (each run gets its own `CODEX_HOME`); a clone with `isolateHome` turned off would read the worker's own Codex configuration. Model, sandbox, and effort are `-c` overrides instead of flags. The app-server is marked experimental in Codex 0.159.3, which is why `builtin/codex` still uses `codex exec` and this profile is opt-in: point a deployment's `harnessProfile` at `builtin/codex-app-server` to use it. The driver (`CodexAppServerDriver` in `Garrison.Harnesses`) exposes the handshake, thread start or resume, and each turn as separate steps, so multi-turn conversations (P12.1) can reuse it.
 
 ### Mux
 
@@ -160,10 +200,10 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 | `arguments` | Ordered argument templates (below). |
 | `environment` | Environment variable templates. `isSecret` marks values to scrub from output. |
 | `files` | Files to write before launch (below). |
-| `promptDelivery` | `Stdin`, `Argument` (the prompt, or `promptArgumentTemplate`, is appended as the last argument), or `File` (written to the config directory as `promptArgumentTemplate`, default `prompt.md`). |
+| `promptDelivery` | `Stdin`, `Argument` (the prompt, or `promptArgumentTemplate`, is appended as the last argument), `File` (written to the config directory as `promptArgumentTemplate`, default `prompt.md`), or `CodexAppServer` (the worker drives `codex app-server` over JSON-RPC and sends the prompt as one turn; see [Streaming with `codex app-server`](#streaming-with-codex-app-server-builtincodex-app-server)). |
 | `systemPromptDelivery` | `File` (written to `systemPromptTarget` in the config directory), `Argument` (`systemPromptTarget` is the flag), `Environment` (`systemPromptTarget` is the variable), `PrependToPrompt`, or `None` (the profile handles it with its own arguments or files). |
 | `mcpConfigFormat`, `mcpConfigFileName` | Which MCP configuration dialect the harness reads and where. Informational for the built-in formats, which are produced by the profile's own files and arguments. |
-| `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, or `PlainText`. |
+| `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `CodexAppServer`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, or `PlainText`. |
 | `resultSource` | `ParserFinalEvent`, `LastMessageFile` (read `resultFileName` from the config directory), or `Stdout`. |
 | `successPolicy` | `FinalEvent` (the parser saw a successful final event), `ExitCode` (the exit code is in `successExitCodes`), or `FinalEventAndExitCode`. `PlainText` always uses `ExitCode`. |
 | `genericTextField`, `genericFinalField`, `genericSuccessField`, `genericSuccessValue` | Dotted JSON paths for `GenericJsonl`: assistant text, the final result, and the field and value that mean success. |
@@ -172,7 +212,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 | `maxOutputBytes` | Stdout limit; the run fails with `OutputLimitExceeded` beyond it (default 64 MiB). |
 | `stderrTailBytes` | How much stderr to keep for diagnosis (default 8000). |
 | `isolateHome` | Give each run its own `HOME` (and `USERPROFILE`, and `CODEX_HOME` for Codex). On by default for every built-in. |
-| `supportsResume` | Whether the harness can resume a session by ID. Required for the structured output repair (see [Structured output validation and repair](#structured-output-validation-and-repair)); the profile's arguments must use `run.resumeSessionId`. On for `builtin/claude-code`, `builtin/codex`, `builtin/mux`, `builtin/gemini-cli`, and `builtin/fake`. |
+| `supportsResume` | Whether the harness can resume a session by ID. Required for the structured output repair (see [Structured output validation and repair](#structured-output-validation-and-repair)); the profile's arguments must use `run.resumeSessionId`. On for `builtin/claude-code`, `builtin/codex`, `builtin/codex-app-server` (which resumes over JSON-RPC rather than with an argument), `builtin/mux`, `builtin/gemini-cli`, and `builtin/fake`. |
 | `successExitCodes`, `probeArguments` | Exit codes that count as success, and the arguments used to check the harness is installed (`--version`). |
 | `credentialEnvironmentAllowlist` | The only environment variables allowed to reference a secret. When the list is not empty, an environment template (from the profile or a deployment override) that references a secret under any other name fails compilation with `SecretNotAllowed`. |
 
@@ -329,6 +369,7 @@ The repair runs inside the same lease, on the same worker, in the same `work/`, 
 |---|---|
 | `builtin/claude-code` | `--resume <session_id>` |
 | `builtin/codex` | `codex exec ... resume <thread_id> -` (the `exec resume` subcommand, prompt still on stdin) |
+| `builtin/codex-app-server` | no argument: the worker sends `thread/resume` with the thread ID before the repair turn |
 | `builtin/mux` | `--resume <sessionId>`; the original execution passes `--session-id <run id>` so Mux persists the session, which it does only for agents with an output schema |
 | `builtin/gemini-cli` | `--resume <session_id>` |
 | `builtin/fake` | `--resume <session>` |

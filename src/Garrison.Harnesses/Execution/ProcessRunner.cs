@@ -13,8 +13,8 @@ namespace Garrison.Harnesses.Execution
 
     /// <summary>
     /// Runs a harness process: arguments through ArgumentList (never a shell), a fully specified environment, stdin
-    /// written then closed, stdout read line by line with a byte limit, a stderr tail, and a deadline. On deadline,
-    /// cancellation, output limit, or a run guard stop, the process and its descendants receive SIGTERM (Unix), and
+    /// written then closed (or handed to an interactive <see cref="IStdinDriver"/> until it returns), stdout read line
+    /// by line with a byte limit, a stderr tail, and a deadline. On deadline, cancellation, output limit, or a run guard stop, the process and its descendants receive SIGTERM (Unix), and
     /// whatever is still alive after the grace period receives SIGKILL; the descendants are listed before the signal so
     /// children of a harness that exits first (Node and Rust processes under Claude Code or Codex) are not left behind.
     /// Thread-safe; each call is independent.
@@ -50,6 +50,7 @@ namespace Garrison.Harnesses.Execution
             startInfo.CreateNoWindow = true;
             startInfo.StandardOutputEncoding = new UTF8Encoding(false);
             startInfo.StandardErrorEncoding = new UTF8Encoding(false);
+            if (request.StdinDriver != null) startInfo.StandardInputEncoding = new UTF8Encoding(false);
             startInfo.Environment.Clear();
             foreach (KeyValuePair<string, string> variable in request.Environment) startInfo.Environment[variable.Key] = variable.Value;
 
@@ -83,14 +84,18 @@ namespace Garrison.Harnesses.Execution
                 using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token))
                 using (CancellationTokenSource outputLimit = new CancellationTokenSource())
                 using (CancellationTokenSource stopAll = CancellationTokenSource.CreateLinkedTokenSource(linked.Token, outputLimit.Token, request.StopToken))
+                using (CancellationTokenSource driverStop = CancellationTokenSource.CreateLinkedTokenSource(stopAll.Token))
                 {
-                    Task stdinTask = WriteStdinAsync(process, request.Stdin);
+                    Task stdinTask = request.StdinDriver != null ? DriveStdinAsync(process, request.StdinDriver, driverStop.Token) : WriteStdinAsync(process, request.Stdin);
                     Task stderrTask = ReadStderrAsync(process, stderr);
                     Task stdoutTask = ReadStdoutAsync(process, request.MaxOutputBytes, onStdoutLine, result, outputLimit);
 
                     Task exitTask = process.WaitForExitAsync(CancellationToken.None);
                     Task stopTask = Task.Delay(Timeout.Infinite, stopAll.Token);
                     Task first = await Task.WhenAny(exitTask, stopTask).ConfigureAwait(false);
+
+                    // An interactive driver waiting on a reply that will never come must not outlive the process.
+                    driverStop.Cancel();
 
                     if (first == exitTask)
                     {
@@ -152,6 +157,36 @@ namespace Garrison.Harnesses.Execution
                     process.StandardInput.Close();
                 }
                 catch (IOException)
+                {
+                }
+            }
+        }
+
+        private static async Task DriveStdinAsync(Process process, IStdinDriver driver, CancellationToken token)
+        {
+            try
+            {
+                await driver.DriveAsync(process.StandardInput, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            finally
+            {
+                try
+                {
+                    process.StandardInput.Close();
+                }
+                catch (IOException)
+                {
+                }
+                catch (ObjectDisposedException)
                 {
                 }
             }

@@ -1,0 +1,90 @@
+{
+  "spec": {
+    "runId": "run_golden",
+    "tenantId": "ten_golden",
+    "agentName": "helper-codex-app-server-basic",
+    "deploymentId": "dep_codex_app_server_basic",
+    "deploymentName": "helper-codex-app-server-basic-default",
+    "harnessType": "Codex",
+    "executable": "codex",
+    "arguments": [
+      "app-server",
+      "-c",
+      "project_doc_max_bytes=0",
+      "-c",
+      "sandbox_mode=\u0022workspace-write\u0022",
+      "-c",
+      "model=\u0022test-model\u0022",
+      "-c",
+      "model_instructions_file=\u0022$GARRISON_CONFIG_DIR/system-prompt.md\u0022"
+    ],
+    "environment": [
+      {
+        "name": "CODEX_API_KEY",
+        "value": "credential-codex_app_server_basic",
+        "isSecret": true
+      },
+      {
+        "name": "OPENAI_API_KEY",
+        "value": "credential-codex_app_server_basic",
+        "isSecret": true
+      }
+    ],
+    "files": [
+      {
+        "baseDirectory": "Config",
+        "path": "system-prompt.md",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n",
+        "isSecret": false
+      }
+    ],
+    "stdin": "Summarize the repository.\n",
+    "appServer": {
+      "approvalPolicy": "never"
+    },
+    "workspace": {
+      "kind": "Empty",
+      "gitDepth": 1,
+      "files": [],
+      "retention": "Delete"
+    },
+    "parser": "CodexAppServer",
+    "parserOptions": {},
+    "resultSource": "ParserFinalEvent",
+    "successPolicy": "FinalEvent",
+    "successExitCodes": [
+      0
+    ],
+    "timeoutSeconds": 1800,
+    "killGraceSeconds": 5,
+    "maxOutputBytes": 67108864,
+    "stderrTailBytes": 8000,
+    "repetitionGuard": true,
+    "maxAssistantChars": 200000,
+    "noProgressSeconds": 300,
+    "isolateHome": true,
+    "mcpPreflight": [],
+    "scrubValues": [
+      "credential-codex_app_server_basic"
+    ],
+    "retainForRepair": false,
+    "repairAttempt": 0,
+    "executor": "Process"
+  },
+  "templateVersions": [
+    {
+      "id": "rtv_golden_0",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_system",
+      "templateName": "builtin/default-system",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_1",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_task",
+      "templateName": "builtin/default-task",
+      "version": 1
+    }
+  ]
+}

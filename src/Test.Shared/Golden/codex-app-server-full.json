@@ -1,0 +1,179 @@
+{
+  "spec": {
+    "runId": "run_golden",
+    "tenantId": "ten_golden",
+    "agentName": "helper-codex-app-server-full",
+    "deploymentId": "dep_codex_app_server_full",
+    "deploymentName": "helper-codex-app-server-full-default",
+    "harnessType": "Codex",
+    "executable": "codex",
+    "arguments": [
+      "app-server",
+      "-c",
+      "project_doc_max_bytes=0",
+      "-c",
+      "sandbox_mode=\u0022workspace-write\u0022",
+      "-c",
+      "model=\u0022test-model\u0022",
+      "-c",
+      "model_reasoning_effort=\u0022high\u0022",
+      "-c",
+      "model_instructions_file=\u0022$GARRISON_CONFIG_DIR/system-prompt.md\u0022",
+      "--config=mcp_servers.garrison.url=\u0022http://garrison-server:8701/mcp\u0022",
+      "--config=mcp_servers.docs.url=\u0022https://mcp.example.com/mcp\u0022",
+      "--config=mcp_servers.garrison.env_http_headers={ \u0022Authorization\u0022 = \u0022GARRISON_MCP_0_H0\u0022 }",
+      "--config=mcp_servers.docs.env_http_headers={ \u0022Authorization\u0022 = \u0022GARRISON_MCP_1_H0\u0022 }",
+      "--config=mcp_servers.garrison.required=true",
+      "--config=mcp_servers.docs.required=true",
+      "--config=mcp_servers.garrison.tool_timeout_sec=600",
+      "--config=mcp_servers.docs.tool_timeout_sec=120",
+      "--config=mcp_servers.garrison.default_tools_approval_mode=\u0022approve\u0022",
+      "--config=mcp_servers.docs.default_tools_approval_mode=\u0022approve\u0022"
+    ],
+    "environment": [
+      {
+        "name": "GARRISON_MCP_0_H0",
+        "value": "Bearer run-token-golden",
+        "isSecret": true
+      },
+      {
+        "name": "GARRISON_MCP_0_BEARER",
+        "value": "run-token-golden",
+        "isSecret": true
+      },
+      {
+        "name": "GARRISON_MCP_1_H0",
+        "value": "Bearer docs-token-codex_app_server_full",
+        "isSecret": true
+      },
+      {
+        "name": "GARRISON_MCP_1_BEARER",
+        "value": "docs-token-codex_app_server_full",
+        "isSecret": true
+      },
+      {
+        "name": "CODEX_API_KEY",
+        "value": "credential-codex_app_server_full",
+        "isSecret": true
+      },
+      {
+        "name": "OPENAI_API_KEY",
+        "value": "credential-codex_app_server_full",
+        "isSecret": true
+      }
+    ],
+    "files": [
+      {
+        "baseDirectory": "Config",
+        "path": "system-prompt.md",
+        "content": "You are Helper, an agent operated by Garrison.\n\nAnswers questions about the repository.\n\nWork only inside your current working directory. When you are done, reply with your final answer.\n\nYou can hand work to other Garrison agents through the \u0022garrison\u0022 MCP server:\n- garrison_list_agents shows the agents you may call and what each one does.\n- garrison_invoke_agent sends a message to an agent and waits for its answer. If it returns a run ID instead of an answer, call garrison_get_run until the run finishes.\n\nDelegate only when another agent is better suited to part of the task. You may call: codex-coder. Delegation can go at most 2 levels below you.\n\n",
+        "isSecret": false
+      }
+    ],
+    "stdin": "The agent \u0022planner\u0022 is asking you for help as part of a larger task (delegation depth 1). Reply with a concise, self-contained answer that agent can use directly.\n\nRequest:\nSummarize the repository.\n",
+    "appServer": {
+      "outputSchemaJson": "{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022answer\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022required\u0022:[\u0022answer\u0022],\u0022additionalProperties\u0022:false}",
+      "approvalPolicy": "never"
+    },
+    "workspace": {
+      "kind": "GitRepository",
+      "gitUrl": "https://github.com/example/repo.git",
+      "gitRef": "main",
+      "gitDepth": 1,
+      "gitUsername": "x-access-token",
+      "gitPassword": "git-token-codex_app_server_full",
+      "files": [],
+      "retention": "Delete"
+    },
+    "parser": "CodexAppServer",
+    "parserOptions": {},
+    "resultSource": "ParserFinalEvent",
+    "successPolicy": "FinalEvent",
+    "successExitCodes": [
+      0
+    ],
+    "timeoutSeconds": 1800,
+    "killGraceSeconds": 5,
+    "maxOutputBytes": 67108864,
+    "stderrTailBytes": 8000,
+    "repetitionGuard": true,
+    "maxAssistantChars": 200000,
+    "noProgressSeconds": 300,
+    "isolateHome": true,
+    "mcpPreflight": [
+      {
+        "name": "garrison",
+        "url": "http://garrison-server:8701",
+        "path": "/mcp",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer run-token-golden",
+            "isSecret": true
+          }
+        ],
+        "requiredTools": [
+          "garrison_invoke_agent"
+        ],
+        "required": true
+      },
+      {
+        "name": "docs",
+        "url": "https://mcp.example.com",
+        "path": "/mcp",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer docs-token-codex_app_server_full",
+            "isSecret": true
+          }
+        ],
+        "requiredTools": [
+          "search"
+        ],
+        "required": true
+      }
+    ],
+    "scrubValues": [
+      "Bearer docs-token-codex_app_server_full",
+      "credential-codex_app_server_full",
+      "docs-token-codex_app_server_full",
+      "git-token-codex_app_server_full",
+      "Bearer run-token-golden",
+      "run-token-golden"
+    ],
+    "retainForRepair": true,
+    "repairAttempt": 0,
+    "executor": "Process"
+  },
+  "templateVersions": [
+    {
+      "id": "rtv_golden_0",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_system",
+      "templateName": "builtin/default-system",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_1",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_default_task",
+      "templateName": "builtin/default-task",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_2",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_delegated_task",
+      "templateName": "builtin/delegated-task",
+      "version": 1
+    },
+    {
+      "id": "rtv_golden_3",
+      "runId": "run_golden",
+      "templateId": "tpl_builtin_garrison_tools_instructions",
+      "templateName": "builtin/garrison-tools-instructions",
+      "version": 1
+    }
+  ]
+}

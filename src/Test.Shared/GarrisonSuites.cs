@@ -26,6 +26,7 @@ namespace Test.Shared
                 suites.AddRange(TemplateSuite.Build());
                 suites.AddRange(CompilerSuite.Build());
                 suites.AddRange(ParserSuite.Build());
+                suites.AddRange(AppServerSuite.Build());
                 suites.AddRange(IdentitySuite.Build());
                 suites.AddRange(ConfigurationSuite.Build());
                 suites.AddRange(RuntimeSuite.Build());

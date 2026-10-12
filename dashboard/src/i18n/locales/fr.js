@@ -139,7 +139,7 @@ const fr = {
   enums: {
     principalType: { Administrator: 'Administrateur système', User: 'Utilisateur', Credential: 'Clé d\'accès', Run: 'Jeton d\'exécution' },
     runBlockedReason: { NoReadyWorker: 'Aucun nœud worker prêt', NoCapableWorker: 'Aucun nœud worker compatible', NoMatchingPool: 'Aucun pool de nœuds correspondant' },
-    promptDelivery: { Stdin: 'Entrée standard', Argument: 'Argument de ligne de commande', File: 'Fichier' },
+    promptDelivery: { Stdin: 'Entrée standard', Argument: 'Argument de ligne de commande', File: 'Fichier', CodexAppServer: 'Serveur d\'application Codex (JSON-RPC)' },
     systemPromptDelivery: {
       File: 'Fichier',
       Argument: 'Argument de ligne de commande',
@@ -157,6 +157,7 @@ const fr = {
     outputParser: {
       ClaudeStreamJson: 'JSON en flux de Claude Code',
       CodexJsonl: 'Codex JSONL',
+      CodexAppServer: 'JSON-RPC du serveur d\'application Codex',
       MuxJsonl: 'Mux JSONL',
       GeminiStreamJson: 'JSON en flux de Gemini CLI',
       GenericJsonl: 'JSONL générique',

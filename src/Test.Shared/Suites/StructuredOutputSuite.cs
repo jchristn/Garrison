@@ -139,7 +139,7 @@ namespace Test.Shared.Suites
 
         private static async Task RepairCompileAsync(DatabaseTypeEnum provider, CancellationToken token)
         {
-            foreach (string profile in new[] { "claude-code", "codex", "mux", "gemini-cli" })
+            foreach (string profile in new[] { "claude-code", "codex", "codex-app-server", "mux", "gemini-cli" })
             {
                 // One fixture per profile: the full deployments of different profiles share MCP server names.
                 using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
@@ -150,6 +150,12 @@ namespace Test.Shared.Suites
                     Assert.True(original.Spec.RetainForRepair, profile + ": original execution keeps its directories for a possible repair");
                     Assert.Equal(0, original.Spec.RepairAttempt, profile + ": original repair attempt");
                     Assert.True(!original.Spec.Arguments.Contains("sess-123"), profile + ": no resume on the original execution");
+                    if (profile == "codex-app-server")
+                    {
+                        ExecutionAppServer first = Assert.NotNull(original.Spec.AppServer, "codex-app-server: app-server settings");
+                        Assert.True(first.ResumeThreadId == null, "codex-app-server: the original execution starts a new thread");
+                        Assert.True((first.OutputSchemaJson ?? String.Empty).Contains("\"answer\"", StringComparison.Ordinal), "codex-app-server: the schema rides on turn/start");
+                    }
                     if (profile == "mux")
                     {
                         // Mux print mode only persists a session when a session flag is given (G-20).
@@ -167,14 +173,23 @@ namespace Test.Shared.Suites
                     Assert.Equal(1, spec.RepairAttempt, profile + ": repair attempt");
                     Assert.True(!spec.RetainForRepair, profile + ": the repair does not ask for another repair");
                     int index = spec.Arguments.IndexOf("sess-123");
-                    Assert.True(index > 0, profile + ": session id is passed: " + String.Join(" ", spec.Arguments));
-                    string flag = spec.Arguments[index - 1];
+                    if (profile == "codex-app-server")
+                    {
+                        // The app-server resumes with thread/resume over JSON-RPC, not with an argument.
+                        Assert.True(index < 0, "codex-app-server: no resume argument");
+                        Assert.Equal("sess-123", Assert.NotNull(spec.AppServer, "codex-app-server: repair settings").ResumeThreadId, "codex-app-server: thread to resume");
+                    }
+                    else
+                    {
+                        Assert.True(index > 0, profile + ": session id is passed: " + String.Join(" ", spec.Arguments));
+                    }
+                    string flag = index > 0 ? spec.Arguments[index - 1] : String.Empty;
                     if (profile == "codex")
                     {
                         Assert.Equal("resume", flag, "codex resumes with the exec resume subcommand");
                         Assert.Equal("-", spec.Arguments[spec.Arguments.Count - 1], "codex still reads the prompt from stdin");
                     }
-                    else
+                    else if (profile != "codex-app-server")
                     {
                         Assert.Equal("--resume", flag, profile + ": resume flag");
                     }

@@ -408,7 +408,7 @@ export const harnessProfilesConfig = {
         ]
       }),
       field(id, t, 'promptDelivery', 'select', { required: true, options: enumOptions(t, 'promptDelivery'), step: 1 }),
-      field(id, t, 'promptArgumentTemplate', 'text', { step: 1, showIf: (x) => x.promptDelivery !== 'Stdin' }),
+      field(id, t, 'promptArgumentTemplate', 'text', { step: 1, showIf: (x) => x.promptDelivery !== 'Stdin' && x.promptDelivery !== 'CodexAppServer' }),
       field(id, t, 'systemPromptDelivery', 'select', { required: true, options: enumOptions(t, 'systemPromptDelivery'), step: 1 }),
       field(id, t, 'systemPromptTarget', 'text', { step: 1, showIf: (x) => x.systemPromptDelivery !== 'None' && x.systemPromptDelivery !== 'PrependToPrompt' }),
       field(id, t, 'mcpConfigFormat', 'select', { required: true, options: enumOptions(t, 'mcpConfigFormat'), step: 1 }),

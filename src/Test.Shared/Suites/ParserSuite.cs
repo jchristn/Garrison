@@ -37,6 +37,10 @@ namespace Test.Shared.Suites
                 Case("parsers", "claude-partial", "Claude stream-json: partial messages stream text once and keep tool input", ClaudePartialMessages),
                 Case("parsers", "codex-success", "Codex JSONL: recorded success with usage", CodexSuccess),
                 Case("parsers", "codex-failed", "Codex JSONL: turn.failed with tool items", CodexFailed),
+                Case("parsers", "codex-app-server-success", "Codex app-server (recorded): deltas stream as AssistantText, thread id, served model, usage", CodexAppServerSuccess),
+                Case("parsers", "codex-app-server-items", "Codex app-server: reasoning, commands, MCP calls, file changes; completed items are not emitted twice", CodexAppServerItems),
+                Case("parsers", "codex-app-server-usage", "Codex app-server: usage of a resumed thread counts only this run's turn; output includes reasoning", CodexAppServerUsage),
+                Case("parsers", "codex-app-server-failures", "Codex app-server: failed turn, 401 credential failure, rejected request, required MCP server, retries as warnings", CodexAppServerFailures),
                 Case("parsers", "mux-success", "Mux JSONL: assistant text concatenation, tools, usage", MuxSuccess),
                 Case("parsers", "mux-failed", "Mux JSONL: max iterations is a failure", MuxFailed),
                 Case("parsers", "mux-llm-error", "Mux JSONL: completed_with_errors plus a non-zero exit is a failure", MuxLlmError),
@@ -295,6 +299,131 @@ namespace Test.Shared.Suites
             Assert.True(state.DetectedFailure != null && state.DetectedFailure.Contains("disconnected"), "Failure message");
             Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolName == "shell" && e.Success == true), "Shell result");
             Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolName == "garrison.garrison_list_agents" && e.Success == false), "MCP result");
+        }
+
+        private static void CodexAppServerSuccess()
+        {
+            HarnessRunState state = Parse(OutputParserEnum.CodexAppServer, "codex-app-server/success.jsonl");
+            List<RunEventReport> events = state.Drain();
+            Assert.True(state.SawSuccess && state.SawFinalResult, "Expected success.");
+            Assert.True(state.DetectedFailure == null, "Unexpected failure: " + state.DetectedFailure);
+            List<RunEventReport> text = events.Where(e => e.EventType == RunEventTypeEnum.AssistantText).ToList();
+            Assert.True(text.Count > 1, "The answer streams as several AssistantText events, got " + text.Count);
+            Assert.Equal(state.FinalText, String.Concat(text.Select(e => e.Text)), "Deltas add up to the final message");
+            Assert.True(!String.IsNullOrEmpty(state.SessionId), "Thread id");
+            Assert.True(!String.IsNullOrEmpty(state.ServedModel), "Served model from thread/start");
+            Assert.True(state.InputTokens > 0 && state.OutputTokens > 0, "Usage from thread/tokenUsage/updated");
+            Assert.True(state.CachedTokens <= state.InputTokens, "Cached tokens");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Usage), "Usage event");
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Result), "Result event");
+            Assert.Equal(0, state.UnparsedLines, "Every line is JSON");
+        }
+
+        private static void CodexAppServerItems()
+        {
+            HarnessRunState state = ParseLines(OutputParserEnum.CodexAppServer, new[]
+            {
+                "{\"id\":2,\"result\":{\"thread\":{\"id\":\"thr_1\",\"model\":\"gpt-test\"},\"model\":\"gpt-test\"}}",
+                "{\"method\":\"item/started\",\"params\":{\"item\":{\"type\":\"reasoning\",\"id\":\"rs_1\",\"summary\":[],\"content\":[]}}}",
+                "{\"method\":\"item/reasoning/summaryTextDelta\",\"params\":{\"itemId\":\"rs_1\",\"delta\":\"Plan \"}}",
+                "{\"method\":\"item/reasoning/summaryTextDelta\",\"params\":{\"itemId\":\"rs_1\",\"delta\":\"first.\"}}",
+                "{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"reasoning\",\"id\":\"rs_1\",\"summary\":[\"Plan first.\"],\"content\":[]}}}",
+                "{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"reasoning\",\"id\":\"rs_2\",\"summary\":[\"Unstreamed thought.\"],\"content\":[]}}}",
+                "{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"agentMessage\",\"id\":\"msg_0\",\"text\":\"Looking around.\",\"phase\":\"commentary\"}}}",
+                "{\"method\":\"item/started\",\"params\":{\"item\":{\"type\":\"commandExecution\",\"id\":\"c1\",\"command\":\"ls\",\"status\":\"inProgress\"}}}",
+                "{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"commandExecution\",\"id\":\"c1\",\"command\":\"ls\",\"status\":\"completed\",\"exitCode\":0,\"aggregatedOutput\":\"README.md\"}}}",
+                "{\"method\":\"item/started\",\"params\":{\"item\":{\"type\":\"commandExecution\",\"id\":\"c2\",\"command\":\"false\",\"status\":\"inProgress\"}}}",
+                "{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"commandExecution\",\"id\":\"c2\",\"command\":\"false\",\"status\":\"failed\",\"exitCode\":1,\"aggregatedOutput\":\"\"}}}",
+                "{\"method\":\"item/started\",\"params\":{\"item\":{\"type\":\"mcpToolCall\",\"id\":\"m1\",\"server\":\"garrison\",\"tool\":\"garrison_list_agents\",\"status\":\"inProgress\",\"arguments\":{\"limit\":5}}}}",
+                "{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"mcpToolCall\",\"id\":\"m1\",\"server\":\"garrison\",\"tool\":\"garrison_list_agents\",\"status\":\"completed\",\"arguments\":{\"limit\":5},\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"two agents\"}],\"structuredContent\":null},\"error\":null}}}",
+                "{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"fileChange\",\"id\":\"f1\",\"status\":\"completed\",\"changes\":[{\"path\":\"a.txt\",\"kind\":{\"type\":\"add\"},\"diff\":\"+x\"}]}}}",
+                "{\"method\":\"item/agentMessage/delta\",\"params\":{\"itemId\":\"msg_1\",\"delta\":\"Done\"}}",
+                "{\"method\":\"item/agentMessage/delta\",\"params\":{\"itemId\":\"msg_1\",\"delta\":\".\"}}",
+                "{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"agentMessage\",\"id\":\"msg_1\",\"text\":\"Done.\",\"phase\":\"final_answer\"}}}",
+                "{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"thr_1\",\"turn\":{\"id\":\"t1\",\"status\":\"completed\",\"error\":null}}}"
+            });
+            List<RunEventReport> events = state.Drain();
+            List<RunEventReport> thinking = events.Where(e => e.EventType == RunEventTypeEnum.Thinking).ToList();
+            Assert.Equal("Plan |first.|Unstreamed thought.", String.Join("|", thinking.Select(e => e.Text)), "Streamed reasoning once, unstreamed reasoning from the item");
+            List<RunEventReport> text = events.Where(e => e.EventType == RunEventTypeEnum.AssistantText).ToList();
+            Assert.Equal("Looking around.|Done|.", String.Join("|", text.Select(e => e.Text)), "Unstreamed message once, streamed message as deltas only");
+            Assert.Equal("Looking around.\nDone.", state.AssistantText.ToString(), "Messages joined by a newline");
+            Assert.Equal("Done.", state.FinalText, "Final text is the last message");
+            Assert.Equal(3, events.Count(e => e.EventType == RunEventTypeEnum.ToolCall), "Tool calls: two commands and one MCP call");
+            RunEventReport ok = Assert.NotNull(events.FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolCallId == "c1"), "ls result");
+            Assert.True(ok.Success == true && ok.ToolName == "shell" && ok.Text == "README.md", "ls result fields");
+            RunEventReport failed = Assert.NotNull(events.FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolCallId == "c2"), "false result");
+            Assert.True(failed.Success == false, "Failed command");
+            RunEventReport mcpCall = Assert.NotNull(events.FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolCall && e.ToolCallId == "m1"), "MCP call");
+            Assert.Equal("garrison.garrison_list_agents", mcpCall.ToolName, "MCP tool name");
+            Assert.Equal("{\"limit\":5}", mcpCall.Text, "MCP arguments");
+            RunEventReport mcpResult = Assert.NotNull(events.FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolCallId == "m1"), "MCP result");
+            Assert.True(mcpResult.Success == true && mcpResult.Text == "two agents", "MCP result text");
+            RunEventReport file = Assert.NotNull(events.FirstOrDefault(e => e.EventType == RunEventTypeEnum.ToolResult && e.ToolName == "file_change"), "File change");
+            Assert.Equal("add a.txt", file.Text, "File change summary");
+            Assert.Equal("gpt-test", state.ServedModel, "Served model");
+            Assert.Equal("thr_1", state.SessionId, "Session id");
+        }
+
+        private static void CodexAppServerUsage()
+        {
+            // A resumed thread: the first update already carries 1000 input tokens from the earlier turn.
+            HarnessRunState state = ParseLines(OutputParserEnum.CodexAppServer, new[]
+            {
+                "{\"method\":\"thread/tokenUsage/updated\",\"params\":{\"tokenUsage\":{\"total\":{\"totalTokens\":1180,\"inputTokens\":1150,\"cachedInputTokens\":540,\"outputTokens\":30,\"reasoningOutputTokens\":14},\"last\":{\"totalTokens\":180,\"inputTokens\":150,\"cachedInputTokens\":40,\"outputTokens\":30,\"reasoningOutputTokens\":4}}}}",
+                "{\"method\":\"thread/tokenUsage/updated\",\"params\":{\"tokenUsage\":{\"total\":{\"totalTokens\":1400,\"inputTokens\":1350,\"cachedInputTokens\":640,\"outputTokens\":50,\"reasoningOutputTokens\":20},\"last\":{\"totalTokens\":220,\"inputTokens\":200,\"cachedInputTokens\":100,\"outputTokens\":20,\"reasoningOutputTokens\":6}}}}",
+                "{\"method\":\"turn/completed\",\"params\":{\"turn\":{\"id\":\"t1\",\"status\":\"completed\"}}}"
+            });
+            Assert.Equal(350L, state.InputTokens, "Input tokens of this turn (two calls)");
+            Assert.Equal(140L, state.CachedTokens, "Cached tokens of this turn");
+            Assert.Equal(10L, state.ReasoningTokens, "Reasoning tokens of this turn");
+            Assert.Equal(60L, state.OutputTokens, "Output tokens include reasoning, like exec mode");
+            RunEventReport usage = Assert.NotNull(state.Drain().FirstOrDefault(e => e.EventType == RunEventTypeEnum.Usage), "One usage event at turn end");
+            Assert.Equal(350L, usage.InputTokens, "Usage event input");
+        }
+
+        private static void CodexAppServerFailures()
+        {
+            ExecutionSpec spec = new ExecutionSpec { Parser = OutputParserEnum.CodexAppServer, SuccessPolicy = SuccessPolicyEnum.FinalEvent };
+
+            HarnessRunState unauthorized = ParseLines(OutputParserEnum.CodexAppServer, new[]
+            {
+                "{\"method\":\"error\",\"params\":{\"error\":{\"message\":\"Reconnecting... 2/5\",\"codexErrorInfo\":{\"responseStreamDisconnected\":{\"httpStatusCode\":401}},\"additionalDetails\":\"auth error code: invalid_api_key\"},\"willRetry\":true}}",
+                "{\"method\":\"turn/completed\",\"params\":{\"turn\":{\"id\":\"t1\",\"status\":\"failed\",\"error\":{\"message\":\"unexpected status 401 Unauthorized\",\"codexErrorInfo\":{\"httpConnectionFailed\":{\"httpStatusCode\":401}}}}}}"
+            });
+            List<RunEventReport> events = unauthorized.Drain();
+            Assert.True(events.Any(e => e.EventType == RunEventTypeEnum.Warning && e.Text != null && e.Text.Contains("Reconnecting", StringComparison.Ordinal)), "A retried error is a warning");
+            HarnessOutcome credential = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, unauthorized);
+            Assert.Equal(RunOutcomeEnum.NotCredentialed, credential.Outcome, "401 is NotCredentialed");
+
+            HarnessRunState failed = ParseLines(OutputParserEnum.CodexAppServer, new[]
+            {
+                "{\"method\":\"error\",\"params\":{\"error\":{\"message\":\"stream disconnected\",\"codexErrorInfo\":\"other\"},\"willRetry\":false}}",
+                "{\"method\":\"turn/completed\",\"params\":{\"turn\":{\"id\":\"t1\",\"status\":\"failed\",\"error\":{\"message\":\"stream disconnected before completion\",\"codexErrorInfo\":\"other\"}}}}"
+            });
+            HarnessOutcome harness = OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, failed);
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, harness.Outcome, "Failed turn");
+            Assert.Equal("stream disconnected before completion", harness.ErrorMessage, "Failure message");
+
+            HarnessRunState interrupted = ParseLines(OutputParserEnum.CodexAppServer, new[] { "{\"method\":\"turn/completed\",\"params\":{\"turn\":{\"id\":\"t1\",\"status\":\"interrupted\",\"error\":null}}}" });
+            Assert.True(!interrupted.SawSuccess && interrupted.DetectedFailure == "Turn was interrupted.", "Interrupted turn");
+
+            HarnessRunState rejected = ParseLines(OutputParserEnum.CodexAppServer, new[] { "{\"id\":3,\"error\":{\"code\":-32600,\"message\":\"no rollout found for thread id x\"}}" });
+            Assert.True(rejected.DetectedFailure != null && rejected.DetectedFailure.Contains("no rollout found", StringComparison.Ordinal), "Rejected request fails the run");
+            Assert.Equal(RunOutcomeEnum.HarnessFailed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, rejected).Outcome, "Rejected request outcome");
+
+            IHarnessOutputParser parser = ParserFactory.Create(OutputParserEnum.CodexAppServer, null, new[] { "docs" });
+            HarnessRunState mcp = new HarnessRunState();
+            parser.ParseLine("{\"method\":\"mcpServer/startupStatus/updated\",\"params\":{\"name\":\"extra\",\"status\":\"failed\",\"error\":\"handshake failed\"}}", mcp);
+            Assert.True(mcp.DetectedFailure == null, "An optional MCP server only warns");
+            parser.ParseLine("{\"method\":\"mcpServer/startupStatus/updated\",\"params\":{\"name\":\"docs\",\"status\":\"failed\",\"error\":\"handshake failed\"}}", mcp);
+            parser.ParseLine("{\"method\":\"turn/completed\",\"params\":{\"turn\":{\"id\":\"t1\",\"status\":\"completed\"}}}", mcp);
+            parser.Complete(mcp);
+            Assert.True(mcp.DetectedFailure != null && mcp.DetectedFailure.Contains("docs", StringComparison.Ordinal), "A required MCP server that fails fails the run");
+            Assert.Equal(RunStatusEnum.Failed, OutcomeClassifier.Classify(spec, new ProcessRunResult { ExitCode = 0 }, mcp).Status, "Required MCP failure outcome");
+
+            HarnessRunState exited = ParseLines(OutputParserEnum.CodexAppServer, new[] { "{\"method\":\"error\",\"params\":{\"error\":{\"message\":\"fatal\"},\"willRetry\":false}}" });
+            Assert.Equal("fatal", exited.DetectedFailure, "The last error explains a run that ended without turn/completed");
         }
 
         private static void MuxSuccess()

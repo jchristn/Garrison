@@ -143,7 +143,7 @@ const es = {
       NoCapableWorker: 'Ningún nodo de trabajo compatible',
       NoMatchingPool: 'Ningún grupo de nodos coincide'
     },
-    promptDelivery: { Stdin: 'Entrada estándar', Argument: 'Argumento de línea de comandos', File: 'Archivo' },
+    promptDelivery: { Stdin: 'Entrada estándar', Argument: 'Argumento de línea de comandos', File: 'Archivo', CodexAppServer: 'Servidor de aplicaciones de Codex (JSON-RPC)' },
     systemPromptDelivery: {
       File: 'Archivo',
       Argument: 'Argumento de línea de comandos',
@@ -161,6 +161,7 @@ const es = {
     outputParser: {
       ClaudeStreamJson: 'JSON en streaming de Claude Code',
       CodexJsonl: 'Codex JSONL',
+      CodexAppServer: 'JSON-RPC del servidor de aplicaciones de Codex',
       MuxJsonl: 'Mux JSONL',
       GeminiStreamJson: 'JSON en streaming de Gemini CLI',
       GenericJsonl: 'JSONL genérico',

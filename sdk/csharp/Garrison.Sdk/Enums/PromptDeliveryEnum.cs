@@ -18,6 +18,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// File.
         /// </summary>
-        File
+        File,
+
+        /// <summary>
+        /// CodexAppServer.
+        /// </summary>
+        CodexAppServer
     }
 }
