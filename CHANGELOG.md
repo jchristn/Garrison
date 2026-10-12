@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Tenant-owned model prices estimate missing run cost using exact harness/model matches and configurable cache/reasoning accounting. Prices start empty; reported cost, including zero, takes precedence. Rates can be managed through the dashboard, REST, and all four SDKs; migration 14 adds the structured price table (P12.7).
+
 - Event batches use provider-limited multi-row SQL with replay deduplication and one transaction across every chunk. SQLite reuses small prepared chunks; single-event batches retain their lightweight path. A reproducible database microbenchmark and measured before/after results are documented in `docs/SCALING.md` (P10.22).
 
 - Lease long polls recheck node readiness and registration before each claim pass. Requests opened before a worker is lost, cordoned, disabled, deleted, or registered again cannot claim newly queued work; current capabilities and placement are used after each wakeup (G-28).

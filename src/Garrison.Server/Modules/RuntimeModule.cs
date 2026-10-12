@@ -71,6 +71,7 @@ namespace Garrison.Server.Modules
             _Events = new RunEventService(context.Database, _Signals, context.Telemetry);
             _StructuredOutput = new StructuredOutputService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Options, context.Telemetry);
             _Events.StructuredOutput = _StructuredOutput;
+            _Events.CostEstimation = new RunCostEstimationService(context.Database);
             _Runs.Logging = context.Logging;
             _Runs.ShutdownToken = context.Stopping;
             _Events.Logging = context.Logging;

@@ -215,3 +215,7 @@ python test_harness.py http://127.0.0.1:8700 access_garrison_default secret_garr
 ```
 
 The arguments are the base URL, an access key, and a secret key. The values above are the Docker Compose and source-build defaults; on Kubernetes pass the keys from Secret `garrison-secrets` (see "Where the credentials come from"). When the server rejects the keys, the harness stops after the first check with one message that says so, instead of running the remaining checks.
+
+## Model prices
+
+`client.model_prices` provides tenant-scoped list, get, create, update, and delete operations for `/model-prices`. Prices start empty and are operator-configured USD rates per million tokens, keyed by exact served model and harness. Optional cache/reasoning rates fall back to input/output rates; explicit zero is free. Configure token inclusion flags for the harness accounting convention (Claude Code cache reads are separate). Harness-reported cost, including zero, takes precedence; estimates set `costEstimated`. Saved run costs survive later price edits or deletion. See [REST API](../../REST_API.md#model-prices).

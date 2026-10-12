@@ -241,6 +241,7 @@ async function seed(api) {
   ).id;
   ids.workspace = (await api.post(tp('workspace-templates'), { name: 'contract-workspace', description: 'Seeded workspace', kind: 'Seeded', files: [{ path: 'README.md', content: 'hello' }], retention: 'Delete' })).id;
   ids.store = (await api.post(tp('artifact-stores'), { name: 'contract-store', description: 'Contract store', kind: 'Database' })).id;
+  ids.price = (await api.post(tp('model-prices'), { name: 'contract-price', model: 'fixture-model', harnessType: 'Generic', inputUsdPerMillion: 2, outputUsdPerMillion: 10, cachedInputUsdPerMillion: null, reasoningUsdPerMillion: null, inputIncludesCachedTokens: true, outputIncludesReasoningTokens: true })).id;
   ids.pool = (await api.post('/v1.0/api/node-pools', { name: 'contract-empty-pool', description: 'A pool with no nodes', tenants: [TENANT] })).id;
 
   ids.user = (await api.post(tp('users'), { email: 'contract@garrison.local', password: 'Contract-Passw0rd', firstName: 'Contract', lastName: 'User' })).id;
@@ -518,6 +519,8 @@ function routes(ids) {
     ['listSecrets', tp(`secrets?${list}`)],
     ['listWorkspaceTemplates', tp(`workspace-templates?${list}`)],
     ['listArtifactStores', tp(`artifact-stores?${list}`)],
+    ['listModelPrices', tp(`model-prices?${list}`)],
+    ['getModelPrice', tp(`model-prices/${ids.price}`)],
     ['listAgents', tp(`agents?${list}`)],
     ['getAgent', tp(`agents/${ids.agent2}`)],
     ['getAgentCard', tp(`agents/${ids.agent}/card`)],

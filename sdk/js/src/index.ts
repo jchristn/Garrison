@@ -921,6 +921,19 @@ export class Settings {
   testDatabase(): Promise<Json> { return this.t.request("POST", "/v1.0/api/settings/database/test"); }
 }
 
+/** Operator-configured USD rates for an exact tenant, harness, and served model. */
+export interface ModelPrice extends Json {
+  id: string; tenantId: string; name: string; model: string; harnessType: string;
+  description?: string | null;
+  inputUsdPerMillion: number; outputUsdPerMillion: number;
+  cachedInputUsdPerMillion?: number | null; reasoningUsdPerMillion?: number | null;
+  /** True when cached tokens are a subset of inputTokens; false for Claude Code cache reads. */
+  inputIncludesCachedTokens: boolean;
+  /** True when reasoning tokens are a subset of outputTokens. */
+  outputIncludesReasoningTokens: boolean;
+  active: boolean; isProtected: boolean; createdUtc: string; lastUpdateUtc: string;
+}
+
 /** Garrison API client. Authenticate, then use the module properties. */
 export class GarrisonClient {
   readonly transport: Transport;
@@ -940,6 +953,7 @@ export class GarrisonClient {
   readonly secrets: Secrets;
   readonly workspaceTemplates: Resource;
   readonly artifactStores: Resource;
+  readonly modelPrices: Resource<ModelPrice>;
   readonly manifests: Manifests;
   readonly runs: Runs;
   readonly conversations: Conversations;
@@ -970,6 +984,7 @@ export class GarrisonClient {
     this.secrets = new Secrets(t, "secrets");
     this.workspaceTemplates = new Resource(t, "workspace-templates");
     this.artifactStores = new Resource(t, "artifact-stores");
+    this.modelPrices = new Resource<ModelPrice>(t, "model-prices");
     this.manifests = new Manifests(t);
     this.runs = new Runs(t);
     this.conversations = new Conversations(t);

@@ -254,6 +254,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a model price identifier (prefix mpr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewModelPriceId()
+        {
+            return New(Constants.ModelPriceIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a ArtifactStore identifier (prefix ast_).
         /// </summary>
         /// <returns>Identifier.</returns>

@@ -98,6 +98,7 @@ type Client struct {
 	Secrets                    *Resource
 	WorkspaceTemplates         *Resource
 	ArtifactStores             *Resource
+	ModelPrices                *Resource
 	Manifests                  *ManifestsClient
 	Runs                       *RunsClient
 	Conversations              *ConversationsClient
@@ -130,6 +131,7 @@ func NewClient(baseURL string) *Client {
 	c.Secrets = &Resource{c: c, segment: "secrets"}
 	c.WorkspaceTemplates = &Resource{c: c, segment: "workspace-templates"}
 	c.ArtifactStores = &Resource{c: c, segment: "artifact-stores"}
+	c.ModelPrices = &Resource{c: c, segment: "model-prices"}
 	c.Manifests = &ManifestsClient{c: c}
 	c.Runs = &RunsClient{c: c, PollInterval: 500 * time.Millisecond}
 	c.Conversations = &ConversationsClient{c: c}

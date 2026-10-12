@@ -97,6 +97,10 @@ namespace Garrison.Core.Database.Ado
             v13.BuildVersion13();
             migrations.Add(new SchemaMigration(13, "Permission approvals and deployment approval rules", v13._Statements, v13._Columns));
 
+            SchemaBuilder v14 = new SchemaBuilder(catalog, dialect);
+            v14.BuildVersion14();
+            migrations.Add(new SchemaMigration(14, "Operator-configured model prices for run cost estimation", v14._Statements, v14._Columns));
+
             return migrations;
         }
 
@@ -258,6 +262,30 @@ namespace Garrison.Core.Database.Ado
             Column("runs", "affinityuntilutc", d.TypeTimestamp);
             Column("runs", "conversationfallbackreason", "VARCHAR(64)");
             Index("runs", "conversation", false, "conversationid", "createdutc");
+        }
+
+        private void BuildVersion14()
+        {
+            SqlDialect d = _Dialect;
+            Table("model_prices",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description " + d.TypeText,
+                "model VARCHAR(256) NOT NULL",
+                "harnesstype VARCHAR(64) NOT NULL",
+                "inputusdpermillion " + d.TypeDouble + " NOT NULL",
+                "outputusdpermillion " + d.TypeDouble + " NOT NULL",
+                "cachedinputusdpermillion " + d.TypeDouble,
+                "reasoningusdpermillion " + d.TypeDouble,
+                "inputincludescachedtokens " + d.TypeBool + " NOT NULL",
+                "outputincludesreasoningtokens " + d.TypeBool + " NOT NULL",
+                "active " + d.TypeBool + " NOT NULL",
+                "isprotected " + d.TypeBool + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("model_prices", "tenantname", true, "tenantid", "name");
+            Index("model_prices", "tenantmodel", true, "tenantid", "harnesstype", "model");
         }
 
         private void BuildVersion13()

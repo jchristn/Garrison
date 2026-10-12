@@ -656,6 +656,7 @@ class GarrisonClient:
         self.secrets = Secrets(t, "secrets")
         self.workspace_templates = Resource(t, "workspace-templates")
         self.artifact_stores = Resource(t, "artifact-stores")
+        self.model_prices = Resource(t, "model-prices")
         self.manifests = Manifests(t)
         self.runs = Runs(t)
         self.conversations = Conversations(t)

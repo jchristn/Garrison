@@ -8643,6 +8643,136 @@
       ]
     },
     {
+      "name": "Model Prices",
+      "description": "Operator-defined fictional fixture rates. Prices are never seeded. Reported cost, including zero, takes precedence.",
+      "item": [
+        {
+          "name": "Create model price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/model-prices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-price-{{$timestamp}}\",\n  \"model\": \"fictional-example-model-{{$timestamp}}\",\n  \"harnessType\": \"Generic\",\n  \"inputUsdPerMillion\": 2,\n  \"outputUsdPerMillion\": 10,\n  \"cachedInputUsdPerMillion\": null,\n  \"reasoningUsdPerMillion\": 0,\n  \"inputIncludesCachedTokens\": true,\n  \"outputIncludesReasoningTokens\": true,\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set(\"modelPriceId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read model price",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/model-prices/{{modelPriceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List model prices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/model-prices"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update model price",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/model-prices/{{modelPriceId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-price-{{$timestamp}}\",\n  \"model\": \"fictional-example-model-{{$timestamp}}\",\n  \"harnessType\": \"Generic\",\n  \"inputUsdPerMillion\": 2,\n  \"outputUsdPerMillion\": 10,\n  \"cachedInputUsdPerMillion\": null,\n  \"reasoningUsdPerMillion\": 0,\n  \"inputIncludesCachedTokens\": true,\n  \"outputIncludesReasoningTokens\": true,\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete model price",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/model-prices/{{modelPriceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [

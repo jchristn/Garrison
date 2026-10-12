@@ -218,6 +218,7 @@ const ja = {
       Secret: 'シークレット',
       Workspace: 'ワークスペース',
       ArtifactStore: '成果物ストア',
+      ModelPrice: "モデル料金",
       Run: '実行',
       Node: 'ノード',
       NodePool: 'ノードプール',
@@ -384,6 +385,7 @@ const ja = {
       secrets: { label: 'シークレット', tip: 'ハーネスと連携用の認証情報' },
       workspaces: { label: 'ワークスペース', tip: '実行用ワークスペースの準備方法' },
       artifactStores: { label: '成果物ストア', tip: '実行の成果物の保存先' },
+      modelPrices: { label: "モデル料金", tip: "ハーネスが費用を報告しない場合の推定に使う、運用者設定の米ドル料金です。ゼロを含む報告済み費用が優先されます。" },
       manifests: { label: 'マニフェスト', tip: '構成をコードとして適用・エクスポート' },
       requests: { label: 'リクエスト履歴', tip: 'HTTP トラフィックと失敗の調査' },
       audit: { label: '監査', tip: 'セキュリティと構成のイベント' },
@@ -832,6 +834,13 @@ const ja = {
       fields: { name: '名前', kind: '種類', description: '説明', gitUrl: 'リポジトリ URL', gitRef: 'ブランチ、タグ、またはコミット', gitDepth: 'クローンの深さ', gitCredentialSecretId: 'Git 認証情報', persistentVolumeClaim: 'PersistentVolumeClaim 名', files: 'ファイル', filePath: 'パス', fileContent: '内容', retention: '保持', active: '有効' },
       hints: { persistentVolumeClaim: '実行用名前空間にある既存の Claim です。Kubernetes Job エグゼキューターのデプロイメントだけがこのワークスペースを使えます。内容は実行をまたいで保持されます。' },
       errors: { claimName: '小文字、数字、ハイフン、ドットを使い、先頭と末尾は英字か数字にしてください。' }
+    },
+    modelPrices: {
+      ...{"title": "モデル料金", "subtitle": "ハーネスが費用を報告しない場合の推定に使う、運用者設定の米ドル料金です。ゼロを含む報告済み費用が優先されます。", "add": "モデル料金を追加", "create": "モデル料金を作成", "edit": "モデル料金を編集", "view": "モデル料金の詳細", "deleteTitle": "モデル料金を削除", "emptyTitle": "モデル料金はまだありません", "emptyBody": "ハーネスと実際に使用したモデルの正確な組み合わせに料金を追加します。プロバイダー料金の初期値はありません。"},
+      columns: {"name": "名前", "active": "有効", "id": "ID", "createdUtc": "作成日時", "model": "使用モデル", "harnessType": "ハーネス", "inputUsdPerMillion": "入力 USD / 100万トークン", "outputUsdPerMillion": "出力 USD / 100万トークン"},
+      fields: {"name": "名前", "description": "説明", "active": "有効", "model": "使用モデル", "harnessType": "ハーネス", "inputUsdPerMillion": "入力 USD / 100万トークン", "outputUsdPerMillion": "出力 USD / 100万トークン", "cachedInputUsdPerMillion": "キャッシュ入力 USD / 100万トークン", "reasoningUsdPerMillion": "推論 USD / 100万トークン", "inputIncludesCachedTokens": "入力数にキャッシュトークンを含む", "outputIncludesReasoningTokens": "出力数に推論トークンを含む"},
+      hints: {"cachedInputUsdPerMillion": "空欄の場合は対応する入力または出力料金を使用します。ゼロは無料です。", "reasoningUsdPerMillion": "空欄の場合は対応する入力または出力料金を使用します。ゼロは無料です。", "inputIncludesCachedTokens": "入力数にキャッシュトークンが含まれる場合に有効にします。キャッシュ読み取りを別に報告するClaude Codeでは無効にしてください。", "outputIncludesReasoningTokens": "出力数に推論トークンが含まれる場合に有効にします。含まれる内訳を引いてから個別の料金を適用します。"},
+      errors: {"rate": "0から1,000,000,000までの有限の料金を入力してください。ゼロも有効です。", "model": "制御文字を含まない1から256文字の正確なモデル名を入力してください。"}
     },
     artifactStores: {
       ...rp('成果物ストア', '実行で生成されたファイルの保存先です。', 'ストアを追加', 'ストアを作成', 'ストアを編集', 'ストアの詳細', 'ストアを削除', '成果物ストアはまだありません', '実行結果を保存するために成果物ストアを作成してください。'),

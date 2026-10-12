@@ -555,6 +555,26 @@ class ApiClient {
     return this._request('DELETE', this._t(tenantId, `artifact-stores/${enc(id)}`));
   }
 
+  listModelPrices(tenantId, params) {
+    return this._list(this._t(tenantId, 'model-prices'), params);
+  }
+
+  getModelPrice(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `model-prices/${enc(id)}`));
+  }
+
+  createModelPrice(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'model-prices'), { body });
+  }
+
+  updateModelPrice(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `model-prices/${enc(id)}`), { body });
+  }
+
+  deleteModelPrice(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `model-prices/${enc(id)}`));
+  }
+
   // ------------------------------------------------------------------ agents and deployments
 
   listAgents(tenantId, params) {

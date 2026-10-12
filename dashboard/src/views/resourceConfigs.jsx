@@ -706,6 +706,37 @@ export const artifactStoresConfig = {
   validate: (d, t) => (!d.name ? { name: t('common.errors.required') } : null)
 };
 
+export const modelPricesConfig = {
+  id: 'modelPrices',
+  explainer: 'modelPrices',
+  api: tenantApi('listModelPrices', 'createModelPrice', 'updateModelPrice', 'deleteModelPrice'),
+  blank: () => ({ name: '', description: '', model: '', harnessType: 'Generic', inputUsdPerMillion: 0, outputUsdPerMillion: 0, cachedInputUsdPerMillion: null, reasoningUsdPerMillion: null, inputIncludesCachedTokens: true, outputIncludesReasoningTokens: true, active: true }),
+  columns: ({ t, i18n }) => [nameCol('modelPrices', t), col('modelPrices', t, 'model', (r) => r.model), col('modelPrices', t, 'harnessType', (r) => enumBadge(t, 'harnessType', r.harnessType)),
+    ...['inputUsdPerMillion', 'outputUsdPerMillion'].map((key) => col('modelPrices', t, key, (r) => formatNumber(r[key], i18n.language, { maximumFractionDigits: 8 }))), activeCol('modelPrices', t), idCol('modelPrices', t), createdCol('modelPrices', t, i18n)],
+  fields: (_d, { t }) => [
+    field('modelPrices', t, 'name', 'text', { required: true }),
+    field('modelPrices', t, 'model', 'text', { required: true }),
+    field('modelPrices', t, 'harnessType', 'select', { required: true, span: 'full', options: enumOptions(t, 'harnessType') }),
+    ...['inputUsdPerMillion', 'outputUsdPerMillion', 'cachedInputUsdPerMillion', 'reasoningUsdPerMillion'].map((key) => field('modelPrices', t, key, 'number', { min: 0, max: 1000000000, step: 'any', required: key === 'inputUsdPerMillion' || key === 'outputUsdPerMillion' })),
+    field('modelPrices', t, 'inputIncludesCachedTokens', 'checkbox', { span: 'full' }),
+    field('modelPrices', t, 'outputIncludesReasoningTokens', 'checkbox', { span: 'full' }),
+    field('modelPrices', t, 'description', 'textarea'),
+    field('modelPrices', t, 'active', 'checkbox')
+  ],
+  validate: (d, t) => {
+    const errors = {};
+    if (!d.name?.trim()) errors.name = t('common.errors.required');
+    if (!d.model?.trim() || d.model.trim().length > 256 || [...d.model].some((c) => c.charCodeAt(0) < 32 || (c.charCodeAt(0) >= 127 && c.charCodeAt(0) <= 159))) errors.model = t('resources.modelPrices.errors.model');
+    for (const key of ['inputUsdPerMillion', 'outputUsdPerMillion', 'cachedInputUsdPerMillion', 'reasoningUsdPerMillion']) {
+      const optional = key === 'cachedInputUsdPerMillion' || key === 'reasoningUsdPerMillion';
+      if (optional && (d[key] === null || d[key] === undefined || d[key] === '')) continue;
+      if (d[key] === null || d[key] === undefined || d[key] === '' || !Number.isFinite(Number(d[key])) || Number(d[key]) < 0 || Number(d[key]) > 1000000000) errors[key] = t('resources.modelPrices.errors.rate');
+    }
+    return errors;
+  },
+  toBody: (d) => ({ ...d, model: d.model.trim(), ...Object.fromEntries(['inputUsdPerMillion', 'outputUsdPerMillion', 'cachedInputUsdPerMillion', 'reasoningUsdPerMillion'].map((key) => [key, d[key] === '' || d[key] === null || d[key] === undefined ? null : Number(d[key])])) })
+};
+
 export const agentsConfig = {
   id: 'agents',
   explainer: 'agents',

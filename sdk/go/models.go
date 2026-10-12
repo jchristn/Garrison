@@ -777,3 +777,24 @@ type AnalyticsDimensions struct {
 	// Truncated is true when the server's 100,000-run cap was hit.
 	Truncated bool `json:"truncated"`
 }
+
+// ModelPrice holds operator-configured USD rates for an exact tenant, harness, and served model.
+// Reported harness cost takes precedence. Cached and reasoning inclusion flags describe the harness token counts.
+type ModelPrice struct {
+	ID                            string   `json:"id"`
+	TenantID                      string   `json:"tenantId"`
+	Name                          string   `json:"name"`
+	Description                   *string  `json:"description"`
+	Model                         string   `json:"model"`
+	HarnessType                   string   `json:"harnessType"`
+	InputUsdPerMillion            float64  `json:"inputUsdPerMillion"`
+	OutputUsdPerMillion           float64  `json:"outputUsdPerMillion"`
+	CachedInputUsdPerMillion      *float64 `json:"cachedInputUsdPerMillion"`
+	ReasoningUsdPerMillion        *float64 `json:"reasoningUsdPerMillion"`
+	InputIncludesCachedTokens     bool     `json:"inputIncludesCachedTokens"`
+	OutputIncludesReasoningTokens bool     `json:"outputIncludesReasoningTokens"`
+	Active                        bool     `json:"active"`
+	IsProtected                   bool     `json:"isProtected"`
+	CreatedUTC                    string   `json:"createdUtc"`
+	LastUpdateUTC                 string   `json:"lastUpdateUtc"`
+}

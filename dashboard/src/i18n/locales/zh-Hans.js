@@ -218,6 +218,7 @@ const zhHans = {
       Secret: '机密',
       Workspace: '工作区',
       ArtifactStore: '制品存储',
+      ModelPrice: "模型价格",
       Run: '运行',
       Node: '节点',
       NodePool: '节点池',
@@ -384,6 +385,7 @@ const zhHans = {
       secrets: { label: '机密', tip: 'Harness 和集成所用的凭据' },
       workspaces: { label: '工作区', tip: '运行工作区的准备方式' },
       artifactStores: { label: '制品存储', tip: '运行制品的存储位置' },
+      modelPrices: { label: "模型价格", tip: "在执行器未报告费用时，使用操作员配置的美元费率进行估算。已报告费用（包括零）优先。" },
       manifests: { label: '清单', tip: '以代码形式应用和导出配置' },
       requests: { label: '请求历史', tip: '检查 HTTP 流量和失败请求' },
       audit: { label: '审计', tip: '安全和配置事件' },
@@ -833,6 +835,13 @@ const zhHans = {
       fields: { name: '名称', kind: '类别', description: '描述', gitUrl: '仓库 URL', gitRef: '分支、标签或提交', gitDepth: '克隆深度', gitCredentialSecretId: 'Git 凭据', persistentVolumeClaim: 'PersistentVolumeClaim 名称', files: '文件', filePath: '路径', fileContent: '内容', retention: '保留策略', active: '启用' },
       hints: { persistentVolumeClaim: '运行命名空间中已有的 Claim。只有使用 Kubernetes Job 执行器的部署才能使用此工作区；其内容在多次运行之间保留。' },
       errors: { claimName: '请使用小写字母、数字、连字符和点，并以字母或数字开头和结尾。' }
+    },
+    modelPrices: {
+      ...{"title": "模型价格", "subtitle": "在执行器未报告费用时，使用操作员配置的美元费率进行估算。已报告费用（包括零）优先。", "add": "添加模型价格", "create": "创建模型价格", "edit": "编辑模型价格", "view": "模型价格详情", "deleteTitle": "删除模型价格", "emptyTitle": "暂无模型价格", "emptyBody": "为执行器和实际使用的精确模型名称添加价格。不预设供应商费率。"},
+      columns: {"name": "名称", "active": "启用", "id": "ID", "createdUtc": "创建时间", "model": "实际使用的模型", "harnessType": "执行器", "inputUsdPerMillion": "输入美元 / 百万令牌", "outputUsdPerMillion": "输出美元 / 百万令牌"},
+      fields: {"name": "名称", "description": "描述", "active": "启用", "model": "实际使用的模型", "harnessType": "执行器", "inputUsdPerMillion": "输入美元 / 百万令牌", "outputUsdPerMillion": "输出美元 / 百万令牌", "cachedInputUsdPerMillion": "缓存输入美元 / 百万令牌", "reasoningUsdPerMillion": "推理美元 / 百万令牌", "inputIncludesCachedTokens": "输入计数包含缓存令牌", "outputIncludesReasoningTokens": "输出计数包含推理令牌"},
+      hints: {"cachedInputUsdPerMillion": "留空时使用对应的输入或输出费率。零表示免费。", "reasoningUsdPerMillion": "留空时使用对应的输入或输出费率。零表示免费。", "inputIncludesCachedTokens": "当输入计数包含缓存令牌时启用。Claude Code单独报告缓存读取，应禁用此项。", "outputIncludesReasoningTokens": "当输出计数包含推理令牌时启用。先扣除已包含的子计数，再应用单独费率。"},
+      errors: {"rate": "请输入0至1,000,000,000之间的有限费率。零为有效值。", "model": "请输入1至256个字符且不含控制字符的精确模型名称。"}
     },
     artifactStores: {
       ...rp('制品存储', '运行生成的文件的存放位置。', '添加制品存储', '创建制品存储', '编辑制品存储', '制品存储详情', '删除制品存储', '暂无制品存储', '创建制品存储以保存运行输出。'),

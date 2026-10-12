@@ -239,6 +239,7 @@ const de = {
       Secret: 'Geheimnis',
       Workspace: 'Arbeitsbereich',
       ArtifactStore: 'Artefaktspeicher',
+      ModelPrice: "Modellpreis",
       Run: 'Lauf',
       Node: 'Knoten',
       NodePool: 'Knotenpool',
@@ -405,6 +406,7 @@ const de = {
       secrets: { label: 'Geheimnisse', tip: 'Zugangsdaten für Harnesses und Integrationen' },
       workspaces: { label: 'Arbeitsbereiche', tip: 'Wie Arbeitsbereiche für Läufe vorbereitet werden' },
       artifactStores: { label: 'Artefaktspeicher', tip: 'Wo Artefakte von Läufen gespeichert werden' },
+      modelPrices: { label: "Modellpreise", tip: "Vom Betreiber konfigurierte USD-Tarife zur Kostenschätzung, wenn der Harness keine Kosten meldet. Gemeldete Kosten, auch null, haben Vorrang." },
       manifests: { label: 'Manifeste', tip: 'Konfiguration als Code anwenden und exportieren' },
       requests: { label: 'Anfrageverlauf', tip: 'HTTP-Verkehr und Fehler untersuchen' },
       audit: { label: 'Audit', tip: 'Sicherheits- und Konfigurationsereignisse' },
@@ -855,6 +857,13 @@ const de = {
       fields: { name: 'Name', kind: 'Art', description: 'Beschreibung', gitUrl: 'Repository-URL', gitRef: 'Branch, Tag oder Commit', gitDepth: 'Klontiefe', gitCredentialSecretId: 'Git-Zugangsdaten', persistentVolumeClaim: 'Name des PersistentVolumeClaim', files: 'Dateien', filePath: 'Pfad', fileContent: 'Inhalt', retention: 'Aufbewahrung', active: 'Aktiv' },
       hints: { persistentVolumeClaim: 'Ein vorhandener Claim im Lauf-Namespace. Nur Bereitstellungen mit dem Executor Kubernetes-Job können diesen Arbeitsbereich nutzen; sein Inhalt bleibt zwischen Läufen erhalten.' },
       errors: { claimName: 'Verwenden Sie Kleinbuchstaben, Ziffern, Bindestriche und Punkte, beginnend und endend mit einem Buchstaben oder einer Ziffer.' }
+    },
+    modelPrices: {
+      ...{"title": "Modellpreise", "subtitle": "Vom Betreiber konfigurierte USD-Tarife zur Kostenschätzung, wenn der Harness keine Kosten meldet. Gemeldete Kosten, auch null, haben Vorrang.", "add": "Modellpreis hinzufügen", "create": "Modellpreis erstellen", "edit": "Modellpreis bearbeiten", "view": "Modellpreisdetails", "deleteTitle": "Modellpreis löschen", "emptyTitle": "Noch keine Modellpreise", "emptyBody": "Fügen Sie einen Preis für einen genauen Harness und Modellnamen hinzu. Anbieterpreise sind nicht vorgegeben."},
+      columns: {"name": "Name", "active": "Aktiv", "id": "ID", "createdUtc": "Erstellt", "model": "Verwendetes Modell", "harnessType": "Harness", "inputUsdPerMillion": "Eingabe USD / Million Token", "outputUsdPerMillion": "Ausgabe USD / Million Token"},
+      fields: {"name": "Name", "description": "Beschreibung", "active": "Aktiv", "model": "Verwendetes Modell", "harnessType": "Harness", "inputUsdPerMillion": "Eingabe USD / Million Token", "outputUsdPerMillion": "Ausgabe USD / Million Token", "cachedInputUsdPerMillion": "Cache-Eingabe USD / Million Token", "reasoningUsdPerMillion": "Denkprozess USD / Million Token", "inputIncludesCachedTokens": "Eingabe enthält Cache-Token", "outputIncludesReasoningTokens": "Ausgabe enthält Denkprozess-Token"},
+      hints: {"cachedInputUsdPerMillion": "Leer lassen, um den entsprechenden Eingabe- oder Ausgabetarif zu verwenden. Null bedeutet kostenlos.", "reasoningUsdPerMillion": "Leer lassen, um den entsprechenden Eingabe- oder Ausgabetarif zu verwenden. Null bedeutet kostenlos.", "inputIncludesCachedTokens": "Aktivieren, wenn Cache-Token in der Eingabe enthalten sind. Für Claude Code deaktivieren, da Cache-Lesezugriffe separat gemeldet werden.", "outputIncludesReasoningTokens": "Aktivieren, wenn Denkprozess-Token in der Ausgabe enthalten sind. Enthaltene Teilmengen werden vor Anwendung ihres eigenen Tarifs abgezogen."},
+      errors: {"rate": "Geben Sie einen endlichen Tarif zwischen 0 und 1.000.000.000 ein. Null ist gültig.", "model": "Geben Sie einen genauen Modellnamen mit 1 bis 256 Zeichen ohne Steuerzeichen ein."}
     },
     artifactStores: {
       ...rp('Artefaktspeicher', 'Wo Dateien aus Läufen aufbewahrt werden.', 'Speicher hinzufügen', 'Speicher erstellen', 'Speicher bearbeiten', 'Speicherdetails', 'Speicher löschen', 'Noch keine Artefaktspeicher', 'Erstellen Sie einen Artefaktspeicher für Ergebnisse von Läufen.'),

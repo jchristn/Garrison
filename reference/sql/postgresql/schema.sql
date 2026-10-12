@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 13).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 14).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1054,3 +1054,25 @@ CREATE INDEX IF NOT EXISTS "idx_approvals_tenantstatuscreated" ON "approvals" ("
 CREATE INDEX IF NOT EXISTS "idx_approvals_tenantcreated" ON "approvals" ("tenantid", "createdutc");
 CREATE INDEX IF NOT EXISTS "idx_approvals_run" ON "approvals" ("runid");
 CREATE INDEX IF NOT EXISTS "idx_approvals_statusexpires" ON "approvals" ("status", "expiresutc");
+
+-- Migration 14: Operator-configured model prices for run cost estimation
+CREATE TABLE IF NOT EXISTS "model_prices" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    model VARCHAR(256) NOT NULL,
+    harnesstype VARCHAR(64) NOT NULL,
+    inputusdpermillion DOUBLE PRECISION NOT NULL,
+    outputusdpermillion DOUBLE PRECISION NOT NULL,
+    cachedinputusdpermillion DOUBLE PRECISION,
+    reasoningusdpermillion DOUBLE PRECISION,
+    inputincludescachedtokens BOOLEAN NOT NULL,
+    outputincludesreasoningtokens BOOLEAN NOT NULL,
+    active BOOLEAN NOT NULL,
+    isprotected BOOLEAN NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_model_prices_tenantname" ON "model_prices" ("tenantid", "name");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_model_prices_tenantmodel" ON "model_prices" ("tenantid", "harnesstype", "model");

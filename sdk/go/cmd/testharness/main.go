@@ -94,6 +94,36 @@ func main() {
 		}
 		return nil
 	})
+	check("model price CRUD", func(ctx context.Context) error {
+		var price garrison.ModelPrice
+		body := map[string]any{"name": "sdk-go-price-" + suffix, "model": "fixture-go-" + suffix, "harnessType": "Generic", "inputUsdPerMillion": 0.5, "outputUsdPerMillion": 2, "reasoningUsdPerMillion": 0, "inputIncludesCachedTokens": false, "outputIncludesReasoningTokens": true}
+		if err := client.ModelPrices.Create(ctx, body, &price); err != nil {
+			return err
+		}
+		defer client.ModelPrices.Delete(ctx, price.ID)
+		var saved garrison.ModelPrice
+		if err := client.ModelPrices.Get(ctx, price.ID, &saved); err != nil {
+			return err
+		}
+		if saved.InputUsdPerMillion != 0.5 || saved.ReasoningUsdPerMillion == nil || *saved.ReasoningUsdPerMillion != 0 || saved.InputIncludesCachedTokens {
+			return fmt.Errorf("price fields")
+		}
+		var page garrison.EnumerationResult[garrison.ModelPrice]
+		if err := client.ModelPrices.List(ctx, &garrison.ListOptions{Search: price.Name}, &page); err != nil {
+			return err
+		}
+		if len(page.Objects) != 1 || page.Objects[0].ID != price.ID {
+			return fmt.Errorf("price list")
+		}
+		saved.OutputUsdPerMillion = 3
+		if err := client.ModelPrices.Update(ctx, price.ID, saved, &saved); err != nil {
+			return err
+		}
+		if saved.OutputUsdPerMillion != 3 {
+			return fmt.Errorf("price update")
+		}
+		return nil
+	})
 	check("builtin harness profiles", func(ctx context.Context) error {
 		profiles, err := client.HarnessProfiles.Builtin(ctx)
 		if err != nil {

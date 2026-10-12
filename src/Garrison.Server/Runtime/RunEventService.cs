@@ -72,6 +72,9 @@ namespace Garrison.Server.Runtime
 
         #endregion
 
+        /// <summary>Optional model-price estimator, configured by the runtime module.</summary>
+        public RunCostEstimationService? CostEstimation { get; set; } = null;
+
         #region Private-Members
 
         private readonly DatabaseDriverBase _Database;
@@ -223,6 +226,8 @@ namespace Garrison.Server.Runtime
             if (run.CancelRequested && status != RunStatusEnum.Succeeded) status = RunStatusEnum.Cancelled;
             RunOutcomeEnum outcome = status == RunStatusEnum.Succeeded ? RunOutcomeEnum.Succeeded : (status == RunStatusEnum.Cancelled ? RunOutcomeEnum.Cancelled : request.Outcome);
             string? errorMessage = request.ErrorMessage;
+
+            if (CostEstimation != null) await CostEstimation.ApplyAsync(run, request, token).ConfigureAwait(false);
 
             bool repairReport = request.RepairAttempt > 0 && run.RepairAttempts > 0;
             Apply(run, request, repairReport);

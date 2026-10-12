@@ -69,6 +69,18 @@ def t_signed():
     require(signed.agents.list(max_results=5)["success"], "list failed")
 
 
+def t_prices():
+    price = client.model_prices.create({"name": f"sdk-py-price-{SUFFIX}", "model": f"fixture-py-{SUFFIX}", "harnessType": "Generic", "inputUsdPerMillion": 0.5, "outputUsdPerMillion": 2, "cachedInputUsdPerMillion": None, "reasoningUsdPerMillion": 0, "inputIncludesCachedTokens": False, "outputIncludesReasoningTokens": True})
+    try:
+        saved = client.model_prices.get(price["id"])
+        require(saved["inputUsdPerMillion"] == 0.5 and saved["reasoningUsdPerMillion"] == 0 and not saved["inputIncludesCachedTokens"], "price fields")
+        require(any(p["id"] == price["id"] for p in client.model_prices.list(search=price["name"])["objects"]), "price list")
+        saved["outputUsdPerMillion"] = 3
+        require(client.model_prices.update(price["id"], saved)["outputUsdPerMillion"] == 3, "price update")
+    finally:
+        client.model_prices.delete(price["id"])
+
+
 def t_builtin():
     profiles = client.harness_profiles.builtin()
     fake = [p for p in profiles if p["name"] == "builtin/fake"]
@@ -333,7 +345,7 @@ AUTH_HELP = (
 )
 
 for name, fn in [("health", t_health), ("token auth", t_token), ("signed request auth", t_signed),
-                 ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create),
+                 ("model price CRUD", t_prices), ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create),
                  ("invoke with wait", t_invoke), ("run timing metrics", t_run_metrics),
                  ("run analytics", t_analytics), ("run analytics grouped by harness", t_analytics_group),
                  ("run analytics grouped by harness and model", t_analytics_harness_model),

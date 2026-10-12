@@ -110,6 +110,7 @@ function FieldControl({ field, value, onChange, disabled, id }) {
           value={value ?? ''}
           min={field.min}
           max={field.max}
+          step={field.step}
           disabled={disabled}
           placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}

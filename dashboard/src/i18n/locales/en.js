@@ -241,6 +241,7 @@ const en = {
       Secret: 'Secret',
       Workspace: 'Workspace',
       ArtifactStore: 'Artifact store',
+      ModelPrice: "model price",
       Run: 'Run',
       Node: 'Node',
       NodePool: 'Node pool',
@@ -407,6 +408,7 @@ const en = {
       secrets: { label: 'Secrets', tip: 'Harness and integration credentials' },
       workspaces: { label: 'Workspaces', tip: 'How run workspaces are prepared' },
       artifactStores: { label: 'Artifact Stores', tip: 'Where run artifacts are stored' },
+      modelPrices: { label: "Model Prices", tip: "Operator-configured USD rates for estimating cost when a harness omits it. Reported cost, including zero, takes precedence." },
       manifests: { label: 'Manifests', tip: 'Apply and export configuration as code' },
       requests: { label: 'Request History', tip: 'Inspect HTTP traffic and failures' },
       audit: { label: 'Audit', tip: 'Security and configuration events' },
@@ -859,6 +861,13 @@ const en = {
       fields: { name: 'Name', kind: 'Kind', description: 'Description', gitUrl: 'Repository URL', gitRef: 'Branch, tag, or commit', gitDepth: 'Clone depth', gitCredentialSecretId: 'Git credential', persistentVolumeClaim: 'PersistentVolumeClaim name', files: 'Files', filePath: 'Path', fileContent: 'Content', retention: 'Retention', active: 'Active' },
       hints: { persistentVolumeClaim: 'An existing claim in the run namespace. Only deployments with the Kubernetes Job executor can use this workspace; its contents persist across runs.' },
       errors: { claimName: 'Use lowercase letters, digits, hyphens, and dots, starting and ending with a letter or digit.' }
+    },
+    modelPrices: {
+      ...{"title": "Model Prices", "subtitle": "Operator-configured USD rates for estimating cost when a harness omits it. Reported cost, including zero, takes precedence.", "add": "Add model price", "create": "Create model price", "edit": "Edit model price", "view": "Model price details", "deleteTitle": "Delete model price", "emptyTitle": "No model prices yet", "emptyBody": "Add a price for an exact harness and served model. No provider rates are seeded."},
+      columns: {"name": "Name", "active": "Active", "id": "ID", "createdUtc": "Created", "model": "Served model", "harnessType": "Harness", "inputUsdPerMillion": "Input USD / million tokens", "outputUsdPerMillion": "Output USD / million tokens"},
+      fields: {"name": "Name", "description": "Description", "active": "Active", "model": "Served model", "harnessType": "Harness", "inputUsdPerMillion": "Input USD / million tokens", "outputUsdPerMillion": "Output USD / million tokens", "cachedInputUsdPerMillion": "Cached input USD / million tokens", "reasoningUsdPerMillion": "Reasoning USD / million tokens", "inputIncludesCachedTokens": "Input count includes cached tokens", "outputIncludesReasoningTokens": "Output count includes reasoning tokens"},
+      hints: {"cachedInputUsdPerMillion": "Leave empty to use the corresponding input or output rate. Zero means free.", "reasoningUsdPerMillion": "Leave empty to use the corresponding input or output rate. Zero means free.", "inputIncludesCachedTokens": "Enable when cached tokens are included in input. Disable for Claude Code, which reports cache reads separately.", "outputIncludesReasoningTokens": "Enable when reasoning tokens are included in output. Included subtotals are deducted before applying their separate rate."},
+      errors: {"rate": "Enter a finite rate from 0 to 1,000,000,000. Zero is valid.", "model": "Enter an exact model name of 1 to 256 characters without control characters."}
     },
     artifactStores: {
       ...resourcePage('Artifact Stores', 'artifact store', 'Where files produced by runs are kept.', 'Create an artifact store to keep run outputs.'),

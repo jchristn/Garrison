@@ -260,3 +260,7 @@ The arguments are the base URL, an access key, and a secret key. The values abov
 ## License
 
 MIT. See [LICENSE.md](LICENSE.md).
+
+## Model prices
+
+`client.ModelPrices` provides tenant-scoped list, get, create, update, and delete operations for `/model-prices`. Prices start empty and are operator-configured USD rates per million tokens, keyed by exact served model and harness. Optional cache/reasoning rates fall back to input/output rates; explicit zero is free. Configure token inclusion flags for the harness accounting convention (Claude Code cache reads are separate). Harness-reported cost, including zero, takes precedence; estimates set `costEstimated`. Saved run costs survive later price edits or deletion. See [REST API](../../REST_API.md#model-prices).

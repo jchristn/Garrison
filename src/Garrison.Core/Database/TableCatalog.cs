@@ -71,6 +71,7 @@ namespace Garrison.Core.Database
                 "workspace_templates",
                 "workspace_template_files",
                 "artifact_stores",
+                "model_prices",
                 "agents",
                 "agent_skills",
                 "agent_tags",

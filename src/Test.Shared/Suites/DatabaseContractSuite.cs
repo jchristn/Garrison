@@ -31,6 +31,7 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-twice", "Migrations are idempotent (" + provider + ")", ct => MigrateTwiceAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v1-upgrade", "A version 1 database upgrades to the latest version and keeps its runs (" + provider + ")", ct => UpgradeFromVersion1Async(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v12-approvals", "A conversation database upgrades from version 12 to approvals without losing its session (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct)));
+            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v13-pricing", "An approvals database upgrades to an empty configurable price table (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 13)));
             cases.Add(new TestCaseDescriptor(suiteId, "run-telemetry-roundtrip", "Run timing telemetry round-trips through create, complete, and update (" + provider + ")", ct => RunTelemetryRoundTripAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "tenant-crud", "Tenant create, read, update, enumerate, delete (" + provider + ")", ct => TenantCrudAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "children-roundtrip", "Harness profile child rows round-trip in order (" + provider + ")", ct => ChildrenRoundTripAsync(provider, ct)));
@@ -57,7 +58,7 @@ namespace Test.Shared.Suites
             }
         }
 
-        private static async Task UpgradeConversationsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        private static async Task UpgradeConversationsAsync(DatabaseTypeEnum provider, CancellationToken token, int fromVersion = 12)
         {
             DatabaseSettings settings = TestEnvironment.IsolatedSettings(provider);
             Conversation conversation = new Conversation();
@@ -77,7 +78,7 @@ namespace Test.Shared.Suites
                     if (createSchema != null) await ado.NonQueryAsync(createSchema, null, token).ConfigureAwait(false);
                 }
                 await ado.NonQueryAsync(SchemaBuilder.MigrationsTableDdl(ado.Catalog, ado.Dialect), null, token).ConfigureAwait(false);
-                foreach (SchemaMigration migration in SchemaBuilder.Build(ado.Catalog, ado.Dialect).Where(m => m.Version <= 12))
+                foreach (SchemaMigration migration in SchemaBuilder.Build(ado.Catalog, ado.Dialect).Where(m => m.Version <= fromVersion))
                 {
                     foreach (SchemaColumnAddition column in migration.Columns)
                     {
@@ -96,7 +97,7 @@ namespace Test.Shared.Suites
             using (DatabaseDriverBase upgraded = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
                 Assert.Equal(SchemaBuilder.LatestVersion, upgraded.SchemaVersion, "Approvals migration applies after conversations");
-                Assert.Equal(1, upgraded.MigrationsApplied, "Only migration 13 applies to a version 12 database");
+                Assert.Equal(SchemaBuilder.Build(((AdoDatabaseDriver)upgraded).Catalog, ((AdoDatabaseDriver)upgraded).Dialect).Count(m => m.Version > fromVersion), upgraded.MigrationsApplied, "Only migrations after version 12 apply");
                 Conversation saved = Assert.NotNull(await upgraded.Conversations.ReadAsync(conversation.TenantId, conversation.Id, token).ConfigureAwait(false), "Conversation survives upgrade");
                 Assert.Equal(conversation.SessionId, saved.SessionId, "Harness session survives upgrade");
                 Assert.Equal(2, saved.TurnCount, "Turn history survives upgrade");
@@ -110,6 +111,10 @@ namespace Test.Shared.Suites
                 approval.ToolName = "Bash";
                 await upgraded.Approvals.CreateAsync(approval, token).ConfigureAwait(false);
                 Assert.NotNull(await upgraded.Approvals.ReadAsync(approval.Id, token).ConfigureAwait(false), "New approval storage works after upgrade");
+                EnumerationResult<ModelPrice> prices = await upgraded.ModelPrices.EnumerateAsync(conversation.TenantId, new EnumerationQuery(), token).ConfigureAwait(false);
+                Assert.Equal(0L, prices.TotalRecords, "Upgrade seeds no prices");
+                ModelPrice price = await upgraded.ModelPrices.CreateAsync(new ModelPrice { TenantId = conversation.TenantId, Name = "upgrade-price", Model = "upgrade-model", InputUsdPerMillion = 0.5 }, token).ConfigureAwait(false);
+                Assert.Equal(0.5, Assert.NotNull(await upgraded.ModelPrices.ReadAsync(conversation.TenantId, price.Id, token).ConfigureAwait(false), "Price storage after upgrade").InputUsdPerMillion, "Rate preserved");
             }
             using (DatabaseDriverBase again = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {

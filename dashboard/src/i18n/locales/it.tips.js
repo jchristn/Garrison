@@ -110,6 +110,7 @@ const tips = {
       secrets: 'Chiavi API e token cifrati. Le distribuzioni li associano tramite alias; i valori non vengono mai più mostrati.',
       workspaces: 'Modelli per la directory in cui lavora un\'esecuzione: vuota, clonata da Git o popolata con file.',
       artifactStores: 'Destinazioni per i file prodotti dalle esecuzioni che vuoi conservare dopo la loro fine.',
+      modelPrices: "Tariffe in USD configurate dall’operatore per stimare il costo quando l’harness non lo comunica. Il costo comunicato, anche zero, ha precedenza.",
       manifests: 'Applica o esporta l\'intera configurazione del tenant come YAML, così può stare nel controllo del codice sorgente.',
       nodes: 'Macchine o pod worker che prelevano le esecuzioni ed eseguono gli harness. Qui puoi isolarli, svuotarli o ispezionarli.',
       controlNodes: 'Repliche del server (nodi di controllo) che servono REST, MCP e A2A e pianificano le esecuzioni. Una di esse è il leader e si occupa della manutenzione del cluster. Stato, versione e attività in sola lettura.',
@@ -754,6 +755,7 @@ const tips = {
       },
       active: 'I modelli inattivi non possono essere usati dalle nuove esecuzioni.'
     },
+    modelPrices: {"add": "Aggiungi un prezzo per un harness e un modello servito esatti. Nessuna tariffa dei fornitori è preimpostata.", "name": "Nome di configurazione univoco per questo prezzo nel tenant.", "description": "Note dell’operatore sulla fonte e sulla data di validità delle tariffe.", "active": "I prezzi inattivi non vengono usati. Modificare o eliminare un prezzo non cambia i costi salvati delle esecuzioni.", "model": "Inserisci il nome esatto del modello, da 1 a 256 caratteri senza caratteri di controllo.", "harnessType": "Harness la cui contabilizzazione dei token e il nome esatto del modello corrispondono a queste tariffe.", "inputUsdPerMillion": "Input USD / milione di token. Inserisci una tariffa finita tra 0 e 1.000.000.000. Zero è valido.", "outputUsdPerMillion": "Output USD / milione di token. Inserisci una tariffa finita tra 0 e 1.000.000.000. Zero è valido.", "cachedInputUsdPerMillion": "Lascia vuoto per usare la tariffa di input o output corrispondente. Zero significa gratuito.", "reasoningUsdPerMillion": "Lascia vuoto per usare la tariffa di input o output corrispondente. Zero significa gratuito.", "inputIncludesCachedTokens": "Attiva se l’input include token in cache. Disattiva per Claude Code, che comunica separatamente le letture della cache.", "outputIncludesReasoningTokens": "Attiva se l’output include token di ragionamento. I subtotali inclusi vengono sottratti prima di applicare la tariffa separata."},
     artifactStores: {
       add: 'Crea una destinazione per i file prodotti dalle esecuzioni, così sopravvivono all\'area di lavoro dell\'esecuzione.',
       name: 'Nome dell\'archivio. Le distribuzioni scelgono un archivio di artefatti con questo nome.',
@@ -1577,6 +1579,7 @@ const explainers = {
     p1: 'Un modello di area di lavoro descrive la directory in cui parte ogni esecuzione: vuota, un clone Git nuovo (con un segreto di credenziali facoltativo per i repository privati) o un insieme di file predefiniti. La conservazione decide se la directory viene eliminata o mantenuta dopo l\'esecuzione.',
     p2: 'Una distribuzione può associare nessuno o un modello di area di lavoro. Ogni esecuzione riceve la propria copia, quindi le esecuzioni non vedono mai i file delle altre.'
   },
+  modelPrices: {"title": "Prezzi dei modelli", "p1": "Tariffe in USD configurate dall’operatore per stimare il costo quando l’harness non lo comunica. Il costo comunicato, anche zero, ha precedenza.", "p2": "I prezzi inattivi non vengono usati. Modificare o eliminare un prezzo non cambia i costi salvati delle esecuzioni."},
   artifactStores: {
     title: 'Archivi di artefatti',
     p1: 'Un archivio di artefatti è il luogo in cui vengono conservati i file prodotti dalle esecuzioni dopo che l\'area di lavoro dell\'esecuzione non esiste più. Una distribuzione può associare un archivio, e il worker vi carica i file corrispondenti al termine dell\'esecuzione.'

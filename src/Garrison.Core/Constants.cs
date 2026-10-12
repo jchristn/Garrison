@@ -6,6 +6,9 @@ namespace Garrison.Core
     /// </summary>
     public static class Constants
     {
+        /// <summary>Prefix for tenant-owned model price records.</summary>
+        public const string ModelPriceIdPrefix = "mpr_";
+
         /// <summary>
         /// Product name.
         /// </summary>

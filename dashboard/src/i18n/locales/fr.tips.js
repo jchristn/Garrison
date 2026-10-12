@@ -110,6 +110,7 @@ const tips = {
       secrets: 'Clés API et jetons chiffrés. Les déploiements les lient par alias ; les valeurs ne sont plus jamais affichées.',
       workspaces: 'Modèles du répertoire dans lequel une exécution travaille : vide, cloné depuis Git ou prérempli avec des fichiers.',
       artifactStores: 'Destinations des fichiers produits par les exécutions que vous souhaitez conserver après la fin de l\'exécution.',
+      modelPrices: "Tarifs en USD configurés par un opérateur pour estimer le coût lorsque le harness ne le fournit pas. Le coût déclaré, même nul, est prioritaire.",
       manifests: 'Appliquer ou exporter toute la configuration du locataire en YAML pour la versionner dans un gestionnaire de versions.',
       nodes: 'Machines ou pods worker qui récupèrent les exécutions et lancent les harness. Isolez-les, drainez-les ou inspectez-les ici.',
       controlNodes: 'Réplicas du serveur (nœuds de contrôle) qui servent REST, MCP et A2A et planifient les exécutions. L\'un d\'eux est le leader et assure la maintenance du cluster. Statut, version et activité en lecture seule.',
@@ -754,6 +755,7 @@ const tips = {
       },
       active: 'Les modèles inactifs ne peuvent pas être utilisés par les nouvelles exécutions.'
     },
+    modelPrices: {"add": "Ajoutez un prix pour un harness et un modèle servi précis. Aucun tarif fournisseur n’est préchargé.", "name": "Nom de configuration unique pour ce prix dans le locataire.", "description": "Notes de l’opérateur sur la source et la date d’effet de ces tarifs.", "active": "Les prix inactifs ne sont pas utilisés. Modifier ou supprimer un prix ne change pas les coûts enregistrés des exécutions.", "model": "Saisissez le nom exact du modèle, de 1 à 256 caractères sans caractères de contrôle.", "harnessType": "Harness dont le comptage des jetons et le nom exact du modèle correspondent à ces tarifs.", "inputUsdPerMillion": "Entrée USD / million de jetons. Saisissez un tarif fini entre 0 et 1 000 000 000. Zéro est valide.", "outputUsdPerMillion": "Sortie USD / million de jetons. Saisissez un tarif fini entre 0 et 1 000 000 000. Zéro est valide.", "cachedInputUsdPerMillion": "Laissez vide pour utiliser le tarif d’entrée ou de sortie correspondant. Zéro signifie gratuit.", "reasoningUsdPerMillion": "Laissez vide pour utiliser le tarif d’entrée ou de sortie correspondant. Zéro signifie gratuit.", "inputIncludesCachedTokens": "Activez si l’entrée inclut les jetons en cache. Désactivez pour Claude Code, qui déclare séparément les lectures du cache.", "outputIncludesReasoningTokens": "Activez si la sortie inclut les jetons de raisonnement. Les sous-totaux inclus sont déduits avant l’application de leur tarif distinct."},
     artifactStores: {
       add: 'Créer une destination pour les fichiers produits par les exécutions, afin qu\'ils survivent à l\'espace de travail de l\'exécution.',
       name: 'Nom du stockage. Les déploiements choisissent un stockage d\'artefacts par ce nom.',
@@ -1577,6 +1579,7 @@ const explainers = {
     p1: 'Un modèle d\'espace de travail décrit le répertoire dans lequel démarre chaque exécution : vide, un nouveau clone Git (avec un secret d\'identifiants Git facultatif pour les dépôts privés) ou un ensemble de fichiers préchargés. La conservation détermine si le répertoire est supprimé ou conservé après l\'exécution.',
     p2: 'Un déploiement peut lier zéro ou un modèle d\'espace de travail. Chaque exécution reçoit sa propre copie, les exécutions ne voient donc jamais les fichiers des autres.'
   },
+  modelPrices: {"title": "Prix des modèles", "p1": "Tarifs en USD configurés par un opérateur pour estimer le coût lorsque le harness ne le fournit pas. Le coût déclaré, même nul, est prioritaire.", "p2": "Les prix inactifs ne sont pas utilisés. Modifier ou supprimer un prix ne change pas les coûts enregistrés des exécutions."},
   artifactStores: {
     title: 'Stockages d\'artefacts',
     p1: 'Un stockage d\'artefacts est l\'endroit où sont conservés les fichiers produits par les exécutions une fois l\'espace de travail de l\'exécution disparu. Un déploiement peut lier un stockage, et le worker y envoie les fichiers correspondants à la fin de l\'exécution.'

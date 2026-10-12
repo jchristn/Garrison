@@ -218,6 +218,7 @@ const yueHant = {
       Secret: '機密',
       Workspace: '工作區',
       ArtifactStore: '成品存放區',
+      ModelPrice: "模型價格",
       Run: '執行',
       Node: '節點',
       NodePool: '節點池',
@@ -384,6 +385,7 @@ const yueHant = {
       secrets: { label: '機密', tip: 'Harness 同整合用嘅憑證' },
       workspaces: { label: '工作區', tip: '執行工作區點樣準備' },
       artifactStores: { label: '成品存放區', tip: '執行成品存放喺邊' },
+      modelPrices: { label: "模型價格", tip: "執行器冇報告費用時，用操作員設定嘅美元費率估算。已報告費用（包括零）優先。" },
       manifests: { label: '清單', tip: '以程式碼形式套用同匯出配置' },
       requests: { label: '請求記錄', tip: '檢查 HTTP 流量同失敗' },
       audit: { label: '審計', tip: '保安同配置事件' },
@@ -832,6 +834,13 @@ const yueHant = {
       fields: { name: '名稱', kind: '種類', description: '描述', gitUrl: '儲存庫 URL', gitRef: '分支、標記或者 commit', gitDepth: '複製深度', gitCredentialSecretId: 'Git 憑證', persistentVolumeClaim: 'PersistentVolumeClaim 名稱', files: '檔案', filePath: '路徑', fileContent: '內容', retention: '保留', active: '啟用' },
       hints: { persistentVolumeClaim: '執行命名空間入面一個已經存在嘅 Claim。只有用 Kubernetes Job 執行器嘅部署先可以用呢個工作區；內容會喺每次執行之間保留。' },
       errors: { claimName: '請用細楷字母、數字、連字號同句點，開頭同結尾要係字母或者數字。' }
+    },
+    modelPrices: {
+      ...{"title": "模型價格", "subtitle": "執行器冇報告費用時，用操作員設定嘅美元費率估算。已報告費用（包括零）優先。", "add": "新增模型價格", "create": "建立模型價格", "edit": "編輯模型價格", "view": "模型價格詳情", "deleteTitle": "刪除模型價格", "emptyTitle": "未有模型價格", "emptyBody": "為執行器同實際使用嘅精確模型名稱新增價格。唔會預設供應商費率。"},
+      columns: {"name": "名稱", "active": "啟用", "id": "ID", "createdUtc": "建立時間", "model": "實際使用嘅模型", "harnessType": "執行器", "inputUsdPerMillion": "輸入美元 / 百萬權杖", "outputUsdPerMillion": "輸出美元 / 百萬權杖"},
+      fields: {"name": "名稱", "description": "描述", "active": "啟用", "model": "實際使用嘅模型", "harnessType": "執行器", "inputUsdPerMillion": "輸入美元 / 百萬權杖", "outputUsdPerMillion": "輸出美元 / 百萬權杖", "cachedInputUsdPerMillion": "快取輸入美元 / 百萬權杖", "reasoningUsdPerMillion": "推理美元 / 百萬權杖", "inputIncludesCachedTokens": "輸入計數包含快取權杖", "outputIncludesReasoningTokens": "輸出計數包含推理權杖"},
+      hints: {"cachedInputUsdPerMillion": "留空會用對應嘅輸入或輸出費率。零代表免費。", "reasoningUsdPerMillion": "留空會用對應嘅輸入或輸出費率。零代表免費。", "inputIncludesCachedTokens": "輸入計數包含快取權杖時啟用。Claude Code會分開報告快取讀取，應該停用呢項。", "outputIncludesReasoningTokens": "輸出計數包含推理權杖時啟用。先扣除已包含嘅子計數，再套用單獨費率。"},
+      errors: {"rate": "請輸入0至1,000,000,000之間嘅有限費率。零係有效值。", "model": "請輸入1至256個字元、冇控制字元嘅精確模型名稱。"}
     },
     artifactStores: {
       ...rp('成品存放區', '存放執行產生嘅檔案嘅地方。', '新增成品存放區', '建立成品存放區', '編輯成品存放區', '成品存放區詳情', '刪除成品存放區', '仲未有成品存放區', '建立一個成品存放區嚟保存執行輸出。'),

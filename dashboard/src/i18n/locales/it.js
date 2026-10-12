@@ -244,6 +244,7 @@ const it = {
       Secret: 'Segreto',
       Workspace: 'Area di lavoro',
       ArtifactStore: 'Archivio di artefatti',
+      ModelPrice: "prezzo del modello",
       Run: 'Esecuzione',
       Node: 'Nodo',
       NodePool: 'Pool di nodi',
@@ -411,6 +412,7 @@ const it = {
       secrets: { label: 'Segreti', tip: 'Credenziali di harness e integrazioni' },
       workspaces: { label: 'Aree di lavoro', tip: 'Come vengono preparate le aree di lavoro delle esecuzioni' },
       artifactStores: { label: 'Archivi di artefatti', tip: 'Dove vengono archiviati gli artefatti delle esecuzioni' },
+      modelPrices: { label: "Prezzi dei modelli", tip: "Tariffe in USD configurate dall’operatore per stimare il costo quando l’harness non lo comunica. Il costo comunicato, anche zero, ha precedenza." },
       manifests: { label: 'Manifest', tip: 'Applica ed esporta la configurazione come codice' },
       requests: { label: 'Cronologia richieste', tip: 'Esamina il traffico HTTP e gli errori' },
       audit: { label: 'Audit', tip: 'Eventi di sicurezza e di configurazione' },
@@ -870,6 +872,13 @@ const it = {
       fields: { name: 'Nome', kind: 'Tipo', description: 'Descrizione', gitUrl: 'URL del repository', gitRef: 'Branch, tag o commit', gitDepth: 'Profondità del clone', gitCredentialSecretId: 'Credenziali Git', persistentVolumeClaim: 'Nome del PersistentVolumeClaim', files: 'File', filePath: 'Percorso', fileContent: 'Contenuto', retention: 'Conservazione', active: 'Attivo' },
       hints: { persistentVolumeClaim: 'Un claim esistente nello spazio dei nomi di esecuzione. Solo i deployment con l\'esecutore Job Kubernetes possono usare questo workspace; il suo contenuto resta tra un\'esecuzione e l\'altra.' },
       errors: { claimName: 'Usa lettere minuscole, cifre, trattini e punti, iniziando e finendo con una lettera o una cifra.' }
+    },
+    modelPrices: {
+      ...{"title": "Prezzi dei modelli", "subtitle": "Tariffe in USD configurate dall’operatore per stimare il costo quando l’harness non lo comunica. Il costo comunicato, anche zero, ha precedenza.", "add": "Aggiungi prezzo del modello", "create": "Crea prezzo del modello", "edit": "Modifica prezzo del modello", "view": "Dettagli del prezzo del modello", "deleteTitle": "Elimina prezzo del modello", "emptyTitle": "Nessun prezzo del modello", "emptyBody": "Aggiungi un prezzo per un harness e un modello servito esatti. Nessuna tariffa dei fornitori è preimpostata."},
+      columns: {"name": "Nome", "active": "Attivo", "id": "ID", "createdUtc": "Creato", "model": "Modello servito", "harnessType": "Harness", "inputUsdPerMillion": "Input USD / milione di token", "outputUsdPerMillion": "Output USD / milione di token"},
+      fields: {"name": "Nome", "description": "Descrizione", "active": "Attivo", "model": "Modello servito", "harnessType": "Harness", "inputUsdPerMillion": "Input USD / milione di token", "outputUsdPerMillion": "Output USD / milione di token", "cachedInputUsdPerMillion": "Input in cache USD / milione di token", "reasoningUsdPerMillion": "Ragionamento USD / milione di token", "inputIncludesCachedTokens": "L’input include token in cache", "outputIncludesReasoningTokens": "L’output include token di ragionamento"},
+      hints: {"cachedInputUsdPerMillion": "Lascia vuoto per usare la tariffa di input o output corrispondente. Zero significa gratuito.", "reasoningUsdPerMillion": "Lascia vuoto per usare la tariffa di input o output corrispondente. Zero significa gratuito.", "inputIncludesCachedTokens": "Attiva se l’input include token in cache. Disattiva per Claude Code, che comunica separatamente le letture della cache.", "outputIncludesReasoningTokens": "Attiva se l’output include token di ragionamento. I subtotali inclusi vengono sottratti prima di applicare la tariffa separata."},
+      errors: {"rate": "Inserisci una tariffa finita tra 0 e 1.000.000.000. Zero è valido.", "model": "Inserisci il nome esatto del modello, da 1 a 256 caratteri senza caratteri di controllo."}
     },
     artifactStores: {
       ...rp('Archivi di artefatti', 'Dove vengono conservati i file prodotti dalle esecuzioni.', 'Aggiungi archivio di artefatti', 'Crea archivio di artefatti', 'Modifica archivio di artefatti', 'Dettagli dell\'archivio di artefatti', 'Elimina archivio di artefatti', 'Ancora nessun archivio di artefatti', 'Crea un archivio di artefatti per conservare gli output delle esecuzioni.'),

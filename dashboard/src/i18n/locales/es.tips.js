@@ -110,6 +110,7 @@ const tips = {
       secrets: 'Claves de API y tokens cifrados. Los despliegues los vinculan por alias; los valores nunca se vuelven a mostrar.',
       workspaces: 'Plantillas para el directorio en el que trabaja una ejecución: vacío, clonado desde Git o precargado con archivos.',
       artifactStores: 'Destinos para los archivos que producen las ejecuciones y que quieres conservar cuando la ejecución termina.',
+      modelPrices: "Tarifas en USD configuradas por el operador para estimar el coste cuando el harness no lo informa. El coste informado, incluso cero, tiene prioridad.",
       manifests: 'Aplica o exporta toda la configuración del inquilino como YAML para que pueda vivir en el control de versiones.',
       nodes: 'Máquinas o pods de trabajo que obtienen ejecuciones y ejecutan harnesses. Acordónalos, drénalos o inspecciónalos aquí.',
       controlNodes: 'Réplicas del servidor (nodos de control) que sirven REST, MCP y A2A y planifican las ejecuciones. Una de ellas es el líder y se encarga del mantenimiento del clúster. Estado, versión y actividad de solo lectura.',
@@ -754,6 +755,7 @@ const tips = {
       },
       active: 'Las ejecuciones nuevas no pueden usar plantillas inactivas.'
     },
+    modelPrices: {"add": "Añada un precio para un harness y un modelo servido exactos. No hay precios de proveedores precargados.", "name": "Nombre de configuración único para este precio dentro del inquilino.", "description": "Notas del operador sobre el origen y la fecha de vigencia de estas tarifas.", "active": "Los precios inactivos no se usan. Editar o eliminar precios no cambia los costes guardados de las ejecuciones.", "model": "Introduzca el nombre exacto del modelo, de 1 a 256 caracteres sin caracteres de control.", "harnessType": "Harness cuya contabilidad de tokens y nombre exacto de modelo corresponden a estas tarifas.", "inputUsdPerMillion": "Entrada USD / millón de tokens. Introduzca una tarifa finita entre 0 y 1.000.000.000. Cero es válido.", "outputUsdPerMillion": "Salida USD / millón de tokens. Introduzca una tarifa finita entre 0 y 1.000.000.000. Cero es válido.", "cachedInputUsdPerMillion": "Déjelo vacío para usar la tarifa de entrada o salida correspondiente. Cero significa gratis.", "reasoningUsdPerMillion": "Déjelo vacío para usar la tarifa de entrada o salida correspondiente. Cero significa gratis.", "inputIncludesCachedTokens": "Active si la entrada incluye tokens en caché. Desactive para Claude Code, que informa las lecturas de caché por separado.", "outputIncludesReasoningTokens": "Active si la salida incluye tokens de razonamiento. Los subtotales incluidos se restan antes de aplicar su tarifa separada."},
     artifactStores: {
       add: 'Crea un destino para los archivos que producen las ejecuciones, para que sobrevivan al espacio de trabajo de la ejecución.',
       name: 'Nombre del almacén. Los despliegues eligen un almacén de artefactos por este nombre.',
@@ -1577,6 +1579,7 @@ const explainers = {
     p1: 'Una plantilla de espacio de trabajo describe el directorio en el que empieza cada ejecución: vacío, un clon nuevo de Git (con un secreto de credencial opcional para repositorios privados) o un conjunto de archivos precargados. La retención decide si el directorio se elimina o se conserva después de la ejecución.',
     p2: 'Un despliegue puede vincular cero o una plantilla de espacio de trabajo. Cada ejecución recibe su propia copia, así que las ejecuciones nunca ven los archivos de las demás.'
   },
+  modelPrices: {"title": "Precios de modelos", "p1": "Tarifas en USD configuradas por el operador para estimar el coste cuando el harness no lo informa. El coste informado, incluso cero, tiene prioridad.", "p2": "Los precios inactivos no se usan. Editar o eliminar precios no cambia los costes guardados de las ejecuciones."},
   artifactStores: {
     title: 'Almacenes de artefactos',
     p1: 'Un almacén de artefactos es donde se guardan los archivos que producen las ejecuciones cuando el espacio de trabajo de la ejecución ya no existe. Un despliegue puede vincular un almacén, y el nodo de trabajo sube allí los archivos coincidentes cuando termina la ejecución.'

@@ -248,6 +248,7 @@ const es = {
       Secret: 'Secreto',
       Workspace: 'Espacio de trabajo',
       ArtifactStore: 'Almacén de artefactos',
+      ModelPrice: "precio de modelo",
       Run: 'Ejecución',
       Node: 'Nodo',
       NodePool: 'Grupo de nodos',
@@ -415,6 +416,7 @@ const es = {
       secrets: { label: 'Secretos', tip: 'Credenciales de harnesses e integraciones' },
       workspaces: { label: 'Espacios de trabajo', tip: 'Cómo se preparan los espacios de trabajo de las ejecuciones' },
       artifactStores: { label: 'Almacenes de artefactos', tip: 'Dónde se guardan los artefactos de las ejecuciones' },
+      modelPrices: { label: "Precios de modelos", tip: "Tarifas en USD configuradas por el operador para estimar el coste cuando el harness no lo informa. El coste informado, incluso cero, tiene prioridad." },
       manifests: { label: 'Manifiestos', tip: 'Aplica y exporta la configuración como código' },
       requests: { label: 'Historial de solicitudes', tip: 'Inspecciona el tráfico HTTP y los errores' },
       audit: { label: 'Auditoría', tip: 'Eventos de seguridad y de configuración' },
@@ -874,6 +876,13 @@ const es = {
       fields: { name: 'Nombre', kind: 'Tipo', description: 'Descripción', gitUrl: 'URL del repositorio', gitRef: 'Rama, etiqueta o commit', gitDepth: 'Profundidad de clonado', gitCredentialSecretId: 'Credencial de Git', persistentVolumeClaim: 'Nombre del PersistentVolumeClaim', files: 'Archivos', filePath: 'Ruta', fileContent: 'Contenido', retention: 'Retención', active: 'Activo' },
       hints: { persistentVolumeClaim: 'Un claim existente en el espacio de nombres de ejecución. Solo las implementaciones con el ejecutor Job de Kubernetes pueden usar este espacio de trabajo; su contenido se conserva entre ejecuciones.' },
       errors: { claimName: 'Use minúsculas, dígitos, guiones y puntos, empezando y terminando con una letra o un dígito.' }
+    },
+    modelPrices: {
+      ...{"title": "Precios de modelos", "subtitle": "Tarifas en USD configuradas por el operador para estimar el coste cuando el harness no lo informa. El coste informado, incluso cero, tiene prioridad.", "add": "Añadir precio de modelo", "create": "Crear precio de modelo", "edit": "Editar precio de modelo", "view": "Detalles del precio de modelo", "deleteTitle": "Eliminar precio de modelo", "emptyTitle": "Aún no hay precios de modelos", "emptyBody": "Añada un precio para un harness y un modelo servido exactos. No hay precios de proveedores precargados."},
+      columns: {"name": "Nombre", "active": "Activo", "id": "ID", "createdUtc": "Creado", "model": "Modelo servido", "harnessType": "Harness", "inputUsdPerMillion": "Entrada USD / millón de tokens", "outputUsdPerMillion": "Salida USD / millón de tokens"},
+      fields: {"name": "Nombre", "description": "Descripción", "active": "Activo", "model": "Modelo servido", "harnessType": "Harness", "inputUsdPerMillion": "Entrada USD / millón de tokens", "outputUsdPerMillion": "Salida USD / millón de tokens", "cachedInputUsdPerMillion": "Entrada en caché USD / millón de tokens", "reasoningUsdPerMillion": "Razonamiento USD / millón de tokens", "inputIncludesCachedTokens": "La entrada incluye tokens en caché", "outputIncludesReasoningTokens": "La salida incluye tokens de razonamiento"},
+      hints: {"cachedInputUsdPerMillion": "Déjelo vacío para usar la tarifa de entrada o salida correspondiente. Cero significa gratis.", "reasoningUsdPerMillion": "Déjelo vacío para usar la tarifa de entrada o salida correspondiente. Cero significa gratis.", "inputIncludesCachedTokens": "Active si la entrada incluye tokens en caché. Desactive para Claude Code, que informa las lecturas de caché por separado.", "outputIncludesReasoningTokens": "Active si la salida incluye tokens de razonamiento. Los subtotales incluidos se restan antes de aplicar su tarifa separada."},
+      errors: {"rate": "Introduzca una tarifa finita entre 0 y 1.000.000.000. Cero es válido.", "model": "Introduzca el nombre exacto del modelo, de 1 a 256 caracteres sin caracteres de control."}
     },
     artifactStores: {
       ...rp('Almacenes de artefactos', 'Dónde se guardan los archivos que producen las ejecuciones.', 'Añadir almacén de artefactos', 'Crear almacén de artefactos', 'Editar almacén de artefactos', 'Detalles del almacén de artefactos', 'Eliminar almacén de artefactos', 'Aún no hay almacenes de artefactos', 'Crea un almacén de artefactos para conservar los resultados de las ejecuciones.'),

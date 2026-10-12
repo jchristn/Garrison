@@ -51,6 +51,16 @@ await check("signed request auth", async () => {
   signed.useSignedRequests(accessKey, secretKey, state.tenant ?? "default");
   require((await signed.agents.list({ maxResults: 5 })).success, "list failed");
 });
+await check("model price CRUD", async () => {
+  const price = await client.modelPrices.create({ name: `sdk-js-price-${suffix}`, model: `fixture-js-${suffix}`, harnessType: "Generic", inputUsdPerMillion: 0.5, outputUsdPerMillion: 2, cachedInputUsdPerMillion: null, reasoningUsdPerMillion: 0, inputIncludesCachedTokens: false, outputIncludesReasoningTokens: true });
+  try {
+    const saved = await client.modelPrices.get(price.id);
+    require(saved.inputUsdPerMillion === 0.5 && saved.reasoningUsdPerMillion === 0 && !saved.inputIncludesCachedTokens, "price fields");
+    require((await client.modelPrices.list({ search: price.name })).objects.some((p) => p.id === price.id), "price list");
+    const updated = await client.modelPrices.update(price.id, { ...saved, outputUsdPerMillion: 3 });
+    require(updated.outputUsdPerMillion === 3, "price update");
+  } finally { await client.modelPrices.delete(price.id); }
+});
 await check("builtin harness profiles", async () => {
   const fake = (await client.harnessProfiles.builtin()).find((p) => p.name === "builtin/fake");
   require(fake, "builtin/fake not found");

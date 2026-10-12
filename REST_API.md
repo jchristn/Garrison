@@ -6,7 +6,7 @@ The server listens on port 8700 by default. MCP is on its own port (8701, see `M
 
 ## Conventions
 
-JSON bodies use camelCase property names. Enumerations travel as their string names (`"status": "Succeeded"`), timestamps are ISO 8601 in UTC, and properties whose value is null are omitted from responses. Identifiers are prefixed, K-sortable strings such as `agt_mv1pdwem_PWOwUcelVy0GXphYF11`; the prefix tells you the type (`ten_` tenant, `usr_` user, `crd_` credential, `ses_` session, `rol_` role, `prm_` permission, `agt_` agent, `dep_` deployment, `hrn_` harness profile, `tpl_` prompt template, `mcp_` MCP server, `sec_` secret, `wsp_` workspace template, `ast_` artifact store, `run_` run, `rev_` run event, `nod_` node, `npl_` node pool, `req_` request history entry, `aud_` audit record).
+JSON bodies use camelCase property names. Enumerations travel as their string names (`"status": "Succeeded"`), timestamps are ISO 8601 in UTC, and properties whose value is null are omitted from responses. Identifiers are prefixed, K-sortable strings such as `agt_mv1pdwem_PWOwUcelVy0GXphYF11`; the prefix tells you the type (`ten_` tenant, `usr_` user, `crd_` credential, `ses_` session, `rol_` role, `prm_` permission, `agt_` agent, `dep_` deployment, `hrn_` harness profile, `tpl_` prompt template, `mcp_` MCP server, `sec_` secret, `wsp_` workspace template, `ast_` artifact store, `mpr_` model price, `run_` run, `rev_` run event, `nod_` node, `npl_` node pool, `req_` request history entry, `aud_` audit record).
 
 Deleting one resource (`DELETE` on a path that ends in an identifier) answers 204 No Content with an empty body, for identity, runtime, and configuration resources alike, and 404 when the resource does not exist. Deletes that take a filter instead of an identifier (runs, audit records, request history) answer 200 with a `DeleteCountResponse`, because the count is the result. `DELETE /v1.0/token` is the one other exception: it answers 200 with `{"valid": false}` (see below).
 
@@ -1934,6 +1934,44 @@ Delete an artifact store.
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-stores/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+### Model Prices
+
+Prices start empty. Operators configure tenant-owned rates under `/v1.0/api/tenants/{tenantId}/model-prices`; the dashboard exposes them under Configuration > Model Prices. Rates are USD per million tokens, finite and between 0 and 1,000,000,000. Zero means free.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /model-prices` | `ModelPrice:Read` | Standard enumeration |
+| `POST /model-prices` | `ModelPrice:Create` | Created `ModelPrice`, 201 |
+| `GET /model-prices/{id}` | `ModelPrice:Read` | `ModelPrice`, 200 |
+| `PUT /model-prices/{id}` | `ModelPrice:Update` | Updated `ModelPrice`, 200 |
+| `DELETE /model-prices/{id}` | `ModelPrice:Delete` | Empty, 204 |
+
+TenantAdmin and Editor can manage prices. Viewer, Auditor, and AgentOperator can read them. Names are unique within a tenant, as is each `(harnessType, model)` pair, including inactive entries. Duplicate names answer 409 `NameConflict`; duplicate harness/model pairs answer 409 `ModelPriceExists` (a concurrent uniqueness collision can also return `ModelPriceExists`). Invalid rates or model names answer 400. Cross-tenant reads answer 404. IDs start with `mpr_`.
+
+Example request with fictional operator-supplied rates:
+
+```json
+{
+  "name": "example-price",
+  "model": "exact-served-model",
+  "harnessType": "Generic",
+  "inputUsdPerMillion": 2,
+  "outputUsdPerMillion": 10,
+  "cachedInputUsdPerMillion": 0.5,
+  "reasoningUsdPerMillion": null,
+  "inputIncludesCachedTokens": true,
+  "outputIncludesReasoningTokens": true,
+  "active": true
+}
+```
+
+`ModelPrice` also has `id`, `tenantId`, `description`, `isProtected`, `createdUtc`, and `lastUpdateUtc`. Model names are trimmed, case-sensitive, exact identifiers of 1 to 256 characters without control characters. No aliases or wildcards are inferred. Input/output rates default to zero; optional cache/reasoning rates default to null and use the corresponding input/output rate. Both inclusion flags default to true.
+
+On completion, any harness-reported `costUsd`, including zero, takes precedence. Otherwise an active price matching the run's tenant, harness, and served model estimates cost and sets `costEstimated=true`. Unknown or disabled prices leave cost unknown. Repair executions are priced individually before their usage and cost are accumulated; a repair that omits its model uses the run's previous served model. Editing or deleting prices never recalculates saved costs.
+
+Included cached/reasoning subtotals are deducted from their parent input/output counts before applying their rates, capped at the parent totals. Separate counts are added. Claude Code reports cache reads separately: disable `inputIncludesCachedTokens` for its prices. Negative counts are treated as zero. These rates estimate token cost only; operators must incorporate their billing arrangements themselves.
+
 
 ### Agents
 
@@ -4346,7 +4384,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`
 
 #### `OperationTypeEnum`
 
@@ -4535,6 +4573,22 @@ One field a manifest apply changes (or would change) on an existing resource.
 #### `ManifestApplyResultEnum`
 
 `Created`, `Updated`, `Unchanged`, `Failed`, `Validated`
+
+#### `ModelPrice`
+
+Tenant-owned, operator-configured rates. See [Model Prices](#model-prices) for estimation rules.
+
+| Property | Type | Meaning |
+|---|---|---|
+| `id`, `tenantId`, `name` | `string` | Identifier, owning tenant, unique configuration name |
+| `description` | `string?` | Operator notes |
+| `model` | `string` | Exact served-model identifier, 1 to 256 characters |
+| `harnessType` | `HarnessTypeEnum` | Token accounting harness; default `Generic` |
+| `inputUsdPerMillion`, `outputUsdPerMillion` | `double` | USD per million tokens; default 0 |
+| `cachedInputUsdPerMillion`, `reasoningUsdPerMillion` | `double?` | Optional rates; null uses input/output respectively |
+| `inputIncludesCachedTokens`, `outputIncludesReasoningTokens` | `bool` | Whether cached/reasoning counts are included subtotals; default true |
+| `active`, `isProtected` | `bool` | Whether used for estimation; whether editing is prohibited |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Creation and modification timestamps |
 
 #### `McpServer`
 

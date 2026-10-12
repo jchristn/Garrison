@@ -64,6 +64,7 @@ export const NAV_SECTIONS = [
           { id: 'secrets', slug: 'secrets' },
           { id: 'workspaces', slug: 'workspaces' },
           { id: 'artifactStores', slug: 'artifact-stores' },
+          { id: 'modelPrices', slug: 'model-prices' },
           { id: 'manifests', slug: 'manifests' }
         ]
       },

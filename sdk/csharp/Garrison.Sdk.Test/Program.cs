@@ -102,6 +102,20 @@ namespace Garrison.Sdk.Test
                 }).ConfigureAwait(false);
 
                 string? fakeProfileId = null;
+                await CheckAsync("model price CRUD", async () =>
+                {
+                    ModelPrice price = await client.ModelPrices.CreateAsync(new ModelPrice { Name = "sdk-cs-price-" + suffix, Model = "fixture-cs-" + suffix, HarnessType = HarnessTypeEnum.Generic, InputUsdPerMillion = 0.5, OutputUsdPerMillion = 2, ReasoningUsdPerMillion = 0, InputIncludesCachedTokens = false }, token).ConfigureAwait(false);
+                    try
+                    {
+                        ModelPrice saved = await client.ModelPrices.GetAsync(price.Id, token).ConfigureAwait(false);
+                        Require(saved.InputUsdPerMillion == 0.5 && saved.ReasoningUsdPerMillion == 0 && !saved.InputIncludesCachedTokens, "price fields");
+                        Require((await client.ModelPrices.ListAsync(new Garrison.Sdk.Enumeration.EnumerationQuery { Search = price.Name }, token).ConfigureAwait(false)).Objects.Any(p => p.Id == price.Id), "price list");
+                        saved.OutputUsdPerMillion = 3;
+                        Require((await client.ModelPrices.UpdateAsync(price.Id, saved, token).ConfigureAwait(false)).OutputUsdPerMillion == 3, "price update");
+                    }
+                    finally { await client.ModelPrices.DeleteAsync(price.Id, token).ConfigureAwait(false); }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("builtin harness profiles", async () =>
                 {
                     List<HarnessProfile> builtIns = await client.HarnessProfiles.ListBuiltInAsync(token).ConfigureAwait(false);

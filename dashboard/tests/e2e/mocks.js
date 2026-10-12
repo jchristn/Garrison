@@ -296,6 +296,7 @@ const FACTORIES = {
       files: [{ id: `chr_wst_${pad(i)}_0000fil`, workspaceTemplateId: `wst_${pad(i)}`, path: 'README.md', content: 'hello' }]
     }),
   'artifact-stores': (i) => base('as', i, { description: 'Database store', kind: 'Database' }),
+  'model-prices': (i) => base('mpr', i, { model: `fixture-model-${i}`, harnessType: 'Generic', inputUsdPerMillion: 2, outputUsdPerMillion: 10, cachedInputUsdPerMillion: null, reasoningUsdPerMillion: null, inputIncludesCachedTokens: true, outputIncludesReasoningTokens: true, description: 'Fixture rates' }),
   agents: (i) =>
     base('agt', i, {
       name: i === 1 ? 'echo-agent' : `agent-${i}`,

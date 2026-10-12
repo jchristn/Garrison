@@ -109,6 +109,7 @@ const tips = {
       secrets: 'Encrypted API keys and tokens. Deployments bind them by alias; values are never shown again.',
       workspaces: 'Templates for the directory a run works in: empty, cloned from Git, or seeded with files.',
       artifactStores: 'Destinations for files that runs produce and you want to keep after the run ends.',
+      modelPrices: "Operator-configured USD rates for estimating cost when a harness omits it. Reported cost, including zero, takes precedence.",
       manifests: 'Apply or export the whole tenant configuration as YAML so it can live in source control.',
       nodes: 'Worker machines or pods that pull runs and execute harnesses. Cordon, drain, or inspect them here.',
       controlNodes: 'Server replicas (control nodes) that serve REST, MCP, and A2A and schedule runs. One of them is the leader and runs cluster maintenance. Read-only status, version, and activity.',
@@ -752,6 +753,7 @@ const tips = {
       },
       active: 'Inactive templates cannot be used by new runs.'
     },
+    modelPrices: {"add": "Add a price for an exact harness and served model. No provider rates are seeded.", "name": "A unique configuration name for this price entry within the tenant.", "description": "Operator notes about the source and effective date of these rates.", "active": "Inactive prices are not used. Saved run costs do not change when prices are edited or deleted.", "model": "Enter an exact model name of 1 to 256 characters without control characters.", "harnessType": "The harness whose token accounting and exact model name these rates describe.", "inputUsdPerMillion": "Input USD / million tokens. Enter a finite rate from 0 to 1,000,000,000. Zero is valid.", "outputUsdPerMillion": "Output USD / million tokens. Enter a finite rate from 0 to 1,000,000,000. Zero is valid.", "cachedInputUsdPerMillion": "Leave empty to use the corresponding input or output rate. Zero means free.", "reasoningUsdPerMillion": "Leave empty to use the corresponding input or output rate. Zero means free.", "inputIncludesCachedTokens": "Enable when cached tokens are included in input. Disable for Claude Code, which reports cache reads separately.", "outputIncludesReasoningTokens": "Enable when reasoning tokens are included in output. Included subtotals are deducted before applying their separate rate."},
     artifactStores: {
       add: 'Create a destination for files runs produce, so they outlive the run\'s workspace.',
       name: 'Store name. Deployments pick an artifact store by this name.',
@@ -1575,6 +1577,7 @@ const explainers = {
     p1: 'A workspace template describes the directory each run starts in: empty, a fresh Git clone (with an optional credential secret for private repositories), or a set of seeded files. Retention decides whether the directory is deleted or kept after the run.',
     p2: 'A deployment can bind zero or one workspace template. Every run gets its own copy, so runs never see each other\'s files.'
   },
+  modelPrices: {"title": "Model Prices", "p1": "Operator-configured USD rates for estimating cost when a harness omits it. Reported cost, including zero, takes precedence.", "p2": "Inactive prices are not used. Saved run costs do not change when prices are edited or deleted."},
   artifactStores: {
     title: 'Artifact stores',
     p1: 'An artifact store is where files produced by runs are kept after the run\'s workspace is gone. A deployment can bind one store, and the worker uploads matching files there when the run finishes.'

@@ -250,3 +250,9 @@ The environment allowlist is a security boundary: credentials in the worker's en
 ## Dashboard
 
 The dashboard image reads two variables at startup: `GARRISON_API_UPSTREAM`, where nginx proxies `/v1.0` and `/openapi.json` (default `http://garrison-server:8700`), and `GARRISON_API_URL`, the API URL the browser should call directly (empty means the same origin, through the proxy). For local development, `npm run dev` proxies to `http://127.0.0.1:8700`.
+
+## Operator model prices
+
+Use Configuration > Model Prices or the tenant `/model-prices` API to supply USD rates per million tokens. The table starts empty. Entries match a harness and exact, case-sensitive served model; no provider aliases or prices are supplied automatically. Reported cost, including zero, takes precedence. Unknown or inactive prices keep missing cost unknown.
+
+Both token inclusion flags default to true. Disable input inclusion for Claude Code because its parser reports cache reads separately. Empty cache/reasoning rates use input/output rates; zero is free. Included subtotals are deducted before applying their own rates. Completion stores the estimate once; later edits do not change historical run costs. See [REST API](../REST_API.md#model-prices) for fields and permissions.

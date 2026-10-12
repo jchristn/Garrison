@@ -109,6 +109,7 @@ const tips = {
       secrets: 'Verschlüsselte API-Schlüssel und Token. Bereitstellungen binden sie über einen Alias; die Werte werden nie wieder angezeigt.',
       workspaces: 'Vorlagen für das Verzeichnis, in dem ein Lauf arbeitet: leer, aus Git geklont oder mit Dateien befüllt.',
       artifactStores: 'Ziele für Dateien, die Läufe erzeugen und die Sie nach dem Ende des Laufs behalten möchten.',
+      modelPrices: "Vom Betreiber konfigurierte USD-Tarife zur Kostenschätzung, wenn der Harness keine Kosten meldet. Gemeldete Kosten, auch null, haben Vorrang.",
       manifests: 'Die gesamte Konfiguration des Mandanten als YAML anwenden oder exportieren, damit sie in der Versionsverwaltung liegen kann.',
       nodes: 'Worker-Maschinen oder Pods, die Läufe abholen und Harnesses ausführen. Hier können Sie sie sperren, leeren oder prüfen.',
       controlNodes: 'Server-Replikate (Steuerungsknoten), die REST, MCP und A2A bereitstellen und Läufe planen. Eines davon ist der Leader und übernimmt die Cluster-Wartung. Status, Version und Aktivität, nur lesend.',
@@ -752,6 +753,7 @@ const tips = {
       },
       active: 'Inaktive Vorlagen können von neuen Läufen nicht verwendet werden.'
     },
+    modelPrices: {"add": "Fügen Sie einen Preis für einen genauen Harness und Modellnamen hinzu. Anbieterpreise sind nicht vorgegeben.", "name": "Ein eindeutiger Konfigurationsname für diesen Preiseintrag im Mandanten.", "description": "Hinweise des Betreibers zur Quelle und zum Gültigkeitsdatum dieser Tarife.", "active": "Inaktive Preise werden nicht verwendet. Gespeicherte Laufkosten ändern sich durch Bearbeiten oder Löschen der Preise nicht.", "model": "Geben Sie einen genauen Modellnamen mit 1 bis 256 Zeichen ohne Steuerzeichen ein.", "harnessType": "Der Harness, dessen Token-Zählung und genauer Modellname zu diesen Tarifen gehören.", "inputUsdPerMillion": "Eingabe USD / Million Token. Geben Sie einen endlichen Tarif zwischen 0 und 1.000.000.000 ein. Null ist gültig.", "outputUsdPerMillion": "Ausgabe USD / Million Token. Geben Sie einen endlichen Tarif zwischen 0 und 1.000.000.000 ein. Null ist gültig.", "cachedInputUsdPerMillion": "Leer lassen, um den entsprechenden Eingabe- oder Ausgabetarif zu verwenden. Null bedeutet kostenlos.", "reasoningUsdPerMillion": "Leer lassen, um den entsprechenden Eingabe- oder Ausgabetarif zu verwenden. Null bedeutet kostenlos.", "inputIncludesCachedTokens": "Aktivieren, wenn Cache-Token in der Eingabe enthalten sind. Für Claude Code deaktivieren, da Cache-Lesezugriffe separat gemeldet werden.", "outputIncludesReasoningTokens": "Aktivieren, wenn Denkprozess-Token in der Ausgabe enthalten sind. Enthaltene Teilmengen werden vor Anwendung ihres eigenen Tarifs abgezogen."},
     artifactStores: {
       add: 'Ein Ziel für Dateien erstellen, die Läufe erzeugen, damit sie den Arbeitsbereich des Laufs überdauern.',
       name: 'Speichername. Bereitstellungen wählen einen Artefaktspeicher über diesen Namen.',
@@ -1575,6 +1577,7 @@ const explainers = {
     p1: 'Eine Arbeitsbereichsvorlage beschreibt das Verzeichnis, in dem jeder Lauf beginnt: leer, ein frischer Git-Klon (optional mit einem Geheimnis für Zugangsdaten zu privaten Repositorys) oder eine Menge vorbefüllter Dateien. Die Aufbewahrung entscheidet, ob das Verzeichnis nach dem Lauf gelöscht oder behalten wird.',
     p2: 'Eine Bereitstellung kann keine oder eine Arbeitsbereichsvorlage binden. Jeder Lauf erhält eine eigene Kopie, Läufe sehen also nie die Dateien anderer Läufe.'
   },
+  modelPrices: {"title": "Modellpreise", "p1": "Vom Betreiber konfigurierte USD-Tarife zur Kostenschätzung, wenn der Harness keine Kosten meldet. Gemeldete Kosten, auch null, haben Vorrang.", "p2": "Inaktive Preise werden nicht verwendet. Gespeicherte Laufkosten ändern sich durch Bearbeiten oder Löschen der Preise nicht."},
   artifactStores: {
     title: 'Artefaktspeicher',
     p1: 'In einem Artefaktspeicher werden von Läufen erzeugte Dateien aufbewahrt, nachdem der Arbeitsbereich des Laufs entfernt wurde. Eine Bereitstellung kann einen Speicher binden, und der Worker lädt passende Dateien dorthin hoch, wenn der Lauf endet.'

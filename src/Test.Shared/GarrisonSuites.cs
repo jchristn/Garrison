@@ -47,6 +47,7 @@ namespace Test.Shared
                 suites.AddRange(CorrectnessSuite.Build());
                 suites.AddRange(ConversationSuite.Build());
                 suites.AddRange(ApprovalSuite.Build());
+                suites.AddRange(PricingSuite.Build());
                 return suites;
             }
         }

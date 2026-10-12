@@ -143,6 +143,11 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Artifact.
         /// </summary>
-        Artifact
+        Artifact,
+
+        /// <summary>
+        /// Model price configuration.
+        /// </summary>
+        ModelPrice
     }
 }
