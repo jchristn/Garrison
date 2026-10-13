@@ -249,3 +249,7 @@ Select a Ready node whose `supportsMcpTests` flag is true, then test the MCP ser
 ### Optional provider API deployments
 
 The normal agent/deployment methods configure `hrn_builtin_provider_api`: set an explicit model, a `baseUrl` deployment parameter, an `OpenAiApiKey` secret binding, and the usual prompt bindings. Invocation, conversations, approvals, and artifact methods are unchanged. See [provider API configuration](../../docs/PROVIDER_API.md) for parameters and the initial HTTP-tool limitations. Quota enforcement remains optional.
+
+### Management MCP clients
+
+The same agent/deployment/manifest validation, default bindings, versioning, and audit behavior now serve REST and management MCP. Use normal developer/user credentials for MCP configuration tools; hosted run tokens cannot change configuration. Existing SDK REST methods are unchanged. See [management MCP tools](../../docs/MANAGEMENT_MCP.md) for the MCP contract and replacement semantics.

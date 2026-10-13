@@ -15,6 +15,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
+    using Garrison.Core.Manifests;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Security;
@@ -66,6 +67,7 @@ namespace Garrison.Server.Protocols
         #region Private-Members
 
         private readonly ServerContext _Context;
+        private readonly TenantConfigurationService _Mutations;
         private readonly AgentInvoker _Invoker;
         private readonly RunService _Runs;
         private readonly RunEventService _Events;
@@ -100,6 +102,7 @@ namespace Garrison.Server.Protocols
         public GarrisonMcpServer(ServerContext context, AgentInvoker invoker, RunService runs, RunEventService events)
         {
             _Context = context ?? throw new ArgumentNullException(nameof(context));
+            _Mutations = new TenantConfigurationService(_Context);
             _Invoker = invoker ?? throw new ArgumentNullException(nameof(invoker));
             _Runs = runs ?? throw new ArgumentNullException(nameof(runs));
             _Events = events ?? throw new ArgumentNullException(nameof(events));
@@ -381,6 +384,7 @@ namespace Garrison.Server.Protocols
             List<ToolDefinition> tools = new List<ToolDefinition>();
             foreach (McpToolDefinition tool in McpToolCatalog.All())
             {
+                if (tool.ManagementTool && !ManagementCaller(ctx)) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name]));
             }
@@ -577,9 +581,33 @@ namespace Garrison.Server.Protocols
             span?.SetTag("garrison.tenant", tenantId);
             try
             {
+                if (tool.ManagementTool && !ManagementCaller(ctx)) throw ToolError("Forbidden", "Management tools require a user or developer API credential; hosted run and node tokens cannot manage configuration.");
                 object result;
                 switch (tool.Name)
                 {
+                    case "garrison_get_agent_configuration":
+                    case "garrison_create_agent":
+                    case "garrison_update_agent":
+                    case "garrison_delete_agent":
+                        result = await ManageAgentAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_deployments":
+                        await Require(ctx, tenantId, ResourceTypeEnum.Deployment, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                        result = await _Context.Database.Deployments.EnumerateAsync(tenantId, new EnumerationQuery { Search = args?.GetString("search"), MaxResults = (int)Math.Clamp(args?.GetInt64("maxResults") ?? 25, 1, 100) }, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_get_deployment":
+                    case "garrison_create_deployment":
+                    case "garrison_update_deployment":
+                    case "garrison_delete_deployment":
+                        result = await ManageDeploymentAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_apply_manifest":
+                        result = await ApplyManifestAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_export_manifest":
+                        await Require(ctx, tenantId, ResourceTypeEnum.Manifest, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+                        result = new McpManifestExport { Manifest = await _Context.Get<ManifestService>().ExportAsync(tenantId, token).ConfigureAwait(false) };
+                        break;
                     case "garrison_upload_artifact":
                         result = await UploadArtifactAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
@@ -661,6 +689,63 @@ namespace Garrison.Server.Protocols
                 GarrisonMetrics.Count(GarrisonMetricCatalog.McpToolResults, 1, tags);
                 GarrisonMetrics.Observe(GarrisonMetricCatalog.McpToolDuration, GarrisonMetrics.SecondsSince(start), tags);
             }
+        }
+
+        private static bool ManagementCaller(RequestContext ctx)
+        {
+            return ctx.PrincipalType == PrincipalTypeEnum.User || ctx.PrincipalType == PrincipalTypeEnum.Credential || ctx.PrincipalType == PrincipalTypeEnum.Administrator;
+        }
+
+        private static T ManagementArguments<T>(RpcParameters? args) where T : new()
+        {
+            if (String.IsNullOrWhiteSpace(args?.RawJson)) return new T();
+            try { return Serializer.Deserialize<T>(args.RawJson) ?? new T(); }
+            catch (JsonException) { throw ToolError("ValidationFailed", "The management tool arguments do not match their typed configuration contract."); }
+        }
+
+        private async Task<object> ManageAgentAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpAgentConfigurationArguments arguments = ManagementArguments<McpAgentConfigurationArguments>(args);
+            if (tool.Operation == OperationTypeEnum.Create)
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Agent, tool.Operation, null, token).ConfigureAwait(false);
+                return await _Mutations.CreateAgentAsync(ctx, tenantId, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            }
+            Agent existing = await _Invoker.ResolveAgentAsync(tenantId, arguments.Agent, token).ConfigureAwait(false);
+            await Require(ctx, tenantId, ResourceTypeEnum.Agent, tool.Operation, existing.Id, token).ConfigureAwait(false);
+            if (tool.Operation == OperationTypeEnum.Read) return existing;
+            if (tool.Operation == OperationTypeEnum.Update)
+                return await _Mutations.UpdateAgentAsync(ctx, tenantId, existing, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            return new McpConfigurationDeletion { Id = existing.Id, Deleted = await _Mutations.DeleteAgentAsync(ctx, tenantId, existing, token).ConfigureAwait(false) };
+        }
+
+        private async Task<object> ManageDeploymentAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpDeploymentConfigurationArguments arguments = ManagementArguments<McpDeploymentConfigurationArguments>(args);
+            if (tool.Operation == OperationTypeEnum.Create)
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Deployment, tool.Operation, null, token).ConfigureAwait(false);
+                return await _Mutations.CreateDeploymentAsync(ctx, tenantId, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            }
+            if (String.IsNullOrWhiteSpace(arguments.DeploymentId)) throw ToolError("ValidationFailed", "deploymentId is required.");
+            Deployment existing = await _Context.Database.Deployments.ReadAsync(tenantId, arguments.DeploymentId, token).ConfigureAwait(false) ?? throw new NotFoundException("Deployment not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.Deployment, tool.Operation, existing.Id, token).ConfigureAwait(false);
+            if (tool.Operation == OperationTypeEnum.Read) return existing;
+            if (tool.Operation == OperationTypeEnum.Update)
+                return await _Mutations.UpdateDeploymentAsync(ctx, tenantId, existing, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            return new McpConfigurationDeletion { Id = existing.Id, Deleted = await _Mutations.DeleteDeploymentAsync(ctx, tenantId, existing, token).ConfigureAwait(false) };
+        }
+
+        private async Task<object> ApplyManifestAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.Manifest, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+            McpManifestArguments arguments = ManagementArguments<McpManifestArguments>(args);
+            if (String.IsNullOrWhiteSpace(arguments.Manifest)) throw ToolError("ValidationFailed", "manifest is required.");
+            if (arguments.AllowSecretValues) await Require(ctx, tenantId, ResourceTypeEnum.Secret, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+            ManifestApply result = await _Context.Get<ManifestService>().ApplyAsync(tenantId, arguments.Manifest, new ManifestApplyOptions { DryRun = arguments.DryRun, AllowSecretValues = arguments.AllowSecretValues, PrincipalName = ctx.PrincipalName }, token).ConfigureAwait(false);
+            await _Context.Audit.WriteAsync(ctx, AuditEventTypeEnum.ManifestApplied, "Manifest", result.Id,
+                (arguments.DryRun ? "Dry-run manifest apply: " : "Manifest apply: ") + result.CreatedCount + " created, " + result.UpdatedCount + " updated, " + result.UnchangedCount + " unchanged, " + result.FailedCount + " failed.", tenantId, token).ConfigureAwait(false);
+            return result;
         }
 
         private async Task Require(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, CancellationToken token)

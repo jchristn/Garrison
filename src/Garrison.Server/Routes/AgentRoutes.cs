@@ -20,6 +20,7 @@ namespace Garrison.Server.Routes
         #region Private-Members
 
         private readonly ServerContext _Server;
+        private readonly TenantConfigurationService _Mutations;
         private readonly AgentCardService _Cards;
         private RouteRegistrar? _Routes = null;
         private static readonly string _Base = "/v1.0/api/tenants/{tenantId}/agents";
@@ -37,6 +38,7 @@ namespace Garrison.Server.Routes
         public AgentRoutes(ServerContext server, AgentCardService cards)
         {
             _Server = server ?? throw new ArgumentNullException(nameof(server));
+            _Mutations = new TenantConfigurationService(_Server);
             _Cards = cards ?? throw new ArgumentNullException(nameof(cards));
         }
 
@@ -72,16 +74,7 @@ namespace Garrison.Server.Routes
 
         private async Task CreateAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
-            Agent agent = RouteHelpers.RequiredBody<Agent>(http);
-            agent.Id = String.Empty;
-            agent.TenantId = tenantId;
-            agent.IsProtected = false;
-            ConfigurationValidator.Agent(agent);
-            Agent? existing = await _Server.Database.Agents.ReadByNameAsync(tenantId, agent.Name, http.Token).ConfigureAwait(false);
-            ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, agent.Name);
-            Agent created = await _Server.Database.Agents.CreateAsync(agent, http.Token).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Agent", created.Id, "Created agent " + created.Name + ".").ConfigureAwait(false);
+            Agent created = await _Mutations.CreateAgentAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), RouteHelpers.RequiredBody<Agent>(http), http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
         }
 
@@ -120,37 +113,17 @@ namespace Garrison.Server.Routes
 
         private async Task UpdateAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
             Agent? existing = await LoadAsync(http, OperationTypeEnum.Update).ConfigureAwait(false);
             if (existing == null) return;
-            ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Agent " + existing.Name);
-            Agent agent = RouteHelpers.RequiredBody<Agent>(http);
-            agent.Id = existing.Id;
-            agent.TenantId = tenantId;
-            agent.CreatedUtc = existing.CreatedUtc;
-            agent.LastRegisteredUtc = existing.LastRegisteredUtc;
-            ConfigurationValidator.Agent(agent);
-            Agent? named = await _Server.Database.Agents.ReadByNameAsync(tenantId, agent.Name, http.Token).ConfigureAwait(false);
-            ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, agent.Name);
-            Agent updated = await _Server.Database.Agents.UpdateAsync(agent, http.Token).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Agent", updated.Id, "Updated agent " + updated.Name + ".").ConfigureAwait(false);
+            Agent updated = await _Mutations.UpdateAgentAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), existing, RouteHelpers.RequiredBody<Agent>(http), http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);
         }
 
         private async Task DeleteAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
             Agent? existing = await LoadAsync(http, OperationTypeEnum.Delete).ConfigureAwait(false);
             if (existing == null) return;
-            ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Agent " + existing.Name);
-            int cascaded = 0;
-            List<Deployment> deployments = await _Server.Database.Deployments.ListByAgentAsync(tenantId, existing.Id, http.Token).ConfigureAwait(false);
-            foreach (Deployment deployment in deployments)
-            {
-                if (await _Server.Database.Deployments.DeleteAsync(deployment.Id, http.Token).ConfigureAwait(false)) cascaded++;
-            }
-            await _Server.Database.Agents.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Agent", existing.Id, "Deleted agent " + existing.Name + " and " + cascaded + " deployment(s).").ConfigureAwait(false);
+            await _Mutations.DeleteAgentAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), existing, http.Token).ConfigureAwait(false);
             await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 

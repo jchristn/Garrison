@@ -283,3 +283,23 @@ The override is read on every `tools/list`, so it takes effect for the next list
 Only an active template of kind `ToolDescription` in the caller's own tenant counts. A template of another kind, an inactive one, or one that fails to render is ignored, and the built-in description is used (a render failure is logged as a warning). Callers without a tenant, such as a system administrator using the API key without `x-tenant-id`, always see the built-in descriptions. The same rule covers agent tools: a tenant template named `mcp-tool-description` replaces `builtin/mcp-tool-description` for that tenant's agents that have no `toolDescriptionTemplateId`.
 
 Tool names, input schemas, and permissions are not affected by an override.
+
+## Management tools
+
+User/developer credentials can configure their tenant through these tools. `AgentDeveloper`, administrator roles, or equivalent resource grants are required for writes. Hosted run and node tokens cannot use management tools; they retain discovery, invocation, and their existing run/approval capabilities.
+
+| Tool | Permission | Required arguments |
+|---|---|---|
+| `garrison_get_agent_configuration` | Agent.Read | `agent` (name or ID) |
+| `garrison_create_agent` | Agent.Create | `configuration` |
+| `garrison_update_agent` | Agent.Update on the resolved ID | `agent`, `configuration` |
+| `garrison_delete_agent` | Agent.Delete on the resolved ID | `agent` |
+| `garrison_list_deployments` | Deployment.Read | none; optional `search`, `maxResults` |
+| `garrison_get_deployment` | Deployment.Read on the ID | `deploymentId` |
+| `garrison_create_deployment` | Deployment.Create | `configuration` |
+| `garrison_update_deployment` | Deployment.Update on the ID | `deploymentId`, `configuration` |
+| `garrison_delete_deployment` | Deployment.Delete on the ID | `deploymentId` |
+| `garrison_apply_manifest` | Manifest.Create; Secret.Create when `allowSecretValues` is true | `manifest`; optional `dryRun`, `allowSecretValues` |
+| `garrison_export_manifest` | Manifest.Read | none |
+
+Configuration uses the REST agent/deployment fields. Updates replace the full configuration, preserve identity/creation metadata, and increment deployment versions. Protected records cannot be changed. Creation ignores supplied identity/tenant/protection/version fields. A tenant-bound caller cannot override its tenant. Export returns `{manifest, mediaType}` with YAML and secret metadata only. Apply returns the normal manifest report; inspect `failedCount` and document results. See [management workflow and examples](docs/MANAGEMENT_MCP.md).

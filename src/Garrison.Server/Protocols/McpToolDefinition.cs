@@ -43,6 +43,9 @@ namespace Garrison.Server.Protocols
         /// </summary>
         public Garrison.Core.Enums.OperationTypeEnum Operation { get; set; } = Garrison.Core.Enums.OperationTypeEnum.Read;
 
+        /// <summary>Tenant configuration tool. Hidden from and denied to hosted run tokens.</summary>
+        public bool ManagementTool { get; set; } = false;
+
         /// <summary>
         /// True for an agent offered as its own MCP tool (exposeMcpTool): calling it invokes that agent in the caller's
         /// tenant and waits for the answer. False for the built-in Garrison tools.

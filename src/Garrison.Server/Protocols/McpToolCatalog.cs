@@ -1,7 +1,11 @@
 namespace Garrison.Server.Protocols
 {
+    using System;
     using System.Collections.Generic;
     using Garrison.Core.Enums;
+    using Garrison.Core.Models;
+    using Garrison.Core.Serialization;
+    using Garrison.Server.Routes;
 
     /// <summary>
     /// The Garrison MCP tools. Descriptions are seeded as built-in prompt templates (builtin/mcp-tool-*) and rendered
@@ -82,6 +86,34 @@ namespace Garrison.Server.Protocols
         public static List<McpToolDefinition> All()
         {
             List<McpToolDefinition> tools = new List<McpToolDefinition>();
+            tools.Add(Management("garrison_get_agent_configuration", ResourceTypeEnum.Agent, OperationTypeEnum.Read,
+                "Read the complete configuration of one agent before replacing it. Requires agent (name or ID). Uses developer/user credentials; hosted run tokens cannot use management tools.",
+                "{\"type\":\"object\",\"properties\":{\"agent\":{\"type\":\"string\"}},\"required\":[\"agent\"]}"));
+            tools.Add(Management("garrison_create_agent", ResourceTypeEnum.Agent, OperationTypeEnum.Create,
+                "Create an agent in your tenant from configuration using the standard agent API fields. Name is required; supplied ID, tenant, and protection are ignored. Requires Agent.Create permission (for example AgentDeveloper). Does not create a deployment.", ConfigurationSchema(typeof(Agent), null)));
+            tools.Add(Management("garrison_update_agent", ResourceTypeEnum.Agent, OperationTypeEnum.Update,
+                "Replace an agent configuration. Required: agent (name or ID), configuration (complete agent API body). Read garrison_get_agent_configuration first so fields you want to retain are included. Identity/creation/registration metadata is preserved; protected agents cannot be changed.", ConfigurationSchema(typeof(Agent), "agent")));
+            tools.Add(Management("garrison_delete_agent", ResourceTypeEnum.Agent, OperationTypeEnum.Delete,
+                "Delete an agent and its deployments, matching the REST API cascade. Requires agent (name or ID) and Agent.Delete permission. Protected agents cannot be deleted.",
+                "{\"type\":\"object\",\"properties\":{\"agent\":{\"type\":\"string\"}},\"required\":[\"agent\"]}"));
+            tools.Add(Management("garrison_list_deployments", ResourceTypeEnum.Deployment, OperationTypeEnum.Read,
+                "List deployment configurations in your tenant. Optional search and maxResults (1-100, default 25). Requires Deployment.Read permission; use garrison_get_deployment when you have a specific ID.",
+                "{\"type\":\"object\",\"properties\":{\"search\":{\"type\":\"string\"},\"maxResults\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100}}}"));
+            tools.Add(Management("garrison_get_deployment", ResourceTypeEnum.Deployment, OperationTypeEnum.Read,
+                "Read the complete configuration of a deployment by deploymentId, including its configuration version. Requires Deployment.Read permission.",
+                "{\"type\":\"object\",\"properties\":{\"deploymentId\":{\"type\":\"string\"}},\"required\":[\"deploymentId\"]}"));
+            tools.Add(Management("garrison_create_deployment", ResourceTypeEnum.Deployment, OperationTypeEnum.Create,
+                "Create a deployment from configuration using the standard deployment API fields. Name, agentId and harnessProfileId are required. Standard prompt bindings are applied and references validated. Supplied ID/tenant/version/protection are ignored. Requires Deployment.Create permission.", ConfigurationSchema(typeof(Deployment), null)));
+            tools.Add(Management("garrison_update_deployment", ResourceTypeEnum.Deployment, OperationTypeEnum.Update,
+                "Replace a deployment configuration. Required: deploymentId and configuration (complete deployment API body). Read garrison_get_deployment first; fields omitted from the replacement take their defaults. Preserves identity/creation time, advances configVersion, validates references, and rejects protected records.", ConfigurationSchema(typeof(Deployment), "deploymentId")));
+            tools.Add(Management("garrison_delete_deployment", ResourceTypeEnum.Deployment, OperationTypeEnum.Delete,
+                "Delete one deployment by deploymentId. Requires Deployment.Delete permission. Protected deployments cannot be deleted.",
+                "{\"type\":\"object\",\"properties\":{\"deploymentId\":{\"type\":\"string\"}},\"required\":[\"deploymentId\"]}"));
+            tools.Add(Management("garrison_apply_manifest", ResourceTypeEnum.Manifest, OperationTypeEnum.Create,
+                "Apply YAML/JSON configuration manifests in your tenant, using the existing manifest API. Required: manifest text. Optional dryRun true validates without changes (default false); inspect failedCount and per-document results. Inline secret values are rejected unless allowSecretValues is true and you also have Secret.Create permission. Requires Manifest.Create permission.",
+                "{\"type\":\"object\",\"properties\":{\"manifest\":{\"type\":\"string\"},\"dryRun\":{\"type\":\"boolean\"},\"allowSecretValues\":{\"type\":\"boolean\"}},\"required\":[\"manifest\"]}"));
+            tools.Add(Management("garrison_export_manifest", ResourceTypeEnum.Manifest, OperationTypeEnum.Read,
+                "Export your tenant configuration as {manifest: YAML text, mediaType: application/yaml}. Secrets appear as metadata only, never plaintext values. Requires Manifest.Read permission.", "{\"type\":\"object\",\"properties\":{}}"));
             tools.Add(Tool("garrison_upload_artifact", ResourceTypeEnum.Artifact, OperationTypeEnum.Create,
                 "Upload one workspace file selected by the producing deployment's artifact globs. Requires the current run and lease epoch; run tokens may upload only for their own execution. Provider credentials remain server-side.",
                 "{\"type\":\"object\",\"properties\":{\"runId\":{\"type\":\"string\"},\"storeId\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"mediaType\":{\"type\":\"string\"},\"epoch\":{\"type\":\"integer\"},\"repairAttempt\":{\"type\":\"integer\"},\"contentBase64\":{\"type\":\"string\"}},\"required\":[\"runId\",\"storeId\",\"name\",\"epoch\",\"repairAttempt\",\"contentBase64\"]}"));
@@ -128,6 +160,26 @@ namespace Garrison.Server.Protocols
 
         #region Private-Methods
 
+        private static McpToolDefinition Management(string name, ResourceTypeEnum resourceType, OperationTypeEnum operation, string description, string schema)
+        {
+            McpToolDefinition tool = Tool(name, resourceType, operation, description, schema);
+            tool.ManagementTool = true;
+            return tool;
+        }
+
+        private static string ConfigurationSchema(Type type, string? identifier)
+        {
+            Dictionary<string, object?> properties = new Dictionary<string, object?>();
+            properties["configuration"] = OpenApiSchemaFactory.For(type);
+            List<string> required = new List<string> { "configuration" };
+            if (identifier != null)
+            {
+                properties[identifier] = new Dictionary<string, object?> { ["type"] = "string" };
+                required.Add(identifier);
+            }
+            return Serializer.Serialize(new Dictionary<string, object?> { ["type"] = "object", ["properties"] = properties, ["required"] = required });
+        }
+
         private static McpToolDefinition Tool(string name, ResourceTypeEnum resourceType, OperationTypeEnum operation, string description, string schema)
         {
             McpToolDefinition tool = new McpToolDefinition();
@@ -143,9 +195,13 @@ namespace Garrison.Server.Protocols
 
         private static string WithTenantId(string schema)
         {
-            return schema.Replace(
-                "\"properties\":{",
-                "\"properties\":{\"tenantId\":{\"type\":\"string\",\"description\":\"" + _TenantIdDescription + "\"},");
+            Dictionary<string, object?> document = Serializer.Deserialize<Dictionary<string, object?>>(schema) ?? new Dictionary<string, object?>();
+            Dictionary<string, object?> properties = document.TryGetValue("properties", out object? value)
+                ? Serializer.Deserialize<Dictionary<string, object?>>(Serializer.Serialize(value)) ?? new Dictionary<string, object?>()
+                : new Dictionary<string, object?>();
+            properties["tenantId"] = new Dictionary<string, object?> { ["type"] = "string", ["description"] = _TenantIdDescription };
+            document["properties"] = properties;
+            return Serializer.Serialize(document);
         }
 
         #endregion

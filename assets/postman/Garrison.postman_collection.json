@@ -8338,6 +8338,542 @@
       ]
     },
     {
+      "name": "Management MCP",
+      "description": "Normal user/developer credentials with agent/deployment/manifest permissions. Hosted run and node tokens cannot use these tools. Updates are full replacements. Uses the session opened in MCP; scratch resources are deleted in this folder. See docs/MANAGEMENT_MCP.md.",
+      "item": [
+        {
+          "name": "garrison_create_agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 200,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_create_agent\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"configuration\": {\n        \"name\": \"postman-mcp-managed-{{$timestamp}}\",\n        \"description\": \"Management MCP scratch agent.\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });",
+                  "if (!r.isError) { const value = r.structuredContent || JSON.parse(r.content[0].text); pm.collectionVariables.set(\"managementAgentId\", value.id); pm.collectionVariables.set(\"managementAgentName\", value.name); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_get_agent_configuration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 201,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_get_agent_configuration\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"agent\": \"{{managementAgentId}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_update_agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 202,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_update_agent\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"agent\": \"{{managementAgentId}}\",\n      \"configuration\": {\n        \"name\": \"{{managementAgentName}}\",\n        \"description\": \"Updated through management MCP.\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_create_deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 203,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_create_deployment\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"configuration\": {\n        \"name\": \"{{managementAgentName}}\",\n        \"agentId\": \"{{managementAgentId}}\",\n        \"harnessProfileId\": \"hrn_builtin_fake\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });",
+                  "if (!r.isError) { const value = r.structuredContent || JSON.parse(r.content[0].text); pm.collectionVariables.set(\"managementDeploymentId\", value.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_get_deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 204,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_get_deployment\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"deploymentId\": \"{{managementDeploymentId}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_list_deployments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 205,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_list_deployments\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"search\": \"{{managementAgentName}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_update_deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 206,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_update_deployment\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"deploymentId\": \"{{managementDeploymentId}}\",\n      \"configuration\": {\n        \"name\": \"{{managementAgentName}}\",\n        \"agentId\": \"{{managementAgentId}}\",\n        \"harnessProfileId\": \"hrn_builtin_fake\",\n        \"weight\": 2\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_apply_manifest",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 207,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_apply_manifest\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"manifest\": \"apiVersion: garrison/v1\\nkind: Agent\\nmetadata:\\n  name: postman-mcp-dry-run\\nspec:\\n  description: Dry-run only.\\n\",\n      \"dryRun\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_export_manifest",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 208,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_export_manifest\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_delete_deployment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 209,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_delete_deployment\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"deploymentId\": \"{{managementDeploymentId}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "garrison_delete_agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "MCP-Session-Id",
+                "value": "{{mcpSessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{mcpUrl}}",
+              "host": [
+                "{{mcpUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 210,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"garrison_delete_agent\",\n    \"arguments\": {\n      \"tenantId\": \"{{tenantId}}\",\n      \"agent\": \"{{managementAgentId}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json().result;",
+                  "pm.test('tool succeeds', function () { pm.expect(r.isError || false).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Audit and Request History",
       "description": "Audit records cover security-relevant events in a tenant. Request history captures every REST request (system administrators only). The bulk deletes use a cutoff in the year 2000, so they remove nothing.",
       "item": [
@@ -10979,6 +11515,18 @@
     },
     {
       "key": "providerApiSecretId",
+      "value": ""
+    },
+    {
+      "key": "managementAgentId",
+      "value": ""
+    },
+    {
+      "key": "managementAgentName",
+      "value": ""
+    },
+    {
+      "key": "managementDeploymentId",
       "value": ""
     }
   ]

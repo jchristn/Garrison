@@ -12,6 +12,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Services;
+    using Garrison.Server.Services;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -22,6 +23,7 @@ namespace Garrison.Server.Routes
         #region Private-Members
 
         private readonly ServerContext _Server;
+        private readonly TenantConfigurationService _Mutations;
         private readonly InvocationCompiler _Compiler;
         private static readonly string _Base = "/v1.0/api/tenants/{tenantId}/deployments";
 
@@ -38,6 +40,7 @@ namespace Garrison.Server.Routes
         public DeploymentRoutes(ServerContext server, InvocationCompiler compiler)
         {
             _Server = server ?? throw new ArgumentNullException(nameof(server));
+            _Mutations = new TenantConfigurationService(_Server);
             _Compiler = compiler ?? throw new ArgumentNullException(nameof(compiler));
         }
 
@@ -70,18 +73,7 @@ namespace Garrison.Server.Routes
 
         private async Task CreateAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
-            Deployment deployment = RouteHelpers.RequiredBody<Deployment>(http);
-            deployment.Id = String.Empty;
-            deployment.TenantId = tenantId;
-            deployment.IsProtected = false;
-            deployment.ConfigVersion = 1;
-            DefaultPromptBindings.Apply(deployment);
-            await ConfigurationValidator.DeploymentAsync(_Server.Database, tenantId, deployment, http.Token).ConfigureAwait(false);
-            Deployment? existing = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, http.Token).ConfigureAwait(false);
-            ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, deployment.Name);
-            Deployment created = await _Server.Database.Deployments.CreateAsync(deployment, http.Token).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Deployment", created.Id, "Created deployment " + created.Name + ".").ConfigureAwait(false);
+            Deployment created = await _Mutations.CreateDeploymentAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), RouteHelpers.RequiredBody<Deployment>(http), http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
         }
 
@@ -92,30 +84,15 @@ namespace Garrison.Server.Routes
 
         private async Task UpdateAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
             Deployment existing = await LoadAsync(http).ConfigureAwait(false);
-            ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Deployment " + existing.Name);
-            Deployment deployment = RouteHelpers.RequiredBody<Deployment>(http);
-            deployment.Id = existing.Id;
-            deployment.TenantId = tenantId;
-            deployment.CreatedUtc = existing.CreatedUtc;
-            deployment.ConfigVersion = existing.ConfigVersion + 1;
-            DefaultPromptBindings.Apply(deployment);
-            await ConfigurationValidator.DeploymentAsync(_Server.Database, tenantId, deployment, http.Token).ConfigureAwait(false);
-            Deployment? named = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, http.Token).ConfigureAwait(false);
-            ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, deployment.Name);
-            Deployment updated = await _Server.Database.Deployments.UpdateAsync(deployment, http.Token).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Deployment", updated.Id, "Updated deployment " + updated.Name + " to configuration version " + updated.ConfigVersion + ".").ConfigureAwait(false);
+            Deployment updated = await _Mutations.UpdateDeploymentAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), existing, RouteHelpers.RequiredBody<Deployment>(http), http.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);
         }
 
         private async Task DeleteAsync(HttpContextBase http)
         {
-            string tenantId = RouteHelpers.Tenant(http);
             Deployment existing = await LoadAsync(http).ConfigureAwait(false);
-            ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Deployment " + existing.Name);
-            await _Server.Database.Deployments.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
-            await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Deployment", existing.Id, "Deleted deployment " + existing.Name + ".").ConfigureAwait(false);
+            await _Mutations.DeleteDeploymentAsync(RouteHelpers.Context(http), RouteHelpers.Tenant(http), existing, http.Token).ConfigureAwait(false);
             await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
         }
 

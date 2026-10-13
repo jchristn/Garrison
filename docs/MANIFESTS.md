@@ -369,3 +369,7 @@ The run succeeds with `"resultText": "Echo: Please answer loudly: HELLO"`. Apply
 ## Artifact collection
 
 Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example `["reports/**/*.json"]`. Empty globs disable collection. See [Run artifacts](ARTIFACTS.md) for filesystem/S3 configuration, limits, downloads, and API examples.
+
+## MCP configuration clients
+
+Developer/user credentials may call `garrison_apply_manifest` with the same YAML/JSON text, dry-run and inline-secret options as REST. `garrison_export_manifest` returns reusable YAML with secret metadata only. Existing permissions still apply; hosted run tokens cannot manage configuration. See [management MCP](MANAGEMENT_MCP.md).
