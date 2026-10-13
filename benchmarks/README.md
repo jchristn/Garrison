@@ -14,7 +14,7 @@ The harness talks to Garrison only over the REST API, as a client would, with it
 | `start-bench-server.sh`, `.bat` | Start the local stack: the server and workers as processes from the working tree |
 | `stop-bench-server.sh`, `.bat` | Stop the local stack |
 | `run-baseline.sh`, `.bat` | The standard suite for one round |
-| `ci-gate.sh`, `.bat` | The deterministic gate against `baselines/`; what CI runs |
+| `ci-gate.sh`, `.bat` | The deterministic gate against `baselines/`; run locally |
 | `common.sh`, `common.bat` | Shared settings for the scripts (ports, paths, build) |
 | `k3d/cluster.yaml` | The k3d cluster: pinned K3S image, ports, memory cap |
 | `k8s/` | Kustomize overlay on `k8s/base` for the bench cluster: two worker lanes, small requests, fake credentials |
@@ -164,7 +164,7 @@ After changing code on the load path (manifest apply), pass a new `--workspace-s
 
 ## CI gate
 
-`ci-gate.sh` is what `.github/workflows/benchmark.yaml` runs on every push to every branch and every pull request, on `ubuntu-latest`. It starts the local stack, runs the deterministic subset, compares each report with its committed baseline, uploads `benchmarks/results/` and the stack logs as an artifact (also when it fails), and fails the build on any regression or incomplete run.
+`ci-gate.sh` remains available locally. Automatic benchmark execution was removed on 2026-10-12 to conserve GitHub Actions minutes (see [CI policy](../docs/CI.md)). It starts the local stack, runs the deterministic subset, compares each report with its committed baseline, writes reports under `benchmarks/results/` and retains stack logs locally, and exits nonzero on any regression or incomplete run.
 
 | Gate job | What has to hold |
 |---|---|

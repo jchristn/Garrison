@@ -89,6 +89,8 @@ k8s/scripts/port-forward.sh               # REST, MCP, and dashboard on 127.0.0.
 
 ### From source
 
+GitHub Actions uses push-only, path-filtered smoke checks to conserve minutes; see [CI policy](docs/CI.md) for coverage and local full-test commands.
+
 You need the .NET 10 SDK, and Node.js for the dashboard (CI uses Node 22). Each process runs in its own terminal, starting from the repository root:
 
 ```bash

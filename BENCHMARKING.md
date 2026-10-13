@@ -98,7 +98,7 @@ None were added. Garrison already exposes what the suite needs: per-run timing f
 | P14.7 | Datasets: synthetic workloads and a frozen live snapshot, both with negative probes | Done |
 | P14.8 | Reports with provenance: product commit with untracked-aware dirtiness, harness commit, image digests, dataset SHA-256, full command line and options | Done |
 | P14.9 | Bootstrap confidence intervals; paired, significance-gated compare for every report kind | Done |
-| P14.10 | `ci-gate` with committed baselines, in `.github/workflows/benchmark.yaml` on every push and pull request | Done |
+| P14.10 | `ci-gate` with committed baselines; automatic workflow removed 2026-10-12 to conserve minutes, local script retained | Done |
 | P14.11 | `benchmarks/RESULTS.md` round 0 with the defects found | Done |
 | P14.12 | `IMPROVEMENTS.md` | Done |
 | P14.13 | Every script as a `.sh` and `.bat` pair | Done |
@@ -120,7 +120,7 @@ None were added. Garrison already exposes what the suite needs: per-run timing f
 | A stub for every expensive dependency, and a reference arm or floor | Yes: the fake harness; direct invocation |
 | `compare` is paired and significance-gated, covers every report kind, fails on mismatched probe sets, and saves its output | Yes |
 | Every quality report shows `baselines.json` with the net difference, and `history` produces the per-type round table | Yes (the baselines are internal prior numbers; no published ones exist) |
-| `ci-gate` runs a deterministic subset against committed baselines in CI on every push and pull request; anything that cannot run in CI is named in the README | Yes |
+| `ci-gate` runs a deterministic subset against committed baselines | Local only since 2026-10-12; automatic CI deferred to conserve minutes |
 | Every script is a `.sh` and `.bat` pair with no hard-coded paths, ids, hosts, or secrets | Yes; the only credentials are the bench stack's obviously fake keys |
 | `BENCHMARKING.md`, `benchmarks/README.md`, `benchmarks/RESULTS.md` (round 0 and its defects), and `IMPROVEMENTS.md` are written | Yes; committing them is the user's call (this phase was delivered uncommitted, by instruction) |
 

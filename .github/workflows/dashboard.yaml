@@ -1,14 +1,23 @@
-name: Dashboard
+name: Dashboard smoke
 
 on:
   push:
     branches: ["**"]
-  pull_request:
-  workflow_dispatch:
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/dashboard.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   dashboard:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: dashboard
@@ -17,35 +26,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
       - name: Install
-        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+        run: npm ci
       - name: Lint
         run: npm run lint
-      - name: Unit tests
-        run: npm test --if-present
+      - name: Focused smoke tests
+        run: npm test -- src/tests/m1.test.js src/tests/runGuards.test.js src/tests/utils.test.js
       - name: Build
         run: npm run build
-      - name: Docker build
-        run: docker build -t garrison-dashboard:ci .
-
-  contract:
-    # P5.51: start a real server and worker (Sqlite, fake harness) and fail when tests/e2e/mocks.js drifts from the
-    # shapes the server returns for every GET the dashboard calls.
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: dashboard
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install
-        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
-      - name: Mock contract test
-        run: npm run test:contract

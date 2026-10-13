@@ -109,6 +109,7 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 
 **State**
 
+- D-044 reduces hosted CI usage: push-only path-filtered smoke checks, cancellation of superseded runs, single .NET 10/SQLite backend pass, focused dashboard tests, and lightweight manifest/text checks. Full suites, SDK integration, benchmarks, Docker builds, and K3S smoke remain local; no periodic Garrison workflows existed. Selected backend smoke passes 56/56 and dashboard smoke passes 50/50. Actionlint passes; all 747 rendered Kubernetes resources validate, Helm/Compose checks pass. Six superseded hosted runs were cancelled. See `docs/CI.md`.
 - P6.17/P6.19/P7.5 are complete: SDK-backed worker transport, all four interactive consoles, and Docker Hub amd64/arm64 images. SDK/console end-to-end harness checks pass; worker net8/net10 regression checks pass with token-refresh coverage. Both K3S workers are Ready on the new image. Claude/Codex live validation passes 20/20, including REST/MCP/A2A, streaming, and successful delegation. Mux live revalidation is blocked by its configured external model endpoint (direct connection timed out); the waiting fixture was cancelled. SDK publication is skipped under D-043.
 - D-042 narrows current scope: 10 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P11 is 14/17 active and P12 is 5/12 active; P14 remaining work and P15 are deferred. Image publication is authorized; SDK publication is skipped under D-043. The original milestones describe the longer-term roadmap; only the active scope below is being executed.
 - Combined .NET 8 and 10 build: zero errors/warnings. Full Touchstone net10 run: 469/469 on SQLite/PostgreSQL; four additional provider cases subsequently passed for approval/conversation interaction and upgrade from schema 12. The latest net8 database/approval suites pass 39/39 on both providers. xUnit net8 passed its all-suites fact; NUnit net10 passed 306/306 SQLite cases. All four SDK harnesses pass. Dashboard lint/build, 253 unit tests, 72 contract routes, and 123 Playwright browser tests pass. All CI mirror pairs, eight Kustomize overlays, Helm lint/template, and em-dash checks pass.
@@ -250,6 +251,7 @@ The Garrison theme is used for product naming and documentation. API nouns stay 
 | D-041 | Scope reduction (user, 2026-10-12): retain daily quotas and cost estimation; quota enforcement is explicitly opt-in per quota, defaults off, and existing quotas upgrade with enforcement off. Remove delegation-tree budgeting and its separate quota-hop integration from the active plan. | Prioritizes getting the core system running; monitoring does not impose execution limits. | P12.6, P12.7 |
 | D-042 | Scope selection (user, 2026-10-12): execute all remaining P6/P7 work now, including package/image publication. Retain P11.18-20 and P12.8-13/P12.17; defer all other unfinished P11/P12 work and unfinished P14/P15 work. Completed features remain. Related approval/conversation and Windows release-script follow-ups are deferred. | Four SDK/image tasks now; ten selected executor/orchestration tasks afterwards. P10.24/P10.25 remain conditional on the deferred P14.15 measurements. | Scope selection |
 | D-043 | User 2026-10-12 skips SDK publication (P6.20). SDK transport and consoles remain in scope; image publication remains authorized. | No SDK registry credentials or package/tag publication required. | P6.20 |
+| D-044 | User 2026-10-12 requests commit-only reduced CI to conserve GitHub Actions minutes. Remove duplicate PR/manual triggers and automatic heavy jobs; retain local full validation. Scan other repositories read-only for usage risks. | Smoke coverage is intentionally narrower than full regression coverage. | Hosted CI |
 
 ---
 
@@ -856,7 +858,7 @@ MVP (D-004): each run gets `workspaces/<runId>/work`, `workspaces/<runId>/home`,
 
 ```
 Garrison/
-|-- .github/workflows/          tests.yaml, dashboard.yaml, sdk.yaml, images.yaml, em-dash-check.yaml
+|-- .github/workflows/          tests.yaml, dashboard.yaml, k8s.yaml, em-dash.yaml
 |-- assets/
 |   |-- logo.png, icon.png
 |   |-- postman/                Garrison.postman_collection.json, Garrison.postman_environment.json
@@ -1357,7 +1359,7 @@ Quality
 - [x] P6.13 Go README.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
 - [x] P6.14 `scripts/run-sdk-harnesses.{sh,bat}` starting server and worker on Sqlite with the fake harness, running all four harnesses, Go inside a `golang` container when Go is absent.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
 - [x] P6.15 All four harnesses green locally. -> annotate with command and date.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
-- [x] P6.16 `.github/workflows/sdk.yaml` running the harnesses.  | claude 2026-10-10 SDK stream; .github/workflows/sdk.yaml (not yet run on GitHub)
+- [x] P6.16 SDK harness CI implemented. Retired from hosted Actions under D-044 (2026-10-12); `scripts/run-sdk-harnesses.sh` remains available locally.
 - [x] P6.17 Worker uses `Garrison.Sdk` transport for the node protocol, preserving core wire contracts, telemetry, lease errors, and token refresh. Worker checks pass on net8/net10; all four SDK harnesses and consoles pass against the SDK-backed worker.
 - [x] P6.18 Each SDK's version mirrors the product version.  | claude 2026-10-10 0.1.0-alpha everywhere (Python 0.1.0a0, the PEP 440 form)
 - [x] P6.21 SDKs: section 10.6 run fields and an analytics method in C#, Python, JavaScript/TypeScript, and Go, covered by each test harness.  | claude 2026-10-10 C# client.Analytics.RunsAsync, Python client.analytics.runs, JS client.analytics.runs, Go client.Analytics.Runs; harnesses 15/15 each
@@ -1696,7 +1698,7 @@ Contract shared by the infrastructure tasks (P13.1 to P13.11, P13.17) and the pr
 - [x] P14.7 Datasets: synthetic workloads, frozen live snapshot.  | claude 2026-10-11 synthetic-fleet and garrison-live datasets, regenerated byte for byte from sources; no public dataset fits (explained in BENCHMARKING.md)
 - [x] P14.8 Reports with provenance (commit, dirtiness, image digests, dataset hash).  | claude 2026-10-11 reports record commit, dirtiness, image digests, dataset hash
 - [x] P14.9 Confidence intervals and significance-gated compare.  | claude 2026-10-11 confidence intervals; compare exits 1 on significant regression, probe set mismatch, or kind mismatch, and treats any pass-to-fail flip in deterministic reports as a regression
-- [x] P14.10 `ci-gate` with committed baselines in CI.  | claude 2026-10-11 .github/workflows/benchmark.yaml runs ci-gate (local Sqlite stack, fake harness, correctness only, about 40 s) against benchmarks/baselines; passed on GitHub for d9ce033
+- [x] P14.10 `ci-gate` with committed baselines in CI.  | claude 2026-10-11 .github/workflows/benchmark.yaml runs ci-gate (local Sqlite stack, fake harness, correctness only, about 40 s) against benchmarks/baselines; passed on GitHub for d9ce033; hosted benchmark workflow retired under D-044 (2026-10-12), local gate retained
 - [x] P14.11 `RESULTS.md` round 0 with defects found.  | claude 2026-10-11 benchmarks/RESULTS.md round 0: H1 latency met and throughput about 80 to 85 percent of slots, H2 17.7 ms added p50, H3 met, H4 1.93x and 2.66x, H6 met, H5 refuted by defects G-23 to G-26 and D-2
 - [x] P14.12 `IMPROVEMENTS.md`.  | claude 2026-10-11 IMPROVEMENTS.md
 - [x] P14.13 Scripts in `.sh` and `.bat` pairs.  | claude 2026-10-11 .sh and .bat pairs (the .bat files are untested, no Windows host)
