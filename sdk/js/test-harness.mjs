@@ -302,6 +302,15 @@ await check("artifact collection and binary download", async () => {
     require((await client.artifacts.list({ runId: run.id })).objects.length === 0, "deleted artifact");
   } finally { await client.deployments.update(deployment.id, deployment); await client.artifactStores.delete(store.id); }
 });
+await check("stdio MCP worker diagnostic", async () => {
+  const node = (await client.nodes.list()).objects.find((n) => n.supportsMcpTests && n.status === "Ready");
+  require(node, "compatible worker");
+  const server = await client.mcpServers.create({ name: `sdk-js-stdio-${suffix}`, transport: "Stdio", command: "garrison-fake-harness", arguments: ["--mcp-stdio"], requiredTools: ["fixture_status"] });
+  try {
+    const result = await client.mcpServers.test(server.id, node.id);
+    require(result.success && result.nodeId === node.id && result.tools.includes("fixture_status"), "worker stdio diagnostic");
+  } finally { await client.mcpServers.delete(server.id); }
+});
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);

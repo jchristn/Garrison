@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 19).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 20).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1157,3 +1157,11 @@ CREATE INDEX IF NOT EXISTS "idx_artifacts_tenant" ON "artifacts" ("tenantid", "c
 CREATE INDEX IF NOT EXISTS "idx_artifacts_run" ON "artifacts" ("tenantid", "runid");
 CREATE INDEX IF NOT EXISTS "idx_artifacts_store" ON "artifacts" ("tenantid", "artifactstoreid");
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_artifacts_upload" ON "artifacts" ("tenantid", "runid", "leaseepoch", "repairattempt", "name");
+
+-- Migration 20: Transient worker stdio MCP diagnostics with structured outcomes
+ALTER TABLE "nodes" ADD COLUMN supportsmcptests INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS "mcp_tests" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, serverid VARCHAR(64) NOT NULL, nodeid VARCHAR(64) NOT NULL, noderegisteredutc TEXT NOT NULL, serverupdatedutc TEXT NOT NULL, expiresutc TEXT NOT NULL, started INTEGER NOT NULL, finished INTEGER NOT NULL, success INTEGER NOT NULL, durationms BIGINT NOT NULL, timeoutms INTEGER NOT NULL, error VARCHAR(2048));
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_mcp_tests_node" ON "mcp_tests" ("nodeid");
+CREATE INDEX IF NOT EXISTS "idx_mcp_tests_expires" ON "mcp_tests" ("expiresutc");
+CREATE TABLE IF NOT EXISTS "mcp_test_tools" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, testid VARCHAR(64) NOT NULL, kind VARCHAR(16) NOT NULL, name VARCHAR(512) NOT NULL, position INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_mcp_test_tools_parent" ON "mcp_test_tools" ("testid", "position");

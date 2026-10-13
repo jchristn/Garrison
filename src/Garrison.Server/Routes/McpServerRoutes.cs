@@ -78,7 +78,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.GET, _Base + "/{id}", ResourceTypeEnum.McpServer, OperationTypeEnum.Read, ReadAsync, "Read an MCP server", "MCP Servers", null, typeof(McpServer));
             routes.Scoped(HttpMethod.PUT, _Base + "/{id}", ResourceTypeEnum.McpServer, OperationTypeEnum.Update, UpdateAsync, "Update an MCP server", "MCP Servers", typeof(McpServer), typeof(McpServer));
             routes.Scoped(HttpMethod.DELETE, _Base + "/{id}", ResourceTypeEnum.McpServer, OperationTypeEnum.Delete, DeleteAsync, "Delete an MCP server", "MCP Servers");
-            routes.Scoped(HttpMethod.POST, _Base + "/{id}/test", ResourceTypeEnum.McpServer, OperationTypeEnum.Update, TestAsync, "Connect to an HTTP MCP server and list its tools", "MCP Servers", null, typeof(McpServerTestResponse));
+            routes.Scoped(HttpMethod.POST, _Base + "/{id}/test", ResourceTypeEnum.McpServer, OperationTypeEnum.Update, TestAsync, "List tools through HTTP or a selected worker stdio diagnostic", "MCP Servers", null, typeof(McpServerTestResponse));
         }
 
         #endregion
@@ -145,7 +145,7 @@ namespace Garrison.Server.Routes
             McpServerTestResponse response = new McpServerTestResponse();
             if (server.Transport != McpTransportEnum.Http)
             {
-                response.Error = "Stdio MCP servers can only be tested from a worker node (planned for Phase 12).";
+                response = await _Server.Get<Garrison.Server.Services.WorkerMcpTestService>().TestAsync(server, RouteHelpers.Query(http, "nodeId"), _TestTimeoutMs, http.Token).ConfigureAwait(false);
                 await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
                 return;
             }

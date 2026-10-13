@@ -61,6 +61,7 @@ namespace Garrison.Server.Modules
             _Cards = new AgentCardService(context.Database, () => ExternalUrls.RestBaseUrl(context, null));
 
             context.Register(new ArtifactService(context));
+            context.Register(new WorkerMcpTestService(context));
             context.Register(_Compiler);
             context.Register(_Manifests);
             context.Register(_Cards);

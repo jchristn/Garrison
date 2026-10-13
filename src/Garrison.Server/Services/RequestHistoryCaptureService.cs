@@ -50,7 +50,7 @@ namespace Garrison.Server.Services
             "authorization", "proxy-authorization", "cookie", "set-cookie", "x-token", "x-secret-key", "x-api-key", "x-signature", "x-password"
         };
 
-        private static readonly string[] _SecretPathFragments = new string[] { "/secrets", "/token", "/credentials" };
+        private static readonly string[] _SecretPathFragments = new string[] { "/secrets", "/token", "/credentials", "/node/heartbeat", "/node/lease" };
 
         private readonly DatabaseDriverBase _Database;
         private readonly RequestHistorySettings _Settings;

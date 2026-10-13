@@ -567,6 +567,18 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("stdio MCP worker diagnostic", async () =>
+                {
+                    Node node = (await client.Nodes.ListAsync(token: token).ConfigureAwait(false)).Objects.First(n => n.SupportsMcpTests && n.Status == NodeStatusEnum.Ready);
+                    McpServer server = await client.McpServers.CreateAsync(new McpServer { Name = "sdk-cs-stdio-" + suffix, Transport = McpTransportEnum.Stdio, Command = "garrison-fake-harness", Arguments = new List<string> { "--mcp-stdio" }, RequiredTools = new List<string> { "fixture_status" } }, token).ConfigureAwait(false);
+                    try
+                    {
+                        McpServerTestResponse result = await client.McpServers.TestOnWorkerAsync(server.Id, node.Id, token).ConfigureAwait(false);
+                        Require(result.Success && result.NodeId == node.Id && result.Tools.Contains("fixture_status"), "worker stdio diagnostic");
+                    }
+                    finally { await client.McpServers.DeleteAsync(server.Id, token).ConfigureAwait(false); }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

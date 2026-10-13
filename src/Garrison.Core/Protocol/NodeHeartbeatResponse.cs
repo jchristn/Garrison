@@ -9,9 +9,10 @@ namespace Garrison.Core.Protocol
     /// </summary>
     public class NodeHeartbeatResponse
     {
-        /// <summary>
-        /// Runs the worker must cancel.
-        /// </summary>
+        /// <summary>Single stdio test for this registration, or null when none is queued.</summary>
+        public McpWorkerTest? McpTest { get; set; } = null;
+
+        /// <summary>Runs the worker must cancel.</summary>
         public List<string> CancelRunIds { get; set; } = new List<string>();
 
         /// <summary>

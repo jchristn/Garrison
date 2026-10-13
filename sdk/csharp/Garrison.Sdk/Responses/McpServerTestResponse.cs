@@ -9,6 +9,9 @@ namespace Garrison.Sdk.Responses
     /// </summary>
     public class McpServerTestResponse
     {
+        /// <summary>Selected worker identifier for stdio, or null for HTTP.</summary>
+        public string? NodeId { get; set; } = null;
+
         /// <summary>
         /// Whether the server answered tools/list.
         /// </summary>

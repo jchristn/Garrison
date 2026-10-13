@@ -842,7 +842,7 @@ export class PromptTemplates extends Resource {
 }
 
 export class McpServers extends Resource {
-  test(id: string): Promise<Json> { return this.t.request("POST", this.item(id) + "/test"); }
+  test(id: string, nodeId?: string): Promise<Json> { return this.t.request("POST", this.item(id) + "/test", { nodeId }); }
 }
 
 export class Secrets extends Resource {

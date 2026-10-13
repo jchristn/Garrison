@@ -3521,6 +3521,36 @@
               }
             }
           ]
+        },
+        {
+          "name": "Test stdio on selected worker",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/mcp-servers/{{mcpServerId}}/test?nodeId={{nodeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "mcp-servers",
+                "{{mcpServerId}}",
+                "test"
+              ],
+              "query": [
+                {
+                  "key": "nodeId",
+                  "value": "{{nodeId}}"
+                }
+              ]
+            },
+            "description": "Select a Ready worker with supportsMcpTests=true. Initializes and lists stdio MCP tools without invoking them. Uses configured command/environment on the worker."
+          },
+          "response": []
         }
       ]
     },

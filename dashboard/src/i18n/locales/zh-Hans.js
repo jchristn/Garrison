@@ -1899,4 +1899,5 @@ zhHans.tips.resources.deployments.artifactGlobs = "仅收集匹配的工作区�
 zhHans.resources.deployments.hints.artifactGlobs = "仅收集匹配的工作区相对文件，例如 reports/**/*.json。留空则禁用收集。";
 Object.assign(zhHans.common.eventCodes, { ArtifactCollectionWarning: "产物收集警告", ArtifactsCollected: "已收集产物" });
 zhHans.tips.nav.tabs.artifacts = zhHans.nav.items.artifacts.tip + " " + zhHans.tips.resources.artifacts.actions.download;
+Object.assign(zhHans.components.mcpTest, {"worker": "工作节点", "chooseWorker": "选择就绪的工作节点。配置的命令将在该节点列出工具，不会调用工具。", "runTest": "运行测试"});
 export default zhHans;

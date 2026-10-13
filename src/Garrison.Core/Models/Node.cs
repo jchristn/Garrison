@@ -13,6 +13,9 @@ namespace Garrison.Core.Models
     {
         #region Public-Members
 
+        /// <summary>Whether this worker supports transient stdio MCP diagnostics. Legacy workers default false.</summary>
+        public bool SupportsMcpTests { get; set; } = false;
+
         /// <summary>
         /// Identifier.
         /// </summary>

@@ -10,6 +10,9 @@ namespace Garrison.Core.Protocol
     /// </summary>
     public class NodeRegisterRequest
     {
+        /// <summary>Whether this worker supports transient stdio MCP diagnostics. Legacy workers default false.</summary>
+        public bool SupportsMcpTests { get; set; } = false;
+
         /// <summary>
         /// Node name, unique (Kubernetes pod name).
         /// </summary>

@@ -365,6 +365,16 @@ def t_artifacts():
         client.artifact_stores.delete(store["id"])
 
 
+def t_stdio_mcp():
+    node = next(n for n in client.nodes.list()["objects"] if n.get("supportsMcpTests") and n["status"] == "Ready")
+    server = client.mcp_servers.create({"name": f"sdk-py-stdio-{SUFFIX}", "transport": "Stdio", "command": "garrison-fake-harness", "arguments": ["--mcp-stdio"], "requiredTools": ["fixture_status"]})
+    try:
+        result = client.mcp_servers.test(server["id"], node_id=node["id"])
+        require(result["success"] and result["nodeId"] == node["id"] and "fixture_status" in result["tools"], "worker stdio diagnostic")
+    finally:
+        client.mcp_servers.delete(server["id"])
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -396,7 +406,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("conversation read and list", t_conversation_read), ("conversation delete", t_conversation_delete),
                  ("control nodes", t_control_nodes),
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
-                 ("artifact collection and binary download", t_artifacts), ("cleanup", t_cleanup)]:
+                 ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

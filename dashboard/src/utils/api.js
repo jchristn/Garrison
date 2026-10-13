@@ -494,8 +494,8 @@ class ApiClient {
     return this._request('DELETE', this._t(tenantId, `mcp-servers/${enc(id)}`));
   }
 
-  testMcpServer(tenantId, id) {
-    return this._request('POST', this._t(tenantId, `mcp-servers/${enc(id)}/test`));
+  testMcpServer(tenantId, id, nodeId) {
+    return this._request('POST', this._t(tenantId, `mcp-servers/${enc(id)}/test`), { query: { nodeId } });
   }
 
   listSecrets(tenantId, params) {

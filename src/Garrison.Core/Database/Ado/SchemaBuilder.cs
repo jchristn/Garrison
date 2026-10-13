@@ -154,6 +154,17 @@ namespace Garrison.Core.Database.Ado
             v19.Index("artifacts", "upload", true, "tenantid", "runid", "leaseepoch", "repairattempt", "name");
             migrations.Add(new SchemaMigration(19, "Artifact stores, deployment collection globs, and run artifact metadata", v19._Statements, v19._Columns));
 
+            SchemaBuilder v20 = new SchemaBuilder(catalog, dialect);
+            v20.Column("nodes", "supportsmcptests", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v20.Table("mcp_tests", "id " + dialect.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + dialect.TypeId + " NOT NULL", "serverid " + dialect.TypeId + " NOT NULL", "nodeid " + dialect.TypeId + " NOT NULL",
+                "noderegisteredutc " + dialect.TypeTimestamp + " NOT NULL", "serverupdatedutc " + dialect.TypeTimestamp + " NOT NULL", "expiresutc " + dialect.TypeTimestamp + " NOT NULL",
+                "started " + dialect.TypeBool + " NOT NULL", "finished " + dialect.TypeBool + " NOT NULL", "success " + dialect.TypeBool + " NOT NULL", "durationms " + dialect.TypeBigInt + " NOT NULL", "timeoutms INTEGER NOT NULL", "error VARCHAR(2048)");
+            v20.Index("mcp_tests", "node", true, "nodeid");
+            v20.Index("mcp_tests", "expires", false, "expiresutc");
+            v20.Table("mcp_test_tools", "id " + dialect.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + dialect.TypeId + " NOT NULL", "testid " + dialect.TypeId + " NOT NULL", "kind VARCHAR(16) NOT NULL", "name VARCHAR(512) NOT NULL", "position INTEGER NOT NULL");
+            v20.Index("mcp_test_tools", "parent", false, "testid", "position");
+            migrations.Add(new SchemaMigration(20, "Transient worker stdio MCP diagnostics with structured outcomes", v20._Statements, v20._Columns));
+
             return migrations;
         }
 

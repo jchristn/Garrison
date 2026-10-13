@@ -134,6 +134,7 @@ namespace Garrison.Server.Runtime
             node.NodeVersion = request.Version;
             node.MaxConcurrentRuns = request.MaxConcurrentRuns;
             node.CredentialId = ctx.CredentialId;
+            node.SupportsMcpTests = request.SupportsMcpTests;
             node.LastHeartbeatUtc = DateTime.UtcNow;
             node.RegisteredUtc = DateTime.UtcNow;
             node.ActiveRuns = 0;

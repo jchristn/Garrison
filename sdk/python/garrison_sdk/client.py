@@ -337,8 +337,9 @@ class PromptTemplates(Resource):
 
 
 class McpServers(Resource):
-    def test(self, id: str) -> Dict[str, Any]:
-        return self._t.request("POST", self._item(id) + "/test")
+    def test(self, id: str, node_id: Optional[str] = None) -> Dict[str, Any]:
+        """List HTTP tools, or test stdio on the explicitly selected worker."""
+        return self._t.request("POST", self._item(id) + "/test", {"nodeId": node_id})
 
 
 class Secrets(Resource):

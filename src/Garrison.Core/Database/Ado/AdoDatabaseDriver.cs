@@ -116,6 +116,7 @@ namespace Garrison.Core.Database.Ado
             WorkspaceTemplates = new AdoWorkspaceTemplateMethods(this);
             ArtifactStores = new AdoArtifactStoreMethods(this);
             Artifacts = new AdoArtifactMethods(this);
+            McpTests = new AdoMcpTestMethods(this);
             ModelPrices = new AdoModelPriceMethods(this);
             UsageQuotas = new AdoUsageQuotaMethods(this);
             Agents = new AdoAgentMethods(this);

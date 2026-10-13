@@ -98,7 +98,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET name = @name, nodepoolid = @nodepoolid, address = @address, nodeversion = @nodeversion, status = @status, maxconcurrentruns = @maxconcurrentruns, activeruns = @activeruns, credentialid = @credentialid, lastheartbeatutc = @lastheartbeatutc, registeredutc = @registeredutc, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET supportsmcptests = @supportsmcptests, name = @name, nodepoolid = @nodepoolid, address = @address, nodeversion = @nodeversion, status = @status, maxconcurrentruns = @maxconcurrentruns, activeruns = @activeruns, credentialid = @credentialid, lastheartbeatutc = @lastheartbeatutc, registeredutc = @registeredutc, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -113,6 +113,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "maxconcurrentruns", obj.MaxConcurrentRuns);
                     AdoDatabaseDriver.Add(command, "activeruns", obj.ActiveRuns);
                     AdoDatabaseDriver.Add(command, "credentialid", obj.CredentialId);
+                    AdoDatabaseDriver.Add(command, "supportsmcptests", obj.SupportsMcpTests);
                     AdoDatabaseDriver.Add(command, "lastheartbeatutc", obj.LastHeartbeatUtc);
                     AdoDatabaseDriver.Add(command, "registeredutc", obj.RegisteredUtc);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
@@ -199,6 +200,7 @@ namespace Garrison.Core.Database.Ado
             obj.MaxConcurrentRuns = AdoConverters.Int(reader, "maxconcurrentruns");
             obj.ActiveRuns = AdoConverters.Int(reader, "activeruns");
             obj.CredentialId = AdoConverters.NullableStr(reader, "credentialid");
+            obj.SupportsMcpTests = AdoConverters.Bool(reader, "supportsmcptests");
             obj.LastHeartbeatUtc = AdoConverters.NullableDate(reader, "lastheartbeatutc");
             obj.RegisteredUtc = AdoConverters.NullableDate(reader, "registeredutc");
             obj.Active = AdoConverters.Bool(reader, "active");
@@ -321,7 +323,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Node obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, name, nodepoolid, address, nodeversion, status, maxconcurrentruns, activeruns, credentialid, lastheartbeatutc, registeredutc, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @name, @nodepoolid, @address, @nodeversion, @status, @maxconcurrentruns, @activeruns, @credentialid, @lastheartbeatutc, @registeredutc, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (supportsmcptests, id, name, nodepoolid, address, nodeversion, status, maxconcurrentruns, activeruns, credentialid, lastheartbeatutc, registeredutc, active, isprotected, createdutc, lastupdateutc) VALUES (@supportsmcptests, @id, @name, @nodepoolid, @address, @nodeversion, @status, @maxconcurrentruns, @activeruns, @credentialid, @lastheartbeatutc, @registeredutc, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -333,6 +335,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "maxconcurrentruns", obj.MaxConcurrentRuns);
                 AdoDatabaseDriver.Add(command, "activeruns", obj.ActiveRuns);
                 AdoDatabaseDriver.Add(command, "credentialid", obj.CredentialId);
+                    AdoDatabaseDriver.Add(command, "supportsmcptests", obj.SupportsMcpTests);
                 AdoDatabaseDriver.Add(command, "lastheartbeatutc", obj.LastHeartbeatUtc);
                 AdoDatabaseDriver.Add(command, "registeredutc", obj.RegisteredUtc);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);

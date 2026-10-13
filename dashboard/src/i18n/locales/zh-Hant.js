@@ -1899,4 +1899,5 @@ zhHant.tips.resources.deployments.artifactGlobs = "僅收集相符的工作區�
 zhHant.resources.deployments.hints.artifactGlobs = "僅收集相符的工作區相對檔案，例如 reports/**/*.json。留空則停用收集。";
 Object.assign(zhHant.common.eventCodes, { ArtifactCollectionWarning: "產物收集警告", ArtifactsCollected: "已收集產物" });
 zhHant.tips.nav.tabs.artifacts = zhHant.nav.items.artifacts.tip + " " + zhHant.tips.resources.artifacts.actions.download;
+Object.assign(zhHant.components.mcpTest, {"worker": "工作節點", "chooseWorker": "選擇就緒的工作節點。設定的命令會在該節點列出工具，不會呼叫工具。", "runTest": "執行測試"});
 export default zhHant;

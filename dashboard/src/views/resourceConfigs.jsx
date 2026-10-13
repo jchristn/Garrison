@@ -523,7 +523,7 @@ export const mcpServersConfig = {
     return e;
   },
   rowActions: (r, ctx) => [
-    { label: ctx.t('resources.mcpServers.actions.test'), tip: actionTip(ctx.t, 'mcpServers', 'test'), onClick: () => ctx.setExtraModal(<McpTestModal load={() => ctx.apiClient.testMcpServer(ctx.tenantId, r.id)} name={r.name} onClose={() => ctx.setExtraModal(null)} />) }
+    { label: ctx.t('resources.mcpServers.actions.test'), tip: actionTip(ctx.t, 'mcpServers', 'test'), onClick: () => ctx.setExtraModal(<McpTestModal load={(nodeId) => ctx.apiClient.testMcpServer(ctx.tenantId, r.id, nodeId)} loadNodes={r.transport === 'Stdio' ? () => ctx.apiClient.listNodes({ pageSize: 1000 }) : null} name={r.name} onClose={() => ctx.setExtraModal(null)} />) }
   ]
 };
 

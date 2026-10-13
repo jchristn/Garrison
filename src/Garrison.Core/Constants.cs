@@ -9,6 +9,12 @@ namespace Garrison.Core
         /// <summary>Prefix for tenant-owned model price records.</summary>
         public const string ModelPriceIdPrefix = "mpr_";
 
+        /// <summary>Transient worker MCP diagnostic identifier prefix.</summary>
+        public const string McpTestIdPrefix = "mct_";
+
+        /// <summary>Worker MCP diagnostic tool outcome child prefix.</summary>
+        public const string McpTestToolIdPrefix = "mtt_";
+
         /// <summary>Usage quota identifier prefix.</summary>
         public const string UsageQuotaIdPrefix = "uqt_";
 

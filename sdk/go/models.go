@@ -160,6 +160,7 @@ type NodePool struct {
 
 // Node is a worker node. Executors lists what it can run; empty means Process only.
 type Node struct {
+	SupportsMcpTests     bool                   `json:"supportsMcpTests"`
 	ExecutorCapabilities []ExecutorCapabilities `json:"executorCapabilities,omitempty"`
 	ID                   string                 `json:"id"`
 	Name                 string                 `json:"name"`

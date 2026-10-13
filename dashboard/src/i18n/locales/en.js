@@ -1926,4 +1926,5 @@ en.tips.resources.deployments.artifactGlobs = "Collect only matching relative wo
 en.resources.deployments.hints.artifactGlobs = "Collect only matching relative workspace files, for example reports/**/*.json. Empty disables collection.";
 Object.assign(en.common.eventCodes, { ArtifactCollectionWarning: "Artifact collection warning", ArtifactsCollected: "Artifacts collected" });
 en.tips.nav.tabs.artifacts = en.nav.items.artifacts.tip + " " + en.tips.resources.artifacts.actions.download;
+Object.assign(en.components.mcpTest, {"worker": "Worker node", "chooseWorker": "Select a Ready worker. The configured command runs there to list tools; no tools are invoked.", "runTest": "Run test"});
 export default en;

@@ -71,7 +71,7 @@ namespace Garrison.Core.Database
                 "workspace_templates",
                 "workspace_template_files",
                 "artifact_stores",
-                "artifacts",
+                "artifacts", "mcp_tests", "mcp_test_tools",
                 "deployment_artifact_globs",
                 "model_prices",
                 "usage_quotas",

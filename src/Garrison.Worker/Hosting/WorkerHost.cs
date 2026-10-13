@@ -13,6 +13,8 @@ namespace Garrison.Worker.Hosting
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
     using Garrison.Core.Protocol;
+    using Garrison.Core.Responses;
+    using Garrison.Harnesses.Preflight;
     using Garrison.Core.Telemetry;
     using Garrison.Worker.Execution;
     using Garrison.Worker.Kubernetes;
@@ -155,6 +157,9 @@ namespace Garrison.Worker.Hosting
         private readonly ConcurrentDictionary<string, ActiveRun> _Runs = new ConcurrentDictionary<string, ActiveRun>(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, Task> _RunTasks = new ConcurrentDictionary<string, Task>(StringComparer.Ordinal);
         private readonly Padlock<string> _RunLocks = new Padlock<string>();
+        private readonly ConcurrentDictionary<string, McpWorkerTestResult> _McpTestResults = new ConcurrentDictionary<string, McpWorkerTestResult>();
+        private Task _McpTestTask = Task.CompletedTask;
+        private int _McpHeartbeatWake = 0;
         private readonly CancellationTokenSource _Stop = new CancellationTokenSource();
         private readonly CancellationTokenSource _StopLeasing = new CancellationTokenSource();
         private readonly SemaphoreSlim _Slots;
@@ -312,7 +317,7 @@ namespace Garrison.Worker.Hosting
                 }
             }
 
-            Task all = Task.WhenAll(_RunTasks.Values.ToArray());
+            Task all = Task.WhenAll(_RunTasks.Values.Append(Volatile.Read(ref _McpTestTask)).ToArray());
             Task drained = await Task.WhenAny(all, Task.Delay(TimeSpan.FromSeconds(_Settings.DrainTimeoutSeconds), token)).ConfigureAwait(false);
             if (drained != all)
             {
@@ -327,6 +332,7 @@ namespace Garrison.Worker.Hosting
                 try
                 {
                     await _MainTask.ConfigureAwait(false);
+                    await Volatile.Read(ref _McpTestTask).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -423,6 +429,7 @@ namespace Garrison.Worker.Hosting
         {
             NodeRegisterRequest request = new NodeRegisterRequest();
             request.Name = _Settings.EffectiveNodeName;
+            request.SupportsMcpTests = true;
             request.Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
             request.Address = Environment.MachineName;
             request.MaxConcurrentRuns = _Settings.MaxConcurrentRuns;
@@ -480,9 +487,13 @@ namespace Garrison.Worker.Hosting
             NodeHeartbeatRequest request = new NodeHeartbeatRequest();
             request.NodeId = _NodeId ?? String.Empty;
             request.ActiveRuns = _Runs.Values.Select(r => new NodeRunLease { RunId = r.RunId, Epoch = r.Epoch }).ToList();
-            request.FreeCapacity = _Slots.CurrentCount;
+            request.McpTestResults = _McpTestResults.Values.ToList();
+            request.FreeCapacity = Math.Max(0, _Settings.MaxConcurrentRuns - _Runs.Count - (Volatile.Read(ref _McpTestTask).IsCompleted ? 0 : 1));
             request.Draining = Draining;
             NodeHeartbeatResponse response = await _Client.HeartbeatAsync(request, token).ConfigureAwait(false);
+
+            foreach (McpWorkerTestResult result in request.McpTestResults) _McpTestResults.TryRemove(result.Id, out _);
+            if (response.McpTest != null) StartMcpTest(response.McpTest, token);
 
             foreach (string runId in response.LostRunIds) await TransitionAsync(runId, true, token).ConfigureAwait(false);
             foreach (string runId in response.CancelRunIds) await TransitionAsync(runId, false, token).ConfigureAwait(false);
@@ -492,6 +503,68 @@ namespace Garrison.Worker.Hosting
                 _ = Task.Run(() => StopAsync(CancellationToken.None));
             }
             return response.LostRunIds.Count > 0 || response.CancelRunIds.Count > 0 || response.Drain;
+        }
+
+        private void StartMcpTest(McpWorkerTest test, CancellationToken token)
+        {
+            if (!test.Id.StartsWith(Garrison.Core.Constants.McpTestIdPrefix, StringComparison.Ordinal) || test.Id.Length > 64 || test.Id.Any(c => !Char.IsAsciiLetterOrDigit(c) && c != '_' && c != '-')) return;
+            if (Draining || !Volatile.Read(ref _McpTestTask).IsCompleted)
+            {
+                StoreMcpTestResult(new McpWorkerTestResult { Id = test.Id, Result = new McpServerTestResponse { Error = "Worker has no free diagnostic slot." } });
+                return;
+            }
+            Task task = Task.Run(async () =>
+            {
+                string work = Path.Combine(_Settings.WorkRoot, "mcp-tests", test.Id);
+                bool acquired = false;
+                using (CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    deadline.CancelAfter(TimeSpan.FromMilliseconds(Math.Max(1, (test.ExpiresUtc - DateTime.UtcNow).TotalMilliseconds)));
+                    try
+                    {
+                        // The lease long poll reserves a permit even while idle. Wait for its bounded poll to release it.
+                        await _Slots.WaitAsync(deadline.Token).ConfigureAwait(false);
+                        acquired = true;
+                        if (Draining)
+                        {
+                            StoreMcpTestResult(new McpWorkerTestResult { Id = test.Id, Result = new McpServerTestResponse { Error = "Worker is draining; diagnostic did not start." } });
+                            return;
+                        }
+                        Directory.CreateDirectory(work);
+                        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(work, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                        Dictionary<string, string> environment = new Dictionary<string, string>();
+                        foreach (string name in _Settings.EnvironmentAllowlist)
+                        {
+                            string? value = Environment.GetEnvironmentVariable(name);
+                            if (value != null) environment[name] = value;
+                        }
+                        McpServerTestResponse result = await new McpStdioProbe().TestAsync(test, Path.GetFullPath(work), environment, token).ConfigureAwait(false);
+                        StoreMcpTestResult(new McpWorkerTestResult { Id = test.Id, Result = result });
+                    }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+                    catch (OperationCanceledException)
+                    {
+                        StoreMcpTestResult(new McpWorkerTestResult { Id = test.Id, Result = new McpServerTestResponse { Error = "MCP diagnostic expired while waiting for a worker slot." } });
+                    }
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is InvalidOperationException)
+                    {
+                        StoreMcpTestResult(new McpWorkerTestResult { Id = test.Id, Result = new McpServerTestResponse { Error = "Worker MCP diagnostic failed: " + ex.GetType().Name + "." } });
+                    }
+                    finally
+                    {
+                        try { if (Directory.Exists(work)) Directory.Delete(work, true); }
+                        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { }
+                        if (acquired) _Slots.Release();
+                    }
+                }
+            }, CancellationToken.None);
+            Volatile.Write(ref _McpTestTask, task);
+        }
+
+        private void StoreMcpTestResult(McpWorkerTestResult result)
+        {
+            _McpTestResults[result.Id] = result;
+            Interlocked.Exchange(ref _McpHeartbeatWake, 1);
         }
 
         private void CountProbes(List<NodeCapabilityReport> capabilities)
@@ -510,6 +583,7 @@ namespace Garrison.Worker.Hosting
             int waited = 0;
             while (waited < delayMs)
             {
+                if (Interlocked.Exchange(ref _McpHeartbeatWake, 0) == 1) return;
                 int slice = Math.Min(_PauseCheckMs, delayMs - waited);
                 await Task.Delay(slice, token).ConfigureAwait(false);
                 waited += slice;

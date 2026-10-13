@@ -1945,4 +1945,5 @@ fr.tips.resources.deployments.artifactGlobs = "Collectez uniquement les fichiers
 fr.resources.deployments.hints.artifactGlobs = "Collectez uniquement les fichiers relatifs correspondants, par exemple reports/**/*.json. Une liste vide désactive la collecte.";
 Object.assign(fr.common.eventCodes, { ArtifactCollectionWarning: "Avertissement de collecte", ArtifactsCollected: "Fichiers collectés" });
 fr.tips.nav.tabs.artifacts = fr.nav.items.artifacts.tip + " " + fr.tips.resources.artifacts.actions.download;
+Object.assign(fr.components.mcpTest, {"worker": "Nœud worker", "chooseWorker": "Sélectionnez un worker prêt. La commande configurée y liste les outils ; aucun outil n’est exécuté.", "runTest": "Lancer le test"});
 export default fr;

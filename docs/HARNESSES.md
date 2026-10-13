@@ -447,3 +447,13 @@ Resume and native output schemas were checked on 2026-10-10 against the real CLI
 5. Use `compile-preview` to inspect the spec, then invoke the agent and watch the events.
 
 The same steps apply as a manifest; see `docs/MANIFESTS.md`.
+
+## Test a stdio MCP server on a worker
+
+In Configuration > MCP Servers, choose **Test**, select a Ready worker, and run the test. The worker must advertise `supportsMcpTests`; older workers are not offered. HTTP tests still run from the control plane.
+
+The equivalent request is `POST /v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test?nodeId={nodeId}`, requiring MCP configuration update permission. The response includes success, tool names, missing required tools, duration, selected node, and a safe error. C# exposes `McpServers.TestOnWorkerAsync`; Python and JavaScript accept a worker argument on `mcp_servers.test` / `mcpServers.test`; Go exposes `TestMcpServer`.
+
+The diagnostic runs the configured executable and arguments directly, with configured environment templates resolved on the server. It performs initialization and paginated `tools/list`, without calling tools. It uses a private working directory/home and one worker slot. On a one-slot worker it may wait for the current lease long poll to release its idle reservation; an occupied worker remains bounded by the dispatch deadline. Normal run heartbeats continue.
+
+The transient database queue contains configuration references and structured outcomes, without decrypted command/environment values. Claims are single-use and tied to the worker registration and configuration revision. One diagnostic may be pending per worker. Entries are deleted after the request and expired entries are removed on subsequent dispatch; a control-plane restart does not require a separate persistent job service. Defaults are 30 seconds to dispatch, 15 seconds for the protocol exchange, 1 MiB stdout, 50 pages, and 1,000 tool names. Timeout, cancellation, or completion stops the subprocess tree and cleans the private directory. Stderr and protocol error payloads are not returned; worker heartbeat/lease bodies are redacted in request history.

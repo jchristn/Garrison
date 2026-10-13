@@ -12,6 +12,9 @@ namespace Garrison.Sdk.Models
     {
         #region Public-Members
 
+        /// <summary>Whether this worker supports stdio MCP connection diagnostics.</summary>
+        public bool SupportsMcpTests { get; set; } = false;
+
         /// <summary>
         /// Identifier.
         /// </summary>

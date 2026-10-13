@@ -37,6 +37,7 @@ namespace Garrison.FakeHarness
         /// <returns>Exit code.</returns>
         public static async Task<int> Main(string[] args)
         {
+            if (args.Contains("--mcp-stdio")) return await FakeMcpServer.RunAsync(args).ConfigureAwait(false);
             FakeOptions options = FakeOptions.Parse(args);
             if (options.Version)
             {

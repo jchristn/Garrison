@@ -9,9 +9,10 @@ namespace Garrison.Core.Responses
     /// </summary>
     public class McpServerTestResponse
     {
-        /// <summary>
-        /// Whether the server answered tools/list.
-        /// </summary>
+        /// <summary>Worker selected for a stdio test, or null for an HTTP test.</summary>
+        public string? NodeId { get; set; } = null;
+
+        /// <summary>Whether the server answered tools/list.</summary>
         public bool Success { get; set; } = false;
 
         /// <summary>

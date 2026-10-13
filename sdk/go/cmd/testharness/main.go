@@ -712,7 +712,9 @@ func main() {
 		if link.URL == "" {
 			return errors.New("download link")
 		}
-		if _, err := client.Artifacts.Upload(ctx, run.ID, store.ID, artifact.Name, []byte("late upload"), artifact.LeaseEpoch, artifact.RepairAttempt, "text/plain"); !garrison.IsStatus(err, http.StatusConflict) { return fmt.Errorf("terminal upload fence: %v", err) }
+		if _, err := client.Artifacts.Upload(ctx, run.ID, store.ID, artifact.Name, []byte("late upload"), artifact.LeaseEpoch, artifact.RepairAttempt, "text/plain"); !garrison.IsStatus(err, http.StatusConflict) {
+			return fmt.Errorf("terminal upload fence: %v", err)
+		}
 		if err := client.Artifacts.Delete(ctx, artifact.ID); err != nil {
 			return err
 		}
@@ -722,6 +724,43 @@ func main() {
 		}
 		if len(rows.Objects) != 0 {
 			return errors.New("deleted artifact")
+		}
+		return nil
+	})
+	check("stdio MCP worker diagnostic", func(ctx context.Context) error {
+		var nodes garrison.EnumerationResult[garrison.Node]
+		if err := client.Nodes.List(ctx, nil, &nodes); err != nil {
+			return err
+		}
+		nodeID := ""
+		for _, node := range nodes.Objects {
+			if node.SupportsMcpTests && node.Status == "Ready" {
+				nodeID = node.ID
+				break
+			}
+		}
+		if nodeID == "" {
+			return errors.New("compatible worker")
+		}
+		var server struct {
+			ID string `json:"id"`
+		}
+		if err := client.McpServers.Create(ctx, map[string]any{"name": "sdk-go-stdio-" + suffix, "transport": "Stdio", "command": "garrison-fake-harness", "arguments": []string{"--mcp-stdio"}, "requiredTools": []string{"fixture_status"}}, &server); err != nil {
+			return err
+		}
+		defer client.McpServers.Delete(ctx, server.ID)
+		result, err := client.TestMcpServer(ctx, server.ID, nodeID)
+		if err != nil {
+			return err
+		}
+		found := false
+		for _, name := range result.Tools {
+			if name == "fixture_status" {
+				found = true
+			}
+		}
+		if !result.Success || result.NodeID != nodeID || !found {
+			return errors.New("worker stdio diagnostic")
 		}
 		return nil
 	})

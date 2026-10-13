@@ -1900,4 +1900,5 @@ ja.tips.resources.deployments.artifactGlobs = "reports/**/*.json などに一致
 ja.resources.deployments.hints.artifactGlobs = "reports/**/*.json などに一致するワークスペースの相対ファイルのみ収集します。空の場合は無効です。";
 Object.assign(ja.common.eventCodes, { ArtifactCollectionWarning: "成果物収集の警告", ArtifactsCollected: "成果物を収集しました" });
 ja.tips.nav.tabs.artifacts = ja.nav.items.artifacts.tip + " " + ja.tips.resources.artifacts.actions.download;
+Object.assign(ja.components.mcpTest, {"worker": "ワーカーノード", "chooseWorker": "準備完了のワーカーを選択します。設定済みコマンドでツールを一覧表示します。ツールは実行しません。", "runTest": "テストを実行"});
 export default ja;

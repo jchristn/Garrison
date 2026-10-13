@@ -1898,4 +1898,5 @@ yueHant.tips.resources.deployments.artifactGlobs = "只收集符合模式嘅工�
 yueHant.resources.deployments.hints.artifactGlobs = "只收集符合模式嘅工作區相對檔案，例如 reports/**/*.json。留空會停用收集。";
 Object.assign(yueHant.common.eventCodes, { ArtifactCollectionWarning: "產物收集警告", ArtifactsCollected: "已收集產物" });
 yueHant.tips.nav.tabs.artifacts = yueHant.nav.items.artifacts.tip + " " + yueHant.tips.resources.artifacts.actions.download;
+Object.assign(yueHant.components.mcpTest, {"worker": "工作節點", "chooseWorker": "選擇已就緒嘅工作節點。設定嘅命令會喺該節點列出工具，唔會呼叫工具。", "runTest": "執行測試"});
 export default yueHant;

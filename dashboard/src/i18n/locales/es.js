@@ -1949,4 +1949,5 @@ es.tips.resources.deployments.artifactGlobs = "Recopile solo archivos relativos 
 es.resources.deployments.hints.artifactGlobs = "Recopile solo archivos relativos coincidentes, por ejemplo reports/**/*.json. Vacío desactiva la recopilación.";
 Object.assign(es.common.eventCodes, { ArtifactCollectionWarning: "Advertencia de recopilación", ArtifactsCollected: "Archivos recopilados" });
 es.tips.nav.tabs.artifacts = es.nav.items.artifacts.tip + " " + es.tips.resources.artifacts.actions.download;
+Object.assign(es.components.mcpTest, {"worker": "Nodo trabajador", "chooseWorker": "Seleccione un trabajador listo. El comando configurado enumera herramientas allí; no se invocan herramientas.", "runTest": "Ejecutar prueba"});
 export default es;

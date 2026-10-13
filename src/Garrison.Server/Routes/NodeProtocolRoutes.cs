@@ -82,6 +82,7 @@ namespace Garrison.Server.Routes
             NodeHeartbeatRequest request = RouteHelpers.RequiredBody<NodeHeartbeatRequest>(context);
             Node node = await RequireNodeAsync(request.NodeId, context).ConfigureAwait(false);
             NodeHeartbeatResponse response = await _Nodes.HeartbeatAsync(node, request, context.Token).ConfigureAwait(false);
+            await _Context.Get<Garrison.Server.Services.WorkerMcpTestService>().HeartbeatAsync(node, request, response, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, response).ConfigureAwait(false);
         }
 

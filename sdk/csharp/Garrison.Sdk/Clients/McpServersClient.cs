@@ -24,6 +24,17 @@ namespace Garrison.Sdk.Clients
         {
         }
 
+        /// <summary>Run a stdio connection diagnostic on an explicitly selected Ready worker.</summary>
+        /// <param name="id">MCP server identifier.</param>
+        /// <param name="nodeId">Worker with SupportsMcpTests enabled.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Tool names, missing tools, duration, selected worker, and safe error.</returns>
+        public async Task<McpServerTestResponse> TestOnWorkerAsync(string id, string nodeId, CancellationToken token = default)
+        {
+            Dictionary<string, string?> query = new Dictionary<string, string?> { ["nodeId"] = nodeId };
+            return await Transport.SendAsync<McpServerTestResponse>(HttpMethod.Post, Collection() + "/" + Segment(id) + "/test", query: query, token: token).ConfigureAwait(false) ?? throw new InvalidOperationException("Empty response.");
+        }
+
         /// <summary>
         /// Connect to an MCP server and list its tools.
         /// </summary>

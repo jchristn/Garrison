@@ -1933,4 +1933,5 @@ de.tips.resources.deployments.artifactGlobs = "Nur passende relative Arbeitsdate
 de.resources.deployments.hints.artifactGlobs = "Nur passende relative Arbeitsdateien sammeln, zum Beispiel reports/**/*.json. Leer deaktiviert die Sammlung.";
 Object.assign(de.common.eventCodes, { ArtifactCollectionWarning: "Warnung beim Sammeln von Dateien", ArtifactsCollected: "Dateien gesammelt" });
 de.tips.nav.tabs.artifacts = de.nav.items.artifacts.tip + " " + de.tips.resources.artifacts.actions.download;
+Object.assign(de.components.mcpTest, {"worker": "Worker-Knoten", "chooseWorker": "Wählen Sie einen bereiten Worker. Der konfigurierte Befehl listet dort Werkzeuge auf; es werden keine Werkzeuge ausgeführt.", "runTest": "Test starten"});
 export default de;

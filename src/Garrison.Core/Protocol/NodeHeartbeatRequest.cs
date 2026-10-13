@@ -9,9 +9,10 @@ namespace Garrison.Core.Protocol
     /// </summary>
     public class NodeHeartbeatRequest
     {
-        /// <summary>
-        /// Node identifier.
-        /// </summary>
+        /// <summary>Idempotent outcomes; at most one pending test per worker.</summary>
+        public List<McpWorkerTestResult> McpTestResults { get; set; } = new List<McpWorkerTestResult>();
+
+        /// <summary>Node identifier.</summary>
         public string NodeId { get; set; } = String.Empty;
 
         /// <summary>

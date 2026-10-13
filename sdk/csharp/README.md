@@ -288,3 +288,7 @@ Kubernetes workers can report `warmStart: true` alongside `coldStartClass: "Cold
 ## Artifacts
 
 The artifact client lists metadata, reads individual records, downloads raw bytes, creates temporary download links, and deletes files. Deployments select `artifactStoreId` and explicit `artifactGlobs`; empty globs disable automatic collection. Uploads require the active run lease epoch and repair attempt. See [Run artifacts](../../docs/ARTIFACTS.md) for store configuration and API behavior.
+
+## Worker stdio MCP diagnostics
+
+Select a Ready node whose `supportsMcpTests` flag is true, then test the MCP server with that node ID. C# uses `McpServers.TestOnWorkerAsync`, Python uses `mcp_servers.test(id, node_id=...)`, JavaScript uses `mcpServers.test(id, nodeId)`, and Go uses `TestMcpServer(ctx, id, nodeID)`. HTTP testing retains its existing behavior. See [Harness diagnostics](../../docs/HARNESSES.md#test-a-stdio-mcp-server-on-a-worker).

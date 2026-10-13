@@ -1945,4 +1945,5 @@ it.tips.resources.deployments.artifactGlobs = "Raccogli solo file relativi corri
 it.resources.deployments.hints.artifactGlobs = "Raccogli solo file relativi corrispondenti, ad esempio reports/**/*.json. Una lista vuota disabilita la raccolta.";
 Object.assign(it.common.eventCodes, { ArtifactCollectionWarning: "Avviso di raccolta", ArtifactsCollected: "File raccolti" });
 it.tips.nav.tabs.artifacts = it.nav.items.artifacts.tip + " " + it.tips.resources.artifacts.actions.download;
+Object.assign(it.components.mcpTest, {"worker": "Nodo worker", "chooseWorker": "Seleziona un worker pronto. Il comando configurato elenca gli strumenti; nessuno strumento viene eseguito.", "runTest": "Avvia test"});
 export default it;
