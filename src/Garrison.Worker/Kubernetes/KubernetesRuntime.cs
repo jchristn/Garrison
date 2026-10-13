@@ -76,10 +76,19 @@ namespace Garrison.Worker.Kubernetes
             }
         }
 
+        /// <summary>Whether warm Pod creation, attach, reservation, and shared-pool coordination are permitted.</summary>
+        public bool WarmAvailable
+        {
+            get { return Available && _Settings.WarmPods.Enabled && _Settings.WarmPods.MaxCount > 0 && Volatile.Read(ref _WarmAvailable) == 1; }
+        }
+
         /// <summary>
         /// Why the executor is unavailable, or a summary when available.
         /// </summary>
         public string Detail { get; private set; } = "not initialized";
+
+        /// <summary>Worker Pod UID, when it was readable in the run namespace, for same-namespace warm Pod ownership.</summary>
+        public string? WorkerPodUid { get; private set; } = null;
 
         #endregion
 
@@ -89,6 +98,7 @@ namespace Garrison.Worker.Kubernetes
         private readonly Action<string>? _Log;
         private IKubernetes? _Client = null;
         private int _Available = 0;
+        private int _WarmAvailable = 0;
         private bool _Disposed = false;
 
         #endregion
@@ -162,6 +172,21 @@ namespace Garrison.Worker.Kubernetes
                     if (!await AllowedAsync(check[0], check[1], check[2], check[3], token).ConfigureAwait(false)) denied.Add(check[2] + " " + check[1] + (check[3].Length > 0 ? "/" + check[3] : String.Empty));
                 }
                 if (denied.Count > 0) return SetAvailable(false, "RBAC in namespace " + Namespace + " does not allow: " + String.Join(", ", denied));
+                _Settings.WarmPods.Validate();
+                List<string> warmDenied = new List<string>();
+                if (_Settings.WarmPods.Enabled)
+                {
+                    foreach (string[] check in new[]
+                    {
+                        new[] { "", "pods", "create", "" }, new[] { "", "pods", "update", "" }, new[] { "", "pods", "delete", "" }, new[] { "", "pods", "create", "attach" },
+                        new[] { "coordination.k8s.io", "leases", "get", "" }, new[] { "coordination.k8s.io", "leases", "create", "" }, new[] { "coordination.k8s.io", "leases", "update", "" }
+                    })
+                    {
+                        if (!await AllowedAsync(check[0], check[1], check[2], check[3], token).ConfigureAwait(false)) warmDenied.Add(check[2] + " " + check[1] + (check[3].Length > 0 ? "/" + check[3] : String.Empty));
+                    }
+                }
+                Interlocked.Exchange(ref _WarmAvailable, _Settings.WarmPods.Enabled && warmDenied.Count == 0 ? 1 : 0);
+                if (warmDenied.Count > 0) _Log?.Invoke("warm pods unavailable; cold execution remains available. Missing RBAC: " + String.Join(", ", warmDenied));
                 return SetAvailable(true, "namespace " + Namespace + ", image " + Image);
             }
             catch (Exception e) when (e is HttpOperationException || e is HttpRequestException || e is IOException || e is k8s.Exceptions.KubeConfigException || e is TaskCanceledException)
@@ -253,6 +278,7 @@ namespace Garrison.Worker.Kubernetes
             try
             {
                 V1Pod pod = await RequireClient().CoreV1.ReadNamespacedPodAsync(podName, Namespace, cancellationToken: token).ConfigureAwait(false);
+                WorkerPodUid = pod.Metadata?.Uid;
                 V1Container? container = pod.Spec?.Containers?.FirstOrDefault(c => c.Name == "worker") ?? pod.Spec?.Containers?.FirstOrDefault();
                 if (String.IsNullOrWhiteSpace(Image)) Image = container?.Image;
                 if (ImagePullPolicy == null) ImagePullPolicy = container?.ImagePullPolicy;

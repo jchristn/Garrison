@@ -9,9 +9,10 @@ namespace Garrison.Core.Protocol
     /// </summary>
     public class NodeLeaseResponse
     {
-        /// <summary>
-        /// Assignments; empty when the wait elapsed with no work.
-        /// </summary>
+        /// <summary>Eligible queued Kubernetes runs, bounded at 64, for warm-pool sizing. Zero for workers without warm support.</summary>
+        public int QueuedKubernetesRuns { get; set; } = 0;
+
+        /// <summary>Assignments; empty when the wait elapsed with no work.</summary>
         public List<RunAssignment> Assignments { get; set; } = new List<RunAssignment>();
     }
 }

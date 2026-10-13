@@ -18,6 +18,9 @@ namespace Garrison.Core.Compilation
         /// </summary>
         public string RunId { get; set; } = String.Empty;
 
+        /// <summary>Nondefault admission-time capabilities required by this run. Null preserves legacy execution.</summary>
+        public Garrison.Core.Models.ExecutorRequirements? RequiredCapabilities { get; set; } = null;
+
         /// <summary>
         /// Tenant identifier.
         /// </summary>

@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Kubernetes warm pods default to enabled, with bounded shared stock per pool/image/configuration and operator overrides. Authenticated stdin delivery executes one run per pod, then deletes it. Warm capability matching retains cold execution; migration 18 defaults existing workers to no warm promise. PVC workspaces and custom pod resources require cold execution (P11.20).
+
 - Named Process/KubernetesJob executor conformance gates cover the advertised capabilities. A local runner verifies separate run pods and existing isolation in a temporary K3S cluster, then removes it (P11.19).
 
 - Workers report structured executor capabilities. Deployments can require isolation, session support, startup class, and other capabilities; admission snapshots requirements, SQL filters before queue limits, and atomic claims recheck current reports. Migration 17 preserves legacy placement. All SDKs and the dashboard expose the contract (P11.18).

@@ -89,7 +89,7 @@ export interface ExecutorRequirements {
   coldStartClass?: ExecutorColdStart | null;
 }
 /** One worker-reported executor. Missing fields make no capability promise. */
-export interface ExecutorCapabilities extends ExecutorRequirements { executor: RunExecutor; }
+export interface ExecutorCapabilities extends ExecutorRequirements { executor: RunExecutor; warmStart?: boolean; }
 
 export interface RunPodResources {
   cpuRequest?: string | null; cpuLimit?: string | null; memoryRequest?: string | null; memoryLimit?: string | null;

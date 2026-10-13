@@ -131,6 +131,10 @@ namespace Garrison.Core.Database.Ado
             v17.Column("node_executors", "capreported", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
             migrations.Add(new SchemaMigration(17, "Executor capability negotiation and run requirements", v17._Statements, v17._Columns));
 
+            SchemaBuilder v18 = new SchemaBuilder(catalog, dialect);
+            v18.Column("node_executors", "capwarmstart", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            migrations.Add(new SchemaMigration(18, "Warm-start capability without removing cold execution support", v18._Statements, v18._Columns));
+
             return migrations;
         }
 

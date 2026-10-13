@@ -5,7 +5,7 @@ namespace Garrison.Worker.Kubernetes
     using Garrison.Core.Protocol;
 
     /// <summary>
-    /// What the worker hands a run pod through the spec Secret (mounted at /run/garrison/spec.json): the leased run
+    /// What the worker hands a run pod through the spec Secret (mounted at /run/garrison/spec.json) or authenticated warm-pod stdin: the leased run
     /// with its compiled execution spec, the protocol nonce, and the executor options run-one needs (plan D-033).
     /// </summary>
     public class RunPodEnvelope

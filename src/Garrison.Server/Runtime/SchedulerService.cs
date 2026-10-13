@@ -132,6 +132,7 @@ namespace Garrison.Server.Runtime
                     List<RunAssignment> claimed = await ClaimAsync(node, maxRuns - response.Assignments.Count, token).ConfigureAwait(false);
                     GarrisonMetrics.Observe(GarrisonMetricCatalog.ClaimDuration, GarrisonMetrics.SecondsSince(claimStart), "result", claimed.Count > 0 ? "assigned" : "empty");
                     response.Assignments.AddRange(claimed);
+                    if (node.ExecutorCapabilities.Any(c => c.WarmStart)) response.QueuedKubernetesRuns = await WarmQueueDepthAsync(node, token).ConfigureAwait(false);
                     if (response.Assignments.Count > 0) return response;
 
                     int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
@@ -189,6 +190,22 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private async Task<int> WarmQueueDepthAsync(Node node, CancellationToken token)
+        {
+            NodePool? pool = String.IsNullOrEmpty(node.NodePoolId) ? null : await _Database.NodePools.ReadAsync(node.NodePoolId, token).ConfigureAwait(false);
+            ClaimCandidateFilter filter = new ClaimCandidateFilter
+            {
+                HarnessTypes = node.Capabilities.Where(c => c.Available).Select(c => c.HarnessType).Distinct().ToList(),
+                NodePoolId = node.NodePoolId,
+                Executors = new List<RunExecutorEnum> { RunExecutorEnum.KubernetesJob },
+                ExecutorCapabilities = ExecutorCapabilityRules.Of(node).Where(c => c.Executor == RunExecutorEnum.KubernetesJob).ToList(),
+                AllowedTenantIds = pool != null && pool.Tenants.Count > 0 ? pool.Tenants : null,
+                Limit = 64
+            };
+            List<Run> queued = await _Database.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
+            return queued.Count(r => PlacementRules.MatchesPlacement(node, pool, r));
+        }
 
         private async Task<List<RunAssignment>> ClaimAsync(Node node, int maxRuns, CancellationToken token)
         {

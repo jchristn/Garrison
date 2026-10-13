@@ -45,6 +45,7 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("k8s-executor", "protocol-roundtrip", "Protocol: lines written by run-one's reporter parse back in order with the completion", ProtocolRoundTripAsync),
                 new TestCaseDescriptor("k8s-executor", "protocol-injection", "Protocol: lines with another nonce, a nonce mid-line, newline injection inside event text, replays, and lines after the completion are not accepted", ProtocolInjectionAsync),
                 new TestCaseDescriptor("k8s-executor", "protocol-limits", "Protocol: oversize, malformed, and wrong-typed lines are counted and ignored; diagnostics keep only non-protocol lines", ProtocolLimitsAsync),
+                new TestCaseDescriptor("k8s-executor", "run-one-stdin", "Warm input: a bounded stdin envelope executes once; extra input, malformed JSON, EOF, and oversize input cannot start another run", RunOneStdinAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-fake", "run-one: the fake harness runs through the process executor; harness output that mimics the prefix with the real nonce stays data", RunOneFakeAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-egress-canary", "run-one: the harness starts only once the egress canary is blocked; a reachable canary fails the run PodFailed without starting it", RunOneCanaryAsync),
                 new TestCaseDescriptor("k8s-executor", "run-one-persistent-workspace", "run-one: a PersistentVolume workspace is linked into the run directory, shared by later runs, and never deleted", RunOnePersistentAsync),
@@ -57,6 +58,7 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("k8s-executor", "diagnosis", "Diagnosis: unschedulable stays pending; image pull, config errors, eviction, deadline, and OOMKilled fail with clear messages", DiagnosisAsync),
                 new TestCaseDescriptor("k8s-executor", "reconcile-orphans", "Reconciliation: unfinished Jobs of runs or epochs not held are orphans; finished Jobs are left to their TTL", ReconcileOrphansAsync),
                 new TestCaseDescriptor("k8s-executor", "routing", "Routing: Process specs run as subprocesses, KubernetesJob specs go to the Job executor or fail NoCapableWorker without one", RoutingAsync),
+                new TestCaseDescriptor("k8s-executor", "warm-layout", "Warm pods preserve isolation and bounded adaptive stock", WarmLayoutAsync),
                 new TestCaseDescriptor("k8s-executor", "settings", "Settings: executor environment overrides and guards", SettingsAsync),
                 new TestCaseDescriptor("k8s-executor", "quantities", "Validation helpers: Kubernetes quantities and DNS-1123 names", QuantitiesAsync)
             };
@@ -72,6 +74,7 @@ namespace Test.Shared.Suites
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>
                 {
                     new TestCaseDescriptor(id, "capability-persistence", "Structured executor reports and deployment/run requirements persist without JSON (" + provider + ")", ct => CapabilityPersistenceAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "warm-capability-claim", "Warm reports persist and authorize both cold and warm claims (" + provider + ")", ct => WarmCapabilityClaimAsync(provider, ct)),
                     new TestCaseDescriptor(id, "capability-claim", "Capability filtering precedes limits and atomic claims reject changed or absent reports (" + provider + ")", ct => CapabilityClaimAsync(provider, ct)),
                     new TestCaseDescriptor(id, "persistence", "Deployment executor and pod resources, pool default executor, node executors, run executor, and PersistentVolume claims round-trip (" + provider + ")", ct => PersistenceAsync(provider, ct)),
                     new TestCaseDescriptor(id, "claim-filter", "Claim candidates: Process-only nodes never see KubernetesJob runs, even behind a backlog; capable nodes see both (" + provider + ")", ct => ClaimFilterAsync(provider, ct)),
@@ -249,6 +252,51 @@ namespace Test.Shared.Suites
             string? process = Environment.ProcessPath;
             if (!String.IsNullOrEmpty(process) && Path.GetFileNameWithoutExtension(process).Equals("dotnet", StringComparison.OrdinalIgnoreCase)) return process;
             return "dotnet";
+        }
+
+        private static async Task RunOneStdinAsync(CancellationToken token)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "garrison-stdin-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                ExecutionSpec spec = new ExecutionSpec
+                {
+                    RunId = "run_stdin_" + Guid.NewGuid().ToString("N"), TenantId = "ten_stdin", AgentName = "fake",
+                    HarnessType = HarnessTypeEnum.Generic, Executor = RunExecutorEnum.KubernetesJob,
+                    Executable = DotnetHost(), Arguments = new List<string> { FakeHarnessDll(), "--format", "plain", "--answer", "stdin once" },
+                    Parser = OutputParserEnum.PlainText, TimeoutSeconds = 30, KillGraceSeconds = 1
+                };
+                string nonce = Nonce();
+                RunPodEnvelope envelope = new RunPodEnvelope { Nonce = nonce, Assignment = new RunAssignment { RunId = spec.RunId, Epoch = 1, Spec = spec }, WorkRoot = root, EnvironmentAllowlist = new List<string> { "PATH", "DOTNET_ROOT", "TMPDIR", "LANG" } };
+                using (MemoryStream input = new MemoryStream(Encoding.UTF8.GetBytes(Serializer.Serialize(envelope) + "\n{bad second input}\n")))
+                using (MemoryStream output = new MemoryStream())
+                {
+                    Assert.Equal(0, await RunOneCommand.RunFromStdinAsync(input, output, 1024 * 1024, 5, token).ConfigureAwait(false), "One stdin run completes");
+                    PodLineParser parser = new PodLineParser(nonce, 1024 * 1024);
+                    int complete = 0;
+                    foreach (string line in Encoding.UTF8.GetString(output.ToArray()).Split('\n'))
+                    {
+                        if (parser.Accept(line)?.Type == PodLineTypeEnum.Complete) complete++;
+                    }
+                    Assert.Equal(1, complete, "A second input never starts another run");
+                    Assert.Equal(RunStatusEnum.Succeeded, parser.Completion!.Complete!.Status, "Completion is successful");
+                    Assert.True(parser.Completion.Complete.ResultText!.Contains("stdin once", StringComparison.Ordinal), "Expected harness output");
+                }
+                foreach (byte[] bytes in new List<byte[]> { Array.Empty<byte>(), Encoding.UTF8.GetBytes("invalid JSON\n"), Encoding.UTF8.GetBytes(new string('x', 1025) + "\n"), new byte[] { 255, 10 } })
+                {
+                    using (MemoryStream input = new MemoryStream(bytes))
+                    using (MemoryStream output = new MemoryStream())
+                    {
+                        Assert.Equal(3, await RunOneCommand.RunFromStdinAsync(input, output, 1024, 5, token).ConfigureAwait(false), "Invalid warm input fails closed");
+                        Assert.Equal(0L, output.Length, "No harness or completion starts for invalid input");
+                    }
+                }
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
         }
 
         private static async Task RunOneFakeAsync(CancellationToken token)
@@ -936,6 +984,69 @@ namespace Test.Shared.Suites
             }
         }
 
+        private static Task WarmLayoutAsync(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            WarmPodSettings settings = new WarmPodSettings();
+            Assert.True(settings.Enabled, "Warming defaults enabled");
+            Assert.Equal(1, WarmPodSizing.Desired(settings, 0, 0), "Idle minimum");
+            Assert.Equal(4, WarmPodSizing.Desired(settings, 100, 100), "Pressure never exceeds maximum");
+            Assert.Equal(3, WarmPodSizing.Desired(settings, 0, 1), "Arrival rate contributes to stock");
+            settings.Enabled = false;
+            Assert.Equal(0, WarmPodSizing.Desired(settings, 100, 100), "Disabled means no stock");
+            KubernetesExecutorSettings executor = new KubernetesExecutorSettings();
+            RunPodRequest request = new RunPodRequest
+            {
+                Assignment = new RunAssignment { RunId = "run_warm_layout", Epoch = 1, Spec = new ExecutionSpec { Executor = RunExecutorEnum.KubernetesJob } },
+                Namespace = "garrison", NodeName = "worker", Image = "worker:test"
+            };
+            V1Pod pod = new RunPodManifestBuilder(executor).BuildWarmPod(request, "test-group");
+            V1Container container = pod.Spec.Containers[0];
+            Assert.True(container.Stdin == true && container.StdinOnce == true && container.Tty != true, "One authenticated stdin delivery");
+            Assert.True(container.Args.Contains("--stdin") && !container.Args.Contains("--spec"), "No mounted run input");
+            Assert.True(pod.Spec.Volumes.All(v => v.Secret == null), "Idle stock holds no run credential Secret");
+            Assert.True(pod.Spec.AutomountServiceAccountToken == false && container.SecurityContext.ReadOnlyRootFilesystem == true, "Existing isolation retained");
+            Assert.Equal(10001L, pod.Spec.SecurityContext.RunAsUser!.Value, "Unprivileged runtime");
+            Assert.True(container.ReadinessProbe != null && pod.Metadata.Labels["garrison.io/warm-state"] == "idle", "Readiness gates reservation");
+            Assert.True(KubernetesWarmPool.Compatible(request.Assignment.Spec), "Default layout is compatible");
+            request.Assignment.Spec.Workspace.Kind = WorkspaceKindEnum.PersistentVolume;
+            Assert.True(!KubernetesWarmPool.Compatible(request.Assignment.Spec), "PVCs cannot silently use default layout");
+            request.Assignment.Spec.Workspace.Kind = WorkspaceKindEnum.Empty;
+            request.Assignment.Spec.PodResources = new RunPodResources { MemoryLimit = "256Mi" };
+            Assert.True(!KubernetesWarmPool.Compatible(request.Assignment.Spec), "Custom resource limits cannot silently use default layout");
+            return Task.CompletedTask;
+        }
+
+        private static async Task WarmCapabilityClaimAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                string tenant = "ten_warm_" + Guid.NewGuid().ToString("N");
+                Node node = NewNode("warm", RunExecutorEnum.KubernetesJob);
+                node.ExecutorCapabilities.Add(ExecutorCapabilityProfiles.For(RunExecutorEnum.KubernetesJob, true));
+                node = await db.Nodes.CreateAsync(node, token).ConfigureAwait(false);
+                Node saved = (await db.Nodes.ReadAsync(node.Id, token).ConfigureAwait(false))!;
+                Assert.True(saved.ExecutorCapabilities[0].WarmStart, "Warm support persists");
+                foreach (ExecutorColdStartEnum startup in new[] { ExecutorColdStartEnum.Cold, ExecutorColdStartEnum.Warm })
+                {
+                    Run run = NewRun(tenant, RunExecutorEnum.KubernetesJob);
+                    run.RequiredCapabilities.ColdStartClass = startup;
+                    run = await db.Runs.CreateAsync(run, token).ConfigureAwait(false);
+                    ClaimCandidateFilter filter = new ClaimCandidateFilter { AllowedTenantIds = new List<string> { tenant }, HarnessTypes = new List<HarnessTypeEnum> { HarnessTypeEnum.Generic }, ExecutorCapabilities = ExecutorCapabilityRules.Of(saved) };
+                    Assert.True((await db.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false)).Any(r => r.Id == run.Id), "Selection accepts " + startup);
+                    if (startup == ExecutorColdStartEnum.Warm)
+                    {
+                        node.ExecutorCapabilities[0].WarmStart = false;
+                        await db.Nodes.UpdateAsync(node, token).ConfigureAwait(false);
+                        Assert.True(!(await db.Runs.TryClaimAsync(run.Id, node.Id, node.Name, DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Atomic claim rejects lost warm support");
+                        node.ExecutorCapabilities[0].WarmStart = true;
+                        await db.Nodes.UpdateAsync(node, token).ConfigureAwait(false);
+                    }
+                    Assert.True((await db.Runs.TryClaimAsync(run.Id, node.Id, node.Name, DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Atomic claim accepts " + startup);
+                }
+            }
+        }
+
         private static async Task CapabilityPersistenceAsync(DatabaseTypeEnum provider, CancellationToken token)
         {
             using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
@@ -1170,6 +1281,12 @@ namespace Test.Shared.Suites
                 Deployment ok = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, tenantPath + "/deployments", processPv, 201, token).ConfigureAwait(false);
                 Assert.Equal(RunExecutorEnum.KubernetesJob, ok.Executor ?? RunExecutorEnum.Process, "Executor returned by the API");
                 Assert.Equal("2Gi", ok.PodResources.MemoryLimit ?? String.Empty, "Pod resources returned by the API");
+                processPv.Name = "warm-custom";
+                processPv.RequiredCapabilities.ColdStartClass = ExecutorColdStartEnum.Warm;
+                Assert.Equal(400, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, tenantPath + "/deployments", processPv, token).ConfigureAwait(false)).StatusCode, "Warm custom resources rejected");
+                processPv.PodResources = new RunPodResources();
+                Assert.Equal(400, (await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, tenantPath + "/deployments", processPv, token).ConfigureAwait(false)).StatusCode, "Warm PVC rejected");
+                processPv.RequiredCapabilities.ColdStartClass = null;
                 profile.SupportsResume = false;
                 await host.Server.Context.Database.HarnessProfiles.UpdateAsync(profile, token).ConfigureAwait(false);
                 processPv.Name = "session-required";

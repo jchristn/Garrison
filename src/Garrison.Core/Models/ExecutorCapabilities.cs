@@ -14,6 +14,14 @@ namespace Garrison.Core.Models
             set { _Executor = value; }
         }
 
+        /// <summary>Whether this executor also supports prestarted Warm runs while retaining its primary startup class.</summary>
+        public bool WarmStart
+        {
+            get { return _WarmStart; }
+            set { _WarmStart = value; }
+        }
+
+        private bool _WarmStart = false;
         private RunExecutorEnum _Executor = RunExecutorEnum.Process;
     }
 }

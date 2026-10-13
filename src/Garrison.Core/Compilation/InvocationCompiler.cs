@@ -541,6 +541,7 @@ namespace Garrison.Core.Compilation
                 spec.Conversation = turn;
             }
             spec.Executor = run.Executor;
+            spec.RequiredCapabilities = ExecutorCapabilityRules.RequiresReport(run.RequiredCapabilities) ? run.RequiredCapabilities.Clone() : null;
             spec.PodResources = run.Executor == RunExecutorEnum.KubernetesJob && !deployment.PodResources.IsEmpty ? deployment.PodResources.Clone() : null;
             if (spec.Workspace.Kind == WorkspaceKindEnum.PersistentVolume && run.Executor != RunExecutorEnum.KubernetesJob)
             {

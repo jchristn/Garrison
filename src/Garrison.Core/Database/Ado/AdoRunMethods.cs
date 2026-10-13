@@ -430,7 +430,7 @@ namespace Garrison.Core.Database.Ado
                         + " AND (capfilesystemsnapshot = " + _Driver.Dialect.BooleanLiteral(false) + " OR @" + prefix + "snapshot = " + _Driver.Dialect.BooleanLiteral(true) + ")"
                         + " AND (capsessioncontinuation = " + _Driver.Dialect.BooleanLiteral(false) + " OR @" + prefix + "session = " + _Driver.Dialect.BooleanLiteral(true) + ")"
                         + " AND (capcrossnoderestore = " + _Driver.Dialect.BooleanLiteral(false) + " OR @" + prefix + "restore = " + _Driver.Dialect.BooleanLiteral(true) + ")"
-                        + " AND (capcoldstartclass IS NULL OR capcoldstartclass = @" + prefix + "cold))");
+                        + " AND (capcoldstartclass IS NULL OR capcoldstartclass = @" + prefix + "cold OR (capcoldstartclass = 'Warm' AND @" + prefix + "warm = " + _Driver.Dialect.BooleanLiteral(true) + ")))");
                 }
                 clauses.Add("(" + String.Join(" OR ", matches) + ")");
             }
@@ -453,6 +453,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, prefix + "session", capability.SessionContinuation);
                     AdoDatabaseDriver.Add(command, prefix + "restore", capability.CrossNodeRestore);
                     AdoDatabaseDriver.Add(command, prefix + "cold", capability.ColdStartClass?.ToString());
+                    AdoDatabaseDriver.Add(command, prefix + "warm", capability.WarmStart);
                 }
                 AdoDatabaseDriver.Add(command, "max", filter.Limit);
                 AdoDatabaseDriver.Add(command, "skip", 0);
@@ -494,7 +495,7 @@ namespace Garrison.Core.Database.Ado
                 + " AND (" + _Table + ".capfilesystemsnapshot = " + falseValue + " OR nc.capfilesystemsnapshot = " + trueValue + ")"
                 + " AND (" + _Table + ".capsessioncontinuation = " + falseValue + " OR nc.capsessioncontinuation = " + trueValue + ")"
                 + " AND (" + _Table + ".capcrossnoderestore = " + falseValue + " OR nc.capcrossnoderestore = " + trueValue + ")"
-                + " AND (" + _Table + ".capcoldstartclass IS NULL OR nc.capcoldstartclass = " + _Table + ".capcoldstartclass)))";
+                + " AND (" + _Table + ".capcoldstartclass IS NULL OR nc.capcoldstartclass = " + _Table + ".capcoldstartclass OR (" + _Table + ".capcoldstartclass = 'Warm' AND nc.capwarmstart = " + trueValue + "))))";
             string claimSql =
                 "UPDATE " + _Table + " SET status = 'Leased', leasenodeid = @node, leasenodename = @nodename, leaseepoch = leaseepoch + 1, leaseexpiresutc = @expires, leasedutc = @now, lastupdateutc = @now " +
                 "WHERE id = @id AND status = 'Queued' AND " + requirementsMatch + " AND (@max <= 0 OR (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')) < @max);";

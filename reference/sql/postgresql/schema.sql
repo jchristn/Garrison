@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 17).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 18).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1139,3 +1139,6 @@ ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capsessioncontinuation BOO
 ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capcrossnoderestore BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capcoldstartclass VARCHAR(32);
 ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capreported BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Migration 18: Warm-start capability without removing cold execution support
+ALTER TABLE "node_executors" ADD COLUMN capwarmstart BOOLEAN NOT NULL DEFAULT FALSE;

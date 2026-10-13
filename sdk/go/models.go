@@ -133,6 +133,7 @@ type ExecutorRequirements struct {
 
 // ExecutorCapabilities is one worker-reported executor. Missing reports promise no advanced capabilities.
 type ExecutorCapabilities struct {
+	WarmStart bool `json:"warmStart,omitempty"`
 	ExecutorRequirements
 	Executor string `json:"executor"`
 }

@@ -149,7 +149,7 @@ All four use the same tenants, credentials, and RBAC.
 
 ## Executor capability negotiation
 
-Workers register an `executorCapabilities` record per executor. The server preserves legacy `executors` names for older clients; bare names make no advanced capability promise. Current Process workers report Process isolation, Immediate startup, and session continuation for harness profiles that support resume. Kubernetes Job workers report Container isolation and Cold startup. Neither executor currently claims egress enforcement, filesystem snapshots, cross-node restore, or warm startup.
+Workers register an `executorCapabilities` record per executor. The server preserves legacy `executors` names for older clients; bare names make no advanced capability promise. Current Process workers report Process isolation, Immediate startup, and session continuation for harness profiles that support resume. Kubernetes workers report Container isolation and Cold startup, plus `warmStart=true` when their enabled warm pool has the necessary RBAC. This supports both cold Jobs and single-use warm Pods. Neither executor currently claims egress enforcement, filesystem snapshots, or cross-node restore.
 
 Deployments specify `requiredCapabilities`. Defaults retain existing placement. Set `executor: "KubernetesJob"` when requiring Container isolation. Isolation matches at least the required level; boolean flags must be supported and an optional startup class matches exactly. Session continuation also requires a harness profile with `supportsResume`. Requirements are copied into the run at admission, so changing a deployment does not change queued work.
 

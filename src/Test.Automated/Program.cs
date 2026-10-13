@@ -42,6 +42,15 @@ namespace Test.Automated
                 if (args[i] == "--suites" && i + 1 < args.Length) prefixes.AddRange(args[i + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
             }
 
+            if (args.Contains("--warm-conformance"))
+            {
+                string kubeconfig = Environment.GetEnvironmentVariable("GARRISON_CONFORMANCE_KUBECONFIG") ?? throw new InvalidOperationException("A temporary kubeconfig is required.");
+                string image = Environment.GetEnvironmentVariable("GARRISON_CONFORMANCE_IMAGE") ?? "garrison-worker:warm-test";
+                using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMinutes(10)))
+                    Console.WriteLine(await WarmPodConformance.RunAsync(kubeconfig, image, timeout.Token).ConfigureAwait(false));
+                return 0;
+            }
+
             if (conformanceDirectory != null)
             {
                 await ExecutorConformanceManifests.WriteAsync(conformanceDirectory).ConfigureAwait(false);

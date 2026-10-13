@@ -22,6 +22,23 @@ namespace Garrison.Worker.Kubernetes
     /// </summary>
     public static class RunOneCommand
     {
+        /// <summary>Maximum warm spec bytes. Minimum 1024, maximum 64 MiB; default 16 MiB.</summary>
+        public static int MaxStdinSpecBytes
+        {
+            get { return _MaxStdinSpecBytes; }
+            set { _MaxStdinSpecBytes = Math.Clamp(value, 1024, 64 * 1024 * 1024); }
+        }
+
+        /// <summary>Seconds a warm pod waits for its one input. Minimum 1, maximum 86400; default 900.</summary>
+        public static int StdinWaitSeconds
+        {
+            get { return _StdinWaitSeconds; }
+            set { _StdinWaitSeconds = Math.Clamp(value, 1, 86400); }
+        }
+
+        private static int _MaxStdinSpecBytes = 16 * 1024 * 1024;
+        private static int _StdinWaitSeconds = 900;
+
         #region Public-Methods
 
         /// <summary>
@@ -42,13 +59,17 @@ namespace Garrison.Worker.Kubernetes
         public static int Run(string[] args)
         {
             string? path = null;
+            bool stdin = false;
             for (int i = 1; i < args.Length; i++)
             {
+                if (args[i] == "--stdin") stdin = true;
+                if (args[i] == "--max-spec-bytes" && i + 1 < args.Length && Int32.TryParse(args[++i], out int max)) MaxStdinSpecBytes = max;
+                if (args[i] == "--stdin-wait-seconds" && i + 1 < args.Length && Int32.TryParse(args[++i], out int idle)) StdinWaitSeconds = idle;
                 if (args[i] == "--spec" && i + 1 < args.Length) path = args[++i];
             }
-            if (String.IsNullOrEmpty(path))
+            if (!stdin && String.IsNullOrEmpty(path))
             {
-                Console.Error.WriteLine("usage: garrison-worker run-one --spec <path>");
+                Console.Error.WriteLine("usage: garrison-worker run-one --spec <path> | --stdin");
                 return 2;
             }
 
@@ -64,7 +85,9 @@ namespace Garrison.Worker.Kubernetes
                 stop.Cancel();
             }))
             {
-                return RunAsync(path, Console.OpenStandardOutput(), stop.Token).GetAwaiter().GetResult();
+                return (stdin
+                    ? RunFromStdinAsync(Console.OpenStandardInput(), Console.OpenStandardOutput(), MaxStdinSpecBytes, StdinWaitSeconds, stop.Token)
+                    : RunAsync(path!, Console.OpenStandardOutput(), stop.Token)).GetAwaiter().GetResult();
             }
         }
 
@@ -97,6 +120,68 @@ namespace Garrison.Worker.Kubernetes
                 return 3;
             }
 
+            return await RunEnvelopeAsync(envelope, output, hardened, token).ConfigureAwait(false);
+        }
+
+        /// <summary>Wait for one bounded newline-delimited envelope on stdin, then execute once and exit.</summary>
+        /// <param name="input">Attach stdin.</param>
+        /// <param name="output">Protocol output.</param>
+        /// <param name="maxBytes">Maximum input bytes.</param>
+        /// <param name="waitSeconds">Idle timeout in seconds.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Zero after a completion; three for absent, invalid, oversized, or timed-out input.</returns>
+        public static async Task<int> RunFromStdinAsync(Stream input, Stream output, int maxBytes, int waitSeconds, CancellationToken token)
+        {
+            if (input == null) throw new ArgumentNullException(nameof(input));
+            if (output == null) throw new ArgumentNullException(nameof(output));
+            if (maxBytes < 1) throw new ArgumentOutOfRangeException(nameof(maxBytes));
+            if (waitSeconds < 1) throw new ArgumentOutOfRangeException(nameof(waitSeconds));
+            bool hardened = ProcessHardening.DisableDumping();
+            string ready = Path.Combine(Path.GetTempPath(), "garrison-warm-ready");
+            RunPodEnvelope? envelope = null;
+            try
+            {
+                // Initialize serialization before marking the pod ready; no tenant secrets have arrived yet.
+                Serializer.Serialize(new RunPodEnvelope());
+                await File.WriteAllTextAsync(ready, String.Empty, token).ConfigureAwait(false);
+                using (CancellationTokenSource idle = new CancellationTokenSource(TimeSpan.FromSeconds(waitSeconds)))
+                using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, idle.Token))
+                using (MemoryStream bytes = new MemoryStream())
+                {
+                    byte[] buffer = new byte[4096];
+                    bool ended = false;
+                    while (!ended)
+                    {
+                        int count = await input.ReadAsync(buffer.AsMemory(), linked.Token).ConfigureAwait(false);
+                        if (count == 0) return 3;
+                        int newline = Array.IndexOf(buffer, (byte)'\n', 0, count);
+                        int take = newline < 0 ? count : newline;
+                        if (bytes.Length + take > maxBytes) return 3;
+                        bytes.Write(buffer, 0, take);
+                        ended = newline >= 0;
+                    }
+                    envelope = Serializer.Deserialize<RunPodEnvelope>(new UTF8Encoding(false, true).GetString(bytes.ToArray()));
+                }
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is DecoderFallbackException || ex is System.Text.Json.JsonException || ex is OperationCanceledException)
+            {
+                Console.Error.WriteLine("[run-one] warm input was missing, invalid, or timed out.");
+                return 3;
+            }
+            finally
+            {
+                try { File.Delete(ready); } catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { }
+            }
+            if (envelope == null || String.IsNullOrEmpty(envelope.Assignment.RunId)) return 3;
+            return await RunEnvelopeAsync(envelope, output, hardened, token).ConfigureAwait(false);
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private static async Task<int> RunEnvelopeAsync(RunPodEnvelope envelope, Stream output, bool hardened, CancellationToken token)
+        {
             using (StreamWriter writer = new StreamWriter(output, new UTF8Encoding(false), 65536, true))
             {
                 writer.AutoFlush = false;
@@ -154,11 +239,6 @@ namespace Garrison.Worker.Kubernetes
             }
             return 0;
         }
-
-        #endregion
-
-        #region Private-Methods
-
         private static async Task<RunCompleteRequest?> WaitForEgressPolicyAsync(RunPodEnvelope envelope, PodLineReporter reporter, CancellationToken token)
         {
             if (String.IsNullOrWhiteSpace(envelope.EgressCanary)) return null;

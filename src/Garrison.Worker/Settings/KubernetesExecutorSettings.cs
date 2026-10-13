@@ -21,6 +21,15 @@ namespace Garrison.Worker.Settings
         /// </summary>
         public bool Enabled { get; set; } = false;
 
+        /// <summary>Warm run pod bounds, enabled by default for Kubernetes execution.</summary>
+        public WarmPodSettings WarmPods
+        {
+            get { return _WarmPods; }
+            set { _WarmPods = value ?? new WarmPodSettings(); }
+        }
+
+        private WarmPodSettings _WarmPods = new WarmPodSettings();
+
         /// <summary>
         /// Kubeconfig file used when the worker is not running in a cluster (development). Null uses the in-cluster
         /// service account. Environment: GARRISON_WORKER_KUBECONFIG.
@@ -376,6 +385,7 @@ namespace Garrison.Worker.Settings
         /// <exception cref="ArgumentException">Thrown when an override has an invalid value.</exception>
         public void ApplyEnvironment()
         {
+            WarmPods.ApplyEnvironment();
             string? value = Env("GARRISON_WORKER_KUBERNETES_ENABLED");
             if (value != null && Boolean.TryParse(value, out bool enabled)) Enabled = enabled;
             value = Env("GARRISON_WORKER_KUBECONFIG");

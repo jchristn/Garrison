@@ -7,6 +7,7 @@ namespace Garrison.Worker.Kubernetes
     using System.Linq;
     using System.Net;
     using System.Net.Http;
+    using System.Net.WebSockets;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
@@ -50,17 +51,22 @@ namespace Garrison.Worker.Kubernetes
             }
         }
 
+        /// <summary>Successful direct cold-path mutating API calls, excluding Kubernetes controller work.</summary>
+        public long ColdApiWrites { get { return Interlocked.Read(ref _ColdApiWrites); } }
+
         #endregion
 
         #region Private-Members
 
         private readonly KubernetesRuntime _Runtime;
+        private readonly KubernetesWarmPool? _WarmPool;
         private readonly RunPodManifestBuilder _Builder;
         private readonly string _NodeName;
         private readonly List<string> _EnvironmentAllowlist;
         private readonly int _McpPreflightTimeoutMs;
         private readonly Action<string>? _Log;
         private int _DeleteTimeoutSeconds = 15;
+        private long _ColdApiWrites;
 
         #endregion
 
@@ -74,8 +80,9 @@ namespace Garrison.Worker.Kubernetes
         /// <param name="environmentAllowlist">Worker environment allowlist passed to run-one.</param>
         /// <param name="mcpPreflightTimeoutMs">MCP pre-flight timeout passed to run-one.</param>
         /// <param name="log">Optional log callback (never receives secret values).</param>
+        /// <param name="warmPool">Optional shared warm stock manager.</param>
         /// <exception cref="ArgumentNullException">Thrown when runtime or nodeName is null.</exception>
-        public KubernetesJobRunExecutor(KubernetesRuntime runtime, string nodeName, List<string> environmentAllowlist, int mcpPreflightTimeoutMs, Action<string>? log = null)
+        public KubernetesJobRunExecutor(KubernetesRuntime runtime, string nodeName, List<string> environmentAllowlist, int mcpPreflightTimeoutMs, Action<string>? log = null, KubernetesWarmPool? warmPool = null)
         {
             _Runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             _NodeName = nodeName ?? throw new ArgumentNullException(nameof(nodeName));
@@ -83,6 +90,7 @@ namespace Garrison.Worker.Kubernetes
             _McpPreflightTimeoutMs = mcpPreflightTimeoutMs;
             _Builder = new RunPodManifestBuilder(runtime.Settings);
             _Log = log;
+            _WarmPool = warmPool;
         }
 
         #endregion
@@ -154,6 +162,15 @@ namespace Garrison.Worker.Kubernetes
             string ns = _Runtime.Namespace;
             SecretScrubber scrubber = new SecretScrubber(spec.ScrubValues);
             RunPodRequest request = BuildRequest(assignment, nonce, ns);
+            bool requireWarm = spec.RequiredCapabilities?.ColdStartClass == ExecutorColdStartEnum.Warm;
+            bool allowWarm = spec.RequiredCapabilities?.ColdStartClass != ExecutorColdStartEnum.Cold;
+            if (requireWarm && (_WarmPool?.Available != true || !KubernetesWarmPool.Compatible(spec)))
+                return Fail(RunOutcomeEnum.NoCapableWorker, "This worker cannot satisfy the required warm-pod layout.");
+            if (allowWarm && _WarmPool?.Available == true && KubernetesWarmPool.Compatible(spec))
+            {
+                RunCompleteRequest? warm = await ExecuteWarmAsync(assignment, request, reporter, nonce, scrubber, requireWarm, token).ConfigureAwait(false);
+                if (warm != null) return warm;
+            }
             if (Encoding.UTF8.GetByteCount(request.EnvelopeJson) > 1000000)
             {
                 return Fail(RunOutcomeEnum.InternalError, "The compiled run spec is larger than a Kubernetes Secret can hold (1 MiB); reduce inline files or prompts.");
@@ -178,11 +195,13 @@ namespace Garrison.Worker.Kubernetes
                         GarrisonMetrics.Count(GarrisonMetricCatalog.K8sJobs, "result", "create_failed");
                         throw;
                     }
+                    Interlocked.Increment(ref _ColdApiWrites);
                     created = true;
                     GarrisonMetrics.Count(GarrisonMetricCatalog.K8sJobs, "result", "created");
                     try
                     {
                         await client.CoreV1.CreateNamespacedSecretAsync(_Builder.BuildSecret(request, createdJob), ns, cancellationToken: linked.Token).ConfigureAwait(false);
+                        Interlocked.Increment(ref _ColdApiWrites);
                     }
                     catch (HttpOperationException e)
                     {
@@ -261,6 +280,79 @@ namespace Garrison.Worker.Kubernetes
                     if (created) await DeleteAsync(jobName).ConfigureAwait(false);
                     string detail = e is HttpOperationException http ? Describe(http) : e.Message;
                     return Fail(RunOutcomeEnum.PodFailed, scrubber.Scrub("Run pod failed: " + detail));
+                }
+            }
+        }
+
+        private async Task<RunCompleteRequest?> ExecuteWarmAsync(RunAssignment assignment, RunPodRequest request, IRunReporter reporter,
+            string nonce, SecretScrubber scrubber, bool required, CancellationToken token)
+        {
+            if (Encoding.UTF8.GetByteCount(request.EnvelopeJson) > _Runtime.Settings.WarmPods.MaxSpecBytes)
+                return Fail(RunOutcomeEnum.InternalError, "The compiled run spec exceeds the configured warm-pod input limit.");
+            using (CancellationTokenSource watchdog = new CancellationTokenSource(TimeSpan.FromSeconds(_Builder.ActiveDeadlineSeconds(assignment.Spec))))
+            using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, watchdog.Token))
+            {
+                V1Pod? pod = null;
+                try
+                {
+                    pod = await _WarmPool!.TakeAsync(assignment, required, linked.Token).ConfigureAwait(false);
+                    if (pod == null) return required ? Fail(RunOutcomeEnum.PodFailed, "No warm pod became ready within the pending timeout.") : null;
+                    IKubernetes client = _Runtime.Client!;
+                    using (WebSocket attach = await client.WebSocketNamespacedPodAttachAsync(pod.Metadata.Name, _Runtime.Namespace,
+                        container: RunPodNames.ContainerName, stdin: true, stdout: false, stderr: false, tty: false,
+                        webSocketSubProtocol: "v4.channel.k8s.io", cancellationToken: linked.Token).ConfigureAwait(false))
+                    {
+                        byte[] payload = Encoding.UTF8.GetBytes(request.EnvelopeJson + "\n");
+                        // Kubernetes channel zero carries stdin. Bound individual websocket messages.
+                        for (int offset = 0; offset < payload.Length; offset += 16384)
+                        {
+                            int length = Math.Min(16384, payload.Length - offset);
+                            byte[] frame = new byte[length + 1];
+                            Buffer.BlockCopy(payload, offset, frame, 1, length);
+                            await attach.SendAsync(new ArraySegment<byte>(frame), WebSocketMessageType.Binary, true, linked.Token).ConfigureAwait(false);
+                        }
+                        await attach.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, String.Empty, linked.Token).ConfigureAwait(false);
+                    }
+                    Lifecycle(reporter, "RunPodStarted", "Reserved warm run pod " + pod.Metadata.Name + ".");
+                    PodLineParser parser = new PodLineParser(nonce, _Runtime.Settings.MaxLineBytes);
+                    RunCompleteRequest? complete = await StreamAsync(client, _Runtime.Namespace, pod.Metadata.Name, parser, reporter, linked.Token).ConfigureAwait(false);
+                    if (complete != null)
+                    {
+                        if (complete.Status == RunStatusEnum.Cancelled && !token.IsCancellationRequested)
+                            return Lost(reporter, "Warm run pod was stopped outside Garrison before completion.");
+                        return complete;
+                    }
+                    V1Pod? ended = await ReadPodAsync(client, _Runtime.Namespace, pod.Metadata.Name, linked.Token).ConfigureAwait(false);
+                    RunPodDiagnosis diagnosis = RunPodDiagnosis.OfEndedWithoutCompletion(ended, MemoryLimit(ended ?? pod));
+                    return diagnosis.Outcome == RunOutcomeEnum.NodeLost ? Lost(reporter, scrubber.Scrub(diagnosis.Message) ?? String.Empty)
+                        : Fail(diagnosis.Outcome, scrubber.Scrub(diagnosis.Message));
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    return new RunCompleteRequest { Status = RunStatusEnum.Cancelled, Outcome = RunOutcomeEnum.Cancelled, ErrorMessage = "Run was cancelled.", CompletedUtc = DateTime.UtcNow };
+                }
+                catch (OperationCanceledException) when (watchdog.IsCancellationRequested)
+                {
+                    RunCompleteRequest result = Fail(RunOutcomeEnum.TimedOut, "Warm run pod exceeded the run watchdog.");
+                    result.Status = RunStatusEnum.TimedOut;
+                    return result;
+                }
+                catch (Exception ex) when (ex is HttpOperationException || ex is HttpRequestException || ex is IOException || ex is WebSocketException)
+                {
+                    // Never log attach exceptions with the run input or provider credentials.
+                    return Fail(RunOutcomeEnum.PodFailed, "Warm run pod transport failed: " + ex.GetType().Name + ".");
+                }
+                finally
+                {
+                    if (pod != null)
+                    {
+                        using (CancellationTokenSource cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(DeleteTimeoutSeconds)))
+                        {
+                            try { await _WarmPool!.DeleteAsync(pod.Metadata.Name, cleanup.Token).ConfigureAwait(false); }
+                            catch (Exception ex) when (ex is HttpOperationException || ex is HttpRequestException || ex is OperationCanceledException)
+                            { _Log?.Invoke("warm pod cleanup deferred: " + ex.GetType().Name); }
+                        }
+                    }
                 }
             }
         }
@@ -436,7 +528,7 @@ namespace Garrison.Worker.Kubernetes
             {
                 try
                 {
-                    await _Runtime.DeleteJobAsync(jobName, timeout.Token).ConfigureAwait(false);
+                    if (await _Runtime.DeleteJobAsync(jobName, timeout.Token).ConfigureAwait(false)) Interlocked.Increment(ref _ColdApiWrites);
                     GarrisonMetrics.Count(GarrisonMetricCatalog.K8sJobs, "result", "deleted");
                 }
                 catch (Exception e) when (e is OperationCanceledException || e is HttpRequestException || e is IOException)

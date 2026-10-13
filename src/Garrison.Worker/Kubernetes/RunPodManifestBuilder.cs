@@ -233,6 +233,44 @@ namespace Garrison.Worker.Kubernetes
             return job;
         }
 
+        /// <summary>Build one idle warm Pod with the cold executor's existing isolation controls and no spec Secret.</summary>
+        /// <param name="request">Pool/image request with an idle placeholder run ID.</param>
+        /// <param name="group">Stable shared pool/image identifier.</param>
+        /// <returns>Idle warm Pod, ready only when stdin delivery is initialized.</returns>
+        public V1Pod BuildWarmPod(RunPodRequest request, string group)
+        {
+            V1Job job = BuildJob(request);
+            V1Pod pod = new V1Pod();
+            pod.ApiVersion = "v1";
+            pod.Kind = "Pod";
+            pod.Metadata = new V1ObjectMeta
+            {
+                Name = job.Metadata.Name,
+                NamespaceProperty = request.Namespace,
+                Labels = new Dictionary<string, string>(job.Spec.Template.Metadata.Labels)
+            };
+            pod.Metadata.Labels["garrison.io/warm-group"] = group;
+            pod.Metadata.Labels["garrison.io/warm-state"] = "idle";
+            pod.Spec = job.Spec.Template.Spec;
+            pod.Spec.Volumes = pod.Spec.Volumes.Where(v => v.Name != "spec").ToList();
+            V1Container container = pod.Spec.Containers[0];
+            container.VolumeMounts = container.VolumeMounts.Where(v => v.Name != "spec").ToList();
+            container.Args = new List<string>
+            {
+                "run-one", "--stdin", "--stdin-wait-seconds", _Settings.WarmPods.IdleTimeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "--max-spec-bytes", _Settings.WarmPods.MaxSpecBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            };
+            container.Stdin = true;
+            container.StdinOnce = true;
+            container.Tty = false;
+            container.ReadinessProbe = new V1Probe
+            {
+                Exec = new V1ExecAction { Command = new List<string> { "/bin/sh", "-c", "test -f /tmp/garrison-warm-ready" } },
+                InitialDelaySeconds = 1, PeriodSeconds = 1, TimeoutSeconds = 1, FailureThreshold = 3
+            };
+            return pod;
+        }
+
         /// <summary>
         /// Mount path of a PersistentVolume workspace for a spec, or null when the spec's workspace is not one.
         /// </summary>

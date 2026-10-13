@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 17).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 18).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1139,3 +1139,6 @@ ALTER TABLE "node_executors" ADD COLUMN capsessioncontinuation INTEGER NOT NULL 
 ALTER TABLE "node_executors" ADD COLUMN capcrossnoderestore INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "node_executors" ADD COLUMN capcoldstartclass VARCHAR(32);
 ALTER TABLE "node_executors" ADD COLUMN capreported INTEGER NOT NULL DEFAULT 0;
+
+-- Migration 18: Warm-start capability without removing cold execution support
+ALTER TABLE "node_executors" ADD COLUMN capwarmstart INTEGER NOT NULL DEFAULT 0;

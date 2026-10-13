@@ -151,6 +151,13 @@ spec:
             {{- with $.Values.kubernetesExecutor }}
             {{- if .enabled }}
             - { name: GARRISON_WORKER_KUBERNETES_ENABLED, value: "true" }
+            {{- $warm := mergeOverwrite (deepCopy .warmPods) (default dict $pool.warmPods) }}
+            - { name: GARRISON_WORKER_WARM_PODS_ENABLED, value: {{ $warm.enabled | quote }} }
+            - { name: GARRISON_WORKER_WARM_PODS_MIN, value: {{ $warm.minCount | int | quote }} }
+            - { name: GARRISON_WORKER_WARM_PODS_MAX, value: {{ $warm.maxCount | int | quote }} }
+            - { name: GARRISON_WORKER_WARM_PODS_IDLE_SECONDS, value: {{ $warm.idleTimeoutSeconds | int | quote }} }
+            - { name: GARRISON_WORKER_WARM_PODS_INTERVAL_SECONDS, value: {{ $warm.reconcileIntervalSeconds | int | quote }} }
+            - { name: GARRISON_WORKER_WARM_PODS_MAX_SPEC_BYTES, value: {{ $warm.maxSpecBytes | int | quote }} }
             - { name: GARRISON_WORKER_JOB_TTL_SECONDS, value: {{ .jobTtlSeconds | quote }} }
             - { name: GARRISON_WORKER_RUN_PENDING_TIMEOUT_SECONDS, value: {{ .pendingTimeoutSeconds | quote }} }
             {{- if and .egressCanary $.Values.networkPolicies.enabled }}

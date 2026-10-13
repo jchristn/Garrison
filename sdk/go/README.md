@@ -253,4 +253,6 @@ Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `ag
 
 ## Executor capabilities
 
-Deployments accept `requiredCapabilities`: `isolation` (`Process`, `Container`, `SandboxedRuntime`), `egressControl`, `filesystemSnapshot`, `sessionContinuation`, `crossNodeRestore`, and optional exact `coldStartClass` (`Immediate`, `Cold`, `Warm`). Defaults add no requirement beyond Process. Runs retain an admission-time copy. Workers expose `executorCapabilities`; legacy executor names promise no advanced capabilities. Set `executor: "KubernetesJob"` with Container requirements. Unsupported requirements remain queued with `NoCapableWorker`.
+Deployments accept `requiredCapabilities`: `isolation` (`Process`, `Container`, `SandboxedRuntime`), `egressControl`, `filesystemSnapshot`, `sessionContinuation`, `crossNodeRestore`, and optional required `coldStartClass` (`Immediate`, `Cold`, `Warm`). Defaults add no requirement beyond Process. Runs retain an admission-time copy. Workers expose `executorCapabilities`; legacy executor names promise no advanced capabilities. Set `executor: "KubernetesJob"` with Container requirements. Unsupported requirements remain queued with `NoCapableWorker`.
+
+Kubernetes workers can report `warmStart: true` alongside `coldStartClass: "Cold"`; this satisfies either Cold or Warm requirements. Warm support requires enabled warming and Kubernetes RBAC. Explicit Warm requirements reject PersistentVolume workspaces and custom pod resources.

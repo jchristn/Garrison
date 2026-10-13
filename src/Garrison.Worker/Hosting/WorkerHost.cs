@@ -151,6 +151,7 @@ namespace Garrison.Worker.Hosting
         private readonly CapabilityProber _Prober;
         private readonly KubernetesRuntime? _Kubernetes = null;
         private readonly KubernetesJobReconciler? _Reconciler = null;
+        private readonly KubernetesWarmPool? _WarmPool = null;
         private readonly ConcurrentDictionary<string, ActiveRun> _Runs = new ConcurrentDictionary<string, ActiveRun>(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, Task> _RunTasks = new ConcurrentDictionary<string, Task>(StringComparer.Ordinal);
         private readonly Padlock<string> _RunLocks = new Padlock<string>();
@@ -214,7 +215,9 @@ namespace Garrison.Worker.Hosting
                 {
                     _Kubernetes = new KubernetesRuntime(settings.Kubernetes, message => _Logging.Info(_Header + message));
                     _Reconciler = new KubernetesJobReconciler(_Kubernetes, settings.EffectiveNodeName, message => _Logging.Info(_Header + message));
-                    job = new KubernetesJobRunExecutor(_Kubernetes, settings.EffectiveNodeName, new List<string>(settings.EnvironmentAllowlist), settings.McpPreflightTimeoutMs, message => _Logging.Debug(_Header + message));
+                    _WarmPool = new KubernetesWarmPool(_Kubernetes, settings.NodePool, settings.EffectiveNodeName, message => _Logging.Info(_Header + message),
+                        () => new HashSet<string>(_Runs.Values.Select(r => KubernetesJobReconciler.Key(r.RunId, r.Epoch)), StringComparer.Ordinal));
+                    job = new KubernetesJobRunExecutor(_Kubernetes, settings.EffectiveNodeName, new List<string>(settings.EnvironmentAllowlist), settings.McpPreflightTimeoutMs, message => _Logging.Debug(_Header + message), _WarmPool);
                 }
                 _Executor = new RoutingRunExecutor(process, job);
             }
@@ -348,6 +351,7 @@ namespace Garrison.Worker.Hosting
             foreach (GaugeRegistration gauge in _Gauges) gauge.Dispose();
             _Gauges.Clear();
             _Telemetry?.Dispose();
+            _WarmPool?.Dispose();
             _Kubernetes?.Dispose();
             _Activity.Dispose();
             _Client.Dispose();
@@ -382,7 +386,8 @@ namespace Garrison.Worker.Hosting
                 Task watch = Task.Run(() => WatchLoopAsync(token));
                 Task reconcile = Task.Run(() => ReconcileLoopAsync(token));
                 Task sweep = Task.Run(() => ConversationSweepLoopAsync(token));
-                await Task.WhenAll(heartbeat, lease, probe, watch, reconcile, sweep).ConfigureAwait(false);
+                Task warm = _WarmPool == null ? Task.CompletedTask : Task.Run(() => _WarmPool.RunAsync(token));
+                await Task.WhenAll(heartbeat, lease, probe, watch, reconcile, sweep, warm).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -426,7 +431,7 @@ namespace Garrison.Worker.Hosting
             foreach (KeyValuePair<string, string> label in _Prober.CapabilityLabels(_Capabilities)) request.Labels[label.Key] = label.Value;
             request.Capabilities = _Capabilities;
             request.Executors = Executors();
-            request.ExecutorCapabilities = request.Executors.Select(ExecutorCapabilityProfiles.For).ToList();
+            request.ExecutorCapabilities = request.Executors.Select(e => ExecutorCapabilityProfiles.For(e, _WarmPool?.Available == true)).ToList();
 
             NodeRegisterResponse response = await _Client.RegisterAsync(request, token).ConfigureAwait(false);
             _NodeId = response.NodeId;
@@ -694,11 +699,13 @@ namespace Garrison.Worker.Hosting
                                 return response.Assignments.Count > 0;
                             }, leasing.Token).ConfigureAwait(false);
                             failures = 0;
+                            _WarmPool?.ObserveQueue(response.QueuedKubernetesRuns);
                             RunAssignment? assignment = response.Assignments.FirstOrDefault();
                             GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerLeases, "result", assignment == null ? "empty" : "assigned");
                             if (assignment == null) continue;
                             for (int i = 1; i < response.Assignments.Count; i++) _Logging.Warn(_Header + "ignoring extra assignment " + response.Assignments[i].RunId + " (requested one)");
 
+                            if (assignment.Spec?.Executor == RunExecutorEnum.KubernetesJob) _WarmPool?.ObserveArrival();
                             started = Launch(assignment);
                         }
                         catch (NodeProtocolException e)

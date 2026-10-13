@@ -23,9 +23,10 @@ class ExecutorRequirements(TypedDict, total=False):
     coldStartClass: Optional[Literal["Immediate", "Cold", "Warm"]]
 
 
-class ExecutorCapabilities(ExecutorRequirements):
+class ExecutorCapabilities(ExecutorRequirements, total=False):
     """One worker-reported executor with no implied advanced capabilities."""
     executor: Literal["Process", "KubernetesJob"]
+    warmStart: bool
 
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8700"

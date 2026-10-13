@@ -386,9 +386,13 @@ namespace Garrison.Core.Services
             if (!String.IsNullOrEmpty(deployment.NodePoolId) && pool == null) errors["nodePoolId"] = "The node pool does not exist.";
 
             PodResources(deployment.PodResources, errors);
+            if (deployment.RequiredCapabilities.ColdStartClass == ExecutorColdStartEnum.Warm && !deployment.PodResources.IsEmpty)
+                errors["podResources"] = "Warm startup uses the pool's default pod resources; per-deployment resources require cold startup.";
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId))
             {
                 WorkspaceTemplate? workspace = await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false);
+                if (workspace != null && workspace.Kind == WorkspaceKindEnum.PersistentVolume && deployment.RequiredCapabilities.ColdStartClass == ExecutorColdStartEnum.Warm)
+                    errors["requiredCapabilities.coldStartClass"] = "PersistentVolume workspaces require cold startup.";
                 if (workspace != null && workspace.Kind == WorkspaceKindEnum.PersistentVolume && RunExecutors.Resolve(deployment, pool) != RunExecutorEnum.KubernetesJob)
                 {
                     errors["executor"] = "Workspace template " + workspace.Name + " is a PersistentVolume workspace, which needs the KubernetesJob executor.";

@@ -445,3 +445,19 @@ To use your own monitoring instead, skip the component: the annotations above wo
 ## Build and publish multi-architecture images
 
 `k8s/scripts/publish-images.sh` (or `.bat`) builds server, worker, and dashboard for `linux/amd64,linux/arm64` using a dedicated buildx builder. Without flags it exports reviewable OCI archives and metadata under `artifacts/images/v<product-version>/`. Add `--image server`, `worker`, or `dashboard` to select one. After authenticating to Docker Hub with an account authorized for `jchristn77`, run `k8s/scripts/publish-images.sh --push` to publish all three. Tracked source changes must be committed before publishing; tags mirror the product version. `GARRISON_IMAGE_NAMESPACE`, `GARRISON_IMAGE_BUILDER`, `GARRISON_IMAGE_PLATFORMS`, and `GARRISON_IMAGE_OUTPUT` override build settings. The Windows wrapper is supplied but has not been executed on a Windows host.
+
+## Warm run pods
+
+When the Kubernetes executor is enabled, warm pods default to enabled with one idle pod and a maximum of four per pool, image, and pod configuration. Process-only workers create no pods. Eligible queue depth and recent assignment rate increase idle stock within those bounds.
+
+Helm exposes `kubernetesExecutor.warmPods`; each `workerPools[].warmPods` map can override those defaults. Set `GARRISON_WORKER_WARM_PODS_ENABLED=false` to disable warming, or configure `GARRISON_WORKER_WARM_PODS_MIN` and `GARRISON_WORKER_WARM_PODS_MAX`. The idle input timeout defaults to 900 seconds (`GARRISON_WORKER_WARM_PODS_IDLE_SECONDS`); reconciliation defaults to two seconds (`GARRISON_WORKER_WARM_PODS_INTERVAL_SECONDS`). Stdin specs are limited to 16 MiB (`GARRISON_WORKER_WARM_PODS_MAX_SPEC_BYTES`).
+
+Idle pods hold no run spec or provider credentials. The worker reserves a Ready pod with a resource-version update, delivers one bounded JSON line through authenticated Kubernetes `pods/attach`, and deletes the pod after execution or cancellation. Pods retain the cold executor's non-root user, read-only root, private workspace, and disabled service-account token. A coordination Lease shares refill ownership across workers.
+
+Ordinary runs fall back to cold Jobs when stock is unavailable. Explicit `requiredCapabilities.coldStartClass=Warm` runs require warm support and cannot fall back. PersistentVolume workspaces and custom deployment pod resources use cold execution; validation rejects either with an explicit Warm requirement. A worker reports `warmStart=true` only when warming is enabled and the required RBAC is available; its primary cold-start class remains Cold so it can serve both requirements.
+
+Worker Roles need pod create/update/delete, `pods/attach` create, and coordination Lease get/create/update in addition to existing cold executor permissions. Apply the updated base or Helm RBAC before enabling warm requirements. Missing warm permissions leave cold execution available.
+
+Run `scripts/check-warm-pods.sh` after building a current local worker image tagged `garrison-worker:warm-test`. The local gate creates and removes a temporary K3S cluster, checks shared refill bounds, competing reservations, isolation, completion, cancellation, and deletion, and reports warm/cold startup measurements. It uses no provider credentials and is excluded from routine CI.
+
+Local native K3S sample (2026-10-13, six runs each, same shell harness and image): warm claim-to-Started p50 0.072 s and p95 0.110 s; cold p50 1.015 s and p95 2.023 s. These are local observations, not production guarantees. Successful direct worker API writes were 3.33 per warm run versus 2.00 per cold run, excluding controller operations and reads/attach. Warming improves startup but adds reservation and refill coordination; it does not reduce API writes in this sample.

@@ -244,6 +244,7 @@ namespace Garrison.Core.Database.Ado
                     return new ExecutorCapabilities
                     {
                         Executor = AdoConverters.Enum<RunExecutorEnum>(reader, "executor", RunExecutorEnum.Process),
+                        WarmStart = AdoConverters.Bool(reader, "capwarmstart"),
                         Isolation = value.Isolation,
                         EgressControl = value.EgressControl,
                         FilesystemSnapshot = value.FilesystemSnapshot,
@@ -386,7 +387,7 @@ namespace Garrison.Core.Database.Ado
                 RunExecutorEnum executor = executors[i];
                 ExecutorCapabilities? capability = obj.ExecutorCapabilities.FirstOrDefault(c => c.Executor == executor);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _ExecutorsTable + " (id, nodeid, executor, capisolation, capegresscontrol, capfilesystemsnapshot, capsessioncontinuation, capcrossnoderestore, capcoldstartclass, capreported) VALUES (@id, @nodeid, @executor, @capisolation, @capegresscontrol, @capfilesystemsnapshot, @capsessioncontinuation, @capcrossnoderestore, @capcoldstartclass, @capreported);",
+                    "INSERT INTO " + _ExecutorsTable + " (id, nodeid, executor, capisolation, capegresscontrol, capfilesystemsnapshot, capsessioncontinuation, capcrossnoderestore, capcoldstartclass, capreported, capwarmstart) VALUES (@id, @nodeid, @executor, @capisolation, @capegresscontrol, @capfilesystemsnapshot, @capsessioncontinuation, @capcrossnoderestore, @capcoldstartclass, @capreported, @capwarmstart);",
                     command =>
                     {
                         AdoDatabaseDriver.Add(command, "id", id);
@@ -394,6 +395,7 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "executor", executor.ToString());
                         ExecutorCapabilitySql.Bind(command, capability ?? new ExecutorCapabilities());
                         AdoDatabaseDriver.Add(command, "capreported", capability != null);
+                        AdoDatabaseDriver.Add(command, "capwarmstart", capability?.WarmStart ?? false);
                     }, token).ConfigureAwait(false);
             }
         }

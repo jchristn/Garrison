@@ -178,6 +178,14 @@ networkPolicies:
 # docs/KUBERNETES.md, "Pod-per-run executor", and docs/SECURITY.md, "Harness isolation", explain the options.
 kubernetesExecutor:
   enabled: true
+  # Shared idle stock per worker pool/image/configuration. A workerPools[].warmPods map overrides these bounds.
+  warmPods:
+    enabled: true
+    minCount: 1
+    maxCount: 4
+    idleTimeoutSeconds: 900
+    reconcileIntervalSeconds: 2
+    maxSpecBytes: 16777216
   # Namespace for run Jobs, Secrets, and pods; empty uses the release namespace. A separate namespace must exist; the
   # chart puts the worker Role, the garrison-run ServiceAccount, and the run NetworkPolicy there. Set runImage too.
   runNamespace: ""

@@ -57,7 +57,8 @@ namespace Garrison.Core.Helpers
                 && (!required.FilesystemSnapshot || capability.FilesystemSnapshot)
                 && (!required.SessionContinuation || capability.SessionContinuation)
                 && (!required.CrossNodeRestore || capability.CrossNodeRestore)
-                && (!required.ColdStartClass.HasValue || required.ColdStartClass == capability.ColdStartClass);
+                && (!required.ColdStartClass.HasValue || required.ColdStartClass == capability.ColdStartClass
+                    || (required.ColdStartClass == ExecutorColdStartEnum.Warm && capability.WarmStart));
         }
     }
 }
