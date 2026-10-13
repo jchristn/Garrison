@@ -244,6 +244,17 @@ namespace Garrison.Worker.Settings
         }
 
         /// <summary>
+        /// Maximum characters in merged consecutive AssistantText or Thinking events within a flush window.
+        /// Range 0 to 1048576; default 2048. Zero disables merging. Larger individual events remain intact.
+        /// Environment override GARRISON_WORKER_EVENT_TEXT_COALESCE_MAX_CHARS.
+        /// </summary>
+        public int EventTextCoalesceMaxChars
+        {
+            get { return _EventTextCoalesceMaxChars; }
+            set { _EventTextCoalesceMaxChars = Math.Clamp(value, 0, 1048576); }
+        }
+
+        /// <summary>
         /// Maximum events per batch. Minimum 1, maximum 1000, default 100.
         /// </summary>
         public int EventBatchSize
@@ -450,6 +461,7 @@ namespace Garrison.Worker.Settings
         private int _LeaseWaitMs = 20000;
         private int _EventFlushIntervalMs = 250;
         private int _EventBatchSize = 100;
+        private int _EventTextCoalesceMaxChars = 2048;
         private int _MaxBufferedEvents = 20000;
         private int _DrainTimeoutSeconds = 900;
         private int _CompletionRetrySeconds = 600;
@@ -506,7 +518,9 @@ namespace Garrison.Worker.Settings
         /// </summary>
         public void ApplyEnvironment()
         {
-            string? value = Env("GARRISON_WORKER_SERVER_URL");
+            string? value = Env("GARRISON_WORKER_EVENT_TEXT_COALESCE_MAX_CHARS");
+            if (value != null && Int32.TryParse(value, out int coalesceMaxChars)) EventTextCoalesceMaxChars = coalesceMaxChars;
+            value = Env("GARRISON_WORKER_SERVER_URL");
             if (value != null) ServerUrl = value;
             value = Env("GARRISON_WORKER_NODE_NAME");
             if (value != null) NodeName = value;

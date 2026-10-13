@@ -291,3 +291,13 @@ GARRISON_TEST_PROVIDERS=sqlite,postgresql scripts/benchmark-event-inserts.sh f94
 ```
 
 For one revision, run `dotnet run --project src/Test.Automated -f net10.0 -- --event-insert-benchmark --providers sqlite,postgresql --benchmark-events 3000 --benchmark-rounds 5`. Provider connection overrides are the existing `GARRISON_TEST_PG_*` variables. The comparison script preserves CSV/build logs and removes its temporary baseline worktree.
+
+## Text delta coalescing (P10.23)
+
+Workers merge consecutive `AssistantText` or `Thinking` deltas inside `EventFlushIntervalMs`, up to `EventTextCoalesceMaxChars` (default 2048; environment `GARRISON_WORKER_EVENT_TEXT_COALESCE_MAX_CHARS`). Set the cap to `0` to compare uncoalesced storage. Other types, metadata changes, sequence advances, explicit flushes, and selected delivery batches seal the current group. Retries never change a previously sent payload. Individual events exceeding the cap remain intact.
+
+The provider-backed fixture emits 1000 four-character deltas: the disabled baseline stores 1000 rows, and the default stores 2 (500x fewer), with identical concatenated text and original JSONL harness lines. This measures token-stream storage, not end-to-end throughput. Live streams still tail the same database at the existing cadence. Reproduce on SQLite/PostgreSQL:
+
+```sh
+dotnet run --project src/Test.Automated -f net10.0 -- --providers sqlite,postgresql --suites event-coalescing
+```

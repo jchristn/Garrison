@@ -208,3 +208,22 @@ test('the default mocked stream fills Preview, and Run detail renders the result
   await result.getByTestId('markdown-raw-toggle').click();
   await expect(result.locator('pre')).toContainText('Hello from the fake harness.');
 });
+
+test('Preview renders coalesced assistant and thinking groups with JSONL raw events', async ({ page }) => {
+  await installControlledStream(page);
+  const runs = { run_smerged: mockRun('run_smerged', { status: 'Running', outcome: 'None', resultText: undefined, errorMessage: undefined }) };
+  await routeRuns(page, runs, ['run_smerged']);
+  await login(page);
+  await page.goto('/dashboard/invoke');
+  await send(page, 'coalesced stream');
+  await expect.poll(() => page.evaluate(() => window.__sse.opened.includes('run_smerged'))).toBe(true);
+  await pushRunEvent(page, 'run_smerged', ev('Thinking', { text: 'First thought. Second thought.', rawEventJson: '{"text":"First thought. "}\n{"text":"Second thought."}' }));
+  await pushRunEvent(page, 'run_smerged', ev('AssistantText', { text: '## Combined\n\n- one\n- two', rawEventJson: '{"text":"## Combined"}\n{"text":"\\n\\n- one\\n- two"}' }));
+  const preview = page.getByTestId('invoke-preview');
+  await expect(preview.locator('.markdown-body h2')).toHaveText('Combined');
+  await expect(preview.locator('.markdown-body li')).toHaveCount(2);
+  const reasoning = preview.getByTestId('stream-reasoning');
+  await reasoning.locator('summary').click();
+  await expect(reasoning.locator('.stream-reasoning-text')).toHaveText('First thought. Second thought.');
+  await expect(preview).not.toContainText('{"text"');
+});

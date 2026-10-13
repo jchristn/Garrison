@@ -233,7 +233,8 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `PauseGraceMs` | `5000` | Pause tolerance, 1000 to 600000. When the heartbeat loop finds that more than its sleep plus this long passed (host sleep, frozen container, clock jump), it logs a Warning (`event=worker.pause`) and heartbeats at once, which renews every lease it holds |
 | `LeaseWaitMs` | `20000` | Lease long-poll wait; the server can override it at registration |
 | `EventFlushIntervalMs` | `250` | How often buffered events are sent |
-| `EventBatchSize` | `100` | Events per batch |
+| `EventTextCoalesceMaxChars` | `2048` | Merge consecutive `AssistantText` or `Thinking` deltas within one flush window, up to this character count (0 to 1048576); `0` disables merging. Larger individual events remain intact. Environment: `GARRISON_WORKER_EVENT_TEXT_COALESCE_MAX_CHARS` |
+| `EventBatchSize` | `100` | Stored events per batch after text merging |
 | `MaxBufferedEvents` | `20000` | Events kept per run while the control plane is unreachable; beyond this the oldest text events are dropped |
 | `DrainTimeoutSeconds` | `900` | On shutdown, how long to let running runs finish before cancelling them |
 | `CompletionRetrySeconds` | `600` | How long to keep retrying a completion report |

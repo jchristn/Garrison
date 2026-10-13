@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Workers merge consecutive assistant/thinking text within a flush window, capped at 2048 characters by default, while retaining original harness lines. Retry payloads stay immutable and live streaming uses the same event path. The token fixture stores 500x fewer rows with an identical transcript on both databases (P10.23).
+
 - Daily UTC usage quotas cover tenant, agent, and deployment admissions, completed tokens/known cost, and current concurrency. Atomic checks work across replicas, the retained ledger prevents run deletion from resetting meters, and missing cost remains visible without blocking admission. The dashboard and four SDKs support quota management and usage reads; migration 15 backfills existing usage (P12.6).
 
 - Tenant-owned model prices estimate missing run cost using exact harness/model matches and configurable cache/reasoning accounting. Prices start empty; reported cost, including zero, takes precedence. Rates can be managed through the dashboard, REST, and all four SDKs; migration 14 adds the structured price table (P12.7).

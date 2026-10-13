@@ -2,6 +2,7 @@ namespace Garrison.Worker.Reporting
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -14,7 +15,8 @@ namespace Garrison.Worker.Reporting
     /// <summary>
     /// Ships one run's events to the control plane in ordered batches. Events get sequence numbers starting at 1 and
     /// stay buffered (bounded) while the control plane is unreachable, then replay with their original sequences
-    /// (plan D-024). When the buffer overflows the oldest text-like events are dropped and a warning is added. A 409
+    /// (plan D-024). When the buffer overflows the oldest text-like events are dropped and a warning is added.
+    /// Consecutive text deltas merge only inside a flush window; selected batches are sealed before delivery. A 409
     /// marks the lease stale and invokes the stale callback. Thread-safe.
     /// </summary>
     public class RunEventShipper : IRunReporter, IAsyncDisposable
@@ -63,6 +65,9 @@ namespace Garrison.Worker.Reporting
         private readonly int _BatchSize;
         private readonly int _MaxBuffered;
         private readonly int _FlushIntervalMs;
+        private readonly int _TextCoalesceMaxChars;
+        private RunEventReport? _Coalescible = null;
+        private long _WindowStarted = Stopwatch.GetTimestamp();
         private readonly Action<string>? _OnStale;
         private readonly Action<string>? _Log;
         private readonly List<RunEventReport> _Buffer = new List<RunEventReport>();
@@ -92,8 +97,9 @@ namespace Garrison.Worker.Reporting
         /// <param name="onStale">Called once with the run identifier when the lease is stale.</param>
         /// <param name="log">Optional log callback.</param>
         /// <param name="sequenceStart">Highest event sequence already recorded for the run (from the assignment); events are numbered after it. Minimum 0, default 0.</param>
+        /// <param name="textCoalesceMaxChars">Maximum merged AssistantText/Thinking length; 0 disables merging. Default 2048.</param>
         /// <exception cref="ArgumentNullException">Thrown when client is null.</exception>
-        public RunEventShipper(NodeProtocolClient client, string nodeId, string runId, long epoch, int batchSize, int maxBuffered, int flushIntervalMs, Action<string>? onStale, Action<string>? log, long sequenceStart = 0)
+        public RunEventShipper(NodeProtocolClient client, string nodeId, string runId, long epoch, int batchSize, int maxBuffered, int flushIntervalMs, Action<string>? onStale, Action<string>? log, long sequenceStart = 0, int textCoalesceMaxChars = 2048)
         {
             _Sequence = Math.Max(0, sequenceStart);
             _Client = client ?? throw new ArgumentNullException(nameof(client));
@@ -103,6 +109,7 @@ namespace Garrison.Worker.Reporting
             _BatchSize = Math.Max(1, batchSize);
             _MaxBuffered = Math.Max(10, maxBuffered);
             _FlushIntervalMs = Math.Max(20, flushIntervalMs);
+            _TextCoalesceMaxChars = Math.Clamp(textCoalesceMaxChars, 0, 1048576);
             _OnStale = onStale;
             _Log = log;
             _Loop = Task.Run(() => LoopAsync(_Stop.Token));
@@ -194,8 +201,21 @@ namespace Garrison.Worker.Reporting
             if (report == null || Stale) return;
             lock (_Lock)
             {
-                report.Sequence = ++_Sequence;
-                _Buffer.Add(report);
+                if (Stopwatch.GetElapsedTime(_WindowStarted).TotalMilliseconds >= _FlushIntervalMs) SealWindow();
+                if (CanMerge(report))
+                {
+                    _Coalescible!.Text += report.Text;
+                    if (!String.IsNullOrEmpty(report.RawEventJson))
+                        _Coalescible.RawEventJson = String.IsNullOrEmpty(_Coalescible.RawEventJson) ? report.RawEventJson : _Coalescible.RawEventJson + "\n" + report.RawEventJson;
+                    if (report.TimestampUtc < _Coalescible.TimestampUtc) _Coalescible.TimestampUtc = report.TimestampUtc;
+                    return;
+                }
+                // Own the buffered object: callers and a later merge cannot alter a serialized/replayed batch.
+                RunEventReport owned = Copy(report);
+                owned.Sequence = ++_Sequence;
+                report.Sequence = owned.Sequence;
+                _Buffer.Add(owned);
+                _Coalescible = owned;
                 while (_Buffer.Count > _MaxBuffered)
                 {
                     int index = _Buffer.FindIndex(e => _Droppable.Contains(e.EventType));
@@ -216,6 +236,7 @@ namespace Garrison.Worker.Reporting
         {
             lock (_Lock)
             {
+                SealWindow();
                 if (sequence > _Sequence) _Sequence = sequence;
             }
         }
@@ -223,6 +244,7 @@ namespace Garrison.Worker.Reporting
         /// <inheritdoc />
         public async Task FlushAsync(CancellationToken token)
         {
+            lock (_Lock) SealWindow();
             int attempt = 0;
             while (!Stale)
             {
@@ -295,6 +317,7 @@ namespace Garrison.Worker.Reporting
                 List<RunEventReport> batch;
                 lock (_Lock)
                 {
+                    SealWindow();
                     long dropped = Interlocked.Read(ref _Dropped);
                     if (dropped > _DroppedReported)
                     {
@@ -341,6 +364,42 @@ namespace Garrison.Worker.Reporting
             {
                 _SendLock.Release();
             }
+        }
+
+        private bool CanMerge(RunEventReport report)
+        {
+            RunEventReport? previous = _Coalescible;
+            return _TextCoalesceMaxChars > 0 && previous != null && _Buffer.Count > 0
+                && ReferenceEquals(_Buffer[_Buffer.Count - 1], previous)
+                && (report.EventType == RunEventTypeEnum.AssistantText || report.EventType == RunEventTypeEnum.Thinking)
+                && previous.EventType == report.EventType && previous.Text != null && report.Text != null
+                && (long)previous.Text.Length + report.Text.Length <= _TextCoalesceMaxChars
+                && previous.Code == report.Code && previous.ToolName == report.ToolName && previous.ToolCallId == report.ToolCallId
+                && previous.Success == report.Success && previous.InputTokens == null && report.InputTokens == null
+                && previous.OutputTokens == null && report.OutputTokens == null;
+        }
+
+        private void SealWindow()
+        {
+            _Coalescible = null;
+            _WindowStarted = Stopwatch.GetTimestamp();
+        }
+
+        private static RunEventReport Copy(RunEventReport report)
+        {
+            return new RunEventReport
+            {
+                EventType = report.EventType,
+                TimestampUtc = report.TimestampUtc,
+                Code = report.Code,
+                Text = report.Text,
+                ToolName = report.ToolName,
+                ToolCallId = report.ToolCallId,
+                Success = report.Success,
+                InputTokens = report.InputTokens,
+                OutputTokens = report.OutputTokens,
+                RawEventJson = report.RawEventJson
+            };
         }
 
         private void MarkStale()

@@ -2657,6 +2657,8 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/events"
   -H "Authorization: Bearer $TOKEN"
 ```
 
+Workers merge consecutive `AssistantText` deltas, and consecutive `Thinking` deltas, within one event flush window, up to `EventTextCoalesceMaxChars` (default 2048). Other event types, differing metadata, explicit flushes, and retry batches are boundaries. Text concatenation preserves the transcript; `rawEventJson` retains each original harness line separated by newline, and timestamps retain the earliest merged event time. Live streams use the same ordered database events and flush cadence. Individual events larger than the cap are retained intact.
+
 Events whose text Garrison writes itself (rather than the harness or the model) carry a stable `code` so clients can show a translated label next to, or instead of, the English `text`: `WorkspacePrepared`, `RepairAttemptStarted`, `McpPreflightPassed`, `McpPreflightWarning`, `HarnessExited`, `EventsDropped`, `RunBlocked` (the run's `blockedReason` says why), `StructuredOutputInvalid`, `ApprovalRequested` (a permission request is waiting for a person), and `ApprovalDecided` (a permission request was decided by a rule, the deployment default, a person, the timeout, or a cancellation). The two approval events are `Lifecycle` events the worker records from the control plane; their `rawEventJson` carries the approval ID, status, decision, and source. Other events have no `code`.
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream`
@@ -5465,7 +5467,7 @@ Normalized event reported by a worker.
 | `success` | `bool?` | Tool result success. |
 | `inputTokens` | `long?` | Input tokens for usage events. |
 | `outputTokens` | `long?` | Output tokens for usage events. |
-| `rawEventJson` | `string?` | Verbatim harness event. |
+| `rawEventJson` | `string?` | Verbatim harness event; merged text events contain the original lines separated by newline (JSONL). |
 
 #### `RunEventTypeEnum`
 
@@ -5502,7 +5504,7 @@ Normalized event emitted by a run.
 | `success` | `bool?` | Success flag for tool results. |
 | `inputTokens` | `long?` | Input tokens for usage events. |
 | `outputTokens` | `long?` | Output tokens for usage events. |
-| `rawEventJson` | `string?` | Verbatim harness event (unmanaged JSON). |
+| `rawEventJson` | `string?` | Verbatim harness event (unmanaged JSON); merged text events contain the original lines separated by newline (JSONL). |
 | `createdUtc` | `DateTime` | Persisted (UTC). |
 
 #### `RunStartedRequest`

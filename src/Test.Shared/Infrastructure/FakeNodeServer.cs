@@ -34,6 +34,9 @@ namespace Test.Shared.Infrastructure
         /// </summary>
         public ConcurrentQueue<RunEventReport> Events { get; } = new ConcurrentQueue<RunEventReport>();
 
+        /// <summary>Event requests including failed delivery attempts, for replay assertions.</summary>
+        public ConcurrentQueue<RunEventsRequest> EventAttempts { get; } = new ConcurrentQueue<RunEventsRequest>();
+
         /// <summary>
         /// Completions received keyed by run identifier.
         /// </summary>
@@ -196,8 +199,9 @@ namespace Test.Shared.Infrastructure
         {
             string runId = context.Request.Url.Parameters["runId"] ?? String.Empty;
             if (StaleRuns.ContainsKey(runId)) return JsonAsync(context, 409, new NodeAckResponse { Accepted = false });
-            if (Interlocked.Decrement(ref _FailEventCalls) >= 0) return JsonAsync(context, 503, new NodeAckResponse { Accepted = false });
             RunEventsRequest? request = Serializer.Deserialize<RunEventsRequest>(context.Request.DataAsString);
+            if (request != null) EventAttempts.Enqueue(request);
+            if (Interlocked.Decrement(ref _FailEventCalls) >= 0) return JsonAsync(context, 503, new NodeAckResponse { Accepted = false });
             if (request != null)
             {
                 foreach (RunEventReport report in request.Events) Events.Enqueue(report);

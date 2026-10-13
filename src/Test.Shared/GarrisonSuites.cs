@@ -32,6 +32,7 @@ namespace Test.Shared
                 suites.AddRange(RuntimeSuite.Build());
                 suites.AddRange(PauseToleranceSuite.Build());
                 suites.AddRange(WorkerSuite.Build());
+                suites.AddRange(EventCoalescingSuite.Build());
                 suites.AddRange(RunGuardSuite.Build());
                 suites.AddRange(ProtocolSuite.Build());
                 suites.AddRange(CancellationSuite.Build());

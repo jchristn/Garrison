@@ -751,7 +751,7 @@ namespace Garrison.Worker.Hosting
                     run.MarkLost();
                 },
                 message => _Logging.Debug(_Header + message + " " + run.LogFields),
-                run.Assignment.EventSequenceStart);
+                run.Assignment.EventSequenceStart, _Settings.EventTextCoalesceMaxChars);
             run.Reporter = shipper;
             string harness = run.Assignment.Spec.HarnessType.ToString();
             bool retained = run.Assignment.Spec.RetainForRepair;
