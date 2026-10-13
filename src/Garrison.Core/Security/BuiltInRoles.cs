@@ -154,7 +154,7 @@ namespace Garrison.Core.Security
             auditor.Description = "Read-only access to security records and audit.";
             BuiltInPermission p_auditor_read = new BuiltInPermission();
             p_auditor_read.Name = "Auditor.Read";
-            p_auditor_read.ResourceTypes = new List<string> { "User", "Credential", "Session", "Role", "Permission", "Assignment", "Audit", "Tenant", "RequestHistory", "Run", "Conversation", "Agent", "Deployment", "ModelPrice", "Approval" };
+            p_auditor_read.ResourceTypes = new List<string> { "User", "Credential", "Session", "Role", "Permission", "Assignment", "Audit", "Tenant", "RequestHistory", "Run", "Conversation", "Agent", "Deployment", "ModelPrice", "UsageQuota", "Approval" };
             p_auditor_read.Operations = new List<string> { "Read" };
             auditor.Permissions.Add(p_auditor_read);
             roles.Add(auditor);
@@ -179,6 +179,11 @@ namespace Garrison.Core.Security
             p_editor_write.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "ArtifactStore", "ModelPrice", "Run", "Manifest", "Conversation", "Artifact", "Approval" };
             p_editor_write.Operations = new List<string> { "Read", "Write", "Execute" };
             editor.Permissions.Add(p_editor_write);
+            BuiltInPermission p_editor_quota = new BuiltInPermission();
+            p_editor_quota.Name = "Editor.QuotaRead";
+            p_editor_quota.ResourceTypes = new List<string> { "UsageQuota" };
+            p_editor_quota.Operations = new List<string> { "Read" };
+            editor.Permissions.Add(p_editor_quota);
             roles.Add(editor);
 
             BuiltInRole viewer = new BuiltInRole();
@@ -187,7 +192,7 @@ namespace Garrison.Core.Security
             viewer.Description = "Read domain resources.";
             BuiltInPermission p_viewer_read = new BuiltInPermission();
             p_viewer_read.Name = "Viewer.Read";
-            p_viewer_read.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "ArtifactStore", "ModelPrice", "Run", "Manifest", "Node", "NodePool", "Conversation", "Artifact", "Approval" };
+            p_viewer_read.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "ArtifactStore", "ModelPrice", "UsageQuota", "Run", "Manifest", "Node", "NodePool", "Conversation", "Artifact", "Approval" };
             p_viewer_read.Operations = new List<string> { "Read" };
             viewer.Permissions.Add(p_viewer_read);
             roles.Add(viewer);
@@ -236,7 +241,7 @@ namespace Garrison.Core.Security
             agentoperator.Description = "Operate runs, decide permission approvals, and observe nodes.";
             BuiltInPermission p_agentoperator_read = new BuiltInPermission();
             p_agentoperator_read.Name = "AgentOperator.Read";
-            p_agentoperator_read.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "Node", "NodePool", "Run", "Conversation", "ModelPrice", "Approval" };
+            p_agentoperator_read.ResourceTypes = new List<string> { "HarnessProfile", "PromptTemplate", "Agent", "Deployment", "McpServer", "Workspace", "Node", "NodePool", "Run", "Conversation", "ModelPrice", "UsageQuota", "Approval" };
             p_agentoperator_read.Operations = new List<string> { "Read" };
             agentoperator.Permissions.Add(p_agentoperator_read);
             BuiltInPermission p_agentoperator_execute = new BuiltInPermission();

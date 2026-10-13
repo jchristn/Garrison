@@ -81,6 +81,18 @@ def t_prices():
         client.model_prices.delete(price["id"])
 
 
+def t_quotas():
+    quota = client.usage_quotas.create({"name": f"sdk-py-quota-{SUFFIX}", "scope": "Agent", "resourceId": state["agent"], "dailyRunLimit": 100, "dailyCostUsdLimit": 0.125})
+    try:
+        require(client.usage_quotas.get(quota["id"])["dailyRunLimit"] == 100, "quota fields")
+        usage = client.usage_quotas.usage(quota["id"])
+        require(usage["runsUsed"] == 0 and usage["costAccountingComplete"] and usage["windowEndUtc"], "quota usage")
+        quota["dailyRunLimit"] = None
+        require(client.usage_quotas.update(quota["id"], quota).get("dailyRunLimit") is None, "unlimited limit")
+    finally:
+        client.usage_quotas.delete(quota["id"])
+
+
 def t_builtin():
     profiles = client.harness_profiles.builtin()
     fake = [p for p in profiles if p["name"] == "builtin/fake"]
@@ -345,7 +357,7 @@ AUTH_HELP = (
 )
 
 for name, fn in [("health", t_health), ("token auth", t_token), ("signed request auth", t_signed),
-                 ("model price CRUD", t_prices), ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create),
+                 ("model price CRUD", t_prices), ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create), ("usage quota CRUD and meters", t_quotas),
                  ("invoke with wait", t_invoke), ("run timing metrics", t_run_metrics),
                  ("run analytics", t_analytics), ("run analytics grouped by harness", t_analytics_group),
                  ("run analytics grouped by harness and model", t_analytics_harness_model),

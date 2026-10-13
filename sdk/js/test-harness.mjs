@@ -72,6 +72,15 @@ await check("create agent and deployment", async () => {
   const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-fake`, agentId: agent.id, harnessProfileId: state.fake });
   state.deployment = deployment.id;
 });
+await check("usage quota CRUD and meters", async () => {
+  const quota = await client.usageQuotas.create({ name: `sdk-js-quota-${suffix}`, scope: "Agent", resourceId: state.agent, dailyRunLimit: 100, dailyCostUsdLimit: 0.125 });
+  try {
+    require((await client.usageQuotas.get(quota.id)).dailyRunLimit === 100, "quota fields");
+    const usage = await client.usageQuotas.usage(quota.id);
+    require(usage.runsUsed === 0 && usage.costAccountingComplete && usage.windowEndUtc, "quota usage");
+    require((await client.usageQuotas.update(quota.id, { ...quota, dailyRunLimit: null })).dailyRunLimit == null, "unlimited limit");
+  } finally { await client.usageQuotas.delete(quota.id); }
+});
 await check("invoke with wait", async () => {
   const run = await client.agents.invoke(state.agent, "Hello from the JavaScript SDK", { wait: true, waitSeconds: 90 });
   require(run.status === "Succeeded", `status ${run.status} ${run.errorMessage ?? ""}`);

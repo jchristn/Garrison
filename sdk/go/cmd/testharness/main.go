@@ -150,6 +150,36 @@ func main() {
 		deploymentID = dep.ID
 		return nil
 	})
+	check("usage quota CRUD and meters", func(ctx context.Context) error {
+		var quota garrison.UsageQuota
+		if err := client.UsageQuotas.Create(ctx, map[string]any{"name": "sdk-go-quota-" + suffix, "scope": "Agent", "resourceId": agentID, "dailyRunLimit": 100, "dailyCostUsdLimit": 0.125}, &quota); err != nil {
+			return err
+		}
+		defer client.UsageQuotas.Delete(ctx, quota.ID)
+		if err := client.UsageQuotas.Get(ctx, quota.ID, &quota); err != nil {
+			return err
+		}
+		if quota.DailyRunLimit == nil || *quota.DailyRunLimit != 100 {
+			return fmt.Errorf("quota fields")
+		}
+		usage, err := client.UsageQuotas.Usage(ctx, quota.ID)
+		if err != nil {
+			return err
+		}
+		if usage.RunsUsed != 0 || !usage.CostAccountingComplete || usage.WindowEndUTC == "" {
+			return fmt.Errorf("quota usage")
+		}
+		quota.DailyRunLimit = nil
+		// Explicit null clears a configured limit (omitempty intentionally omits absent optional fields).
+		body := map[string]any{"name": quota.Name, "scope": quota.Scope, "resourceId": quota.ResourceID, "dailyRunLimit": nil, "dailyCostUsdLimit": quota.DailyCostUSDLimit}
+		if err := client.UsageQuotas.Update(ctx, quota.ID, body, &quota); err != nil {
+			return err
+		}
+		if quota.DailyRunLimit != nil {
+			return fmt.Errorf("unlimited limit")
+		}
+		return nil
+	})
 	check("invoke with wait", func(ctx context.Context) error {
 		run, err := client.Agents.Invoke(ctx, agentID, garrison.InvokeRequest{Input: "Hello from the Go SDK", Wait: true, WaitSeconds: 90})
 		if err != nil {

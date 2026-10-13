@@ -9,6 +9,9 @@ namespace Garrison.Core
         /// <summary>Prefix for tenant-owned model price records.</summary>
         public const string ModelPriceIdPrefix = "mpr_";
 
+        /// <summary>Usage quota identifier prefix.</summary>
+        public const string UsageQuotaIdPrefix = "uqt_";
+
         /// <summary>
         /// Product name.
         /// </summary>

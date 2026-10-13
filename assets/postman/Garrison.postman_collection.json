@@ -8773,6 +8773,155 @@
       ]
     },
     {
+      "name": "Usage Quotas",
+      "description": "Daily UTC limits and current active concurrency. Null limits are unlimited; missing cost is reported as incomplete accounting.",
+      "item": [
+        {
+          "name": "Create usage quota",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/usage-quotas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-quota-{{$timestamp}}\",\n  \"scope\": \"Tenant\",\n  \"dailyRunLimit\": null,\n  \"dailyTokenLimit\": null,\n  \"dailyCostUsdLimit\": null,\n  \"maxConcurrentRuns\": null,\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set(\"usageQuotaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read usage quota",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/usage-quotas/{{usageQuotaId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List usage quotas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/usage-quotas"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read daily usage",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/usage-quotas/{{usageQuotaId}}/usage"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Usage with cost coverage\", function () { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.have.property(\"costAccountingComplete\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update usage quota",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/usage-quotas/{{usageQuotaId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-quota-{{$timestamp}}\",\n  \"scope\": \"Tenant\",\n  \"dailyRunLimit\": null,\n  \"dailyTokenLimit\": null,\n  \"dailyCostUsdLimit\": null,\n  \"maxConcurrentRuns\": null,\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete usage quota",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/usage-quotas/{{usageQuotaId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected status\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [

@@ -15,6 +15,7 @@ namespace Garrison.Core.Compilation
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
+    using Garrison.Core.Services;
     using Garrison.Core.Templates;
 
     /// <summary>
@@ -145,6 +146,7 @@ namespace Garrison.Core.Compilation
             if (run == null) throw new ArgumentNullException(nameof(run));
             bool fallback = run.ConversationFallbackReason.HasValue && conversation != null && conversation.Turns.Count > 0;
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback).ConfigureAwait(false);
+            await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null);
         }
 
@@ -165,6 +167,7 @@ namespace Garrison.Core.Compilation
             if (run == null) throw new ArgumentNullException(nameof(run));
             if (repair == null) throw new ArgumentNullException(nameof(repair));
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, true, true, token).ConfigureAwait(false);
+            await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, repair);
         }
 
@@ -206,6 +209,7 @@ namespace Garrison.Core.Compilation
                 }
             }
 
+            await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             CompilationResult result = Compile(inputs, run, "preview-run-token");
             Redact(result.Spec);
             return result;

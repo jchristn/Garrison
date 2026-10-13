@@ -798,3 +798,34 @@ type ModelPrice struct {
 	CreatedUTC                    string   `json:"createdUtc"`
 	LastUpdateUTC                 string   `json:"lastUpdateUtc"`
 }
+
+// UsageQuota is a tenant-owned limit. Null limits are unlimited; zero disallows usage.
+type UsageQuota struct {
+	ID                string   `json:"id"`
+	TenantID          string   `json:"tenantId"`
+	Name              string   `json:"name"`
+	Description       *string  `json:"description,omitempty"`
+	Scope             string   `json:"scope"`
+	ResourceID        string   `json:"resourceId"`
+	DailyRunLimit     *int64   `json:"dailyRunLimit,omitempty"`
+	DailyTokenLimit   *int64   `json:"dailyTokenLimit,omitempty"`
+	DailyCostUSDLimit *float64 `json:"dailyCostUsdLimit,omitempty"`
+	MaxConcurrentRuns *int     `json:"maxConcurrentRuns,omitempty"`
+	Active            bool     `json:"active"`
+	IsProtected       bool     `json:"isProtected"`
+	CreatedUTC        string   `json:"createdUtc"`
+	LastUpdateUTC     string   `json:"lastUpdateUtc"`
+}
+
+// UsageQuotaUsage reports a daily UTC window, current concurrency, and known-cost coverage.
+type UsageQuotaUsage struct {
+	QuotaID                string  `json:"quotaId"`
+	WindowStartUTC         string  `json:"windowStartUtc"`
+	WindowEndUTC           string  `json:"windowEndUtc"`
+	RunsUsed               int64   `json:"runsUsed"`
+	TokensUsed             int64   `json:"tokensUsed"`
+	CostUSD                float64 `json:"costUsd"`
+	UnknownCostRuns        int64   `json:"unknownCostRuns"`
+	ActiveRuns             int64   `json:"activeRuns"`
+	CostAccountingComplete bool    `json:"costAccountingComplete"`
+}

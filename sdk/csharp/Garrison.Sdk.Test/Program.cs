@@ -140,6 +140,20 @@ namespace Garrison.Sdk.Test
                     deploymentId = deployment.Id;
                 }).ConfigureAwait(false);
 
+                await CheckAsync("usage quota CRUD and meters", async () =>
+                {
+                    UsageQuota quota = await client.UsageQuotas.CreateAsync(new UsageQuota { Name = "sdk-cs-quota-" + suffix, Scope = UsageQuotaScopeEnum.Agent, ResourceId = agentId!, DailyRunLimit = 100, DailyCostUsdLimit = 0.125 }, token).ConfigureAwait(false);
+                    try
+                    {
+                        Require((await client.UsageQuotas.GetAsync(quota.Id, token).ConfigureAwait(false)).DailyRunLimit == 100, "quota fields");
+                        UsageQuotaUsage usage = await client.UsageQuotas.UsageAsync(quota.Id, token).ConfigureAwait(false);
+                        Require(usage.RunsUsed == 0 && usage.CostAccountingComplete && usage.WindowEndUtc > usage.WindowStartUtc, "quota usage");
+                        quota.DailyRunLimit = null;
+                        Require((await client.UsageQuotas.UpdateAsync(quota.Id, quota, token).ConfigureAwait(false)).DailyRunLimit == null, "unlimited limit");
+                    }
+                    finally { await client.UsageQuotas.DeleteAsync(quota.Id, token).ConfigureAwait(false); }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("invoke with wait", async () =>
                 {
                     InvokeRequest request = new InvokeRequest();

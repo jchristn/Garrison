@@ -18,6 +18,12 @@ namespace Garrison.Core.Models
         /// </summary>
         public bool LimitReached { get; set; } = false;
 
+        /// <summary>Quota ID that held this queued run, or null.</summary>
+        public string? QuotaId { get; set; } = null;
+
+        /// <summary>Quota limit that held the run. Daily limits clear at midnight UTC; concurrency clears on completion.</summary>
+        public string? QuotaLimit { get; set; } = null;
+
         /// <summary>
         /// Whether the claim won.
         /// </summary>

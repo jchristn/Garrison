@@ -263,6 +263,15 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a usage quota identifier (prefix mpr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewUsageQuotaId()
+        {
+            return New(Constants.UsageQuotaIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a ArtifactStore identifier (prefix ast_).
         /// </summary>
         /// <returns>Identifier.</returns>

@@ -575,6 +575,30 @@ class ApiClient {
     return this._request('DELETE', this._t(tenantId, `model-prices/${enc(id)}`));
   }
 
+  listUsageQuotas(tenantId, params) {
+    return this._list(this._t(tenantId, 'usage-quotas'), params);
+  }
+
+  getUsageQuota(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `usage-quotas/${enc(id)}`));
+  }
+
+  getUsageQuotaUsage(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `usage-quotas/${enc(id)}/usage`));
+  }
+
+  createUsageQuota(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'usage-quotas'), { body });
+  }
+
+  updateUsageQuota(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `usage-quotas/${enc(id)}`), { body });
+  }
+
+  deleteUsageQuota(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `usage-quotas/${enc(id)}`));
+  }
+
   // ------------------------------------------------------------------ agents and deployments
 
   listAgents(tenantId, params) {

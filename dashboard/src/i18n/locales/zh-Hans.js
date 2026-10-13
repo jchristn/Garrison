@@ -196,6 +196,7 @@ const zhHans = {
     runOverrideValidation: { Any: '任意值', Enum: '列表中的值', Regex: '正则表达式', IntegerRange: '整数范围' },
     credentialAuthMode: { DirectHeader: '直接请求头', SignedRequest: '签名请求', SessionExchange: '换取会话令牌', Hybrid: '任意方式' },
     operationType: { All: '所有操作', Create: '创建', Read: '读取', Write: '写入', Update: '更新', Delete: '删除', Execute: '执行', Admin: '管理' },
+    usageQuotaScope: {"Tenant": "租户", "Agent": "智能体", "Deployment": "部署"},
     resourceType: {
       All: '所有资源',
       Account: '账户',
@@ -219,6 +220,7 @@ const zhHans = {
       Workspace: '工作区',
       ArtifactStore: '制品存储',
       ModelPrice: "模型价格",
+      UsageQuota: "使用配额",
       Run: '运行',
       Node: '节点',
       NodePool: '节点池',
@@ -386,6 +388,7 @@ const zhHans = {
       workspaces: { label: '工作区', tip: '运行工作区的准备方式' },
       artifactStores: { label: '制品存储', tip: '运行制品的存储位置' },
       modelPrices: { label: "模型价格", tip: "在执行器未报告费用时，使用操作员配置的美元费率进行估算。已报告费用（包括零）优先。" },
+      usageQuotas: { label: "使用配额", tip: "租户、代理或部署的UTC每日运行数、令牌数、已知费用上限及当前并发上限。" },
       manifests: { label: '清单', tip: '以代码形式应用和导出配置' },
       requests: { label: '请求历史', tip: '检查 HTTP 流量和失败请求' },
       audit: { label: '审计', tip: '安全和配置事件' },
@@ -843,6 +846,7 @@ const zhHans = {
       hints: {"cachedInputUsdPerMillion": "留空时使用对应的输入或输出费率。零表示免费。", "reasoningUsdPerMillion": "留空时使用对应的输入或输出费率。零表示免费。", "inputIncludesCachedTokens": "当输入计数包含缓存令牌时启用。Claude Code单独报告缓存读取，应禁用此项。", "outputIncludesReasoningTokens": "当输出计数包含推理令牌时启用。先扣除已包含的子计数，再应用单独费率。"},
       errors: {"rate": "请输入0至1,000,000,000之间的有限费率。零为有效值。", "model": "请输入1至256个字符且不含控制字符的精确模型名称。"}
     },
+    usageQuotas: {"title": "使用配额", "subtitle": "租户、代理或部署的UTC每日运行数、令牌数、已知费用上限及当前并发上限。", "add": "添加使用配额", "create": "创建使用配额", "edit": "编辑使用配额", "view": "使用配额详情", "deleteTitle": "删除使用配额", "emptyTitle": "暂无使用配额", "emptyBody": "为租户、代理或部署添加配额。留空的限制表示无限制。", "columns": {"name": "名称", "active": "启用", "id": "ID", "createdUtc": "创建时间", "scope": "范围", "resourceId": "目标资源", "dailyRunLimit": "每UTC日运行数", "dailyTokenLimit": "每UTC日令牌数", "dailyCostUsdLimit": "每UTC日已知美元", "maxConcurrentRuns": "最大活跃运行数"}, "fields": {"name": "名称", "description": "描述", "active": "启用", "scope": "范围", "resourceId": "目标资源", "dailyRunLimit": "每UTC日运行数", "dailyTokenLimit": "每UTC日令牌数", "dailyCostUsdLimit": "每UTC日已知美元", "maxConcurrentRuns": "最大活跃运行数"}, "hints": {"dailyRunLimit": "留空表示无限制，零表示禁止使用。每日计数在UTC午夜重置；并发计数为当前活跃运行数。", "dailyTokenLimit": "留空表示无限制，零表示禁止使用。每日计数在UTC午夜重置；并发计数为当前活跃运行数。", "dailyCostUsdLimit": "留空表示无限制，零表示禁止使用。每日计数在UTC午夜重置；并发计数为当前活跃运行数。", "maxConcurrentRuns": "留空表示无限制，零表示禁止使用。每日计数在UTC午夜重置；并发计数为当前活跃运行数。", "resourceId": "为租户、代理或部署添加配额。留空的限制表示无限制。"}, "errors": {"limit": "请输入字段范围内的非负限制。计数必须为整数。"}, "incomplete": "费用统计不完整：{{count}}个已完成运行没有报告或估算费用。已知费用仍受上限限制；仅缺少费用不会阻止接收运行。", "actions": {"usage": "每日使用量"}, "usage": {"windowStartUtc": "窗口开始 (UTC)", "windowEndUtc": "每日重置 (UTC)", "runsUsed": "已接收运行", "tokensUsed": "已完成令牌数", "costUsd": "已知费用 (USD)", "unknownCostRuns": "缺少费用的运行", "activeRuns": "活跃运行"}},
     artifactStores: {
       ...rp('制品存储', '运行生成的文件的存放位置。', '添加制品存储', '创建制品存储', '编辑制品存储', '制品存储详情', '删除制品存储', '暂无制品存储', '创建制品存储以保存运行输出。'),
       columns: { name: '名称', kind: '类别', description: '描述', active: '启用', id: 'ID', createdUtc: '创建时间' },

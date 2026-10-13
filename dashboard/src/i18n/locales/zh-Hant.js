@@ -196,6 +196,7 @@ const zhHant = {
     runOverrideValidation: { Any: '任何值', Enum: '清單中的值', Regex: '規則運算式', IntegerRange: '整數範圍' },
     credentialAuthMode: { DirectHeader: '直接標頭', SignedRequest: '簽署要求', SessionExchange: '換取工作階段權杖', Hybrid: '任何方式' },
     operationType: { All: '所有操作', Create: '建立', Read: '讀取', Write: '寫入', Update: '更新', Delete: '刪除', Execute: '執行', Admin: '管理' },
+    usageQuotaScope: {"Tenant": "租用戶", "Agent": "代理程式", "Deployment": "部署"},
     resourceType: {
       All: '所有資源',
       Account: '帳戶',
@@ -219,6 +220,7 @@ const zhHant = {
       Workspace: '工作區',
       ArtifactStore: '成品存放區',
       ModelPrice: "模型價格",
+      UsageQuota: "使用配額",
       Run: '執行',
       Node: '節點',
       NodePool: '節點池',
@@ -386,6 +388,7 @@ const zhHant = {
       workspaces: { label: '工作區', tip: '執行工作區的準備方式' },
       artifactStores: { label: '成品存放區', tip: '執行成品的存放位置' },
       modelPrices: { label: "模型價格", tip: "在執行器未報告費用時，使用操作員設定的美元費率進行估算。已報告費用（包括零）優先。" },
+      usageQuotas: { label: "使用配額", tip: "租戶、代理或部署的UTC每日執行數、權杖數、已知費用上限及目前並行上限。" },
       manifests: { label: '清單', tip: '以程式碼形式套用與匯出設定' },
       requests: { label: '請求歷程', tip: '檢查 HTTP 流量與失敗' },
       audit: { label: '稽核', tip: '安全性與設定事件' },
@@ -843,6 +846,7 @@ const zhHant = {
       hints: {"cachedInputUsdPerMillion": "留空時使用對應的輸入或輸出費率。零表示免費。", "reasoningUsdPerMillion": "留空時使用對應的輸入或輸出費率。零表示免費。", "inputIncludesCachedTokens": "當輸入計數包含快取權杖時啟用。Claude Code單獨報告快取讀取，應停用此項。", "outputIncludesReasoningTokens": "當輸出計數包含推理權杖時啟用。先扣除已包含的子計數，再套用單獨費率。"},
       errors: {"rate": "請輸入0至1,000,000,000之間的有限費率。零為有效值。", "model": "請輸入1至256個字元且不含控制字元的精確模型名稱。"}
     },
+    usageQuotas: {"title": "使用配額", "subtitle": "租戶、代理或部署的UTC每日執行數、權杖數、已知費用上限及目前並行上限。", "add": "新增使用配額", "create": "建立使用配額", "edit": "編輯使用配額", "view": "使用配額詳情", "deleteTitle": "刪除使用配額", "emptyTitle": "尚無使用配額", "emptyBody": "為租戶、代理或部署新增配額。留空的限制表示無限制。", "columns": {"name": "名稱", "active": "啟用", "id": "ID", "createdUtc": "建立時間", "scope": "範圍", "resourceId": "目標資源", "dailyRunLimit": "每UTC日執行數", "dailyTokenLimit": "每UTC日權杖數", "dailyCostUsdLimit": "每UTC日已知美元", "maxConcurrentRuns": "最大活躍執行數"}, "fields": {"name": "名稱", "description": "描述", "active": "啟用", "scope": "範圍", "resourceId": "目標資源", "dailyRunLimit": "每UTC日執行數", "dailyTokenLimit": "每UTC日權杖數", "dailyCostUsdLimit": "每UTC日已知美元", "maxConcurrentRuns": "最大活躍執行數"}, "hints": {"dailyRunLimit": "留空表示無限制，零表示禁止使用。每日計數在UTC午夜重設；並行計數為目前活躍執行數。", "dailyTokenLimit": "留空表示無限制，零表示禁止使用。每日計數在UTC午夜重設；並行計數為目前活躍執行數。", "dailyCostUsdLimit": "留空表示無限制，零表示禁止使用。每日計數在UTC午夜重設；並行計數為目前活躍執行數。", "maxConcurrentRuns": "留空表示無限制，零表示禁止使用。每日計數在UTC午夜重設；並行計數為目前活躍執行數。", "resourceId": "為租戶、代理或部署新增配額。留空的限制表示無限制。"}, "errors": {"limit": "請輸入欄位範圍內的非負限制。計數必須為整數。"}, "incomplete": "費用統計不完整：{{count}}個已完成執行沒有報告或估算費用。已知費用仍受上限限制；僅缺少費用不會阻止接收執行。", "actions": {"usage": "每日使用量"}, "usage": {"windowStartUtc": "視窗開始 (UTC)", "windowEndUtc": "每日重設 (UTC)", "runsUsed": "已接收執行", "tokensUsed": "已完成權杖數", "costUsd": "已知費用 (USD)", "unknownCostRuns": "缺少費用的執行", "activeRuns": "活躍執行"}},
     artifactStores: {
       ...rp('成品存放區', '執行所產生檔案的存放位置。', '新增成品存放區', '建立成品存放區', '編輯成品存放區', '成品存放區詳細資料', '刪除成品存放區', '尚無成品存放區', '建立成品存放區以保存執行輸出。'),
       columns: { name: '名稱', kind: '種類', description: '描述', active: '啟用', id: 'ID', createdUtc: '建立時間' },

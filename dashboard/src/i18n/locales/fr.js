@@ -222,6 +222,7 @@ const fr = {
       Execute: 'Exécuter',
       Admin: 'Administrer'
     },
+    usageQuotaScope: {"Tenant": "Locataire", "Agent": "Agent IA", "Deployment": "Déploiement"},
     resourceType: {
       All: 'Toutes les ressources',
       Account: 'Compte',
@@ -245,6 +246,7 @@ const fr = {
       Workspace: 'Espace de travail',
       ArtifactStore: 'Stockage d\'artefacts',
       ModelPrice: "prix de modèle",
+      UsageQuota: "quota d’utilisation",
       Run: 'Exécution',
       Node: 'Nœud',
       NodePool: 'Pool de nœuds',
@@ -413,6 +415,7 @@ const fr = {
       workspaces: { label: 'Espaces de travail', tip: 'Comment les espaces de travail des exécutions sont préparés' },
       artifactStores: { label: 'Stockages d\'artefacts', tip: 'Où sont conservés les artefacts des exécutions' },
       modelPrices: { label: "Prix des modèles", tip: "Tarifs en USD configurés par un opérateur pour estimer le coût lorsque le harness ne le fournit pas. Le coût déclaré, même nul, est prioritaire." },
+      usageQuotas: { label: "Quotas d’utilisation", tip: "Limites quotidiennes UTC des exécutions, jetons, coûts connus et concurrence actuelle d’un locataire, agent ou déploiement." },
       manifests: { label: 'Manifestes', tip: 'Appliquer et exporter la configuration sous forme de code' },
       requests: { label: 'Historique des requêtes', tip: 'Inspecter le trafic HTTP et les échecs' },
       audit: { label: 'Audit', tip: 'Événements de sécurité et de configuration' },
@@ -880,6 +883,7 @@ const fr = {
       hints: {"cachedInputUsdPerMillion": "Laissez vide pour utiliser le tarif d’entrée ou de sortie correspondant. Zéro signifie gratuit.", "reasoningUsdPerMillion": "Laissez vide pour utiliser le tarif d’entrée ou de sortie correspondant. Zéro signifie gratuit.", "inputIncludesCachedTokens": "Activez si l’entrée inclut les jetons en cache. Désactivez pour Claude Code, qui déclare séparément les lectures du cache.", "outputIncludesReasoningTokens": "Activez si la sortie inclut les jetons de raisonnement. Les sous-totaux inclus sont déduits avant l’application de leur tarif distinct."},
       errors: {"rate": "Saisissez un tarif fini entre 0 et 1 000 000 000. Zéro est valide.", "model": "Saisissez le nom exact du modèle, de 1 à 256 caractères sans caractères de contrôle."}
     },
+    usageQuotas: {"title": "Quotas d’utilisation", "subtitle": "Limites quotidiennes UTC des exécutions, jetons, coûts connus et concurrence actuelle d’un locataire, agent ou déploiement.", "add": "Ajouter un quota d’utilisation", "create": "Créer un quota d’utilisation", "edit": "Modifier un quota d’utilisation", "view": "Détails du quota d’utilisation", "deleteTitle": "Supprimer un quota d’utilisation", "emptyTitle": "Aucun quota d’utilisation", "emptyBody": "Ajoutez un quota pour un locataire, agent ou déploiement. Les limites vides sont illimitées.", "columns": {"name": "Nom", "active": "Actif", "id": "ID", "createdUtc": "Créé le", "scope": "Portée", "resourceId": "Ressource cible", "dailyRunLimit": "Exécutions par jour UTC", "dailyTokenLimit": "Jetons par jour UTC", "dailyCostUsdLimit": "USD connus par jour UTC", "maxConcurrentRuns": "Maximum d’exécutions actives"}, "fields": {"name": "Nom", "description": "Description", "active": "Actif", "scope": "Portée", "resourceId": "Ressource cible", "dailyRunLimit": "Exécutions par jour UTC", "dailyTokenLimit": "Jetons par jour UTC", "dailyCostUsdLimit": "USD connus par jour UTC", "maxConcurrentRuns": "Maximum d’exécutions actives"}, "hints": {"dailyRunLimit": "Laissez vide pour un usage illimité. Zéro interdit l’usage. Les compteurs quotidiens sont réinitialisés à minuit UTC ; la concurrence compte les exécutions actives.", "dailyTokenLimit": "Laissez vide pour un usage illimité. Zéro interdit l’usage. Les compteurs quotidiens sont réinitialisés à minuit UTC ; la concurrence compte les exécutions actives.", "dailyCostUsdLimit": "Laissez vide pour un usage illimité. Zéro interdit l’usage. Les compteurs quotidiens sont réinitialisés à minuit UTC ; la concurrence compte les exécutions actives.", "maxConcurrentRuns": "Laissez vide pour un usage illimité. Zéro interdit l’usage. Les compteurs quotidiens sont réinitialisés à minuit UTC ; la concurrence compte les exécutions actives.", "resourceId": "Ajoutez un quota pour un locataire, agent ou déploiement. Les limites vides sont illimitées."}, "errors": {"limit": "Saisissez une limite positive ou nulle dans la plage du champ. Les nombres doivent être entiers."}, "incomplete": "Le calcul des coûts est incomplet : {{count}} exécutions terminées n’ont aucun coût déclaré ou estimé. Les coûts connus restent limités ; les coûts manquants seuls ne bloquent pas les admissions.", "actions": {"usage": "Usage quotidien"}, "usage": {"windowStartUtc": "Début de période (UTC)", "windowEndUtc": "Réinitialisation quotidienne (UTC)", "runsUsed": "Exécutions admises", "tokensUsed": "Jetons terminés", "costUsd": "Coût connu (USD)", "unknownCostRuns": "Exécutions sans coût", "activeRuns": "Exécutions actives"}},
     artifactStores: {
       ...rp('Stockages d\'artefacts', 'Où sont conservés les fichiers produits par les exécutions.', 'Ajouter un stockage d\'artefacts', 'Créer un stockage d\'artefacts', 'Modifier le stockage d\'artefacts', 'Détails du stockage d\'artefacts', 'Supprimer le stockage d\'artefacts', 'Aucun stockage d\'artefacts pour l\'instant', 'Créez un stockage d\'artefacts pour conserver les sorties des exécutions.'),
       columns: { name: 'Nom', kind: 'Type', description: 'Description', active: 'Actif', id: 'ID', createdUtc: 'Créé le' },

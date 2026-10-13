@@ -67,13 +67,13 @@ function TextFilter({ filter, value, onChange, tipText, t }) {
  */
 export default function ResourceView({ config }) {
   const { t, i18n } = useTranslation();
-  const { apiClient } = useAuth();
+  const { apiClient, principal } = useAuth();
   const { tenantId } = useApp();
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tableId = config.id;
-  const ctx = useMemo(() => ({ apiClient, tenantId, t, i18n, navigate, addToast }), [apiClient, tenantId, t, i18n, navigate, addToast]);
+  const ctx = useMemo(() => ({ apiClient, principal, tenantId, t, i18n, navigate, addToast }), [apiClient, principal, tenantId, t, i18n, navigate, addToast]);
 
   const [items, setItems] = useState([]);
   const [page, setPage] = useState({ pageNumber: 1, pageSize: savedPageSize(tableId), totalCount: 0 });
@@ -155,8 +155,9 @@ export default function ResourceView({ config }) {
   useAutoRefresh(() => !editing && !jsonValue && load(page.pageNumber, page.pageSize), autoRefreshSeconds);
 
   const displayItems = SERVER_SORT_KEYS.includes(sort.key) ? items : sortLocal(items, sort.key, sort.dir);
-  const isEditable = (row) => (config.isEditable ? config.isEditable(row) : !row?.isBuiltIn);
-  const canDelete = (row) => (config.canDelete ? config.canDelete(row) : !row?.isProtected && !row?.isBuiltIn);
+  const canManage = !config.canManage || config.canManage(ctx);
+  const isEditable = (row) => canManage && (config.isEditable ? config.isEditable(row) : !row?.isBuiltIn);
+  const canDelete = (row) => canManage && (config.canDelete ? config.canDelete(row) : !row?.isProtected && !row?.isBuiltIn);
 
   const open = (mode, data) => {
     setFieldErrors({});
@@ -262,7 +263,7 @@ export default function ResourceView({ config }) {
             {
               label: t('common.actions.duplicate'),
               tip: t('tips.actions.duplicate'),
-              hidden: config.canDuplicate === false || !config.api.create,
+              hidden: !canManage || config.canDuplicate === false || !config.api.create,
               onClick: () => open('create', stripForDuplicate(config.toForm ? config.toForm(r) : r, config.duplicateStrip || []))
             },
             ...((config.rowActions && config.rowActions(r, { ...ctx, reload: () => load(page.pageNumber), setExtraModal, setJsonValue })) || []),
@@ -348,7 +349,7 @@ export default function ResourceView({ config }) {
         actions={
           <>
             {config.headerActions && config.headerActions({ ...ctx, reload: () => load(page.pageNumber), setExtraModal })}
-            {config.api.create && (
+            {config.api.create && canManage && (
               <button type="button" className="button-primary" onClick={() => open('create', config.blank ? config.blank(ctx) : {})} data-testid="add-button" {...tip(addTip)}>
                 <PlusIcon /> {t(`${prefix}.add`)}
               </button>
@@ -372,7 +373,7 @@ export default function ResourceView({ config }) {
             title={t(`${prefix}.emptyTitle`)}
             body={t(`${prefix}.emptyBody`)}
             action={
-              config.api.create && (
+              config.api.create && canManage && (
                 <button type="button" className="button-primary" onClick={() => open('create', config.blank ? config.blank(ctx) : {})} {...tip(addTip)}>
                   <PlusIcon /> {t(`${prefix}.add`)}
                 </button>

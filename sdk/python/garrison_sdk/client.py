@@ -223,6 +223,13 @@ class Resource:
         return self._t.request("DELETE", self._item(id))
 
 
+class UsageQuotas(Resource):
+    """Daily UTC quotas. Unknown cost is visible and does not independently block admission."""
+
+    def usage(self, id: str) -> Dict[str, Any]:
+        return self._t.request("GET", self._item(id) + "/usage")
+
+
 class Users(Resource):
     def permissions(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._item(id) + "/permissions")
@@ -657,6 +664,7 @@ class GarrisonClient:
         self.workspace_templates = Resource(t, "workspace-templates")
         self.artifact_stores = Resource(t, "artifact-stores")
         self.model_prices = Resource(t, "model-prices")
+        self.usage_quotas = UsageQuotas(t, "usage-quotas")
         self.manifests = Manifests(t)
         self.runs = Runs(t)
         self.conversations = Conversations(t)

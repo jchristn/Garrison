@@ -6,7 +6,7 @@ The server listens on port 8700 by default. MCP is on its own port (8701, see `M
 
 ## Conventions
 
-JSON bodies use camelCase property names. Enumerations travel as their string names (`"status": "Succeeded"`), timestamps are ISO 8601 in UTC, and properties whose value is null are omitted from responses. Identifiers are prefixed, K-sortable strings such as `agt_mv1pdwem_PWOwUcelVy0GXphYF11`; the prefix tells you the type (`ten_` tenant, `usr_` user, `crd_` credential, `ses_` session, `rol_` role, `prm_` permission, `agt_` agent, `dep_` deployment, `hrn_` harness profile, `tpl_` prompt template, `mcp_` MCP server, `sec_` secret, `wsp_` workspace template, `ast_` artifact store, `mpr_` model price, `run_` run, `rev_` run event, `nod_` node, `npl_` node pool, `req_` request history entry, `aud_` audit record).
+JSON bodies use camelCase property names. Enumerations travel as their string names (`"status": "Succeeded"`), timestamps are ISO 8601 in UTC, and properties whose value is null are omitted from responses. Identifiers are prefixed, K-sortable strings such as `agt_mv1pdwem_PWOwUcelVy0GXphYF11`; the prefix tells you the type (`ten_` tenant, `usr_` user, `crd_` credential, `ses_` session, `rol_` role, `prm_` permission, `agt_` agent, `dep_` deployment, `hrn_` harness profile, `tpl_` prompt template, `mcp_` MCP server, `sec_` secret, `wsp_` workspace template, `ast_` artifact store, `mpr_` model price, `uqt_` usage quota, `run_` run, `rev_` run event, `nod_` node, `npl_` node pool, `req_` request history entry, `aud_` audit record).
 
 Deleting one resource (`DELETE` on a path that ends in an identifier) answers 204 No Content with an empty body, for identity, runtime, and configuration resources alike, and 404 when the resource does not exist. Deletes that take a filter instead of an identifier (runs, audit records, request history) answer 200 with a `DeleteCountResponse`, because the count is the result. `DELETE /v1.0/token` is the one other exception: it answers 200 with `{"valid": false}` (see below).
 
@@ -1934,6 +1934,42 @@ Delete an artifact store.
 curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-stores/{id}" \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+### Usage Quotas
+
+Usage quotas limit a tenant, an agent across its deployments, or a single deployment. Configure them in Configuration > Usage Quotas or under `/v1.0/api/tenants/{tenantId}/usage-quotas`. No quotas are seeded. Limits default to null (unlimited); explicit zero disallows usage. Only tenant/system administrators have built-in write grants; Editor, Viewer, Auditor, and AgentOperator can inspect quotas and usage.
+
+| Method and suffix | Permission | Response |
+|---|---|---|
+| `GET /usage-quotas` | `UsageQuota:Read` | Enumeration |
+| `POST /usage-quotas` | `UsageQuota:Create` | `UsageQuota`, 201 |
+| `GET /usage-quotas/{id}` | `UsageQuota:Read` | `UsageQuota`, 200 |
+| `PUT /usage-quotas/{id}` | `UsageQuota:Update` | `UsageQuota`, 200 |
+| `DELETE /usage-quotas/{id}` | `UsageQuota:Delete` | Empty, 204 |
+| `GET /usage-quotas/{id}/usage` | `UsageQuota:Read` | `UsageQuotaUsage`, 200 |
+
+```json
+{
+  "name": "agent-daily-quota",
+  "scope": "Agent",
+  "resourceId": "agt_example",
+  "dailyRunLimit": 100,
+  "dailyTokenLimit": 1000000,
+  "dailyCostUsdLimit": 25,
+  "maxConcurrentRuns": 4,
+  "active": true
+}
+```
+
+The target must belong to the tenant. `scope` is `Tenant`, `Agent`, or `Deployment`; a tenant quota with an empty `resourceId` targets the route's tenant. Names and scope/target pairs are unique within a tenant, including inactive entries. Duplicate names answer 409 `NameConflict`, duplicate targets 409 `UsageQuotaExists`, and invalid or cross-tenant targets 404. IDs start with `uqt_`. The record also has `description`, `isProtected`, `createdUtc`, and `lastUpdateUtc`.
+
+Daily windows begin at midnight UTC. `dailyRunLimit` counts distinct admissions, including delegated children and retries that create a new run; idempotent replays do not consume another admission. Tokens and cost count on the UTC completion day. Tokens are reported input plus output, adding Claude Code's separately reported cache reads. Reasoning already included in output is not counted twice. Negative token counts and negative cost do not reduce usage. Run/token limits accept whole numbers from 0 to 9,007,199,254,740,991; USD limits accept finite values from 0 to 1,000,000,000,000; concurrency accepts 0 to 2,147,483,647.
+
+`UsageQuotaUsage` returns `quotaId`, `windowStartUtc`, `windowEndUtc`, `runsUsed`, `tokensUsed`, `costUsd` (known cost), `unknownCostRuns`, `costAccountingComplete`, and `activeRuns`. Active concurrency counts Leased, Running, and Cancelling runs across accounting days. Deleting or archiving runs does not reset daily meters; migration 15 backfills existing runs. A usage view also includes runs created by older replicas during a rolling upgrade, and deletion snapshots them before removal. Unknown cost permits admission and makes accounting visibly incomplete. Known usage still enforces its limits.
+
+Admission checks and run creation share a database transaction, serialized across replicas for the tenant. Refusal answers 429 `QuotaExceeded`, names the scope, target, quota, and limit, and supplies `Retry-After`. MCP and A2A retain `QuotaExceeded` in their protocol errors. Claims recheck token/cost/concurrency limits atomically; admitted queued runs wait for capacity, a daily reset, or a quota change. They are not charged another admission when claimed.
+
+Compilation lowers `deployment.maxBudgetUsd` to the smallest remaining known daily allowance without changing stored deployment configuration. Built-in Claude Code renders it as `--max-budget-usd`; custom profiles can render the same value where their CLI supports it. Prior reported repair cost reduces the allowance. Daily token/cost meters enforce recorded completed usage, so in-flight runs can exceed a daily total before completion. CLI budgets apply where supported; these quotas are not a guarantee about an external provider's invoice. Strict delegation-tree reservations are tracked separately in P12.35.
 
 ### Model Prices
 
@@ -4384,7 +4420,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`
 
 #### `OperationTypeEnum`
 

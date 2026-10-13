@@ -148,6 +148,9 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Model price configuration.
         /// </summary>
-        ModelPrice
+        ModelPrice,
+
+        /// <summary>Usage quota configuration and counters.</summary>
+        UsageQuota
     }
 }

@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 14).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 15).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1076,3 +1076,42 @@ CREATE TABLE IF NOT EXISTS "model_prices" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_model_prices_tenantname" ON "model_prices" ("tenantid", "name");
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_model_prices_tenantmodel" ON "model_prices" ("tenantid", "harnesstype", "model");
+
+-- Migration 15: Daily UTC quotas and retained run usage
+CREATE TABLE IF NOT EXISTS "usage_quotas" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    scope VARCHAR(64) NOT NULL,
+    resourceid VARCHAR(64) NOT NULL,
+    dailyrunlimit BIGINT,
+    dailytokenlimit BIGINT,
+    dailycostusdlimit REAL,
+    maxconcurrentruns INTEGER,
+    active INTEGER NOT NULL,
+    isprotected INTEGER NOT NULL,
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_usage_quotas_tenantname" ON "usage_quotas" ("tenantid", "name");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_usage_quotas_target" ON "usage_quotas" ("tenantid", "scope", "resourceid");
+CREATE TABLE IF NOT EXISTS "run_usage" (
+    runid VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    agentid VARCHAR(64) NOT NULL,
+    deploymentid VARCHAR(64) NOT NULL,
+    harnesstype VARCHAR(64) NOT NULL,
+    admittedutc TEXT NOT NULL,
+    completedutc TEXT,
+    inputtokens BIGINT NOT NULL,
+    outputtokens BIGINT NOT NULL,
+    cachedtokens BIGINT NOT NULL,
+    costusd REAL
+);
+CREATE INDEX IF NOT EXISTS "idx_run_usage_admitted" ON "run_usage" ("tenantid", "admittedutc");
+CREATE INDEX IF NOT EXISTS "idx_run_usage_completed" ON "run_usage" ("tenantid", "completedutc");
+CREATE INDEX IF NOT EXISTS "idx_run_usage_agent" ON "run_usage" ("tenantid", "agentid");
+CREATE INDEX IF NOT EXISTS "idx_run_usage_deployment" ON "run_usage" ("tenantid", "deploymentid");
+CREATE VIEW "quota_usage_source" AS SELECT runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM "run_usage" UNION ALL SELECT r.id, r.tenantid, r.agentid, r.deploymentid, r.harnesstype, COALESCE(r.queuedutc, r.createdutc), r.completedutc, r.inputtokens, r.outputtokens, r.cachedtokens, r.costusd FROM "runs" r WHERE NOT EXISTS (SELECT 1 FROM "run_usage" u WHERE u.runid = r.id);
+INSERT INTO "run_usage" (runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd) SELECT id, tenantid, agentid, deploymentid, harnesstype, COALESCE(queuedutc, createdutc), completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM "runs";

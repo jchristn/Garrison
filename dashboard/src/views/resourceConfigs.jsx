@@ -21,6 +21,7 @@ import CloneTemplateModal from '../components/CloneTemplateModal';
 import { PROMPT_ROLES, defaultTemplateFor, templatesForRole, profileSecretNeeds } from '../utils/deployments';
 import { formatList, formatNumber } from '../i18n/formatters';
 import { loadRuntimeLimits } from '../utils/settings';
+import UsageQuotaUsageModal from '../components/UsageQuotaUsageModal';
 import ApprovalCheckPanel from '../components/ApprovalCheckPanel';
 import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../utils/approvals';
 import { POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
@@ -735,6 +736,40 @@ export const modelPricesConfig = {
     return errors;
   },
   toBody: (d) => ({ ...d, model: d.model.trim(), ...Object.fromEntries(['inputUsdPerMillion', 'outputUsdPerMillion', 'cachedInputUsdPerMillion', 'reasoningUsdPerMillion'].map((key) => [key, d[key] === '' || d[key] === null || d[key] === undefined ? null : Number(d[key])])) })
+};
+
+export const usageQuotasConfig = {
+  id: 'usageQuotas',
+  explainer: 'usageQuotas',
+  api: tenantApi('listUsageQuotas', 'createUsageQuota', 'updateUsageQuota', 'deleteUsageQuota'),
+  canManage: ({ principal }) => !!(principal?.isAdmin || principal?.isTenantAdmin),
+  blank: () => ({ name: '', description: '', scope: 'Tenant', resourceId: '', dailyRunLimit: null, dailyTokenLimit: null, dailyCostUsdLimit: null, maxConcurrentRuns: null, active: true }),
+  loadOptions: async ({ apiClient, tenantId }) => ({ agents: await safeList(apiClient.listAgents(tenantId, { pageSize: 1000 })), deployments: await safeList(apiClient.listDeployments(tenantId, { pageSize: 1000 })) }),
+  columns: ({ t, i18n }) => [nameCol('usageQuotas', t), col('usageQuotas', t, 'scope', (r) => enumBadge(t, 'usageQuotaScope', r.scope)), col('usageQuotas', t, 'resourceId', (r) => <CopyableId value={r.resourceId} />),
+    ...['dailyRunLimit', 'dailyTokenLimit', 'dailyCostUsdLimit', 'maxConcurrentRuns'].map((key) => col('usageQuotas', t, key, (r) => r[key] == null ? t('common.generic.none') : formatNumber(r[key], i18n.language, { maximumFractionDigits: 6 }))), activeCol('usageQuotas', t), idCol('usageQuotas', t), createdCol('usageQuotas', t, i18n)],
+  fields: (d, { t, options = {} }) => [
+    field('usageQuotas', t, 'name', 'text', { required: true }),
+    field('usageQuotas', t, 'scope', 'select', { required: true, options: enumOptions(t, 'usageQuotaScope') }),
+    field('usageQuotas', t, 'resourceId', d.scope === 'Tenant' ? 'text' : 'select', { required: d.scope !== 'Tenant', readOnly: d.scope === 'Tenant', span: 'full', options: (d.scope === 'Agent' ? options.agents : options.deployments)?.map((r) => ({ value: r.id, label: `${r.name} (${r.id})` })) || [] }),
+    ...['dailyRunLimit', 'dailyTokenLimit', 'dailyCostUsdLimit', 'maxConcurrentRuns'].map((key) => field('usageQuotas', t, key, 'number', { min: 0, max: key === 'dailyCostUsdLimit' ? 1000000000000 : key === 'maxConcurrentRuns' ? 2147483647 : Number.MAX_SAFE_INTEGER, step: key === 'dailyCostUsdLimit' ? 'any' : 1 })),
+    field('usageQuotas', t, 'description', 'textarea'),
+    field('usageQuotas', t, 'active', 'checkbox')
+  ],
+  validate: (d, t) => {
+    const errors = {};
+    if (!d.name?.trim()) errors.name = t('common.errors.required');
+    if (d.scope !== 'Tenant' && !d.resourceId) errors.resourceId = t('common.errors.required');
+    for (const key of ['dailyRunLimit', 'dailyTokenLimit', 'dailyCostUsdLimit', 'maxConcurrentRuns']) {
+      if (d[key] == null || d[key] === '') continue;
+      const value = Number(d[key]);
+      const max = key === 'dailyCostUsdLimit' ? 1000000000000 : key === 'maxConcurrentRuns' ? 2147483647 : Number.MAX_SAFE_INTEGER;
+      if (!Number.isFinite(value) || value < 0 || value > max || (key !== 'dailyCostUsdLimit' && !Number.isInteger(value))) errors[key] = t('resources.usageQuotas.errors.limit');
+    }
+    return errors;
+  },
+  toBody: (d) => ({ ...d, resourceId: d.scope === 'Tenant' ? d.tenantId || '' : d.resourceId, ...Object.fromEntries(['dailyRunLimit', 'dailyTokenLimit', 'dailyCostUsdLimit', 'maxConcurrentRuns'].map((key) => [key, d[key] == null || d[key] === '' ? null : Number(d[key])])) }),
+  canDuplicate: false,
+  rowActions: (r, ctx) => [{ label: ctx.t('resources.usageQuotas.actions.usage'), tip: actionTip(ctx.t, 'usageQuotas', 'usage'), onClick: () => ctx.setExtraModal(<UsageQuotaUsageModal quota={r} tenantId={ctx.tenantId} onClose={() => ctx.setExtraModal(null)} />) }]
 };
 
 export const agentsConfig = {

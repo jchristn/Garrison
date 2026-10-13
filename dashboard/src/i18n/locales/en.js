@@ -219,6 +219,7 @@ const en = {
     runOverrideValidation: { Any: 'Any value', Enum: 'One of a list', Regex: 'Regular expression', IntegerRange: 'Integer range' },
     credentialAuthMode: { DirectHeader: 'Direct headers', SignedRequest: 'Signed requests', SessionExchange: 'Session token exchange', Hybrid: 'Any method' },
     operationType: { All: 'All operations', Create: 'Create', Read: 'Read', Write: 'Write', Update: 'Update', Delete: 'Delete', Execute: 'Execute', Admin: 'Administer' },
+    usageQuotaScope: {"Tenant": "Tenant", "Agent": "Agent", "Deployment": "Deployment"},
     resourceType: {
       All: 'All resources',
       Account: 'Account',
@@ -242,6 +243,7 @@ const en = {
       Workspace: 'Workspace',
       ArtifactStore: 'Artifact store',
       ModelPrice: "model price",
+      UsageQuota: "usage quota",
       Run: 'Run',
       Node: 'Node',
       NodePool: 'Node pool',
@@ -409,6 +411,7 @@ const en = {
       workspaces: { label: 'Workspaces', tip: 'How run workspaces are prepared' },
       artifactStores: { label: 'Artifact Stores', tip: 'Where run artifacts are stored' },
       modelPrices: { label: "Model Prices", tip: "Operator-configured USD rates for estimating cost when a harness omits it. Reported cost, including zero, takes precedence." },
+      usageQuotas: { label: "Usage Quotas", tip: "Daily UTC limits on runs, tokens, known cost, and current concurrency for a tenant, agent, or deployment." },
       manifests: { label: 'Manifests', tip: 'Apply and export configuration as code' },
       requests: { label: 'Request History', tip: 'Inspect HTTP traffic and failures' },
       audit: { label: 'Audit', tip: 'Security and configuration events' },
@@ -869,6 +872,7 @@ const en = {
       hints: {"cachedInputUsdPerMillion": "Leave empty to use the corresponding input or output rate. Zero means free.", "reasoningUsdPerMillion": "Leave empty to use the corresponding input or output rate. Zero means free.", "inputIncludesCachedTokens": "Enable when cached tokens are included in input. Disable for Claude Code, which reports cache reads separately.", "outputIncludesReasoningTokens": "Enable when reasoning tokens are included in output. Included subtotals are deducted before applying their separate rate."},
       errors: {"rate": "Enter a finite rate from 0 to 1,000,000,000. Zero is valid.", "model": "Enter an exact model name of 1 to 256 characters without control characters."}
     },
+    usageQuotas: {"title": "Usage Quotas", "subtitle": "Daily UTC limits on runs, tokens, known cost, and current concurrency for a tenant, agent, or deployment.", "add": "Add usage quota", "create": "Create usage quota", "edit": "Edit usage quota", "view": "Usage quota details", "deleteTitle": "Delete usage quota", "emptyTitle": "No usage quotas yet", "emptyBody": "Add a quota for a tenant, agent, or deployment. Empty limits are unlimited.", "columns": {"name": "Name", "active": "Active", "id": "ID", "createdUtc": "Created", "scope": "Scope", "resourceId": "Target resource", "dailyRunLimit": "Runs per UTC day", "dailyTokenLimit": "Tokens per UTC day", "dailyCostUsdLimit": "Known USD per UTC day", "maxConcurrentRuns": "Maximum active runs"}, "fields": {"name": "Name", "description": "Description", "active": "Active", "scope": "Scope", "resourceId": "Target resource", "dailyRunLimit": "Runs per UTC day", "dailyTokenLimit": "Tokens per UTC day", "dailyCostUsdLimit": "Known USD per UTC day", "maxConcurrentRuns": "Maximum active runs"}, "hints": {"dailyRunLimit": "Leave empty for unlimited usage. Zero disallows usage. Daily counters reset at midnight UTC; concurrency counts currently active runs.", "dailyTokenLimit": "Leave empty for unlimited usage. Zero disallows usage. Daily counters reset at midnight UTC; concurrency counts currently active runs.", "dailyCostUsdLimit": "Leave empty for unlimited usage. Zero disallows usage. Daily counters reset at midnight UTC; concurrency counts currently active runs.", "maxConcurrentRuns": "Leave empty for unlimited usage. Zero disallows usage. Daily counters reset at midnight UTC; concurrency counts currently active runs.", "resourceId": "Add a quota for a tenant, agent, or deployment. Empty limits are unlimited."}, "errors": {"limit": "Enter a nonnegative limit within the field range. Counts must be whole numbers."}, "incomplete": "Cost accounting is incomplete: {{count}} completed runs have no reported or estimated cost. Known cost still enforces its limit; missing cost alone does not block admission.", "actions": {"usage": "Daily usage"}, "usage": {"windowStartUtc": "Window starts (UTC)", "windowEndUtc": "Daily reset (UTC)", "runsUsed": "Runs admitted", "tokensUsed": "Completed tokens", "costUsd": "Known cost (USD)", "unknownCostRuns": "Runs with missing cost", "activeRuns": "Active runs"}},
     artifactStores: {
       ...resourcePage('Artifact Stores', 'artifact store', 'Where files produced by runs are kept.', 'Create an artifact store to keep run outputs.'),
       columns: { name: 'Name', kind: 'Kind', description: 'Description', active: 'Active', id: 'ID', createdUtc: 'Created' },

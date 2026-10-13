@@ -101,6 +101,10 @@ namespace Garrison.Core.Database.Ado
             v14.BuildVersion14();
             migrations.Add(new SchemaMigration(14, "Operator-configured model prices for run cost estimation", v14._Statements, v14._Columns));
 
+            SchemaBuilder v15 = new SchemaBuilder(catalog, dialect);
+            v15.BuildVersion15();
+            migrations.Add(new SchemaMigration(15, "Daily UTC quotas and retained run usage", v15._Statements, v15._Columns));
+
             return migrations;
         }
 
@@ -262,6 +266,31 @@ namespace Garrison.Core.Database.Ado
             Column("runs", "affinityuntilutc", d.TypeTimestamp);
             Column("runs", "conversationfallbackreason", "VARCHAR(64)");
             Index("runs", "conversation", false, "conversationid", "createdutc");
+        }
+
+        private void BuildVersion15()
+        {
+            SqlDialect d = _Dialect;
+            Table("usage_quotas",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL", "description " + d.TypeText, "scope VARCHAR(64) NOT NULL", "resourceid " + d.TypeId + " NOT NULL",
+                "dailyrunlimit " + d.TypeBigInt, "dailytokenlimit " + d.TypeBigInt, "dailycostusdlimit " + d.TypeDouble,
+                "maxconcurrentruns " + d.TypeInt, "active " + d.TypeBool + " NOT NULL", "isprotected " + d.TypeBool + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL", "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("usage_quotas", "tenantname", true, "tenantid", "name");
+            Index("usage_quotas", "target", true, "tenantid", "scope", "resourceid");
+            Table("run_usage", "runid " + d.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + d.TypeId + " NOT NULL",
+                "agentid " + d.TypeId + " NOT NULL", "deploymentid " + d.TypeId + " NOT NULL", "harnesstype VARCHAR(64) NOT NULL",
+                "admittedutc " + d.TypeTimestamp + " NOT NULL", "completedutc " + d.TypeTimestamp,
+                "inputtokens " + d.TypeBigInt + " NOT NULL", "outputtokens " + d.TypeBigInt + " NOT NULL", "cachedtokens " + d.TypeBigInt + " NOT NULL", "costusd " + d.TypeDouble);
+            Index("run_usage", "admitted", false, "tenantid", "admittedutc");
+            Index("run_usage", "completed", false, "tenantid", "completedutc");
+            Index("run_usage", "agent", false, "tenantid", "agentid");
+            Index("run_usage", "deployment", false, "tenantid", "deploymentid");
+            // Older replicas can create runs during a rolling upgrade after the initial backfill.
+            _Statements.Add("CREATE VIEW " + _Catalog.Reference("quota_usage_source") + " AS SELECT runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM " + _Catalog.Reference("run_usage")
+                + " UNION ALL SELECT r.id, r.tenantid, r.agentid, r.deploymentid, r.harnesstype, COALESCE(r.queuedutc, r.createdutc), r.completedutc, r.inputtokens, r.outputtokens, r.cachedtokens, r.costusd FROM " + _Catalog.Reference("runs") + " r WHERE NOT EXISTS (SELECT 1 FROM " + _Catalog.Reference("run_usage") + " u WHERE u.runid = r.id);");
+            _Statements.Add("INSERT INTO " + _Catalog.Reference("run_usage") + " (runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd) SELECT id, tenantid, agentid, deploymentid, harnesstype, COALESCE(queuedutc, createdutc), completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM " + _Catalog.Reference("runs") + ";");
         }
 
         private void BuildVersion14()

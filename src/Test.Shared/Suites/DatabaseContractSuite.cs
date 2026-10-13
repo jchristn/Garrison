@@ -168,6 +168,11 @@ namespace Test.Shared.Suites
                 Assert.True(legacy.TimeToFirstTokenMs == null && legacy.StreamingMs == null && legacy.ExecutionMs == null, "Worker timings are null for legacy runs.");
                 Assert.Equal(250L, legacy.QueueMs ?? -1, "Queue time derived from server timestamps");
                 Assert.Equal(4250L, legacy.TotalMs ?? -1, "Total time derived from server timestamps");
+                UsageQuota quota = await upgraded.UsageQuotas.CreateAsync(new UsageQuota { TenantId = legacy.TenantId, Name = "upgrade-quota", Scope = UsageQuotaScopeEnum.Tenant, ResourceId = legacy.TenantId }, token).ConfigureAwait(false);
+                UsageQuotaUsage usage = await upgraded.UsageQuotas.ReadUsageAsync(quota, queued, token).ConfigureAwait(false);
+                Assert.Equal(1L, usage.RunsUsed, "Migration backfills existing admissions");
+                Assert.Equal(30L, usage.TokensUsed, "Migration backfills historical token usage");
+                Assert.True(!usage.CostAccountingComplete, "Migration preserves unknown historical cost");
 
                 legacy.ToolCallCount = 3;
                 legacy.OutputSchemaValid = false;

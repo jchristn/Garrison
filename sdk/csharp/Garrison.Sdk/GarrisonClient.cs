@@ -127,6 +127,9 @@ namespace Garrison.Sdk
         /// <summary>Operator-configured model prices.</summary>
         public ModelPricesClient ModelPrices { get; }
 
+        /// <summary>Daily usage quotas.</summary>
+        public UsageQuotasClient UsageQuotas { get; }
+
         /// <summary>
         /// Manifests.
         /// </summary>
@@ -217,6 +220,7 @@ namespace Garrison.Sdk
             WorkspaceTemplates = new WorkspaceTemplatesClient(Transport);
             ArtifactStores = new ArtifactStoresClient(Transport);
             ModelPrices = new ModelPricesClient(Transport);
+            UsageQuotas = new UsageQuotasClient(Transport);
             Manifests = new ManifestsClient(Transport);
             Runs = new RunsClient(Transport);
             Conversations = new ConversationsClient(Transport);

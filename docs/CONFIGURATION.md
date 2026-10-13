@@ -256,3 +256,11 @@ The dashboard image reads two variables at startup: `GARRISON_API_UPSTREAM`, whe
 Use Configuration > Model Prices or the tenant `/model-prices` API to supply USD rates per million tokens. The table starts empty. Entries match a harness and exact, case-sensitive served model; no provider aliases or prices are supplied automatically. Reported cost, including zero, takes precedence. Unknown or inactive prices keep missing cost unknown.
 
 Both token inclusion flags default to true. Disable input inclusion for Claude Code because its parser reports cache reads separately. Empty cache/reasoning rates use input/output rates; zero is free. Included subtotals are deducted before applying their own rates. Completion stores the estimate once; later edits do not change historical run costs. See [REST API](../REST_API.md#model-prices) for fields and permissions.
+
+## Daily usage quotas
+
+Configuration > Usage Quotas sets run, token, known-cost, and active-concurrency limits for a tenant, agent, or deployment. Each scope/target has one entry. Limits start unlimited; zero disallows usage. Administrators manage limits, and read roles can inspect Daily usage.
+
+Windows reset at midnight UTC. Run counts use admission day; tokens and cost use completion day. Active concurrency spans days. Deleted and archived runs remain in the accounting ledger. Missing cost leaves admissions open and appears as incomplete accounting; known cost still enforces the configured limit.
+
+The compiler lowers `deployment.maxBudgetUsd` to the remaining known allowance. Built-in Claude Code passes it to its CLI; other profiles must support and render that value. In-flight runs can overshoot completed-usage limits. See [REST API](../REST_API.md#usage-quotas) for fields, ranges, permissions, and error handling.

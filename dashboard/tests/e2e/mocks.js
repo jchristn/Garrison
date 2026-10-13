@@ -297,6 +297,7 @@ const FACTORIES = {
     }),
   'artifact-stores': (i) => base('as', i, { description: 'Database store', kind: 'Database' }),
   'model-prices': (i) => base('mpr', i, { model: `fixture-model-${i}`, harnessType: 'Generic', inputUsdPerMillion: 2, outputUsdPerMillion: 10, cachedInputUsdPerMillion: null, reasoningUsdPerMillion: null, inputIncludesCachedTokens: true, outputIncludesReasoningTokens: true, description: 'Fixture rates' }),
+  'usage-quotas': (i) => base('uqt', i, { scope: i === 1 ? 'Tenant' : i % 2 ? 'Agent' : 'Deployment', resourceId: i === 1 ? 'default' : i % 2 ? `agt_${pad(i)}` : `dep_${pad(i)}`, dailyRunLimit: 100, dailyTokenLimit: 1000000, dailyCostUsdLimit: 25, maxConcurrentRuns: 4, description: 'Daily quota' }),
   agents: (i) =>
     base('agt', i, {
       name: i === 1 ? 'echo-agent' : `agent-${i}`,
@@ -950,6 +951,7 @@ export function respond(method, url) {
       return { success: true, maxResults: 1000, skip: 0, totalRecords: turns.length, recordsRemaining: 0, endOfResults: true, timestampUtc: iso(0), objects: turns };
     }
     if (collection === 'conversations' && parts.length === 2 && method === 'GET') return { ...FACTORIES.conversations(/^cnv_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 1), id: parts[1] };
+    if (collection === 'usage-quotas' && parts[2] === 'usage') return { quotaId: parts[1], windowStartUtc: iso(0), windowEndUtc: iso(1440), runsUsed: 10, tokensUsed: 1000, costUsd: 0.25, unknownCostRuns: 2, activeRuns: 1, costAccountingComplete: false };
     if (collection === 'runs' && parts[2] === 'children') return { success: true, maxResults: 100, skip: 0, totalRecords: 1, recordsRemaining: 0, endOfResults: true, timestampUtc: iso(0), objects: [{ ...FACTORIES.runs(4), id: 'run_child', kind: 'Delegated', depth: 1, parentRunId: parts[1], rootRunId: parts[1] }] };
     // run_0003 style IDs map to that factory row; any other ID gets run 7 (a failed run carrying every field).
     if (collection === 'runs' && parts.length === 2 && method === 'GET') return { ...FACTORIES.runs(/^run_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 7), id: parts[1] };

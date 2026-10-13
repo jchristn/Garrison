@@ -222,6 +222,7 @@ const it = {
       Execute: 'Eseguire',
       Admin: 'Amministrare'
     },
+    usageQuotaScope: {"Tenant": "Tenant", "Agent": "Agente", "Deployment": "Distribuzione"},
     resourceType: {
       All: 'Tutte le risorse',
       Account: 'Account utente',
@@ -245,6 +246,7 @@ const it = {
       Workspace: 'Area di lavoro',
       ArtifactStore: 'Archivio di artefatti',
       ModelPrice: "prezzo del modello",
+      UsageQuota: "quota di utilizzo",
       Run: 'Esecuzione',
       Node: 'Nodo',
       NodePool: 'Pool di nodi',
@@ -413,6 +415,7 @@ const it = {
       workspaces: { label: 'Aree di lavoro', tip: 'Come vengono preparate le aree di lavoro delle esecuzioni' },
       artifactStores: { label: 'Archivi di artefatti', tip: 'Dove vengono archiviati gli artefatti delle esecuzioni' },
       modelPrices: { label: "Prezzi dei modelli", tip: "Tariffe in USD configurate dall’operatore per stimare il costo quando l’harness non lo comunica. Il costo comunicato, anche zero, ha precedenza." },
+      usageQuotas: { label: "Quote di utilizzo", tip: "Limiti giornalieri UTC per esecuzioni, token, costo noto e concorrenza attuale di tenant, agente o distribuzione." },
       manifests: { label: 'Manifest', tip: 'Applica ed esporta la configurazione come codice' },
       requests: { label: 'Cronologia richieste', tip: 'Esamina il traffico HTTP e gli errori' },
       audit: { label: 'Audit', tip: 'Eventi di sicurezza e di configurazione' },
@@ -880,6 +883,7 @@ const it = {
       hints: {"cachedInputUsdPerMillion": "Lascia vuoto per usare la tariffa di input o output corrispondente. Zero significa gratuito.", "reasoningUsdPerMillion": "Lascia vuoto per usare la tariffa di input o output corrispondente. Zero significa gratuito.", "inputIncludesCachedTokens": "Attiva se l’input include token in cache. Disattiva per Claude Code, che comunica separatamente le letture della cache.", "outputIncludesReasoningTokens": "Attiva se l’output include token di ragionamento. I subtotali inclusi vengono sottratti prima di applicare la tariffa separata."},
       errors: {"rate": "Inserisci una tariffa finita tra 0 e 1.000.000.000. Zero è valido.", "model": "Inserisci il nome esatto del modello, da 1 a 256 caratteri senza caratteri di controllo."}
     },
+    usageQuotas: {"title": "Quote di utilizzo", "subtitle": "Limiti giornalieri UTC per esecuzioni, token, costo noto e concorrenza attuale di tenant, agente o distribuzione.", "add": "Aggiungi quota di utilizzo", "create": "Crea quota di utilizzo", "edit": "Modifica quota di utilizzo", "view": "Dettagli della quota di utilizzo", "deleteTitle": "Elimina quota di utilizzo", "emptyTitle": "Nessuna quota di utilizzo", "emptyBody": "Aggiungi una quota per tenant, agente o distribuzione. I limiti vuoti sono illimitati.", "columns": {"name": "Nome", "active": "Attivo", "id": "ID", "createdUtc": "Creato", "scope": "Ambito", "resourceId": "Risorsa di destinazione", "dailyRunLimit": "Esecuzioni per giorno UTC", "dailyTokenLimit": "Token per giorno UTC", "dailyCostUsdLimit": "USD noti per giorno UTC", "maxConcurrentRuns": "Massimo di esecuzioni attive"}, "fields": {"name": "Nome", "description": "Descrizione", "active": "Attivo", "scope": "Ambito", "resourceId": "Risorsa di destinazione", "dailyRunLimit": "Esecuzioni per giorno UTC", "dailyTokenLimit": "Token per giorno UTC", "dailyCostUsdLimit": "USD noti per giorno UTC", "maxConcurrentRuns": "Massimo di esecuzioni attive"}, "hints": {"dailyRunLimit": "Lascia vuoto per uso illimitato. Zero impedisce l’uso. I contatori giornalieri si azzerano a mezzanotte UTC; la concorrenza conta esecuzioni attive.", "dailyTokenLimit": "Lascia vuoto per uso illimitato. Zero impedisce l’uso. I contatori giornalieri si azzerano a mezzanotte UTC; la concorrenza conta esecuzioni attive.", "dailyCostUsdLimit": "Lascia vuoto per uso illimitato. Zero impedisce l’uso. I contatori giornalieri si azzerano a mezzanotte UTC; la concorrenza conta esecuzioni attive.", "maxConcurrentRuns": "Lascia vuoto per uso illimitato. Zero impedisce l’uso. I contatori giornalieri si azzerano a mezzanotte UTC; la concorrenza conta esecuzioni attive.", "resourceId": "Aggiungi una quota per tenant, agente o distribuzione. I limiti vuoti sono illimitati."}, "errors": {"limit": "Inserisci un limite non negativo nell’intervallo del campo. I conteggi devono essere interi."}, "incomplete": "La contabilizzazione dei costi è incompleta: {{count}} esecuzioni completate non hanno un costo comunicato o stimato. I costi noti restano soggetti al limite; i costi mancanti da soli non bloccano le ammissioni.", "actions": {"usage": "Utilizzo giornaliero"}, "usage": {"windowStartUtc": "Inizio finestra (UTC)", "windowEndUtc": "Azzeramento giornaliero (UTC)", "runsUsed": "Esecuzioni ammesse", "tokensUsed": "Token completati", "costUsd": "Costo noto (USD)", "unknownCostRuns": "Esecuzioni senza costo", "activeRuns": "Esecuzioni attive"}},
     artifactStores: {
       ...rp('Archivi di artefatti', 'Dove vengono conservati i file prodotti dalle esecuzioni.', 'Aggiungi archivio di artefatti', 'Crea archivio di artefatti', 'Modifica archivio di artefatti', 'Dettagli dell\'archivio di artefatti', 'Elimina archivio di artefatti', 'Ancora nessun archivio di artefatti', 'Crea un archivio di artefatti per conservare gli output delle esecuzioni.'),
       columns: { name: 'Nome', kind: 'Tipo', description: 'Descrizione', active: 'Attivo', id: 'ID', createdUtc: 'Creato' },

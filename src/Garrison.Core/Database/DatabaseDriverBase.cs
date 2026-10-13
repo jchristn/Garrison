@@ -123,6 +123,9 @@ namespace Garrison.Core.Database
         /// <summary>Operator-configured model price methods.</summary>
         public IModelPriceMethods ModelPrices { get; protected set; } = null!;
 
+        /// <summary>Usage quota configuration and counters.</summary>
+        public IUsageQuotaMethods UsageQuotas { get; protected set; } = null!;
+
         /// <summary>
         /// Agent methods.
         /// </summary>

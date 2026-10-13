@@ -13,6 +13,7 @@ namespace Garrison.Core.Database.Ado
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
+    using Garrison.Core.Services;
 
     /// <summary>
     /// Provider-neutral Run data access. Thread-safe.
@@ -88,7 +89,12 @@ namespace Garrison.Core.Database.Ado
                         return;
                     }
                 }
+                await QuotaAccountingSql.LockTenantAsync(_Driver, connection, transaction, obj.TenantId, ct).ConfigureAwait(false);
+                DateTime admittedUtc = DateTime.UtcNow;
+                QuotaExceededException? refusal = await QuotaAccountingSql.CheckAsync(_Driver, connection, transaction, obj, true, ct, admittedUtc).ConfigureAwait(false);
+                if (refusal != null) throw refusal;
                 await InsertRowAsync(connection, transaction, obj, ct).ConfigureAwait(false);
+                await QuotaAccountingSql.InsertLedgerAsync(_Driver, connection, transaction, obj.Id, ct, admittedUtc: admittedUtc).ConfigureAwait(false);
                 await InsertChildrenAsync(connection, transaction, obj, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
 
@@ -218,6 +224,7 @@ namespace Garrison.Core.Database.Ado
             string events = _Driver.Table("run_events");
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
+                await QuotaAccountingSql.SnapshotBeforeDeleteAsync(_Driver, connection, transaction, id, ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("approvals") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);
@@ -429,22 +436,10 @@ namespace Garrison.Core.Database.Ado
             if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
             if (String.IsNullOrEmpty(nodeId)) throw new ArgumentNullException(nameof(nodeId));
 
-            DateTime now = DateTime.UtcNow;
-            int affected = await _Driver.NonQueryAsync(
-                "UPDATE " + _Table + " SET status = 'Leased', leasenodeid = @node, leasenodename = @nodename, leaseepoch = leaseepoch + 1, leaseexpiresutc = @expires, leasedutc = @now, lastupdateutc = @now WHERE id = @id AND status = 'Queued';",
-                command =>
-                {
-                    AdoDatabaseDriver.Add(command, "id", runId);
-                    AdoDatabaseDriver.Add(command, "node", nodeId);
-                    AdoDatabaseDriver.Add(command, "nodename", nodeName);
-                    AdoDatabaseDriver.Add(command, "expires", leaseExpiresUtc);
-                    AdoDatabaseDriver.Add(command, "now", now);
-                },
-                token).ConfigureAwait(false);
-            if (affected != 1) return null;
-
-            object? epoch = await _Driver.ScalarAsync("SELECT leaseepoch FROM " + _Table + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", runId), token).ConfigureAwait(false);
-            return epoch == null ? null : Convert.ToInt64(epoch);
+            Run? run = await ReadAsync(runId, token).ConfigureAwait(false);
+            if (run == null) return null;
+            ClaimResult result = await TryClaimWithinLimitAsync(runId, nodeId, nodeName, leaseExpiresUtc, run.DeploymentId, 0, token).ConfigureAwait(false);
+            return result.Epoch;
         }
 
         /// <inheritdoc />
@@ -455,21 +450,25 @@ namespace Garrison.Core.Database.Ado
             if (String.IsNullOrEmpty(deploymentId)) throw new ArgumentNullException(nameof(deploymentId));
 
             ClaimResult result = new ClaimResult();
-            if (maxConcurrentRuns <= 0)
-            {
-                result.Epoch = await TryClaimAsync(runId, nodeId, nodeName, leaseExpiresUtc, token).ConfigureAwait(false);
-                return result;
-            }
-
             string? lockSql = _Driver.Dialect.TransactionLockStatement();
             long lockKey = AdoDatabaseDriver.LockKey("deployment-claims:" + _Table + ":" + deploymentId);
             string claimSql =
                 "UPDATE " + _Table + " SET status = 'Leased', leasenodeid = @node, leasenodename = @nodename, leaseepoch = leaseepoch + 1, leaseexpiresutc = @expires, leasedutc = @now, lastupdateutc = @now " +
-                "WHERE id = @id AND status = 'Queued' AND (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')) < @max;";
+                "WHERE id = @id AND status = 'Queued' AND (@max <= 0 OR (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')) < @max);";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 result = new ClaimResult();
+                List<Run> candidates = await AdoDatabaseDriver.QueryAsync(connection, transaction, "SELECT * FROM " + _Table + " WHERE id = @id AND status = 'Queued';", c => AdoDatabaseDriver.Add(c, "id", runId), Map, ct).ConfigureAwait(false);
+                if (candidates.Count == 0) return;
+                await QuotaAccountingSql.LockTenantAsync(_Driver, connection, transaction, candidates[0].TenantId, ct).ConfigureAwait(false);
+                QuotaExceededException? refusal = await QuotaAccountingSql.CheckAsync(_Driver, connection, transaction, candidates[0], false, ct).ConfigureAwait(false);
+                if (refusal != null)
+                {
+                    result.QuotaId = refusal.QuotaId;
+                    result.QuotaLimit = refusal.LimitName;
+                    return;
+                }
 
                 // Serialize claims for this deployment so the count below sees every committed claim (READ COMMITTED takes
                 // a new snapshot per statement, after the lock is granted). Sqlite already has a single writer.
@@ -530,6 +529,7 @@ namespace Garrison.Core.Database.Ado
             int affected = 0;
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
+                await QuotaAccountingSql.SnapshotBeforeDeleteAsync(_Driver, connection, transaction, id, ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + events + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Driver.Table("approvals") + " WHERE runid = @id;", command => AdoDatabaseDriver.Add(command, "id", id), ct).ConfigureAwait(false);
                 await DeleteChildrenAsync(connection, transaction, id, ct).ConfigureAwait(false);

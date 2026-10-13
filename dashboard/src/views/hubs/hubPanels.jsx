@@ -20,6 +20,7 @@ import PromptTemplateEditorView from '../PromptTemplateEditorView';
 import McpServersView from '../McpServersView';
 import SecretsView from '../SecretsView';
 import WorkspacesView from '../WorkspacesView';
+import UsageQuotasView from '../UsageQuotasView';
 import ModelPricesView from '../ModelPricesView';
 import ArtifactStoresView from '../ArtifactStoresView';
 import ManifestsView from '../ManifestsView';
@@ -58,6 +59,7 @@ export const PAGE_VIEWS = {
   workspaces: WorkspacesView,
   artifactStores: ArtifactStoresView,
   modelPrices: ModelPricesView,
+  usageQuotas: UsageQuotasView,
   manifests: ManifestsView,
   requests: RequestHistoryView,
   audit: AuditView,

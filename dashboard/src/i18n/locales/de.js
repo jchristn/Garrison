@@ -217,6 +217,7 @@ const de = {
       Execute: 'Ausführen',
       Admin: 'Verwalten'
     },
+    usageQuotaScope: {"Tenant": "Mandant", "Agent": "Agent", "Deployment": "Bereitstellung"},
     resourceType: {
       All: 'Alle Ressourcen',
       Account: 'Konto',
@@ -240,6 +241,7 @@ const de = {
       Workspace: 'Arbeitsbereich',
       ArtifactStore: 'Artefaktspeicher',
       ModelPrice: "Modellpreis",
+      UsageQuota: "Nutzungskontingent",
       Run: 'Lauf',
       Node: 'Knoten',
       NodePool: 'Knotenpool',
@@ -407,6 +409,7 @@ const de = {
       workspaces: { label: 'Arbeitsbereiche', tip: 'Wie Arbeitsbereiche für Läufe vorbereitet werden' },
       artifactStores: { label: 'Artefaktspeicher', tip: 'Wo Artefakte von Läufen gespeichert werden' },
       modelPrices: { label: "Modellpreise", tip: "Vom Betreiber konfigurierte USD-Tarife zur Kostenschätzung, wenn der Harness keine Kosten meldet. Gemeldete Kosten, auch null, haben Vorrang." },
+      usageQuotas: { label: "Nutzungskontingente", tip: "Tägliche UTC-Limits für Läufe, Token, bekannte Kosten und aktuelle Parallelität eines Mandanten, Agenten oder einer Bereitstellung." },
       manifests: { label: 'Manifeste', tip: 'Konfiguration als Code anwenden und exportieren' },
       requests: { label: 'Anfrageverlauf', tip: 'HTTP-Verkehr und Fehler untersuchen' },
       audit: { label: 'Audit', tip: 'Sicherheits- und Konfigurationsereignisse' },
@@ -865,6 +868,7 @@ const de = {
       hints: {"cachedInputUsdPerMillion": "Leer lassen, um den entsprechenden Eingabe- oder Ausgabetarif zu verwenden. Null bedeutet kostenlos.", "reasoningUsdPerMillion": "Leer lassen, um den entsprechenden Eingabe- oder Ausgabetarif zu verwenden. Null bedeutet kostenlos.", "inputIncludesCachedTokens": "Aktivieren, wenn Cache-Token in der Eingabe enthalten sind. Für Claude Code deaktivieren, da Cache-Lesezugriffe separat gemeldet werden.", "outputIncludesReasoningTokens": "Aktivieren, wenn Denkprozess-Token in der Ausgabe enthalten sind. Enthaltene Teilmengen werden vor Anwendung ihres eigenen Tarifs abgezogen."},
       errors: {"rate": "Geben Sie einen endlichen Tarif zwischen 0 und 1.000.000.000 ein. Null ist gültig.", "model": "Geben Sie einen genauen Modellnamen mit 1 bis 256 Zeichen ohne Steuerzeichen ein."}
     },
+    usageQuotas: {"title": "Nutzungskontingente", "subtitle": "Tägliche UTC-Limits für Läufe, Token, bekannte Kosten und aktuelle Parallelität eines Mandanten, Agenten oder einer Bereitstellung.", "add": "Nutzungskontingent hinzufügen", "create": "Nutzungskontingent erstellen", "edit": "Nutzungskontingent bearbeiten", "view": "Kontingentdetails", "deleteTitle": "Nutzungskontingent löschen", "emptyTitle": "Noch keine Nutzungskontingente", "emptyBody": "Fügen Sie ein Kontingent für einen Mandanten, Agenten oder eine Bereitstellung hinzu. Leere Limits sind unbegrenzt.", "columns": {"name": "Name", "active": "Aktiv", "id": "ID", "createdUtc": "Erstellt", "scope": "Geltungsbereich", "resourceId": "Zielressource", "dailyRunLimit": "Läufe pro UTC-Tag", "dailyTokenLimit": "Token pro UTC-Tag", "dailyCostUsdLimit": "Bekannte USD pro UTC-Tag", "maxConcurrentRuns": "Maximale aktive Läufe"}, "fields": {"name": "Name", "description": "Beschreibung", "active": "Aktiv", "scope": "Geltungsbereich", "resourceId": "Zielressource", "dailyRunLimit": "Läufe pro UTC-Tag", "dailyTokenLimit": "Token pro UTC-Tag", "dailyCostUsdLimit": "Bekannte USD pro UTC-Tag", "maxConcurrentRuns": "Maximale aktive Läufe"}, "hints": {"dailyRunLimit": "Leer lassen für unbegrenzte Nutzung. Null verbietet Nutzung. Tageszähler werden um Mitternacht UTC zurückgesetzt; Parallelität zählt aktuell aktive Läufe.", "dailyTokenLimit": "Leer lassen für unbegrenzte Nutzung. Null verbietet Nutzung. Tageszähler werden um Mitternacht UTC zurückgesetzt; Parallelität zählt aktuell aktive Läufe.", "dailyCostUsdLimit": "Leer lassen für unbegrenzte Nutzung. Null verbietet Nutzung. Tageszähler werden um Mitternacht UTC zurückgesetzt; Parallelität zählt aktuell aktive Läufe.", "maxConcurrentRuns": "Leer lassen für unbegrenzte Nutzung. Null verbietet Nutzung. Tageszähler werden um Mitternacht UTC zurückgesetzt; Parallelität zählt aktuell aktive Läufe.", "resourceId": "Fügen Sie ein Kontingent für einen Mandanten, Agenten oder eine Bereitstellung hinzu. Leere Limits sind unbegrenzt."}, "errors": {"limit": "Geben Sie ein nicht negatives Limit im Feldbereich ein. Zähler müssen ganze Zahlen sein."}, "incomplete": "Die Kostenabrechnung ist unvollständig: {{count}} abgeschlossene Läufe haben keine gemeldeten oder geschätzten Kosten. Bekannte Kosten begrenzen weiterhin die Nutzung; fehlende Kosten allein blockieren keine Zulassung.", "actions": {"usage": "Tägliche Nutzung"}, "usage": {"windowStartUtc": "Fensterbeginn (UTC)", "windowEndUtc": "Tägliche Rücksetzung (UTC)", "runsUsed": "Zugelassene Läufe", "tokensUsed": "Abgeschlossene Token", "costUsd": "Bekannte Kosten (USD)", "unknownCostRuns": "Läufe ohne Kosten", "activeRuns": "Aktive Läufe"}},
     artifactStores: {
       ...rp('Artefaktspeicher', 'Wo Dateien aus Läufen aufbewahrt werden.', 'Speicher hinzufügen', 'Speicher erstellen', 'Speicher bearbeiten', 'Speicherdetails', 'Speicher löschen', 'Noch keine Artefaktspeicher', 'Erstellen Sie einen Artefaktspeicher für Ergebnisse von Läufen.'),
       columns: { name: 'Name', kind: 'Art', description: 'Beschreibung', active: 'Aktiv', id: 'ID', createdUtc: 'Erstellt' },

@@ -266,6 +266,12 @@ namespace Garrison.Server.Runtime
                     Stopwatch timer = Stopwatch.StartNew();
                     DateTime leaseExpires = DateTime.UtcNow.AddMilliseconds(_Options.LeaseDurationMs);
                     ClaimResult result = await _Database.Runs.TryClaimWithinLimitAsync(candidate.Id, node.Id, node.Name, leaseExpires, candidate.DeploymentId, limit, token).ConfigureAwait(false);
+                    if (result.QuotaId != null)
+                    {
+                        GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "quota", "harness", candidate.HarnessType.ToString());
+                        claim?.SetTag("garrison.claim_result", "quota");
+                        continue;
+                    }
                     if (result.LimitReached)
                     {
                         activeByDeployment[candidate.DeploymentId] = limit;

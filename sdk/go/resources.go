@@ -482,3 +482,13 @@ func (a *AnalyticsClient) Dimensions(ctx context.Context, from, to string) (*Ana
 	}
 	return &out, nil
 }
+
+// UsageQuotasClient configures daily UTC quotas and reads counters with missing-cost coverage.
+type UsageQuotasClient struct{ Resource }
+
+// Usage reads today's accounting window and active concurrency for a quota.
+func (r *UsageQuotasClient) Usage(ctx context.Context, id string) (*UsageQuotaUsage, error) {
+	var usage UsageQuotaUsage
+	err := r.c.Do(ctx, http.MethodGet, r.item(id)+"/usage", nil, nil, &usage)
+	return &usage, err
+}

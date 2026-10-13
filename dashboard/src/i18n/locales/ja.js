@@ -196,6 +196,7 @@ const ja = {
     runOverrideValidation: { Any: '任意の値', Enum: 'リストのいずれか', Regex: '正規表現', IntegerRange: '整数の範囲' },
     credentialAuthMode: { DirectHeader: '直接ヘッダー', SignedRequest: '署名付きリクエスト', SessionExchange: 'セッショントークン交換', Hybrid: 'すべての方式' },
     operationType: { All: 'すべての操作', Create: '作成', Read: '読み取り', Write: '書き込み', Update: '更新', Delete: '削除', Execute: '実行', Admin: '管理' },
+    usageQuotaScope: {"Tenant": "テナント", "Agent": "エージェント", "Deployment": "デプロイメント"},
     resourceType: {
       All: 'すべてのリソース',
       Account: 'アカウント',
@@ -219,6 +220,7 @@ const ja = {
       Workspace: 'ワークスペース',
       ArtifactStore: '成果物ストア',
       ModelPrice: "モデル料金",
+      UsageQuota: "使用量クォータ",
       Run: '実行',
       Node: 'ノード',
       NodePool: 'ノードプール',
@@ -386,6 +388,7 @@ const ja = {
       workspaces: { label: 'ワークスペース', tip: '実行用ワークスペースの準備方法' },
       artifactStores: { label: '成果物ストア', tip: '実行の成果物の保存先' },
       modelPrices: { label: "モデル料金", tip: "ハーネスが費用を報告しない場合の推定に使う、運用者設定の米ドル料金です。ゼロを含む報告済み費用が優先されます。" },
+      usageQuotas: { label: "使用量クォータ", tip: "テナント、エージェント、デプロイメントの実行数、トークン数、既知の費用に対するUTC日次上限と現在の同時実行数です。" },
       manifests: { label: 'マニフェスト', tip: '構成をコードとして適用・エクスポート' },
       requests: { label: 'リクエスト履歴', tip: 'HTTP トラフィックと失敗の調査' },
       audit: { label: '監査', tip: 'セキュリティと構成のイベント' },
@@ -842,6 +845,7 @@ const ja = {
       hints: {"cachedInputUsdPerMillion": "空欄の場合は対応する入力または出力料金を使用します。ゼロは無料です。", "reasoningUsdPerMillion": "空欄の場合は対応する入力または出力料金を使用します。ゼロは無料です。", "inputIncludesCachedTokens": "入力数にキャッシュトークンが含まれる場合に有効にします。キャッシュ読み取りを別に報告するClaude Codeでは無効にしてください。", "outputIncludesReasoningTokens": "出力数に推論トークンが含まれる場合に有効にします。含まれる内訳を引いてから個別の料金を適用します。"},
       errors: {"rate": "0から1,000,000,000までの有限の料金を入力してください。ゼロも有効です。", "model": "制御文字を含まない1から256文字の正確なモデル名を入力してください。"}
     },
+    usageQuotas: {"title": "使用量クォータ", "subtitle": "テナント、エージェント、デプロイメントの実行数、トークン数、既知の費用に対するUTC日次上限と現在の同時実行数です。", "add": "使用量クォータを追加", "create": "使用量クォータを作成", "edit": "使用量クォータを編集", "view": "使用量クォータの詳細", "deleteTitle": "使用量クォータを削除", "emptyTitle": "使用量クォータはまだありません", "emptyBody": "テナント、エージェント、デプロイメントにクォータを追加します。空欄の上限は無制限です。", "columns": {"name": "名前", "active": "有効", "id": "ID", "createdUtc": "作成日時", "scope": "対象範囲", "resourceId": "対象リソース", "dailyRunLimit": "UTC日ごとの実行数", "dailyTokenLimit": "UTC日ごとのトークン数", "dailyCostUsdLimit": "UTC日ごとの既知のUSD", "maxConcurrentRuns": "最大アクティブ実行数"}, "fields": {"name": "名前", "description": "説明", "active": "有効", "scope": "対象範囲", "resourceId": "対象リソース", "dailyRunLimit": "UTC日ごとの実行数", "dailyTokenLimit": "UTC日ごとのトークン数", "dailyCostUsdLimit": "UTC日ごとの既知のUSD", "maxConcurrentRuns": "最大アクティブ実行数"}, "hints": {"dailyRunLimit": "空欄は無制限、ゼロは使用禁止です。日次カウンターはUTC午前0時にリセットされます。同時実行数は現在のアクティブ実行を数えます。", "dailyTokenLimit": "空欄は無制限、ゼロは使用禁止です。日次カウンターはUTC午前0時にリセットされます。同時実行数は現在のアクティブ実行を数えます。", "dailyCostUsdLimit": "空欄は無制限、ゼロは使用禁止です。日次カウンターはUTC午前0時にリセットされます。同時実行数は現在のアクティブ実行を数えます。", "maxConcurrentRuns": "空欄は無制限、ゼロは使用禁止です。日次カウンターはUTC午前0時にリセットされます。同時実行数は現在のアクティブ実行を数えます。", "resourceId": "テナント、エージェント、デプロイメントにクォータを追加します。空欄の上限は無制限です。"}, "errors": {"limit": "フィールドの範囲内で非負の上限を入力してください。件数は整数で指定してください。"}, "incomplete": "費用集計が不完全です。完了した{{count}}件の実行に報告または推定費用がありません。既知の費用には引き続き上限を適用しますが、費用不明だけでは受付を止めません。", "actions": {"usage": "日次使用量"}, "usage": {"windowStartUtc": "集計開始 (UTC)", "windowEndUtc": "日次リセット (UTC)", "runsUsed": "受け付けた実行", "tokensUsed": "完了トークン数", "costUsd": "既知の費用 (USD)", "unknownCostRuns": "費用不明の実行", "activeRuns": "アクティブ実行"}},
     artifactStores: {
       ...rp('成果物ストア', '実行で生成されたファイルの保存先です。', 'ストアを追加', 'ストアを作成', 'ストアを編集', 'ストアの詳細', 'ストアを削除', '成果物ストアはまだありません', '実行結果を保存するために成果物ストアを作成してください。'),
       columns: { name: '名前', kind: '種類', description: '説明', active: '有効', id: 'ID', createdUtc: '作成日時' },

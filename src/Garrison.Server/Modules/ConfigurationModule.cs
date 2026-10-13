@@ -73,6 +73,7 @@ namespace Garrison.Server.Modules
             new WorkspaceTemplateRoutes(context).Register(routes);
             new ArtifactStoreRoutes(context).Register(routes);
             new ModelPriceRoutes(context).Register(routes);
+            new UsageQuotaRoutes(context).Register(routes);
             new AgentRoutes(context, _Cards!).Register(routes);
             new DeploymentRoutes(context, _Compiler!).Register(routes);
             new ManifestRoutes(context, _Manifests!).Register(routes);

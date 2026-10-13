@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Daily UTC usage quotas cover tenant, agent, and deployment admissions, completed tokens/known cost, and current concurrency. Atomic checks work across replicas, the retained ledger prevents run deletion from resetting meters, and missing cost remains visible without blocking admission. The dashboard and four SDKs support quota management and usage reads; migration 15 backfills existing usage (P12.6).
+
 - Tenant-owned model prices estimate missing run cost using exact harness/model matches and configurable cache/reasoning accounting. Prices start empty; reported cost, including zero, takes precedence. Rates can be managed through the dashboard, REST, and all four SDKs; migration 14 adds the structured price table (P12.7).
 
 - Event batches use provider-limited multi-row SQL with replay deduplication and one transaction across every chunk. SQLite reuses small prepared chunks; single-event batches retain their lightweight path. A reproducible database microbenchmark and measured before/after results are documented in `docs/SCALING.md` (P10.22).

@@ -715,6 +715,22 @@ export class Resource<T = Json> {
   delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.item(id)); }
 }
 
+/** Daily UTC quotas and accounting. Null limits are unlimited; zero disallows usage. */
+export interface UsageQuota extends Json {
+  id: string; tenantId: string; name: string; description?: string | null;
+  scope: "Tenant" | "Agent" | "Deployment"; resourceId: string;
+  dailyRunLimit?: number | null; dailyTokenLimit?: number | null;
+  dailyCostUsdLimit?: number | null; maxConcurrentRuns?: number | null;
+  active: boolean; isProtected: boolean; createdUtc: string; lastUpdateUtc: string;
+}
+export interface UsageQuotaUsage extends Json {
+  quotaId: string; windowStartUtc: string; windowEndUtc: string;
+  runsUsed: number; tokensUsed: number; costUsd: number; unknownCostRuns: number; activeRuns: number; costAccountingComplete: boolean;
+}
+export class UsageQuotas extends Resource<UsageQuota> {
+  usage(id: string): Promise<UsageQuotaUsage> { return this.t.request("GET", this.item(id) + "/usage"); }
+}
+
 export class Users extends Resource {
   permissions(id: string): Promise<Json> { return this.t.request("GET", this.item(id) + "/permissions"); }
 }
@@ -954,6 +970,7 @@ export class GarrisonClient {
   readonly workspaceTemplates: Resource;
   readonly artifactStores: Resource;
   readonly modelPrices: Resource<ModelPrice>;
+  readonly usageQuotas: UsageQuotas;
   readonly manifests: Manifests;
   readonly runs: Runs;
   readonly conversations: Conversations;
@@ -985,6 +1002,7 @@ export class GarrisonClient {
     this.workspaceTemplates = new Resource(t, "workspace-templates");
     this.artifactStores = new Resource(t, "artifact-stores");
     this.modelPrices = new Resource<ModelPrice>(t, "model-prices");
+    this.usageQuotas = new UsageQuotas(t, "usage-quotas");
     this.manifests = new Manifests(t);
     this.runs = new Runs(t);
     this.conversations = new Conversations(t);
