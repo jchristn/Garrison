@@ -4,6 +4,9 @@ namespace Garrison.Server.Modules
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Services;
+    using Garrison.Server.Leases;
     using Garrison.Core.Models;
     using Garrison.Server.Backplane;
     using Garrison.Server.Routes;
@@ -41,6 +44,7 @@ namespace Garrison.Server.Modules
         private ConversationService? _Conversations = null;
         private DelegationPolicy? _Delegation = null;
         private AgentInvoker? _Invoker = null;
+        private ILeaseProvider? _Leases = null;
         private LeaderElectionService? _Leader = null;
         private MaintenanceService? _Maintenance = null;
         private BlockedRunService? _Blocked = null;
@@ -87,7 +91,11 @@ namespace Garrison.Server.Modules
             _Runs.Conversations = _Conversations;
             _Events.Conversations = _Conversations;
             _Scheduler.Conversations = _Conversations;
-            _Leader = new LeaderElectionService(context.Database, _Options, context.Logging, context.NodeId);
+            _Leases = context.Settings.Leases.Provider == LeaseProviderKindEnum.Database
+                ? new DatabaseLeaseProvider(context.Database.CoordinationLeases)
+                : new ClutchLeaseProvider(context.Database.CoordinationLeases, context.Settings.Leases);
+            context.Register<ILeaseProvider>(_Leases);
+            _Leader = new LeaderElectionService(context.Database, _Options, context.Logging, context.NodeId, _Leases);
             _Blocked = new BlockedRunService(context.Database);
             _Maintenance = new MaintenanceService(context.Database, _Leader, _Signals, _Options, context.Telemetry, context.Logging);
             _Maintenance.BlockedRuns = _Blocked;
@@ -119,7 +127,7 @@ namespace Garrison.Server.Modules
             context.Register(_Approvals);
             _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
             context.Register(_Gauges);
-            _Codex = new CodexCredentialService(context.Database, context.Cipher, () => context.Settings.Codex, context.NodeId, context.Logging);
+            _Codex = new CodexCredentialService(context.Database, context.Cipher, () => context.Settings.Codex, context.NodeId, context.Logging, leaseProvider: _Leases);
             context.Register(_Codex);
             return Task.CompletedTask;
         }
@@ -219,6 +227,8 @@ namespace Garrison.Server.Modules
             _Maintenance?.Dispose();
             _Approvals?.Dispose();
             _Leader?.Dispose();
+            if (_Leases is ClutchLeaseProvider clutch) await clutch.StopAsync(token).ConfigureAwait(false);
+            if (_Leases is IDisposable disposable) disposable.Dispose();
         }
 
         #endregion

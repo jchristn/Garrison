@@ -42,6 +42,16 @@ namespace Test.Automated
                 if (args[i] == "--suites" && i + 1 < args.Length) prefixes.AddRange(args[i + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
             }
 
+            if (args.Contains("--clutch-conformance"))
+            {
+                string endpoint = Environment.GetEnvironmentVariable("GARRISON_TEST_CLUTCH_ENDPOINT") ?? throw new InvalidOperationException("A temporary Clutch endpoint is required.");
+                string access = Environment.GetEnvironmentVariable("GARRISON_TEST_CLUTCH_ACCESS_KEY") ?? "clutch-default-access-key";
+                using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2)))
+                    await ClutchLeaseConformance.RunAsync(endpoint, access, timeout.Token).ConfigureAwait(false);
+                Console.WriteLine("PASS Clutch contention, explicit renewal/expiry, disconnect fencing, outage, and database default.");
+                return 0;
+            }
+
             if (args.Contains("--artifact-s3-conformance"))
             {
                 string endpoint = Environment.GetEnvironmentVariable("GARRISON_TEST_S3_ENDPOINT") ?? throw new InvalidOperationException("A temporary S3 endpoint is required.");

@@ -136,7 +136,7 @@ The production overlay's HPA scales the server between 2 and 10 replicas on CPU,
 
 ## Database
 
-PostgreSQL carries all coordination, so it is the component to size first.
+PostgreSQL carries run coordination and durable fencing, so it is the component to size first. Optional [Clutch coordination](CLUTCH_LEASES.md) also gates leadership and Codex credential refresh; it does not remove database claims or fencing.
 
 ### Connections
 

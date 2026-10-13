@@ -15,6 +15,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Garrison.Core.Security;
+    using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Settings;
     using SyslogLogging;
@@ -100,6 +101,7 @@ namespace Garrison.Server.Runtime
         private static readonly string _LeasePrefix = "codex-refresh:";
         private static readonly JsonSerializerOptions _Json = new JsonSerializerOptions();
 
+        private readonly ILeaseProvider _Leases;
         private readonly DatabaseDriverBase _Database;
         private readonly SecretCipher _Cipher;
         private readonly Func<CodexSettings> _Settings;
@@ -126,11 +128,13 @@ namespace Garrison.Server.Runtime
         /// <param name="settings">Returns the current Codex settings (read on every check, so changes apply live).</param>
         /// <param name="nodeId">This replica's identifier, used in lease holder names.</param>
         /// <param name="logging">Logging.</param>
+        /// <param name="leaseProvider">Optional coordination provider; null retains database leases.</param>
         /// <param name="handler">HTTP handler for the token endpoint, or null for the default. The service owns and disposes it.</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public CodexCredentialService(DatabaseDriverBase database, SecretCipher cipher, Func<CodexSettings> settings, string nodeId, LoggingModule logging, HttpMessageHandler? handler = null)
+        public CodexCredentialService(DatabaseDriverBase database, SecretCipher cipher, Func<CodexSettings> settings, string nodeId, LoggingModule logging, HttpMessageHandler? handler = null, ILeaseProvider? leaseProvider = null)
         {
             _Database = database ?? throw new ArgumentNullException(nameof(database));
+            _Leases = leaseProvider ?? new DatabaseLeaseProvider(database.CoordinationLeases);
             _Cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
             _Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             if (String.IsNullOrEmpty(nodeId)) throw new ArgumentNullException(nameof(nodeId));
@@ -365,7 +369,7 @@ namespace Garrison.Server.Runtime
             while (true)
             {
                 token.ThrowIfCancellationRequested();
-                long? epoch = await _Database.CoordinationLeases.TryAcquireAsync(lease, holder, leaseMs, token).ConfigureAwait(false);
+                long? epoch = await _Leases.TryAcquireAsync(lease, holder, leaseMs, token).ConfigureAwait(false);
                 if (epoch.HasValue)
                 {
                     try
@@ -374,7 +378,7 @@ namespace Garrison.Server.Runtime
                     }
                     finally
                     {
-                        await _Database.CoordinationLeases.ReleaseAsync(lease, holder, CancellationToken.None).ConfigureAwait(false);
+                        await _Leases.ReleaseAsync(lease, holder, CancellationToken.None).ConfigureAwait(false);
                     }
                 }
 

@@ -399,7 +399,7 @@ namespace Test.Shared.Suites
         public static async Task SettingsAsync(DatabaseTypeEnum provider, CancellationToken token)
         {
             string file = Path.Combine(Path.GetTempPath(), "garrison-test", Guid.NewGuid().ToString("N") + ".json");
-            await using (TestServerHost host = await TestServerHost.StartAsync(provider, s => s.SourceFile = file, token).ConfigureAwait(false))
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, s => { s.SourceFile = file; s.Leases.ClutchAccessKey = "test-clutch-key"; }, token).ConfigureAwait(false))
             {
                 host.Settings.ToFile(file);
                 SettingsView view = await HttpTestHelpers.SendAsync<SettingsView>(host.AdminClient, HttpMethod.Get, "/v1.0/api/settings", null, 200, token).ConfigureAwait(false);
@@ -408,6 +408,11 @@ namespace Test.Shared.Suites
                 Assert.Equal("File", port.Source, "Rest.Port source");
                 SettingField password = view.Fields.First(f => f.Path == "Auth.SigningKey");
                 Assert.True(password.IsSecret && password.IsSet && password.Value == SettingsService.SecretMask, "Secrets are masked.");
+                SettingField clutchKey = view.Fields.First(f => f.Path == "Leases.ClutchAccessKey");
+                Assert.True(clutchKey.IsSecret && clutchKey.IsSet && clutchKey.Value == SettingsService.SecretMask, "Clutch access key is masked.");
+                SettingField coordination = view.Fields.First(f => f.Path == "Leases.Provider");
+                Assert.Equal("Database", coordination.Value, "External coordination is opt-in.");
+                Assert.Equal("RestartRequired", coordination.ApplyMode, "Coordination changes require restart.");
                 SettingField lease = view.Fields.First(f => f.Path == "Scheduling.LeaseDurationMs");
                 Assert.Equal("Database", lease.Source, "Cluster setting source");
                 Assert.Equal("30000", lease.Value, "Cluster default");
@@ -416,13 +421,15 @@ namespace Test.Shared.Suites
                 Assert.Equal(400, invalid.StatusCode, "Invalid update status");
                 foreach (string path in new[] { "Rest.Port", "Scheduling.LeaseDurationMs", "Nope.Nothing" }) Assert.True(invalid.Body.Contains(path, StringComparison.Ordinal), "Missing field error for " + path);
 
-                SettingsSaveResponse saved = await HttpTestHelpers.SendAsync<SettingsSaveResponse>(host.AdminClient, HttpMethod.Put, "/v1.0/api/settings", Update("Scheduling.LeaseDurationMs", "45000", "Logging.MinimumSeverity", "2", "Rest.Port", "9123", "Auth.SigningKey", SettingsService.SecretMask), 200, token).ConfigureAwait(false);
+                SettingsSaveResponse saved = await HttpTestHelpers.SendAsync<SettingsSaveResponse>(host.AdminClient, HttpMethod.Put, "/v1.0/api/settings", Update("Scheduling.LeaseDurationMs", "45000", "Logging.MinimumSeverity", "2", "Rest.Port", "9123", "Auth.SigningKey", SettingsService.SecretMask, "Leases.ClutchAccessKey", SettingsService.SecretMask), 200, token).ConfigureAwait(false);
                 Assert.True(saved.RestartRequired && saved.PendingRestart.Contains("Rest.Port"), "Rest.Port pending restart.");
                 Assert.True(saved.AppliedLive.Contains("Scheduling.LeaseDurationMs") && saved.AppliedLive.Contains("Logging.MinimumSeverity"), "Live settings applied.");
                 Assert.Equal(45000, host.Server.Context.Get<ClusterSettingsService>().GetInt("Scheduling.LeaseDurationMs"), "Cluster setting live");
                 Assert.Equal(2, host.Settings.Logging.MinimumSeverity, "Live file setting applied");
                 Assert.True(host.Settings.Rest.Port != 9123, "Restart-required setting applied live.");
                 Assert.Equal("test-signing-key", host.Settings.Auth.SigningKey, "Mask must not overwrite the secret");
+
+                Assert.Equal("test-clutch-key", host.Settings.Leases.ClutchAccessKey, "Mask preserves Clutch credential.");
 
                 string written = File.ReadAllText(file);
                 Assert.True(written.Contains("9123", StringComparison.Ordinal), "Settings file not written.");

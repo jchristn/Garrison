@@ -1668,3 +1668,6 @@ const explainers = {
 };
 
 export { tips, explainers };
+
+tips.views.settings.groups.Leases = "選用協調設定；所有副本須使用相同設定並重新啟動。預設使用 Database。";
+tips.views.settings.fields.Leases = {"Provider": "選用協調設定；所有副本須使用相同設定並重新啟動。預設使用 Database。", "ClutchEndpoint": "透過密鑰或環境變數提供 Clutch 存取金鑰；端點不得包含憑證。", "ClutchAccessKey": "透過密鑰或環境變數提供 Clutch 存取金鑰；端點不得包含憑證。", "KeyPrefix": "選用協調設定；所有副本須使用相同設定並重新啟動。預設使用 Database。", "RequestTimeoutMs": "選用協調設定；所有副本須使用相同設定並重新啟動。預設使用 Database。", "SweepIntervalMs": "選用協調設定；所有副本須使用相同設定並重新啟動。預設使用 Database。", "MaxLeaseMs": "選用協調設定；所有副本須使用相同設定並重新啟動。預設使用 Database。", "MaxHoldMs": "選用協調設定；所有副本須使用相同設定並重新啟動。預設使用 Database。"};

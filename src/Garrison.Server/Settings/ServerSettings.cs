@@ -79,6 +79,13 @@ namespace Garrison.Server.Settings
         /// </summary>
         public ArchiveSettings Archive { get; set; } = new ArchiveSettings();
 
+        /// <summary>Coordination backend, defaulting to database leases without an external dependency.</summary>
+        public LeaseSettings Leases
+        {
+            get { return _Leases; }
+            set { _Leases = value ?? new LeaseSettings(); }
+        }
+
         /// <summary>Node-local artifact storage and collection configuration.</summary>
         public ArtifactSettings Artifacts
         {
@@ -131,6 +138,7 @@ namespace Garrison.Server.Settings
 
         #region Private-Members
 
+        private LeaseSettings _Leases = new LeaseSettings();
         private ArtifactSettings _Artifacts = new ArtifactSettings();
 
         private CodexSettings _Codex = new CodexSettings();
@@ -190,6 +198,14 @@ namespace Garrison.Server.Settings
         public void ApplyEnvironment()
         {
             Str("GARRISON_NODE_ID", "NodeId", v => NodeId = v);
+            Str("GARRISON_LEASE_PROVIDER", "Leases.Provider", v => Leases.Provider = System.Enum.Parse<LeaseProviderKindEnum>(v, true));
+            Str("GARRISON_CLUTCH_ENDPOINT", "Leases.ClutchEndpoint", v => Leases.ClutchEndpoint = v);
+            Str("GARRISON_CLUTCH_ACCESS_KEY", "Leases.ClutchAccessKey", v => Leases.ClutchAccessKey = v);
+            Str("GARRISON_CLUTCH_KEY_PREFIX", "Leases.KeyPrefix", v => Leases.KeyPrefix = v);
+            Int("GARRISON_CLUTCH_REQUEST_TIMEOUT_MS", "Leases.RequestTimeoutMs", v => Leases.RequestTimeoutMs = v);
+            Int("GARRISON_CLUTCH_SWEEP_INTERVAL_MS", "Leases.SweepIntervalMs", v => Leases.SweepIntervalMs = v);
+            Int("GARRISON_CLUTCH_MAX_LEASE_MS", "Leases.MaxLeaseMs", v => Leases.MaxLeaseMs = v);
+            Int("GARRISON_CLUTCH_MAX_HOLD_MS", "Leases.MaxHoldMs", v => Leases.MaxHoldMs = v);
             Enum("GARRISON_DB_TYPE", "Database.Type", v => Database.Type = v);
             Str("GARRISON_DB_FILENAME", "Database.Filename", v => Database.Filename = v);
             Str("GARRISON_DB_HOST", "Database.Host", v => Database.Host = v);

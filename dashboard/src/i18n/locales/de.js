@@ -1935,3 +1935,6 @@ Object.assign(de.common.eventCodes, { ArtifactCollectionWarning: "Warnung beim S
 de.tips.nav.tabs.artifacts = de.nav.items.artifacts.tip + " " + de.tips.resources.artifacts.actions.download;
 Object.assign(de.components.mcpTest, {"worker": "Worker-Knoten", "chooseWorker": "Wählen Sie einen bereiten Worker. Der konfigurierte Befehl listet dort Werkzeuge auf; es werden keine Werkzeuge ausgeführt.", "runTest": "Test starten"});
 export default de;
+
+de.views.settings.groups.Leases = "Koordinierungsleases";
+de.views.settings.fields.Leases = {"Provider": "Anbieter", "ClutchEndpoint": "Clutch-Endpunkt", "ClutchAccessKey": "Clutch-Zugriffsschlüssel", "KeyPrefix": "Schlüsselpräfix", "RequestTimeoutMs": "Anfragezeitlimit (ms)", "SweepIntervalMs": "Prüfintervall (ms)", "MaxLeaseMs": "Maximale Lease (ms)", "MaxHoldMs": "Maximale Haltezeit (ms)"};

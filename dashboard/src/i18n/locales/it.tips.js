@@ -1671,3 +1671,6 @@ const explainers = {
 };
 
 export { tips, explainers };
+
+tips.views.settings.groups.Leases = "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.";
+tips.views.settings.fields.Leases = {"Provider": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "ClutchEndpoint": "Fornire la chiave Clutch tramite un segreto o variabile di ambiente; evitare credenziali nell’endpoint.", "ClutchAccessKey": "Fornire la chiave Clutch tramite un segreto o variabile di ambiente; evitare credenziali nell’endpoint.", "KeyPrefix": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "RequestTimeoutMs": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "SweepIntervalMs": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "MaxLeaseMs": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "MaxHoldMs": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito."};

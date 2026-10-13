@@ -1902,3 +1902,6 @@ Object.assign(ja.common.eventCodes, { ArtifactCollectionWarning: "成果物収�
 ja.tips.nav.tabs.artifacts = ja.nav.items.artifacts.tip + " " + ja.tips.resources.artifacts.actions.download;
 Object.assign(ja.components.mcpTest, {"worker": "ワーカーノード", "chooseWorker": "準備完了のワーカーを選択します。設定済みコマンドでツールを一覧表示します。ツールは実行しません。", "runTest": "テストを実行"});
 export default ja;
+
+ja.views.settings.groups.Leases = "協調リース";
+ja.views.settings.fields.Leases = {"Provider": "プロバイダー", "ClutchEndpoint": "Clutch エンドポイント", "ClutchAccessKey": "Clutch アクセスキー", "KeyPrefix": "キープレフィックス", "RequestTimeoutMs": "要求タイムアウト (ms)", "SweepIntervalMs": "確認間隔 (ms)", "MaxLeaseMs": "最大リース (ms)", "MaxHoldMs": "最大保持時間 (ms)"};

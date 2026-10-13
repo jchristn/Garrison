@@ -1901,3 +1901,6 @@ Object.assign(zhHant.common.eventCodes, { ArtifactCollectionWarning: "產物收�
 zhHant.tips.nav.tabs.artifacts = zhHant.nav.items.artifacts.tip + " " + zhHant.tips.resources.artifacts.actions.download;
 Object.assign(zhHant.components.mcpTest, {"worker": "工作節點", "chooseWorker": "選擇就緒的工作節點。設定的命令會在該節點列出工具，不會呼叫工具。", "runTest": "執行測試"});
 export default zhHant;
+
+zhHant.views.settings.groups.Leases = "協調租約";
+zhHant.views.settings.fields.Leases = {"Provider": "提供方", "ClutchEndpoint": "Clutch 端點", "ClutchAccessKey": "Clutch 存取金鑰", "KeyPrefix": "鍵前綴", "RequestTimeoutMs": "請求逾時 (ms)", "SweepIntervalMs": "檢查間隔 (ms)", "MaxLeaseMs": "最長租約 (ms)", "MaxHoldMs": "最長持有時間 (ms)"};

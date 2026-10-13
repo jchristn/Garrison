@@ -1901,3 +1901,6 @@ Object.assign(zhHans.common.eventCodes, { ArtifactCollectionWarning: "产物收�
 zhHans.tips.nav.tabs.artifacts = zhHans.nav.items.artifacts.tip + " " + zhHans.tips.resources.artifacts.actions.download;
 Object.assign(zhHans.components.mcpTest, {"worker": "工作节点", "chooseWorker": "选择就绪的工作节点。配置的命令将在该节点列出工具，不会调用工具。", "runTest": "运行测试"});
 export default zhHans;
+
+zhHans.views.settings.groups.Leases = "协调租约";
+zhHans.views.settings.fields.Leases = {"Provider": "提供方", "ClutchEndpoint": "Clutch 端点", "ClutchAccessKey": "Clutch 访问密钥", "KeyPrefix": "键前缀", "RequestTimeoutMs": "请求超时 (ms)", "SweepIntervalMs": "检查间隔 (ms)", "MaxLeaseMs": "最长租约 (ms)", "MaxHoldMs": "最长持有时间 (ms)"};

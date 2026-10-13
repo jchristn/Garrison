@@ -6,6 +6,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core;
     using Garrison.Core.Database;
     using Garrison.Core.Models;
+    using Garrison.Core.Services;
     using Garrison.Core.Telemetry;
     using SyslogLogging;
 
@@ -43,7 +44,7 @@ namespace Garrison.Server.Runtime
 
         #region Private-Members
 
-        private readonly DatabaseDriverBase _Database;
+        private readonly ILeaseProvider _Leases;
         private readonly RuntimeOptions _Options;
         private readonly LoggingModule _Logging;
         private readonly string _Header = "[Leader] ";
@@ -65,10 +66,12 @@ namespace Garrison.Server.Runtime
         /// <param name="options">Runtime options.</param>
         /// <param name="logging">Logging.</param>
         /// <param name="nodeId">Replica identifier.</param>
+        /// <param name="leaseProvider">Optional provider; null retains database coordination.</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public LeaderElectionService(DatabaseDriverBase database, RuntimeOptions options, LoggingModule logging, string nodeId)
+        public LeaderElectionService(DatabaseDriverBase database, RuntimeOptions options, LoggingModule logging, string nodeId, ILeaseProvider? leaseProvider = null)
         {
-            _Database = database ?? throw new ArgumentNullException(nameof(database));
+            if (database == null) throw new ArgumentNullException(nameof(database));
+            _Leases = leaseProvider ?? new DatabaseLeaseProvider(database.CoordinationLeases);
             _Options = options ?? throw new ArgumentNullException(nameof(options));
             _Logging = logging ?? throw new ArgumentNullException(nameof(logging));
             Holder = (String.IsNullOrEmpty(nodeId) ? "command" : nodeId) + ":" + Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -111,7 +114,7 @@ namespace Garrison.Server.Runtime
             {
                 try
                 {
-                    await _Database.CoordinationLeases.ReleaseAsync(Constants.LeaderLeaseName, Holder, token).ConfigureAwait(false);
+                    await _Leases.ReleaseAsync(Constants.LeaderLeaseName, Holder, token).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -185,7 +188,7 @@ namespace Garrison.Server.Runtime
         private async Task<bool> CampaignAsync(CancellationToken token)
         {
             DateTime attempted = DateTime.UtcNow;
-            long? epoch = await _Database.CoordinationLeases.TryAcquireAsync(Constants.LeaderLeaseName, Holder, _Options.LeaderLeaseMs, token).ConfigureAwait(false);
+            long? epoch = await _Leases.TryAcquireAsync(Constants.LeaderLeaseName, Holder, _Options.LeaderLeaseMs, token).ConfigureAwait(false);
             long previous = Interlocked.Read(ref _Epoch);
             if (epoch.HasValue)
             {

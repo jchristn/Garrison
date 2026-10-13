@@ -1900,3 +1900,6 @@ Object.assign(yueHant.common.eventCodes, { ArtifactCollectionWarning: "產物收
 yueHant.tips.nav.tabs.artifacts = yueHant.nav.items.artifacts.tip + " " + yueHant.tips.resources.artifacts.actions.download;
 Object.assign(yueHant.components.mcpTest, {"worker": "工作節點", "chooseWorker": "選擇已就緒嘅工作節點。設定嘅命令會喺該節點列出工具，唔會呼叫工具。", "runTest": "執行測試"});
 export default yueHant;
+
+yueHant.views.settings.groups.Leases = "協調租約";
+yueHant.views.settings.fields.Leases = {"Provider": "供應方", "ClutchEndpoint": "Clutch 端點", "ClutchAccessKey": "Clutch 存取金鑰", "KeyPrefix": "鍵前綴", "RequestTimeoutMs": "請求逾時 (ms)", "SweepIntervalMs": "檢查間隔 (ms)", "MaxLeaseMs": "最長租約 (ms)", "MaxHoldMs": "最長持有時間 (ms)"};

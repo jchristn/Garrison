@@ -111,6 +111,11 @@ services:
       # network. Defaults to the REST port published on the host.
       GARRISON_EXTERNAL_BASE_URL: '${GARRISON_EXTERNAL_BASE_URL:-http://127.0.0.1:${GARRISON_REST_PORT:-8700}}'
       GARRISON_EXPECTED_REPLICAS: '1'
+      GARRISON_LEASE_PROVIDER: '${GARRISON_LEASE_PROVIDER:-Database}'
+      GARRISON_CLUTCH_ENDPOINT: '${GARRISON_CLUTCH_ENDPOINT:-}'
+      GARRISON_CLUTCH_ACCESS_KEY: '${GARRISON_CLUTCH_ACCESS_KEY:-}'
+      GARRISON_CLUTCH_KEY_PREFIX: '${GARRISON_CLUTCH_KEY_PREFIX:-garrison}'
+
     volumes:
       - ./server/garrison.json:/etc/garrison/garrison.json:ro
     depends_on:

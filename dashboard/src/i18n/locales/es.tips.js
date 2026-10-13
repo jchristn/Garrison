@@ -1671,3 +1671,6 @@ const explainers = {
 };
 
 export { tips, explainers };
+
+tips.views.settings.groups.Leases = "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.";
+tips.views.settings.fields.Leases = {"Provider": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "ClutchEndpoint": "Proporcione la clave de Clutch mediante un secreto o variable de entorno; no incluya credenciales en el endpoint.", "ClutchAccessKey": "Proporcione la clave de Clutch mediante un secreto o variable de entorno; no incluya credenciales en el endpoint.", "KeyPrefix": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "RequestTimeoutMs": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "SweepIntervalMs": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "MaxLeaseMs": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "MaxHoldMs": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado."};

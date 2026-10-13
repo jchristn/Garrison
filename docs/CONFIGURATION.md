@@ -271,3 +271,7 @@ Quota enforcement is optional and off by default: set `enforcementEnabled: true`
 ## Artifact collection
 
 Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example `["reports/**/*.json"]`. Empty globs disable collection. See [Run artifacts](ARTIFACTS.md) for filesystem/S3 configuration, limits, downloads, and API examples.
+
+## Optional coordination provider
+
+`Leases.Provider` defaults to `Database`. Selecting `Clutch` adds an external coordination gate for leadership and credential refresh, with durable database fencing retained. Configure all replicas consistently and restart them. See [Clutch leases](CLUTCH_LEASES.md) for settings, environment overrides, failure behavior, and the temporary-service verification command.

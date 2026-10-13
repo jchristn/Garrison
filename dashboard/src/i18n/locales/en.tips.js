@@ -1669,3 +1669,6 @@ const explainers = {
 };
 
 export { tips, explainers };
+
+tips.views.settings.groups.Leases = "Optional coordination backend; configure all replicas consistently and restart. Database is the default.";
+tips.views.settings.fields.Leases = {"Provider": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "ClutchEndpoint": "Supply a Clutch access key through a secret or environment override; endpoints must not contain credentials.", "ClutchAccessKey": "Supply a Clutch access key through a secret or environment override; endpoints must not contain credentials.", "KeyPrefix": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "RequestTimeoutMs": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "SweepIntervalMs": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "MaxLeaseMs": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "MaxHoldMs": "Optional coordination backend; configure all replicas consistently and restart. Database is the default."};

@@ -1669,3 +1669,6 @@ const explainers = {
 };
 
 export { tips, explainers };
+
+tips.views.settings.groups.Leases = "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。";
+tips.views.settings.fields.Leases = {"Provider": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "ClutchEndpoint": "Clutch キーはシークレットまたは環境変数で渡します。エンドポイントに認証情報を含めないでください。", "ClutchAccessKey": "Clutch キーはシークレットまたは環境変数で渡します。エンドポイントに認証情報を含めないでください。", "KeyPrefix": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "RequestTimeoutMs": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "SweepIntervalMs": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "MaxLeaseMs": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。", "MaxHoldMs": "任意の協調設定です。すべてのレプリカを同じ設定にして再起動します。既定は Database です。"};

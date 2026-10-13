@@ -1928,3 +1928,6 @@ Object.assign(en.common.eventCodes, { ArtifactCollectionWarning: "Artifact colle
 en.tips.nav.tabs.artifacts = en.nav.items.artifacts.tip + " " + en.tips.resources.artifacts.actions.download;
 Object.assign(en.components.mcpTest, {"worker": "Worker node", "chooseWorker": "Select a Ready worker. The configured command runs there to list tools; no tools are invoked.", "runTest": "Run test"});
 export default en;
+
+en.views.settings.groups.Leases = "Coordination leases";
+en.views.settings.fields.Leases = {"Provider": "Provider", "ClutchEndpoint": "Clutch endpoint", "ClutchAccessKey": "Clutch access key", "KeyPrefix": "Key prefix", "RequestTimeoutMs": "Request timeout (ms)", "SweepIntervalMs": "Sweep interval (ms)", "MaxLeaseMs": "Maximum lease (ms)", "MaxHoldMs": "Maximum hold (ms)"};

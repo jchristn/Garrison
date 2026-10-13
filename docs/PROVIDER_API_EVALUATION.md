@@ -18,4 +18,4 @@ Cost reporting can reuse the existing estimation path and operator-configured ra
 
 The useful trigger is a deployment that must run a named provider using endpoint credentials without installing its CLI. If that is an immediate requirement, start with one provider and prove streaming, one MCP tool round trip, cancellation, usage, and a conversation before widening support.
 
-The evaluation is complete. Implementation remains undecided under P12.13; no provider engine or PolyPrompt dependency has been added to Garrison.
+The evaluation is complete. The user selected optional implementation under P12.13 after reviewing the recommendation. Implement the provider path while retaining the existing CLI paths and optional quota enforcement. No provider engine or PolyPrompt dependency has been added yet.

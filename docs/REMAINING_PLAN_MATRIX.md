@@ -2,7 +2,7 @@
 
 Updated 2026-10-13 under D-042/D-043. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-There are 5 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20/P12.8/P12.12 are complete. Five selected implementation tasks remain, plus the 2 conditional P10 tasks and 4 active core follow-ups.
+There are 4 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20/P12.8/P12.11/P12.12 are complete. Four selected implementation tasks remain, plus the 2 conditional P10 tasks and 4 active core follow-ups.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -20,13 +20,13 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.8 | Filesystem/S3 artifact stores and browser | Complete | Deployed and validated; explicit globs only. |
 | P12.9 | Multi-agent pipelines with review gates | Active | Adds orchestration beyond individual runs |
 | P12.10 | Management MCP tools | Active | Allows agents to modify configuration |
-| P12.11 | Clutch-backed lease provider | Active | Alternative to existing database leases |
+| P12.11 | Clutch-backed lease provider | Complete | Opt-in; real-service expiry/disconnect/outage checks pass on both databases; default Docker deployment healthy |
 | P12.12 | Test stdio MCP servers from workers | Complete | Deployed; selected-worker API/UI/SDK diagnostics validated |
-| P12.13 | Direct provider API execution | Evaluation complete; decision pending | Recommend defer until a provider-only deployment needs it; see PROVIDER_API_EVALUATION.md |
+| P12.13 | Direct provider API execution | Active; optional implementation selected | User chose implementation after evaluation; CLI paths remain available |
 | P12.14 | Completion/failure webhook notifications | Deferred | Operator integrations |
 | P12.15 | Dashboard coverage for retained Phase 12 features | Deferred | Only for features the user retains |
 | P12.16 | SDK coverage for retained Phase 12 features | Deferred | Only for features the user retains |
-| P12.17 | API docs/Postman for retained Phase 12 features | In progress | Artifact/stdio coverage added; remaining retained features pending |
+| P12.17 | API docs/Postman for retained Phase 12 features | In progress | Artifact/stdio/Clutch coverage added; remaining retained features pending |
 | P12.18 | Tests for retained Phase 12 features | Deferred | Only for features the user retains |
 | P12.19 | NotDory memory integration example | Deferred | Documentation/example integration |
 | P12.20 | Conductor integration example | Deferred | Documentation/example integration |

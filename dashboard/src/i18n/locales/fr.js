@@ -1947,3 +1947,6 @@ Object.assign(fr.common.eventCodes, { ArtifactCollectionWarning: "Avertissement 
 fr.tips.nav.tabs.artifacts = fr.nav.items.artifacts.tip + " " + fr.tips.resources.artifacts.actions.download;
 Object.assign(fr.components.mcpTest, {"worker": "Nœud worker", "chooseWorker": "Sélectionnez un worker prêt. La commande configurée y liste les outils ; aucun outil n’est exécuté.", "runTest": "Lancer le test"});
 export default fr;
+
+fr.views.settings.groups.Leases = "Baux de coordination";
+fr.views.settings.fields.Leases = {"Provider": "Fournisseur", "ClutchEndpoint": "Point de connexion Clutch", "ClutchAccessKey": "Clé d’accès Clutch", "KeyPrefix": "Préfixe des clés", "RequestTimeoutMs": "Délai de requête (ms)", "SweepIntervalMs": "Intervalle de contrôle (ms)", "MaxLeaseMs": "Bail maximal (ms)", "MaxHoldMs": "Maintien maximal (ms)"};
