@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Manifest result rows display each stable `errorCode` beside the server message, so operators can distinguish validation and permission failures.
+
 - Process run and conversation directories use owner-only Unix permissions on creation and reuse. Deployment forms and run details label Process execution as trusted only; it still shares the worker user, filesystem, and network (P11.16).
 
 - Workers merge consecutive assistant/thinking text within a flush window, capped at 2048 characters by default, while retaining original harness lines. Retry payloads stay immutable and live streaming uses the same event path. The token fixture stores 500x fewer rows with an identical transcript on both databases (P10.23).

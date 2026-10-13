@@ -129,13 +129,13 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 2. Cost estimation P12.7 is complete. Daily UTC budgets/quotas (P12.6, D-038/D-039/D-040) are complete. Continue delegation budgets (P12.35), and QoSKit (P12.36, P12.38, D-036). Design answers are in D-035. G-28 and P10.22 are complete; P10.23 event coalescing is complete.
 3. Remaining M2 work: P10.24 to P10.25, P11.14, P11.15, and P11.17 to P11.20. Run P14.15 before P10.24 tuning, because tuning depends on its results; then Phase 15. P10.23 now prevents storing one event per token for `builtin/codex-app-server`.
 4. Close G-12 by switching `builtin/codex` to app-server mode after a soak covering MCP servers, output schema, thread resume, and sandbox configuration.
-5. Other follow-ups: dashboard manifest `errorCode`; IMPROVEMENTS.md I-01 (synchronous invocation waits holding connections); cancel-latency robustness under load; conversation directory cleanup on delete, conversation retention, and affinity wait expiry end-to-end coverage.
+5. Dashboard manifest `errorCode` follow-up is complete: stable codes appear beside the server message; lint/build and the existing manifest diff browser check pass, and the dashboard is deployed. Other follow-ups: IMPROVEMENTS.md I-01 (synchronous invocation waits holding connections); cancel-latency robustness under load; conversation directory cleanup on delete, conversation retention, and affinity wait expiry end-to-end coverage.
 
 
 **Waiting on the user**
 
 - No credential action pending: the user completed a dedicated Garrison Codex login on 2026-10-12; the secret is `Ok` and real-harness validation passes. Keep that login separate from the operator's active Codex login.
-- Daily quota decisions are settled in D-038/D-039/D-040. A separate P12.35 question is pending: what to reserve for an unpriced delegated child under a tree cost budget (operator-configured per-child reserve, all remaining tree cost, or refusal). Other plan work continues while awaiting the answer.
+- Budget scope is under user review (2026-10-12): the user questions whether budgeting belongs in the initial product and may request removal from code and plan. Do not start further budgeting implementation before resolving that scope. If tree budgets remain, the user chose operator-configured per-child reserves and incomplete cost accounting for unpriced children. No P12.35 implementation has started.
 - Publishing images and packages (P7.5, P6.20) stays deferred until the user asks.
 
 **Things to know when resuming**

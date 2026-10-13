@@ -46,7 +46,10 @@ export default function ManifestResults({ items, testId = 'manifest-results' }) 
                       </Badge>
                     )}
                   </td>
-                  <td>{it.message ? translateServerText(t, it.message) : changes.length ? t('views.manifests.changes.count', { count: changes.length }) : '-'}</td>
+                  <td>
+                    {it.errorCode && <><code className="text-danger" data-testid="manifest-error-code">{it.errorCode}</code>{' '}</>}
+                    {it.message ? translateServerText(t, it.message) : changes.length ? t('views.manifests.changes.count', { count: changes.length }) : '-'}
+                  </td>
                 </tr>
                 {changes.length > 0 && (
                   <tr className="manifest-changes-row">
