@@ -1,5 +1,7 @@
 # Build output
 bin/
+!sdk/js/bin/
+!sdk/js/bin/console.mjs
 obj/
 [Dd]ebug/
 [Rr]elease/
