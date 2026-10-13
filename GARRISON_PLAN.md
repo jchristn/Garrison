@@ -83,7 +83,7 @@ Rules for keeping the plan honest:
 | 3 | Runtime: runs, scheduler, leases, worker node, harness execution, events | M1 | Complete | 47 / 47 |
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | Complete | 10 / 10 |
 | 5 | Dashboard | M1 | Complete | 52 / 52 |
-| 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | In progress | 18 / 21 |
+| 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | Complete (publication skipped) | 20 / 20 active (1 skipped) |
 | 7 | Container images and Kubernetes assets | M1 | In progress | 37 / 38 |
 | 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
@@ -109,7 +109,7 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 
 **State**
 
-- D-042 narrows current scope: 14 active phase tasks, 2 conditional P10 tasks, and 57 deferred phase tasks. P11 is 14/17 active and P12 is 5/12 active; P14 remaining work and P15 are deferred. P6/P7 publication is authorized. The original milestones describe the longer-term roadmap; only the active scope below is being executed.
+- D-042 narrows current scope: 11 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P11 is 14/17 active and P12 is 5/12 active; P14 remaining work and P15 are deferred. Image publication is authorized; SDK publication is skipped under D-043. The original milestones describe the longer-term roadmap; only the active scope below is being executed.
 - Combined .NET 8 and 10 build: zero errors/warnings. Full Touchstone net10 run: 469/469 on SQLite/PostgreSQL; four additional provider cases subsequently passed for approval/conversation interaction and upgrade from schema 12. The latest net8 database/approval suites pass 39/39 on both providers. xUnit net8 passed its all-suites fact; NUnit net10 passed 306/306 SQLite cases. All four SDK harnesses pass. Dashboard lint/build, 253 unit tests, 72 contract routes, and 123 Playwright browser tests pass. All CI mirror pairs, eight Kustomize overlays, Helm lint/template, and em-dash checks pass.
 - New integration regression: an approval pending during a conversation keeps it busy, refuses concurrent turns without consuming a turn number, clears approval counters on completion, and preserves the session for the next turn. Upgrade from schema 12 to 13 preserves the session/turn count, adds working approval storage, and applies no migration again on restart. Both providers pass.
 - Real Claude Code 2.1.296 smoke against the combined local server passed: a Bash request reached Garrison, a human-style REST Allow decision unblocked it, the harmless command wrote its test file, and Claude exited 0. Temporary test files/configuration were removed; no login was copied into the cluster. Approval waits over about an hour remain untested against MCP session idle timeouts.
@@ -126,7 +126,7 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 
 **Pick up here, in order**
 
-1. Execute remaining P6/P7: SDK node protocol dogfooding (P6.17), interactive consoles (P6.19), SDK package/tag publication (P6.20), and multi-architecture image publication (P7.5). D-042 authorizes this publication; do not request approval again for these tasks. Do not change repository visibility or versions implicitly.
+1. Finish multi-architecture image publication (P7.5), authorized under D-042. P6.17 SDK transport and P6.19 consoles are complete; SDK publication is skipped under D-043. Do not change repository visibility or versions implicitly.
 2. Retained executor work: P11.18 capability negotiation, P11.19 conformance, P11.20 warm pods. Snapshot/restore capabilities remain unsupported until their deferred prerequisites return to scope; conformance covers capabilities actually supported. Warm pods must retain the already implemented isolation controls and pass relevant conformance tests; the deferred full P11.17 suite is not a prerequisite to rescope the whole security project.
 3. Retained orchestration work: P12.8 artifacts, P12.9 pipelines, P12.10 management MCP tools, P12.11 Clutch leases, P12.12 worker stdio MCP testing, P12.13 provider API evaluation/execution, and P12.17 docs/Postman for these retained features. Each retained implementation still includes necessary tests, SDK updates, and a usable configuration surface even though the broad coverage umbrella tasks are deferred.
 4. P10.24/P10.25 remain conditional, not ready to execute: their acceptance depends on P14.15, which is deferred. Do not undertake large load benchmarks or claim capacity improvements without those measurements.
@@ -134,7 +134,7 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 
 **Scope totals and external prerequisites**
 
-- 14 active unchecked phase tasks: 4 in P6/P7, 3 in P11, and 7 in P12. Two more P10 tasks remain conditional on deferred measurements. 57 phase tasks are deferred. No completed implementation has been removed by this deferral.
+- 11 active unchecked phase tasks: 1 in P7, 3 in P11, and 7 in P12. Two more P10 tasks remain conditional on deferred measurements. 58 phase tasks are deferred. No completed implementation has been removed by this deferral.
 - After P6/P7 finishes, 10 selected implementation tasks, the 2 conditional P10 tasks, and 4 active core follow-ups remain.
 - Package/image publication is authorized. Registry access and package ownership must be checked; report missing credentials as an external prerequisite without asking again whether publication is approved. The GitHub repository is currently private; do not change its visibility without an explicit instruction.
 - See `docs/REMAINING_PLAN_MATRIX.md` for the active/conditional/deferred matrix.
@@ -248,6 +248,7 @@ The Garrison theme is used for product naming and documentation. API nouns stay 
 | D-040 | Daily quota bookkeeping: admissions count on their UTC admission day; tokens and known cost count on the UTC completion day. Concurrency counts currently active runs across days. A structured usage ledger is backfilled and survives run deletion/retention; a usage view includes runs created by older replicas during rollout, and deletion snapshots them first; admission and claim checks serialize by tenant across replicas. Limits guard completed usage, with remaining known allowance rendered into supported harness CLI budgets; in-flight usage can overshoot a daily total. | Makes resets and retention explicit; tree budgeting is outside the current scope. | P12.6 |
 | D-041 | Scope reduction (user, 2026-10-12): retain daily quotas and cost estimation; quota enforcement is explicitly opt-in per quota, defaults off, and existing quotas upgrade with enforcement off. Remove delegation-tree budgeting and its separate quota-hop integration from the active plan. | Prioritizes getting the core system running; monitoring does not impose execution limits. | P12.6, P12.7 |
 | D-042 | Scope selection (user, 2026-10-12): execute all remaining P6/P7 work now, including package/image publication. Retain P11.18-20 and P12.8-13/P12.17; defer all other unfinished P11/P12 work and unfinished P14/P15 work. Completed features remain. Related approval/conversation and Windows release-script follow-ups are deferred. | Four SDK/image tasks now; ten selected executor/orchestration tasks afterwards. P10.24/P10.25 remain conditional on the deferred P14.15 measurements. | Scope selection |
+| D-043 | User 2026-10-12 skips SDK publication (P6.20). SDK transport and consoles remain in scope; image publication remains authorized. | No SDK registry credentials or package/tag publication required. | P6.20 |
 
 ---
 
@@ -1356,11 +1357,11 @@ Quality
 - [x] P6.14 `scripts/run-sdk-harnesses.{sh,bat}` starting server and worker on Sqlite with the fake harness, running all four harnesses, Go inside a `golang` container when Go is absent.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
 - [x] P6.15 All four harnesses green locally. -> annotate with command and date.  | claude 2026-10-10 SDK stream; all four harnesses green, 11 checks each (scripts/run-sdk-harnesses.sh)
 - [x] P6.16 `.github/workflows/sdk.yaml` running the harnesses.  | claude 2026-10-10 SDK stream; .github/workflows/sdk.yaml (not yet run on GitHub)
-- [ ] P6.17 Worker uses `Garrison.Sdk` for the node protocol (dogfooding).  | user 2026-10-12 execute now, including publication; D-042 supersedes prior first-publish deferral
+- [x] P6.17 Worker uses `Garrison.Sdk` transport for the node protocol, preserving core wire contracts, telemetry, lease errors, and token refresh. Worker checks pass on net8/net10; all four SDK harnesses and consoles pass against the SDK-backed worker.
 - [x] P6.18 Each SDK's version mirrors the product version.  | claude 2026-10-10 0.1.0-alpha everywhere (Python 0.1.0a0, the PEP 440 form)
 - [x] P6.21 SDKs: section 10.6 run fields and an analytics method in C#, Python, JavaScript/TypeScript, and Go, covered by each test harness.  | claude 2026-10-10 C# client.Analytics.RunsAsync, Python client.analytics.runs, JS client.analytics.runs, Go client.Analytics.Runs; harnesses 15/15 each
-- [ ] P6.19 SDK interactive consoles (optional, Clutch pattern).  | user 2026-10-12 execute now, including publication; D-042 supersedes prior first-publish deferral
-- [ ] P6.20 Publish packages (NuGet, PyPI, npm, Go module tag).  | user 2026-10-12 execute now, including publication; D-042 supersedes prior first-publish deferral
+- [x] P6.19 Interactive C#, Python, JavaScript, and Go consoles implement authentication, discovery, invoke, inspection, events, and streaming. Terminal password entry is hidden; live smoke checks pass for all four consoles and verify credential non-disclosure.
+- [-] P6.20 Publish SDK packages and Go module tag. Skipped at user request, 2026-10-12 (D-043). No packages or module tags published.
 
 ### Phase 7: Container images and Kubernetes assets
 

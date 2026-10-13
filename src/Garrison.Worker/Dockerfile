@@ -11,6 +11,7 @@ ARG MUX_VERSION=1.3.0
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
 COPY src/ ./src/
+COPY sdk/csharp/ ./sdk/csharp/
 RUN dotnet publish src/Garrison.Worker/Garrison.Worker.csproj -c Release -f net10.0 -o /out/worker /p:UseAppHost=false \
  && dotnet publish src/Garrison.FakeHarness/Garrison.FakeHarness.csproj -c Release -f net10.0 -o /out/fake /p:UseAppHost=false
 

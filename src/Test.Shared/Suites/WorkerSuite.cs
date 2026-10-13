@@ -65,6 +65,7 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("worker-host", "event-buffer-replay", "Host: events survive control-plane failures and replay with original sequences", HostBufferReplayAsync),
                 new TestCaseDescriptor("worker-host", "cancel-from-heartbeat", "Host: heartbeat cancellation stops the run and reports Cancelled", HostCancelAsync),
                 new TestCaseDescriptor("worker-host", "stale-lease", "Host: a 409 stale lease kills the harness and skips completion", HostStaleAsync),
+                new TestCaseDescriptor("worker-host", "sdk-token-refresh", "SDK-backed node transport reauthenticates once after 401 and preserves event delivery", SdkTokenRefreshAsync),
                 new TestCaseDescriptor("worker-host", "settings-environment", "Settings: GARRISON_WORKER_* overrides and clamping", SettingsAsync)
             };
 
@@ -469,6 +470,17 @@ namespace Test.Shared.Suites
             RunCompleteRequest complete = await Executor().ExecuteAsync(assignment, reporter, token).ConfigureAwait(false);
             Assert.Equal(RunOutcomeEnum.McpPreflightFailed, complete.Outcome, "Outcome");
             Assert.True(!reporter.Started, "The harness must not launch after a failed pre-flight.");
+        }
+
+        private static async Task SdkTokenRefreshAsync(CancellationToken token)
+        {
+            using FakeNodeServer server = new FakeNodeServer();
+            using Garrison.Worker.Protocol.NodeProtocolClient client = new Garrison.Worker.Protocol.NodeProtocolClient(server.BaseUrl, "node-access", "node-secret");
+            server.RejectNextEventToken();
+            await client.EventsAsync("run-auth", new RunEventsRequest { NodeId = "node", Epoch = 1, Events = new List<RunEventReport> { new RunEventReport { Sequence = 1, Text = "preserved" } } }, token).ConfigureAwait(false);
+            Assert.Equal(2, server.TokenCalls, "Initial authentication plus one refresh");
+            Assert.Equal(1, server.Events.Count, "Only the accepted delivery is recorded");
+            Assert.Equal("preserved", server.Events.Single().Text, "Payload survives retry");
         }
 
         private static WorkerSettings HostSettings(FakeNodeServer server)

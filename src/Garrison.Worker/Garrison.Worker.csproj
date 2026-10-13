@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\sdk\csharp\Garrison.Sdk\Garrison.Sdk.csproj" />
     <ProjectReference Include="..\Garrison.Core\Garrison.Core.csproj" />
     <ProjectReference Include="..\Garrison.Harnesses\Garrison.Harnesses.csproj" />
   </ItemGroup>

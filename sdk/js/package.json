@@ -5,7 +5,11 @@
   "license": "MIT",
   "author": "Joel Christner",
   "homepage": "https://github.com/jchristn/Garrison",
-  "repository": { "type": "git", "url": "https://github.com/jchristn/Garrison.git", "directory": "sdk/js" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jchristn/Garrison.git",
+    "directory": "sdk/js"
+  },
   "type": "module",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -17,13 +21,22 @@
       "require": "./dist/cjs/index.js"
     }
   },
-  "files": ["dist", "README.md"],
-  "engines": { "node": ">=18" },
+  "files": [
+    "dist",
+    "README.md",
+    "bin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({type:'commonjs'}))\"",
     "test": "node test-harness.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0"
+  },
+  "bin": {
+    "garrison": "bin/console.mjs"
   }
 }

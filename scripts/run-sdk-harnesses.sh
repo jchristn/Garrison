@@ -110,6 +110,12 @@ if ! skipped go; then
   fi
 fi
 
+if [ -z "$SKIP" ]; then
+  echo "== interactive SDK console smoke checks"
+  if GARRISON_SDK_ACCESS_KEY="$ACCESS_KEY" GARRISON_SDK_SECRET_KEY="$SECRET_KEY" GARRISON_CONSOLE_LOG_DIR="$WORK/consoles" \
+      "$WORK/venv/bin/python" "$ROOT/scripts/verify-sdk-consoles.py" --base-url "$BASE_URL" --python "$WORK/venv/bin/python"; then record consoles PASS; else record consoles FAIL; fi
+fi
+
 echo
 echo "== SDK harness summary"
 for r in "${RESULTS[@]}"; do echo "  $r"; done

@@ -591,6 +591,8 @@ function randomHex(bytes: number): string {
 
 /** HTTP transport: authentication, request signing, JSON, errors, and server-sent events. */
 export class Transport {
+  /** Optional cancellation for requests and streams, including interactive console Ctrl+C. */
+  abortSignal?: AbortSignal;
   baseUrl: string;
   mode: AuthMode = "none";
   token?: string;
@@ -641,7 +643,7 @@ export class Transport {
     }
     if (accept) extra["Accept"] = accept;
     const headers = { ...extra, ...(await this.headers(method, path, query, text)) };
-    const response = await fetch(this.baseUrl + path + (query ? `?${query}` : ""), { method, headers, body: text });
+    const response = await fetch(this.baseUrl + path + (query ? `?${query}` : ""), { method, headers, body: text, signal: this.abortSignal });
     if (!response.ok) throw new GarrisonError(response.status, await response.text());
     return response;
   }

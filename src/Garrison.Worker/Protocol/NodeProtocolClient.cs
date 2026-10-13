@@ -1,15 +1,15 @@
 namespace Garrison.Worker.Protocol
 {
     using System;
-    using System.Net;
     using System.Net.Http;
-    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Protocol;
     using Garrison.Core.Responses;
     using Garrison.Core.Serialization;
     using Garrison.Core.Telemetry;
+    using Garrison.Sdk;
+    using Garrison.Sdk.Http;
 
     /// <summary>
     /// HTTP client for the node protocol. Authenticates with the node credential (POST /v1.0/token), uses the bearer
@@ -40,6 +40,8 @@ namespace Garrison.Worker.Protocol
         #region Private-Members
 
         private readonly HttpClient _Http;
+        private readonly GarrisonTransport _Transport;
+        private readonly GarrisonTransport _AuthTransport;
         private readonly string _BaseUrl;
         private readonly string _AccessKey;
         private readonly string _SecretKey;
@@ -73,8 +75,10 @@ namespace Garrison.Worker.Protocol
             handler.MaxConnectionsPerServer = 64;
             // Every protocol call is an outbound call to the control plane (service control_plane, operation register,
             // heartbeat, lease, watch, drain, started, events, complete, token) with a client span (P13.24, P13.25).
-            _Http = new HttpClient(new TelemetryHttpHandler("control_plane", handler));
+            _Http = new HttpClient(new NodeProtocolOperationHandler(new TelemetryHttpHandler("control_plane", handler)));
             _Http.Timeout = Timeout.InfiniteTimeSpan;
+            _Transport = new GarrisonTransport(_BaseUrl, _Http) { AuthMode = AuthModeEnum.Token };
+            _AuthTransport = new GarrisonTransport(_BaseUrl, _Http);
         }
 
         #endregion
@@ -203,6 +207,8 @@ namespace Garrison.Worker.Protocol
             if (_Disposed) return;
             if (disposing)
             {
+                _Transport.Dispose();
+                _AuthTransport.Dispose();
                 _Http.Dispose();
                 _AuthLock.Dispose();
             }
@@ -217,37 +223,34 @@ namespace Garrison.Worker.Protocol
         {
             for (int attempt = 0; attempt < 2; attempt++)
             {
-                string bearer = await EnsureTokenAsync(attempt > 0, token).ConfigureAwait(false);
-                using (CancellationTokenSource timeout = new CancellationTokenSource(timeoutMs))
-                using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token))
-                using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _BaseUrl + path))
+                await EnsureTokenAsync(attempt > 0, token).ConfigureAwait(false);
+                using CancellationTokenSource timeout = new CancellationTokenSource(timeoutMs);
+                using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
+                try
                 {
-                    request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + bearer);
-                    request.Options.Set(TelemetryHttpHandler.OperationKey, path.Substring(path.LastIndexOf('/') + 1));
-                    request.Content = new StringContent(Serializer.Serialize(body), Encoding.UTF8, "application/json");
-                    HttpResponseMessage response;
-                    try
-                    {
-                        response = await _Http.SendAsync(request, linked.Token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                    {
-                        throw new NodeProtocolException(0, "POST " + path + " timed out after " + timeoutMs + " ms.");
-                    }
-                    catch (HttpRequestException e)
-                    {
-                        throw new NodeProtocolException(0, "POST " + path + " failed: " + e.Message, e);
-                    }
-
-                    using (response)
-                    {
-                        string text = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-                        if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0) continue;
-                        if (response.StatusCode == HttpStatusCode.Conflict && runId != null) throw new StaleLeaseException(runId, "Lease for run " + runId + " is stale: " + text);
-                        if (!response.IsSuccessStatusCode) throw new NodeProtocolException((int)response.StatusCode, "POST " + path + " returned " + (int)response.StatusCode + ": " + Truncate(text));
-                        if (String.IsNullOrWhiteSpace(text)) return new T();
-                        return Serializer.Deserialize<T>(text) ?? new T();
-                    }
+                    // Keep the Core protocol serializer's wire contract while sharing SDK HTTP/auth/error transport.
+                    string text = await _Transport.SendTextAsync(HttpMethod.Post, path, Serializer.Serialize(body), token: linked.Token).ConfigureAwait(false);
+                    return String.IsNullOrWhiteSpace(text) ? new T() : Serializer.Deserialize<T>(text) ?? new T();
+                }
+                catch (GarrisonException e) when (e.StatusCode == 401 && attempt == 0)
+                {
+                    // Reauthenticate once with the node credential, then retry the same request.
+                }
+                catch (GarrisonException e) when (e.StatusCode == 409 && runId != null)
+                {
+                    throw new StaleLeaseException(runId, "Lease for run " + runId + " is stale: " + Truncate(e.ResponseBody ?? String.Empty));
+                }
+                catch (GarrisonException e)
+                {
+                    throw new NodeProtocolException(e.StatusCode, "POST " + path + " returned " + e.StatusCode + ": " + Truncate(e.ResponseBody ?? e.Message), e);
+                }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                {
+                    throw new NodeProtocolException(0, "POST " + path + " timed out after " + timeoutMs + " ms.");
+                }
+                catch (HttpRequestException e)
+                {
+                    throw new NodeProtocolException(0, "POST " + path + " failed: " + e.Message, e);
                 }
             }
             throw new NodeProtocolException(401, "Node credential was rejected.");
@@ -257,39 +260,33 @@ namespace Garrison.Worker.Protocol
         {
             string? current = _Token;
             if (!force && current != null) return current;
-
             await _AuthLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
                 if (!force && _Token != null) return _Token;
-                using (CancellationTokenSource timeout = new CancellationTokenSource(_CallTimeoutMs))
-                using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token))
-                using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _BaseUrl + "/v1.0/token"))
+                using CancellationTokenSource timeout = new CancellationTokenSource(_CallTimeoutMs);
+                using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
+                try
                 {
-                    request.Options.Set(TelemetryHttpHandler.OperationKey, "token");
-                    request.Content = new StringContent(Serializer.Serialize(new { accessKey = _AccessKey, secretKey = _SecretKey }), Encoding.UTF8, "application/json");
-                    HttpResponseMessage response;
-                    try
-                    {
-                        response = await _Http.SendAsync(request, linked.Token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                    {
-                        throw new NodeProtocolException(0, "Authentication timed out.");
-                    }
-                    catch (HttpRequestException e)
-                    {
-                        throw new NodeProtocolException(0, "Authentication failed: " + e.Message, e);
-                    }
-                    using (response)
-                    {
-                        string text = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-                        if (!response.IsSuccessStatusCode) throw new NodeProtocolException((int)response.StatusCode, "Node authentication returned " + (int)response.StatusCode + ": " + Truncate(text));
-                        TokenResponse? issued = Serializer.Deserialize<TokenResponse>(text);
-                        if (issued == null || String.IsNullOrEmpty(issued.Token)) throw new NodeProtocolException((int)response.StatusCode, "Node authentication returned no token.");
-                        _Token = issued.Token;
-                        return _Token;
-                    }
+                    // Separate auth transport never changes the bearer mode of concurrent node calls.
+                    Garrison.Sdk.Requests.TokenRequest request = new Garrison.Sdk.Requests.TokenRequest { AccessKey = _AccessKey, SecretKey = _SecretKey };
+                    Garrison.Sdk.Responses.TokenResponse? issued = await _AuthTransport.SendAsync<Garrison.Sdk.Responses.TokenResponse>(HttpMethod.Post, "/v1.0/token", request, token: linked.Token).ConfigureAwait(false);
+                    if (issued == null || String.IsNullOrEmpty(issued.Token)) throw new NodeProtocolException(200, "Node authentication returned no token.");
+                    _Transport.Token = issued.Token;
+                    _Token = issued.Token;
+                    return _Token;
+                }
+                catch (GarrisonException e)
+                {
+                    throw new NodeProtocolException(e.StatusCode, "Node authentication returned " + e.StatusCode + ": " + Truncate(e.ResponseBody ?? e.Message), e);
+                }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                {
+                    throw new NodeProtocolException(0, "Authentication timed out.");
+                }
+                catch (HttpRequestException e)
+                {
+                    throw new NodeProtocolException(0, "Authentication failed: " + e.Message, e);
                 }
             }
             finally

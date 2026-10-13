@@ -68,6 +68,8 @@ namespace Test.Shared.Infrastructure
 
         private readonly Webserver _Server;
         private int _FailEventCalls = 0;
+        private int _UnauthorizedEventCalls = 0;
+        private int _TokenCalls = 0;
 
         #endregion
 
@@ -126,6 +128,15 @@ namespace Test.Shared.Infrastructure
             Interlocked.Exchange(ref _FailEventCalls, count);
         }
 
+        /// <summary>Number of authentication calls received.</summary>
+        public int TokenCalls => Volatile.Read(ref _TokenCalls);
+
+        /// <summary>Return 401 once on event delivery to verify SDK-backed reauthentication.</summary>
+        public void RejectNextEventToken()
+        {
+            Interlocked.Exchange(ref _UnauthorizedEventCalls, 1);
+        }
+
         /// <summary>
         /// Stop the server.
         /// </summary>
@@ -139,8 +150,9 @@ namespace Test.Shared.Infrastructure
 
         #region Private-Methods
 
-        private static Task TokenAsync(HttpContextBase context)
+        private Task TokenAsync(HttpContextBase context)
         {
+            Interlocked.Increment(ref _TokenCalls);
             TokenResponse token = new TokenResponse();
             token.Token = "fake-token";
             token.ExpiresUtc = DateTime.UtcNow.AddHours(1);
@@ -197,6 +209,7 @@ namespace Test.Shared.Infrastructure
 
         private Task EventsAsync(HttpContextBase context)
         {
+            if (Interlocked.Decrement(ref _UnauthorizedEventCalls) >= 0) return JsonAsync(context, 401, new NodeAckResponse { Accepted = false });
             string runId = context.Request.Url.Parameters["runId"] ?? String.Empty;
             if (StaleRuns.ContainsKey(runId)) return JsonAsync(context, 409, new NodeAckResponse { Accepted = false });
             RunEventsRequest? request = Serializer.Deserialize<RunEventsRequest>(context.Request.DataAsString);

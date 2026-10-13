@@ -34,6 +34,14 @@ Thumbs.db
 # Non-build assets not needed in images
 k8s/
 benchmarks/
-sdk/
+sdk/go/
+sdk/python/
+sdk/js/
+sdk/csharp/Garrison.Sdk.Test/
+sdk/csharp/Garrison.Sdk.Console/
 *.md
 !src/**/README.md
+
+# Worker now consumes the C# SDK (P6.17). Its package metadata files must be present.
+!sdk/csharp/README.md
+!sdk/csharp/LICENSE.md

@@ -221,3 +221,13 @@ The harness arguments are the base URL, an access key, and a secret key. The val
 The usage-quota module provides CRUD operations and `client.usageQuotas.usage(id)` for current daily UTC meters. Scope an entry to Tenant, Agent, or Deployment; null limits are unlimited and zero disallows usage. Limits cover admissions, completed tokens/cost, and active concurrency. Unknown cost keeps admission open and sets `costAccountingComplete=false`. Refusals carry `QuotaExceeded` and name the limit. Only administrators have built-in write grants. See [REST API](../../REST_API.md#usage-quotas) for accounting boundaries and supported CLI budget enforcement.
 
 Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to `true` (Go: `EnforcementEnabled`, C#: `EnforcementEnabled`) on an active quota to enforce limits. Disabled enforcement does not reject runs or lower harness budgets.
+
+## Interactive console
+
+```sh
+node sdk/js/bin/console.mjs http://127.0.0.1:8700
+```
+
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+
+The npm package installs the `garrison` console command. Set `client.transport.abortSignal` to an AbortSignal to cancel SDK HTTP calls and streams; leave it unset for ordinary use.
