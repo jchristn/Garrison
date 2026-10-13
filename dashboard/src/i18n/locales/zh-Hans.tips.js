@@ -1671,3 +1671,5 @@ export { tips, explainers };
 
 tips.views.settings.groups.Leases = "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。";
 tips.views.settings.fields.Leases = {"Provider": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "ClutchEndpoint": "通过密钥或环境变量提供 Clutch 访问密钥；端点不得包含凭据。", "ClutchAccessKey": "通过密钥或环境变量提供 Clutch 访问密钥；端点不得包含凭据。", "KeyPrefix": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "RequestTimeoutMs": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "SweepIntervalMs": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "MaxLeaseMs": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。", "MaxHoldMs": "可选协调设置；所有副本须使用相同配置并重启。默认使用 Database。"};
+
+tips.enums.harnessType.ProviderApi = "通过 PolyPrompt 运行可选的直接 API 循环。须配置端点和模型；CLI 部署保持可用。";

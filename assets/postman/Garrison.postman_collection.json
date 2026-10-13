@@ -10500,6 +10500,231 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Optional provider API smoke (explicit opt-in)",
+      "description": "Set providerApiSmokeEnabled to true only when endpoint/model and an existing OpenAiApiKey secret are configured. Uses the standard APIs and may consume provider tokens. See docs/PROVIDER_API.md.",
+      "item": [
+        {
+          "name": "Create provider-only agent",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set(\"providerApiAgentId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-provider-api-{{$timestamp}}\",\n  \"description\": \"Optional provider API smoke agent.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Configure provider API deployment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set(\"providerApiDeploymentId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-provider-api-{{$timestamp}}\",\n  \"agentId\": \"{{providerApiAgentId}}\",\n  \"harnessProfileId\": \"hrn_builtin_provider_api\",\n  \"model\": \"{{providerApiModel}}\",\n  \"parameters\": [\n    {\n      \"name\": \"baseUrl\",\n      \"value\": \"{{providerApiBaseUrl}}\"\n    }\n  ],\n  \"resourceBindings\": [\n    {\n      \"kind\": \"Secret\",\n      \"alias\": \"provider-api\",\n      \"resourceId\": \"{{providerApiSecretId}}\"\n    }\n  ],\n  \"promptBindings\": [\n    {\n      \"role\": \"System\",\n      \"templateId\": \"tpl_builtin_default_system\"\n    },\n    {\n      \"role\": \"Task\",\n      \"templateId\": \"tpl_builtin_default_task\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Invoke through optional provider mode",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{providerApiAgentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{providerApiAgentId}}",
+                "invoke"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Reply with READY only.\",\n  \"wait\": true,\n  \"waitSeconds\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete provider smoke deployment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{providerApiDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{providerApiDeploymentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete provider smoke agent",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{providerApiAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{providerApiAgentId}}"
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -10731,6 +10956,30 @@
       "key": "artifactId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "providerApiSmokeEnabled",
+      "value": "false"
+    },
+    {
+      "key": "providerApiAgentId",
+      "value": ""
+    },
+    {
+      "key": "providerApiDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "providerApiBaseUrl",
+      "value": ""
+    },
+    {
+      "key": "providerApiModel",
+      "value": ""
+    },
+    {
+      "key": "providerApiSecretId",
+      "value": ""
     }
   ]
 }

@@ -30,6 +30,7 @@ Everything that varies by harness is in the profile, and everything is a templat
 | `builtin/mux` | `mux` | stdin | `--system-prompt` file | `--mcp-config` JSON file with `--strict-mcp-config` | `MuxJsonl` | `--output-last-message` file |
 | `builtin/gemini-cli` | `gemini` | stdin | `GEMINI_SYSTEM_MD` file | `settings.json` in an isolated `GEMINI_CLI_HOME` | `GeminiStreamJson` | final event |
 | `builtin/generic-jsonl` | from the `executable` parameter | stdin | prepended to the prompt | none | `GenericJsonl` | final event |
+| `builtin/provider-api` | `garrison-provider-api` | stdin | compiled template configuration | HTTP MCP entries in private config | `ProviderApiJsonl` | final event |
 | `builtin/fake` | `garrison-fake-harness` | stdin | file | none | `ClaudeStreamJson` | final event |
 
 Built-in profiles cannot be edited. Clone one (`POST .../harness-profiles/{id}/clone`) and change the copy, or leave the profile alone and adjust it per deployment with overrides and parameters.
@@ -199,7 +200,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 
 | Field | Meaning |
 |---|---|
-| `harnessType` | `ClaudeCode`, `Codex`, `Mux`, `GeminiCli`, or `Generic`. Workers advertise which types they can run, and runs are only leased to workers that have the type. |
+| `harnessType` | `ClaudeCode`, `Codex`, `Mux`, `GeminiCli`, `Generic`, or `ProviderApi`. Workers advertise which types they can run, and runs are only leased to workers that have the type. |
 | `executable` | Executable name or path. A template, so it can come from a parameter. |
 | `arguments` | Ordered argument templates (below). |
 | `environment` | Environment variable templates. `isSecret` marks values to scrub from output. |
@@ -395,6 +396,7 @@ How each built-in harness reports the session it resumes later:
 | `builtin/codex-app-server` | the thread ID returned by `thread/start` (a resumed turn keeps it) |
 | `builtin/mux` | `sessionId` of `run_started` and `run_completed`. Mux print mode keeps a session only when asked, so the first turn of a conversation runs with `--session-id <run id>` and without `--no-session-persistence` (the profile's `run.persistSession` condition) |
 | `builtin/gemini-cli` | `session_id` of the stream-json `init` event |
+| `builtin/provider-api` | `garrison-provider-api` | stdin | compiled template configuration | HTTP MCP entries in private config | `ProviderApiJsonl` | final event |
 | `builtin/fake` | the session it writes under `$HOME/.garrison-fake/sessions`; with the deployment parameter `reportTurns` it prefixes its answer with `[turn N]`, the turns in that session |
 
 ### Structured output validation and repair
@@ -416,6 +418,7 @@ The repair runs inside the same lease, on the same worker, in the same `work/`, 
 | `builtin/codex-app-server` | no argument: the worker sends `thread/resume` with the thread ID before the repair turn |
 | `builtin/mux` | `--resume <sessionId>`; the original execution passes `--session-id <run id>` so Mux persists the session, which it does only for agents with an output schema and for conversation turns |
 | `builtin/gemini-cli` | `--resume <session_id>` |
+| `builtin/provider-api` | `garrison-provider-api` | stdin | compiled template configuration | HTTP MCP entries in private config | `ProviderApiJsonl` | final event |
 | `builtin/fake` | `--resume <session>` |
 
 A profile without `supportsResume` (for example a clone with it turned off, or `builtin/generic-jsonl`) gets no repair: an invalid output fails the run at once with `SchemaValidationFailed`, and the error message says that the profile does not support resume. A cloned profile that sets `supportsResume` must also add resume arguments conditioned on `{{run.resumeSessionId}}`, or the repair prompt would start a fresh session without the original context.
@@ -457,3 +460,7 @@ The equivalent request is `POST /v1.0/api/tenants/{tenantId}/mcp-servers/{id}/te
 The diagnostic runs the configured executable and arguments directly, with configured environment templates resolved on the server. It performs initialization and paginated `tools/list`, without calling tools. It uses a private working directory/home and one worker slot. On a one-slot worker it may wait for the current lease long poll to release its idle reservation; an occupied worker remains bounded by the dispatch deadline. Normal run heartbeats continue.
 
 The transient database queue contains configuration references and structured outcomes, without decrypted command/environment values. Claims are single-use and tied to the worker registration and configuration revision. One diagnostic may be pending per worker. Entries are deleted after the request and expired entries are removed on subsequent dispatch; a control-plane restart does not require a separate persistent job service. Defaults are 30 seconds to dispatch, 15 seconds for the protocol exchange, 1 MiB stdout, 50 pages, and 1,000 tool names. Timeout, cancellation, or completion stops the subprocess tree and cleans the private directory. Stderr and protocol error payloads are not returned; worker heartbeat/lease bodies are redacted in request history.
+
+## Optional provider API mode
+
+Select `builtin/provider-api` for a deployment with an explicit compatible endpoint and model. It streams through the normal worker process path, supports HTTP MCP tools and Garrison approvals, and reuses the existing conversation and structured-output flows. See [Provider API execution](PROVIDER_API.md) for credentials, parameters, tool limitations, and validation.

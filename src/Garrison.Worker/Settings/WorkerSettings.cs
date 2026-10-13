@@ -573,7 +573,8 @@ namespace Garrison.Worker.Settings
                 Probe(HarnessTypeEnum.Codex, "codex", "codex"),
                 Probe(HarnessTypeEnum.Mux, "mux", "mux"),
                 Probe(HarnessTypeEnum.GeminiCli, "gemini", "gemini"),
-                Probe(HarnessTypeEnum.Generic, "garrison-fake-harness", "fake")
+                Probe(HarnessTypeEnum.Generic, "garrison-fake-harness", "fake"),
+                Probe(HarnessTypeEnum.ProviderApi, "garrison-provider-api", "provider-api")
             };
         }
 

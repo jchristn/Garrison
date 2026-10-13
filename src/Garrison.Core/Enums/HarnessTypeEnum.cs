@@ -28,6 +28,9 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Generic.
         /// </summary>
-        Generic
+        Generic,
+
+        /// <summary>Bundled optional provider API agent loop.</summary>
+        ProviderApi
     }
 }

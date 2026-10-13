@@ -87,6 +87,14 @@
         "--version"
       ],
       "Label": "fake"
+    },
+    {
+      "HarnessType": "ProviderApi",
+      "Executable": "garrison-provider-api",
+      "Arguments": [
+        "--version"
+      ],
+      "Label": "provider-api"
     }
   ],
   "Telemetry": {

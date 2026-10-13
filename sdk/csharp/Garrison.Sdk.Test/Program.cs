@@ -119,6 +119,7 @@ namespace Garrison.Sdk.Test
                 await CheckAsync("builtin harness profiles", async () =>
                 {
                     List<HarnessProfile> builtIns = await client.HarnessProfiles.ListBuiltInAsync(token).ConfigureAwait(false);
+                    Require(builtIns.Any(p => p.Name == "builtin/provider-api" && p.HarnessType == HarnessTypeEnum.ProviderApi && p.OutputParser == OutputParserEnum.ProviderApiJsonl), "optional provider profile enums");
                     HarnessProfile? fake = builtIns.FirstOrDefault(p => p.Name == "builtin/fake");
                     Require(fake != null, "builtin/fake not found among " + builtIns.Count);
                     fakeProfileId = fake!.Id;

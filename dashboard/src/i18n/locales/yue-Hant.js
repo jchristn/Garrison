@@ -1903,3 +1903,6 @@ export default yueHant;
 
 yueHant.views.settings.groups.Leases = "協調租約";
 yueHant.views.settings.fields.Leases = {"Provider": "供應方", "ClutchEndpoint": "Clutch 端點", "ClutchAccessKey": "Clutch 存取金鑰", "KeyPrefix": "鍵前綴", "RequestTimeoutMs": "請求逾時 (ms)", "SweepIntervalMs": "檢查間隔 (ms)", "MaxLeaseMs": "最長租約 (ms)", "MaxHoldMs": "最長持有時間 (ms)"};
+
+yueHant.enums.harnessType.ProviderApi = "供應方 API";
+yueHant.enums.outputParser.ProviderApiJsonl = "供應方 API JSONL";

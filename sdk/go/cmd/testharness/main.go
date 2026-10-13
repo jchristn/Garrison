@@ -130,6 +130,15 @@ func main() {
 		if err != nil {
 			return err
 		}
+		providerFound := false
+		for _, p := range profiles {
+			if p.Name == "builtin/provider-api" && p.HarnessType == "ProviderApi" {
+				providerFound = true
+			}
+		}
+		if !providerFound {
+			return errors.New("optional provider profile not found")
+		}
 		for _, p := range profiles {
 			if p.Name == "builtin/fake" {
 				fakeID = p.ID

@@ -15,6 +15,7 @@
     {"HarnessType": "ClaudeCode", "Executable": "claude", "Arguments": ["--version"], "Label": "claude"},
     {"HarnessType": "Codex", "Executable": "codex", "Arguments": ["--version"], "Label": "codex"},
     {"HarnessType": "GeminiCli", "Executable": "gemini", "Arguments": ["--version"], "Label": "gemini"},
-    {"HarnessType": "Generic", "Executable": "garrison-fake-harness", "Arguments": ["--version"], "Label": "fake"}
+    {"HarnessType": "Generic", "Executable": "garrison-fake-harness", "Arguments": ["--version"], "Label": "fake"},
+    {"HarnessType": "ProviderApi", "Executable": "garrison-provider-api", "Arguments": ["--version"], "Label": "provider-api"}
   ]
 }

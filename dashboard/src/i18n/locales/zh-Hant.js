@@ -1904,3 +1904,6 @@ export default zhHant;
 
 zhHant.views.settings.groups.Leases = "協調租約";
 zhHant.views.settings.fields.Leases = {"Provider": "提供方", "ClutchEndpoint": "Clutch 端點", "ClutchAccessKey": "Clutch 存取金鑰", "KeyPrefix": "鍵前綴", "RequestTimeoutMs": "請求逾時 (ms)", "SweepIntervalMs": "檢查間隔 (ms)", "MaxLeaseMs": "最長租約 (ms)", "MaxHoldMs": "最長持有時間 (ms)"};
+
+zhHant.enums.harnessType.ProviderApi = "提供方 API";
+zhHant.enums.outputParser.ProviderApiJsonl = "提供方 API JSONL";

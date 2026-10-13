@@ -97,6 +97,7 @@ def t_quotas():
 
 def t_builtin():
     profiles = client.harness_profiles.builtin()
+    require(any(p["name"] == "builtin/provider-api" and p["harnessType"] == "ProviderApi" and p["outputParser"] == "ProviderApiJsonl" for p in profiles), "optional provider profile")
     fake = [p for p in profiles if p["name"] == "builtin/fake"]
     require(fake, "builtin/fake not found")
     state["fake"] = fake[0]["id"]

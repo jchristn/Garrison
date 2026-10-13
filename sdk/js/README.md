@@ -245,3 +245,7 @@ The artifact client lists metadata, reads individual records, downloads raw byte
 ## Worker stdio MCP diagnostics
 
 Select a Ready node whose `supportsMcpTests` flag is true, then test the MCP server with that node ID. C# uses `McpServers.TestOnWorkerAsync`, Python uses `mcp_servers.test(id, node_id=...)`, JavaScript uses `mcpServers.test(id, nodeId)`, and Go uses `TestMcpServer(ctx, id, nodeID)`. HTTP testing retains its existing behavior. See [Harness diagnostics](../../docs/HARNESSES.md#test-a-stdio-mcp-server-on-a-worker).
+
+### Optional provider API deployments
+
+The normal agent/deployment methods configure `hrn_builtin_provider_api`: set an explicit model, a `baseUrl` deployment parameter, an `OpenAiApiKey` secret binding, and the usual prompt bindings. Invocation, conversations, approvals, and artifact methods are unchanged. See [provider API configuration](../../docs/PROVIDER_API.md) for parameters and the initial HTTP-tool limitations. Quota enforcement remains optional.

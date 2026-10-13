@@ -13,7 +13,8 @@ WORKDIR /source
 COPY src/ ./src/
 COPY sdk/csharp/ ./sdk/csharp/
 RUN dotnet publish src/Garrison.Worker/Garrison.Worker.csproj -c Release -f net10.0 -o /out/worker /p:UseAppHost=false \
- && dotnet publish src/Garrison.FakeHarness/Garrison.FakeHarness.csproj -c Release -f net10.0 -o /out/fake /p:UseAppHost=false
+ && dotnet publish src/Garrison.FakeHarness/Garrison.FakeHarness.csproj -c Release -f net10.0 -o /out/fake /p:UseAppHost=false \
+ && dotnet publish src/Garrison.ProviderHarness/Garrison.ProviderHarness.csproj -c Release -f net10.0 -o /out/provider /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS mux
 ARG MUX_REF
@@ -58,12 +59,15 @@ RUN apt-get update \
 
 COPY --from=build /out/worker/ /opt/garrison/worker/
 COPY --from=build /out/fake/ /opt/garrison/fake/
+COPY --from=build /out/provider/ /opt/garrison/provider/
 COPY --from=mux /out/mux/ /opt/mux/
 
 RUN printf '#!/bin/sh\nexec dotnet /opt/mux/Mux.Cli.dll "$@"\n' > /usr/local/bin/mux \
  && printf '#!/bin/sh\nexec dotnet /opt/garrison/fake/garrison-fake-harness.dll "$@"\n' > /usr/local/bin/garrison-fake-harness \
- && chmod 755 /usr/local/bin/mux /usr/local/bin/garrison-fake-harness \
+ && printf '#!/bin/sh\nexec dotnet /opt/garrison/provider/garrison-provider-api.dll "$@"\n' > /usr/local/bin/garrison-provider-api \
+ && chmod 755 /usr/local/bin/mux /usr/local/bin/garrison-fake-harness /usr/local/bin/garrison-provider-api \
  && mux --version | grep -q "${MUX_VERSION}" \
+ && garrison-provider-api --version \
  && groupadd --gid 10001 garrison \
  && useradd --uid 10001 --gid 10001 --create-home --home-dir /home/garrison garrison \
  && mkdir -p /workspaces \

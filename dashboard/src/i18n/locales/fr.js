@@ -1950,3 +1950,6 @@ export default fr;
 
 fr.views.settings.groups.Leases = "Baux de coordination";
 fr.views.settings.fields.Leases = {"Provider": "Fournisseur", "ClutchEndpoint": "Point de connexion Clutch", "ClutchAccessKey": "Clé d’accès Clutch", "KeyPrefix": "Préfixe des clés", "RequestTimeoutMs": "Délai de requête (ms)", "SweepIntervalMs": "Intervalle de contrôle (ms)", "MaxLeaseMs": "Bail maximal (ms)", "MaxHoldMs": "Maintien maximal (ms)"};
+
+fr.enums.harnessType.ProviderApi = "API du fournisseur";
+fr.enums.outputParser.ProviderApiJsonl = "JSONL API du fournisseur";

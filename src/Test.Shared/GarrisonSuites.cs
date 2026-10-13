@@ -53,6 +53,7 @@ namespace Test.Shared
                 suites.AddRange(QuotaSuite.Build());
                 suites.AddRange(ArtifactSuite.Build());
                 suites.AddRange(McpStdioSuite.Build());
+                suites.AddRange(ProviderApiSuite.Build());
                 return suites;
             }
         }

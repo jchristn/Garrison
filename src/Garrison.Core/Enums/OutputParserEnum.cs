@@ -39,6 +39,9 @@ namespace Garrison.Core.Enums
         /// CodexAppServer: JSON-RPC messages from <c>codex app-server</c> (agent message and reasoning deltas, items,
         /// token usage, turn completion).
         /// </summary>
-        CodexAppServer
+        CodexAppServer,
+
+        /// <summary>Bundled direct provider API harness JSON-lines events.</summary>
+        ProviderApiJsonl
     }
 }

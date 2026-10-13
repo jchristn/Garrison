@@ -1,0 +1,21 @@
+{
+  "provider": {{deployment.parameters.provider | default: "OpenAiCompatible" | json}},
+  "endpoint": {{deployment.parameters.baseUrl | default: "" | json}},
+  "model": {{deployment.model | json}},
+  "allowAnonymous": {{deployment.parameters.allowAnonymous | default: "false" | json}},
+  "systemPrompt": {{prompts.system | json}},
+  "maxTurns": {{deployment.maxTurns | default: "20" | json}},
+  "maxTokens": {{deployment.parameters.maxTokens | default: "8192" | json}},
+  "maxRetries": {{deployment.parameters.maxRetries | default: "2" | json}},
+  "timeoutMs": {{deployment.parameters.timeoutMs | default: "1800000" | json}},
+  "maxSessionBytes": {{deployment.parameters.maxSessionBytes | default: "8388608" | json}},
+  "maxToolResultChars": {{deployment.parameters.maxToolResultChars | default: "65536" | json}},
+  "mcpDiscoveryTimeoutMs": {{deployment.parameters.mcpDiscoveryTimeoutMs | default: "30000" | json}},
+  "maxMcpPages": {{deployment.parameters.maxMcpPages | default: "50" | json}},
+  "maxMcpTools": {{deployment.parameters.maxMcpTools | default: "1000" | json}},
+  "maxMcpMessageBytes": {{deployment.parameters.maxMcpMessageBytes | default: "8388608" | json}},
+  "sessionId": {{#if run.persistSession}}{{run.resumeSessionId | default: run.id | json}}{{else}}null{{/if}},
+  "resume": {{#if run.resumeSessionId}}true{{else}}false{{/if}},
+  "approvalsEnabled": {{#if approval.enabled}}true{{else}}false{{/if}},
+  "servers": {{resources.mcpServers | json}}
+}

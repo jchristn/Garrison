@@ -5829,3 +5829,7 @@ Isolation values are `Process`, `Container`, and `SandboxedRuntime`; startup cla
 Unsupported requirements stay queued with `blockedReason: "NoCapableWorker"`; they never fall back to a less capable executor. Registration rejects unknown enum values and duplicate executor reports. See `docs/ARCHITECTURE.md` for current supported capabilities.
 
 Worker capability records additionally expose `warmStart` (boolean, default false). A Kubernetes executor with primary `coldStartClass: "Cold"` and `warmStart: true` satisfies either Cold or Warm requirements. Explicit Warm requirements reject custom deployment pod resources and PersistentVolume workspaces. Node lease responses include `queuedKubernetesRuns`, a bounded eligible queue estimate for adaptive warm-stock sizing; it is zero for workers without warm support.
+
+### Optional provider API deployment
+
+The existing agent/deployment APIs support `hrn_builtin_provider_api` (`harnessType: ProviderApi`, `outputParser: ProviderApiJsonl`). Set an explicit deployment model and `baseUrl` parameter, bind an `OpenAiApiKey` secret, and use the usual prompt bindings. Existing invoke, conversation, approval, artifact, and cost-estimation endpoints apply. See [configuration and limits](docs/PROVIDER_API.md). Daily quotas remain opt-in.

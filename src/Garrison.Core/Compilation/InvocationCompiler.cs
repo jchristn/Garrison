@@ -406,7 +406,7 @@ namespace Garrison.Core.Compilation
             bool delegationEnabled = agent.DelegationMode != DelegationModeEnum.None && !String.IsNullOrEmpty(runToken);
             if (deployment.ApprovalsEnabled && !Garrison.Core.Services.ConfigurationValidator.SupportsApprovals(profile))
             {
-                throw new CompilationException("ApprovalsUnsupported", "Deployment " + deployment.Name + " has approvals enabled, but harness profile " + profile.Name + " cannot relay permission requests (only Claude Code and CodexAppServer delivery can).");
+                throw new CompilationException("ApprovalsUnsupported", "Deployment " + deployment.Name + " has approvals enabled, but harness profile " + profile.Name + " cannot relay permission requests (Claude Code, CodexAppServer, and ProviderApi support this hook).");
             }
             bool approvalsEnabled = deployment.ApprovalsEnabled && !String.IsNullOrEmpty(runToken);
             if (approvalsEnabled && profile.HarnessType == HarnessTypeEnum.ClaudeCode)

@@ -62,7 +62,9 @@ await check("model price CRUD", async () => {
   } finally { await client.modelPrices.delete(price.id); }
 });
 await check("builtin harness profiles", async () => {
-  const fake = (await client.harnessProfiles.builtin()).find((p) => p.name === "builtin/fake");
+  const profiles = await client.harnessProfiles.builtin();
+  require(profiles.some((p) => p.name === "builtin/provider-api" && p.harnessType === "ProviderApi" && p.outputParser === "ProviderApiJsonl"), "optional provider profile");
+  const fake = profiles.find((p) => p.name === "builtin/fake");
   require(fake, "builtin/fake not found");
   state.fake = fake.id;
 });

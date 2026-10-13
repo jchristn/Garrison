@@ -1938,3 +1938,6 @@ export default de;
 
 de.views.settings.groups.Leases = "Koordinierungsleases";
 de.views.settings.fields.Leases = {"Provider": "Anbieter", "ClutchEndpoint": "Clutch-Endpunkt", "ClutchAccessKey": "Clutch-Zugriffsschlüssel", "KeyPrefix": "Schlüsselpräfix", "RequestTimeoutMs": "Anfragezeitlimit (ms)", "SweepIntervalMs": "Prüfintervall (ms)", "MaxLeaseMs": "Maximale Lease (ms)", "MaxHoldMs": "Maximale Haltezeit (ms)"};
+
+de.enums.harnessType.ProviderApi = "Anbieter-API";
+de.enums.outputParser.ProviderApiJsonl = "Anbieter-API-JSONL";

@@ -1905,3 +1905,6 @@ export default ja;
 
 ja.views.settings.groups.Leases = "協調リース";
 ja.views.settings.fields.Leases = {"Provider": "プロバイダー", "ClutchEndpoint": "Clutch エンドポイント", "ClutchAccessKey": "Clutch アクセスキー", "KeyPrefix": "キープレフィックス", "RequestTimeoutMs": "要求タイムアウト (ms)", "SweepIntervalMs": "確認間隔 (ms)", "MaxLeaseMs": "最大リース (ms)", "MaxHoldMs": "最大保持時間 (ms)"};
+
+ja.enums.harnessType.ProviderApi = "プロバイダー API";
+ja.enums.outputParser.ProviderApiJsonl = "プロバイダー API JSONL";

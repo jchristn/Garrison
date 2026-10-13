@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Garrison.ProviderHarness</RootNamespace>
+    <AssemblyName>garrison-provider-api</AssemblyName>
+    <Description>Optional direct provider API agent loop for Garrison workers.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="PolyPrompt" Version="2.8.0" />
+    <ProjectReference Include="../Garrison.Harnesses/Garrison.Harnesses.csproj" />
+  </ItemGroup>
+</Project>

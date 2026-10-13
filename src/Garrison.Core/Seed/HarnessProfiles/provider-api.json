@@ -1,0 +1,49 @@
+{
+  "name": "builtin/provider-api",
+  "description": "Optional direct provider API execution through PolyPrompt. Explicit endpoint/model and API credential; streaming, HTTP MCP tools, permission approvals, and local conversation history. No built-in filesystem or shell tools.",
+  "harnessType": "ProviderApi",
+  "executable": "garrison-provider-api",
+  "promptDelivery": "Stdin",
+  "systemPromptDelivery": "None",
+  "mcpConfigFormat": "None",
+  "outputParser": "ProviderApiJsonl",
+  "resultSource": "ParserFinalEvent",
+  "successPolicy": "FinalEventAndExitCode",
+  "defaultTimeoutSeconds": 1800,
+  "killGraceSeconds": 5,
+  "isolateHome": true,
+  "supportsResume": true,
+  "arguments": [
+    {
+      "template": "--config"
+    },
+    {
+      "template": "$GARRISON_CONFIG_DIR/provider-api.json"
+    }
+  ],
+  "environment": [
+    {
+      "name": "GARRISON_PROVIDER_API_KEY",
+      "valueTemplate": "{{secret.kind.OpenAiApiKey}}",
+      "isSecret": true
+    }
+  ],
+  "files": [
+    {
+      "baseDirectory": "Config",
+      "pathTemplate": "provider-api.json",
+      "contentTemplate": "{{> builtin/provider-api-config}}",
+      "isSecret": true,
+      "mode": "600"
+    }
+  ],
+  "successExitCodes": [
+    0
+  ],
+  "probeArguments": [
+    "--version"
+  ],
+  "credentialEnvironmentAllowlist": [
+    "GARRISON_PROVIDER_API_KEY"
+  ]
+}

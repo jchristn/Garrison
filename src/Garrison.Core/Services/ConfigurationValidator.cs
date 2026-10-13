@@ -218,7 +218,7 @@ namespace Garrison.Core.Services
         public static bool SupportsApprovals(HarnessProfile profile)
         {
             if (profile == null) throw new ArgumentNullException(nameof(profile));
-            return profile.HarnessType == HarnessTypeEnum.ClaudeCode || profile.PromptDelivery == PromptDeliveryEnum.CodexAppServer;
+            return profile.HarnessType == HarnessTypeEnum.ClaudeCode || profile.HarnessType == HarnessTypeEnum.ProviderApi || profile.PromptDelivery == PromptDeliveryEnum.CodexAppServer;
         }
 
         /// <summary>
@@ -377,7 +377,7 @@ namespace Garrison.Core.Services
             ApprovalRules(deployment.ApprovalRules, errors);
             if (deployment.ApprovalsEnabled && profile != null && !SupportsApprovals(profile))
             {
-                errors["approvalsEnabled"] = "Harness profile " + profile.Name + " cannot relay permission approvals. Approvals need a Claude Code profile (--permission-prompt-tool) or a Codex profile with CodexAppServer delivery; Codex exec, Mux, Gemini CLI, and generic profiles have no approval hook.";
+                errors["approvalsEnabled"] = "Harness profile " + profile.Name + " cannot relay permission approvals. Approvals need a Claude Code profile (--permission-prompt-tool), a Codex profile with CodexAppServer delivery, or ProviderApi; Codex exec, Mux, Gemini CLI, and generic profiles have no approval hook.";
             }
 
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId) && await database.WorkspaceTemplates.ReadAsync(tenantId, deployment.WorkspaceTemplateId, token).ConfigureAwait(false) == null) errors["workspaceTemplateId"] = "The workspace template does not exist in this tenant.";
