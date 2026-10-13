@@ -9,7 +9,7 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 ### Control plane
 
 - Workers share the C# SDK HTTP transport while retaining node-protocol fencing, one-time 401 reauthentication, timeouts, and named telemetry.
-- All four SDKs have interactive consoles for authentication, inspection, invocation, and event streaming; credentials are not echoed or printed. Package preparation and multi-architecture image scripts support the selected publication work.
+- All four SDKs have interactive consoles for authentication, inspection, invocation, and event streaming; credentials are not echoed or printed. Build-only package preparation and multi-architecture image scripts are available. Server, worker, and dashboard images are published for amd64 and arm64; SDK publication is skipped.
 
 - Usage quotas now require explicit per-quota `enforcementEnabled` opt-in (default false). Migration 16 turns enforcement off for existing quotas; monitoring remains available. Delegation-tree budgets and their quota-hop integration are removed from the active plan.
 

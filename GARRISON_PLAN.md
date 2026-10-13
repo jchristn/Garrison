@@ -84,7 +84,7 @@ Rules for keeping the plan honest:
 | 4 | Protocol ingress: REST invoke, MCP, A2A, delegation | M1 | Complete | 10 / 10 |
 | 5 | Dashboard | M1 | Complete | 52 / 52 |
 | 6 | SDKs (C#, Python, JavaScript/TypeScript, Go) | M1 | Complete (publication skipped) | 20 / 20 active (1 skipped) |
-| 7 | Container images and Kubernetes assets | M1 | In progress | 37 / 38 |
+| 7 | Container images and Kubernetes assets | M1 | Complete | 38 / 38 |
 | 8 | Documentation and Postman | M1 | Complete | 22 / 22 |
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
 | 10 | Control plane high availability and scale-out | M2 | In progress | 23 / 25 |
@@ -109,7 +109,8 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 
 **State**
 
-- D-042 narrows current scope: 11 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P11 is 14/17 active and P12 is 5/12 active; P14 remaining work and P15 are deferred. Image publication is authorized; SDK publication is skipped under D-043. The original milestones describe the longer-term roadmap; only the active scope below is being executed.
+- P6.17/P6.19/P7.5 are complete: SDK-backed worker transport, all four interactive consoles, and Docker Hub amd64/arm64 images. SDK/console end-to-end harness checks pass; worker net8/net10 regression checks pass with token-refresh coverage. Both K3S workers are Ready on the new image. Claude/Codex live validation passes 20/20, including REST/MCP/A2A, streaming, and successful delegation. Mux live revalidation is blocked by its configured external model endpoint (direct connection timed out); the waiting fixture was cancelled. SDK publication is skipped under D-043.
+- D-042 narrows current scope: 10 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P11 is 14/17 active and P12 is 5/12 active; P14 remaining work and P15 are deferred. Image publication is authorized; SDK publication is skipped under D-043. The original milestones describe the longer-term roadmap; only the active scope below is being executed.
 - Combined .NET 8 and 10 build: zero errors/warnings. Full Touchstone net10 run: 469/469 on SQLite/PostgreSQL; four additional provider cases subsequently passed for approval/conversation interaction and upgrade from schema 12. The latest net8 database/approval suites pass 39/39 on both providers. xUnit net8 passed its all-suites fact; NUnit net10 passed 306/306 SQLite cases. All four SDK harnesses pass. Dashboard lint/build, 253 unit tests, 72 contract routes, and 123 Playwright browser tests pass. All CI mirror pairs, eight Kustomize overlays, Helm lint/template, and em-dash checks pass.
 - New integration regression: an approval pending during a conversation keeps it busy, refuses concurrent turns without consuming a turn number, clears approval counters on completion, and preserves the session for the next turn. Upgrade from schema 12 to 13 preserves the session/turn count, adds working approval storage, and applies no migration again on restart. Both providers pass.
 - Real Claude Code 2.1.296 smoke against the combined local server passed: a Bash request reached Garrison, a human-style REST Allow decision unblocked it, the harmless command wrote its test file, and Claude exited 0. Temporary test files/configuration were removed; no login was copied into the cluster. Approval waits over about an hour remain untested against MCP session idle timeouts.
@@ -126,7 +127,7 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 
 **Pick up here, in order**
 
-1. Finish multi-architecture image publication (P7.5), authorized under D-042. P6.17 SDK transport and P6.19 consoles are complete; SDK publication is skipped under D-043. Do not change repository visibility or versions implicitly.
+1. P6/P7 selected work is complete: SDK transport, four interactive consoles, and multi-architecture images. SDK publication is skipped under D-043. Continue selected executor and orchestration tasks below.
 2. Retained executor work: P11.18 capability negotiation, P11.19 conformance, P11.20 warm pods. Snapshot/restore capabilities remain unsupported until their deferred prerequisites return to scope; conformance covers capabilities actually supported. Warm pods must retain the already implemented isolation controls and pass relevant conformance tests; the deferred full P11.17 suite is not a prerequisite to rescope the whole security project.
 3. Retained orchestration work: P12.8 artifacts, P12.9 pipelines, P12.10 management MCP tools, P12.11 Clutch leases, P12.12 worker stdio MCP testing, P12.13 provider API evaluation/execution, and P12.17 docs/Postman for these retained features. Each retained implementation still includes necessary tests, SDK updates, and a usable configuration surface even though the broad coverage umbrella tasks are deferred.
 4. P10.24/P10.25 remain conditional, not ready to execute: their acceptance depends on P14.15, which is deferred. Do not undertake large load benchmarks or claim capacity improvements without those measurements.
@@ -134,9 +135,9 @@ Execution resumed 2026-10-12 at the user's request. P12.3 approvals from `worktr
 
 **Scope totals and external prerequisites**
 
-- 11 active unchecked phase tasks: 1 in P7, 3 in P11, and 7 in P12. Two more P10 tasks remain conditional on deferred measurements. 58 phase tasks are deferred. No completed implementation has been removed by this deferral.
-- After P6/P7 finishes, 10 selected implementation tasks, the 2 conditional P10 tasks, and 4 active core follow-ups remain.
-- Package/image publication is authorized. Registry access and package ownership must be checked; report missing credentials as an external prerequisite without asking again whether publication is approved. The GitHub repository is currently private; do not change its visibility without an explicit instruction.
+- 10 active unchecked phase tasks: 3 in P11 and 7 in P12. Two more P10 tasks remain conditional on deferred measurements. 58 phase tasks are deferred. No completed implementation has been removed by this deferral.
+- P6/P7 selected work is complete. Ten selected implementation tasks, the 2 conditional P10 tasks, and 4 active core follow-ups remain.
+- Image publication is complete; SDK publication is skipped under D-043. The GitHub repository remains private; do not change its visibility without an explicit instruction.
 - See `docs/REMAINING_PLAN_MATRIX.md` for the active/conditional/deferred matrix.
 
 **Things to know when resuming**
@@ -1371,7 +1372,7 @@ Images
 - [x] P7.2 `src/Garrison.Worker/Dockerfile` (multi-stage; Node.js 22; pinned Claude Code and Codex; Mux built from pinned commit; optional Gemini; fake harness; non-root; curl, git, ripgrep).  | k8s stream 2026-10-09 2.17 GB, claude/codex/mux/fake on PATH
 - [x] P7.3 `dashboard/Dockerfile` and `nginx.conf`.  | k8s stream 2026-10-09 written; image build waits on dashboard
 - [x] P7.4 Local builds of all three images succeed for the host architecture. -> annotate image sizes.  | claude 2026-10-10 server 416 MB, worker 2.17 GB, dashboard 97 MB (arm64)
-- [ ] P7.5 Build scripts publish multi-arch images to Docker Hub.  | user 2026-10-12 execute now, including publication; D-042 supersedes prior first-publish deferral
+- [x] P7.5 Build scripts publish multi-arch images to Docker Hub. Bash and Windows wrappers support OCI export and explicit push. Server, worker, and dashboard `v0.1.0-alpha` images published; remote manifests verify linux/amd64 and linux/arm64. Worker build verifies Claude/Codex/Mux executables on both architectures. Native Windows wrapper execution remains a deferred follow-up.
 
 Kustomize
 

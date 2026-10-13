@@ -1,15 +1,14 @@
 # Remaining Plan Scope Matrix
 
-Updated 2026-10-12 under D-042. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
+Updated 2026-10-12 under D-042/D-043. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-There are 11 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. After P7.5 is complete, 10 selected implementation tasks remain, plus the 2 conditional P10 tasks and 4 active core follow-ups.
+There are 10 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5 are complete. Ten selected implementation tasks remain, plus the 2 conditional P10 tasks and 4 active core follow-ups.
 
-Image publication (P7.5) is authorized. SDK publication (P6.20) is skipped at user request. Registry access is an external prerequisite; the repository remains private unless the user explicitly changes its visibility.
+Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
 | ID | Remaining capability | Scope | Dependency or decision |
 |---|---|---|---|
 | P6.20 | Publish SDK packages | Deferred | Skipped at user request (D-043) |
-| P7.5 | Publish multi-architecture container images | Active | Publication authorized; verify registry access |
 | P10.24 | Tune demonstrated control-plane bottlenecks | Conditional | Waiting on deferred P14.15 measurements |
 | P10.25 | Schedule by CPU/memory capacity | Conditional | Waiting on deferred P14.15 measurements |
 | P11.14 | Trusted/untrusted deployment policy | Deferred | Enforce container isolation for untrusted runs |
