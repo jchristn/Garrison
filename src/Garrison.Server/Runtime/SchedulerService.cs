@@ -203,6 +203,7 @@ namespace Garrison.Server.Runtime
             filter.HarnessTypes = harnessTypes;
             filter.NodePoolId = node.NodePoolId;
             filter.Executors = RunExecutors.Of(node);
+            filter.ExecutorCapabilities = ExecutorCapabilityRules.Of(node);
             filter.AllowedTenantIds = pool != null && pool.Tenants.Count > 0 ? pool.Tenants : null;
             filter.Limit = Math.Max(maxRuns * 4, 16);
             List<Run> candidates = await _Database.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
@@ -216,7 +217,7 @@ namespace Garrison.Server.Runtime
             foreach (Run candidate in candidates)
             {
                 if (assignments.Count >= maxRuns) break;
-                if (!PlacementRules.MatchesPlacement(node, pool, candidate)) continue;
+                if (!PlacementRules.MatchesPlacement(node, pool, candidate) || !ExecutorCapabilityRules.Supports(node, candidate)) continue;
 
                 // A conversation turn that resumes a harness session waits (bounded) for the node holding the session
                 // (P12.1); other nodes take it once that node is not Ready or the wait is over, as a fallback.

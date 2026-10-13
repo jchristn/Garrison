@@ -120,6 +120,23 @@ type Secret struct {
 	LastUpdateUTC         string `json:"lastUpdateUtc,omitempty"`
 }
 
+// ExecutorRequirements are optional placement requirements copied into admitted runs.
+// Isolation is Process (default), Container, or SandboxedRuntime. Startup classes match exactly.
+type ExecutorRequirements struct {
+	Isolation           string  `json:"isolation,omitempty"`
+	EgressControl       bool    `json:"egressControl,omitempty"`
+	FilesystemSnapshot  bool    `json:"filesystemSnapshot,omitempty"`
+	SessionContinuation bool    `json:"sessionContinuation,omitempty"`
+	CrossNodeRestore    bool    `json:"crossNodeRestore,omitempty"`
+	ColdStartClass      *string `json:"coldStartClass,omitempty"`
+}
+
+// ExecutorCapabilities is one worker-reported executor. Missing reports promise no advanced capabilities.
+type ExecutorCapabilities struct {
+	ExecutorRequirements
+	Executor string `json:"executor"`
+}
+
 // RunPodResources are requests and limits for the run pod of a KubernetesJob run, as Kubernetes quantities (for
 // example "500m", "2", "512Mi", "4Gi"). Nil values use the worker's defaults.
 type RunPodResources struct {
@@ -142,11 +159,12 @@ type NodePool struct {
 
 // Node is a worker node. Executors lists what it can run; empty means Process only.
 type Node struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	Status     string   `json:"status"`
-	NodePoolID string   `json:"nodePoolId,omitempty"`
-	Executors  []string `json:"executors,omitempty"`
+	ExecutorCapabilities []ExecutorCapabilities `json:"executorCapabilities,omitempty"`
+	ID                   string                 `json:"id"`
+	Name                 string                 `json:"name"`
+	Status               string                 `json:"status"`
+	NodePoolID           string                 `json:"nodePoolId,omitempty"`
+	Executors            []string               `json:"executors,omitempty"`
 }
 
 // WorkspaceTemplate defines how a run workspace is prepared.
@@ -239,12 +257,13 @@ type Agent struct {
 
 // Deployment binds an agent to a harness profile and model.
 type Deployment struct {
-	ID               string `json:"id,omitempty"`
-	TenantID         string `json:"tenantId,omitempty"`
-	AgentID          string `json:"agentId"`
-	Name             string `json:"name"`
-	HarnessProfileID string `json:"harnessProfileId"`
-	Model            string `json:"model,omitempty"`
+	RequiredCapabilities *ExecutorRequirements `json:"requiredCapabilities,omitempty"`
+	ID                   string                `json:"id,omitempty"`
+	TenantID             string                `json:"tenantId,omitempty"`
+	AgentID              string                `json:"agentId"`
+	Name                 string                `json:"name"`
+	HarnessProfileID     string                `json:"harnessProfileId"`
+	Model                string                `json:"model,omitempty"`
 	// Executor is RunExecutorProcess or RunExecutorKubernetesJob; nil uses the node pool's default, then Process.
 	Executor *string `json:"executor,omitempty"`
 	// PodResources are the run pod requests and limits for KubernetesJob runs.
@@ -413,26 +432,27 @@ type HarnessProfile struct {
 
 // Run is one execution of an agent.
 type Run struct {
-	ID           string   `json:"id"`
-	TenantID     string   `json:"tenantId"`
-	AgentID      string   `json:"agentId"`
-	AgentName    string   `json:"agentName"`
-	DeploymentID string   `json:"deploymentId"`
-	Status       string   `json:"status"`
-	Outcome      string   `json:"outcome"`
-	Executor     string   `json:"executor,omitempty"`
-	InputText    string   `json:"inputText"`
-	ResultText   string   `json:"resultText"`
-	ErrorMessage string   `json:"errorMessage"`
-	InputTokens  int64    `json:"inputTokens"`
-	OutputTokens int64    `json:"outputTokens"`
-	CachedTokens int64    `json:"cachedTokens"`
-	CostUSD      *float64 `json:"costUsd"`
-	Depth        int      `json:"depth"`
-	ParentRunID  string   `json:"parentRunId"`
-	CreatedUTC   string   `json:"createdUtc"`
-	StartedUTC   string   `json:"startedUtc"`
-	CompletedUTC string   `json:"completedUtc"`
+	RequiredCapabilities *ExecutorRequirements `json:"requiredCapabilities,omitempty"`
+	ID                   string                `json:"id"`
+	TenantID             string                `json:"tenantId"`
+	AgentID              string                `json:"agentId"`
+	AgentName            string                `json:"agentName"`
+	DeploymentID         string                `json:"deploymentId"`
+	Status               string                `json:"status"`
+	Outcome              string                `json:"outcome"`
+	Executor             string                `json:"executor,omitempty"`
+	InputText            string                `json:"inputText"`
+	ResultText           string                `json:"resultText"`
+	ErrorMessage         string                `json:"errorMessage"`
+	InputTokens          int64                 `json:"inputTokens"`
+	OutputTokens         int64                 `json:"outputTokens"`
+	CachedTokens         int64                 `json:"cachedTokens"`
+	CostUSD              *float64              `json:"costUsd"`
+	Depth                int                   `json:"depth"`
+	ParentRunID          string                `json:"parentRunId"`
+	CreatedUTC           string                `json:"createdUtc"`
+	StartedUTC           string                `json:"startedUtc"`
+	CompletedUTC         string                `json:"completedUtc"`
 	// FirstTokenUTC is the ISO 8601 UTC time of the first model output event; nil when absent.
 	FirstTokenUTC *string `json:"firstTokenUtc,omitempty"`
 	// LastTokenUTC is the ISO 8601 UTC time of the last model output event; nil when absent.

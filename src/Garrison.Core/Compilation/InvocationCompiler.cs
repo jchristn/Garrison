@@ -198,6 +198,7 @@ namespace Garrison.Core.Compilation
             run.CallerName = "preview";
             NodePool? pool = String.IsNullOrEmpty(inputs.Deployment.NodePoolId) ? null : await _Database.NodePools.ReadAsync(inputs.Deployment.NodePoolId, token).ConfigureAwait(false);
             run.Executor = RunExecutors.Resolve(inputs.Deployment, pool);
+            run.RequiredCapabilities = inputs.Deployment.RequiredCapabilities.Clone();
             if (parameters != null)
             {
                 foreach (KeyValuePair<string, string> entry in parameters)

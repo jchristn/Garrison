@@ -235,6 +235,23 @@ namespace Garrison.Core.Database.Ado
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
                 reader => AdoConverters.Str(reader, "executor"),
                 token).ConfigureAwait(false);
+            obj.ExecutorCapabilities = await _Driver.QueryAsync(
+                "SELECT * FROM " + _ExecutorsTable + " WHERE nodeid = @parentid AND capreported = " + _Driver.Dialect.BooleanLiteral(true) + " ORDER BY id ASC;",
+                command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
+                reader =>
+                {
+                    ExecutorRequirements value = ExecutorCapabilitySql.Read(reader);
+                    return new ExecutorCapabilities
+                    {
+                        Executor = AdoConverters.Enum<RunExecutorEnum>(reader, "executor", RunExecutorEnum.Process),
+                        Isolation = value.Isolation,
+                        EgressControl = value.EgressControl,
+                        FilesystemSnapshot = value.FilesystemSnapshot,
+                        SessionContinuation = value.SessionContinuation,
+                        CrossNodeRestore = value.CrossNodeRestore,
+                        ColdStartClass = value.ColdStartClass
+                    };
+                }, token).ConfigureAwait(false);
             obj.Executors = new List<RunExecutorEnum>();
             foreach (string executor in executors)
             {
@@ -367,13 +384,16 @@ namespace Garrison.Core.Database.Ado
             {
                 string id = batch + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + "exe";
                 RunExecutorEnum executor = executors[i];
+                ExecutorCapabilities? capability = obj.ExecutorCapabilities.FirstOrDefault(c => c.Executor == executor);
                 await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _ExecutorsTable + " (id, nodeid, executor) VALUES (@id, @nodeid, @executor);",
+                    "INSERT INTO " + _ExecutorsTable + " (id, nodeid, executor, capisolation, capegresscontrol, capfilesystemsnapshot, capsessioncontinuation, capcrossnoderestore, capcoldstartclass, capreported) VALUES (@id, @nodeid, @executor, @capisolation, @capegresscontrol, @capfilesystemsnapshot, @capsessioncontinuation, @capcrossnoderestore, @capcoldstartclass, @capreported);",
                     command =>
                     {
                         AdoDatabaseDriver.Add(command, "id", id);
                         AdoDatabaseDriver.Add(command, "nodeid", obj.Id);
                         AdoDatabaseDriver.Add(command, "executor", executor.ToString());
+                        ExecutorCapabilitySql.Bind(command, capability ?? new ExecutorCapabilities());
+                        AdoDatabaseDriver.Add(command, "capreported", capability != null);
                     }, token).ConfigureAwait(false);
             }
         }

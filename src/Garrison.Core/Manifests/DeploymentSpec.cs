@@ -95,6 +95,9 @@ namespace Garrison.Core.Manifests
         /// </summary>
         public RunExecutorEnum? Executor { get; set; } = null;
 
+        /// <summary>Optional executor capability requirements; defaults preserve legacy placement.</summary>
+        public ExecutorRequirements? RequiredCapabilities { get; set; } = null;
+
         /// <summary>
         /// Run pod requests and limits for KubernetesJob runs (cpuRequest, cpuLimit, memoryRequest, memoryLimit,
         /// ephemeralStorageRequest, ephemeralStorageLimit). Null for none. Named podResources because resources holds

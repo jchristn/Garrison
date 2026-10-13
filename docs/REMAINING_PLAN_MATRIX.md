@@ -1,8 +1,8 @@
 # Remaining Plan Scope Matrix
 
-Updated 2026-10-12 under D-042/D-043. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
+Updated 2026-10-13 under D-042/D-043. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-There are 10 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5 are complete. Ten selected implementation tasks remain, plus the 2 conditional P10 tasks and 4 active core follow-ups.
+There are 9 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5/P11.18 are complete. Nine selected implementation tasks remain, plus the 2 conditional P10 tasks and 4 active core follow-ups.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -14,7 +14,6 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P11.14 | Trusted/untrusted deployment policy | Deferred | Enforce container isolation for untrusted runs |
 | P11.15 | Per-deployment network egress allowlists | Deferred | CIDR/port NetworkPolicy rules |
 | P11.17 | Isolation attack tests in CI | Deferred | Depends on trust policy and egress controls |
-| P11.18 | Executor capability negotiation | Active | Generalizes current Process/KubernetesJob selection |
 | P11.19 | Executor conformance tests | Active | Conformance for supported capabilities; snapshots remain unsupported until rescoping |
 | P11.20 | Prestarted warm run pods | Active | Warm pods retain existing isolation and pass applicable P11.19 conformance checks |
 | P12.2 | Workspace snapshots and cross-node resume | Deferred | Needs artifact storage and harness continuation |

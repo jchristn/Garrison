@@ -50,6 +50,8 @@ export const GUARD_MESSAGES = {
 /** Partial output a guard stop keeps as the result: the start of an answer, then the loop. */
 export const GUARD_PARTIAL = `Here is the plan:\n\n${'* \n'.repeat(40)}`;
 
+const defaultExecutorRequirements = () => ({ isolation: 'Process', egressControl: false, filesystemSnapshot: false, sessionContinuation: false, crossNodeRestore: false });
+
 function run(i) {
   const status = RUN_STATUSES[i % RUN_STATUSES.length];
   const terminal = !['Running', 'Queued'].includes(status);
@@ -64,6 +66,7 @@ function run(i) {
     deploymentVersion: 3,
     harnessType: 'ClaudeCode',
     executor: 'Process',
+    requiredCapabilities: defaultExecutorRequirements(),
     nodePoolId: 'np_0001',
     kind: 'Invoke',
     status,
@@ -297,7 +300,7 @@ const FACTORIES = {
     }),
   'artifact-stores': (i) => base('as', i, { description: 'Database store', kind: 'Database' }),
   'model-prices': (i) => base('mpr', i, { model: `fixture-model-${i}`, harnessType: 'Generic', inputUsdPerMillion: 2, outputUsdPerMillion: 10, cachedInputUsdPerMillion: null, reasoningUsdPerMillion: null, inputIncludesCachedTokens: true, outputIncludesReasoningTokens: true, description: 'Fixture rates' }),
-  'usage-quotas': (i) => base('uqt', i, { scope: i === 1 ? 'Tenant' : i % 2 ? 'Agent' : 'Deployment', resourceId: i === 1 ? 'default' : i % 2 ? `agt_${pad(i)}` : `dep_${pad(i)}`, dailyRunLimit: 100, dailyTokenLimit: 1000000, dailyCostUsdLimit: 25, maxConcurrentRuns: 4, description: 'Daily quota' }),
+  'usage-quotas': (i) => base('uqt', i, { enforcementEnabled: false, scope: i === 1 ? 'Tenant' : i % 2 ? 'Agent' : 'Deployment', resourceId: i === 1 ? 'default' : i % 2 ? `agt_${pad(i)}` : `dep_${pad(i)}`, dailyRunLimit: 100, dailyTokenLimit: 1000000, dailyCostUsdLimit: 25, maxConcurrentRuns: 4, description: 'Daily quota' }),
   agents: (i) =>
     base('agt', i, {
       name: i === 1 ? 'echo-agent' : `agent-${i}`,
@@ -328,6 +331,7 @@ const FACTORIES = {
       // P3.15 run guards: deployment-2 (the small local model) sets its own; the others follow the cluster defaults.
       ...(i === 2 ? { repetitionGuard: true, maxAssistantChars: 50000, noProgressSeconds: 120 } : {}),
       // Phase 11: deployments carry run pod resources (empty unless set); executor is omitted to inherit the pool default.
+      requiredCapabilities: defaultExecutorRequirements(),
       podResources: i === 4 ? { cpuRequest: '250m', memoryLimit: '2Gi' } : {},
       maxConcurrentRuns: 0,
       maxAttempts: 1,
@@ -390,6 +394,10 @@ const FACTORIES = {
       registeredUtc: iso(600),
       labels: [{ id: `chr_${id}_0000lab`, nodeId: id, key: 'zone', value: 'a' }],
       executors: i === 1 ? ['Process', 'KubernetesJob'] : ['Process'],
+      executorCapabilities: [
+        { ...defaultExecutorRequirements(), executor: 'Process', coldStartClass: 'Immediate', sessionContinuation: true },
+        ...(i === 1 ? [{ ...defaultExecutorRequirements(), executor: 'KubernetesJob', isolation: 'Container', coldStartClass: 'Cold' }] : [])
+      ],
       capabilities: [{ id: `chr_${id}_0000cap`, nodeId: id, harnessType: 'ClaudeCode', executable: 'claude', detectedVersion: '2.1.0', available: true, detail: '2.1.0 (Claude Code)' }]
     });
   },

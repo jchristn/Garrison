@@ -133,7 +133,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, name = @name, description = @description, harnessprofileid = @harnessprofileid, model = @model, fallbackmodel = @fallbackmodel, effort = @effort, maxturns = @maxturns, maxbudgetusd = @maxbudgetusd, maxconcurrentruns = @maxconcurrentruns, timeoutseconds = @timeoutseconds, repetitionguard = @repetitionguard, maxassistantchars = @maxassistantchars, noprogressseconds = @noprogressseconds, maxattempts = @maxattempts, retryonnodeloss = @retryonnodeloss, executor = @executor, podcpurequest = @podcpurequest, podcpulimit = @podcpulimit, podmemoryrequest = @podmemoryrequest, podmemorylimit = @podmemorylimit, podephemeralstoragerequest = @podephemeralstoragerequest, podephemeralstoragelimit = @podephemeralstoragelimit, weight = @weight, nodepoolid = @nodepoolid, workspacetemplateid = @workspacetemplateid, artifactstoreid = @artifactstoreid, approvalsenabled = @approvalsenabled, approvaldefaultaction = @approvaldefaultaction, approvaltimeoutseconds = @approvaltimeoutseconds, approvaltimeoutdecision = @approvaltimeoutdecision, configversion = @configversion, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, name = @name, description = @description, harnessprofileid = @harnessprofileid, model = @model, fallbackmodel = @fallbackmodel, effort = @effort, maxturns = @maxturns, maxbudgetusd = @maxbudgetusd, maxconcurrentruns = @maxconcurrentruns, timeoutseconds = @timeoutseconds, repetitionguard = @repetitionguard, maxassistantchars = @maxassistantchars, noprogressseconds = @noprogressseconds, maxattempts = @maxattempts, retryonnodeloss = @retryonnodeloss, executor = @executor, capisolation = @capisolation, capegresscontrol = @capegresscontrol, capfilesystemsnapshot = @capfilesystemsnapshot, capsessioncontinuation = @capsessioncontinuation, capcrossnoderestore = @capcrossnoderestore, capcoldstartclass = @capcoldstartclass, podcpurequest = @podcpurequest, podcpulimit = @podcpulimit, podmemoryrequest = @podmemoryrequest, podmemorylimit = @podmemorylimit, podephemeralstoragerequest = @podephemeralstoragerequest, podephemeralstoragelimit = @podephemeralstoragelimit, weight = @weight, nodepoolid = @nodepoolid, workspacetemplateid = @workspacetemplateid, artifactstoreid = @artifactstoreid, approvalsenabled = @approvalsenabled, approvaldefaultaction = @approvaldefaultaction, approvaltimeoutseconds = @approvaltimeoutseconds, approvaltimeoutdecision = @approvaltimeoutdecision, configversion = @configversion, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -157,6 +157,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "noprogressseconds", obj.NoProgressSeconds);
                     AdoDatabaseDriver.Add(command, "maxattempts", obj.MaxAttempts);
                     AdoDatabaseDriver.Add(command, "executor", obj.Executor.HasValue ? obj.Executor.Value.ToString() : null);
+                    ExecutorCapabilitySql.Bind(command, obj.RequiredCapabilities);
                     AdoDatabaseDriver.Add(command, "podcpurequest", obj.PodResources.CpuRequest);
                     AdoDatabaseDriver.Add(command, "podcpulimit", obj.PodResources.CpuLimit);
                     AdoDatabaseDriver.Add(command, "podmemoryrequest", obj.PodResources.MemoryRequest);
@@ -272,6 +273,7 @@ namespace Garrison.Core.Database.Ado
             obj.MaxAttempts = AdoConverters.Int(reader, "maxattempts");
             obj.RetryOnNodeLoss = AdoConverters.Bool(reader, "retryonnodeloss");
             obj.Executor = AdoConverters.NullableEnum<RunExecutorEnum>(reader, "executor");
+            obj.RequiredCapabilities = ExecutorCapabilitySql.Read(reader);
             obj.PodResources.CpuRequest = AdoConverters.NullableStr(reader, "podcpurequest");
             obj.PodResources.CpuLimit = AdoConverters.NullableStr(reader, "podcpulimit");
             obj.PodResources.MemoryRequest = AdoConverters.NullableStr(reader, "podmemoryrequest");
@@ -398,7 +400,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Deployment obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, name, description, harnessprofileid, model, fallbackmodel, effort, maxturns, maxbudgetusd, maxconcurrentruns, timeoutseconds, repetitionguard, maxassistantchars, noprogressseconds, maxattempts, retryonnodeloss, executor, podcpurequest, podcpulimit, podmemoryrequest, podmemorylimit, podephemeralstoragerequest, podephemeralstoragelimit, weight, nodepoolid, workspacetemplateid, artifactstoreid, approvalsenabled, approvaldefaultaction, approvaltimeoutseconds, approvaltimeoutdecision, configversion, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @name, @description, @harnessprofileid, @model, @fallbackmodel, @effort, @maxturns, @maxbudgetusd, @maxconcurrentruns, @timeoutseconds, @repetitionguard, @maxassistantchars, @noprogressseconds, @maxattempts, @retryonnodeloss, @executor, @podcpurequest, @podcpulimit, @podmemoryrequest, @podmemorylimit, @podephemeralstoragerequest, @podephemeralstoragelimit, @weight, @nodepoolid, @workspacetemplateid, @artifactstoreid, @approvalsenabled, @approvaldefaultaction, @approvaltimeoutseconds, @approvaltimeoutdecision, @configversion, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, name, description, harnessprofileid, model, fallbackmodel, effort, maxturns, maxbudgetusd, maxconcurrentruns, timeoutseconds, repetitionguard, maxassistantchars, noprogressseconds, maxattempts, retryonnodeloss, executor, capisolation, capegresscontrol, capfilesystemsnapshot, capsessioncontinuation, capcrossnoderestore, capcoldstartclass, podcpurequest, podcpulimit, podmemoryrequest, podmemorylimit, podephemeralstoragerequest, podephemeralstoragelimit, weight, nodepoolid, workspacetemplateid, artifactstoreid, approvalsenabled, approvaldefaultaction, approvaltimeoutseconds, approvaltimeoutdecision, configversion, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @name, @description, @harnessprofileid, @model, @fallbackmodel, @effort, @maxturns, @maxbudgetusd, @maxconcurrentruns, @timeoutseconds, @repetitionguard, @maxassistantchars, @noprogressseconds, @maxattempts, @retryonnodeloss, @executor, @capisolation, @capegresscontrol, @capfilesystemsnapshot, @capsessioncontinuation, @capcrossnoderestore, @capcoldstartclass, @podcpurequest, @podcpulimit, @podmemoryrequest, @podmemorylimit, @podephemeralstoragerequest, @podephemeralstoragelimit, @weight, @nodepoolid, @workspacetemplateid, @artifactstoreid, @approvalsenabled, @approvaldefaultaction, @approvaltimeoutseconds, @approvaltimeoutdecision, @configversion, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -419,6 +421,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "noprogressseconds", obj.NoProgressSeconds);
                 AdoDatabaseDriver.Add(command, "maxattempts", obj.MaxAttempts);
                 AdoDatabaseDriver.Add(command, "executor", obj.Executor.HasValue ? obj.Executor.Value.ToString() : null);
+                ExecutorCapabilitySql.Bind(command, obj.RequiredCapabilities);
                 AdoDatabaseDriver.Add(command, "podcpurequest", obj.PodResources.CpuRequest);
                 AdoDatabaseDriver.Add(command, "podcpulimit", obj.PodResources.CpuLimit);
                 AdoDatabaseDriver.Add(command, "podmemoryrequest", obj.PodResources.MemoryRequest);

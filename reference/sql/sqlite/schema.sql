@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 16).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 17).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1118,3 +1118,24 @@ INSERT INTO "run_usage" (runid, tenantid, agentid, deploymentid, harnesstype, ad
 
 -- Migration 16: Explicit opt-in quota enforcement
 ALTER TABLE "usage_quotas" ADD COLUMN enforcementenabled INTEGER NOT NULL DEFAULT 0;
+
+-- Migration 17: Executor capability negotiation and run requirements
+ALTER TABLE "deployments" ADD COLUMN capisolation INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "deployments" ADD COLUMN capegresscontrol INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "deployments" ADD COLUMN capfilesystemsnapshot INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "deployments" ADD COLUMN capsessioncontinuation INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "deployments" ADD COLUMN capcrossnoderestore INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "deployments" ADD COLUMN capcoldstartclass VARCHAR(32);
+ALTER TABLE "runs" ADD COLUMN capisolation INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN capegresscontrol INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN capfilesystemsnapshot INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN capsessioncontinuation INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN capcrossnoderestore INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN capcoldstartclass VARCHAR(32);
+ALTER TABLE "node_executors" ADD COLUMN capisolation INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "node_executors" ADD COLUMN capegresscontrol INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "node_executors" ADD COLUMN capfilesystemsnapshot INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "node_executors" ADD COLUMN capsessioncontinuation INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "node_executors" ADD COLUMN capcrossnoderestore INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "node_executors" ADD COLUMN capcoldstartclass VARCHAR(32);
+ALTER TABLE "node_executors" ADD COLUMN capreported INTEGER NOT NULL DEFAULT 0;

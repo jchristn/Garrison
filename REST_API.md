@@ -5814,3 +5814,16 @@ Child record of WorkspaceTemplate: seeded files.
 | `workspaceTemplateId` | `string` | Parent WorkspaceTemplate identifier. |
 | `path` | `string` | Relative path. |
 | `content` | `string` | Content. |
+
+
+### Executor capability fields
+
+Deployment create/update accepts `requiredCapabilities`:
+
+```json
+{"isolation":"Container","egressControl":false,"filesystemSnapshot":false,"sessionContinuation":false,"crossNodeRestore":false,"coldStartClass":"Cold"}
+```
+
+Isolation values are `Process`, `Container`, and `SandboxedRuntime`; startup classes are `Immediate`, `Cold`, and `Warm` (omit or use null to accept any class). Defaults impose no advanced requirement. Select the appropriate `executor` separately, such as `KubernetesJob` for Container isolation. A session requirement needs a resume-capable harness profile. Runs expose the admission-time requirement copy. Worker registration and node reads expose `executorCapabilities`, an array with `executor` plus these capability fields. Missing reports make no advanced promise. The legacy `executors` list remains supported.
+
+Unsupported requirements stay queued with `blockedReason: "NoCapableWorker"`; they never fall back to a less capable executor. Registration rejects unknown enum values and duplicate executor reports. See `docs/ARCHITECTURE.md` for current supported capabilities.

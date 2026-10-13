@@ -145,7 +145,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, agentname = @agentname, deploymentid = @deploymentid, deploymentversion = @deploymentversion, harnesstype = @harnesstype, nodepoolid = @nodepoolid, executor = @executor, kind = @kind, status = @status, outcome = @outcome, priority = @priority, inputtext = @inputtext, inputcontenttype = @inputcontenttype, callertype = @callertype, callerid = @callerid, callername = @callername, parentrunid = @parentrunid, rootrunid = @rootrunid, depth = @depth, callchain = @callchain, idempotencykey = @idempotencykey, retryofrunid = @retryofrunid, attempt = @attempt, maxattempts = @maxattempts, leasenodeid = @leasenodeid, leasenodename = @leasenodename, leaseepoch = @leaseepoch, leaseexpiresutc = @leaseexpiresutc, queuedutc = @queuedutc, leasedutc = @leasedutc, startedutc = @startedutc, completedutc = @completedutc, deadlineutc = @deadlineutc, cancelrequested = @cancelrequested, resulttext = @resulttext, structuredoutputjson = @structuredoutputjson, sessionid = @sessionid, servedmodel = @servedmodel, exitcode = @exitcode, stderrtail = @stderrtail, errormessage = @errormessage, inputtokens = @inputtokens, outputtokens = @outputtokens, cachedtokens = @cachedtokens, costusd = @costusd, costestimated = @costestimated, reasoningtokens = @reasoningtokens, toolcallcount = @toolcallcount, outputschemavalid = @outputschemavalid, schemavalidationerrors = @schemavalidationerrors, repairattempts = @repairattempts, firsttokenutc = @firsttokenutc, lasttokenutc = @lasttokenutc, ttftms = @ttftms, streamingms = @streamingms, executionms = @executionms, queuems = @queuems, totalms = @totalms, delegationwaitms = @delegationwaitms, ttftexcldelegationms = @ttftexcldelegationms, lasteventsequence = @lasteventsequence, conversationid = @conversationid, conversationturn = @conversationturn, resumesessionid = @resumesessionid, affinitynodeid = @affinitynodeid, affinityuntilutc = @affinityuntilutc, conversationfallbackreason = @conversationfallbackreason, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, agentid = @agentid, agentname = @agentname, deploymentid = @deploymentid, deploymentversion = @deploymentversion, harnesstype = @harnesstype, nodepoolid = @nodepoolid, executor = @executor, capisolation = @capisolation, capegresscontrol = @capegresscontrol, capfilesystemsnapshot = @capfilesystemsnapshot, capsessioncontinuation = @capsessioncontinuation, capcrossnoderestore = @capcrossnoderestore, capcoldstartclass = @capcoldstartclass, kind = @kind, status = @status, outcome = @outcome, priority = @priority, inputtext = @inputtext, inputcontenttype = @inputcontenttype, callertype = @callertype, callerid = @callerid, callername = @callername, parentrunid = @parentrunid, rootrunid = @rootrunid, depth = @depth, callchain = @callchain, idempotencykey = @idempotencykey, retryofrunid = @retryofrunid, attempt = @attempt, maxattempts = @maxattempts, leasenodeid = @leasenodeid, leasenodename = @leasenodename, leaseepoch = @leaseepoch, leaseexpiresutc = @leaseexpiresutc, queuedutc = @queuedutc, leasedutc = @leasedutc, startedutc = @startedutc, completedutc = @completedutc, deadlineutc = @deadlineutc, cancelrequested = @cancelrequested, resulttext = @resulttext, structuredoutputjson = @structuredoutputjson, sessionid = @sessionid, servedmodel = @servedmodel, exitcode = @exitcode, stderrtail = @stderrtail, errormessage = @errormessage, inputtokens = @inputtokens, outputtokens = @outputtokens, cachedtokens = @cachedtokens, costusd = @costusd, costestimated = @costestimated, reasoningtokens = @reasoningtokens, toolcallcount = @toolcallcount, outputschemavalid = @outputschemavalid, schemavalidationerrors = @schemavalidationerrors, repairattempts = @repairattempts, firsttokenutc = @firsttokenutc, lasttokenutc = @lasttokenutc, ttftms = @ttftms, streamingms = @streamingms, executionms = @executionms, queuems = @queuems, totalms = @totalms, delegationwaitms = @delegationwaitms, ttftexcldelegationms = @ttftexcldelegationms, lasteventsequence = @lasteventsequence, conversationid = @conversationid, conversationturn = @conversationturn, resumesessionid = @resumesessionid, affinitynodeid = @affinitynodeid, affinityuntilutc = @affinityuntilutc, conversationfallbackreason = @conversationfallbackreason, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -160,6 +160,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "harnesstype", obj.HarnessType.ToString());
                     AdoDatabaseDriver.Add(command, "nodepoolid", obj.NodePoolId);
                     AdoDatabaseDriver.Add(command, "executor", obj.Executor.ToString());
+                    ExecutorCapabilitySql.Bind(command, obj.RequiredCapabilities);
                     AdoDatabaseDriver.Add(command, "kind", obj.Kind.ToString());
                     AdoDatabaseDriver.Add(command, "status", obj.Status.ToString());
                     AdoDatabaseDriver.Add(command, "outcome", obj.Outcome.ToString());
@@ -294,6 +295,7 @@ namespace Garrison.Core.Database.Ado
             obj.HarnessType = AdoConverters.Enum<HarnessTypeEnum>(reader, "harnesstype", HarnessTypeEnum.Generic);
             obj.NodePoolId = AdoConverters.NullableStr(reader, "nodepoolid");
             obj.Executor = AdoConverters.Enum<RunExecutorEnum>(reader, "executor", RunExecutorEnum.Process);
+            obj.RequiredCapabilities = ExecutorCapabilitySql.Read(reader);
             obj.Kind = AdoConverters.Enum<RunKindEnum>(reader, "kind", RunKindEnum.Invoke);
             obj.Status = AdoConverters.Enum<RunStatusEnum>(reader, "status", RunStatusEnum.Pending);
             obj.Outcome = AdoConverters.Enum<RunOutcomeEnum>(reader, "outcome", RunOutcomeEnum.None);
@@ -416,6 +418,23 @@ namespace Garrison.Core.Database.Ado
                 clauses.Add(executors.Contains(RunExecutorEnum.Process) ? "(executor IS NULL OR executor = '' OR " + match + ")" : match);
             }
 
+            if (filter.ExecutorCapabilities.Count > 0)
+            {
+                List<string> matches = new List<string>();
+                for (int i = 0; i < filter.ExecutorCapabilities.Count; i++)
+                {
+                    string prefix = "xc" + i;
+                    matches.Add("((executor = @" + prefix + "executor OR ((executor IS NULL OR executor = '') AND @" + prefix + "executor = 'Process'))"
+                        + " AND capisolation <= @" + prefix + "isolation"
+                        + " AND (capegresscontrol = " + _Driver.Dialect.BooleanLiteral(false) + " OR @" + prefix + "egress = " + _Driver.Dialect.BooleanLiteral(true) + ")"
+                        + " AND (capfilesystemsnapshot = " + _Driver.Dialect.BooleanLiteral(false) + " OR @" + prefix + "snapshot = " + _Driver.Dialect.BooleanLiteral(true) + ")"
+                        + " AND (capsessioncontinuation = " + _Driver.Dialect.BooleanLiteral(false) + " OR @" + prefix + "session = " + _Driver.Dialect.BooleanLiteral(true) + ")"
+                        + " AND (capcrossnoderestore = " + _Driver.Dialect.BooleanLiteral(false) + " OR @" + prefix + "restore = " + _Driver.Dialect.BooleanLiteral(true) + ")"
+                        + " AND (capcoldstartclass IS NULL OR capcoldstartclass = @" + prefix + "cold))");
+                }
+                clauses.Add("(" + String.Join(" OR ", matches) + ")");
+            }
+
             string sql = "SELECT * FROM " + _Table + " WHERE " + String.Join(" AND ", clauses) + " ORDER BY priority DESC, createdutc ASC" + _Driver.Dialect.LimitOffsetClause() + ";";
             List<Run> runs = await _Driver.QueryAsync(sql, command =>
             {
@@ -423,6 +442,18 @@ namespace Garrison.Core.Database.Ado
                 if (!filter.IgnoreNodePool && !String.IsNullOrEmpty(filter.NodePoolId)) AdoDatabaseDriver.Add(command, "pool", filter.NodePoolId);
                 for (int i = 0; i < tenants.Count; i++) AdoDatabaseDriver.Add(command, "t" + i, tenants[i]);
                 for (int i = 0; i < executors.Count; i++) AdoDatabaseDriver.Add(command, "x" + i, executors[i].ToString());
+                for (int i = 0; i < filter.ExecutorCapabilities.Count; i++)
+                {
+                    ExecutorCapabilities capability = filter.ExecutorCapabilities[i];
+                    string prefix = "xc" + i;
+                    AdoDatabaseDriver.Add(command, prefix + "executor", capability.Executor.ToString());
+                    AdoDatabaseDriver.Add(command, prefix + "isolation", (int)capability.Isolation);
+                    AdoDatabaseDriver.Add(command, prefix + "egress", capability.EgressControl);
+                    AdoDatabaseDriver.Add(command, prefix + "snapshot", capability.FilesystemSnapshot);
+                    AdoDatabaseDriver.Add(command, prefix + "session", capability.SessionContinuation);
+                    AdoDatabaseDriver.Add(command, prefix + "restore", capability.CrossNodeRestore);
+                    AdoDatabaseDriver.Add(command, prefix + "cold", capability.ColdStartClass?.ToString());
+                }
                 AdoDatabaseDriver.Add(command, "max", filter.Limit);
                 AdoDatabaseDriver.Add(command, "skip", 0);
             }, Map, token).ConfigureAwait(false);
@@ -452,9 +483,21 @@ namespace Garrison.Core.Database.Ado
             ClaimResult result = new ClaimResult();
             string? lockSql = _Driver.Dialect.TransactionLockStatement();
             long lockKey = AdoDatabaseDriver.LockKey("deployment-claims:" + _Table + ":" + deploymentId);
+            string falseValue = _Driver.Dialect.BooleanLiteral(false);
+            string trueValue = _Driver.Dialect.BooleanLiteral(true);
+            string requirementsMatch = "((capisolation = 0 AND capegresscontrol = " + falseValue
+                + " AND capfilesystemsnapshot = " + falseValue + " AND capsessioncontinuation = " + falseValue
+                + " AND capcrossnoderestore = " + falseValue + " AND capcoldstartclass IS NULL) OR EXISTS (SELECT 1 FROM "
+                + _Driver.Table("node_executors") + " nc WHERE nc.nodeid = @node AND nc.capreported = " + trueValue
+                + " AND nc.executor = " + _Table + ".executor AND nc.capisolation >= " + _Table + ".capisolation"
+                + " AND (" + _Table + ".capegresscontrol = " + falseValue + " OR nc.capegresscontrol = " + trueValue + ")"
+                + " AND (" + _Table + ".capfilesystemsnapshot = " + falseValue + " OR nc.capfilesystemsnapshot = " + trueValue + ")"
+                + " AND (" + _Table + ".capsessioncontinuation = " + falseValue + " OR nc.capsessioncontinuation = " + trueValue + ")"
+                + " AND (" + _Table + ".capcrossnoderestore = " + falseValue + " OR nc.capcrossnoderestore = " + trueValue + ")"
+                + " AND (" + _Table + ".capcoldstartclass IS NULL OR nc.capcoldstartclass = " + _Table + ".capcoldstartclass)))";
             string claimSql =
                 "UPDATE " + _Table + " SET status = 'Leased', leasenodeid = @node, leasenodename = @nodename, leaseepoch = leaseepoch + 1, leaseexpiresutc = @expires, leasedutc = @now, lastupdateutc = @now " +
-                "WHERE id = @id AND status = 'Queued' AND (@max <= 0 OR (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')) < @max);";
+                "WHERE id = @id AND status = 'Queued' AND " + requirementsMatch + " AND (@max <= 0 OR (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')) < @max);";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -1115,7 +1158,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Run obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, nodepoolid, executor, kind, status, outcome, priority, inputtext, inputcontenttype, callertype, callerid, callername, parentrunid, rootrunid, depth, callchain, idempotencykey, retryofrunid, attempt, maxattempts, leasenodeid, leasenodename, leaseepoch, leaseexpiresutc, queuedutc, leasedutc, startedutc, completedutc, deadlineutc, cancelrequested, resulttext, structuredoutputjson, sessionid, servedmodel, exitcode, stderrtail, errormessage, inputtokens, outputtokens, cachedtokens, costusd, costestimated, reasoningtokens, toolcallcount, outputschemavalid, schemavalidationerrors, repairattempts, firsttokenutc, lasttokenutc, ttftms, streamingms, executionms, queuems, totalms, delegationwaitms, ttftexcldelegationms, lasteventsequence, active, isprotected, traceid, traceparent, conversationid, conversationturn, resumesessionid, affinitynodeid, affinityuntilutc, conversationfallbackreason, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @deploymentversion, @harnesstype, @nodepoolid, @executor, @kind, @status, @outcome, @priority, @inputtext, @inputcontenttype, @callertype, @callerid, @callername, @parentrunid, @rootrunid, @depth, @callchain, @idempotencykey, @retryofrunid, @attempt, @maxattempts, @leasenodeid, @leasenodename, @leaseepoch, @leaseexpiresutc, @queuedutc, @leasedutc, @startedutc, @completedutc, @deadlineutc, @cancelrequested, @resulttext, @structuredoutputjson, @sessionid, @servedmodel, @exitcode, @stderrtail, @errormessage, @inputtokens, @outputtokens, @cachedtokens, @costusd, @costestimated, @reasoningtokens, @toolcallcount, @outputschemavalid, @schemavalidationerrors, @repairattempts, @firsttokenutc, @lasttokenutc, @ttftms, @streamingms, @executionms, @queuems, @totalms, @delegationwaitms, @ttftexcldelegationms, @lasteventsequence, @active, @isprotected, @traceid, @traceparent, @conversationid, @conversationturn, @resumesessionid, @affinitynodeid, @affinityuntilutc, @conversationfallbackreason, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, nodepoolid, executor, capisolation, capegresscontrol, capfilesystemsnapshot, capsessioncontinuation, capcrossnoderestore, capcoldstartclass, kind, status, outcome, priority, inputtext, inputcontenttype, callertype, callerid, callername, parentrunid, rootrunid, depth, callchain, idempotencykey, retryofrunid, attempt, maxattempts, leasenodeid, leasenodename, leaseepoch, leaseexpiresutc, queuedutc, leasedutc, startedutc, completedutc, deadlineutc, cancelrequested, resulttext, structuredoutputjson, sessionid, servedmodel, exitcode, stderrtail, errormessage, inputtokens, outputtokens, cachedtokens, costusd, costestimated, reasoningtokens, toolcallcount, outputschemavalid, schemavalidationerrors, repairattempts, firsttokenutc, lasttokenutc, ttftms, streamingms, executionms, queuems, totalms, delegationwaitms, ttftexcldelegationms, lasteventsequence, active, isprotected, traceid, traceparent, conversationid, conversationturn, resumesessionid, affinitynodeid, affinityuntilutc, conversationfallbackreason, createdutc, lastupdateutc) VALUES (@id, @tenantid, @agentid, @agentname, @deploymentid, @deploymentversion, @harnesstype, @nodepoolid, @executor, @capisolation, @capegresscontrol, @capfilesystemsnapshot, @capsessioncontinuation, @capcrossnoderestore, @capcoldstartclass, @kind, @status, @outcome, @priority, @inputtext, @inputcontenttype, @callertype, @callerid, @callername, @parentrunid, @rootrunid, @depth, @callchain, @idempotencykey, @retryofrunid, @attempt, @maxattempts, @leasenodeid, @leasenodename, @leaseepoch, @leaseexpiresutc, @queuedutc, @leasedutc, @startedutc, @completedutc, @deadlineutc, @cancelrequested, @resulttext, @structuredoutputjson, @sessionid, @servedmodel, @exitcode, @stderrtail, @errormessage, @inputtokens, @outputtokens, @cachedtokens, @costusd, @costestimated, @reasoningtokens, @toolcallcount, @outputschemavalid, @schemavalidationerrors, @repairattempts, @firsttokenutc, @lasttokenutc, @ttftms, @streamingms, @executionms, @queuems, @totalms, @delegationwaitms, @ttftexcldelegationms, @lasteventsequence, @active, @isprotected, @traceid, @traceparent, @conversationid, @conversationturn, @resumesessionid, @affinitynodeid, @affinityuntilutc, @conversationfallbackreason, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -1127,6 +1170,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "harnesstype", obj.HarnessType.ToString());
                 AdoDatabaseDriver.Add(command, "nodepoolid", obj.NodePoolId);
                 AdoDatabaseDriver.Add(command, "executor", obj.Executor.ToString());
+                ExecutorCapabilitySql.Bind(command, obj.RequiredCapabilities);
                 AdoDatabaseDriver.Add(command, "kind", obj.Kind.ToString());
                 AdoDatabaseDriver.Add(command, "status", obj.Status.ToString());
                 AdoDatabaseDriver.Add(command, "outcome", obj.Outcome.ToString());

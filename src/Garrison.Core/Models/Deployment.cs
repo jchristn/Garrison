@@ -467,6 +467,15 @@ namespace Garrison.Core.Models
             }
         }
 
+        /// <summary>
+        /// Executor capabilities needed for placement. Copied into runs so edits do not change queued work.
+        /// </summary>
+        public ExecutorRequirements RequiredCapabilities
+        {
+            get { return _RequiredCapabilities; }
+            set { _RequiredCapabilities = value ?? new ExecutorRequirements(); }
+        }
+
         #endregion
 
         #region Private-Members
@@ -494,6 +503,8 @@ namespace Garrison.Core.Models
         private List<DeploymentRunOverrideRule> _AllowedRunOverrides = new List<DeploymentRunOverrideRule>();
         private List<DeploymentApprovalRule> _ApprovalRules = new List<DeploymentApprovalRule>();
         private int _ApprovalTimeoutSeconds = 300;
+
+        private ExecutorRequirements _RequiredCapabilities = new ExecutorRequirements();
 
         #endregion
     }

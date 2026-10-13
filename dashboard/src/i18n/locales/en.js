@@ -1906,4 +1906,13 @@ const en = {
   explainers
 };
 
+
+// Executor capability negotiation (P11.18).
+Object.assign(en.resources.deployments.fields, {"capIsolation": "Minimum isolation", "capColdStartClass": "Startup class", "capEgressControl": "Require egress control", "capFilesystemSnapshot": "Require filesystem snapshots", "capSessionContinuation": "Require session continuation", "capCrossNodeRestore": "Require cross-node restore"});
+Object.assign(en.tips.resources.deployments, {"capIsolation": "Runs wait for a worker with these capabilities. Select KubernetesJob for Container isolation. Unavailable snapshot, restore, or warm-pod capabilities keep runs queued.", "capColdStartClass": "Runs wait for a worker with these capabilities. Select KubernetesJob for Container isolation. Unavailable snapshot, restore, or warm-pod capabilities keep runs queued.", "capEgressControl": "Runs wait for a worker with these capabilities. Select KubernetesJob for Container isolation. Unavailable snapshot, restore, or warm-pod capabilities keep runs queued.", "capFilesystemSnapshot": "Runs wait for a worker with these capabilities. Select KubernetesJob for Container isolation. Unavailable snapshot, restore, or warm-pod capabilities keep runs queued.", "capSessionContinuation": "Runs wait for a worker with these capabilities. Select KubernetesJob for Container isolation. Unavailable snapshot, restore, or warm-pod capabilities keep runs queued.", "capCrossNodeRestore": "Runs wait for a worker with these capabilities. Select KubernetesJob for Container isolation. Unavailable snapshot, restore, or warm-pod capabilities keep runs queued."});
+en.resources.deployments.hints.capabilities = "Runs wait for a worker with these capabilities. Select KubernetesJob for Container isolation. Unavailable snapshot, restore, or warm-pod capabilities keep runs queued.";
+en.resources.nodes.columns.executorCapabilities = "Executor capabilities";
+en.tips.resources.nodes.executorCapabilities = "Runs wait for a worker with these capabilities. Select KubernetesJob for Container isolation. Unavailable snapshot, restore, or warm-pod capabilities keep runs queued.";
+en.enums.executorIsolation = {"Process": "Process", "Container": "Container", "SandboxedRuntime": "Sandboxed runtime"};
+en.enums.executorColdStart = {"Immediate": "Immediate", "Cold": "Cold", "Warm": "Warm"};
 export default en;

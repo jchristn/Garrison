@@ -656,6 +656,15 @@ namespace Garrison.Core.Models
             }
         }
 
+        /// <summary>
+        /// Executor capabilities needed for placement. Copied into runs so edits do not change queued work.
+        /// </summary>
+        public ExecutorRequirements RequiredCapabilities
+        {
+            get { return _RequiredCapabilities; }
+            set { _RequiredCapabilities = value ?? new ExecutorRequirements(); }
+        }
+
         #endregion
 
         #region Private-Members
@@ -675,6 +684,8 @@ namespace Garrison.Core.Models
         private List<RunParameter> _Parameters = new List<RunParameter>();
         private List<RunRequirement> _Requirements = new List<RunRequirement>();
         private List<RunTemplateVersion> _TemplateVersions = new List<RunTemplateVersion>();
+
+        private ExecutorRequirements _RequiredCapabilities = new ExecutorRequirements();
 
         #endregion
 

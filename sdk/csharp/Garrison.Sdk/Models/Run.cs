@@ -561,6 +561,13 @@ namespace Garrison.Sdk.Models
             }
         }
 
+        /// <summary>Required executor capabilities, copied at run admission.</summary>
+        public ExecutorRequirements RequiredCapabilities
+        {
+            get { return _RequiredCapabilities; }
+            set { _RequiredCapabilities = value ?? new ExecutorRequirements(); }
+        }
+
         #endregion
 
         #region Private-Members
@@ -578,6 +585,8 @@ namespace Garrison.Sdk.Models
         private List<RunParameter> _Parameters = new List<RunParameter>();
         private List<RunRequirement> _Requirements = new List<RunRequirement>();
         private List<RunTemplateVersion> _TemplateVersions = new List<RunTemplateVersion>();
+
+        private ExecutorRequirements _RequiredCapabilities = new ExecutorRequirements();
 
         #endregion
     }

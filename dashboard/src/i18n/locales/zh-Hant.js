@@ -1879,4 +1879,13 @@ const zhHant = {
   explainers
 };
 
+
+// Executor capability negotiation (P11.18).
+Object.assign(zhHant.resources.deployments.fields, {"capIsolation": "最低隔離級別", "capColdStartClass": "啟動類別", "capEgressControl": "要求出站流量控制", "capFilesystemSnapshot": "要求檔案系統快照", "capSessionContinuation": "要求工作階段延續", "capCrossNodeRestore": "要求跨節點還原"});
+Object.assign(zhHant.tips.resources.deployments, {"capIsolation": "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。", "capColdStartClass": "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。", "capEgressControl": "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。", "capFilesystemSnapshot": "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。", "capSessionContinuation": "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。", "capCrossNodeRestore": "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。"});
+zhHant.resources.deployments.hints.capabilities = "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。";
+zhHant.resources.nodes.columns.executorCapabilities = "執行器能力";
+zhHant.tips.resources.nodes.executorCapabilities = "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。";
+zhHant.enums.executorIsolation = {"Process": "程序", "Container": "容器", "SandboxedRuntime": "沙箱執行環境"};
+zhHant.enums.executorColdStart = {"Immediate": "即時", "Cold": "冷啟動", "Warm": "預熱"};
 export default zhHant;

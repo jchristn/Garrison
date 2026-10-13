@@ -1925,4 +1925,13 @@ const it = {
   explainers
 };
 
+
+// Executor capability negotiation (P11.18).
+Object.assign(it.resources.deployments.fields, {"capIsolation": "Isolamento minimo", "capColdStartClass": "Classe di avvio", "capEgressControl": "Richiedi controllo del traffico in uscita", "capFilesystemSnapshot": "Richiedi snapshot del file system", "capSessionContinuation": "Richiedi continuazione della sessione", "capCrossNodeRestore": "Richiedi ripristino su un altro nodo"});
+Object.assign(it.tips.resources.deployments, {"capIsolation": "Le esecuzioni attendono un worker con queste capacità. Scegli KubernetesJob per l’isolamento in container. Le capacità non disponibili mantengono le esecuzioni in coda.", "capColdStartClass": "Le esecuzioni attendono un worker con queste capacità. Scegli KubernetesJob per l’isolamento in container. Le capacità non disponibili mantengono le esecuzioni in coda.", "capEgressControl": "Le esecuzioni attendono un worker con queste capacità. Scegli KubernetesJob per l’isolamento in container. Le capacità non disponibili mantengono le esecuzioni in coda.", "capFilesystemSnapshot": "Le esecuzioni attendono un worker con queste capacità. Scegli KubernetesJob per l’isolamento in container. Le capacità non disponibili mantengono le esecuzioni in coda.", "capSessionContinuation": "Le esecuzioni attendono un worker con queste capacità. Scegli KubernetesJob per l’isolamento in container. Le capacità non disponibili mantengono le esecuzioni in coda.", "capCrossNodeRestore": "Le esecuzioni attendono un worker con queste capacità. Scegli KubernetesJob per l’isolamento in container. Le capacità non disponibili mantengono le esecuzioni in coda."});
+it.resources.deployments.hints.capabilities = "Le esecuzioni attendono un worker con queste capacità. Scegli KubernetesJob per l’isolamento in container. Le capacità non disponibili mantengono le esecuzioni in coda.";
+it.resources.nodes.columns.executorCapabilities = "Capacità di esecuzione";
+it.tips.resources.nodes.executorCapabilities = "Le esecuzioni attendono un worker con queste capacità. Scegli KubernetesJob per l’isolamento in container. Le capacità non disponibili mantengono le esecuzioni in coda.";
+it.enums.executorIsolation = {"Process": "Processo", "Container": "Contenitore", "SandboxedRuntime": "Ambiente isolato"};
+it.enums.executorColdStart = {"Immediate": "Immediato", "Cold": "A freddo", "Warm": "Pronto"};
 export default it;

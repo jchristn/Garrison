@@ -24,7 +24,7 @@ import { loadRuntimeLimits } from '../utils/settings';
 import UsageQuotaUsageModal from '../components/UsageQuotaUsageModal';
 import ApprovalCheckPanel from '../components/ApprovalCheckPanel';
 import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../utils/approvals';
-import { POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
+import { EXECUTOR_REQUIREMENT_FLAGS, capabilityField, requirementsToForm, POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
 
 // ---------------------------------------------------------------- helpers
 //
@@ -965,6 +965,7 @@ export const deploymentsConfig = {
     noProgressSeconds: null,
     executor: null,
     ...podResourcesToForm(null),
+    ...requirementsToForm(null),
     weight: 100,
     nodePoolId: null,
     workspaceTemplateId: null,
@@ -1143,6 +1144,9 @@ export const deploymentsConfig = {
       // Executor and run pod resources (Phase 11): empty executor inherits the node pool default, then Process.
       section(id, t, 'execution', 5),
       field(id, t, 'executor', 'select', { step: 5, options: enumOptions(t, 'runExecutor'), noneLabel: t('resources.deployments.executorInherit'), hint: executorHint(t, d, options.pools) }),
+      field(id, t, 'capIsolation', 'select', { step: 5, required: true, options: ['Process', 'Container', 'SandboxedRuntime'].map((value) => ({ value, label: enumLabel(t, 'executorIsolation', value) })), hint: t('resources.deployments.hints.capabilities') }),
+      field(id, t, 'capColdStartClass', 'select', { step: 5, options: ['Immediate', 'Cold', 'Warm'].map((value) => ({ value, label: enumLabel(t, 'executorColdStart', value) })) }),
+      ...EXECUTOR_REQUIREMENT_FLAGS.map((key) => field(id, t, capabilityField(key), 'checkbox', { step: 5 })),
       ...POD_RESOURCE_KEYS.map((key) =>
         field(id, t, podField(key), 'text', { step: 5, placeholder: POD_RESOURCE_EXAMPLES[key], showIf: (x) => x.executor !== 'Process' })
       ),

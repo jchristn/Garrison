@@ -59,3 +59,17 @@ describe('labels', () => {
     }
   });
 });
+
+
+describe('executor capability requirements', () => {
+  it('defaults legacy records to Process without extra requirements', () => {
+    const body = deploymentToBody(deploymentToForm({ name: 'legacy' }));
+    expect(body.requiredCapabilities).toEqual({ isolation: 'Process', coldStartClass: null, egressControl: false, filesystemSnapshot: false, sessionContinuation: false, crossNodeRestore: false });
+  });
+  it('preserves every configured requirement and removes flattened form fields', () => {
+    const requiredCapabilities = { isolation: 'Container', coldStartClass: 'Cold', egressControl: true, filesystemSnapshot: true, sessionContinuation: true, crossNodeRestore: true };
+    const body = deploymentToBody(deploymentToForm({ executor: 'KubernetesJob', requiredCapabilities }));
+    expect(body.requiredCapabilities).toEqual(requiredCapabilities);
+    expect(Object.keys(body).some((key) => /^cap[A-Z]/.test(key))).toBe(false);
+  });
+});

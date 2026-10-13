@@ -2,6 +2,19 @@
 // The deployment form edits the six podResources values as flat fields; these helpers convert both ways.
 
 /** podResources keys, in form order. */
+export const EXECUTOR_REQUIREMENT_FLAGS = ['egressControl', 'filesystemSnapshot', 'sessionContinuation', 'crossNodeRestore'];
+export const capabilityField = (key) => `cap${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+
+export const requirementsToForm = (value) => ({
+  capIsolation: value?.isolation || 'Process', capColdStartClass: value?.coldStartClass || null,
+  ...Object.fromEntries(EXECUTOR_REQUIREMENT_FLAGS.map((key) => [capabilityField(key), Boolean(value?.[key])]))
+});
+
+export const requirementsFromForm = (form) => ({
+  isolation: form?.capIsolation || 'Process', coldStartClass: form?.capColdStartClass || null,
+  ...Object.fromEntries(EXECUTOR_REQUIREMENT_FLAGS.map((key) => [key, Boolean(form?.[capabilityField(key)])]))
+});
+
 export const POD_RESOURCE_KEYS = ['cpuRequest', 'cpuLimit', 'memoryRequest', 'memoryLimit', 'ephemeralStorageRequest', 'ephemeralStorageLimit'];
 
 /** Flat form field name for a podResources key, for example podCpuRequest. */
@@ -58,14 +71,16 @@ export function podResourceErrors(form, message) {
 
 /** Deployment form values from an API record: flattens podResources and keeps executor (null inherits). */
 export function deploymentToForm(record) {
-  const { podResources, ...rest } = record || {};
-  return { ...rest, executor: rest.executor ?? null, ...podResourcesToForm(podResources) };
+  const { podResources, requiredCapabilities, ...rest } = record || {};
+  return { ...rest, executor: rest.executor ?? null, ...podResourcesToForm(podResources), ...requirementsToForm(requiredCapabilities) };
 }
 
 /** API body from deployment form values: executor null when inherited, podResources rebuilt, flat fields removed. */
 export function deploymentToBody(form) {
   const body = { ...(form || {}) };
   for (const key of POD_RESOURCE_KEYS) delete body[podField(key)];
+  for (const key of [...EXECUTOR_REQUIREMENT_FLAGS, 'isolation', 'coldStartClass']) delete body[capabilityField(key)];
+  body.requiredCapabilities = requirementsFromForm(form);
   body.executor = form?.executor ? form.executor : null;
   body.podResources = podResourcesFromForm(form);
   return body;

@@ -1880,4 +1880,13 @@ const ja = {
   explainers
 };
 
+
+// Executor capability negotiation (P11.18).
+Object.assign(ja.resources.deployments.fields, {"capIsolation": "最小分離レベル", "capColdStartClass": "起動クラス", "capEgressControl": "送信通信の制御を要求", "capFilesystemSnapshot": "ファイルシステムのスナップショットを要求", "capSessionContinuation": "セッションの継続を要求", "capCrossNodeRestore": "別ノードでの復元を要求"});
+Object.assign(ja.tips.resources.deployments, {"capIsolation": "実行は必要な機能を持つワーカーを待ちます。コンテナー分離には KubernetesJob を選択してください。利用できない機能を要求すると待機状態になります。", "capColdStartClass": "実行は必要な機能を持つワーカーを待ちます。コンテナー分離には KubernetesJob を選択してください。利用できない機能を要求すると待機状態になります。", "capEgressControl": "実行は必要な機能を持つワーカーを待ちます。コンテナー分離には KubernetesJob を選択してください。利用できない機能を要求すると待機状態になります。", "capFilesystemSnapshot": "実行は必要な機能を持つワーカーを待ちます。コンテナー分離には KubernetesJob を選択してください。利用できない機能を要求すると待機状態になります。", "capSessionContinuation": "実行は必要な機能を持つワーカーを待ちます。コンテナー分離には KubernetesJob を選択してください。利用できない機能を要求すると待機状態になります。", "capCrossNodeRestore": "実行は必要な機能を持つワーカーを待ちます。コンテナー分離には KubernetesJob を選択してください。利用できない機能を要求すると待機状態になります。"});
+ja.resources.deployments.hints.capabilities = "実行は必要な機能を持つワーカーを待ちます。コンテナー分離には KubernetesJob を選択してください。利用できない機能を要求すると待機状態になります。";
+ja.resources.nodes.columns.executorCapabilities = "実行機能";
+ja.tips.resources.nodes.executorCapabilities = "実行は必要な機能を持つワーカーを待ちます。コンテナー分離には KubernetesJob を選択してください。利用できない機能を要求すると待機状態になります。";
+ja.enums.executorIsolation = {"Process": "プロセス", "Container": "コンテナー", "SandboxedRuntime": "サンドボックス実行環境"};
+ja.enums.executorColdStart = {"Immediate": "即時", "Cold": "コールド", "Warm": "ウォーム"};
 export default ja;

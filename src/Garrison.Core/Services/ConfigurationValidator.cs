@@ -271,11 +271,17 @@ namespace Garrison.Core.Services
         {
             if (deployment == null) throw new ValidationException("A deployment is required.");
             Dictionary<string, string> errors = new Dictionary<string, string>();
+            try { ExecutorCapabilityRules.Validate(deployment.RequiredCapabilities); }
+            catch (ArgumentException ex) { errors["requiredCapabilities"] = ex.Message; }
+
             Name(deployment.Name, errors);
 
             if (String.IsNullOrEmpty(deployment.AgentId) || await database.Agents.ReadAsync(tenantId, deployment.AgentId, token).ConfigureAwait(false) == null) errors["agentId"] = "The agent does not exist in this tenant.";
             HarnessProfile? profile = String.IsNullOrEmpty(deployment.HarnessProfileId) ? null : await database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
             if (profile == null) errors["harnessProfileId"] = "The harness profile does not exist or is not visible to this tenant.";
+            if (profile != null && deployment.RequiredCapabilities.SessionContinuation && !profile.SupportsResume)
+                errors["requiredCapabilities.sessionContinuation"] = "Session continuation requires a harness profile with supportsResume enabled.";
+
 
             HashSet<string> roles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < deployment.PromptBindings.Count; i++)

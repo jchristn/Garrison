@@ -482,6 +482,7 @@ namespace Garrison.Core.Manifests
             deployment.MaxAttempts = spec.MaxAttempts;
             deployment.RetryOnNodeLoss = spec.RetryOnNodeLoss;
             deployment.Executor = spec.Executor;
+            deployment.RequiredCapabilities = spec.RequiredCapabilities?.Clone() ?? new ExecutorRequirements();
             deployment.PodResources = spec.PodResources == null ? new RunPodResources() : spec.PodResources.Clone();
             deployment.Weight = spec.Weight;
             if (!String.IsNullOrEmpty(spec.Workspace)) deployment.WorkspaceTemplateId = await resolver.RequireAsync("WorkspaceTemplate", spec.Workspace, "workspace", token).ConfigureAwait(false);
@@ -786,6 +787,7 @@ namespace Garrison.Core.Manifests
             spec.MaxAttempts = deployment.MaxAttempts;
             spec.RetryOnNodeLoss = deployment.RetryOnNodeLoss;
             spec.Executor = deployment.Executor;
+            spec.RequiredCapabilities = ExecutorCapabilityRules.RequiresReport(deployment.RequiredCapabilities) ? deployment.RequiredCapabilities.Clone() : null;
             spec.PodResources = deployment.PodResources.IsEmpty ? null : deployment.PodResources.Clone();
             spec.Weight = deployment.Weight;
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId)) spec.Workspace = await resolver.NameAsync("WorkspaceTemplate", deployment.WorkspaceTemplateId, token).ConfigureAwait(false);

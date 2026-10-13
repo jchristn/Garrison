@@ -442,6 +442,13 @@ namespace Garrison.Sdk.Models
             }
         }
 
+        /// <summary>Required executor capabilities, copied at run admission.</summary>
+        public ExecutorRequirements RequiredCapabilities
+        {
+            get { return _RequiredCapabilities; }
+            set { _RequiredCapabilities = value ?? new ExecutorRequirements(); }
+        }
+
         #endregion
 
         #region Private-Members
@@ -467,6 +474,8 @@ namespace Garrison.Sdk.Models
         private List<DeploymentRunOverrideRule> _AllowedRunOverrides = new List<DeploymentRunOverrideRule>();
         private List<DeploymentApprovalRule> _ApprovalRules = new List<DeploymentApprovalRule>();
         private int _ApprovalTimeoutSeconds = 300;
+
+        private ExecutorRequirements _RequiredCapabilities = new ExecutorRequirements();
 
         #endregion
     }

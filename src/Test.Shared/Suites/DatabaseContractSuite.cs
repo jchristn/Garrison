@@ -9,6 +9,7 @@ namespace Test.Shared.Suites
     using Garrison.Core.Database.Ado;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Test.Shared.Infrastructure;
@@ -33,6 +34,7 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v12-approvals", "A conversation database upgrades from version 12 to approvals without losing its session (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v13-pricing", "An approvals database upgrades to an empty configurable price table (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 13)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v15-optin", "Existing active quotas upgrade from schema 15 with enforcement disabled (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 15)));
+            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v16-capabilities", "Legacy executor names upgrade without inventing capability promises (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 16)));
             cases.Add(new TestCaseDescriptor(suiteId, "run-telemetry-roundtrip", "Run timing telemetry round-trips through create, complete, and update (" + provider + ")", ct => RunTelemetryRoundTripAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "tenant-crud", "Tenant create, read, update, enumerate, delete (" + provider + ")", ct => TenantCrudAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "children-roundtrip", "Harness profile child rows round-trip in order (" + provider + ")", ct => ChildrenRoundTripAsync(provider, ct)));
@@ -97,6 +99,10 @@ namespace Test.Shared.Suites
                 {
                     await ado.NonQueryAsync("INSERT INTO " + ado.Table("usage_quotas") + " (id, tenantid, name, scope, resourceid, dailyrunlimit, active, isprotected, createdutc, lastupdateutc) VALUES ('uqt_upgrade', 'ten_upgrade', 'upgrade-quota', 'Tenant', 'ten_upgrade', 0, " + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
                 }
+                if (fromVersion == 16)
+                {
+                    await ado.NonQueryAsync("INSERT INTO " + ado.Table("node_executors") + " (id, nodeid, executor) VALUES ('exe_legacy', 'nod_legacy', 'KubernetesJob');", null, token).ConfigureAwait(false);
+                }
                 await raw.Conversations.CreateAsync(conversation, token).ConfigureAwait(false);
             }
             using (DatabaseDriverBase upgraded = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
@@ -107,6 +113,13 @@ namespace Test.Shared.Suites
                 {
                     UsageQuota quota = Assert.NotNull(await upgraded.UsageQuotas.ReadAsync("ten_upgrade", "uqt_upgrade", token).ConfigureAwait(false), "Existing quota survives upgrade");
                     Assert.True(!quota.EnforcementEnabled && quota.DailyRunLimit == 0 && quota.Active, "Existing active zero quota becomes monitor-only");
+                }
+                if (fromVersion == 16)
+                {
+                    AdoDatabaseDriver ado = (AdoDatabaseDriver)upgraded;
+                    List<bool> legacy = await ado.QueryAsync("SELECT * FROM " + ado.Table("node_executors") + " WHERE id = 'exe_legacy';", null,
+                        reader => !AdoConverters.Bool(reader, "capreported") && !ExecutorCapabilityRules.RequiresReport(ExecutorCapabilitySql.Read(reader)), token).ConfigureAwait(false);
+                    Assert.True(legacy.Count == 1 && legacy[0], "Legacy executor names survive without advanced capability promises");
                 }
                 Conversation saved = Assert.NotNull(await upgraded.Conversations.ReadAsync(conversation.TenantId, conversation.Id, token).ConfigureAwait(false), "Conversation survives upgrade");
                 Assert.Equal(conversation.SessionId, saved.SessionId, "Harness session survives upgrade");

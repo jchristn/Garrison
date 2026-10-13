@@ -77,6 +77,20 @@ export const RUN_EXECUTORS: readonly RunExecutor[] = ["Process", "KubernetesJob"
  * Requests and limits for the run pod of a KubernetesJob run, as Kubernetes quantities (for example "500m", "2",
  * "512Mi", "4Gi"). Null or absent values use the worker's defaults. Ignored for Process runs.
  */
+export type ExecutorIsolation = "Process" | "Container" | "SandboxedRuntime";
+export type ExecutorColdStart = "Immediate" | "Cold" | "Warm";
+/** Optional executor requirements. Defaults make no advanced capability demand. */
+export interface ExecutorRequirements {
+  isolation?: ExecutorIsolation;
+  egressControl?: boolean;
+  filesystemSnapshot?: boolean;
+  sessionContinuation?: boolean;
+  crossNodeRestore?: boolean;
+  coldStartClass?: ExecutorColdStart | null;
+}
+/** One worker-reported executor. Missing fields make no capability promise. */
+export interface ExecutorCapabilities extends ExecutorRequirements { executor: RunExecutor; }
+
 export interface RunPodResources {
   cpuRequest?: string | null; cpuLimit?: string | null; memoryRequest?: string | null; memoryLimit?: string | null;
   ephemeralStorageRequest?: string | null; ephemeralStorageLimit?: string | null;
@@ -89,6 +103,7 @@ export interface Deployment extends Json {
   id: string; tenantId: string; agentId: string; name: string; harnessProfileId: string; model?: string;
   /** Executor; null uses the node pool's defaultExecutor, then Process. */
   executor?: RunExecutor | null;
+  requiredCapabilities?: ExecutorRequirements;
   /** Run pod requests and limits for KubernetesJob runs. */
   podResources?: RunPodResources;
   /** Permission approvals. Only Claude Code profiles and Codex profiles with CodexAppServer delivery accept true. Default false. */
@@ -196,7 +211,7 @@ export interface NodePool extends Json {
 
 /** A worker node. executors lists what it can run (Process, and KubernetesJob when it can create Jobs). */
 export interface WorkerNode extends Json {
-  id: string; name: string; status: string; nodePoolId?: string | null; executors?: RunExecutor[];
+  id: string; name: string; status: string; nodePoolId?: string | null; executors?: RunExecutor[]; executorCapabilities?: ExecutorCapabilities[];
 }
 
 /** A workspace template. persistentVolumeClaim names the claim for PersistentVolume workspaces. */
@@ -210,6 +225,7 @@ export interface Run extends Json {
   id: string; tenantId: string; agentId: string; agentName: string; deploymentId: string; status: string; outcome: string;
   /** Executor the run needs, resolved when it was created. */
   executor?: RunExecutor;
+  requiredCapabilities?: ExecutorRequirements;
   inputText?: string; resultText?: string; errorMessage?: string; inputTokens: number; outputTokens: number;
   costUsd?: number; createdUtc: string; startedUtc?: string; completedUtc?: string; depth: number; parentRunId?: string;
   cachedTokens?: number;

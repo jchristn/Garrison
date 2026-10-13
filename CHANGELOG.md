@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Workers report structured executor capabilities. Deployments can require isolation, session support, startup class, and other capabilities; admission snapshots requirements, SQL filters before queue limits, and atomic claims recheck current reports. Migration 17 preserves legacy placement. All SDKs and the dashboard expose the contract (P11.18).
+
 - Workers share the C# SDK HTTP transport while retaining node-protocol fencing, one-time 401 reauthentication, timeouts, and named telemetry.
 - All four SDKs have interactive consoles for authentication, inspection, invocation, and event streaming; credentials are not echoed or printed. Build-only package preparation and multi-architecture image scripts are available. Server, worker, and dashboard images are published for amd64 and arm64; SDK publication is skipped.
 

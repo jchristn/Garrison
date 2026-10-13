@@ -145,3 +145,14 @@ All four use the same tenants, credentials, and RBAC.
 ## Further reading
 
 `docs/HARNESSES.md` and `docs/PROMPTS.md` cover configuration; `docs/MANIFESTS.md` covers declarative configuration; `docs/SECURITY.md`, `docs/SCALING.md`, and `docs/TELEMETRY.md` cover operations; `docs/DOCKER.md` and `docs/KUBERNETES.md` cover deployment and `docs/QUICKSTART.md` a first multi-agent setup; `docs/DEVELOPMENT.md` covers building and testing.
+
+
+## Executor capability negotiation
+
+Workers register an `executorCapabilities` record per executor. The server preserves legacy `executors` names for older clients; bare names make no advanced capability promise. Current Process workers report Process isolation, Immediate startup, and session continuation for harness profiles that support resume. Kubernetes Job workers report Container isolation and Cold startup. Neither executor currently claims egress enforcement, filesystem snapshots, cross-node restore, or warm startup.
+
+Deployments specify `requiredCapabilities`. Defaults retain existing placement. Set `executor: "KubernetesJob"` when requiring Container isolation. Isolation matches at least the required level; boolean flags must be supported and an optional startup class matches exactly. Session continuation also requires a harness profile with `supportsResume`. Requirements are copied into the run at admission, so changing a deployment does not change queued work.
+
+Capability predicates run in SQL before candidate limits, preventing unsupported work from hiding eligible runs. The lease update checks the current persisted report again. Unsupported requirements leave the run queued with `NoCapableWorker` and an explanation naming the requirements. Registration validates capability enum values and rejects duplicate reports. Reports describe a trusted worker's supported behavior; they are not independent security attestations.
+
+Migration 17 stores requirements and reports in typed columns, including whether an executor has reported capabilities. It upgrades existing deployments and runs without imposing new requirements and preserves old worker names without inventing promises. The deployment editor exposes all requirements under execution; the worker table offers an optional capability column. Optional quotas and cost accounting retain their existing behavior.

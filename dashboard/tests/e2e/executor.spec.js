@@ -54,10 +54,15 @@ test('the deployment form sets the executor and pod resources and sends them as 
   await expect(modal.locator('.field-error')).toContainText('Use a Kubernetes quantity');
   expect(body).toBeNull();
 
+  await page.locator('#deployments-capIsolation').selectOption('Container');
+  await page.locator('#deployments-capColdStartClass').selectOption('Cold');
+  await page.locator('#deployments-capEgressControl').check();
   await cpu.fill('250m');
   await page.getByTestId('save-button').click();
   await expect.poll(() => body).not.toBeNull();
   expect(body.executor).toBe('KubernetesJob');
+  expect(body.requiredCapabilities).toEqual({ isolation: 'Container', coldStartClass: 'Cold', egressControl: true, filesystemSnapshot: false, sessionContinuation: false, crossNodeRestore: false });
+
   expect(body.podResources).toEqual({ cpuRequest: '250m', memoryLimit: '1Gi' });
   expect(Object.keys(body).filter((k) => /^pod[A-Z]/.test(k) && k !== 'podResources')).toEqual([]);
 });

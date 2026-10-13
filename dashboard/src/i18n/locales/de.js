@@ -1913,4 +1913,13 @@ const de = {
   explainers
 };
 
+
+// Executor capability negotiation (P11.18).
+Object.assign(de.resources.deployments.fields, {"capIsolation": "Minimale Isolation", "capColdStartClass": "Startklasse", "capEgressControl": "Ausgehenden Verkehr kontrollieren", "capFilesystemSnapshot": "Dateisystem-Snapshots erforderlich", "capSessionContinuation": "Sitzungsfortsetzung erforderlich", "capCrossNodeRestore": "Wiederherstellung auf anderem Knoten erforderlich"});
+Object.assign(de.tips.resources.deployments, {"capIsolation": "Läufe warten auf einen Worker mit diesen Fähigkeiten. Wählen Sie KubernetesJob für Container-Isolation. Nicht verfügbare Fähigkeiten halten Läufe in der Warteschlange.", "capColdStartClass": "Läufe warten auf einen Worker mit diesen Fähigkeiten. Wählen Sie KubernetesJob für Container-Isolation. Nicht verfügbare Fähigkeiten halten Läufe in der Warteschlange.", "capEgressControl": "Läufe warten auf einen Worker mit diesen Fähigkeiten. Wählen Sie KubernetesJob für Container-Isolation. Nicht verfügbare Fähigkeiten halten Läufe in der Warteschlange.", "capFilesystemSnapshot": "Läufe warten auf einen Worker mit diesen Fähigkeiten. Wählen Sie KubernetesJob für Container-Isolation. Nicht verfügbare Fähigkeiten halten Läufe in der Warteschlange.", "capSessionContinuation": "Läufe warten auf einen Worker mit diesen Fähigkeiten. Wählen Sie KubernetesJob für Container-Isolation. Nicht verfügbare Fähigkeiten halten Läufe in der Warteschlange.", "capCrossNodeRestore": "Läufe warten auf einen Worker mit diesen Fähigkeiten. Wählen Sie KubernetesJob für Container-Isolation. Nicht verfügbare Fähigkeiten halten Läufe in der Warteschlange."});
+de.resources.deployments.hints.capabilities = "Läufe warten auf einen Worker mit diesen Fähigkeiten. Wählen Sie KubernetesJob für Container-Isolation. Nicht verfügbare Fähigkeiten halten Läufe in der Warteschlange.";
+de.resources.nodes.columns.executorCapabilities = "Ausführungsfähigkeiten";
+de.tips.resources.nodes.executorCapabilities = "Läufe warten auf einen Worker mit diesen Fähigkeiten. Wählen Sie KubernetesJob für Container-Isolation. Nicht verfügbare Fähigkeiten halten Läufe in der Warteschlange.";
+de.enums.executorIsolation = {"Process": "Prozess", "Container": "Container-Isolation", "SandboxedRuntime": "Isolierte Laufzeit"};
+de.enums.executorColdStart = {"Immediate": "Sofort", "Cold": "Kalt", "Warm": "Vorbereitet"};
 export default de;

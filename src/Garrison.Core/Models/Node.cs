@@ -184,6 +184,15 @@ namespace Garrison.Core.Models
             }
         }
 
+        /// <summary>
+        /// Structured capabilities per executor. Missing reports mean legacy workers make no advanced capability promise.
+        /// </summary>
+        public List<ExecutorCapabilities> ExecutorCapabilities
+        {
+            get { return _ExecutorCapabilities; }
+            set { _ExecutorCapabilities = value ?? new List<ExecutorCapabilities>(); }
+        }
+
         #endregion
 
         #region Private-Members
@@ -195,6 +204,7 @@ namespace Garrison.Core.Models
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<NodeLabel> _Labels = new List<NodeLabel>();
         private List<NodeCapability> _Capabilities = new List<NodeCapability>();
+        private List<ExecutorCapabilities> _ExecutorCapabilities = new List<ExecutorCapabilities>();
         private List<RunExecutorEnum> _Executors = new List<RunExecutorEnum>();
 
         #endregion

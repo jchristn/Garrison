@@ -8,10 +8,25 @@ import json
 import secrets
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Union, Literal, TypedDict
 from urllib.parse import quote, urlencode
 
 import requests
+
+class ExecutorRequirements(TypedDict, total=False):
+    """Optional deployment/run placement requirements; absent flags default false."""
+    isolation: Literal["Process", "Container", "SandboxedRuntime"]
+    egressControl: bool
+    filesystemSnapshot: bool
+    sessionContinuation: bool
+    crossNodeRestore: bool
+    coldStartClass: Optional[Literal["Immediate", "Cold", "Warm"]]
+
+
+class ExecutorCapabilities(ExecutorRequirements):
+    """One worker-reported executor with no implied advanced capabilities."""
+    executor: Literal["Process", "KubernetesJob"]
+
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8700"
 TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"}

@@ -1929,4 +1929,13 @@ const es = {
   explainers
 };
 
+
+// Executor capability negotiation (P11.18).
+Object.assign(es.resources.deployments.fields, {"capIsolation": "Aislamiento mínimo", "capColdStartClass": "Clase de inicio", "capEgressControl": "Exigir control de salida", "capFilesystemSnapshot": "Exigir instantáneas del sistema de archivos", "capSessionContinuation": "Exigir continuidad de sesión", "capCrossNodeRestore": "Exigir restauración en otro nodo"});
+Object.assign(es.tips.resources.deployments, {"capIsolation": "Las ejecuciones esperan un trabajador con estas capacidades. Seleccione KubernetesJob para aislar en contenedores. Las capacidades no disponibles mantienen las ejecuciones en cola.", "capColdStartClass": "Las ejecuciones esperan un trabajador con estas capacidades. Seleccione KubernetesJob para aislar en contenedores. Las capacidades no disponibles mantienen las ejecuciones en cola.", "capEgressControl": "Las ejecuciones esperan un trabajador con estas capacidades. Seleccione KubernetesJob para aislar en contenedores. Las capacidades no disponibles mantienen las ejecuciones en cola.", "capFilesystemSnapshot": "Las ejecuciones esperan un trabajador con estas capacidades. Seleccione KubernetesJob para aislar en contenedores. Las capacidades no disponibles mantienen las ejecuciones en cola.", "capSessionContinuation": "Las ejecuciones esperan un trabajador con estas capacidades. Seleccione KubernetesJob para aislar en contenedores. Las capacidades no disponibles mantienen las ejecuciones en cola.", "capCrossNodeRestore": "Las ejecuciones esperan un trabajador con estas capacidades. Seleccione KubernetesJob para aislar en contenedores. Las capacidades no disponibles mantienen las ejecuciones en cola."});
+es.resources.deployments.hints.capabilities = "Las ejecuciones esperan un trabajador con estas capacidades. Seleccione KubernetesJob para aislar en contenedores. Las capacidades no disponibles mantienen las ejecuciones en cola.";
+es.resources.nodes.columns.executorCapabilities = "Capacidades de ejecución";
+es.tips.resources.nodes.executorCapabilities = "Las ejecuciones esperan un trabajador con estas capacidades. Seleccione KubernetesJob para aislar en contenedores. Las capacidades no disponibles mantienen las ejecuciones en cola.";
+es.enums.executorIsolation = {"Process": "Proceso", "Container": "Contenedor", "SandboxedRuntime": "Entorno aislado"};
+es.enums.executorColdStart = {"Immediate": "Inmediato", "Cold": "Frío", "Warm": "Preparado"};
 export default es;

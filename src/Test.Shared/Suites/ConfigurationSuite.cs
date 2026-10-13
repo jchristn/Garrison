@@ -190,6 +190,7 @@ namespace Test.Shared.Suites
                     "  agent: claude-helper",
                     "  harnessProfile: builtin/claude-code",
                     "  model: sonnet",
+                    "  requiredCapabilities: { coldStartClass: Immediate, sessionContinuation: true }",
                     "  maxTurns: 8",
                     "  prompts:",
                     "    System: builtin/default-system",
@@ -214,12 +215,16 @@ namespace Test.Shared.Suites
                 Deployment deployment = deployments.Objects.First(d => d.Name == "claude-helper-default");
                 Assert.True(deployment.PromptBindings.Any(p => p.Role == "Task"), "missing roles defaulted in manifests");
                 Assert.Equal(600, deployment.TimeoutSeconds ?? 0, "timeout");
+                Assert.True(deployment.RequiredCapabilities.SessionContinuation && deployment.RequiredCapabilities.ColdStartClass == ExecutorColdStartEnum.Immediate, "Manifest capability requirements persist");
 
                 TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/manifests/export", null, token).ConfigureAwait(false);
                 Assert.True(export.Body.Contains("kind: Deployment", StringComparison.Ordinal) && export.Body.Contains("claude-helper-default", StringComparison.Ordinal), "export");
 
                 ManifestApply reapplyExport = await ApplyAsync(host, export.Body, String.Empty, 200, token).ConfigureAwait(false);
                 Assert.Equal(0, reapplyExport.FailedCount, "exported manifests re-apply");
+                Assert.True(export.Body.Contains("requiredCapabilities", StringComparison.Ordinal), "Export retains advanced executor requirements");
+                Deployment reapplied = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Get, T(host) + "/deployments/" + deployment.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(reapplied.RequiredCapabilities.SessionContinuation, "Exported requirement survives reapplication");
 
                 ManifestApply broken = await ApplyAsync(host, "apiVersion: garrison/v1\nkind: Deployment\nmetadata: { name: broken }\nspec: { agent: nobody, harnessProfile: builtin/fake }\n", String.Empty, 400, token).ConfigureAwait(false);
                 Assert.Equal(1, broken.FailedCount, "bad reference fails");

@@ -3,6 +3,7 @@ namespace Garrison.Core.Requests
     using System;
     using System.Collections.Generic;
     using Garrison.Core.Enums;
+    using Garrison.Core.Models;
 
     /// <summary>
     /// Which queued runs a node may claim, applied in SQL so a node never starves behind runs it cannot take (P10.16).
@@ -62,6 +63,11 @@ namespace Garrison.Core.Requests
                 _Limit = Math.Clamp(value, 1, 500);
             }
         }
+
+        /// <summary>
+        /// Structured capabilities per executor. Missing reports mean legacy workers make no advanced capability promise.
+        /// </summary>
+        public List<ExecutorCapabilities> ExecutorCapabilities { get; set; } = new List<ExecutorCapabilities>();
 
         #endregion
 

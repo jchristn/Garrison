@@ -1878,4 +1878,13 @@ const yueHant = {
   explainers
 };
 
+
+// Executor capability negotiation (P11.18).
+Object.assign(yueHant.resources.deployments.fields, {"capIsolation": "最低隔離級別", "capColdStartClass": "啟動類別", "capEgressControl": "需要控制對外流量", "capFilesystemSnapshot": "需要檔案系統快照", "capSessionContinuation": "需要延續工作階段", "capCrossNodeRestore": "需要跨節點還原"});
+Object.assign(yueHant.tips.resources.deployments, {"capIsolation": "執行會等具備呢啲能力嘅工作節點。容器隔離請揀 KubernetesJob。要求未提供嘅能力會令執行繼續排隊。", "capColdStartClass": "執行會等具備呢啲能力嘅工作節點。容器隔離請揀 KubernetesJob。要求未提供嘅能力會令執行繼續排隊。", "capEgressControl": "執行會等具備呢啲能力嘅工作節點。容器隔離請揀 KubernetesJob。要求未提供嘅能力會令執行繼續排隊。", "capFilesystemSnapshot": "執行會等具備呢啲能力嘅工作節點。容器隔離請揀 KubernetesJob。要求未提供嘅能力會令執行繼續排隊。", "capSessionContinuation": "執行會等具備呢啲能力嘅工作節點。容器隔離請揀 KubernetesJob。要求未提供嘅能力會令執行繼續排隊。", "capCrossNodeRestore": "執行會等具備呢啲能力嘅工作節點。容器隔離請揀 KubernetesJob。要求未提供嘅能力會令執行繼續排隊。"});
+yueHant.resources.deployments.hints.capabilities = "執行會等具備呢啲能力嘅工作節點。容器隔離請揀 KubernetesJob。要求未提供嘅能力會令執行繼續排隊。";
+yueHant.resources.nodes.columns.executorCapabilities = "執行器能力";
+yueHant.tips.resources.nodes.executorCapabilities = "執行會等具備呢啲能力嘅工作節點。容器隔離請揀 KubernetesJob。要求未提供嘅能力會令執行繼續排隊。";
+yueHant.enums.executorIsolation = {"Process": "程序", "Container": "容器", "SandboxedRuntime": "沙箱執行環境"};
+yueHant.enums.executorColdStart = {"Immediate": "即時", "Cold": "冷啟動", "Warm": "預熱"};
 export default yueHant;

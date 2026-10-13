@@ -7,6 +7,7 @@ namespace Garrison.Server.Runtime
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Protocol;
     using Garrison.Core.Security;
@@ -144,7 +145,13 @@ namespace Garrison.Server.Runtime
                 label.Value = l.Value;
                 return label;
             }).ToList();
+            if (request.ExecutorCapabilities == null) throw new ArgumentException("Executor capability reports cannot be null.");
+            if (request.ExecutorCapabilities.Any(c => c == null || !Enum.IsDefined(c.Executor))) throw new ArgumentException("Unknown executor capability report.");
+            if (request.ExecutorCapabilities.Select(c => c.Executor).Distinct().Count() != request.ExecutorCapabilities.Count) throw new ArgumentException("Report each executor only once.");
+            foreach (ExecutorCapabilities capability in request.ExecutorCapabilities) ExecutorCapabilityRules.Validate(capability);
+            node.ExecutorCapabilities = request.ExecutorCapabilities;
             node.Executors = request.Executors.Count == 0 ? new List<RunExecutorEnum> { RunExecutorEnum.Process } : request.Executors.Distinct().ToList();
+            if (request.ExecutorCapabilities.Count > 0) node.Executors = request.ExecutorCapabilities.Select(c => c.Executor).ToList();
             if (!node.Executors.Contains(RunExecutorEnum.Process)) node.Executors.Insert(0, RunExecutorEnum.Process);
             node.Capabilities = request.Capabilities.Select(c =>
             {

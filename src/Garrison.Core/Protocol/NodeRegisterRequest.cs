@@ -3,6 +3,7 @@ namespace Garrison.Core.Protocol
     using System;
     using System.Collections.Generic;
     using Garrison.Core.Enums;
+    using Garrison.Core.Models;
 
     /// <summary>
     /// Worker registration. Idempotent by node name.
@@ -49,5 +50,10 @@ namespace Garrison.Core.Protocol
         /// cluster with permission to create Jobs, Secrets, and read pod logs in its run namespace. Empty means Process.
         /// </summary>
         public List<RunExecutorEnum> Executors { get; set; } = new List<RunExecutorEnum>();
+        /// <summary>
+        /// Structured capabilities per executor. Missing reports mean legacy workers make no advanced capability promise.
+        /// </summary>
+        public List<ExecutorCapabilities> ExecutorCapabilities { get; set; } = new List<ExecutorCapabilities>();
+
     }
 }

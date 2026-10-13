@@ -109,6 +109,28 @@ namespace Garrison.Core.Database.Ado
             v16.Column("usage_quotas", "enforcementenabled", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
             migrations.Add(new SchemaMigration(16, "Explicit opt-in quota enforcement", v16._Statements, v16._Columns));
 
+            SchemaBuilder v17 = new SchemaBuilder(catalog, dialect);
+            v17.Column("deployments", "capisolation", dialect.TypeInt + " NOT NULL DEFAULT 0");
+            v17.Column("deployments", "capegresscontrol", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("deployments", "capfilesystemsnapshot", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("deployments", "capsessioncontinuation", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("deployments", "capcrossnoderestore", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("deployments", "capcoldstartclass", "VARCHAR(32)");
+            v17.Column("runs", "capisolation", dialect.TypeInt + " NOT NULL DEFAULT 0");
+            v17.Column("runs", "capegresscontrol", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("runs", "capfilesystemsnapshot", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("runs", "capsessioncontinuation", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("runs", "capcrossnoderestore", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("runs", "capcoldstartclass", "VARCHAR(32)");
+            v17.Column("node_executors", "capisolation", dialect.TypeInt + " NOT NULL DEFAULT 0");
+            v17.Column("node_executors", "capegresscontrol", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("node_executors", "capfilesystemsnapshot", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("node_executors", "capsessioncontinuation", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("node_executors", "capcrossnoderestore", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            v17.Column("node_executors", "capcoldstartclass", "VARCHAR(32)");
+            v17.Column("node_executors", "capreported", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            migrations.Add(new SchemaMigration(17, "Executor capability negotiation and run requirements", v17._Statements, v17._Columns));
+
             return migrations;
         }
 

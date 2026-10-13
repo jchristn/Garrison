@@ -182,6 +182,13 @@ namespace Garrison.Sdk.Models
             }
         }
 
+        /// <summary>Reported executor capabilities. Empty means no advanced capability promise.</summary>
+        public List<ExecutorCapabilities> ExecutorCapabilities
+        {
+            get { return _ExecutorCapabilities; }
+            set { _ExecutorCapabilities = value ?? new List<ExecutorCapabilities>(); }
+        }
+
         #endregion
 
         #region Private-Members
@@ -194,6 +201,8 @@ namespace Garrison.Sdk.Models
         private List<NodeLabel> _Labels = new List<NodeLabel>();
         private List<NodeCapability> _Capabilities = new List<NodeCapability>();
         private List<RunExecutorEnum> _Executors = new List<RunExecutorEnum>();
+
+        private List<ExecutorCapabilities> _ExecutorCapabilities = new List<ExecutorCapabilities>();
 
         #endregion
     }

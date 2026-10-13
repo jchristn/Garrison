@@ -71,6 +71,8 @@ namespace Test.Shared.Suites
                 string id = "k8s-executor-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>
                 {
+                    new TestCaseDescriptor(id, "capability-persistence", "Structured executor reports and deployment/run requirements persist without JSON (" + provider + ")", ct => CapabilityPersistenceAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "capability-claim", "Capability filtering precedes limits and atomic claims reject changed or absent reports (" + provider + ")", ct => CapabilityClaimAsync(provider, ct)),
                     new TestCaseDescriptor(id, "persistence", "Deployment executor and pod resources, pool default executor, node executors, run executor, and PersistentVolume claims round-trip (" + provider + ")", ct => PersistenceAsync(provider, ct)),
                     new TestCaseDescriptor(id, "claim-filter", "Claim candidates: Process-only nodes never see KubernetesJob runs, even behind a backlog; capable nodes see both (" + provider + ")", ct => ClaimFilterAsync(provider, ct)),
                     new TestCaseDescriptor(id, "blocked", "Blocked reason: a KubernetesJob run with only Process workers is NoCapableWorker and the message names the executor (" + provider + ")", ct => BlockedAsync(provider, ct)),
@@ -934,6 +936,80 @@ namespace Test.Shared.Suites
             }
         }
 
+        private static async Task CapabilityPersistenceAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                ExecutorRequirements required = new ExecutorRequirements
+                {
+                    Isolation = ExecutorIsolationEnum.SandboxedRuntime, EgressControl = true,
+                    FilesystemSnapshot = true, SessionContinuation = true, CrossNodeRestore = true,
+                    ColdStartClass = ExecutorColdStartEnum.Warm
+                };
+                Deployment deployment = new Deployment { TenantId = "ten_caps", AgentId = "agt_caps", Name = "caps", RequiredCapabilities = required };
+                deployment = await db.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
+                Deployment? read = await db.Deployments.ReadAsync(deployment.Id, token).ConfigureAwait(false);
+                Assert.True(read != null && read.RequiredCapabilities.CrossNodeRestore && read.RequiredCapabilities.ColdStartClass == ExecutorColdStartEnum.Warm, "Deployment requirements round-trip");
+                Run run = NewRun("ten_caps", RunExecutorEnum.KubernetesJob);
+                run.RequiredCapabilities = required.Clone();
+                run = await db.Runs.CreateAsync(run, token).ConfigureAwait(false);
+                Run? roundTrip = await db.Runs.ReadAsync(run.Id, token).ConfigureAwait(false);
+                Assert.True(roundTrip != null && roundTrip.RequiredCapabilities.Isolation == ExecutorIsolationEnum.SandboxedRuntime && roundTrip.RequiredCapabilities.EgressControl && roundTrip.RequiredCapabilities.FilesystemSnapshot && roundTrip.RequiredCapabilities.SessionContinuation, "Run requirements round-trip");
+                required.SessionContinuation = false;
+                Assert.True(run.RequiredCapabilities.SessionContinuation, "An admitted requirement snapshot does not follow deployment edits");
+                Node node = NewNode("caps", RunExecutorEnum.KubernetesJob);
+                node.ExecutorCapabilities.Add(new ExecutorCapabilities { Executor = RunExecutorEnum.KubernetesJob, Isolation = ExecutorIsolationEnum.Container, ColdStartClass = ExecutorColdStartEnum.Cold, EgressControl = true });
+                node = await db.Nodes.CreateAsync(node, token).ConfigureAwait(false);
+                Node? nodeRead = await db.Nodes.ReadAsync(node.Id, token).ConfigureAwait(false);
+                Assert.True(nodeRead != null && nodeRead.ExecutorCapabilities.Count == 1 && nodeRead.ExecutorCapabilities[0].EgressControl, "Node reports round-trip");
+                Assert.True(!ExecutorCapabilityRules.Matches(nodeRead!.ExecutorCapabilities[0], run.RequiredCapabilities), "A container does not satisfy sandbox, snapshot, session, restore, or warm requirements");
+            }
+        }
+
+        private static async Task CapabilityClaimAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                string tenant = "ten_caps_" + Guid.NewGuid().ToString("N");
+                Node node = NewNode("caps", RunExecutorEnum.Process, RunExecutorEnum.KubernetesJob);
+                node.ExecutorCapabilities.Add(new ExecutorCapabilities { Executor = RunExecutorEnum.Process, ColdStartClass = ExecutorColdStartEnum.Immediate, SessionContinuation = true });
+                node.ExecutorCapabilities.Add(new ExecutorCapabilities { Executor = RunExecutorEnum.KubernetesJob, Isolation = ExecutorIsolationEnum.Container, ColdStartClass = ExecutorColdStartEnum.Cold });
+                node = await db.Nodes.CreateAsync(node, token).ConfigureAwait(false);
+                for (int i = 0; i < 30; i++)
+                {
+                    Run blocked = NewRun(tenant, RunExecutorEnum.KubernetesJob);
+                    blocked.Priority = 10;
+                    blocked.RequiredCapabilities.FilesystemSnapshot = true;
+                    await db.Runs.CreateAsync(blocked, token).ConfigureAwait(false);
+                }
+                Run eligible = NewRun(tenant, RunExecutorEnum.KubernetesJob);
+                eligible.RequiredCapabilities.Isolation = ExecutorIsolationEnum.Container;
+                eligible.RequiredCapabilities.ColdStartClass = ExecutorColdStartEnum.Cold;
+                eligible = await db.Runs.CreateAsync(eligible, token).ConfigureAwait(false);
+                ClaimCandidateFilter filter = new ClaimCandidateFilter { HarnessTypes = new List<HarnessTypeEnum> { HarnessTypeEnum.Generic }, AllowedTenantIds = new List<string> { tenant }, ExecutorCapabilities = ExecutorCapabilityRules.Of(node), Limit = 1 };
+                List<Run> candidates = await db.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
+                Assert.Equal(1, candidates.Count, "Capability filtering happens before LIMIT");
+                Assert.Equal(eligible.Id, candidates[0].Id, "Unsupported high-priority work cannot hide eligible work");
+                Assert.True(!(await db.Runs.TryClaimAsync(eligible.Id, "nod_unknown", "legacy", DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Atomic claim refuses an unreported container capability");
+                node.ExecutorCapabilities.Clear();
+                await db.Nodes.UpdateAsync(node, token).ConfigureAwait(false);
+                Assert.True(!(await db.Runs.TryClaimAsync(eligible.Id, node.Id, node.Name, DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Capabilities lost after selection cannot be claimed");
+                node.ExecutorCapabilities.Add(new ExecutorCapabilities { Executor = RunExecutorEnum.KubernetesJob, Isolation = ExecutorIsolationEnum.Container, ColdStartClass = ExecutorColdStartEnum.Cold });
+                await db.Nodes.UpdateAsync(node, token).ConfigureAwait(false);
+                Assert.True((await db.Runs.TryClaimAsync(eligible.Id, node.Id, node.Name, DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Current container report authorizes claim");
+                Run process = NewRun(tenant, RunExecutorEnum.Process);
+                process.RequiredCapabilities.Isolation = ExecutorIsolationEnum.Container;
+                Assert.True(!ExecutorCapabilityRules.Supports(NewNode("legacy", RunExecutorEnum.Process), process), "Process-only pools cannot satisfy Container isolation");
+                foreach (ExecutorRequirements requirement in new List<ExecutorRequirements> { new ExecutorRequirements { EgressControl = true }, new ExecutorRequirements { FilesystemSnapshot = true }, new ExecutorRequirements { CrossNodeRestore = true }, new ExecutorRequirements { SessionContinuation = true }, new ExecutorRequirements { ColdStartClass = ExecutorColdStartEnum.Warm } })
+                {
+                    Run impossible = NewRun(tenant, RunExecutorEnum.Process);
+                    impossible.RequiredCapabilities = requirement;
+                    impossible = await db.Runs.CreateAsync(impossible, token).ConfigureAwait(false);
+                    Assert.True(!(await db.Runs.TryClaimAsync(impossible.Id, node.Id, node.Name, DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Atomic claims enforce every required dimension");
+                }
+            }
+        }
+
         private static async Task ClaimFilterAsync(DatabaseTypeEnum provider, CancellationToken token)
         {
             using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
@@ -1094,6 +1170,17 @@ namespace Test.Shared.Suites
                 Deployment ok = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, tenantPath + "/deployments", processPv, 201, token).ConfigureAwait(false);
                 Assert.Equal(RunExecutorEnum.KubernetesJob, ok.Executor ?? RunExecutorEnum.Process, "Executor returned by the API");
                 Assert.Equal("2Gi", ok.PodResources.MemoryLimit ?? String.Empty, "Pod resources returned by the API");
+                profile.SupportsResume = false;
+                await host.Server.Context.Database.HarnessProfiles.UpdateAsync(profile, token).ConfigureAwait(false);
+                processPv.Name = "session-required";
+                processPv.RequiredCapabilities.SessionContinuation = true;
+                TestResponse session = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, tenantPath + "/deployments", processPv, token).ConfigureAwait(false);
+                Assert.Equal(400, session.StatusCode, "Session continuation requires a resume-capable harness profile");
+                processPv.RequiredCapabilities.SessionContinuation = false;
+                processPv.RequiredCapabilities.Isolation = (ExecutorIsolationEnum)99;
+                TestResponse isolation = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, tenantPath + "/deployments", processPv, token).ConfigureAwait(false);
+                Assert.Equal(400, isolation.StatusCode, "Unknown isolation cannot become a capability claim");
+
             }
         }
 

@@ -343,6 +343,11 @@ export const nodesConfig = {
       { csv: (r) => (r.capabilities || []).filter((c) => c.available).map((c) => c.harnessType).join(' ') }
     ),
     col('nodes', t, 'executors', (r) => ((r.executors || []).length ? r.executors : ['Process']).map((x) => enumLabel(t, 'runExecutor', x)).join(', '), { csv: (r) => ((r.executors || []).length ? r.executors : ['Process']).join(' ') }),
+    col('nodes', t, 'executorCapabilities', (r) => (r.executorCapabilities || []).map((c) => [
+      enumLabel(t, 'runExecutor', c.executor), enumLabel(t, 'executorIsolation', c.isolation),
+      c.coldStartClass ? enumLabel(t, 'executorColdStart', c.coldStartClass) : null,
+      ...['egressControl', 'filesystemSnapshot', 'sessionContinuation', 'crossNodeRestore'].filter((key) => c[key]).map((key) => t(`resources.deployments.fields.cap${key.charAt(0).toUpperCase()}${key.slice(1)}`))
+    ].filter(Boolean).join(' / ')).join('; ') || '-', { defaultHidden: true }),
     col('nodes', t, 'labels', (r) => (r.labels || []).map((l) => `${l.key}=${l.value}`).join(', ') || '-', { defaultHidden: true, csv: (r) => (Array.isArray(r.labels) ? r.labels.map((l) => `${l.key}=${l.value}`).join(' ') : '') }),
     col('nodes', t, 'nodeVersion', (r) => r.nodeVersion || '-', { defaultHidden: true }),
     col('nodes', t, 'lastHeartbeatUtc', (r) => (r.lastHeartbeatUtc ? formatRelativeTime(r.lastHeartbeatUtc, i18n.language) : '-')),

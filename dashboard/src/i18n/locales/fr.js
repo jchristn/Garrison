@@ -1925,4 +1925,13 @@ const fr = {
   explainers
 };
 
+
+// Executor capability negotiation (P11.18).
+Object.assign(fr.resources.deployments.fields, {"capIsolation": "Isolation minimale", "capColdStartClass": "Classe de démarrage", "capEgressControl": "Exiger le contrôle des sorties", "capFilesystemSnapshot": "Exiger les instantanés du système de fichiers", "capSessionContinuation": "Exiger la continuité de session", "capCrossNodeRestore": "Exiger la restauration sur un autre nœud"});
+Object.assign(fr.tips.resources.deployments, {"capIsolation": "Les exécutions attendent un worker avec ces capacités. Choisissez KubernetesJob pour l’isolation par conteneur. Les capacités indisponibles maintiennent les exécutions en attente.", "capColdStartClass": "Les exécutions attendent un worker avec ces capacités. Choisissez KubernetesJob pour l’isolation par conteneur. Les capacités indisponibles maintiennent les exécutions en attente.", "capEgressControl": "Les exécutions attendent un worker avec ces capacités. Choisissez KubernetesJob pour l’isolation par conteneur. Les capacités indisponibles maintiennent les exécutions en attente.", "capFilesystemSnapshot": "Les exécutions attendent un worker avec ces capacités. Choisissez KubernetesJob pour l’isolation par conteneur. Les capacités indisponibles maintiennent les exécutions en attente.", "capSessionContinuation": "Les exécutions attendent un worker avec ces capacités. Choisissez KubernetesJob pour l’isolation par conteneur. Les capacités indisponibles maintiennent les exécutions en attente.", "capCrossNodeRestore": "Les exécutions attendent un worker avec ces capacités. Choisissez KubernetesJob pour l’isolation par conteneur. Les capacités indisponibles maintiennent les exécutions en attente."});
+fr.resources.deployments.hints.capabilities = "Les exécutions attendent un worker avec ces capacités. Choisissez KubernetesJob pour l’isolation par conteneur. Les capacités indisponibles maintiennent les exécutions en attente.";
+fr.resources.nodes.columns.executorCapabilities = "Capacités d’exécution";
+fr.tips.resources.nodes.executorCapabilities = "Les exécutions attendent un worker avec ces capacités. Choisissez KubernetesJob pour l’isolation par conteneur. Les capacités indisponibles maintiennent les exécutions en attente.";
+fr.enums.executorIsolation = {"Process": "Processus", "Container": "Conteneur", "SandboxedRuntime": "Environnement isolé"};
+fr.enums.executorColdStart = {"Immediate": "Immédiat", "Cold": "À froid", "Warm": "Préparé"};
 export default fr;
