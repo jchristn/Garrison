@@ -123,7 +123,9 @@ Workers are shared by default. To keep a tenant's runs on its own workers, creat
 
 This is the most important limit to understand. Garrison has two executors, chosen per deployment (`executor`) or per node pool (`defaultExecutor`), and they protect against different things.
 
-### Process executor (default)
+### Process executor (trusted only, default)
+
+Process execution is for trusted workloads only. The worker image stays non-root (UID 10001); all Process harnesses use that same user. Unix run roots and their `work`, `home`, and `config` directories are created with mode `0700`, and existing directories are tightened on reuse, including conversation turns. These permissions exclude other OS users; they do not isolate concurrent harnesses sharing the worker user. Windows inherits the worker account's directory ACLs. Use `KubernetesJob` for untrusted inputs. The dashboard displays the same warning in deployment forms and Process run details.
 
 Each run is a subprocess of the worker, inside the worker's container, with:
 

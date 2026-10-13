@@ -464,7 +464,7 @@ export default function ResourceView({ config }) {
           <>
             {Object.keys(fieldErrors).length > 0 && <div className="error-banner">{t('common.errors.fixFields')}</div>}
             {editing.mode === 'view' && config.viewExtra && config.viewExtra(editing.data, ctx)}
-            {editing.mode !== 'create' && config.formNotice && config.formNotice(editing.data, ctx)}
+            {editing.mode !== 'create' && config.formNotice && config.formNotice(editing.data, { ...ctx, options })}
             {steps && (
               <div className="stepper" role="tablist" aria-label={t('components.form.steps')}>
                 {steps.map((s, i) => (

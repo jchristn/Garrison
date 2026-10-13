@@ -5,6 +5,7 @@ import { tips, explainers } from './ja.tips.js';
 const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody) => ({ title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody });
 
 const ja = {
+  processSecurity: { trustedOnly: "Process 実行方式は信頼できる処理専用です。実行はワーカーのユーザー、ファイルシステム、ネットワークを共有し、他の実行やワーカーの認証情報にアクセスできます。信頼できない入力には KubernetesJob を使用してください。" },
   common: {
     eventCodes: { ApprovalRequested: '承認を要求', ApprovalDecided: '承認を決定', StructuredOutputInvalid: '構造化出力が無効', RunBlocked: '実行がブロック中', EventsDropped: 'イベントの破棄', HarnessExited: 'ハーネス終了', McpPreflightWarning: 'MCP 事前チェックの警告', McpPreflightPassed: 'MCP 事前チェック合格', RepairAttemptStarted: '出力の修復を開始', WorkspacePrepared: 'ワークスペース準備完了', RunGuardTriggered: 'ランガードが実行を停止', ConversationFallback: '会話のフォールバック', ConversationResumed: '会話を再開', ConversationStateLost: '会話の状態が失われました' },
     fieldCodes: { ExpiryInPast: '未来の日時を選んでください。', ParameterInvalid: 'この値はこのパラメーターには無効です。', ParameterNotAllowed: 'このデプロイメントでは、呼び出し元がこのパラメーターを上書きすることは許可されていません。', SettingsFileReadOnly: '設定ファイルが読み取り専用のため、この変更は保存できません。', OverriddenByEnvironment: '環境変数がこの値を設定しているため、ここでは変更できません。', PathRequired: '設定パスが必要です。', UnknownSetting: 'このサーバーにはこの設定がありません。', TooLong: '値が長すぎます。', NotAllowedValue: '許可された値のいずれかを選んでください。', NotABoolean: 'true または false を選んでください。', NotAnInteger: '整数を入力してください。', OutOfRange: '値が許可された範囲外です。' },

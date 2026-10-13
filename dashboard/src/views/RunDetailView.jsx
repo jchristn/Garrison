@@ -279,6 +279,7 @@ export default function RunDetailView({ recordId }) {
       />
 
       <BlockedRunNotice run={run} />
+      {run.executor === 'Process' && <div className="warning-banner" role="status" data-testid="process-trusted-only">{t('processSecurity.trustedOnly')}</div>}
       {run.awaitingApproval && (
         <div className="warning-banner" role="status" data-testid="awaiting-approval">
           <span>{t('views.runDetail.awaitingApproval', { count: run.pendingApprovals || 1 })}</span>

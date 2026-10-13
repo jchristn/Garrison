@@ -904,8 +904,9 @@ function guardToggle(t, value, runtime) {
 function executorHint(t, d, pools) {
   const pool = (pools || []).find((p) => p.id === d.nodePoolId);
   const inherited = pool?.defaultExecutor || 'Process';
-  if (d.executor) return t('resources.deployments.hints.executorSet');
-  return t('resources.deployments.hints.executorInherit', { executor: enumLabel(t, 'runExecutor', inherited) });
+  const resolved = d.executor || inherited;
+  const hint = d.executor ? t('resources.deployments.hints.executorSet') : t('resources.deployments.hints.executorInherit', { executor: enumLabel(t, 'runExecutor', inherited) });
+  return resolved === 'Process' ? `${hint} ${t('processSecurity.trustedOnly')}` : hint;
 }
 
 export const deploymentsConfig = {
@@ -914,6 +915,8 @@ export const deploymentsConfig = {
   explainerDiagram: () => <AgentRelationDiagram />,
   api: tenantApi('listDeployments', 'createDeployment', 'updateDeployment', 'deleteDeployment'),
   steps: ['basics', 'harness', 'prompts', 'resources', 'overrides', 'placement', 'approvals'],
+  formNotice: (d, { t, options }) => (d.executor || options.pools?.find((p) => p.id === d.nodePoolId)?.defaultExecutor || 'Process') === 'Process'
+    ? <div className="warning-banner" role="status" data-testid="process-trusted-only">{t('processSecurity.trustedOnly')}</div> : null,
   loadOptions: async ({ apiClient, tenantId }) => {
     const [agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),

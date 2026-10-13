@@ -5,6 +5,7 @@ import { tips, explainers } from './yue-Hant.tips.js';
 const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody) => ({ title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody });
 
 const yueHant = {
+  processSecurity: { trustedOnly: "Process 執行器只適用於可信任嘅任務。執行共用工作節點嘅使用者、檔案系統同網絡，可以存取其他執行同工作節點憑證。唔可信任嘅輸入請用 KubernetesJob。" },
   common: {
     eventCodes: { ApprovalRequested: '已要求批核', ApprovalDecided: '已決定批核', StructuredOutputInvalid: '結構化輸出無效', RunBlocked: '執行受阻', EventsDropped: '事件丟棄咗', HarnessExited: 'Harness 結束咗', McpPreflightWarning: 'MCP 預檢警告', McpPreflightPassed: 'MCP 預檢通過', RepairAttemptStarted: '開始咗修復輸出', WorkspacePrepared: '工作區準備好咗', RunGuardTriggered: '執行防護停咗個執行', ConversationFallback: '對話回退', ConversationResumed: '對話已恢復', ConversationStateLost: '對話狀態遺失' },
     fieldCodes: { ExpiryInPast: '請揀一個將來嘅時間。', ParameterInvalid: '呢個值對呢個參數嚟講唔啱。', ParameterNotAllowed: '呢個部署唔畀調用者覆寫呢個參數。', SettingsFileReadOnly: '設定檔係唯讀嘅，所以呢個改動儲存唔到。', OverriddenByEnvironment: '呢個值係由環境變數設定嘅，所以喺度改唔到。', PathRequired: '一定要有設定路徑。', UnknownSetting: '呢部伺服器冇呢項設定。', TooLong: '呢個值太長。', NotAllowedValue: '請揀其中一個容許嘅值。', NotABoolean: '請揀 true 或者 false。', NotAnInteger: '請輸入整數。', OutOfRange: '個值超出咗容許範圍。' },

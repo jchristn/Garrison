@@ -51,6 +51,7 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("worker-executor", "path-traversal", "Executor: files escaping their base directory are rejected", PathTraversalAsync),
                 new TestCaseDescriptor("worker-executor", "scrubbing", "Executor: secret values are scrubbed from stderr, result, and events", ScrubbingAsync),
                 new TestCaseDescriptor("worker-executor", "environment", "Executor: environment starts empty plus allowlist and spec values; HOME is isolated", EnvironmentAsync),
+                new TestCaseDescriptor("worker-executor", "private-directories", "Executor: run and conversation directories are owner-only on creation and reuse", PrivateDirectoriesAsync),
                 new TestCaseDescriptor("worker-executor", "retention", "Executor: workspace retention policies and secret directory cleanup", RetentionAsync),
                 new TestCaseDescriptor("worker-executor", "tool-call-count", "Executor: tool call events are counted", ToolCallCountAsync),
                 new TestCaseDescriptor("worker-executor", "timing-without-output", "Executor: timing on a killed harness and on a harness that never started", TimingOnFailureAsync),
@@ -408,6 +409,31 @@ namespace Test.Shared.Suites
             {
                 Environment.SetEnvironmentVariable("GARRISON_TEST_LEAK", null);
             }
+        }
+
+        private static Task PrivateDirectoriesAsync(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (OperatingSystem.IsWindows()) return Task.CompletedTask;
+            foreach (string parent in new[] { WorkRoot(), RunDirectories.ConversationsRoot(WorkRoot()) })
+            {
+                RunDirectories directories = new RunDirectories(parent, "private-" + Guid.NewGuid().ToString("N"));
+                try
+                {
+                    directories.Create();
+                    string[] paths = new[] { directories.Root, directories.Workspace, directories.Home, directories.Config };
+                    UnixFileMode expected = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+                    foreach (string path in paths)
+                    {
+                        Assert.Equal(expected, File.GetUnixFileMode(path), "Private fresh directory");
+                        File.SetUnixFileMode(path, expected | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead);
+                    }
+                    directories.Create();
+                    foreach (string path in paths) Assert.Equal(expected, File.GetUnixFileMode(path), "Reused directory tightened");
+                }
+                finally { if (Directory.Exists(directories.Root)) Directory.Delete(directories.Root, true); }
+            }
+            return Task.CompletedTask;
         }
 
         private static async Task RetentionAsync(CancellationToken token)

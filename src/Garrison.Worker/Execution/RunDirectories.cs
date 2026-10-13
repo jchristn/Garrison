@@ -84,13 +84,14 @@ namespace Garrison.Worker.Execution
         }
 
         /// <summary>
-        /// Create every directory.
+        /// Create every directory with owner-only Unix permissions, tightening existing directories on reuse.
         /// </summary>
         public void Create()
         {
-            Directory.CreateDirectory(Workspace);
-            Directory.CreateDirectory(Home);
-            Directory.CreateDirectory(Config);
+            CreatePrivate(Root);
+            CreatePrivate(Workspace);
+            CreatePrivate(Home);
+            CreatePrivate(Config);
         }
 
         /// <summary>
@@ -109,6 +110,18 @@ namespace Garrison.Worker.Execution
         public void Touch()
         {
             if (Directory.Exists(Root)) Directory.SetLastWriteTimeUtc(Root, DateTime.UtcNow);
+        }
+
+        private static void CreatePrivate(string path)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Directory.CreateDirectory(path);
+                return;
+            }
+            UnixFileMode mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+            Directory.CreateDirectory(path, mode);
+            File.SetUnixFileMode(path, mode);
         }
 
         #endregion

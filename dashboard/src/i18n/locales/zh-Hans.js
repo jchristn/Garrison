@@ -5,6 +5,7 @@ import { tips, explainers } from './zh-Hans.tips.js';
 const rp = (title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody) => ({ title, subtitle, add, create, edit, view, deleteTitle, emptyTitle, emptyBody });
 
 const zhHans = {
+  processSecurity: { trustedOnly: "Process 执行器仅用于可信任务。运行共享工作节点的用户、文件系统和网络，可访问其他运行及工作节点凭据。对于不可信输入，请使用 KubernetesJob。" },
   common: {
     eventCodes: { ApprovalRequested: '已请求审批', ApprovalDecided: '审批已决定', StructuredOutputInvalid: '结构化输出无效', RunBlocked: '运行受阻', EventsDropped: '事件已丢弃', HarnessExited: 'Harness 已退出', McpPreflightWarning: 'MCP 预检警告', McpPreflightPassed: 'MCP 预检通过', RepairAttemptStarted: '已开始修复输出', WorkspacePrepared: '工作区已就绪', RunGuardTriggered: '运行防护停止了运行', ConversationFallback: '对话回退', ConversationResumed: '对话已恢复', ConversationStateLost: '对话状态丢失' },
     fieldCodes: { ExpiryInPast: '请选择未来的时间。', ParameterInvalid: '此值对该参数无效。', ParameterNotAllowed: '此部署不允许调用方覆盖此参数。', SettingsFileReadOnly: '设置文件为只读，因此无法保存此更改。', OverriddenByEnvironment: '此值由环境变量设置，因此无法在此更改。', PathRequired: '需要设置路径。', UnknownSetting: '此服务器没有该设置。', TooLong: '此值过长。', NotAllowedValue: '请选择允许的值之一。', NotABoolean: '请选择 true 或 false。', NotAnInteger: '请输入整数。', OutOfRange: '值超出允许的范围。' },
