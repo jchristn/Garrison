@@ -26,3 +26,9 @@ bash benchmarks/ci-gate.sh
 ```
 
 PostgreSQL checks require a configured local test database. Kubernetes runtime smoke checks also remain available through `k8s/scripts/smoke-test.sh` against a deployed test cluster.
+
+## Executor conformance
+
+`dotnet run --project src/Test.Automated -f net10.0 -- --suites executor-conformance` runs the named Process and KubernetesJob behavior gates without a cluster. Repeat with `net8.0` for compatibility.
+
+`scripts/check-executor-conformance.sh` adds real Kubernetes runtime checks using a temporary K3S container and the current locally built worker image. It uses no provider credentials, binds no host ports, and removes the cluster and temporary fixtures on exit. Docker, Python 3, and the .NET 10 SDK are required. Set `GARRISON_CONFORMANCE_IMAGE` to test another local worker image. This heavier check runs locally, not automatically in hosted CI.

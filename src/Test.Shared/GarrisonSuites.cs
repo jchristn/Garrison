@@ -44,6 +44,7 @@ namespace Test.Shared
                 suites.AddRange(ScaleOutSuite.Build());
                 suites.AddRange(MultiReplicaSuite.Build());
                 suites.AddRange(KubernetesExecutorSuite.Build());
+                suites.AddRange(ExecutorConformanceSuite.Build());
                 suites.AddRange(CodexCredentialSuite.Build());
                 suites.AddRange(CorrectnessSuite.Build());
                 suites.AddRange(ConversationSuite.Build());

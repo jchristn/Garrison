@@ -426,13 +426,7 @@ namespace Garrison.Worker.Hosting
             foreach (KeyValuePair<string, string> label in _Prober.CapabilityLabels(_Capabilities)) request.Labels[label.Key] = label.Value;
             request.Capabilities = _Capabilities;
             request.Executors = Executors();
-            request.ExecutorCapabilities = request.Executors.Select(e => new Garrison.Core.Models.ExecutorCapabilities
-            {
-                Executor = e,
-                Isolation = e == RunExecutorEnum.KubernetesJob ? ExecutorIsolationEnum.Container : ExecutorIsolationEnum.Process,
-                ColdStartClass = e == RunExecutorEnum.KubernetesJob ? ExecutorColdStartEnum.Cold : ExecutorColdStartEnum.Immediate,
-                SessionContinuation = e == RunExecutorEnum.Process
-            }).ToList();
+            request.ExecutorCapabilities = request.Executors.Select(ExecutorCapabilityProfiles.For).ToList();
 
             NodeRegisterResponse response = await _Client.RegisterAsync(request, token).ConfigureAwait(false);
             _NodeId = response.NodeId;

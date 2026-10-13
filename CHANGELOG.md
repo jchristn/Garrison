@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Named Process/KubernetesJob executor conformance gates cover the advertised capabilities. A local runner verifies separate run pods and existing isolation in a temporary K3S cluster, then removes it (P11.19).
+
 - Workers report structured executor capabilities. Deployments can require isolation, session support, startup class, and other capabilities; admission snapshots requirements, SQL filters before queue limits, and atomic claims recheck current reports. Migration 17 preserves legacy placement. All SDKs and the dashboard expose the contract (P11.18).
 
 - Workers share the C# SDK HTTP transport while retaining node-protocol fencing, one-time 401 reauthentication, timeouts, and named telemetry.
