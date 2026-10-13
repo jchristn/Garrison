@@ -138,7 +138,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, scope = @scope, resourceid = @resourceid, dailyrunlimit = @dailyrunlimit, dailytokenlimit = @dailytokenlimit, dailycostusdlimit = @dailycostusdlimit, maxconcurrentruns = @maxconcurrentruns, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, scope = @scope, resourceid = @resourceid, dailyrunlimit = @dailyrunlimit, dailytokenlimit = @dailytokenlimit, dailycostusdlimit = @dailycostusdlimit, maxconcurrentruns = @maxconcurrentruns, active = @active, enforcementenabled = @enforcementenabled, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -156,6 +156,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "dailycostusdlimit", obj.DailyCostUsdLimit);
                 AdoDatabaseDriver.Add(command, "maxconcurrentruns", obj.MaxConcurrentRuns);
                                                     AdoDatabaseDriver.Add(command, "active", obj.Active);
+                                                    AdoDatabaseDriver.Add(command, "enforcementenabled", obj.EnforcementEnabled);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                     AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
                 }, ct).ConfigureAwait(false);
@@ -243,6 +244,7 @@ namespace Garrison.Core.Database.Ado
             obj.DailyCostUsdLimit = AdoConverters.NullableDouble(reader, "dailycostusdlimit");
             obj.MaxConcurrentRuns = AdoConverters.NullableInt(reader, "maxconcurrentruns");
             obj.Active = AdoConverters.Bool(reader, "active");
+            obj.EnforcementEnabled = AdoConverters.Bool(reader, "enforcementenabled");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             obj.LastUpdateUtc = AdoConverters.Date(reader, "lastupdateutc");
@@ -255,7 +257,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, UsageQuota obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, scope, resourceid, dailyrunlimit, dailytokenlimit, dailycostusdlimit, maxconcurrentruns, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @scope, @resourceid, @dailyrunlimit, @dailytokenlimit, @dailycostusdlimit, @maxconcurrentruns, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, scope, resourceid, dailyrunlimit, dailytokenlimit, dailycostusdlimit, maxconcurrentruns, active, enforcementenabled, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @scope, @resourceid, @dailyrunlimit, @dailytokenlimit, @dailycostusdlimit, @maxconcurrentruns, @active, @enforcementenabled, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -269,6 +271,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "dailycostusdlimit", obj.DailyCostUsdLimit);
                 AdoDatabaseDriver.Add(command, "maxconcurrentruns", obj.MaxConcurrentRuns);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);
+                AdoDatabaseDriver.Add(command, "enforcementenabled", obj.EnforcementEnabled);
                 AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                 AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);
                 AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);

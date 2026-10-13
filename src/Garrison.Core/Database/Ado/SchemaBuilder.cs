@@ -105,6 +105,10 @@ namespace Garrison.Core.Database.Ado
             v15.BuildVersion15();
             migrations.Add(new SchemaMigration(15, "Daily UTC quotas and retained run usage", v15._Statements, v15._Columns));
 
+            SchemaBuilder v16 = new SchemaBuilder(catalog, dialect);
+            v16.Column("usage_quotas", "enforcementenabled", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            migrations.Add(new SchemaMigration(16, "Explicit opt-in quota enforcement", v16._Statements, v16._Columns));
+
             return migrations;
         }
 

@@ -84,11 +84,13 @@ def t_prices():
 def t_quotas():
     quota = client.usage_quotas.create({"name": f"sdk-py-quota-{SUFFIX}", "scope": "Agent", "resourceId": state["agent"], "dailyRunLimit": 100, "dailyCostUsdLimit": 0.125})
     try:
-        require(client.usage_quotas.get(quota["id"])["dailyRunLimit"] == 100, "quota fields")
+        require(quota["enforcementEnabled"] is False and client.usage_quotas.get(quota["id"])["dailyRunLimit"] == 100, "quota fields and default monitoring")
         usage = client.usage_quotas.usage(quota["id"])
         require(usage["runsUsed"] == 0 and usage["costAccountingComplete"] and usage["windowEndUtc"], "quota usage")
         quota["dailyRunLimit"] = None
-        require(client.usage_quotas.update(quota["id"], quota).get("dailyRunLimit") is None, "unlimited limit")
+        quota["enforcementEnabled"] = True
+        updated = client.usage_quotas.update(quota["id"], quota)
+        require(updated.get("dailyRunLimit") is None and updated["enforcementEnabled"], "explicit enforcement opt-in")
     finally:
         client.usage_quotas.delete(quota["id"])
 

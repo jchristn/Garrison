@@ -743,15 +743,16 @@ export const usageQuotasConfig = {
   explainer: 'usageQuotas',
   api: tenantApi('listUsageQuotas', 'createUsageQuota', 'updateUsageQuota', 'deleteUsageQuota'),
   canManage: ({ principal }) => !!(principal?.isAdmin || principal?.isTenantAdmin),
-  blank: () => ({ name: '', description: '', scope: 'Tenant', resourceId: '', dailyRunLimit: null, dailyTokenLimit: null, dailyCostUsdLimit: null, maxConcurrentRuns: null, active: true }),
+  blank: () => ({ name: '', description: '', scope: 'Tenant', resourceId: '', dailyRunLimit: null, dailyTokenLimit: null, dailyCostUsdLimit: null, maxConcurrentRuns: null, enforcementEnabled: false, active: true }),
   loadOptions: async ({ apiClient, tenantId }) => ({ agents: await safeList(apiClient.listAgents(tenantId, { pageSize: 1000 })), deployments: await safeList(apiClient.listDeployments(tenantId, { pageSize: 1000 })) }),
-  columns: ({ t, i18n }) => [nameCol('usageQuotas', t), col('usageQuotas', t, 'scope', (r) => enumBadge(t, 'usageQuotaScope', r.scope)), col('usageQuotas', t, 'resourceId', (r) => <CopyableId value={r.resourceId} />),
+  columns: ({ t, i18n }) => [nameCol('usageQuotas', t), col('usageQuotas', t, 'enforcementEnabled', (r) => t(r.enforcementEnabled ? 'common.boolean.yes' : 'common.boolean.no')), col('usageQuotas', t, 'scope', (r) => enumBadge(t, 'usageQuotaScope', r.scope)), col('usageQuotas', t, 'resourceId', (r) => <CopyableId value={r.resourceId} />),
     ...['dailyRunLimit', 'dailyTokenLimit', 'dailyCostUsdLimit', 'maxConcurrentRuns'].map((key) => col('usageQuotas', t, key, (r) => r[key] == null ? t('common.generic.none') : formatNumber(r[key], i18n.language, { maximumFractionDigits: 6 }))), activeCol('usageQuotas', t), idCol('usageQuotas', t), createdCol('usageQuotas', t, i18n)],
   fields: (d, { t, options = {} }) => [
     field('usageQuotas', t, 'name', 'text', { required: true }),
     field('usageQuotas', t, 'scope', 'select', { required: true, options: enumOptions(t, 'usageQuotaScope') }),
     field('usageQuotas', t, 'resourceId', d.scope === 'Tenant' ? 'text' : 'select', { required: d.scope !== 'Tenant', readOnly: d.scope === 'Tenant', span: 'full', options: (d.scope === 'Agent' ? options.agents : options.deployments)?.map((r) => ({ value: r.id, label: `${r.name} (${r.id})` })) || [] }),
     ...['dailyRunLimit', 'dailyTokenLimit', 'dailyCostUsdLimit', 'maxConcurrentRuns'].map((key) => field('usageQuotas', t, key, 'number', { min: 0, max: key === 'dailyCostUsdLimit' ? 1000000000000 : key === 'maxConcurrentRuns' ? 2147483647 : Number.MAX_SAFE_INTEGER, step: key === 'dailyCostUsdLimit' ? 'any' : 1 })),
+    field('usageQuotas', t, 'enforcementEnabled', 'checkbox'),
     field('usageQuotas', t, 'description', 'textarea'),
     field('usageQuotas', t, 'active', 'checkbox')
   ],

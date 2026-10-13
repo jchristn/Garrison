@@ -3,6 +3,11 @@ import { usageQuotasConfig } from '../views/resourceConfigs';
 const t = (key) => key;
 
 describe('daily UTC quotas', () => {
+  it('defaults to monitoring and persists explicit enforcement opt-in', () => {
+    expect(usageQuotasConfig.blank().enforcementEnabled).toBe(false);
+    expect(usageQuotasConfig.toBody({ ...usageQuotasConfig.blank(), name: 'monitor' }).enforcementEnabled).toBe(false);
+    expect(usageQuotasConfig.toBody({ ...usageQuotasConfig.blank(), name: 'enforced', enforcementEnabled: true }).enforcementEnabled).toBe(true);
+  });
   it('accepts null and explicit zero limits without merging their meanings', () => {
     const form = { ...usageQuotasConfig.blank(), name: 'quota', dailyRunLimit: 0, dailyTokenLimit: '', dailyCostUsdLimit: 0.125 };
     expect(usageQuotasConfig.validate(form, t)).toEqual({});

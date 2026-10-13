@@ -265,3 +265,5 @@ Configuration > Usage Quotas sets run, token, known-cost, and active-concurrency
 Windows reset at midnight UTC. Run counts use admission day; tokens and cost use completion day. Active concurrency spans days. Deleted and archived runs remain in the accounting ledger. Missing cost leaves admissions open and appears as incomplete accounting; known cost still enforces the configured limit.
 
 The compiler lowers `deployment.maxBudgetUsd` to the remaining known allowance. Built-in Claude Code passes it to its CLI; other profiles must support and render that value. In-flight runs can overshoot completed-usage limits. See [REST API](../REST_API.md#usage-quotas) for fields, ranges, permissions, and error handling.
+
+Quota enforcement is optional and off by default: set `enforcementEnabled: true` on an active Usage Quota to enforce its limits. Otherwise it only reports usage and never alters admission, claims, or harness budgets. Existing quotas upgrade to monitoring-only in migration 16. Delegation-tree budgeting is outside the current scope.

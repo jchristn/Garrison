@@ -87,7 +87,7 @@ namespace Garrison.Core.Database.Interfaces
         /// <returns>Quota or null.</returns>
         Task<UsageQuota?> ReadByResourceAsync(string tenantId, UsageQuotaScopeEnum scope, string resourceId, CancellationToken token = default);
 
-        /// <summary>List enabled quotas covering a run, scoped to its tenant.</summary>
+        /// <summary>List active quotas with enforcement enabled covering a run, scoped to its tenant.</summary>
         /// <param name="run">Run.</param>
         /// <param name="token">Cancellation.</param>
         /// <returns>Matching quotas.</returns>

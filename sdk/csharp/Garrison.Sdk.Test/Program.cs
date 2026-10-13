@@ -145,11 +145,13 @@ namespace Garrison.Sdk.Test
                     UsageQuota quota = await client.UsageQuotas.CreateAsync(new UsageQuota { Name = "sdk-cs-quota-" + suffix, Scope = UsageQuotaScopeEnum.Agent, ResourceId = agentId!, DailyRunLimit = 100, DailyCostUsdLimit = 0.125 }, token).ConfigureAwait(false);
                     try
                     {
-                        Require((await client.UsageQuotas.GetAsync(quota.Id, token).ConfigureAwait(false)).DailyRunLimit == 100, "quota fields");
+                        Require(!quota.EnforcementEnabled && (await client.UsageQuotas.GetAsync(quota.Id, token).ConfigureAwait(false)).DailyRunLimit == 100, "quota fields and default monitoring");
                         UsageQuotaUsage usage = await client.UsageQuotas.UsageAsync(quota.Id, token).ConfigureAwait(false);
                         Require(usage.RunsUsed == 0 && usage.CostAccountingComplete && usage.WindowEndUtc > usage.WindowStartUtc, "quota usage");
                         quota.DailyRunLimit = null;
-                        Require((await client.UsageQuotas.UpdateAsync(quota.Id, quota, token).ConfigureAwait(false)).DailyRunLimit == null, "unlimited limit");
+                        quota.EnforcementEnabled = true;
+                        UsageQuota updated = await client.UsageQuotas.UpdateAsync(quota.Id, quota, token).ConfigureAwait(false);
+                        Require(updated.DailyRunLimit == null && updated.EnforcementEnabled, "explicit enforcement opt-in");
                     }
                     finally { await client.UsageQuotas.DeleteAsync(quota.Id, token).ConfigureAwait(false); }
                 }).ConfigureAwait(false);

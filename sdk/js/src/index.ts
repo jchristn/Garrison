@@ -715,8 +715,10 @@ export class Resource<T = Json> {
   delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.item(id)); }
 }
 
-/** Daily UTC quotas and accounting. Null limits are unlimited; zero disallows usage. */
+/** Daily UTC quotas and accounting. Null limits are unlimited; zero disallows usage only when enforcement is enabled. */
 export interface UsageQuota extends Json {
+  /** False by default. Limits apply only when this and active are true. */
+  enforcementEnabled?: boolean;
   id: string; tenantId: string; name: string; description?: string | null;
   scope: "Tenant" | "Agent" | "Deployment"; resourceId: string;
   dailyRunLimit?: number | null; dailyTokenLimit?: number | null;

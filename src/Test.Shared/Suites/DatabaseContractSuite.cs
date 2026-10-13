@@ -32,6 +32,7 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v1-upgrade", "A version 1 database upgrades to the latest version and keeps its runs (" + provider + ")", ct => UpgradeFromVersion1Async(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v12-approvals", "A conversation database upgrades from version 12 to approvals without losing its session (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v13-pricing", "An approvals database upgrades to an empty configurable price table (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 13)));
+            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v15-optin", "Existing active quotas upgrade from schema 15 with enforcement disabled (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 15)));
             cases.Add(new TestCaseDescriptor(suiteId, "run-telemetry-roundtrip", "Run timing telemetry round-trips through create, complete, and update (" + provider + ")", ct => RunTelemetryRoundTripAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "tenant-crud", "Tenant create, read, update, enumerate, delete (" + provider + ")", ct => TenantCrudAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "children-roundtrip", "Harness profile child rows round-trip in order (" + provider + ")", ct => ChildrenRoundTripAsync(provider, ct)));
@@ -92,12 +93,21 @@ namespace Test.Shared.Suites
                         AdoDatabaseDriver.Add(c, "t", DateTime.UtcNow);
                     }, token).ConfigureAwait(false);
                 }
+                if (fromVersion == 15)
+                {
+                    await ado.NonQueryAsync("INSERT INTO " + ado.Table("usage_quotas") + " (id, tenantid, name, scope, resourceid, dailyrunlimit, active, isprotected, createdutc, lastupdateutc) VALUES ('uqt_upgrade', 'ten_upgrade', 'upgrade-quota', 'Tenant', 'ten_upgrade', 0, " + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
+                }
                 await raw.Conversations.CreateAsync(conversation, token).ConfigureAwait(false);
             }
             using (DatabaseDriverBase upgraded = await DatabaseDriverFactory.CreateAndInitializeAsync(settings, token).ConfigureAwait(false))
             {
                 Assert.Equal(SchemaBuilder.LatestVersion, upgraded.SchemaVersion, "Approvals migration applies after conversations");
                 Assert.Equal(SchemaBuilder.Build(((AdoDatabaseDriver)upgraded).Catalog, ((AdoDatabaseDriver)upgraded).Dialect).Count(m => m.Version > fromVersion), upgraded.MigrationsApplied, "Only migrations after version 12 apply");
+                if (fromVersion == 15)
+                {
+                    UsageQuota quota = Assert.NotNull(await upgraded.UsageQuotas.ReadAsync("ten_upgrade", "uqt_upgrade", token).ConfigureAwait(false), "Existing quota survives upgrade");
+                    Assert.True(!quota.EnforcementEnabled && quota.DailyRunLimit == 0 && quota.Active, "Existing active zero quota becomes monitor-only");
+                }
                 Conversation saved = Assert.NotNull(await upgraded.Conversations.ReadAsync(conversation.TenantId, conversation.Id, token).ConfigureAwait(false), "Conversation survives upgrade");
                 Assert.Equal(conversation.SessionId, saved.SessionId, "Harness session survives upgrade");
                 Assert.Equal(2, saved.TurnCount, "Turn history survives upgrade");

@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 15).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 16).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1115,3 +1115,6 @@ CREATE INDEX IF NOT EXISTS "idx_run_usage_agent" ON "run_usage" ("tenantid", "ag
 CREATE INDEX IF NOT EXISTS "idx_run_usage_deployment" ON "run_usage" ("tenantid", "deploymentid");
 CREATE VIEW "quota_usage_source" AS SELECT runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM "run_usage" UNION ALL SELECT r.id, r.tenantid, r.agentid, r.deploymentid, r.harnesstype, COALESCE(r.queuedutc, r.createdutc), r.completedutc, r.inputtokens, r.outputtokens, r.cachedtokens, r.costusd FROM "runs" r WHERE NOT EXISTS (SELECT 1 FROM "run_usage" u WHERE u.runid = r.id);
 INSERT INTO "run_usage" (runid, tenantid, agentid, deploymentid, harnesstype, admittedutc, completedutc, inputtokens, outputtokens, cachedtokens, costusd) SELECT id, tenantid, agentid, deploymentid, harnesstype, COALESCE(queuedutc, createdutc), completedutc, inputtokens, outputtokens, cachedtokens, costusd FROM "runs";
+
+-- Migration 16: Explicit opt-in quota enforcement
+ALTER TABLE "usage_quotas" ADD COLUMN IF NOT EXISTS enforcementenabled BOOLEAN NOT NULL DEFAULT FALSE;

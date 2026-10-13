@@ -21,24 +21,6 @@ namespace Garrison.Core.Services
             _Database = database ?? throw new ArgumentNullException(nameof(database));
         }
 
-        /// <summary>Whether a queued run is held by a token, cost, or active-concurrency quota. Atomic enforcement happens in the claim transaction.</summary>
-        /// <param name="run">Run.</param>
-        /// <param name="token">Cancellation.</param>
-        /// <returns>True when held.</returns>
-        public async Task<bool> HeldAsync(Run run, CancellationToken token = default)
-        {
-            if (run == null) throw new ArgumentNullException(nameof(run));
-            List<UsageQuota> quotas = await _Database.UsageQuotas.ListForRunAsync(run, token).ConfigureAwait(false);
-            foreach (UsageQuota quota in quotas)
-            {
-                UsageQuotaUsage usage = await _Database.UsageQuotas.ReadUsageAsync(quota, DateTime.UtcNow, token).ConfigureAwait(false);
-                if (quota.DailyTokenLimit.HasValue && usage.TokensUsed >= quota.DailyTokenLimit.Value) return true;
-                if (quota.DailyCostUsdLimit.HasValue && usage.CostUsd >= quota.DailyCostUsdLimit.Value) return true;
-                if (quota.MaxConcurrentRuns.HasValue && usage.ActiveRuns >= quota.MaxConcurrentRuns.Value) return true;
-            }
-            return false;
-        }
-
         /// <summary>Lower the compilation copy's maxBudgetUsd to the smallest remaining daily cost allowance. Missing cost does not block or become zero.</summary>
         /// <param name="deployment">Compilation copy, never persisted.</param>
         /// <param name="run">Run; prior repair cost reduces its remaining allowance.</param>

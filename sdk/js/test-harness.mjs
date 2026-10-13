@@ -75,10 +75,11 @@ await check("create agent and deployment", async () => {
 await check("usage quota CRUD and meters", async () => {
   const quota = await client.usageQuotas.create({ name: `sdk-js-quota-${suffix}`, scope: "Agent", resourceId: state.agent, dailyRunLimit: 100, dailyCostUsdLimit: 0.125 });
   try {
-    require((await client.usageQuotas.get(quota.id)).dailyRunLimit === 100, "quota fields");
+    require(quota.enforcementEnabled === false && (await client.usageQuotas.get(quota.id)).dailyRunLimit === 100, "quota fields and default monitoring");
     const usage = await client.usageQuotas.usage(quota.id);
     require(usage.runsUsed === 0 && usage.costAccountingComplete && usage.windowEndUtc, "quota usage");
-    require((await client.usageQuotas.update(quota.id, { ...quota, dailyRunLimit: null })).dailyRunLimit == null, "unlimited limit");
+    const updated = await client.usageQuotas.update(quota.id, { ...quota, dailyRunLimit: null, enforcementEnabled: true });
+    require(updated.dailyRunLimit == null && updated.enforcementEnabled, "explicit enforcement opt-in");
   } finally { await client.usageQuotas.delete(quota.id); }
 });
 await check("invoke with wait", async () => {

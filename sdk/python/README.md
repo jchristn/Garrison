@@ -223,3 +223,5 @@ The arguments are the base URL, an access key, and a secret key. The values abov
 ## Usage quotas
 
 The usage-quota module provides CRUD operations and `client.usage_quotas.usage(id)` for current daily UTC meters. Scope an entry to Tenant, Agent, or Deployment; null limits are unlimited and zero disallows usage. Limits cover admissions, completed tokens/cost, and active concurrency. Unknown cost keeps admission open and sets `costAccountingComplete=false`. Refusals carry `QuotaExceeded` and name the limit. Only administrators have built-in write grants. See [REST API](../../REST_API.md#usage-quotas) for accounting boundaries and supported CLI budget enforcement.
+
+Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to `true` (Go: `EnforcementEnabled`, C#: `EnforcementEnabled`) on an active quota to enforce limits. Disabled enforcement does not reject runs or lower harness budgets.

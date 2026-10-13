@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Usage quotas now require explicit per-quota `enforcementEnabled` opt-in (default false). Migration 16 turns enforcement off for existing quotas; monitoring remains available. Delegation-tree budgets and their quota-hop integration are removed from the active plan.
+
 - Manifest result rows display each stable `errorCode` beside the server message, so operators can distinguish validation and permission failures.
 
 - Process run and conversation directories use owner-only Unix permissions on creation and reuse. Deployment forms and run details label Process execution as trusted only; it still shares the worker user, filesystem, and network (P11.16).

@@ -23,7 +23,7 @@ namespace Garrison.Core.Database.Ado
 
         internal static string MatchingQuery(AdoDatabaseDriver driver)
         {
-            return "SELECT * FROM " + driver.Table("usage_quotas") + " WHERE tenantid = @tenantid AND active = " + driver.Dialect.BooleanLiteral(true)
+            return "SELECT * FROM " + driver.Table("usage_quotas") + " WHERE tenantid = @tenantid AND enforcementenabled = " + driver.Dialect.BooleanLiteral(true) + " AND active = " + driver.Dialect.BooleanLiteral(true)
                 + " AND ((scope = 'Tenant' AND resourceid = @tenantid) OR (scope = 'Agent' AND resourceid = @agentid) OR (scope = 'Deployment' AND resourceid = @deploymentid));";
         }
 

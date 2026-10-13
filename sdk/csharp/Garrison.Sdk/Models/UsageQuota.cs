@@ -60,6 +60,12 @@ namespace Garrison.Sdk.Models
         /// </summary>
         public string? Description { get; set; } = null;
 
+        /// <summary>
+        /// Whether this quota enforces its configured limits. Default false; monitoring remains available when disabled.
+        /// Both Active and EnforcementEnabled must be true to block runs or lower harness budgets.
+        /// </summary>
+        public bool EnforcementEnabled { get; set; } = false;
+
         /// <summary>Scope of the quota. Default Tenant.</summary>
         public UsageQuotaScopeEnum Scope { get; set; } = UsageQuotaScopeEnum.Tenant;
 
@@ -70,7 +76,7 @@ namespace Garrison.Sdk.Models
             set { _ResourceId = (value ?? String.Empty).Trim(); }
         }
 
-        /// <summary>Limit on admitted runs per UTC day. Null is unlimited, zero disallows usage. Range 0 to 9007199254740991; default null.</summary>
+        /// <summary>Limit on admitted runs per UTC day. Null is unlimited, zero disallows usage when enforcement is enabled. Range 0 to 9007199254740991; default null.</summary>
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the limit is outside the accepted range.</exception>
         public long? DailyRunLimit
         {
@@ -82,7 +88,7 @@ namespace Garrison.Sdk.Models
             }
         }
 
-        /// <summary>Limit on input plus output tokens per UTC completion day, including separate Claude cache reads. Null is unlimited, zero disallows usage. Range 0 to 9007199254740991; default null.</summary>
+        /// <summary>Limit on input plus output tokens per UTC completion day, including separate Claude cache reads. Null is unlimited, zero disallows usage when enforcement is enabled. Range 0 to 9007199254740991; default null.</summary>
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the limit is outside the accepted range.</exception>
         public long? DailyTokenLimit
         {
@@ -94,7 +100,7 @@ namespace Garrison.Sdk.Models
             }
         }
 
-        /// <summary>Limit on known USD per UTC completion day. Null is unlimited, zero disallows usage. Range 0 to 1000000000000; default null.</summary>
+        /// <summary>Limit on known USD per UTC completion day. Null is unlimited, zero disallows usage when enforcement is enabled. Range 0 to 1000000000000; default null.</summary>
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the limit is outside the accepted range.</exception>
         public double? DailyCostUsdLimit
         {
@@ -106,7 +112,7 @@ namespace Garrison.Sdk.Models
             }
         }
 
-        /// <summary>Limit on currently Leased, Running, or Cancelling runs. Null is unlimited, zero disallows usage. Range 0 to 2147483647; default null.</summary>
+        /// <summary>Limit on currently Leased, Running, or Cancelling runs. Null is unlimited, zero disallows usage when enforcement is enabled. Range 0 to 2147483647; default null.</summary>
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the limit is outside the accepted range.</exception>
         public int? MaxConcurrentRuns
         {

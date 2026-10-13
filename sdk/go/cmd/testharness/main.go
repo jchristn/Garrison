@@ -159,7 +159,7 @@ func main() {
 		if err := client.UsageQuotas.Get(ctx, quota.ID, &quota); err != nil {
 			return err
 		}
-		if quota.DailyRunLimit == nil || *quota.DailyRunLimit != 100 {
+		if quota.EnforcementEnabled || quota.DailyRunLimit == nil || *quota.DailyRunLimit != 100 {
 			return fmt.Errorf("quota fields")
 		}
 		usage, err := client.UsageQuotas.Usage(ctx, quota.ID)
@@ -170,12 +170,13 @@ func main() {
 			return fmt.Errorf("quota usage")
 		}
 		quota.DailyRunLimit = nil
+		quota.EnforcementEnabled = true
 		// Explicit null clears a configured limit (omitempty intentionally omits absent optional fields).
-		body := map[string]any{"name": quota.Name, "scope": quota.Scope, "resourceId": quota.ResourceID, "dailyRunLimit": nil, "dailyCostUsdLimit": quota.DailyCostUSDLimit}
+		body := map[string]any{"name": quota.Name, "scope": quota.Scope, "resourceId": quota.ResourceID, "dailyRunLimit": nil, "dailyCostUsdLimit": quota.DailyCostUSDLimit, "enforcementEnabled": true}
 		if err := client.UsageQuotas.Update(ctx, quota.ID, body, &quota); err != nil {
 			return err
 		}
-		if quota.DailyRunLimit != nil {
+		if quota.DailyRunLimit != nil || !quota.EnforcementEnabled {
 			return fmt.Errorf("unlimited limit")
 		}
 		return nil

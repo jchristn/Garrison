@@ -1937,7 +1937,9 @@ curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/artifact-store
 
 ### Usage Quotas
 
-Usage quotas limit a tenant, an agent across its deployments, or a single deployment. Configure them in Configuration > Usage Quotas or under `/v1.0/api/tenants/{tenantId}/usage-quotas`. No quotas are seeded. Limits default to null (unlimited); explicit zero disallows usage. Only tenant/system administrators have built-in write grants; Editor, Viewer, Auditor, and AgentOperator can inspect quotas and usage.
+Quota limits are monitoring-only by default. Set `enforcementEnabled: true` explicitly to enforce an active quota. With enforcement off, zero or exceeded limits do not reject admission, hold claims, or change harness budgets. Usage remains available. Migration 16 sets enforcement off for every existing quota; operators must explicitly opt in again.
+
+Usage quotas limit a tenant, an agent across its deployments, or a single deployment. Configure them in Configuration > Usage Quotas or under `/v1.0/api/tenants/{tenantId}/usage-quotas`. No quotas are seeded. Limits default to null (unlimited); explicit zero disallows usage only when enforcement is enabled. Only tenant/system administrators have built-in write grants; Editor, Viewer, Auditor, and AgentOperator can inspect quotas and usage.
 
 | Method and suffix | Permission | Response |
 |---|---|---|
@@ -1951,6 +1953,7 @@ Usage quotas limit a tenant, an agent across its deployments, or a single deploy
 ```json
 {
   "name": "agent-daily-quota",
+  "enforcementEnabled": false,
   "scope": "Agent",
   "resourceId": "agt_example",
   "dailyRunLimit": 100,
@@ -1965,11 +1968,11 @@ The target must belong to the tenant. `scope` is `Tenant`, `Agent`, or `Deployme
 
 Daily windows begin at midnight UTC. `dailyRunLimit` counts distinct admissions, including delegated children and retries that create a new run; idempotent replays do not consume another admission. Tokens and cost count on the UTC completion day. Tokens are reported input plus output, adding Claude Code's separately reported cache reads. Reasoning already included in output is not counted twice. Negative token counts and negative cost do not reduce usage. Run/token limits accept whole numbers from 0 to 9,007,199,254,740,991; USD limits accept finite values from 0 to 1,000,000,000,000; concurrency accepts 0 to 2,147,483,647.
 
-`UsageQuotaUsage` returns `quotaId`, `windowStartUtc`, `windowEndUtc`, `runsUsed`, `tokensUsed`, `costUsd` (known cost), `unknownCostRuns`, `costAccountingComplete`, and `activeRuns`. Active concurrency counts Leased, Running, and Cancelling runs across accounting days. Deleting or archiving runs does not reset daily meters; migration 15 backfills existing runs. A usage view also includes runs created by older replicas during a rolling upgrade, and deletion snapshots them before removal. Unknown cost permits admission and makes accounting visibly incomplete. Known usage still enforces its limits.
+`UsageQuotaUsage` returns `quotaId`, `windowStartUtc`, `windowEndUtc`, `runsUsed`, `tokensUsed`, `costUsd` (known cost), `unknownCostRuns`, `costAccountingComplete`, and `activeRuns`. Active concurrency counts Leased, Running, and Cancelling runs across accounting days. Deleting or archiving runs does not reset daily meters; migration 15 backfills existing runs. A usage view also includes runs created by older replicas during a rolling upgrade, and deletion snapshots them before removal. Unknown cost permits admission and makes accounting visibly incomplete. Known usage enforces limits only when quota enforcement is enabled.
 
-Admission checks and run creation share a database transaction, serialized across replicas for the tenant. Refusal answers 429 `QuotaExceeded`, names the scope, target, quota, and limit, and supplies `Retry-After`. MCP and A2A retain `QuotaExceeded` in their protocol errors. Claims recheck token/cost/concurrency limits atomically; admitted queued runs wait for capacity, a daily reset, or a quota change. They are not charged another admission when claimed.
+When enforcement is enabled, admission checks and run creation share a database transaction, serialized across replicas for the tenant. Refusal answers 429 `QuotaExceeded`, names the scope, target, quota, and limit, and supplies `Retry-After`. MCP and A2A retain `QuotaExceeded` in their protocol errors. Claims recheck token/cost/concurrency limits atomically; admitted queued runs wait for capacity, a daily reset, or a quota change. They are not charged another admission when claimed.
 
-Compilation lowers `deployment.maxBudgetUsd` to the smallest remaining known daily allowance without changing stored deployment configuration. Built-in Claude Code renders it as `--max-budget-usd`; custom profiles can render the same value where their CLI supports it. Prior reported repair cost reduces the allowance. Daily token/cost meters enforce recorded completed usage, so in-flight runs can exceed a daily total before completion. CLI budgets apply where supported; these quotas are not a guarantee about an external provider's invoice. Strict delegation-tree reservations are tracked separately in P12.35.
+Only enforcement-enabled active quotas cause compilation to lower `deployment.maxBudgetUsd` to the smallest remaining known daily allowance without changing stored deployment configuration. Built-in Claude Code renders it as `--max-budget-usd`; custom profiles can render the same value where their CLI supports it. Prior reported repair cost reduces the allowance. Daily token/cost meters enforce recorded completed usage, so in-flight runs can exceed a daily total before completion. CLI budgets apply where supported; these quotas are not a guarantee about an external provider's invoice. Delegation-tree reservations are outside the current product scope.
 
 ### Model Prices
 

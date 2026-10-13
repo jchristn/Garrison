@@ -8789,7 +8789,7 @@
             "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/usage-quotas",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-quota-{{$timestamp}}\",\n  \"scope\": \"Tenant\",\n  \"dailyRunLimit\": null,\n  \"dailyTokenLimit\": null,\n  \"dailyCostUsdLimit\": null,\n  \"maxConcurrentRuns\": null,\n  \"active\": false\n}",
+              "raw": "{\n  \"name\": \"postman-quota-{{$timestamp}}\",\n  \"scope\": \"Tenant\",\n  \"dailyRunLimit\": null,\n  \"dailyTokenLimit\": null,\n  \"dailyCostUsdLimit\": null,\n  \"maxConcurrentRuns\": null,\n  \"active\": false,\n  \"enforcementEnabled\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8880,7 +8880,7 @@
             "url": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/usage-quotas/{{usageQuotaId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-quota-{{$timestamp}}\",\n  \"scope\": \"Tenant\",\n  \"dailyRunLimit\": null,\n  \"dailyTokenLimit\": null,\n  \"dailyCostUsdLimit\": null,\n  \"maxConcurrentRuns\": null,\n  \"active\": false\n}",
+              "raw": "{\n  \"name\": \"postman-quota-{{$timestamp}}\",\n  \"scope\": \"Tenant\",\n  \"dailyRunLimit\": null,\n  \"dailyTokenLimit\": null,\n  \"dailyCostUsdLimit\": null,\n  \"maxConcurrentRuns\": null,\n  \"active\": false,\n  \"enforcementEnabled\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -27,11 +27,13 @@ test('administrators can set zero and fractional limits while leaving counts unl
   await openQuotas(page);
   await page.getByTestId('add-button').click();
   await page.locator('#usageQuotas-name').fill('operator-quota');
+  await expect(page.locator('#usageQuotas-enforcementEnabled')).not.toBeChecked();
+  await page.locator('#usageQuotas-enforcementEnabled').check();
   await page.locator('#usageQuotas-dailyRunLimit').fill('0');
   await page.locator('#usageQuotas-dailyCostUsdLimit').fill('0.125');
   const request = page.waitForRequest((r) => r.method() === 'POST' && r.url().endsWith('/usage-quotas'));
   await page.getByTestId('save-button').click();
-  expect((await request).postDataJSON()).toMatchObject({ scope: 'Tenant', dailyRunLimit: 0, dailyTokenLimit: null, dailyCostUsdLimit: 0.125, maxConcurrentRuns: null });
+  expect((await request).postDataJSON()).toMatchObject({ enforcementEnabled: true, scope: 'Tenant', dailyRunLimit: 0, dailyTokenLimit: null, dailyCostUsdLimit: 0.125, maxConcurrentRuns: null });
   await expect(page.locator('.modal')).toHaveCount(0);
 });
 

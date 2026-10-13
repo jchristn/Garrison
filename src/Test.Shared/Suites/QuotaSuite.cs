@@ -29,6 +29,7 @@ namespace Test.Shared.Suites
                 string id = "quotas-" + provider.ToString().ToLowerInvariant();
                 suites.Add(new TestSuiteDescriptor(id, "Daily quotas (" + provider + ")", new List<TestCaseDescriptor>
                 {
+                    new TestCaseDescriptor(id, "monitor-only", "Zero limits do not block admission, claims, or CLI budgets until enforcement is enabled", ct => MonitorOnlyAsync(provider, ct)),
                     new TestCaseDescriptor(id, "configuration", "Scoped quota CRUD rejects invalid targets and limits; only administrators write", ct => ConfigurationAsync(provider, ct)),
                     new TestCaseDescriptor(id, "admission-race", "Concurrent admissions never exceed any scope's run limit; idempotent retries and deletion retain accounting", ct => AdmissionsAsync(provider, ct)),
                     new TestCaseDescriptor(id, "claim-race", "Active concurrency is exact across parallel claims and accounting days", ct => ClaimsAsync(provider, ct)),
@@ -46,7 +47,34 @@ namespace Test.Shared.Suites
 
         private static UsageQuota Quota(string tenantId, UsageQuotaScopeEnum scope, string resourceId)
         {
-            return new UsageQuota { TenantId = tenantId, Name = "quota-" + scope.ToString().ToLowerInvariant(), Scope = scope, ResourceId = resourceId };
+            return new UsageQuota { TenantId = tenantId, Name = "quota-" + scope.ToString().ToLowerInvariant(), Scope = scope, ResourceId = resourceId, EnforcementEnabled = true };
+        }
+
+        private static async Task MonitorOnlyAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false);
+            UsageQuota quota = new UsageQuota { TenantId = "tenant", Name = "monitor", Scope = UsageQuotaScopeEnum.Tenant, ResourceId = "tenant",
+                DailyRunLimit = 0, DailyTokenLimit = 0, DailyCostUsdLimit = 0, MaxConcurrentRuns = 0 };
+            quota = await db.UsageQuotas.CreateAsync(quota, token).ConfigureAwait(false);
+            Assert.True(!quota.EnforcementEnabled, "Enforcement defaults off");
+            Run first = await db.Runs.CreateAsync(new Run { TenantId = "tenant", AgentId = "agent", DeploymentId = "deployment", Status = RunStatusEnum.Queued }, token).ConfigureAwait(false);
+            Run second = await db.Runs.CreateAsync(new Run { TenantId = "tenant", AgentId = "agent", DeploymentId = "deployment", Status = RunStatusEnum.Queued }, token).ConfigureAwait(false);
+            Assert.True((await db.Runs.TryClaimAsync(first.Id, "node", "node", DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Zero concurrency monitor does not hold claim");
+            Deployment copy = new Deployment { MaxBudgetUsd = 2 };
+            await new UsageQuotaPolicy(db).ApplyBudgetAsync(copy, second, token).ConfigureAwait(false);
+            Assert.Equal(2.0, copy.MaxBudgetUsd ?? 0, "Zero cost monitor does not lower CLI budget");
+            Assert.Equal(2L, (await db.UsageQuotas.ReadUsageAsync(quota, DateTime.UtcNow, token).ConfigureAwait(false)).RunsUsed, "Usage still recorded");
+            quota.EnforcementEnabled = true;
+            await db.UsageQuotas.UpdateAsync(quota, token).ConfigureAwait(false);
+            Assert.True((await db.UsageQuotas.ReadAsync(quota.TenantId, quota.Id, token).ConfigureAwait(false))!.EnforcementEnabled, "Explicit opt-in persists");
+            bool refused = false;
+            try { await db.Runs.CreateAsync(new Run { TenantId = "tenant", AgentId = "agent", DeploymentId = "deployment" }, token).ConfigureAwait(false); }
+            catch (QuotaExceededException) { refused = true; }
+            Assert.True(refused, "Enabling enforcement refuses admission");
+            Assert.True(!(await db.Runs.TryClaimAsync(second.Id, "node", "node", DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Enabling enforcement holds queued claim");
+            quota.EnforcementEnabled = false;
+            await db.UsageQuotas.UpdateAsync(quota, token).ConfigureAwait(false);
+            Assert.True((await db.Runs.TryClaimAsync(second.Id, "node", "node", DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false)).HasValue, "Disabling enforcement releases queued work");
         }
 
         private static async Task ConfigurationAsync(DatabaseTypeEnum provider, CancellationToken token)
