@@ -22,7 +22,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.10 | Management MCP tools | Active | Allows agents to modify configuration |
 | P12.11 | Clutch-backed lease provider | Active | Alternative to existing database leases |
 | P12.12 | Test stdio MCP servers from workers | Complete | Deployed; selected-worker API/UI/SDK diagnostics validated |
-| P12.13 | Direct provider API execution | Active | Evaluate demand before adding another execution mode |
+| P12.13 | Direct provider API execution | Evaluation complete; decision pending | Recommend defer until a provider-only deployment needs it; see PROVIDER_API_EVALUATION.md |
 | P12.14 | Completion/failure webhook notifications | Deferred | Operator integrations |
 | P12.15 | Dashboard coverage for retained Phase 12 features | Deferred | Only for features the user retains |
 | P12.16 | SDK coverage for retained Phase 12 features | Deferred | Only for features the user retains |
