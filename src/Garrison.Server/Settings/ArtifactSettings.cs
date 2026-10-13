@@ -1,0 +1,32 @@
+namespace Garrison.Server.Settings
+{
+    using System;
+    using Garrison.Core.Compilation;
+
+    /// <summary>Node-local artifact storage and transfer limits. Filesystem replicas must share the same root.</summary>
+    public class ArtifactSettings
+    {
+        /// <summary>Filesystem root, relative to the server working directory or absolute. Default data/artifacts.</summary>
+        public string RootDirectory
+        {
+            get { return _RootDirectory; }
+            set { _RootDirectory = String.IsNullOrWhiteSpace(value) ? "data/artifacts" : value; }
+        }
+        /// <summary>Maximum file bytes. Default 16 MiB; range 1024 to 64 MiB.</summary>
+        public int MaxFileBytes { get { return _Collection.MaxFileBytes; } set { _Collection.MaxFileBytes = value; } }
+        /// <summary>Maximum collected bytes per execution. Default 64 MiB; range 1024 to 1 GiB.</summary>
+        public long MaxTotalBytes { get { return _Collection.MaxTotalBytes; } set { _Collection.MaxTotalBytes = value; } }
+        /// <summary>Maximum collected files. Default 100; range 1 to 10000.</summary>
+        public int MaxFiles { get { return _Collection.MaxFiles; } set { _Collection.MaxFiles = value; } }
+        /// <summary>Maximum scanned workspace entries. Default 100000; range 1 to 1000000.</summary>
+        public int MaxScanEntries { get { return _Collection.MaxScanEntries; } set { _Collection.MaxScanEntries = value; } }
+        /// <summary>Collection/upload timeout. Default 30 seconds; range 1 to 300.</summary>
+        public int CollectionTimeoutSeconds { get { return _Collection.TimeoutSeconds; } set { _Collection.TimeoutSeconds = value; } }
+        /// <summary>Signed download URL lifetime. Default 900 seconds; range 30 to 3600.</summary>
+        public int DownloadLifetimeSeconds { get { return _DownloadLifetimeSeconds; } set { _DownloadLifetimeSeconds = Math.Clamp(value, 30, 3600); } }
+
+        private string _RootDirectory = "data/artifacts";
+        private readonly ExecutionArtifacts _Collection = new ExecutionArtifacts();
+        private int _DownloadLifetimeSeconds = 900;
+    }
+}

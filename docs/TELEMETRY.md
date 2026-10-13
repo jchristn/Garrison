@@ -489,6 +489,11 @@ Every route registers through the route registrar, which records it in the opera
 | DELETE | `/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores/{id}"` | `GET /v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | garrison-http |
 | PUT | `/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifact-stores/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifact-stores/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/artifacts` | `route="/v1.0/api/tenants/{tenantId}/artifacts"` | `GET /v1.0/api/tenants/{tenantId}/artifacts` | `route=/v1.0/api/tenants/{tenantId}/artifacts` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/artifacts/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifacts/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/artifacts/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifacts/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/artifacts/{id}` | `route="/v1.0/api/tenants/{tenantId}/artifacts/{id}"` | `GET /v1.0/api/tenants/{tenantId}/artifacts/{id}` | `route=/v1.0/api/tenants/{tenantId}/artifacts/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/artifacts/{id}/content` | `route="/v1.0/api/tenants/{tenantId}/artifacts/{id}/content"` | `GET /v1.0/api/tenants/{tenantId}/artifacts/{id}/content` | `route=/v1.0/api/tenants/{tenantId}/artifacts/{id}/content` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/artifacts/{id}/download-url` | `route="/v1.0/api/tenants/{tenantId}/artifacts/{id}/download-url"` | `POST /v1.0/api/tenants/{tenantId}/artifacts/{id}/download-url` | `route=/v1.0/api/tenants/{tenantId}/artifacts/{id}/download-url` | garrison-http |
 | DELETE | `/v1.0/api/tenants/{tenantId}/audit` | `route="/v1.0/api/tenants/{tenantId}/audit"` | `DELETE /v1.0/api/tenants/{tenantId}/audit` | `route=/v1.0/api/tenants/{tenantId}/audit` | garrison-http, garrison-security |
 | GET | `/v1.0/api/tenants/{tenantId}/audit` | `route="/v1.0/api/tenants/{tenantId}/audit"` | `GET /v1.0/api/tenants/{tenantId}/audit` | `route=/v1.0/api/tenants/{tenantId}/audit` | garrison-http, garrison-security |
 | DELETE | `/v1.0/api/tenants/{tenantId}/audit/{id}` | `route="/v1.0/api/tenants/{tenantId}/audit/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/audit/{id}` | `route=/v1.0/api/tenants/{tenantId}/audit/{id}` | garrison-http, garrison-security |
@@ -576,6 +581,8 @@ Every route registers through the route registrar, which records it in the opera
 | GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/events` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/events"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/events` | garrison-http, garrison-runs |
 | GET | `/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream"` | `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/events/stream` | garrison-http, garrison-runs |
 | POST | `/v1.0/api/tenants/{tenantId}/runs/{id}/retry` | `route="/v1.0/api/tenants/{tenantId}/runs/{id}/retry"` | `POST /v1.0/api/tenants/{tenantId}/runs/{id}/retry` | `route=/v1.0/api/tenants/{tenantId}/runs/{id}/retry` | garrison-http, garrison-runs |
+| GET | `/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | `route="/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts"` | `GET /v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | `route=/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | garrison-http, garrison-runs |
+| POST | `/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | `route="/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts"` | `POST /v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | `route=/v1.0/api/tenants/{tenantId}/runs/{runId}/artifacts` | garrison-http, garrison-runs |
 | GET | `/v1.0/api/tenants/{tenantId}/secrets` | `route="/v1.0/api/tenants/{tenantId}/secrets"` | `GET /v1.0/api/tenants/{tenantId}/secrets` | `route=/v1.0/api/tenants/{tenantId}/secrets` | garrison-http, garrison-security |
 | POST | `/v1.0/api/tenants/{tenantId}/secrets` | `route="/v1.0/api/tenants/{tenantId}/secrets"` | `POST /v1.0/api/tenants/{tenantId}/secrets` | `route=/v1.0/api/tenants/{tenantId}/secrets` | garrison-http, garrison-security |
 | DELETE | `/v1.0/api/tenants/{tenantId}/secrets/{id}` | `route="/v1.0/api/tenants/{tenantId}/secrets/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/secrets/{id}` | `route=/v1.0/api/tenants/{tenantId}/secrets/{id}` | garrison-http, garrison-security |
@@ -605,6 +612,7 @@ Every route registers through the route registrar, which records it in the opera
 | DELETE | `/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/workspace-templates/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/workspace-templates/{id}"` | `GET /v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | garrison-http |
 | PUT | `/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route="/v1.0/api/tenants/{tenantId}/workspace-templates/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | `route=/v1.0/api/tenants/{tenantId}/workspace-templates/{id}` | garrison-http |
+| GET | `/v1.0/artifact-download/{id}` | `route="/v1.0/artifact-download/{id}"` | `GET /v1.0/artifact-download/{id}` | `route=/v1.0/artifact-download/{id}` | garrison-http |
 | DELETE | `/v1.0/token` | `route="/v1.0/token"` | `DELETE /v1.0/token` | `route=/v1.0/token` | garrison-http, garrison-security |
 | GET | `/v1.0/token` | `route="/v1.0/token"` | `GET /v1.0/token` | `route=/v1.0/token` | garrison-http, garrison-security |
 | POST | `/v1.0/token` | `route="/v1.0/token"` | `POST /v1.0/token` | `route=/v1.0/token` | garrison-http, garrison-security |
@@ -631,6 +639,7 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | `garrison_list_runs` | `tool="garrison_list_runs"` | `mcp garrison_list_runs` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_permission_prompt` | `tool="garrison_permission_prompt"` | `mcp garrison_permission_prompt` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_start_run` | `tool="garrison_start_run"` | `mcp garrison_start_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_upload_artifact` | `tool="garrison_upload_artifact"` | `mcp garrison_upload_artifact` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `{mcpToolName}` (agent tools, one per exposed agent) | `tool="agent"` | `mcp agent` | `[Mcp]` lines, `tenant=`, `agent=` | garrison-protocols, garrison-agents |
 <!-- /telemetry-coverage:mcp-tools -->
 

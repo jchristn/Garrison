@@ -339,6 +339,32 @@ def t_approval_check():
             f"run pendingApprovals {run.get('pendingApprovals')} awaitingApproval {run.get('awaitingApproval')}")
 
 
+def t_artifacts():
+    store = client.artifact_stores.create({"name": f"sdk-py-artifacts-{SUFFIX}", "kind": "Filesystem", "pathPrefix": f"sdk-py-{SUFFIX}"})
+    deployment = client.deployments.get(state["deployment"])
+    try:
+        configured = dict(deployment, artifactStoreId=store["id"], artifactGlobs=["reports/**/*.txt"], argumentOverrides=[{"position": 0, "template": "--output-last-message"}, {"position": 1, "template": "{{run.workspaceDir}}/reports/answer.txt"}])
+        client.deployments.update(deployment["id"], configured)
+        run = client.agents.invoke(state["agent"], "artifact SDK payload", wait=True, wait_seconds=30, deployment_id=deployment["id"])
+        require(run["status"] == "Succeeded", "artifact run failed")
+        rows = client.artifacts.list(runId=run["id"], storeId=store["id"])["objects"]
+        require(len(rows) == 1, "one collected artifact")
+        artifact = client.artifacts.get(rows[0]["id"])
+        require(artifact["name"] == "reports/answer.txt", "artifact name")
+        require(b"artifact SDK payload" in client.artifacts.download(artifact["id"]), "raw bytes")
+        require(client.artifacts.download_url(artifact["id"])["expiresUtc"], "download expiry")
+        try:
+            client.artifacts.upload(run["id"], store["id"], artifact["name"], b"late upload", run["leaseEpoch"], run.get("repairAttempts", 0))
+            raise AssertionError("terminal upload accepted")
+        except GarrisonError as error:
+            require(error.status_code == 409, "terminal upload fence")
+        client.artifacts.delete(artifact["id"])
+        require(not client.artifacts.list(runId=run["id"])["objects"], "deleted artifact")
+    finally:
+        client.deployments.update(deployment["id"], deployment)
+        client.artifact_stores.delete(store["id"])
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -370,7 +396,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("conversation read and list", t_conversation_read), ("conversation delete", t_conversation_delete),
                  ("control nodes", t_control_nodes),
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
-                 ("cleanup", t_cleanup)]:
+                 ("artifact collection and binary download", t_artifacts), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

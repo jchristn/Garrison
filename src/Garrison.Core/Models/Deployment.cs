@@ -252,6 +252,13 @@ namespace Garrison.Core.Models
         /// </summary>
         public string? ArtifactStoreId { get; set; } = null;
 
+        /// <summary>Workspace-relative globs collected after execution. Empty disables collection (D-046).</summary>
+        public List<string> ArtifactGlobs
+        {
+            get { return _ArtifactGlobs; }
+            set { _ArtifactGlobs = value ?? new List<string>(); }
+        }
+
         /// <summary>
         /// Permission approvals (P12.3). When true, Claude Code runs relay permission prompts to Garrison through
         /// <c>--permission-prompt-tool</c>, and Codex app-server runs relay command and file change approvals; the
@@ -479,6 +486,8 @@ namespace Garrison.Core.Models
         #endregion
 
         #region Private-Members
+
+        private List<string> _ArtifactGlobs = new List<string>();
 
         private string _Id = IdGenerator.NewDeploymentId();
         private string _TenantId = String.Empty;

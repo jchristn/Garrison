@@ -50,11 +50,17 @@ namespace Garrison.Server.Modules
             options.McpBaseUrl = String.IsNullOrWhiteSpace(context.Settings.Mcp.PublicUrl) ? "http://127.0.0.1:" + context.Settings.Mcp.Port : context.Settings.Mcp.PublicUrl!.TrimEnd('/');
             options.McpPath = context.Settings.Mcp.Path;
             options.ApiBaseUrl = ApiBaseUrl(context);
+            options.ArtifactCollection.MaxFileBytes = context.Settings.Artifacts.MaxFileBytes;
+            options.ArtifactCollection.MaxTotalBytes = context.Settings.Artifacts.MaxTotalBytes;
+            options.ArtifactCollection.MaxFiles = context.Settings.Artifacts.MaxFiles;
+            options.ArtifactCollection.MaxScanEntries = context.Settings.Artifacts.MaxScanEntries;
+            options.ArtifactCollection.TimeoutSeconds = context.Settings.Artifacts.CollectionTimeoutSeconds;
             _Compiler = new InvocationCompiler(context.Database, context.Cipher, options);
             context.Register(options);
             _Manifests = new ManifestService(context.Database, context.Cipher);
             _Cards = new AgentCardService(context.Database, () => ExternalUrls.RestBaseUrl(context, null));
 
+            context.Register(new ArtifactService(context));
             context.Register(_Compiler);
             context.Register(_Manifests);
             context.Register(_Cards);
@@ -72,6 +78,7 @@ namespace Garrison.Server.Modules
             new SecretRoutes(context).Register(routes);
             new WorkspaceTemplateRoutes(context).Register(routes);
             new ArtifactStoreRoutes(context).Register(routes);
+            new ArtifactRoutes(context, context.Get<ArtifactService>()).Register(routes);
             new ModelPriceRoutes(context).Register(routes);
             new UsageQuotaRoutes(context).Register(routes);
             new AgentRoutes(context, _Cards!).Register(routes);

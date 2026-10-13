@@ -355,7 +355,7 @@ namespace Garrison.Server.Runtime
                 DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds + _Options.DeadlineGraceSeconds);
 
                 string? runToken = null;
-                if (agent != null && (agent.DelegationMode != DelegationModeEnum.None || (deployment != null && deployment.ApprovalsEnabled)))
+                if (agent != null && (agent.DelegationMode != DelegationModeEnum.None || (deployment != null && (deployment.ApprovalsEnabled || deployment.ArtifactGlobs.Count > 0))))
                 {
                     runToken = await _Authentication.IssueForRunAsync(run, epoch, deadline, token).ConfigureAwait(false);
                 }

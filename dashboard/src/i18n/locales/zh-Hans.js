@@ -1888,4 +1888,15 @@ zhHans.resources.nodes.columns.executorCapabilities = "执行器能力";
 zhHans.tips.resources.nodes.executorCapabilities = "运行会等待具备这些能力的工作节点。容器隔离请选择 KubernetesJob。要求不可用的能力会使运行保持排队。";
 zhHans.enums.executorIsolation = {"Process": "进程", "Container": "容器", "SandboxedRuntime": "沙箱运行环境"};
 zhHans.enums.executorColdStart = {"Immediate": "即时", "Cold": "冷启动", "Warm": "预热"};
+// Artifact collection and browsing (P12.8).
+zhHans.nav.items.artifacts = { label: "产物", tip: "从运行收集的文件。" };
+zhHans.resources.artifacts = { ...zhHans.resources.artifactStores, title: "产物", subtitle: "从运行收集的文件。", view: "产物", deleteTitle: "产物", emptyTitle: "产物", emptyBody: "配置存储和明确的部署匹配模式来收集文件。", columns: {"name": "名称", "runId": "运行", "artifactStoreId": "存储", "mediaType": "媒体类型", "sizeBytes": "字节", "sha256": "SHA-256 哈希", "createdUtc": "创建时间", "id": "ID", "leaseEpoch": "租约世代", "repairAttempt": "修复次数"}, fields: {"name": "名称", "runId": "运行", "artifactStoreId": "存储", "mediaType": "媒体类型", "sizeBytes": "字节", "sha256": "SHA-256 哈希", "createdUtc": "创建时间", "id": "ID", "leaseEpoch": "租约世代", "repairAttempt": "修复次数"}, actions: { download: "下载" } };
+zhHans.tips.resources.artifacts = { ...{"name": "从运行收集的文件。 名称", "runId": "从运行收集的文件。 运行", "artifactStoreId": "从运行收集的文件。 存储", "mediaType": "从运行收集的文件。 媒体类型", "sizeBytes": "从运行收集的文件。 字节", "sha256": "从运行收集的文件。 SHA-256", "createdUtc": "从运行收集的文件。 创建时间", "id": "从运行收集的文件。 ID", "leaseEpoch": "从运行收集的文件。 租约世代", "repairAttempt": "从运行收集的文件。 修复次数"}, actions: { download: "通过临时链接下载此文件。" }, filters: { runId: "运行", storeId: "存储" } };
+Object.assign(zhHans.resources.artifactStores.fields, {"pathPrefix": "路径前缀", "bucket": "存储桶", "endpoint": "端点", "region": "区域", "secretId": "凭据", "forcePathStyle": "路径式请求"});
+Object.assign(zhHans.tips.resources.artifactStores, {"pathPrefix": "S3 端点可选，留空使用 AWS。将包含 accessKey、secretKey 和可选 sessionToken 的 JSON 保存为 GenericEnv 密钥。未指定凭据时使用服务器凭据链。", "bucket": "S3 端点可选，留空使用 AWS。将包含 accessKey、secretKey 和可选 sessionToken 的 JSON 保存为 GenericEnv 密钥。未指定凭据时使用服务器凭据链。", "endpoint": "S3 端点可选，留空使用 AWS。将包含 accessKey、secretKey 和可选 sessionToken 的 JSON 保存为 GenericEnv 密钥。未指定凭据时使用服务器凭据链。", "region": "S3 端点可选，留空使用 AWS。将包含 accessKey、secretKey 和可选 sessionToken 的 JSON 保存为 GenericEnv 密钥。未指定凭据时使用服务器凭据链。", "secretId": "S3 端点可选，留空使用 AWS。将包含 accessKey、secretKey 和可选 sessionToken 的 JSON 保存为 GenericEnv 密钥。未指定凭据时使用服务器凭据链。", "forcePathStyle": "S3 端点可选，留空使用 AWS。将包含 accessKey、secretKey 和可选 sessionToken 的 JSON 保存为 GenericEnv 密钥。未指定凭据时使用服务器凭据链。"});
+zhHans.resources.deployments.fields.artifactGlobs = "收集匹配模式";
+zhHans.tips.resources.deployments.artifactGlobs = "仅收集匹配的工作区相对文件，例如 reports/**/*.json。留空则禁用收集。";
+zhHans.resources.deployments.hints.artifactGlobs = "仅收集匹配的工作区相对文件，例如 reports/**/*.json。留空则禁用收集。";
+Object.assign(zhHans.common.eventCodes, { ArtifactCollectionWarning: "产物收集警告", ArtifactsCollected: "已收集产物" });
+zhHans.tips.nav.tabs.artifacts = zhHans.nav.items.artifacts.tip + " " + zhHans.tips.resources.artifacts.actions.download;
 export default zhHans;

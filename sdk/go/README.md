@@ -256,3 +256,7 @@ Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `ag
 Deployments accept `requiredCapabilities`: `isolation` (`Process`, `Container`, `SandboxedRuntime`), `egressControl`, `filesystemSnapshot`, `sessionContinuation`, `crossNodeRestore`, and optional required `coldStartClass` (`Immediate`, `Cold`, `Warm`). Defaults add no requirement beyond Process. Runs retain an admission-time copy. Workers expose `executorCapabilities`; legacy executor names promise no advanced capabilities. Set `executor: "KubernetesJob"` with Container requirements. Unsupported requirements remain queued with `NoCapableWorker`.
 
 Kubernetes workers can report `warmStart: true` alongside `coldStartClass: "Cold"`; this satisfies either Cold or Warm requirements. Warm support requires enabled warming and Kubernetes RBAC. Explicit Warm requirements reject PersistentVolume workspaces and custom pod resources.
+
+## Artifacts
+
+The artifact client lists metadata, reads individual records, downloads raw bytes, creates temporary download links, and deletes files. Deployments select `artifactStoreId` and explicit `artifactGlobs`; empty globs disable automatic collection. Uploads require the active run lease epoch and repair attempt. See [Run artifacts](../../docs/ARTIFACTS.md) for store configuration and API behavior.

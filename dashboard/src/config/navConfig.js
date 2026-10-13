@@ -33,7 +33,8 @@ export const NAV_SECTIONS = [
         tabs: [
           { id: 'runs', slug: 'runs', detail: true },
           { id: 'conversations', slug: 'conversations', detail: true },
-          { id: 'queue', slug: 'queue' }
+          { id: 'queue', slug: 'queue' },
+          { id: 'artifacts', slug: 'artifacts' }
         ]
       },
       // Permission approvals (P12.3): the inbox of tool calls waiting for a person, with a pending-count badge.

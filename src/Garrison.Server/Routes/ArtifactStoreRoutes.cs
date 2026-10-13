@@ -98,6 +98,7 @@ namespace Garrison.Server.Routes
             ArtifactStore existing = await LoadAsync(http).ConfigureAwait(false);
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Artifact store " + existing.Name);
             await ConfigurationSupport.EnsureUnreferencedAsync(_Server, tenantId, d => d.ArtifactStoreId == existing.Id, "Artifact store " + existing.Name, http.Token).ConfigureAwait(false);
+            if ((await _Server.Database.Artifacts.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1 }, storeId: existing.Id, token: http.Token).ConfigureAwait(false)).TotalRecords > 0) throw new ConflictException("ResourceInUse", "Delete the store artifacts before deleting the store.");
             await _Server.Database.ArtifactStores.DeleteAsync(existing.Id, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "ArtifactStore", existing.Id, "Deleted artifact store " + existing.Name + ".").ConfigureAwait(false);
             await RouteHelpers.NoContentAsync(http).ConfigureAwait(false);
@@ -107,7 +108,22 @@ namespace Garrison.Server.Routes
         {
             System.Collections.Generic.Dictionary<string, string> errors = new System.Collections.Generic.Dictionary<string, string>();
             ConfigurationValidator.Name(store.Name, errors);
-            if (store.Kind != ArtifactStoreKindEnum.Database) errors["kind"] = "Only the Database artifact store is available in this release; Filesystem and S3 arrive in Phase 12.";
+            if (!Enum.IsDefined(store.Kind)) errors["kind"] = "Unknown artifact store kind.";
+            if (!String.IsNullOrEmpty(store.PathPrefix) && !Garrison.Server.Storage.ArtifactStorage.ValidLocation(store.PathPrefix)) errors["pathPrefix"] = "Use a relative path prefix with letters, digits, dots, underscores, dashes, and slashes; no parent paths.";
+            if (store.Kind == ArtifactStoreKindEnum.S3)
+            {
+                if (String.IsNullOrWhiteSpace(store.Bucket) || store.Bucket.Length > 255) errors["bucket"] = "An S3 bucket name is required.";
+                if (!String.IsNullOrEmpty(store.Endpoint) && (!Uri.TryCreate(store.Endpoint, UriKind.Absolute, out Uri? endpoint) || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.UserInfo.Length > 0 || endpoint.Query.Length > 0 || endpoint.Fragment.Length > 0)) errors["endpoint"] = "Use an http or https S3 endpoint without embedded credentials or query parameters.";
+                if (store.Region.Length > 128) errors["region"] = "The S3 region is too long.";
+                if (!String.IsNullOrEmpty(store.SecretId) && await _Server.Database.Secrets.ReadAsync(tenantId, store.SecretId, http.Token).ConfigureAwait(false) == null) errors["secretId"] = "The S3 credential secret does not exist in this tenant.";
+            }
+            if (!String.IsNullOrEmpty(currentId))
+            {
+                ArtifactStore? previous = await _Server.Database.ArtifactStores.ReadAsync(tenantId, currentId, http.Token).ConfigureAwait(false);
+                if (previous != null && (previous.Kind != store.Kind || previous.Bucket != store.Bucket || previous.Endpoint != store.Endpoint)
+                    && (await _Server.Database.Artifacts.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1 }, storeId: currentId, token: http.Token).ConfigureAwait(false)).TotalRecords > 0)
+                    errors["kind"] = "A store with artifacts cannot change its kind, bucket, or endpoint; create another store for a new location.";
+            }
             if (errors.Count > 0) throw new ValidationException("The artifact store is invalid.", errors);
             ArtifactStore? named = await _Server.Database.ArtifactStores.ReadByNameAsync(tenantId, store.Name, http.Token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named, named?.Id, currentId, store.Name);

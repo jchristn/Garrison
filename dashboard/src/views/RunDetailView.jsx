@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import RunTimeline from '../components/RunTimeline';
+import ArtifactsView from './ArtifactsView';
 import CodeBlock from '../components/CodeBlock';
 import MarkdownView from '../components/MarkdownView';
 import CopyableId from '../components/CopyableId';
@@ -387,6 +388,7 @@ export default function RunDetailView({ recordId }) {
         active={tab}
         onChange={setTab}
         tabs={[
+          { id: 'artifacts', label: t('nav.items.artifacts.label'), tip: t('nav.items.artifacts.tip') },
           { id: 'transcript', label: t('views.runDetail.transcript'), tip: t('tips.views.runDetail.tabs.transcript') },
           { id: 'result', label: t('views.runDetail.result'), tip: t('tips.views.runDetail.tabs.result') },
           { id: 'input', label: t('views.runDetail.input'), tip: t('tips.views.runDetail.tabs.input') },
@@ -397,6 +399,7 @@ export default function RunDetailView({ recordId }) {
       />
 
       <div className="panel">
+        {tab === 'artifacts' && <ArtifactsView runId={recordId} />}
         {tab === 'transcript' && (
           <>
             <div className="timeline-toolbar">

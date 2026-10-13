@@ -306,8 +306,9 @@ namespace Garrison.Server.Services
         {
             bool allowed =
                 (resourceType == ResourceTypeEnum.Agent && (operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Execute)) ||
-                (resourceType == ResourceTypeEnum.Run && (operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Create || operation == OperationTypeEnum.Update));
-            if (!allowed) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run tokens may only discover and invoke agents and read runs.");
+                (resourceType == ResourceTypeEnum.Run && (operation == OperationTypeEnum.Read || operation == OperationTypeEnum.Create || operation == OperationTypeEnum.Update)) ||
+                (resourceType == ResourceTypeEnum.Artifact && operation == OperationTypeEnum.Create);
+            if (!allowed) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run tokens may discover and invoke agents, read runs, or upload configured artifacts for their own execution.");
 
             if (ctx.OriginPrincipalType == PrincipalTypeEnum.Administrator) return AuthorizationDecision.Permit("Run on behalf of a system administrator.");
             if (String.IsNullOrEmpty(ctx.OriginPrincipalId)) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Run has no originating principal.");
@@ -336,6 +337,14 @@ namespace Garrison.Server.Services
                 origin.IsTenantAdmin = user.IsTenantAdmin;
             }
 
+            if (resourceType == ResourceTypeEnum.Artifact && operation == OperationTypeEnum.Create)
+            {
+                Run? producing = String.IsNullOrEmpty(ctx.RunId) ? null : await _Database.Runs.ReadAsync(tenantId, ctx.RunId, token).ConfigureAwait(false);
+                if (producing == null) return AuthorizationDecision.Deny(AuthorizationResultEnum.NotFound, "Producing run not found.");
+                resourceType = ResourceTypeEnum.Agent;
+                operation = OperationTypeEnum.Execute;
+                resourceId = producing.AgentId;
+            }
             AuthorizationDecision ceiling = await EvaluateAsync(origin, tenantId, resourceType, operation, resourceId, token).ConfigureAwait(false);
             if (!ceiling.Permitted) ceiling.Reason = "Originating principal ceiling: " + ceiling.Reason;
             ceiling.BypassReason = null;

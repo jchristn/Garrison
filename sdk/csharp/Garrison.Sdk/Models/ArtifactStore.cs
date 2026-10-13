@@ -67,6 +67,28 @@ namespace Garrison.Sdk.Models
         /// </summary>
         public ArtifactStoreKindEnum Kind { get; set; } = ArtifactStoreKindEnum.Database;
 
+        /// <summary>Relative filesystem folder or S3 object-key prefix. Null uses the store identifier.</summary>
+        public string? PathPrefix { get; set; } = null;
+
+        /// <summary>S3 bucket name. Required for S3 stores.</summary>
+        public string? Bucket { get; set; } = null;
+
+        /// <summary>S3-compatible service URL. Null uses the AWS regional endpoint.</summary>
+        public string? Endpoint { get; set; } = null;
+
+        /// <summary>S3 signing region. Default us-east-1.</summary>
+        public string Region
+        {
+            get { return _Region; }
+            set { _Region = String.IsNullOrWhiteSpace(value) ? "us-east-1" : value; }
+        }
+
+        /// <summary>Tenant secret containing typed accessKey/secretKey/sessionToken credentials. Never sent to workers.</summary>
+        public string? SecretId { get; set; } = null;
+
+        /// <summary>Use bucket-in-path addressing for compatible endpoints. Default true.</summary>
+        public bool ForcePathStyle { get; set; } = true;
+
         /// <summary>
         /// Whether the record is active.
         /// </summary>
@@ -111,6 +133,7 @@ namespace Garrison.Sdk.Models
 
         #region Private-Members
 
+        private string _Region = "us-east-1";
         private string _Id = String.Empty;
         private string _TenantId = String.Empty;
         private string _Name = String.Empty;

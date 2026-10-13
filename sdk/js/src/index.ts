@@ -99,11 +99,27 @@ export interface RunPodResources {
 /** Workspace kinds. PersistentVolume mounts a PersistentVolumeClaim at the workspace path (KubernetesJob runs only). */
 export type WorkspaceKind = "Empty" | "GitRepository" | "Seeded" | "PersistentVolume";
 
+/** Configuration for database, filesystem, or S3-compatible artifact storage. Credentials stay server-side. */
+export interface ArtifactStore extends Json {
+  id: string; tenantId: string; name: string; kind: "Database" | "Filesystem" | "S3";
+  pathPrefix?: string | null; bucket?: string | null; endpoint?: string | null; region?: string;
+  secretId?: string | null; forcePathStyle?: boolean; active?: boolean;
+}
+/** Metadata only; file bytes are downloaded separately. */
+export interface Artifact extends Json {
+  id: string; tenantId: string; runId: string; artifactStoreId: string; name: string; mediaType: string;
+  sizeBytes: number; sha256: string; location: string; leaseEpoch: number; repairAttempt: number; createdUtc: string;
+}
+export interface ArtifactDownload { url: string; expiresUtc: string; }
+
 export interface Deployment extends Json {
   id: string; tenantId: string; agentId: string; name: string; harnessProfileId: string; model?: string;
   /** Executor; null uses the node pool's defaultExecutor, then Process. */
   executor?: RunExecutor | null;
   requiredCapabilities?: ExecutorRequirements;
+  /** Empty disables automatic artifact collection. */
+  artifactGlobs?: string[];
+  artifactStoreId?: string;
   /** Run pod requests and limits for KubernetesJob runs. */
   podResources?: RunPodResources;
   /** Permission approvals. Only Claude Code profiles and Codex profiles with CodexAppServer delivery accept true. Default false. */
@@ -626,7 +642,7 @@ export class Transport {
     return `/v1.0/api/tenants/${seg(this.tenantId)}${suffix}`;
   }
 
-  private async headers(method: string, path: string, query: string, body?: string): Promise<Record<string, string>> {
+  private async headers(method: string, path: string, query: string, body?: string | ArrayBuffer): Promise<Record<string, string>> {
     const headers: Record<string, string> = {};
     if (this.mode === "token" && this.token) headers["Authorization"] = `Bearer ${this.token}`;
     else if (this.mode === "keys") { headers["x-access-key"] = this.accessKey ?? ""; headers["x-secret-key"] = this.secretKey ?? ""; }
@@ -636,7 +652,7 @@ export class Transport {
       const encoder = new TextEncoder();
       const date = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
       const nonce = randomHex(16);
-      const bodyHash = hex(await crypto.digest("SHA-256", encoder.encode(body ?? "")));
+      const bodyHash = hex(await crypto.digest("SHA-256", typeof body === "string" ? encoder.encode(body) : (body ?? encoder.encode(""))));
       const canonical = [method.toUpperCase(), path, query, this.tenantId ?? "", date, nonce, bodyHash].join("\n");
       const key = await crypto.importKey("raw", encoder.encode(this.secretKey ?? ""), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
       const signature = hex(await crypto.sign("HMAC", key, encoder.encode(canonical)));
@@ -651,11 +667,11 @@ export class Transport {
 
   private async send(method: string, path: string, params?: Record<string, any>, body?: unknown, contentType?: string, accept?: string): Promise<Response> {
     const query = queryString(params);
-    let text: string | undefined;
+    let text: string | ArrayBuffer | undefined;
     const extra: Record<string, string> = {};
     if (body !== undefined && body !== null) {
-      text = typeof body === "string" ? body : JSON.stringify(body);
-      extra["Content-Type"] = typeof body === "string" ? (contentType ?? "application/json") : "application/json";
+      text = body instanceof Uint8Array ? new Uint8Array(body).buffer : typeof body === "string" ? body : JSON.stringify(body);
+      extra["Content-Type"] = body instanceof Uint8Array ? (contentType ?? "application/octet-stream") : typeof body === "string" ? (contentType ?? "application/json") : "application/json";
     }
     if (accept) extra["Accept"] = accept;
     const headers = { ...extra, ...(await this.headers(method, path, query, text)) };
@@ -668,6 +684,10 @@ export class Transport {
     const response = await this.send(method, path, params, body, contentType);
     const text = await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
+  }
+
+  async requestBytes(path: string): Promise<Uint8Array> {
+    return new Uint8Array(await (await this.send("GET", path)).arrayBuffer());
   }
 
   async requestText(method: string, path: string, params?: Record<string, any>, body?: unknown): Promise<string> {
@@ -731,6 +751,22 @@ export class Resource<T = Json> {
   create(body: Partial<T> | Json): Promise<T> { return this.t.request("POST", this.base(), undefined, body); }
   update(id: string, body: Partial<T> | Json): Promise<T> { return this.t.request("PUT", this.item(id), undefined, body); }
   delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.item(id)); }
+}
+
+/** Collected files: metadata, binary transfers, and download-only links. */
+export class Artifacts {
+  constructor(private t: Transport) {}
+  private base(): string { return this.t.tenantPath("/artifacts"); }
+  private item(id: string): string { return `${this.base()}/${seg(id)}`; }
+  list(query?: EnumerationQuery & { runId?: string; storeId?: string }): Promise<EnumerationResult<Artifact>> { return this.t.request("GET", this.base(), query as any); }
+  get(id: string): Promise<Artifact> { return this.t.request("GET", this.item(id)); }
+  download(id: string): Promise<Uint8Array> { return this.t.requestBytes(`${this.item(id)}/content`); }
+  downloadUrl(id: string): Promise<ArtifactDownload> { return this.t.request("POST", `${this.item(id)}/download-url`); }
+  delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.item(id)); }
+  /** Upload only for an active run/epoch and configured store/glob. */
+  upload(runId: string, storeId: string, name: string, content: Uint8Array, epoch: number, repairAttempt = 0, mediaType = "application/octet-stream"): Promise<Artifact> {
+    return this.t.request("POST", this.t.tenantPath(`/runs/${seg(runId)}/artifacts`), { storeId, name, epoch, repairAttempt, mediaType }, content, "application/octet-stream");
+  }
 }
 
 /** Daily UTC quotas and accounting. Null limits are unlimited; zero disallows usage only when enforcement is enabled. */
@@ -988,7 +1024,8 @@ export class GarrisonClient {
   readonly mcpServers: McpServers;
   readonly secrets: Secrets;
   readonly workspaceTemplates: Resource;
-  readonly artifactStores: Resource;
+  readonly artifactStores: Resource<ArtifactStore>;
+  readonly artifacts: Artifacts;
   readonly modelPrices: Resource<ModelPrice>;
   readonly usageQuotas: UsageQuotas;
   readonly manifests: Manifests;
@@ -1020,7 +1057,8 @@ export class GarrisonClient {
     this.mcpServers = new McpServers(t, "mcp-servers");
     this.secrets = new Secrets(t, "secrets");
     this.workspaceTemplates = new Resource(t, "workspace-templates");
-    this.artifactStores = new Resource(t, "artifact-stores");
+    this.artifactStores = new Resource<ArtifactStore>(t, "artifact-stores");
+    this.artifacts = new Artifacts(t);
     this.modelPrices = new Resource<ModelPrice>(t, "model-prices");
     this.usageQuotas = new UsageQuotas(t, "usage-quotas");
     this.manifests = new Manifests(t);

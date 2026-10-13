@@ -530,6 +530,43 @@ namespace Garrison.Sdk.Test
                     Require(run.ApprovalWaitMs == null, "run approvalWaitMs " + run.ApprovalWaitMs);
                 }).ConfigureAwait(false);
 
+                await CheckAsync("artifact collection and binary download", async () =>
+                {
+                    ArtifactStore store = await client.ArtifactStores.CreateAsync(new ArtifactStore { Name = "sdk-cs-artifacts-" + suffix, Kind = ArtifactStoreKindEnum.Filesystem, PathPrefix = "sdk-cs-" + suffix }, token).ConfigureAwait(false);
+                    Deployment deployment = await client.Deployments.GetAsync(deploymentId!, token).ConfigureAwait(false);
+                    string? originalStore = deployment.ArtifactStoreId;
+                    List<string> originalGlobs = deployment.ArtifactGlobs;
+                    List<DeploymentArgumentOverride> originalArguments = deployment.ArgumentOverrides;
+                    try
+                    {
+                        deployment.ArtifactStoreId = store.Id;
+                        deployment.ArtifactGlobs = new List<string> { "reports/**/*.txt" };
+                        deployment.ArgumentOverrides = new List<DeploymentArgumentOverride> { new DeploymentArgumentOverride { Position = 0, Template = "--output-last-message" }, new DeploymentArgumentOverride { Position = 1, Template = "{{run.workspaceDir}}/reports/answer.txt" } };
+                        await client.Deployments.UpdateAsync(deployment.Id, deployment, token).ConfigureAwait(false);
+                        Run run = await client.Agents.InvokeAsync(agentId!, new InvokeRequest { Input = "artifact SDK payload", Wait = true, WaitSeconds = 30, DeploymentId = deployment.Id }, token).ConfigureAwait(false);
+                        Require(run.Status == RunStatusEnum.Succeeded, "artifact run failed");
+                        EnumerationResult<Artifact> rows = await client.Artifacts.ListAsync(runId: run.Id, storeId: store.Id, token: token).ConfigureAwait(false);
+                        Require(rows.Objects.Count == 1, "one collected artifact");
+                        Artifact artifact = await client.Artifacts.GetAsync(rows.Objects.Single().Id, token).ConfigureAwait(false);
+                        Require(artifact.Name == "reports/answer.txt", "artifact name");
+                        byte[] bytes = await client.Artifacts.DownloadAsync(artifact.Id, token).ConfigureAwait(false);
+                        Require(System.Text.Encoding.UTF8.GetString(bytes).Contains("artifact SDK payload", StringComparison.Ordinal), "raw bytes");
+                        Require((await client.Artifacts.DownloadUrlAsync(artifact.Id, token).ConfigureAwait(false)).Url.Length > 0, "download link");
+                        bool rejected = false;
+                        try { await client.Artifacts.UploadAsync(run.Id, store.Id, artifact.Name, System.Text.Encoding.UTF8.GetBytes("late upload"), run.LeaseEpoch, run.RepairAttempts, token: token).ConfigureAwait(false); }
+                        catch (GarrisonException error) when (error.StatusCode == 409) { rejected = true; }
+                        Require(rejected, "terminal upload fence");
+                        await client.Artifacts.DeleteAsync(artifact.Id, token).ConfigureAwait(false);
+                        Require(!(await client.Artifacts.ListAsync(runId: run.Id, token: token).ConfigureAwait(false)).Objects.Any(), "deleted artifact");
+                    }
+                    finally
+                    {
+                        deployment.ArtifactStoreId = originalStore; deployment.ArtifactGlobs = originalGlobs; deployment.ArgumentOverrides = originalArguments;
+                        await client.Deployments.UpdateAsync(deployment.Id, deployment, token).ConfigureAwait(false);
+                        await client.ArtifactStores.DeleteAsync(store.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("cleanup", async () =>
                 {
                     if (conversationDeploymentId != null) await client.Deployments.DeleteAsync(conversationDeploymentId, token).ConfigureAwait(false);

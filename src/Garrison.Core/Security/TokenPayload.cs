@@ -8,6 +8,9 @@ namespace Garrison.Core.Security
     /// </summary>
     public class TokenPayload
     {
+        /// <summary>Non-session capability purpose. Null means a session token.</summary>
+        public string? Purpose { get; set; } = null;
+
         /// <summary>
         /// Session identifier.
         /// </summary>

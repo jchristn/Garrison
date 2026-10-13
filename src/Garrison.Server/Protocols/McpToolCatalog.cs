@@ -82,6 +82,9 @@ namespace Garrison.Server.Protocols
         public static List<McpToolDefinition> All()
         {
             List<McpToolDefinition> tools = new List<McpToolDefinition>();
+            tools.Add(Tool("garrison_upload_artifact", ResourceTypeEnum.Artifact, OperationTypeEnum.Create,
+                "Upload one workspace file selected by the producing deployment's artifact globs. Requires the current run and lease epoch; run tokens may upload only for their own execution. Provider credentials remain server-side.",
+                "{\"type\":\"object\",\"properties\":{\"runId\":{\"type\":\"string\"},\"storeId\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"mediaType\":{\"type\":\"string\"},\"epoch\":{\"type\":\"integer\"},\"repairAttempt\":{\"type\":\"integer\"},\"contentBase64\":{\"type\":\"string\"}},\"required\":[\"runId\",\"storeId\",\"name\",\"epoch\",\"repairAttempt\",\"contentBase64\"]}"));
             tools.Add(Tool("garrison_list_agents", ResourceTypeEnum.Agent, OperationTypeEnum.Read,
                 "List the Garrison agents you may invoke, with their names, descriptions, and skills. Call it with no arguments unless you need to narrow the list; omit optional arguments you do not need. Optional: search (part of an agent name) and maxResults (1 to 100, default 25).",
                 "{\"type\":\"object\",\"properties\":{\"search\":{\"type\":\"string\",\"description\":\"Optional. Part of an agent name. Omit it to list every agent you may invoke.\"},\"maxResults\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100,\"description\":\"Optional. Default 25. Omit it unless you need more.\"}}}"));

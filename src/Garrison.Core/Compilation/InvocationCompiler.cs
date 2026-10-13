@@ -293,6 +293,10 @@ namespace Garrison.Core.Compilation
                 }
             }
 
+            if (!String.IsNullOrEmpty(inputs.Deployment.ArtifactStoreId) && inputs.Deployment.ArtifactGlobs.Count > 0)
+                inputs.ArtifactStore = await _Database.ArtifactStores.ReadAsync(tenantId, inputs.Deployment.ArtifactStoreId, token).ConfigureAwait(false)
+                    ?? throw new CompilationException("ReferenceNotFound", "Artifact store was not found.");
+
             if (!String.IsNullOrEmpty(inputs.Deployment.WorkspaceTemplateId))
             {
                 inputs.Workspace = await _Database.WorkspaceTemplates.ReadAsync(tenantId, inputs.Deployment.WorkspaceTemplateId, token).ConfigureAwait(false)
@@ -387,6 +391,16 @@ namespace Garrison.Core.Compilation
             spec.DeploymentId = deployment.Id;
             spec.DeploymentName = deployment.Name;
             spec.HarnessType = profile.HarnessType;
+            if (deployment.ArtifactGlobs.Count > 0 && inputs.ArtifactStore?.Active == true)
+            {
+                spec.Artifacts = new ExecutionArtifacts
+                {
+                    ApiBaseUrl = _Options.ApiBaseUrl, McpUrl = _Options.McpBaseUrl.TrimEnd('/') + _Options.McpPath, BearerToken = runToken ?? String.Empty, StoreId = inputs.ArtifactStore.Id,
+                    Globs = new List<string>(deployment.ArtifactGlobs), MaxFileBytes = _Options.ArtifactCollection.MaxFileBytes,
+                    MaxTotalBytes = _Options.ArtifactCollection.MaxTotalBytes, MaxFiles = _Options.ArtifactCollection.MaxFiles,
+                    MaxScanEntries = _Options.ArtifactCollection.MaxScanEntries, TimeoutSeconds = _Options.ArtifactCollection.TimeoutSeconds
+                };
+            }
 
             Dictionary<string, string> parameters = RunOverrideValidator.Effective(deployment, run.Parameters);
             bool delegationEnabled = agent.DelegationMode != DelegationModeEnum.None && !String.IsNullOrEmpty(runToken);
@@ -1298,6 +1312,7 @@ namespace Garrison.Core.Compilation
             }
             if (spec.Workspace.GitPassword != null) spec.Workspace.GitPassword = Redacted;
             if (spec.ApprovalRelay != null) spec.ApprovalRelay.BearerToken = Redacted;
+            if (spec.Artifacts != null) spec.Artifacts.BearerToken = Redacted;
             spec.Stdin = Clean(spec.Stdin);
             spec.ScrubValues = secrets.Select(s => Redacted).ToList();
         }

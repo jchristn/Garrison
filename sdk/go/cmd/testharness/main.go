@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -661,6 +662,66 @@ func main() {
 		}
 		if run.PendingApprovals != 0 || run.AwaitingApproval || run.ApprovalWaitMs != nil {
 			return fmt.Errorf("run pendingApprovals %d awaitingApproval %v approvalWaitMs %v", run.PendingApprovals, run.AwaitingApproval, run.ApprovalWaitMs)
+		}
+		return nil
+	})
+	check("artifact collection and binary download", func(ctx context.Context) error {
+		var store garrison.ArtifactStore
+		if err := client.ArtifactStores.Create(ctx, garrison.ArtifactStore{Name: "sdk-go-artifacts-" + suffix, Kind: "Filesystem", PathPrefix: "sdk-go-" + suffix}, &store); err != nil {
+			return err
+		}
+		defer client.ArtifactStores.Delete(ctx, store.ID)
+		var deployment garrison.Deployment
+		err := client.Deployments.Create(ctx, garrison.Deployment{Name: "sdk-go-artifacts-" + suffix, AgentID: agentID, HarnessProfileID: fakeID, ArtifactStoreID: store.ID, ArtifactGlobs: []string{"reports/**/*.txt"}, ArgumentOverrides: []garrison.DeploymentArgumentOverride{{Position: 0, Template: "--output-last-message"}, {Position: 1, Template: "{{run.workspaceDir}}/reports/answer.txt"}}}, &deployment)
+		if err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, deployment.ID)
+		run, err := client.Agents.Invoke(ctx, agentID, garrison.InvokeRequest{DeploymentID: deployment.ID, Input: "artifact SDK payload", Wait: true, WaitSeconds: 30})
+		if err != nil {
+			return err
+		}
+		if run.Status != "Succeeded" {
+			return errors.New("artifact run failed")
+		}
+		rows, err := client.Artifacts.List(ctx, url.Values{"runId": {run.ID}, "storeId": {store.ID}})
+		if err != nil {
+			return err
+		}
+		if len(rows.Objects) != 1 {
+			return fmt.Errorf("expected one artifact, got %d", len(rows.Objects))
+		}
+		artifact, err := client.Artifacts.Get(ctx, rows.Objects[0].ID)
+		if err != nil {
+			return err
+		}
+		if artifact.Name != "reports/answer.txt" {
+			return errors.New("artifact name")
+		}
+		bytes, err := client.Artifacts.Download(ctx, artifact.ID)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(string(bytes), "artifact SDK payload") {
+			return errors.New("raw bytes")
+		}
+		link, err := client.Artifacts.DownloadURL(ctx, artifact.ID)
+		if err != nil {
+			return err
+		}
+		if link.URL == "" {
+			return errors.New("download link")
+		}
+		if _, err := client.Artifacts.Upload(ctx, run.ID, store.ID, artifact.Name, []byte("late upload"), artifact.LeaseEpoch, artifact.RepairAttempt, "text/plain"); !garrison.IsStatus(err, http.StatusConflict) { return fmt.Errorf("terminal upload fence: %v", err) }
+		if err := client.Artifacts.Delete(ctx, artifact.ID); err != nil {
+			return err
+		}
+		rows, err = client.Artifacts.List(ctx, url.Values{"runId": {run.ID}})
+		if err != nil {
+			return err
+		}
+		if len(rows.Objects) != 0 {
+			return errors.New("deleted artifact")
 		}
 		return nil
 	})

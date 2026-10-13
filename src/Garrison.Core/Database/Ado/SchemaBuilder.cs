@@ -135,6 +135,25 @@ namespace Garrison.Core.Database.Ado
             v18.Column("node_executors", "capwarmstart", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
             migrations.Add(new SchemaMigration(18, "Warm-start capability without removing cold execution support", v18._Statements, v18._Columns));
 
+            SchemaBuilder v19 = new SchemaBuilder(catalog, dialect);
+            v19.Column("artifact_stores", "pathprefix", "VARCHAR(512)");
+            v19.Column("artifact_stores", "bucket", "VARCHAR(255)");
+            v19.Column("artifact_stores", "endpoint", "VARCHAR(2048)");
+            v19.Column("artifact_stores", "region", "VARCHAR(128) NOT NULL DEFAULT 'us-east-1'");
+            v19.Column("artifact_stores", "secretid", dialect.TypeId);
+            v19.Column("artifact_stores", "forcepathstyle", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(true));
+            v19.Table("deployment_artifact_globs", "id " + dialect.TypeId + " NOT NULL PRIMARY KEY", "deploymentid " + dialect.TypeId + " NOT NULL", "tenantid " + dialect.TypeId + " NOT NULL", "position INTEGER NOT NULL", "pattern VARCHAR(512) NOT NULL");
+            v19.Index("deployment_artifact_globs", "parent", false, "deploymentid", "position");
+            v19.Table("artifacts", "id " + dialect.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + dialect.TypeId + " NOT NULL", "runid " + dialect.TypeId + " NOT NULL", "artifactstoreid " + dialect.TypeId + " NOT NULL",
+                "name VARCHAR(1024) NOT NULL", "mediatype VARCHAR(255) NOT NULL", "sizebytes " + dialect.TypeBigInt + " NOT NULL", "sha256 VARCHAR(64) NOT NULL", "location VARCHAR(2048) NOT NULL",
+                "leaseepoch " + dialect.TypeBigInt + " NOT NULL", "repairattempt INTEGER NOT NULL", "content " + (dialect.DatabaseType == Garrison.Core.Enums.DatabaseTypeEnum.Postgresql ? "BYTEA" : "BLOB"),
+                "createdutc " + dialect.TypeTimestamp + " NOT NULL", "lastupdateutc " + dialect.TypeTimestamp + " NOT NULL");
+            v19.Index("artifacts", "tenant", false, "tenantid", "createdutc");
+            v19.Index("artifacts", "run", false, "tenantid", "runid");
+            v19.Index("artifacts", "store", false, "tenantid", "artifactstoreid");
+            v19.Index("artifacts", "upload", true, "tenantid", "runid", "leaseepoch", "repairattempt", "name");
+            migrations.Add(new SchemaMigration(19, "Artifact stores, deployment collection globs, and run artifact metadata", v19._Statements, v19._Columns));
+
             return migrations;
         }
 

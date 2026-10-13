@@ -139,6 +139,44 @@ namespace Garrison.Sdk.Http
             return JsonSerializer.Deserialize<T>(text, _JsonOptions);
         }
 
+        /// <summary>Send raw binary content and deserialize the JSON response with the configured authentication.</summary>
+        /// <param name="method">HTTP method.</param>
+        /// <param name="path">Relative API path.</param>
+        /// <param name="body">Binary body.</param>
+        /// <param name="query">Optional query parameters.</param>
+        /// <param name="contentType">Body media type. Default application/octet-stream.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Deserialized metadata.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when body is null.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success response.</exception>
+        public async Task<T?> SendBinaryAsync<T>(HttpMethod method, string path, byte[] body, IDictionary<string, string?>? query = null, string contentType = "application/octet-stream", CancellationToken token = default)
+        {
+            if (body == null) throw new ArgumentNullException(nameof(body));
+            using (HttpRequestMessage request = Build(method, path, body, query, contentType, true))
+            using (HttpResponseMessage response = await _Http.SendAsync(request, token).ConfigureAwait(false))
+            {
+                string text = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode) throw Error((int)response.StatusCode, text);
+                return String.IsNullOrWhiteSpace(text) ? default : JsonSerializer.Deserialize<T>(text, _JsonOptions);
+            }
+        }
+
+        /// <summary>Read a raw content response using the configured authentication.</summary>
+        /// <param name="path">Relative API path.</param>
+        /// <param name="query">Optional query parameters.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Binary response bytes.</returns>
+        /// <exception cref="GarrisonException">Thrown on a non-success response.</exception>
+        public async Task<byte[]> DownloadAsync(string path, IDictionary<string, string?>? query = null, CancellationToken token = default)
+        {
+            using (HttpRequestMessage request = Build(HttpMethod.Get, path, null, query, "application/octet-stream"))
+            using (HttpResponseMessage response = await _Http.SendAsync(request, token).ConfigureAwait(false))
+            {
+                if (!response.IsSuccessStatusCode) throw Error((int)response.StatusCode, await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+                return await response.Content.ReadAsByteArrayAsync(token).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Send a request and return the response text.
         /// </summary>
@@ -268,17 +306,16 @@ namespace Garrison.Sdk.Http
 
         #region Private-Methods
 
-        private HttpRequestMessage Build(HttpMethod method, string path, object? body, IDictionary<string, string?>? query, string contentType)
+        private HttpRequestMessage Build(HttpMethod method, string path, object? body, IDictionary<string, string?>? query, string contentType, bool binary = false)
         {
             string queryString = BuildQuery(query);
             HttpRequestMessage request = new HttpRequestMessage(method, _BaseUrl + path + (queryString.Length > 0 ? "?" + queryString : String.Empty));
             byte[]? bytes = null;
             if (body != null)
             {
-                string text = body is string s ? s : JsonSerializer.Serialize(body, body.GetType(), _JsonOptions);
-                bytes = Encoding.UTF8.GetBytes(text);
+                bytes = binary && body is byte[] raw ? raw : Encoding.UTF8.GetBytes(body is string s ? s : JsonSerializer.Serialize(body, body.GetType(), _JsonOptions));
                 ByteArrayContent content = new ByteArrayContent(bytes);
-                content.Headers.TryAddWithoutValidation("Content-Type", body is string ? contentType : "application/json");
+                content.Headers.TryAddWithoutValidation("Content-Type", binary || body is string ? contentType : "application/json");
                 request.Content = content;
             }
 

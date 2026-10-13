@@ -10,6 +10,9 @@ namespace Garrison.Core.Database.Interfaces
     /// </summary>
     public interface IArtifactStoreMethods
     {
+        /// <summary>Whether any store in this tenant uses the credential secret.</summary>
+        Task<bool> UsesSecretAsync(string tenantId, string secretId, CancellationToken token = default);
+
         /// <summary>
         /// Create a ArtifactStore, including child rows.
         /// </summary>

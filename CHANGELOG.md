@@ -8,6 +8,8 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 
 ### Control plane
 
+- Optional explicit-glob artifact collection supports Database, Filesystem, and S3 stores. Workers upload through Garrison MCP with lease and repair fencing; provider credentials remain server-side. Tenant metadata browsing, raw downloads, short-lived download-only links, deletion, four SDK clients, and dashboard run/global artifact tabs ship with migration 19 (P12.8).
+
 - Kubernetes warm pods default to enabled, with bounded shared stock per pool/image/configuration and operator overrides. Authenticated stdin delivery executes one run per pod, then deletes it. Warm capability matching retains cold execution; migration 18 defaults existing workers to no warm promise. PVC workspaces and custom pod resources require cold execution (P11.20).
 
 - Named Process/KubernetesJob executor conformance gates cover the advertised capabilities. A local runner verifies separate run pods and existing isolation in a temporary K3S cluster, then removes it (P11.19).

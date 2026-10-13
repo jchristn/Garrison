@@ -2,7 +2,7 @@
 
 Updated 2026-10-13 under D-042/D-043. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-There are 7 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20 are complete. Seven selected implementation tasks remain, plus the 2 conditional P10 tasks and 4 active core follow-ups.
+There are 6 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20/P12.8 are complete. Six selected implementation tasks remain, plus the 2 conditional P10 tasks and 4 active core follow-ups.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -17,7 +17,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.2 | Workspace snapshots and cross-node resume | Deferred | Needs artifact storage and harness continuation |
 | P12.4 | Execute remote A2A/MCP agents | Deferred | Registration health checks and expiry |
 | P12.5 | Cron and signed webhook triggers | Deferred | New invocation entry points |
-| P12.8 | Filesystem/S3 artifact stores and browser | Active | Needed for portable workspace snapshots |
+| P12.8 | Filesystem/S3 artifact stores and browser | Complete | Deployed and validated; explicit globs only. |
 | P12.9 | Multi-agent pipelines with review gates | Active | Adds orchestration beyond individual runs |
 | P12.10 | Management MCP tools | Active | Allows agents to modify configuration |
 | P12.11 | Clutch-backed lease provider | Active | Alternative to existing database leases |

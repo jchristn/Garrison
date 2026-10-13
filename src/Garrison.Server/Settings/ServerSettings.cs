@@ -79,6 +79,13 @@ namespace Garrison.Server.Settings
         /// </summary>
         public ArchiveSettings Archive { get; set; } = new ArchiveSettings();
 
+        /// <summary>Node-local artifact storage and collection configuration.</summary>
+        public ArtifactSettings Artifacts
+        {
+            get { return _Artifacts; }
+            set { _Artifacts = value ?? new ArtifactSettings(); }
+        }
+
         /// <summary>
         /// Control-plane refresh of ChatGPT logins stored in CodexAuthJson secrets (G-22).
         /// </summary>
@@ -123,6 +130,8 @@ namespace Garrison.Server.Settings
         #endregion
 
         #region Private-Members
+
+        private ArtifactSettings _Artifacts = new ArtifactSettings();
 
         private CodexSettings _Codex = new CodexSettings();
 
@@ -210,6 +219,13 @@ namespace Garrison.Server.Settings
             Str("GARRISON_MCP_PUBLIC_URL", "Mcp.PublicUrl", v => Mcp.PublicUrl = v);
             Int("GARRISON_EXPECTED_REPLICAS", "Cluster.ExpectedReplicas", v => Cluster.ExpectedReplicas = v);
             Backplane("GARRISON_BACKPLANE", "Cluster.Backplane", v => Cluster.Backplane = v);
+            Str("GARRISON_ARTIFACT_ROOT_DIRECTORY", "Artifacts.RootDirectory", v => Artifacts.RootDirectory = v);
+            Int("GARRISON_ARTIFACT_MAX_FILE_BYTES", "Artifacts.MaxFileBytes", v => Artifacts.MaxFileBytes = v);
+            Int("GARRISON_ARTIFACT_MAX_TOTAL_BYTES", "Artifacts.MaxTotalBytes", v => Artifacts.MaxTotalBytes = v);
+            Int("GARRISON_ARTIFACT_MAX_FILES", "Artifacts.MaxFiles", v => Artifacts.MaxFiles = v);
+            Int("GARRISON_ARTIFACT_MAX_SCAN_ENTRIES", "Artifacts.MaxScanEntries", v => Artifacts.MaxScanEntries = v);
+            Int("GARRISON_ARTIFACT_COLLECTION_TIMEOUT_SECONDS", "Artifacts.CollectionTimeoutSeconds", v => Artifacts.CollectionTimeoutSeconds = v);
+            Int("GARRISON_ARTIFACT_DOWNLOAD_LIFETIME_SECONDS", "Artifacts.DownloadLifetimeSeconds", v => Artifacts.DownloadLifetimeSeconds = v);
             Str("GARRISON_ARCHIVE_DIRECTORY", "Archive.Directory", v => Archive.Directory = v);
             Str("GARRISON_CODEX_TOKEN_ENDPOINT", "Codex.TokenEndpoint", v => Codex.TokenEndpoint = v);
             Str("GARRISON_CODEX_CLIENT_ID", "Codex.ClientId", v => Codex.ClientId = v);

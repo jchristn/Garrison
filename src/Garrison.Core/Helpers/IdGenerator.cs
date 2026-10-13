@@ -271,6 +271,13 @@ namespace Garrison.Core.Helpers
             return New(Constants.UsageQuotaIdPrefix);
         }
 
+        /// <summary>Generate an artifact identifier (prefix art_).</summary>
+        /// <returns>Identifier.</returns>
+        public static string NewArtifactId()
+        {
+            return _Generator.GenerateKSortable("art_", _RandomLength);
+        }
+
         /// <summary>
         /// Generate a ArtifactStore identifier (prefix ast_).
         /// </summary>

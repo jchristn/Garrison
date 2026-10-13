@@ -8,6 +8,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Enums;
     using Garrison.Core.Models;
     using Voltaic.A2A;
+    using Artifact = Voltaic.A2A.Artifact;
 
     /// <summary>
     /// Maps between Garrison runs and A2A tasks, messages, and cards. A task identifier is the run identifier; the

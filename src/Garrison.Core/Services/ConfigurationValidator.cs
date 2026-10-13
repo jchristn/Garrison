@@ -385,6 +385,10 @@ namespace Garrison.Core.Services
             NodePool? pool = String.IsNullOrEmpty(deployment.NodePoolId) ? null : await database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(deployment.NodePoolId) && pool == null) errors["nodePoolId"] = "The node pool does not exist.";
 
+            if (deployment.ArtifactGlobs.Count > 64) errors["artifactGlobs"] = "At most 64 artifact globs are supported.";
+            for (int i = 0; i < deployment.ArtifactGlobs.Count; i++)
+                if (!ArtifactGlob.IsValid(deployment.ArtifactGlobs[i])) errors["artifactGlobs[" + i + "]"] = "Use a relative workspace glob with *, **, or ?; parent paths, absolute paths, and bracket/brace patterns are unsupported.";
+            if (deployment.ArtifactGlobs.Count > 0 && String.IsNullOrEmpty(deployment.ArtifactStoreId)) errors["artifactStoreId"] = "Artifact globs require an artifact store.";
             PodResources(deployment.PodResources, errors);
             if (deployment.RequiredCapabilities.ColdStartClass == ExecutorColdStartEnum.Warm && !deployment.PodResources.IsEmpty)
                 errors["podResources"] = "Warm startup uses the pool's default pod resources; per-deployment resources require cold startup.";

@@ -94,6 +94,9 @@ namespace Garrison.Core.Compilation
             }
         }
 
+        /// <summary>Node-local artifact transfer bounds copied into configured collection specs.</summary>
+        public ExecutionArtifacts ArtifactCollection { get; set; } = new ExecutionArtifacts();
+
         private int _DefaultTimeoutSeconds = 1800;
         private int _MaxRunSeconds = 3600;
         private long _MaxAssistantChars = 200000;

@@ -161,7 +161,7 @@ namespace Garrison.Server.Services
             RequestHistoryEntry entry = new RequestHistoryEntry();
             entry.Method = context.Request.Method.ToString();
             entry.Path = Truncate(context.Request.Url.RawWithoutQuery ?? String.Empty, 1024);
-            entry.Url = context.Request.Url.RawWithQuery ?? entry.Path;
+            entry.Url = entry.Path.Contains("/artifact-download/", StringComparison.Ordinal) ? entry.Path + "?ticket=" + Redacted : context.Request.Url.RawWithQuery ?? entry.Path;
             entry.StatusCode = context.Response.StatusCode;
             entry.DurationMs = Math.Round(context.Timestamp.TotalMs ?? 0, 3);
             entry.CreatedUtc = context.Timestamp.Start;
@@ -178,7 +178,8 @@ namespace Garrison.Server.Services
             AddHeaders(entry, context.Request.Headers, HeaderDirectionEnum.Request);
             AddHeaders(entry, context.Response.Headers, HeaderDirectionEnum.Response);
 
-            bool secretRoute = IsSecretRoute(entry.Path);
+            bool secretRoute = IsSecretRoute(entry.Path) || entry.Path.Contains("/artifact-download/", StringComparison.Ordinal)
+                || (entry.Path.Contains("/artifacts", StringComparison.Ordinal) && (entry.Method == "POST" || entry.Path.EndsWith("/content", StringComparison.Ordinal)));
             string requestBody = SafeRequestBody(context);
             string responseBody = SafeResponseBody(context);
             long requestBytes = Encoding.UTF8.GetByteCount(requestBody);

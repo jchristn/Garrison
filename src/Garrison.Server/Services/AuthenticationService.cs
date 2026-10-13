@@ -364,7 +364,7 @@ namespace Garrison.Server.Services
         private async Task<RequestContext> ResolveSessionTokenAsync(RequestContext ctx, string sessionToken, AuthSchemeEnum scheme, CancellationToken token)
         {
             TokenPayload? payload = _Tokens.Validate(sessionToken);
-            if (payload == null) return await FailAsync(ctx, scheme, AuthResultEnum.Invalid, "Token is invalid or expired.", token).ConfigureAwait(false);
+            if (payload == null || payload.Purpose != null) return await FailAsync(ctx, scheme, AuthResultEnum.Invalid, "Token is invalid or expired.", token).ConfigureAwait(false);
 
             AuthSession? session = await _Database.Sessions.ReadByTokenIdAsync(payload.TokenId, token).ConfigureAwait(false);
             if (session == null || session.Id != payload.SessionId) return await FailAsync(ctx, scheme, AuthResultEnum.NotFound, "Session not found.", token).ConfigureAwait(false);

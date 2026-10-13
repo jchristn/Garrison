@@ -96,6 +96,9 @@ namespace Garrison.Core.Compilation
         /// </summary>
         public ExecutionWorkspace Workspace { get; set; } = new ExecutionWorkspace();
 
+        /// <summary>Optional explicit-glob file collection. Null disables collection.</summary>
+        public ExecutionArtifacts? Artifacts { get; set; } = null;
+
         /// <summary>
         /// Output parser.
         /// </summary>

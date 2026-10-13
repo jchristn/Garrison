@@ -365,3 +365,7 @@ curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/agents/shouter/in
 ```
 
 The run succeeds with `"resultText": "Echo: Please answer loudly: HELLO"`. Applying the manifest a second time reports three `Unchanged` items.
+
+## Artifact collection
+
+Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example `["reports/**/*.json"]`. Empty globs disable collection. See [Run artifacts](ARTIFACTS.md) for filesystem/S3 configuration, limits, downloads, and API examples.

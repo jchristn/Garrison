@@ -10348,6 +10348,128 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Artifacts",
+      "description": "Optional explicit-glob collection. See docs/ARTIFACTS.md for store setup and active-run upload requirements.",
+      "item": [
+        {
+          "name": "List metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts?runId={{runId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts"
+              ]
+            },
+            "description": "Lists metadata without reading content. Optional storeId filter."
+          },
+          "response": []
+        },
+        {
+          "name": "Read metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts",
+                "{{artifactId}}"
+              ]
+            },
+            "description": "Reads one tenant-scoped artifact."
+          },
+          "response": []
+        },
+        {
+          "name": "Download bytes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}/content",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts",
+                "{{artifactId}}",
+                "content"
+              ]
+            },
+            "description": "Downloads the authenticated raw file."
+          },
+          "response": []
+        },
+        {
+          "name": "Create download link",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}/download-url",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts",
+                "{{artifactId}}",
+                "download-url"
+              ]
+            },
+            "description": "Returns a short-lived download-only URL and expiry."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete artifact",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts",
+                "{{artifactId}}"
+              ]
+            },
+            "description": "Deletes file content and metadata; invalidates existing links."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -10574,6 +10696,11 @@
     {
       "key": "bareAgentId",
       "value": ""
+    },
+    {
+      "key": "artifactId",
+      "value": "",
+      "type": "string"
     }
   ]
 }

@@ -29,6 +29,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _ParametersTable;
         private readonly string _AllowedRunOverridesTable;
         private readonly string _ApprovalRulesTable;
+        private readonly string _ArtifactGlobsTable;
 
         #endregion
 
@@ -52,6 +53,7 @@ namespace Garrison.Core.Database.Ado
             _ParametersTable = driver.Table("deployment_parameters");
             _AllowedRunOverridesTable = driver.Table("deployment_run_overrides");
             _ApprovalRulesTable = driver.Table("deployment_approval_rules");
+            _ArtifactGlobsTable = driver.Table("deployment_artifact_globs");
         }
 
         #endregion
@@ -354,6 +356,9 @@ namespace Garrison.Core.Database.Ado
                 MapAllowedRunOverrides,
                 token).ConfigureAwait(false);
 
+            obj.ArtifactGlobs = await _Driver.QueryAsync("SELECT pattern FROM " + _ArtifactGlobsTable + " WHERE deploymentid = @parentid ORDER BY position ASC;",
+                command => AdoDatabaseDriver.Add(command, "parentid", obj.Id), reader => AdoConverters.Str(reader, "pattern"), token).ConfigureAwait(false);
+
             obj.ApprovalRules = await _Driver.QueryAsync(
                 "SELECT * FROM " + _ApprovalRulesTable + " WHERE deploymentid = @parentid ORDER BY position ASC;",
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
@@ -597,6 +602,20 @@ namespace Garrison.Core.Database.Ado
 
             // Approval rule identifiers stay stable across updates, because approvals record the rule that decided them.
             HashSet<string> ruleIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < obj.ArtifactGlobs.Count; i++)
+            {
+                int position = i;
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
+                    "INSERT INTO " + _ArtifactGlobsTable + " (id, deploymentid, tenantid, position, pattern) VALUES (@id, @parentid, @tenantid, @position, @pattern);",
+                    command =>
+                    {
+                        AdoDatabaseDriver.Add(command, "id", IdGenerator.New("dag_"));
+                        AdoDatabaseDriver.Add(command, "parentid", obj.Id);
+                        AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
+                        AdoDatabaseDriver.Add(command, "position", position);
+                        AdoDatabaseDriver.Add(command, "pattern", obj.ArtifactGlobs[position]);
+                    }, token).ConfigureAwait(false);
+            }
             for (int i = 0; i < obj.ApprovalRules.Count; i++)
             {
                 DeploymentApprovalRule child = obj.ApprovalRules[i];
@@ -625,6 +644,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
         {
+            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ArtifactGlobsTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _PromptBindingsTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ResourceBindingsTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ArgumentOverridesTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);

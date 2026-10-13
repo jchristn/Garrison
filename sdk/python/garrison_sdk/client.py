@@ -174,6 +174,13 @@ class Transport:
             return None
         return response.json()
 
+    def request_bytes(self, path: str) -> bytes:
+        url, data, headers = self._prepare("GET", path, None, None, None)
+        response = self.session.request("GET", url, data=data, headers=headers, timeout=self.timeout)
+        if response.status_code >= 400:
+            raise GarrisonError(response.status_code, response.text)
+        return response.content
+
     def stream(self, path: str, params: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Any]]:
         url, _, headers = self._prepare("GET", path, params, None, None)
         headers["Accept"] = "text/event-stream"
@@ -369,6 +376,37 @@ class Manifests:
 
     def get_apply(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._t.tenant_path(f"/manifests/applies/{_seg(id)}"))
+
+
+class Artifacts:
+    """Artifact metadata, authenticated bytes, signed links, and active-run uploads."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def _base(self) -> str:
+        return self._t.tenant_path("/artifacts")
+
+    def list(self, **query) -> Dict[str, Any]:
+        return self._t.request("GET", self._base(), query)
+
+    def get(self, artifact_id: str) -> Dict[str, Any]:
+        return self._t.request("GET", self._base() + "/" + _seg(artifact_id))
+
+    def download(self, artifact_id: str) -> bytes:
+        return self._t.request_bytes(self._base() + "/" + _seg(artifact_id) + "/content")
+
+    def download_url(self, artifact_id: str) -> Dict[str, Any]:
+        return self._t.request("POST", self._base() + "/" + _seg(artifact_id) + "/download-url")
+
+    def delete(self, artifact_id: str):
+        return self._t.request("DELETE", self._base() + "/" + _seg(artifact_id))
+
+    def upload(self, run_id: str, store_id: str, name: str, content: bytes, epoch: int,
+               repair_attempt: int = 0, media_type: str = "application/octet-stream") -> Dict[str, Any]:
+        return self._t.request("POST", self._t.tenant_path("/runs/" + _seg(run_id) + "/artifacts"),
+                               {"storeId": store_id, "name": name, "epoch": epoch, "repairAttempt": repair_attempt, "mediaType": media_type},
+                               content, "application/octet-stream")
 
 
 class Runs:
@@ -679,6 +717,7 @@ class GarrisonClient:
         self.secrets = Secrets(t, "secrets")
         self.workspace_templates = Resource(t, "workspace-templates")
         self.artifact_stores = Resource(t, "artifact-stores")
+        self.artifacts = Artifacts(t)
         self.model_prices = Resource(t, "model-prices")
         self.usage_quotas = UsageQuotas(t, "usage-quotas")
         self.manifests = Manifests(t)

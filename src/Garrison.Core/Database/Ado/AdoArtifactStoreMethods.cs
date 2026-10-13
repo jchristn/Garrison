@@ -40,6 +40,14 @@ namespace Garrison.Core.Database.Ado
         #region Public-Methods
 
         /// <inheritdoc />
+        public async Task<bool> UsesSecretAsync(string tenantId, string secretId, CancellationToken token = default)
+        {
+            object? count = await _Driver.ScalarAsync("SELECT COUNT(*) FROM " + _Table + " WHERE tenantid = @tenant AND secretid = @secret;",
+                command => { AdoDatabaseDriver.Add(command, "tenant", tenantId); AdoDatabaseDriver.Add(command, "secret", secretId); }, token).ConfigureAwait(false);
+            return count != null && Convert.ToInt64(count) > 0;
+        }
+
+        /// <inheritdoc />
         public async Task<ArtifactStore> CreateAsync(ArtifactStore obj, CancellationToken token = default)
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
@@ -110,7 +118,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, kind = @kind, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET tenantid = @tenantid, name = @name, description = @description, kind = @kind, pathprefix = @pathprefix, bucket = @bucket, endpoint = @endpoint, region = @region, secretid = @secretid, forcepathstyle = @forcepathstyle, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -121,6 +129,12 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "name", obj.Name);
                     AdoDatabaseDriver.Add(command, "description", obj.Description);
                     AdoDatabaseDriver.Add(command, "kind", obj.Kind.ToString());
+                    AdoDatabaseDriver.Add(command, "forcepathstyle", obj.ForcePathStyle);
+                    AdoDatabaseDriver.Add(command, "secretid", obj.SecretId);
+                    AdoDatabaseDriver.Add(command, "region", obj.Region);
+                    AdoDatabaseDriver.Add(command, "endpoint", obj.Endpoint);
+                    AdoDatabaseDriver.Add(command, "bucket", obj.Bucket);
+                    AdoDatabaseDriver.Add(command, "pathprefix", obj.PathPrefix);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                     AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
@@ -200,6 +214,12 @@ namespace Garrison.Core.Database.Ado
             obj.Name = AdoConverters.Str(reader, "name");
             obj.Description = AdoConverters.NullableStr(reader, "description");
             obj.Kind = AdoConverters.Enum<ArtifactStoreKindEnum>(reader, "kind", ArtifactStoreKindEnum.Database);
+            obj.PathPrefix = AdoConverters.NullableStr(reader, "pathprefix");
+            obj.Bucket = AdoConverters.NullableStr(reader, "bucket");
+            obj.Endpoint = AdoConverters.NullableStr(reader, "endpoint");
+            obj.Region = AdoConverters.Str(reader, "region");
+            obj.SecretId = AdoConverters.NullableStr(reader, "secretid");
+            obj.ForcePathStyle = AdoConverters.Bool(reader, "forcepathstyle");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
@@ -213,7 +233,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, ArtifactStore obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, kind, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @kind, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, tenantid, name, description, kind, pathprefix, bucket, endpoint, region, secretid, forcepathstyle, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @tenantid, @name, @description, @kind, @pathprefix, @bucket, @endpoint, @region, @secretid, @forcepathstyle, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -221,6 +241,12 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "name", obj.Name);
                 AdoDatabaseDriver.Add(command, "description", obj.Description);
                 AdoDatabaseDriver.Add(command, "kind", obj.Kind.ToString());
+                    AdoDatabaseDriver.Add(command, "forcepathstyle", obj.ForcePathStyle);
+                    AdoDatabaseDriver.Add(command, "secretid", obj.SecretId);
+                    AdoDatabaseDriver.Add(command, "region", obj.Region);
+                    AdoDatabaseDriver.Add(command, "endpoint", obj.Endpoint);
+                    AdoDatabaseDriver.Add(command, "bucket", obj.Bucket);
+                    AdoDatabaseDriver.Add(command, "pathprefix", obj.PathPrefix);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);
                 AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
                 AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);

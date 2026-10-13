@@ -580,6 +580,9 @@ namespace Garrison.Server.Protocols
                 object result;
                 switch (tool.Name)
                 {
+                    case "garrison_upload_artifact":
+                        result = await UploadArtifactAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_list_agents":
                         result = await ListAgentsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
@@ -755,6 +758,19 @@ namespace Garrison.Server.Protocols
             list.Runs = page.Objects.Select(Summarize).ToList();
             list.TotalRecords = page.TotalRecords;
             return list;
+        }
+
+        private async Task<object> UploadArtifactAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.Artifact, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
+            ArtifactUploadRequest? request = args?.Deserialize<ArtifactUploadRequest>();
+            if (request == null || request.Epoch < 1 || request.RepairAttempt < 0) throw ToolError("BadRequest", "Artifact upload needs a run, current epoch, and repair attempt.");
+            if (ctx.PrincipalType == PrincipalTypeEnum.Run && ctx.RunId != request.RunId) throw ToolError("NotFound", "Run not found.");
+            if (request.ContentBase64.Length > ((_Context.Settings.Artifacts.MaxFileBytes + 2L) / 3L) * 4L) throw ToolError("BadRequest", "Artifact exceeds the configured file byte limit.");
+            byte[] bytes;
+            try { bytes = Convert.FromBase64String(request.ContentBase64); }
+            catch (FormatException) { throw ToolError("BadRequest", "Artifact content is not valid base64."); }
+            return await _Context.Get<ArtifactService>().UploadAsync(tenantId, request.RunId, request.StoreId, request.Name, request.MediaType, request.Epoch, request.RepairAttempt, bytes, token).ConfigureAwait(false);
         }
 
         private async Task<object> PermissionPromptAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)

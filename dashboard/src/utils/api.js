@@ -539,6 +539,18 @@ class ApiClient {
     return this._request('DELETE', this._t(tenantId, `workspace-templates/${enc(id)}`));
   }
 
+  listArtifacts(tenantId, params) {
+    return this._list(this._t(tenantId, 'artifacts'), params);
+  }
+
+  getArtifactDownloadUrl(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `artifacts/${enc(id)}/download-url`));
+  }
+
+  deleteArtifact(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `artifacts/${enc(id)}`));
+  }
+
   listArtifactStores(tenantId, params) {
     return this._list(this._t(tenantId, 'artifact-stores'), params);
   }

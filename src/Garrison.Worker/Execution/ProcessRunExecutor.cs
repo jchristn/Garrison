@@ -255,6 +255,12 @@ namespace Garrison.Worker.Execution
                 succeeded = complete.Status == RunStatusEnum.Succeeded;
 
                 Lifecycle(reporter, "HarnessExited", "Harness exited" + (process.ExitCode.HasValue ? " with code " + process.ExitCode.Value : String.Empty) + ": " + complete.Status + " (" + complete.Outcome + ").");
+                if (spec.Artifacts != null && !token.IsCancellationRequested)
+                {
+                    int artifacts = await ArtifactUploader.CollectAsync(assignment, directories.Workspace,
+                        message => Emit(reporter, scrubber, RunEventTypeEnum.Warning, message, "ArtifactCollectionWarning"), token).ConfigureAwait(false);
+                    if (artifacts > 0) Lifecycle(reporter, "ArtifactsCollected", "Collected " + artifacts + " workspace artifact(s).");
+                }
                 return complete;
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)

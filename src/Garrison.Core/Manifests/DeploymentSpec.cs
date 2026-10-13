@@ -115,6 +115,9 @@ namespace Garrison.Core.Manifests
         /// </summary>
         public string? ArtifactStore { get; set; } = null;
 
+        /// <summary>Explicit workspace-relative collection globs. Null or empty disables collection.</summary>
+        public List<string>? ArtifactGlobs { get; set; } = null;
+
         /// <summary>
         /// Role to template name (name@version pins a version).
         /// </summary>

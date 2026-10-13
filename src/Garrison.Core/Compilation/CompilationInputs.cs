@@ -49,6 +49,9 @@ namespace Garrison.Core.Compilation
         /// </summary>
         public WorkspaceTemplate? Workspace { get; set; } = null;
 
+        /// <summary>Configured artifact store, without decrypted provider credentials.</summary>
+        public ArtifactStore? ArtifactStore { get; set; } = null;
+
         /// <summary>
         /// Secret holding git credentials for the workspace.
         /// </summary>

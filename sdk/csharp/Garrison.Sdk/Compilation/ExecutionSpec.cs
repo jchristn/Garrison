@@ -13,6 +13,9 @@ namespace Garrison.Sdk.Compilation
     /// </summary>
     public class ExecutionSpec
     {
+        /// <summary>Optional artifact collection instructions; credentials are redacted in previews.</summary>
+        public ExecutionArtifacts? Artifacts { get; set; } = null;
+
         /// <summary>
         /// Run identifier.
         /// </summary>

@@ -284,6 +284,24 @@ await check("approval rules and approval check", async () => {
   require(run.pendingApprovals === 0 && run.awaitingApproval === false, `run pendingApprovals ${run.pendingApprovals} awaitingApproval ${run.awaitingApproval}`);
 });
 
+await check("artifact collection and binary download", async () => {
+  const store = await client.artifactStores.create({ name: `sdk-js-artifacts-${suffix}`, kind: "Filesystem", pathPrefix: `sdk-js-${suffix}` });
+  const deployment = await client.deployments.get(state.deployment);
+  try {
+    await client.deployments.update(deployment.id, { ...deployment, artifactStoreId: store.id, artifactGlobs: ["reports/**/*.txt"], argumentOverrides: [{ position: 0, template: "--output-last-message" }, { position: 1, template: "{{run.workspaceDir}}/reports/answer.txt" }] });
+    const run = await client.agents.invoke(state.agent, "artifact SDK payload", { wait: true, waitSeconds: 30, deploymentId: deployment.id });
+    require(run.status === "Succeeded", "artifact run failed");
+    const rows = (await client.artifacts.list({ runId: run.id, storeId: store.id })).objects;
+    require(rows.length === 1, "one collected artifact");
+    const artifact = await client.artifacts.get(rows[0].id);
+    require(artifact.name === "reports/answer.txt", "artifact name");
+    require(new TextDecoder().decode(await client.artifacts.download(artifact.id)).includes("artifact SDK payload"), "raw bytes");
+    require((await client.artifacts.downloadUrl(artifact.id)).expiresUtc, "download expiry");
+    await expectStatus(409, () => client.artifacts.upload(run.id, store.id, artifact.name, new TextEncoder().encode("late upload"), run.leaseEpoch, run.repairAttempts ?? 0));
+    await client.artifacts.delete(artifact.id);
+    require((await client.artifacts.list({ runId: run.id })).objects.length === 0, "deleted artifact");
+  } finally { await client.deployments.update(deployment.id, deployment); await client.artifactStores.delete(store.id); }
+});
 await check("cleanup", async () => {
   if (state.conversationDeployment) await client.deployments.delete(state.conversationDeployment);
   if (state.deployment) await client.deployments.delete(state.deployment);

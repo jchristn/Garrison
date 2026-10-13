@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 18).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 19).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1142,3 +1142,18 @@ ALTER TABLE "node_executors" ADD COLUMN IF NOT EXISTS capreported BOOLEAN NOT NU
 
 -- Migration 18: Warm-start capability without removing cold execution support
 ALTER TABLE "node_executors" ADD COLUMN capwarmstart BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Migration 19: Artifact stores, deployment collection globs, and run artifact metadata
+ALTER TABLE "artifact_stores" ADD COLUMN pathprefix VARCHAR(512);
+ALTER TABLE "artifact_stores" ADD COLUMN bucket VARCHAR(255);
+ALTER TABLE "artifact_stores" ADD COLUMN endpoint VARCHAR(2048);
+ALTER TABLE "artifact_stores" ADD COLUMN region VARCHAR(128) NOT NULL DEFAULT 'us-east-1';
+ALTER TABLE "artifact_stores" ADD COLUMN secretid VARCHAR(64);
+ALTER TABLE "artifact_stores" ADD COLUMN forcepathstyle BOOLEAN NOT NULL DEFAULT TRUE;
+CREATE TABLE IF NOT EXISTS "deployment_artifact_globs" (id VARCHAR(64) NOT NULL PRIMARY KEY, deploymentid VARCHAR(64) NOT NULL, tenantid VARCHAR(64) NOT NULL, position INTEGER NOT NULL, pattern VARCHAR(512) NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_deployment_artifact_globs_parent" ON "deployment_artifact_globs" ("deploymentid", "position");
+CREATE TABLE IF NOT EXISTS "artifacts" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, runid VARCHAR(64) NOT NULL, artifactstoreid VARCHAR(64) NOT NULL, name VARCHAR(1024) NOT NULL, mediatype VARCHAR(255) NOT NULL, sizebytes BIGINT NOT NULL, sha256 VARCHAR(64) NOT NULL, location VARCHAR(2048) NOT NULL, leaseepoch BIGINT NOT NULL, repairattempt INTEGER NOT NULL, content BYTEA, createdutc TIMESTAMP WITH TIME ZONE NOT NULL, lastupdateutc TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_artifacts_tenant" ON "artifacts" ("tenantid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_artifacts_run" ON "artifacts" ("tenantid", "runid");
+CREATE INDEX IF NOT EXISTS "idx_artifacts_store" ON "artifacts" ("tenantid", "artifactstoreid");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_artifacts_upload" ON "artifacts" ("tenantid", "runid", "leaseepoch", "repairattempt", "name");

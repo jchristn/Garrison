@@ -1,6 +1,7 @@
 import HomeView from '../HomeView';
 import InvokeView from '../InvokeView';
 import RunsView from '../RunsView';
+import ArtifactsView from '../ArtifactsView';
 import RunDetailView from '../RunDetailView';
 import QueueView from '../QueueView';
 import ConversationsView from '../ConversationsView';
@@ -43,6 +44,7 @@ export const PAGE_VIEWS = {
   home: HomeView,
   invoke: InvokeView,
   runs: RunsView,
+  artifacts: ArtifactsView,
   conversations: ConversationsView,
   queue: QueueView,
   approvals: ApprovalsView,

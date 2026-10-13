@@ -124,6 +124,9 @@ namespace Garrison.Sdk
         /// </summary>
         public ArtifactStoresClient ArtifactStores { get; }
 
+        /// <summary>Collected run artifacts.</summary>
+        public ArtifactsClient Artifacts { get; }
+
         /// <summary>Operator-configured model prices.</summary>
         public ModelPricesClient ModelPrices { get; }
 
@@ -219,6 +222,7 @@ namespace Garrison.Sdk
             Secrets = new SecretsClient(Transport);
             WorkspaceTemplates = new WorkspaceTemplatesClient(Transport);
             ArtifactStores = new ArtifactStoresClient(Transport);
+            Artifacts = new ArtifactsClient(Transport);
             ModelPrices = new ModelPricesClient(Transport);
             UsageQuotas = new UsageQuotasClient(Transport);
             Manifests = new ManifestsClient(Transport);

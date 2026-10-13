@@ -258,13 +258,16 @@ type Agent struct {
 
 // Deployment binds an agent to a harness profile and model.
 type Deployment struct {
-	RequiredCapabilities *ExecutorRequirements `json:"requiredCapabilities,omitempty"`
-	ID                   string                `json:"id,omitempty"`
-	TenantID             string                `json:"tenantId,omitempty"`
-	AgentID              string                `json:"agentId"`
-	Name                 string                `json:"name"`
-	HarnessProfileID     string                `json:"harnessProfileId"`
-	Model                string                `json:"model,omitempty"`
+	ArgumentOverrides    []DeploymentArgumentOverride `json:"argumentOverrides,omitempty"`
+	ArtifactGlobs        []string                     `json:"artifactGlobs,omitempty"`
+	ArtifactStoreID      string                       `json:"artifactStoreId,omitempty"`
+	RequiredCapabilities *ExecutorRequirements        `json:"requiredCapabilities,omitempty"`
+	ID                   string                       `json:"id,omitempty"`
+	TenantID             string                       `json:"tenantId,omitempty"`
+	AgentID              string                       `json:"agentId"`
+	Name                 string                       `json:"name"`
+	HarnessProfileID     string                       `json:"harnessProfileId"`
+	Model                string                       `json:"model,omitempty"`
 	// Executor is RunExecutorProcess or RunExecutorKubernetesJob; nil uses the node pool's default, then Process.
 	Executor *string `json:"executor,omitempty"`
 	// PodResources are the run pod requests and limits for KubernetesJob runs.
@@ -850,4 +853,54 @@ type UsageQuotaUsage struct {
 	UnknownCostRuns        int64   `json:"unknownCostRuns"`
 	ActiveRuns             int64   `json:"activeRuns"`
 	CostAccountingComplete bool    `json:"costAccountingComplete"`
+}
+
+// ArtifactStore configures database, filesystem, or S3 storage. Credentials remain encrypted server-side.
+type ArtifactStore struct {
+	Description    string `json:"description,omitempty"`
+	Active         *bool  `json:"active,omitempty"`
+	IsProtected    bool   `json:"isProtected,omitempty"`
+	CreatedUTC     string `json:"createdUtc,omitempty"`
+	LastUpdateUTC  string `json:"lastUpdateUtc,omitempty"`
+	ID             string `json:"id,omitempty"`
+	TenantID       string `json:"tenantId,omitempty"`
+	Name           string `json:"name"`
+	Kind           string `json:"kind,omitempty"`
+	PathPrefix     string `json:"pathPrefix,omitempty"`
+	Bucket         string `json:"bucket,omitempty"`
+	Endpoint       string `json:"endpoint,omitempty"`
+	Region         string `json:"region,omitempty"`
+	SecretID       string `json:"secretId,omitempty"`
+	ForcePathStyle *bool  `json:"forcePathStyle,omitempty"`
+}
+
+// Artifact is metadata; binary content is downloaded separately.
+type Artifact struct {
+	ID              string `json:"id"`
+	TenantID        string `json:"tenantId"`
+	RunID           string `json:"runId"`
+	ArtifactStoreID string `json:"artifactStoreId"`
+	Name            string `json:"name"`
+	MediaType       string `json:"mediaType"`
+	SizeBytes       int64  `json:"sizeBytes"`
+	SHA256          string `json:"sha256"`
+	Location        string `json:"location"`
+	LeaseEpoch      int64  `json:"leaseEpoch"`
+	RepairAttempt   int    `json:"repairAttempt"`
+	CreatedUTC      string `json:"createdUtc"`
+}
+
+// ArtifactDownload is a short-lived download-only link.
+type ArtifactDownload struct {
+	URL        string `json:"url"`
+	ExpiresUTC string `json:"expiresUtc"`
+}
+
+// DeploymentArgumentOverride appends, prepends, replaces, or removes a profile argument.
+type DeploymentArgumentOverride struct {
+	Position  int    `json:"position"`
+	Operation string `json:"operation,omitempty"`
+	Match     string `json:"match,omitempty"`
+	Template  string `json:"template,omitempty"`
+	Condition string `json:"condition,omitempty"`
 }

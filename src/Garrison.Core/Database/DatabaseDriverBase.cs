@@ -120,6 +120,9 @@ namespace Garrison.Core.Database
         /// </summary>
         public IArtifactStoreMethods ArtifactStores { get; protected set; } = null!;
 
+        /// <summary>Collected run artifact metadata and database content.</summary>
+        public IArtifactMethods Artifacts { get; protected set; } = null!;
+
         /// <summary>Operator-configured model price methods.</summary>
         public IModelPriceMethods ModelPrices { get; protected set; } = null!;
 

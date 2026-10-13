@@ -696,12 +696,19 @@ export const artifactStoresConfig = {
   id: 'artifactStores',
   explainer: 'artifactStores',
   api: tenantApi('listArtifactStores', 'createArtifactStore', 'updateArtifactStore', 'deleteArtifactStore'),
-  blank: () => ({ name: '', description: '', kind: 'Database', active: true }),
+  loadOptions: async ({ apiClient, tenantId }) => ({ secrets: await safeList(apiClient.listSecrets(tenantId, { pageNumber: 1, pageSize: 1000 })) }),
+  blank: () => ({ name: '', description: '', kind: 'Database', pathPrefix: '', bucket: '', endpoint: '', region: 'us-east-1', secretId: null, forcePathStyle: true, active: true }),
   columns: ({ t, i18n }) => [nameCol('artifactStores', t), col('artifactStores', t, 'kind', (r) => enumBadge(t, 'artifactStoreKind', r.kind)), col('artifactStores', t, 'description', (r) => r.description || '-'), activeCol('artifactStores', t), idCol('artifactStores', t), createdCol('artifactStores', t, i18n)],
-  fields: (_d, { t }) => [
+  fields: (_d, { t, options }) => [
     field('artifactStores', t, 'name', 'text', { required: true }),
     field('artifactStores', t, 'kind', 'select', { required: true, options: enumOptions(t, 'artifactStoreKind') }),
     field('artifactStores', t, 'description', 'textarea'),
+    field('artifactStores', t, 'pathPrefix', 'text', { showIf: (d) => d.kind !== 'Database' }),
+    field('artifactStores', t, 'bucket', 'text', { required: true, showIf: (d) => d.kind === 'S3' }),
+    field('artifactStores', t, 'endpoint', 'text', { placeholder: 'http://127.0.0.1:8000', showIf: (d) => d.kind === 'S3' }),
+    field('artifactStores', t, 'region', 'text', { required: true, showIf: (d) => d.kind === 'S3' }),
+    field('artifactStores', t, 'secretId', 'select', { options: (options.secrets || []).filter((s) => s.kind === 'GenericEnv').map((s) => ({ value: s.id, label: s.name })), showIf: (d) => d.kind === 'S3' }),
+    field('artifactStores', t, 'forcePathStyle', 'checkbox', { showIf: (d) => d.kind === 'S3' }),
     field('artifactStores', t, 'active', 'checkbox')
   ],
   validate: (d, t) => (!d.name ? { name: t('common.errors.required') } : null)
@@ -970,6 +977,7 @@ export const deploymentsConfig = {
     nodePoolId: null,
     workspaceTemplateId: null,
     artifactStoreId: null,
+    artifactGlobs: [],
     promptBindings: [
       { role: 'System', templateId: '', pinnedVersion: null },
       { role: 'Task', templateId: '', pinnedVersion: null }
@@ -1088,6 +1096,7 @@ export const deploymentsConfig = {
       }),
       field(id, t, 'workspaceTemplateId', 'select', { options: sel(options.workspaces), step: 3 }),
       field(id, t, 'artifactStoreId', 'select', { options: sel(options.stores), step: 3 }),
+      field(id, t, 'artifactGlobs', 'stringList', { step: 3, placeholder: 'reports/**/*.json' }),
       field(id, t, 'argumentOverrides', 'objectList', {
         step: 4,
         ordered: true,

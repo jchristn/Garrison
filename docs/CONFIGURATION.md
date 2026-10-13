@@ -267,3 +267,7 @@ Windows reset at midnight UTC. Run counts use admission day; tokens and cost use
 The compiler lowers `deployment.maxBudgetUsd` to the remaining known allowance. Built-in Claude Code passes it to its CLI; other profiles must support and render that value. In-flight runs can overshoot completed-usage limits. See [REST API](../REST_API.md#usage-quotas) for fields, ranges, permissions, and error handling.
 
 Quota enforcement is optional and off by default: set `enforcementEnabled: true` on an active Usage Quota to enforce its limits. Otherwise it only reports usage and never alters admission, claims, or harness budgets. Existing quotas upgrade to monitoring-only in migration 16. Delegation-tree budgeting is outside the current scope.
+
+## Artifact collection
+
+Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example `["reports/**/*.json"]`. Empty globs disable collection. See [Run artifacts](ARTIFACTS.md) for filesystem/S3 configuration, limits, downloads, and API examples.

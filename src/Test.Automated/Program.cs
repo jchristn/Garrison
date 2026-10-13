@@ -42,6 +42,19 @@ namespace Test.Automated
                 if (args[i] == "--suites" && i + 1 < args.Length) prefixes.AddRange(args[i + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
             }
 
+            if (args.Contains("--artifact-s3-conformance"))
+            {
+                string endpoint = Environment.GetEnvironmentVariable("GARRISON_TEST_S3_ENDPOINT") ?? throw new InvalidOperationException("A temporary S3 endpoint is required.");
+                string access = Environment.GetEnvironmentVariable("GARRISON_TEST_S3_ACCESS_KEY") ?? "default";
+                string secret = Environment.GetEnvironmentVariable("GARRISON_TEST_S3_SECRET_KEY") ?? "default";
+                string bucket = Environment.GetEnvironmentVariable("GARRISON_TEST_S3_BUCKET") ?? "default";
+                string region = Environment.GetEnvironmentVariable("GARRISON_TEST_S3_REGION") ?? "us-west-1";
+                using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2)))
+                    await Test.Shared.Suites.ArtifactSuite.S3ConformanceAsync(endpoint, access, secret, bucket, region, timeout.Token).ConfigureAwait(false);
+                Console.WriteLine("PASS S3 worker collection, signed downloads, ticket scope, and deletion.");
+                return 0;
+            }
+
             if (args.Contains("--warm-conformance"))
             {
                 string kubeconfig = Environment.GetEnvironmentVariable("GARRISON_CONFORMANCE_KUBECONFIG") ?? throw new InvalidOperationException("A temporary kubeconfig is required.");

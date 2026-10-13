@@ -227,6 +227,9 @@ namespace Garrison.Sdk.Models
         /// </summary>
         public string? ArtifactStoreId { get; set; } = null;
 
+        /// <summary>Explicit workspace-relative collection globs. Empty disables collection.</summary>
+        public List<string> ArtifactGlobs { get; set; } = new List<string>();
+
         /// <summary>
         /// Permission approvals. When true, Claude Code runs relay permission prompts to Garrison through
         /// <c>--permission-prompt-tool</c>, and Codex app-server runs relay command and file change approvals; the

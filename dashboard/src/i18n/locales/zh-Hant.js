@@ -1888,4 +1888,15 @@ zhHant.resources.nodes.columns.executorCapabilities = "執行器能力";
 zhHant.tips.resources.nodes.executorCapabilities = "執行會等待具備這些能力的工作節點。容器隔離請選擇 KubernetesJob。要求不可用的能力會使執行保持排隊。";
 zhHant.enums.executorIsolation = {"Process": "程序", "Container": "容器", "SandboxedRuntime": "沙箱執行環境"};
 zhHant.enums.executorColdStart = {"Immediate": "即時", "Cold": "冷啟動", "Warm": "預熱"};
+// Artifact collection and browsing (P12.8).
+zhHant.nav.items.artifacts = { label: "產物", tip: "從執行收集的檔案。" };
+zhHant.resources.artifacts = { ...zhHant.resources.artifactStores, title: "產物", subtitle: "從執行收集的檔案。", view: "產物", deleteTitle: "產物", emptyTitle: "產物", emptyBody: "設定儲存和明確的部署比對模式以收集檔案。", columns: {"name": "名稱", "runId": "執行", "artifactStoreId": "儲存", "mediaType": "媒體類型", "sizeBytes": "位元組", "sha256": "SHA-256 雜湊", "createdUtc": "建立時間", "id": "ID", "leaseEpoch": "租約世代", "repairAttempt": "修復次數"}, fields: {"name": "名稱", "runId": "執行", "artifactStoreId": "儲存", "mediaType": "媒體類型", "sizeBytes": "位元組", "sha256": "SHA-256 雜湊", "createdUtc": "建立時間", "id": "ID", "leaseEpoch": "租約世代", "repairAttempt": "修復次數"}, actions: { download: "下載" } };
+zhHant.tips.resources.artifacts = { ...{"name": "從執行收集的檔案。 名稱", "runId": "從執行收集的檔案。 執行", "artifactStoreId": "從執行收集的檔案。 儲存", "mediaType": "從執行收集的檔案。 媒體類型", "sizeBytes": "從執行收集的檔案。 位元組", "sha256": "從執行收集的檔案。 SHA-256", "createdUtc": "從執行收集的檔案。 建立時間", "id": "從執行收集的檔案。 ID", "leaseEpoch": "從執行收集的檔案。 租約世代", "repairAttempt": "從執行收集的檔案。 修復次數"}, actions: { download: "透過臨時連結下載此檔案。" }, filters: { runId: "執行", storeId: "儲存" } };
+Object.assign(zhHant.resources.artifactStores.fields, {"pathPrefix": "路徑前綴", "bucket": "儲存桶", "endpoint": "端點", "region": "區域", "secretId": "憑證", "forcePathStyle": "路徑式請求"});
+Object.assign(zhHant.tips.resources.artifactStores, {"pathPrefix": "S3 端點可選，留空使用 AWS。將包含 accessKey、secretKey 和可選 sessionToken 的 JSON 儲存為 GenericEnv 密鑰。未指定憑證時使用伺服器憑證鏈。", "bucket": "S3 端點可選，留空使用 AWS。將包含 accessKey、secretKey 和可選 sessionToken 的 JSON 儲存為 GenericEnv 密鑰。未指定憑證時使用伺服器憑證鏈。", "endpoint": "S3 端點可選，留空使用 AWS。將包含 accessKey、secretKey 和可選 sessionToken 的 JSON 儲存為 GenericEnv 密鑰。未指定憑證時使用伺服器憑證鏈。", "region": "S3 端點可選，留空使用 AWS。將包含 accessKey、secretKey 和可選 sessionToken 的 JSON 儲存為 GenericEnv 密鑰。未指定憑證時使用伺服器憑證鏈。", "secretId": "S3 端點可選，留空使用 AWS。將包含 accessKey、secretKey 和可選 sessionToken 的 JSON 儲存為 GenericEnv 密鑰。未指定憑證時使用伺服器憑證鏈。", "forcePathStyle": "S3 端點可選，留空使用 AWS。將包含 accessKey、secretKey 和可選 sessionToken 的 JSON 儲存為 GenericEnv 密鑰。未指定憑證時使用伺服器憑證鏈。"});
+zhHant.resources.deployments.fields.artifactGlobs = "收集比對模式";
+zhHant.tips.resources.deployments.artifactGlobs = "僅收集相符的工作區相對檔案，例如 reports/**/*.json。留空則停用收集。";
+zhHant.resources.deployments.hints.artifactGlobs = "僅收集相符的工作區相對檔案，例如 reports/**/*.json。留空則停用收集。";
+Object.assign(zhHant.common.eventCodes, { ArtifactCollectionWarning: "產物收集警告", ArtifactsCollected: "已收集產物" });
+zhHant.tips.nav.tabs.artifacts = zhHant.nav.items.artifacts.tip + " " + zhHant.tips.resources.artifacts.actions.download;
 export default zhHant;
