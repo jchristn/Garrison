@@ -89,7 +89,7 @@ Rules for keeping the plan honest:
 | 9 | MVP verification (milestone M1) | M1 | Complete | 17 / 17 |
 | 10 | Control plane high availability and scale-out | M2 | In progress | 23 / 25 |
 | 11 | Pod-per-run isolation executor | M2 | Complete (active scope) | 17 / 17 active (3 deferred) |
-| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, optional quotas, artifacts | M3 | In progress | 7 / 12 active (32 deferred, 1 dropped) |
+| 12 | Advanced orchestration: conversations, approvals, remote agents, triggers, optional quotas, artifacts | M3 | In progress | 10 / 12 active (32 deferred, 1 dropped) |
 | 13 | Observability stack and dashboards | M2 | Complete | 28 / 28 |
 | 14 | Benchmarking | M3 | In progress | 14 / 14 active (1 deferred) |
 | 15 | Hardening, simulated user testing, and 1.0 release | M4 | Deferred | 0 / 0 active (21 deferred) |
