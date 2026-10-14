@@ -1902,3 +1902,10 @@ Object.assign(explainers, {
     p2: 'Prüfungen ohne Zeitlimit warten, bis eine Person entscheidet. Mit Zeitlimit entscheidet die Aktion bei Zeitüberschreitung der Stufe, wenn die Zeit abläuft.'
   }
 });
+tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields.Scheduling || {}, {
+  QueueWakeFanout: "Wie viele wartende Lease-Anfragen von Workern jede Replik für einen neu eingereihten Lauf weckt, unter denen, deren Worker ihn übernehmen könnte. Eine Anfrage, die den Lauf nicht übernehmen kann, gibt ihn an die nächste weiter. 0 weckt wie bisher jede passende Anfrage auf jeder Replik. Standard 1.",
+  RemoteWakeDelayMs: "Wie lange andere Repliken warten, bevor sie eine eigene Lease-Anfrage für einen Lauf wecken, für den dessen Replik bereits eine geweckt hat, in Millisekunden. Die Wartezeit endet früher, wenn der Lauf übernommen wird oder diese Replik keine passende Anfrage mehr hat. 0 weckt sofort eine Anfrage auf jeder Replik. Standard 250."
+});
+tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
+  CacheSeconds: "Wie lange jede Replik die Sitzungen, Mandanten, Benutzer und Anmeldedaten behält, die sie zur Authentifizierung liest, in Sekunden. Das Widerrufen eines Tokens oder Änderungen an Benutzern, Anmeldedaten, Rollen oder Mandanten über die API wirken sofort auf jeder Replik; dies ist die längste Zeit, die eine anders vorgenommene Änderung unbemerkt bleiben kann. 0 schaltet den Cache aus. Standard 5."
+});

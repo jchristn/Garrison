@@ -2183,3 +2183,6 @@ fr.resources.deployments.hints.effectPolicy = "Au plus une fois (par défaut) fa
 fr.tips.resources.deployments.effectPolicy = "Ce qui arrive à une exécution démarrée quand son worker est perdu : échec (Au plus une fois), remise en file (Au moins une fois) ou Journalisée, qui se comporte pour l'instant comme Au plus une fois.";
 fr.views.runDetail.effectPolicy = "Politique d'effets";
 fr.tips.views.runDetail.effectPolicy = "La politique d'effets du déploiement au moment où cette exécution a été mise en file. Elle décide de ce qui arrive si le worker de l'exécution est perdu ; les modifications ultérieures du déploiement ne la concernent pas.";
+fr.views.settings.fields.Scheduling.QueueWakeFanout = "Sondages réveillés par réplique";
+fr.views.settings.fields.Scheduling.RemoteWakeDelayMs = "Retenue des réveils distants (ms)";
+fr.views.settings.fields.Auth.CacheSeconds = "Durée du cache d’authentification (secondes)";

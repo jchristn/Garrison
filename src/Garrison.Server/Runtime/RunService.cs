@@ -253,7 +253,7 @@ namespace Garrison.Server.Runtime
                 + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", deployment.Name));
 
             RunTelemetry.Created(run, deployment.Name);
-            _Signals.NotifyQueue();
+            _Signals.NotifyQueue(run);
             return run;
         }
 

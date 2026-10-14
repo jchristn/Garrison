@@ -10,7 +10,8 @@ namespace Garrison.Server.Runtime
     /// Per-run and queue signals that wake waiters early: SSE, WebSocket, and A2A tails, synchronous invokes, and lease
     /// long-polls. Local changes signal local waiters directly and are published on the backplane; messages from other
     /// replicas signal local waiters through <see cref="ApplyRemote"/>. Waiters always re-read the database, so a missed
-    /// signal costs latency, never correctness. A run's signal exists only while someone waits on it. Thread-safe.
+    /// signal costs latency, never correctness. A run's signal exists only while someone waits on it. A queued run wakes
+    /// one matching lease long poll through <see cref="Waiters"/> instead of every poll (P10.24). Thread-safe.
     /// </summary>
     public class RunSignals
     {
@@ -25,6 +26,11 @@ namespace Garrison.Server.Runtime
         /// Backplane that carries signals to other replicas. Null (the default) keeps signals in this process.
         /// </summary>
         public IEventBackplane? Backplane { get; set; } = null;
+
+        /// <summary>
+        /// Lease long polls waiting on this replica, woken by targeted queue notices (P10.24).
+        /// </summary>
+        public LeaseWaiters Waiters { get; } = new LeaseWaiters();
 
         /// <summary>
         /// Raised on this replica after <see cref="Complete"/> is called here, with the completed identifier (a run, or a
@@ -54,6 +60,18 @@ namespace Garrison.Server.Runtime
 
         private readonly Dictionary<string, RunSignalEntry> _Runs = new Dictionary<string, RunSignalEntry>(StringComparer.Ordinal);
         private readonly object _Lock = new object();
+
+        #endregion
+
+        #region Constructors-and-Factories
+
+        /// <summary>
+        /// Instantiate.
+        /// </summary>
+        public RunSignals()
+        {
+            Waiters.Republish = PublishNotice;
+        }
 
         #endregion
 
@@ -104,6 +122,7 @@ namespace Garrison.Server.Runtime
         {
             if (String.IsNullOrEmpty(runId)) return;
             SignalLocal(runId);
+            Waiters.Settle(runId);
             Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.RunChanged, runId));
         }
 
@@ -164,6 +183,7 @@ namespace Garrison.Server.Runtime
             if (String.IsNullOrEmpty(runId)) return;
             SignalLocal(runId);
             SignalLocal(CompletionSubject(runId));
+            Waiters.Settle(runId);
             Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.RunCompleted, runId));
             EventHandler<string>? handler = LocalCompleted;
             if (handler != null)
@@ -180,12 +200,35 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Runs were queued or requeued: wake lease long-polls here and on other replicas.
+        /// Runs were queued or requeued without a known run: wake every lease long-poll here and on other replicas.
         /// </summary>
         public void NotifyQueue()
         {
             QueueChanged.Signal();
+            Waiters.WakeAll();
             Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.QueueChanged, null));
+        }
+
+        /// <summary>
+        /// A run was queued or requeued: wake one lease long poll here that could take it (P10.24), and tell the other
+        /// replicas. When a poll here was woken, the other replicas hold their own wakeup for
+        /// <see cref="LeaseWaiters.RemoteDelayMs"/> and drop it once the run is claimed; otherwise they wake one of
+        /// theirs at once.
+        /// </summary>
+        /// <param name="run">Run; null wakes every poll, like <see cref="NotifyQueue()"/>.</param>
+        public void NotifyQueue(Run? run)
+        {
+            if (run == null || String.IsNullOrEmpty(run.Id))
+            {
+                NotifyQueue();
+                return;
+            }
+            QueueChanged.Signal();
+            QueueNotice notice = QueueNotice.For(run);
+            notice.LocalOrigin = true;
+            bool handled = Waiters.Deliver(notice);
+            notice.RemoteDeferred = handled && Waiters.Fanout > 0 && Waiters.RemoteDelayMs > 0;
+            PublishNotice(notice);
         }
 
         /// <summary>
@@ -198,17 +241,23 @@ namespace Garrison.Server.Runtime
             switch (message.Kind)
             {
                 case BackplaneMessageKindEnum.RunChanged:
-                    if (!String.IsNullOrEmpty(message.Subject)) SignalLocal(message.Subject!);
+                    if (!String.IsNullOrEmpty(message.Subject))
+                    {
+                        SignalLocal(message.Subject!);
+                        Waiters.Settle(message.Subject);
+                    }
                     break;
                 case BackplaneMessageKindEnum.RunCompleted:
                     if (!String.IsNullOrEmpty(message.Subject))
                     {
                         SignalLocal(message.Subject!);
                         SignalLocal(CompletionSubject(message.Subject!));
+                        Waiters.Settle(message.Subject);
                     }
                     break;
                 case BackplaneMessageKindEnum.QueueChanged:
                     QueueChanged.Signal();
+                    ApplyRemoteNotice(message.Subject);
                     break;
                 case BackplaneMessageKindEnum.ApprovalChanged:
                     if (!String.IsNullOrEmpty(message.Subject)) SignalLocal(ApprovalSubject(message.Subject!));
@@ -228,6 +277,7 @@ namespace Garrison.Server.Runtime
             }
             foreach (AsyncSignal signal in signals) signal.Signal();
             QueueChanged.Signal();
+            Waiters.WakeAll();
         }
 
         /// <summary>
@@ -262,6 +312,31 @@ namespace Garrison.Server.Runtime
         private static string NodeSubject(string nodeId)
         {
             return "node:" + nodeId;
+        }
+
+        private void ApplyRemoteNotice(string? subject)
+        {
+            // A message without a run (or from a replica that predates targeted wakeups) wakes every poll here.
+            QueueNotice? notice = QueueNotice.FromSubject(subject);
+            if (notice == null)
+            {
+                Waiters.WakeAll();
+                return;
+            }
+            if (notice.RemoteDeferred)
+            {
+                Waiters.Defer(notice);
+                return;
+            }
+            // Delivered at once: the origin had no poll for the run, or every poll there tried it. A hold for the same run
+            // is dropped so the run is not delivered twice.
+            Waiters.Settle(notice.RunId);
+            Waiters.Deliver(notice);
+        }
+
+        private void PublishNotice(QueueNotice notice)
+        {
+            Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.QueueChanged, notice.ToSubject()));
         }
 
         private void SignalLocal(string runId)

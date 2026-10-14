@@ -1904,3 +1904,10 @@ Object.assign(explainers, {
     p2: 'Las revisiones sin tiempo de espera esperan hasta que decida una persona. Con tiempo de espera, la acción de tiempo agotado de la etapa decide cuando se acaba el tiempo.'
   }
 });
+tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields.Scheduling || {}, {
+  QueueWakeFanout: "Cuántas solicitudes de lease en espera despierta cada réplica para una ejecución recién encolada, entre aquellas cuyo worker podría tomarla. Una solicitud que no puede tomar la ejecución la pasa a la siguiente. 0 despierta todas las solicitudes compatibles en todas las réplicas, como antes. Predeterminado 1.",
+  RemoteWakeDelayMs: "Cuánto esperan las demás réplicas antes de despertar una de sus solicitudes de lease para una ejecución cuya réplica ya despertó una, en milisegundos. La espera termina antes si la ejecución se reclama o si esa réplica ya no tiene solicitudes que puedan tomarla. 0 despierta una solicitud en cada réplica de inmediato. Predeterminado 250."
+});
+tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
+  CacheSeconds: "Cuánto tiempo guarda cada réplica las sesiones, inquilinos, usuarios y credenciales que lee para autenticar solicitudes, en segundos. Revocar un token o cambiar usuarios, credenciales, roles o inquilinos mediante la API surte efecto en todas las réplicas de inmediato; este es el tiempo máximo que un cambio hecho de otra forma puede pasar inadvertido. 0 desactiva la caché. Predeterminado 5."
+});

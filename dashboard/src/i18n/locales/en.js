@@ -2162,3 +2162,6 @@ en.resources.deployments.hints.effectPolicy = "At most once (default) fails a st
 en.tips.resources.deployments.effectPolicy = "What happens to a started run when its worker is lost: fail it (At most once), requeue it (At least once), or Journaled, which behaves like At most once for now.";
 en.views.runDetail.effectPolicy = "Effect policy";
 en.tips.views.runDetail.effectPolicy = "The deployment's effect policy when this run was queued. It decides what happens if the run's worker is lost; later deployment changes do not affect this run.";
+en.views.settings.fields.Scheduling.QueueWakeFanout = "Queue wakeup fanout (polls per replica)";
+en.views.settings.fields.Scheduling.RemoteWakeDelayMs = "Remote wakeup hold (ms)";
+en.views.settings.fields.Auth.CacheSeconds = "Authentication cache lifetime (seconds)";

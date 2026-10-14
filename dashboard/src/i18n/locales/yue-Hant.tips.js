@@ -1902,3 +1902,10 @@ Object.assign(explainers, {
     p2: '冇逾時嘅審閱會一直等到有人決定。有逾時嘅話，時間一到就由階段嘅逾時動作決定。'
   }
 });
+tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields.Scheduling || {}, {
+  QueueWakeFanout: "一個新排隊嘅執行，每個副本會叫醒幾多個等緊嘅 worker lease 請求，只會揀個 worker 接得到嗰個執行嘅請求。接唔到嘅請求會交俾下一個。0 即係好似以前咁，叫醒每個副本上面所有啱嘅請求。預設 1。",
+  RemoteWakeDelayMs: "如果發起嘅副本已經叫醒咗自己一個 lease 請求，其他副本要等幾耐 (毫秒) 先叫醒自己嘅請求。執行俾人接咗，或者嗰個副本再冇請求接得到，就會提早結束。0 即係每個副本即刻叫醒一個請求。預設 250。"
+});
+tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
+  CacheSeconds: "每個副本為認證請求而讀取嘅工作階段、租戶、用戶同憑證，會保留幾多秒。經 API 撤銷權杖，或者更改用戶、憑證、角色或租戶，會即刻喺所有副本生效；呢個數值係用其他方法做嘅更改最長可以冇人察覺嘅時間。0 即係關閉快取。預設 5。"
+});

@@ -47,6 +47,27 @@ namespace Garrison.Benchmark.Reporting
         public double WakeupsNotify { get; set; }
 
         /// <summary>
+        /// Lease long polls woken because another poll handed on a run it could not take (source="handoff", P10.24).
+        /// </summary>
+        public double WakeupsHandoff { get; set; }
+
+        /// <summary>
+        /// Lease long polls that looked again instead of sleeping because a run was queued during their claim pass
+        /// (source="pending", P10.24).
+        /// </summary>
+        public double WakeupsPending { get; set; }
+
+        /// <summary>
+        /// Lease long polls woken together (source="broadcast": resynchronization, an older replica, or fanout 0).
+        /// </summary>
+        public double WakeupsBroadcast { get; set; }
+
+        /// <summary>
+        /// Every wakeup other than the fallback poll (notify, handoff, pending, broadcast) per finished run.
+        /// </summary>
+        public double WakeupsPerRun { get; set; }
+
+        /// <summary>
         /// Lease long polls woken by the fallback poll interval (source="poll").
         /// </summary>
         public double WakeupsPoll { get; set; }
@@ -105,6 +126,26 @@ namespace Garrison.Benchmark.Reporting
         /// Claims by result (won, lost, limit, quota, affinity) from garrison_claims_total.
         /// </summary>
         public SortedDictionary<string, double> Claims { get; set; } = new SortedDictionary<string, double>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Claims lost to another claimer (garrison_claims_total{result="lost"}) per finished run.
+        /// </summary>
+        public double LostClaimsPerRun { get; set; }
+
+        /// <summary>
+        /// Statements on the tables authentication reads (tenants, users, credentials, authsessions) per finished run.
+        /// </summary>
+        public double AuthStatementsPerRun { get; set; }
+
+        /// <summary>
+        /// Authentication lookups answered from the cache (garrison_auth_cache_lookups_total{result="hit"}).
+        /// </summary>
+        public double AuthCacheHits { get; set; }
+
+        /// <summary>
+        /// Authentication lookups that read the database (result="miss").
+        /// </summary>
+        public double AuthCacheMisses { get; set; }
 
         /// <summary>
         /// Database statements (every operation, every table, every replica).

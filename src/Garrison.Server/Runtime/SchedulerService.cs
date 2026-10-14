@@ -119,9 +119,9 @@ namespace Garrison.Server.Runtime
             int waitMs = Math.Clamp(request.WaitMs, 0, Math.Min(60000, _Options.LeaseWaitMs));
             DateTime deadline = DateTime.UtcNow.AddMilliseconds(waitMs);
 
-            // Read the queue signal's version before looking for work, so a run queued (on any replica) while this
-            // claim pass runs wakes the wait below at once instead of being slept through.
-            long seen = _Signals.QueueChanged.Version;
+            // Register before looking for work, so a run queued (on any replica) while this claim pass runs makes the
+            // wait below return at once instead of being slept through (P10.24).
+            LeaseWaiter waiter = _Signals.Waiters.Register(node.Id, node.NodePoolId, HarnessTypes(node), request.ChildReserve);
             ControlNodeActivity? activity = Activity;
             bool holding = false;
             long requestStart = Stopwatch.GetTimestamp();
@@ -138,11 +138,17 @@ namespace Garrison.Server.Runtime
                     Node? current = await _Database.Nodes.ReadAsync(node.Id, token).ConfigureAwait(false);
                     if (current == null || !current.Active || current.Status != NodeStatusEnum.Ready || current.RegisteredUtc != registration) return response;
                     node = current;
+                    _Signals.Waiters.Update(waiter, node.NodePoolId, HarnessTypes(node));
                     int wanted = maxRuns - response.Assignments.Count;
                     if (request.ChildReserve) wanted = Math.Min(wanted, await OpenReserveSlotsAsync(node, request.ReserveRunIds, token).ConfigureAwait(false) - response.Assignments.Count);
                     List<RunAssignment> claimed = wanted > 0 ? await ClaimAsync(node, wanted, request.ChildReserve, token).ConfigureAwait(false) : new List<RunAssignment>();
                     GarrisonMetrics.Observe(GarrisonMetricCatalog.ClaimDuration, GarrisonMetrics.SecondsSince(claimStart), "result", claimed.Count > 0 ? "assigned" : "empty");
                     response.Assignments.AddRange(claimed);
+
+                    // The notice that woke this pass is handed on when its run was not taken here and is still queued.
+                    QueueNotice? notice = _Signals.Waiters.TakeCurrent(waiter);
+                    if (notice != null) await HandOnAsync(notice, waiter, claimed, token).ConfigureAwait(false);
+
                     if (!request.ChildReserve && node.ExecutorCapabilities.Any(c => c.WarmStart)) response.QueuedKubernetesRuns = await WarmQueueDepthAsync(node, token).ConfigureAwait(false);
                     if (response.Assignments.Count > 0) return response;
 
@@ -158,19 +164,20 @@ namespace Garrison.Server.Runtime
                     {
                         try
                         {
-                            bool signalled = await _Signals.QueueChanged.WaitAsync(seen, Math.Min(remaining, _Options.LeasePollMs), wait.Token).ConfigureAwait(false);
-                            GarrisonMetrics.Count(GarrisonMetricCatalog.QueueWakeups, "source", signalled ? "notify" : "poll");
+                            LeaseWakeEnum woke = await _Signals.Waiters.WaitAsync(waiter, Math.Min(remaining, _Options.LeasePollMs), wait.Token).ConfigureAwait(false);
+                            GarrisonMetrics.Count(GarrisonMetricCatalog.QueueWakeups, "source", WakeSource(woke));
                         }
                         catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested && !token.IsCancellationRequested)
                         {
                             return response;
                         }
                     }
-                    seen = _Signals.QueueChanged.Version;
                 }
             }
             finally
             {
+                // A notice this poll was handed and did not handle goes to the next matching poll.
+                _Signals.Waiters.Unregister(waiter);
                 if (holding && activity != null) activity.LongPollEnded();
                 string leaseResult = response.Assignments.Count > 0 ? "assigned" : "empty";
                 GarrisonMetrics.Count(GarrisonMetricCatalog.LeaseRequests, "result", leaseResult);
@@ -202,6 +209,50 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private static List<HarnessTypeEnum> HarnessTypes(Node node)
+        {
+            return node.Capabilities.Where(c => c.Available).Select(c => c.HarnessType).Distinct().ToList();
+        }
+
+        private static string WakeSource(LeaseWakeEnum woke)
+        {
+            switch (woke)
+            {
+                case LeaseWakeEnum.Notify:
+                    return "notify";
+                case LeaseWakeEnum.Handoff:
+                    return "handoff";
+                case LeaseWakeEnum.Pending:
+                    return "pending";
+                case LeaseWakeEnum.Broadcast:
+                    return "broadcast";
+                default:
+                    return "poll";
+            }
+        }
+
+        private async Task HandOnAsync(QueueNotice notice, LeaseWaiter waiter, List<RunAssignment> claimed, CancellationToken token)
+        {
+            // Hand the notice on unless this pass took the run or the run is no longer queued. When the check cannot be
+            // made (the request was cancelled, or the read failed), hand it on anyway: an extra wakeup is cheap, a lost
+            // one leaves the run waiting for the fallback poll.
+            if (claimed.Any(a => String.Equals(a.RunId, notice.RunId, StringComparison.Ordinal))) return;
+            bool handOn = true;
+            try
+            {
+                Run? run = await _Database.Runs.ReadAsync(notice.RunId, token).ConfigureAwait(false);
+                handOn = run != null && run.Status == RunStatusEnum.Queued;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                _Logging.Debug(_Header + "could not check run " + notice.RunId + " before handing its queue notice on: " + e.Message);
+            }
+            finally
+            {
+                if (handOn) _Signals.Waiters.Redeliver(notice, waiter);
+            }
+        }
 
         private async Task<int> WarmQueueDepthAsync(Node node, CancellationToken token)
         {
@@ -288,7 +339,7 @@ namespace Garrison.Server.Runtime
         private async Task<List<RunAssignment>> ClaimAsync(Node node, int maxRuns, bool childReserve, CancellationToken token)
         {
             List<RunAssignment> assignments = new List<RunAssignment>();
-            List<HarnessTypeEnum> harnessTypes = node.Capabilities.Where(c => c.Available).Select(c => c.HarnessType).Distinct().ToList();
+            List<HarnessTypeEnum> harnessTypes = HarnessTypes(node);
             if (harnessTypes.Count == 0 || maxRuns <= 0) return assignments;
 
             // Pool and tenant dedication are applied in SQL, so a dedicated node is never starved by a backlog of runs it

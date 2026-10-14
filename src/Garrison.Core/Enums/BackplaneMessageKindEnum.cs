@@ -47,6 +47,12 @@ namespace Garrison.Core.Enums
         /// A permission approval was created or decided (P12.3); the subject is the approval identifier. Wakes harness
         /// calls waiting on that approval on every replica.
         /// </summary>
-        ApprovalChanged
+        ApprovalChanged,
+
+        /// <summary>
+        /// An authentication session was revoked (P10.24); the subject is the session identifier. Replicas drop it from
+        /// their authentication cache.
+        /// </summary>
+        SessionRevoked
     }
 }

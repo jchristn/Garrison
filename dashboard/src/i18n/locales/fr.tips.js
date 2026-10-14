@@ -1904,3 +1904,10 @@ Object.assign(explainers, {
     p2: "Les revues sans délai attendent qu'une personne décide. Avec un délai, l'action d'expiration de l'étape décide quand le temps est écoulé."
   }
 });
+tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields.Scheduling || {}, {
+  QueueWakeFanout: "Nombre de requêtes de bail en attente que chaque réplique réveille pour une exécution nouvellement mise en file, parmi celles dont le worker pourrait la prendre. Une requête qui ne peut pas la prendre la passe à la suivante. 0 réveille toutes les requêtes compatibles sur toutes les répliques, comme avant. Par défaut 1.",
+  RemoteWakeDelayMs: "Durée pendant laquelle les autres répliques attendent avant de réveiller l’une de leurs requêtes de bail pour une exécution dont la réplique en a déjà réveillé une, en millisecondes. L’attente se termine plus tôt si l’exécution est prise ou si cette réplique n’a plus de requête capable de la prendre. 0 réveille immédiatement une requête sur chaque réplique. Par défaut 250."
+});
+tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
+  CacheSeconds: "Durée pendant laquelle chaque réplique conserve les sessions, locataires, utilisateurs et identifiants qu’elle lit pour authentifier les requêtes, en secondes. Révoquer un jeton ou modifier des utilisateurs, identifiants, rôles ou locataires via l’API prend effet immédiatement sur toutes les répliques ; c’est la durée maximale pendant laquelle une modification faite autrement peut passer inaperçue. 0 désactive le cache. Par défaut 5."
+});

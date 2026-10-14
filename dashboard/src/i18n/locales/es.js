@@ -2187,3 +2187,6 @@ es.resources.deployments.hints.effectPolicy = "Como máximo una vez (predetermin
 es.tips.resources.deployments.effectPolicy = "Qué ocurre con una ejecución iniciada cuando se pierde su worker: fallar (Como máximo una vez), volver a encolar (Al menos una vez) o Con registro, que por ahora se comporta como Como máximo una vez.";
 es.views.runDetail.effectPolicy = "Política de efectos";
 es.tips.views.runDetail.effectPolicy = "La política de efectos de la implementación cuando esta ejecución entró en la cola. Decide qué ocurre si se pierde el worker de la ejecución; los cambios posteriores en la implementación no afectan a esta ejecución.";
+es.views.settings.fields.Scheduling.QueueWakeFanout = "Sondeos despertados por réplica";
+es.views.settings.fields.Scheduling.RemoteWakeDelayMs = "Retención de avisos remotos (ms)";
+es.views.settings.fields.Auth.CacheSeconds = "Duración de la caché de autenticación (segundos)";

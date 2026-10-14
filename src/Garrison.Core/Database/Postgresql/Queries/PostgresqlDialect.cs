@@ -141,6 +141,12 @@ namespace Garrison.Core.Database.Postgresql.Queries
         }
 
         /// <inheritdoc />
+        public override string? SkipLockedClause()
+        {
+            return " FOR UPDATE SKIP LOCKED";
+        }
+
+        /// <inheritdoc />
         public override bool IsTransientConflict(Exception exception)
         {
             if (exception is PostgresException pg) return pg.SqlState == "40001" || pg.SqlState == "40P01";

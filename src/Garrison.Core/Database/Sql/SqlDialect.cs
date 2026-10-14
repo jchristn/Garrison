@@ -239,6 +239,16 @@ namespace Garrison.Core.Database.Sql
         }
 
         /// <summary>
+        /// Clause appended to a SELECT inside a transaction that locks the selected rows and leaves out rows another
+        /// transaction holds, instead of waiting for them; null when the provider serializes writers already (Sqlite).
+        /// </summary>
+        /// <returns>Clause with a leading space, or null.</returns>
+        public virtual string? SkipLockedClause()
+        {
+            return null;
+        }
+
+        /// <summary>
         /// Whether an exception is a transient concurrency conflict that should be retried.
         /// </summary>
         /// <param name="exception">Exception.</param>

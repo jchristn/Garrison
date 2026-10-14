@@ -49,6 +49,9 @@ namespace Garrison.Core.Telemetry
         /// <summary>Authorization denials.</summary>
         public static readonly MetricDescriptor AuthzDenials = new MetricDescriptor("garrison.authz.denials", MetricKindEnum.Counter, "{request}", "resource, operation, result", "Authorization denials by resource type, operation, and result (Forbidden, NotFound)", "server", "Security", "garrison-security");
 
+        /// <summary>Authentication cache lookups.</summary>
+        public static readonly MetricDescriptor AuthCacheLookups = new MetricDescriptor("garrison.auth.cache_lookups", MetricKindEnum.Counter, "{lookup}", "entity, result", "Authentication lookups by record (session, tenant, user, credential) and result: hit (answered from the per-replica cache, Auth.CacheSeconds) or miss (read from the database)", "server", "Security", "garrison-security");
+
         /// <summary>Tokens issued.</summary>
         public static readonly MetricDescriptor AuthTokensIssued = new MetricDescriptor("garrison.auth.tokens_issued", MetricKindEnum.Counter, "{token}", "scheme, principal", "Session tokens issued (sign-ins and token exchanges) by scheme and principal type (User, Credential, Run)", "server", "Security", "garrison-security");
 
@@ -186,7 +189,7 @@ namespace Garrison.Core.Telemetry
         public static readonly MetricDescriptor LeaseWait = new MetricDescriptor("garrison.scheduler.lease_wait.duration", MetricKindEnum.Histogram, "s", "result", "How long a lease request waited (long poll) before it was answered", "server", "Scheduler", "garrison-scheduler", TelemetryBuckets.Request);
 
         /// <summary>Lease long-poll wakeups.</summary>
-        public static readonly MetricDescriptor QueueWakeups = new MetricDescriptor("garrison.scheduler.queue_wakeups", MetricKindEnum.Counter, "{wakeup}", "source", "Lease long polls woken to look for work again, by source: notify (a run was queued or released on any replica) or poll (the fallback poll interval, Runtime.LeasePollMs, passed without a signal)", "server", "Scheduler", "garrison-scheduler");
+        public static readonly MetricDescriptor QueueWakeups = new MetricDescriptor("garrison.scheduler.queue_wakeups", MetricKindEnum.Counter, "{wakeup}", "source", "Lease long polls woken to look for work again, by source: notify (a queued run this poll could take, one poll per replica by default), handoff (another poll could not take the run and handed it on), pending (a run was queued while this poll was looking for work), broadcast (every poll woken: a backplane resynchronization, an older replica, or Scheduling.QueueWakeFanout 0), or poll (the fallback poll interval, Runtime.LeasePollMs, passed without a signal)", "server", "Scheduler", "garrison-scheduler");
 
         /// <summary>Deployment claim lock wait.</summary>
         public static readonly MetricDescriptor DeploymentLockWait = new MetricDescriptor("garrison.scheduler.deployment_lock.wait", MetricKindEnum.Histogram, "s", "", "Time a claim waited for the per-deployment concurrency lock that serializes claims of one deployment (Postgresql only; Sqlite has a single writer)", "server", "Scheduler", "garrison-scheduler", TelemetryBuckets.Fast);
@@ -418,7 +421,7 @@ namespace Garrison.Core.Telemetry
         private static readonly List<MetricDescriptor> _All = new List<MetricDescriptor>
         {
             HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
-            AuthFailures, AuthRateLimited, AuthzDenials, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
+            AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
             RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,

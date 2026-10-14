@@ -1902,3 +1902,10 @@ Object.assign(explainers, {
     p2: 'Reviews without a timeout wait until a person decides. With a timeout, the stage\'s timeout action decides when time runs out.'
   }
 });
+tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields.Scheduling || {}, {
+  QueueWakeFanout: "How many waiting worker lease requests each replica wakes for a newly queued run, among those whose worker could take it. A request that cannot take the run hands it to the next one. 0 wakes every matching request on every replica, as before. Default 1.",
+  RemoteWakeDelayMs: "How long other replicas wait before waking one of their own lease requests for a run whose replica already woke one, in milliseconds. The wait ends early when the run is claimed or when that replica has no request left that could take it. 0 wakes one request on every replica at once. Default 250."
+});
+tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
+  CacheSeconds: "How long each replica keeps the sessions, tenants, users, and credentials it reads to authenticate requests, in seconds. Revoking a token or changing users, credentials, roles, or tenants through the API takes effect on every replica at once; this is the longest a change made any other way can go unnoticed. 0 turns the cache off. Default 5."
+});

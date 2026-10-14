@@ -2134,3 +2134,6 @@ yueHant.resources.deployments.hints.effectPolicy = "最多一次 (預設) 會令
 yueHant.tips.resources.deployments.effectPolicy = "worker 失聯時點樣處理已開始嘅執行: 令佢失敗 (最多一次)、重新排隊 (最少一次)，或者日誌模式，而家同最多一次一樣。";
 yueHant.views.runDetail.effectPolicy = "作用策略";
 yueHant.tips.views.runDetail.effectPolicy = "呢個執行入隊列時部署嘅作用策略。佢決定執行嘅 worker 失聯時點處理；之後改部署唔會影響呢個執行。";
+yueHant.views.settings.fields.Scheduling.QueueWakeFanout = "每個副本叫醒嘅輪詢數";
+yueHant.views.settings.fields.Scheduling.RemoteWakeDelayMs = "遠端喚醒暫緩時間 (ms)";
+yueHant.views.settings.fields.Auth.CacheSeconds = "認證快取有效時間 (秒)";

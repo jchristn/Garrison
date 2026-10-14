@@ -242,6 +242,7 @@ namespace Garrison.Server.Modules
             _Approvals?.Dispose();
             _Pipelines?.Dispose();
             _Leader?.Dispose();
+            _Signals?.Waiters.Dispose();
             if (_Leases is ClutchLeaseProvider clutch) await clutch.StopAsync(token).ConfigureAwait(false);
             if (_Leases is IDisposable disposable) disposable.Dispose();
         }
@@ -274,6 +275,11 @@ namespace Garrison.Server.Modules
             _Options.PauseGraceMs = cluster.GetInt("Scheduling.PauseGraceMs");
             _Options.EventPollMs = cluster.GetInt("Scheduling.EventPollMs");
             _Options.InvocationWaitPollMs = cluster.GetInt("Scheduling.InvocationWaitPollMs");
+            if (_Signals != null)
+            {
+                _Signals.Waiters.Fanout = cluster.GetInt("Scheduling.QueueWakeFanout");
+                _Signals.Waiters.RemoteDelayMs = cluster.GetInt("Scheduling.RemoteWakeDelayMs");
+            }
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
             _Options.DelegationChildQueueDepth = cluster.GetInt("Runs.DelegationChildQueueDepth");
             _Options.DelegationRetryAfterSeconds = cluster.GetInt("Runs.DelegationRetryAfterSeconds");

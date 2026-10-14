@@ -1901,3 +1901,10 @@ Object.assign(explainers, {
     p2: '没有超时设置的审核会一直等待人员决定。设置了超时时，时间到后由该阶段的超时操作作出决定。'
   }
 });
+tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields.Scheduling || {}, {
+  QueueWakeFanout: "对于新排队的运行，每个副本唤醒的等待中 worker lease 请求的数量，只在其 worker 能接手该运行的请求中选择。无法接手的请求会把运行交给下一个请求。0 表示像以前一样唤醒所有副本上所有匹配的请求。默认 1。",
+  RemoteWakeDelayMs: "当发起副本已为某个运行唤醒了自己的一个 lease 请求时，其他副本在唤醒自己的请求之前等待的时间 (毫秒)。运行被接手，或该副本已没有能接手的请求时，会提前结束。0 表示立即在每个副本上各唤醒一个请求。默认 250。"
+});
+tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
+  CacheSeconds: "每个副本保留其为认证请求而读取的会话、租户、用户和凭据的时间 (秒)。通过 API 撤销令牌或更改用户、凭据、角色或租户，会立即在所有副本上生效；此值是以其他方式所做更改可能未被察觉的最长时间。0 表示关闭缓存。默认 5。"
+});
