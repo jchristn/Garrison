@@ -305,6 +305,7 @@ A deployment binds one agent to one profile and adjusts it without touching the 
 | `nodeSelector`, `nodePoolId` | Labels and pool a worker must have |
 | `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | Concurrency, retries, and traffic split among an agent's deployments |
 | `executor`, `podResources` | Run as a worker subprocess (`Process`) or in a pod per run (`KubernetesJob`) with these requests and limits; see `docs/KUBERNETES.md`, "Pod-per-run executor" |
+| `trustLevel` | `Trusted` (default) or `Untrusted`. Untrusted runs only go to an executor with at least Container isolation (an unset executor means `KubernetesJob`); see `docs/SECURITY.md`, "Deployment trust level" |
 | `approvalsEnabled`, `approvalDefaultAction`, `approvalTimeoutSeconds`, `approvalTimeoutDecision`, `approvalRules` | Permission approvals; see [Permission approvals](#permission-approvals) |
 
 New deployments get the default prompt bindings (`builtin/default-system`, `builtin/default-task`, `builtin/delegated-task`) for any role you do not bind. `POST .../deployments/{id}/compile-preview` shows the exact `ExecutionSpec` a run would get, with secrets masked, and is the quickest way to check an override.

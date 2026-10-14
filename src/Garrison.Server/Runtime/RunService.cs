@@ -160,8 +160,7 @@ namespace Garrison.Server.Runtime
             run.HarnessType = profile.HarnessType;
             run.NodePoolId = deployment.NodePoolId;
             NodePool? pool = !deployment.Executor.HasValue && !String.IsNullOrEmpty(deployment.NodePoolId) ? await _Database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false) : null;
-            run.Executor = RunExecutors.Resolve(deployment, pool);
-            run.RequiredCapabilities = deployment.RequiredCapabilities.Clone();
+            ExecutorCapabilityRules.Admit(run, deployment, pool);
             run.Kind = create.Kind;
             run.Priority = create.Priority;
             run.InputText = create.Input ?? String.Empty;

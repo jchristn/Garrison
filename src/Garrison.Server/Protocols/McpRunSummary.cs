@@ -31,8 +31,9 @@ namespace Garrison.Server.Protocols
         public string Outcome { get; set; } = String.Empty;
 
         /// <summary>
-        /// Why the queued run cannot be handed to any worker right now (NoReadyWorker, NoCapableWorker, or
-        /// NoMatchingPool), or null when it is not Queued or some Ready worker can run it. Computed on read.
+        /// Why the queued run cannot be handed to any worker right now (NoReadyWorker, NoCapableWorker, NoMatchingPool,
+        /// or NoIsolatingWorker for an Untrusted run no Ready worker can isolate), or null when it is not Queued or some
+        /// Ready worker can run it. Computed on read.
         /// </summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
         public string? BlockedReason { get; set; } = null;

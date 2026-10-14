@@ -399,8 +399,10 @@ namespace Garrison.Core.Services
         {
             if (deployment == null) throw new ValidationException("A deployment is required.");
             Dictionary<string, string> errors = new Dictionary<string, string>();
+            Dictionary<string, string> codes = new Dictionary<string, string>();
             try { ExecutorCapabilityRules.Validate(deployment.RequiredCapabilities); }
             catch (ArgumentException ex) { errors["requiredCapabilities"] = ex.Message; }
+            await TrustLevelAsync(database, tenantId, deployment, errors, codes, token).ConfigureAwait(false);
 
             Name(deployment.Name, errors);
 
@@ -531,12 +533,37 @@ namespace Garrison.Core.Services
                 }
             }
 
-            if (errors.Count > 0) throw new ValidationException("The deployment is invalid.", errors);
+            if (errors.Count > 0) throw new ValidationException("The deployment is invalid.", errors, codes);
         }
 
         #endregion
 
         #region Private-Methods
+
+        private static async Task TrustLevelAsync(DatabaseDriverBase database, string tenantId, Deployment deployment, Dictionary<string, string> errors, Dictionary<string, string> codes, CancellationToken token)
+        {
+            // P11.14: an Untrusted deployment never runs on Process, and a tenant may require Untrusted for every
+            // deployment. Both are rejected with field codes rather than coerced.
+            if (!Enum.IsDefined(deployment.TrustLevel))
+            {
+                errors["trustLevel"] = "Unknown trust level; use Trusted or Untrusted.";
+                return;
+            }
+            if (deployment.TrustLevel == DeploymentTrustLevelEnum.Untrusted && deployment.Executor == RunExecutorEnum.Process)
+            {
+                errors["executor"] = "An Untrusted deployment needs an executor with at least Container isolation. The Process executor shares the worker's filesystem, network, and user; set executor to KubernetesJob or leave it unset.";
+                codes["executor"] = "UntrustedNeedsIsolation";
+            }
+            if (deployment.TrustLevel == DeploymentTrustLevelEnum.Trusted)
+            {
+                Tenant? tenant = await database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
+                if (tenant != null && tenant.RequireUntrustedDeployments)
+                {
+                    errors["trustLevel"] = "Tenant " + tenant.Name + " requires every deployment to be Untrusted; set trustLevel to Untrusted.";
+                    codes["trustLevel"] = "TenantRequiresUntrusted";
+                }
+            }
+        }
 
         private static void PodResources(RunPodResources resources, Dictionary<string, string> errors)
         {

@@ -180,6 +180,14 @@ namespace Garrison.Core.Database.Ado
             v22.Index("run_child_waits", "child", false, "childrunid");
             migrations.Add(new SchemaMigration(22, "Delegation child waits and worker child reserve", v22._Statements, v22._Columns));
 
+            // P11.14: deployment trust level (existing deployments and runs stay Trusted), the admitted level on runs, and
+            // the tenant policy that requires Untrusted deployments.
+            SchemaBuilder v23 = new SchemaBuilder(catalog, dialect);
+            v23.Column("deployments", "trustlevel", "VARCHAR(32) NOT NULL DEFAULT 'Trusted'");
+            v23.Column("runs", "trustlevel", "VARCHAR(32) NOT NULL DEFAULT 'Trusted'");
+            v23.Column("tenants", "requireuntrusted", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            migrations.Add(new SchemaMigration(23, "Deployment trust level and tenant Untrusted policy", v23._Statements, v23._Columns));
+
             return migrations;
         }
 

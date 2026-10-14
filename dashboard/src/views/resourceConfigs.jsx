@@ -127,11 +127,24 @@ export const tenantsConfig = {
     update: (c, _t, id, b) => c.updateTenant(id, b),
     remove: (c, _t, id) => c.deleteTenant(id)
   },
-  blank: () => ({ name: '', description: '', active: true }),
-  columns: ({ t, i18n }) => [nameCol('tenants', t), idCol('tenants', t), col('tenants', t, 'description', (r) => r.description || '-'), activeCol('tenants', t), createdCol('tenants', t, i18n)],
-  fields: (_d, { t }) => [field('tenants', t, 'name', 'text', { required: true }), field('tenants', t, 'description', 'textarea'), field('tenants', t, 'active', 'checkbox')],
+  blank: () => ({ name: '', description: '', active: true, requireUntrustedDeployments: false }),
+  columns: ({ t, i18n }) => [
+    nameCol('tenants', t),
+    idCol('tenants', t),
+    col('tenants', t, 'description', (r) => r.description || '-'),
+    col('tenants', t, 'requireUntrustedDeployments', (r) => (r.requireUntrustedDeployments ? enumBadge(t, 'trustLevel', 'Untrusted', 'info') : '-'), { csv: (r) => (r.requireUntrustedDeployments ? 'true' : 'false'), defaultHidden: true }),
+    activeCol('tenants', t),
+    createdCol('tenants', t, i18n)
+  ],
+  fields: (_d, { t }) => [
+    field('tenants', t, 'name', 'text', { required: true }),
+    field('tenants', t, 'description', 'textarea'),
+    // P11.14: when on, Trusted deployments are rejected on create and update; existing ones keep running until edited.
+    field('tenants', t, 'requireUntrustedDeployments', 'checkbox'),
+    field('tenants', t, 'active', 'checkbox')
+  ],
   validate: (d, t) => (!d.name ? { name: t('common.errors.required') } : null),
-  toBody: (d) => ({ name: d.name, description: d.description, active: !!d.active })
+  toBody: (d) => ({ name: d.name, description: d.description, active: !!d.active, requireUntrustedDeployments: !!d.requireUntrustedDeployments })
 };
 
 export const usersConfig = {
@@ -911,13 +924,67 @@ function guardToggle(t, value, runtime) {
   return { defaultValue: clusterDefault, hint, resetLabel: t('resources.deployments.actions.useClusterDefault'), resetTip: t('tips.resources.deployments.useClusterDefault') };
 }
 
+/**
+ * The current tenant record (for its requireUntrustedDeployments policy, P11.14), or null when it cannot be read. Uses
+ * the tenant list, which every signed-in caller may read for their own tenant.
+ */
+async function loadTenant(apiClient, tenantId) {
+  try {
+    const page = await apiClient.listTenants({ pageNumber: 1, pageSize: 1000 });
+    return (page?.items || page?.objects || []).find((x) => x.id === tenantId) || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The executor a deployment's runs resolve to: its own, else the pool default, else Process. An Untrusted deployment
+ * with no executor never resolves to Process (P11.14); the server picks KubernetesJob.
+ */
+export function resolvedExecutor(d, pools) {
+  const pool = (pools || []).find((p) => p.id === d?.nodePoolId);
+  const inherited = pool?.defaultExecutor || 'Process';
+  if (d?.executor) return d.executor;
+  return d?.trustLevel === 'Untrusted' && inherited === 'Process' ? 'KubernetesJob' : inherited;
+}
+
 /** Hint under the executor select: what an empty choice resolves to, and where pod resources apply. */
 function executorHint(t, d, pools) {
-  const pool = (pools || []).find((p) => p.id === d.nodePoolId);
-  const inherited = pool?.defaultExecutor || 'Process';
-  const resolved = d.executor || inherited;
-  const hint = d.executor ? t('resources.deployments.hints.executorSet') : t('resources.deployments.hints.executorInherit', { executor: enumLabel(t, 'runExecutor', inherited) });
+  const resolved = resolvedExecutor(d, pools);
+  const hint = d.executor ? t('resources.deployments.hints.executorSet') : t('resources.deployments.hints.executorInherit', { executor: enumLabel(t, 'runExecutor', resolved) });
   return resolved === 'Process' ? `${hint} ${t('processSecurity.trustedOnly')}` : hint;
+}
+
+/**
+ * Deployment form notices (P11.14, P11.16): an Untrusted deployment pinned to Process can never run; a tenant that
+ * requires Untrusted rejects saving a Trusted deployment; a Trusted deployment on Process is trusted only.
+ */
+function deploymentNotice(d, { t, options }) {
+  const notices = [];
+  if (d.trustLevel === 'Untrusted' && d.executor === 'Process') {
+    notices.push(<div key="untrusted" className="error-banner" role="alert" data-testid="untrusted-process">{t('resources.deployments.trust.untrustedProcess')}</div>);
+  }
+  if (d.trustLevel !== 'Untrusted' && options?.tenant?.requireUntrustedDeployments) {
+    notices.push(<div key="tenant" className="warning-banner" role="status" data-testid="tenant-requires-untrusted">{t('resources.deployments.trust.tenantRequiresUntrusted')}</div>);
+  }
+  if (d.trustLevel !== 'Untrusted' && resolvedExecutor(d, options?.pools) === 'Process') {
+    notices.push(<div key="process" className="warning-banner" role="status" data-testid="process-trusted-only">{t('processSecurity.trustedOnly')}</div>);
+  }
+  if (notices.length === 0) return null;
+  return notices.length === 1 ? notices[0] : <>{notices}</>;
+}
+
+/** Trust level badge for a deployment row; flags a Trusted deployment in a tenant that requires Untrusted. */
+function trustBadge(t, r, tenant) {
+  const level = r.trustLevel || 'Trusted';
+  if (level === 'Trusted' && tenant?.requireUntrustedDeployments) {
+    return (
+      <span data-testid="trust-flagged">
+        <Badge tone="warning" tip={t('tips.resources.deployments.trustFlagged')}>{'⚠'} {t('resources.deployments.trust.flagged')}</Badge>
+      </span>
+    );
+  }
+  return enumBadge(t, 'trustLevel', level, level === 'Untrusted' ? 'info' : 'neutral');
 }
 
 export const deploymentsConfig = {
@@ -926,10 +993,9 @@ export const deploymentsConfig = {
   explainerDiagram: () => <AgentRelationDiagram />,
   api: tenantApi('listDeployments', 'createDeployment', 'updateDeployment', 'deleteDeployment'),
   steps: ['basics', 'harness', 'prompts', 'resources', 'overrides', 'placement', 'approvals'],
-  formNotice: (d, { t, options }) => (d.executor || options.pools?.find((p) => p.id === d.nodePoolId)?.defaultExecutor || 'Process') === 'Process'
-    ? <div className="warning-banner" role="status" data-testid="process-trusted-only">{t('processSecurity.trustedOnly')}</div> : null,
+  formNotice: deploymentNotice,
   loadOptions: async ({ apiClient, tenantId }) => {
-    const [agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime] = await Promise.all([
+    const [agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
       safeList(apiClient.listPromptTemplates(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
@@ -939,17 +1005,20 @@ export const deploymentsConfig = {
       safeList(apiClient.listArtifactStores(tenantId, { pageNumber: 1, pageSize: 1000 })),
       safeList(apiClient.listNodePools({ pageNumber: 1, pageSize: 1000 })),
       // Cluster defaults for the run limits (P3.15); null when the caller may not read settings.
-      loadRuntimeLimits(apiClient)
+      loadRuntimeLimits(apiClient),
+      // The tenant's requireUntrustedDeployments policy (P11.14); null when it cannot be read.
+      loadTenant(apiClient, tenantId)
     ]);
-    return { agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime };
+    return { agents, profiles, templates, secrets, mcpServers, workspaces, stores, pools, runtime, tenant };
   },
   // Names for the Agent and Harness profile columns (M1-20).
   loadLookups: async ({ apiClient, tenantId }) => {
-    const [agents, profiles] = await Promise.all([
+    const [agents, profiles, tenant] = await Promise.all([
       safeList(apiClient.listAgents(tenantId, { pageNumber: 1, pageSize: 1000 })),
-      safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true }))
+      safeList(apiClient.listHarnessProfiles(tenantId, { pageNumber: 1, pageSize: 1000, includeBuiltIn: true })),
+      loadTenant(apiClient, tenantId)
     ]);
-    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])) };
+    return { agents: Object.fromEntries(agents.map((a) => [a.id, a.name])), profiles: Object.fromEntries(profiles.map((p) => [p.id, p.name])), tenant };
   },
   // Once the pick lists load, start each prompt role on the built-in template of its kind (M1-03).
   withOptions: (d, options) => ({
@@ -974,6 +1043,7 @@ export const deploymentsConfig = {
     maxAssistantChars: null,
     noProgressSeconds: null,
     executor: null,
+    trustLevel: 'Trusted',
     ...podResourcesToForm(null),
     ...requirementsToForm(null),
     weight: 100,
@@ -1001,6 +1071,7 @@ export const deploymentsConfig = {
     col('deployments', t, 'harnessProfileId', (r) => <NamedId id={r.harnessProfileId} name={lookups?.profiles?.[r.harnessProfileId]} />, { csv: (r) => lookups?.profiles?.[r.harnessProfileId] || r.harnessProfileId }),
     col('deployments', t, 'model', (r) => r.model || '-'),
     col('deployments', t, 'executor', (r) => (r.executor ? enumBadge(t, 'runExecutor', r.executor, r.executor === 'KubernetesJob' ? 'info' : 'neutral') : t('resources.deployments.executorInheritShort')), { csv: (r) => r.executor || '', defaultHidden: true }),
+    col('deployments', t, 'trustLevel', (r) => trustBadge(t, r, lookups?.tenant), { csv: (r) => r.trustLevel || 'Trusted' }),
     col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right' }),
     col('deployments', t, 'configVersion', (r) => r.configVersion, { cellClass: 'right', defaultHidden: true }),
     col('deployments', t, 'approvalsEnabled', (r) =>
@@ -1155,6 +1226,7 @@ export const deploymentsConfig = {
       field(id, t, 'noProgressSeconds', 'number', { min: 0, max: 86400, step: 5, ...runtimeHint(t, i18n, options.runtime, 'noProgressSeconds') }),
       // Executor and run pod resources (Phase 11): empty executor inherits the node pool default, then Process.
       section(id, t, 'execution', 5),
+      field(id, t, 'trustLevel', 'select', { step: 5, required: true, options: enumOptions(t, 'trustLevel') }),
       field(id, t, 'executor', 'select', { step: 5, options: enumOptions(t, 'runExecutor'), noneLabel: t('resources.deployments.executorInherit'), hint: executorHint(t, d, options.pools) }),
       field(id, t, 'capIsolation', 'select', { step: 5, required: true, options: ['Process', 'Container', 'SandboxedRuntime'].map((value) => ({ value, label: enumLabel(t, 'executorIsolation', value) })), hint: t('resources.deployments.hints.capabilities') }),
       field(id, t, 'capColdStartClass', 'select', { step: 5, options: ['Immediate', 'Cold', 'Warm'].map((value) => ({ value, label: enumLabel(t, 'executorColdStart', value) })) }),
@@ -1196,6 +1268,7 @@ export const deploymentsConfig = {
     if (!d.name) e.name = t('common.errors.required');
     if (!d.agentId) e.agentId = t('common.errors.required');
     if (!d.harnessProfileId) e.harnessProfileId = t('common.errors.required');
+    if (d.trustLevel === 'Untrusted' && d.executor === 'Process') e.executor = t('common.fieldCodes.UntrustedNeedsIsolation');
     Object.assign(e, podResourceErrors(d, t('resources.deployments.errors.quantity')));
     Object.assign(e, approvalErrors(d, t));
     return e;

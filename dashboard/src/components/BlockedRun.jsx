@@ -1,5 +1,6 @@
-// Blocked queued runs (G-15): the server sets run.blockedReason (NoReadyWorker, NoCapableWorker, NoMatchingPool) on a
-// Queued run that no Ready worker can take right now, and the overview counts them in blockedRuns.
+// Blocked queued runs (G-15): the server sets run.blockedReason (NoReadyWorker, NoCapableWorker, NoMatchingPool, or
+// NoIsolatingWorker for an Untrusted run no Ready worker can isolate, P11.14) on a Queued run that no Ready worker can
+// take right now, and the overview counts them in blockedRuns.
 
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';

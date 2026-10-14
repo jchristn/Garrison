@@ -276,6 +276,45 @@ func main() {
 		}
 		return nil
 	})
+	check("untrusted deployment queues without isolation", func(ctx context.Context) error {
+		var trusted garrison.Deployment
+		if err := client.Deployments.Get(ctx, deploymentID, &trusted); err != nil {
+			return err
+		}
+		if trusted.TrustLevel != garrison.TrustLevelTrusted {
+			return fmt.Errorf("default trustLevel %q", trusted.TrustLevel)
+		}
+		body := map[string]any{
+			"name": "sdk-go-" + suffix + "-untrusted", "agentId": agentID, "harnessProfileId": fakeID,
+			"trustLevel": garrison.TrustLevelUntrusted, "weight": 0,
+		}
+		var dep garrison.Deployment
+		if err := client.Deployments.Create(ctx, body, &dep); err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, dep.ID)
+		if dep.TrustLevel != garrison.TrustLevelUntrusted {
+			return fmt.Errorf("trustLevel %q", dep.TrustLevel)
+		}
+		run, err := client.Runs.Create(ctx, garrison.RunCreateRequest{AgentID: agentID, DeploymentID: dep.ID, Input: "Untrusted input"})
+		if err != nil {
+			return err
+		}
+		read, err := client.Runs.Get(ctx, run.ID)
+		if err != nil {
+			return err
+		}
+		if read.TrustLevel != garrison.TrustLevelUntrusted || read.Executor != garrison.RunExecutorKubernetesJob {
+			return fmt.Errorf("run %s %s", read.TrustLevel, read.Executor)
+		}
+		if read.Status != "Queued" || read.BlockedReason == nil || *read.BlockedReason != "NoIsolatingWorker" {
+			return fmt.Errorf("run %s %v", read.Status, read.BlockedReason)
+		}
+		if _, err := client.Runs.Cancel(ctx, run.ID); err != nil {
+			return err
+		}
+		return nil
+	})
 	check("manifest dry run", func(ctx context.Context) error {
 		yaml := "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-go-manifest-" + suffix + "\nspec:\n  description: Dry run only.\n"
 		result, err := client.Manifests.Apply(ctx, yaml, true, false)

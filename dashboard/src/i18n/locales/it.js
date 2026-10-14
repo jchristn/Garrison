@@ -2153,3 +2153,23 @@ it.views.pipelineRunDetail = {
 Object.assign(it.views.runDetail, { pipelineRun: 'Esecuzione di pipeline' });
 it.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Intervallo di controllo delle pipeline (ms)';
 it.views.settings.fields.Runtime.PipelineMaxStages = 'Numero massimo di fasi per pipeline';
+
+// Deployment trust level (P11.14).
+it.enums.trustLevel = { Trusted: "Attendibile", Untrusted: "Non attendibile" };
+it.enums.runBlockedReason.NoIsolatingWorker = "Nessun worker con isolamento";
+it.components.blocked.reasons.NoIsolatingWorker = "Questa esecuzione non è attendibile e richiede l'isolamento in container, ma nessun worker pronto in grado di eseguire {{harness}} lo offre. Aggiungi un worker con l'esecutore Job Kubernetes, in un cluster in cui possa creare Job.";
+it.tips.enums.runBlockedReason.NoIsolatingWorker = "Bloccata: questa esecuzione non attendibile richiede l'isolamento in container e nessun worker pronto con il suo harness lo offre. Attende in coda finché non si registra un worker con l'esecutore Job Kubernetes.";
+it.tips.enums.trustLevel = { Trusted: "L'input arriva solo da chiamanti attendibili. Le esecuzioni possono usare l'esecutore Process, che non è isolato dalle altre esecuzioni né dal worker.", Untrusted: "L'input può arrivare da fonti non attendibili. Le esecuzioni vanno solo a un esecutore con isolamento in container o superiore e attendono in coda finché non ce n'è uno disponibile." };
+Object.assign(it.common.fieldCodes, { TenantRequiresUntrusted: "Questo tenant richiede che ogni distribuzione sia non attendibile.", UntrustedNeedsIsolation: "Una distribuzione non attendibile non può usare l'esecutore Process. Scegli Job Kubernetes o lascia vuoto l'esecutore." });
+it.resources.deployments.fields.trustLevel = "Livello di attendibilità";
+it.resources.deployments.columns.trustLevel = "Livello di attendibilità";
+it.resources.deployments.hints.trustLevel = "Scegli Non attendibile quando i chiamanti o i contenuti possono non essere attendibili. Queste esecuzioni richiedono l'isolamento in container: un esecutore vuoto significa allora Job Kubernetes, e le esecuzioni attendono finché un worker non può isolarle.";
+it.tips.resources.deployments.trustLevel = "Attendibile consente l'esecutore Process, che non è isolato. Non attendibile viene eseguito solo su un esecutore con isolamento in container o superiore.";
+it.tips.resources.deployments.trustFlagged = "Questo tenant richiede distribuzioni non attendibili. Questa distribuzione era attendibile prima che la regola fosse attivata: continua a funzionare come configurata, ma va impostata su Non attendibile al prossimo salvataggio.";
+it.resources.deployments.trust = { tenantRequiresUntrusted: "Questo tenant richiede distribuzioni non attendibili. Imposta il livello di attendibilità su Non attendibile per salvare questa distribuzione.", untrustedProcess: "Le distribuzioni non attendibili non possono usare l'esecutore Process. Scegli Job Kubernetes o lascia vuoto l'esecutore.", flagged: "Attendibile, la regola richiede Non attendibile" };
+it.resources.tenants.fields.requireUntrustedDeployments = "Richiedi distribuzioni non attendibili";
+it.resources.tenants.columns.requireUntrustedDeployments = "Richiede Non attendibile";
+it.resources.tenants.hints = { ...(it.resources.tenants.hints || {}), requireUntrustedDeployments: "Creare o salvare una distribuzione attendibile viene rifiutato. Le distribuzioni attendibili esistenti continuano a funzionare e restano segnalate finché non vengono salvate come non attendibili." };
+it.tips.resources.tenants.requireUntrustedDeployments = "Se attivo, ogni distribuzione di questo tenant deve essere non attendibile, così le sue esecuzioni vanno solo a esecutori isolati.";
+it.views.runDetail.trustLevel = "Livello di attendibilità";
+it.tips.views.runDetail.trustLevel = "Il livello di attendibilità della distribuzione quando questa esecuzione è entrata in coda. Le esecuzioni non attendibili vanno solo a un esecutore con isolamento in container o superiore.";

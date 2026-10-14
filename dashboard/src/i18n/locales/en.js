@@ -2132,3 +2132,23 @@ en.views.pipelineRunDetail = {
 Object.assign(en.views.runDetail, { pipelineRun: 'Pipeline run' });
 en.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Pipeline sweep interval (ms)';
 en.views.settings.fields.Runtime.PipelineMaxStages = 'Maximum stages per pipeline';
+
+// Deployment trust level (P11.14).
+en.enums.trustLevel = { Trusted: "Trusted", Untrusted: "Untrusted" };
+en.enums.runBlockedReason.NoIsolatingWorker = "No isolating worker";
+en.components.blocked.reasons.NoIsolatingWorker = "This run is Untrusted and needs Container isolation, but no Ready worker that can run {{harness}} offers it. Add a worker with the Kubernetes Job executor, in a cluster where it may create Jobs.";
+en.tips.enums.runBlockedReason.NoIsolatingWorker = "Blocked: this Untrusted run needs Container isolation, and no Ready worker with its harness offers it. It waits in the queue until a worker with the Kubernetes Job executor registers.";
+en.tips.enums.trustLevel = { Trusted: "Input comes from trusted callers only. Runs may use the Process executor, which is not isolated from other runs or the worker.", Untrusted: "Input may come from untrusted sources. Runs only go to an executor with Container isolation or stronger, and wait in the queue until one is available." };
+Object.assign(en.common.fieldCodes, { TenantRequiresUntrusted: "This tenant requires every deployment to be Untrusted.", UntrustedNeedsIsolation: "An Untrusted deployment cannot use the Process executor. Choose Kubernetes Job or leave the executor empty." });
+en.resources.deployments.fields.trustLevel = "Trust level";
+en.resources.deployments.columns.trustLevel = "Trust level";
+en.resources.deployments.hints.trustLevel = "Choose Untrusted when callers or content may be untrusted. Untrusted runs need Container isolation: an empty executor then means Kubernetes Job, and runs wait until a worker can isolate them.";
+en.tips.resources.deployments.trustLevel = "Trusted allows the Process executor, which is not isolated. Untrusted runs only on an executor with Container isolation or stronger.";
+en.tips.resources.deployments.trustFlagged = "This tenant requires Untrusted deployments. This deployment was Trusted before the policy was turned on: it keeps running as configured, but it must be set to Untrusted the next time it is saved.";
+en.resources.deployments.trust = { tenantRequiresUntrusted: "This tenant requires Untrusted deployments. Set the trust level to Untrusted to save this deployment.", untrustedProcess: "Untrusted deployments cannot use the Process executor. Choose Kubernetes Job or leave the executor empty.", flagged: "Trusted, policy requires Untrusted" };
+en.resources.tenants.fields.requireUntrustedDeployments = "Require Untrusted deployments";
+en.resources.tenants.columns.requireUntrustedDeployments = "Requires Untrusted";
+en.resources.tenants.hints = { ...(en.resources.tenants.hints || {}), requireUntrustedDeployments: "Creating or saving a Trusted deployment is refused. Existing Trusted deployments keep running and are flagged until they are saved as Untrusted." };
+en.tips.resources.tenants.requireUntrustedDeployments = "When on, every deployment in this tenant must be Untrusted, so its runs only go to isolated executors.";
+en.views.runDetail.trustLevel = "Trust level";
+en.tips.views.runDetail.trustLevel = "The deployment's trust level when this run was queued. Untrusted runs only go to an executor with Container isolation or stronger.";

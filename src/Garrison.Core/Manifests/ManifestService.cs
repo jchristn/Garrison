@@ -146,8 +146,9 @@ namespace Garrison.Core.Manifests
                     {
                         planned.Result = ManifestApplyResultEnum.Failed;
                         planned.Message = e.Message + (e.Fields.Count > 0 ? " " + String.Join("; ", e.Fields.Select(f => f.Key + ": " + f.Value)) : String.Empty);
-                        planned.ErrorCode = e.Code;
                         planned.ErrorField = e.Fields.Keys.FirstOrDefault();
+                        // A field with its own code (for example trustLevel TenantRequiresUntrusted) reports that code.
+                        planned.ErrorCode = planned.ErrorField != null && e.Codes.ContainsKey(planned.ErrorField) ? e.CodeFor(planned.ErrorField) : e.Code;
                     }
                 }
             }
@@ -503,6 +504,7 @@ namespace Garrison.Core.Manifests
             deployment.MaxAttempts = spec.MaxAttempts;
             deployment.RetryOnNodeLoss = spec.RetryOnNodeLoss;
             deployment.Executor = spec.Executor;
+            deployment.TrustLevel = spec.TrustLevel ?? DeploymentTrustLevelEnum.Trusted;
             deployment.RequiredCapabilities = spec.RequiredCapabilities?.Clone() ?? new ExecutorRequirements();
             deployment.PodResources = spec.PodResources == null ? new RunPodResources() : spec.PodResources.Clone();
             deployment.Weight = spec.Weight;
@@ -929,6 +931,7 @@ namespace Garrison.Core.Manifests
             spec.MaxAttempts = deployment.MaxAttempts;
             spec.RetryOnNodeLoss = deployment.RetryOnNodeLoss;
             spec.Executor = deployment.Executor;
+            spec.TrustLevel = deployment.TrustLevel == DeploymentTrustLevelEnum.Trusted ? null : deployment.TrustLevel;
             spec.RequiredCapabilities = ExecutorCapabilityRules.RequiresReport(deployment.RequiredCapabilities) ? deployment.RequiredCapabilities.Clone() : null;
             spec.PodResources = deployment.PodResources.IsEmpty ? null : deployment.PodResources.Clone();
             spec.Weight = deployment.Weight;

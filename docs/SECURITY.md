@@ -154,9 +154,24 @@ The worker trusts nothing the pod prints except lines that start with the run's 
 
 What it does not protect against: run pods still share the node's kernel unless you use a sandboxed runtime; the default egress rule allows HTTPS to anywhere, which a prompt-injected harness can use to send out what it can read (its workspace, its own secrets); and the worker's Role can create pods in the run namespace, which can mount that namespace's Secrets, so a compromised worker in the same namespace as `garrison-secrets` could read them.
 
+### Deployment trust level
+
+Every deployment declares how far its input is trusted with `trustLevel` (P11.14, D-035, D-049):
+
+- `Trusted` (the default, and the value every deployment created before schema 23 keeps): callers and content are trusted. Runs may use any executor, including Process, so nothing changes for existing deployments. The dashboard shows a "trusted only" warning on the deployment form and run view whenever such a deployment resolves to Process.
+- `Untrusted`: runs need an executor with at least Container isolation on top of the deployment's own `requiredCapabilities`. An unset executor resolves to `KubernetesJob`, and `executor: Process` is rejected (`UntrustedNeedsIsolation`). The requirement is fixed on the run at admission, and every claim path enforces it in the database, so an Untrusted run is never handed to a Process worker. When no Ready worker can isolate it, the run waits in the queue with `blockedReason: NoIsolatingWorker`; it is not rejected at submit.
+
+A tenant can require Untrusted for all its deployments with `requireUntrustedDeployments` (`PUT /v1.0/api/tenants/{tenantId}`). While it is on, creating or updating a Trusted deployment in that tenant is rejected with a field error on `trustLevel` (`TenantRequiresUntrusted`) over REST, MCP, and manifests; nothing is silently converted. Turning it on does not rewrite existing deployments: Trusted ones keep running as configured, the deployment list flags them, and their next configuration update must set Untrusted. Rewriting them automatically would move their runs to executors the operator may not have yet, which could stop production traffic without warning, so the policy blocks new Trusted configuration and leaves the switch to the operator. Review flagged deployments after turning the policy on.
+
+Delegated children run under their own deployment's trust level, not their parent's. An Untrusted parent may delegate to a Trusted child when the parent's delegation rules allow it, and the child then runs on whatever executor its own deployment allows. Since a child's input is the parent's output, keep untrusted agents' delegation allowlists to children whose deployments are also Untrusted, or that you would trust with that content.
+
+Trust level is a placement policy, not a sandbox by itself: Container isolation means the KubernetesJob executor described above, with the limits listed under it (shared kernel unless you use a sandboxed runtime, and the default egress rule).
+
 ### Recommendations for untrusted prompts
 
-- Use `executor: KubernetesJob` for every deployment that handles prompts, documents, or repositories you do not control.
+- Set `trustLevel: Untrusted` on every deployment that handles prompts, documents, or repositories you do not control, and turn on `requireUntrustedDeployments` for tenants that only serve such work.
+
+- Use `executor: KubernetesJob` (or leave it unset on an Untrusted deployment) for every deployment that handles prompts, documents, or repositories you do not control.
 - Put run pods in their own namespace (`kubernetesExecutor.runNamespace`) with the `restricted` Pod Security level, away from `garrison-secrets`.
 - Narrow `runEgress` from 443-anywhere to the model APIs and git hosts the harness needs.
 - Set `podResources` limits so one run cannot exhaust a node, and use a sandboxed `runtimeClassName` where the nodes support it.

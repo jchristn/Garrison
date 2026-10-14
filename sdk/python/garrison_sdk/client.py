@@ -33,6 +33,12 @@ DEFAULT_BASE_URL = "http://127.0.0.1:8700"
 TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"}
 # Run executors: deployment "executor", node pool "defaultExecutor", run "executor", node "executors".
 RUN_EXECUTORS = ("Process", "KubernetesJob")
+# Deployment and run "trustLevel" (default Trusted). Untrusted runs need at least Container isolation: an unset deployment
+# executor resolves to KubernetesJob, and a run no Ready worker can isolate stays Queued with blockedReason
+# NoIsolatingWorker. Tenant "requireUntrustedDeployments" rejects Trusted deployments (field code TenantRequiresUntrusted).
+TRUST_LEVELS = ("Trusted", "Untrusted")
+# Run["blockedReason"] values, computed on read for Queued runs no Ready worker can take; None otherwise.
+RUN_BLOCKED_REASONS = ("NoReadyWorker", "NoCapableWorker", "NoMatchingPool", "NoIsolatingWorker")
 
 # Secret["status"] values. NeedsReauthentication means the provider rejected a CodexAuthJson login for good (refresh
 # token reused, expired, or revoked); runs that bind it fail with outcome NotCredentialed until the value is replaced.

@@ -12,7 +12,7 @@ import traceback
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from garrison_sdk import GarrisonClient, GarrisonError
+from garrison_sdk import RUN_BLOCKED_REASONS, TRUST_LEVELS, GarrisonClient, GarrisonError
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8700"
 ACCESS = sys.argv[2] if len(sys.argv) > 2 else "access_garrison_default"
@@ -210,6 +210,23 @@ def t_cancel():
             raise
     final = client.runs.wait_for_completion(run["id"], timeout=60)
     require(final["status"] in ("Cancelled", "Succeeded"), f"status {final['status']}")
+
+
+def t_trust_level():
+    require(TRUST_LEVELS == ("Trusted", "Untrusted") and "NoIsolatingWorker" in RUN_BLOCKED_REASONS, "trust constants")
+    trusted = client.deployments.get(state["deployment"])
+    require(trusted.get("trustLevel") == "Trusted", f"default trustLevel {trusted.get('trustLevel')}")
+    deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-untrusted", "agentId": state["agent"], "harnessProfileId": state["fake"],
+                                            "trustLevel": "Untrusted", "weight": 0})
+    try:
+        require(deployment["trustLevel"] == "Untrusted", f"trustLevel {deployment['trustLevel']}")
+        run = client.runs.create("Untrusted input", agent_id=state["agent"], deployment_id=deployment["id"])
+        read = client.runs.get(run["id"])
+        require(read["trustLevel"] == "Untrusted" and read["executor"] == "KubernetesJob", f"run {read['trustLevel']} {read['executor']}")
+        require(read["status"] == "Queued" and read["blockedReason"] == "NoIsolatingWorker", f"run {read['status']} {read['blockedReason']}")
+        client.runs.cancel(run["id"])
+    finally:
+        client.deployments.delete(deployment["id"])
 
 
 def t_manifest():
@@ -472,6 +489,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("run analytics grouped by harness and model", t_analytics_harness_model),
                  ("run analytics dimensions", t_analytics_dimensions), ("run analytics filtered by model", t_analytics_model),
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
+                 ("untrusted deployment queues without isolation", t_trust_level),
                  ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs),
                  ("conversation start", t_conversation_start), ("conversation continue", t_conversation_continue),
                  ("conversation read and list", t_conversation_read), ("conversation delete", t_conversation_delete),

@@ -2105,3 +2105,23 @@ zhHant.views.pipelineRunDetail = {
 Object.assign(zhHant.views.runDetail, { pipelineRun: '管線執行' });
 zhHant.views.settings.fields.Runtime.PipelineSweepIntervalMs = '管線巡檢間隔（毫秒）';
 zhHant.views.settings.fields.Runtime.PipelineMaxStages = '每個管線的最多階段數';
+
+// Deployment trust level (P11.14).
+zhHant.enums.trustLevel = { Trusted: "可信任", Untrusted: "不可信任" };
+zhHant.enums.runBlockedReason.NoIsolatingWorker = "沒有可隔離的工作節點";
+zhHant.components.blocked.reasons.NoIsolatingWorker = "這個執行不可信任，需要容器隔離，但沒有能執行 {{harness}} 的就緒工作節點提供此隔離。請在允許建立 Job 的叢集中加入使用 Kubernetes Job 執行器的工作節點。";
+zhHant.tips.enums.runBlockedReason.NoIsolatingWorker = "受阻：這個不可信任的執行需要容器隔離，但沒有具備此 Harness 的就緒工作節點提供此隔離。它會在佇列中等待，直到使用 Kubernetes Job 執行器的工作節點註冊。";
+zhHant.tips.enums.trustLevel = { Trusted: "輸入只來自可信任的呼叫者。執行可以使用 Process 執行器，但它與其他執行及工作節點之間沒有隔離。", Untrusted: "輸入可能來自不可信任的來源。執行只會交給具有容器隔離或更強隔離的執行器，沒有可用執行器時會在佇列中等待。" };
+Object.assign(zhHant.common.fieldCodes, { TenantRequiresUntrusted: "這個租用戶要求每個部署都是不可信任。", UntrustedNeedsIsolation: "不可信任的部署不能使用 Process 執行器。請選擇 Kubernetes Job，或將執行器留空。" });
+zhHant.resources.deployments.fields.trustLevel = "信任等級";
+zhHant.resources.deployments.columns.trustLevel = "信任等級";
+zhHant.resources.deployments.hints.trustLevel = "當呼叫者或內容可能不可信任時，請選擇不可信任。這類執行需要容器隔離：執行器留空即代表 Kubernetes Job，執行會等待能隔離它們的工作節點。";
+zhHant.tips.resources.deployments.trustLevel = "可信任允許使用沒有隔離的 Process 執行器。不可信任只會在具有容器隔離或更強隔離的執行器上執行。";
+zhHant.tips.resources.deployments.trustFlagged = "這個租用戶要求不可信任的部署。這個部署在啟用政策之前是可信任：它會依目前設定繼續執行，但下次儲存時必須改為不可信任。";
+zhHant.resources.deployments.trust = { tenantRequiresUntrusted: "這個租用戶要求不可信任的部署。請將信任等級改為不可信任後再儲存這個部署。", untrustedProcess: "不可信任的部署不能使用 Process 執行器。請選擇 Kubernetes Job，或將執行器留空。", flagged: "可信任，但政策要求不可信任" };
+zhHant.resources.tenants.fields.requireUntrustedDeployments = "要求部署為不可信任";
+zhHant.resources.tenants.columns.requireUntrustedDeployments = "要求不可信任";
+zhHant.resources.tenants.hints = { ...(zhHant.resources.tenants.hints || {}), requireUntrustedDeployments: "建立或儲存可信任的部署會被拒絕。現有的可信任部署會繼續執行，並會一直被標示，直到儲存為不可信任。" };
+zhHant.tips.resources.tenants.requireUntrustedDeployments = "開啟後，這個租用戶的每個部署都必須是不可信任，這樣其執行只會交給有隔離的執行器。";
+zhHant.views.runDetail.trustLevel = "信任等級";
+zhHant.tips.views.runDetail.trustLevel = "這個執行進入佇列時部署的信任等級。不可信任的執行只會交給具有容器隔離或更強隔離的執行器。";

@@ -2153,3 +2153,23 @@ fr.views.pipelineRunDetail = {
 Object.assign(fr.views.runDetail, { pipelineRun: "Exécution de pipeline" });
 fr.views.settings.fields.Runtime.PipelineSweepIntervalMs = "Intervalle de balayage des pipelines (ms)";
 fr.views.settings.fields.Runtime.PipelineMaxStages = "Nombre maximal d'étapes par pipeline";
+
+// Deployment trust level (P11.14).
+fr.enums.trustLevel = { Trusted: "De confiance", Untrusted: "Non fiable" };
+fr.enums.runBlockedReason.NoIsolatingWorker = "Aucun worker isolant";
+fr.components.blocked.reasons.NoIsolatingWorker = "Cette exécution est non fiable et exige une isolation par conteneur, mais aucun worker prêt capable d'exécuter {{harness}} ne la propose. Ajoutez un worker avec l'exécuteur Job Kubernetes, dans un cluster où il peut créer des Jobs.";
+fr.tips.enums.runBlockedReason.NoIsolatingWorker = "Bloquée : cette exécution non fiable exige une isolation par conteneur, et aucun worker prêt avec son harness ne la propose. Elle attend dans la file jusqu'à ce qu'un worker avec l'exécuteur Job Kubernetes s'enregistre.";
+fr.tips.enums.trustLevel = { Trusted: "Les entrées viennent uniquement d'appelants de confiance. Les exécutions peuvent utiliser l'exécuteur Process, qui n'est pas isolé des autres exécutions ni du worker.", Untrusted: "Les entrées peuvent venir de sources non fiables. Les exécutions ne vont qu'à un exécuteur avec une isolation par conteneur ou plus forte, et attendent dans la file qu'il y en ait un." };
+Object.assign(fr.common.fieldCodes, { TenantRequiresUntrusted: "Ce locataire exige que chaque déploiement soit non fiable.", UntrustedNeedsIsolation: "Un déploiement non fiable ne peut pas utiliser l'exécuteur Process. Choisissez Job Kubernetes ou laissez l'exécuteur vide." });
+fr.resources.deployments.fields.trustLevel = "Niveau de confiance";
+fr.resources.deployments.columns.trustLevel = "Niveau de confiance";
+fr.resources.deployments.hints.trustLevel = "Choisissez Non fiable quand les appelants ou le contenu peuvent être non fiables. Ces exécutions exigent une isolation par conteneur : un exécuteur vide signifie alors Job Kubernetes, et les exécutions attendent qu'un worker puisse les isoler.";
+fr.tips.resources.deployments.trustLevel = "De confiance autorise l'exécuteur Process, qui n'est pas isolé. Non fiable ne s'exécute que sur un exécuteur avec une isolation par conteneur ou plus forte.";
+fr.tips.resources.deployments.trustFlagged = "Ce locataire exige des déploiements non fiables. Ce déploiement était de confiance avant l'activation de la règle : il continue de fonctionner tel quel, mais doit passer à Non fiable lors du prochain enregistrement.";
+fr.resources.deployments.trust = { tenantRequiresUntrusted: "Ce locataire exige des déploiements non fiables. Passez le niveau de confiance à Non fiable pour enregistrer ce déploiement.", untrustedProcess: "Les déploiements non fiables ne peuvent pas utiliser l'exécuteur Process. Choisissez Job Kubernetes ou laissez l'exécuteur vide.", flagged: "De confiance, la règle exige Non fiable" };
+fr.resources.tenants.fields.requireUntrustedDeployments = "Exiger des déploiements non fiables";
+fr.resources.tenants.columns.requireUntrustedDeployments = "Exige Non fiable";
+fr.resources.tenants.hints = { ...(fr.resources.tenants.hints || {}), requireUntrustedDeployments: "La création ou l'enregistrement d'un déploiement de confiance est refusé. Les déploiements de confiance existants continuent de fonctionner et restent signalés jusqu'à leur enregistrement comme non fiables." };
+fr.tips.resources.tenants.requireUntrustedDeployments = "Si activé, chaque déploiement de ce locataire doit être non fiable, afin que ses exécutions n'aillent qu'à des exécuteurs isolés.";
+fr.views.runDetail.trustLevel = "Niveau de confiance";
+fr.tips.views.runDetail.trustLevel = "Le niveau de confiance du déploiement au moment où cette exécution est entrée dans la file. Les exécutions non fiables ne vont qu'à un exécuteur avec une isolation par conteneur ou plus forte.";

@@ -452,6 +452,12 @@ namespace Garrison.Sdk.Models
             set { _RequiredCapabilities = value ?? new ExecutorRequirements(); }
         }
 
+        /// <summary>
+        /// Trust level of the deployment's input. Default Trusted. Untrusted raises the isolation every run needs to at
+        /// least Container, and an unset executor then resolves to KubernetesJob.
+        /// </summary>
+        public DeploymentTrustLevelEnum TrustLevel { get; set; } = DeploymentTrustLevelEnum.Trusted;
+
         #endregion
 
         #region Private-Members

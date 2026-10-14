@@ -1,6 +1,6 @@
 // End-to-end harness for the Garrison JavaScript/TypeScript SDK.
 // Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
-import { GarrisonClient, GarrisonError } from "./dist/esm/index.js";
+import { GarrisonClient, GarrisonError, TRUST_LEVELS } from "./dist/esm/index.js";
 
 const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
 const suffix = Math.random().toString(16).slice(2, 10);
@@ -119,6 +119,22 @@ await check("cancel run", async () => {
   try { await client.runs.cancel(run.id); } catch (e) { if (!(e instanceof GarrisonError) || e.statusCode !== 409) throw e; }
   const final = await client.runs.waitForCompletion(run.id, 60000);
   require(["Cancelled", "Succeeded"].includes(final.status), `status ${final.status}`);
+});
+await check("untrusted deployment queues without isolation", async () => {
+  require(TRUST_LEVELS.join(",") === "Trusted,Untrusted", "trust constants");
+  const trusted = await client.deployments.get(state.deployment);
+  require(trusted.trustLevel === "Trusted", `default trustLevel ${trusted.trustLevel}`);
+  const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-untrusted`, agentId: state.agent, harnessProfileId: state.fake, trustLevel: "Untrusted", weight: 0 });
+  try {
+    require(deployment.trustLevel === "Untrusted", `trustLevel ${deployment.trustLevel}`);
+    const run = await client.runs.create({ input: "Untrusted input", agentId: state.agent, deploymentId: deployment.id });
+    const read = await client.runs.get(run.id);
+    require(read.trustLevel === "Untrusted" && read.executor === "KubernetesJob", `run ${read.trustLevel} ${read.executor}`);
+    require(read.status === "Queued" && read.blockedReason === "NoIsolatingWorker", `run ${read.status} ${read.blockedReason}`);
+    await client.runs.cancel(run.id);
+  } finally {
+    await client.deployments.delete(deployment.id);
+  }
 });
 await check("manifest dry run", async () => {
   const yaml = `apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-js-manifest-${suffix}\nspec:\n  description: Dry run only.\n`;

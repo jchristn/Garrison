@@ -72,6 +72,16 @@ const (
 	RunExecutorKubernetesJob = "KubernetesJob"
 )
 
+// Trust levels (Deployment.TrustLevel, Run.TrustLevel). An empty Deployment.TrustLevel means TrustLevelTrusted.
+const (
+	// TrustLevelTrusted runs on any executor, including Process. The default.
+	TrustLevelTrusted = "Trusted"
+	// TrustLevelUntrusted needs at least Container isolation; an unset executor resolves to KubernetesJob and a run no
+	// Ready worker can isolate stays Queued with BlockedReason "NoIsolatingWorker". A tenant with
+	// requireUntrustedDeployments rejects Trusted deployments (field code TenantRequiresUntrusted).
+	TrustLevelUntrusted = "Untrusted"
+)
+
 // Workspace kinds (WorkspaceTemplate.Kind).
 const (
 	WorkspaceKindEmpty         = "Empty"
@@ -276,6 +286,8 @@ type Deployment struct {
 	Model                string                       `json:"model,omitempty"`
 	// Executor is RunExecutorProcess or RunExecutorKubernetesJob; nil uses the node pool's default, then Process.
 	Executor *string `json:"executor,omitempty"`
+	// TrustLevel is TrustLevelTrusted (the default when empty) or TrustLevelUntrusted.
+	TrustLevel string `json:"trustLevel,omitempty"`
 	// PodResources are the run pod requests and limits for KubernetesJob runs.
 	PodResources *RunPodResources `json:"podResources,omitempty"`
 	// ApprovalsEnabled turns on permission approvals. Only Claude Code profiles and Codex profiles with
@@ -451,18 +463,20 @@ type Run struct {
 	Status               string                `json:"status"`
 	Outcome              string                `json:"outcome"`
 	Executor             string                `json:"executor,omitempty"`
-	InputText            string                `json:"inputText"`
-	ResultText           string                `json:"resultText"`
-	ErrorMessage         string                `json:"errorMessage"`
-	InputTokens          int64                 `json:"inputTokens"`
-	OutputTokens         int64                 `json:"outputTokens"`
-	CachedTokens         int64                 `json:"cachedTokens"`
-	CostUSD              *float64              `json:"costUsd"`
-	Depth                int                   `json:"depth"`
-	ParentRunID          string                `json:"parentRunId"`
-	CreatedUTC           string                `json:"createdUtc"`
-	StartedUTC           string                `json:"startedUtc"`
-	CompletedUTC         string                `json:"completedUtc"`
+	// TrustLevel is the deployment's trust level when the run was admitted.
+	TrustLevel   string   `json:"trustLevel,omitempty"`
+	InputText    string   `json:"inputText"`
+	ResultText   string   `json:"resultText"`
+	ErrorMessage string   `json:"errorMessage"`
+	InputTokens  int64    `json:"inputTokens"`
+	OutputTokens int64    `json:"outputTokens"`
+	CachedTokens int64    `json:"cachedTokens"`
+	CostUSD      *float64 `json:"costUsd"`
+	Depth        int      `json:"depth"`
+	ParentRunID  string   `json:"parentRunId"`
+	CreatedUTC   string   `json:"createdUtc"`
+	StartedUTC   string   `json:"startedUtc"`
+	CompletedUTC string   `json:"completedUtc"`
 	// FirstTokenUTC is the ISO 8601 UTC time of the first model output event; nil when absent.
 	FirstTokenUTC *string `json:"firstTokenUtc,omitempty"`
 	// LastTokenUTC is the ISO 8601 UTC time of the last model output event; nil when absent.
@@ -495,8 +509,9 @@ type Run struct {
 	// compiled in, for finding its spans in Tempo and its logs in Loki; nil for runs created before trace IDs were
 	// recorded.
 	TraceID *string `json:"traceId"`
-	// BlockedReason is computed by the server on read: NoReadyWorker, NoCapableWorker, or NoMatchingPool when the
-	// queued run cannot be handed to any worker right now; nil otherwise.
+	// BlockedReason is computed by the server on read: NoReadyWorker, NoCapableWorker, NoMatchingPool, or
+	// NoIsolatingWorker (an Untrusted run no Ready worker can isolate) when the queued run cannot be handed to any
+	// worker right now; nil otherwise.
 	BlockedReason *string `json:"blockedReason"`
 	// OutputSchemaValid reports whether the final output validated against the agent's output schema; nil when the
 	// agent has no output schema or nothing was validated.

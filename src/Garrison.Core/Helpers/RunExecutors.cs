@@ -15,7 +15,8 @@ namespace Garrison.Core.Helpers
 
         /// <summary>
         /// The executor a new run of a deployment needs: the deployment's executor, else its node pool's default
-        /// executor, else Process.
+        /// executor, else Process. An Untrusted deployment that leaves the executor unset never resolves to Process,
+        /// which cannot isolate a run (P11.14); it resolves to KubernetesJob instead.
         /// </summary>
         /// <param name="deployment">Deployment.</param>
         /// <param name="pool">The deployment's node pool, or null when it has none.</param>
@@ -25,8 +26,9 @@ namespace Garrison.Core.Helpers
         {
             if (deployment == null) throw new ArgumentNullException(nameof(deployment));
             if (deployment.Executor.HasValue) return deployment.Executor.Value;
-            if (pool != null && pool.DefaultExecutor.HasValue) return pool.DefaultExecutor.Value;
-            return RunExecutorEnum.Process;
+            RunExecutorEnum resolved = (pool != null && pool.DefaultExecutor.HasValue) ? pool.DefaultExecutor.Value : RunExecutorEnum.Process;
+            if (deployment.TrustLevel == DeploymentTrustLevelEnum.Untrusted && resolved == RunExecutorEnum.Process) return RunExecutorEnum.KubernetesJob;
+            return resolved;
         }
 
         /// <summary>

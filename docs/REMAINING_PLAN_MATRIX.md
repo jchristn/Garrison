@@ -2,7 +2,7 @@
 
 Updated 2026-10-14 under D-042/D-043 and D-049. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 3 active phase tasks (P11.14, P12.29, P14.15), 2 conditional P10 tasks, and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.38 are complete. Active core follow-ups are G-8 (SyslogLogging 2.4.1 per `~/Code/SyslogLogging/BUGFIX.md`, executed by another agent) and G-12 (real-Codex soak, then new Codex deployments on `builtin/codex-app-server`). I-01, I-05, and cancellation latency were completed 2026-10-13.
+D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 2 active phase tasks (P12.29, P14.15), 2 conditional P10 tasks, and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.38 are complete. Active core follow-ups are G-8 (SyslogLogging 2.4.1 per `~/Code/SyslogLogging/BUGFIX.md`, executed by another agent) and G-12 (real-Codex soak, then new Codex deployments on `builtin/codex-app-server`). I-01, I-05, and cancellation latency were completed 2026-10-13.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -11,7 +11,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P6.20 | Publish SDK packages | Deferred | Skipped at user request (D-043) |
 | P10.24 | Tune demonstrated control-plane bottlenecks | Conditional | Waiting on deferred P14.15 measurements |
 | P10.25 | Schedule by CPU/memory capacity | Conditional | Waiting on deferred P14.15 measurements |
-| P11.14 | Trusted/untrusted deployment policy | Active (D-049) | Existing deployments stay Trusted; Untrusted runs queue until an isolating worker is available |
+| P11.14 | Trusted/untrusted deployment policy | Complete | D-049; schema 23. Existing deployments stay Trusted; Untrusted runs queue (`NoIsolatingWorker`) until an isolating worker is available; tenant `requireUntrustedDeployments` rejects Trusted deployments with a field code |
 | P11.15 | Per-deployment network egress allowlists | Deferred | CIDR/port NetworkPolicy rules |
 | P11.17 | Isolation attack tests in CI | Deferred | Depends on trust policy and egress controls |
 | P12.2 | Workspace snapshots and cross-node resume | Deferred | Needs artifact storage and harness continuation |

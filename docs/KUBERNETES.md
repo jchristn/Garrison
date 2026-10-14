@@ -284,7 +284,7 @@ spec:
     garrison.io/pool: mux
 ```
 
-A queued run that no pool can take says why: its `blockedReason` is `NoCapableWorker` when no Ready worker reports the harness, and `NoMatchingPool` when capable workers exist but none matches the node pool or selector.
+A queued run that no pool can take says why: its `blockedReason` is `NoCapableWorker` when no Ready worker reports the harness, `NoMatchingPool` when capable workers exist but none matches the node pool or selector, and `NoIsolatingWorker` when the run is `Untrusted` and no Ready worker with its harness can isolate it.
 
 ### Pod-per-run executor
 
@@ -319,7 +319,7 @@ spec:
 
 **Workspaces.** Job runs use an emptyDir workspace that disappears with the pod. A workspace template of kind `PersistentVolume` names an existing PersistentVolumeClaim (`persistentVolumeClaim`) in the run namespace; the claim is mounted at the run's workspace path and its contents persist across runs. Garrison does not create the claim, and retention never deletes it. Use `ReadWriteMany` storage if several runs may use the claim at once. Only `KubernetesJob` deployments can use these templates. Structured output repairs resume the harness session in the directories of the original execution, which a run pod does not keep, so Job runs that fail schema validation are not repaired.
 
-**Placement.** Workers report the `KubernetesJob` executor only when `GARRISON_WORKER_KUBERNETES_ENABLED` is `true`, they run in a cluster (or have `GARRISON_WORKER_KUBECONFIG`), they know the run image, and a SelfSubjectAccessReview confirms their Role. The scheduler gives `KubernetesJob` runs only to such workers and keeps filtering in SQL, so a backlog of Job runs never starves Process-only workers. A queued Job run with no capable worker shows `blockedReason: NoCapableWorker` and a message naming the executor. Job runs still count against the worker's `MaxConcurrentRuns`, even though the harness does not run in the worker's container.
+**Placement.** Workers report the `KubernetesJob` executor only when `GARRISON_WORKER_KUBERNETES_ENABLED` is `true`, they run in a cluster (or have `GARRISON_WORKER_KUBECONFIG`), they know the run image, and a SelfSubjectAccessReview confirms their Role. The scheduler gives `KubernetesJob` runs only to such workers and keeps filtering in SQL, so a backlog of Job runs never starves Process-only workers. A queued Job run with no capable worker shows `blockedReason: NoCapableWorker` and a message naming the executor. Deployments with `trustLevel: Untrusted` (P11.14) need at least Container isolation: an unset executor resolves to `KubernetesJob` for them, and their runs queue with `blockedReason: NoIsolatingWorker` until a worker reporting `KubernetesJob` is Ready. Job runs still count against the worker's `MaxConcurrentRuns`, even though the harness does not run in the worker's container.
 
 **What the manifests set up.** `base/rbac.yaml` gives the `garrison-worker` service account a Role in its namespace: create, get, list, watch, and delete Jobs; create Secrets (never get, list, or watch them); get, list, and watch pods; get `pods/log`. Nothing is cluster-wide. The worker StatefulSet mounts its token and sets `GARRISON_WORKER_KUBERNETES_ENABLED=true`. `base/serviceaccounts.yaml` adds `garrison-run`, the run pods' account, which has no RoleBindings and whose token run pods never mount. `base/networkpolicies.yaml` adds `garrison-run`: no ingress, and egress only to DNS, the Garrison MCP port on the server (for delegation), and port 443 anywhere. Edit the last rule (or, in Helm, `kubernetesExecutor.runEgress`) to the endpoints your harnesses need.
 
@@ -362,7 +362,7 @@ handler: runsc
 
 Run pods already run as non-root with a read-only root filesystem, so they work under gVisor and Kata unchanged; expect slower start-up and file I/O.
 
-**Docker Compose** has no Kubernetes API, so its workers keep `Kubernetes.Enabled` off and report only the Process executor. A `KubernetesJob` deployment stays queued with `blockedReason: NoCapableWorker` there.
+**Docker Compose** has no Kubernetes API, so its workers keep `Kubernetes.Enabled` off and report only the Process executor. A `KubernetesJob` deployment stays queued with `blockedReason: NoCapableWorker` there, and an `Untrusted` deployment with `blockedReason: NoIsolatingWorker`.
 
 ### Backups
 

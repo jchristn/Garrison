@@ -201,7 +201,7 @@ Nullable properties are null when the value could not be measured. On the wire, 
 
 ## Blocked runs
 
-`Run.BlockedReason` (`RunBlockedReasonEnum?`) is computed by the server when a run is read. It is null unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector). The tenant overview counts these runs as `OverviewResponse.BlockedRuns`. See "Blocked runs" in `REST_API.md`.
+`Run.BlockedReason` (`RunBlockedReasonEnum?`) is computed by the server when a run is read. It is null unless the run is `Queued` and no Ready worker can run it. Values: `NoReadyWorker` (no node is Ready), `NoCapableWorker` (no Ready node reports the run's harness), `NoMatchingPool` (capable nodes exist but none matches the deployment's node pool or node selector), `NoIsolatingWorker` (the run is `Untrusted` and no Ready node with its harness can isolate it). The tenant overview counts these runs as `OverviewResponse.BlockedRuns`. See "Blocked runs" in `REST_API.md`.
 
 Runs stopped by a worker run guard end `Failed` with `RunOutcomeEnum.RepetitionDetected` (the assistant text degenerated into a short repeated unit or into text with no letters or digits), `RunOutcomeEnum.OutputLimitExceeded` (more assistant text than the deployment's `MaxAssistantChars`), or `RunOutcomeEnum.NoProgress` (nothing happened for `NoProgressSeconds`). The partial output is in `Run.ResultText`, and the run has one `Warning` event with code `RunGuardTriggered`. `Deployment.RepetitionGuard`, `Deployment.MaxAssistantChars`, and `Deployment.NoProgressSeconds` set the limits per deployment; null uses the cluster defaults. A waiting invoke (`InvokeRequest.Wait` true) cancels its run when the connection drops, for example when the `CancellationToken` passed to `InvokeAsync` is cancelled; set `InvokeRequest.CancelOnDisconnect = false` to keep the run going. See "Run guards" and "Cancellation" in `REST_API.md`.
 
@@ -306,6 +306,10 @@ Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `ag
 Deployments accept `requiredCapabilities`: `isolation` (`Process`, `Container`, `SandboxedRuntime`), `egressControl`, `filesystemSnapshot`, `sessionContinuation`, `crossNodeRestore`, and optional required `coldStartClass` (`Immediate`, `Cold`, `Warm`). Defaults add no requirement beyond Process. Runs retain an admission-time copy. Workers expose `executorCapabilities`; legacy executor names promise no advanced capabilities. Set `executor: "KubernetesJob"` with Container requirements. Unsupported requirements remain queued with `NoCapableWorker`.
 
 Kubernetes workers can report `warmStart: true` alongside `coldStartClass: "Cold"`; this satisfies either Cold or Warm requirements. Warm support requires enabled warming and Kubernetes RBAC. Explicit Warm requirements reject PersistentVolume workspaces and custom pod resources.
+
+## Trust level
+
+`Deployment.TrustLevel` (`DeploymentTrustLevelEnum`) is `Trusted` (the default) or `Untrusted`. Untrusted runs need at least Container isolation on top of `RequiredCapabilities`: an unset `Executor` resolves to `KubernetesJob`, `Process` is rejected with field code `UntrustedNeedsIsolation`, and a run no Ready worker can isolate stays `Queued` with `BlockedReason` `RunBlockedReasonEnum.NoIsolatingWorker`. `Run.TrustLevel` reports the admitted level. `Tenant.RequireUntrustedDeployments` and `TenantRequest.RequireUntrustedDeployments` control the tenant policy that rejects Trusted deployments with field code `TenantRequiresUntrusted`. See "Deployment trust level" in `REST_API.md`.
 
 ## Artifacts
 

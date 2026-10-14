@@ -829,7 +829,7 @@
             "description": "Updates a tenant's name, description, or active flag.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"description\": \"Updated by the Postman collection\"\n}",
+              "raw": "{\n  \"description\": \"Updated by the Postman collection\",\n  \"requireUntrustedDeployments\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -843,7 +843,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('tenant requires Untrusted deployments', function () { pm.expect(pm.response.json().requireUntrustedDeployments).to.eql(true); });"
                 ]
               }
             }
@@ -4290,7 +4291,7 @@
             "description": "Creates a deployment on the fake harness. Default prompt bindings are added for roles left out.\n\nExecutor capabilities use conservative explicit reports. Defaults preserve legacy placement; runs snapshot requiredCapabilities at admission. Session requirements also need a resume-capable harness profile.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"requiredCapabilities\": {\n    \"isolation\": \"Process\",\n    \"egressControl\": false,\n    \"filesystemSnapshot\": false,\n    \"sessionContinuation\": false,\n    \"crossNodeRestore\": false\n  }\n}",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"requiredCapabilities\": {\n    \"isolation\": \"Process\",\n    \"egressControl\": false,\n    \"filesystemSnapshot\": false,\n    \"sessionContinuation\": false,\n    \"crossNodeRestore\": false\n  },\n  \"trustLevel\": \"Trusted\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4305,6 +4306,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('trust level is Trusted', function () { pm.expect(pm.response.json().trustLevel).to.eql('Trusted'); });",
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('deploymentId', json.id); }"
                 ]
@@ -4338,7 +4340,7 @@
             "description": "A deployment that requires the label `postman.node` with this run's suffix, so only the Postman node can lease its runs.\n\nExecutor capabilities use conservative explicit reports. Defaults preserve legacy placement; runs snapshot requiredCapabilities at admission. Session requirements also need a resume-capable harness profile.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"agentId\": \"{{nodeAgentId}}\",\n  \"name\": \"postman-node-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"nodeSelector\": [\n    {\n      \"key\": \"postman.node\",\n      \"value\": \"{{suffix}}\"\n    }\n  ],\n  \"requiredCapabilities\": {\n    \"isolation\": \"Process\",\n    \"egressControl\": false,\n    \"filesystemSnapshot\": false,\n    \"sessionContinuation\": false,\n    \"crossNodeRestore\": false\n  }\n}",
+              "raw": "{\n  \"agentId\": \"{{nodeAgentId}}\",\n  \"name\": \"postman-node-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"nodeSelector\": [\n    {\n      \"key\": \"postman.node\",\n      \"value\": \"{{suffix}}\"\n    }\n  ],\n  \"requiredCapabilities\": {\n    \"isolation\": \"Process\",\n    \"egressControl\": false,\n    \"filesystemSnapshot\": false,\n    \"sessionContinuation\": false,\n    \"crossNodeRestore\": false\n  },\n  \"trustLevel\": \"Trusted\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4353,6 +4355,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('trust level is Trusted', function () { pm.expect(pm.response.json().trustLevel).to.eql('Trusted'); });",
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('nodeDeploymentId', json.id); }"
                 ]

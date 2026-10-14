@@ -276,6 +276,17 @@ The compiler lowers `deployment.maxBudgetUsd` to the remaining known allowance. 
 
 Quota enforcement is optional and off by default: set `enforcementEnabled: true` on an active Usage Quota to enforce its limits. Otherwise it only reports usage and never alters admission, claims, or harness budgets. Existing quotas upgrade to monitoring-only in migration 16. Delegation-tree budgeting is outside the current scope.
 
+## Deployment trust level and the tenant Untrusted policy
+
+Each deployment has a `trustLevel`: `Trusted` (default) or `Untrusted`. Untrusted runs need an executor with at least Container isolation (today, `KubernetesJob`), and wait in the queue with `blockedReason: NoIsolatingWorker` until a worker can provide it. There is no cluster setting for this; it is per deployment.
+
+Tenants have one related setting, `requireUntrustedDeployments` (default `false`). It is a field on the tenant record, not a cluster setting: set it with `PUT /v1.0/api/tenants/{tenantId}` (`{"requireUntrustedDeployments": true}`, which needs Update on `Tenant`) or the Require Untrusted deployments checkbox on Administration > Tenants. While it is on:
+
+- creating or updating a `Trusted` deployment in the tenant is rejected with 400 and the field code `TenantRequiresUntrusted` on `trustLevel`, over REST, MCP, and manifest apply;
+- existing `Trusted` deployments are not rewritten. They keep running as configured, the Deployments list flags them, and their next configuration update must set `Untrusted`.
+
+Each change is audited on the tenant. See [Security](SECURITY.md#deployment-trust-level) for the trust model.
+
 ## Artifact collection
 
 Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example `["reports/**/*.json"]`. Empty globs disable collection. See [Run artifacts](ARTIFACTS.md) for filesystem/S3 configuration, limits, downloads, and API examples.

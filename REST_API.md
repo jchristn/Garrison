@@ -360,8 +360,10 @@ Update a tenant.
 curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "string", "description": "string", "active": false}'
+  -d '{"name": "string", "description": "string", "active": false, "requireUntrustedDeployments": true}'
 ```
+
+`requireUntrustedDeployments` makes every new or updated deployment in the tenant `Untrusted`-only; see [Deployment trust level](#deployment-trust-level-trustlevel).
 
 #### `DELETE /v1.0/api/tenants/{tenantId}`
 
@@ -2521,6 +2523,7 @@ Every `Run` returned by REST (invoke, create, read, list, children, cancel, retr
 | `NoReadyWorker` | No node is Ready at all. |
 | `NoCapableWorker` | Ready nodes exist, but none reports the run's harness as available. |
 | `NoMatchingPool` | Ready nodes report the harness, but none matches the deployment's node pool, the pool's tenant dedication, or the deployment's node selector labels. |
+| `NoIsolatingWorker` | The run is `Untrusted` (see [Deployment trust level](#deployment-trust-level-trustlevel)) and Ready nodes report its harness, but none offers its executor with the isolation it needs (at least `Container`). The run waits until such a worker registers; it is never given to a Process worker. |
 
 The reason comes from a snapshot of node state that is reused for up to 3 seconds, so it can lag a node registering or going away by that long. The control plane leader also checks queued runs every 5 seconds. The first time it finds a run blocked for a given reason it appends one `Warning` run event that explains it, for example `No Ready worker reports the Codex harness. The run waits until one registers.` Each reason is explained at most once per run. When the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 (the default 0 waits forever), a run that stays blocked that long fails with status `Failed`, outcome `NoCapableWorker`, and an `errorMessage` that names the reason. The overview counts blocked runs in `blockedRuns`.
 
@@ -4676,7 +4679,8 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `retryOnNodeLoss` | `bool` | Whether a running run is requeued when its node is lost. For KubernetesJob runs this also covers a run pod that was evicted or deleted from outside Garrison. |
 | `weight` | `int` | Traffic weight among the agent's active deployments. Minimum 0, maximum 1000, default 100. |
 | `nodePoolId` | `string?` | Required node pool. |
-| `executor` | `RunExecutorEnum?` | `Process` or `KubernetesJob`. Null uses the node pool's `defaultExecutor`, then `Process`. A PersistentVolume workspace template requires `KubernetesJob`. |
+| `executor` | `RunExecutorEnum?` | `Process` or `KubernetesJob`. Null uses the node pool's `defaultExecutor`, then `Process`; for an `Untrusted` deployment null never resolves to `Process` and uses `KubernetesJob`. A PersistentVolume workspace template requires `KubernetesJob`. `Process` on an `Untrusted` deployment is rejected (`UntrustedNeedsIsolation`). |
+| `trustLevel` | `DeploymentTrustLevelEnum` | `Trusted` (default) or `Untrusted`. Untrusted runs need at least `Container` isolation and queue with `NoIsolatingWorker` until a worker can provide it. See [Deployment trust level](#deployment-trust-level-trustlevel). |
 | `podResources` | `RunPodResources` | Run pod requests and limits for KubernetesJob runs; ignored for Process runs. |
 | `workspaceTemplateId` | `string?` | Workspace template. |
 | `artifactStoreId` | `string?` | Artifact store. |
@@ -5409,6 +5413,7 @@ One invocation of one deployment.
 | `deploymentVersion` | `int` | Deployment configuration version used. |
 | `harnessType` | `HarnessTypeEnum` | Harness type required. |
 | `executor` | `RunExecutorEnum` | Executor the run needs, resolved at creation from the deployment and its node pool. |
+| `trustLevel` | `DeploymentTrustLevelEnum` | The deployment's trust level when the run was admitted. For `Untrusted` runs, `requiredCapabilities.isolation` is at least `Container`. |
 | `nodePoolId` | `string?` | Required node pool. |
 | `kind` | `RunKindEnum` | Run kind. |
 | `status` | `RunStatusEnum` | Status. |
@@ -5541,7 +5546,11 @@ A multi-turn conversation with one agent. See [Conversations](#conversations).
 
 #### `RunBlockedReasonEnum`
 
-`NoReadyWorker`, `NoCapableWorker`, `NoMatchingPool`
+`NoReadyWorker`, `NoCapableWorker`, `NoMatchingPool`, `NoIsolatingWorker`
+
+#### `DeploymentTrustLevelEnum`
+
+`Trusted` (default), `Untrusted`. Used by `Deployment.trustLevel`, `Run.trustLevel`, and the manifest `DeploymentSpec`.
 
 #### `RunParameter`
 
@@ -6289,6 +6298,7 @@ Tenant, the top-level isolation boundary.
 | `description` | `string?` | Optional description. |
 | `active` | `bool` | Whether the record is active. |
 | `isProtected` | `bool` | Whether the record is protected from deletion. |
+| `requireUntrustedDeployments` | `bool` | Require every deployment in the tenant to be `Untrusted`. Default false. See [Deployment trust level](#deployment-trust-level-trustlevel). |
 | `createdUtc` | `DateTime` | Creation timestamp (UTC). |
 | `lastUpdateUtc` | `DateTime` | Last update timestamp (UTC). |
 
@@ -6301,6 +6311,7 @@ Tenant create or update request.
 | `name` | `string?` | Tenant name. Required on create. |
 | `description` | `string?` | Description. |
 | `active` | `bool?` | Whether the tenant is active. |
+| `requireUntrustedDeployments` | `bool?` | Require `Untrusted` deployments. Null keeps the current value (false on create). Turning it on does not change existing deployments; their next update must set `Untrusted`. |
 
 #### `TokenDetailsResponse`
 
@@ -6445,6 +6456,24 @@ Deployment create/update accepts `requiredCapabilities`:
 Isolation values are `Process`, `Container`, and `SandboxedRuntime`; startup classes are `Immediate`, `Cold`, and `Warm` (omit or use null to accept any class). Defaults impose no advanced requirement. Select the appropriate `executor` separately, such as `KubernetesJob` for Container isolation. A session requirement needs a resume-capable harness profile. Runs expose the admission-time requirement copy. Worker registration and node reads expose `executorCapabilities`, an array with `executor` plus these capability fields. Missing reports make no advanced promise. The legacy `executors` list remains supported.
 
 Unsupported requirements stay queued with `blockedReason: "NoCapableWorker"`; they never fall back to a less capable executor. Registration rejects unknown enum values and duplicate executor reports. See `docs/ARCHITECTURE.md` for current supported capabilities.
+
+### Deployment trust level (`trustLevel`)
+
+Deployments carry `trustLevel`: `Trusted` (the default for new deployments, and the value every deployment that existed before schema 23 keeps) or `Untrusted`. Choose `Untrusted` when callers or the content a run reads may be hostile, for example public A2A callers, issue text from the internet, or untrusted repositories.
+
+- An `Untrusted` deployment raises the isolation every run needs to at least `Container`, on top of its own `requiredCapabilities` (a stronger requirement such as `SandboxedRuntime` is kept). The run's `requiredCapabilities` shows the raised value, and the run records `trustLevel`. Like other requirements, this is copied at admission, so editing the deployment does not change queued runs.
+- When `executor` is unset, an `Untrusted` deployment resolves to `KubernetesJob` instead of a `Process` pool default or `Process`. Setting `executor: "Process"` on an `Untrusted` deployment is rejected with a 400 field error on `executor`, code `UntrustedNeedsIsolation`.
+- An `Untrusted` run is never claimed by a worker without the isolation: candidate selection, the atomic claim, and the delegated child reserve claim all match the stored requirement. When no Ready worker can isolate it, the run stays `Queued` with `blockedReason: "NoIsolatingWorker"` and is not rejected at submit. `Runtime.FailBlockedAfterSeconds` applies as for other blocked runs.
+- A delegated child runs under its own deployment's trust level. An `Untrusted` parent may delegate to a `Trusted` child when the delegation rules allow it; the child's input is then the parent's output, so allow-list only children whose deployments you would trust with that content, or make them `Untrusted` too.
+- Changes to `trustLevel` go through the usual deployment update audit record, which names the old and new level.
+
+Tenants carry `requireUntrustedDeployments` (default `false`), set with `PUT /v1.0/api/tenants/{tenantId}` (`TenantRequest.requireUntrustedDeployments`). While it is `true`, creating or updating a `Trusted` deployment in that tenant, over REST, MCP, or manifest apply, is rejected with a 400 field error on `trustLevel`, code `TenantRequiresUntrusted`. Turning it on does not rewrite existing deployments: `Trusted` deployments keep running as configured (their runs are admitted as before), the dashboard flags them, and their next configuration update must set `Untrusted`. The change is audited on the tenant.
+
+```json
+{ "code": "ValidationFailed", "message": "The deployment is invalid.",
+  "fields": { "trustLevel": "Tenant default requires every deployment to be Untrusted; set trustLevel to Untrusted." },
+  "fieldCodes": { "trustLevel": "TenantRequiresUntrusted" } }
+```
 
 Worker capability records additionally expose `warmStart` (boolean, default false). A Kubernetes executor with primary `coldStartClass: "Cold"` and `warmStart: true` satisfies either Cold or Warm requirements. Explicit Warm requirements reject custom deployment pod resources and PersistentVolume workspaces. Node lease responses include `queuedKubernetesRuns`, a bounded eligible queue estimate for adaptive warm-stock sizing; it is zero for workers without warm support.
 

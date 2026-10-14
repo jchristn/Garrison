@@ -2139,3 +2139,23 @@ de.views.pipelineRunDetail = {
 Object.assign(de.views.runDetail, { pipelineRun: 'Pipeline-Lauf' });
 de.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Prüfintervall für Pipelines (ms)';
 de.views.settings.fields.Runtime.PipelineMaxStages = 'Maximale Stufen pro Pipeline';
+
+// Deployment trust level (P11.14).
+de.enums.trustLevel = { Trusted: "Vertrauenswürdig", Untrusted: "Nicht vertrauenswürdig" };
+de.enums.runBlockedReason.NoIsolatingWorker = "Kein isolierender Worker";
+de.components.blocked.reasons.NoIsolatingWorker = "Dieser Lauf ist nicht vertrauenswürdig und braucht Container-Isolation, aber kein bereiter Worker, der {{harness}} ausführen kann, bietet sie. Fügen Sie einen Worker mit der Kubernetes-Job-Ausführung in einem Cluster hinzu, in dem er Jobs anlegen darf.";
+de.tips.enums.runBlockedReason.NoIsolatingWorker = "Blockiert: Dieser nicht vertrauenswürdige Lauf braucht Container-Isolation, und kein bereiter Worker mit seinem Harness bietet sie. Er wartet in der Warteschlange, bis sich ein Worker mit der Kubernetes-Job-Ausführung anmeldet.";
+de.tips.enums.trustLevel = { Trusted: "Eingaben kommen nur von vertrauenswürdigen Aufrufern. Läufe dürfen die Process-Ausführung nutzen, die nicht von anderen Läufen oder dem Worker isoliert ist.", Untrusted: "Eingaben können aus nicht vertrauenswürdigen Quellen stammen. Läufe gehen nur an eine Ausführung mit Container-Isolation oder stärker und warten in der Warteschlange, bis eine verfügbar ist." };
+Object.assign(de.common.fieldCodes, { TenantRequiresUntrusted: "Dieser Mandant verlangt, dass jede Bereitstellung nicht vertrauenswürdig ist.", UntrustedNeedsIsolation: "Eine nicht vertrauenswürdige Bereitstellung kann die Process-Ausführung nicht nutzen. Wählen Sie Kubernetes-Job oder lassen Sie die Ausführung leer." });
+de.resources.deployments.fields.trustLevel = "Vertrauensstufe";
+de.resources.deployments.columns.trustLevel = "Vertrauensstufe";
+de.resources.deployments.hints.trustLevel = "Wählen Sie Nicht vertrauenswürdig, wenn Aufrufer oder Inhalte nicht vertrauenswürdig sein können. Solche Läufe brauchen Container-Isolation: Eine leere Ausführung bedeutet dann Kubernetes-Job, und Läufe warten, bis ein Worker sie isolieren kann.";
+de.tips.resources.deployments.trustLevel = "Vertrauenswürdig erlaubt die Process-Ausführung, die nicht isoliert ist. Nicht vertrauenswürdig läuft nur auf einer Ausführung mit Container-Isolation oder stärker.";
+de.tips.resources.deployments.trustFlagged = "Dieser Mandant verlangt nicht vertrauenswürdige Bereitstellungen. Diese Bereitstellung war vorher vertrauenswürdig: Sie läuft wie konfiguriert weiter, muss aber beim nächsten Speichern auf Nicht vertrauenswürdig gesetzt werden.";
+de.resources.deployments.trust = { tenantRequiresUntrusted: "Dieser Mandant verlangt nicht vertrauenswürdige Bereitstellungen. Setzen Sie die Vertrauensstufe auf Nicht vertrauenswürdig, um diese Bereitstellung zu speichern.", untrustedProcess: "Nicht vertrauenswürdige Bereitstellungen können die Process-Ausführung nicht nutzen. Wählen Sie Kubernetes-Job oder lassen Sie die Ausführung leer.", flagged: "Vertrauenswürdig, Richtlinie verlangt Nicht vertrauenswürdig" };
+de.resources.tenants.fields.requireUntrustedDeployments = "Nicht vertrauenswürdige Bereitstellungen verlangen";
+de.resources.tenants.columns.requireUntrustedDeployments = "Verlangt Nicht vertrauenswürdig";
+de.resources.tenants.hints = { ...(de.resources.tenants.hints || {}), requireUntrustedDeployments: "Das Anlegen oder Speichern einer vertrauenswürdigen Bereitstellung wird abgelehnt. Bestehende vertrauenswürdige Bereitstellungen laufen weiter und werden markiert, bis sie als nicht vertrauenswürdig gespeichert werden." };
+de.tips.resources.tenants.requireUntrustedDeployments = "Wenn aktiv, muss jede Bereitstellung dieses Mandanten nicht vertrauenswürdig sein, damit ihre Läufe nur an isolierte Ausführungen gehen.";
+de.views.runDetail.trustLevel = "Vertrauensstufe";
+de.tips.views.runDetail.trustLevel = "Die Vertrauensstufe der Bereitstellung, als dieser Lauf eingereiht wurde. Nicht vertrauenswürdige Läufe gehen nur an eine Ausführung mit Container-Isolation oder stärker.";

@@ -13,7 +13,8 @@ namespace Garrison.Server.Runtime
 
     /// <summary>
     /// Explains why queued runs are not being picked up: no Ready node at all, no Ready node that reports the run's
-    /// harness, or no capable Ready node that matches the deployment's node pool and selectors. The reason is computed
+    /// harness, no Ready node that can isolate an Untrusted run, or no capable Ready node that matches the deployment's
+    /// node pool and selectors. The reason is computed
     /// on read from a short-lived snapshot of node state, so reads never query nodes per run. Thread-safe.
     /// </summary>
     public class BlockedRunService
@@ -93,8 +94,15 @@ namespace Garrison.Server.Runtime
             if (run.Status != RunStatusEnum.Queued) return null;
             if (snapshot.ReadyNodes.Count == 0) return RunBlockedReasonEnum.NoReadyWorker;
 
-            List<Node> capable = snapshot.ReadyNodes.Where(n => PlacementRules.Supports(n, run.HarnessType) && ExecutorCapabilityRules.Supports(n, run)).ToList();
-            if (capable.Count == 0) return RunBlockedReasonEnum.NoCapableWorker;
+            List<Node> withHarness = snapshot.ReadyNodes.Where(n => PlacementRules.Supports(n, run.HarnessType)).ToList();
+            List<Node> capable = withHarness.Where(n => ExecutorCapabilityRules.Supports(n, run)).ToList();
+            if (capable.Count == 0)
+            {
+                // Untrusted runs (P11.14) name missing isolation when that is what no worker with the harness offers.
+                if (run.TrustLevel == DeploymentTrustLevelEnum.Untrusted && withHarness.Count > 0 && !withHarness.Any(n => ExecutorCapabilityRules.Isolates(n, run)))
+                    return RunBlockedReasonEnum.NoIsolatingWorker;
+                return RunBlockedReasonEnum.NoCapableWorker;
+            }
             if (!capable.Any(n => PlacementRules.MatchesPlacement(n, snapshot.PoolOf(n), run))) return RunBlockedReasonEnum.NoMatchingPool;
             return null;
         }
@@ -118,6 +126,8 @@ namespace Garrison.Server.Runtime
                     if (ExecutorCapabilityRules.RequiresReport(run.RequiredCapabilities)) return "No Ready worker reports the " + harness + " harness, " + run.Executor + " executor, and required capabilities: " + Garrison.Core.Serialization.Serializer.Serialize(run.RequiredCapabilities) + ". The run waits until a matching worker registers.";
                     if (run.Executor != RunExecutorEnum.Process) return "No Ready worker reports both the " + harness + " harness and the " + run.Executor + " executor. The run waits until one registers (a worker reports KubernetesJob only when it runs in a cluster with permission to create Jobs).";
                     return "No Ready worker reports the " + harness + " harness. The run waits until one registers.";
+                case RunBlockedReasonEnum.NoIsolatingWorker:
+                    return "This run is Untrusted and needs " + run.RequiredCapabilities.Isolation + " isolation or stronger, but no Ready worker with the " + harness + " harness offers the " + run.Executor + " executor with that isolation. The run waits until one registers (a worker reports KubernetesJob only when it runs in a cluster with permission to create Jobs).";
                 default:
                     return "Ready workers report the " + harness + " harness, but none matches this deployment's node pool or node selectors. The run waits until a matching worker registers.";
             }
@@ -141,6 +151,8 @@ namespace Garrison.Server.Runtime
                 case RunBlockedReasonEnum.NoCapableWorker:
                     if (run.Executor != RunExecutorEnum.Process) return "no Ready worker reported both the " + harness + " harness and the " + run.Executor + " executor";
                     return "no Ready worker reported the " + harness + " harness";
+                case RunBlockedReasonEnum.NoIsolatingWorker:
+                    return "no Ready worker with the " + harness + " harness offered the " + run.RequiredCapabilities.Isolation + " isolation this Untrusted run needs";
                 default:
                     return "no Ready worker with the " + harness + " harness matched the deployment's node pool or node selectors";
             }

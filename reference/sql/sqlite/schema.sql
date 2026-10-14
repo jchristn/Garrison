@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 22).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 23).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1323,3 +1323,8 @@ ALTER TABLE "nodes" ADD COLUMN maxresidentwaiters INTEGER NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS "run_child_waits" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, parentrunid VARCHAR(64) NOT NULL, childrunid VARCHAR(64) NOT NULL, createdutc TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS "idx_run_child_waits_parent" ON "run_child_waits" ("parentrunid");
 CREATE INDEX IF NOT EXISTS "idx_run_child_waits_child" ON "run_child_waits" ("childrunid");
+
+-- Migration 23: Deployment trust level and tenant Untrusted policy
+ALTER TABLE "deployments" ADD COLUMN trustlevel VARCHAR(32) NOT NULL DEFAULT 'Trusted';
+ALTER TABLE "runs" ADD COLUMN trustlevel VARCHAR(32) NOT NULL DEFAULT 'Trusted';
+ALTER TABLE "tenants" ADD COLUMN requireuntrusted INTEGER NOT NULL DEFAULT 0;

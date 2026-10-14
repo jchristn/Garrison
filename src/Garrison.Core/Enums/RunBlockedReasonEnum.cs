@@ -19,6 +19,13 @@ namespace Garrison.Core.Enums
         /// Ready nodes report the run's harness, but none matches the deployment's node pool, the pool's tenant
         /// dedication, or the deployment's node selectors.
         /// </summary>
-        NoMatchingPool
+        NoMatchingPool,
+
+        /// <summary>
+        /// The run is Untrusted (P11.14) and Ready nodes report its harness, but none offers its executor with the
+        /// isolation it needs (at least Container, for example a worker with the KubernetesJob executor). The run waits
+        /// in the queue until such a worker registers.
+        /// </summary>
+        NoIsolatingWorker
     }
 }

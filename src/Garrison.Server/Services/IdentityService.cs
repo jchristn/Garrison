@@ -71,6 +71,7 @@ namespace Garrison.Server.Services
             tenant.Name = request.Name.Trim();
             tenant.Description = request.Description;
             tenant.Active = request.Active ?? true;
+            tenant.RequireUntrustedDeployments = request.RequireUntrustedDeployments ?? false;
             await _Database.Tenants.CreateAsync(tenant, token).ConfigureAwait(false);
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Tenant", tenant.Id, "Tenant created.", tenant.Id, token).ConfigureAwait(false);
             return tenant;
@@ -100,8 +101,14 @@ namespace Garrison.Server.Services
                 if (tenant.IsProtected && !request.Active.Value) throw new ConflictException("Protected", "The protected tenant cannot be deactivated.");
                 tenant.Active = request.Active.Value;
             }
+            string summary = "Tenant updated.";
+            if (request.RequireUntrustedDeployments.HasValue && request.RequireUntrustedDeployments.Value != tenant.RequireUntrustedDeployments)
+            {
+                tenant.RequireUntrustedDeployments = request.RequireUntrustedDeployments.Value;
+                summary = "Tenant updated; requireUntrustedDeployments set to " + (tenant.RequireUntrustedDeployments ? "true" : "false") + ".";
+            }
             await _Database.Tenants.UpdateAsync(tenant, token).ConfigureAwait(false);
-            await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Tenant", tenant.Id, "Tenant updated.", tenant.Id, token).ConfigureAwait(false);
+            await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Tenant", tenant.Id, summary, tenant.Id, token).ConfigureAwait(false);
             _Authorization.Invalidate();
             return tenant;
         }

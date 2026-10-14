@@ -2157,3 +2157,23 @@ es.views.pipelineRunDetail = {
 Object.assign(es.views.runDetail, { pipelineRun: 'Ejecución de canalización' });
 es.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Intervalo de revisión de canalizaciones (ms)';
 es.views.settings.fields.Runtime.PipelineMaxStages = 'Máximo de etapas por canalización';
+
+// Deployment trust level (P11.14).
+es.enums.trustLevel = { Trusted: "De confianza", Untrusted: "No de confianza" };
+es.enums.runBlockedReason.NoIsolatingWorker = "Ningún nodo de trabajo con aislamiento";
+es.components.blocked.reasons.NoIsolatingWorker = "Esta ejecución no es de confianza y necesita aislamiento de contenedor, pero ningún nodo de trabajo listo que pueda ejecutar {{harness}} lo ofrece. Añade un nodo de trabajo con el ejecutor Job de Kubernetes, en un clúster donde pueda crear Jobs.";
+es.tips.enums.runBlockedReason.NoIsolatingWorker = "Bloqueada: esta ejecución no de confianza necesita aislamiento de contenedor y ningún nodo de trabajo listo con su harness lo ofrece. Espera en la cola hasta que se registre un nodo de trabajo con el ejecutor Job de Kubernetes.";
+es.tips.enums.trustLevel = { Trusted: "La entrada solo llega de llamadores de confianza. Las ejecuciones pueden usar el ejecutor Process, que no está aislado de otras ejecuciones ni del nodo de trabajo.", Untrusted: "La entrada puede venir de fuentes no confiables. Las ejecuciones solo van a un ejecutor con aislamiento de contenedor o superior y esperan en la cola hasta que haya uno disponible." };
+Object.assign(es.common.fieldCodes, { TenantRequiresUntrusted: "Este inquilino exige que todos los despliegues sean no de confianza.", UntrustedNeedsIsolation: "Un despliegue no de confianza no puede usar el ejecutor Process. Elige Job de Kubernetes o deja el ejecutor vacío." });
+es.resources.deployments.fields.trustLevel = "Nivel de confianza";
+es.resources.deployments.columns.trustLevel = "Nivel de confianza";
+es.resources.deployments.hints.trustLevel = "Elige No de confianza cuando los llamadores o el contenido puedan no ser fiables. Esas ejecuciones necesitan aislamiento de contenedor: un ejecutor vacío significa entonces Job de Kubernetes, y las ejecuciones esperan hasta que un nodo de trabajo pueda aislarlas.";
+es.tips.resources.deployments.trustLevel = "De confianza permite el ejecutor Process, que no está aislado. No de confianza solo se ejecuta en un ejecutor con aislamiento de contenedor o superior.";
+es.tips.resources.deployments.trustFlagged = "Este inquilino exige despliegues no de confianza. Este despliegue era de confianza antes de activar la política: sigue ejecutándose tal como está configurado, pero debe cambiarse a No de confianza la próxima vez que se guarde.";
+es.resources.deployments.trust = { tenantRequiresUntrusted: "Este inquilino exige despliegues no de confianza. Cambia el nivel de confianza a No de confianza para guardar este despliegue.", untrustedProcess: "Los despliegues no de confianza no pueden usar el ejecutor Process. Elige Job de Kubernetes o deja el ejecutor vacío.", flagged: "De confianza, la política exige No de confianza" };
+es.resources.tenants.fields.requireUntrustedDeployments = "Exigir despliegues no de confianza";
+es.resources.tenants.columns.requireUntrustedDeployments = "Exige No de confianza";
+es.resources.tenants.hints = { ...(es.resources.tenants.hints || {}), requireUntrustedDeployments: "Se rechaza crear o guardar un despliegue de confianza. Los despliegues de confianza existentes siguen ejecutándose y quedan marcados hasta que se guarden como no de confianza." };
+es.tips.resources.tenants.requireUntrustedDeployments = "Si está activado, todos los despliegues de este inquilino deben ser no de confianza, de modo que sus ejecuciones solo van a ejecutores aislados.";
+es.views.runDetail.trustLevel = "Nivel de confianza";
+es.tips.views.runDetail.trustLevel = "El nivel de confianza del despliegue cuando esta ejecución entró en la cola. Las ejecuciones no de confianza solo van a un ejecutor con aislamiento de contenedor o superior.";

@@ -303,6 +303,36 @@ namespace Garrison.Sdk.Test
                     Require(final.Status == RunStatusEnum.Cancelled || final.Status == RunStatusEnum.Succeeded, "status " + final.Status);
                 }).ConfigureAwait(false);
 
+                await CheckAsync("untrusted deployment queues without isolation", async () =>
+                {
+                    Deployment trusted = await client.Deployments.GetAsync(deploymentId ?? throw new InvalidOperationException("no deployment"), token).ConfigureAwait(false);
+                    Require(trusted.TrustLevel == DeploymentTrustLevelEnum.Trusted, "default trustLevel " + trusted.TrustLevel);
+                    Deployment untrusted = new Deployment();
+                    untrusted.Name = "sdk-cs-" + suffix + "-untrusted";
+                    untrusted.AgentId = agentId ?? throw new InvalidOperationException("no agent");
+                    untrusted.HarnessProfileId = fakeProfileId ?? throw new InvalidOperationException("no fake profile");
+                    untrusted.TrustLevel = DeploymentTrustLevelEnum.Untrusted;
+                    untrusted.Weight = 0;
+                    untrusted = await client.Deployments.CreateAsync(untrusted, token).ConfigureAwait(false);
+                    try
+                    {
+                        Require(untrusted.TrustLevel == DeploymentTrustLevelEnum.Untrusted, "trustLevel " + untrusted.TrustLevel);
+                        RunCreateRequest request = new RunCreateRequest();
+                        request.AgentId = agentId;
+                        request.DeploymentId = untrusted.Id;
+                        request.Input = "Untrusted input";
+                        Run run = await client.Runs.CreateAsync(request, token).ConfigureAwait(false);
+                        Run read = await client.Runs.GetAsync(run.Id, token).ConfigureAwait(false);
+                        Require(read.TrustLevel == DeploymentTrustLevelEnum.Untrusted && read.Executor == RunExecutorEnum.KubernetesJob, "run " + read.TrustLevel + " " + read.Executor);
+                        Require(read.Status == RunStatusEnum.Queued && read.BlockedReason == RunBlockedReasonEnum.NoIsolatingWorker, "run " + read.Status + " " + read.BlockedReason);
+                        await client.Runs.CancelAsync(run.Id, token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await client.Deployments.DeleteAsync(untrusted.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("manifest dry run", async () =>
                 {
                     string yaml = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-cs-manifest-" + suffix + "\nspec:\n  description: Dry run only.\n";

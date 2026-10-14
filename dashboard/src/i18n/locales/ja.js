@@ -2104,3 +2104,23 @@ ja.views.pipelineRunDetail = {
 Object.assign(ja.views.runDetail, { pipelineRun: 'パイプライン実行' });
 ja.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'パイプラインの確認間隔 (ms)';
 ja.views.settings.fields.Runtime.PipelineMaxStages = 'パイプラインあたりの最大ステージ数';
+
+// Deployment trust level (P11.14).
+ja.enums.trustLevel = { Trusted: "信頼済み", Untrusted: "信頼されていない" };
+ja.enums.runBlockedReason.NoIsolatingWorker = "分離できるワーカーなし";
+ja.components.blocked.reasons.NoIsolatingWorker = "この実行は信頼されていないため、コンテナー分離が必要ですが、{{harness}} を実行できる準備完了のワーカーはそれを提供していません。Job を作成できるクラスターに、Kubernetes Job 実行方式のワーカーを追加してください。";
+ja.tips.enums.runBlockedReason.NoIsolatingWorker = "ブロック中: この信頼されていない実行にはコンテナー分離が必要ですが、このハーネスを持つ準備完了のワーカーはそれを提供していません。Kubernetes Job 実行方式のワーカーが登録されるまでキューで待機します。";
+ja.tips.enums.trustLevel = { Trusted: "入力は信頼できる呼び出し元からのみ届きます。実行には Process 実行方式を使えますが、他の実行やワーカーから分離されていません。", Untrusted: "入力が信頼できない送信元から届く可能性があります。実行はコンテナー分離以上の実行方式にのみ割り当てられ、利用できるまでキューで待機します。" };
+Object.assign(ja.common.fieldCodes, { TenantRequiresUntrusted: "このテナントでは、すべてのデプロイメントを信頼されていない設定にする必要があります。", UntrustedNeedsIsolation: "信頼されていないデプロイメントは Process 実行方式を使えません。Kubernetes Job を選ぶか、実行方式を空のままにしてください。" });
+ja.resources.deployments.fields.trustLevel = "信頼レベル";
+ja.resources.deployments.columns.trustLevel = "信頼レベル";
+ja.resources.deployments.hints.trustLevel = "呼び出し元や内容が信頼できない可能性がある場合は、信頼されていないを選んでください。その実行にはコンテナー分離が必要です。実行方式が空なら Kubernetes Job となり、分離できるワーカーが現れるまで実行は待機します。";
+ja.tips.resources.deployments.trustLevel = "信頼済みでは、分離されていない Process 実行方式を使えます。信頼されていない場合は、コンテナー分離以上の実行方式でのみ実行されます。";
+ja.tips.resources.deployments.trustFlagged = "このテナントでは信頼されていないデプロイメントが必須です。このデプロイメントはポリシーを有効にする前から信頼済みでした。現在の設定のまま動作し続けますが、次に保存するときは信頼されていないに変更する必要があります。";
+ja.resources.deployments.trust = { tenantRequiresUntrusted: "このテナントでは信頼されていないデプロイメントが必須です。このデプロイメントを保存するには、信頼レベルを信頼されていないに変更してください。", untrustedProcess: "信頼されていないデプロイメントは Process 実行方式を使えません。Kubernetes Job を選ぶか、実行方式を空のままにしてください。", flagged: "信頼済み (ポリシーでは信頼されていないが必須)" };
+ja.resources.tenants.fields.requireUntrustedDeployments = "信頼されていないデプロイメントを必須にする";
+ja.resources.tenants.columns.requireUntrustedDeployments = "信頼されていないが必須";
+ja.resources.tenants.hints = { ...(ja.resources.tenants.hints || {}), requireUntrustedDeployments: "信頼済みデプロイメントの作成や保存は拒否されます。既存の信頼済みデプロイメントは動作し続け、信頼されていないとして保存されるまで警告が表示されます。" };
+ja.tips.resources.tenants.requireUntrustedDeployments = "有効にすると、このテナントのすべてのデプロイメントを信頼されていない設定にする必要があり、その実行は分離された実行方式にのみ割り当てられます。";
+ja.views.runDetail.trustLevel = "信頼レベル";
+ja.tips.views.runDetail.trustLevel = "この実行がキューに入ったときのデプロイメントの信頼レベルです。信頼されていない実行は、コンテナー分離以上の実行方式にのみ割り当てられます。";

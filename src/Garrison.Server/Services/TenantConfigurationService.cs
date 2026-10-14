@@ -82,7 +82,7 @@ namespace Garrison.Server.Services
             Deployment? existing = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, deployment.Name);
             Deployment created = await _Server.Database.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
-            await AuditAsync(ctx, tenantId, "Deployment", created.Id, "Created deployment " + created.Name + ".", token).ConfigureAwait(false);
+            await AuditAsync(ctx, tenantId, "Deployment", created.Id, "Created deployment " + created.Name + " (trust level " + created.TrustLevel + ").", token).ConfigureAwait(false);
             return created;
         }
         /// <summary>Replace an authorized deployment and advance its configuration version.</summary>
@@ -105,7 +105,8 @@ namespace Garrison.Server.Services
             Deployment? named = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, deployment.Name);
             Deployment updated = await _Server.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
-            await AuditAsync(ctx, tenantId, "Deployment", updated.Id, "Updated deployment " + updated.Name + " to configuration version " + updated.ConfigVersion + ".", token).ConfigureAwait(false);
+            string trust = existing.TrustLevel != updated.TrustLevel ? " Trust level changed from " + existing.TrustLevel + " to " + updated.TrustLevel + "." : String.Empty;
+            await AuditAsync(ctx, tenantId, "Deployment", updated.Id, "Updated deployment " + updated.Name + " to configuration version " + updated.ConfigVersion + "." + trust, token).ConfigureAwait(false);
             return updated;
         }
         /// <summary>Delete an authorized agent and its deployments, matching REST cascade behavior.</summary>

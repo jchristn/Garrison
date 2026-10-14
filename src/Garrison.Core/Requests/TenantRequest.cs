@@ -23,5 +23,11 @@ namespace Garrison.Core.Requests
         /// Whether the tenant is active.
         /// </summary>
         public bool? Active { get; set; } = null;
+
+        /// <summary>
+        /// Require every deployment in the tenant to be Untrusted. Null leaves the current value (default false on
+        /// create). Turning it on does not change existing deployments; their next update must set Untrusted.
+        /// </summary>
+        public bool? RequireUntrustedDeployments { get; set; } = null;
     }
 }

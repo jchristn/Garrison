@@ -19,6 +19,66 @@ namespace Garrison.Core.Helpers
             if (value.ColdStartClass.HasValue && !Enum.IsDefined(value.ColdStartClass.Value)) throw new ArgumentException("Unknown executor startup class.");
         }
 
+        /// <summary>
+        /// Minimum isolation a trust level needs (P11.14): Container for Untrusted, Process (no minimum) for Trusted.
+        /// </summary>
+        /// <param name="trustLevel">Trust level.</param>
+        /// <returns>Minimum isolation.</returns>
+        public static ExecutorIsolationEnum MinimumIsolation(DeploymentTrustLevelEnum trustLevel)
+        {
+            return trustLevel == DeploymentTrustLevelEnum.Untrusted ? ExecutorIsolationEnum.Container : ExecutorIsolationEnum.Process;
+        }
+
+        /// <summary>
+        /// The effective placement requirement of a deployment: an independent copy of its required capabilities with
+        /// the isolation raised to the trust level's minimum. This is the only place trust level becomes a placement
+        /// requirement; admission stores the result on the run, and every claim path (candidate selection, the atomic
+        /// claim, the delegated child reserve claim) and blocked-run detection match against the stored run columns.
+        /// </summary>
+        /// <param name="deployment">Deployment.</param>
+        /// <returns>Effective requirements.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when deployment is null.</exception>
+        public static ExecutorRequirements Effective(Deployment deployment)
+        {
+            if (deployment == null) throw new ArgumentNullException(nameof(deployment));
+            ExecutorRequirements effective = deployment.RequiredCapabilities.Clone();
+            ExecutorIsolationEnum minimum = MinimumIsolation(deployment.TrustLevel);
+            if (effective.Isolation < minimum) effective.Isolation = minimum;
+            return effective;
+        }
+
+        /// <summary>
+        /// Fill a new run's placement from its deployment at admission: trust level, resolved executor, and effective
+        /// requirements. Later deployment edits do not change the run.
+        /// </summary>
+        /// <param name="run">Run being admitted.</param>
+        /// <param name="deployment">Deployment.</param>
+        /// <param name="pool">The deployment's node pool when its executor is unset, else null.</param>
+        /// <exception cref="ArgumentNullException">Thrown when run or deployment is null.</exception>
+        public static void Admit(Run run, Deployment deployment, NodePool? pool)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            if (deployment == null) throw new ArgumentNullException(nameof(deployment));
+            run.TrustLevel = deployment.TrustLevel;
+            run.Executor = RunExecutors.Resolve(deployment, pool);
+            run.RequiredCapabilities = Effective(deployment);
+        }
+
+        /// <summary>
+        /// Whether a node offers an executor with at least a run's required isolation for the run's executor, ignoring
+        /// every other capability. Used to name missing isolation as the blocked reason of Untrusted runs.
+        /// </summary>
+        /// <param name="node">Node.</param>
+        /// <param name="run">Run.</param>
+        /// <returns>True when the node can isolate the run.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when node or run is null.</exception>
+        public static bool Isolates(Node node, Run run)
+        {
+            if (node == null) throw new ArgumentNullException(nameof(node));
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            return Of(node).Any(c => c.Executor == run.Executor && c.Isolation >= run.RequiredCapabilities.Isolation);
+        }
+
         /// <summary>True when a requirement asks for more than legacy Process placement.</summary>
         /// <param name="value">Requirements.</param>
         /// <returns>Whether capabilities must be reported.</returns>

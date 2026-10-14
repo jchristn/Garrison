@@ -85,7 +85,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET name = @name, description = @description, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET name = @name, description = @description, active = @active, isprotected = @isprotected, requireuntrusted = @requireuntrusted, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -96,6 +96,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "description", obj.Description);
                     AdoDatabaseDriver.Add(command, "active", obj.Active);
                     AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
+                    AdoDatabaseDriver.Add(command, "requireuntrusted", obj.RequireUntrustedDeployments);
                     AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
                 }, ct).ConfigureAwait(false);
             }, token).ConfigureAwait(false);
@@ -168,6 +169,7 @@ namespace Garrison.Core.Database.Ado
             obj.Description = AdoConverters.NullableStr(reader, "description");
             obj.Active = AdoConverters.Bool(reader, "active");
             obj.IsProtected = AdoConverters.Bool(reader, "isprotected");
+            obj.RequireUntrustedDeployments = AdoConverters.Bool(reader, "requireuntrusted");
             obj.CreatedUtc = AdoConverters.Date(reader, "createdutc");
             obj.LastUpdateUtc = AdoConverters.Date(reader, "lastupdateutc");
             return obj;
@@ -202,7 +204,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Tenant obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (id, name, description, active, isprotected, createdutc, lastupdateutc) VALUES (@id, @name, @description, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (id, name, description, active, isprotected, requireuntrusted, createdutc, lastupdateutc) VALUES (@id, @name, @description, @active, @isprotected, @requireuntrusted, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -210,6 +212,7 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "description", obj.Description);
                 AdoDatabaseDriver.Add(command, "active", obj.Active);
                 AdoDatabaseDriver.Add(command, "isprotected", obj.IsProtected);
+                AdoDatabaseDriver.Add(command, "requireuntrusted", obj.RequireUntrustedDeployments);
                 AdoDatabaseDriver.Add(command, "createdutc", obj.CreatedUtc);
                 AdoDatabaseDriver.Add(command, "lastupdateutc", obj.LastUpdateUtc);
             }, token).ConfigureAwait(false);

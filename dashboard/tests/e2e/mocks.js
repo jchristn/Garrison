@@ -27,8 +27,14 @@ export const PRINCIPAL = {
 
 const RUN_STATUSES = ['Succeeded', 'Failed', 'Running', 'Queued', 'Succeeded', 'Cancelled'];
 
-/** Why a queued run is blocked (G-15): run_0003 has no capable worker, run_0009 no Ready worker, run_0015 no pool. */
-const BLOCKED = { 3: 'NoCapableWorker', 9: 'NoReadyWorker', 15: 'NoMatchingPool' };
+/**
+ * Why a queued run is blocked (G-15): run_0003 has no capable worker, run_0009 no Ready worker, run_0015 no pool, and
+ * run_0021 is Untrusted with no worker that can isolate it (P11.14).
+ */
+const BLOCKED = { 3: 'NoCapableWorker', 9: 'NoReadyWorker', 15: 'NoMatchingPool', 21: 'NoIsolatingWorker' };
+
+/** run_0021 is an Untrusted run: KubernetesJob with Container isolation (P11.14). */
+const UNTRUSTED_RUN = 21;
 
 /** Fields every stored record carries. */
 function record(prefix, i, extra = {}) {
@@ -65,8 +71,9 @@ function run(i) {
     deploymentId: 'dep_0001',
     deploymentVersion: 3,
     harnessType: 'ClaudeCode',
-    executor: 'Process',
-    requiredCapabilities: defaultExecutorRequirements(),
+    executor: i === UNTRUSTED_RUN ? 'KubernetesJob' : 'Process',
+    requiredCapabilities: i === UNTRUSTED_RUN ? { ...defaultExecutorRequirements(), isolation: 'Container' } : defaultExecutorRequirements(),
+    trustLevel: i === UNTRUSTED_RUN ? 'Untrusted' : 'Trusted',
     nodePoolId: 'np_0001',
     kind: 'Invoke',
     status,
@@ -206,7 +213,7 @@ const PROFILE_ARGS = (id) => [
 ];
 
 const FACTORIES = {
-  tenants: (i) => record('ten', i, { id: i === 1 ? TENANT : `ten_${i}`, name: i === 1 ? 'default' : `tenant-${i}`, description: 'Sample tenant' }),
+  tenants: (i) => record('ten', i, { id: i === 1 ? TENANT : `ten_${i}`, name: i === 1 ? 'default' : `tenant-${i}`, description: 'Sample tenant', requireUntrustedDeployments: false }),
   users: (i) => record('usr', i, { tenantId: TENANT, firstName: 'User', lastName: String(i), email: `user${i}@garrison.local`, isAdmin: i === 1, isTenantAdmin: i < 3 }),
   credentials: (i) => base('cred', i, { userId: 'usr_0001', accessKey: `AK${i}XYZ`, secretKeyLast4: 'ab12', authMode: 'Hybrid', lastUsedUtc: iso(i) }),
   roles: (i) => base('role', i, { description: 'Role description', isBuiltIn: i < 3 }),
@@ -338,6 +345,8 @@ const FACTORIES = {
       ...(i === 2 ? { repetitionGuard: true, maxAssistantChars: 50000, noProgressSeconds: 120 } : {}),
       // Phase 11: deployments carry run pod resources (empty unless set); executor is omitted to inherit the pool default.
       requiredCapabilities: defaultExecutorRequirements(),
+      // P11.14: deployment-3 accepts untrusted input; the rest are Trusted (the default).
+      trustLevel: i === 3 ? 'Untrusted' : 'Trusted',
       podResources: i === 4 ? { cpuRequest: '250m', memoryLimit: '2Gi' } : {},
       maxConcurrentRuns: 0,
       maxAttempts: 1,

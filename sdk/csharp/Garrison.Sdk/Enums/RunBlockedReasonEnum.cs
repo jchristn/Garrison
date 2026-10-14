@@ -18,6 +18,12 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// Ready nodes report the run's harness, but none matches the deployment's node pool or node selector.
         /// </summary>
-        NoMatchingPool
+        NoMatchingPool,
+
+        /// <summary>
+        /// The run is Untrusted and no Ready node with its harness offers its executor with the isolation it needs (at
+        /// least Container). The run waits until such a worker registers.
+        /// </summary>
+        NoIsolatingWorker
     }
 }

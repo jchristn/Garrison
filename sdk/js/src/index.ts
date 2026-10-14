@@ -72,6 +72,8 @@ export type RunExecutor = "Process" | "KubernetesJob";
 
 /** Executors, in declaration order. */
 export const RUN_EXECUTORS: readonly RunExecutor[] = ["Process", "KubernetesJob"] as const;
+/** Deployment and run trustLevel values; Trusted is the default. */
+export const TRUST_LEVELS: readonly TrustLevel[] = ["Trusted", "Untrusted"] as const;
 
 /**
  * Requests and limits for the run pod of a KubernetesJob run, as Kubernetes quantities (for example "500m", "2",
@@ -117,6 +119,8 @@ export interface Deployment extends Json {
   /** Executor; null uses the node pool's defaultExecutor, then Process. */
   executor?: RunExecutor | null;
   requiredCapabilities?: ExecutorRequirements;
+  /** Trust level, default Trusted. Untrusted runs need at least Container isolation (an unset executor resolves to KubernetesJob). */
+  trustLevel?: TrustLevel;
   /** Empty disables automatic artifact collection. */
   artifactGlobs?: string[];
   artifactStoreId?: string;
@@ -408,6 +412,8 @@ export interface Run extends Json {
   /** Executor the run needs, resolved when it was created. */
   executor?: RunExecutor;
   requiredCapabilities?: ExecutorRequirements;
+  /** Deployment trust level when the run was admitted. */
+  trustLevel?: TrustLevel;
   inputText?: string; resultText?: string; errorMessage?: string; inputTokens: number; outputTokens: number;
   costUsd?: number; createdUtc: string; startedUtc?: string; completedUtc?: string; depth: number; parentRunId?: string;
   cachedTokens?: number;
@@ -558,7 +564,9 @@ export const RUN_OUTCOMES = [
 export type RunOutcome = typeof RUN_OUTCOMES[number];
 
 /** Why a queued run cannot be handed to any worker right now. */
-export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool";
+export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool" | "NoIsolatingWorker";
+/** Deployment and run trust level. Tenant requireUntrustedDeployments rejects Trusted deployments (TenantRequiresUntrusted). */
+export type TrustLevel = "Trusted" | "Untrusted";
 
 /**
  * Health of a stored credential (Secret.status). NeedsReauthentication means the provider rejected a CodexAuthJson

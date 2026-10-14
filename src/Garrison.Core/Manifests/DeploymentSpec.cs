@@ -95,6 +95,12 @@ namespace Garrison.Core.Manifests
         /// </summary>
         public RunExecutorEnum? Executor { get; set; } = null;
 
+        /// <summary>
+        /// Trust level: Trusted or Untrusted (P11.14). Null (omitted) means Trusted; export omits Trusted. Untrusted runs
+        /// need an executor with at least Container isolation.
+        /// </summary>
+        public DeploymentTrustLevelEnum? TrustLevel { get; set; } = null;
+
         /// <summary>Optional executor capability requirements; defaults preserve legacy placement.</summary>
         public ExecutorRequirements? RequiredCapabilities { get; set; } = null;
 

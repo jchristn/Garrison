@@ -58,6 +58,12 @@ namespace Garrison.Sdk.Models
         public bool IsProtected { get; set; } = false;
 
         /// <summary>
+        /// Require every deployment in the tenant to be Untrusted. Default false. When true, creating or updating a
+        /// Trusted deployment is rejected with a 400 field error on trustLevel (code TenantRequiresUntrusted).
+        /// </summary>
+        public bool RequireUntrustedDeployments { get; set; } = false;
+
+        /// <summary>
         /// Creation timestamp (UTC).
         /// </summary>
         public DateTime CreatedUtc

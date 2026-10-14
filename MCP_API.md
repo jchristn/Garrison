@@ -170,7 +170,7 @@ A successful call returns one text content item holding a JSON object. The run t
 |---|---|
 | `runId`, `agent` | The run and the agent's name |
 | `status`, `outcome` | Run status and, when finished, the outcome (see `REST_API.md`) |
-| `blockedReason` | Always present. `null` unless the run is `Queued` and no Ready worker can run it, in which case it is `NoReadyWorker`, `NoCapableWorker`, or `NoMatchingPool` (see "Blocked runs" in `REST_API.md`). Computed when the summary is built |
+| `blockedReason` | Always present. `null` unless the run is `Queued` and no Ready worker can run it, in which case it is `NoReadyWorker`, `NoCapableWorker`, `NoMatchingPool`, or `NoIsolatingWorker` (an `Untrusted` run that no Ready worker can isolate; see "Blocked runs" and "Deployment trust level" in `REST_API.md`). Computed when the summary is built |
 | `finished` | Whether the run reached a terminal status |
 | `result` | The final text, when finished |
 | `servedModel` | The model the harness reported serving the run, for example `claude-sonnet-5-5`. Always present; `null` until the run reports it or when the harness reports none |

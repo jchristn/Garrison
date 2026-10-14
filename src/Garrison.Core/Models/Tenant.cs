@@ -59,6 +59,15 @@ namespace Garrison.Core.Models
         public bool IsProtected { get; set; } = false;
 
         /// <summary>
+        /// Require every deployment in this tenant to be Untrusted (P11.14, D-035). Default false. When true, creating or
+        /// updating a Trusted deployment in the tenant is rejected with a 400 field error on trustLevel
+        /// (TenantRequiresUntrusted), over REST, MCP, and manifest apply. Turning it on does not rewrite existing
+        /// deployments: Trusted deployments keep running as configured, the dashboard flags them, and their next update
+        /// must set Untrusted.
+        /// </summary>
+        public bool RequireUntrustedDeployments { get; set; } = false;
+
+        /// <summary>
         /// Creation timestamp (UTC).
         /// </summary>
         public DateTime CreatedUtc

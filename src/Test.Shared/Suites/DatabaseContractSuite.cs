@@ -38,6 +38,7 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v16-capabilities", "Legacy executor names upgrade without inventing capability promises (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 16)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v20-pipelines", "A version 20 database upgrades to pipelines: runs gain empty pipeline columns and pipeline tables work (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 20)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v21-child-waits", "A version 21 database upgrades to delegation capacity: nodes report no child reserve until they register again, and wait records work (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 21)));
+            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v22-trust", "A version 22 database upgrades to trust levels: existing deployments and runs read back Trusted and tenants do not require Untrusted (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 22)));
             cases.Add(new TestCaseDescriptor(suiteId, "child-waits", "Delegation waits: the node waiter cap, a parent's parallel waits, the queue depth, finished children, pruning, and waiting ancestors left out of a deployment's limit (" + provider + ")", ct => ChildWaitsAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "pipeline-cas", "Pipelines: definition children round-trip in order, tenant reads are isolated, stage claims, links, pipeline run transitions, and review decisions are compare-and-set, one review per stage execution, idempotent pipeline run creation (" + provider + ")", ct => PipelineCasAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "run-telemetry-roundtrip", "Run timing telemetry round-trips through create, complete, and update (" + provider + ")", ct => RunTelemetryRoundTripAsync(provider, ct)));
@@ -109,6 +110,21 @@ namespace Test.Shared.Suites
                     await ado.NonQueryAsync("INSERT INTO " + ado.Table("nodes") + " (id, name, status, maxconcurrentruns, activeruns, active, isprotected, supportsmcptests, createdutc, lastupdateutc) VALUES ('nod_upgrade', 'upgrade-node', 'Ready', 3, 0, "
                         + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
                 }
+                if (fromVersion == 22)
+                {
+                    await ado.NonQueryAsync("INSERT INTO " + ado.Table("tenants") + " (id, name, active, isprotected, createdutc, lastupdateutc) VALUES ('ten_trust', 'trust-upgrade', "
+                        + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
+                    await ado.NonQueryAsync("INSERT INTO " + ado.Table("deployments") + " (id, tenantid, agentid, name, harnessprofileid, maxconcurrentruns, maxattempts, retryonnodeloss, weight, configversion, active, isprotected, createdutc, lastupdateutc) VALUES ('dep_trust', 'ten_trust', 'agt_trust', 'legacy', 'hpf_trust', 0, 1, "
+                        + ado.Dialect.BooleanLiteral(false) + ", 100, 1, " + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
+                    await ado.NonQueryAsync("INSERT INTO " + ado.Table("runs") + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, kind, status, outcome, priority, callertype, depth, attempt, maxattempts, leaseepoch, "
+                        + "queuedutc, cancelrequested, inputtokens, outputtokens, cachedtokens, costestimated, lasteventsequence, active, isprotected, createdutc, lastupdateutc) VALUES "
+                        + "('run_trust', 'ten_trust', 'agt_trust', 'legacy', 'dep_trust', 1, 'Generic', 'Invoke', 'Queued', 'None', 0, 'User', 0, 1, 1, 0, @now, @false, 0, 0, 0, @false, 0, @true, @false, @now, @now);", c =>
+                        {
+                            AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow);
+                            AdoDatabaseDriver.Add(c, "false", false);
+                            AdoDatabaseDriver.Add(c, "true", true);
+                        }, token).ConfigureAwait(false);
+                }
                 if (fromVersion == 16 || fromVersion == 17)
                 {
                     await ado.NonQueryAsync("INSERT INTO " + ado.Table("node_executors") + " (id, nodeid, executor) VALUES ('exe_legacy', 'nod_legacy', 'KubernetesJob');", null, token).ConfigureAwait(false);
@@ -144,6 +160,21 @@ namespace Test.Shared.Suites
                     ChildWaitAdmission admitted = await upgraded.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_upgrade", ParentRunId = parent.Id, ChildRunId = IdGenerator.NewRunId() }, token).ConfigureAwait(false);
                     Assert.True(admitted.Admitted && admitted.NodeId == "nod_upgrade", "A wait is recorded after the upgrade");
                     Assert.Equal(1L, await upgraded.Runs.CountWaitingOnNodeAsync("nod_upgrade", token).ConfigureAwait(false), "The waiting parent counts on its node");
+                }
+                if (fromVersion == 22)
+                {
+                    Deployment legacy = Assert.NotNull(await upgraded.Deployments.ReadAsync("dep_trust", token).ConfigureAwait(false), "Deployment after upgrade");
+                    Assert.Equal(DeploymentTrustLevelEnum.Trusted, legacy.TrustLevel, "Existing deployments stay Trusted");
+                    Run queuedRun = Assert.NotNull(await upgraded.Runs.ReadAsync("run_trust", token).ConfigureAwait(false), "Run after upgrade");
+                    Assert.True(queuedRun.TrustLevel == DeploymentTrustLevelEnum.Trusted && queuedRun.RequiredCapabilities.Isolation == ExecutorIsolationEnum.Process, "Queued runs keep Process placement");
+                    Tenant tenant = Assert.NotNull(await upgraded.Tenants.ReadAsync("ten_trust", token).ConfigureAwait(false), "Tenant after upgrade");
+                    Assert.True(!tenant.RequireUntrustedDeployments, "Tenants do not require Untrusted after upgrade");
+                    legacy.TrustLevel = DeploymentTrustLevelEnum.Untrusted;
+                    await upgraded.Deployments.UpdateAsync(legacy, token).ConfigureAwait(false);
+                    Assert.Equal(DeploymentTrustLevelEnum.Untrusted, Assert.NotNull(await upgraded.Deployments.ReadAsync("dep_trust", token).ConfigureAwait(false), "Updated deployment").TrustLevel, "Trust level writes after upgrade");
+                    tenant.RequireUntrustedDeployments = true;
+                    await upgraded.Tenants.UpdateAsync(tenant, token).ConfigureAwait(false);
+                    Assert.True(Assert.NotNull(await upgraded.Tenants.ReadAsync("ten_trust", token).ConfigureAwait(false), "Updated tenant").RequireUntrustedDeployments, "Tenant policy writes after upgrade");
                 }
                 if (fromVersion == 20)
                 {

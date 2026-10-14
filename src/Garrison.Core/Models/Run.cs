@@ -683,6 +683,13 @@ namespace Garrison.Core.Models
             set { _RequiredCapabilities = value ?? new ExecutorRequirements(); }
         }
 
+        /// <summary>
+        /// Trust level of the deployment when the run was admitted (P11.14). Default Trusted. For Untrusted runs,
+        /// <see cref="RequiredCapabilities"/> already holds the raised isolation requirement; later deployment edits do
+        /// not change queued work.
+        /// </summary>
+        public DeploymentTrustLevelEnum TrustLevel { get; set; } = DeploymentTrustLevelEnum.Trusted;
+
         #endregion
 
         #region Private-Members

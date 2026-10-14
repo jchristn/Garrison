@@ -2105,3 +2105,23 @@ zhHans.views.pipelineRunDetail = {
 Object.assign(zhHans.views.runDetail, { pipelineRun: '流水线运行' });
 zhHans.views.settings.fields.Runtime.PipelineSweepIntervalMs = '流水线检查间隔 (ms)';
 zhHans.views.settings.fields.Runtime.PipelineMaxStages = '每条流水线的最大阶段数';
+
+// Deployment trust level (P11.14).
+zhHans.enums.trustLevel = { Trusted: "可信", Untrusted: "不可信" };
+zhHans.enums.runBlockedReason.NoIsolatingWorker = "没有可隔离的工作节点";
+zhHans.components.blocked.reasons.NoIsolatingWorker = "此运行不可信，需要容器隔离，但没有能运行 {{harness}} 的就绪工作节点提供该隔离。请在允许创建 Job 的集群中添加使用 Kubernetes Job 执行器的工作节点。";
+zhHans.tips.enums.runBlockedReason.NoIsolatingWorker = "已阻塞：此不可信运行需要容器隔离，但没有带此 Harness 的就绪工作节点提供该隔离。它会在队列中等待，直到使用 Kubernetes Job 执行器的工作节点注册。";
+zhHans.tips.enums.trustLevel = { Trusted: "输入仅来自可信的调用方。运行可以使用 Process 执行器，但它与其他运行及工作节点之间没有隔离。", Untrusted: "输入可能来自不可信的来源。运行只会交给具有容器隔离或更强隔离的执行器，没有可用执行器时会在队列中等待。" };
+Object.assign(zhHans.common.fieldCodes, { TenantRequiresUntrusted: "此租户要求每个部署都是不可信的。", UntrustedNeedsIsolation: "不可信的部署不能使用 Process 执行器。请选择 Kubernetes Job，或将执行器留空。" });
+zhHans.resources.deployments.fields.trustLevel = "信任级别";
+zhHans.resources.deployments.columns.trustLevel = "信任级别";
+zhHans.resources.deployments.hints.trustLevel = "当调用方或内容可能不可信时，请选择不可信。此类运行需要容器隔离：执行器留空即表示 Kubernetes Job，运行会等待能隔离它们的工作节点。";
+zhHans.tips.resources.deployments.trustLevel = "可信允许使用没有隔离的 Process 执行器。不可信只会在具有容器隔离或更强隔离的执行器上运行。";
+zhHans.tips.resources.deployments.trustFlagged = "此租户要求不可信的部署。此部署在启用该策略之前是可信的：它会按当前配置继续运行，但下次保存时必须改为不可信。";
+zhHans.resources.deployments.trust = { tenantRequiresUntrusted: "此租户要求不可信的部署。请将信任级别改为不可信后再保存此部署。", untrustedProcess: "不可信的部署不能使用 Process 执行器。请选择 Kubernetes Job，或将执行器留空。", flagged: "可信，但策略要求不可信" };
+zhHans.resources.tenants.fields.requireUntrustedDeployments = "要求部署为不可信";
+zhHans.resources.tenants.columns.requireUntrustedDeployments = "要求不可信";
+zhHans.resources.tenants.hints = { ...(zhHans.resources.tenants.hints || {}), requireUntrustedDeployments: "创建或保存可信部署会被拒绝。现有的可信部署会继续运行，并会一直被标记，直到保存为不可信。" };
+zhHans.tips.resources.tenants.requireUntrustedDeployments = "开启后，此租户中的每个部署都必须是不可信的，这样其运行只会交给有隔离的执行器。";
+zhHans.views.runDetail.trustLevel = "信任级别";
+zhHans.tips.views.runDetail.trustLevel = "此运行进入队列时部署的信任级别。不可信的运行只会交给具有容器隔离或更强隔离的执行器。";

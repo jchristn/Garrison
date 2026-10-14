@@ -76,7 +76,9 @@ export const ENUMS = {
   backplane: ['Local', 'Polling', 'PostgresNotify'],
   runStatus: ['Pending', 'Queued', 'Leased', 'Running', 'Cancelling', 'Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected'],
   runOutcome: ['None', 'Succeeded', 'HarnessFailed', 'NotInstalled', 'NotCredentialed', 'McpPreflightFailed', 'NodeLost', 'OutputLimitExceeded', 'SchemaValidationFailed', 'TimedOut', 'Cancelled', 'StaleLease', 'CompileFailed', 'WorkspaceFailed', 'Rejected', 'InternalError', 'NoCapableWorker', 'RepetitionDetected', 'NoProgress', 'PodFailed', 'ConversationStateLost'],
-  runBlockedReason: ['NoReadyWorker', 'NoCapableWorker', 'NoMatchingPool'],
+  runBlockedReason: ['NoReadyWorker', 'NoCapableWorker', 'NoMatchingPool', 'NoIsolatingWorker'],
+  // Deployment and run trust level (P11.14): Untrusted runs need at least Container isolation.
+  trustLevel: ['Trusted', 'Untrusted'],
   conversationFallbackReason: ['AffinityNodeLost', 'AffinityWaitExpired', 'WorkspaceLost', 'SessionMissing', 'HarnessChanged', 'ResumeUnsupported', 'ExecutorWithoutState'],
   runEventType: ['Lifecycle', 'AssistantText', 'Thinking', 'ToolCall', 'ToolResult', 'Usage', 'Progress', 'Warning', 'Error', 'Stdout', 'Stderr', 'Result'],
   permissionType: ['Permit', 'Deny'],

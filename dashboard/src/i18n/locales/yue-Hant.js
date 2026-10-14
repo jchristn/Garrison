@@ -2104,3 +2104,23 @@ yueHant.views.pipelineRunDetail = {
 Object.assign(yueHant.views.runDetail, { pipelineRun: '管線執行' });
 yueHant.views.settings.fields.Runtime.PipelineSweepIntervalMs = '管線巡查間隔（毫秒）';
 yueHant.views.settings.fields.Runtime.PipelineMaxStages = '每條管線最多階段數';
+
+// Deployment trust level (P11.14).
+yueHant.enums.trustLevel = { Trusted: "可信任", Untrusted: "唔可信任" };
+yueHant.enums.runBlockedReason.NoIsolatingWorker = "冇可以隔離嘅工作節點";
+yueHant.components.blocked.reasons.NoIsolatingWorker = "呢個執行唔可信任，需要容器隔離，但係冇一個做到 {{harness}} 嘅就緒工作節點提供。請喺可以建立 Job 嘅叢集度，加一個用 Kubernetes Job 執行器嘅工作節點。";
+yueHant.tips.enums.runBlockedReason.NoIsolatingWorker = "塞住咗：呢個唔可信任嘅執行需要容器隔離，但係冇一個有呢個 Harness 嘅就緒工作節點提供。佢會喺佇列度等，直到有用 Kubernetes Job 執行器嘅工作節點登記。";
+yueHant.tips.enums.trustLevel = { Trusted: "輸入只會嚟自可信任嘅呼叫者。執行可以用 Process 執行器，但佢冇同其他執行或者工作節點隔離。", Untrusted: "輸入可能嚟自唔可信任嘅來源。執行只會交俾有容器隔離或者更強隔離嘅執行器，冇嘅話會喺佇列度等。" };
+Object.assign(yueHant.common.fieldCodes, { TenantRequiresUntrusted: "呢個租用戶要求每個部署都係唔可信任。", UntrustedNeedsIsolation: "唔可信任嘅部署唔可以用 Process 執行器。請揀 Kubernetes Job，或者將執行器留空。" });
+yueHant.resources.deployments.fields.trustLevel = "信任等級";
+yueHant.resources.deployments.columns.trustLevel = "信任等級";
+yueHant.resources.deployments.hints.trustLevel = "如果呼叫者或者內容可能唔可信任，請揀唔可信任。呢啲執行需要容器隔離：執行器留空就代表 Kubernetes Job，執行會等到有工作節點可以隔離佢哋。";
+yueHant.tips.resources.deployments.trustLevel = "可信任容許用冇隔離嘅 Process 執行器。唔可信任只會喺有容器隔離或者更強隔離嘅執行器度執行。";
+yueHant.tips.resources.deployments.trustFlagged = "呢個租用戶要求唔可信任嘅部署。呢個部署喺開啟政策之前係可信任：佢會照現有設定繼續執行，但下次儲存嗰陣一定要改做唔可信任。";
+yueHant.resources.deployments.trust = { tenantRequiresUntrusted: "呢個租用戶要求唔可信任嘅部署。請將信任等級改做唔可信任先可以儲存呢個部署。", untrustedProcess: "唔可信任嘅部署唔可以用 Process 執行器。請揀 Kubernetes Job，或者將執行器留空。", flagged: "可信任，但政策要求唔可信任" };
+yueHant.resources.tenants.fields.requireUntrustedDeployments = "要求部署唔可信任";
+yueHant.resources.tenants.columns.requireUntrustedDeployments = "要求唔可信任";
+yueHant.resources.tenants.hints = { ...(yueHant.resources.tenants.hints || {}), requireUntrustedDeployments: "建立或者儲存可信任嘅部署會被拒絕。現有嘅可信任部署會繼續執行，並會一直被標示，直到儲存做唔可信任為止。" };
+yueHant.tips.resources.tenants.requireUntrustedDeployments = "開啟之後，呢個租用戶嘅每個部署都一定要係唔可信任，咁佢哋嘅執行只會交俾有隔離嘅執行器。";
+yueHant.views.runDetail.trustLevel = "信任等級";
+yueHant.tips.views.runDetail.trustLevel = "呢個執行入佇列嗰陣部署嘅信任等級。唔可信任嘅執行只會交俾有容器隔離或者更強隔離嘅執行器。";
