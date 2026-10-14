@@ -34,7 +34,8 @@ const zhHant = {
       guardRepetitionUnit: '重複防護：助理文字的最後 {{window}} 個字元是 {{size}} 個字元的單元「{{unit}}」重複了 {{count}} 次。',
       guardDegenerate: '重複防護：助理文字的最後 {{window}} 個字元不含字母或數字（只有空白、標點或符號），結尾為「{{tail}}」。',
       guardNoProgress: '執行在 {{seconds}} 秒內沒有進展（沒有助理文字、思考、工具呼叫或工具結果，也沒有未完成的工具呼叫）；其 noProgressSeconds 限制為 {{limit}}。',
-      guardOutputLimit: '助理文字超過了執行的 maxAssistantChars 上限 {{limit}} 個字元。'
+      guardOutputLimit: '助理文字超過了執行的 maxAssistantChars 上限 {{limit}} 個字元。',
+      valueClamped: '{{field}} 的值 {{given}} 超出允許範圍 {{minimum}} 至 {{maximum}}，已儲存 {{stored}}。'
     },
     appName: 'Garrison',
     language: { label: '語言' },
@@ -449,6 +450,7 @@ const zhHant = {
     run: '執行權杖'
   },
   components: {
+    fieldWarnings: { title_one: '已儲存，{{count}} 個值已調整', title_other: '已儲存，{{count}} 個值已調整', body: '伺服器已接受請求，但以下值的儲存結果與送出的值不同。', dismiss: '關閉', codes: { ValueClamped: '值已限制在允許範圍內' } },
     approvals: {
       awaiting: '等候核准',
       decideTitle: '決定 {{tool}}',
@@ -1043,7 +1045,7 @@ const zhHant = {
     },
     nodes: {
       ...rp('節點', '取得執行租約並加以執行的工作節點。維護前請先封鎖或清空節點。', '新增節點', '建立節點', '編輯節點', '節點詳細資料', '刪除節點', '尚無節點', '工作節點啟動時會自行註冊。請部署 worker StatefulSet，或在本機執行 Garrison.Worker。'),
-      columns: { name: '名稱', status: '狀態', capacity: '執行', harnesses: 'Harness', executors: '執行器', labels: '標籤', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳訊號', id: 'ID' },
+      columns: { name: '名稱', status: '狀態', capacity: '執行', harnesses: 'Harness', executors: '執行器', containerized: '容器化', labels: '標籤', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳訊號', id: 'ID' },
       fields: { address: '位址', maxConcurrentRuns: '容量', childReserveSlots: '子執行預留', maxResidentWaiters: '最多等待執行數', activeRuns: '進行中的執行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '詳細資訊' },
       actions: { cordon: '封鎖', uncordon: '解除封鎖', drain: '清空', runs: '檢視執行', grafana: '在 Grafana 中開啟' },
       toasts: { cordoned: '節點已封鎖。', uncordoned: '節點已解除封鎖。', draining: '節點正在清空。' }
@@ -1432,6 +1434,8 @@ const zhHant = {
       }
     },
     manifests: {
+      warnings_one: '{{count}} 則警告',
+      warnings_other: '{{count}} 則警告',
       planned: '預計結果：{{result}}',
       changes: { count_other: '{{count}} 個欄位有變更。', count_one: '{{count}} 個欄位有變更。', empty: '（空白）', after: '變更後', before: '變更前', field: '欄位' },
       title: '清單',

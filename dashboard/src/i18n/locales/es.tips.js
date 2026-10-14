@@ -30,6 +30,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  fieldWarnings: { dismiss: 'Oculta este aviso. El registro ya está guardado con los valores indicados aquí.' },
   approvals: {
     awaiting_one: 'El harness preguntó antes de una llamada a herramienta y espera a una persona. Abre la pestaña Aprobaciones para permitirla o denegarla ({{count}} en espera).',
     awaiting_other: 'El harness preguntó antes de unas llamadas a herramientas y espera a una persona. Abre la pestaña Aprobaciones para permitirlas o denegarlas ({{count}} en espera).',
@@ -931,6 +932,7 @@ const tips = {
       conversationTurn: 'Posición de esta ejecución en su conversación; el turno que la inició es el 1.'
     },
     nodes: {
+      containerized: 'Si el nodo de trabajo se ejecuta dentro de un contenedor o pod, según lo informó al registrarse. Las ejecuciones de Codex en un nodo de trabajo en contenedor usan por defecto el sandbox danger-full-access, porque el contenedor es el límite de aislamiento.',
       name: 'Nombre del nodo, normalmente el nombre del pod de Kubernetes del nodo de trabajo.',
       status: 'Si el nodo acepta ejecuciones nuevas. Acordona o drena un nodo antes del mantenimiento.',
       capacity: 'Ejecuciones que tiene el nodo ahora frente al máximo que acepta a la vez.',
@@ -1232,6 +1234,7 @@ const tips = {
       }
     },
     manifests: {
+      warnings: 'Valores de este documento que se aceptaron pero se guardaron de otra forma, por ejemplo un número fuera de su rango que se ajustó. La lista bajo la fila indica cada campo.',
       planned: 'Lo que haría aplicar este documento: crear el registro, actualizarlo o dejarlo igual. Una simulación solo valida y no cambia nada.',
       changes: { after: 'El valor que establece el manifiesto. Los valores largos se cortan a 200 caracteres.', before: 'El valor guardado ahora. Los valores largos se cortan a 200 caracteres.', field: 'El ajuste de este registro que cambia el manifiesto, por ejemplo model o parameters.model.' },
       results: 'Qué hizo la aplicación con cada documento del manifiesto.',

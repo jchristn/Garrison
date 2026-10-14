@@ -7,6 +7,8 @@
 /** [regular expression, translation key under common.serverText, capture names]. Order matters: first match wins. */
 export const SERVER_TEXT_PATTERNS = [
   [/^Workspace prepared at (.+)\.$/, 'workspacePrepared', ['path']],
+  // Field warnings (I-08): a value outside its range that the server clamped.
+  [/^(\S+) (\S+) is outside the allowed range (\S+) to (\S+); (\S+) was stored\.$/, 'valueClamped', ['field', 'given', 'minimum', 'maximum', 'stored']],
   // Run guards (P3.15): RunGuardTriggered warnings and the run's errorMessage. Numbers arrive formatted as 1,000.
   [/^Repetition guard: the last ([\d,]+) characters of assistant text are the ([\d,]+)-character unit "(.*)" repeated ([\d,]+) times\.$/s, 'guardRepetitionUnit', ['window', 'size', 'unit', 'count']],
   [/^Repetition guard: the last ([\d,]+) characters of assistant text contain no letters or digits \(only whitespace, punctuation, or symbols\), ending with "(.*)"\.$/s, 'guardDegenerate', ['window', 'tail']],

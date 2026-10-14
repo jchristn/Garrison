@@ -363,6 +363,50 @@ func main() {
 		}
 		return nil
 	})
+	check("clamped values return ValueClamped warnings", func(ctx context.Context) error {
+		body := map[string]any{"name": "sdk-go-" + suffix + "-clamp", "agentId": agentID, "harnessProfileId": fakeID, "weight": 0, "maxAttempts": 99}
+		var dep garrison.Deployment
+		if err := client.Deployments.Create(ctx, body, &dep); err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, dep.ID)
+		if len(dep.Warnings) != 1 || dep.Warnings[0].Field != "maxAttempts" || dep.Warnings[0].Code != garrison.FieldWarningValueClamped ||
+			dep.Warnings[0].Given == nil || *dep.Warnings[0].Given != "99" || dep.Warnings[0].Stored == nil || *dep.Warnings[0].Stored != "10" {
+			return fmt.Errorf("create warnings %+v", dep.Warnings)
+		}
+		var read garrison.Deployment
+		if err := client.Deployments.Get(ctx, dep.ID, &read); err != nil {
+			return err
+		}
+		if len(read.Warnings) != 0 {
+			return fmt.Errorf("read warnings %+v", read.Warnings)
+		}
+		yaml := "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-go-clamp-" + suffix + "\nspec:\n  delegation:\n    maxDepth: 99\n"
+		result, err := client.Manifests.Apply(ctx, yaml, true, false)
+		if err != nil {
+			return err
+		}
+		items, err := result.ParsedItems()
+		if err != nil {
+			return err
+		}
+		if len(items) != 1 || len(items[0].Warnings) != 1 || items[0].Warnings[0].Field != "delegationMaxDepth" || items[0].Warnings[0].Code != garrison.FieldWarningValueClamped {
+			return fmt.Errorf("manifest warnings %+v", items)
+		}
+		return nil
+	})
+	check("node containerized flag", func(ctx context.Context) error {
+		var nodes garrison.EnumerationResult[garrison.Node]
+		if err := client.Nodes.List(ctx, nil, &nodes); err != nil {
+			return err
+		}
+		for _, node := range nodes.Objects {
+			if node.Name == "sdk-harness-worker" && node.Containerized {
+				return errors.New("host worker reported containerized")
+			}
+		}
+		return nil
+	})
 	check("list runs by agent", func(ctx context.Context) error {
 		page, err := client.Runs.List(ctx, garrison.RunFilter{AgentID: agentID})
 		if err != nil {

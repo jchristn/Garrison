@@ -34,7 +34,8 @@ const de = {
       guardRepetitionUnit: 'Wiederholungswächter: Die letzten {{window}} Zeichen des Assistententexts bestehen aus der {{size}} Zeichen langen Einheit „{{unit}}“, {{count}}-mal wiederholt.',
       guardDegenerate: 'Wiederholungswächter: Die letzten {{window}} Zeichen des Assistententexts enthalten keine Buchstaben oder Ziffern (nur Leerraum, Satzzeichen oder Symbole) und enden mit „{{tail}}“.',
       guardNoProgress: 'Der Lauf hat {{seconds}} Sekunden lang keinen Fortschritt gemacht (kein Assistententext, kein Denken, kein Toolaufruf oder Toolergebnis und kein offener Toolaufruf); sein Limit noProgressSeconds ist {{limit}}.',
-      guardOutputLimit: 'Der Assistententext hat das Limit maxAssistantChars des Laufs von {{limit}} Zeichen überschritten.'
+      guardOutputLimit: 'Der Assistententext hat das Limit maxAssistantChars des Laufs von {{limit}} Zeichen überschritten.',
+      valueClamped: 'Der Wert {{given}} für {{field}} liegt außerhalb des zulässigen Bereichs {{minimum}} bis {{maximum}}; gespeichert wurde {{stored}}.'
     },
     appName: 'Garrison',
     language: { label: 'Sprache' },
@@ -470,6 +471,7 @@ const de = {
     run: 'Lauf-Token'
   },
   components: {
+    fieldWarnings: { title_one: 'Gespeichert mit {{count}} angepasstem Wert', title_other: 'Gespeichert mit {{count}} angepassten Werten', body: 'Der Server hat die Anfrage angenommen, diese Werte aber anders gespeichert als gesendet.', dismiss: 'Ausblenden', codes: { ValueClamped: 'Wert auf den zulässigen Bereich begrenzt' } },
     approvals: {
       awaiting: 'Wartet auf Freigabe',
       decideTitle: '{{tool}} entscheiden',
@@ -1065,7 +1067,7 @@ const de = {
     },
     nodes: {
       ...rp('Knoten', 'Worker-Knoten, die Läufe übernehmen und ausführen. Sperren oder leeren Sie einen Knoten vor Wartungsarbeiten.', 'Knoten hinzufügen', 'Knoten erstellen', 'Knoten bearbeiten', 'Knotendetails', 'Knoten löschen', 'Noch keine Knoten', 'Worker-Knoten registrieren sich beim Start selbst. Stellen Sie das Worker-StatefulSet bereit oder starten Sie Garrison.Worker lokal.'),
-      columns: { name: 'Name', status: 'Status', capacity: 'Läufe', harnesses: 'Harnesses', executors: 'Executors', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Letzter Heartbeat', id: 'ID' },
+      columns: { name: 'Name', status: 'Status', capacity: 'Läufe', harnesses: 'Harnesses', executors: 'Executors', containerized: 'Containerisiert', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Letzter Heartbeat', id: 'ID' },
       fields: { address: 'Adresse', maxConcurrentRuns: 'Kapazität', childReserveSlots: 'Kind-Reserve', maxResidentWaiters: 'Höchstzahl wartender Läufe', activeRuns: 'Aktive Läufe', capabilities: 'Fähigkeiten', detectedVersion: 'Version', available: 'Verfügbar', detail: 'Detail' },
       actions: { cordon: 'Sperren', uncordon: 'Entsperren', drain: 'Leeren', runs: 'Läufe anzeigen', grafana: 'In Grafana öffnen' },
       toasts: { cordoned: 'Knoten gesperrt.', uncordoned: 'Knoten entsperrt.', draining: 'Knoten wird geleert.' }
@@ -1453,6 +1455,8 @@ const de = {
       }
     },
     manifests: {
+      warnings_one: '{{count}} Warnung',
+      warnings_other: '{{count}} Warnungen',
       planned: 'Würde: {{result}}',
       changes: { count_other: '{{count}} Felder ändern sich.', count_one: '{{count}} Feld ändert sich.', empty: '(leer)', after: 'Nachher', before: 'Vorher', field: 'Feld' },
       title: 'Manifeste',

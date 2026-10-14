@@ -375,6 +375,46 @@ namespace Garrison.Sdk.Test
                     Require(result.FailedCount == 0, "failed documents " + result.FailedCount);
                 }).ConfigureAwait(false);
 
+                await CheckAsync("clamped values return ValueClamped warnings", async () =>
+                {
+                    // The typed Deployment model clamps MaxAttempts locally, so send the out-of-range value through the transport.
+                    Dictionary<string, object> body = new Dictionary<string, object>();
+                    body["name"] = "sdk-cs-" + suffix + "-clamp";
+                    body["agentId"] = agentId ?? throw new InvalidOperationException("no agent");
+                    body["harnessProfileId"] = fakeProfileId ?? throw new InvalidOperationException("no fake profile");
+                    body["weight"] = 0;
+                    body["maxAttempts"] = 99;
+                    string path = "/v1.0/api/tenants/" + Uri.EscapeDataString(tenantId ?? "default") + "/deployments";
+                    Deployment? clamped = await client.Transport.SendAsync<Deployment>(System.Net.Http.HttpMethod.Post, path, body, null, "application/json", token).ConfigureAwait(false);
+                    Require(clamped != null, "no deployment returned");
+                    try
+                    {
+                        Require(clamped!.MaxAttempts == 10, "stored maxAttempts " + clamped.MaxAttempts);
+                        Require(clamped.Warnings != null && clamped.Warnings.Count == 1, "create warnings missing");
+                        FieldWarning warning = clamped.Warnings![0];
+                        Require(warning.Field == "maxAttempts" && warning.Code == "ValueClamped" && warning.Given == "99" && warning.Stored == "10", "warning " + warning.Field + " " + warning.Code + " " + warning.Given + " " + warning.Stored);
+                        Deployment read = await client.Deployments.GetAsync(clamped.Id, token).ConfigureAwait(false);
+                        Require(read.Warnings == null, "read carries warnings");
+                    }
+                    finally
+                    {
+                        await client.Deployments.DeleteAsync(clamped!.Id, token).ConfigureAwait(false);
+                    }
+
+                    string yaml = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-cs-clamp-" + suffix + "\nspec:\n  delegation:\n    maxDepth: 99\n";
+                    ManifestApply result = await client.Manifests.ApplyAsync(yaml, true, false, token).ConfigureAwait(false);
+                    Require(result.Items.Count == 1, "items " + result.Items.Count);
+                    ManifestApplyItem item = result.Items[0];
+                    Require(item.Warnings.Count == 1 && item.Warnings[0].Field == "delegationMaxDepth" && item.Warnings[0].Code == "ValueClamped", "manifest warnings " + item.Warnings.Count);
+                }).ConfigureAwait(false);
+
+                await CheckAsync("node containerized flag", async () =>
+                {
+                    EnumerationResult<Node> nodes = await client.Nodes.ListAsync(token: token).ConfigureAwait(false);
+                    Node? worker = nodes.Objects.FirstOrDefault(n => n.Name == "sdk-harness-worker");
+                    Require(worker == null || !worker.Containerized, "host worker reported containerized");
+                }).ConfigureAwait(false);
+
                 await CheckAsync("list runs by agent", async () =>
                 {
                     RunFilter filter = new RunFilter();

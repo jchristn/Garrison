@@ -183,6 +183,8 @@ When the agent has an output schema, the server validates each run's final outpu
 
 ## Executors and run pods
 
+`Node.Containerized` is true when the worker reported at registration that it runs inside a container or pod (`GARRISON_WORKER_CONTAINERIZED`); the built-in Codex profiles then default their sandbox to `danger-full-access`, and a deployment `sandbox` parameter still wins. Default false.
+
 `Deployment.Executor` is `RunExecutorProcess` (the default) or `RunExecutorKubernetesJob` (a Kubernetes Job per run); nil uses the node pool's `NodePool.DefaultExecutor`, then Process. `Deployment.PodResources` (`RunPodResources`) sets the run pod's requests and limits as Kubernetes quantities. `Run.Executor` records the executor, `Node.Executors` lists what a worker can run, and only nodes reporting a run's executor claim it. `WorkspaceKindPersistentVolume` with `WorkspaceTemplate.PersistentVolumeClaim` mounts an existing claim at the workspace path (KubernetesJob runs only). `RunOutcomePodFailed` marks run pods that failed outside the harness. See `docs/KUBERNETES.md`.
 
 ## Secret status
@@ -249,7 +251,24 @@ for _, item := range items {
 }
 ```
 
-Each `ManifestApplyItem` reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `Changes` (`ManifestFieldChange`: `Field`, `Before`, `After`; `Before` and `After` are `*string`), with values truncated to 200 characters.
+Each `ManifestApplyItem` reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `Changes` (`ManifestFieldChange`: `Field`, `Before`, `After`; `Before` and `After` are `*string`), with values truncated to 200 characters. `Warnings` lists values in the document that were accepted but not stored as written; see "Warnings".
+
+## Warnings
+
+A few numeric fields have a documented range, and the server clamps an out-of-range value to the nearest allowed value instead of rejecting the request. The create and update responses for agents, deployments, harness profiles, MCP servers, and workspace templates then carry a `warnings` array of `FieldWarning`: `Field` (the REST field name, for example `maxAttempts` or `delegationMaxDepth`), `Code` (`FieldWarningValueClamped`), `Given` and `Stored` (the values as text, `*string`), and `Message`. The array is omitted when there is nothing to report and on reads, and the server never stores it. `Agent`, `Deployment`, `HarnessProfile`, `WorkspaceTemplate`, and `ManifestApplyItem` have a `Warnings []FieldWarning` field; for MCP servers, decode into your own struct with a ``Warnings []garrison.FieldWarning `json:"warnings"` `` field or into a `map[string]any`.
+
+```go
+var dep garrison.Deployment
+body := map[string]any{"name": "helper", "agentId": agentID, "harnessProfileId": profileID, "maxAttempts": 99}
+if err := client.Deployments.Create(ctx, body, &dep); err != nil {
+	return err
+}
+for _, w := range dep.Warnings {
+	fmt.Println(w.Field, w.Code, w.Message) // maxAttempts ValueClamped ... 10 was stored.
+}
+```
+
+See "Warnings" in `REST_API.md`.
 
 ## Errors
 

@@ -31,6 +31,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  fieldWarnings: { dismiss: '收埋呢個提示。記錄已經用呢度列出嘅值儲存咗。' },
   approvals: {
     awaiting_one: 'Harness 喺工具呼叫之前問咗一聲，而家等緊有人處理。打開「批核」分頁去允許或者拒絕（{{count}} 個等緊）。',
     awaiting_other: 'Harness 喺工具呼叫之前問咗一聲，而家等緊有人處理。打開「批核」分頁去允許或者拒絕（{{count}} 個等緊）。',
@@ -929,6 +930,7 @@ const tips = {
       conversationTurn: '呢個執行在對話中嘅位置，開始對話嘅那一輪為 1。'
     },
     nodes: {
+      containerized: '工作節點係咪喺容器或者 Pod 入面執行，根據佢註冊嗰陣嘅回報。容器化工作節點上面嘅 Codex 執行預設用 danger-full-access 沙盒，因為容器本身就係隔離邊界。',
       name: '節點名稱，通常係工作節點嘅 Kubernetes Pod 名稱。',
       status: '節點會唔會接受新嘅執行。維護之前先封鎖或者清空節點。',
       capacity: '節點而家持有嘅執行數目，對比佢同時最多接受嘅數目。',
@@ -1230,6 +1232,7 @@ const tips = {
       }
     },
     manifests: {
+      warnings: '呢份文件入面已經接受但係儲存得唔同嘅值，例如超出範圍而被限制嘅數字。行下面嘅清單列出每個欄位。',
       planned: '套用呢份文件會做嘅嘢：建立記錄、更新記錄，或者保持唔變。試行只會驗證，唔會改任何嘢。',
       changes: { after: '清單會設定嘅值。太長嘅值會喺 200 個字元度截斷。', before: '而家儲存緊嘅值。太長嘅值會喺 200 個字元度截斷。', field: '清單會改嘅呢條記錄嘅設定，例如 model 或者 parameters.model。' },
       results: '套用對清單入面每份文件做咗啲乜。',

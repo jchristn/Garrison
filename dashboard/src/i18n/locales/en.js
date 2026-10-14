@@ -51,7 +51,8 @@ const en = {
       guardRepetitionUnit: 'Repetition guard: the last {{window}} characters of assistant text are the {{size}}-character unit "{{unit}}" repeated {{count}} times.',
       guardDegenerate: 'Repetition guard: the last {{window}} characters of assistant text contain no letters or digits (only whitespace, punctuation, or symbols), ending with "{{tail}}".',
       guardNoProgress: 'The run made no progress for {{seconds}} seconds (no assistant text, thinking, tool call, or tool result, and no tool call open); its noProgressSeconds limit is {{limit}}.',
-      guardOutputLimit: 'Assistant text passed the run\'s maxAssistantChars limit of {{limit}} characters.'
+      guardOutputLimit: 'Assistant text passed the run\'s maxAssistantChars limit of {{limit}} characters.',
+      valueClamped: 'The value {{given}} for {{field}} is outside the allowed range {{minimum}} to {{maximum}}; {{stored}} was stored.'
     },
     appName: 'Garrison',
     language: { label: 'Language' },
@@ -472,6 +473,7 @@ const en = {
     run: 'Run token'
   },
   components: {
+    fieldWarnings: { title_one: 'Saved with {{count}} adjusted value', title_other: 'Saved with {{count}} adjusted values', body: 'The server accepted the request but stored these values differently from what was sent.', dismiss: 'Dismiss', codes: { ValueClamped: 'Value clamped to the allowed range' } },
     approvals: {
       awaiting: 'Awaiting approval',
       decideTitle: 'Decide {{tool}}',
@@ -1069,7 +1071,7 @@ const en = {
     },
     nodes: {
       ...resourcePage('Nodes', 'node', 'Worker nodes that lease and execute runs. Cordon or drain a node before maintenance.', 'Worker nodes register themselves when they start. Deploy the worker StatefulSet or run Garrison.Worker locally.'),
-      columns: { name: 'Name', status: 'Status', capacity: 'Runs', harnesses: 'Harnesses', executors: 'Executors', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Last heartbeat', id: 'ID' },
+      columns: { name: 'Name', status: 'Status', capacity: 'Runs', harnesses: 'Harnesses', executors: 'Executors', containerized: 'Containerized', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Last heartbeat', id: 'ID' },
       fields: { address: 'Address', maxConcurrentRuns: 'Capacity', childReserveSlots: 'Child reserve', maxResidentWaiters: 'Most waiting runs', activeRuns: 'Active runs', capabilities: 'Capabilities', detectedVersion: 'Version', available: 'Available', detail: 'Detail' },
       actions: { cordon: 'Cordon', uncordon: 'Uncordon', drain: 'Drain', runs: 'View runs', grafana: 'Open in Grafana' },
       toasts: { cordoned: 'Node cordoned.', uncordoned: 'Node uncordoned.', draining: 'Node is draining.' }
@@ -1459,6 +1461,8 @@ const en = {
       }
     },
     manifests: {
+      warnings_one: '{{count}} warning',
+      warnings_other: '{{count}} warnings',
       planned: 'Would be: {{result}}',
       changes: { count_other: '{{count}} fields change.', count_one: '{{count}} field changes.', empty: '(empty)', after: 'After', before: 'Before', field: 'Field' },
       title: 'Manifests',

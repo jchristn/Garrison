@@ -361,6 +361,8 @@ export const nodesConfig = {
       c.warmStart ? enumLabel(t, 'executorColdStart', 'Warm') : null,
       ...['egressControl', 'filesystemSnapshot', 'sessionContinuation', 'crossNodeRestore'].filter((key) => c[key]).map((key) => t(`resources.deployments.fields.cap${key.charAt(0).toUpperCase()}${key.slice(1)}`))
     ].filter(Boolean).join(' / ')).join('; ') || '-', { defaultHidden: true }),
+    // G-29: whether the worker runs in a container or pod (Codex then defaults to danger-full-access).
+    col('nodes', t, 'containerized', (r) => <span data-testid="node-containerized">{t(r.containerized ? 'common.boolean.yes' : 'common.boolean.no')}</span>, { csv: (r) => (r.containerized ? 'true' : 'false') }),
     col('nodes', t, 'labels', (r) => (r.labels || []).map((l) => `${l.key}=${l.value}`).join(', ') || '-', { defaultHidden: true, csv: (r) => (Array.isArray(r.labels) ? r.labels.map((l) => `${l.key}=${l.value}`).join(' ') : '') }),
     col('nodes', t, 'nodeVersion', (r) => r.nodeVersion || '-', { defaultHidden: true }),
     col('nodes', t, 'lastHeartbeatUtc', (r) => (r.lastHeartbeatUtc ? formatRelativeTime(r.lastHeartbeatUtc, i18n.language) : '-')),
@@ -452,6 +454,7 @@ function nodeFields(t) {
     { name: 'childReserveSlots', type: 'number', label: t('resources.nodes.fields.childReserveSlots') },
     { name: 'maxResidentWaiters', type: 'number', label: t('resources.nodes.fields.maxResidentWaiters') },
     { name: 'activeRuns', type: 'number', label: t('resources.nodes.fields.activeRuns') },
+    { name: 'containerized', type: 'checkbox', label: t('resources.nodes.columns.containerized') },
     {
       name: 'labels',
       type: 'objectList',

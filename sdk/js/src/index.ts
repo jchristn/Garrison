@@ -62,7 +62,33 @@ export interface ControlNodeListResponse extends EnumerationResult<ControlNode> 
   respondingNodeId: string;
 }
 
-export interface Agent extends Json {
+/** Warning codes in FieldWarning.code. ValueClamped: the value was outside its allowed range and the nearest allowed value was stored. */
+export type FieldWarningCode = "ValueClamped";
+
+/**
+ * A request field that was accepted but not stored as given (I-08), for example a number outside its range that was
+ * clamped. Returned in the warnings array of create and update responses for agents, deployments, harness profiles,
+ * MCP servers, and workspace templates, and on manifest apply items. Never stored on the resource itself.
+ */
+export interface FieldWarning {
+  /** Field name as the REST API spells it, for example maxAttempts. */
+  field: string;
+  /** Stable machine code, for example ValueClamped. Treat unknown codes as informational. */
+  code: FieldWarningCode | string;
+  /** The value the caller sent, as text; null or absent when there was none. */
+  given?: string | null;
+  /** The value stored instead, as text; null or absent when nothing was stored. */
+  stored?: string | null;
+  /** Human-readable explanation naming the field, the given value, the allowed range, and the stored value. */
+  message: string;
+}
+
+/** Present only on create and update responses, and only when a value was not stored as given; reads never carry it. */
+export interface WithWarnings {
+  warnings?: FieldWarning[];
+}
+
+export interface Agent extends Json, WithWarnings {
   id: string; tenantId: string; name: string; displayName?: string; description?: string; kind?: string;
   delegationMode?: string; skills?: Json[]; tags?: string[];
 }
@@ -116,7 +142,7 @@ export interface Artifact extends Json {
 }
 export interface ArtifactDownload { url: string; expiresUtc: string; }
 
-export interface Deployment extends Json {
+export interface Deployment extends Json, WithWarnings {
   id: string; tenantId: string; agentId: string; name: string; harnessProfileId: string; model?: string;
   /** Executor; null uses the node pool's defaultExecutor, then Process. */
   executor?: RunExecutor | null;
@@ -404,14 +430,21 @@ export interface NodePool extends Json {
 /** A worker node. executors lists what it can run (Process, and KubernetesJob when it can create Jobs). */
 export interface WorkerNode extends Json {
   id: string; name: string; status: string; nodePoolId?: string | null; executors?: RunExecutor[]; executorCapabilities?: ExecutorCapabilities[];
+  /** Whether the worker runs inside a container or pod (reported at registration). Default false. */
+  containerized?: boolean;
 }
 
 /** A workspace template. persistentVolumeClaim names the claim for PersistentVolume workspaces. */
-export interface WorkspaceTemplate extends Json {
+export interface WorkspaceTemplate extends Json, WithWarnings {
   id: string; tenantId: string; name: string; kind: WorkspaceKind; persistentVolumeClaim?: string | null;
 }
 
-export interface HarnessProfile extends Json { id: string; name: string; harnessType: string; executable: string; }
+export interface HarnessProfile extends Json, WithWarnings { id: string; name: string; harnessType: string; executable: string; }
+
+/** An MCP server definition. */
+export interface McpServer extends Json, WithWarnings {
+  id: string; tenantId: string; name: string; transport: string; toolTimeoutSeconds?: number;
+}
 
 export interface Run extends Json {
   id: string; tenantId: string; agentId: string; agentName: string; deploymentId: string; status: string; outcome: string;
@@ -742,6 +775,8 @@ export interface ManifestApplyItem extends Json {
   errorField?: string;
   /** Field-level changes for items that are (or, in a dry run, would be) Updated; empty or absent otherwise. */
   changes?: ManifestFieldChange[];
+  /** Values in this document that were accepted but not stored as written (for example code ValueClamped); empty when there is nothing to report. */
+  warnings?: FieldWarning[];
 }
 
 /** Result of a manifest apply or dry run. */
@@ -1033,7 +1068,7 @@ export class PromptTemplates extends Resource {
   renderContent(content: string, context?: Json): Promise<Json> { return this.t.request("POST", this.base() + "/render", undefined, { content, context }); }
 }
 
-export class McpServers extends Resource {
+export class McpServers extends Resource<McpServer> {
   test(id: string, nodeId?: string): Promise<Json> { return this.t.request("POST", this.item(id) + "/test", { nodeId }); }
 }
 
@@ -1203,7 +1238,7 @@ export class GlobalResource<T = Json> {
   delete(id: string): Promise<unknown> { return this.t.request("DELETE", `${this.path}/${seg(id)}`); }
 }
 
-export class Nodes extends GlobalResource {
+export class Nodes extends GlobalResource<WorkerNode> {
   cordon(id: string): Promise<Json> { return this.t.request("POST", `${this.path}/${seg(id)}/cordon`); }
   uncordon(id: string): Promise<Json> { return this.t.request("POST", `${this.path}/${seg(id)}/uncordon`); }
   drain(id: string): Promise<Json> { return this.t.request("POST", `${this.path}/${seg(id)}/drain`); }
@@ -1271,7 +1306,7 @@ export class GarrisonClient {
   readonly promptTemplates: PromptTemplates;
   readonly mcpServers: McpServers;
   readonly secrets: Secrets;
-  readonly workspaceTemplates: Resource;
+  readonly workspaceTemplates: Resource<WorkspaceTemplate>;
   readonly artifactStores: Resource<ArtifactStore>;
   readonly artifacts: Artifacts;
   readonly modelPrices: Resource<ModelPrice>;
@@ -1307,7 +1342,7 @@ export class GarrisonClient {
     this.promptTemplates = new PromptTemplates(t, "prompt-templates");
     this.mcpServers = new McpServers(t, "mcp-servers");
     this.secrets = new Secrets(t, "secrets");
-    this.workspaceTemplates = new Resource(t, "workspace-templates");
+    this.workspaceTemplates = new Resource<WorkspaceTemplate>(t, "workspace-templates");
     this.artifactStores = new Resource<ArtifactStore>(t, "artifact-stores");
     this.artifacts = new Artifacts(t);
     this.modelPrices = new Resource<ModelPrice>(t, "model-prices");

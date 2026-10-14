@@ -31,6 +31,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  fieldWarnings: { dismiss: 'Diesen Hinweis ausblenden. Der Datensatz ist bereits mit den hier aufgeführten Werten gespeichert.' },
   approvals: {
     awaiting_one: 'Die Harness hat vor einem Werkzeugaufruf nachgefragt und wartet auf eine Person. Öffnen Sie den Tab Freigaben, um ihn zu erlauben oder zu verweigern ({{count}} wartet).',
     awaiting_other: 'Die Harness hat vor Werkzeugaufrufen nachgefragt und wartet auf eine Person. Öffnen Sie den Tab Freigaben, um sie zu erlauben oder zu verweigern ({{count}} warten).',
@@ -929,6 +930,7 @@ const tips = {
       conversationTurn: 'Position dieses Laufs in seiner Konversation, beginnend mit 1 für die Runde, die sie gestartet hat.'
     },
     nodes: {
+      containerized: 'Ob der Worker in einem Container oder Pod läuft, wie er es bei der Registrierung gemeldet hat. Codex-Läufe auf einem containerisierten Worker verwenden standardmäßig die Sandbox danger-full-access, weil der Container die Isolationsgrenze ist.',
       name: 'Knotenname, meist der Kubernetes-Pod-Name des Workers.',
       status: 'Ob der Knoten neue Läufe annimmt. Sperren oder leeren Sie einen Knoten vor Wartungsarbeiten.',
       capacity: 'Läufe, die der Knoten gerade hält, im Verhältnis zur Höchstzahl, die er gleichzeitig annimmt.',
@@ -1230,6 +1232,7 @@ const tips = {
       }
     },
     manifests: {
+      warnings: 'Werte in diesem Dokument, die angenommen, aber anders gespeichert wurden, zum Beispiel eine Zahl außerhalb ihres Bereichs, die begrenzt wurde. Die Liste unter der Zeile nennt jedes Feld.',
       planned: 'Was das Anwenden dieses Dokuments bewirken würde: den Datensatz erstellen, aktualisieren oder unverändert lassen. Eine Simulation prüft nur und ändert nichts.',
       changes: { after: 'Der Wert, den das Manifest setzt. Lange Werte werden nach 200 Zeichen abgeschnitten.', before: 'Der aktuell gespeicherte Wert. Lange Werte werden nach 200 Zeichen abgeschnitten.', field: 'Die Einstellung dieses Datensatzes, die das Manifest ändert, zum Beispiel model oder parameters.model.' },
       results: 'Was die Anwendung mit jedem Dokument im Manifest getan hat.',

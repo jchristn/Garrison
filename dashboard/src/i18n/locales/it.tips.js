@@ -30,6 +30,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  fieldWarnings: { dismiss: 'Nasconde questo avviso. Il record è già salvato con i valori elencati qui.' },
   approvals: {
     awaiting_one: 'L\'harness ha chiesto prima di una chiamata a strumento e attende una persona. Apri la scheda Approvazioni per consentirla o negarla ({{count}} in attesa).',
     awaiting_other: 'L\'harness ha chiesto prima di alcune chiamate a strumenti e attende una persona. Apri la scheda Approvazioni per consentirle o negarle ({{count}} in attesa).',
@@ -931,6 +932,7 @@ const tips = {
       conversationTurn: 'Posizione di questa esecuzione nella sua conversazione; il turno che l\'ha avviata è il numero 1.'
     },
     nodes: {
+      containerized: 'Indica se il worker viene eseguito in un container o in un pod, come ha comunicato alla registrazione. Le esecuzioni Codex su un worker in container usano per impostazione predefinita la sandbox danger-full-access, perché il container è il confine di isolamento.',
       name: 'Nome del nodo, di solito il nome del pod Kubernetes del worker.',
       status: 'Se il nodo accetta nuove esecuzioni. Isola o svuota un nodo prima della manutenzione.',
       capacity: 'Esecuzioni detenute ora dal nodo rispetto al massimo che accetta contemporaneamente.',
@@ -1232,6 +1234,7 @@ const tips = {
       }
     },
     manifests: {
+      warnings: 'Valori di questo documento accettati ma salvati in modo diverso, ad esempio un numero fuori intervallo che è stato limitato. L\'elenco sotto la riga indica ogni campo.',
       planned: 'Cosa farebbe l\'applicazione di questo documento: creare il record, aggiornarlo o lasciarlo invariato. Una simulazione convalida senza cambiare nulla.',
       changes: { after: 'Il valore che il manifest imposta. I valori lunghi vengono troncati a 200 caratteri.', before: 'Il valore salvato ora. I valori lunghi vengono troncati a 200 caratteri.', field: 'L\'impostazione di questo record che il manifest modifica, per esempio model o parameters.model.' },
       results: 'Cosa ha fatto l\'applicazione con ciascun documento del manifest.',

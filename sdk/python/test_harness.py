@@ -11,8 +11,10 @@ import time
 import traceback
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
-from garrison_sdk import EFFECT_POLICIES, RUN_BLOCKED_REASONS, TRUST_LEVELS, GarrisonClient, GarrisonError
+from garrison_sdk import (EFFECT_POLICIES, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
+                          GarrisonError)
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8700"
 ACCESS = sys.argv[2] if len(sys.argv) > 2 else "access_garrison_default"
@@ -257,6 +259,38 @@ def t_manifest():
     result = client.manifests.apply(yaml, dry_run=True)
     require(result["dryRun"], "not a dry run")
     require(result["failedCount"] == 0, f"failed {result['failedCount']}")
+    require(result["items"][0]["warnings"] == [], f"unexpected warnings {result['items'][0]['warnings']}")
+    clamped = client.manifests.apply(yaml.replace("description: Dry run only.", "description: Dry run only.\n  delegationMaxDepth: 99"),
+                                     dry_run=True)
+    warning = next((w for w in clamped["items"][0]["warnings"] if w["field"] == "delegationMaxDepth"), None)
+    require(warning is not None and warning["code"] == "ValueClamped" and warning["given"] == "99" and warning["stored"] == "10",
+            f"manifest warnings {clamped['items'][0]['warnings']}")
+
+
+def t_clamp_warnings():
+    require(FIELD_WARNING_CODES == ("ValueClamped",), "field warning codes")
+    deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-clamp", "agentId": state["agent"], "harnessProfileId": state["fake"],
+                                            "weight": 0, "maxAttempts": 99})
+    try:
+        require(deployment["maxAttempts"] == 10, f"stored maxAttempts {deployment['maxAttempts']}")
+        warning: Optional[FieldWarning] = next((w for w in deployment.get("warnings", []) if w["field"] == "maxAttempts"), None)
+        require(warning is not None and warning["code"] == "ValueClamped" and warning["given"] == "99" and warning["stored"] == "10"
+                and warning["message"], f"create warnings {deployment.get('warnings')}")
+        body = {k: v for k, v in deployment.items() if k != "warnings"}
+        body["maxAttempts"] = 3
+        updated = client.deployments.update(deployment["id"], body)
+        require(updated["maxAttempts"] == 3 and "warnings" not in updated, f"update warnings {updated.get('warnings')}")
+        require("warnings" not in client.deployments.get(deployment["id"]), "reads carry no warnings")
+    finally:
+        client.deployments.delete(deployment["id"])
+
+
+def t_node_containerized():
+    nodes = client.nodes.list()["objects"]
+    require(len(nodes) > 0, "no nodes")
+    require(all(isinstance(n.get("containerized"), bool) for n in nodes), "containerized missing")
+    worker = next((n for n in nodes if n["name"] == "sdk-harness-worker"), None)
+    require(worker is None or worker["containerized"] is False, f"harness worker containerized {worker and worker['containerized']}")
 
 
 def t_list_runs():
@@ -514,7 +548,8 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
                  ("untrusted deployment queues without isolation", t_trust_level),
                  ("effect policy default, update, and conflict", t_effect_policy),
-                 ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs),
+                 ("manifest dry run", t_manifest), ("clamped values return ValueClamped warnings", t_clamp_warnings),
+                 ("nodes report containerized", t_node_containerized), ("list runs by agent", t_list_runs),
                  ("conversation start", t_conversation_start), ("conversation continue", t_conversation_continue),
                  ("conversation read and list", t_conversation_read), ("conversation delete", t_conversation_delete),
                  ("control nodes", t_control_nodes),

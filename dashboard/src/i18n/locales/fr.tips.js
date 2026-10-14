@@ -30,6 +30,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  fieldWarnings: { dismiss: 'Masque cet avis. L\'enregistrement est déjà sauvegardé avec les valeurs indiquées ici.' },
   approvals: {
     awaiting_one: 'Le harness a demandé l\'accord avant un appel d\'outil et attend une personne. Ouvrez l\'onglet Approbations pour l\'autoriser ou le refuser ({{count}} en attente).',
     awaiting_other: 'Le harness a demandé l\'accord avant des appels d\'outil et attend une personne. Ouvrez l\'onglet Approbations pour les autoriser ou les refuser ({{count}} en attente).',
@@ -931,6 +932,7 @@ const tips = {
       conversationTurn: 'Position de cette exécution dans sa conversation ; le tour qui l\'a démarrée porte le numéro 1.'
     },
     nodes: {
+      containerized: 'Indique si le worker s\'exécute dans un conteneur ou un pod, d\'après ce qu\'il a déclaré à l\'enregistrement. Les exécutions Codex sur un worker conteneurisé utilisent par défaut le bac à sable danger-full-access, car le conteneur sert de frontière d\'isolation.',
       name: 'Nom du nœud, généralement le nom du pod Kubernetes du worker.',
       status: 'Indique si le nœud accepte de nouvelles exécutions. Isolez ou drainez un nœud avant une maintenance.',
       capacity: 'Exécutions détenues actuellement par le nœud, sur le maximum qu\'il accepte simultanément.',
@@ -1232,6 +1234,7 @@ const tips = {
       }
     },
     manifests: {
+      warnings: 'Valeurs de ce document acceptées mais enregistrées autrement, par exemple un nombre hors de sa plage qui a été ramené dans les limites. La liste sous la ligne indique chaque champ.',
       planned: 'Ce que ferait l\'application de ce document : créer l\'enregistrement, le mettre à jour ou le laisser inchangé. Une simulation valide sans rien modifier.',
       changes: { after: 'La valeur que le manifeste définit. Les valeurs longues sont coupées à 200 caractères.', before: 'La valeur enregistrée actuellement. Les valeurs longues sont coupées à 200 caractères.', field: 'Le paramètre de cet enregistrement que le manifeste modifie, par exemple model ou parameters.model.' },
       results: 'Ce que l\'application a fait de chaque document du manifeste.',
