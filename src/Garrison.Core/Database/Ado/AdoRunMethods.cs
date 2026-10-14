@@ -519,10 +519,16 @@ namespace Garrison.Core.Database.Ado
                 "WHERE id = @id AND status = 'Queued' AND " + requirementsMatch + " AND (@max <= 0 OR (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')"
                 + ChildWaitSql.ExcludeWaitingAncestors(_Driver, "a", ancestors.Count) + ") < @max);";
 
+            // Postgresql locks the run row first and skips a row another claim holds (P10.24): concurrent claimers that read
+            // the same candidate window move on to the next candidate at once instead of queueing behind the tenant and
+            // deployment locks of a claim they are going to lose. Sqlite serializes writers already.
+            string? skipLocked = _Driver.Dialect.SkipLockedClause();
+            string candidateSql = "SELECT * FROM " + _Table + " WHERE id = @id AND status = 'Queued'" + (skipLocked ?? String.Empty) + ";";
+
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
                 result = new ClaimResult();
-                List<Run> candidates = await AdoDatabaseDriver.QueryAsync(connection, transaction, "SELECT * FROM " + _Table + " WHERE id = @id AND status = 'Queued';", c => AdoDatabaseDriver.Add(c, "id", runId), Map, ct).ConfigureAwait(false);
+                List<Run> candidates = await AdoDatabaseDriver.QueryAsync(connection, transaction, candidateSql, c => AdoDatabaseDriver.Add(c, "id", runId), Map, ct).ConfigureAwait(false);
                 if (candidates.Count == 0) return;
                 await QuotaAccountingSql.LockTenantAsync(_Driver, connection, transaction, candidates[0].TenantId, ct).ConfigureAwait(false);
                 QuotaExceededException? refusal = await QuotaAccountingSql.CheckAsync(_Driver, connection, transaction, candidates[0], false, ct).ConfigureAwait(false);

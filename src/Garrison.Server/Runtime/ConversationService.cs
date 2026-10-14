@@ -401,7 +401,7 @@ namespace Garrison.Server.Runtime
             string text = "Node " + (run.LeaseNodeName ?? request.NodeId) + " no longer has this conversation's directories, so the turn was queued again to start a fresh session seeded with the transcript of the earlier turns.";
             await RecordFallbackAsync(run, ConversationFallbackReasonEnum.WorkspaceLost, text, token).ConfigureAwait(false);
             _Signals.Notify(run.Id);
-            _Signals.NotifyQueue();
+            _Signals.NotifyQueue(run);
             return true;
         }
 

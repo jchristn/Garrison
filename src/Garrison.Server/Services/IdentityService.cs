@@ -349,6 +349,8 @@ namespace Garrison.Server.Services
             credential.SecretKeyLast4 = SecretGenerator.Last4(secret);
             await _Database.Credentials.UpdateAsync(credential, token).ConfigureAwait(false);
             await _Database.Sessions.DeleteByCredentialAsync(credential.Id, token).ConfigureAwait(false);
+            // The old secret and the deleted sessions stop working at once on every replica (P10.24 authentication cache).
+            _Authorization.Invalidate();
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.CredentialRotated, "Credential", credential.Id, "Credential secret rotated.", tenantId, token).ConfigureAwait(false);
 
             CredentialCreateResponse response = new CredentialCreateResponse();

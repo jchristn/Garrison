@@ -2183,3 +2183,6 @@ it.resources.deployments.hints.effectPolicy = "Al massimo una volta (predefinito
 it.tips.resources.deployments.effectPolicy = "Cosa succede a un'esecuzione avviata quando il suo worker viene perso: fallisce (Al massimo una volta), torna in coda (Almeno una volta) oppure Registrata, che per ora si comporta come Al massimo una volta.";
 it.views.runDetail.effectPolicy = "Criterio degli effetti";
 it.tips.views.runDetail.effectPolicy = "Il criterio degli effetti del deployment quando questa esecuzione è entrata in coda. Decide cosa succede se il worker dell'esecuzione viene perso; le modifiche successive al deployment non la riguardano.";
+it.views.settings.fields.Scheduling.QueueWakeFanout = "Polling risvegliati per replica";
+it.views.settings.fields.Scheduling.RemoteWakeDelayMs = "Attesa dei risvegli remoti (ms)";
+it.views.settings.fields.Auth.CacheSeconds = "Durata della cache di autenticazione (secondi)";

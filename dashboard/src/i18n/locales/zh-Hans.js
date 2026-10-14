@@ -2135,3 +2135,6 @@ zhHans.resources.deployments.hints.effectPolicy = "至多一次 (默认) 会让 
 zhHans.tips.resources.deployments.effectPolicy = "worker 丢失时如何处理已启动的运行: 使其失败 (至多一次)、重新排队 (至少一次)，或日志模式，目前与至多一次相同。";
 zhHans.views.runDetail.effectPolicy = "作用策略";
 zhHans.tips.views.runDetail.effectPolicy = "此运行进入队列时部署的作用策略。它决定运行的 worker 丢失时如何处理；之后对部署的修改不会影响此运行。";
+zhHans.views.settings.fields.Scheduling.QueueWakeFanout = "每个副本唤醒的轮询数";
+zhHans.views.settings.fields.Scheduling.RemoteWakeDelayMs = "远端唤醒暂缓时间 (ms)";
+zhHans.views.settings.fields.Auth.CacheSeconds = "认证缓存有效期 (秒)";

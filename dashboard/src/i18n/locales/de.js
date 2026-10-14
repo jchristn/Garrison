@@ -2169,3 +2169,6 @@ de.resources.deployments.hints.effectPolicy = "Höchstens einmal (Standard) läs
 de.tips.resources.deployments.effectPolicy = "Was mit einem gestarteten Lauf geschieht, wenn sein Worker verloren geht: fehlschlagen (Höchstens einmal), neu einreihen (Mindestens einmal) oder Protokolliert, das sich vorerst wie Höchstens einmal verhält.";
 de.views.runDetail.effectPolicy = "Wirkungsrichtlinie";
 de.tips.views.runDetail.effectPolicy = "Die Wirkungsrichtlinie der Bereitstellung, als dieser Lauf eingereiht wurde. Sie entscheidet, was passiert, wenn der Worker des Laufs verloren geht; spätere Änderungen an der Bereitstellung betreffen diesen Lauf nicht.";
+de.views.settings.fields.Scheduling.QueueWakeFanout = "Geweckte Long Polls pro Replik";
+de.views.settings.fields.Scheduling.RemoteWakeDelayMs = "Zurückhalten entfernter Weckrufe (ms)";
+de.views.settings.fields.Auth.CacheSeconds = "Lebensdauer des Authentifizierungscaches (Sekunden)";

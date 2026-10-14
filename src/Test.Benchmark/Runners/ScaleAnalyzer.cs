@@ -117,6 +117,10 @@ namespace Garrison.Benchmark.Runners
 
             s.WakeupsNotify = Delta(before, after, "garrison_scheduler_queue_wakeups_total", x => x.Label("source") == "notify");
             s.WakeupsPoll = Delta(before, after, "garrison_scheduler_queue_wakeups_total", x => x.Label("source") == "poll");
+            s.WakeupsHandoff = Delta(before, after, "garrison_scheduler_queue_wakeups_total", x => x.Label("source") == "handoff");
+            s.WakeupsPending = Delta(before, after, "garrison_scheduler_queue_wakeups_total", x => x.Label("source") == "pending");
+            s.WakeupsBroadcast = Delta(before, after, "garrison_scheduler_queue_wakeups_total", x => x.Label("source") == "broadcast");
+            s.WakeupsPerRun = (s.WakeupsNotify + s.WakeupsHandoff + s.WakeupsPending + s.WakeupsBroadcast) / runs;
             s.LeaseRequestsAssigned = Delta(before, after, "garrison_scheduler_lease_requests_total", x => x.Label("result") == "assigned");
             s.LeaseRequestsEmpty = Delta(before, after, "garrison_scheduler_lease_requests_total", x => x.Label("result") == "empty");
             s.EmptyClaimPasses = Delta(before, after, "garrison_scheduler_claim_duration_seconds_count", x => x.Label("result") == "empty");
@@ -130,12 +134,16 @@ namespace Garrison.Benchmark.Runners
             s.DeploymentLockTotalWaitMs = Delta(before, after, "garrison_scheduler_deployment_lock_wait_seconds_sum", null) * 1000.0;
             s.DeploymentLockMeanWaitMs = s.DeploymentLockAcquisitions > 0 ? s.DeploymentLockTotalWaitMs / s.DeploymentLockAcquisitions : 0;
             s.Claims = DeltaBy(before, after, "garrison_claims_total", "result", null);
+            s.LostClaimsPerRun = (s.Claims.TryGetValue("lost", out double lost) ? lost : 0) / runs;
+            s.AuthCacheHits = Delta(before, after, "garrison_auth_cache_lookups_total", x => x.Label("result") == "hit");
+            s.AuthCacheMisses = Delta(before, after, "garrison_auth_cache_lookups_total", x => x.Label("result") == "miss");
 
             s.DbStatements = Delta(before, after, "garrison_db_operation_duration_seconds_count", null);
             s.DbMeanMs = MeanMs(before, after, "garrison_db_operation_duration_seconds", null);
             s.DbStatementsPerRun = s.DbStatements / runs;
             SortedDictionary<string, double> byTable = DeltaBy(before, after, "garrison_db_operation_duration_seconds_count", "table", null);
             foreach (KeyValuePair<string, double> table in byTable.OrderByDescending(t => t.Value).Take(12)) s.DbStatementsPerRunByTable[table.Key] = table.Value / runs;
+            s.AuthStatementsPerRun = byTable.Where(t => t.Key == "tenants" || t.Key == "users" || t.Key == "credentials" || t.Key == "authsessions").Sum(t => t.Value) / runs;
             s.RequestHistoryHeaderInsertsPerRun = Delta(before, after, "garrison_db_operation_duration_seconds_count", x => x.Label("table") == "request_history_headers" && x.Label("operation") == "insert") / runs;
             s.RequestHistoryInsertsPerRun = Delta(before, after, "garrison_db_operation_duration_seconds_count", x => x.Label("table") == "request_history" && x.Label("operation") == "insert") / runs;
             s.DbErrors = Delta(before, after, "garrison_db_errors_total", null);
@@ -215,7 +223,7 @@ namespace Garrison.Benchmark.Runners
                 Add(signals, "lease renewals", F0(now.LeaseRenewalsLost) + " lost renewals of " + F0(now.LeaseRenewals + now.LeaseRenewalsLost) + ", " + F0(now.LeaseExpirations) + " expirations", 15 + now.LeaseRenewalsLost + now.LeaseExpirations);
             double claimRatio = Ratio(level.ClaimLatency?.P95, baseline.ClaimLatency?.P95);
             if (claimRatio >= 3 && (level.Slots == 0 || level.PeakActive < 0.9 * level.Slots))
-                Add(signals, "scheduler", "claim p95 " + F0(level.ClaimLatency!.P95) + " ms, " + F1(claimRatio) + "x the first level, with free slots (peak " + level.PeakActive + " of " + level.Slots + "); wakeups notify " + F0(now.WakeupsNotify) + ", poll " + F0(now.WakeupsPoll), claimRatio);
+                Add(signals, "scheduler", "claim p95 " + F0(level.ClaimLatency!.P95) + " ms, " + F1(claimRatio) + "x the first level, with free slots (peak " + level.PeakActive + " of " + level.Slots + "); wakeups notify " + F0(now.WakeupsNotify) + ", handoff " + F0(now.WakeupsHandoff) + ", pending " + F0(now.WakeupsPending) + ", poll " + F0(now.WakeupsPoll), claimRatio);
             return signals.OrderByDescending(s => s.Score).ToList();
         }
 

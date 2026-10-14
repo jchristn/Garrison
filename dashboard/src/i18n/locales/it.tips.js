@@ -1904,3 +1904,10 @@ Object.assign(explainers, {
     p2: 'Le revisioni senza timeout attendono finché una persona non decide. Con un timeout, decide l\'azione alla scadenza della fase quando il tempo finisce.'
   }
 });
+tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields.Scheduling || {}, {
+  QueueWakeFanout: "Quante richieste di lease in attesa ogni replica risveglia per un’esecuzione appena accodata, tra quelle il cui worker potrebbe prenderla. Una richiesta che non può prenderla la passa alla successiva. 0 risveglia ogni richiesta compatibile su ogni replica, come prima. Predefinito 1.",
+  RemoteWakeDelayMs: "Quanto attendono le altre repliche prima di risvegliare una propria richiesta di lease per un’esecuzione la cui replica ne ha già risvegliata una, in millisecondi. L’attesa finisce prima se l’esecuzione viene presa o se quella replica non ha più richieste in grado di prenderla. 0 risveglia subito una richiesta su ogni replica. Predefinito 250."
+});
+tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
+  CacheSeconds: "Per quanto tempo ogni replica conserva le sessioni, i tenant, gli utenti e le credenziali che legge per autenticare le richieste, in secondi. Revocare un token o modificare utenti, credenziali, ruoli o tenant tramite l’API ha effetto subito su ogni replica; questo è il tempo massimo per cui una modifica fatta in altro modo può passare inosservata. 0 disattiva la cache. Predefinito 5."
+});

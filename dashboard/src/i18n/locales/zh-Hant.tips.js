@@ -1901,3 +1901,10 @@ Object.assign(explainers, {
     p2: '沒有逾時的審查會等候到人員決定。設有逾時時，時間一到就由此階段的逾時動作決定。'
   }
 });
+tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields.Scheduling || {}, {
+  QueueWakeFanout: "對於新排入佇列的執行，每個副本喚醒的等待中 worker lease 請求數量，只在其 worker 能接手該執行的請求中選擇。無法接手的請求會把執行交給下一個請求。0 表示如同以往，喚醒所有副本上所有相符的請求。預設 1。",
+  RemoteWakeDelayMs: "當發起的副本已為某個執行喚醒了自己的一個 lease 請求時，其他副本在喚醒自己的請求之前等待的時間 (毫秒)。執行被接手，或該副本已沒有能接手的請求時，會提前結束。0 表示立即在每個副本上各喚醒一個請求。預設 250。"
+});
+tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
+  CacheSeconds: "每個副本保留其為驗證請求而讀取的工作階段、租用戶、使用者與憑證的時間 (秒)。透過 API 撤銷權杖，或變更使用者、憑證、角色或租用戶，會立即在所有副本生效；此值是以其他方式所做的變更可能未被察覺的最長時間。0 表示關閉快取。預設 5。"
+});

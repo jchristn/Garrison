@@ -21,10 +21,21 @@ namespace Garrison.Server.Services
     /// Authenticates requests and issues session tokens. Supported schemes: system administrator API key
     /// (x-api-key), bearer session tokens (Authorization or x-token, which must agree), signed credential requests
     /// (x-access-key, x-date, x-nonce, x-signature), and direct credential headers (x-access-key, x-secret-key).
+    /// Sessions, tenants, users, and credentials are read through a short-lived per-replica cache (<see cref="Cache"/>).
     /// Thread-safe.
     /// </summary>
     public class AuthenticationService
     {
+        #region Public-Members
+
+        /// <summary>
+        /// Cache of the records authentication reads (P10.24). Its lifetime is the cluster setting Auth.CacheSeconds;
+        /// identity changes and session revocations clear it on every replica.
+        /// </summary>
+        public AuthCache Cache { get; }
+
+        #endregion
+
         #region Private-Members
 
         private readonly DatabaseDriverBase _Database;
@@ -53,6 +64,7 @@ namespace Garrison.Server.Services
             _Cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
             _Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _Audit = audit ?? throw new ArgumentNullException(nameof(audit));
+            Cache = new AuthCache(database);
         }
 
         #endregion
@@ -144,7 +156,7 @@ namespace Garrison.Server.Services
                     return await FailAsync(ctx, AuthSchemeEnum.AccessKeySignature, AuthResultEnum.Invalid, "Supply either x-signature or x-secret-key, not both.", token).ConfigureAwait(false);
                 }
 
-                Credential? credential = await _Database.Credentials.ReadByAccessKeyAsync(accessKey, token).ConfigureAwait(false);
+                Credential? credential = await Cache.CredentialByAccessKeyAsync(accessKey, token).ConfigureAwait(false);
                 if (credential == null) return await FailAsync(ctx, AuthSchemeEnum.AccessKeySecret, AuthResultEnum.NotFound, "Unknown access key.", token).ConfigureAwait(false);
 
                 string? tenantHint = headers[Constants.HeaderTenantId];
@@ -233,7 +245,7 @@ namespace Garrison.Server.Services
         public async Task<Credential?> AuthenticateCredentialAsync(string? accessKey, string? secretKey, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(accessKey) || String.IsNullOrEmpty(secretKey)) return null;
-            Credential? credential = await _Database.Credentials.ReadByAccessKeyAsync(accessKey, token).ConfigureAwait(false);
+            Credential? credential = await Cache.CredentialByAccessKeyAsync(accessKey, token).ConfigureAwait(false);
             if (credential == null || !await CredentialUsableAsync(credential, token).ConfigureAwait(false)) return null;
             if (!PasswordHasher.FixedTimeEquals(secretKey, DecryptCredentialSecret(credential))) return null;
             return credential;
@@ -331,6 +343,8 @@ namespace Garrison.Server.Services
             TokenPayload? payload = _Tokens.Validate(tokenString);
             if (payload == null) return false;
             bool revoked = await _Database.Sessions.RevokeAsync(payload.SessionId, reason, token).ConfigureAwait(false);
+            // The revocation takes effect at once here and, through the backplane, on every other replica.
+            Cache.InvalidateSession(payload.SessionId);
             if (revoked) await _Audit.WriteAsync(null, AuditEventTypeEnum.SessionRevoked, "Session", payload.SessionId, reason, payload.TenantId, token).ConfigureAwait(false);
             return revoked;
         }
@@ -366,14 +380,14 @@ namespace Garrison.Server.Services
             TokenPayload? payload = _Tokens.Validate(sessionToken);
             if (payload == null || payload.Purpose != null) return await FailAsync(ctx, scheme, AuthResultEnum.Invalid, "Token is invalid or expired.", token).ConfigureAwait(false);
 
-            AuthSession? session = await _Database.Sessions.ReadByTokenIdAsync(payload.TokenId, token).ConfigureAwait(false);
+            AuthSession? session = String.IsNullOrEmpty(payload.SessionId) || String.IsNullOrEmpty(payload.TokenId) ? null : await Cache.SessionAsync(payload.SessionId, payload.TokenId, token).ConfigureAwait(false);
             if (session == null || session.Id != payload.SessionId) return await FailAsync(ctx, scheme, AuthResultEnum.NotFound, "Session not found.", token).ConfigureAwait(false);
             if (!session.Active || session.RevokedUtc.HasValue || session.ExpiresUtc < DateTime.UtcNow) return await FailAsync(ctx, scheme, AuthResultEnum.Inactive, "Session is revoked or expired.", token).ConfigureAwait(false);
             if (session.TenantId != payload.TenantId) return await FailAsync(ctx, scheme, AuthResultEnum.Invalid, "Session tenant mismatch.", token).ConfigureAwait(false);
 
             if (!String.IsNullOrEmpty(session.TenantId))
             {
-                Tenant? tenant = await _Database.Tenants.ReadAsync(session.TenantId, token).ConfigureAwait(false);
+                Tenant? tenant = await Cache.TenantAsync(session.TenantId, token).ConfigureAwait(false);
                 if (tenant == null || !tenant.Active) return await FailAsync(ctx, scheme, AuthResultEnum.Inactive, "Tenant is inactive.", token).ConfigureAwait(false);
             }
 
@@ -381,7 +395,7 @@ namespace Garrison.Server.Services
 
             if (payload.PrincipalType == PrincipalTypeEnum.User && !String.IsNullOrEmpty(payload.UserId) && !String.IsNullOrEmpty(payload.TenantId))
             {
-                User? user = await _Database.Users.ReadAsync(payload.TenantId, payload.UserId, token).ConfigureAwait(false);
+                User? user = await Cache.UserAsync(payload.TenantId, payload.UserId, token).ConfigureAwait(false);
                 if (user == null || !user.Active) return await FailAsync(ctx, scheme, AuthResultEnum.Inactive, "User is inactive.", token).ConfigureAwait(false);
                 ctx.IsAuthenticated = true;
                 ctx.AuthResult = AuthResultEnum.Success;
@@ -398,7 +412,7 @@ namespace Garrison.Server.Services
 
             if (payload.PrincipalType == PrincipalTypeEnum.Credential && !String.IsNullOrEmpty(payload.CredentialId) && !String.IsNullOrEmpty(payload.TenantId))
             {
-                Credential? credential = await _Database.Credentials.ReadAsync(payload.TenantId, payload.CredentialId, token).ConfigureAwait(false);
+                Credential? credential = await Cache.CredentialAsync(payload.TenantId, payload.CredentialId, token).ConfigureAwait(false);
                 if (credential == null) return await FailAsync(ctx, scheme, AuthResultEnum.NotFound, "Credential not found.", token).ConfigureAwait(false);
                 return await BuildCredentialContextAsync(ctx, credential, scheme, token).ConfigureAwait(false);
             }
@@ -437,8 +451,8 @@ namespace Garrison.Server.Services
                 return await FailAsync(ctx, scheme, AuthResultEnum.Inactive, "Credential, owner, or tenant is inactive or expired.", token).ConfigureAwait(false);
             }
 
-            User? owner = await _Database.Users.ReadAsync(credential.TenantId, credential.UserId, token).ConfigureAwait(false);
-            await _Database.Credentials.TouchLastUsedAsync(credential.Id, token).ConfigureAwait(false);
+            User? owner = String.IsNullOrEmpty(credential.TenantId) || String.IsNullOrEmpty(credential.UserId) ? null : await Cache.UserAsync(credential.TenantId, credential.UserId, token).ConfigureAwait(false);
+            await Cache.TouchCredentialAsync(credential.Id, token).ConfigureAwait(false);
 
             ctx.IsAuthenticated = true;
             ctx.AuthResult = AuthResultEnum.Success;
@@ -459,9 +473,10 @@ namespace Garrison.Server.Services
         {
             if (!credential.Active) return false;
             if (credential.ExpiresUtc.HasValue && credential.ExpiresUtc.Value < DateTime.UtcNow) return false;
-            Tenant? tenant = await _Database.Tenants.ReadAsync(credential.TenantId, token).ConfigureAwait(false);
+            if (String.IsNullOrEmpty(credential.TenantId) || String.IsNullOrEmpty(credential.UserId)) return false;
+            Tenant? tenant = await Cache.TenantAsync(credential.TenantId, token).ConfigureAwait(false);
             if (tenant == null || !tenant.Active) return false;
-            User? owner = await _Database.Users.ReadAsync(credential.TenantId, credential.UserId, token).ConfigureAwait(false);
+            User? owner = await Cache.UserAsync(credential.TenantId, credential.UserId, token).ConfigureAwait(false);
             return owner != null && owner.Active;
         }
 

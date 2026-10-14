@@ -742,7 +742,7 @@ namespace Garrison.Server.Runtime
                         // Fence the old attempt (P10.21): its run token, minted for this epoch, stops working now, so a
                         // harness that outlived its lease cannot delegate. Tokens of a newer attempt are left alone.
                         await _Database.Sessions.RevokeByRunEpochAsync(run.Id, run.LeaseEpoch, "Run lease expired; the run was requeued.", token).ConfigureAwait(false);
-                        _Signals.NotifyQueue();
+                        _Signals.NotifyQueue(run);
                     }
                     else
                     {

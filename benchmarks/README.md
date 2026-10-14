@@ -184,9 +184,10 @@ SCALE_KEEP_STACK=1 benchmarks/scale.sh smoke && SCALE_REUSE=1 benchmarks/scale.s
 | Submission latency and submission errors by kind (429 QueueFull, 503 DatabaseBusy, transport, client overload) | The load generator |
 | Peak runs leased or running, peak queued | Run records |
 | Event inserts: statements on `run_events` and their mean time, batches | `garrison_db_operation_duration_seconds{table="run_events"}`, `garrison_event_batch_size` |
-| Queue wakeups: notify versus fallback poll; lease requests assigned versus empty | `garrison_scheduler_queue_wakeups_total`, `garrison_scheduler_lease_requests_total` |
+| Queue wakeups by source (notify, handoff, pending, fallback poll) and wakeups per run (every source but the fallback poll); lease requests assigned versus empty | `garrison_scheduler_queue_wakeups_total`, `garrison_scheduler_lease_requests_total` |
 | Lease renewals (renewed, lost) and expirations | `garrison_lease_renewals_total`, `garrison_lease_expirations_total` |
-| Per-deployment concurrency lock: acquisitions, mean and total wait; claims won, lost, limited | `garrison_scheduler_deployment_lock_wait_seconds`, `garrison_claims_total` |
+| Per-deployment concurrency lock: acquisitions, mean and total wait; claims won, lost, limited; lost claims per run | `garrison_scheduler_deployment_lock_wait_seconds`, `garrison_claims_total` |
+| Authentication: statements per run on `tenants`, `users`, `credentials`, and `authsessions`; cache hits and misses (P10.24) | `garrison_db_operation_duration_seconds`, `garrison_auth_cache_lookups_total` |
 | Database statements per run (I-12), by table; `request_history_headers` inserts per run (I-05); errors; peak connections | `garrison_db_*` |
 | One-minute load average of the host | `sysctl vm.loadavg` or `/proc/loadavg` |
 

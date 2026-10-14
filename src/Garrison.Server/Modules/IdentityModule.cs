@@ -55,11 +55,17 @@ namespace Garrison.Server.Modules
             _Context = context;
             _Backplane = context.TryGet<IEventBackplane>();
             context.Authorization.Backplane = _Backplane;
+            context.Authentication.Cache.Backplane = _Backplane;
+            // Any identity, role, or permission change clears the authentication cache along with the grants, here and
+            // (through PermissionsChanged) on every other replica (P10.24).
+            context.Authorization.Invalidated += OnAuthorizationInvalidated;
 
             _Cluster = new ClusterSettingsService(context.Database, context.Settings.RequestHistory.Enabled, context.Settings.RequestHistory.RetentionDays);
             _Cluster.Backplane = _Backplane;
             await _Cluster.RefreshAsync(token).ConfigureAwait(false);
             context.Register(_Cluster);
+            ApplyClusterSettings();
+            _Cluster.Changed += OnClusterSettingsChanged;
 
             _Observability = new ObservabilityService(_Cluster);
             context.Register(_Observability);
@@ -111,6 +117,8 @@ namespace Garrison.Server.Modules
         /// <inheritdoc />
         public async Task StopAsync(CancellationToken token)
         {
+            if (_Cluster != null) _Cluster.Changed -= OnClusterSettingsChanged;
+            if (_Context != null) _Context.Authorization.Invalidated -= OnAuthorizationInvalidated;
             if (_Backplane != null)
             {
                 _Backplane.MessageReceived -= OnBackplaneMessage;
@@ -143,7 +151,24 @@ namespace Garrison.Server.Modules
         private void OnBackplaneMessage(object? sender, BackplaneMessage message)
         {
             if (message.Kind == BackplaneMessageKindEnum.PermissionsChanged) _Context?.Authorization.InvalidateLocal();
+            else if (message.Kind == BackplaneMessageKindEnum.SessionRevoked) _Context?.Authentication.Cache.InvalidateSessionLocal(message.Subject);
             else if (message.Kind == BackplaneMessageKindEnum.SettingsChanged) RefreshSettingsInBackground();
+        }
+
+        private void OnAuthorizationInvalidated(object? sender, EventArgs e)
+        {
+            _Context?.Authentication.Cache.ClearLocal();
+        }
+
+        private void OnClusterSettingsChanged(object? sender, EventArgs e)
+        {
+            ApplyClusterSettings();
+        }
+
+        private void ApplyClusterSettings()
+        {
+            if (_Cluster == null || _Context == null) return;
+            _Context.Authentication.Cache.CacheSeconds = _Cluster.GetInt("Auth.CacheSeconds");
         }
 
         private void OnBackplaneResynchronized(object? sender, EventArgs e)

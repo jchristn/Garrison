@@ -9,7 +9,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | ID | Remaining capability | Scope | Dependency or decision |
 |---|---|---|---|
 | P6.20 | Publish SDK packages | Deferred | Skipped at user request (D-043) |
-| P10.24 | Tune demonstrated control-plane bottlenecks | Conditional, now evidenced | P14.15 shows lease wakeups and claim races are the limit: targeted notifications (and fewer auth lookups) are justified |
+| P10.24 | Tune demonstrated control-plane bottlenecks | Implemented, measurement pending | D-050: targeted queue wakeups with handoff, PostgreSQL claims that skip held rows, and a per-replica authentication cache are in; the before and after `benchmarks/scale.sh 1k` numbers go in `docs/SCALING.md` |
 | P10.25 | Schedule by CPU/memory capacity | Conditional, not evidenced | P14.15 never filled the slots (56 of 320 at most), so slot sizing is not the limit yet |
 | P11.14 | Trusted/untrusted deployment policy | Complete | D-049; schema 23. Existing deployments stay Trusted; Untrusted runs queue (`NoIsolatingWorker`) until an isolating worker is available; tenant `requireUntrustedDeployments` rejects Trusted deployments with a field code |
 | P11.15 | Per-deployment network egress allowlists | Deferred | CIDR/port NetworkPolicy rules |

@@ -2134,3 +2134,6 @@ ja.resources.deployments.hints.effectPolicy = "最大 1 回 (既定) は、開�
 ja.tips.resources.deployments.effectPolicy = "ワーカーが失われたときに開始済みの実行をどう扱うか: 失敗させる (最大 1 回)、再キューする (最低 1 回)、または現在は最大 1 回と同じ動作のジャーナル方式。";
 ja.views.runDetail.effectPolicy = "作用ポリシー";
 ja.tips.views.runDetail.effectPolicy = "この実行がキューに入ったときのデプロイメントの作用ポリシーです。実行のワーカーが失われた場合の扱いを決めます。後からデプロイメントを変更しても、この実行には影響しません。";
+ja.views.settings.fields.Scheduling.QueueWakeFanout = "レプリカごとに起こすポーリング数";
+ja.views.settings.fields.Scheduling.RemoteWakeDelayMs = "リモート起床の保留時間 (ms)";
+ja.views.settings.fields.Auth.CacheSeconds = "認証キャッシュの有効期間 (秒)";

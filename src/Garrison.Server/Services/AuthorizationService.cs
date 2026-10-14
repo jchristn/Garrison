@@ -45,6 +45,13 @@ namespace Garrison.Server.Services
         /// </summary>
         public IEventBackplane? Backplane { get; set; } = null;
 
+        /// <summary>
+        /// Raised on this replica after <see cref="Invalidate"/> or <see cref="InvalidateLocal"/>, so other identity
+        /// caches (the authentication cache, P10.24) drop their records with the grants. Handlers run on the caller's
+        /// thread, must return quickly, and must not throw; exceptions are swallowed.
+        /// </summary>
+        public event EventHandler? Invalidated;
+
         #endregion
 
         #region Private-Members
@@ -279,6 +286,7 @@ namespace Garrison.Server.Services
         public void Invalidate()
         {
             _Cache.Clear();
+            RaiseInvalidated();
             Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.PermissionsChanged, null));
         }
 
@@ -288,11 +296,26 @@ namespace Garrison.Server.Services
         public void InvalidateLocal()
         {
             _Cache.Clear();
+            RaiseInvalidated();
         }
 
         #endregion
 
         #region Private-Methods
+
+        private void RaiseInvalidated()
+        {
+            EventHandler? handler = Invalidated;
+            if (handler == null) return;
+            try
+            {
+                handler(this, EventArgs.Empty);
+            }
+            catch (Exception)
+            {
+                // An invalidation hook must never break the change that triggered it; caches still expire.
+            }
+        }
 
         private static bool IsPlatformOnly(ResourceTypeEnum resourceType, OperationTypeEnum operation)
         {

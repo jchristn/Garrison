@@ -52,20 +52,24 @@ namespace Garrison.Benchmark.Reporting
             md.Append('\n');
 
             md.Append("### Subsystems per level\n\nSummed over every server replica's /metrics for the level. Per-run values divide by the runs that finished.\n\n");
-            md.Append("| # | Events in | Batches | Event inserts (mean ms) | Wakeups notify / poll | Lease req assigned / empty | Renewals (lost) | Expirations | Lock waits (mean ms, total ms) | Claims | DB ops/run | DB mean ms | request_history_headers inserts/run | DB errors | Peak DB conns | HTTP 429+503 |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+            md.Append("| # | Events in | Batches | Event inserts (mean ms) | Wakeups notify / handoff / pending / poll | Wakeups per run | Lease req assigned / empty | Renewals (lost) | Expirations | Lock waits (mean ms, total ms) | Claims | Lost claims per run | DB ops/run | Auth statements per run | Auth cache hit / miss | DB mean ms | request_history_headers inserts/run | DB errors | Peak DB conns | HTTP 429+503 |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
             foreach (ScaleLevelResult level in scale.Levels)
             {
                 ScaleSubsystems s = level.Subsystems;
                 md.Append("| ").Append(level.Index)
                     .Append(" | ").Append(F0(s.EventsReceived)).Append(" | ").Append(F0(s.EventBatches))
                     .Append(" | ").Append(F0(s.EventInsertStatements)).Append(" (").Append(F2(s.EventInsertMeanMs)).Append(')')
-                    .Append(" | ").Append(F0(s.WakeupsNotify)).Append(" / ").Append(F0(s.WakeupsPoll))
+                    .Append(" | ").Append(F0(s.WakeupsNotify)).Append(" / ").Append(F0(s.WakeupsHandoff)).Append(" / ").Append(F0(s.WakeupsPending)).Append(" / ").Append(F0(s.WakeupsPoll))
+                    .Append(" | ").Append(F1(s.WakeupsPerRun))
                     .Append(" | ").Append(F0(s.LeaseRequestsAssigned)).Append(" / ").Append(F0(s.LeaseRequestsEmpty))
                     .Append(" | ").Append(F0(s.LeaseRenewals)).Append(" (").Append(F0(s.LeaseRenewalsLost)).Append(')')
                     .Append(" | ").Append(F0(s.LeaseExpirations))
                     .Append(" | ").Append(F0(s.DeploymentLockAcquisitions)).Append(" (").Append(F2(s.DeploymentLockMeanWaitMs)).Append(", ").Append(F0(s.DeploymentLockTotalWaitMs)).Append(')')
                     .Append(" | ").Append(ReportWriter.Cell(String.Join(", ", s.Claims.Select(c => c.Key + " " + F0(c.Value)))))
-                    .Append(" | ").Append(F1(s.DbStatementsPerRun)).Append(" | ").Append(F2(s.DbMeanMs))
+                    .Append(" | ").Append(F1(s.LostClaimsPerRun))
+                    .Append(" | ").Append(F1(s.DbStatementsPerRun)).Append(" | ").Append(F1(s.AuthStatementsPerRun))
+                    .Append(" | ").Append(F0(s.AuthCacheHits)).Append(" / ").Append(F0(s.AuthCacheMisses))
+                    .Append(" | ").Append(F2(s.DbMeanMs))
                     .Append(" | ").Append(F2(s.RequestHistoryHeaderInsertsPerRun))
                     .Append(" | ").Append(F0(s.DbErrors)).Append(" | ").Append(F0(s.PeakDbConnections)).Append(" | ").Append(F0(s.Http429And503)).Append(" |\n");
             }

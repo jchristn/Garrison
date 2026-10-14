@@ -2135,3 +2135,6 @@ zhHant.resources.deployments.hints.effectPolicy = "至多一次 (預設) 會讓 
 zhHant.tips.resources.deployments.effectPolicy = "worker 遺失時如何處理已啟動的執行: 使其失敗 (至多一次)、重新排入佇列 (至少一次)，或日誌模式，目前與至多一次相同。";
 zhHant.views.runDetail.effectPolicy = "作用策略";
 zhHant.tips.views.runDetail.effectPolicy = "此執行進入佇列時部署的作用策略。它決定執行的 worker 遺失時如何處理；之後對部署的修改不會影響此執行。";
+zhHant.views.settings.fields.Scheduling.QueueWakeFanout = "每個副本喚醒的輪詢數";
+zhHant.views.settings.fields.Scheduling.RemoteWakeDelayMs = "遠端喚醒暫緩時間 (ms)";
+zhHant.views.settings.fields.Auth.CacheSeconds = "認證快取有效期 (秒)";
