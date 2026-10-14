@@ -271,7 +271,7 @@ Output is not HTML-escaped. Includes nest up to 8 deep and rendered output is li
 
 ### Variables
 
-The variables available when a run is compiled (`tenant`, `agent`, `deployment`, `run`, `input`, `caller`, `prompts`, `resources`, `secret`, `garrison`, `harness`, `now`) are listed in `docs/HARNESSES.md`. Prompt templates use these most:
+The variables available when a run is compiled (`tenant`, `agent`, `deployment`, `run`, `input`, `caller`, `prompts`, `resources`, `secret`, `garrison`, `harness`, `executor`, `now`) are listed in `docs/HARNESSES.md`. Prompt templates use these most:
 
 | Variable | Contents |
 |---|---|

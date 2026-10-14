@@ -17,6 +17,15 @@ namespace Garrison.Core.Models
         public bool SupportsMcpTests { get; set; } = false;
 
         /// <summary>
+        /// Whether the worker runs inside a container or pod (G-29), reported at registration from the worker setting
+        /// Containerized (GARRISON_WORKER_CONTAINERIZED). The compiler exposes it to harness profiles as
+        /// executor.containerized; the built-in Codex profiles then default their sandbox to danger-full-access because
+        /// the container is the isolation boundary. Default false (a worker run directly on a host, or one that predates
+        /// the field).
+        /// </summary>
+        public bool Containerized { get; set; } = false;
+
+        /// <summary>
         /// Identifier.
         /// </summary>
         public string Id

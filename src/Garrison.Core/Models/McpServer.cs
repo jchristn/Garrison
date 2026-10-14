@@ -14,6 +14,20 @@ namespace Garrison.Core.Models
         #region Public-Members
 
         /// <summary>
+        /// Warnings about values in the request that created or updated this record and were not stored as given (I-08),
+        /// for example a number outside its range that was clamped (code ValueClamped). Present only on create and
+        /// update responses when there is something to report; null and omitted otherwise, including on reads.
+        /// Read-only: ignored in request bodies, and never stored.
+        /// </summary>
+        public List<FieldWarning>? Warnings
+        {
+            get
+            {
+                return _ClampWarnings.Count > 0 ? _ClampWarnings : null;
+            }
+        }
+
+        /// <summary>
         /// Identifier.
         /// </summary>
         public string Id
@@ -94,7 +108,7 @@ namespace Garrison.Core.Models
             }
             set
             {
-                _ToolTimeoutSeconds = Math.Clamp(value, 1, 3600);
+                _ToolTimeoutSeconds = ValueClamp.Int(value, 1, 3600, "toolTimeoutSeconds", _ClampWarnings);
             }
         }
 
@@ -206,6 +220,8 @@ namespace Garrison.Core.Models
         #endregion
 
         #region Private-Members
+
+        private readonly List<FieldWarning> _ClampWarnings = new List<FieldWarning>();
 
         private string _Id = IdGenerator.NewMcpServerId();
         private string _TenantId = String.Empty;

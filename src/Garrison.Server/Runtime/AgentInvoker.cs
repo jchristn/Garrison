@@ -78,12 +78,14 @@ namespace Garrison.Server.Runtime
         /// <param name="token">Cancellation token.</param>
         /// <returns>Run (finished when waiting succeeded within the timeout).</returns>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        /// <exception cref="ValidationException">Thrown with the field code InputRequired when the input is missing, empty, or whitespace.</exception>
         /// <exception cref="DelegationCapacityExhaustedException">Thrown when a calling run would wait on its child but the delegation capacity limits refuse the wait.</exception>
         public async Task<Run> InvokeAsync(RequestContext ctx, string tenantId, Agent agent, InvocationOptions options, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (agent == null) throw new ArgumentNullException(nameof(agent));
             if (options == null) throw new ArgumentNullException(nameof(options));
+            InvocationInputRules.Require(options.Input);
 
             RunCreateContext create = new RunCreateContext();
             create.TenantId = tenantId;

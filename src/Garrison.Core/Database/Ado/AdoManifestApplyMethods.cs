@@ -23,6 +23,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _Table;
         private readonly string _ItemsTable;
         private readonly string _ChangesTable;
+        private readonly string _WarningsTable;
 
         #endregion
 
@@ -39,6 +40,7 @@ namespace Garrison.Core.Database.Ado
             _Table = driver.Table("manifest_applies");
             _ItemsTable = driver.Table("manifest_apply_items");
             _ChangesTable = driver.Table("manifest_apply_changes");
+            _WarningsTable = driver.Table("manifest_apply_warnings");
         }
 
         #endregion
@@ -230,9 +232,15 @@ namespace Garrison.Core.Database.Ado
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
                 MapChanges,
                 token).ConfigureAwait(false);
+            List<FieldWarningRow> warnings = await _Driver.QueryAsync(
+                "SELECT * FROM " + _WarningsTable + " WHERE manifestapplyid = @parentid ORDER BY position ASC;",
+                command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
+                MapWarnings,
+                token).ConfigureAwait(false);
             foreach (ManifestApplyItem item in obj.Items)
             {
                 item.Changes = changes.Where(c => c.ItemId == item.Id).Select(c => c.Change).ToList();
+                item.Warnings = warnings.Where(w => w.ItemId == item.Id).Select(w => w.Warning).ToList();
             }
         }
 
@@ -307,11 +315,34 @@ namespace Garrison.Core.Database.Ado
                             AdoDatabaseDriver.Add(command, "aftervalue", change.After);
                         }, token).ConfigureAwait(false);
                 }
+
+                for (int j = 0; j < child.Warnings.Count; j++)
+                {
+                    FieldWarning warning = child.Warnings[j];
+                    string warningId = batch + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + j.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + "wrn";
+                    int position = j;
+                    await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
+                        "INSERT INTO " + _WarningsTable + " (id, manifestapplyid, manifestapplyitemid, tenantid, position, field, code, givenvalue, storedvalue, message) VALUES (@id, @manifestapplyid, @itemid, @tenantid, @position, @field, @code, @givenvalue, @storedvalue, @message);",
+                        command =>
+                        {
+                            AdoDatabaseDriver.Add(command, "id", warningId);
+                            AdoDatabaseDriver.Add(command, "manifestapplyid", obj.Id);
+                            AdoDatabaseDriver.Add(command, "itemid", child.Id);
+                            AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
+                            AdoDatabaseDriver.Add(command, "position", position);
+                            AdoDatabaseDriver.Add(command, "field", warning.Field);
+                            AdoDatabaseDriver.Add(command, "code", warning.Code);
+                            AdoDatabaseDriver.Add(command, "givenvalue", warning.Given);
+                            AdoDatabaseDriver.Add(command, "storedvalue", warning.Stored);
+                            AdoDatabaseDriver.Add(command, "message", warning.Message);
+                        }, token).ConfigureAwait(false);
+                }
             }
         }
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
         {
+            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _WarningsTable + " WHERE manifestapplyid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ChangesTable + " WHERE manifestapplyid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ItemsTable + " WHERE manifestapplyid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
         }
@@ -332,6 +363,14 @@ namespace Garrison.Core.Database.Ado
             string? planned = AdoConverters.NullableStr(reader, "plannedresult");
             if (!String.IsNullOrEmpty(planned) && Enum.TryParse<ManifestApplyResultEnum>(planned, true, out ManifestApplyResultEnum parsed)) child.PlannedResult = parsed;
             return child;
+        }
+
+        private static FieldWarningRow MapWarnings(DbDataReader reader)
+        {
+            FieldWarningRow row = new FieldWarningRow();
+            row.ItemId = AdoConverters.Str(reader, "manifestapplyitemid");
+            row.Warning = new FieldWarning(AdoConverters.Str(reader, "field"), AdoConverters.Str(reader, "code"), AdoConverters.NullableStr(reader, "givenvalue"), AdoConverters.NullableStr(reader, "storedvalue"), AdoConverters.NullableStr(reader, "message") ?? String.Empty);
+            return row;
         }
 
         private static ManifestFieldChangeRow MapChanges(DbDataReader reader)

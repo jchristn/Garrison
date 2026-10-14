@@ -96,6 +96,8 @@ spec:
               value: /etc/garrison/garrison-worker.json
             - name: GARRISON_WORKER_SERVER_URL
               value: http://garrison-server:8700
+            - name: GARRISON_WORKER_CONTAINERIZED
+              value: "true"
             - name: GARRISON_WORKER_NODE_NAME
               valueFrom:
                 fieldRef:

@@ -87,7 +87,7 @@ Each tool checks the same permission its REST equivalent does. Every tool also a
 
 Run summaries (`garrison_get_run`, `garrison_list_runs`, and the invoke tools) include `awaitingApproval`, true while the run's harness waits for a person to decide a permission approval. `garrison_list_approvals` returns the same page as `GET .../approvals` and `garrison_get_approval` and `garrison_decide_approval` return an `Approval` (see REST_API.md). A run token can neither list nor decide approvals, so an agent cannot approve its own requests.
 
-`garrison_list_agents` returns only active agents. `parameters` must be values the chosen deployment lets callers override, exactly as with `POST .../invoke`.
+`garrison_list_agents` returns only active agents. `parameters` must be values the chosen deployment lets callers override, exactly as with `POST .../invoke`. `input` is required by `garrison_invoke_agent`, `garrison_start_run`, `garrison_start_pipeline`, and agent tools: a missing argument fails the tool's schema check, and an empty or whitespace input fails with `ValidationFailed`. No run is started either way.
 
 ### Agents as their own tools
 

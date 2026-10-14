@@ -58,7 +58,7 @@ namespace Garrison.Core.Manifests
 
         private static readonly HashSet<string> _StripKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "id", "tenantId", "createdUtc", "lastUpdateUtc", "isProtected", "isBuiltIn", "builtInKey", "position", "harnessProfileId", "mcpServerId", "agentId", "deploymentId", "workspaceTemplateId", "lastRegisteredUtc", "configVersion"
+            "id", "tenantId", "createdUtc", "lastUpdateUtc", "warnings", "isProtected", "isBuiltIn", "builtInKey", "position", "harnessProfileId", "mcpServerId", "agentId", "deploymentId", "workspaceTemplateId", "lastRegisteredUtc", "configVersion"
         };
 
         private readonly DatabaseDriverBase _Database;
@@ -106,7 +106,10 @@ namespace Garrison.Core.Manifests
             apply.PrincipalName = options.PrincipalName;
             apply.DocumentCount = documents.Count;
 
-            Resolver resolver = new Resolver(_Database, tenantId);
+            // One reference cache for the whole apply (I-06): each referenced record is read once for planning, diffing,
+            // and the deployment validation at write time, instead of once per document that names it.
+            ConfigurationReferenceCache cache = new ConfigurationReferenceCache(_Database, tenantId);
+            Resolver resolver = new Resolver(_Database, tenantId, cache);
             List<Planned> plan = new List<Planned>();
             foreach (ManifestDocument document in documents.OrderBy(d => KindOrder(d.Kind)).ThenBy(d => d.Index))
             {
@@ -140,7 +143,7 @@ namespace Garrison.Core.Manifests
                     if (planned.Result == ManifestApplyResultEnum.Unchanged) continue;
                     try
                     {
-                        await WriteAsync(tenantId, planned, token).ConfigureAwait(false);
+                        await WriteAsync(tenantId, planned, cache, token).ConfigureAwait(false);
                     }
                     catch (ValidationException e)
                     {
@@ -161,6 +164,7 @@ namespace Garrison.Core.Manifests
                 item.ResourceId = planned.ResourceId;
                 item.PlannedResult = planned.Result;
                 if (planned.Result == ManifestApplyResultEnum.Updated) item.Changes = planned.Changes;
+                item.Warnings = Warnings(planned.Model);
                 if (planned.Result == ManifestApplyResultEnum.Failed)
                 {
                     item.Result = ManifestApplyResultEnum.Failed;
@@ -721,9 +725,13 @@ namespace Garrison.Core.Manifests
             return tree;
         }
 
-        private async Task WriteAsync(string tenantId, Planned planned, CancellationToken token)
+        private async Task WriteAsync(string tenantId, Planned planned, ConfigurationReferenceCache cache, CancellationToken token)
         {
             bool create = planned.Result == ManifestApplyResultEnum.Created;
+
+            // A written record must be read fresh by later documents in the same apply.
+            string? kind = Kinds.FirstOrDefault(k => k.Equals(planned.Document.Kind, StringComparison.OrdinalIgnoreCase));
+            if (kind != null && kind != "Pipeline") cache.Forget(kind);
             switch (planned.Model)
             {
                 case Secret secret:
@@ -761,7 +769,7 @@ namespace Garrison.Core.Manifests
                     else await _Database.Agents.UpdateAsync(agent, token).ConfigureAwait(false);
                     break;
                 case Deployment deployment:
-                    await ConfigurationValidator.DeploymentAsync(_Database, tenantId, deployment, token).ConfigureAwait(false);
+                    await ConfigurationValidator.DeploymentAsync(_Database, tenantId, deployment, cache, token).ConfigureAwait(false);
                     if (create) await _Database.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
                     else await _Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
                     break;
@@ -771,6 +779,21 @@ namespace Garrison.Core.Manifests
                     else await _Database.Pipelines.UpdateAsync(pipeline, token).ConfigureAwait(false);
                     break;
             }
+        }
+
+        private static List<FieldWarning> Warnings(object? model)
+        {
+            // I-08: values the model clamped while the document was read (for example maxAttempts 99 stored as 10).
+            List<FieldWarning>? warnings = model switch
+            {
+                Deployment deployment => deployment.Warnings,
+                Agent agent => agent.Warnings,
+                HarnessProfile profile => profile.Warnings,
+                McpServer server => server.Warnings,
+                WorkspaceTemplate workspace => workspace.Warnings,
+                _ => null
+            };
+            return warnings == null ? new List<FieldWarning>() : new List<FieldWarning>(warnings);
         }
 
         private static T Deserialize<T>(ManifestDocument document) where T : class

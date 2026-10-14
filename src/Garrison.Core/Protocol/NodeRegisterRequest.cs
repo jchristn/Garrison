@@ -14,6 +14,12 @@ namespace Garrison.Core.Protocol
         public bool SupportsMcpTests { get; set; } = false;
 
         /// <summary>
+        /// Whether the worker runs inside a container or pod (G-29). Default false, which older workers and workers run
+        /// directly on a host report.
+        /// </summary>
+        public bool Containerized { get; set; } = false;
+
+        /// <summary>
         /// Node name, unique (Kubernetes pod name).
         /// </summary>
         public string Name { get; set; } = String.Empty;

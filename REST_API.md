@@ -40,6 +40,23 @@ List endpoints accept the same query parameters and return the same envelope.
 
 Request history and audit use `pageNumber` and `pageSize` instead, because their pages also carry summary counts. Runs accept extra filters, listed with the run endpoints.
 
+### Warnings
+
+Some numeric fields have a documented range and are clamped into it rather than rejected, which keeps older clients working: `maxAttempts: 99` on a deployment is stored as 10. Create and update responses then say so in a `warnings` array (I-08). Each entry has `field` (the field name as this API spells it), `code` (`ValueClamped`), `given` and `stored` (the values as text), and a `message`:
+
+```json
+{
+  "id": "dep_mv4m...",
+  "name": "helper-default",
+  "maxAttempts": 10,
+  "warnings": [
+    { "field": "maxAttempts", "code": "ValueClamped", "given": "99", "stored": "10", "message": "maxAttempts 99 is outside the allowed range 1 to 10; 10 was stored." }
+  ]
+}
+```
+
+The array is omitted when nothing was clamped and is never stored, so reads do not carry it, and it is ignored if a client sends it back. Clamped fields: deployments `maxConcurrentRuns` (0 to 100000), `maxAssistantChars` (0 to 100000000), `noProgressSeconds` (0 to 86400), `maxAttempts` (1 to 10), `weight` (0 to 1000), `approvalTimeoutSeconds` (10 to 3600); agents `delegationMaxDepth` (0 to 10), `registrationTtlSeconds` (0 to 31536000); harness profiles `defaultTimeoutSeconds` (5 to 86400), `killGraceSeconds` (0 to 60), `maxOutputBytes` (1024 to 1073741824), `stderrTailBytes` (0 to 1048576); MCP servers `toolTimeoutSeconds` (1 to 3600); workspace templates `gitDepth` (0 to 10000). The MCP management tools that create or update agents and deployments return the same `warnings` in their results, and manifest apply items report them too (`ManifestApplyItem.warnings`).
+
 ### Errors
 
 Every error has the same shape. `error` names the broad category (`NotFound`, `Unauthorized`, `Conflict`, and so on), `code` is a stable identifier that clients and the dashboard switch on, and `message` is for people.
@@ -76,6 +93,7 @@ Authorization failures add `requiredPermission`, `resourceType`, and `tenantId`.
 | `OverriddenByEnvironment`, `SettingsFileReadOnly` | The setting cannot be changed through the API on this deployment |
 | `ParameterNotAllowed`, `ParameterInvalid` | A run parameter the deployment does not allow, or a value its rule rejects |
 | `ExpiryInPast` | A secret `expiresUtc` that has already passed |
+| `InputRequired` | A run or pipeline start without input, or with an input that is empty or only whitespace |
 | `Invalid` | Any other field problem; read the message |
 
 Query string values are decoded the way browsers and HTTP clients encode them: percent escapes are decoded and a `+` is a space, so send a literal plus sign as `%2B`. A model name such as `gpt-oss:20b` works raw or encoded (`gpt-oss%3A20b`). Timestamps keep a raw `+` as a time zone offset sign.
@@ -4055,7 +4073,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Addressing agents.** Every route under `.../agents/{idOrName}` (read, update, delete, card, and invoke) accepts the agent's identifier or its name, resolved within the tenant. An identifier match takes precedence over an agent whose name happens to equal it. When a name is used, resource-scoped permissions are checked against the resolved agent's identifier.
 
-**Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors. Besides deployment parameters, a deployment can allow the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds` (validate it with an `IntegerRange` rule, for example `"pattern": "30,1800"`); a per-run `timeoutSeconds` is still capped by `Runtime.MaxRunSeconds`. A waiting call cancels its run when the client disconnects unless `cancelOnDisconnect` is false.
+**Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors. Besides deployment parameters, a deployment can allow the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds` (validate it with an `IntegerRange` rule, for example `"pattern": "30,1800"`); a per-run `timeoutSeconds` is still capped by `Runtime.MaxRunSeconds`. A waiting call cancels its run when the client disconnects unless `cancelOnDisconnect` is false. Every call that starts a run from caller input (invoke, conversation turns, `POST .../runs`, `POST .../deployments/{deploymentId}/test`, and pipeline start) needs a non-empty `input`: a missing body or an empty or whitespace input returns 400 `ValidationFailed` with field code `InputRequired` on `input` instead of starting a run that spends harness quota on nothing. Retrying a run (`POST .../runs/{id}/retry`) reuses the stored input and is not checked.
 
 **Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
@@ -4994,7 +5012,7 @@ Request to invoke an agent.
 
 | Field | Type | Description |
 |---|---|---|
-| `input` | `string` | Input message. |
+| `input` | `string` | Input message. Required: a missing body or an input that is empty or only whitespace is a 400 `ValidationFailed` with field code `InputRequired` on `input`, and no run is created. An agent with structured input takes its JSON document here. |
 | `inputContentType` | `string?` | Input content type, default text/plain. |
 | `deploymentId` | `string?` | Specific deployment; null picks a weighted active deployment. |
 | `parameters` | `Dictionary<string, string>` | Per-run parameter overrides allowed by the deployment. |
@@ -5044,6 +5062,19 @@ Child record of ManifestApply: per-document results.
 | `errorField` | `string?` | Path of the field that failed, for example `documents[1].spec.kind`. Null when the failure is not about one field. |
 | `plannedResult` | `ManifestApplyResultEnum?` | What the apply does or, in a dry run, would do: Created, Updated, Unchanged, or Failed. |
 | `changes` | `List<ManifestFieldChange>` | Changed fields of an Updated document; empty otherwise. |
+| `warnings` | `List<FieldWarning>` | Values in the document that were accepted but not stored as written, such as a number clamped into its range (`ValueClamped`), with the given and stored values. Reported for dry runs and applies, whatever the result; empty when there is nothing to report. |
+
+#### `FieldWarning`
+
+A value in a request that was accepted but not stored as given (see "Warnings" under Conventions).
+
+| Field | Type | Description |
+|---|---|---|
+| `field` | `string` | Field name as the REST API spells it, for example `maxAttempts`. |
+| `code` | `string` | `ValueClamped`: the value was outside its range and the nearest allowed value was stored. |
+| `given` | `string?` | The value sent, as text. |
+| `stored` | `string?` | The value stored, as text. |
+| `message` | `string` | Names the field, the given value, the allowed range, and the stored value. |
 
 #### `ManifestFieldChange`
 
@@ -5153,6 +5184,7 @@ Worker node (Post).
 | `maxConcurrentRuns` | `int` | Run capacity. Minimum 1, maximum 1000, default 4. |
 | `childReserveSlots` | `int` | Child reserve the worker reported: extra slots only a delegated run whose parent waits on it may use, one per run on the node waiting on a child. Minimum 0 (none), maximum 64. 0 for a node registered before the reserve existed. |
 | `maxResidentWaiters` | `int` | Most runs on the node that may wait on a delegated run at once, as reported; 0 means `maxConcurrentRuns`. The control plane never lets more than `maxConcurrentRuns + childReserveSlots - 1` wait. Minimum 0, maximum 1024. |
+| `containerized` | `bool` | Whether the worker reported that it runs in a container or pod (G-29). Harness profiles see it as `executor.containerized`; the built-in Codex profiles then default their sandbox to `danger-full-access`. False for a worker run on a host and for a node registered before the field existed. |
 | `activeRuns` | `int` | Runs currently held. |
 | `credentialId` | `string?` | Credential the node authenticates with. |
 | `lastHeartbeatUtc` | `DateTime?` | Last heartbeat (UTC). |
@@ -5312,6 +5344,7 @@ Worker registration. Idempotent by node name.
 | `maxConcurrentRuns` | `int` | Maximum concurrent runs. |
 | `childReserveSlots` | `int` | Child reserve slots (0 to 64; 0 means none). Default 0. |
 | `maxResidentWaiters` | `int` | Most runs that may wait on a delegated run at once (0 to 1024; 0 means `maxConcurrentRuns`). Default 0. |
+| `containerized` | `bool` | Whether the worker runs in a container or pod (worker setting `Containerized`). Default false. |
 | `nodePool` | `string?` | Node pool name, or null for the default pool. |
 | `labels` | `Dictionary<string, string>` | Labels. |
 | `capabilities` | `List<NodeCapabilityReport>` | Harness capabilities. |
@@ -5738,7 +5771,7 @@ A stage review (`prv_`). Authorized as `Approval`.
 
 | Field | Type | Description |
 |---|---|---|
-| `input` | `string` | Caller input given to every stage run. |
+| `input` | `string` | Caller input given to every stage run. Required: a missing body or an input that is empty or only whitespace is a 400 `ValidationFailed` with field code `InputRequired` on `input`, and no pipeline run is started. |
 | `inputContentType` | `string?` | Media type of the input, or `null` for `text/plain`. |
 | `priority` | `int` | Priority of every stage run. Default 0. |
 | `wait` | `bool` | Wait until the pipeline run ends or stops for a review. Default false. |
@@ -6067,7 +6100,7 @@ Request to create a run.
 | `agentId` | `string?` | Agent identifier (or supply AgentName). |
 | `agentName` | `string?` | Agent name (or supply AgentId). |
 | `deploymentId` | `string?` | Specific deployment; null picks a weighted active deployment. |
-| `input` | `string` | Input message. |
+| `input` | `string` | Input message. Required: a missing body or an input that is empty or only whitespace is a 400 `ValidationFailed` with field code `InputRequired` on `input`, and no run is created. An agent with structured input takes its JSON document here. |
 | `inputContentType` | `string?` | Input content type, default text/plain. |
 | `parameters` | `Dictionary<string, string>` | Per-run parameter overrides allowed by the deployment. |
 | `priority` | `int` | Priority from -100 to 100; higher runs first. |

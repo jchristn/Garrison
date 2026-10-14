@@ -141,6 +141,15 @@ namespace Garrison.Worker.Settings
         }
 
         /// <summary>
+        /// Whether this worker runs inside a container or pod (G-29). Reported at registration; the control plane exposes it
+        /// to harness profiles as executor.containerized, and the built-in Codex profiles then default their sandbox to
+        /// danger-full-access because Codex's bubblewrap sandbox cannot create user namespaces in a container, and the
+        /// container is the isolation boundary. The worker image sets it to true (GARRISON_WORKER_CONTAINERIZED). Default
+        /// false: a worker run directly on a host keeps the harness's own sandbox.
+        /// </summary>
+        public bool Containerized { get; set; } = false;
+
+        /// <summary>
         /// Root directory for per-run work, home, and config directories. Default workspaces (Kubernetes: /workspaces).
         /// </summary>
         public string WorkRoot
@@ -574,6 +583,8 @@ namespace Garrison.Worker.Settings
             if (value != null && Int32.TryParse(value, out int reserve)) ChildReserveSlots = reserve;
             value = Env("GARRISON_WORKER_MAX_RESIDENT_WAITERS");
             if (value != null && Int32.TryParse(value, out int waiters)) MaxResidentWaiters = waiters;
+            value = Env("GARRISON_WORKER_CONTAINERIZED");
+            if (value != null && Boolean.TryParse(value, out bool containerized)) Containerized = containerized;
             value = Env("GARRISON_WORKER_WORK_ROOT");
             if (value != null) WorkRoot = value;
             value = Env("GARRISON_WORKER_CONVERSATION_RETENTION_HOURS");

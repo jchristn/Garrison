@@ -10,6 +10,7 @@ namespace Test.Shared.Suites
     using System.Threading.Tasks;
     using Garrison.Core.Database;
     using Garrison.Core.Database.Ado;
+    using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
     using Garrison.Core.Models;
@@ -53,6 +54,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "manifest-changes", "Dry runs and applies report planned results and per-field changes (M1-14, " + provider + ")", ct => ManifestChangesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "delegation-wait", "A finishing run records the time spent waiting on its child runs, and analytics average it (M1-08, " + provider + ")", ct => DelegationWaitAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "runs-and-protocols", "messageId reuse, parameter errors, MCP error text, servedModel, missing deployments, retry of deleted agents, and event codes (M1-10, 12, 16, 22, 24, 26, 30, " + provider + ")", ct => RunsAndProtocolsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "empty-input", "A missing body or empty input is a 400 InputRequired on input over REST invoke, conversation turns, run create, deployment test, MCP, A2A, and pipeline start, and creates no run; structured input is not empty (D-050, " + provider + ")", ct => EmptyInputAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "M1 findings (" + provider + ")", cases));
             }
             return suites;
@@ -392,6 +394,77 @@ namespace Test.Shared.Suites
                 Assert.Equal("AgentDeleted", retryError.Code, "Retry code");
                 Assert.True(retryError.Message.Contains("was deleted", StringComparison.Ordinal), "Retry message: " + retryError.Message);
             }
+        }
+
+        private static async Task EmptyInputAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                string tenant = cluster.Server.TenantId;
+                string t = "/v1.0/api/tenants/" + tenant;
+                HttpClient admin = cluster.Server.AdminClient;
+                Agent echo = await cluster.CreateAgentAsync("empty-echo", "builtin/fake", null, token).ConfigureAwait(false);
+                EnumerationResult<Run> before = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(admin, HttpMethod.Get, t + "/runs", null, 200, token).ConfigureAwait(false);
+
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/agents/" + echo.Name + "/invoke", null, token).ConfigureAwait(false), "Invoke without a body");
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/agents/" + echo.Name + "/invoke", "{}", token).ConfigureAwait(false), "Invoke with input missing");
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/agents/" + echo.Name + "/invoke", new InvokeRequest { Input = "" }, token).ConfigureAwait(false), "Invoke with empty input");
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/agents/" + echo.Name + "/invoke", new InvokeRequest { Input = " \n\t " }, token).ConfigureAwait(false), "Invoke with whitespace input");
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/runs", new RunCreateRequest { AgentName = echo.Name, Input = "" }, token).ConfigureAwait(false), "Run create with empty input");
+                EnumerationResult<Deployment> deployments = await HttpTestHelpers.SendAsync<EnumerationResult<Deployment>>(admin, HttpMethod.Get, t + "/deployments", null, 200, token).ConfigureAwait(false);
+                Deployment deployment = deployments.Objects.FirstOrDefault(d => d.AgentId == echo.Id) ?? throw new TestAssertionException("No deployment for " + echo.Name);
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/deployments/" + deployment.Id + "/test", null, token).ConfigureAwait(false), "Deployment test without a body");
+
+                // Conversation follow-up turns follow the same rule.
+                Run first = await HttpTestHelpers.SendAsync<Run>(admin, HttpMethod.Post, t + "/agents/" + echo.Name + "/invoke", new InvokeRequest { Input = "first turn", StartConversation = true, WaitSeconds = 60 }, 200, token).ConfigureAwait(false);
+                Assert.True(!String.IsNullOrEmpty(first.ConversationId), "The first turn started a conversation");
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/agents/" + echo.Name + "/invoke", new InvokeRequest { Input = "  ", ConversationId = first.ConversationId }, token).ConfigureAwait(false), "Empty follow-up turn");
+
+                // A structured input is a JSON document, which is never empty.
+                Agent structured = await cluster.CreateAgentAsync("empty-structured", "builtin/fake", a => { a.InputMode = AgentInputModeEnum.Structured; a.InputSchemaJson = "{\"type\":\"object\"}"; }, token).ConfigureAwait(false);
+                Run json = await HttpTestHelpers.SendAsync<Run>(admin, HttpMethod.Post, t + "/agents/" + structured.Name + "/invoke", new InvokeRequest { Input = "{\"topic\":\"x\"}", InputContentType = "application/json", WaitSeconds = 60 }, 200, token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.Succeeded, json.Status, "Structured input runs");
+
+                // MCP and A2A.
+                using (McpHttpClient client = new McpHttpClient())
+                {
+                    client.SetRequestHeader("x-api-key", cluster.Server.Settings.Auth.AdminApiKey);
+                    client.SetRequestHeader("x-tenant-id", tenant);
+                    await client.ConnectStreamableAsync(cluster.Server.McpUrl, "/mcp").ConfigureAwait(false);
+                    string missing = await ToolErrorAsync(client, "garrison_invoke_agent", new { tenantId = tenant, agent = echo.Name }).ConfigureAwait(false);
+                    Assert.True(missing.Contains("input", StringComparison.Ordinal), "MCP missing input is rejected by the tool schema: " + missing);
+                    string blank = await ToolErrorAsync(client, "garrison_start_run", new { tenantId = tenant, agent = echo.Name, input = "   " }).ConfigureAwait(false);
+                    Assert.True(blank.Contains("ValidationFailed", StringComparison.Ordinal), "MCP blank input: " + blank);
+                    string empty = await ToolErrorAsync(client, "garrison_invoke_agent", new { tenantId = tenant, agent = echo.Name, input = "" }).ConfigureAwait(false);
+                    Assert.True(empty.Contains("ValidationFailed", StringComparison.Ordinal), "MCP empty input: " + empty);
+                }
+                string url = cluster.Server.BaseUrl + "/v1.0/a2a/" + tenant + "/" + echo.Name;
+                TestResponse a2a = await RpcAsync(cluster, url, SendMessage(Guid.NewGuid().ToString("N"), "  ", null), token).ConfigureAwait(false);
+                using (JsonDocument document = JsonDocument.Parse(a2a.Body))
+                {
+                    Assert.True(document.RootElement.TryGetProperty("error", out JsonElement error), "A2A empty message is an error: " + a2a.Body);
+                }
+
+                // Pipeline start needs input too.
+                Pipeline pipeline = new Pipeline { Name = "empty-input-flow" };
+                pipeline.Stages.Add(new PipelineStage { Name = "only", AgentId = echo.Id });
+                pipeline = await HttpTestHelpers.SendAsync<Pipeline>(admin, HttpMethod.Post, t + "/pipelines", pipeline, 201, token).ConfigureAwait(false);
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/pipelines/" + pipeline.Id + "/start", null, token).ConfigureAwait(false), "Pipeline start without a body");
+                ExpectInputRequired(await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, t + "/pipelines/" + pipeline.Id + "/start", new PipelineStartRequest { Input = " " }, token).ConfigureAwait(false), "Pipeline start with blank input");
+                EnumerationResult<PipelineRun> pipelineRuns = await HttpTestHelpers.SendAsync<EnumerationResult<PipelineRun>>(admin, HttpMethod.Get, t + "/pipeline-runs", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(0, pipelineRuns.Objects.Count, "No pipeline run was started");
+
+                EnumerationResult<Run> after = await HttpTestHelpers.SendAsync<EnumerationResult<Run>>(admin, HttpMethod.Get, t + "/runs", null, 200, token).ConfigureAwait(false);
+                Assert.Equal(before.TotalRecords + 2, after.TotalRecords, "Only the conversation turn and the structured run were created");
+            }
+        }
+
+        private static void ExpectInputRequired(TestResponse response, string what)
+        {
+            Assert.Equal(400, response.StatusCode, what + " (" + response.Body + ")");
+            ErrorResponse error = Serializer.Deserialize<ErrorResponse>(response.Body) ?? throw new TestAssertionException(what + ": empty error.");
+            Assert.Equal("ValidationFailed", error.Code, what + ": code");
+            Assert.True(error.FieldCodes != null && error.FieldCodes.TryGetValue("input", out string? code) && code == "InputRequired", what + ": field code InputRequired on input (" + response.Body + ")");
         }
 
         private static async Task<TestResponse> InvokeWithKeyAsync(HttpClient client, string tenant, string agent, string input, string key, int expected, CancellationToken token)

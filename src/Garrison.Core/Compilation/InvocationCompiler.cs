@@ -181,8 +181,29 @@ namespace Garrison.Core.Compilation
         public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CompilationConversation? conversation, CompilationPipeline? pipeline, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
+            return await CompileAsync(run, runToken, conversation, pipeline, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Compile a run for execution on a known node. The node decides <c>executor.containerized</c> (G-29) for a
+        /// Process run; when it is null, the node holding the run's lease (<see cref="Run.LeaseNodeId"/>) is read, and a
+        /// run with no lease node is treated as not containerized. A KubernetesJob run is always containerized.
+        /// </summary>
+        /// <param name="run">Run (with parameters loaded).</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="conversation">Conversation inputs, or null for runs outside a conversation or turns that resume.</param>
+        /// <param name="pipeline">Pipeline inputs, or null for runs outside a pipeline.</param>
+        /// <param name="node">Node the run is leased to, or null to read it from the lease.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Compilation result.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
+        /// <exception cref="CompilationException">Thrown when the run cannot be compiled.</exception>
+        public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CompilationConversation? conversation, CompilationPipeline? pipeline, Node? node, CancellationToken token = default)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
             bool fallback = run.ConversationFallbackReason.HasValue && conversation != null && conversation.Turns.Count > 0;
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback, pipeline).ConfigureAwait(false);
+            inputs.Containerized = await ContainerizedAsync(run, node, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
         }
@@ -204,6 +225,7 @@ namespace Garrison.Core.Compilation
             if (run == null) throw new ArgumentNullException(nameof(run));
             if (repair == null) throw new ArgumentNullException(nameof(repair));
             CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, true, true, token).ConfigureAwait(false);
+            inputs.Containerized = await ContainerizedAsync(run, null, token).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
             return Compile(inputs, run, runToken, repair);
         }
@@ -252,6 +274,7 @@ namespace Garrison.Core.Compilation
             NodePool? pool = String.IsNullOrEmpty(inputs.Deployment.NodePoolId) ? null : await _Database.NodePools.ReadAsync(inputs.Deployment.NodePoolId, token).ConfigureAwait(false);
             ExecutorCapabilityRules.Admit(run, inputs.Deployment, pool);
             run.EffectPolicy = inputs.Deployment.EffectPolicy;
+            inputs.Containerized = run.Executor == RunExecutorEnum.KubernetesJob;
             if (parameters != null)
             {
                 foreach (KeyValuePair<string, string> entry in parameters)
@@ -301,6 +324,16 @@ namespace Garrison.Core.Compilation
         public Task<CompilationInputs> LoadAsync(string tenantId, string deploymentId, bool includeRepair, CancellationToken token = default)
         {
             return LoadCoreAsync(tenantId, deploymentId, includeRepair, false, token);
+        }
+
+        private async Task<bool> ContainerizedAsync(Run run, Node? node, CancellationToken token)
+        {
+            if (run.Executor == RunExecutorEnum.KubernetesJob) return true;
+            if (node != null) return node.Containerized;
+            if (String.IsNullOrEmpty(run.LeaseNodeId)) return false;
+            token.ThrowIfCancellationRequested();
+            Node? leased = await _Database.Nodes.ReadAsync(run.LeaseNodeId, token).ConfigureAwait(false);
+            return leased?.Containerized == true;
         }
 
         private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token, bool includeConversationFallback = false, CompilationPipeline? pipeline = null)
@@ -1018,6 +1051,11 @@ namespace Garrison.Core.Compilation
             harness["model"] = model;
             harness["nativeSchema"] = inputs.Profile.HarnessType == HarnessTypeEnum.ClaudeCode || inputs.Profile.HarnessType == HarnessTypeEnum.Codex || inputs.Profile.HarnessType == HarnessTypeEnum.Mux;
             context.Set("harness", harness);
+
+            Dictionary<string, object?> executor = TemplateContext.NewMap();
+            executor["type"] = run.Executor.ToString();
+            executor["containerized"] = run.Executor == RunExecutorEnum.KubernetesJob || inputs.Containerized;
+            context.Set("executor", executor);
 
             context.Set("now", DateTime.UtcNow);
             return context;

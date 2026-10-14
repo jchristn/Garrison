@@ -642,8 +642,10 @@ namespace Test.Shared.Suites
             Environment.SetEnvironmentVariable("GARRISON_WORKER_MAX_CONCURRENT_RUNS", "9999");
             Environment.SetEnvironmentVariable("GARRISON_WORKER_LABELS", "zone=a, gpu = true");
             Environment.SetEnvironmentVariable("GARRISON_WORKER_NODE_NAME", "post-7");
+            Environment.SetEnvironmentVariable("GARRISON_WORKER_CONTAINERIZED", "true");
             try
             {
+                Assert.True(!new WorkerSettings().Containerized, "A worker is not containerized unless it says so (G-29)");
                 WorkerSettings settings = new WorkerSettings();
             settings.Telemetry.Enabled = false;
                 settings.Telemetry.Enabled = false;
@@ -653,6 +655,7 @@ namespace Test.Shared.Suites
                 Assert.Equal("true", settings.Labels["gpu"], "Label gpu");
                 Assert.Equal("default", settings.Labels["garrison.io/pool"], "Default label kept");
                 Assert.Equal("post-7", settings.EffectiveNodeName, "Node name");
+                Assert.True(settings.Containerized, "GARRISON_WORKER_CONTAINERIZED sets Containerized");
                 Assert.Equal("http://127.0.0.1:8700", settings.ServerUrl, "Default server URL uses 127.0.0.1");
             }
             finally
@@ -660,6 +663,7 @@ namespace Test.Shared.Suites
                 Environment.SetEnvironmentVariable("GARRISON_WORKER_MAX_CONCURRENT_RUNS", null);
                 Environment.SetEnvironmentVariable("GARRISON_WORKER_LABELS", null);
                 Environment.SetEnvironmentVariable("GARRISON_WORKER_NODE_NAME", null);
+                Environment.SetEnvironmentVariable("GARRISON_WORKER_CONTAINERIZED", null);
             }
             return Task.CompletedTask;
         }

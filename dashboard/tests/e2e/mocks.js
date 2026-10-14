@@ -424,6 +424,8 @@ const FACTORIES = {
       ],
       // P12.12: whether this worker can run stdio MCP server tests.
       supportsMcpTests: true,
+      // G-29: whether the worker runs in a container (the worker image reports true).
+      containerized: true,
       capabilities: [{ id: `chr_${id}_0000cap`, nodeId: id, harnessType: 'ClaudeCode', executable: 'claude', detectedVersion: '2.1.0', available: true, detail: '2.1.0 (Claude Code)' }]
     });
   },
@@ -473,7 +475,9 @@ const FACTORIES = {
           changes: [
             { field: 'weight', before: '100', after: '300' },
             { field: 'model', before: null, after: 'sonnet' }
-          ]
+          ],
+          // I-08: values accepted but not stored as written.
+          warnings: [{ field: 'maxAttempts', code: 'ValueClamped', given: '99', stored: '10', message: 'maxAttempts 99 is outside the allowed range 1 to 10; 10 was stored.' }]
         }
       ]
     }),

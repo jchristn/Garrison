@@ -77,6 +77,7 @@ USER 10001
 WORKDIR /opt/garrison/worker
 ENV HOME=/home/garrison \
     GARRISON_WORKER_WORK_ROOT=/workspaces \
+    GARRISON_WORKER_CONTAINERIZED=true \
     GARRISON_WORKER_SETTINGS_FILE=/opt/garrison/worker/garrison-worker.json \
     DISABLE_AUTOUPDATER=1 \
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \

@@ -102,6 +102,8 @@ namespace Garrison.Core.Templates
             context.Set("garrison.delegationEnabled", false);
             context.Set("harness.type", "ClaudeCode");
             context.Set("harness.nativeSchema", true);
+            context.Set("executor.type", "Process");
+            context.Set("executor.containerized", false);
             context.Set("prompts.system", "Sample system prompt.");
             context.Set("prompts.task", "Sample task prompt.");
             context.Set("repair.error", "(root): Required properties [\"answer\"] are not present (required)");

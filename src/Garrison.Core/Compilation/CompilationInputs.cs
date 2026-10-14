@@ -61,5 +61,11 @@ namespace Garrison.Core.Compilation
         /// Templates available to includes, by name, with their current version.
         /// </summary>
         public Dictionary<string, BoundPrompt> Includes { get; set; } = new Dictionary<string, BoundPrompt>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Whether the run executes inside a container or pod (G-29): a KubernetesJob run, or a Process run on a worker
+        /// that reported Containerized. Exposed to templates as executor.containerized. Default false.
+        /// </summary>
+        public bool Containerized { get; set; } = false;
     }
 }

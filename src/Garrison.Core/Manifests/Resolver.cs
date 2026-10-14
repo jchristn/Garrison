@@ -9,15 +9,33 @@ namespace Garrison.Core.Manifests
 
     /// <summary>
     /// Resolves manifest name references to identifiers (documents in the same apply first, then the database, tenant
-    /// records before built-ins) and identifiers back to names for export. Not thread-safe; one per apply.
+    /// records before built-ins) and identifiers back to names for export. Lookups are memoized for the life of the
+    /// resolver through a <see cref="ConfigurationReferenceCache"/> (I-06). Not thread-safe; one per apply.
     /// </summary>
     public class Resolver
     {
+        #region Public-Members
+
+        /// <summary>
+        /// Reference cache used for name and identifier lookups.
+        /// </summary>
+        public ConfigurationReferenceCache Cache
+        {
+            get
+            {
+                return _Cache;
+            }
+        }
+
+        #endregion
+
         #region Private-Members
 
         private readonly DatabaseDriverBase _Database;
         private readonly string _TenantId;
         private readonly Dictionary<string, string> _Pending = new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string?> _Names = new Dictionary<string, string?>(StringComparer.Ordinal);
+        private readonly ConfigurationReferenceCache _Cache;
 
         #endregion
 
@@ -29,10 +47,25 @@ namespace Garrison.Core.Manifests
         /// <param name="database">Database.</param>
         /// <param name="tenantId">Tenant identifier.</param>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        public Resolver(DatabaseDriverBase database, string tenantId)
+        public Resolver(DatabaseDriverBase database, string tenantId) : this(database, tenantId, null)
+        {
+        }
+
+        /// <summary>
+        /// Instantiate with a reference cache shared with the rest of the apply (I-06), so a record is read once per
+        /// apply no matter how many documents reference it.
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="cache">Reference cache for the same tenant, or null to create one for this resolver.</param>
+        /// <exception cref="ArgumentNullException">Thrown when database or tenantId is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when the cache belongs to another tenant.</exception>
+        public Resolver(DatabaseDriverBase database, string tenantId, ConfigurationReferenceCache? cache)
         {
             _Database = database ?? throw new ArgumentNullException(nameof(database));
             _TenantId = tenantId ?? throw new ArgumentNullException(nameof(tenantId));
+            if (cache != null && !String.Equals(cache.TenantId, tenantId, StringComparison.Ordinal)) throw new ArgumentException("The reference cache belongs to another tenant.", nameof(cache));
+            _Cache = cache ?? new ConfigurationReferenceCache(database, tenantId);
         }
 
         #endregion
@@ -64,31 +97,7 @@ namespace Garrison.Core.Manifests
         {
             if (String.IsNullOrWhiteSpace(name)) throw new ValidationException("Reference '" + field + "' to a " + kind + " is empty.");
             if (_Pending.TryGetValue(kind + "/" + name, out string? pending)) return pending;
-            string? id = null;
-            switch (kind)
-            {
-                case "Secret":
-                    id = (await _Database.Secrets.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
-                    break;
-                case "PromptTemplate":
-                    id = (await _Database.PromptTemplates.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
-                    break;
-                case "HarnessProfile":
-                    id = (await _Database.HarnessProfiles.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
-                    break;
-                case "McpServer":
-                    id = (await _Database.McpServers.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
-                    break;
-                case "WorkspaceTemplate":
-                    id = (await _Database.WorkspaceTemplates.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
-                    break;
-                case "Agent":
-                    id = (await _Database.Agents.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
-                    break;
-                case "Deployment":
-                    id = (await _Database.Deployments.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
-                    break;
-            }
+            string? id = await _Cache.IdByNameAsync(kind, name, token).ConfigureAwait(false);
             if (id == null) throw new ValidationException("Reference '" + field + "' points to " + kind + " '" + name + "', which does not exist and is not defined earlier in this manifest.");
             return id;
         }
@@ -104,6 +113,22 @@ namespace Garrison.Core.Manifests
         {
             if (String.IsNullOrEmpty(id)) return null;
             if (_Pending.TryGetValue("#" + kind + "/" + id, out string? pending)) return pending;
+            string? cached = _Cache.CachedName(kind, id);
+            if (cached != null) return cached;
+            string key = kind + "/" + id;
+            if (_Names.TryGetValue(key, out string? known)) return known;
+            string? name = await ReadNameAsync(kind, id, token).ConfigureAwait(false);
+            _Names[key] = name;
+            return name;
+        }
+
+        #endregion
+
+        #region Private-Methods
+
+        private async Task<string?> ReadNameAsync(string kind, string id, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
             switch (kind)
             {
                 case "Secret":

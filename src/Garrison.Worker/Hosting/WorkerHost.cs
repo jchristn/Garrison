@@ -460,6 +460,7 @@ namespace Garrison.Worker.Hosting
             NodeRegisterRequest request = new NodeRegisterRequest();
             request.Name = _Settings.EffectiveNodeName;
             request.SupportsMcpTests = true;
+            request.Containerized = _Settings.Containerized;
             request.Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
             request.Address = Environment.MachineName;
             request.MaxConcurrentRuns = _Settings.MaxConcurrentRuns;

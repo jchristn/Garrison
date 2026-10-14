@@ -28,7 +28,7 @@
       "template": "-c"
     },
     {
-      "template": "sandbox_mode={{deployment.parameters.sandbox | default: \"workspace-write\" | toml}}"
+      "template": "sandbox_mode={{#if deployment.parameters.sandbox}}{{deployment.parameters.sandbox | toml}}{{else}}{{#if executor.containerized}}\"danger-full-access\"{{else}}\"workspace-write\"{{/if}}{{/if}}"
     },
     {
       "template": "-c",

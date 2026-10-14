@@ -94,6 +94,17 @@ A failed item also carries `errorCode` and, when one field is at fault, `errorFi
 
 Other failures use `ValidationFailed` (for example a name that breaks the naming rules) or the code of a reference or template problem, such as `ReferenceNotFound`.
 
+A few numeric fields have a range and are clamped into it rather than rejected (the same rule as the REST API, listed under "Warnings" in `REST_API.md`). The document still applies, and its item carries a `warnings` entry naming the field, the value you wrote, and the value stored, on a dry run as well as on an apply, and again on every re-apply until you fix the value:
+
+```json
+{ "kind": "Deployment", "name": "helper-default", "result": "Created",
+  "warnings": [ { "field": "maxAttempts", "code": "ValueClamped", "given": "99", "stored": "10", "message": "maxAttempts 99 is outside the allowed range 1 to 10; 10 was stored." } ] }
+```
+
+Warnings use the REST field name, so an agent's `delegation.maxDepth` is reported as `delegationMaxDepth`.
+
+Applying a manifest reads each record it references (a built-in harness profile, a prompt template, an agent) once, however many documents name it, and reuses it for planning, the change diff, and validation; records written earlier in the same apply are read again after the write. A large manifest therefore costs about the same per document as a small one.
+
 Every apply, including dry runs, is recorded. `GET .../manifests/applies` lists them and `GET .../manifests/applies/{id}` returns one with its items.
 
 Manifests never delete anything. Removing a document from a manifest leaves the record in place; delete it through the API or dashboard.

@@ -13,6 +13,7 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Database.Interfaces;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
@@ -273,6 +274,7 @@ namespace Garrison.Server.Runtime
         /// <param name="token">Cancellation token.</param>
         /// <returns>The pipeline run with stages, reviews, and stage run summaries.</returns>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        /// <exception cref="ValidationException">Thrown with the field code InputRequired when the input is empty or whitespace.</exception>
         /// <exception cref="ConflictException">Thrown with PipelineInactive when the pipeline is inactive, or PipelineEmpty when it has no stages.</exception>
         /// <exception cref="IdempotencyConflictException">Thrown when the key belongs to a pipeline run with different content.</exception>
         public async Task<PipelineRun> StartAsync(RequestContext ctx, Pipeline pipeline, PipelineStartRequest request, string? idempotencyKey, CancellationToken token = default)
@@ -280,6 +282,7 @@ namespace Garrison.Server.Runtime
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (pipeline == null) throw new ArgumentNullException(nameof(pipeline));
             if (request == null) throw new ArgumentNullException(nameof(request));
+            InvocationInputRules.Require(request.Input);
             if (!pipeline.Active) throw new ConflictException("PipelineInactive", "Pipeline " + pipeline.Name + " is inactive. Activate it before starting it.");
             if (pipeline.Stages.Count == 0) throw new ConflictException("PipelineEmpty", "Pipeline " + pipeline.Name + " has no stages.");
 

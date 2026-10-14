@@ -48,6 +48,7 @@ x-worker: &worker
 x-worker-environment: &worker-environment
   GARRISON_WORKER_SETTINGS_FILE: '/etc/garrison/garrison-worker.json'
   GARRISON_WORKER_SERVER_URL: 'http://garrison-server:8700'
+  GARRISON_WORKER_CONTAINERIZED: 'true'
   GARRISON_WORKER_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:-access_garrison_node}'
   GARRISON_WORKER_SECRET_KEY: '${GARRISON_NODE_SECRET_KEY:-secret_garrison_node_change_me}'
 

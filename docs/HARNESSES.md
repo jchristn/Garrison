@@ -60,7 +60,7 @@ With `approvalsEnabled` on the deployment (see [Permission approvals](#permissio
 
 ```text
 codex exec --json --skip-git-repo-check --ignore-user-config
-      -s <sandbox, default workspace-write> -C $GARRISON_WORKSPACE_DIR [-m <model>]
+      -s <sandbox, default danger-full-access in a container, else workspace-write> -C $GARRISON_WORKSPACE_DIR [-m <model>]
       -c project_doc_max_bytes=0 [-c model_reasoning_effort=<effort>]
       [-c model_instructions_file="$GARRISON_CONFIG_DIR/system-prompt.md"]
       --config=mcp_servers.<name>.url=... (and headers, required, tool_timeout_sec, approval mode, command, args, env)
@@ -68,6 +68,18 @@ codex exec --json --skip-git-repo-check --ignore-user-config
 ```
 
 `--ignore-user-config` and `project_doc_max_bytes=0` stop Codex from reading the worker's own configuration or an `AGENTS.md` in the workspace. MCP bearer tokens are never written into arguments: each header is passed by environment variable name (`env_http_headers`), and the worker sets those variables. Credentials come from a secret of kind `OpenAiApiKey` (as both `CODEX_API_KEY` and `OPENAI_API_KEY`) or `CodexAuthJson`, which is written to `$HOME/.codex/auth.json` with mode 600. Deployment parameters: `sandbox` and `openaiBaseUrl`.
+
+#### Sandbox in containers (G-29)
+
+Codex runs shell commands inside its own sandbox, which on Linux is bubblewrap. Bubblewrap needs to create user namespaces, and a worker container or run pod cannot (`bwrap: No permissions to create a new namespace`), so with `workspace-write` every shell command Codex tries fails. Both built-in Codex profiles therefore pick the sandbox from where the run executes:
+
+| Where the run executes | `sandbox` parameter unset | `sandbox` parameter set |
+|---|---|---|
+| A KubernetesJob run pod | `danger-full-access` | the parameter |
+| A Process run on a worker that reports `Containerized` (the worker image sets `GARRISON_WORKER_CONTAINERIZED=true`, so every Docker Compose, Kustomize, and Helm worker does) | `danger-full-access` | the parameter |
+| A Process run on a worker started directly on a host (`Containerized` false, the default) | `workspace-write` | the parameter |
+
+The container or pod is the isolation boundary in the first two cases; `docs/SECURITY.md` ("Codex sandbox in containers") explains what that does and does not protect. A deployment that sets `sandbox` (for example `read-only`) always gets that value. The profiles do this with `executor.containerized` (see [Template variables](#template-variables)); a cloned profile can use the same variable. A compile preview has no node, so it shows `workspace-write` for a Process deployment and `danger-full-access` for a KubernetesJob one.
 
 #### ChatGPT logins (`CodexAuthJson`)
 
@@ -90,7 +102,7 @@ Do not keep using a login on another machine after you store it in Garrison, and
 #### Streaming with `codex app-server` (`builtin/codex-app-server`)
 
 ```text
-codex app-server -c project_doc_max_bytes=0 -c sandbox_mode=<sandbox, default workspace-write>
+codex app-server -c project_doc_max_bytes=0 -c sandbox_mode=<sandbox, default danger-full-access in a container, else workspace-write>
       [-c model=<model>] [-c model_reasoning_effort=<effort>]
       [-c model_instructions_file="$GARRISON_CONFIG_DIR/system-prompt.md"]
       --config=mcp_servers.<name>.url=... (and the same MCP settings as builtin/codex)
@@ -272,6 +284,7 @@ Every string in a profile is rendered with the Garrison template language (see `
 | `garrison` | `mcpUrl`, `apiUrl`, `version`, `mcpServerName`, `delegationEnabled` |
 | `approval` | `enabled` (the deployment has approvals on and the run has a token), `promptTool` (`mcp__garrison__garrison_permission_prompt` when enabled), `timeoutSeconds`, `mcpToolTimeoutMs` (600000, or the approval timeout plus two minutes when that is longer) |
 | `harness` | `type`, `profile`, `model`, `nativeSchema` (whether the harness enforces output schemas itself) |
+| `executor` | `type` (`Process` or `KubernetesJob`), `containerized` (true for a KubernetesJob run, and for a Process run leased to a worker that reports `Containerized`; false otherwise, including in previews of Process deployments) |
 | `now` | Compile time (UTC) |
 
 The model can be overridden per run when the deployment allows it, which is why profiles use `deployment.model` rather than reading the deployment record.

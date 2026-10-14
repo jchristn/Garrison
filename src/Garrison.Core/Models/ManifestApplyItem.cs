@@ -127,6 +127,23 @@ namespace Garrison.Core.Models
             }
         }
 
+        /// <summary>
+        /// Values in this document that were accepted but not stored as written (I-08), for example a number outside its
+        /// range that was clamped (code ValueClamped), each with the field, the given value, and the stored value.
+        /// Reported for dry runs and applies alike, whatever the result; empty when there is nothing to report.
+        /// </summary>
+        public List<FieldWarning> Warnings
+        {
+            get
+            {
+                return _Warnings;
+            }
+            set
+            {
+                _Warnings = value ?? new List<FieldWarning>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -136,6 +153,7 @@ namespace Garrison.Core.Models
         private string _Kind = String.Empty;
         private string _Name = String.Empty;
         private List<ManifestFieldChange> _Changes = new List<ManifestFieldChange>();
+        private List<FieldWarning> _Warnings = new List<FieldWarning>();
 
         #endregion
     }

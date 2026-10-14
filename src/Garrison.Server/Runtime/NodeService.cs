@@ -137,6 +137,7 @@ namespace Garrison.Server.Runtime
             node.MaxResidentWaiters = request.MaxResidentWaiters;
             node.CredentialId = ctx.CredentialId;
             node.SupportsMcpTests = request.SupportsMcpTests;
+            node.Containerized = request.Containerized;
             node.LastHeartbeatUtc = DateTime.UtcNow;
             node.RegisteredUtc = DateTime.UtcNow;
             node.ActiveRuns = 0;

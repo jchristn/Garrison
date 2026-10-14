@@ -31,7 +31,7 @@
       "template": "-s"
     },
     {
-      "template": "{{deployment.parameters.sandbox | default: \"workspace-write\"}}"
+      "template": "{{#if deployment.parameters.sandbox}}{{deployment.parameters.sandbox}}{{else}}{{#if executor.containerized}}danger-full-access{{else}}workspace-write{{/if}}{{/if}}"
     },
     {
       "template": "-C"

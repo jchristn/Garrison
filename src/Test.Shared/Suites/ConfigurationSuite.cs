@@ -7,12 +7,16 @@ namespace Test.Shared.Suites
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Database;
     using Garrison.Core.Enumeration;
     using Garrison.Core.Enums;
+    using Garrison.Core.Manifests;
     using Garrison.Core.Models;
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
+    using Garrison.Core.Security;
     using Garrison.Core.Serialization;
+    using Garrison.Core.Services;
     using Test.Shared.Infrastructure;
     using Touchstone.Core;
 
@@ -40,6 +44,8 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "secrets", "Secret values are write-only and in-use secrets cannot be deleted (" + provider + ")", ct => SecretsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "deployments", "Deployments validate references, default prompt bindings, version on update, and preview (" + provider + ")", ct => DeploymentsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifests", "Manifests dry-run, apply, re-apply unchanged, export, and reject bad references (" + provider + ")", ct => ManifestsAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "manifest-reference-cache", "I-06: one apply reads each referenced record once (harness profile reads do not grow with documents) for dry run, apply, and re-apply, and references to documents created or updated in the same apply still resolve (" + provider + ")", ct => ManifestReferenceCacheAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "clamp-warnings", "I-08: out-of-range values are still clamped, and REST create and update responses and manifest apply items (dry run, apply, and the stored record) say which field, the given value, and the stored value (" + provider + ")", ct => ClampWarningsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "agents", "Agent self-registration is idempotent and the A2A card renders (" + provider + ")", ct => AgentsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "agents-by-name", "Agent read, card, update, and delete accept a name; IDs take precedence (" + provider + ")", ct => AgentsByNameAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "delete-no-content", "Deleting one configuration resource answers 204 with no body, and a second delete 404 (" + provider + ")", ct => DeleteNoContentAsync(provider, ct)));
@@ -450,6 +456,238 @@ namespace Test.Shared.Suites
             deployment.ResourceBindings.Add(new DeploymentResourceBinding { Kind = ResourceBindingKindEnum.Secret, Alias = "credential", ResourceId = secretId });
             Deployment created = await HttpTestHelpers.SendAsync<Deployment>(host.AdminClient, HttpMethod.Post, T(host) + "/deployments", deployment, 201, token).ConfigureAwait(false);
             return created.Id;
+        }
+
+        private static async Task ClampWarningsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                HttpClient admin = host.AdminClient;
+
+                // Bodies are raw JSON: the C# models clamp on the client side too.
+                TestResponse agentResponse = await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, T(host) + "/agents", "{\"name\":\"clamp-agent\",\"delegationMaxDepth\":99}", token).ConfigureAwait(false);
+                Assert.Equal(201, agentResponse.StatusCode, "Agent created (" + agentResponse.Body + ")");
+                WarningsEnvelope agent = Serializer.Deserialize<WarningsEnvelope>(agentResponse.Body) ?? throw new TestAssertionException("Empty agent");
+                ExpectClamped(agent, "delegationMaxDepth", "99", "10", "Agent create");
+
+                string body = "{\"name\":\"clamp-deployment\",\"agentId\":\"" + agent.Id + "\",\"harnessProfileId\":\"hrn_builtin_fake\",\"maxAttempts\":99,\"weight\":5000,\"approvalTimeoutSeconds\":1}";
+                TestResponse created = await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, T(host) + "/deployments", body, token).ConfigureAwait(false);
+                Assert.Equal(201, created.StatusCode, "Deployment created (" + created.Body + ")");
+                WarningsEnvelope deployment = Serializer.Deserialize<WarningsEnvelope>(created.Body) ?? throw new TestAssertionException("Empty deployment");
+                ExpectClamped(deployment, "maxAttempts", "99", "10", "Deployment create");
+                ExpectClamped(deployment, "weight", "5000", "1000", "Deployment create");
+                ExpectClamped(deployment, "approvalTimeoutSeconds", "1", "10", "Deployment create");
+                Assert.Equal(3, deployment.Warnings!.Count, "Only clamped fields are reported");
+
+                Deployment stored = await HttpTestHelpers.SendAsync<Deployment>(admin, HttpMethod.Get, T(host) + "/deployments/" + deployment.Id, null, 200, token).ConfigureAwait(false);
+                Assert.True(stored.MaxAttempts == 10 && stored.Weight == 1000 && stored.ApprovalTimeoutSeconds == 10, "Storage still clamps");
+                TestResponse read = await HttpTestHelpers.SendAsync(admin, HttpMethod.Get, T(host) + "/deployments/" + deployment.Id, null, token).ConfigureAwait(false);
+                Assert.True(!read.Body.Contains("\"warnings\"", StringComparison.Ordinal), "Reads carry no warnings: " + read.Body);
+
+                TestResponse updated = await HttpTestHelpers.SendAsync(admin, HttpMethod.Put, T(host) + "/deployments/" + deployment.Id, body.Replace("\"maxAttempts\":99", "\"maxAttempts\":0", StringComparison.Ordinal).Replace("\"weight\":5000", "\"weight\":10", StringComparison.Ordinal), token).ConfigureAwait(false);
+                Assert.Equal(200, updated.StatusCode, "Deployment updated (" + updated.Body + ")");
+                WarningsEnvelope update = Serializer.Deserialize<WarningsEnvelope>(updated.Body) ?? throw new TestAssertionException("Empty update");
+                ExpectClamped(update, "maxAttempts", "0", "1", "Deployment update");
+                Assert.True(update.Warnings!.All(w => w.Field != "weight"), "An in-range value has no warning");
+                TestResponse clean = await HttpTestHelpers.SendAsync(admin, HttpMethod.Put, T(host) + "/deployments/" + deployment.Id, "{\"name\":\"clamp-deployment\",\"agentId\":\"" + agent.Id + "\",\"harnessProfileId\":\"hrn_builtin_fake\",\"maxAttempts\":3}", token).ConfigureAwait(false);
+                Assert.True(clean.StatusCode == 200 && !clean.Body.Contains("\"warnings\"", StringComparison.Ordinal), "No warnings key when nothing was clamped: " + clean.Body);
+
+                TestResponse server = await HttpTestHelpers.SendAsync(admin, HttpMethod.Post, T(host) + "/mcp-servers", "{\"name\":\"clamp-mcp\",\"url\":\"https://mcp.example.com\",\"path\":\"/mcp\",\"toolTimeoutSeconds\":99999}", token).ConfigureAwait(false);
+                Assert.Equal(201, server.StatusCode, "MCP server created (" + server.Body + ")");
+                ExpectClamped(Serializer.Deserialize<WarningsEnvelope>(server.Body) ?? throw new TestAssertionException("Empty server"), "toolTimeoutSeconds", "99999", "3600", "MCP server create");
+
+                string yaml = String.Join("\n", new string[]
+                {
+                    "apiVersion: garrison/v1",
+                    "kind: Deployment",
+                    "metadata:",
+                    "  name: clamp-manifest",
+                    "spec:",
+                    "  agent: clamp-agent",
+                    "  harnessProfile: builtin/fake",
+                    "  maxAttempts: 99"
+                });
+                ManifestApply dry = await ApplyAsync(host, yaml, "?dryRun=true", 200, token).ConfigureAwait(false);
+                ExpectClamped(dry.Items[0].Warnings, "maxAttempts", "99", "10", "Manifest dry run");
+                ManifestApply applied = await ApplyAsync(host, yaml, String.Empty, 200, token).ConfigureAwait(false);
+                Assert.Equal(1, applied.CreatedCount, "Manifest created the deployment");
+                ExpectClamped(applied.Items[0].Warnings, "maxAttempts", "99", "10", "Manifest apply");
+                ManifestApply record = await HttpTestHelpers.SendAsync<ManifestApply>(admin, HttpMethod.Get, T(host) + "/manifests/applies/" + applied.Id, null, 200, token).ConfigureAwait(false);
+                ExpectClamped(record.Items[0].Warnings, "maxAttempts", "99", "10", "Stored apply record");
+                ManifestApply again = await ApplyAsync(host, yaml, String.Empty, 200, token).ConfigureAwait(false);
+                Assert.Equal(1, again.UnchangedCount, "Re-apply is unchanged: the stored value is the clamped one");
+                ExpectClamped(again.Items[0].Warnings, "maxAttempts", "99", "10", "Manifest re-apply still warns");
+            }
+        }
+
+        private static void ExpectClamped(WarningsEnvelope envelope, string field, string given, string stored, string what)
+        {
+            ExpectClamped(envelope.Warnings ?? new List<FieldWarning>(), field, given, stored, what);
+        }
+
+        private static void ExpectClamped(List<FieldWarning> warnings, string field, string given, string stored, string what)
+        {
+            FieldWarning? warning = warnings.FirstOrDefault(w => w.Field == field);
+            Assert.True(warning != null, what + ": a warning names " + field + " (" + String.Join("; ", warnings.Select(w => w.Field + " " + w.Message)) + ")");
+            Assert.Equal("ValueClamped", warning!.Code, what + ": code");
+            Assert.Equal(given, warning.Given, what + ": given value");
+            Assert.Equal(stored, warning.Stored, what + ": stored value");
+            Assert.True(warning.Message.Contains(field, StringComparison.Ordinal) && warning.Message.Contains(given, StringComparison.Ordinal) && warning.Message.Contains(stored, StringComparison.Ordinal), what + ": message names field and values: " + warning.Message);
+        }
+
+        private static async Task ManifestReferenceCacheAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase database = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            using (MetricCapture capture = new MetricCapture())
+            {
+                await new BuiltInSeeder(database).SeedAsync(token).ConfigureAwait(false);
+                Tenant tenant = await database.Tenants.CreateAsync(new Tenant { Name = "i06-" + provider.ToString().ToLowerInvariant() }, token).ConfigureAwait(false);
+                ManifestService manifests = new ManifestService(database, new SecretCipher("i06-master-key"));
+                string providerLabel = provider == DatabaseTypeEnum.Sqlite ? "sqlite" : "postgresql";
+                Func<int> profileReads = () => capture.Of("garrison.db.operation.duration").Count(m => m.Tag("operation") == "select" && (m.Tag("table") ?? String.Empty).Contains("harness_profile", StringComparison.Ordinal) && String.Equals(m.Tag("provider"), providerLabel, StringComparison.OrdinalIgnoreCase));
+                Func<int> statements = () => capture.Of("garrison.db.operation.duration").Count(m => String.Equals(m.Tag("provider"), providerLabel, StringComparison.OrdinalIgnoreCase));
+
+                // The cost of reading one harness profile once, with its child tables.
+                int start = profileReads();
+                await database.HarnessProfiles.ReadByNameAsync(tenant.Id, "builtin/fake", token).ConfigureAwait(false);
+                int oneProfile = profileReads() - start;
+                Assert.True(oneProfile > 0, "Statement metrics are captured for harness profile reads (provider label " + providerLabel + ")");
+
+                int count = 12;
+                string yaml = ReferenceManifest(count, "Do the task: {{input.message}}", 4);
+                int documents = 2 + count * 2;
+
+                start = profileReads();
+                ManifestApply dry = await manifests.ApplyAsync(tenant.Id, yaml, new ManifestApplyOptions { DryRun = true }, token).ConfigureAwait(false);
+                int dryReads = profileReads() - start;
+                Assert.True(dry.Items.Count == documents && dry.Items.All(i => i.Result == ManifestApplyResultEnum.Validated), "Dry run validates every document: " + String.Join("; ", dry.Items.Select(i => i.Name + " " + i.Result + " " + i.Message)));
+                Assert.Equal(documents, dry.CreatedCount, "Dry run plans every create");
+
+                start = profileReads();
+                int firstStatements = statements();
+                ManifestApply first = await manifests.ApplyAsync(tenant.Id, yaml, new ManifestApplyOptions(), token).ConfigureAwait(false);
+                int applyReads = profileReads() - start;
+                firstStatements = statements() - firstStatements;
+                Assert.Equal(documents, first.CreatedCount, "Apply creates every document: " + String.Join("; ", first.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Name + " " + i.Message)));
+
+                start = profileReads();
+                int reapplyStatements = statements();
+                ManifestApply again = await manifests.ApplyAsync(tenant.Id, yaml, new ManifestApplyOptions(), token).ConfigureAwait(false);
+                int reapplyReads = profileReads() - start;
+                reapplyStatements = statements() - reapplyStatements;
+                Assert.Equal(documents, again.UnchangedCount, "Re-apply changes nothing");
+
+                // Before I-06 every deployment read the built-in profile at least twice per pass (count * 2 * oneProfile).
+                Assert.True(dryReads <= oneProfile * 2, "Dry run reads the shared profile once, not per document: " + dryReads + " statements, one read is " + oneProfile);
+                Assert.True(applyReads <= oneProfile * 2, "Apply reads the shared profile once, not per document: " + applyReads + " statements, one read is " + oneProfile);
+                Assert.True(reapplyReads <= oneProfile * 2, "Re-apply reads the shared profile once, not per document: " + reapplyReads + " statements, one read is " + oneProfile);
+                Assert.True(reapplyStatements < documents * 12, "Re-apply statements per document stay small: " + reapplyStatements + " for " + documents + " documents (apply made " + firstStatements + ")");
+
+                // References to documents created or updated earlier in the same apply resolve against the new values: the
+                // template changes, a deployment changes, a tenant profile is updated to support resume, and a new
+                // deployment that needs session continuation on that profile validates against the updated profile.
+                HarnessProfile builtIn = await database.HarnessProfiles.ReadByNameAsync(tenant.Id, "builtin/fake", token).ConfigureAwait(false) ?? throw new TestAssertionException("builtin/fake missing");
+                HarnessProfile clone = Serializer.Deserialize<HarnessProfile>(Serializer.Serialize(builtIn)) ?? throw new TestAssertionException("Clone failed");
+                clone.Id = String.Empty;
+                clone.TenantId = tenant.Id;
+                clone.Name = "i06-profile";
+                clone.IsBuiltIn = false;
+                clone.IsProtected = false;
+                clone.BuiltInKey = null;
+                clone.SupportsResume = false;
+                clone = await database.HarnessProfiles.CreateAsync(clone, token).ConfigureAwait(false);
+                string export = await manifests.ExportAsync(tenant.Id, token).ConfigureAwait(false);
+                string profileDocument = export.Split("\n---\n").Select(d => d.Trim()).FirstOrDefault(d => d.Contains("kind: HarnessProfile", StringComparison.Ordinal) && d.Contains("name: i06-profile", StringComparison.Ordinal)) ?? throw new TestAssertionException("Export has no i06-profile document: " + export);
+                Assert.True(profileDocument.Contains("supportsResume: false", StringComparison.Ordinal), "Exported profile has supportsResume false");
+                string changed = ReferenceManifest(count, "Do the task, carefully: {{input.message}}", 5)
+                    + "\n---\n" + profileDocument.Replace("supportsResume: false", "supportsResume: true", StringComparison.Ordinal)
+                    + "\n---\n" + String.Join("\n", new string[]
+                    {
+                        "apiVersion: garrison/v1",
+                        "kind: Deployment",
+                        "metadata:",
+                        "  name: i06-resumable",
+                        "spec:",
+                        "  agent: i06-agent-0",
+                        "  harnessProfile: i06-profile",
+                        "  requiredCapabilities: { sessionContinuation: true }",
+                        "  prompts: { Task: i06-task }",
+                        "  resources:",
+                        "    secrets:",
+                        "      - { alias: credential, secret: i06-secret }"
+                    });
+                ManifestApply mixed = await manifests.ApplyAsync(tenant.Id, changed, new ManifestApplyOptions(), token).ConfigureAwait(false);
+                Assert.Equal(0, mixed.FailedCount, "Mixed apply succeeds: " + String.Join("; ", mixed.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Name + " " + i.Message)));
+                Assert.Equal(ManifestApplyResultEnum.Updated, mixed.Items.First(i => i.Name == "i06-task").Result, "Template updated");
+                Assert.Equal(ManifestApplyResultEnum.Updated, mixed.Items.First(i => i.Name == "i06-profile").Result, "Profile updated");
+                Assert.Equal(ManifestApplyResultEnum.Created, mixed.Items.First(i => i.Name == "i06-resumable").Result, "Deployment on the updated profile created");
+                Assert.Equal(count, mixed.Items.Count(i => i.Kind == "Deployment" && i.Result == ManifestApplyResultEnum.Updated), "Every deployment picked up maxTurns 5");
+                Deployment resumable = await database.Deployments.ReadByNameAsync(tenant.Id, "i06-resumable", token).ConfigureAwait(false) ?? throw new TestAssertionException("i06-resumable missing");
+                PromptTemplate template = await database.PromptTemplates.ReadByNameAsync(tenant.Id, "i06-task", token).ConfigureAwait(false) ?? throw new TestAssertionException("i06-task missing");
+                Assert.Equal(clone.Id, resumable.HarnessProfileId, "Resolved to the tenant profile");
+                Assert.True(resumable.PromptBindings.Any(b => b.Role == "Task" && b.TemplateId == template.Id), "Resolved to the template from the same apply");
+                Assert.Equal(2, template.CurrentVersion, "Template versioned once");
+
+                // The cache itself: reads once, answers from memory, and reads again after Forget.
+                ConfigurationReferenceCache cache = new ConfigurationReferenceCache(database, tenant.Id);
+                string? fakeId = await cache.IdByNameAsync("HarnessProfile", "builtin/fake", token).ConfigureAwait(false);
+                Assert.True(await cache.HarnessProfileAsync(fakeId, token).ConfigureAwait(false) != null, "By-name read fills the identifier entry");
+                Assert.True(await cache.IdByNameAsync("Agent", "i06-missing", token).ConfigureAwait(false) == null, "A miss is null");
+                Assert.True(await cache.IdByNameAsync("Agent", "i06-missing", token).ConfigureAwait(false) == null, "A miss is remembered");
+                Assert.Equal(2L, cache.DatabaseReads, "Two database reads");
+                Assert.Equal(2L, cache.CacheHits, "Two answers from memory");
+                cache.Forget("HarnessProfile");
+                Assert.True(await cache.HarnessProfileAsync(fakeId, token).ConfigureAwait(false) != null, "Read again after Forget");
+                Assert.Equal(3L, cache.DatabaseReads, "Forget makes the next read go to the database");
+            }
+        }
+
+        private static string ReferenceManifest(int count, string taskContent, int maxTurns)
+        {
+            List<string> lines = new List<string>
+            {
+                "apiVersion: garrison/v1",
+                "kind: Secret",
+                "metadata:",
+                "  name: i06-secret",
+                "spec:",
+                "  kind: GenericEnv",
+                "---",
+                "apiVersion: garrison/v1",
+                "kind: PromptTemplate",
+                "metadata:",
+                "  name: i06-task",
+                "spec:",
+                "  kind: Task",
+                "  content: \"" + taskContent + "\""
+            };
+            for (int i = 0; i < count; i++)
+            {
+                lines.AddRange(new string[]
+                {
+                    "---",
+                    "apiVersion: garrison/v1",
+                    "kind: Agent",
+                    "metadata:",
+                    "  name: i06-agent-" + i,
+                    "spec:",
+                    "  description: Agent " + i,
+                    "---",
+                    "apiVersion: garrison/v1",
+                    "kind: Deployment",
+                    "metadata:",
+                    "  name: i06-deployment-" + i,
+                    "spec:",
+                    "  agent: i06-agent-" + i,
+                    "  harnessProfile: builtin/fake",
+                    "  maxTurns: " + maxTurns,
+                    "  prompts: { System: builtin/default-system, Task: i06-task }",
+                    "  resources:",
+                    "    secrets:",
+                    "      - { alias: credential, secret: i06-secret }"
+                });
+            }
+            return String.Join("\n", lines);
         }
 
         private static async Task<ManifestApply> ApplyAsync(TestServerHost host, string yaml, string query, int expectedStatus, CancellationToken token)

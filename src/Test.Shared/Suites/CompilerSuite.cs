@@ -51,6 +51,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(suiteId, "overrides", "Argument, environment, and file overrides apply to the profile (" + provider + ")", ct => OverridesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "run-overrides", "Run parameters are validated and only allowed overrides apply (" + provider + ")", ct => RunOverridesAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "preview-redaction", "Compile previews redact secret values (" + provider + ")", ct => PreviewAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(suiteId, "codex-container-sandbox", "G-29: Codex defaults to danger-full-access in containerized executors, workspace-write on hosts, and an explicit sandbox wins (" + provider + ")", ct => CodexContainerSandboxAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(suiteId, "missing-reference", "Missing references fail compilation with ReferenceNotFound (" + provider + ")", ct => MissingReferenceAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(suiteId, "Invocation compiler (" + provider + ")", cases));
             }
@@ -253,6 +254,55 @@ namespace Test.Shared.Suites
                 Assert.True(!json.Contains("git-token-claude_code_full", StringComparison.Ordinal), "git token redacted");
                 Assert.True(json.Contains(InvocationCompiler.Redacted, StringComparison.Ordinal), "redaction marker present");
             }
+        }
+
+        private static async Task CodexContainerSandboxAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (CompilerFixture fixture = await CompilerFixture.CreateAsync(provider, token).ConfigureAwait(false))
+            {
+                Node host = new Node { Id = "nod_golden_host", Name = "golden-host", Containerized = false };
+                Node container = new Node { Id = "nod_golden_container", Name = "golden-container", Containerized = true };
+                await fixture.Database.Nodes.CreateAsync(host, token).ConfigureAwait(false);
+                await fixture.Database.Nodes.CreateAsync(container, token).ConfigureAwait(false);
+                Node? stored = await fixture.Database.Nodes.ReadAsync(container.Id, token).ConfigureAwait(false);
+                Assert.True(stored != null && stored.Containerized, "The containerized flag is stored");
+
+                foreach (string profile in new string[] { "codex", "codex-app-server" })
+                {
+                    Deployment deployment = await fixture.DeploymentAsync(profile, false, token).ConfigureAwait(false);
+
+                    Assert.Equal("workspace-write", await SandboxAsync(fixture, profile, CompilerFixture.RunFor(deployment, false), host, token).ConfigureAwait(false), profile + ": host node keeps workspace-write");
+                    Assert.Equal("danger-full-access", await SandboxAsync(fixture, profile, CompilerFixture.RunFor(deployment, false), container, token).ConfigureAwait(false), profile + ": containerized node gets danger-full-access");
+
+                    Run leased = CompilerFixture.RunFor(deployment, false);
+                    leased.LeaseNodeId = container.Id;
+                    Assert.Equal("danger-full-access", await SandboxAsync(fixture, profile, leased, null, token).ConfigureAwait(false), profile + ": the lease node is read when no node is passed");
+                    Assert.Equal("workspace-write", await SandboxAsync(fixture, profile, CompilerFixture.RunFor(deployment, false), null, token).ConfigureAwait(false), profile + ": no node means not containerized");
+
+                    Run pod = CompilerFixture.RunFor(deployment, false);
+                    pod.Executor = RunExecutorEnum.KubernetesJob;
+                    Assert.Equal("danger-full-access", await SandboxAsync(fixture, profile, pod, host, token).ConfigureAwait(false), profile + ": KubernetesJob runs are always containerized");
+
+                    deployment.Parameters.Add(new DeploymentParameter { Name = "sandbox", Value = "read-only" });
+                    await fixture.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                    Assert.Equal("read-only", await SandboxAsync(fixture, profile, CompilerFixture.RunFor(deployment, false), container, token).ConfigureAwait(false), profile + ": an explicit sandbox parameter wins in a container");
+                    Assert.Equal("read-only", await SandboxAsync(fixture, profile, CompilerFixture.RunFor(deployment, false), host, token).ConfigureAwait(false), profile + ": an explicit sandbox parameter wins on a host");
+                }
+            }
+        }
+
+        private static async Task<string> SandboxAsync(CompilerFixture fixture, string profile, Run run, Node? node, CancellationToken token)
+        {
+            ExecutionSpec spec = (await fixture.Compiler.CompileAsync(run, null, null, null, node, token).ConfigureAwait(false)).Spec;
+            if (profile == "codex")
+            {
+                int index = spec.Arguments.IndexOf("-s");
+                Assert.True(index >= 0 && index + 1 < spec.Arguments.Count, "codex has a -s argument");
+                return spec.Arguments[index + 1];
+            }
+            string? mode = spec.Arguments.FirstOrDefault(a => a.StartsWith("sandbox_mode=", StringComparison.Ordinal));
+            Assert.True(mode != null, "codex-app-server has a sandbox_mode override");
+            return mode!.Substring("sandbox_mode=".Length).Trim('"');
         }
 
         private static async Task MissingReferenceAsync(DatabaseTypeEnum provider, CancellationToken token)

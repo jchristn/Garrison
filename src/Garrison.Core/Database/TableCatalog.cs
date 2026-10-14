@@ -105,6 +105,7 @@ namespace Garrison.Core.Database
                 "manifest_applies",
                 "manifest_apply_items",
                 "manifest_apply_changes",
+                "manifest_apply_warnings",
                 "request_nonces",
                 "rate_limit_buckets",
                 "mcp_sessions",

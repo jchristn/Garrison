@@ -397,18 +397,41 @@ namespace Garrison.Core.Services
         /// <exception cref="ValidationException">Thrown when invalid.</exception>
         public static async Task DeploymentAsync(DatabaseDriverBase database, string tenantId, Deployment deployment, CancellationToken token = default)
         {
+            await DeploymentAsync(database, tenantId, deployment, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validate a deployment and its references, reading the referenced agent, harness profile, prompt templates,
+        /// MCP servers, secrets, and tenant through a reference cache shared by a batch of work such as one manifest
+        /// apply (I-06). The result is the same as without the cache.
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="deployment">Deployment.</param>
+        /// <param name="cache">Reference cache for the same tenant, or null to read every reference from the database.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ValidationException">Thrown when invalid.</exception>
+        public static async Task DeploymentAsync(DatabaseDriverBase database, string tenantId, Deployment deployment, ConfigurationReferenceCache? cache, CancellationToken token = default)
+        {
             if (deployment == null) throw new ValidationException("A deployment is required.");
+            if (cache != null && !String.Equals(cache.TenantId, tenantId, StringComparison.Ordinal)) cache = null;
             Dictionary<string, string> errors = new Dictionary<string, string>();
             Dictionary<string, string> codes = new Dictionary<string, string>();
             try { ExecutorCapabilityRules.Validate(deployment.RequiredCapabilities); }
             catch (ArgumentException ex) { errors["requiredCapabilities"] = ex.Message; }
-            await TrustLevelAsync(database, tenantId, deployment, errors, codes, token).ConfigureAwait(false);
+            await TrustLevelAsync(database, tenantId, deployment, errors, codes, cache, token).ConfigureAwait(false);
             EffectPolicy(deployment, errors, codes);
 
             Name(deployment.Name, errors);
 
-            if (String.IsNullOrEmpty(deployment.AgentId) || await database.Agents.ReadAsync(tenantId, deployment.AgentId, token).ConfigureAwait(false) == null) errors["agentId"] = "The agent does not exist in this tenant.";
-            HarnessProfile? profile = String.IsNullOrEmpty(deployment.HarnessProfileId) ? null : await database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
+            Agent? agent = String.IsNullOrEmpty(deployment.AgentId) ? null
+                : cache != null ? await cache.AgentAsync(deployment.AgentId, token).ConfigureAwait(false)
+                : await database.Agents.ReadAsync(tenantId, deployment.AgentId, token).ConfigureAwait(false);
+            if (agent == null) errors["agentId"] = "The agent does not exist in this tenant.";
+            HarnessProfile? profile = String.IsNullOrEmpty(deployment.HarnessProfileId) ? null
+                : cache != null ? await cache.HarnessProfileAsync(deployment.HarnessProfileId, token).ConfigureAwait(false)
+                : await database.HarnessProfiles.ReadAsync(tenantId, deployment.HarnessProfileId, token).ConfigureAwait(false);
             if (profile == null) errors["harnessProfileId"] = "The harness profile does not exist or is not visible to this tenant.";
             if (profile != null && deployment.RequiredCapabilities.SessionContinuation && !profile.SupportsResume)
                 errors["requiredCapabilities.sessionContinuation"] = "Session continuation requires a harness profile with supportsResume enabled.";
@@ -420,7 +443,9 @@ namespace Garrison.Core.Services
                 DeploymentPromptBinding binding = deployment.PromptBindings[i];
                 if (String.IsNullOrWhiteSpace(binding.Role)) errors["promptBindings[" + i + "].role"] = "A role is required.";
                 else if (!roles.Add(binding.Role)) errors["promptBindings[" + i + "].role"] = "Role " + binding.Role + " is bound twice.";
-                PromptTemplate? template = String.IsNullOrEmpty(binding.TemplateId) ? null : await database.PromptTemplates.ReadAsync(tenantId, binding.TemplateId, token).ConfigureAwait(false);
+                PromptTemplate? template = String.IsNullOrEmpty(binding.TemplateId) ? null
+                    : cache != null ? await cache.PromptTemplateAsync(binding.TemplateId, token).ConfigureAwait(false)
+                    : await database.PromptTemplates.ReadAsync(tenantId, binding.TemplateId, token).ConfigureAwait(false);
                 if (template == null) errors["promptBindings[" + i + "].templateId"] = "The prompt template does not exist or is not visible to this tenant.";
                 else if (binding.PinnedVersion.HasValue && binding.PinnedVersion.Value != template.CurrentVersion && await database.PromptTemplateVersions.ReadByVersionAsync(template.Id, binding.PinnedVersion.Value, token).ConfigureAwait(false) == null)
                 {
@@ -437,9 +462,11 @@ namespace Garrison.Core.Services
                 if (String.IsNullOrWhiteSpace(binding.Alias)) errors[field + ".alias"] = "An alias is required.";
                 else if (binding.Alias.Equals("kind", StringComparison.OrdinalIgnoreCase)) errors[field + ".alias"] = "The alias 'kind' is reserved.";
                 else if (!aliases.Add(binding.Kind + ":" + binding.Alias)) errors[field + ".alias"] = "Alias " + binding.Alias + " is used twice.";
-                bool exists = binding.Kind == ResourceBindingKindEnum.McpServer
-                    ? await database.McpServers.ReadAsync(tenantId, binding.ResourceId, token).ConfigureAwait(false) != null
-                    : await database.Secrets.ReadAsync(tenantId, binding.ResourceId, token).ConfigureAwait(false) != null;
+                bool exists = cache != null
+                    ? await cache.ReadAsync(binding.Kind == ResourceBindingKindEnum.McpServer ? "McpServer" : "Secret", binding.ResourceId, token).ConfigureAwait(false) != null
+                    : binding.Kind == ResourceBindingKindEnum.McpServer
+                        ? await database.McpServers.ReadAsync(tenantId, binding.ResourceId, token).ConfigureAwait(false) != null
+                        : await database.Secrets.ReadAsync(tenantId, binding.ResourceId, token).ConfigureAwait(false) != null;
                 if (!exists) errors[field + ".resourceId"] = "The bound " + binding.Kind + " does not exist in this tenant.";
                 if (binding.Kind == ResourceBindingKindEnum.Secret) secretAliases.Add(binding.Alias);
             }
@@ -541,7 +568,7 @@ namespace Garrison.Core.Services
 
         #region Private-Methods
 
-        private static async Task TrustLevelAsync(DatabaseDriverBase database, string tenantId, Deployment deployment, Dictionary<string, string> errors, Dictionary<string, string> codes, CancellationToken token)
+        private static async Task TrustLevelAsync(DatabaseDriverBase database, string tenantId, Deployment deployment, Dictionary<string, string> errors, Dictionary<string, string> codes, ConfigurationReferenceCache? cache, CancellationToken token)
         {
             // P11.14: an Untrusted deployment never runs on Process, and a tenant may require Untrusted for every
             // deployment. Both are rejected with field codes rather than coerced.
@@ -557,7 +584,7 @@ namespace Garrison.Core.Services
             }
             if (deployment.TrustLevel == DeploymentTrustLevelEnum.Trusted)
             {
-                Tenant? tenant = await database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
+                Tenant? tenant = cache != null ? await cache.TenantAsync(token).ConfigureAwait(false) : await database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
                 if (tenant != null && tenant.RequireUntrustedDeployments)
                 {
                     errors["trustLevel"] = "Tenant " + tenant.Name + " requires every deployment to be Untrusted; set trustLevel to Untrusted.";

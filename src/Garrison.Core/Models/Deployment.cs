@@ -14,6 +14,20 @@ namespace Garrison.Core.Models
         #region Public-Members
 
         /// <summary>
+        /// Warnings about values in the request that created or updated this record and were not stored as given (I-08),
+        /// for example a number outside its range that was clamped (code ValueClamped). Present only on create and
+        /// update responses when there is something to report; null and omitted otherwise, including on reads.
+        /// Read-only: ignored in request bodies, and never stored.
+        /// </summary>
+        public List<FieldWarning>? Warnings
+        {
+            get
+            {
+                return _ClampWarnings.Count > 0 ? _ClampWarnings : null;
+            }
+        }
+
+        /// <summary>
         /// Identifier.
         /// </summary>
         public string Id
@@ -129,7 +143,7 @@ namespace Garrison.Core.Models
             }
             set
             {
-                _MaxConcurrentRuns = Math.Clamp(value, 0, 100000);
+                _MaxConcurrentRuns = ValueClamp.Int(value, 0, 100000, "maxConcurrentRuns", _ClampWarnings);
             }
         }
 
@@ -158,7 +172,7 @@ namespace Garrison.Core.Models
             }
             set
             {
-                _MaxAssistantChars = value.HasValue ? Math.Clamp(value.Value, 0, 100000000) : null;
+                _MaxAssistantChars = ValueClamp.NullableLong(value, 0, 100000000, "maxAssistantChars", _ClampWarnings);
             }
         }
 
@@ -175,7 +189,7 @@ namespace Garrison.Core.Models
             }
             set
             {
-                _NoProgressSeconds = value.HasValue ? Math.Clamp(value.Value, 0, 86400) : null;
+                _NoProgressSeconds = ValueClamp.NullableInt(value, 0, 86400, "noProgressSeconds", _ClampWarnings);
             }
         }
 
@@ -190,7 +204,7 @@ namespace Garrison.Core.Models
             }
             set
             {
-                _MaxAttempts = Math.Clamp(value, 1, 10);
+                _MaxAttempts = ValueClamp.Int(value, 1, 10, "maxAttempts", _ClampWarnings);
             }
         }
 
@@ -260,7 +274,7 @@ namespace Garrison.Core.Models
             }
             set
             {
-                _Weight = Math.Clamp(value, 0, 1000);
+                _Weight = ValueClamp.Int(value, 0, 1000, "weight", _ClampWarnings);
             }
         }
 
@@ -334,7 +348,7 @@ namespace Garrison.Core.Models
             }
             set
             {
-                _ApprovalTimeoutSeconds = Math.Clamp(value, 10, 3600);
+                _ApprovalTimeoutSeconds = ValueClamp.Int(value, 10, 3600, "approvalTimeoutSeconds", _ClampWarnings);
             }
         }
 
@@ -544,6 +558,8 @@ namespace Garrison.Core.Models
         #endregion
 
         #region Private-Members
+
+        private readonly List<FieldWarning> _ClampWarnings = new List<FieldWarning>();
 
         private List<string> _ArtifactGlobs = new List<string>();
 

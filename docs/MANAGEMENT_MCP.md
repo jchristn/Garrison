@@ -21,7 +21,7 @@ Creation takes `configuration`, using the normal REST model. For example:
 
 Creating an agent does not create its deployment. Create a deployment with `name`, `agentId`, and `harnessProfileId`; standard prompt bindings are applied automatically. A caller-bound tenant always wins over supplied tenant fields. Creation assigns identity, protection, and deployment version. Updates preserve identity/creation metadata and advance deployment `configVersion`.
 
-Updates replace the configuration. Read it first, edit the fields you intend to change, and send the complete replacement with `agent` or `deploymentId`. Omitted fields take their defaults. Protected records reject updates/deletion. Agent deletion cascades its deployments, matching REST. Mutations use the shared REST validation and audit path.
+Updates replace the configuration. Read it first, edit the fields you intend to change, and send the complete replacement with `agent` or `deploymentId`. Omitted fields take their defaults. Protected records reject updates/deletion. Agent deletion cascades its deployments, matching REST. Mutations use the shared REST validation and audit path. A number outside its range (for example `maxAttempts: 99`) is clamped as over REST, and the returned record's `warnings` array names the field, the value sent, and the value stored (`REST_API.md`, "Warnings").
 
 ## Pipelines
 

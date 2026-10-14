@@ -154,6 +154,17 @@ The worker trusts nothing the pod prints except lines that start with the run's 
 
 What it does not protect against: run pods still share the node's kernel unless you use a sandboxed runtime; the default egress rule allows HTTPS to anywhere, which a prompt-injected harness can use to send out what it can read (its workspace, its own secrets); and the worker's Role can create pods in the run namespace, which can mount that namespace's Secrets, so a compromised worker in the same namespace as `garrison-secrets` could read them.
 
+### Codex sandbox in containers
+
+Codex normally runs each shell command inside bubblewrap with its `workspace-write` sandbox: writes limited to the workspace, no network. Bubblewrap needs user namespaces, which a worker container or run pod cannot create, so inside Docker or Kubernetes that sandbox stops every shell command instead of confining it. Garrison's built-in Codex profiles therefore default to `danger-full-access` when the run executes in a container: a KubernetesJob run pod, or a Process run on a worker that reports `Containerized` (set by the worker image). Workers started directly on a host keep `workspace-write`. A deployment `sandbox` parameter always wins (D-050, `docs/HARNESSES.md`).
+
+The container or pod is then the isolation boundary, so what Codex can reach is what the section above says for its executor:
+
+- In a KubernetesJob run pod, Codex can write anywhere the pod allows (its own emptyDir volumes; the root filesystem is read-only) and use the network the `garrison-run` NetworkPolicy allows. It cannot see other runs or the worker's credentials. This is the same boundary every other harness in a run pod has.
+- In a Process run on a containerized worker, Codex can write anything the worker user can write and reach anything the worker can reach, including other concurrent runs' directories and the node credential. That was already true of reads with `workspace-write` (the Process executor has no filesystem namespace); `danger-full-access` adds writes outside the workspace and network access from shell commands. This is why Process stays trusted only.
+
+Trust levels (below) still decide placement: an `Untrusted` deployment never runs on a Process worker, whatever the sandbox. Set `sandbox` explicitly (for example `read-only`) on a deployment that should not run shell commands at all, and expect shell commands to fail in a container when you do.
+
 ### Deployment trust level
 
 Every deployment declares how far its input is trusted with `trustLevel` (P11.14, D-035, D-049):

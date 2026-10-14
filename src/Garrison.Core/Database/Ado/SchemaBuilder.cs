@@ -198,6 +198,28 @@ namespace Garrison.Core.Database.Ado
             v24._Statements.Add("UPDATE " + catalog.Reference("runs") + " SET effectpolicy = 'AtLeastOnce' WHERE deploymentid IN (SELECT id FROM " + catalog.Reference("deployments") + " WHERE retryonnodeloss = " + dialect.BooleanLiteral(true) + ");");
             migrations.Add(new SchemaMigration(24, "Deployment effect policy replaces retryOnNodeLoss", v24._Statements, v24._Columns));
 
+            // G-29: workers report whether they run in a container, so harness profiles can treat the container as the
+            // sandbox. Existing nodes read false until they register again.
+            SchemaBuilder v25 = new SchemaBuilder(catalog, dialect);
+            v25.Column("nodes", "containerized", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
+            migrations.Add(new SchemaMigration(25, "Worker containerized flag", v25._Statements, v25._Columns));
+
+            // I-08: manifest apply items report values that were accepted but not stored as written (clamped numbers).
+            SchemaBuilder v26 = new SchemaBuilder(catalog, dialect);
+            v26.Table("manifest_apply_warnings",
+                "id " + dialect.TypeId + " NOT NULL PRIMARY KEY",
+                "manifestapplyid " + dialect.TypeId + " NOT NULL",
+                "manifestapplyitemid " + dialect.TypeId + " NOT NULL",
+                "tenantid " + dialect.TypeId,
+                "position " + dialect.TypeInt + " NOT NULL",
+                "field VARCHAR(512) NOT NULL",
+                "code VARCHAR(64) NOT NULL",
+                "givenvalue VARCHAR(256)",
+                "storedvalue VARCHAR(256)",
+                "message VARCHAR(1024)");
+            v26.Index("manifest_apply_warnings", "parent", false, "manifestapplyid");
+            migrations.Add(new SchemaMigration(26, "Manifest apply item warnings", v26._Statements, v26._Columns));
+
             return migrations;
         }
 
