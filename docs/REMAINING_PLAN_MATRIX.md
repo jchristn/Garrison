@@ -2,15 +2,15 @@
 
 Updated 2026-10-14 under D-042/D-043 and D-049. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 2 active phase tasks (P12.29, P14.15), 2 conditional P10 tasks, and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.38 are complete. Active core follow-ups are G-8 (SyslogLogging 2.4.1 per `~/Code/SyslogLogging/BUGFIX.md`, executed by another agent) and G-12 (real-Codex soak, then new Codex deployments on `builtin/codex-app-server`). I-01, I-05, and cancellation latency were completed 2026-10-13.
+D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There is 1 active phase task (P12.29), 2 conditional P10 tasks (P10.24 now evidenced by P14.15, P10.25 not), and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.38/P14.15 are complete. Active core follow-ups are G-8 (SyslogLogging 2.4.1 per `~/Code/SyslogLogging/BUGFIX.md`, executed by another agent) and G-12 (real-Codex soak, then new Codex deployments on `builtin/codex-app-server`). I-01, I-05, and cancellation latency were completed 2026-10-13.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
 | ID | Remaining capability | Scope | Dependency or decision |
 |---|---|---|---|
 | P6.20 | Publish SDK packages | Deferred | Skipped at user request (D-043) |
-| P10.24 | Tune demonstrated control-plane bottlenecks | Conditional | Waiting on deferred P14.15 measurements |
-| P10.25 | Schedule by CPU/memory capacity | Conditional | Waiting on deferred P14.15 measurements |
+| P10.24 | Tune demonstrated control-plane bottlenecks | Conditional, now evidenced | P14.15 shows lease wakeups and claim races are the limit: targeted notifications (and fewer auth lookups) are justified |
+| P10.25 | Schedule by CPU/memory capacity | Conditional, not evidenced | P14.15 never filled the slots (56 of 320 at most), so slot sizing is not the limit yet |
 | P11.14 | Trusted/untrusted deployment policy | Complete | D-049; schema 23. Existing deployments stay Trusted; Untrusted runs queue (`NoIsolatingWorker`) until an isolating worker is available; tenant `requireUntrustedDeployments` rejects Trusted deployments with a field code |
 | P11.15 | Per-deployment network egress allowlists | Deferred | CIDR/port NetworkPolicy rules |
 | P11.17 | Isolation attack tests in CI | Deferred | Depends on trust policy and egress controls |
@@ -53,7 +53,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.44 | Compare compiled execution specs | Deferred | Depends on recorded/reconstructed configuration |
 | P12.45 | Canary promotion/rollback recommendations | Deferred | Depends on traffic experiments; operator approves changes |
 | P12.46 | Git/workspace caching | Deferred | Performance optimization; snapshot cache needs artifacts |
-| P14.15 | Load the control plane to failure | Active (D-049) | On the development machine, minutes-long steps; prerequisite for P10.24/P10.25 |
+| P14.15 | Load the control plane to failure | Complete | 2026-10-14: ceiling about 25 to 28 runs/s with 320 slots; thundering-herd claim races are the limit (see `docs/SCALING.md`) |
 | P15.1 | Security review | Deferred | Secrets, tokens, SSRF, paths, command arguments |
 | P15.2 | Versioned master-key rotation | Deferred | Production key lifecycle |
 | P15.3 | Credential and run-token expiry policies | Deferred | Bound credential lifetimes |

@@ -287,9 +287,24 @@ Read claim latency with the backlog in mind. When `RUNS` is larger than the clus
 
 ### Control plane load to failure (P14.15)
 
-The numbers above stop at the worker slots. `benchmarks/scale.sh` measures the control plane itself: it runs several servers and workers as processes on one machine against PostgreSQL 17 in Docker, gives the workers far more slots than the offered load needs, and steps up the offered rate until a level breaks (error rate, claim or end-to-end latency, or a throughput plateau). Each run is the fake harness in its paced mode (`--events-per-second`, `--duration-ms`), so the event rate is set, not incidental. Per level it reports runs per second, events per second, claim and end-to-end latency, and, from the servers' metrics, event inserts, queue wakeups (notify versus fallback poll), lease renewals, waits on the per-deployment concurrency lock, and database statements per run. The tiers are 3 servers and 10 workers with 1,000 runs per level and with 10,000 runs per level; how to run them, and what each column means, is in `benchmarks/README.md` under "Control plane load to failure". Results go here once they are measured.
+The numbers above stop at the worker slots. `benchmarks/scale.sh` measures the control plane itself: it runs several servers and workers as processes on one machine against PostgreSQL 17 in Docker, gives the workers far more slots than the offered load needs, and steps up the offered rate until a level breaks (error rate, claim or end-to-end latency, or a throughput plateau). Each run is the fake harness in its paced mode (`--events-per-second`, `--duration-ms`), so the event rate is set, not incidental. Per level it reports runs per second, events per second, claim and end-to-end latency, and, from the servers' metrics, event inserts, queue wakeups (notify versus fallback poll), lease renewals, waits on the per-deployment concurrency lock, and database statements per run. The tiers are 3 servers and 10 workers with 1,000 runs per level and with 10,000 runs per level; how to run them, and what each column means, is in `benchmarks/README.md` under "Control plane load to failure". Results from the first measurement are below.
 
 Three server metrics exist for this test: `garrison_scheduler_queue_wakeups_total{source}` counts lease long polls woken by a queue notification or by the fallback poll interval, `garrison_lease_renewals_total{result}` counts leases extended by heartbeats (and the ones found gone), and `garrison_scheduler_deployment_lock_wait_seconds` times the wait for the per-deployment lock that every claim takes on PostgreSQL, whether or not the deployment sets `maxConcurrentRuns`.
+
+#### Results, 2026-10-14
+
+Measured on an Apple M5 Max (18 logical processors, 128 GB) at `e66b9a6`, PostgreSQL 17 in Docker (3 GB cap), servers and workers as host processes, each run 20 events per second for 1,000 ms (`benchmarks/results/20261014-1643*` and `20261014-1652*`).
+
+| Stack | Slots | Offered | Runs/s | Events/s | Claim p95 | Lost claims per run | Wakeups per run | DB statements per run | Host load (1 min) | Verdict |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 3 servers, 10 workers x 32 | 320 | 25/s | 25.1 | 666 | 58 ms | 7.3 | 17.8 | 524 | 18.4 | held |
+| 3 servers, 10 workers x 32 | 320 | 50/s | 27.6 | 746 | 15.8 s | 5.5 | 10.5 | 393 | 29.9 | broke |
+| 3 servers, 10 workers x 32 | 320 | 50/s, 10,000 runs | 24.1 | 670 | 210 s | | | 387 | | broke |
+| 3 servers, 20 workers x 16 | 320 | 25/s | 16.0 | 433 | 22.8 s | 14.3 | 21.8 | 537 | 38.0 | broke |
+
+The ceiling on this machine is about 25 to 28 runs per second, far below the 320 runs per second the slots allow: at the breaking level at most 56 of 320 slots were busy while 621 runs waited. More workers made it worse, not better (16 runs per second with 20 workers), and lost claims and wakeups per run grew with the number of lease long polls. Each new run wakes every waiting long poll on every replica, all of them race for the same candidates, one wins, and the rest retry. This is the thundering-herd shape that P10.24's targeted queue notifications are meant to remove. The per-deployment lock was cheap (0.7 to 0.8 ms mean wait) and event inserts kept up (about 1 ms per batch), so neither is the limit yet.
+
+Two other costs stand out. Authentication lookups (tenants, credentials, users, auth sessions) account for about 75 statements per run, because every worker and client request re-reads them. And the host itself was saturated (load average 18 to 38 on 18 logical processors), since every fake harness launch is a .NET process; the numbers above are therefore a floor for the control plane, but the falling throughput as workers were added is a control-plane effect, not a host effect, because the harness launch rate fell with it. Request history wrote 14 header rows per run, all from the load generator's own create-run requests, confirming I-05 (58 to 91 before).
 
 ## Event insertion microbenchmark (P10.22)
 
