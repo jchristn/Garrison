@@ -251,6 +251,7 @@ namespace Garrison.Core.Compilation
             run.CallerName = "preview";
             NodePool? pool = String.IsNullOrEmpty(inputs.Deployment.NodePoolId) ? null : await _Database.NodePools.ReadAsync(inputs.Deployment.NodePoolId, token).ConfigureAwait(false);
             ExecutorCapabilityRules.Admit(run, inputs.Deployment, pool);
+            run.EffectPolicy = inputs.Deployment.EffectPolicy;
             if (parameters != null)
             {
                 foreach (KeyValuePair<string, string> entry in parameters)

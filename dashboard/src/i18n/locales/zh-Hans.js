@@ -949,7 +949,6 @@ const zhHans = {
         maxConcurrentRuns: '最大并发运行数',
         timeoutSeconds: '超时（秒）',
         maxAttempts: '最大尝试次数',
-        retryOnNodeLoss: '节点丢失时重新排队',
         repetitionGuard: '重复防护',
         maxAssistantChars: '最大助手字符数',
         noProgressSeconds: '无进展超时（秒）',
@@ -2125,3 +2124,14 @@ zhHans.resources.tenants.hints = { ...(zhHans.resources.tenants.hints || {}), re
 zhHans.tips.resources.tenants.requireUntrustedDeployments = "开启后，此租户中的每个部署都必须是不可信的，这样其运行只会交给有隔离的执行器。";
 zhHans.views.runDetail.trustLevel = "信任级别";
 zhHans.tips.views.runDetail.trustLevel = "此运行进入队列时部署的信任级别。不可信的运行只会交给具有容器隔离或更强隔离的执行器。";
+
+// Deployment effect policy (P12.29).
+zhHans.enums.effectPolicy = { AtMostOnce: "至多一次", AtLeastOnce: "至少一次", Journaled: "日志模式" };
+zhHans.tips.enums.effectPolicy = { AtMostOnce: "如果运行开始后 worker 丢失，运行以节点丢失失败，并且不会再次启动。任何外部作用都不会发生两次。这是默认值。", AtLeastOnce: "如果运行开始后 worker 丢失，只要还有剩余尝试次数，运行就会回到队列。丢失的那次尝试已经产生的作用 (例如 push 或消息) 可能再次发生。", Journaled: "只有当所有作用都经过作用日志时才重新排队。日志尚未提供，因此目前的行为与至多一次相同。" };
+Object.assign(zhHans.common.fieldCodes, { EffectPolicyConflict: "作用策略与已弃用的 retryOnNodeLoss 值不一致。请只发送作用策略。" });
+zhHans.resources.deployments.fields.effectPolicy = "作用策略";
+zhHans.resources.deployments.columns.effectPolicy = "作用策略";
+zhHans.resources.deployments.hints.effectPolicy = "至多一次 (默认) 会让 worker 丢失的已启动运行以节点丢失失败。至少一次会在还有尝试次数时重新排队，作用可能重复。日志模式在作用日志出现之前与至多一次相同。从未启动的运行总是会重新排队。";
+zhHans.tips.resources.deployments.effectPolicy = "worker 丢失时如何处理已启动的运行: 使其失败 (至多一次)、重新排队 (至少一次)，或日志模式，目前与至多一次相同。";
+zhHans.views.runDetail.effectPolicy = "作用策略";
+zhHans.tips.views.runDetail.effectPolicy = "此运行进入队列时部署的作用策略。它决定运行的 worker 丢失时如何处理；之后对部署的修改不会影响此运行。";

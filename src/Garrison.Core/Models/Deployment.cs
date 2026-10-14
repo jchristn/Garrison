@@ -195,9 +195,59 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
-        /// Whether a running run is requeued when its node is lost.
+        /// Effect policy (P12.29): what happens to a run that was already Running when its worker was lost. AtMostOnce
+        /// (the default for new deployments) ends it Failed with outcome NodeLost; AtLeastOnce requeues it while it has
+        /// attempts left; Journaled behaves as AtMostOnce until the effect journal (P12.33) exists. A run that was still
+        /// Leased never started, so it is requeued under every policy. Copied into runs at admission, so a later change
+        /// does not alter how an in-flight run is handled. When a request supplies only the deprecated
+        /// <see cref="RetryOnNodeLoss"/>, this reads back the mapped value (true is AtLeastOnce, false is AtMostOnce).
         /// </summary>
-        public bool RetryOnNodeLoss { get; set; } = false;
+        public DeploymentEffectPolicyEnum EffectPolicy
+        {
+            get
+            {
+                if (_EffectPolicySupplied || !_RetryOnNodeLossSupplied.HasValue) return _EffectPolicy;
+                return _RetryOnNodeLossSupplied.Value ? DeploymentEffectPolicyEnum.AtLeastOnce : DeploymentEffectPolicyEnum.AtMostOnce;
+            }
+            set
+            {
+                _EffectPolicy = value;
+                _EffectPolicySupplied = true;
+            }
+        }
+
+        /// <summary>
+        /// Deprecated since P12.29; use <see cref="EffectPolicy"/>. Still accepted on input for one release: true maps to
+        /// AtLeastOnce and false to AtMostOnce when <see cref="EffectPolicy"/> is not supplied, and a value that disagrees
+        /// with a supplied <see cref="EffectPolicy"/> is rejected (field code EffectPolicyConflict). Reads return a derived
+        /// value, true only for AtLeastOnce, so older clients keep working.
+        /// </summary>
+        public bool RetryOnNodeLoss
+        {
+            get
+            {
+                return EffectPolicy == DeploymentEffectPolicyEnum.AtLeastOnce;
+            }
+            set
+            {
+                _RetryOnNodeLossSupplied = value;
+            }
+        }
+
+        /// <summary>
+        /// True when the same input set both <see cref="EffectPolicy"/> and the deprecated <see cref="RetryOnNodeLoss"/>
+        /// and they disagree (retryOnNodeLoss true with a policy other than AtLeastOnce, or false with AtLeastOnce).
+        /// Validation rejects such a deployment. Not serialized.
+        /// </summary>
+        [JsonIgnore]
+        public bool EffectPolicyConflict
+        {
+            get
+            {
+                if (!_EffectPolicySupplied || !_RetryOnNodeLossSupplied.HasValue) return false;
+                return _RetryOnNodeLossSupplied.Value != (_EffectPolicy == DeploymentEffectPolicyEnum.AtLeastOnce);
+            }
+        }
 
         /// <summary>
         /// Traffic weight among the agent's active deployments. Minimum 0, maximum 1000, default 100.
@@ -522,6 +572,25 @@ namespace Garrison.Core.Models
         private int _ApprovalTimeoutSeconds = 300;
 
         private ExecutorRequirements _RequiredCapabilities = new ExecutorRequirements();
+        private DeploymentEffectPolicyEnum _EffectPolicy = DeploymentEffectPolicyEnum.AtMostOnce;
+        private bool _EffectPolicySupplied = false;
+        private bool? _RetryOnNodeLossSupplied = null;
+
+        #endregion
+
+        #region Internal-Methods
+
+        /// <summary>
+        /// Set the stored effect policy when a deployment is read from the database, without marking it as supplied
+        /// input, so a later assignment of the deprecated <see cref="RetryOnNodeLoss"/> still takes effect.
+        /// </summary>
+        /// <param name="policy">Stored policy.</param>
+        internal void LoadEffectPolicy(DeploymentEffectPolicyEnum policy)
+        {
+            _EffectPolicy = policy;
+            _EffectPolicySupplied = false;
+            _RetryOnNodeLossSupplied = null;
+        }
 
         #endregion
     }

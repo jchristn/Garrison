@@ -74,6 +74,8 @@ function run(i) {
     executor: i === UNTRUSTED_RUN ? 'KubernetesJob' : 'Process',
     requiredCapabilities: i === UNTRUSTED_RUN ? { ...defaultExecutorRequirements(), isolation: 'Container' } : defaultExecutorRequirements(),
     trustLevel: i === UNTRUSTED_RUN ? 'Untrusted' : 'Trusted',
+    // P12.29: run_0005 was admitted under AtLeastOnce; the rest under AtMostOnce (the default).
+    effectPolicy: i === 5 ? 'AtLeastOnce' : 'AtMostOnce',
     nodePoolId: 'np_0001',
     kind: 'Invoke',
     status,
@@ -350,7 +352,9 @@ const FACTORIES = {
       podResources: i === 4 ? { cpuRequest: '250m', memoryLimit: '2Gi' } : {},
       maxConcurrentRuns: 0,
       maxAttempts: 1,
-      retryOnNodeLoss: false,
+      // P12.29: deployment-2 requeues lost runs, deployment-5 is Journaled; retryOnNodeLoss is derived (true only for AtLeastOnce).
+      effectPolicy: i === 2 ? 'AtLeastOnce' : i === 5 ? 'Journaled' : 'AtMostOnce',
+      retryOnNodeLoss: i === 2,
       weight: i === 1 ? 300 : 100,
       nodePoolId: 'np_0001',
       workspaceTemplateId: 'wst_0001',

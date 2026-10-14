@@ -74,6 +74,8 @@ export type RunExecutor = "Process" | "KubernetesJob";
 export const RUN_EXECUTORS: readonly RunExecutor[] = ["Process", "KubernetesJob"] as const;
 /** Deployment and run trustLevel values; Trusted is the default. */
 export const TRUST_LEVELS: readonly TrustLevel[] = ["Trusted", "Untrusted"] as const;
+/** Deployment and run effectPolicy values; AtMostOnce is the default for new deployments. */
+export const EFFECT_POLICIES: readonly EffectPolicy[] = ["AtMostOnce", "AtLeastOnce", "Journaled"] as const;
 
 /**
  * Requests and limits for the run pod of a KubernetesJob run, as Kubernetes quantities (for example "500m", "2",
@@ -121,6 +123,10 @@ export interface Deployment extends Json {
   requiredCapabilities?: ExecutorRequirements;
   /** Trust level, default Trusted. Untrusted runs need at least Container isolation (an unset executor resolves to KubernetesJob). */
   trustLevel?: TrustLevel;
+  /** Effect policy, default AtMostOnce: what happens to a run that was already Running when its worker was lost. AtMostOnce fails it with NodeLost, AtLeastOnce requeues it while attempts remain, Journaled behaves as AtMostOnce until the effect journal exists. */
+  effectPolicy?: EffectPolicy;
+  /** @deprecated Use effectPolicy. Read-only view: true only for AtLeastOnce. Still accepted on input (true AtLeastOnce, false AtMostOnce); sending it with a disagreeing effectPolicy is a 400 (EffectPolicyConflict), so omit it when you change effectPolicy. */
+  retryOnNodeLoss?: boolean;
   /** Empty disables automatic artifact collection. */
   artifactGlobs?: string[];
   artifactStoreId?: string;
@@ -414,6 +420,8 @@ export interface Run extends Json {
   requiredCapabilities?: ExecutorRequirements;
   /** Deployment trust level when the run was admitted. */
   trustLevel?: TrustLevel;
+  /** Deployment effect policy when the run was admitted; later deployment changes do not affect this run. */
+  effectPolicy?: EffectPolicy;
   inputText?: string; resultText?: string; errorMessage?: string; inputTokens: number; outputTokens: number;
   costUsd?: number; createdUtc: string; startedUtc?: string; completedUtc?: string; depth: number; parentRunId?: string;
   cachedTokens?: number;
@@ -567,6 +575,8 @@ export type RunOutcome = typeof RUN_OUTCOMES[number];
 export type RunBlockedReason = "NoReadyWorker" | "NoCapableWorker" | "NoMatchingPool" | "NoIsolatingWorker";
 /** Deployment and run trust level. Tenant requireUntrustedDeployments rejects Trusted deployments (TenantRequiresUntrusted). */
 export type TrustLevel = "Trusted" | "Untrusted";
+/** Deployment and run effect policy: what happens to a started run whose worker was lost. Journaled behaves as AtMostOnce until the effect journal exists. */
+export type EffectPolicy = "AtMostOnce" | "AtLeastOnce" | "Journaled";
 
 /**
  * Health of a stored credential (Secret.status). NeedsReauthentication means the provider rejected a CodexAuthJson

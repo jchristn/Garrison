@@ -988,7 +988,6 @@ const fr = {
         maxConcurrentRuns: 'Nombre maximal d\'exécutions simultanées',
         timeoutSeconds: 'Délai d\'expiration (secondes)',
         maxAttempts: 'Nombre maximal de tentatives',
-        retryOnNodeLoss: 'Remettre en file d\'attente en cas de perte du nœud',
         repetitionGuard: 'Garde de répétition',
         maxAssistantChars: 'Nombre maximal de caractères de l\'assistant',
         noProgressSeconds: 'Délai sans progression (secondes)',
@@ -2173,3 +2172,14 @@ fr.resources.tenants.hints = { ...(fr.resources.tenants.hints || {}), requireUnt
 fr.tips.resources.tenants.requireUntrustedDeployments = "Si activé, chaque déploiement de ce locataire doit être non fiable, afin que ses exécutions n'aillent qu'à des exécuteurs isolés.";
 fr.views.runDetail.trustLevel = "Niveau de confiance";
 fr.tips.views.runDetail.trustLevel = "Le niveau de confiance du déploiement au moment où cette exécution est entrée dans la file. Les exécutions non fiables ne vont qu'à un exécuteur avec une isolation par conteneur ou plus forte.";
+
+// Deployment effect policy (P12.29).
+fr.enums.effectPolicy = { AtMostOnce: "Au plus une fois", AtLeastOnce: "Au moins une fois", Journaled: "Journalisée" };
+fr.tips.enums.effectPolicy = { AtMostOnce: "Si le worker est perdu après le démarrage de l'exécution, celle-ci échoue avec Nœud perdu et n'est jamais relancée. Aucun effet externe ne se produit deux fois. La valeur par défaut.", AtLeastOnce: "Si le worker est perdu après le démarrage de l'exécution, celle-ci revient dans la file tant qu'il reste des tentatives. Les effets déjà produits par la tentative perdue (un push, un message) peuvent se reproduire.", Journaled: "Remet en file uniquement si chaque effet est passé par le journal des effets. Ce journal n'existe pas encore, donc cette politique se comporte comme Au plus une fois." };
+Object.assign(fr.common.fieldCodes, { EffectPolicyConflict: "La politique d'effets contredit la valeur obsolète retryOnNodeLoss. Envoyez seulement la politique d'effets." });
+fr.resources.deployments.fields.effectPolicy = "Politique d'effets";
+fr.resources.deployments.columns.effectPolicy = "Politique d'effets";
+fr.resources.deployments.hints.effectPolicy = "Au plus une fois (par défaut) fait échouer avec Nœud perdu une exécution démarrée dont le worker est perdu. Au moins une fois la remet en file tant qu'il reste des tentatives et peut répéter des effets. Journalisée se comporte comme Au plus une fois tant que le journal des effets n'existe pas. Une exécution jamais démarrée est toujours remise en file.";
+fr.tips.resources.deployments.effectPolicy = "Ce qui arrive à une exécution démarrée quand son worker est perdu : échec (Au plus une fois), remise en file (Au moins une fois) ou Journalisée, qui se comporte pour l'instant comme Au plus une fois.";
+fr.views.runDetail.effectPolicy = "Politique d'effets";
+fr.tips.views.runDetail.effectPolicy = "La politique d'effets du déploiement au moment où cette exécution a été mise en file. Elle décide de ce qui arrive si le worker de l'exécution est perdu ; les modifications ultérieures du déploiement ne la concernent pas.";

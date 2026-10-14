@@ -948,7 +948,6 @@ const ja = {
         maxConcurrentRuns: '最大同時実行数',
         timeoutSeconds: 'タイムアウト (秒)',
         maxAttempts: '最大試行回数',
-        retryOnNodeLoss: 'ノード喪失時に再キュー',
         repetitionGuard: '繰り返しガード',
         maxAssistantChars: '最大アシスタント文字数',
         noProgressSeconds: '進行なしタイムアウト (秒)',
@@ -2124,3 +2123,14 @@ ja.resources.tenants.hints = { ...(ja.resources.tenants.hints || {}), requireUnt
 ja.tips.resources.tenants.requireUntrustedDeployments = "有効にすると、このテナントのすべてのデプロイメントを信頼されていない設定にする必要があり、その実行は分離された実行方式にのみ割り当てられます。";
 ja.views.runDetail.trustLevel = "信頼レベル";
 ja.tips.views.runDetail.trustLevel = "この実行がキューに入ったときのデプロイメントの信頼レベルです。信頼されていない実行は、コンテナー分離以上の実行方式にのみ割り当てられます。";
+
+// Deployment effect policy (P12.29).
+ja.enums.effectPolicy = { AtMostOnce: "最大 1 回", AtLeastOnce: "最低 1 回", Journaled: "ジャーナル方式" };
+ja.tips.enums.effectPolicy = { AtMostOnce: "実行の開始後にワーカーが失われた場合、実行はノード喪失で失敗し、再び開始されることはありません。外部への作用が 2 回起きることはありません。既定値です。", AtLeastOnce: "実行の開始後にワーカーが失われた場合、試行回数が残っている間は実行がキューに戻ります。失われた試行がすでに行った作用 (push やメッセージなど) が再び起きる可能性があります。", Journaled: "すべての作用が作用ジャーナルを経由した場合にのみ再キューします。ジャーナルはまだ提供されていないため、現在は最大 1 回と同じように動作します。" };
+Object.assign(ja.common.fieldCodes, { EffectPolicyConflict: "作用ポリシーが非推奨の retryOnNodeLoss の値と矛盾しています。作用ポリシーだけを送信してください。" });
+ja.resources.deployments.fields.effectPolicy = "作用ポリシー";
+ja.resources.deployments.columns.effectPolicy = "作用ポリシー";
+ja.resources.deployments.hints.effectPolicy = "最大 1 回 (既定) は、開始済みの実行のワーカーが失われるとノード喪失で失敗させます。最低 1 回は試行回数が残っている間は再キューし、作用が繰り返される可能性があります。ジャーナル方式は作用ジャーナルができるまで最大 1 回と同じように動作します。開始されていない実行は常に再キューされます。";
+ja.tips.resources.deployments.effectPolicy = "ワーカーが失われたときに開始済みの実行をどう扱うか: 失敗させる (最大 1 回)、再キューする (最低 1 回)、または現在は最大 1 回と同じ動作のジャーナル方式。";
+ja.views.runDetail.effectPolicy = "作用ポリシー";
+ja.tips.views.runDetail.effectPolicy = "この実行がキューに入ったときのデプロイメントの作用ポリシーです。実行のワーカーが失われた場合の扱いを決めます。後からデプロイメントを変更しても、この実行には影響しません。";

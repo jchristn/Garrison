@@ -949,7 +949,6 @@ const zhHant = {
         maxConcurrentRuns: '最大同時執行數',
         timeoutSeconds: '逾時（秒）',
         maxAttempts: '最大嘗試次數',
-        retryOnNodeLoss: '節點遺失時重新排入佇列',
         repetitionGuard: '重複防護',
         maxAssistantChars: '最大助理字元數',
         noProgressSeconds: '無進展逾時（秒）',
@@ -2125,3 +2124,14 @@ zhHant.resources.tenants.hints = { ...(zhHant.resources.tenants.hints || {}), re
 zhHant.tips.resources.tenants.requireUntrustedDeployments = "開啟後，這個租用戶的每個部署都必須是不可信任，這樣其執行只會交給有隔離的執行器。";
 zhHant.views.runDetail.trustLevel = "信任等級";
 zhHant.tips.views.runDetail.trustLevel = "這個執行進入佇列時部署的信任等級。不可信任的執行只會交給具有容器隔離或更強隔離的執行器。";
+
+// Deployment effect policy (P12.29).
+zhHant.enums.effectPolicy = { AtMostOnce: "至多一次", AtLeastOnce: "至少一次", Journaled: "日誌模式" };
+zhHant.tips.enums.effectPolicy = { AtMostOnce: "如果執行開始後 worker 遺失，執行會以節點遺失失敗，且不會再次啟動。任何外部作用都不會發生兩次。這是預設值。", AtLeastOnce: "如果執行開始後 worker 遺失，只要還有剩餘嘗試次數，執行就會回到佇列。遺失的那次嘗試已經產生的作用 (例如 push 或訊息) 可能再次發生。", Journaled: "只有當所有作用都經過作用日誌時才重新排入佇列。日誌尚未提供，因此目前的行為與至多一次相同。" };
+Object.assign(zhHant.common.fieldCodes, { EffectPolicyConflict: "作用策略與已棄用的 retryOnNodeLoss 值不一致。請只傳送作用策略。" });
+zhHant.resources.deployments.fields.effectPolicy = "作用策略";
+zhHant.resources.deployments.columns.effectPolicy = "作用策略";
+zhHant.resources.deployments.hints.effectPolicy = "至多一次 (預設) 會讓 worker 遺失的已啟動執行以節點遺失失敗。至少一次會在還有嘗試次數時重新排入佇列，作用可能重複。日誌模式在作用日誌出現之前與至多一次相同。從未啟動的執行一律會重新排入佇列。";
+zhHant.tips.resources.deployments.effectPolicy = "worker 遺失時如何處理已啟動的執行: 使其失敗 (至多一次)、重新排入佇列 (至少一次)，或日誌模式，目前與至多一次相同。";
+zhHant.views.runDetail.effectPolicy = "作用策略";
+zhHant.tips.views.runDetail.effectPolicy = "此執行進入佇列時部署的作用策略。它決定執行的 worker 遺失時如何處理；之後對部署的修改不會影響此執行。";

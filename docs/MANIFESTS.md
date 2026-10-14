@@ -126,7 +126,7 @@ spec:
   resources:
     mcpServers: []
     secrets: []
-  retryOnNodeLoss: false
+  effectPolicy: AtMostOnce
   weight: 100
 ```
 
@@ -318,7 +318,9 @@ spec:
 | `parameters`, `nodeSelector` | Maps of strings. Quote values YAML would read as numbers or booleans |
 | `allowedRunOverrides`, `argumentOverrides`, `environmentOverrides`, `fileOverrides` | Lists, as in the REST API |
 | `approvalsEnabled`, `approvalDefaultAction`, `approvalTimeoutSeconds`, `approvalTimeoutDecision`, `approvalRules` | Permission approvals, as in the REST API. Rules are a list of `action`, `pattern`, and optional `inputPattern` and `description`; applying a manifest keeps the identifiers of rules that did not change |
-| `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd`, `timeoutSeconds`, `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | As in the REST API |
+| `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd`, `timeoutSeconds`, `maxConcurrentRuns`, `maxAttempts`, `weight` | As in the REST API |
+| `effectPolicy` | `AtMostOnce`, `AtLeastOnce`, or `Journaled`: what happens to a run that was already running when its worker was lost (see "Effect policy" in `REST_API.md`). Omit it for `AtMostOnce`; export always writes it. `Journaled` behaves as `AtMostOnce` until the effect journal exists |
+| `retryOnNodeLoss` | Deprecated; use `effectPolicy`. Still accepted for one release: `true` means `AtLeastOnce` and `false` means `AtMostOnce`. A document that sets both with different meanings fails with `errorCode` `EffectPolicyConflict` and `errorField` `effectPolicy` (also on a dry run). Export never writes it, so an exported document that used it re-applies unchanged with `effectPolicy` instead |
 | `executor` | `Process` or `KubernetesJob` (a pod per run). Omit it to use the node pool's default, then `Process` (an `Untrusted` deployment never resolves to `Process` and uses `KubernetesJob`) |
 | `trustLevel` | `Trusted` or `Untrusted`. Omit it for `Trusted`; export writes it only for `Untrusted` deployments. `Untrusted` runs need at least Container isolation and wait in the queue (`NoIsolatingWorker`) until a worker can provide it. In a tenant with `requireUntrustedDeployments`, a document that creates or changes a `Trusted` deployment fails with `errorCode` `TenantRequiresUntrusted` and `errorField` `trustLevel`; an unchanged existing deployment is left alone |
 | `podResources` | Run pod `cpuRequest`, `cpuLimit`, `memoryRequest`, `memoryLimit`, `ephemeralStorageRequest`, `ephemeralStorageLimit` for `KubernetesJob` runs. It is not called `resources` because that key holds the secret and MCP server bindings |

@@ -502,7 +502,8 @@ namespace Garrison.Core.Manifests
             deployment.MaxAssistantChars = spec.MaxAssistantChars;
             deployment.NoProgressSeconds = spec.NoProgressSeconds;
             deployment.MaxAttempts = spec.MaxAttempts;
-            deployment.RetryOnNodeLoss = spec.RetryOnNodeLoss;
+            if (spec.RetryOnNodeLoss.HasValue) deployment.RetryOnNodeLoss = spec.RetryOnNodeLoss.Value;
+            if (spec.EffectPolicy.HasValue) deployment.EffectPolicy = spec.EffectPolicy.Value;
             deployment.Executor = spec.Executor;
             deployment.TrustLevel = spec.TrustLevel ?? DeploymentTrustLevelEnum.Trusted;
             deployment.RequiredCapabilities = spec.RequiredCapabilities?.Clone() ?? new ExecutorRequirements();
@@ -579,6 +580,17 @@ namespace Garrison.Core.Manifests
             Dictionary<string, string> errors = new Dictionary<string, string>();
             ConfigurationValidator.Name(deployment.Name, errors);
             if (errors.Count > 0) throw new ValidationException("Deployment " + deployment.Name + " is invalid.", errors);
+            if (deployment.EffectPolicyConflict)
+            {
+                // P12.29: reported at plan time, so a dry run shows it too, with the conflict as the item's error code.
+                Dictionary<string, string> conflict = new Dictionary<string, string>();
+                conflict["effectPolicy"] = "effectPolicy " + deployment.EffectPolicy + " disagrees with the deprecated retryOnNodeLoss value. Keep only effectPolicy (retryOnNodeLoss true means AtLeastOnce, false means AtMostOnce).";
+                Dictionary<string, string> codes = new Dictionary<string, string>();
+                codes["effectPolicy"] = "EffectPolicyConflict";
+                ValidationException rejected = new ValidationException("Deployment " + deployment.Name + " is invalid.", conflict, codes);
+                rejected.Code = "EffectPolicyConflict";
+                throw rejected;
+            }
 
             planned.Model = deployment;
             planned.ResourceId = deployment.Id;
@@ -929,7 +941,7 @@ namespace Garrison.Core.Manifests
             spec.MaxAssistantChars = deployment.MaxAssistantChars;
             spec.NoProgressSeconds = deployment.NoProgressSeconds;
             spec.MaxAttempts = deployment.MaxAttempts;
-            spec.RetryOnNodeLoss = deployment.RetryOnNodeLoss;
+            spec.EffectPolicy = deployment.EffectPolicy;
             spec.Executor = deployment.Executor;
             spec.TrustLevel = deployment.TrustLevel == DeploymentTrustLevelEnum.Trusted ? null : deployment.TrustLevel;
             spec.RequiredCapabilities = ExecutorCapabilityRules.RequiresReport(deployment.RequiredCapabilities) ? deployment.RequiredCapabilities.Clone() : null;

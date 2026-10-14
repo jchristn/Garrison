@@ -876,7 +876,6 @@ const tips = {
       maxConcurrentRuns: 'Nombre maximal d\'exécutions simultanées de ce déploiement sur l\'ensemble des nœuds. 0 signifie aucune limite.',
       timeoutSeconds: 'Échéance de l\'exécution en secondes. Vide utilise la valeur du profil de harness. Le paramètre du cluster Runtime.MaxRunSeconds borne toute exécution, y compris les durées maximales par exécution.',
       maxAttempts: 'Nombre total de tentatives autorisées pour une exécution. Entre 1 et 10.',
-      retryOnNodeLoss: 'Remettre l\'exécution en file d\'attente lorsque son nœud disparaît, au lieu de la faire échouer.',
       steps: {
         approvals: 'Quels appels d\'outil le harness peut effectuer, lesquels sont interdits et lesquels attendent une personne.',
         basics: 'Nom, agent et poids de trafic.',

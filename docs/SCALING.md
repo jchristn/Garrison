@@ -205,13 +205,23 @@ Workers heartbeat every 5 seconds by default, and the server's registration resp
 
 | Failure | What happens |
 |---|---|
-| A worker crashes | Its leases stop being renewed. After the lease expires, the leader requeues a run that never started (still Leased) if it has attempts left; a run that started is requeued only when the deployment sets `retryOnNodeLoss` and has attempts left, and otherwise fails with `NodeLost` |
+| A worker crashes | Its leases stop being renewed. After the lease expires, the leader requeues a run that never started (still Leased) if it has attempts left; a run that started follows the effect policy it was admitted under: requeued under `AtLeastOnce` while attempts are left, and otherwise (`AtMostOnce`, the default, and `Journaled`, which behaves as `AtMostOnce` until the effect journal exists) failed with `NodeLost` |
 | A worker loses the control plane | It keeps running its harnesses, buffers events (up to `MaxBufferedEvents` per run), and retries completion for up to `CompletionRetrySeconds`. If its lease was taken away in the meantime, its reports are refused and the run's later attempt wins |
 | A control-plane replica crashes | Clients and workers retry against another replica. If it was the leader, another replica takes over maintenance within the leader lease |
 | The database is unavailable | The control plane cannot accept or hand out work: API calls answer `503 DatabaseUnavailable` (JSON, with `Retry-After`), readiness answers 503, and liveness keeps answering 200. Workers keep running what they have and retry |
-| A worker is partitioned after it claims a run | The worker asks the control plane to acknowledge the start before it launches the harness (the start gate). Without the acknowledgement it never launches; the lease expires and the leader requeues the run, which therefore runs once. A run whose start was acknowledged follows `retryOnNodeLoss` when its lease expires: `NodeLost` by default, a new attempt only when the deployment allows it, and the old attempt's run token stops working either way |
+| A worker is partitioned after it claims a run | The worker asks the control plane to acknowledge the start before it launches the harness (the start gate). Without the acknowledgement it never launches; the lease expires and the leader requeues the run, which therefore runs once. A run whose start was acknowledged follows its `effectPolicy` when its lease expires: `NodeLost` under `AtMostOnce` (the default) and `Journaled`, a new attempt only under `AtLeastOnce`, and the old attempt's run token stops working either way. The policy is the one the run was admitted under, so changing the deployment mid-run does not change the outcome |
 | A run hangs | The worker kills it at the deadline. If the worker cannot, the leader fails the run after the deadline plus a grace period |
 | The host sleeps, or the container or VM is frozen | Every timestamp looks old on resume. The leader notices the gap, holds off for one heartbeat window, and judges nodes and runs only after they have had a chance to report (below) |
+
+### Effect policies
+
+A run that started may already have changed something outside Garrison (pushed a branch, posted a message, called a paid API) before its worker disappeared. Garrison cannot see which effects happened, so each deployment's `effectPolicy` decides whether a lost started run is tried again:
+
+- `AtMostOnce`, the default for new deployments, fails the run with `NodeLost`. Nothing it did is repeated; the caller decides whether to retry (`POST .../runs/{id}/retry`).
+- `AtLeastOnce` requeues the run while `maxAttempts` allows. Use it for read-only or idempotent work, where finishing matters more than a possible repeat.
+- `Journaled` behaves as `AtMostOnce` today. It is reserved for the effect journal (plan P12.33), which will requeue a run only when every effect it made has a known outcome.
+
+Runs keep the policy they were admitted under, so editing a deployment during an incident does not change what happens to runs already in flight. Deployments created before schema 24 kept their behaviour: `retryOnNodeLoss: true` became `AtLeastOnce` and `false` became `AtMostOnce`.
 
 ### Pauses
 
@@ -267,7 +277,7 @@ RUNS=1000 TIMEOUT_SECONDS=1800 CHAOS_DURATION=300 k8s/tests/chaos-test.sh
 
 `AGENTS=2` adds two k3d agent nodes so the spread and anti-affinity rules have somewhere to put replicas; each node gets `NODE_MEMORY`. `deploy.sh` and the three tests also run against another cluster: set `KUBECONFIG_FILE` and `CONTEXT` to reach it and `BASE_URL` to wherever this machine reaches the server's REST port (the test overlay exposes NodePort 30870). They never fall back to your current context.
 
-The load generator (`k8s/tests/loadgen`, a C# console that uses the SDK) applies a `loadtest-echo` agent on the fake harness with `maxAttempts` 3 and `retryOnNodeLoss`, creates every run with an idempotency key (so a creation retried after a dropped connection never makes a duplicate), and follows the runs through the run list. It writes one CSV row per run under `k8s/tests/results/` with the server's timestamps, claim latency (queued to leased), attempt count, worker, and outcome, and appends one row per test to `k8s/tests/results/summary.csv` with claim latency percentiles, run time percentiles, throughput, failures by outcome, and the verdict. When a test fails, the script also saves pod listings, events, and server and worker logs next to the CSV.
+The load generator (`k8s/tests/loadgen`, a C# console that uses the SDK) applies a `loadtest-echo` agent on the fake harness with `maxAttempts` 3 and `effectPolicy: AtLeastOnce` (`--effect-policy`), creates every run with an idempotency key (so a creation retried after a dropped connection never makes a duplicate), and follows the runs through the run list. It writes one CSV row per run under `k8s/tests/results/` with the server's timestamps, claim latency (queued to leased), attempt count, worker, and outcome, and appends one row per test to `k8s/tests/results/summary.csv` with claim latency percentiles, run time percentiles, throughput, failures by outcome, and the verdict. When a test fails, the script also saves pod listings, events, and server and worker logs next to the CSV.
 
 ### Measured results
 

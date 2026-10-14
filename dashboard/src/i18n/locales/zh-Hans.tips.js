@@ -873,7 +873,6 @@ const tips = {
       maxConcurrentRuns: '此部署在所有节点上同时进行的运行数上限。0 表示不限制。',
       timeoutSeconds: '运行截止时间（秒）。留空则使用 Harness 配置文件的默认值。集群设置 Runtime.MaxRunSeconds 会限制每个运行，包括每次运行的时间限制。',
       maxAttempts: '一个运行总共最多可以尝试多少次。范围为 1 到 10。',
-      retryOnNodeLoss: '节点消失时将运行放回队列，而不是使其失败。',
       steps: {
         approvals: 'Harness 可以进行哪些工具调用、不可以进行哪些，以及哪些需要等待人员处理。',
         basics: '名称、智能体和流量权重。',

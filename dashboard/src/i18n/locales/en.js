@@ -975,7 +975,6 @@ const en = {
         maxConcurrentRuns: 'Maximum concurrent runs',
         timeoutSeconds: 'Timeout (seconds)',
         maxAttempts: 'Maximum attempts',
-        retryOnNodeLoss: 'Requeue when the node is lost',
         repetitionGuard: 'Repetition guard',
         maxAssistantChars: 'Maximum assistant characters',
         noProgressSeconds: 'No-progress timeout (seconds)',
@@ -2152,3 +2151,14 @@ en.resources.tenants.hints = { ...(en.resources.tenants.hints || {}), requireUnt
 en.tips.resources.tenants.requireUntrustedDeployments = "When on, every deployment in this tenant must be Untrusted, so its runs only go to isolated executors.";
 en.views.runDetail.trustLevel = "Trust level";
 en.tips.views.runDetail.trustLevel = "The deployment's trust level when this run was queued. Untrusted runs only go to an executor with Container isolation or stronger.";
+
+// Deployment effect policy (P12.29).
+en.enums.effectPolicy = { AtMostOnce: "At most once", AtLeastOnce: "At least once", Journaled: "Journaled" };
+en.tips.enums.effectPolicy = { AtMostOnce: "If the worker is lost after the run started, the run fails with Node lost and is never started again. No external effect happens twice. The default.", AtLeastOnce: "If the worker is lost after the run started, the run goes back to the queue while it has attempts left. Effects the lost attempt already made (a push, a message) may happen again.", Journaled: "Requeues only when every effect went through the effect journal. The journal is not available yet, so this behaves like At most once." };
+Object.assign(en.common.fieldCodes, { EffectPolicyConflict: "The effect policy disagrees with the deprecated retryOnNodeLoss value. Send only the effect policy." });
+en.resources.deployments.fields.effectPolicy = "Effect policy";
+en.resources.deployments.columns.effectPolicy = "Effect policy";
+en.resources.deployments.hints.effectPolicy = "At most once (default) fails a started run whose worker is lost with Node lost. At least once requeues it while attempts remain and may repeat effects. Journaled behaves like At most once until the effect journal exists. A run that never started is always requeued.";
+en.tips.resources.deployments.effectPolicy = "What happens to a started run when its worker is lost: fail it (At most once), requeue it (At least once), or Journaled, which behaves like At most once for now.";
+en.views.runDetail.effectPolicy = "Effect policy";
+en.tips.views.runDetail.effectPolicy = "The deployment's effect policy when this run was queued. It decides what happens if the run's worker is lost; later deployment changes do not affect this run.";

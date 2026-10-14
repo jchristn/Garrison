@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 23).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 24).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1328,3 +1328,9 @@ CREATE INDEX IF NOT EXISTS "idx_run_child_waits_child" ON "run_child_waits" ("ch
 ALTER TABLE "deployments" ADD COLUMN trustlevel VARCHAR(32) NOT NULL DEFAULT 'Trusted';
 ALTER TABLE "runs" ADD COLUMN trustlevel VARCHAR(32) NOT NULL DEFAULT 'Trusted';
 ALTER TABLE "tenants" ADD COLUMN requireuntrusted INTEGER NOT NULL DEFAULT 0;
+
+-- Migration 24: Deployment effect policy replaces retryOnNodeLoss
+ALTER TABLE "deployments" ADD COLUMN effectpolicy VARCHAR(32) NOT NULL DEFAULT 'AtMostOnce';
+ALTER TABLE "runs" ADD COLUMN effectpolicy VARCHAR(32) NOT NULL DEFAULT 'AtMostOnce';
+UPDATE "deployments" SET effectpolicy = 'AtLeastOnce' WHERE retryonnodeloss = 1;
+UPDATE "runs" SET effectpolicy = 'AtLeastOnce' WHERE deploymentid IN (SELECT id FROM "deployments" WHERE retryonnodeloss = 1);

@@ -173,9 +173,29 @@ namespace Garrison.Sdk.Models
         }
 
         /// <summary>
-        /// Whether a running run is requeued when its node is lost.
+        /// Effect policy: what happens to a run that was already Running when its worker was lost. Default AtMostOnce
+        /// (fail with outcome NodeLost). AtLeastOnce requeues it while attempts remain; Journaled behaves as AtMostOnce
+        /// until the effect journal exists.
         /// </summary>
-        public bool RetryOnNodeLoss { get; set; } = false;
+        public DeploymentEffectPolicyEnum EffectPolicy { get; set; } = DeploymentEffectPolicyEnum.AtMostOnce;
+
+        /// <summary>
+        /// Deprecated; use <see cref="EffectPolicy"/>. A view of <see cref="EffectPolicy"/>: reads true only for
+        /// AtLeastOnce. Setting true selects AtLeastOnce; setting false selects AtMostOnce unless the policy already does
+        /// not retry (AtMostOnce or Journaled). Always sent consistent with <see cref="EffectPolicy"/>, so the server never
+        /// sees a conflict from this SDK.
+        /// </summary>
+        public bool RetryOnNodeLoss
+        {
+            get
+            {
+                return EffectPolicy == DeploymentEffectPolicyEnum.AtLeastOnce;
+            }
+            set
+            {
+                if (value != (EffectPolicy == DeploymentEffectPolicyEnum.AtLeastOnce)) EffectPolicy = value ? DeploymentEffectPolicyEnum.AtLeastOnce : DeploymentEffectPolicyEnum.AtMostOnce;
+            }
+        }
 
         /// <summary>
         /// Traffic weight among the agent's active deployments. Minimum 0, maximum 1000, default 100.

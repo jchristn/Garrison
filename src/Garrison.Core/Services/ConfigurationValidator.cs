@@ -403,6 +403,7 @@ namespace Garrison.Core.Services
             try { ExecutorCapabilityRules.Validate(deployment.RequiredCapabilities); }
             catch (ArgumentException ex) { errors["requiredCapabilities"] = ex.Message; }
             await TrustLevelAsync(database, tenantId, deployment, errors, codes, token).ConfigureAwait(false);
+            EffectPolicy(deployment, errors, codes);
 
             Name(deployment.Name, errors);
 
@@ -562,6 +563,22 @@ namespace Garrison.Core.Services
                     errors["trustLevel"] = "Tenant " + tenant.Name + " requires every deployment to be Untrusted; set trustLevel to Untrusted.";
                     codes["trustLevel"] = "TenantRequiresUntrusted";
                 }
+            }
+        }
+
+        private static void EffectPolicy(Deployment deployment, Dictionary<string, string> errors, Dictionary<string, string> codes)
+        {
+            // P12.29: retryOnNodeLoss is still accepted on input for one release. Alone it maps; together with an
+            // effectPolicy it must agree, and a disagreement is rejected rather than resolved silently.
+            if (!Enum.IsDefined(deployment.EffectPolicy))
+            {
+                errors["effectPolicy"] = "Unknown effect policy; use AtMostOnce, AtLeastOnce, or Journaled.";
+                return;
+            }
+            if (deployment.EffectPolicyConflict)
+            {
+                errors["effectPolicy"] = "effectPolicy " + deployment.EffectPolicy + " disagrees with the deprecated retryOnNodeLoss value. Send only effectPolicy (retryOnNodeLoss true means AtLeastOnce, false means AtMostOnce).";
+                codes["effectPolicy"] = "EffectPolicyConflict";
             }
         }
 

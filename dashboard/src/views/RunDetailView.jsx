@@ -304,6 +304,9 @@ export default function RunDetailView({ recordId }) {
         <Detail label={t('views.runDetail.trustLevel')} tip={t('tips.views.runDetail.trustLevel')}>
           <span data-testid="run-trust-level">{enumLabel(t, 'trustLevel', run.trustLevel || 'Trusted')}</span>
         </Detail>
+        <Detail label={t('views.runDetail.effectPolicy')} tip={t('tips.views.runDetail.effectPolicy')}>
+          <span data-testid="run-effect-policy" {...tip(enumTip(t, 'effectPolicy', run.effectPolicy || 'AtMostOnce'))}>{enumLabel(t, 'effectPolicy', run.effectPolicy || 'AtMostOnce')}</span>
+        </Detail>
         <Detail label={t('resources.runs.columns.leaseNodeName')} tip={t('tips.resources.runs.leaseNodeName')}>{run.leaseNodeName}</Detail>
         <Detail label={t('views.runDetail.deployment')} tip={t('tips.views.runDetail.deployment')}>
           {run.deploymentId ? <NamedId id={run.deploymentId} name={run.deploymentName || deployment?.name || (deployment?.deleted ? run.deploymentId : null)} deleted={!!deployment?.deleted} /> : '-'}

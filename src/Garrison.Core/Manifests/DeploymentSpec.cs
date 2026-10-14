@@ -81,9 +81,17 @@ namespace Garrison.Core.Manifests
         public int MaxAttempts { get; set; } = 1;
 
         /// <summary>
-        /// Whether runs are requeued when their node is lost.
+        /// Effect policy (P12.29): AtMostOnce, AtLeastOnce, or Journaled. Null (omitted) means AtMostOnce unless the
+        /// deprecated <see cref="RetryOnNodeLoss"/> is given. Export always writes it.
         /// </summary>
-        public bool RetryOnNodeLoss { get; set; } = false;
+        public DeploymentEffectPolicyEnum? EffectPolicy { get; set; } = null;
+
+        /// <summary>
+        /// Deprecated since P12.29; use <see cref="EffectPolicy"/>. Accepted for one release: true maps to AtLeastOnce and
+        /// false to AtMostOnce; together with an <see cref="EffectPolicy"/> it must agree, or the document fails with
+        /// EffectPolicyConflict. Null (omitted) by default; export never writes it.
+        /// </summary>
+        public bool? RetryOnNodeLoss { get; set; } = null;
 
         /// <summary>
         /// Traffic weight.

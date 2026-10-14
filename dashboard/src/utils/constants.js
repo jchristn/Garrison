@@ -79,6 +79,8 @@ export const ENUMS = {
   runBlockedReason: ['NoReadyWorker', 'NoCapableWorker', 'NoMatchingPool', 'NoIsolatingWorker'],
   // Deployment and run trust level (P11.14): Untrusted runs need at least Container isolation.
   trustLevel: ['Trusted', 'Untrusted'],
+  // Deployment and run effect policy (P12.29): what happens to a started run whose worker is lost.
+  effectPolicy: ['AtMostOnce', 'AtLeastOnce', 'Journaled'],
   conversationFallbackReason: ['AffinityNodeLost', 'AffinityWaitExpired', 'WorkspaceLost', 'SessionMissing', 'HarnessChanged', 'ResumeUnsupported', 'ExecutorWithoutState'],
   runEventType: ['Lifecycle', 'AssistantText', 'Thinking', 'ToolCall', 'ToolResult', 'Usage', 'Progress', 'Warning', 'Error', 'Stdout', 'Stderr', 'Result'],
   permissionType: ['Permit', 'Deny'],

@@ -38,6 +38,7 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v16-capabilities", "Legacy executor names upgrade without inventing capability promises (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 16)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v20-pipelines", "A version 20 database upgrades to pipelines: runs gain empty pipeline columns and pipeline tables work (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 20)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v21-child-waits", "A version 21 database upgrades to delegation capacity: nodes report no child reserve until they register again, and wait records work (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 21)));
+            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v23-effect-policy", "A version 23 database upgrades to effect policies: retryOnNodeLoss true reads back AtLeastOnce and false AtMostOnce, on deployments and their runs, and a lost Running run is handled as before (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 23)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v22-trust", "A version 22 database upgrades to trust levels: existing deployments and runs read back Trusted and tenants do not require Untrusted (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 22)));
             cases.Add(new TestCaseDescriptor(suiteId, "child-waits", "Delegation waits: the node waiter cap, a parent's parallel waits, the queue depth, finished children, pruning, and waiting ancestors left out of a deployment's limit (" + provider + ")", ct => ChildWaitsAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "pipeline-cas", "Pipelines: definition children round-trip in order, tenant reads are isolated, stage claims, links, pipeline run transitions, and review decisions are compare-and-set, one review per stage execution, idempotent pipeline run creation (" + provider + ")", ct => PipelineCasAsync(provider, ct)));
@@ -125,6 +126,25 @@ namespace Test.Shared.Suites
                             AdoDatabaseDriver.Add(c, "true", true);
                         }, token).ConfigureAwait(false);
                 }
+                if (fromVersion == 23)
+                {
+                    await ado.NonQueryAsync("INSERT INTO " + ado.Table("tenants") + " (id, name, active, isprotected, createdutc, lastupdateutc) VALUES ('ten_effect', 'effect-upgrade', "
+                        + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
+                    foreach (bool retry in new[] { true, false })
+                    {
+                        string suffix = retry ? "retry" : "noretry";
+                        await ado.NonQueryAsync("INSERT INTO " + ado.Table("deployments") + " (id, tenantid, agentid, name, harnessprofileid, maxconcurrentruns, maxattempts, retryonnodeloss, weight, configversion, active, isprotected, createdutc, lastupdateutc) VALUES ('dep_" + suffix + "', 'ten_effect', 'agt_effect', 'legacy-" + suffix + "', 'hpf_effect', 0, 3, "
+                            + ado.Dialect.BooleanLiteral(retry) + ", 100, 1, " + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
+                        await ado.NonQueryAsync("INSERT INTO " + ado.Table("runs") + " (id, tenantid, agentid, agentname, deploymentid, deploymentversion, harnesstype, kind, status, outcome, priority, callertype, depth, attempt, maxattempts, leaseepoch, "
+                            + "queuedutc, cancelrequested, inputtokens, outputtokens, cachedtokens, costestimated, lasteventsequence, active, isprotected, createdutc, lastupdateutc) VALUES "
+                            + "('run_" + suffix + "', 'ten_effect', 'agt_effect', 'legacy', 'dep_" + suffix + "', 1, 'Generic', 'Invoke', 'Running', 'None', 0, 'User', 0, 1, 3, 1, @now, @false, 0, 0, 0, @false, 0, @true, @false, @now, @now);", c =>
+                            {
+                                AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow);
+                                AdoDatabaseDriver.Add(c, "false", false);
+                                AdoDatabaseDriver.Add(c, "true", true);
+                            }, token).ConfigureAwait(false);
+                    }
+                }
                 if (fromVersion == 16 || fromVersion == 17)
                 {
                     await ado.NonQueryAsync("INSERT INTO " + ado.Table("node_executors") + " (id, nodeid, executor) VALUES ('exe_legacy', 'nod_legacy', 'KubernetesJob');", null, token).ConfigureAwait(false);
@@ -160,6 +180,27 @@ namespace Test.Shared.Suites
                     ChildWaitAdmission admitted = await upgraded.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_upgrade", ParentRunId = parent.Id, ChildRunId = IdGenerator.NewRunId() }, token).ConfigureAwait(false);
                     Assert.True(admitted.Admitted && admitted.NodeId == "nod_upgrade", "A wait is recorded after the upgrade");
                     Assert.Equal(1L, await upgraded.Runs.CountWaitingOnNodeAsync("nod_upgrade", token).ConfigureAwait(false), "The waiting parent counts on its node");
+                }
+                if (fromVersion == 23)
+                {
+                    Deployment retrying = Assert.NotNull(await upgraded.Deployments.ReadAsync("dep_retry", token).ConfigureAwait(false), "retryOnNodeLoss true deployment after upgrade");
+                    Deployment failing = Assert.NotNull(await upgraded.Deployments.ReadAsync("dep_noretry", token).ConfigureAwait(false), "retryOnNodeLoss false deployment after upgrade");
+                    Assert.True(retrying.EffectPolicy == DeploymentEffectPolicyEnum.AtLeastOnce && retrying.RetryOnNodeLoss, "retryOnNodeLoss true reads back AtLeastOnce: " + retrying.EffectPolicy);
+                    Assert.True(failing.EffectPolicy == DeploymentEffectPolicyEnum.AtMostOnce && !failing.RetryOnNodeLoss, "retryOnNodeLoss false reads back AtMostOnce: " + failing.EffectPolicy);
+                    Run retryRun = Assert.NotNull(await upgraded.Runs.ReadAsync("run_retry", token).ConfigureAwait(false), "Run of the retrying deployment");
+                    Run failRun = Assert.NotNull(await upgraded.Runs.ReadAsync("run_noretry", token).ConfigureAwait(false), "Run of the failing deployment");
+                    Assert.Equal(DeploymentEffectPolicyEnum.AtLeastOnce, retryRun.EffectPolicy, "In-flight run of a retrying deployment carries AtLeastOnce");
+                    Assert.Equal(DeploymentEffectPolicyEnum.AtMostOnce, failRun.EffectPolicy, "In-flight run of a failing deployment carries AtMostOnce");
+                    Assert.True(EffectPolicyRules.RequeueOnLeaseExpiry(retryRun), "A lost Running run of a retryOnNodeLoss true deployment is still requeued");
+                    Assert.True(!EffectPolicyRules.RequeueOnLeaseExpiry(failRun), "A lost Running run of a retryOnNodeLoss false deployment still ends NodeLost");
+
+                    failing.EffectPolicy = DeploymentEffectPolicyEnum.Journaled;
+                    await upgraded.Deployments.UpdateAsync(failing, token).ConfigureAwait(false);
+                    Deployment journaled = Assert.NotNull(await upgraded.Deployments.ReadAsync("dep_noretry", token).ConfigureAwait(false), "Updated deployment");
+                    Assert.True(journaled.EffectPolicy == DeploymentEffectPolicyEnum.Journaled && !journaled.RetryOnNodeLoss, "Effect policy writes after upgrade; retryOnNodeLoss is derived");
+                    Assert.Equal(DeploymentEffectPolicyEnum.AtMostOnce, Assert.NotNull(await upgraded.Runs.ReadAsync("run_noretry", token).ConfigureAwait(false), "Run after policy change").EffectPolicy, "A deployment change does not rewrite an in-flight run");
+                    Deployment created = await upgraded.Deployments.CreateAsync(new Deployment { TenantId = "ten_effect", AgentId = "agt_effect", Name = "fresh", HarnessProfileId = "hpf_effect" }, token).ConfigureAwait(false);
+                    Assert.Equal(DeploymentEffectPolicyEnum.AtMostOnce, Assert.NotNull(await upgraded.Deployments.ReadAsync(created.Id, token).ConfigureAwait(false), "New deployment").EffectPolicy, "A new deployment defaults to AtMostOnce");
                 }
                 if (fromVersion == 22)
                 {

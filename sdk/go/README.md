@@ -291,6 +291,10 @@ Kubernetes workers can report `warmStart: true` alongside `coldStartClass: "Cold
 
 `Deployment.TrustLevel` is `TrustLevelTrusted` (the default when empty) or `TrustLevelUntrusted`. Untrusted runs need at least Container isolation on top of `RequiredCapabilities`: an unset `Executor` resolves to `KubernetesJob`, `Process` is rejected with field code `UntrustedNeedsIsolation`, and a run no Ready worker can isolate stays `Queued` with `BlockedReason` `"NoIsolatingWorker"`. `Run.TrustLevel` reports the admitted level. A tenant with `requireUntrustedDeployments` (set through `client.Tenants`) rejects Trusted deployments with field code `TenantRequiresUntrusted`. See "Deployment trust level" in `REST_API.md`.
 
+## Effect policy
+
+`Deployment.EffectPolicy` is `EffectPolicyAtMostOnce` (the default when empty on create), `EffectPolicyAtLeastOnce`, or `EffectPolicyJournaled`. It decides what happens to a run that was already `Running` when its worker was lost: `AtMostOnce` ends it `Failed` with outcome `NodeLost`, `AtLeastOnce` requeues it while `MaxAttempts` allows, and `Journaled` behaves as `AtMostOnce` until the effect journal exists. A run that was still `Leased` never started, so it is requeued under every policy. `Run.EffectPolicy` reports the policy the run was admitted under; changing the deployment later does not change how that run is handled. The server still accepts the deprecated `retryOnNodeLoss` in a map body (`true` is `AtLeastOnce`, `false` is `AtMostOnce`) and rejects one that disagrees with `effectPolicy` with a 400 field error on `effectPolicy` (code `EffectPolicyConflict`); the `Deployment` struct does not carry it, so updates through the struct never conflict. See "Effect policy" in `REST_API.md`.
+
 ## Artifacts
 
 The artifact client lists metadata, reads individual records, downloads raw bytes, creates temporary download links, and deletes files. Deployments select `artifactStoreId` and explicit `artifactGlobs`; empty globs disable automatic collection. Uploads require the active run lease epoch and repair attempt. See [Run artifacts](../../docs/ARTIFACTS.md) for store configuration and API behavior.

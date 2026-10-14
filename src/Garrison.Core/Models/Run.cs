@@ -690,6 +690,14 @@ namespace Garrison.Core.Models
         /// </summary>
         public DeploymentTrustLevelEnum TrustLevel { get; set; } = DeploymentTrustLevelEnum.Trusted;
 
+        /// <summary>
+        /// The deployment's effect policy when the run was admitted (P12.29). Default AtMostOnce. The lease reaper uses
+        /// this value, not the deployment's current one, so editing the deployment does not change how an in-flight run is
+        /// handled when its worker is lost: AtLeastOnce requeues a lost Running run while attempts remain; AtMostOnce and
+        /// Journaled (until P12.33) end it Failed with outcome NodeLost.
+        /// </summary>
+        public DeploymentEffectPolicyEnum EffectPolicy { get; set; } = DeploymentEffectPolicyEnum.AtMostOnce;
+
         #endregion
 
         #region Private-Members

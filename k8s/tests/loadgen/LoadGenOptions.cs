@@ -161,10 +161,11 @@ namespace Garrison.LoadGen
         }
 
         /// <summary>
-        /// Deployment retryOnNodeLoss for the load-test deployment: requeue a run whose worker was lost while it was
-        /// running. Default true.
+        /// Deployment effectPolicy for the load-test deployment: AtLeastOnce (the default here) requeues a run whose
+        /// worker was lost while it was running; AtMostOnce and Journaled end it with NodeLost. The deprecated
+        /// --retry-on-node-loss option sets AtLeastOnce (true) or AtMostOnce (false).
         /// </summary>
-        public bool RetryOnNodeLoss { get; set; } = true;
+        public string EffectPolicy { get; set; } = "AtLeastOnce";
 
         /// <summary>
         /// Apply the load-test agent and deployment before starting runs. Default true.
@@ -253,7 +254,8 @@ namespace Garrison.LoadGen
                 "  --poll-ms N                run list poll interval (default 2000)",
                 "  --submit-attempts N        attempts per run creation on transient errors (default 8)",
                 "  --max-attempts N           deployment maxAttempts (default 3)",
-                "  --retry-on-node-loss B     deployment retryOnNodeLoss (default true)",
+                "  --effect-policy P          deployment effectPolicy: AtMostOnce, AtLeastOnce, Journaled (default AtLeastOnce)",
+                "  --retry-on-node-loss B     deprecated: true is AtLeastOnce, false is AtMostOnce",
                 "  --no-setup                 skip applying the agent and deployment",
                 "  --require-success          fail unless every run Succeeded",
                 "  --allowed-outcomes A,B     failed outcomes accepted without --require-success (default NodeLost,StaleLease)",
@@ -278,7 +280,7 @@ namespace Garrison.LoadGen
             if (args == null) throw new ArgumentNullException(nameof(args));
             LoadGenOptions options = new LoadGenOptions();
             options.AdminKey = Env("GARRISON_ADMIN_API_KEY");
-            foreach (string name in new string[] { "url", "admin-key", "access-key", "secret-key", "tenant", "agent", "runs", "concurrency", "run-ms", "timeout-seconds", "poll-ms", "submit-attempts", "max-attempts", "retry-on-node-loss", "allowed-outcomes", "csv", "summary", "label", "progress-seconds" })
+            foreach (string name in new string[] { "url", "admin-key", "access-key", "secret-key", "tenant", "agent", "runs", "concurrency", "run-ms", "timeout-seconds", "poll-ms", "submit-attempts", "max-attempts", "retry-on-node-loss", "effect-policy", "allowed-outcomes", "csv", "summary", "label", "progress-seconds" })
             {
                 string? value = Env("LOADGEN_" + name.ToUpperInvariant().Replace('-', '_'));
                 if (value != null) options.Apply(name, value);
@@ -328,7 +330,11 @@ namespace Garrison.LoadGen
                 case "poll-ms": PollMs = Int32.Parse(value, CultureInfo.InvariantCulture); break;
                 case "submit-attempts": SubmitAttempts = Int32.Parse(value, CultureInfo.InvariantCulture); break;
                 case "max-attempts": MaxAttempts = Int32.Parse(value, CultureInfo.InvariantCulture); break;
-                case "retry-on-node-loss": RetryOnNodeLoss = Boolean.Parse(value); break;
+                case "effect-policy":
+                    if (value != "AtMostOnce" && value != "AtLeastOnce" && value != "Journaled") throw new ArgumentException("effect-policy must be AtMostOnce, AtLeastOnce, or Journaled.");
+                    EffectPolicy = value;
+                    break;
+                case "retry-on-node-loss": EffectPolicy = Boolean.Parse(value) ? "AtLeastOnce" : "AtMostOnce"; break;
                 case "allowed-outcomes": AllowedOutcomes = new List<string>(value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)); break;
                 case "csv": CsvPath = value; break;
                 case "summary": SummaryPath = value; break;

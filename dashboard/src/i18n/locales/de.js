@@ -971,7 +971,6 @@ const de = {
         maxConcurrentRuns: 'Maximal gleichzeitige Läufe',
         timeoutSeconds: 'Zeitlimit (Sekunden)',
         maxAttempts: 'Maximale Versuche',
-        retryOnNodeLoss: 'Bei Knotenverlust neu einreihen',
         repetitionGuard: 'Wiederholungswächter',
         maxAssistantChars: 'Maximale Assistentenzeichen',
         noProgressSeconds: 'Zeitlimit ohne Fortschritt (Sekunden)',
@@ -2159,3 +2158,14 @@ de.resources.tenants.hints = { ...(de.resources.tenants.hints || {}), requireUnt
 de.tips.resources.tenants.requireUntrustedDeployments = "Wenn aktiv, muss jede Bereitstellung dieses Mandanten nicht vertrauenswürdig sein, damit ihre Läufe nur an isolierte Ausführungen gehen.";
 de.views.runDetail.trustLevel = "Vertrauensstufe";
 de.tips.views.runDetail.trustLevel = "Die Vertrauensstufe der Bereitstellung, als dieser Lauf eingereiht wurde. Nicht vertrauenswürdige Läufe gehen nur an eine Ausführung mit Container-Isolation oder stärker.";
+
+// Deployment effect policy (P12.29).
+de.enums.effectPolicy = { AtMostOnce: "Höchstens einmal", AtLeastOnce: "Mindestens einmal", Journaled: "Protokolliert" };
+de.tips.enums.effectPolicy = { AtMostOnce: "Geht der Worker verloren, nachdem der Lauf gestartet ist, schlägt der Lauf mit Knoten verloren fehl und wird nie erneut gestartet. Keine externe Wirkung geschieht zweimal. Der Standard.", AtLeastOnce: "Geht der Worker verloren, nachdem der Lauf gestartet ist, kehrt der Lauf in die Warteschlange zurück, solange Versuche übrig sind. Wirkungen des verlorenen Versuchs (ein Push, eine Nachricht) können erneut geschehen.", Journaled: "Reiht nur neu ein, wenn jede Wirkung über das Wirkungsprotokoll lief. Das Protokoll gibt es noch nicht, daher verhält sich dies wie Höchstens einmal." };
+Object.assign(de.common.fieldCodes, { EffectPolicyConflict: "Die Wirkungsrichtlinie widerspricht dem veralteten Wert retryOnNodeLoss. Senden Sie nur die Wirkungsrichtlinie." });
+de.resources.deployments.fields.effectPolicy = "Wirkungsrichtlinie";
+de.resources.deployments.columns.effectPolicy = "Wirkungsrichtlinie";
+de.resources.deployments.hints.effectPolicy = "Höchstens einmal (Standard) lässt einen gestarteten Lauf, dessen Worker verloren geht, mit Knoten verloren fehlschlagen. Mindestens einmal reiht ihn neu ein, solange Versuche übrig sind, und kann Wirkungen wiederholen. Protokolliert verhält sich wie Höchstens einmal, bis das Wirkungsprotokoll existiert. Ein nie gestarteter Lauf wird immer neu eingereiht.";
+de.tips.resources.deployments.effectPolicy = "Was mit einem gestarteten Lauf geschieht, wenn sein Worker verloren geht: fehlschlagen (Höchstens einmal), neu einreihen (Mindestens einmal) oder Protokolliert, das sich vorerst wie Höchstens einmal verhält.";
+de.views.runDetail.effectPolicy = "Wirkungsrichtlinie";
+de.tips.views.runDetail.effectPolicy = "Die Wirkungsrichtlinie der Bereitstellung, als dieser Lauf eingereiht wurde. Sie entscheidet, was passiert, wenn der Worker des Laufs verloren geht; spätere Änderungen an der Bereitstellung betreffen diesen Lauf nicht.";

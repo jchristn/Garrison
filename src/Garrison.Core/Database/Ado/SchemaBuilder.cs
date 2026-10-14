@@ -188,6 +188,16 @@ namespace Garrison.Core.Database.Ado
             v23.Column("tenants", "requireuntrusted", dialect.TypeBool + " NOT NULL DEFAULT " + dialect.BooleanLiteral(false));
             migrations.Add(new SchemaMigration(23, "Deployment trust level and tenant Untrusted policy", v23._Statements, v23._Columns));
 
+            // P12.29: the effect policy replaces retryOnNodeLoss. Existing deployments keep their behaviour (true becomes
+            // AtLeastOnce, false AtMostOnce), and existing runs take their deployment's mapped policy so in-flight runs are
+            // handled exactly as before. The retryonnodeloss column stays and is written as a derived value.
+            SchemaBuilder v24 = new SchemaBuilder(catalog, dialect);
+            v24.Column("deployments", "effectpolicy", "VARCHAR(32) NOT NULL DEFAULT 'AtMostOnce'");
+            v24.Column("runs", "effectpolicy", "VARCHAR(32) NOT NULL DEFAULT 'AtMostOnce'");
+            v24._Statements.Add("UPDATE " + catalog.Reference("deployments") + " SET effectpolicy = 'AtLeastOnce' WHERE retryonnodeloss = " + dialect.BooleanLiteral(true) + ";");
+            v24._Statements.Add("UPDATE " + catalog.Reference("runs") + " SET effectpolicy = 'AtLeastOnce' WHERE deploymentid IN (SELECT id FROM " + catalog.Reference("deployments") + " WHERE retryonnodeloss = " + dialect.BooleanLiteral(true) + ");");
+            migrations.Add(new SchemaMigration(24, "Deployment effect policy replaces retryOnNodeLoss", v24._Statements, v24._Columns));
+
             return migrations;
         }
 

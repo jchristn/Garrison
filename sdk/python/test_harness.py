@@ -12,7 +12,7 @@ import traceback
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from garrison_sdk import RUN_BLOCKED_REASONS, TRUST_LEVELS, GarrisonClient, GarrisonError
+from garrison_sdk import EFFECT_POLICIES, RUN_BLOCKED_REASONS, TRUST_LEVELS, GarrisonClient, GarrisonError
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8700"
 ACCESS = sys.argv[2] if len(sys.argv) > 2 else "access_garrison_default"
@@ -224,6 +224,29 @@ def t_trust_level():
         read = client.runs.get(run["id"])
         require(read["trustLevel"] == "Untrusted" and read["executor"] == "KubernetesJob", f"run {read['trustLevel']} {read['executor']}")
         require(read["status"] == "Queued" and read["blockedReason"] == "NoIsolatingWorker", f"run {read['status']} {read['blockedReason']}")
+        client.runs.cancel(run["id"])
+    finally:
+        client.deployments.delete(deployment["id"])
+
+
+def t_effect_policy():
+    require(EFFECT_POLICIES == ("AtMostOnce", "AtLeastOnce", "Journaled"), "effect policy constants")
+    deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-effect", "agentId": state["agent"], "harnessProfileId": state["fake"],
+                                            "weight": 0})
+    try:
+        require(deployment["effectPolicy"] == "AtMostOnce" and deployment["retryOnNodeLoss"] is False, f"default effectPolicy {deployment['effectPolicy']}")
+        body = {k: v for k, v in deployment.items() if k != "retryOnNodeLoss"}
+        body["effectPolicy"] = "AtLeastOnce"
+        updated = client.deployments.update(deployment["id"], body)
+        require(updated["effectPolicy"] == "AtLeastOnce" and updated["retryOnNodeLoss"] is True, f"updated effectPolicy {updated['effectPolicy']}")
+        conflict = dict(body, effectPolicy="AtMostOnce", retryOnNodeLoss=True)
+        try:
+            client.deployments.update(deployment["id"], conflict)
+            raise AssertionError("conflicting effectPolicy and retryOnNodeLoss accepted")
+        except GarrisonError as e:
+            require(e.status_code == 400 and "EffectPolicyConflict" in str(e.body), f"conflict {e.status_code} {e.body}")
+        run = client.runs.create("Effect policy", agent_id=state["agent"], deployment_id=deployment["id"])
+        require(run["effectPolicy"] == "AtLeastOnce", f"run effectPolicy {run.get('effectPolicy')}")
         client.runs.cancel(run["id"])
     finally:
         client.deployments.delete(deployment["id"])
@@ -490,6 +513,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("run analytics dimensions", t_analytics_dimensions), ("run analytics filtered by model", t_analytics_model),
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
                  ("untrusted deployment queues without isolation", t_trust_level),
+                 ("effect policy default, update, and conflict", t_effect_policy),
                  ("manifest dry run", t_manifest), ("list runs by agent", t_list_runs),
                  ("conversation start", t_conversation_start), ("conversation continue", t_conversation_continue),
                  ("conversation read and list", t_conversation_read), ("conversation delete", t_conversation_delete),

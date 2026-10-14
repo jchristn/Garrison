@@ -702,8 +702,10 @@ namespace Garrison.Server.Runtime
             foreach (Run run in expired)
             {
                 Deployment? deployment = await _Database.Deployments.ReadAsync(run.DeploymentId, token).ConfigureAwait(false);
-                bool attemptsLeft = run.Attempt < Math.Max(run.MaxAttempts, 1);
-                bool requeue = !run.CancelRequested && attemptsLeft && (run.Status == RunStatusEnum.Leased || (run.Status == RunStatusEnum.Running && deployment != null && deployment.RetryOnNodeLoss));
+                // A Leased run never started its harness (the start gate), so it is requeued under every policy. A Running
+                // run follows the effect policy it was admitted under (P12.29): only AtLeastOnce requeues it; AtMostOnce,
+                // and Journaled until the effect journal exists (P12.33), end it with NodeLost.
+                bool requeue = EffectPolicyRules.RequeueOnLeaseExpiry(run);
 
                 RunTransition transition = new RunTransition();
                 transition.RunId = run.Id;
@@ -733,7 +735,7 @@ namespace Garrison.Server.Runtime
                 if (await _Database.Runs.TransitionAsync(transition, token).ConfigureAwait(false))
                 {
                     GarrisonMetrics.Count(GarrisonMetricCatalog.LeaseExpirations, "action", requeue ? "requeued" : "failed");
-                    _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()) + " " + RunTracing.LogFields(run.Id, run.TraceId)
+                    _Logging.Info(_Header + "run " + run.Id + " lease expired on " + (run.LeaseNodeName ?? run.LeaseNodeId) + "; " + (requeue ? "requeued" : transition.ToStatus.ToString().ToLowerInvariant()) + " (effect policy " + run.EffectPolicy + ") " + RunTracing.LogFields(run.Id, run.TraceId)
                         + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName, "deployment", deployment?.Name, "node", run.LeaseNodeName ?? run.LeaseNodeId));
                     if (requeue)
                     {

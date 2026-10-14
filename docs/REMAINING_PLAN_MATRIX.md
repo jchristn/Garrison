@@ -2,7 +2,7 @@
 
 Updated 2026-10-14 under D-042/D-043 and D-049. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There is 1 active phase task (P12.29), 2 conditional P10 tasks (P10.24 now evidenced by P14.15, P10.25 not), and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.38/P14.15 are complete. Active core follow-ups are G-8 (SyslogLogging 2.4.1 per `~/Code/SyslogLogging/BUGFIX.md`, executed by another agent) and G-12 (real-Codex soak, then new Codex deployments on `builtin/codex-app-server`). I-01, I-05, and cancellation latency were completed 2026-10-13.
+D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 0 active phase tasks, 2 conditional P10 tasks (P10.24 now evidenced by P14.15, P10.25 not), and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.29/P12.38/P14.15 are complete. Active core follow-ups are G-8 (SyslogLogging 2.4.1 per `~/Code/SyslogLogging/BUGFIX.md`, executed by another agent) and G-12 (real-Codex soak, then new Codex deployments on `builtin/codex-app-server`). I-01, I-05, and cancellation latency were completed 2026-10-13.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -38,7 +38,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.26 | Dashboard OIDC login | Deferred | Separate authentication design required |
 | P12.27 | Markdown/JSON transcript export | Deferred | Useful for debugging and sharing existing runs |
 | P12.28 | Prompt A/B evaluation hooks | Deferred | Experimentation feature |
-| P12.29 | Explicit retry/effect policy | Active (D-049) | Existing RetryOnNodeLoss values carry over; new deployments default to no retry on node loss |
+| P12.29 | Explicit retry/effect policy | Complete (D-049) | Schema 24: existing RetryOnNodeLoss values carry over (true AtLeastOnce, false AtMostOnce); new deployments default to AtMostOnce; Journaled behaves as AtMostOnce until P12.33 |
 | P12.31 | Epoch-fenced tool and credential gateway | Deferred | Garrison tools/brokered credentials only |
 | P12.32 | Effect intent journal | Deferred | Depends on the gateway; records uncertain external effects |
 | P12.33 | Journal-aware recovery | Deferred | Depends on effect policy and journal |

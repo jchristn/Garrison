@@ -58,6 +58,7 @@ namespace Test.Shared
                 suites.AddRange(PipelineSuite.Build());
                 suites.AddRange(DelegationCapacitySuite.Build());
                 suites.AddRange(TrustLevelSuite.Build());
+                suites.AddRange(EffectPolicySuite.Build());
                 return suites;
             }
         }

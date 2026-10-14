@@ -4307,6 +4307,7 @@
                 "exec": [
                   "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
                   "pm.test('trust level is Trusted', function () { pm.expect(pm.response.json().trustLevel).to.eql('Trusted'); });",
+                  "pm.test('effect policy defaults to AtMostOnce', function () { pm.expect(pm.response.json().effectPolicy).to.eql('AtMostOnce'); pm.expect(pm.response.json().retryOnNodeLoss).to.eql(false); });",
                   "var json = {}; try { json = pm.response.json(); } catch (e) { }",
                   "if (json.id !== undefined && json.id !== null) { pm.collectionVariables.set('deploymentId', json.id); }"
                 ]
@@ -4420,10 +4421,10 @@
                 "{{deploymentId}}"
               ]
             },
-            "description": "Replaces a deployment. The configuration version increments.",
+            "description": "Replaces a deployment. The configuration version increments. effectPolicy (AtMostOnce by default, AtLeastOnce, or Journaled) decides whether a run lost after it started is failed with NodeLost or requeued; the deprecated retryOnNodeLoss is returned as a derived value and must agree with effectPolicy when sent.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"description\": \"Updated by Postman\",\n  \"timeoutSeconds\": 120\n}",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"description\": \"Updated by Postman\",\n  \"timeoutSeconds\": 120,\n  \"effectPolicy\": \"AtLeastOnce\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4437,7 +4438,56 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('effect policy is AtLeastOnce', function () { pm.expect(pm.response.json().effectPolicy).to.eql('AtLeastOnce'); pm.expect(pm.response.json().retryOnNodeLoss).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update deployment with conflicting effect policy",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{deploymentId}}"
+              ]
+            },
+            "description": "Sending the deprecated retryOnNodeLoss with a value that disagrees with effectPolicy is rejected with 400 and field code EffectPolicyConflict on effectPolicy. Nothing changes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"effectPolicy\": \"AtMostOnce\",\n  \"retryOnNodeLoss\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code is EffectPolicyConflict', function () { pm.expect(pm.response.json().fieldCodes.effectPolicy).to.eql('EffectPolicyConflict'); });"
                 ]
               }
             }

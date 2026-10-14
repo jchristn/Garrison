@@ -988,7 +988,6 @@ const it = {
         maxConcurrentRuns: 'Numero massimo di esecuzioni simultanee',
         timeoutSeconds: 'Timeout (secondi)',
         maxAttempts: 'Numero massimo di tentativi',
-        retryOnNodeLoss: 'Rimetti in coda se il nodo viene perso',
         repetitionGuard: 'Protezione dalle ripetizioni',
         maxAssistantChars: 'Massimo di caratteri dell\'assistente',
         noProgressSeconds: 'Limite senza avanzamento (secondi)',
@@ -2173,3 +2172,14 @@ it.resources.tenants.hints = { ...(it.resources.tenants.hints || {}), requireUnt
 it.tips.resources.tenants.requireUntrustedDeployments = "Se attivo, ogni distribuzione di questo tenant deve essere non attendibile, così le sue esecuzioni vanno solo a esecutori isolati.";
 it.views.runDetail.trustLevel = "Livello di attendibilità";
 it.tips.views.runDetail.trustLevel = "Il livello di attendibilità della distribuzione quando questa esecuzione è entrata in coda. Le esecuzioni non attendibili vanno solo a un esecutore con isolamento in container o superiore.";
+
+// Deployment effect policy (P12.29).
+it.enums.effectPolicy = { AtMostOnce: "Al massimo una volta", AtLeastOnce: "Almeno una volta", Journaled: "Registrata" };
+it.tips.enums.effectPolicy = { AtMostOnce: "Se il worker viene perso dopo l'avvio dell'esecuzione, l'esecuzione fallisce con Nodo perso e non viene mai riavviata. Nessun effetto esterno avviene due volte. Il valore predefinito.", AtLeastOnce: "Se il worker viene perso dopo l'avvio dell'esecuzione, l'esecuzione torna in coda finché restano tentativi. Gli effetti già prodotti dal tentativo perso (un push, un messaggio) possono ripetersi.", Journaled: "Rimette in coda solo quando ogni effetto è passato dal registro degli effetti. Il registro non esiste ancora, quindi si comporta come Al massimo una volta." };
+Object.assign(it.common.fieldCodes, { EffectPolicyConflict: "Il criterio degli effetti non concorda con il valore deprecato retryOnNodeLoss. Invia solo il criterio degli effetti." });
+it.resources.deployments.fields.effectPolicy = "Criterio degli effetti";
+it.resources.deployments.columns.effectPolicy = "Criterio degli effetti";
+it.resources.deployments.hints.effectPolicy = "Al massimo una volta (predefinito) fa fallire con Nodo perso un'esecuzione avviata il cui worker viene perso. Almeno una volta la rimette in coda finché restano tentativi e può ripetere effetti. Registrata si comporta come Al massimo una volta finché il registro degli effetti non esiste. Un'esecuzione mai avviata torna sempre in coda.";
+it.tips.resources.deployments.effectPolicy = "Cosa succede a un'esecuzione avviata quando il suo worker viene perso: fallisce (Al massimo una volta), torna in coda (Almeno una volta) oppure Registrata, che per ora si comporta come Al massimo una volta.";
+it.views.runDetail.effectPolicy = "Criterio degli effetti";
+it.tips.views.runDetail.effectPolicy = "Il criterio degli effetti del deployment quando questa esecuzione è entrata in coda. Decide cosa succede se il worker dell'esecuzione viene perso; le modifiche successive al deployment non la riguardano.";

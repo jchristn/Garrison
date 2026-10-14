@@ -992,7 +992,6 @@ const es = {
         maxConcurrentRuns: 'Máximo de ejecuciones simultáneas',
         timeoutSeconds: 'Tiempo de espera (segundos)',
         maxAttempts: 'Intentos máximos',
-        retryOnNodeLoss: 'Volver a encolar si se pierde el nodo',
         repetitionGuard: 'Protección contra repeticiones',
         maxAssistantChars: 'Máximo de caracteres del asistente',
         noProgressSeconds: 'Límite sin avance (segundos)',
@@ -2177,3 +2176,14 @@ es.resources.tenants.hints = { ...(es.resources.tenants.hints || {}), requireUnt
 es.tips.resources.tenants.requireUntrustedDeployments = "Si está activado, todos los despliegues de este inquilino deben ser no de confianza, de modo que sus ejecuciones solo van a ejecutores aislados.";
 es.views.runDetail.trustLevel = "Nivel de confianza";
 es.tips.views.runDetail.trustLevel = "El nivel de confianza del despliegue cuando esta ejecución entró en la cola. Las ejecuciones no de confianza solo van a un ejecutor con aislamiento de contenedor o superior.";
+
+// Deployment effect policy (P12.29).
+es.enums.effectPolicy = { AtMostOnce: "Como máximo una vez", AtLeastOnce: "Al menos una vez", Journaled: "Con registro" };
+es.tips.enums.effectPolicy = { AtMostOnce: "Si el worker se pierde después de que la ejecución empezó, la ejecución falla con Nodo perdido y nunca vuelve a empezar. Ningún efecto externo ocurre dos veces. El valor predeterminado.", AtLeastOnce: "Si el worker se pierde después de que la ejecución empezó, la ejecución vuelve a la cola mientras le queden intentos. Los efectos que ya hizo el intento perdido (un push, un mensaje) pueden repetirse.", Journaled: "Vuelve a encolar solo cuando todos los efectos pasaron por el registro de efectos. El registro aún no existe, así que se comporta como Como máximo una vez." };
+Object.assign(es.common.fieldCodes, { EffectPolicyConflict: "La política de efectos no coincide con el valor obsoleto retryOnNodeLoss. Envíe solo la política de efectos." });
+es.resources.deployments.fields.effectPolicy = "Política de efectos";
+es.resources.deployments.columns.effectPolicy = "Política de efectos";
+es.resources.deployments.hints.effectPolicy = "Como máximo una vez (predeterminado) marca como fallida, con Nodo perdido, una ejecución iniciada cuyo worker se pierde. Al menos una vez la vuelve a encolar mientras queden intentos y puede repetir efectos. Con registro se comporta como Como máximo una vez hasta que exista el registro de efectos. Una ejecución que nunca empezó siempre vuelve a la cola.";
+es.tips.resources.deployments.effectPolicy = "Qué ocurre con una ejecución iniciada cuando se pierde su worker: fallar (Como máximo una vez), volver a encolar (Al menos una vez) o Con registro, que por ahora se comporta como Como máximo una vez.";
+es.views.runDetail.effectPolicy = "Política de efectos";
+es.tips.views.runDetail.effectPolicy = "La política de efectos de la implementación cuando esta ejecución entró en la cola. Decide qué ocurre si se pierde el worker de la ejecución; los cambios posteriores en la implementación no afectan a esta ejecución.";

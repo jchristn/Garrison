@@ -590,6 +590,12 @@ namespace Garrison.Sdk.Models
         /// </summary>
         public DeploymentTrustLevelEnum TrustLevel { get; set; } = DeploymentTrustLevelEnum.Trusted;
 
+        /// <summary>
+        /// The deployment's effect policy when the run was admitted. Default AtMostOnce. A later change to the deployment
+        /// does not change how this run is handled if its worker is lost.
+        /// </summary>
+        public DeploymentEffectPolicyEnum EffectPolicy { get; set; } = DeploymentEffectPolicyEnum.AtMostOnce;
+
         #endregion
 
         #region Private-Members

@@ -303,7 +303,8 @@ A deployment binds one agent to one profile and adjusts it without touching the 
 | `resourceBindings` | MCP servers and secrets, each with an alias |
 | `workspaceTemplateId` | Empty directory, a git clone, or seeded files, and whether to keep the workspace afterwards |
 | `nodeSelector`, `nodePoolId` | Labels and pool a worker must have |
-| `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | Concurrency, retries, and traffic split among an agent's deployments |
+| `maxConcurrentRuns`, `maxAttempts`, `weight` | Concurrency, retries, and traffic split among an agent's deployments |
+| `effectPolicy` | `AtMostOnce` (default), `AtLeastOnce`, or `Journaled`: whether a run whose worker was lost after it started is failed with `NodeLost` or requeued; replaces the deprecated `retryOnNodeLoss`. See "Effect policy" in `REST_API.md` |
 | `executor`, `podResources` | Run as a worker subprocess (`Process`) or in a pod per run (`KubernetesJob`) with these requests and limits; see `docs/KUBERNETES.md`, "Pod-per-run executor" |
 | `trustLevel` | `Trusted` (default) or `Untrusted`. Untrusted runs only go to an executor with at least Container isolation (an unset executor means `KubernetesJob`); see `docs/SECURITY.md`, "Deployment trust level" |
 | `approvalsEnabled`, `approvalDefaultAction`, `approvalTimeoutSeconds`, `approvalTimeoutDecision`, `approvalRules` | Permission approvals; see [Permission approvals](#permission-approvals) |

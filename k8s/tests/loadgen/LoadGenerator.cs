@@ -213,7 +213,7 @@ namespace Garrison.LoadGen
             manifest.AppendLine("    delayMs: \"" + delayMs.ToString(CultureInfo.InvariantCulture) + "\"");
             manifest.AppendLine("  timeoutSeconds: " + Math.Max(60, _Options.RunMs / 1000 * 4 + 60).ToString(CultureInfo.InvariantCulture));
             manifest.AppendLine("  maxAttempts: " + _Options.MaxAttempts.ToString(CultureInfo.InvariantCulture));
-            manifest.AppendLine("  retryOnNodeLoss: " + (_Options.RetryOnNodeLoss ? "true" : "false"));
+            manifest.AppendLine("  effectPolicy: " + _Options.EffectPolicy);
             manifest.AppendLine("  maxConcurrentRuns: 0");
 
             Exception? last = null;
@@ -227,7 +227,7 @@ namespace Garrison.LoadGen
                         string messages = String.Join("; ", apply.Items.Where(i => i.Result == ManifestApplyResultEnum.Failed).Select(i => i.Kind + " " + i.Name + ": " + i.Message));
                         throw new InvalidOperationException("Load-test manifest apply failed: " + messages);
                     }
-                    Log("applied agent " + _Options.Agent + " (fake harness, delayMs " + delayMs + ", maxAttempts " + _Options.MaxAttempts + ", retryOnNodeLoss " + _Options.RetryOnNodeLoss + ")");
+                    Log("applied agent " + _Options.Agent + " (fake harness, delayMs " + delayMs + ", maxAttempts " + _Options.MaxAttempts + ", effectPolicy " + _Options.EffectPolicy + ")");
                     return;
                 }
                 catch (Exception e) when (IsTransient(e, token))

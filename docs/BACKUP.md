@@ -99,7 +99,7 @@ kubectl -n garrison create secret generic garrison-secrets \
 k8s/scripts/generate-secrets.sh      # keeps garrison-secrets, creates the node credential and the rest
 ```
 
-Runs that were `Leased` or `Running` when the backup was taken come back in that state with no worker attached. The leader notices that their leases have expired within about half a minute and requeues them or fails them with `NodeLost`, following each deployment's `maxAttempts` and `retryOnNodeLoss`, exactly as if their worker had crashed.
+Runs that were `Leased` or `Running` when the backup was taken come back in that state with no worker attached. The leader notices that their leases have expired within about half a minute and requeues them or fails them with `NodeLost`, following each run's `maxAttempts` and `effectPolicy`, exactly as if their worker had crashed.
 
 The server migrates the schema forward when it starts (`Database.ManageSchema`), so a dump from an older Garrison restores into a newer one. The reverse does not work: restore a dump only into the version that wrote it or a later one.
 

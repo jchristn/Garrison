@@ -37,6 +37,12 @@ RUN_EXECUTORS = ("Process", "KubernetesJob")
 # executor resolves to KubernetesJob, and a run no Ready worker can isolate stays Queued with blockedReason
 # NoIsolatingWorker. Tenant "requireUntrustedDeployments" rejects Trusted deployments (field code TenantRequiresUntrusted).
 TRUST_LEVELS = ("Trusted", "Untrusted")
+# Deployment and run "effectPolicy" (default AtMostOnce for new deployments): what happens to a run that was already
+# Running when its worker was lost. AtMostOnce fails it with outcome NodeLost, AtLeastOnce requeues it while attempts
+# remain, and Journaled behaves as AtMostOnce until the effect journal exists. The deprecated "retryOnNodeLoss" is still
+# accepted (true is AtLeastOnce, false is AtMostOnce); sending both with different meanings is a 400 with field code
+# EffectPolicyConflict, so drop "retryOnNodeLoss" from a deployment you read back before changing "effectPolicy".
+EFFECT_POLICIES = ("AtMostOnce", "AtLeastOnce", "Journaled")
 # Run["blockedReason"] values, computed on read for Queued runs no Ready worker can take; None otherwise.
 RUN_BLOCKED_REASONS = ("NoReadyWorker", "NoCapableWorker", "NoMatchingPool", "NoIsolatingWorker")
 

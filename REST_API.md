@@ -2206,7 +2206,7 @@ Update a deployment (increments its configuration version).
 curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{id}" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"agentId": "string", "name": "string", "description": "string", "harnessProfileId": "string", "model": "string", "fallbackModel": "string", "effort": "string", "maxTurns": 0, "maxBudgetUsd": 0, "maxConcurrentRuns": 0, "timeoutSeconds": 0, "maxAttempts": 0, "retryOnNodeLoss": false, "weight": 0, "nodePoolId": "string", "workspaceTemplateId": "string", "artifactStoreId": "string", "active": false, "promptBindings": [{}], "resourceBindings": [{}], "argumentOverrides": [{}], "environmentOverrides": [{}], "fileOverrides": [{}], "nodeSelector": [{}], "parameters": [{}], "allowedRunOverrides": [{}]}'
+  -d '{"agentId": "string", "name": "string", "description": "string", "harnessProfileId": "string", "model": "string", "fallbackModel": "string", "effort": "string", "maxTurns": 0, "maxBudgetUsd": 0, "maxConcurrentRuns": 0, "timeoutSeconds": 0, "maxAttempts": 0, "effectPolicy": "AtMostOnce", "weight": 0, "nodePoolId": "string", "workspaceTemplateId": "string", "artifactStoreId": "string", "active": false, "promptBindings": [{}], "resourceBindings": [{}], "argumentOverrides": [{}], "environmentOverrides": [{}], "fileOverrides": [{}], "nodeSelector": [{}], "parameters": [{}], "allowedRunOverrides": [{}]}'
 ```
 
 #### `DELETE /v1.0/api/tenants/{tenantId}/deployments/{id}`
@@ -4107,7 +4107,7 @@ Workers authenticate with a credential that holds the `NodeAgent` role (by defau
 | `POST /v1.0/api/node/runs/{runId}/complete` | Terminal status, outcome, result, structured output, usage, cost, session identifier, served model, exit code, and stderr tail. The response may carry a structured output repair to run in the same lease (see the route above). |
 | `POST /v1.0/api/node/drain` | The worker is draining (body is a heartbeat). The node becomes Draining, or Offline when it holds no runs. |
 
-When a lease expires, the leader's reaper requeues a run that is still Leased (it never started, so no harness ran), and treats a Running run by its deployment's `retryOnNodeLoss`: false (the default) fails it with `NodeLost`, true requeues it. Every requeue revokes the run tokens minted for the expired attempt, and run tokens only work while the run is active at the lease epoch they were minted for (see `docs/SECURITY.md`).
+When a lease expires, the leader's reaper requeues a run that is still Leased (it never started, so no harness ran), and treats a Running run by the `effectPolicy` the run was admitted under: `AtMostOnce` (the default) and `Journaled` fail it with `NodeLost`, `AtLeastOnce` requeues it while attempts remain (see [Effect policy](#effect-policy-effectpolicy)). Every requeue revokes the run tokens minted for the expired attempt, and run tokens only work while the run is active at the lease epoch they were minted for (see `docs/SECURITY.md`).
 
 The `ExecutionSpec` is fully resolved: executable, argument list, environment, files, stdin, workspace instructions, parser, timeouts, MCP pre-flight checks, and values to scrub. Paths in it use the placeholders `$GARRISON_CONFIG_DIR`, `$GARRISON_WORKSPACE_DIR`, and `$GARRISON_HOME_DIR`, which the worker replaces with the run's directories. See `docs/HARNESSES.md`.
 
@@ -4676,7 +4676,8 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `maxAssistantChars` | `long?` | Run guard: most characters of assistant text per run (outcome OutputLimitExceeded); 0 is unlimited. Null uses `Runtime.MaxAssistantChars` (default 200,000). Minimum 0, maximum 100,000,000. |
 | `noProgressSeconds` | `int?` | Run guard: seconds without progress before a run stops (outcome NoProgress); 0 turns it off. Null uses `Runtime.NoProgressSeconds` (default 300). Minimum 0, maximum 86,400. |
 | `maxAttempts` | `int` | Maximum attempts. Minimum 1, maximum 10, default 1. |
-| `retryOnNodeLoss` | `bool` | Whether a running run is requeued when its node is lost. For KubernetesJob runs this also covers a run pod that was evicted or deleted from outside Garrison. |
+| `effectPolicy` | `DeploymentEffectPolicyEnum` | What happens to a run that was already Running when its node was lost: `AtMostOnce` (default for new deployments) fails it with `NodeLost`, `AtLeastOnce` requeues it while attempts remain, `Journaled` behaves as `AtMostOnce` until the effect journal exists. For KubernetesJob runs this also covers a run pod that was evicted or deleted from outside Garrison. See [Effect policy](#effect-policy-effectpolicy). |
+| `retryOnNodeLoss` | `bool` | Deprecated; use `effectPolicy`. Responses carry it as a derived value, `true` only for `AtLeastOnce`. Still accepted on input for one release: `true` maps to `AtLeastOnce` and `false` to `AtMostOnce` when `effectPolicy` is absent; disagreeing with a supplied `effectPolicy` is a 400 (`EffectPolicyConflict`). |
 | `weight` | `int` | Traffic weight among the agent's active deployments. Minimum 0, maximum 1000, default 100. |
 | `nodePoolId` | `string?` | Required node pool. |
 | `executor` | `RunExecutorEnum?` | `Process` or `KubernetesJob`. Null uses the node pool's `defaultExecutor`, then `Process`; for an `Untrusted` deployment null never resolves to `Process` and uses `KubernetesJob`. A PersistentVolume workspace template requires `KubernetesJob`. `Process` on an `Untrusted` deployment is rejected (`UntrustedNeedsIsolation`). |
@@ -5414,6 +5415,7 @@ One invocation of one deployment.
 | `harnessType` | `HarnessTypeEnum` | Harness type required. |
 | `executor` | `RunExecutorEnum` | Executor the run needs, resolved at creation from the deployment and its node pool. |
 | `trustLevel` | `DeploymentTrustLevelEnum` | The deployment's trust level when the run was admitted. For `Untrusted` runs, `requiredCapabilities.isolation` is at least `Container`. |
+| `effectPolicy` | `DeploymentEffectPolicyEnum` | The deployment's effect policy when the run was admitted. The lease reaper uses this value, so changing the deployment does not change how an in-flight run is handled. |
 | `nodePoolId` | `string?` | Required node pool. |
 | `kind` | `RunKindEnum` | Run kind. |
 | `status` | `RunStatusEnum` | Status. |
@@ -5494,7 +5496,7 @@ One invocation of one deployment.
 
 `None`, `Succeeded`, `HarnessFailed`, `NotInstalled`, `NotCredentialed`, `McpPreflightFailed`, `NodeLost`, `OutputLimitExceeded`, `SchemaValidationFailed`, `TimedOut`, `Cancelled`, `StaleLease`, `CompileFailed`, `WorkspaceFailed`, `Rejected`, `NoCapableWorker`, `InternalError`, `RepetitionDetected`, `NoProgress`, `PodFailed`, `ConversationStateLost`
 
-`PodFailed` means the run pod of a KubernetesJob run failed outside the harness: it stayed Pending past the worker's pending timeout, its image could not be pulled, its configuration was invalid, it was OOMKilled, or `run-one` exited without reporting a completion. `errorMessage` names the cause. A pod evicted or deleted while running is treated as node loss instead (the lease expires and `retryOnNodeLoss` applies).
+`PodFailed` means the run pod of a KubernetesJob run failed outside the harness: it stayed Pending past the worker's pending timeout, its image could not be pulled, its configuration was invalid, it was OOMKilled, or `run-one` exited without reporting a completion. `errorMessage` names the cause. A pod evicted or deleted while running is treated as node loss instead (the lease expires and the run's `effectPolicy` applies).
 
 `RepetitionDetected`, `NoProgress`, and `OutputLimitExceeded` (when the assistant text passed `maxAssistantChars`) are run guard stops; see [Run guards](#run-guards-repetitiondetected-outputlimitexceeded-noprogress). `OutputLimitExceeded` also means the harness wrote more than the profile's `maxOutputBytes` to stdout.
 
@@ -5551,6 +5553,10 @@ A multi-turn conversation with one agent. See [Conversations](#conversations).
 #### `DeploymentTrustLevelEnum`
 
 `Trusted` (default), `Untrusted`. Used by `Deployment.trustLevel`, `Run.trustLevel`, and the manifest `DeploymentSpec`.
+
+#### `DeploymentEffectPolicyEnum`
+
+`AtMostOnce` (default for new deployments), `AtLeastOnce`, `Journaled`. Used by `Deployment.effectPolicy`, `Run.effectPolicy`, and the manifest `DeploymentSpec`.
 
 #### `RunParameter`
 
@@ -6473,6 +6479,30 @@ Tenants carry `requireUntrustedDeployments` (default `false`), set with `PUT /v1
 { "code": "ValidationFailed", "message": "The deployment is invalid.",
   "fields": { "trustLevel": "Tenant default requires every deployment to be Untrusted; set trustLevel to Untrusted." },
   "fieldCodes": { "trustLevel": "TenantRequiresUntrusted" } }
+```
+
+### Effect policy (`effectPolicy`)
+
+A deployment's `effectPolicy` says what Garrison may do with a run whose worker was lost after the harness started (the lease expired while the run was `Running`, or a KubernetesJob run pod was evicted or deleted). A started harness may already have pushed a commit, sent a message, or called a paid API, and Garrison cannot tell which, so starting it again can repeat those effects.
+
+| Value | A lost `Running` run |
+|---|---|
+| `AtMostOnce` | Ends `Failed` with outcome `NodeLost`. Effects happen at most once. The default for new deployments. |
+| `AtLeastOnce` | Is requeued for another attempt while `maxAttempts` allows. Choose it only when repeating the run's effects is acceptable (read-only or idempotent work). |
+| `Journaled` | Will be requeued only when every effect went through Garrison's effect journal and none has an unknown outcome. The journal (plan P12.33) does not exist yet, so today `Journaled` behaves exactly like `AtMostOnce`. |
+
+- A run that was still `Leased` when its lease expired never started a harness (the start gate), so it is requeued under every policy while attempts remain. A cancelled run is never requeued.
+- The run records the policy it was admitted under (`Run.effectPolicy`), and the reaper uses that value. Changing the deployment does not change how runs already queued or running are handled.
+- Delegated child runs and pipeline stage runs are admitted under their own deployment's policy, not the parent's.
+- Policy changes appear in the deployment update audit record, which names the old and new policy.
+- Schema 24 carried every existing deployment over: `retryOnNodeLoss: true` became `AtLeastOnce` and `false` became `AtMostOnce`, and runs that existed then took their deployment's mapped policy, so their behaviour did not change.
+
+`retryOnNodeLoss` is deprecated and is still accepted on input for one release, over REST, MCP management tools, and manifests. If a request sends only `retryOnNodeLoss`, `true` maps to `AtLeastOnce` and `false` to `AtMostOnce`. If it sends both and they disagree (`retryOnNodeLoss: true` with anything but `AtLeastOnce`, or `false` with `AtLeastOnce`), the request is rejected. Responses always carry `effectPolicy` and a derived, read-only `retryOnNodeLoss` that is `true` only for `AtLeastOnce`, so older clients keep reading a meaningful value. When you change `effectPolicy` on a deployment you read back, drop `retryOnNodeLoss` from the body or update it to match.
+
+```json
+{ "code": "ValidationFailed", "message": "The deployment is invalid.",
+  "fields": { "effectPolicy": "effectPolicy AtMostOnce disagrees with the deprecated retryOnNodeLoss value. Send only effectPolicy (retryOnNodeLoss true means AtLeastOnce, false means AtMostOnce)." },
+  "fieldCodes": { "effectPolicy": "EffectPolicyConflict" } }
 ```
 
 Worker capability records additionally expose `warmStart` (boolean, default false). A Kubernetes executor with primary `coldStartClass: "Cold"` and `warmStart: true` satisfies either Cold or Warm requirements. Explicit Warm requirements reject custom deployment pod resources and PersistentVolume workspaces. Node lease responses include `queuedKubernetesRuns`, a bounded eligible queue estimate for adaptive warm-stock sizing; it is zero for workers without warm support.

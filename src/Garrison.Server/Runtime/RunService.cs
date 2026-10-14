@@ -161,6 +161,8 @@ namespace Garrison.Server.Runtime
             run.NodePoolId = deployment.NodePoolId;
             NodePool? pool = !deployment.Executor.HasValue && !String.IsNullOrEmpty(deployment.NodePoolId) ? await _Database.NodePools.ReadAsync(deployment.NodePoolId, token).ConfigureAwait(false) : null;
             ExecutorCapabilityRules.Admit(run, deployment, pool);
+            // P12.29: the run keeps the policy it was admitted under; the lease reaper reads it from the run.
+            run.EffectPolicy = deployment.EffectPolicy;
             run.Kind = create.Kind;
             run.Priority = create.Priority;
             run.InputText = create.Input ?? String.Empty;

@@ -874,7 +874,6 @@ const tips = {
       maxConcurrentRuns: 'Most runs of this deployment at once across all nodes. 0 means no limit.',
       timeoutSeconds: 'Run deadline in seconds. Empty uses the harness profile default. The cluster setting Runtime.MaxRunSeconds caps every run, including per-run time limits.',
       maxAttempts: 'How many times a run may be attempted in total. Between 1 and 10.',
-      retryOnNodeLoss: 'Put the run back in the queue when its node disappears, instead of failing it.',
       steps: {
         approvals: 'Which tool calls the harness may make, which it may not, and which wait for a person.',
         basics: 'Name, agent, and traffic weight.',

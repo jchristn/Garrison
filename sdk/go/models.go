@@ -82,6 +82,19 @@ const (
 	TrustLevelUntrusted = "Untrusted"
 )
 
+// Effect policies (Deployment.EffectPolicy, Run.EffectPolicy): what happens to a run that was already Running when its
+// worker was lost. An empty Deployment.EffectPolicy on create means EffectPolicyAtMostOnce. The deprecated
+// retryOnNodeLoss is still accepted on input (true is AtLeastOnce, false is AtMostOnce); sending both with different
+// meanings is a 400 with field code EffectPolicyConflict.
+const (
+	// EffectPolicyAtMostOnce fails a lost started run with outcome NodeLost. The default for new deployments.
+	EffectPolicyAtMostOnce = "AtMostOnce"
+	// EffectPolicyAtLeastOnce requeues a lost started run while attempts remain; its effects may repeat.
+	EffectPolicyAtLeastOnce = "AtLeastOnce"
+	// EffectPolicyJournaled behaves as EffectPolicyAtMostOnce until the effect journal exists.
+	EffectPolicyJournaled = "Journaled"
+)
+
 // Workspace kinds (WorkspaceTemplate.Kind).
 const (
 	WorkspaceKindEmpty         = "Empty"
@@ -288,6 +301,8 @@ type Deployment struct {
 	Executor *string `json:"executor,omitempty"`
 	// TrustLevel is TrustLevelTrusted (the default when empty) or TrustLevelUntrusted.
 	TrustLevel string `json:"trustLevel,omitempty"`
+	// EffectPolicy is EffectPolicyAtMostOnce (the default when empty), EffectPolicyAtLeastOnce, or EffectPolicyJournaled.
+	EffectPolicy string `json:"effectPolicy,omitempty"`
 	// PodResources are the run pod requests and limits for KubernetesJob runs.
 	PodResources *RunPodResources `json:"podResources,omitempty"`
 	// ApprovalsEnabled turns on permission approvals. Only Claude Code profiles and Codex profiles with
@@ -464,7 +479,9 @@ type Run struct {
 	Outcome              string                `json:"outcome"`
 	Executor             string                `json:"executor,omitempty"`
 	// TrustLevel is the deployment's trust level when the run was admitted.
-	TrustLevel   string   `json:"trustLevel,omitempty"`
+	TrustLevel string `json:"trustLevel,omitempty"`
+	// EffectPolicy is the deployment's effect policy when the run was admitted.
+	EffectPolicy string   `json:"effectPolicy,omitempty"`
 	InputText    string   `json:"inputText"`
 	ResultText   string   `json:"resultText"`
 	ErrorMessage string   `json:"errorMessage"`

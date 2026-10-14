@@ -1,6 +1,6 @@
 // End-to-end harness for the Garrison JavaScript/TypeScript SDK.
 // Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
-import { GarrisonClient, GarrisonError, TRUST_LEVELS } from "./dist/esm/index.js";
+import { EFFECT_POLICIES, GarrisonClient, GarrisonError, TRUST_LEVELS } from "./dist/esm/index.js";
 
 const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
 const suffix = Math.random().toString(16).slice(2, 10);
@@ -131,6 +131,31 @@ await check("untrusted deployment queues without isolation", async () => {
     const read = await client.runs.get(run.id);
     require(read.trustLevel === "Untrusted" && read.executor === "KubernetesJob", `run ${read.trustLevel} ${read.executor}`);
     require(read.status === "Queued" && read.blockedReason === "NoIsolatingWorker", `run ${read.status} ${read.blockedReason}`);
+    await client.runs.cancel(run.id);
+  } finally {
+    await client.deployments.delete(deployment.id);
+  }
+});
+await check("effect policy default, update, and conflict", async () => {
+  require(EFFECT_POLICIES.join(",") === "AtMostOnce,AtLeastOnce,Journaled", "effect policy constants");
+  const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-effect`, agentId: state.agent, harnessProfileId: state.fake, weight: 0 });
+  try {
+    require(deployment.effectPolicy === "AtMostOnce" && deployment.retryOnNodeLoss === false, `default effectPolicy ${deployment.effectPolicy}`);
+    const { retryOnNodeLoss, ...body } = deployment;
+    require(retryOnNodeLoss === false, "derived retryOnNodeLoss");
+    const updated = await client.deployments.update(deployment.id, { ...body, effectPolicy: "AtLeastOnce" });
+    require(updated.effectPolicy === "AtLeastOnce" && updated.retryOnNodeLoss === true, `updated effectPolicy ${updated.effectPolicy}`);
+    let status = 0;
+    try {
+      await client.deployments.update(deployment.id, { ...body, effectPolicy: "AtMostOnce", retryOnNodeLoss: true });
+    } catch (e) {
+      require(e instanceof GarrisonError, `unexpected error ${e}`);
+      status = e.statusCode;
+      require(String(e.body).includes("EffectPolicyConflict"), `conflict body ${e.body}`);
+    }
+    require(status === 400, `conflict status ${status}`);
+    const run = await client.runs.create({ input: "Effect policy", agentId: state.agent, deploymentId: deployment.id });
+    require(run.effectPolicy === "AtLeastOnce", `run effectPolicy ${run.effectPolicy}`);
     await client.runs.cancel(run.id);
   } finally {
     await client.deployments.delete(deployment.id);

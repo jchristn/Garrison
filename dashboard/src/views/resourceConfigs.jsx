@@ -974,6 +974,12 @@ function deploymentNotice(d, { t, options }) {
   return notices.length === 1 ? notices[0] : <>{notices}</>;
 }
 
+/** A deployment's effect policy (P12.29); records from before the field derive it from the deprecated retryOnNodeLoss. */
+export function effectPolicyOf(r) {
+  if (r?.effectPolicy) return r.effectPolicy;
+  return r?.retryOnNodeLoss ? 'AtLeastOnce' : 'AtMostOnce';
+}
+
 /** Trust level badge for a deployment row; flags a Trusted deployment in a tenant that requires Untrusted. */
 function trustBadge(t, r, tenant) {
   const level = r.trustLevel || 'Trusted';
@@ -1038,7 +1044,7 @@ export const deploymentsConfig = {
     maxConcurrentRuns: 0,
     timeoutSeconds: null,
     maxAttempts: 1,
-    retryOnNodeLoss: false,
+    effectPolicy: 'AtMostOnce',
     repetitionGuard: null,
     maxAssistantChars: null,
     noProgressSeconds: null,
@@ -1072,6 +1078,7 @@ export const deploymentsConfig = {
     col('deployments', t, 'model', (r) => r.model || '-'),
     col('deployments', t, 'executor', (r) => (r.executor ? enumBadge(t, 'runExecutor', r.executor, r.executor === 'KubernetesJob' ? 'info' : 'neutral') : t('resources.deployments.executorInheritShort')), { csv: (r) => r.executor || '', defaultHidden: true }),
     col('deployments', t, 'trustLevel', (r) => trustBadge(t, r, lookups?.tenant), { csv: (r) => r.trustLevel || 'Trusted' }),
+    col('deployments', t, 'effectPolicy', (r) => enumBadge(t, 'effectPolicy', effectPolicyOf(r), effectPolicyOf(r) === 'AtLeastOnce' ? 'warning' : 'neutral'), { csv: (r) => effectPolicyOf(r) }),
     col('deployments', t, 'weight', (r) => r.weight, { cellClass: 'right' }),
     col('deployments', t, 'configVersion', (r) => r.configVersion, { cellClass: 'right', defaultHidden: true }),
     col('deployments', t, 'approvalsEnabled', (r) =>
@@ -1218,7 +1225,8 @@ export const deploymentsConfig = {
       field(id, t, 'maxConcurrentRuns', 'number', { min: 0, max: 100000, step: 5 }),
       field(id, t, 'timeoutSeconds', 'number', { min: 5, max: 86400, step: 5, ...runtimeHint(t, i18n, options.runtime, 'maxRunSeconds') }),
       field(id, t, 'maxAttempts', 'number', { min: 1, max: 10, step: 5 }),
-      field(id, t, 'retryOnNodeLoss', 'checkbox', { step: 5 }),
+      // P12.29: what happens to a started run whose worker is lost.
+      field(id, t, 'effectPolicy', 'select', { step: 5, required: true, options: enumOptions(t, 'effectPolicy'), hint: t('resources.deployments.hints.effectPolicy') }),
       // Run guards (P3.15): empty follows the cluster default from Settings (Runtime.*).
       section(id, t, 'guards', 5),
       field(id, t, 'repetitionGuard', 'nullableToggle', { step: 5, ...guardToggle(t, d.repetitionGuard, options.runtime) }),
@@ -1253,9 +1261,18 @@ export const deploymentsConfig = {
       field(id, t, 'approvalTest', 'custom', { step: 6, render: (data) => <ApprovalCheckPanel deploymentId={data?.id || null} /> })
     ];
   },
-  toForm: (r) => ({ ...deploymentToForm(r), ...approvalFormDefaults(r) }),
+  toForm: (r) => {
+    const form = { ...deploymentToForm(r), ...approvalFormDefaults(r) };
+    form.effectPolicy = effectPolicyOf(r);
+    delete form.retryOnNodeLoss;
+    return form;
+  },
   toBody: (d) => {
     const body = deploymentToBody(d);
+    // P12.29: send only effectPolicy. The deprecated retryOnNodeLoss is derived by the server, and a stale copy that
+    // disagrees with an edited policy would be rejected (EffectPolicyConflict).
+    delete body.retryOnNodeLoss;
+    body.effectPolicy = d.effectPolicy || 'AtMostOnce';
     body.approvalsEnabled = !!d.approvalsEnabled;
     body.approvalDefaultAction = d.approvalDefaultAction || 'Ask';
     body.approvalTimeoutSeconds = d.approvalTimeoutSeconds ?? APPROVAL_TIMEOUT.default;

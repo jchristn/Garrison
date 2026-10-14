@@ -333,6 +333,40 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("effect policy default, update, and legacy retryOnNodeLoss", async () =>
+                {
+                    Deployment created = new Deployment();
+                    created.Name = "sdk-cs-" + suffix + "-effect";
+                    created.AgentId = agentId ?? throw new InvalidOperationException("no agent");
+                    created.HarnessProfileId = fakeProfileId ?? throw new InvalidOperationException("no fake profile");
+                    created.Weight = 0;
+                    created = await client.Deployments.CreateAsync(created, token).ConfigureAwait(false);
+                    try
+                    {
+                        Require(created.EffectPolicy == DeploymentEffectPolicyEnum.AtMostOnce && !created.RetryOnNodeLoss, "default effectPolicy " + created.EffectPolicy);
+                        created.EffectPolicy = DeploymentEffectPolicyEnum.AtLeastOnce;
+                        Deployment updated = await client.Deployments.UpdateAsync(created.Id, created, token).ConfigureAwait(false);
+                        Require(updated.EffectPolicy == DeploymentEffectPolicyEnum.AtLeastOnce && updated.RetryOnNodeLoss, "updated effectPolicy " + updated.EffectPolicy);
+                        updated.EffectPolicy = DeploymentEffectPolicyEnum.Journaled;
+                        Deployment journaled = await client.Deployments.UpdateAsync(updated.Id, updated, token).ConfigureAwait(false);
+                        Require(journaled.EffectPolicy == DeploymentEffectPolicyEnum.Journaled && !journaled.RetryOnNodeLoss, "journaled " + journaled.EffectPolicy);
+                        journaled.RetryOnNodeLoss = true;
+                        Deployment legacy = await client.Deployments.UpdateAsync(journaled.Id, journaled, token).ConfigureAwait(false);
+                        Require(legacy.EffectPolicy == DeploymentEffectPolicyEnum.AtLeastOnce, "legacy retryOnNodeLoss true " + legacy.EffectPolicy);
+                        RunCreateRequest request = new RunCreateRequest();
+                        request.AgentId = agentId;
+                        request.DeploymentId = legacy.Id;
+                        request.Input = "Effect policy";
+                        Run run = await client.Runs.CreateAsync(request, token).ConfigureAwait(false);
+                        Require(run.EffectPolicy == DeploymentEffectPolicyEnum.AtLeastOnce, "run effectPolicy " + run.EffectPolicy);
+                        await client.Runs.CancelAsync(run.Id, token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await client.Deployments.DeleteAsync(created.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("manifest dry run", async () =>
                 {
                     string yaml = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-cs-manifest-" + suffix + "\nspec:\n  description: Dry run only.\n";

@@ -315,6 +315,43 @@ func main() {
 		}
 		return nil
 	})
+	check("effect policy default, update, and conflict", func(ctx context.Context) error {
+		body := map[string]any{"name": "sdk-go-" + suffix + "-effect", "agentId": agentID, "harnessProfileId": fakeID, "weight": 0}
+		var dep garrison.Deployment
+		if err := client.Deployments.Create(ctx, body, &dep); err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, dep.ID)
+		if dep.EffectPolicy != garrison.EffectPolicyAtMostOnce {
+			return fmt.Errorf("default effectPolicy %q", dep.EffectPolicy)
+		}
+		dep.EffectPolicy = garrison.EffectPolicyAtLeastOnce
+		var updated garrison.Deployment
+		if err := client.Deployments.Update(ctx, dep.ID, dep, &updated); err != nil {
+			return err
+		}
+		if updated.EffectPolicy != garrison.EffectPolicyAtLeastOnce {
+			return fmt.Errorf("updated effectPolicy %q", updated.EffectPolicy)
+		}
+		conflict := map[string]any{"name": dep.Name, "agentId": agentID, "harnessProfileId": fakeID, "weight": 0,
+			"effectPolicy": garrison.EffectPolicyAtMostOnce, "retryOnNodeLoss": true}
+		err := client.Deployments.Update(ctx, dep.ID, conflict, nil)
+		var apiErr *garrison.Error
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != 400 || !strings.Contains(apiErr.Body, "EffectPolicyConflict") {
+			return fmt.Errorf("conflict not rejected: %v", err)
+		}
+		run, err := client.Runs.Create(ctx, garrison.RunCreateRequest{AgentID: agentID, DeploymentID: dep.ID, Input: "Effect policy"})
+		if err != nil {
+			return err
+		}
+		if run.EffectPolicy != garrison.EffectPolicyAtLeastOnce {
+			return fmt.Errorf("run effectPolicy %q", run.EffectPolicy)
+		}
+		if _, err := client.Runs.Cancel(ctx, run.ID); err != nil {
+			return err
+		}
+		return nil
+	})
 	check("manifest dry run", func(ctx context.Context) error {
 		yaml := "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-go-manifest-" + suffix + "\nspec:\n  description: Dry run only.\n"
 		result, err := client.Manifests.Apply(ctx, yaml, true, false)

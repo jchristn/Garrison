@@ -58,7 +58,7 @@ namespace Test.Shared.Suites
                 string id = "correctness-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "start-gate-partition", "A worker partitioned after claiming never launches; the run is requeued and executes exactly once elsewhere (P10.20, " + provider + ")", ct => PartitionBeforeStartAsync(provider, ct)));
-                cases.Add(new TestCaseDescriptor(id, "start-gate-node-lost", "A started run whose worker is partitioned ends NodeLost under retryOnNodeLoss false and is never run again; runs.finished carries agent and model (P10.20, " + provider + ")", ct => PartitionAfterStartAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "start-gate-node-lost", "A started run whose worker is partitioned ends NodeLost under effectPolicy AtMostOnce and is never run again; runs.finished carries agent and model (P10.20, " + provider + ")", ct => PartitionAfterStartAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "run-token-epoch", "A requeue revokes the old attempt's run token; tokens of an older epoch are refused even unrevoked; the new attempt's token delegates over REST and MCP (P10.21, " + provider + ")", ct => RunTokenEpochAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "database-outage-json", "With the database stopped, authentication, the tenant check, and handlers answer 503 DatabaseUnavailable JSON with Retry-After, and recover after (G-25, " + provider + ")", ct => DatabaseOutageAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "node-pool-race", "Parallel registrations that create the same node pool, and the same node, all succeed (G-27, " + provider + ")", ct => NodePoolRaceAsync(provider, ct)));
@@ -263,7 +263,7 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("gate-once", "builtin/fake", null, token, d =>
                 {
                     d.MaxAttempts = 3;
-                    d.RetryOnNodeLoss = false;
+                    d.EffectPolicy = DeploymentEffectPolicyEnum.AtMostOnce;
                 }).ConfigureAwait(false);
 
                 HoldingExecutor partitionedExecutor = new HoldingExecutor("partitioned");
@@ -314,7 +314,7 @@ namespace Test.Shared.Suites
                 Agent agent = await cluster.CreateAgentAsync("gate-lost", "builtin/fake", null, token, d =>
                 {
                     d.MaxAttempts = 3;
-                    d.RetryOnNodeLoss = false;
+                    d.EffectPolicy = DeploymentEffectPolicyEnum.AtMostOnce;
                 }).ConfigureAwait(false);
 
                 HoldingExecutor partitionedExecutor = new HoldingExecutor("partitioned");

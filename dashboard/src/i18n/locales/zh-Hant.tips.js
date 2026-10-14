@@ -873,7 +873,6 @@ const tips = {
       maxConcurrentRuns: '此部署在所有節點上同時進行的執行數上限。0 表示不限制。',
       timeoutSeconds: '執行截止時間（秒）。留空則使用 Harness 設定檔的預設值。叢集設定 Runtime.MaxRunSeconds 會限制每個執行，包括每次執行的時間限制。',
       maxAttempts: '一次執行總共最多可以嘗試幾次。介於 1 到 10 之間。',
-      retryOnNodeLoss: '節點消失時將執行放回佇列，而不是將其標記為失敗。',
       steps: {
         approvals: 'Harness 可以進行哪些工具呼叫、不可以進行哪些，以及哪些要等候人員處理。',
         basics: '名稱、代理程式與流量權重。',

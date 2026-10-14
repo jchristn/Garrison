@@ -52,7 +52,7 @@ The control plane is assembled from four modules, each registering its routes an
 8. **Finished.** When the process exits, the worker classifies the outcome, reads the result, scrubs secrets, reports `complete`, and cleans up. The control plane stores the result, usage, cost, served model, exit code, and stderr tail, revokes the run token, and wakes anyone waiting.
 9. **Delivered.** A waiting invoke returns the run. Streaming clients receive the final event over SSE, WebSocket, or A2A streaming.
 
-Meanwhile the leader's maintenance loop (every 2 seconds) requeues or fails runs whose lease expired (a Leased run never started and is requeued while it has attempts left; a Running run is requeued only when its deployment sets `retryOnNodeLoss`, and otherwise fails with `NodeLost`; every requeue revokes the expired attempt's run tokens), enforces deadlines as a backstop to the worker (including the cluster cap `Runtime.MaxRunSeconds` for runs compiled with a later deadline), marks silent nodes `Lost` and silent control-plane replicas `Offline`, and prunes old records. Every 5 seconds it also looks for blocked queued runs: the first time a run is blocked for a given reason it appends one `Warning` run event saying why (the event carries a marker in its raw JSON so a new leader does not repeat it), and when the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 it fails runs that stay blocked that long with outcome `NoCapableWorker`. Because the control plane can write events before a worker sees the run, each lease tells the worker which sequence to number its events after (`eventSequenceStart`).
+Meanwhile the leader's maintenance loop (every 2 seconds) requeues or fails runs whose lease expired (a Leased run never started and is requeued while it has attempts left; a Running run is requeued only when it was admitted under the `AtLeastOnce` effect policy, and otherwise (`AtMostOnce`, the default, or `Journaled`) fails with `NodeLost`; every requeue revokes the expired attempt's run tokens), enforces deadlines as a backstop to the worker (including the cluster cap `Runtime.MaxRunSeconds` for runs compiled with a later deadline), marks silent nodes `Lost` and silent control-plane replicas `Offline`, and prunes old records. Every 5 seconds it also looks for blocked queued runs: the first time a run is blocked for a given reason it appends one `Warning` run event saying why (the event carries a marker in its raw JSON so a new leader does not repeat it), and when the cluster setting `Runtime.FailBlockedAfterSeconds` is above 0 it fails runs that stay blocked that long with outcome `NoCapableWorker`. Because the control plane can write events before a worker sees the run, each lease tells the worker which sequence to number its events after (`eventSequenceStart`).
 
 ### Conversations
 
@@ -78,7 +78,7 @@ A control-plane replica that is shutting down never cancels runs on its callers'
 ```text
 Pending -> Queued -> Leased -> Running -> Succeeded | Failed | TimedOut | Cancelled
               ^         |          |
-              +---------+----------+   lease expired with attempts left (requeue; a Running run only with retryOnNodeLoss)
+              +---------+----------+   lease expired with attempts left (requeue; a Running run only under AtLeastOnce)
            Queued/Leased/Running -> Cancelling -> Cancelled
            Queued -> Failed (outcome NoCapableWorker, only when Runtime.FailBlockedAfterSeconds > 0)
            Leased -> Rejected (outcome Rejected: admission refused when the run is claimed)

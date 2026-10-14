@@ -948,7 +948,6 @@ const yueHant = {
         maxConcurrentRuns: '最大同時執行數',
         timeoutSeconds: '逾時（秒）',
         maxAttempts: '最多嘗試次數',
-        retryOnNodeLoss: '節點失聯時重新排隊',
         repetitionGuard: '重複防護',
         maxAssistantChars: '最大助理字元數',
         noProgressSeconds: '冇進展逾時（秒）',
@@ -2124,3 +2123,14 @@ yueHant.resources.tenants.hints = { ...(yueHant.resources.tenants.hints || {}), 
 yueHant.tips.resources.tenants.requireUntrustedDeployments = "開啟之後，呢個租用戶嘅每個部署都一定要係唔可信任，咁佢哋嘅執行只會交俾有隔離嘅執行器。";
 yueHant.views.runDetail.trustLevel = "信任等級";
 yueHant.tips.views.runDetail.trustLevel = "呢個執行入佇列嗰陣部署嘅信任等級。唔可信任嘅執行只會交俾有容器隔離或者更強隔離嘅執行器。";
+
+// Deployment effect policy (P12.29).
+yueHant.enums.effectPolicy = { AtMostOnce: "最多一次", AtLeastOnce: "最少一次", Journaled: "日誌模式" };
+yueHant.tips.enums.effectPolicy = { AtMostOnce: "如果執行開始咗之後 worker 失聯，執行會以節點失聯失敗，之後唔會再開始。冇外部作用會發生兩次。係預設值。", AtLeastOnce: "如果執行開始咗之後 worker 失聯，只要仲有嘗試次數，執行就會返入隊列。失聯嗰次嘗試已經做咗嘅作用 (例如 push 或者訊息) 可能會再發生。", Journaled: "只有當所有作用都經過作用日誌先會重新排隊。日誌暫時未有，所以而家同最多一次一樣。" };
+Object.assign(yueHant.common.fieldCodes, { EffectPolicyConflict: "作用策略同已棄用嘅 retryOnNodeLoss 值唔一致。請只傳送作用策略。" });
+yueHant.resources.deployments.fields.effectPolicy = "作用策略";
+yueHant.resources.deployments.columns.effectPolicy = "作用策略";
+yueHant.resources.deployments.hints.effectPolicy = "最多一次 (預設) 會令 worker 失聯嘅已開始執行以節點失聯失敗。最少一次會喺仲有嘗試次數時重新排隊，作用可能會重複。日誌模式喺作用日誌出現之前同最多一次一樣。從未開始嘅執行一定會重新排隊。";
+yueHant.tips.resources.deployments.effectPolicy = "worker 失聯時點樣處理已開始嘅執行: 令佢失敗 (最多一次)、重新排隊 (最少一次)，或者日誌模式，而家同最多一次一樣。";
+yueHant.views.runDetail.effectPolicy = "作用策略";
+yueHant.tips.views.runDetail.effectPolicy = "呢個執行入隊列時部署嘅作用策略。佢決定執行嘅 worker 失聯時點處理；之後改部署唔會影響呢個執行。";

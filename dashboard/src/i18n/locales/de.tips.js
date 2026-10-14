@@ -874,7 +874,6 @@ const tips = {
       maxConcurrentRuns: 'Höchstzahl gleichzeitiger Läufe dieser Bereitstellung über alle Knoten. 0 bedeutet unbegrenzt.',
       timeoutSeconds: 'Frist des Laufs in Sekunden. Leer verwendet den Standard des Harness-Profils. Die Clustereinstellung Runtime.MaxRunSeconds begrenzt jeden Lauf, auch Zeitlimits pro Lauf.',
       maxAttempts: 'Wie oft ein Lauf insgesamt versucht werden darf. Zwischen 1 und 10.',
-      retryOnNodeLoss: 'Den Lauf wieder in die Warteschlange stellen, wenn sein Knoten verschwindet, statt ihn fehlschlagen zu lassen.',
       steps: {
         approvals: 'Welche Werkzeugaufrufe die Harness ausführen darf, welche nicht und welche auf eine Person warten.',
         basics: 'Name, Agent und Verkehrsgewichtung.',

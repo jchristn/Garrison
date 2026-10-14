@@ -876,7 +876,6 @@ const tips = {
       maxConcurrentRuns: 'Numero massimo di esecuzioni contemporanee di questa distribuzione su tutti i nodi. 0 significa nessun limite.',
       timeoutSeconds: 'Scadenza dell\'esecuzione in secondi. Vuoto usa il valore del profilo harness. L\'impostazione del cluster Runtime.MaxRunSeconds limita ogni esecuzione, compresi i limiti per esecuzione.',
       maxAttempts: 'Quante volte in totale si può tentare un\'esecuzione. Tra 1 e 10.',
-      retryOnNodeLoss: 'Rimetti l\'esecuzione in coda quando il suo nodo scompare, invece di farla fallire.',
       steps: {
         approvals: 'Quali chiamate a strumenti l\'harness può effettuare, quali no e quali attendono una persona.',
         basics: 'Nome, agente e peso del traffico.',
