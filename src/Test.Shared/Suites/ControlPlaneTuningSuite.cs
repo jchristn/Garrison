@@ -17,6 +17,7 @@ namespace Test.Shared.Suites
     using Garrison.Server.Backplane;
     using Garrison.Server.Runtime;
     using Garrison.Server.Services;
+    using Garrison.Worker.Hosting;
     using Test.Shared.Infrastructure;
     using Touchstone.Core;
 
@@ -54,6 +55,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "wakeup-targeted", "Ten idle polls" + (provider == DatabaseTypeEnum.Postgresql ? " on two replicas" : String.Empty) + ": each queued run is claimed promptly and wakes at most one poll per replica; QueueWakeFanout 0 wakes every poll" + suffix, ct => WakeupTargetedAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "wakeup-handoff", "Polls that cannot take a run (missing node label) hand it on until one that can claims it, well before the fallback poll" + (provider == DatabaseTypeEnum.Postgresql ? ", across replicas despite a long remote hold" : String.Empty) + suffix, ct => WakeupHandoffAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "claim-contention", "Forty runs queued at once and sixteen polls claiming concurrently: every run is claimed exactly once (epoch 1, one node)" + suffix, ct => ClaimContentionAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "worker-lease-batch", "A worker with four free slots takes four queued runs in one lease request; MaxLeaseBatch 1 restores one run per request" + suffix, ct => WorkerLeaseBatchAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "auth-cache-invalidation", "With Auth.CacheSeconds 60, a revoked token, a deactivated user, a deleted credential, role and tenant-admin changes, and a deactivated tenant take effect within 2 seconds" + (provider == DatabaseTypeEnum.Postgresql ? " on the other replica" : String.Empty) + suffix, ct => AuthCacheInvalidationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "auth-cache-ttl", "Requests are answered from the authentication cache, and a change made outside the API takes effect within Auth.CacheSeconds" + suffix, ct => AuthCacheTtlAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Control-plane tuning (P10.24)" + suffix, cases));
@@ -504,6 +506,42 @@ namespace Test.Shared.Suites
                     {
                         await StopPollersAsync(stop, loops).ConfigureAwait(false);
                     }
+                }
+            }
+        }
+
+        private static async Task WorkerLeaseBatchAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            foreach (int batchSetting in new int[] { 0, 1 })
+            {
+                await using (TestCluster cluster = await TestCluster.StartAsync(provider, 0, token).ConfigureAwait(false))
+                {
+                    Agent agent = await cluster.CreateAgentAsync("lease-batch-" + batchSetting, "builtin/fake", null, token).ConfigureAwait(false);
+                    List<Run> created = new List<Run>();
+                    for (int i = 0; i < 4; i++) created.Add(await InvokeAsync(cluster.Server, cluster.Server.TenantId, agent, "batch " + i, token).ConfigureAwait(false));
+                    WorkerHost worker = await TestCluster.StartWorkerAsync(cluster.Server.BaseUrl, "lease-batch-" + Guid.NewGuid().ToString("N").Substring(0, 6), settings =>
+                    {
+                        settings.MaxConcurrentRuns = 4;
+                        settings.ChildReserveSlots = 0;
+                        settings.MaxLeaseBatch = batchSetting;
+                    }, token).ConfigureAwait(false);
+                    cluster.Workers.Add(worker);
+
+                    Stopwatch timer = Stopwatch.StartNew();
+                    while (true)
+                    {
+                        int finished = 0;
+                        foreach (Run run in created)
+                        {
+                            Run? stored = await cluster.Server.Server.Context.Database.Runs.ReadAsync(run.Id, token).ConfigureAwait(false);
+                            if (stored != null && stored.Status == RunStatusEnum.Succeeded) finished++;
+                        }
+                        if (finished == created.Count) break;
+                        if (timer.ElapsedMilliseconds > 30000) throw new TestAssertionException("Timed out waiting for 4 runs to succeed with MaxLeaseBatch " + batchSetting + " (" + finished + " done).");
+                        await Task.Delay(50, token).ConfigureAwait(false);
+                    }
+                    int expected = batchSetting == 0 ? 4 : 1;
+                    Assert.Equal(expected, worker.PeakLeaseBatch, "Most runs one lease request returned with MaxLeaseBatch " + batchSetting);
                 }
             }
         }

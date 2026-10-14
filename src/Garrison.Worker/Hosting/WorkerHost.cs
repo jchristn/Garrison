@@ -125,6 +125,18 @@ namespace Garrison.Worker.Hosting
         }
 
         /// <summary>
+        /// The most runs one lease request has returned since this worker started. Never more than MaxLeaseBatch (when
+        /// set) or the slots free when the request was sent.
+        /// </summary>
+        public int PeakLeaseBatch
+        {
+            get
+            {
+                return Volatile.Read(ref _PeakLeaseBatch);
+            }
+        }
+
+        /// <summary>
         /// Total runs completed since start.
         /// </summary>
         public long CompletedRuns
@@ -189,6 +201,8 @@ namespace Garrison.Worker.Hosting
         private readonly SemaphoreSlim _Reserve;
         private int _ReserveActive = 0;
         private int _PeakRuns = 0;
+        private int _PollPermits = 0;
+        private int _PeakLeaseBatch = 0;
         private readonly string _Header = "[Worker] ";
         private readonly ActivitySource _Activity = new ActivitySource("Garrison.Worker");
         private HealthServer? _Health = null;
@@ -280,7 +294,7 @@ namespace Garrison.Worker.Hosting
                     else _Logging.Debug(_Header + message);
                 });
                 _Gauges.Add(GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.WorkerRunsActive, () => _Runs.Count));
-                _Gauges.Add(GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.WorkerSlotsFree, () => _Slots.CurrentCount));
+                _Gauges.Add(GarrisonMetrics.RegisterGauge(GarrisonMetricCatalog.WorkerSlotsFree, () => _Slots.CurrentCount + Volatile.Read(ref _PollPermits)));
                 if (_Telemetry.Active && _Telemetry.PrometheusHostname != null)
                 {
                     _Logging.Info(_Header + "metrics listening on " + _Telemetry.PrometheusHostname + ":" + _Settings.Telemetry.PrometheusPort + _Settings.Telemetry.PrometheusPath);
@@ -789,7 +803,14 @@ namespace Garrison.Worker.Hosting
                     while (!leasing.IsCancellationRequested)
                     {
                         await gate.WaitAsync(leasing.Token).ConfigureAwait(false);
-                        bool started = false;
+                        // Take every other free permit too, up to MaxLeaseBatch, and ask for that many runs, so a burst of
+                        // queued work fills the worker in one round trip. Permits not used by a started run go back below.
+                        int held = 1;
+                        int limit = _Settings.MaxLeaseBatch > 0 ? _Settings.MaxLeaseBatch : 64;
+                        while (held < limit && gate.Wait(0)) held++;
+                        if (!childReserve) Interlocked.Add(ref _PollPermits, held);
+                        bool polling = true;
+                        int started = 0;
                         try
                         {
                             if (Volatile.Read(ref _NeedsRegistration) == 1 || _NodeId == null)
@@ -800,7 +821,7 @@ namespace Garrison.Worker.Hosting
 
                             NodeLeaseRequest request = new NodeLeaseRequest();
                             request.NodeId = _NodeId;
-                            request.MaxRuns = 1;
+                            request.MaxRuns = held;
                             request.WaitMs = _LeaseWaitMs;
                             request.ChildReserve = childReserve;
                             if (childReserve) request.ReserveRunIds = _Runs.Values.Where(r => r.ChildReserve).Select(r => r.RunId).ToList();
@@ -812,13 +833,23 @@ namespace Garrison.Worker.Hosting
                             }, leasing.Token).ConfigureAwait(false);
                             failures = 0;
                             if (!childReserve) _WarmPool?.ObserveQueue(response.QueuedKubernetesRuns);
-                            RunAssignment? assignment = response.Assignments.FirstOrDefault();
-                            GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerLeases, "result", assignment == null ? "empty" : "assigned");
-                            if (assignment == null) continue;
-                            for (int i = 1; i < response.Assignments.Count; i++) _Logging.Warn(_Header + "ignoring extra assignment " + response.Assignments[i].RunId + " (requested one)");
-
-                            if (assignment.Spec?.Executor == RunExecutorEnum.KubernetesJob) _WarmPool?.ObserveArrival();
-                            started = Launch(assignment, childReserve);
+                            GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerLeases, "result", response.Assignments.Count == 0 ? "empty" : "assigned");
+                            if (!childReserve) Interlocked.Add(ref _PollPermits, -held);
+                            polling = false;
+                            int batch = Math.Min(held, response.Assignments.Count);
+                            int peakBatch = Volatile.Read(ref _PeakLeaseBatch);
+                            while (batch > peakBatch && Interlocked.CompareExchange(ref _PeakLeaseBatch, batch, peakBatch) != peakBatch) peakBatch = Volatile.Read(ref _PeakLeaseBatch);
+                            for (int i = 0; i < response.Assignments.Count; i++)
+                            {
+                                RunAssignment assignment = response.Assignments[i];
+                                if (i >= held)
+                                {
+                                    _Logging.Warn(_Header + "ignoring extra assignment " + assignment.RunId + " (requested " + held + ")");
+                                    continue;
+                                }
+                                if (assignment.Spec?.Executor == RunExecutorEnum.KubernetesJob) _WarmPool?.ObserveArrival();
+                                if (Launch(assignment, childReserve)) started++;
+                            }
                         }
                         catch (NodeProtocolException e)
                         {
@@ -831,7 +862,8 @@ namespace Garrison.Worker.Hosting
                         }
                         finally
                         {
-                            if (!started) gate.Release();
+                            if (polling && !childReserve) Interlocked.Add(ref _PollPermits, -held);
+                            if (held > started) gate.Release(held - started);
                         }
                     }
                 }

@@ -2,7 +2,7 @@
 
 Updated 2026-10-14 under D-042/D-043 and D-049. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 0 active phase tasks, 1 conditional P10 task (P10.25, not evidenced: P14.15 never filled the slots; P10.24 completed 2026-10-14), and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.29/P12.38/P14.15 are complete. G-8 is done (SyslogLogging 2.4.1). G-12 is done (new Codex deployments use `builtin/codex-app-server`). G-29 is done (D-050: containerized workers and run pods default Codex to `danger-full-access`; the container is the sandbox). Under D-050, I-06 (manifest references resolved once per apply), I-08 (warnings for clamped values), and the empty-input rejection (400 `InputRequired`) are done; P10.24 is in progress separately. I-01, I-05, and cancellation latency were completed 2026-10-13.
+D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 0 active phase tasks, 1 conditional P10 task (P10.25, not evidenced: P14.15 never filled the slots; P10.24 completed 2026-10-14), and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.29/P12.38/P14.15 are complete. G-8 is done (SyslogLogging 2.4.1). G-12 is done (new Codex deployments use `builtin/codex-app-server`). G-29 is done (D-050: containerized workers and run pods default Codex to `danger-full-access`; the container is the sandbox). Under D-050, I-06 (manifest references resolved once per apply), I-08 (warnings for clamped values), and the empty-input rejection (400 `InputRequired`) are done. P10.24 is complete. I-01, I-05, and cancellation latency were completed 2026-10-13.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -82,7 +82,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 |---|---|---|
 | G-8 | Console probe opt-out | Done 2026-10-14: SyslogLogging 2.4.1 `DetectConsole` |
 | G-12 | Codex app-server default after compatibility checks | Done 2026-10-14: soak passed 17/20, the 3 failures are G-29 |
-| G-29 | Codex shell commands blocked by bubblewrap in containerized workers | Done 2026-10-14 (D-050): `executor.containerized` selects `danger-full-access` in containers, `workspace-write` on hosts; an explicit `sandbox` wins. Real-Codex check in Docker pending an image rebuild |
+| G-29 | Codex shell commands blocked by bubblewrap in containerized workers | Done 2026-10-14 (D-050): `executor.containerized` selects `danger-full-access` in containers, `workspace-write` on hosts; an explicit `sandbox` wins. Real Codex check passed in Docker (`pwd` returned the workspace) |
 | Empty input | Invoke with no body or empty input started a run | Done 2026-10-14 (D-050): 400 `ValidationFailed` with field code `InputRequired` on `input` for REST invoke, run create, deployment test, conversation turns, MCP, A2A, and pipeline start |
 | I-06 | Manifest apply reloads the same references per document | Done 2026-10-14: one reference cache per apply; harness profile reads per apply no longer grow with documents (12 deployments: 84/168/252 to 7/7/7 statements for dry run/apply/re-apply) |
 | I-08 | Silent clamping | Done 2026-10-14: `warnings` (`ValueClamped`) on REST and MCP create/update responses and on manifest apply items; storage still clamps |
@@ -93,6 +93,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | Conversation cleanup | Delete worker directories on conversation deletion | Deferred with P12 conversation work |
 | Conversation retention | Retention end-to-end verification | Deferred with P12 conversation work |
 | Conversation affinity | Affinity expiry end-to-end verification | Deferred with P12 conversation work |
+| Worker batch leasing | One run per lease request capped worker throughput after P10.24 | Done 2026-10-14: workers ask for every free slot per request (`MaxLeaseBatch`, default 0 = free slots) |
 | Windows scripts | Windows benchmark/release script verification | Deferred with P14/P15 |
 
 ## Scope notes

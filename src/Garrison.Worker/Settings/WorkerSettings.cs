@@ -276,6 +276,24 @@ namespace Garrison.Worker.Settings
         }
 
         /// <summary>
+        /// Most runs one lease request may take. Each lease request asks for as many runs as this worker has free slots,
+        /// up to this many, so a burst of queued work fills the worker in one round trip instead of one run per request.
+        /// 0 means no limit beyond the free slots (the control plane caps a single lease at 64). 1 leases one run per
+        /// request. Minimum 0, maximum 64, default 0.
+        /// </summary>
+        public int MaxLeaseBatch
+        {
+            get
+            {
+                return _MaxLeaseBatch;
+            }
+            set
+            {
+                _MaxLeaseBatch = Math.Clamp(value, 0, 64);
+            }
+        }
+
+        /// <summary>
         /// Event flush interval in milliseconds. Minimum 20, maximum 10000, default 250.
         /// </summary>
         public int EventFlushIntervalMs
@@ -508,6 +526,7 @@ namespace Garrison.Worker.Settings
         private int _HeartbeatIntervalMs = 5000;
         private int _PauseGraceMs = 5000;
         private int _LeaseWaitMs = 20000;
+        private int _MaxLeaseBatch = 0;
         private int _EventFlushIntervalMs = 250;
         private int _EventBatchSize = 100;
         private int _EventTextCoalesceMaxChars = 2048;
@@ -581,6 +600,8 @@ namespace Garrison.Worker.Settings
             if (value != null && Int32.TryParse(value, out int max)) MaxConcurrentRuns = max;
             value = Env("GARRISON_WORKER_CHILD_RESERVE_SLOTS");
             if (value != null && Int32.TryParse(value, out int reserve)) ChildReserveSlots = reserve;
+            value = Env("GARRISON_WORKER_MAX_LEASE_BATCH");
+            if (value != null && Int32.TryParse(value, out int leaseBatch)) MaxLeaseBatch = leaseBatch;
             value = Env("GARRISON_WORKER_MAX_RESIDENT_WAITERS");
             if (value != null && Int32.TryParse(value, out int waiters)) MaxResidentWaiters = waiters;
             value = Env("GARRISON_WORKER_CONTAINERIZED");

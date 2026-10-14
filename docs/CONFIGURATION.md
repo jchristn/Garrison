@@ -244,6 +244,7 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `HeartbeatIntervalMs` | `5000` | Heartbeat interval; the server can override it at registration |
 | `PauseGraceMs` | `5000` | Pause tolerance, 1000 to 600000. When the heartbeat loop finds that more than its sleep plus this long passed (host sleep, frozen container, clock jump), it logs a Warning (`event=worker.pause`) and heartbeats at once, which renews every lease it holds |
 | `LeaseWaitMs` | `20000` | Lease long-poll wait; the server can override it at registration |
+| `MaxLeaseBatch` | `0` | Most runs one lease request may take, 0 to 64. Each request asks for as many runs as the worker has free slots, so a burst of queued work fills the worker in one round trip. `0` means no limit beyond the free slots (the control plane caps one lease at 64); `1` leases one run per request. Environment: `GARRISON_WORKER_MAX_LEASE_BATCH` |
 | `EventFlushIntervalMs` | `250` | How often buffered events are sent |
 | `EventTextCoalesceMaxChars` | `2048` | Merge consecutive `AssistantText` or `Thinking` deltas within one flush window, up to this character count (0 to 1048576); `0` disables merging. Larger individual events remain intact. Environment: `GARRISON_WORKER_EVENT_TEXT_COALESCE_MAX_CHARS` |
 | `EventBatchSize` | `100` | Stored events per batch after text merging |
