@@ -81,6 +81,39 @@ namespace Garrison.Sdk.Models
         }
 
         /// <summary>
+        /// Child reserve slots the worker reported: extra slots only a delegated run whose parent waits on it may use, one
+        /// per run on the node waiting on a child. Minimum 0 (no reserve), maximum 64.
+        /// </summary>
+        public int ChildReserveSlots
+        {
+            get
+            {
+                return _ChildReserveSlots;
+            }
+            set
+            {
+                _ChildReserveSlots = Math.Clamp(value, 0, 64);
+            }
+        }
+
+        /// <summary>
+        /// Most runs on the node that may wait on a delegated run at once, as the worker reported it; 0 means
+        /// MaxConcurrentRuns. The control plane never lets more than MaxConcurrentRuns plus ChildReserveSlots minus one
+        /// runs wait. Minimum 0, maximum 1024.
+        /// </summary>
+        public int MaxResidentWaiters
+        {
+            get
+            {
+                return _MaxResidentWaiters;
+            }
+            set
+            {
+                _MaxResidentWaiters = Math.Clamp(value, 0, 1024);
+            }
+        }
+
+        /// <summary>
         /// Runs currently held.
         /// </summary>
         public int ActiveRuns { get; set; } = 0;
@@ -199,6 +232,8 @@ namespace Garrison.Sdk.Models
         private string _Id = String.Empty;
         private string _Name = String.Empty;
         private int _MaxConcurrentRuns = 4;
+        private int _ChildReserveSlots = 0;
+        private int _MaxResidentWaiters = 0;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<NodeLabel> _Labels = new List<NodeLabel>();

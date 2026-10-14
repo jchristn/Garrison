@@ -184,6 +184,15 @@ namespace Garrison.FakeHarness
         /// </summary>
         public List<string> PermissionRequests { get; set; } = new List<string>();
 
+        /// <summary>
+        /// MCP tool calls made through a server in --mcp-config, as server,tool,argsjson (repeatable), for example
+        /// garrison,garrison_invoke_agent,{"agent":"helper","input":"x","waitSeconds":60}. The server's URL and headers
+        /// (with environment variables expanded) come from --mcp-config, the way a real harness reaches its MCP servers.
+        /// Calls run one after another, after any --mcp-call, and each result is appended to the answer. Used for
+        /// delegation tests where the run token is only in the MCP configuration.
+        /// </summary>
+        public List<string> McpInvokes { get; set; } = new List<string>();
+
         #endregion
 
         #region Private-Members
@@ -298,6 +307,9 @@ namespace Garrison.FakeHarness
                         break;
                     case "--permission-request":
                         if (next != null) { options.PermissionRequests.Add(next); i++; }
+                        break;
+                    case "--mcp-invoke":
+                        if (next != null) { options.McpInvokes.Add(next); i++; }
                         break;
                     case "--stderr":
                         if (next != null) { options.Stderr = next; i++; }

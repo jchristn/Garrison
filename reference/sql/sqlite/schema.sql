@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 21).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 22).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1316,3 +1316,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS "idx_pipeline_reviews_execution" ON "pipeline_
 CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_tenantstatus" ON "pipeline_reviews" ("tenantid", "status", "createdutc");
 CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_expires" ON "pipeline_reviews" ("status", "expiresutc");
 CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_pipelinerun" ON "pipeline_reviews" ("pipelinerunid");
+
+-- Migration 22: Delegation child waits and worker child reserve
+ALTER TABLE "nodes" ADD COLUMN childreserveslots INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "nodes" ADD COLUMN maxresidentwaiters INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS "run_child_waits" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, parentrunid VARCHAR(64) NOT NULL, childrunid VARCHAR(64) NOT NULL, createdutc TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_run_child_waits_parent" ON "run_child_waits" ("parentrunid");
+CREATE INDEX IF NOT EXISTS "idx_run_child_waits_child" ON "run_child_waits" ("childrunid");

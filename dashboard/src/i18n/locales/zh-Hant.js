@@ -1045,7 +1045,7 @@ const zhHant = {
     nodes: {
       ...rp('節點', '取得執行租約並加以執行的工作節點。維護前請先封鎖或清空節點。', '新增節點', '建立節點', '編輯節點', '節點詳細資料', '刪除節點', '尚無節點', '工作節點啟動時會自行註冊。請部署 worker StatefulSet，或在本機執行 Garrison.Worker。'),
       columns: { name: '名稱', status: '狀態', capacity: '執行', harnesses: 'Harness', executors: '執行器', labels: '標籤', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳訊號', id: 'ID' },
-      fields: { address: '位址', maxConcurrentRuns: '容量', activeRuns: '進行中的執行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '詳細資訊' },
+      fields: { address: '位址', maxConcurrentRuns: '容量', childReserveSlots: '子執行預留', maxResidentWaiters: '最多等待執行數', activeRuns: '進行中的執行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '詳細資訊' },
       actions: { cordon: '封鎖', uncordon: '解除封鎖', drain: '清空', runs: '檢視執行', grafana: '在 Grafana 中開啟' },
       toasts: { cordoned: '節點已封鎖。', uncordoned: '節點已解除封鎖。', draining: '節點正在清空。' }
     },
@@ -1648,6 +1648,8 @@ const zhHant = {
           EventRetentionDays: '執行事件保留天數',
           RetentionDays: '執行保留天數',
           MaxDelegationDepth: '最大委派深度',
+          DelegationChildQueueDepth: '等待中執行的子執行最大排隊數',
+          DelegationRetryAfterSeconds: '委派容量耗盡時的重試提示（秒）',
           DefaultTimeoutSeconds: '預設執行逾時（秒）'
         },
         Codex: {

@@ -942,6 +942,8 @@ const tips = {
       lastHeartbeatUtc: 'Cuándo se reportó el nodo por última vez. Los nodos que dejan de reportarse se marcan como perdidos.',
       address: 'Dirección informativa que reportó el nodo.',
       maxConcurrentRuns: 'Número máximo de ejecuciones que este nodo acepta a la vez.',
+      childReserveSlots: 'Espacios extra para ejecuciones delegadas cuyo padre las espera: se abre uno por cada ejecución de este nodo que espera a una hija, hasta este número.',
+      maxResidentWaiters: 'Máximo de ejecuciones de este nodo que pueden esperar a una ejecución delegada a la vez. 0 significa su capacidad. Una delegación por encima falla con DelegationCapacityExhausted.',
       activeRuns: 'Ejecuciones que tiene el nodo en este momento.',
       capabilities: 'Qué encontró cada comprobación de harness: tipo, versión detectada y si se puede usar.',
       labelsItems: { key: 'Nombre de la etiqueta, comparado por los selectores de nodo de los despliegues.', value: 'Valor de la etiqueta, comparado exactamente por los selectores de nodo de los despliegues.' },
@@ -1881,6 +1883,10 @@ tips.views.pipelineRunDetail = {
 };
 tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Cada cuánto el líder hace avanzar las ejecuciones de canalización que perdieron una señal de finalización, reintenta inicios de etapa bloqueados y aplica los tiempos de espera de revisión y los límites de tiempo de las canalizaciones, en milisegundos.';
 tips.views.settings.fields.Runtime.PipelineMaxStages = 'Máximo de etapas que puede tener una definición de canalización. Se rechaza guardar una canalización con más etapas.';
+tips.views.settings.fields.Runs = Object.assign(tips.views.settings.fields.Runs || {}, {
+  DelegationChildQueueDepth: 'Máximo de ejecuciones delegadas en cola cuyo padre las espera, en todo el clúster. Una ejecución que empieza a esperar otra ejecución delegada por encima de este límite falla de inmediato con DelegationCapacityExhausted.',
+  DelegationRetryAfterSeconds: 'Segundos sugeridos en Retry-After cuando se rechaza con DelegationCapacityExhausted una delegación que espera.'
+});
 Object.assign(explainers, {
   pipelines: {
     title: 'Canalizaciones y etapas',

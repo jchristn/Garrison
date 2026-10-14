@@ -1084,7 +1084,7 @@ const it = {
     nodes: {
       ...rp('Nodi', 'Nodi worker che prendono in lease ed eseguono le esecuzioni. Isola o svuota un nodo prima della manutenzione.', 'Aggiungi nodo', 'Crea nodo', 'Modifica nodo', 'Dettagli del nodo', 'Elimina nodo', 'Ancora nessun nodo', 'I nodi worker si registrano automaticamente all\'avvio. Distribuisci lo StatefulSet dei worker oppure avvia Garrison.Worker in locale.'),
       columns: { name: 'Nome', status: 'Stato', capacity: 'Esecuzioni', harnesses: 'Harness', executors: 'Esecutori', labels: 'Etichette', nodeVersion: 'Versione', lastHeartbeatUtc: 'Ultimo heartbeat', id: 'ID' },
-      fields: { address: 'Indirizzo', maxConcurrentRuns: 'Capacità', activeRuns: 'Esecuzioni attive', capabilities: 'Capacità harness', detectedVersion: 'Versione', available: 'Disponibile', detail: 'Dettaglio' },
+      fields: { address: 'Indirizzo', maxConcurrentRuns: 'Capacità', childReserveSlots: 'Riserva per le figlie', maxResidentWaiters: 'Massimo di esecuzioni in attesa', activeRuns: 'Esecuzioni attive', capabilities: 'Capacità harness', detectedVersion: 'Versione', available: 'Disponibile', detail: 'Dettaglio' },
       actions: { cordon: 'Isola', uncordon: 'Annulla isolamento', drain: 'Svuota', runs: 'Visualizza esecuzioni', grafana: 'Apri in Grafana' },
       toasts: { cordoned: 'Nodo isolato.', uncordoned: 'Isolamento del nodo annullato.', draining: 'Svuotamento del nodo in corso.' }
     },
@@ -1693,6 +1693,8 @@ const it = {
           EventRetentionDays: 'Conservazione degli eventi di esecuzione (giorni)',
           RetentionDays: 'Conservazione delle esecuzioni (giorni)',
           MaxDelegationDepth: 'Profondità massima di delega',
+          DelegationChildQueueDepth: 'Massimo di esecuzioni figlie in coda con padre in attesa',
+          DelegationRetryAfterSeconds: 'Nuovo tentativo per capacità di delega esaurita (secondi)',
           DefaultTimeoutSeconds: 'Timeout predefinito delle esecuzioni (secondi)'
         },
         Codex: {

@@ -121,6 +121,8 @@ namespace Garrison.Server.Services
                 Int("Scheduling.PauseGraceMs", 5000, 1000, 600000, "Pause tolerance: a maintenance tick that comes more than the maintenance interval plus this long after the previous one (host sleep, frozen VM, clock jump) skips lease expiry, Lost and Offline marking, and deadline enforcement until one heartbeat window plus this grace has passed since the resume."),
                 Int("Runs.DefaultTimeoutSeconds", 1800, 5, 86400, "Default run deadline when neither the deployment nor the profile sets one."),
                 Int("Runs.MaxDelegationDepth", 3, 0, 10, "Maximum agent-to-agent delegation depth."),
+                Int("Runs.DelegationChildQueueDepth", 100, 1, 100000, "Most queued delegated runs whose parent waits on them, across the cluster. A run that starts waiting on another delegated run beyond it fails at once with DelegationCapacityExhausted."),
+                Int("Runs.DelegationRetryAfterSeconds", 5, 1, 300, "Seconds suggested in Retry-After when a synchronous delegation fails with DelegationCapacityExhausted."),
                 Int("Runs.RetentionDays", 30, 1, 3650, "Days finished runs are retained."),
                 Int("Runs.EventRetentionDays", 14, 1, 3650, "Days run events are retained."),
                 Int("Runtime.MaxRunSeconds", 3600, 60, 604800, "Cluster cap on any run's execution in seconds. Every run's timeout (deployment, per-run timeoutSeconds override, or harness profile default) is reduced to this cap when it is larger, and the leader times out runs that run longer."),

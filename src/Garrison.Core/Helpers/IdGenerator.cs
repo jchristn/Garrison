@@ -334,6 +334,15 @@ namespace Garrison.Core.Helpers
             return New(Constants.PipelineReviewIdPrefix);
         }
 
+        /// <summary>
+        /// Generate a child wait identifier (prefix rcw_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewRunChildWaitId()
+        {
+            return New(Constants.RunChildWaitIdPrefix);
+        }
+
         /// <summary>Generate an artifact identifier (prefix art_).</summary>
         /// <returns>Identifier.</returns>
         public static string NewArtifactId()

@@ -9211,7 +9211,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('eight tools', function () { pm.expect(pm.response.json().result.tools.length).to.eql(8); });"
+                  "pm.test('core tools listed', function () { var names = pm.response.json().result.tools.map(function (t) { return t.name; }); ['garrison_list_agents', 'garrison_invoke_agent', 'garrison_get_run', 'garrison_start_pipeline'].forEach(function (n) { pm.expect(names).to.include(n); }); });"
                 ]
               }
             }
@@ -10829,6 +10829,687 @@
       ]
     },
     {
+      "name": "Approvals",
+      "description": "Permission approvals. When a deployment has approvalsEnabled, Claude Code and Codex app-server runs relay permission prompts to Garrison; the deployment's approval rules decide each request or send it to a person, and the run stays Running (awaitingApproval true) until someone decides or the approval expires. Reading needs Read on Approval; deciding needs Update on Approval.",
+      "item": [
+        {
+          "name": "Set deployment approval rules",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{deploymentId}}"
+              ]
+            },
+            "description": "Replaces the deployment with approval settings: an ordered rule list (Deny beats Ask, Ask beats Allow), the default action for requests no rule matches, and the timeout. approvalsEnabled stays false because the fake harness profile cannot relay approvals (only Claude Code profiles and Codex profiles with CodexAppServer delivery accept true); the rules can still be tested with approval-check. New rules get dar_ identifiers that stay stable across updates.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"description\": \"Updated by Postman\",\n  \"timeoutSeconds\": 120,\n  \"approvalsEnabled\": false,\n  \"approvalDefaultAction\": \"Deny\",\n  \"approvalTimeoutSeconds\": 120,\n  \"approvalTimeoutDecision\": \"Deny\",\n  \"approvalRules\": [\n    {\n      \"action\": \"Allow\",\n      \"pattern\": \"Bash(git status:*)\",\n      \"description\": \"Read-only git status\"\n    },\n    {\n      \"action\": \"Deny\",\n      \"pattern\": \"Bash(rm:*)\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const dep = pm.response.json();",
+                  "pm.test('approvals stay disabled', function () { pm.expect(dep.approvalsEnabled).to.eql(false); });",
+                  "pm.test('default action is Deny', function () { pm.expect(dep.approvalDefaultAction).to.eql('Deny'); });",
+                  "pm.test('timeout is 120 seconds', function () { pm.expect(dep.approvalTimeoutSeconds).to.eql(120); });",
+                  "pm.test('two rules with ids', function () { pm.expect(dep.approvalRules.length).to.eql(2); dep.approvalRules.forEach(r => pm.expect(r.id).to.match(/^dar_/)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approval check (rule match)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}/approval-check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{deploymentId}}",
+                "approval-check"
+              ]
+            },
+            "description": "Evaluates the deployment's approval rules against a sample tool call without recording anything. The input uses Claude Code tool input names: command, cwd, url, file_path, notebook_path, path, paths, pattern, query.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toolName\": \"Bash\",\n  \"input\": {\n    \"command\": \"git status --short\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const check = pm.response.json();",
+                  "pm.test('a rule allows it', function () { pm.expect(check.action).to.eql('Allow'); pm.expect(check.source).to.eql('Rule'); });",
+                  "pm.test('the matching rule is reported', function () { pm.expect(check.rulePattern).to.eql('Bash(git status:*)'); pm.expect(check.ruleId).to.match(/^dar_/); });",
+                  "pm.test('approvals are disabled on this deployment', function () { pm.expect(check.approvalsEnabled).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approval check (default action)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}/approval-check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{deploymentId}}",
+                "approval-check"
+              ]
+            },
+            "description": "A request no rule matches gets the deployment's approvalDefaultAction. suggestedRule is the pattern a remembered decision would add.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toolName\": \"Edit\",\n  \"input\": {\n    \"file_path\": \"src/app.ts\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const check = pm.response.json();",
+                  "pm.test('the default denies it', function () { pm.expect(check.action).to.eql('Deny'); pm.expect(check.source).to.eql('Default'); });",
+                  "pm.test('a rule is suggested', function () { pm.expect(check.suggestedRule).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List pending approvals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals?status=Pending&maxResults=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "approvals"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Pending"
+                },
+                {
+                  "key": "maxResults",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Lists approvals waiting for a person. Other filters: runId, rootRunId, agentId, deploymentId, decisionSource (Rule, Default, User, Timeout, Cancelled), fromUtc, toUtc, plus maxResults, skip, and ordering. For a pending count, use maxResults=1 and read totalRecords. Needs Read on Approval."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "const page = pm.response.json();",
+                  "pm.test('every approval is Pending', function () { page.objects.forEach(a => pm.expect(a.status).to.eql('Pending')); });",
+                  "pm.test('totalRecords is a number', function () { pm.expect(page.totalRecords).to.be.a('number'); });",
+                  "if (!pm.collectionVariables.get('approvalId')) { pm.collectionVariables.set('approvalId', 'apr_postman_missing_' + pm.collectionVariables.get('suffix')); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List approvals for the deployment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals?deploymentId={{deploymentId}}&maxResults=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "approvals"
+              ],
+              "query": [
+                {
+                  "key": "deploymentId",
+                  "value": "{{deploymentId}}"
+                },
+                {
+                  "key": "maxResults",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "Lists every approval of one deployment, newest first. The fake harness never asks, so the page is empty here."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('no approvals for the fake deployment', function () { pm.expect(pm.response.json().objects.length).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read approval",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals/{{approvalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "approvals",
+                "{{approvalId}}"
+              ]
+            },
+            "description": "Reads one approval: the tool, a redacted input preview and summary, the suggested rule, status, decision, who or what decided, and timing (requestedUtc, decidedUtc, expiresUtc, waitMs). Set approvalId to a real approval to read it; the placeholder set by List pending approvals returns 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const placeholder = (pm.collectionVariables.get('approvalId') || '').startsWith('apr_postman_missing_');",
+                  "pm.test('status is 404 for the placeholder, 200 otherwise', function () { pm.response.to.have.status(placeholder ? 404 : 200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decide approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals/{{approvalId}}/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "approvals",
+                "{{approvalId}}",
+                "decide"
+              ]
+            },
+            "description": "Allows or denies a pending approval. reason (at most 4000 characters) is shown to the harness when denying. remember: true also adds an Allow or Deny rule to the approval's deployment (rulePattern, or the approval's suggestedRule) and needs Update on that deployment. Answers 409 ApprovalNotPending when the approval was already decided. Needs Update on Approval.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"Deny\",\n  \"reason\": \"Not during the release freeze.\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const placeholder = (pm.collectionVariables.get('approvalId') || '').startsWith('apr_postman_missing_');",
+                  "if (placeholder) { pm.test('status is 404 for the placeholder', function () { pm.response.to.have.status(404); }); }",
+                  "else { pm.test('status is 200, or 409 when already decided', function () { pm.expect(pm.response.code).to.be.oneOf([200, 409]); }); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Artifacts",
+      "description": "Optional explicit-glob collection. See docs/ARTIFACTS.md for store setup and active-run upload requirements.",
+      "item": [
+        {
+          "name": "List metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts?runId={{runId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts"
+              ]
+            },
+            "description": "Lists metadata without reading content. Optional storeId filter."
+          },
+          "response": []
+        },
+        {
+          "name": "Read metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts",
+                "{{artifactId}}"
+              ]
+            },
+            "description": "Reads one tenant-scoped artifact."
+          },
+          "response": []
+        },
+        {
+          "name": "Download bytes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}/content",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts",
+                "{{artifactId}}",
+                "content"
+              ]
+            },
+            "description": "Downloads the authenticated raw file."
+          },
+          "response": []
+        },
+        {
+          "name": "Create download link",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}/download-url",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts",
+                "{{artifactId}}",
+                "download-url"
+              ]
+            },
+            "description": "Returns a short-lived download-only URL and expiry."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete artifact",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "artifacts",
+                "{{artifactId}}"
+              ]
+            },
+            "description": "Deletes file content and metadata; invalidates existing links."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Optional provider API smoke (explicit opt-in)",
+      "description": "Set providerApiSmokeEnabled to true only when endpoint/model and an existing OpenAiApiKey secret are configured. Uses the standard APIs and may consume provider tokens. See docs/PROVIDER_API.md.",
+      "item": [
+        {
+          "name": "Create provider-only agent",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set(\"providerApiAgentId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-provider-api-{{$timestamp}}\",\n  \"description\": \"Optional provider API smoke agent.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Configure provider API deployment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set(\"providerApiDeploymentId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-provider-api-{{$timestamp}}\",\n  \"agentId\": \"{{providerApiAgentId}}\",\n  \"harnessProfileId\": \"hrn_builtin_provider_api\",\n  \"model\": \"{{providerApiModel}}\",\n  \"parameters\": [\n    {\n      \"name\": \"baseUrl\",\n      \"value\": \"{{providerApiBaseUrl}}\"\n    }\n  ],\n  \"resourceBindings\": [\n    {\n      \"kind\": \"Secret\",\n      \"alias\": \"provider-api\",\n      \"resourceId\": \"{{providerApiSecretId}}\"\n    }\n  ],\n  \"promptBindings\": [\n    {\n      \"role\": \"System\",\n      \"templateId\": \"tpl_builtin_default_system\"\n    },\n    {\n      \"role\": \"Task\",\n      \"templateId\": \"tpl_builtin_default_task\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Invoke through optional provider mode",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{providerApiAgentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{providerApiAgentId}}",
+                "invoke"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Reply with READY only.\",\n  \"wait\": true,\n  \"waitSeconds\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete provider smoke deployment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{providerApiDeploymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "deployments",
+                "{{providerApiDeploymentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete provider smoke agent",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{providerApiAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{providerApiAgentId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [
@@ -10968,7 +11649,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
                 ]
               }
             },
@@ -11919,687 +12600,6 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "Approvals",
-      "description": "Permission approvals. When a deployment has approvalsEnabled, Claude Code and Codex app-server runs relay permission prompts to Garrison; the deployment's approval rules decide each request or send it to a person, and the run stays Running (awaitingApproval true) until someone decides or the approval expires. Reading needs Read on Approval; deciding needs Update on Approval.",
-      "item": [
-        {
-          "name": "Set deployment approval rules",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "deployments",
-                "{{deploymentId}}"
-              ]
-            },
-            "description": "Replaces the deployment with approval settings: an ordered rule list (Deny beats Ask, Ask beats Allow), the default action for requests no rule matches, and the timeout. approvalsEnabled stays false because the fake harness profile cannot relay approvals (only Claude Code profiles and Codex profiles with CodexAppServer delivery accept true); the rules can still be tested with approval-check. New rules get dar_ identifiers that stay stable across updates.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"agentId\": \"{{agentId}}\",\n  \"name\": \"postman-dep-{{suffix}}\",\n  \"harnessProfileId\": \"{{fakeProfileId}}\",\n  \"parameters\": [\n    {\n      \"name\": \"format\",\n      \"value\": \"claude\"\n    }\n  ],\n  \"allowedRunOverrides\": [\n    {\n      \"name\": \"format\",\n      \"validation\": \"Enum\",\n      \"pattern\": \"claude,codex,mux\"\n    }\n  ],\n  \"description\": \"Updated by Postman\",\n  \"timeoutSeconds\": 120,\n  \"approvalsEnabled\": false,\n  \"approvalDefaultAction\": \"Deny\",\n  \"approvalTimeoutSeconds\": 120,\n  \"approvalTimeoutDecision\": \"Deny\",\n  \"approvalRules\": [\n    {\n      \"action\": \"Allow\",\n      \"pattern\": \"Bash(git status:*)\",\n      \"description\": \"Read-only git status\"\n    },\n    {\n      \"action\": \"Deny\",\n      \"pattern\": \"Bash(rm:*)\"\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "const dep = pm.response.json();",
-                  "pm.test('approvals stay disabled', function () { pm.expect(dep.approvalsEnabled).to.eql(false); });",
-                  "pm.test('default action is Deny', function () { pm.expect(dep.approvalDefaultAction).to.eql('Deny'); });",
-                  "pm.test('timeout is 120 seconds', function () { pm.expect(dep.approvalTimeoutSeconds).to.eql(120); });",
-                  "pm.test('two rules with ids', function () { pm.expect(dep.approvalRules.length).to.eql(2); dep.approvalRules.forEach(r => pm.expect(r.id).to.match(/^dar_/)); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Approval check (rule match)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}/approval-check",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "deployments",
-                "{{deploymentId}}",
-                "approval-check"
-              ]
-            },
-            "description": "Evaluates the deployment's approval rules against a sample tool call without recording anything. The input uses Claude Code tool input names: command, cwd, url, file_path, notebook_path, path, paths, pattern, query.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"toolName\": \"Bash\",\n  \"input\": {\n    \"command\": \"git status --short\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "const check = pm.response.json();",
-                  "pm.test('a rule allows it', function () { pm.expect(check.action).to.eql('Allow'); pm.expect(check.source).to.eql('Rule'); });",
-                  "pm.test('the matching rule is reported', function () { pm.expect(check.rulePattern).to.eql('Bash(git status:*)'); pm.expect(check.ruleId).to.match(/^dar_/); });",
-                  "pm.test('approvals are disabled on this deployment', function () { pm.expect(check.approvalsEnabled).to.eql(false); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Approval check (default action)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{deploymentId}}/approval-check",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "deployments",
-                "{{deploymentId}}",
-                "approval-check"
-              ]
-            },
-            "description": "A request no rule matches gets the deployment's approvalDefaultAction. suggestedRule is the pattern a remembered decision would add.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"toolName\": \"Edit\",\n  \"input\": {\n    \"file_path\": \"src/app.ts\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "const check = pm.response.json();",
-                  "pm.test('the default denies it', function () { pm.expect(check.action).to.eql('Deny'); pm.expect(check.source).to.eql('Default'); });",
-                  "pm.test('a rule is suggested', function () { pm.expect(check.suggestedRule).to.be.a('string').and.not.empty; });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List pending approvals",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals?status=Pending&maxResults=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "approvals"
-              ],
-              "query": [
-                {
-                  "key": "status",
-                  "value": "Pending"
-                },
-                {
-                  "key": "maxResults",
-                  "value": "10"
-                }
-              ]
-            },
-            "description": "Lists approvals waiting for a person. Other filters: runId, rootRunId, agentId, deploymentId, decisionSource (Rule, Default, User, Timeout, Cancelled), fromUtc, toUtc, plus maxResults, skip, and ordering. For a pending count, use maxResults=1 and read totalRecords. Needs Read on Approval."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "const page = pm.response.json();",
-                  "pm.test('every approval is Pending', function () { page.objects.forEach(a => pm.expect(a.status).to.eql('Pending')); });",
-                  "pm.test('totalRecords is a number', function () { pm.expect(page.totalRecords).to.be.a('number'); });",
-                  "if (!pm.collectionVariables.get('approvalId')) { pm.collectionVariables.set('approvalId', 'apr_postman_missing_' + pm.collectionVariables.get('suffix')); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List approvals for the deployment",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals?deploymentId={{deploymentId}}&maxResults=25",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "approvals"
-              ],
-              "query": [
-                {
-                  "key": "deploymentId",
-                  "value": "{{deploymentId}}"
-                },
-                {
-                  "key": "maxResults",
-                  "value": "25"
-                }
-              ]
-            },
-            "description": "Lists every approval of one deployment, newest first. The fake harness never asks, so the page is empty here."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('no approvals for the fake deployment', function () { pm.expect(pm.response.json().objects.length).to.eql(0); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Read approval",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals/{{approvalId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "approvals",
-                "{{approvalId}}"
-              ]
-            },
-            "description": "Reads one approval: the tool, a redacted input preview and summary, the suggested rule, status, decision, who or what decided, and timing (requestedUtc, decidedUtc, expiresUtc, waitMs). Set approvalId to a real approval to read it; the placeholder set by List pending approvals returns 404."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const placeholder = (pm.collectionVariables.get('approvalId') || '').startsWith('apr_postman_missing_');",
-                  "pm.test('status is 404 for the placeholder, 200 otherwise', function () { pm.response.to.have.status(placeholder ? 404 : 200); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Decide approval",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/approvals/{{approvalId}}/decide",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "approvals",
-                "{{approvalId}}",
-                "decide"
-              ]
-            },
-            "description": "Allows or denies a pending approval. reason (at most 4000 characters) is shown to the harness when denying. remember: true also adds an Allow or Deny rule to the approval's deployment (rulePattern, or the approval's suggestedRule) and needs Update on that deployment. Answers 409 ApprovalNotPending when the approval was already decided. Needs Update on Approval.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"decision\": \"Deny\",\n  \"reason\": \"Not during the release freeze.\",\n  \"remember\": false\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const placeholder = (pm.collectionVariables.get('approvalId') || '').startsWith('apr_postman_missing_');",
-                  "if (placeholder) { pm.test('status is 404 for the placeholder', function () { pm.response.to.have.status(404); }); }",
-                  "else { pm.test('status is 200, or 409 when already decided', function () { pm.expect(pm.response.code).to.be.oneOf([200, 409]); }); }"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Artifacts",
-      "description": "Optional explicit-glob collection. See docs/ARTIFACTS.md for store setup and active-run upload requirements.",
-      "item": [
-        {
-          "name": "List metadata",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts?runId={{runId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "artifacts"
-              ]
-            },
-            "description": "Lists metadata without reading content. Optional storeId filter."
-          },
-          "response": []
-        },
-        {
-          "name": "Read metadata",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "artifacts",
-                "{{artifactId}}"
-              ]
-            },
-            "description": "Reads one tenant-scoped artifact."
-          },
-          "response": []
-        },
-        {
-          "name": "Download bytes",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}/content",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "artifacts",
-                "{{artifactId}}",
-                "content"
-              ]
-            },
-            "description": "Downloads the authenticated raw file."
-          },
-          "response": []
-        },
-        {
-          "name": "Create download link",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}/download-url",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "artifacts",
-                "{{artifactId}}",
-                "download-url"
-              ]
-            },
-            "description": "Returns a short-lived download-only URL and expiry."
-          },
-          "response": []
-        },
-        {
-          "name": "Delete artifact",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/artifacts/{{artifactId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "artifacts",
-                "{{artifactId}}"
-              ]
-            },
-            "description": "Deletes file content and metadata; invalidates existing links."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Optional provider API smoke (explicit opt-in)",
-      "description": "Set providerApiSmokeEnabled to true only when endpoint/model and an existing OpenAiApiKey secret are configured. Uses the standard APIs and may consume provider tokens. See docs/PROVIDER_API.md.",
-      "item": [
-        {
-          "name": "Create provider-only agent",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code < 300) pm.collectionVariables.set(\"providerApiAgentId\", pm.response.json().id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "agents"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-provider-api-{{$timestamp}}\",\n  \"description\": \"Optional provider API smoke agent.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Configure provider API deployment",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code < 300) pm.collectionVariables.set(\"providerApiDeploymentId\", pm.response.json().id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "deployments"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"postman-provider-api-{{$timestamp}}\",\n  \"agentId\": \"{{providerApiAgentId}}\",\n  \"harnessProfileId\": \"hrn_builtin_provider_api\",\n  \"model\": \"{{providerApiModel}}\",\n  \"parameters\": [\n    {\n      \"name\": \"baseUrl\",\n      \"value\": \"{{providerApiBaseUrl}}\"\n    }\n  ],\n  \"resourceBindings\": [\n    {\n      \"kind\": \"Secret\",\n      \"alias\": \"provider-api\",\n      \"resourceId\": \"{{providerApiSecretId}}\"\n    }\n  ],\n  \"promptBindings\": [\n    {\n      \"role\": \"System\",\n      \"templateId\": \"tpl_builtin_default_system\"\n    },\n    {\n      \"role\": \"Task\",\n      \"templateId\": \"tpl_builtin_default_task\"\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Invoke through optional provider mode",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{providerApiAgentId}}/invoke",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "agents",
-                "{{providerApiAgentId}}",
-                "invoke"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"input\": \"Reply with READY only.\",\n  \"wait\": true,\n  \"waitSeconds\": 60\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Delete provider smoke deployment",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/deployments/{{providerApiDeploymentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "deployments",
-                "{{providerApiDeploymentId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete provider smoke agent",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.collectionVariables.get(\"providerApiSmokeEnabled\") !== \"true\") pm.execution.skipRequest();"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{providerApiAgentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1.0",
-                "api",
-                "tenants",
-                "{{tenantId}}",
-                "agents",
-                "{{providerApiAgentId}}"
-              ]
-            }
-          }
         }
       ]
     }

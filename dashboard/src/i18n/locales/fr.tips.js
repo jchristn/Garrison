@@ -942,6 +942,8 @@ const tips = {
       lastHeartbeatUtc: 'Dernier signal de vie reçu du nœud. Les nœuds qui cessent d\'envoyer des signaux de vie passent au statut « Perdu ».',
       address: 'Adresse indicative signalée par le nœud.',
       maxConcurrentRuns: 'Nombre maximal d\'exécutions que ce nœud accepte simultanément.',
+      childReserveSlots: 'Emplacements supplémentaires pour les exécutions déléguées que leur parent attend : un s\'ouvre pour chaque exécution de ce nœud qui attend un enfant, jusqu\'à ce nombre.',
+      maxResidentWaiters: 'Nombre maximal d\'exécutions de ce nœud qui peuvent attendre une exécution déléguée en même temps. 0 signifie sa capacité. Une délégation au-delà échoue avec DelegationCapacityExhausted.',
       activeRuns: 'Exécutions détenues par le nœud en ce moment.',
       capabilities: 'Ce que chaque sonde de harness a trouvé : type, version détectée et disponibilité.',
       labelsItems: { key: 'Nom de l\'étiquette, comparé par les sélecteurs de nœuds des déploiements.', value: 'Valeur de l\'étiquette, comparée exactement par les sélecteurs de nœuds des déploiements.' },
@@ -1881,6 +1883,10 @@ tips.views.pipelineRunDetail = {
 };
 tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = "Fréquence à laquelle le leader fait avancer les exécutions de pipeline qui ont manqué un signal de fin, relance les démarrages d'étape bloqués et applique les délais de revue et les durées maximales des pipelines, en millisecondes.";
 tips.views.settings.fields.Runtime.PipelineMaxStages = "Nombre maximal d'étapes d'une définition de pipeline. L'enregistrement d'un pipeline comportant plus d'étapes est refusé.";
+tips.views.settings.fields.Runs = Object.assign(tips.views.settings.fields.Runs || {}, {
+  DelegationChildQueueDepth: 'Nombre maximal d\'exécutions déléguées en file d\'attente que leur parent attend, sur tout le cluster. Une exécution qui commence à attendre une autre exécution déléguée au-delà échoue aussitôt avec DelegationCapacityExhausted.',
+  DelegationRetryAfterSeconds: 'Secondes proposées dans Retry-After quand une délégation qui attend est refusée avec DelegationCapacityExhausted.'
+});
 Object.assign(explainers, {
   pipelines: {
     title: "Pipelines et étapes",

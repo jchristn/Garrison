@@ -82,6 +82,41 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
+        /// Child reserve (P12.38): extra slots the worker opens only for delegated runs whose parent waits on them, one
+        /// per run on this node that is waiting on a child, up to this many. Reported by the worker at registration.
+        /// Minimum 0 (no reserve), maximum 64, default 0 (a node registered before the reserve existed).
+        /// </summary>
+        public int ChildReserveSlots
+        {
+            get
+            {
+                return _ChildReserveSlots;
+            }
+            set
+            {
+                _ChildReserveSlots = Math.Clamp(value, 0, 64);
+            }
+        }
+
+        /// <summary>
+        /// Most runs on this node that may wait synchronously on a delegated run at once while staying resident (P12.38).
+        /// A delegation that would exceed it fails with DelegationCapacityExhausted. 0 means MaxConcurrentRuns. The
+        /// effective cap is never more than MaxConcurrentRuns plus ChildReserveSlots minus one. Reported by the worker
+        /// at registration. Minimum 0, maximum 1024, default 0.
+        /// </summary>
+        public int MaxResidentWaiters
+        {
+            get
+            {
+                return _MaxResidentWaiters;
+            }
+            set
+            {
+                _MaxResidentWaiters = Math.Clamp(value, 0, 1024);
+            }
+        }
+
+        /// <summary>
         /// Runs currently held.
         /// </summary>
         public int ActiveRuns { get; set; } = 0;
@@ -203,6 +238,8 @@ namespace Garrison.Core.Models
         private string _Id = IdGenerator.NewNodeId();
         private string _Name = String.Empty;
         private int _MaxConcurrentRuns = 4;
+        private int _ChildReserveSlots = 0;
+        private int _MaxResidentWaiters = 0;
         private DateTime _CreatedUtc = DateTime.UtcNow;
         private DateTime _LastUpdateUtc = DateTime.UtcNow;
         private List<NodeLabel> _Labels = new List<NodeLabel>();

@@ -15,13 +15,16 @@ namespace Garrison.Server.Runtime
     using Garrison.Core.Requests;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Services;
+    using QoSKit;
     using Radiant;
     using SyslogLogging;
 
     /// <summary>
     /// Hands queued runs to worker nodes. Candidates are filtered by harness capability, node pool, tenant dedication,
     /// node labels, and deployment concurrency, then claimed with an atomic compare-and-set that increments the fencing
-    /// epoch (plan section 9.3). Claimed runs are compiled into execution specs; compile failures fail the run.
+    /// epoch (plan section 9.3). Delegated runs are ordered ahead of new top-level work through a QoSKit priority queue
+    /// (D-036), and a lease into a worker's child reserve only takes a run whose parent waits on it, while the node has
+    /// an open reserve slot (P12.38). Claimed runs are compiled into execution specs; compile failures fail the run.
     /// Thread-safe.
     /// </summary>
     public class SchedulerService
@@ -135,10 +138,12 @@ namespace Garrison.Server.Runtime
                     Node? current = await _Database.Nodes.ReadAsync(node.Id, token).ConfigureAwait(false);
                     if (current == null || !current.Active || current.Status != NodeStatusEnum.Ready || current.RegisteredUtc != registration) return response;
                     node = current;
-                    List<RunAssignment> claimed = await ClaimAsync(node, maxRuns - response.Assignments.Count, token).ConfigureAwait(false);
+                    int wanted = maxRuns - response.Assignments.Count;
+                    if (request.ChildReserve) wanted = Math.Min(wanted, await OpenReserveSlotsAsync(node, request.ReserveRunIds, token).ConfigureAwait(false) - response.Assignments.Count);
+                    List<RunAssignment> claimed = wanted > 0 ? await ClaimAsync(node, wanted, request.ChildReserve, token).ConfigureAwait(false) : new List<RunAssignment>();
                     GarrisonMetrics.Observe(GarrisonMetricCatalog.ClaimDuration, GarrisonMetrics.SecondsSince(claimStart), "result", claimed.Count > 0 ? "assigned" : "empty");
                     response.Assignments.AddRange(claimed);
-                    if (node.ExecutorCapabilities.Any(c => c.WarmStart)) response.QueuedKubernetesRuns = await WarmQueueDepthAsync(node, token).ConfigureAwait(false);
+                    if (!request.ChildReserve && node.ExecutorCapabilities.Any(c => c.WarmStart)) response.QueuedKubernetesRuns = await WarmQueueDepthAsync(node, token).ConfigureAwait(false);
                     if (response.Assignments.Count > 0) return response;
 
                     int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
@@ -213,7 +218,73 @@ namespace Garrison.Server.Runtime
             return queued.Count(r => PlacementRules.MatchesPlacement(node, pool, r));
         }
 
-        private async Task<List<RunAssignment>> ClaimAsync(Node node, int maxRuns, CancellationToken token)
+        private async Task<int> OpenReserveSlotsAsync(Node node, List<string> reserveRunIds, CancellationToken token)
+        {
+            // One reserve slot opens for each run on the node waiting on a child, up to the node's ChildReserveSlots, less
+            // the reserve runs the worker still has. Re-read on every pass: a long poll outlives the runs it was sent with.
+            if (node.ChildReserveSlots <= 0) return 0;
+            long waiting = await _Database.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false);
+            int open = DelegationCapacity.OpenReserveSlots(node, waiting);
+            if (open <= 0) return 0;
+            int active = 0;
+            foreach (string runId in reserveRunIds.Where(id => !String.IsNullOrEmpty(id)).Distinct(StringComparer.Ordinal).Take(64))
+            {
+                Run? run = await _Database.Runs.ReadAsync(runId, token).ConfigureAwait(false);
+                if (run != null && run.LeaseNodeId == node.Id && !RunService.IsTerminal(run.Status)) active++;
+            }
+            return Math.Max(0, open - active);
+        }
+
+        private static ClaimCandidateFilter CandidateFilter(Node node, NodePool? pool, List<HarnessTypeEnum> harnessTypes, int limit)
+        {
+            ClaimCandidateFilter filter = new ClaimCandidateFilter();
+            filter.HarnessTypes = harnessTypes;
+            filter.NodePoolId = node.NodePoolId;
+            filter.Executors = RunExecutors.Of(node);
+            filter.ExecutorCapabilities = ExecutorCapabilityRules.Of(node);
+            filter.AllowedTenantIds = pool != null && pool.Tenants.Count > 0 ? pool.Tenants : null;
+            filter.Limit = limit;
+            return filter;
+        }
+
+        private static List<Run> DelegatedFirst(List<Run> window, List<Run> delegated)
+        {
+            // D-036: delegated children are classified ahead of new top-level work. The database orders each window by
+            // priority and age; QoSKit's strict priority bands keep that order within a band.
+            Dictionary<string, Run> merged = new Dictionary<string, Run>(StringComparer.Ordinal);
+            foreach (Run run in window.Concat(delegated)) merged.TryAdd(run.Id, run);
+            List<Run> ordered = new List<Run>();
+            QoSQueueOptions options = new QoSQueueOptions();
+            options.Name = "garrison-claim-window";
+            options.EnableMetrics = false;
+            options.EnableTracing = false;
+            using (PriorityQoSQueue<Run> queue = new PriorityQoSQueue<Run>(2, r => r.Kind == RunKindEnum.Delegated ? 0 : 1, options))
+            {
+                foreach (Run run in merged.Values.OrderByDescending(r => r.Priority).ThenBy(r => r.CreatedUtc)) queue.Enqueue(run);
+                while (queue.TryDequeue(out Run next)) ordered.Add(next);
+            }
+            return ordered;
+        }
+
+        private async Task<List<string>> AncestorsAsync(Run run, Dictionary<string, string?> parents, CancellationToken token)
+        {
+            List<string> ancestors = new List<string>();
+            string? current = run.ParentRunId;
+            while (!String.IsNullOrEmpty(current) && ancestors.Count < 64 && !ancestors.Contains(current))
+            {
+                ancestors.Add(current);
+                if (!parents.TryGetValue(current, out string? parent))
+                {
+                    Run? read = await _Database.Runs.ReadAsync(run.TenantId, current, token).ConfigureAwait(false);
+                    parent = read?.ParentRunId;
+                    parents[current] = parent;
+                }
+                current = parent;
+            }
+            return ancestors;
+        }
+
+        private async Task<List<RunAssignment>> ClaimAsync(Node node, int maxRuns, bool childReserve, CancellationToken token)
         {
             List<RunAssignment> assignments = new List<RunAssignment>();
             List<HarnessTypeEnum> harnessTypes = node.Capabilities.Where(c => c.Available).Select(c => c.HarnessType).Distinct().ToList();
@@ -222,19 +293,25 @@ namespace Garrison.Server.Runtime
             // Pool and tenant dedication are applied in SQL, so a dedicated node is never starved by a backlog of runs it
             // may not take (P10.16); label requirements are checked below.
             NodePool? pool = String.IsNullOrEmpty(node.NodePoolId) ? null : await _Database.NodePools.ReadAsync(node.NodePoolId, token).ConfigureAwait(false);
-            ClaimCandidateFilter filter = new ClaimCandidateFilter();
-            filter.HarnessTypes = harnessTypes;
-            filter.NodePoolId = node.NodePoolId;
-            filter.Executors = RunExecutors.Of(node);
-            filter.ExecutorCapabilities = ExecutorCapabilityRules.Of(node);
-            filter.AllowedTenantIds = pool != null && pool.Tenants.Count > 0 ? pool.Tenants : null;
-            filter.Limit = Math.Max(maxRuns * 4, 16);
+            int limit = Math.Max(maxRuns * 4, 16);
+            ClaimCandidateFilter filter = CandidateFilter(node, pool, harnessTypes, limit);
+            // The child reserve (P12.38) only takes runs whose parent is waiting on them.
+            filter.WaitedChildrenOnly = childReserve;
             List<Run> candidates = await _Database.Runs.ListClaimCandidatesAsync(filter, token).ConfigureAwait(false);
+            if (!childReserve)
+            {
+                // Delegated runs come first even when a backlog of older top-level runs fills the window.
+                ClaimCandidateFilter delegatedFilter = CandidateFilter(node, pool, harnessTypes, limit);
+                delegatedFilter.DelegatedOnly = true;
+                List<Run> delegated = await _Database.Runs.ListClaimCandidatesAsync(delegatedFilter, token).ConfigureAwait(false);
+                candidates = DelegatedFirst(candidates, delegated);
+            }
             if (candidates.Count == 0) return assignments;
 
             Dictionary<string, long> activeByDeployment = new Dictionary<string, long>(StringComparer.Ordinal);
             Dictionary<string, Deployment?> deployments = new Dictionary<string, Deployment?>(StringComparer.Ordinal);
             Dictionary<string, Node?> affinityNodes = new Dictionary<string, Node?>(StringComparer.Ordinal);
+            Dictionary<string, string?> parents = new Dictionary<string, string?>(StringComparer.Ordinal);
             DateTime now = DateTime.UtcNow;
 
             foreach (Run candidate in candidates)
@@ -263,17 +340,25 @@ namespace Garrison.Server.Runtime
                     deployment = await _Database.Deployments.ReadAsync(candidate.DeploymentId, token).ConfigureAwait(false);
                     deployments[candidate.DeploymentId] = deployment;
                 }
-                int limit = deployment != null ? deployment.MaxConcurrentRuns : 0;
-                if (limit > 0)
+                int deploymentLimit = deployment != null ? deployment.MaxConcurrentRuns : 0;
+                // A delegated run's ancestors that wait on a descendant are left out of its deployment's count (P12.38),
+                // so a parent and child in the same deployment cannot deadlock on maxConcurrentRuns.
+                List<string> ancestors = deploymentLimit > 0 ? await AncestorsAsync(candidate, parents, token).ConfigureAwait(false) : new List<string>();
+                if (deploymentLimit > 0)
                 {
                     // A cheap pre-check skips deployments that are visibly full; the claim below enforces the limit
                     // exactly, across replicas (G-6).
-                    if (!activeByDeployment.TryGetValue(candidate.DeploymentId, out long active))
+                    long active;
+                    if (ancestors.Count > 0)
+                    {
+                        active = await _Database.Runs.CountActiveByDeploymentAsync(candidate.DeploymentId, ancestors, token).ConfigureAwait(false);
+                    }
+                    else if (!activeByDeployment.TryGetValue(candidate.DeploymentId, out active))
                     {
                         active = await _Database.Runs.CountActiveByDeploymentAsync(candidate.DeploymentId, token).ConfigureAwait(false);
                         activeByDeployment[candidate.DeploymentId] = active;
                     }
-                    if (active >= limit)
+                    if (active >= deploymentLimit)
                     {
                         GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "limit", "harness", candidate.HarnessType.ToString());
                         continue;
@@ -289,7 +374,7 @@ namespace Garrison.Server.Runtime
 
                     Stopwatch timer = Stopwatch.StartNew();
                     DateTime leaseExpires = DateTime.UtcNow.AddMilliseconds(_Options.LeaseDurationMs);
-                    ClaimResult result = await _Database.Runs.TryClaimWithinLimitAsync(candidate.Id, node.Id, node.Name, leaseExpires, candidate.DeploymentId, limit, token).ConfigureAwait(false);
+                    ClaimResult result = await _Database.Runs.TryClaimWithinLimitAsync(candidate.Id, node.Id, node.Name, leaseExpires, candidate.DeploymentId, deploymentLimit, ancestors, token).ConfigureAwait(false);
                     if (result.QuotaId != null)
                     {
                         GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "quota", "harness", candidate.HarnessType.ToString());
@@ -298,7 +383,7 @@ namespace Garrison.Server.Runtime
                     }
                     if (result.LimitReached)
                     {
-                        activeByDeployment[candidate.DeploymentId] = limit;
+                        if (ancestors.Count == 0) activeByDeployment[candidate.DeploymentId] = deploymentLimit;
                         GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "limit", "harness", candidate.HarnessType.ToString());
                         claim?.SetTag("garrison.claim_result", "limit");
                         continue;
@@ -311,13 +396,13 @@ namespace Garrison.Server.Runtime
                     }
                     long epoch = result.Epoch ?? 0;
                     double claimSeconds = timer.Elapsed.TotalSeconds;
-                    if (limit > 0) activeByDeployment[candidate.DeploymentId] = activeByDeployment[candidate.DeploymentId] + 1;
+                    if (deploymentLimit > 0 && activeByDeployment.TryGetValue(candidate.DeploymentId, out long counted)) activeByDeployment[candidate.DeploymentId] = counted + 1;
                     GarrisonMetrics.Count(GarrisonMetricCatalog.Claims, "result", "won", "harness", candidate.HarnessType.ToString());
                     claim?.SetTag("garrison.claim_result", "won");
                     claim?.SetTag("garrison.agent", candidate.AgentName);
                     claim?.SetTag("garrison.tenant", candidate.TenantId);
                     if (deployment != null) RunTelemetry.Remember(deployment.Id, deployment.Name);
-                    _Logging.Info(_Header + "run " + candidate.Id + " leased to " + node.Name + " (epoch " + epoch + ") " + RunTracing.LogFields(candidate.Id, candidate.TraceId)
+                    _Logging.Info(_Header + "run " + candidate.Id + " leased to " + node.Name + " (epoch " + epoch + (childReserve ? ", child reserve" : String.Empty) + ") " + RunTracing.LogFields(candidate.Id, candidate.TraceId)
                         + " " + GarrisonTracing.LogFields("tenant", candidate.TenantId, "agent", candidate.AgentName, "deployment", deployment?.Name, "node", node.Name));
 
                     RunAssignment? assignment = await PrepareAsync(candidate.TenantId, candidate.Id, node, epoch, leaseExpires, claim, token).ConfigureAwait(false);

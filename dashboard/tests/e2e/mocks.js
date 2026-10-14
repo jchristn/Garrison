@@ -396,6 +396,9 @@ const FACTORIES = {
       nodeVersion: '0.1.0-alpha',
       status: i === 3 ? 'Cordoned' : 'Ready',
       maxConcurrentRuns: 4,
+      // P12.38: the child reserve and resident waiter cap the worker reported (0 means MaxConcurrentRuns).
+      childReserveSlots: 2,
+      maxResidentWaiters: 0,
       activeRuns: i % 3,
       credentialId: 'cred_node',
       lastHeartbeatUtc: iso(0),
@@ -838,6 +841,9 @@ const SETTINGS = {
     { path: 'Database.Type', group: 'Database', description: 'Database provider.', type: 'enum', value: 'Sqlite', isSecret: false, isSet: true, source: 'File', applyMode: 'RestartRequired', editable: true, allowedValues: ['Sqlite', 'Postgresql'] },
     { path: 'Database.Password', group: 'Database', description: 'Database password.', type: 'secret', isSecret: true, isSet: true, value: '********', source: 'File', applyMode: 'RestartRequired', editable: true },
     { path: 'Scheduling.LeaseDurationMs', group: 'Scheduling', description: 'Run lease duration; heartbeats extend it.', type: 'int', value: '30000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 5000, maximum: 600000 },
+    // P12.38: delegation capacity, the queue of waited children and the Retry-After of a refusal.
+    { path: 'Runs.DelegationChildQueueDepth', group: 'Runs', description: 'Most queued delegated runs whose parent waits on them, across the cluster.', type: 'int', value: '100', isSecret: false, isSet: false, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 100000 },
+    { path: 'Runs.DelegationRetryAfterSeconds', group: 'Runs', description: 'Seconds suggested in Retry-After when a synchronous delegation fails with DelegationCapacityExhausted.', type: 'int', value: '5', isSecret: false, isSet: false, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 300 },
     { path: 'Scheduling.PauseGraceMs', group: 'Scheduling', description: 'Grace after a detected pause before nodes are marked Lost.', type: 'int', value: '5000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1000, maximum: 600000 },
     // P3.15: the run cap and the run guard defaults deployments follow.
     { path: 'Runtime.MaxRunSeconds', group: 'Runtime', description: "Cluster cap on any run's execution in seconds.", type: 'int', value: '1200', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 60, maximum: 604800 },

@@ -336,6 +336,8 @@ namespace Garrison.Server.Routes
                 }
             }
             options.Wait = !streaming && (request.Configuration == null || !request.Configuration.ReturnImmediately);
+            // A run that streams its child's task waits on it like a blocking call (P12.38).
+            options.CallerWaits = streaming;
             options.WaitSeconds = _Context.Settings.Mcp.MaxToolWaitSeconds;
             options.CancelOnDisconnect = true;
             options.CallerGone = () => context.RequestAborted && !_Context.IsDraining;
@@ -347,17 +349,24 @@ namespace Garrison.Server.Routes
             {
                 try
                 {
-                    await StreamAsync(context, id, tenantId, run).ConfigureAwait(false);
+                    try
+                    {
+                        await StreamAsync(context, id, tenantId, run).ConfigureAwait(false);
+                    }
+                    catch (Exception e) when ((e is OperationCanceledException || e is IOException || e is SocketException || e is ObjectDisposedException) && !_Context.IsDraining)
+                    {
+                        // The client closed the stream of the task it started: nobody is listening, so stop the task.
+                        await _Runs.CancelAbandonedAsync(tenantId, run.Id, "the A2A client disconnected from SendStreamingMessage", CancellationToken.None).ConfigureAwait(false);
+                        throw;
+                    }
+                    if (context.Token.IsCancellationRequested && context.RequestAborted && !_Context.IsDraining)
+                    {
+                        await _Runs.CancelAbandonedAsync(tenantId, run.Id, "the A2A client disconnected from SendStreamingMessage", CancellationToken.None).ConfigureAwait(false);
+                    }
                 }
-                catch (Exception e) when ((e is OperationCanceledException || e is IOException || e is SocketException || e is ObjectDisposedException) && !_Context.IsDraining)
+                finally
                 {
-                    // The client closed the stream of the task it started: nobody is listening, so stop the task.
-                    await _Runs.CancelAbandonedAsync(tenantId, run.Id, "the A2A client disconnected from SendStreamingMessage", CancellationToken.None).ConfigureAwait(false);
-                    throw;
-                }
-                if (context.Token.IsCancellationRequested && context.RequestAborted && !_Context.IsDraining)
-                {
-                    await _Runs.CancelAbandonedAsync(tenantId, run.Id, "the A2A client disconnected from SendStreamingMessage", CancellationToken.None).ConfigureAwait(false);
+                    await _Invoker.EndChildWaitAsync(options.ChildWaitId).ConfigureAwait(false);
                 }
                 return;
             }

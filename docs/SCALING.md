@@ -16,11 +16,25 @@ Use node pools and labels to separate kinds of work: a pool of Claude Code worke
 
 | Limit | Where |
 |---|---|
-| Runs per worker | `MaxConcurrentRuns` in the worker settings |
+| Runs per worker | `MaxConcurrentRuns` in the worker settings, plus up to `ChildReserveSlots` delegated runs whose parents wait on them |
+| Runs waiting on a child per worker | `MaxResidentWaiters` in the worker settings (0 means `MaxConcurrentRuns`), never more than `MaxConcurrentRuns + ChildReserveSlots - 1` |
 | Runs per deployment | `maxConcurrentRuns` on the deployment (0 means unlimited) |
+| Queued children of waiting runs | `Runs.DelegationChildQueueDepth` across the cluster (100) |
 | Work per lease call | Up to 64 runs per lease request, bounded by the worker's free slots |
 
-The per-deployment limit is exact, however many replicas and workers claim at once. Claims for a deployment that has a limit are serialized in the database (a transaction-scoped PostgreSQL advisory lock; Sqlite has a single writer anyway), and the claiming `UPDATE` itself counts the deployment's `Leased`, `Running`, and `Cancelling` runs. A claim that would exceed the limit changes nothing and the run stays queued.
+The per-deployment limit is exact, however many replicas and workers claim at once. Claims for a deployment that has a limit are serialized in the database (a transaction-scoped PostgreSQL advisory lock; Sqlite has a single writer anyway), and the claiming `UPDATE` itself counts the deployment's `Leased`, `Running`, and `Cancelling` runs. A claim that would exceed the limit changes nothing and the run stays queued. When the run being claimed was delegated, its ancestors in the same deployment that are waiting on a descendant are left out of that count: otherwise a parent waiting on a child in its own deployment could hold the deployment's last slot forever.
+
+### Delegation capacity
+
+A run that delegates and waits keeps its harness process, and with it its slot. Without a rule for this, a worker with N slots running N parents that each wait on a queued child would never start any child. Garrison prevents that with bounded slot lending:
+
+1. **The wait is recorded first.** When a run calls another agent and waits (REST `wait: true`, MCP `garrison_invoke_agent` with a wait, A2A blocking or streaming messages), the control plane records the run as waiting on the child before it creates the child. The record is a row in `run_child_waits`; it stops counting as soon as the parent or the child finishes, and the leader deletes it.
+2. **Waiting runs lend their slots to children.** Each worker keeps a child reserve of `ChildReserveSlots` extra slots (2 by default). One reserve slot opens for each of the worker's runs that is waiting on a child, and only a queued run whose parent waits on it may take it. The worker keeps a second lease long poll for the reserve, and the waiting parent's process still counts: a worker never has more than `MaxConcurrentRuns + ChildReserveSlots` processes.
+3. **Waiting runs are capped.** A worker keeps at most `MaxResidentWaiters` runs waiting at once (0 means `MaxConcurrentRuns`), and the control plane never lets the waiting runs fill every regular and reserve slot (`MaxConcurrentRuns + ChildReserveSlots - 1` at most). Some slot can then always run a child, so every waiting run eventually gets its answer.
+4. **Beyond the bounds, the delegation fails fast.** A wait that would go over the worker's cap, or that would make more than `Runs.DelegationChildQueueDepth` waited children queue across the cluster, is refused at once with `DelegationCapacityExhausted` (REST 429 with `Retry-After`, the same code in MCP and A2A). Nothing is created, so the calling agent can retry or delegate without waiting. Delegating without waiting is never refused this way.
+5. **Children go first.** The scheduler orders delegated runs ahead of new top-level work in every claim (a strict priority queue from QoSKit over the candidate window, with priority and age kept within each class), so a slot that frees up goes to a child before a new top-level run.
+
+With `ChildReserveSlots` set to 0 there is no lending: at most `MaxConcurrentRuns - 1` runs per worker may wait, and a worker with one slot refuses every synchronous delegation from its runs. Size the worker's memory for `MaxConcurrentRuns + ChildReserveSlots` harnesses.
 
 Node pools dedicated to tenants are enforced at claim time: a worker in a pool that lists tenants only receives those tenants' runs, and a run pinned to a pool only goes to that pool's workers. Both conditions are applied in the candidate query, so a dedicated worker never starves behind a backlog of runs it may not take.
 

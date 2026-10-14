@@ -103,6 +103,44 @@ namespace Garrison.Worker.Settings
         }
 
         /// <summary>
+        /// Child reserve (P12.38): extra slots, beyond MaxConcurrentRuns, that only a delegated run whose parent waits on
+        /// it may use. One reserve slot opens for each run on this worker that is waiting on a child (its slot is lent to
+        /// the child), up to this many, so a worker full of waiting parents can still run their children. The worker
+        /// therefore runs at most MaxConcurrentRuns plus ChildReserveSlots processes. 0 turns the reserve off; then at
+        /// most MaxConcurrentRuns minus one runs may wait on a child at once. Minimum 0, maximum 64, default 2.
+        /// </summary>
+        public int ChildReserveSlots
+        {
+            get
+            {
+                return _ChildReserveSlots;
+            }
+            set
+            {
+                _ChildReserveSlots = Math.Clamp(value, 0, 64);
+            }
+        }
+
+        /// <summary>
+        /// Most runs on this worker that may wait synchronously on a delegated run at once while staying resident
+        /// (P12.38). Each waiting run keeps its process. A delegation that would go beyond it fails at once with
+        /// DelegationCapacityExhausted. 0 means MaxConcurrentRuns. The control plane never lets more than
+        /// MaxConcurrentRuns plus ChildReserveSlots minus one runs wait, so a slot is always left for a child. Minimum 0,
+        /// maximum 1024, default 0.
+        /// </summary>
+        public int MaxResidentWaiters
+        {
+            get
+            {
+                return _MaxResidentWaiters;
+            }
+            set
+            {
+                _MaxResidentWaiters = Math.Clamp(value, 0, 1024);
+            }
+        }
+
+        /// <summary>
         /// Root directory for per-run work, home, and config directories. Default workspaces (Kubernetes: /workspaces).
         /// </summary>
         public string WorkRoot
@@ -450,6 +488,8 @@ namespace Garrison.Worker.Settings
         private string _SecretKey = "secret_garrison_node_change_me";
         private Dictionary<string, string> _Labels = new Dictionary<string, string> { { "garrison.io/pool", "default" } };
         private int _MaxConcurrentRuns = 4;
+        private int _ChildReserveSlots = 2;
+        private int _MaxResidentWaiters = 0;
         private string _WorkRoot = "workspaces";
         private int _ConversationRetentionHours = 24;
         private int _ConversationSweepIntervalSeconds = 600;
@@ -530,6 +570,10 @@ namespace Garrison.Worker.Settings
             if (value != null) SecretKey = value;
             value = Env("GARRISON_WORKER_MAX_CONCURRENT_RUNS");
             if (value != null && Int32.TryParse(value, out int max)) MaxConcurrentRuns = max;
+            value = Env("GARRISON_WORKER_CHILD_RESERVE_SLOTS");
+            if (value != null && Int32.TryParse(value, out int reserve)) ChildReserveSlots = reserve;
+            value = Env("GARRISON_WORKER_MAX_RESIDENT_WAITERS");
+            if (value != null && Int32.TryParse(value, out int waiters)) MaxResidentWaiters = waiters;
             value = Env("GARRISON_WORKER_WORK_ROOT");
             if (value != null) WorkRoot = value;
             value = Env("GARRISON_WORKER_CONVERSATION_RETENTION_HOURS");

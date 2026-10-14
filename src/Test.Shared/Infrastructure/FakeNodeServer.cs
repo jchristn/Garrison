@@ -180,10 +180,13 @@ namespace Test.Shared.Infrastructure
         private async Task LeaseAsync(HttpContextBase context)
         {
             NodeLeaseResponse response = new NodeLeaseResponse();
+            // A child reserve lease (P12.38) only gets a run whose parent waits on it; this fake has no waiting parents.
+            NodeLeaseRequest? request = Serializer.Deserialize<NodeLeaseRequest>(context.Request.DataAsString);
+            bool reserve = request != null && request.ChildReserve;
             DateTime deadline = DateTime.UtcNow.AddMilliseconds(500);
             while (DateTime.UtcNow < deadline)
             {
-                if (Pending.TryDequeue(out RunAssignment? assignment))
+                if (!reserve && Pending.TryDequeue(out RunAssignment? assignment))
                 {
                     response.Assignments.Add(assignment);
                     break;

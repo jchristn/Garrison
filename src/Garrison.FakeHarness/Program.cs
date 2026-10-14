@@ -1,6 +1,7 @@
 namespace Garrison.FakeHarness
 {
     using System;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
@@ -21,7 +22,7 @@ namespace Garrison.FakeHarness
     /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--session-id id] [resume sessionId] [--report-turns].
     /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--approval-command text]
     /// [--request-file-approval path] [--permission-prompt-tool mcp__server__tool] [--mcp-config file]
-    /// [--permission-request Tool=inputJson].
+    /// [--permission-request Tool=inputJson] [--mcp-invoke server,tool,argsjson].
     /// </summary>
     public static class Program
     {
@@ -134,6 +135,23 @@ namespace Garrison.FakeHarness
                 answer = answer + "\nTool result: " + result;
             }
 
+            foreach (string invoke in options.McpInvokes)
+            {
+                string result;
+                bool success = true;
+                try
+                {
+                    result = await InvokeConfiguredMcpAsync(options, invoke).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    result = "MCP call failed: " + e.Message;
+                    success = false;
+                }
+                emitter.ToolCall(InvokeToolName(invoke), result, success);
+                answer = answer + "\nTool result: " + result;
+            }
+
             if (!String.IsNullOrEmpty(options.OutputLastMessage))
             {
                 string? directory = Path.GetDirectoryName(Path.GetFullPath(options.OutputLastMessage));
@@ -215,6 +233,34 @@ namespace Garrison.FakeHarness
         {
             string[] parts = spec.Split(',', 4);
             return parts.Length >= 3 ? parts[2] : "tool";
+        }
+
+        private static string InvokeToolName(string spec)
+        {
+            string[] parts = spec.Split(',', 3);
+            return parts.Length >= 2 ? "mcp__" + parts[0] + "__" + parts[1] : "tool";
+        }
+
+        private static async Task<string> InvokeConfiguredMcpAsync(FakeOptions options, string spec)
+        {
+            string[] parts = spec.Split(',', 3);
+            if (parts.Length < 2) throw new ArgumentException("--mcp-invoke expects server,tool[,argsjson]");
+            string argsJson = parts.Length == 3 ? parts[2] : "{}";
+            FakeMcpConfig config = JsonSerializer.Deserialize<FakeMcpConfig>(File.ReadAllText(options.McpConfig ?? String.Empty)) ?? new FakeMcpConfig();
+            if (config.McpServers == null || !config.McpServers.TryGetValue(parts[0], out FakeMcpServerConfig? server) || String.IsNullOrEmpty(server.Url)) throw new ArgumentException("MCP server " + parts[0] + " is not in --mcp-config");
+
+            Uri uri = new Uri(server.Url);
+            string baseUrl = uri.GetLeftPart(UriPartial.Authority);
+            string path = String.IsNullOrEmpty(uri.AbsolutePath) || uri.AbsolutePath == "/" ? "/mcp" : uri.AbsolutePath;
+            using (McpHttpClient client = new McpHttpClient())
+            using (JsonDocument arguments = JsonDocument.Parse(argsJson))
+            {
+                foreach (KeyValuePair<string, string> header in server.Headers ?? new Dictionary<string, string>()) client.SetRequestHeader(header.Key, Environment.ExpandEnvironmentVariables(header.Value));
+                await client.ConnectStreamableAsync(baseUrl, path).ConfigureAwait(false);
+                FakeToolResult result = await client.CallAsync<FakeToolResult>("tools/call", new { name = parts[1], arguments = arguments.RootElement }, 600000).ConfigureAwait(false);
+                string? text = result?.Content?.FirstOrDefault(c => c.Text != null)?.Text;
+                return text ?? String.Empty;
+            }
         }
 
         private static async Task<string> CallMcpAsync(string spec)

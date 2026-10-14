@@ -117,5 +117,12 @@ namespace Garrison.Server.Runtime
         /// Execution number of the pipeline stage, starting at 1; 0 outside a pipeline.
         /// </summary>
         public int PipelineExecution { get; set; } = 0;
+
+        /// <summary>
+        /// Identifier to give the new run, or null (the default) to generate one. The delegation wait handshake (P12.38)
+        /// records the parent's wait on this identifier before the run exists. An idempotent retry still returns the
+        /// existing run with its own identifier.
+        /// </summary>
+        public string? RunId { get; set; } = null;
     }
 }

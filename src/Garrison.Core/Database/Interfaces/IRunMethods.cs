@@ -123,6 +123,23 @@ namespace Garrison.Core.Database.Interfaces
         Task<ClaimResult> TryClaimWithinLimitAsync(string runId, string nodeId, string nodeName, DateTime leaseExpiresUtc, string deploymentId, int maxConcurrentRuns, CancellationToken token = default);
 
         /// <summary>
+        /// Atomically claim a queued run only while its deployment has fewer than maxConcurrentRuns active runs, leaving
+        /// out of the count the run's ancestors that are waiting synchronously on a delegated run (P12.38). Otherwise the
+        /// same as the overload without ancestors.
+        /// </summary>
+        /// <param name="runId">Run identifier.</param>
+        /// <param name="nodeId">Claiming node identifier.</param>
+        /// <param name="nodeName">Claiming node name.</param>
+        /// <param name="leaseExpiresUtc">Lease expiry.</param>
+        /// <param name="deploymentId">The run's deployment.</param>
+        /// <param name="maxConcurrentRuns">The deployment's limit; 0 or less means unlimited.</param>
+        /// <param name="waitingAncestorIds">The run's ancestor run identifiers (parent first), or null for none; at most 64 are used. An ancestor is left out only while it waits on a child.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Claim result.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null or empty.</exception>
+        Task<ClaimResult> TryClaimWithinLimitAsync(string runId, string nodeId, string nodeName, DateTime leaseExpiresUtc, string deploymentId, int maxConcurrentRuns, IReadOnlyCollection<string>? waitingAncestorIds, CancellationToken token = default);
+
+        /// <summary>
         /// Finished runs completed before a cutoff, oldest first, with child rows loaded (retention and archival).
         /// </summary>
         /// <param name="olderThanUtc">Cutoff.</param>
@@ -147,6 +164,75 @@ namespace Garrison.Core.Database.Interfaces
         /// <param name="token">Cancellation token.</param>
         /// <returns>Count.</returns>
         Task<long> CountActiveByDeploymentAsync(string deploymentId, CancellationToken token = default);
+
+        /// <summary>
+        /// Count runs of a deployment that are leased, running, or cancelling, leaving out the given ancestor runs while
+        /// they wait synchronously on a delegated run (P12.38).
+        /// </summary>
+        /// <param name="deploymentId">Deployment identifier.</param>
+        /// <param name="waitingAncestorIds">Ancestor run identifiers, or null for none; at most 64 are used.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Count.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when deploymentId is null or empty.</exception>
+        Task<long> CountActiveByDeploymentAsync(string deploymentId, IReadOnlyCollection<string>? waitingAncestorIds, CancellationToken token = default);
+
+        /// <summary>
+        /// Delegation wait handshake (P12.38): record that a parent run waits synchronously on a child run, before the
+        /// child is created, unless a delegation capacity limit refuses it. Serialized across replicas (a transaction lock
+        /// on Postgresql, the single writer on Sqlite). The parent's node limits apply when the parent is leased to a
+        /// registered node; a parent that already waits takes no new waiter place.
+        /// </summary>
+        /// <param name="request">Wait request.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The recorded wait, or the refusing limit.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when request is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when the tenant, parent, or child is missing.</exception>
+        Task<ChildWaitAdmission> BeginChildWaitAsync(ChildWaitRequest request, CancellationToken token = default);
+
+        /// <summary>
+        /// Point a recorded wait at another child run (an idempotent retry returned an existing run).
+        /// </summary>
+        /// <param name="waitId">Wait identifier.</param>
+        /// <param name="childRunId">Child run identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when the wait was updated.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when an argument is null or empty.</exception>
+        Task<bool> UpdateChildWaitAsync(string waitId, string childRunId, CancellationToken token = default);
+
+        /// <summary>
+        /// Remove a recorded wait when the parent stops waiting.
+        /// </summary>
+        /// <param name="waitId">Wait identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when a wait was removed.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when waitId is null or empty.</exception>
+        Task<bool> EndChildWaitAsync(string waitId, CancellationToken token = default);
+
+        /// <summary>
+        /// Runs leased to a node that are waiting on a child run: the parent is active and the child is queued, active,
+        /// or not created yet.
+        /// </summary>
+        /// <param name="nodeId">Node identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Count.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when nodeId is null or empty.</exception>
+        Task<long> CountWaitingOnNodeAsync(string nodeId, CancellationToken token = default);
+
+        /// <summary>
+        /// Queued child runs whose active parent waits on them, across the cluster.
+        /// </summary>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Count.</returns>
+        Task<long> CountQueuedWaitedChildrenAsync(CancellationToken token = default);
+
+        /// <summary>
+        /// Delete wait records that no longer count: the parent is no longer active, the child finished, or the child
+        /// was never created and the record is older than the cutoff.
+        /// </summary>
+        /// <param name="orphanedBeforeUtc">Records without a child run created before this time are deleted.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Records deleted.</returns>
+        Task<int> PruneChildWaitsAsync(DateTime orphanedBeforeUtc, CancellationToken token = default);
 
         /// <summary>
         /// Conditionally transition a run. Applies only when the run is in one of the from statuses and, when an epoch

@@ -287,6 +287,11 @@ namespace Garrison.Server.Routes
             {
                 await RouteHelpers.ErrorAsync(context, 404, "NotFound", e.Message).ConfigureAwait(false);
             }
+            catch (DelegationCapacityExhaustedException e)
+            {
+                context.Response.Headers.Add("Retry-After", e.RetryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                await RouteHelpers.ErrorAsync(context, 429, e.Code, e.Message).ConfigureAwait(false);
+            }
             catch (QuotaExceededException e)
             {
                 context.Response.Headers.Add("Retry-After", Math.Max(1, (int)Math.Ceiling((e.RetryUtc - DateTime.UtcNow).TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture));

@@ -1044,7 +1044,7 @@ const yueHant = {
     nodes: {
       ...rp('節點', '租用同執行任務嘅工作節點。維護之前請先封鎖或者清空節點。', '新增節點', '建立節點', '編輯節點', '節點詳情', '刪除節點', '仲未有節點', '工作節點啟動嗰陣會自動登記。請部署 worker StatefulSet，或者喺本機運行 Garrison.Worker。'),
       columns: { name: '名稱', status: '狀態', capacity: '執行', harnesses: 'Harness', executors: '執行器', labels: '標籤', nodeVersion: '版本', lastHeartbeatUtc: '最後心跳', id: 'ID' },
-      fields: { address: '地址', maxConcurrentRuns: '容量', activeRuns: '進行中嘅執行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '詳情' },
+      fields: { address: '地址', maxConcurrentRuns: '容量', childReserveSlots: '子執行預留', maxResidentWaiters: '最多等緊嘅執行', activeRuns: '進行中嘅執行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '詳情' },
       actions: { cordon: '封鎖', uncordon: '解除封鎖', drain: '清空', runs: '睇執行', grafana: '喺 Grafana 打開' },
       toasts: { cordoned: '節點已封鎖。', uncordoned: '節點已解除封鎖。', draining: '節點清空緊。' }
     },
@@ -1647,6 +1647,8 @@ const yueHant = {
           EventRetentionDays: '執行事件保留日數',
           RetentionDays: '執行保留日數',
           MaxDelegationDepth: '最大委派深度',
+          DelegationChildQueueDepth: '等緊嘅執行最多可以排隊嘅子執行數',
+          DelegationRetryAfterSeconds: '委派容量用盡時嘅重試提示（秒）',
           DefaultTimeoutSeconds: '預設執行逾時（秒）'
         },
         Codex: {

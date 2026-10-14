@@ -939,6 +939,8 @@ const tips = {
       lastHeartbeatUtc: '节点最后一次签到的时间。停止签到的节点会被标记为“丢失”。',
       address: '节点上报的地址，仅供参考。',
       maxConcurrentRuns: '此节点同时接受的最大运行数。',
+      childReserveSlots: '仅供父运行正在等待的委派运行使用的额外槽位：此节点上每有一个运行在等待子运行就开放一个，最多为此数量。',
+      maxResidentWaiters: '此节点上可同时等待委派运行的最大运行数。0 表示等于其容量。超出时委派会以 DelegationCapacityExhausted 失败。',
       activeRuns: '节点当前持有的运行。',
       capabilities: '每次 Harness 探测的结果：类型、检测到的版本以及是否可用。',
       labelsItems: { key: '标签名，由部署的节点选择器匹配。', value: '标签值，由部署的节点选择器精确匹配。' },
@@ -1878,6 +1880,10 @@ tips.views.pipelineRunDetail = {
 };
 tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = '领导者推进错过完成信号的流水线运行、重试受阻的阶段启动，以及应用审核超时和流水线时间限制的频率，单位为毫秒。';
 tips.views.settings.fields.Runtime.PipelineMaxStages = '一个流水线定义最多可以拥有的阶段数。保存阶段数更多的流水线会被拒绝。';
+tips.views.settings.fields.Runs = Object.assign(tips.views.settings.fields.Runs || {}, {
+  DelegationChildQueueDepth: '整个集群中，父运行正在等待的已排队委派运行的最大数量。超过此数量后，开始等待另一个委派运行的运行会立即以 DelegationCapacityExhausted 失败。',
+  DelegationRetryAfterSeconds: '等待的委派因 DelegationCapacityExhausted 被拒绝时，Retry-After 中建议的秒数。'
+});
 Object.assign(explainers, {
   pipelines: {
     title: '流水线和阶段',

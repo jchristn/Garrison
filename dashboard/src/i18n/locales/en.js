@@ -1071,7 +1071,7 @@ const en = {
     nodes: {
       ...resourcePage('Nodes', 'node', 'Worker nodes that lease and execute runs. Cordon or drain a node before maintenance.', 'Worker nodes register themselves when they start. Deploy the worker StatefulSet or run Garrison.Worker locally.'),
       columns: { name: 'Name', status: 'Status', capacity: 'Runs', harnesses: 'Harnesses', executors: 'Executors', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Last heartbeat', id: 'ID' },
-      fields: { address: 'Address', maxConcurrentRuns: 'Capacity', activeRuns: 'Active runs', capabilities: 'Capabilities', detectedVersion: 'Version', available: 'Available', detail: 'Detail' },
+      fields: { address: 'Address', maxConcurrentRuns: 'Capacity', childReserveSlots: 'Child reserve', maxResidentWaiters: 'Most waiting runs', activeRuns: 'Active runs', capabilities: 'Capabilities', detectedVersion: 'Version', available: 'Available', detail: 'Detail' },
       actions: { cordon: 'Cordon', uncordon: 'Uncordon', drain: 'Drain', runs: 'View runs', grafana: 'Open in Grafana' },
       toasts: { cordoned: 'Node cordoned.', uncordoned: 'Node uncordoned.', draining: 'Node is draining.' }
     },
@@ -1675,6 +1675,8 @@ const en = {
           EventRetentionDays: 'Run event retention (days)',
           RetentionDays: 'Run retention (days)',
           MaxDelegationDepth: 'Maximum delegation depth',
+          DelegationChildQueueDepth: 'Most queued children of waiting runs',
+          DelegationRetryAfterSeconds: 'Delegation capacity retry hint (seconds)',
           DefaultTimeoutSeconds: 'Default run timeout (seconds)'
         },
         Codex: {

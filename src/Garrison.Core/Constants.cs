@@ -39,6 +39,9 @@ namespace Garrison.Core
         /// <summary>Pipeline stage review identifier prefix (P12.9).</summary>
         public const string PipelineReviewIdPrefix = "prv_";
 
+        /// <summary>Child wait record identifier prefix: a parent run waiting synchronously on a child run (P12.38).</summary>
+        public const string RunChildWaitIdPrefix = "rcw_";
+
         /// <summary>
         /// Product name.
         /// </summary>

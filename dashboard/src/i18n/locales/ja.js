@@ -1044,7 +1044,7 @@ const ja = {
     nodes: {
       ...rp('ノード', '実行をリースして処理するワーカーノードです。メンテナンス前には隔離またはドレインしてください。', 'ノードを追加', 'ノードを作成', 'ノードを編集', 'ノードの詳細', 'ノードを削除', 'ノードはまだありません', 'ワーカーノードは起動時に自動で登録されます。ワーカーの StatefulSet をデプロイするか、Garrison.Worker をローカルで起動してください。'),
       columns: { name: '名前', status: '状態', capacity: '実行', harnesses: 'ハーネス', executors: 'エグゼキューター', labels: 'ラベル', nodeVersion: 'バージョン', lastHeartbeatUtc: '最終ハートビート', id: 'ID' },
-      fields: { address: 'アドレス', maxConcurrentRuns: '容量', activeRuns: '実行中', capabilities: '対応機能', detectedVersion: 'バージョン', available: '利用可能', detail: '詳細' },
+      fields: { address: 'アドレス', maxConcurrentRuns: '容量', childReserveSlots: '子用の予約枠', maxResidentWaiters: '待機中の実行の上限', activeRuns: '実行中', capabilities: '対応機能', detectedVersion: 'バージョン', available: '利用可能', detail: '詳細' },
       actions: { cordon: '隔離', uncordon: '隔離を解除', drain: 'ドレイン', runs: '実行を表示', grafana: 'Grafana で開く' },
       toasts: { cordoned: 'ノードを隔離しました。', uncordoned: 'ノードの隔離を解除しました。', draining: 'ノードをドレインしています。' }
     },
@@ -1646,6 +1646,8 @@ const ja = {
           EventRetentionDays: '実行イベントの保持期間 (日)',
           RetentionDays: '実行の保持期間 (日)',
           MaxDelegationDepth: '委任の最大深さ',
+          DelegationChildQueueDepth: '待機中の実行の子をキューに置ける最大数',
+          DelegationRetryAfterSeconds: '委任容量不足時の再試行目安 (秒)',
           DefaultTimeoutSeconds: '実行の既定タイムアウト (秒)'
         },
         Codex: {

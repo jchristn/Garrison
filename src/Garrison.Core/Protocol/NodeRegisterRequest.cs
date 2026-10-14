@@ -34,6 +34,18 @@ namespace Garrison.Core.Protocol
         public int MaxConcurrentRuns { get; set; } = 4;
 
         /// <summary>
+        /// Child reserve slots (P12.38): extra slots for delegated runs whose parent waits on them. 0 to 64; 0 means no
+        /// reserve. Default 0 (a worker that predates the reserve).
+        /// </summary>
+        public int ChildReserveSlots { get; set; } = 0;
+
+        /// <summary>
+        /// Most runs on the worker that may wait on a delegated run at once (P12.38). 0 to 1024; 0 means
+        /// MaxConcurrentRuns. Default 0.
+        /// </summary>
+        public int MaxResidentWaiters { get; set; } = 0;
+
+        /// <summary>
         /// Node pool name, or null for the default pool.
         /// </summary>
         public string? NodePool { get; set; } = null;

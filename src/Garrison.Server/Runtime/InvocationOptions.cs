@@ -97,5 +97,18 @@ namespace Garrison.Server.Runtime
         /// a2a. Default rest.
         /// </summary>
         public string Surface { get; set; } = "rest";
+
+        /// <summary>
+        /// Whether the caller follows the run until it finishes by itself instead of through <see cref="Wait"/> (an A2A
+        /// stream). A calling run is then recorded as waiting on its child as with Wait (P12.38), and the record stays
+        /// until the caller passes <see cref="ChildWaitId"/> to AgentInvoker.EndChildWaitAsync. Default false.
+        /// </summary>
+        public bool CallerWaits { get; set; } = false;
+
+        /// <summary>
+        /// Set by the invocation: the delegation wait left open for a caller that waits by itself
+        /// (<see cref="CallerWaits"/>), or null.
+        /// </summary>
+        public string? ChildWaitId { get; set; } = null;
     }
 }

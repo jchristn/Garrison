@@ -939,6 +939,8 @@ const tips = {
       lastHeartbeatUtc: '節點最後一次回報的時間。停止回報的節點會被標記為「遺失」。',
       address: '節點回報的位址，僅供參考。',
       maxConcurrentRuns: '此節點同時可接受的執行數上限。',
+      childReserveSlots: '僅供父執行正在等待的委派執行使用的額外槽位：此節點上每有一個執行在等待子執行就開放一個，最多為此數量。',
+      maxResidentWaiters: '此節點上可同時等待委派執行的最大執行數。0 表示等於其容量。超出時委派會以 DelegationCapacityExhausted 失敗。',
       activeRuns: '節點目前持有的執行。',
       capabilities: '每次 Harness 探測的結果：類型、偵測到的版本，以及是否可用。',
       labelsItems: { key: '標籤名稱，由部署的節點選擇器比對。', value: '標籤值，由部署的節點選擇器完全比對。' },
@@ -1878,6 +1880,10 @@ tips.views.pipelineRunDetail = {
 };
 tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = '領導者多久執行一次以下工作（毫秒）：推進錯過完成訊號的管線執行、重試受阻的階段啟動，以及套用審查逾時與管線時間限制。';
 tips.views.settings.fields.Runtime.PipelineMaxStages = '管線定義最多可有的階段數。儲存階段數超過此值的管線會遭拒絕。';
+tips.views.settings.fields.Runs = Object.assign(tips.views.settings.fields.Runs || {}, {
+  DelegationChildQueueDepth: '整個叢集中，父執行正在等待的已排隊委派執行的最大數量。超過此數量後，開始等待另一個委派執行的執行會立即以 DelegationCapacityExhausted 失敗。',
+  DelegationRetryAfterSeconds: '等待的委派因 DelegationCapacityExhausted 遭拒絕時，Retry-After 中建議的秒數。'
+});
 Object.assign(explainers, {
   pipelines: {
     title: '管線與階段',

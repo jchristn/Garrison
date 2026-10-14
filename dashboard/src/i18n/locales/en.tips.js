@@ -940,6 +940,8 @@ const tips = {
       lastHeartbeatUtc: 'When the node last checked in. Nodes that stop checking in are marked lost.',
       address: 'Informational address the node reported.',
       maxConcurrentRuns: 'Most runs this node accepts at once.',
+      childReserveSlots: 'Extra slots for delegated runs whose parent waits on them: one opens per run on this node that is waiting on a child, up to this many.',
+      maxResidentWaiters: 'Most runs on this node that may wait on a delegated run at once. 0 means its capacity. A delegation beyond it fails with DelegationCapacityExhausted.',
       activeRuns: 'Runs the node holds right now.',
       capabilities: 'What each harness probe found: type, detected version, and whether it is usable.',
       labelsItems: { key: 'Label name, matched by deployment node selectors.', value: 'Label value, matched exactly by deployment node selectors.' },
@@ -1879,6 +1881,10 @@ tips.views.pipelineRunDetail = {
 };
 tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'How often the leader advances pipeline runs that missed a completion signal, retries blocked stage starts, and applies review timeouts and pipeline time limits, in milliseconds.';
 tips.views.settings.fields.Runtime.PipelineMaxStages = 'Most stages a pipeline definition may have. Saving a pipeline with more stages is refused.';
+tips.views.settings.fields.Runs = Object.assign(tips.views.settings.fields.Runs || {}, {
+  DelegationChildQueueDepth: 'Most queued delegated runs whose parent is waiting on them, across the cluster. A run that starts waiting on another delegated run beyond this fails at once with DelegationCapacityExhausted.',
+  DelegationRetryAfterSeconds: 'Seconds suggested in Retry-After when a delegation that waits is refused with DelegationCapacityExhausted.'
+});
 Object.assign(explainers, {
   pipelines: {
     title: 'Pipelines and stages',

@@ -85,7 +85,7 @@ namespace Garrison.Server.Modules
             _Analytics = new RunAnalyticsService(context.Database);
             _Nodes = new NodeService(context.Database, _Options, context.Audit, _Signals);
             _Delegation = new DelegationPolicy(context.Database);
-            _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation);
+            _Invoker = new AgentInvoker(context.Database, _Runs, _Delegation, _Options);
             _Scheduler = new SchedulerService(context.Database, () => context.Get<InvocationCompiler>(), context.Authentication, _Signals, _Options, context.Telemetry, context.Logging);
             _Scheduler.ShutdownToken = context.Stopping;
             _Scheduler.Activity = context.Activity;
@@ -275,6 +275,8 @@ namespace Garrison.Server.Modules
             _Options.EventPollMs = cluster.GetInt("Scheduling.EventPollMs");
             _Options.InvocationWaitPollMs = cluster.GetInt("Scheduling.InvocationWaitPollMs");
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
+            _Options.DelegationChildQueueDepth = cluster.GetInt("Runs.DelegationChildQueueDepth");
+            _Options.DelegationRetryAfterSeconds = cluster.GetInt("Runs.DelegationRetryAfterSeconds");
             _Options.FailBlockedAfterSeconds = cluster.GetInt("Runtime.FailBlockedAfterSeconds");
             _Options.MaxRunSeconds = cluster.GetInt("Runtime.MaxRunSeconds");
             _Options.ConversationAffinityWaitMs = cluster.GetInt("Runtime.ConversationAffinityWaitMs");

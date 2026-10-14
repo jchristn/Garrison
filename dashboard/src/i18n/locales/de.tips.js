@@ -940,6 +940,8 @@ const tips = {
       lastHeartbeatUtc: 'Wann sich der Knoten zuletzt gemeldet hat. Knoten, die sich nicht mehr melden, werden als verloren markiert.',
       address: 'Informative Adresse, die der Knoten gemeldet hat.',
       maxConcurrentRuns: 'Höchstzahl an Läufen, die dieser Knoten gleichzeitig annimmt.',
+      childReserveSlots: 'Zusätzliche Plätze für delegierte Läufe, auf die ihr Elternlauf wartet: Für jeden Lauf auf diesem Knoten, der auf ein Kind wartet, öffnet sich einer, bis zu dieser Zahl.',
+      maxResidentWaiters: 'Höchstzahl an Läufen auf diesem Knoten, die gleichzeitig auf einen delegierten Lauf warten dürfen. 0 bedeutet seine Kapazität. Eine Delegation darüber hinaus schlägt mit DelegationCapacityExhausted fehl.',
       activeRuns: 'Läufe, die der Knoten gerade hält.',
       capabilities: 'Was jede Harness-Prüfung ergeben hat: Typ, erkannte Version und ob sie nutzbar ist.',
       labelsItems: { key: 'Label-Name, abgeglichen von Knotenauswahlen der Bereitstellungen.', value: 'Label-Wert, von Knotenauswahlen der Bereitstellungen exakt abgeglichen.' },
@@ -1879,6 +1881,10 @@ tips.views.pipelineRunDetail = {
 };
 tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Wie oft der Leader Pipeline-Läufe weiterschaltet, die ein Abschlusssignal verpasst haben, blockierte Stufenstarts wiederholt und Prüfzeitlimits sowie Zeitlimits von Pipelines anwendet, in Millisekunden.';
 tips.views.settings.fields.Runtime.PipelineMaxStages = 'Höchstzahl an Stufen, die eine Pipeline-Definition haben darf. Das Speichern einer Pipeline mit mehr Stufen wird abgelehnt.';
+tips.views.settings.fields.Runs = Object.assign(tips.views.settings.fields.Runs || {}, {
+  DelegationChildQueueDepth: 'Höchstzahl delegierter Läufe in der Warteschlange, auf die ihr Elternlauf wartet, im ganzen Cluster. Ein Lauf, der darüber hinaus auf einen weiteren delegierten Lauf warten will, schlägt sofort mit DelegationCapacityExhausted fehl.',
+  DelegationRetryAfterSeconds: 'Sekunden, die in Retry-After vorgeschlagen werden, wenn eine wartende Delegation mit DelegationCapacityExhausted abgelehnt wird.'
+});
 Object.assign(explainers, {
   pipelines: {
     title: 'Pipelines und Stufen',

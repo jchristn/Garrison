@@ -158,7 +158,9 @@ type NodePool struct {
 	DefaultExecutor *string  `json:"defaultExecutor,omitempty"`
 }
 
-// Node is a worker node. Executors lists what it can run; empty means Process only.
+// Node is a worker node. Executors lists what it can run; empty means Process only. ChildReserveSlots and
+// MaxResidentWaiters are the delegation capacity the worker reported: reserve slots for children of waiting runs, and
+// the most runs that may wait on a child at once (0 means MaxConcurrentRuns).
 type Node struct {
 	SupportsMcpTests     bool                   `json:"supportsMcpTests"`
 	ExecutorCapabilities []ExecutorCapabilities `json:"executorCapabilities,omitempty"`
@@ -167,6 +169,9 @@ type Node struct {
 	Status               string                 `json:"status"`
 	NodePoolID           string                 `json:"nodePoolId,omitempty"`
 	Executors            []string               `json:"executors,omitempty"`
+	MaxConcurrentRuns    int                    `json:"maxConcurrentRuns,omitempty"`
+	ChildReserveSlots    int                    `json:"childReserveSlots"`
+	MaxResidentWaiters   int                    `json:"maxResidentWaiters"`
 }
 
 // WorkspaceTemplate defines how a run workspace is prepared.

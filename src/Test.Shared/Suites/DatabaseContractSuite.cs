@@ -37,6 +37,8 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v17-warm", "Existing executor reports upgrade with warm support disabled (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 17)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v16-capabilities", "Legacy executor names upgrade without inventing capability promises (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 16)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v20-pipelines", "A version 20 database upgrades to pipelines: runs gain empty pipeline columns and pipeline tables work (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 20)));
+            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v21-child-waits", "A version 21 database upgrades to delegation capacity: nodes report no child reserve until they register again, and wait records work (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 21)));
+            cases.Add(new TestCaseDescriptor(suiteId, "child-waits", "Delegation waits: the node waiter cap, a parent's parallel waits, the queue depth, finished children, pruning, and waiting ancestors left out of a deployment's limit (" + provider + ")", ct => ChildWaitsAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "pipeline-cas", "Pipelines: definition children round-trip in order, tenant reads are isolated, stage claims, links, pipeline run transitions, and review decisions are compare-and-set, one review per stage execution, idempotent pipeline run creation (" + provider + ")", ct => PipelineCasAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "run-telemetry-roundtrip", "Run timing telemetry round-trips through create, complete, and update (" + provider + ")", ct => RunTelemetryRoundTripAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "tenant-crud", "Tenant create, read, update, enumerate, delete (" + provider + ")", ct => TenantCrudAsync(provider, ct)));
@@ -102,6 +104,11 @@ namespace Test.Shared.Suites
                 {
                     await ado.NonQueryAsync("INSERT INTO " + ado.Table("usage_quotas") + " (id, tenantid, name, scope, resourceid, dailyrunlimit, active, isprotected, createdutc, lastupdateutc) VALUES ('uqt_upgrade', 'ten_upgrade', 'upgrade-quota', 'Tenant', 'ten_upgrade', 0, " + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
                 }
+                if (fromVersion == 21)
+                {
+                    await ado.NonQueryAsync("INSERT INTO " + ado.Table("nodes") + " (id, name, status, maxconcurrentruns, activeruns, active, isprotected, supportsmcptests, createdutc, lastupdateutc) VALUES ('nod_upgrade', 'upgrade-node', 'Ready', 3, 0, "
+                        + ado.Dialect.BooleanLiteral(true) + ", " + ado.Dialect.BooleanLiteral(false) + ", " + ado.Dialect.BooleanLiteral(false) + ", @now, @now);", c => AdoDatabaseDriver.Add(c, "now", DateTime.UtcNow), token).ConfigureAwait(false);
+                }
                 if (fromVersion == 16 || fromVersion == 17)
                 {
                     await ado.NonQueryAsync("INSERT INTO " + ado.Table("node_executors") + " (id, nodeid, executor) VALUES ('exe_legacy', 'nod_legacy', 'KubernetesJob');", null, token).ConfigureAwait(false);
@@ -127,6 +134,16 @@ namespace Test.Shared.Suites
                             ? AdoConverters.Bool(reader, "capreported") && ExecutorCapabilitySql.Read(reader).ColdStartClass == ExecutorColdStartEnum.Cold
                             : !AdoConverters.Bool(reader, "capreported") && !ExecutorCapabilityRules.RequiresReport(ExecutorCapabilitySql.Read(reader))), token).ConfigureAwait(false);
                     Assert.True(legacy.Count == 1 && legacy[0], "Legacy executor names survive without advanced capability promises");
+                }
+                if (fromVersion == 21)
+                {
+                    Node node = Assert.NotNull(await upgraded.Nodes.ReadAsync("nod_upgrade", token).ConfigureAwait(false), "Node after upgrade");
+                    Assert.True(node.ChildReserveSlots == 0 && node.MaxResidentWaiters == 0 && node.MaxConcurrentRuns == 3, "An upgraded node has no child reserve until it registers again");
+                    Assert.Equal(2, DelegationCapacity.MaxWaiters(node), "Without a reserve, one slot stays free of waiting runs");
+                    Run parent = await upgraded.Runs.CreateAsync(new Run { TenantId = "ten_upgrade", AgentId = "agt_upgrade", DeploymentId = "dep_upgrade", Status = RunStatusEnum.Running, LeaseNodeId = "nod_upgrade" }, token).ConfigureAwait(false);
+                    ChildWaitAdmission admitted = await upgraded.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_upgrade", ParentRunId = parent.Id, ChildRunId = IdGenerator.NewRunId() }, token).ConfigureAwait(false);
+                    Assert.True(admitted.Admitted && admitted.NodeId == "nod_upgrade", "A wait is recorded after the upgrade");
+                    Assert.Equal(1L, await upgraded.Runs.CountWaitingOnNodeAsync("nod_upgrade", token).ConfigureAwait(false), "The waiting parent counts on its node");
                 }
                 if (fromVersion == 20)
                 {
@@ -441,6 +458,74 @@ namespace Test.Shared.Suites
                 Assert.Equal("tenant", resolved.Content, "Tenant record should win");
                 PromptTemplate other = Assert.NotNull(await db.PromptTemplates.ReadByNameAsync("ten_b", "builtin/default-system", token).ConfigureAwait(false), "Other tenant");
                 Assert.Equal("built-in", other.Content, "Other tenant sees built-in");
+            }
+        }
+
+        private static async Task ChildWaitsAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                // Two regular slots and one reserve slot: at most two runs may wait at once (2 + 1 - 1).
+                Node node = await db.Nodes.CreateAsync(new Node { Name = "waits-" + Guid.NewGuid().ToString("N").Substring(0, 6), MaxConcurrentRuns = 2, ChildReserveSlots = 1 }, token).ConfigureAwait(false);
+                Assert.Equal(2, DelegationCapacity.MaxWaiters(node), "Waiter cap");
+                string deployment = "dep_waits";
+                Run a = await db.Runs.CreateAsync(new Run { TenantId = "ten_w", AgentId = "agt_w", DeploymentId = deployment, Status = RunStatusEnum.Running, LeaseNodeId = node.Id }, token).ConfigureAwait(false);
+                Run b = await db.Runs.CreateAsync(new Run { TenantId = "ten_w", AgentId = "agt_w", DeploymentId = deployment, Status = RunStatusEnum.Running, LeaseNodeId = node.Id }, token).ConfigureAwait(false);
+                Run c = await db.Runs.CreateAsync(new Run { TenantId = "ten_w", AgentId = "agt_w", DeploymentId = deployment, Status = RunStatusEnum.Running, LeaseNodeId = node.Id }, token).ConfigureAwait(false);
+
+                // The wait is recorded before the child exists and counts at once.
+                string childA = IdGenerator.NewRunId();
+                ChildWaitAdmission waitA = await db.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_w", ParentRunId = a.Id, ChildRunId = childA }, token).ConfigureAwait(false);
+                Assert.True(waitA.Admitted, "First wait admitted");
+                Assert.Equal(1L, await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false), "A waits before its child exists");
+                ChildWaitAdmission parallel = await db.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_w", ParentRunId = a.Id, ChildRunId = IdGenerator.NewRunId() }, token).ConfigureAwait(false);
+                Assert.True(parallel.Admitted, "A parent already waiting takes no new place");
+                Assert.True((await db.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_w", ParentRunId = b.Id, ChildRunId = IdGenerator.NewRunId() }, token).ConfigureAwait(false)).Admitted, "Second waiter admitted");
+                ChildWaitAdmission refused = await db.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_w", ParentRunId = c.Id, ChildRunId = IdGenerator.NewRunId() }, token).ConfigureAwait(false);
+                Assert.True(!refused.Admitted && refused.Limit == DelegationCapacityLimitEnum.ResidentWaiters && refused.Used == 2 && refused.Maximum == 2 && refused.NodeId == node.Id, "Third waiter refused by the node cap");
+                Assert.Equal(2L, await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false), "Two runs wait on the node");
+
+                // Waiting ancestors in the same deployment are left out of its active count and its claim limit.
+                Run child = await db.Runs.CreateAsync(new Run { Id = childA, TenantId = "ten_w", AgentId = "agt_w", DeploymentId = deployment, Status = RunStatusEnum.Queued, ParentRunId = a.Id, RootRunId = a.Id, Depth = 1, Kind = RunKindEnum.Delegated }, token).ConfigureAwait(false);
+                Assert.Equal(3L, await db.Runs.CountActiveByDeploymentAsync(deployment, token).ConfigureAwait(false), "Every active run counts without ancestors");
+                Assert.Equal(2L, await db.Runs.CountActiveByDeploymentAsync(deployment, new List<string> { a.Id }, token).ConfigureAwait(false), "The waiting ancestor is left out");
+                Assert.Equal(3L, await db.Runs.CountActiveByDeploymentAsync(deployment, new List<string> { c.Id }, token).ConfigureAwait(false), "An ancestor that is not waiting still counts");
+                ClaimResult blocked = await db.Runs.TryClaimWithinLimitAsync(child.Id, node.Id, node.Name, DateTime.UtcNow.AddMinutes(1), deployment, 3, token).ConfigureAwait(false);
+                Assert.True(!blocked.Claimed && blocked.LimitReached, "Without ancestors the deployment is full");
+                ClaimResult claimed = await db.Runs.TryClaimWithinLimitAsync(child.Id, node.Id, node.Name, DateTime.UtcNow.AddMinutes(1), deployment, 3, new List<string> { a.Id }, token).ConfigureAwait(false);
+                Assert.True(claimed.Claimed, "The child claims within the limit once its waiting parent is left out");
+
+                // Candidates: only waited children for the reserve, only delegated runs for the delegated window.
+                Run waited = await db.Runs.CreateAsync(new Run { TenantId = "ten_w", AgentId = "agt_w", DeploymentId = deployment, Status = RunStatusEnum.Queued, HarnessType = HarnessTypeEnum.Generic, ParentRunId = b.Id, Kind = RunKindEnum.Delegated }, token).ConfigureAwait(false);
+                Run loose = await db.Runs.CreateAsync(new Run { TenantId = "ten_w", AgentId = "agt_w", DeploymentId = deployment, Status = RunStatusEnum.Queued, HarnessType = HarnessTypeEnum.Generic, ParentRunId = c.Id, Kind = RunKindEnum.Delegated }, token).ConfigureAwait(false);
+                Run top = await db.Runs.CreateAsync(new Run { TenantId = "ten_w", AgentId = "agt_w", DeploymentId = deployment, Status = RunStatusEnum.Queued, HarnessType = HarnessTypeEnum.Generic }, token).ConfigureAwait(false);
+                string waitB = (await db.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_w", ParentRunId = b.Id, ChildRunId = IdGenerator.NewRunId() }, token).ConfigureAwait(false)).WaitId ?? throw new TestAssertionException("B's second wait");
+                Assert.True(await db.Runs.UpdateChildWaitAsync(waitB, waited.Id, token).ConfigureAwait(false), "A wait can point at the run an idempotent retry returned");
+                ClaimCandidateFilter reserve = new ClaimCandidateFilter { HarnessTypes = new List<HarnessTypeEnum> { HarnessTypeEnum.Generic }, IgnoreNodePool = true, WaitedChildrenOnly = true, Limit = 50 };
+                List<Run> reserveCandidates = await db.Runs.ListClaimCandidatesAsync(reserve, token).ConfigureAwait(false);
+                Assert.True(reserveCandidates.Count == 1 && reserveCandidates[0].Id == waited.Id, "The reserve only sees a child its parent waits on: " + String.Join(", ", reserveCandidates.Select(r => r.Id)));
+                ClaimCandidateFilter delegatedOnly = new ClaimCandidateFilter { HarnessTypes = new List<HarnessTypeEnum> { HarnessTypeEnum.Generic }, IgnoreNodePool = true, DelegatedOnly = true, Limit = 50 };
+                List<Run> delegatedCandidates = await db.Runs.ListClaimCandidatesAsync(delegatedOnly, token).ConfigureAwait(false);
+                Assert.True(delegatedCandidates.Any(r => r.Id == waited.Id) && delegatedCandidates.Any(r => r.Id == loose.Id) && !delegatedCandidates.Any(r => r.Id == top.Id), "The delegated window has no top-level runs");
+
+                // The queue depth counts queued children whose parent waits on them.
+                Assert.Equal(1L, await db.Runs.CountQueuedWaitedChildrenAsync(token).ConfigureAwait(false), "One waited child is queued");
+                Node roomy = await db.Nodes.CreateAsync(new Node { Name = "roomy-" + Guid.NewGuid().ToString("N").Substring(0, 6), MaxConcurrentRuns = 8, ChildReserveSlots = 2 }, token).ConfigureAwait(false);
+                Run d = await db.Runs.CreateAsync(new Run { TenantId = "ten_w", AgentId = "agt_w", DeploymentId = "dep_other", Status = RunStatusEnum.Running, LeaseNodeId = roomy.Id }, token).ConfigureAwait(false);
+                ChildWaitAdmission deep = await db.Runs.BeginChildWaitAsync(new ChildWaitRequest { TenantId = "ten_w", ParentRunId = d.Id, ChildRunId = IdGenerator.NewRunId(), ChildQueueDepth = 1 }, token).ConfigureAwait(false);
+                Assert.True(!deep.Admitted && deep.Limit == DelegationCapacityLimitEnum.ChildQueueDepth && deep.Used == 1 && deep.Maximum == 1, "The child queue depth refuses a new wait");
+
+                // A finished child stops its wait from counting, and the pruner removes it along with orphans.
+                await db.Runs.TransitionAsync(new RunTransition { RunId = child.Id, FromStatuses = new List<RunStatusEnum> { RunStatusEnum.Leased }, ToStatus = RunStatusEnum.Succeeded, SetCompleted = true, ClearLease = true }, token).ConfigureAwait(false);
+                Assert.Equal(2L, await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false), "A still waits on its second (not yet created) child, B on its own");
+                Assert.True(await db.Runs.EndChildWaitAsync(waitA.WaitId!, token).ConfigureAwait(false), "A wait ends");
+                Assert.True(!await db.Runs.EndChildWaitAsync(waitA.WaitId!, token).ConfigureAwait(false), "Ending twice does nothing");
+                int pruned = await db.Runs.PruneChildWaitsAsync(DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false);
+                Assert.Equal(2, pruned, "Orphaned waits (children never created) are pruned after the cutoff; B's wait on its queued child is kept");
+                Assert.Equal(1L, await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false), "Only B's live wait is left");
+                await db.Runs.TransitionAsync(new RunTransition { RunId = b.Id, FromStatuses = new List<RunStatusEnum> { RunStatusEnum.Running }, ToStatus = RunStatusEnum.Failed, SetCompleted = true, ClearLease = true }, token).ConfigureAwait(false);
+                Assert.Equal(0L, await db.Runs.CountWaitingOnNodeAsync(node.Id, token).ConfigureAwait(false), "A finished parent no longer waits");
+                Assert.Equal(1, await db.Runs.PruneChildWaitsAsync(DateTime.UtcNow.AddMinutes(-1), token).ConfigureAwait(false), "The finished parent's wait is pruned");
             }
         }
 

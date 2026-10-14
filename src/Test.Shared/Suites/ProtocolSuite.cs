@@ -5,6 +5,8 @@ namespace Test.Shared.Suites
     using System.IO;
     using System.Linq;
     using System.Net.Http;
+    using System.Net.Sockets;
+    using System.Text;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -39,6 +41,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "sse-stream", "Event stream delivers events and the final run (" + provider + ")", ct => StreamAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "cancel", "Cancelling a running run stops it (" + provider + ")", ct => CancelAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp-tools", "MCP list and invoke through the Voltaic client (" + provider + ")", ct => McpAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "mcp-response-framing", "MCP responses relayed by the proxy, including a bodyless 202 for a notification, end cleanly with no bytes after them (" + provider + ")", ct => McpKeepAliveFramingAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp-agent-tools", "Agents with exposeMcpTool are MCP tools in their tenant, and tenant templates override tool descriptions (" + provider + ")", ct => McpAgentToolsAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "a2a", "A2A card, send, and stream through the Voltaic client (" + provider + ")", ct => A2AAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "delegation", "Run tokens delegate to allowed agents only (" + provider + ")", ct => DelegationAsync(provider, ct)));
@@ -277,6 +280,150 @@ namespace Test.Shared.Suites
                 if (DateTime.UtcNow > until) throw new TestAssertionException("Run " + runId + " did not finish; status " + run.Status + ".");
                 await Task.Delay(200, token).ConfigureAwait(false);
             }
+        }
+
+        private static async Task McpKeepAliveFramingAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 1, token).ConfigureAwait(false))
+            {
+                Uri mcp = new Uri(cluster.Server.McpUrl);
+                string headers = "x-api-key: " + cluster.Server.Settings.Auth.AdminApiKey + "\r\nx-tenant-id: " + cluster.Server.TenantId + "\r\n";
+                McpReply init = await RawMcpExchangeAsync(mcp, headers, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"framing\",\"version\":\"1.0\"}}}", token).ConfigureAwait(false);
+                Assert.Equal(200, init.Status, "initialize: " + init.Body);
+                string session = init.SessionId ?? throw new TestAssertionException("initialize returned no MCP-Session-Id.");
+                headers += "MCP-Session-Id: " + session + "\r\n";
+
+                McpReply initialized = await RawMcpExchangeAsync(mcp, headers, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}", token).ConfigureAwait(false);
+                Assert.Equal(202, initialized.Status, "notifications/initialized");
+
+                McpReply tools = await RawMcpExchangeAsync(mcp, headers, "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}", token).ConfigureAwait(false);
+                Assert.Equal(200, tools.Status, "tools/list");
+                Assert.True(tools.Body.Contains("garrison_invoke_agent", StringComparison.Ordinal), "tools/list body: " + tools.Body);
+            }
+        }
+
+        private static async Task<McpReply> RawMcpExchangeAsync(Uri mcp, string headers, string body, CancellationToken token)
+        {
+            using (TcpClient tcp = new TcpClient())
+            {
+                await tcp.ConnectAsync(mcp.Host, mcp.Port, token).ConfigureAwait(false);
+                using (NetworkStream stream = tcp.GetStream())
+                {
+                    McpReply reply = await RawMcpPostAsync(stream, mcp, headers, body, token).ConfigureAwait(false);
+
+                    // Nothing may follow the end of the response. A doubled chunk terminator here is what HTTP clients
+                    // such as Node's parser reject ("Expected HTTP/"), and what a reused connection reads as its next status line.
+                    using (CancellationTokenSource drain = CancellationTokenSource.CreateLinkedTokenSource(token))
+                    {
+                        drain.CancelAfter(2000);
+                        byte[] buffer = new byte[256];
+                        int extra = 0;
+                        string trailing = String.Empty;
+                        try
+                        {
+                            while (true)
+                            {
+                                int read = await stream.ReadAsync(buffer, 0, buffer.Length, drain.Token).ConfigureAwait(false);
+                                if (read < 1) break;
+                                extra += read;
+                                trailing += Encoding.ASCII.GetString(buffer, 0, read);
+                            }
+                        }
+                        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                        {
+                        }
+                        catch (IOException)
+                        {
+                        }
+                        Assert.Equal(0, extra, "Bytes after the end of the HTTP " + reply.Status + " response: '" + trailing.Replace("\r", "\\r").Replace("\n", "\\n") + "'");
+                    }
+                    return reply;
+                }
+            }
+        }
+
+        private static async Task<McpReply> RawMcpPostAsync(NetworkStream stream, Uri mcp, string headers, string body, CancellationToken token)
+        {
+            byte[] payload = Encoding.UTF8.GetBytes(body);
+            string request = "POST /mcp HTTP/1.1\r\nHost: " + mcp.Host + ":" + mcp.Port + "\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\n" + headers + "Content-Length: " + payload.Length + "\r\n\r\n";
+            byte[] head = Encoding.ASCII.GetBytes(request);
+            await stream.WriteAsync(head, 0, head.Length, token).ConfigureAwait(false);
+            await stream.WriteAsync(payload, 0, payload.Length, token).ConfigureAwait(false);
+            await stream.FlushAsync(token).ConfigureAwait(false);
+
+            string statusLine = await ReadLineAsync(stream, token).ConfigureAwait(false);
+            string[] parts = statusLine.Split(' ');
+            if (parts.Length < 2 || !parts[0].StartsWith("HTTP/", StringComparison.Ordinal) || !Int32.TryParse(parts[1], out int status))
+                throw new TestAssertionException("Expected an HTTP status line, read '" + statusLine + "'.");
+
+            McpReply reply = new McpReply();
+            reply.Status = status;
+            long contentLength = -1;
+            bool chunked = false;
+            while (true)
+            {
+                string line = await ReadLineAsync(stream, token).ConfigureAwait(false);
+                if (line.Length == 0) break;
+                int colon = line.IndexOf(':');
+                if (colon < 1) continue;
+                string name = line.Substring(0, colon).Trim();
+                string value = line.Substring(colon + 1).Trim();
+                if (String.Equals(name, "Content-Length", StringComparison.OrdinalIgnoreCase)) contentLength = Int64.Parse(value);
+                else if (String.Equals(name, "Transfer-Encoding", StringComparison.OrdinalIgnoreCase)) chunked = value.Contains("chunked", StringComparison.OrdinalIgnoreCase);
+                else if (String.Equals(name, "MCP-Session-Id", StringComparison.OrdinalIgnoreCase)) reply.SessionId = value;
+            }
+
+            using (MemoryStream content = new MemoryStream())
+            {
+                if (chunked)
+                {
+                    while (true)
+                    {
+                        string sizeLine = await ReadLineAsync(stream, token).ConfigureAwait(false);
+                        int size = Convert.ToInt32(sizeLine.Split(';')[0].Trim(), 16);
+                        if (size == 0)
+                        {
+                            await ReadLineAsync(stream, token).ConfigureAwait(false);
+                            break;
+                        }
+                        await ReadExactlyAsync(stream, content, size, token).ConfigureAwait(false);
+                        await ReadLineAsync(stream, token).ConfigureAwait(false);
+                    }
+                }
+                else if (contentLength > 0)
+                {
+                    await ReadExactlyAsync(stream, content, (int)contentLength, token).ConfigureAwait(false);
+                }
+                reply.Body = Encoding.UTF8.GetString(content.ToArray());
+            }
+            return reply;
+        }
+
+        private static async Task<string> ReadLineAsync(NetworkStream stream, CancellationToken token)
+        {
+            StringBuilder line = new StringBuilder();
+            byte[] one = new byte[1];
+            while (true)
+            {
+                int read = await stream.ReadAsync(one, 0, 1, token).ConfigureAwait(false);
+                if (read < 1) throw new TestAssertionException("The connection closed while reading a line; read so far: '" + line + "'.");
+                if (one[0] == (byte)'\n') break;
+                if (one[0] != (byte)'\r') line.Append((char)one[0]);
+            }
+            return line.ToString();
+        }
+
+        private static async Task ReadExactlyAsync(NetworkStream stream, MemoryStream destination, int count, CancellationToken token)
+        {
+            byte[] buffer = new byte[count];
+            int offset = 0;
+            while (offset < count)
+            {
+                int read = await stream.ReadAsync(buffer, offset, count - offset, token).ConfigureAwait(false);
+                if (read < 1) throw new TestAssertionException("The connection closed after " + offset + " of " + count + " body bytes.");
+                offset += read;
+            }
+            destination.Write(buffer, 0, count);
         }
 
         private static async Task McpAgentToolsAsync(DatabaseTypeEnum provider, CancellationToken token)

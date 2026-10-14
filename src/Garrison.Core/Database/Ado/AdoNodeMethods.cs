@@ -98,7 +98,7 @@ namespace Garrison.Core.Database.Ado
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.LastUpdateUtc = DateTime.UtcNow;
 
-            string sql = "UPDATE " + _Table + " SET supportsmcptests = @supportsmcptests, name = @name, nodepoolid = @nodepoolid, address = @address, nodeversion = @nodeversion, status = @status, maxconcurrentruns = @maxconcurrentruns, activeruns = @activeruns, credentialid = @credentialid, lastheartbeatutc = @lastheartbeatutc, registeredutc = @registeredutc, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
+            string sql = "UPDATE " + _Table + " SET supportsmcptests = @supportsmcptests, name = @name, nodepoolid = @nodepoolid, address = @address, nodeversion = @nodeversion, status = @status, maxconcurrentruns = @maxconcurrentruns, childreserveslots = @childreserveslots, maxresidentwaiters = @maxresidentwaiters, activeruns = @activeruns, credentialid = @credentialid, lastheartbeatutc = @lastheartbeatutc, registeredutc = @registeredutc, active = @active, isprotected = @isprotected, lastupdateutc = @lastupdateutc WHERE id = @id;";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -111,6 +111,8 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "nodeversion", obj.NodeVersion);
                     AdoDatabaseDriver.Add(command, "status", obj.Status.ToString());
                     AdoDatabaseDriver.Add(command, "maxconcurrentruns", obj.MaxConcurrentRuns);
+                    AdoDatabaseDriver.Add(command, "childreserveslots", obj.ChildReserveSlots);
+                    AdoDatabaseDriver.Add(command, "maxresidentwaiters", obj.MaxResidentWaiters);
                     AdoDatabaseDriver.Add(command, "activeruns", obj.ActiveRuns);
                     AdoDatabaseDriver.Add(command, "credentialid", obj.CredentialId);
                     AdoDatabaseDriver.Add(command, "supportsmcptests", obj.SupportsMcpTests);
@@ -198,6 +200,8 @@ namespace Garrison.Core.Database.Ado
             obj.NodeVersion = AdoConverters.NullableStr(reader, "nodeversion");
             obj.Status = AdoConverters.Enum<NodeStatusEnum>(reader, "status", NodeStatusEnum.Ready);
             obj.MaxConcurrentRuns = AdoConverters.Int(reader, "maxconcurrentruns");
+            obj.ChildReserveSlots = AdoConverters.Int(reader, "childreserveslots");
+            obj.MaxResidentWaiters = AdoConverters.Int(reader, "maxresidentwaiters");
             obj.ActiveRuns = AdoConverters.Int(reader, "activeruns");
             obj.CredentialId = AdoConverters.NullableStr(reader, "credentialid");
             obj.SupportsMcpTests = AdoConverters.Bool(reader, "supportsmcptests");
@@ -323,7 +327,7 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertRowAsync(DbConnection connection, DbTransaction transaction, Node obj, CancellationToken token)
         {
-            string sql = "INSERT INTO " + _Table + " (supportsmcptests, id, name, nodepoolid, address, nodeversion, status, maxconcurrentruns, activeruns, credentialid, lastheartbeatutc, registeredutc, active, isprotected, createdutc, lastupdateutc) VALUES (@supportsmcptests, @id, @name, @nodepoolid, @address, @nodeversion, @status, @maxconcurrentruns, @activeruns, @credentialid, @lastheartbeatutc, @registeredutc, @active, @isprotected, @createdutc, @lastupdateutc);";
+            string sql = "INSERT INTO " + _Table + " (supportsmcptests, id, name, nodepoolid, address, nodeversion, status, maxconcurrentruns, childreserveslots, maxresidentwaiters, activeruns, credentialid, lastheartbeatutc, registeredutc, active, isprotected, createdutc, lastupdateutc) VALUES (@supportsmcptests, @id, @name, @nodepoolid, @address, @nodeversion, @status, @maxconcurrentruns, @childreserveslots, @maxresidentwaiters, @activeruns, @credentialid, @lastheartbeatutc, @registeredutc, @active, @isprotected, @createdutc, @lastupdateutc);";
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, command =>
             {
                 AdoDatabaseDriver.Add(command, "id", obj.Id);
@@ -333,6 +337,8 @@ namespace Garrison.Core.Database.Ado
                 AdoDatabaseDriver.Add(command, "nodeversion", obj.NodeVersion);
                 AdoDatabaseDriver.Add(command, "status", obj.Status.ToString());
                 AdoDatabaseDriver.Add(command, "maxconcurrentruns", obj.MaxConcurrentRuns);
+                AdoDatabaseDriver.Add(command, "childreserveslots", obj.ChildReserveSlots);
+                AdoDatabaseDriver.Add(command, "maxresidentwaiters", obj.MaxResidentWaiters);
                 AdoDatabaseDriver.Add(command, "activeruns", obj.ActiveRuns);
                 AdoDatabaseDriver.Add(command, "credentialid", obj.CredentialId);
                     AdoDatabaseDriver.Add(command, "supportsmcptests", obj.SupportsMcpTests);

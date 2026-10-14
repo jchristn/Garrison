@@ -940,6 +940,8 @@ const tips = {
       lastHeartbeatUtc: 'ノードが最後に応答した日時です。応答が途絶えたノードは喪失とマークされます。',
       address: 'ノードが報告した参考用のアドレスです。',
       maxConcurrentRuns: 'このノードが同時に受け付ける実行数の上限です。',
+      childReserveSlots: '親が待機している委任実行だけが使える追加の枠です。このノードで子を待っている実行ごとに 1 つ開き、この数が上限です。',
+      maxResidentWaiters: 'このノードで同時に委任実行を待機できる実行の上限です。0 は容量と同じです。これを超える委任は DelegationCapacityExhausted で失敗します。',
       activeRuns: 'ノードが現在保持している実行です。',
       capabilities: '各ハーネスの確認結果です。種類、検出されたバージョン、使用可能かどうかを示します。',
       labelsItems: { key: 'ラベル名です。デプロイメントのノードセレクターと照合されます。', value: 'ラベル値です。デプロイメントのノードセレクターと完全一致で照合されます。' },
@@ -1879,6 +1881,10 @@ tips.views.pipelineRunDetail = {
 };
 tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'リーダーが、完了通知を受け取り損ねたパイプライン実行を進め、ブロックされたステージの開始を再試行し、レビューのタイムアウトとパイプラインの制限時間を適用する間隔 (ミリ秒) です。';
 tips.views.settings.fields.Runtime.PipelineMaxStages = 'パイプライン定義に含められるステージの最大数です。これより多いステージを持つパイプラインは保存が拒否されます。';
+tips.views.settings.fields.Runs = Object.assign(tips.views.settings.fields.Runs || {}, {
+  DelegationChildQueueDepth: '親が待機している委任実行を、クラスター全体でキューに置ける最大数です。これを超えて別の委任実行を待機しようとする実行は、DelegationCapacityExhausted ですぐに失敗します。',
+  DelegationRetryAfterSeconds: '待機する委任が DelegationCapacityExhausted で拒否されたときに Retry-After で示す秒数です。'
+});
 Object.assign(explainers, {
   pipelines: {
     title: 'パイプラインとステージ',

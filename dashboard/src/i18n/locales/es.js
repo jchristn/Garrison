@@ -1088,7 +1088,7 @@ const es = {
     nodes: {
       ...rp('Nodos', 'Nodos de trabajo que obtienen concesiones de ejecuciones y las ejecutan. Acordona o drena un nodo antes del mantenimiento.', 'Añadir nodo', 'Crear nodo', 'Editar nodo', 'Detalles del nodo', 'Eliminar nodo', 'Aún no hay nodos', 'Los nodos de trabajo se registran solos al iniciarse. Despliega el StatefulSet de los nodos de trabajo o ejecuta Garrison.Worker en local.'),
       columns: { name: 'Nombre', status: 'Estado', capacity: 'Ejecuciones', harnesses: 'Harnesses', executors: 'Ejecutores', labels: 'Etiquetas', nodeVersion: 'Versión', lastHeartbeatUtc: 'Último latido', id: 'ID' },
-      fields: { address: 'Dirección', maxConcurrentRuns: 'Capacidad', activeRuns: 'Ejecuciones activas', capabilities: 'Capacidades', detectedVersion: 'Versión', available: 'Disponible', detail: 'Detalle' },
+      fields: { address: 'Dirección', maxConcurrentRuns: 'Capacidad', childReserveSlots: 'Reserva para hijas', maxResidentWaiters: 'Máximo de ejecuciones en espera', activeRuns: 'Ejecuciones activas', capabilities: 'Capacidades', detectedVersion: 'Versión', available: 'Disponible', detail: 'Detalle' },
       actions: { cordon: 'Acordonar', uncordon: 'Quitar acordonamiento', drain: 'Drenar', runs: 'Ver ejecuciones', grafana: 'Abrir en Grafana' },
       toasts: { cordoned: 'Nodo acordonado.', uncordoned: 'Acordonamiento del nodo retirado.', draining: 'El nodo se está drenando.' }
     },
@@ -1697,6 +1697,8 @@ const es = {
           EventRetentionDays: 'Retención de eventos de ejecución (días)',
           RetentionDays: 'Retención de ejecuciones (días)',
           MaxDelegationDepth: 'Profundidad máxima de delegación',
+          DelegationChildQueueDepth: 'Máximo de ejecuciones hijas en cola con padre en espera',
+          DelegationRetryAfterSeconds: 'Reintento por capacidad de delegación agotada (segundos)',
           DefaultTimeoutSeconds: 'Tiempo límite predeterminado de ejecución (segundos)'
         },
         Codex: {

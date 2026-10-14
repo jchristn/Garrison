@@ -102,6 +102,29 @@ namespace Garrison.Worker.Hosting
         }
 
         /// <summary>
+        /// Runs executing in the child reserve (P12.38), included in <see cref="ActiveRunCount"/>.
+        /// </summary>
+        public int ChildReserveRunCount
+        {
+            get
+            {
+                return Volatile.Read(ref _ReserveActive);
+            }
+        }
+
+        /// <summary>
+        /// The most runs this worker has executed at the same time since it started. Never more than MaxConcurrentRuns
+        /// plus ChildReserveSlots.
+        /// </summary>
+        public int PeakActiveRunCount
+        {
+            get
+            {
+                return Volatile.Read(ref _PeakRuns);
+            }
+        }
+
+        /// <summary>
         /// Total runs completed since start.
         /// </summary>
         public long CompletedRuns
@@ -163,6 +186,9 @@ namespace Garrison.Worker.Hosting
         private readonly CancellationTokenSource _Stop = new CancellationTokenSource();
         private readonly CancellationTokenSource _StopLeasing = new CancellationTokenSource();
         private readonly SemaphoreSlim _Slots;
+        private readonly SemaphoreSlim _Reserve;
+        private int _ReserveActive = 0;
+        private int _PeakRuns = 0;
         private readonly string _Header = "[Worker] ";
         private readonly ActivitySource _Activity = new ActivitySource("Garrison.Worker");
         private HealthServer? _Health = null;
@@ -229,6 +255,8 @@ namespace Garrison.Worker.Hosting
 
             _Prober = new CapabilityProber(settings);
             _Slots = new SemaphoreSlim(settings.MaxConcurrentRuns, settings.MaxConcurrentRuns);
+            // The child reserve (P12.38) is a separate, bounded set of permits: processes never exceed both together.
+            _Reserve = new SemaphoreSlim(settings.ChildReserveSlots, Math.Max(1, settings.ChildReserveSlots));
             _HeartbeatIntervalMs = settings.HeartbeatIntervalMs;
             _LeaseWaitMs = settings.LeaseWaitMs;
         }
@@ -364,6 +392,7 @@ namespace Garrison.Worker.Hosting
             _Stop.Dispose();
             _StopLeasing.Dispose();
             _Slots.Dispose();
+            _Reserve.Dispose();
             GC.SuppressFinalize(this);
         }
 
@@ -387,13 +416,14 @@ namespace Garrison.Worker.Hosting
                 await RegisterUntilSuccessAsync(token).ConfigureAwait(false);
 
                 Task heartbeat = Task.Run(() => HeartbeatLoopAsync(token));
-                Task lease = Task.Run(() => LeaseLoopAsync(token));
+                Task lease = Task.Run(() => LeaseLoopAsync(_Slots, false, token));
+                Task reserve = _Settings.ChildReserveSlots > 0 ? Task.Run(() => LeaseLoopAsync(_Reserve, true, token)) : Task.CompletedTask;
                 Task probe = Task.Run(() => ProbeLoopAsync(token));
                 Task watch = Task.Run(() => WatchLoopAsync(token));
                 Task reconcile = Task.Run(() => ReconcileLoopAsync(token));
                 Task sweep = Task.Run(() => ConversationSweepLoopAsync(token));
                 Task warm = _WarmPool == null ? Task.CompletedTask : Task.Run(() => _WarmPool.RunAsync(token));
-                await Task.WhenAll(heartbeat, lease, probe, watch, reconcile, sweep, warm).ConfigureAwait(false);
+                await Task.WhenAll(heartbeat, lease, reserve, probe, watch, reconcile, sweep, warm).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -433,6 +463,8 @@ namespace Garrison.Worker.Hosting
             request.Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
             request.Address = Environment.MachineName;
             request.MaxConcurrentRuns = _Settings.MaxConcurrentRuns;
+            request.ChildReserveSlots = _Settings.ChildReserveSlots;
+            request.MaxResidentWaiters = _Settings.MaxResidentWaiters;
             request.NodePool = _Settings.NodePool;
             request.Labels = new Dictionary<string, string>(_Settings.Labels);
             foreach (KeyValuePair<string, string> label in _Prober.CapabilityLabels(_Capabilities)) request.Labels[label.Key] = label.Value;
@@ -447,7 +479,7 @@ namespace Garrison.Worker.Hosting
             Interlocked.Exchange(ref _Registered, 1);
             Interlocked.Exchange(ref _NeedsRegistration, 0);
             _LastError = null;
-            _Logging.Info(_Header + "registered as " + request.Name + " (" + _NodeId + ") with capacity " + request.MaxConcurrentRuns + " and executors " + String.Join(", ", request.Executors));
+            _Logging.Info(_Header + "registered as " + request.Name + " (" + _NodeId + ") with capacity " + request.MaxConcurrentRuns + ", child reserve " + request.ChildReserveSlots + ", and executors " + String.Join(", ", request.Executors));
         }
 
         private async Task HeartbeatLoopAsync(CancellationToken token)
@@ -488,7 +520,7 @@ namespace Garrison.Worker.Hosting
             request.NodeId = _NodeId ?? String.Empty;
             request.ActiveRuns = _Runs.Values.Select(r => new NodeRunLease { RunId = r.RunId, Epoch = r.Epoch }).ToList();
             request.McpTestResults = _McpTestResults.Values.ToList();
-            request.FreeCapacity = Math.Max(0, _Settings.MaxConcurrentRuns - _Runs.Count - (Volatile.Read(ref _McpTestTask).IsCompleted ? 0 : 1));
+            request.FreeCapacity = Math.Max(0, _Settings.MaxConcurrentRuns - (_Runs.Count - Volatile.Read(ref _ReserveActive)) - (Volatile.Read(ref _McpTestTask).IsCompleted ? 0 : 1));
             request.Draining = Draining;
             NodeHeartbeatResponse response = await _Client.HeartbeatAsync(request, token).ConfigureAwait(false);
 
@@ -742,17 +774,20 @@ namespace Garrison.Worker.Hosting
             }
         }
 
-        private async Task LeaseLoopAsync(CancellationToken token)
+        private async Task LeaseLoopAsync(SemaphoreSlim gate, bool childReserve, CancellationToken token)
         {
+            // The regular loop leases into MaxConcurrentRuns slots. The child reserve loop (P12.38) leases into
+            // ChildReserveSlots permits; the control plane only gives it a run whose parent waits on it, while this
+            // node has an open reserve slot.
             using (CancellationTokenSource leasing = CancellationTokenSource.CreateLinkedTokenSource(token, _StopLeasing.Token))
             {
-                Interlocked.Exchange(ref _Leasing, 1);
+                if (!childReserve) Interlocked.Exchange(ref _Leasing, 1);
                 int failures = 0;
                 try
                 {
                     while (!leasing.IsCancellationRequested)
                     {
-                        await _Slots.WaitAsync(leasing.Token).ConfigureAwait(false);
+                        await gate.WaitAsync(leasing.Token).ConfigureAwait(false);
                         bool started = false;
                         try
                         {
@@ -766,6 +801,8 @@ namespace Garrison.Worker.Hosting
                             request.NodeId = _NodeId;
                             request.MaxRuns = 1;
                             request.WaitMs = _LeaseWaitMs;
+                            request.ChildReserve = childReserve;
+                            if (childReserve) request.ReserveRunIds = _Runs.Values.Where(r => r.ChildReserve).Select(r => r.RunId).ToList();
                             NodeLeaseResponse response = new NodeLeaseResponse();
                             await GarrisonTracing.BackgroundAsync("worker", "lease", async ct =>
                             {
@@ -773,14 +810,14 @@ namespace Garrison.Worker.Hosting
                                 return response.Assignments.Count > 0;
                             }, leasing.Token).ConfigureAwait(false);
                             failures = 0;
-                            _WarmPool?.ObserveQueue(response.QueuedKubernetesRuns);
+                            if (!childReserve) _WarmPool?.ObserveQueue(response.QueuedKubernetesRuns);
                             RunAssignment? assignment = response.Assignments.FirstOrDefault();
                             GarrisonMetrics.Count(GarrisonMetricCatalog.WorkerLeases, "result", assignment == null ? "empty" : "assigned");
                             if (assignment == null) continue;
                             for (int i = 1; i < response.Assignments.Count; i++) _Logging.Warn(_Header + "ignoring extra assignment " + response.Assignments[i].RunId + " (requested one)");
 
                             if (assignment.Spec?.Executor == RunExecutorEnum.KubernetesJob) _WarmPool?.ObserveArrival();
-                            started = Launch(assignment);
+                            started = Launch(assignment, childReserve);
                         }
                         catch (NodeProtocolException e)
                         {
@@ -793,7 +830,7 @@ namespace Garrison.Worker.Hosting
                         }
                         finally
                         {
-                            if (!started) _Slots.Release();
+                            if (!started) gate.Release();
                         }
                     }
                 }
@@ -802,20 +839,25 @@ namespace Garrison.Worker.Hosting
                 }
                 finally
                 {
-                    Interlocked.Exchange(ref _Leasing, 0);
+                    if (!childReserve) Interlocked.Exchange(ref _Leasing, 0);
                 }
             }
         }
 
-        private bool Launch(RunAssignment assignment)
+        private bool Launch(RunAssignment assignment, bool childReserve)
         {
             ActiveRun run = new ActiveRun(assignment);
+            run.ChildReserve = childReserve;
             if (!_Runs.TryAdd(run.RunId, run))
             {
                 _Logging.Warn(_Header + "run " + run.RunId + " is already active; ignoring duplicate assignment " + run.LogFields);
                 run.Dispose();
                 return false;
             }
+            if (childReserve) Interlocked.Increment(ref _ReserveActive);
+            int count = _Runs.Count;
+            int peak = Volatile.Read(ref _PeakRuns);
+            while (count > peak && Interlocked.CompareExchange(ref _PeakRuns, count, peak) != peak) peak = Volatile.Read(ref _PeakRuns);
             Task task = Task.Run(() => ExecuteAsync(run));
             _RunTasks[run.RunId] = task;
             RestartWatch();
@@ -969,9 +1011,18 @@ namespace Garrison.Worker.Hosting
                     _Runs.TryRemove(run.RunId, out ActiveRun? _);
                     _RunTasks.TryRemove(run.RunId, out Task? _);
                 }
+                bool reserved = run.ChildReserve;
                 run.Dispose();
                 Interlocked.Increment(ref _CompletedRuns);
-                _Slots.Release();
+                if (reserved)
+                {
+                    Interlocked.Decrement(ref _ReserveActive);
+                    _Reserve.Release();
+                }
+                else
+                {
+                    _Slots.Release();
+                }
             }
         }
 

@@ -1045,7 +1045,7 @@ const zhHans = {
     nodes: {
       ...rp('节点', '租用并执行运行的工作节点。维护前请先封锁或排空节点。', '添加节点', '创建节点', '编辑节点', '节点详情', '删除节点', '暂无节点', '工作节点启动时会自动注册。请部署工作节点 StatefulSet，或在本地运行 Garrison.Worker。'),
       columns: { name: '名称', status: '状态', capacity: '运行数', harnesses: 'Harness', executors: '执行器', labels: '标签', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳', id: 'ID' },
-      fields: { address: '地址', maxConcurrentRuns: '容量', activeRuns: '活动运行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '详细信息' },
+      fields: { address: '地址', maxConcurrentRuns: '容量', childReserveSlots: '子运行预留', maxResidentWaiters: '最多等待运行数', activeRuns: '活动运行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '详细信息' },
       actions: { cordon: '封锁', uncordon: '解除封锁', drain: '排空', runs: '查看运行', grafana: '在 Grafana 中打开' },
       toasts: { cordoned: '节点已封锁。', uncordoned: '节点已解除封锁。', draining: '节点正在排空。' }
     },
@@ -1648,6 +1648,8 @@ const zhHans = {
           EventRetentionDays: '运行事件保留天数',
           RetentionDays: '运行保留天数',
           MaxDelegationDepth: '最大委派深度',
+          DelegationChildQueueDepth: '等待中运行的子运行最大排队数',
+          DelegationRetryAfterSeconds: '委派容量耗尽时的重试提示（秒）',
           DefaultTimeoutSeconds: '默认运行超时（秒）'
         },
         Codex: {

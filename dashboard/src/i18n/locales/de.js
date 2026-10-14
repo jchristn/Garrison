@@ -1067,7 +1067,7 @@ const de = {
     nodes: {
       ...rp('Knoten', 'Worker-Knoten, die Läufe übernehmen und ausführen. Sperren oder leeren Sie einen Knoten vor Wartungsarbeiten.', 'Knoten hinzufügen', 'Knoten erstellen', 'Knoten bearbeiten', 'Knotendetails', 'Knoten löschen', 'Noch keine Knoten', 'Worker-Knoten registrieren sich beim Start selbst. Stellen Sie das Worker-StatefulSet bereit oder starten Sie Garrison.Worker lokal.'),
       columns: { name: 'Name', status: 'Status', capacity: 'Läufe', harnesses: 'Harnesses', executors: 'Executors', labels: 'Labels', nodeVersion: 'Version', lastHeartbeatUtc: 'Letzter Heartbeat', id: 'ID' },
-      fields: { address: 'Adresse', maxConcurrentRuns: 'Kapazität', activeRuns: 'Aktive Läufe', capabilities: 'Fähigkeiten', detectedVersion: 'Version', available: 'Verfügbar', detail: 'Detail' },
+      fields: { address: 'Adresse', maxConcurrentRuns: 'Kapazität', childReserveSlots: 'Kind-Reserve', maxResidentWaiters: 'Höchstzahl wartender Läufe', activeRuns: 'Aktive Läufe', capabilities: 'Fähigkeiten', detectedVersion: 'Version', available: 'Verfügbar', detail: 'Detail' },
       actions: { cordon: 'Sperren', uncordon: 'Entsperren', drain: 'Leeren', runs: 'Läufe anzeigen', grafana: 'In Grafana öffnen' },
       toasts: { cordoned: 'Knoten gesperrt.', uncordoned: 'Knoten entsperrt.', draining: 'Knoten wird geleert.' }
     },
@@ -1669,6 +1669,8 @@ const de = {
           EventRetentionDays: 'Aufbewahrung von Laufereignissen (Tage)',
           RetentionDays: 'Aufbewahrung von Läufen (Tage)',
           MaxDelegationDepth: 'Maximale Delegationstiefe',
+          DelegationChildQueueDepth: 'Höchstzahl eingereihter Kind-Läufe wartender Läufe',
+          DelegationRetryAfterSeconds: 'Wiederholungshinweis bei erschöpfter Delegationskapazität (Sekunden)',
           DefaultTimeoutSeconds: 'Standard-Zeitlimit für Läufe (Sekunden)'
         },
         Codex: {

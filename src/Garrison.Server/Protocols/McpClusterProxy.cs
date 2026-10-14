@@ -635,8 +635,12 @@ namespace Garrison.Server.Protocols
                 foreach (string value in header.Value) context.Response.Headers.Add(header.Key, value);
             }
 
-            bool streaming = response.Content.Headers.ContentLength == null
-                || String.Equals(response.Content.Headers.ContentType?.MediaType, "text/event-stream", StringComparison.OrdinalIgnoreCase);
+            // Only event streams are relayed chunk by chunk. Everything else, including bodyless 202 answers that the
+            // internal listener sends chunked, is buffered and sent with a length: Watson's SendChunk writes the
+            // terminating chunk twice when the final chunk is empty, and clients reject the trailing bytes (Node's HTTP
+            // parser fails with "Expected HTTP/") or read them as the next response on a reused connection. Event
+            // streams are marked Connection: close, so a client stops reading at the end of the stream.
+            bool streaming = String.Equals(response.Content.Headers.ContentType?.MediaType, "text/event-stream", StringComparison.OrdinalIgnoreCase);
             if (!streaming)
             {
                 byte[] bytes = await response.Content.ReadAsByteArrayAsync(token).ConfigureAwait(false);
@@ -645,6 +649,7 @@ namespace Garrison.Server.Protocols
                 return;
             }
 
+            context.Response.Headers.Add("Connection", "close");
             context.Response.ChunkedTransfer = true;
             using (Stream stream = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
             {

@@ -448,6 +448,9 @@ function nodeFields(t) {
     { name: 'address', type: 'text', label: t('resources.nodes.fields.address') },
     { name: 'nodeVersion', type: 'text', label: t('resources.nodes.columns.nodeVersion') },
     { name: 'maxConcurrentRuns', type: 'number', label: t('resources.nodes.fields.maxConcurrentRuns') },
+    // P12.38: the child reserve and the cap on runs waiting on a delegated run that the worker reported.
+    { name: 'childReserveSlots', type: 'number', label: t('resources.nodes.fields.childReserveSlots') },
+    { name: 'maxResidentWaiters', type: 'number', label: t('resources.nodes.fields.maxResidentWaiters') },
     { name: 'activeRuns', type: 'number', label: t('resources.nodes.fields.activeRuns') },
     {
       name: 'labels',

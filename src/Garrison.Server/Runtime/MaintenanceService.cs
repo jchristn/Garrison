@@ -363,9 +363,10 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Delete expired signed-request nonces, rate limit buckets, and MCP sessions, old backplane messages, and control
-        /// node rows Offline for longer than <see cref="RuntimeOptions.ControlNodeOfflineRetentionHours"/>. Used by the
-        /// leader loop and by tests.
+        /// Delete expired signed-request nonces, rate limit buckets, and MCP sessions, old backplane messages, control
+        /// node rows Offline for longer than <see cref="RuntimeOptions.ControlNodeOfflineRetentionHours"/>, and delegation
+        /// wait records that no longer count (<see cref="RuntimeOptions.ChildWaitOrphanSeconds"/>). Used by the leader
+        /// loop and by tests.
         /// </summary>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Rows deleted.</returns>
@@ -380,7 +381,9 @@ namespace Garrison.Server.Runtime
             deleted += sessions;
             deleted += Pruned("backplane_messages", await _Database.BackplaneMessages.PruneAsync(now.AddMinutes(-_BackplaneRetentionMinutes), token).ConfigureAwait(false));
             deleted += Pruned("control_nodes", await _Database.ControlNodes.DeleteOfflineAsync(now.AddHours(-_Options.ControlNodeOfflineRetentionHours), token).ConfigureAwait(false));
-            if (deleted > 0) _Logging.Debug(_Header + "cleanup removed " + deleted + " expired nonces, rate limit buckets, MCP sessions, backplane messages, and old Offline control nodes");
+            // Delegation wait records (P12.38) whose parent or child finished, or whose child was never created.
+            deleted += Pruned("run_child_waits", await _Database.Runs.PruneChildWaitsAsync(now.AddSeconds(-_Options.ChildWaitOrphanSeconds), token).ConfigureAwait(false));
+            if (deleted > 0) _Logging.Debug(_Header + "cleanup removed " + deleted + " expired nonces, rate limit buckets, MCP sessions, backplane messages, old Offline control nodes, and finished delegation waits");
             return deleted;
         }
 

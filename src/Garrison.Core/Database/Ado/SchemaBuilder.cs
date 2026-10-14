@@ -169,6 +169,17 @@ namespace Garrison.Core.Database.Ado
             v21.BuildVersion21();
             migrations.Add(new SchemaMigration(21, "Ordered pipelines and stage review gates", v21._Statements, v21._Columns));
 
+            // P12.38: workers report their child reserve and resident waiter cap; run_child_waits records each parent run
+            // waiting synchronously on a child, written before the child is created (the delegation wait handshake).
+            SchemaBuilder v22 = new SchemaBuilder(catalog, dialect);
+            v22.Column("nodes", "childreserveslots", dialect.TypeInt + " NOT NULL DEFAULT 0");
+            v22.Column("nodes", "maxresidentwaiters", dialect.TypeInt + " NOT NULL DEFAULT 0");
+            v22.Table("run_child_waits", "id " + dialect.TypeId + " NOT NULL PRIMARY KEY", "tenantid " + dialect.TypeId + " NOT NULL", "parentrunid " + dialect.TypeId + " NOT NULL",
+                "childrunid " + dialect.TypeId + " NOT NULL", "createdutc " + dialect.TypeTimestamp + " NOT NULL");
+            v22.Index("run_child_waits", "parent", false, "parentrunid");
+            v22.Index("run_child_waits", "child", false, "childrunid");
+            migrations.Add(new SchemaMigration(22, "Delegation child waits and worker child reserve", v22._Statements, v22._Columns));
+
             return migrations;
         }
 

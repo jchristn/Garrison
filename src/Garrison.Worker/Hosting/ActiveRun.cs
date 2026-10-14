@@ -53,6 +53,11 @@ namespace Garrison.Worker.Hosting
         public DateTime StartedUtc { get; } = DateTime.UtcNow;
 
         /// <summary>
+        /// Whether the run holds a child reserve slot (P12.38) instead of a regular slot. Default false.
+        /// </summary>
+        public bool ChildReserve { get; set; } = false;
+
+        /// <summary>
         /// W3C trace ID of the run (from the execution spec's traceparent), or null when the spec carries none.
         /// </summary>
         public string? TraceId { get; }

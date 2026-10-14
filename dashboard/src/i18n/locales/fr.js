@@ -1084,7 +1084,7 @@ const fr = {
     nodes: {
       ...rp('Nœuds', 'Nœuds worker qui prennent à bail et exécutent les exécutions. Isolez ou drainez un nœud avant une maintenance.', 'Ajouter un nœud', 'Créer un nœud', 'Modifier le nœud', 'Détails du nœud', 'Supprimer le nœud', 'Aucun nœud pour l\'instant', 'Les nœuds worker s\'enregistrent eux-mêmes au démarrage. Déployez le StatefulSet worker ou lancez Garrison.Worker en local.'),
       columns: { name: 'Nom', status: 'Statut', capacity: 'Exécutions', harnesses: 'Harness', executors: 'Exécuteurs', labels: 'Étiquettes', nodeVersion: 'Version', lastHeartbeatUtc: 'Dernier signal de vie', id: 'ID' },
-      fields: { address: 'Adresse', maxConcurrentRuns: 'Capacité', activeRuns: 'Exécutions actives', capabilities: 'Capacités', detectedVersion: 'Version', available: 'Disponible', detail: 'Détail' },
+      fields: { address: 'Adresse', maxConcurrentRuns: 'Capacité', childReserveSlots: 'Réserve pour les enfants', maxResidentWaiters: 'Exécutions en attente au maximum', activeRuns: 'Exécutions actives', capabilities: 'Capacités', detectedVersion: 'Version', available: 'Disponible', detail: 'Détail' },
       actions: { cordon: 'Isoler', uncordon: 'Réintégrer', drain: 'Drainer', runs: 'Voir les exécutions', grafana: 'Ouvrir dans Grafana' },
       toasts: { cordoned: 'Nœud isolé.', uncordoned: 'Nœud réintégré.', draining: 'Drainage du nœud en cours.' }
     },
@@ -1693,6 +1693,8 @@ const fr = {
           EventRetentionDays: 'Conservation des événements d\'exécution (jours)',
           RetentionDays: 'Conservation des exécutions (jours)',
           MaxDelegationDepth: 'Profondeur maximale de délégation',
+          DelegationChildQueueDepth: 'Maximum d\'exécutions enfants en file pour des parents en attente',
+          DelegationRetryAfterSeconds: 'Délai avant nouvel essai si la capacité de délégation est épuisée (secondes)',
           DefaultTimeoutSeconds: 'Délai d\'exécution par défaut (secondes)'
         },
         Codex: {

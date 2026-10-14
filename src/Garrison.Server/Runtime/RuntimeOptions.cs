@@ -134,6 +134,56 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Delegation capacity (P12.38): most queued delegated runs whose parent waits on them, across the cluster, before
+        /// a new synchronous delegation fails with DelegationCapacityExhausted. Checked when the parent starts waiting.
+        /// Minimum 1, maximum 100000, default 100.
+        /// </summary>
+        public int DelegationChildQueueDepth
+        {
+            get
+            {
+                return _DelegationChildQueueDepth;
+            }
+            set
+            {
+                _DelegationChildQueueDepth = Math.Clamp(value, 1, 100000);
+            }
+        }
+
+        /// <summary>
+        /// Seconds suggested in Retry-After when a synchronous delegation fails with DelegationCapacityExhausted.
+        /// Minimum 1, maximum 300, default 5.
+        /// </summary>
+        public int DelegationRetryAfterSeconds
+        {
+            get
+            {
+                return _DelegationRetryAfterSeconds;
+            }
+            set
+            {
+                _DelegationRetryAfterSeconds = Math.Clamp(value, 1, 300);
+            }
+        }
+
+        /// <summary>
+        /// Seconds after which the leader deletes a delegation wait record whose child run was never created (the
+        /// replica that recorded it stopped between the handshake and the child's creation). Records whose parent or
+        /// child finished are deleted at once. Minimum 30, maximum 86400, default 300.
+        /// </summary>
+        public int ChildWaitOrphanSeconds
+        {
+            get
+            {
+                return _ChildWaitOrphanSeconds;
+            }
+            set
+            {
+                _ChildWaitOrphanSeconds = Math.Clamp(value, 30, 86400);
+            }
+        }
+
+        /// <summary>
         /// Seconds past the run timeout before the control plane gives up on a run. Minimum 0, maximum 3600, default 120.
         /// </summary>
         public int DeadlineGraceSeconds
@@ -398,6 +448,9 @@ namespace Garrison.Server.Runtime
         private int _PipelineSweepIntervalMs = 5000;
         private int _PipelineMaxStages = 20;
         private int _MaxDelegationDepth = 3;
+        private int _DelegationChildQueueDepth = 100;
+        private int _DelegationRetryAfterSeconds = 5;
+        private int _ChildWaitOrphanSeconds = 300;
         private int _DeadlineGraceSeconds = 120;
         private int _MaintenanceIntervalMs = 2000;
         private int _LeaderLeaseMs = 15000;

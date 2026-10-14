@@ -151,6 +151,7 @@ namespace Garrison.Server.Runtime
                 ?? throw new NotFoundException("Harness profile " + deployment.HarnessProfileId + " for deployment " + deployment.Name + " was not found.");
 
             Run run = new Run();
+            if (!String.IsNullOrEmpty(create.RunId)) run.Id = create.RunId;
             run.TenantId = create.TenantId;
             run.AgentId = create.Agent.Id;
             run.AgentName = create.Agent.Name;

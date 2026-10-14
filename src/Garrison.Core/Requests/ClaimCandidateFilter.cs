@@ -69,6 +69,16 @@ namespace Garrison.Core.Requests
         /// </summary>
         public List<ExecutorCapabilities> ExecutorCapabilities { get; set; } = new List<ExecutorCapabilities>();
 
+        /// <summary>
+        /// Only delegated runs (kind Delegated). Default false.
+        /// </summary>
+        public bool DelegatedOnly { get; set; } = false;
+
+        /// <summary>
+        /// Only runs that a parent is waiting on synchronously (P12.38, the child reserve). Default false.
+        /// </summary>
+        public bool WaitedChildrenOnly { get; set; } = false;
+
         #endregion
 
         #region Private-Members

@@ -942,6 +942,8 @@ const tips = {
       lastHeartbeatUtc: 'Quando il nodo si è fatto sentire l\'ultima volta. I nodi che smettono di farlo vengono contrassegnati come persi.',
       address: 'Indirizzo indicativo riportato dal nodo.',
       maxConcurrentRuns: 'Numero massimo di esecuzioni che questo nodo accetta contemporaneamente.',
+      childReserveSlots: 'Posti extra per le esecuzioni delegate attese dal loro padre: se ne apre uno per ogni esecuzione di questo nodo che attende una figlia, fino a questo numero.',
+      maxResidentWaiters: 'Numero massimo di esecuzioni di questo nodo che possono attendere un\'esecuzione delegata contemporaneamente. 0 indica la sua capacità. Una delega oltre questo limite fallisce con DelegationCapacityExhausted.',
       activeRuns: 'Esecuzioni detenute dal nodo in questo momento.',
       capabilities: 'Cosa ha trovato ogni controllo degli harness: tipo, versione rilevata e se è utilizzabile.',
       labelsItems: { key: 'Nome dell\'etichetta, confrontato dai selettori di nodo delle distribuzioni.', value: 'Valore dell\'etichetta, confrontato esattamente dai selettori di nodo delle distribuzioni.' },
@@ -1881,6 +1883,10 @@ tips.views.pipelineRunDetail = {
 };
 tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Ogni quanto il leader fa avanzare le esecuzioni di pipeline che hanno perso un segnale di completamento, ritenta gli avvii di fase bloccati e applica i timeout di revisione e i limiti di tempo delle pipeline, in millisecondi.';
 tips.views.settings.fields.Runtime.PipelineMaxStages = 'Numero massimo di fasi che una definizione di pipeline può avere. Il salvataggio di una pipeline con più fasi viene rifiutato.';
+tips.views.settings.fields.Runs = Object.assign(tips.views.settings.fields.Runs || {}, {
+  DelegationChildQueueDepth: 'Numero massimo di esecuzioni delegate in coda attese dal loro padre, in tutto il cluster. Un\'esecuzione che inizia ad attendere un\'altra esecuzione delegata oltre questo limite fallisce subito con DelegationCapacityExhausted.',
+  DelegationRetryAfterSeconds: 'Secondi suggeriti in Retry-After quando una delega in attesa viene rifiutata con DelegationCapacityExhausted.'
+});
 Object.assign(explainers, {
   pipelines: {
     title: 'Pipeline e fasi',

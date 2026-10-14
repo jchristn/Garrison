@@ -133,6 +133,8 @@ namespace Garrison.Server.Runtime
             node.Address = request.Address;
             node.NodeVersion = request.Version;
             node.MaxConcurrentRuns = request.MaxConcurrentRuns;
+            node.ChildReserveSlots = request.ChildReserveSlots;
+            node.MaxResidentWaiters = request.MaxResidentWaiters;
             node.CredentialId = ctx.CredentialId;
             node.SupportsMcpTests = request.SupportsMcpTests;
             node.LastHeartbeatUtc = DateTime.UtcNow;

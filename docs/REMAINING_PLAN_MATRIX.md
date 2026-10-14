@@ -1,8 +1,8 @@
 # Remaining Plan Scope Matrix
 
-Updated 2026-10-13 under D-042/D-043. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
+Updated 2026-10-14 under D-042/D-043 and D-049. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-There are 0 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17 are complete. What remains is the 2 conditional P10 tasks and 2 active core follow-ups (G-8, G-12; I-01, I-05, and cancellation latency were completed 2026-10-13).
+D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 3 active phase tasks (P11.14, P12.29, P14.15), 2 conditional P10 tasks, and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.38 are complete. Active core follow-ups are G-8 (SyslogLogging 2.4.1 per `~/Code/SyslogLogging/BUGFIX.md`, executed by another agent) and G-12 (real-Codex soak, then new Codex deployments on `builtin/codex-app-server`). I-01, I-05, and cancellation latency were completed 2026-10-13.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -11,7 +11,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P6.20 | Publish SDK packages | Deferred | Skipped at user request (D-043) |
 | P10.24 | Tune demonstrated control-plane bottlenecks | Conditional | Waiting on deferred P14.15 measurements |
 | P10.25 | Schedule by CPU/memory capacity | Conditional | Waiting on deferred P14.15 measurements |
-| P11.14 | Trusted/untrusted deployment policy | Deferred | Enforce container isolation for untrusted runs |
+| P11.14 | Trusted/untrusted deployment policy | Active (D-049) | Existing deployments stay Trusted; Untrusted runs queue until an isolating worker is available |
 | P11.15 | Per-deployment network egress allowlists | Deferred | CIDR/port NetworkPolicy rules |
 | P11.17 | Isolation attack tests in CI | Deferred | Depends on trust policy and egress controls |
 | P12.2 | Workspace snapshots and cross-node resume | Deferred | Needs artifact storage and harness continuation |
@@ -38,13 +38,13 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.26 | Dashboard OIDC login | Deferred | Separate authentication design required |
 | P12.27 | Markdown/JSON transcript export | Deferred | Useful for debugging and sharing existing runs |
 | P12.28 | Prompt A/B evaluation hooks | Deferred | Experimentation feature |
-| P12.29 | Explicit retry/effect policy | Deferred | Replaces RetryOnNodeLoss; migration compatibility |
+| P12.29 | Explicit retry/effect policy | Active (D-049) | Existing RetryOnNodeLoss values carry over; new deployments default to no retry on node loss |
 | P12.31 | Epoch-fenced tool and credential gateway | Deferred | Garrison tools/brokered credentials only |
 | P12.32 | Effect intent journal | Deferred | Depends on the gateway; records uncertain external effects |
 | P12.33 | Journal-aware recovery | Deferred | Depends on effect policy and journal |
 | P12.34 | Effect-safety chaos tests | Deferred | Depends on effect policies and journal |
 | P12.36 | Tenant fair-share scheduling and queue bounds | Deferred | QoSKit; most useful for shared multi-tenant workloads |
-| P12.38 | Prevent parent/child slot deadlocks | Deferred | Runtime capacity reserve; no financial budgeting |
+| P12.38 | Prevent parent/child slot deadlocks | Complete | D-049 bounded slot lending: wait handshake, worker child reserve and waiter cap, deployment limit excludes waiting ancestors, typed `DelegationCapacityExhausted`; schema 22 |
 | P12.39 | Durable suspension and cross-node continuation | Deferred | Needs snapshots, artifacts, capabilities, effect safety |
 | P12.40 | Pin and test harness session formats | Deferred | Protects conversation resume across CLI upgrades |
 | P12.41 | Declarative output/parser mappings | Deferred | Onboard harnesses without changing C# |
@@ -53,7 +53,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.44 | Compare compiled execution specs | Deferred | Depends on recorded/reconstructed configuration |
 | P12.45 | Canary promotion/rollback recommendations | Deferred | Depends on traffic experiments; operator approves changes |
 | P12.46 | Git/workspace caching | Deferred | Performance optimization; snapshot cache needs artifacts |
-| P14.15 | Load the control plane to failure | Deferred | Large hardware tiers; prerequisite for tuning claims |
+| P14.15 | Load the control plane to failure | Active (D-049) | On the development machine, minutes-long steps; prerequisite for P10.24/P10.25 |
 | P15.1 | Security review | Deferred | Secrets, tokens, SSRF, paths, command arguments |
 | P15.2 | Versioned master-key rotation | Deferred | Production key lifecycle |
 | P15.3 | Credential and run-token expiry policies | Deferred | Bound credential lifetimes |
@@ -80,8 +80,8 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 
 | Tracking | Remaining work | Scope |
 |---|---|---|
-| G-8 | Console probe opt-out | Active |
-| G-12 | Codex app-server default after compatibility checks | Active |
+| G-8 | Console probe opt-out | Active: SyslogLogging 2.4.1 plan in `~/Code/SyslogLogging/BUGFIX.md` (another agent), then a package bump here |
+| G-12 | Codex app-server default after compatibility checks | Active: first soak 2026-10-14 hit the Codex account rate limit (HTTP 429) after a few runs; re-run when it resets |
 | I-05 | Request history writes for node protocol traffic | Done 2026-10-13: off by default, `RequestHistory.CaptureNodeProtocol` |
 | I-01 | Synchronous invocation connection handling | Done 2026-10-13: completion-only wakeups, `Scheduling.InvocationWaitPollMs` fallback |
 | Cancellation | Cancellation latency under load | Done 2026-10-13 at in-process scale: 40 to 85 ms with two workers churning event-heavy runs (`cancel-*/latency-under-load`); overload-level measurement belongs to P14.15 |

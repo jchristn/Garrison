@@ -87,7 +87,7 @@ Query string values are decoded the way browsers and HTTP clients encode them: p
 | 403 | Authenticated but not permitted (`AuthorizationDenied`) |
 | 404 | The resource does not exist or belongs to another tenant (`NotFound`, `RouteNotFound`). A system administrator who names a tenant that does not exist in a `/tenants/{tenantId}/...` path gets `TenantNotFound`; other callers get `NotFound` for any tenant but their own, so the response does not reveal which tenants exist |
 | 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound`, and the conversation codes `ConversationBusy` (the conversation's previous turn is unfinished), `ConversationAgentMismatch`, `ConversationDeploymentMismatch`, `ConversationDeploymentUnavailable`, and the pipeline codes `PipelineInUse`, `PipelineInactive`, `PipelineEmpty`, `PipelineRunFinished`, `PipelineRunActive`, `PipelineRunNotRetryable`, `PipelineRunChanged`, `PipelineHistoryPruned`, `PipelineStageRun` (a stage run cannot be retried on its own), `ReferencedByPipeline` (an agent or deployment a pipeline stage uses), `ReviewNotPending`, and `RevisionLimitReached` |
-| 429 | Too many authentication attempts from one address (`RateLimited`) |
+| 429 | Too many authentication attempts from one address (`RateLimited`); a quota refused admission (`QuotaExceeded`); or a run that delegates and waits was refused because waiting could leave no capacity to run its child (`DelegationCapacityExhausted`: the parent's worker already keeps as many waiting runs as it may, or `Runs.DelegationChildQueueDepth` waited children are already queued). `QuotaExceeded` and `DelegationCapacityExhausted` carry `Retry-After` in seconds (`Runs.DelegationRetryAfterSeconds`, default 5, for delegation). Delegating without waiting (`wait: false`) is never refused this way |
 | 500 | An unexpected failure (`InternalError`); the server log has the request identifier |
 | 503 | The database cannot take the request right now: `DatabaseBusy` (the connection pool is exhausted, or PostgreSQL has no connection slots left) or `DatabaseUnavailable` (the database cannot be reached, is restarting, or is shutting down). Both carry a `Retry-After` header in seconds (`Rest.DatabaseRetryAfterSeconds`, default 2). Retrying is safe for reads and for creations that send an `Idempotency-Key`. `Cancelled` means the server is shutting down and dropped the request |
 
@@ -3870,7 +3870,7 @@ Register a worker node.
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/register" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "string", "version": "string", "address": "string", "maxConcurrentRuns": 0, "nodePool": "string", "labels": {"key": "value"}, "capabilities": [{}]}'
+  -d '{"name": "string", "version": "string", "address": "string", "maxConcurrentRuns": 0, "childReserveSlots": 0, "maxResidentWaiters": 0, "nodePool": "string", "labels": {"key": "value"}, "capabilities": [{}]}'
 ```
 
 #### `POST /v1.0/api/node/heartbeat`
@@ -3913,6 +3913,8 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/watch" \
 
 Lease runs (long poll). Any replica can answer: a run queued on another replica wakes the wait through the event backplane. While the replica is shutting down, a waiting long poll returns with no assignments and new lease requests get 503 `Draining`, so the worker retries against another replica.
 
+Delegated runs are handed out ahead of new top-level work. A worker with a child reserve (`childReserveSlots` at registration) keeps a second long poll with `childReserve: true` and the identifiers of the reserve runs it is executing in `reserveRunIds`. That poll only returns a queued run whose parent is waiting on it, and only while the node has an open reserve slot: one per run on the node that is waiting on a child, up to `childReserveSlots`, less the reserve runs still active.
+
 | | |
 |---|---|
 | Permission | Execute on `Node` |
@@ -3924,7 +3926,7 @@ Lease runs (long poll). Any replica can answer: a run queued on another replica 
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/node/lease" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"nodeId": "string", "maxRuns": 0, "waitMs": 0}'
+  -d '{"nodeId": "string", "maxRuns": 0, "waitMs": 0, "childReserve": false, "reserveRunIds": ["string"]}'
 ```
 
 #### `POST /v1.0/api/node/drain`
@@ -4665,7 +4667,7 @@ Binds an agent to a harness profile, prompts, resources, placement, and limits.
 | `effort` | `string?` | Reasoning effort. |
 | `maxTurns` | `int?` | Maximum agent turns. |
 | `maxBudgetUsd` | `double?` | Maximum spend per run in USD where the harness supports it. |
-| `maxConcurrentRuns` | `int` | Maximum concurrent runs; 0 means unlimited. Minimum 0, maximum 100000. |
+| `maxConcurrentRuns` | `int` | Maximum concurrent runs; 0 means unlimited. A delegated run's ancestors in the same deployment that are waiting on a descendant are not counted when it is claimed, so a parent and its child in one deployment cannot deadlock. Minimum 0, maximum 100000. |
 | `timeoutSeconds` | `int?` | Run deadline override. Capped by the cluster setting `Runtime.MaxRunSeconds` (default 3600). |
 | `repetitionGuard` | `bool?` | Run guard: stop runs whose assistant text degenerates into repetition (outcome RepetitionDetected). Null uses `Runtime.RepetitionGuard` (default true). |
 | `maxAssistantChars` | `long?` | Run guard: most characters of assistant text per run (outcome OutputLimitExceeded); 0 is unlimited. Null uses `Runtime.MaxAssistantChars` (default 200,000). Minimum 0, maximum 100,000,000. |
@@ -5144,6 +5146,8 @@ Worker node (Post).
 | `nodeVersion` | `string?` | Worker software version. |
 | `status` | `NodeStatusEnum` | Status. |
 | `maxConcurrentRuns` | `int` | Run capacity. Minimum 1, maximum 1000, default 4. |
+| `childReserveSlots` | `int` | Child reserve the worker reported: extra slots only a delegated run whose parent waits on it may use, one per run on the node waiting on a child. Minimum 0 (none), maximum 64. 0 for a node registered before the reserve existed. |
+| `maxResidentWaiters` | `int` | Most runs on the node that may wait on a delegated run at once, as reported; 0 means `maxConcurrentRuns`. The control plane never lets more than `maxConcurrentRuns + childReserveSlots - 1` wait. Minimum 0, maximum 1024. |
 | `activeRuns` | `int` | Runs currently held. |
 | `credentialId` | `string?` | Credential the node authenticates with. |
 | `lastHeartbeatUtc` | `DateTime?` | Last heartbeat (UTC). |
@@ -5252,6 +5256,8 @@ Lease request (long poll).
 | `nodeId` | `string` | Node identifier. |
 | `maxRuns` | `int` | Maximum runs to lease. Minimum 1, maximum 64. |
 | `waitMs` | `int` | Maximum wait in milliseconds. Minimum 0, maximum 60000. |
+| `childReserve` | `bool` | Lease into the child reserve: only a queued delegated run whose parent waits on it, while the node has an open reserve slot. Default false. |
+| `reserveRunIds` | `List<string>` | Runs the worker is executing in its child reserve; those still active hold reserve slots. At most 64 are read. |
 
 #### `NodeLeaseResponse`
 
@@ -5299,6 +5305,8 @@ Worker registration. Idempotent by node name.
 | `version` | `string?` | Worker software version. |
 | `address` | `string?` | Informational address. |
 | `maxConcurrentRuns` | `int` | Maximum concurrent runs. |
+| `childReserveSlots` | `int` | Child reserve slots (0 to 64; 0 means none). Default 0. |
+| `maxResidentWaiters` | `int` | Most runs that may wait on a delegated run at once (0 to 1024; 0 means `maxConcurrentRuns`). Default 0. |
 | `nodePool` | `string?` | Node pool name, or null for the default pool. |
 | `labels` | `Dictionary<string, string>` | Labels. |
 | `capabilities` | `List<NodeCapabilityReport>` | Harness capabilities. |

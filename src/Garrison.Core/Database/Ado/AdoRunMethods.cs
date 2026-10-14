@@ -435,6 +435,9 @@ namespace Garrison.Core.Database.Ado
                 clauses.Add("(" + String.Join(" OR ", matches) + ")");
             }
 
+            if (filter.DelegatedOnly) clauses.Add("kind = 'Delegated'");
+            if (filter.WaitedChildrenOnly) clauses.Add(ChildWaitSql.RunIsWaitedOn(_Driver, _Table + ".id"));
+
             string sql = "SELECT * FROM " + _Table + " WHERE " + String.Join(" AND ", clauses) + " ORDER BY priority DESC, createdutc ASC" + _Driver.Dialect.LimitOffsetClause() + ";";
             List<Run> runs = await _Driver.QueryAsync(sql, command =>
             {
@@ -477,11 +480,20 @@ namespace Garrison.Core.Database.Ado
         /// <inheritdoc />
         public async Task<ClaimResult> TryClaimWithinLimitAsync(string runId, string nodeId, string nodeName, DateTime leaseExpiresUtc, string deploymentId, int maxConcurrentRuns, CancellationToken token = default)
         {
+            return await TryClaimWithinLimitAsync(runId, nodeId, nodeName, leaseExpiresUtc, deploymentId, maxConcurrentRuns, null, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<ClaimResult> TryClaimWithinLimitAsync(string runId, string nodeId, string nodeName, DateTime leaseExpiresUtc, string deploymentId, int maxConcurrentRuns, IReadOnlyCollection<string>? waitingAncestorIds, CancellationToken token = default)
+        {
             if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
             if (String.IsNullOrEmpty(nodeId)) throw new ArgumentNullException(nameof(nodeId));
             if (String.IsNullOrEmpty(deploymentId)) throw new ArgumentNullException(nameof(deploymentId));
 
             ClaimResult result = new ClaimResult();
+            // Ancestors of this run in its deployment that wait on a descendant do not count against the limit (P12.38):
+            // counting them could leave the deployment full of parents waiting on a child it can never start.
+            List<string> ancestors = ChildWaitSql.Distinct(waitingAncestorIds);
             string? lockSql = _Driver.Dialect.TransactionLockStatement();
             long lockKey = AdoDatabaseDriver.LockKey("deployment-claims:" + _Table + ":" + deploymentId);
             string falseValue = _Driver.Dialect.BooleanLiteral(false);
@@ -498,7 +510,8 @@ namespace Garrison.Core.Database.Ado
                 + " AND (" + _Table + ".capcoldstartclass IS NULL OR nc.capcoldstartclass = " + _Table + ".capcoldstartclass OR (" + _Table + ".capcoldstartclass = 'Warm' AND nc.capwarmstart = " + trueValue + "))))";
             string claimSql =
                 "UPDATE " + _Table + " SET status = 'Leased', leasenodeid = @node, leasenodename = @nodename, leaseepoch = leaseepoch + 1, leaseexpiresutc = @expires, leasedutc = @now, lastupdateutc = @now " +
-                "WHERE id = @id AND status = 'Queued' AND " + requirementsMatch + " AND (@max <= 0 OR (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')) < @max);";
+                "WHERE id = @id AND status = 'Queued' AND " + requirementsMatch + " AND (@max <= 0 OR (SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')"
+                + ChildWaitSql.ExcludeWaitingAncestors(_Driver, "a", ancestors.Count) + ") < @max);";
 
             await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
             {
@@ -528,6 +541,7 @@ namespace Garrison.Core.Database.Ado
                     AdoDatabaseDriver.Add(command, "now", now);
                     AdoDatabaseDriver.Add(command, "deploymentid", deploymentId);
                     AdoDatabaseDriver.Add(command, "max", maxConcurrentRuns);
+                    ChildWaitSql.BindAncestors(command, ancestors);
                 }, ct).ConfigureAwait(false);
 
                 List<ClaimProbeRow> rows = await AdoDatabaseDriver.QueryAsync(connection, transaction,
@@ -585,12 +599,75 @@ namespace Garrison.Core.Database.Ado
         /// <inheritdoc />
         public async Task<long> CountActiveByDeploymentAsync(string deploymentId, CancellationToken token = default)
         {
+            return await CountActiveByDeploymentAsync(deploymentId, null, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<long> CountActiveByDeploymentAsync(string deploymentId, IReadOnlyCollection<string>? waitingAncestorIds, CancellationToken token = default)
+        {
             if (String.IsNullOrEmpty(deploymentId)) throw new ArgumentNullException(nameof(deploymentId));
+            List<string> ancestors = ChildWaitSql.Distinct(waitingAncestorIds);
             object? count = await _Driver.ScalarAsync(
-                "SELECT COUNT(*) FROM " + _Table + " WHERE deploymentid = @deploymentid AND status IN ('Leased', 'Running', 'Cancelling');",
-                command => AdoDatabaseDriver.Add(command, "deploymentid", deploymentId),
+                "SELECT COUNT(*) FROM " + _Table + " a WHERE a.deploymentid = @deploymentid AND a.status IN ('Leased', 'Running', 'Cancelling')" + ChildWaitSql.ExcludeWaitingAncestors(_Driver, "a", ancestors.Count) + ";",
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "deploymentid", deploymentId);
+                    ChildWaitSql.BindAncestors(command, ancestors);
+                },
                 token).ConfigureAwait(false);
             return count == null ? 0 : Convert.ToInt64(count);
+        }
+
+        /// <inheritdoc />
+        public async Task<ChildWaitAdmission> BeginChildWaitAsync(ChildWaitRequest request, CancellationToken token = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (String.IsNullOrEmpty(request.TenantId)) throw new ArgumentException("A tenant is required.", nameof(request));
+            if (String.IsNullOrEmpty(request.ParentRunId)) throw new ArgumentException("A parent run is required.", nameof(request));
+            if (String.IsNullOrEmpty(request.ChildRunId)) throw new ArgumentException("A child run is required.", nameof(request));
+            return await ChildWaitSql.BeginAsync(_Driver, request, token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> UpdateChildWaitAsync(string waitId, string childRunId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(waitId)) throw new ArgumentNullException(nameof(waitId));
+            if (String.IsNullOrEmpty(childRunId)) throw new ArgumentNullException(nameof(childRunId));
+            int affected = await _Driver.NonQueryAsync("UPDATE " + ChildWaitSql.Table(_Driver) + " SET childrunid = @child WHERE id = @id;", command =>
+            {
+                AdoDatabaseDriver.Add(command, "id", waitId);
+                AdoDatabaseDriver.Add(command, "child", childRunId);
+            }, token).ConfigureAwait(false);
+            return affected > 0;
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> EndChildWaitAsync(string waitId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(waitId)) throw new ArgumentNullException(nameof(waitId));
+            int affected = await _Driver.NonQueryAsync("DELETE FROM " + ChildWaitSql.Table(_Driver) + " WHERE id = @id;", command => AdoDatabaseDriver.Add(command, "id", waitId), token).ConfigureAwait(false);
+            return affected > 0;
+        }
+
+        /// <inheritdoc />
+        public async Task<long> CountWaitingOnNodeAsync(string nodeId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(nodeId)) throw new ArgumentNullException(nameof(nodeId));
+            object? count = await _Driver.ScalarAsync(ChildWaitSql.WaitingOnNodeQuery(_Driver), command => AdoDatabaseDriver.Add(command, "node", nodeId), token).ConfigureAwait(false);
+            return count == null ? 0 : Convert.ToInt64(count);
+        }
+
+        /// <inheritdoc />
+        public async Task<long> CountQueuedWaitedChildrenAsync(CancellationToken token = default)
+        {
+            object? count = await _Driver.ScalarAsync(ChildWaitSql.QueuedWaitedChildrenQuery(_Driver), null, token).ConfigureAwait(false);
+            return count == null ? 0 : Convert.ToInt64(count);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> PruneChildWaitsAsync(DateTime orphanedBeforeUtc, CancellationToken token = default)
+        {
+            return await _Driver.NonQueryAsync(ChildWaitSql.PruneStatement(_Driver), command => AdoDatabaseDriver.Add(command, "cutoff", orphanedBeforeUtc), token).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
