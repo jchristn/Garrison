@@ -2,6 +2,8 @@ namespace Garrison.FakeHarness
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Globalization;
     using System.Text.Json;
     using System.Threading;
 
@@ -230,6 +232,32 @@ namespace Garrison.FakeHarness
                     break;
             }
             Console.Out.Flush();
+        }
+
+        /// <summary>
+        /// Emit the paced load-test stream (--events-per-second and --duration-ms): round(rate * duration / 1000) text
+        /// events ("event N" lines, at least one when the rate is above 0), each sent at its scheduled offset from the
+        /// start of the stream, then wait out the rest of the duration. Does nothing when the duration is 0. The content
+        /// and the number of events are deterministic; only the timing depends on the clock.
+        /// </summary>
+        /// <returns>Number of events emitted.</returns>
+        public int Stream()
+        {
+            int durationMs = _Options.DurationMs;
+            if (durationMs <= 0) return 0;
+            int rate = _Options.EventsPerSecond;
+            int count = rate > 0 ? Math.Max(1, (int)Math.Round(rate * (durationMs / 1000.0), MidpointRounding.AwayFromZero)) : 0;
+            Stopwatch clock = Stopwatch.StartNew();
+            for (int i = 0; i < count; i++)
+            {
+                double dueMs = i * (double)durationMs / count;
+                int wait = (int)(dueMs - clock.Elapsed.TotalMilliseconds);
+                if (wait > 0) Thread.Sleep(wait);
+                Text("event " + (i + 1).ToString("D6", CultureInfo.InvariantCulture) + "\n");
+            }
+            int rest = (int)(durationMs - clock.Elapsed.TotalMilliseconds);
+            if (rest > 0) Thread.Sleep(rest);
+            return count;
         }
 
         /// <summary>

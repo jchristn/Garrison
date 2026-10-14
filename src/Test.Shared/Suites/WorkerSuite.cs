@@ -3,6 +3,7 @@ namespace Test.Shared.Suites
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Threading;
@@ -54,6 +55,7 @@ namespace Test.Shared.Suites
                 new TestCaseDescriptor("worker-executor", "private-directories", "Executor: run and conversation directories are owner-only on creation and reuse", PrivateDirectoriesAsync),
                 new TestCaseDescriptor("worker-executor", "retention", "Executor: workspace retention policies and secret directory cleanup", RetentionAsync),
                 new TestCaseDescriptor("worker-executor", "tool-call-count", "Executor: tool call events are counted", ToolCallCountAsync),
+                new TestCaseDescriptor("worker-executor", "paced-events", "Executor: the fake harness load mode streams a deterministic number of paced events over its duration", PacedEventsAsync),
                 new TestCaseDescriptor("worker-executor", "timing-without-output", "Executor: timing on a killed harness and on a harness that never started", TimingOnFailureAsync),
                 new TestCaseDescriptor("worker-executor", "mcp-preflight", "Executor: unreachable required MCP server fails before launch", McpPreflightAsync),
                 new TestCaseDescriptor("worker-executor", "mux-probe-version", "Probe: Mux 1.3.0 --version output (\"mux v1.3.0\") reports version 1.3.0", MuxProbeVersionAsync)
@@ -268,6 +270,26 @@ namespace Test.Shared.Suites
             Assert.Equal(RunStatusEnum.Succeeded, complete.Status, "Status (" + complete.ErrorMessage + ")");
             Assert.Equal(3, complete.ToolCallCount, "Tool calls counted by the worker");
             Assert.True(complete.ExecutionMs.HasValue, "Execution measured");
+        }
+
+        private static async Task PacedEventsAsync(CancellationToken token)
+        {
+            RunAssignment assignment = Assignment("claude", OutputParserEnum.ClaudeStreamJson, "paced", "--events-per-second", "20", "--duration-ms", "500");
+            InMemoryRunReporter reporter = new InMemoryRunReporter();
+            RunCompleteRequest complete = await Executor().ExecuteAsync(assignment, reporter, token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.Succeeded, complete.Status, "Status (" + complete.ErrorMessage + ")");
+            Assert.Equal("Echo: paced", complete.ResultText, "The paced stream does not change the result");
+            List<string> paced = reporter.Events().Where(e => e.EventType == RunEventTypeEnum.AssistantText && e.Text != null && e.Text.StartsWith("event ", StringComparison.Ordinal)).Select(e => e.Text!.Trim()).ToList();
+            Assert.Equal(10, paced.Count, "20 events per second for 500 ms is 10 events");
+            for (int i = 0; i < paced.Count; i++) Assert.Equal("event " + (i + 1).ToString("D6", CultureInfo.InvariantCulture), paced[i], "Event " + (i + 1) + " content and order");
+            Assert.True((complete.ExecutionMs ?? 0) >= 450, "Execution covers the stream duration (was " + complete.ExecutionMs + ").");
+
+            RunAssignment waitOnly = Assignment("plain", OutputParserEnum.PlainText, "wait", "--duration-ms", "300");
+            InMemoryRunReporter waitReporter = new InMemoryRunReporter();
+            RunCompleteRequest waited = await Executor().ExecuteAsync(waitOnly, waitReporter, token).ConfigureAwait(false);
+            Assert.Equal(RunStatusEnum.Succeeded, waited.Status, "Status without a rate (" + waited.ErrorMessage + ")");
+            Assert.True((waited.ExecutionMs ?? 0) >= 250, "A duration without a rate only waits (was " + waited.ExecutionMs + ").");
+            Assert.True(!waitReporter.Events().Any(e => e.Text != null && e.Text.StartsWith("event ", StringComparison.Ordinal)), "No paced events without a rate");
         }
 
         private static async Task TimingOnFailureAsync(CancellationToken token)

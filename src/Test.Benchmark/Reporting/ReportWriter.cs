@@ -104,6 +104,7 @@ namespace Garrison.Benchmark.Reporting
             Arms(md, report);
             Ingest(md, report);
             Load(md, report);
+            ScaleMarkdown.Append(md, report.Scale);
             Resilience(md, report);
             Stages(md, report.Stages, "Server stage breakdown (whole run)");
             Baselines(md, report);
@@ -153,6 +154,7 @@ namespace Garrison.Benchmark.Reporting
                 case "ingest": return "Ingest report";
                 case "load": return "Load report";
                 case "resilience": return "Resilience report";
+                case "scale": return "Scale report";
                 default: return kind + " report";
             }
         }

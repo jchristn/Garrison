@@ -225,6 +225,11 @@ namespace Garrison.Server.Runtime
                 if (!await _Database.Runs.ExtendLeaseAsync(lease.RunId, node.Id, lease.Epoch, expires, token).ConfigureAwait(false))
                 {
                     response.LostRunIds.Add(lease.RunId);
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.LeaseRenewals, "result", "lost");
+                }
+                else
+                {
+                    GarrisonMetrics.Count(GarrisonMetricCatalog.LeaseRenewals, "result", "renewed");
                 }
             }
 

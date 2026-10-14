@@ -13,12 +13,15 @@ The harness talks to Garrison only over the REST API, as a client would, with it
 | `stack-down.sh`, `stack-down.bat` | Delete that cluster (the full reset) |
 | `start-bench-server.sh`, `.bat` | Start the local stack: the server and workers as processes from the working tree |
 | `stop-bench-server.sh`, `.bat` | Stop the local stack |
+| `scale.sh` | Control plane load to failure (P14.15): start the scale stack, run the `scale` command per tier, tear it down. Shell only, no `.bat` |
+| `scale-up.sh`, `scale-down.sh` | Start and stop the scale stack: PostgreSQL 17 in Docker plus several servers and workers as processes from the working tree |
 | `run-baseline.sh`, `.bat` | The standard suite for one round |
 | `ci-gate.sh`, `.bat` | The deterministic gate against `baselines/`; run locally |
 | `common.sh`, `common.bat` | Shared settings for the scripts (ports, paths, build) |
 | `k3d/cluster.yaml` | The k3d cluster: pinned K3S image, ports, memory cap |
 | `k8s/` | Kustomize overlay on `k8s/base` for the bench cluster: two worker lanes, small requests, fake credentials |
 | `config/garrison-bench.json` | Server settings of the local stack, copied fresh into `.run/` on every start |
+| `config/scale-workload.yaml` | The `scale` command's workload: a fake harness profile in its paced mode, the `scale-echo` agent, and its deployment |
 | `datasets/` | Datasets, `SCHEMA.md`, and the sources and build scripts that produce them |
 | `baselines/` | Committed reports the CI gate compares against (`ci-<kind>-<dataset>.json` and `.md`) |
 | `baselines.json` | Published or prior results shown next to every report |
@@ -29,7 +32,9 @@ The harness talks to Garrison only over the REST API, as a client would, with it
 
 There is no `labels/` directory: no probe is judged by a model, so there is nothing to calibrate. There is no `agent/` directory: the suite does not run agents in the loop.
 
-## The two stacks
+## The stacks
+
+The k3d and local stacks serve the regular rounds. A third, the scale stack, exists only for the `scale` command and is described under [Control plane load to failure](#control-plane-load-to-failure-scale).
 
 | | k3d stack (`stack-up.sh`) | local stack (`start-bench-server.sh`) |
 |---|---|---|
@@ -42,7 +47,7 @@ Both stacks run only the fake harness. On the local stack the workers' `PATH` is
 
 ### Ports
 
-The suite uses the 37xxx block, bound to 127.0.0.1 only. Other stacks on the maintainer's machine use 8700 to 8710 (Docker Compose), 6560 and 18870 (`k8s/tests`), 16443 and 18080 (a `garrison-k3s` cluster), 3000 and 9090 (Grafana and Prometheus port-forwards). Pick a different block for the next project.
+The suite uses the 37xxx block, bound to 127.0.0.1 only. The scale stack takes PostgreSQL 37543 and 37901 to 37999 (server n: REST 37900+n, liveness 37910+n, MCP 37920+n, Prometheus 37930+n; worker n: health 37940+n, metrics 37970+n). Other stacks on the maintainer's machine use 8700 to 8710 (Docker Compose), 6560 and 18870 (`k8s/tests`), 16443 and 18080 (a `garrison-k3s` cluster), 3000 and 9090 (Grafana and Prometheus port-forwards). Pick a different block for the next project.
 
 ### Bring up the k3d stack
 
@@ -78,6 +83,7 @@ Run any command with `benchmarks/bench.sh <command> [options]` (or `bench.bat`).
 | `e2e` | The full run flow per probe, with the direct-invocation reference arm | `e2e` |
 | `load` | Throughput and latency per concurrency (closed loop) or arrival rate (open loop), optionally per worker count | `load` |
 | `resilience` | A failing harness, an overrunning harness, and on k3d a worker, server, or database crash under load | `resilience` |
+| `scale` | Control plane load to failure: steps up offered load across server replicas until a level breaks, with per-subsystem metrics (run it through `scale.sh`) | `scale` |
 | `compare` | Paired, significance-gated diff of two reports; exit 1 on regression | none (writes `-compare-` files) |
 | `history` | Headline metrics per round with the net change and baselines | none (writes `-history.md`) |
 | `stub` | Runs the stub dependency (the fake harness) on its own | none |
@@ -150,6 +156,45 @@ benchmarks/bench.sh ingest --dataset benchmarks/.run/synthetic-fleet-2000.json -
 | `--require-pass` | off | measuring commands | Exit 1 when any probe failed |
 
 Every option the run used, including defaults, is written into the report. The full list per command is in `src/Test.Benchmark/Runners`.
+
+## Control plane load to failure (scale)
+
+P10.13 ran at laptop size and was bound by worker slots, so the control plane's ceiling was unknown. The `scale` command (P14.15) finds it: it submits K runs per level at a rising offered rate, spread round robin across every server replica, and stops at the first level that breaks. `scale.sh` wraps the whole thing.
+
+```bash
+benchmarks/scale.sh smoke        # 1 server, 2 workers x 16 slots, 100 runs at 20/s: about 2 minutes with the build
+benchmarks/scale.sh 1k           # 3 servers, 10 workers x 32 slots; 1,000 runs per level at 25, 50, 100, 200, 300, 400/s
+benchmarks/scale.sh 10k          # the same stack; 10,000 runs per level at 50, 100, 200, 300, 400/s
+benchmarks/scale.sh all          # both tiers on one stack
+SCALE_RATES=50,100 SCALE_DURATION_MS=2000 benchmarks/scale.sh 1k --plateau-ratio 0.8
+SCALE_KEEP_STACK=1 benchmarks/scale.sh smoke && SCALE_REUSE=1 benchmarks/scale.sh smoke --mode closed --concurrency 8,16
+```
+
+**The stack.** `scale-up.sh` starts PostgreSQL 17 in Docker as `garrison-scale-postgres` (volume `garrison-scale-pgdata`, port 37543, recreated empty on every start unless `SCALE_KEEP_DB=1`, memory capped at `SCALE_PG_MEMORY`, 3g by default, for the 8 GB Docker VM, `max_connections` = servers x pool + 40), then `SCALE_SERVERS` (3) servers and `SCALE_WORKERS` (10) workers with `SCALE_SLOTS` (32) slots each as processes from the Release build of the working tree, each with its own ports and node name. Server 1 creates the schema before the others start; worker n reports to server ((n - 1) mod servers) + 1. Each server's pool is `SCALE_DB_POOL` (50). Workers store every paced event (`SCALE_EVENT_COALESCE=0` turns worker text merging off so the configured event rate reaches the database; 2048 is the product default). `scale-down.sh` stops the processes and removes the container and its volume. Logs are in `benchmarks/.run/scale`.
+
+**The workload.** `config/scale-workload.yaml` is applied into its own tenant. Each run executes the fake harness in its paced mode (`--events-per-second`, `--duration-ms`): `SCALE_EVENTS_PER_SECOND` (20) assistant text events over `SCALE_DURATION_MS` (1000) ms, then the answer. Slot capacity is slots divided by the run duration (320 runs/s for the default tier); levels near or above it are bound by workers, not the control plane, and the report says so.
+
+**A level.** Open loop (the default) submits `--runs` runs at `--rates` per second without waiting (create, then follow nothing), so the load generator stays cheap; closed loop (`--mode closed --concurrency ...`) has C clients that each invoke and wait. The level then waits until every accepted run has finished (`garrison_runs_finished_total` summed over the replicas, up to `--drain-seconds`), reads the final run records, and scrapes `/metrics` on every replica.
+
+| Measured per level | From |
+|---|---|
+| Runs/s: the rate at which successful runs completed, first completion to last | Run records |
+| Events/s ingested and events per run | `garrison_run_events_total` |
+| Claim latency (queued to leased) and end-to-end latency (created to completed), p50, p95, p99; control-plane overhead (end-to-end minus execution) | Run records |
+| Submission latency and submission errors by kind (429 QueueFull, 503 DatabaseBusy, transport, client overload) | The load generator |
+| Peak runs leased or running, peak queued | Run records |
+| Event inserts: statements on `run_events` and their mean time, batches | `garrison_db_operation_duration_seconds{table="run_events"}`, `garrison_event_batch_size` |
+| Queue wakeups: notify versus fallback poll; lease requests assigned versus empty | `garrison_scheduler_queue_wakeups_total`, `garrison_scheduler_lease_requests_total` |
+| Lease renewals (renewed, lost) and expirations | `garrison_lease_renewals_total`, `garrison_lease_expirations_total` |
+| Per-deployment concurrency lock: acquisitions, mean and total wait; claims won, lost, limited | `garrison_scheduler_deployment_lock_wait_seconds`, `garrison_claims_total` |
+| Database statements per run (I-12), by table; `request_history_headers` inserts per run (I-05); errors; peak connections | `garrison_db_*` |
+| One-minute load average of the host | `sysctl vm.loadavg` or `/proc/loadavg` |
+
+**Breaking.** A level breaks when its error rate (failed submissions, failed runs, and runs unfinished at the drain timeout, over everything submitted) is above `--max-error-rate` (0.01), its claim p95 is above `--max-claim-p95-ms` (5000), its end-to-end p95 is above `--max-e2e-p95-ms` (0 means the run duration plus 10 s), or its throughput plateaus: open loop below `--plateau-ratio` (0.9) of the offered rate, closed loop growing less than 1 minus that ratio over the previous level. The sweep stops at the first broken level (`--stop-on-break false` runs them all). The report gives the highest throughput of a level that held (the maximum sustained runs/s and its events/s), the breaking level and its reasons, and the saturated subsystem: the strongest of several heuristic signals that compare the level with the first one (worker capacity, load generator, API admission, database, event ingestion, deployment lock, lease renewals, scheduler). Read the evidence table rather than just the winner.
+
+Other options: `--urls` (the replicas, comma-separated; `scale.sh` passes them), `--workload`, `--agent` (`scale-echo`), `--submit-concurrency` (512 submissions in flight before arrivals count as dropped), `--wait-seconds` (closed loop, 300), `--settle-seconds` (5 between levels), `--tier`, `--workspace-suffix`. Reports are `results/<time>-scale-scale-workload-scale-<tier>.json` and `.md`.
+
+Everything shares one machine: servers, workers, every fake harness process (a `dotnet` start costs about 40 ms of CPU), PostgreSQL in the Docker VM, and the load generator. Run it on a quiet machine, stop other stacks if you can, and read the load average column.
 
 ## Datasets
 

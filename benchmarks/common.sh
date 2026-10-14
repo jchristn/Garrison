@@ -4,10 +4,13 @@
 # Port block 37xxx, all on 127.0.0.1 (see README.md, "Ports"):
 #   k3d stack (stack-up.sh):         REST 37870, MCP 37871, Kubernetes API 37443, cluster garrison-bench
 #   local stack (start-bench-server): REST 37800, MCP 37801, Prometheus 37464, worker health 37811+, worker metrics 37821+
+#   scale stack (scale-up.sh):        PostgreSQL 37543; server n: REST 37900+n, liveness 37910+n, MCP 37920+n,
+#                                     Prometheus 37930+n (n 1..9); worker n: health 37940+n, metrics 37970+n (n 1..29)
 # Environment:
 #   BENCH_STACK (k3d)      which stack bench.sh, run-baseline.sh, and ci-gate.sh talk to: k3d or local
 #   NO_BUILD (0)           1 reuses the last Release build in benchmarks/.run/build
 #   LOCAL_ALPHA_WORKERS (1), LOCAL_BETA_WORKERS (1), WORKER_SLOTS (4)   local stack sizes
+#   SCALE_SERVERS (3), SCALE_WORKERS (10), SCALE_SLOTS (32), SCALE_DB_POOL (50)   scale stack sizes (scale-up.sh)
 set -euo pipefail
 
 BENCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,6 +30,26 @@ LOCAL_URL="http://127.0.0.1:${LOCAL_REST_PORT}"
 LOCAL_HEALTH_BASE=37810
 LOCAL_METRICS_BASE=37820
 ADMIN_KEY="garrison-benchmark-admin-key-not-for-production"
+
+SCALE_DIR="${RUN_DIR}/scale"
+SCALE_PG_CONTAINER="garrison-scale-postgres"
+SCALE_PG_VOLUME="garrison-scale-pgdata"
+SCALE_PG_IMAGE="postgres:17"
+SCALE_PG_PORT=37543
+SCALE_PG_PASSWORD="garrison-scale-not-for-production"
+SCALE_REST_BASE=37900
+SCALE_LIVENESS_BASE=37910
+SCALE_MCP_BASE=37920
+SCALE_PROMETHEUS_BASE=37930
+SCALE_HEALTH_BASE=37940
+SCALE_METRICS_BASE=37970
+
+# Comma-separated REST URLs of the scale stack's servers: scale_urls <servers>
+scale_urls() {
+  local urls="" n
+  for n in $(seq 1 "$1"); do urls="${urls}${urls:+,}http://127.0.0.1:$((SCALE_REST_BASE + n))"; done
+  printf '%s' "${urls}"
+}
 
 HARNESS_DLL="${BUILD_DIR}/bin/Test.Benchmark/release_net10.0/Garrison.Benchmark.dll"
 SERVER_DLL="${BUILD_DIR}/bin/Garrison.Server/release_net10.0/Garrison.Server.dll"

@@ -158,7 +158,8 @@ namespace Garrison.Server.Runtime
                     {
                         try
                         {
-                            await _Signals.QueueChanged.WaitAsync(seen, Math.Min(remaining, _Options.LeasePollMs), wait.Token).ConfigureAwait(false);
+                            bool signalled = await _Signals.QueueChanged.WaitAsync(seen, Math.Min(remaining, _Options.LeasePollMs), wait.Token).ConfigureAwait(false);
+                            GarrisonMetrics.Count(GarrisonMetricCatalog.QueueWakeups, "source", signalled ? "notify" : "poll");
                         }
                         catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested && !token.IsCancellationRequested)
                         {

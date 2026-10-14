@@ -1,0 +1,69 @@
+# Workload of the scale command (P14.15, benchmarks/scale.sh). Applied into its own tenant (bench-scale-<hash>), so a
+# change here gets a fresh tenant. Runs use the fake harness in its paced mode: each run streams eventsPerSecond
+# assistant text events for durationMs, then answers; the scale command sets both per run as overrides.
+apiVersion: garrison/v1
+kind: PromptTemplate
+metadata:
+  name: scale-task
+  description: The caller's message and nothing else
+spec:
+  kind: Task
+  content: "{{input.message}}"
+---
+apiVersion: garrison/v1
+kind: HarnessProfile
+metadata:
+  name: scale-fake
+  description: The fake harness in its paced load mode (--events-per-second, --duration-ms)
+spec:
+  harnessType: Generic
+  executable: garrison-fake-harness
+  promptDelivery: Stdin
+  outputParser: ClaudeStreamJson
+  resultSource: ParserFinalEvent
+  successPolicy: FinalEvent
+  successExitCodes: [0]
+  defaultTimeoutSeconds: 300
+  killGraceSeconds: 2
+  isolateHome: true
+  probeArguments: ["--version"]
+  arguments:
+    - template: --format
+    - template: claude
+    - template: --think-ms
+    - template: "0"
+    - template: --events-per-second
+    - template: "{{deployment.parameters.eventsPerSecond | default: \"10\"}}"
+    - template: --duration-ms
+    - template: "{{deployment.parameters.durationMs | default: \"2000\"}}"
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: scale-echo
+  description: Scale workload agent
+spec:
+  displayName: scale-echo
+  exposure: { a2a: false, mcpTool: false }
+---
+apiVersion: garrison/v1
+kind: Deployment
+metadata:
+  name: scale-echo-fake
+spec:
+  agent: scale-echo
+  harnessProfile: scale-fake
+  timeoutSeconds: 120
+  maxAttempts: 1
+  prompts:
+    Task: scale-task
+  parameters:
+    eventsPerSecond: "10"
+    durationMs: "2000"
+  allowedRunOverrides:
+    - name: eventsPerSecond
+      validation: IntegerRange
+      pattern: "0,10000"
+    - name: durationMs
+      validation: IntegerRange
+      pattern: "0,600000"

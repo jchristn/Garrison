@@ -388,13 +388,16 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 | `garrison_claims_total` | counter | `result`, `harness` | server | garrison-scheduler | Lease claim attempts: won, lost (another node claimed first), limit (deployment at its concurrency limit), affinity (a conversation turn left for its affinity node) |
 | `garrison_compile_duration_seconds` | histogram, seconds | `harness`, `agent`, `result` | server | garrison-scheduler | Time to compile a claimed run into an execution spec |
 | `garrison_lease_expirations_total` | counter | `action` | server | garrison-scheduler | Runs whose worker stopped renewing the lease (requeued or failed) |
+| `garrison_lease_renewals_total` | counter | `result` | server | garrison-scheduler | Run leases extended by worker heartbeats, by result: renewed, or lost (the lease had moved on, so the worker is told to stop the run) |
 | `garrison_queue_depth` | gauge | `status`, `tenant`, `agent`, `harness` | server | garrison-scheduler | Unfinished runs by status, tenant, agent, and harness, cluster-wide (refreshed every 10 seconds); aggregate with max |
 | `garrison_runs_blocked_total` | counter | `reason` | server | garrison-scheduler | Runs that became blocked (warning appended) |
 | `garrison_runs_blocked_current` | gauge | `reason` | server | garrison-scheduler | Queued runs no Ready worker can run right now, by reason; aggregate with max |
 | `garrison_runs_blocked_failed_total` | counter | `reason` | server | garrison-scheduler | Blocked runs failed with NoCapableWorker after Runtime.FailBlockedAfterSeconds |
 | `garrison_scheduler_claim_duration_seconds` | histogram, seconds | `result` | server | garrison-scheduler | Time to find, claim, and compile a run inside one lease request (result assigned or empty) |
+| `garrison_scheduler_deployment_lock_wait_seconds` | histogram, seconds | none | server | garrison-scheduler | Time a claim waited for the per-deployment concurrency lock that serializes claims of one deployment (Postgresql only; Sqlite has a single writer) |
 | `garrison_scheduler_lease_requests_total` | counter | `result` | server | garrison-scheduler | Worker lease requests answered, by result (assigned, empty) |
 | `garrison_scheduler_lease_wait_duration_seconds` | histogram, seconds | `result` | server | garrison-scheduler | How long a lease request waited (long poll) before it was answered |
+| `garrison_scheduler_queue_wakeups_total` | counter | `source` | server | garrison-scheduler | Lease long polls woken to look for work again, by source: notify (a run was queued or released on any replica) or poll (the fallback poll interval, Runtime.LeasePollMs, passed without a signal) |
 | `garrison_audit_events_total` | counter | `type` | server | garrison-security | Audit records written, by event type |
 | `garrison_auth_failures_total` | counter | `scheme`, `reason` | server | garrison-security | Requests rejected by authentication, by scheme (BearerToken, AccessKeySignature, ...) and reason (Invalid, NotFound, Inactive, Missing) |
 | `garrison_auth_rate_limited_total` | counter | `scope` | server | garrison-security | Requests refused by the authentication rate limiter, by limiter scope |

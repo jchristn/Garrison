@@ -104,6 +104,8 @@ namespace Garrison.Benchmark
                     return await LoadRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "resilience":
                     return await ResilienceRunner.RunAsync(context, token).ConfigureAwait(false);
+                case "scale":
+                    return await ScaleRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "compare":
                     return await CompareRunner.RunAsync(context, token).ConfigureAwait(false);
                 case "history":
@@ -141,6 +143,7 @@ namespace Garrison.Benchmark
                 "  e2e         Full run flow per probe, with the direct-invocation reference arm (the floor).",
                 "  load        Throughput and latency per concurrency (closed) or rate (open), optional scale-out sweep.",
                 "  resilience  Failing and overrunning harnesses; worker, server, and database failures (k3d).",
+                "  scale       Control plane load to failure: step up offered load across server replicas until a level breaks (P14.15).",
                 "  compare     Paired, significance-gated diff of two reports; exit 1 on regression.",
                 "  history     Headline metrics per round with net change and baselines.",
                 "  stub        Run the stub dependency (the fake harness) on its own.",

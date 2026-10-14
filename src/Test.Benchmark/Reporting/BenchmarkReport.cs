@@ -15,7 +15,7 @@ namespace Garrison.Benchmark.Reporting
         public int SchemaVersion { get; set; } = 1;
 
         /// <summary>
-        /// Report kind: ingest, routing, e2e, load, or resilience.
+        /// Report kind: ingest, routing, e2e, load, resilience, or scale.
         /// </summary>
         public string Kind { get; set; } = String.Empty;
 
@@ -78,6 +78,11 @@ namespace Garrison.Benchmark.Reporting
         /// Resilience scenarios (resilience reports).
         /// </summary>
         public List<ResilienceScenarioResult> Scenarios { get; set; } = new List<ResilienceScenarioResult>();
+
+        /// <summary>
+        /// Scale sweep (scale reports).
+        /// </summary>
+        public ScaleSummary? Scale { get; set; }
 
         /// <summary>
         /// Server-side stage breakdown over the whole measured phase, from /metrics.
