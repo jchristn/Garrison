@@ -358,6 +358,21 @@ Same machine and stack as the P14.15 results (3 servers, 10 workers x 32 slots, 
 
 At 100/s the run still breaks with a plateau at about 50 runs/s, with 85 of 320 slots busy and 481 runs waiting, but the shape is different: polls almost never sleep (wakeups fall to near zero because every poll is already busy claiming), and the host is far past its capacity (one-minute load average 44.6 on 18 logical processors, since every fake run launches a .NET process). Two limits remain that this machine cannot separate: each worker's regular lease loop asks for one run per request (`MaxRuns = 1`), and host CPU. Measuring further needs either a worker that leases several runs per request or a host with more cores than the harness launches need.
 
+#### Batch leasing and claim locks (G-30), 2026-10-14
+
+Workers now lease every free slot per request (`MaxLeaseBatch`, G-30). Two claim-path locks were also narrowed: the tenant quota lock is taken only when an enforcing quota applies to the run (it serialized every admission and claim of a tenant even with quotas off), and the per-deployment claim lock only when the deployment has `maxConcurrentRuns` set. Same stack and tier as above; this machine was also building and testing other work during these runs, so treat the numbers as indicative.
+
+| | P10.24 | Batch leasing | + tenant lock | + deployment lock |
+|---|---|---|---|---|
+| Max sustained | 49.9 runs/s | 49.9 runs/s | 49.9 runs/s | 49.9 runs/s |
+| Throughput at 100/s offered | 49.9 runs/s | 48.1 runs/s | 58.2 runs/s | 54.0 runs/s |
+| Claim p95 at 100/s | 9.3 s | 9.6 s | 6.2 s | 6.9 s |
+| Peak busy slots at 100/s | 85 of 320 | 175 of 320 | not compared | 175 of 320 |
+| Lease requests with runs at 100/s | 1,000 | 189 | not compared | 198 |
+| Lost claims per run at 100/s | 3.6 | 8.5 | not compared | 8.1 |
+
+Batch leasing works as intended (about 5 runs per lease request at 100/s, twice the busy slots), but the ceiling did not move. The leading suspect is now candidate collisions: every poll reads the same oldest candidates and claims them in order, so at 100/s each won claim costs about 8 lost ones. Spreading polls across the candidate window, or locking a batch of candidates at once with `FOR UPDATE SKIP LOCKED`, is the next thing to try, measured on a quiet machine.
+
 ## Event insertion microbenchmark (P10.22)
 
 Event ingestion uses multi-row inserts with `(runid, sequence)` replay deduplication. All chunks share one transaction, so a late failure rolls back the whole batch. PostgreSQL chunks at 4,369 rows (15 parameters per row, protocol limit 65,535). SQLite uses two-row chunks with a reused prepared command, because large named-parameter statements measured slower than small ones; its conservative parameter budget remains 999. `AdoRunEventMethods.BatchRowLimit` can tune chunk size (1 to 5,000), with the parameter budget as a second cap. Single-event batches retain the original lightweight path.

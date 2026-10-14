@@ -21,6 +21,18 @@ namespace Garrison.Core.Database.Ado
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql, c => AdoDatabaseDriver.Add(c, "key", key), token).ConfigureAwait(false);
         }
 
+        internal static async Task<QuotaExceededException?> LockAndCheckAsync(AdoDatabaseDriver driver, DbConnection connection, DbTransaction transaction, Run run, bool admission, CancellationToken token, DateTime? accountingUtc = null)
+        {
+            // Take the tenant lock only when an enforcing quota applies to the run. The lock serialized every admission and
+            // claim of a tenant even with quotas off (the default), which capped a tenant at about one claim per claim
+            // transaction time. Quota writes still take the lock, and with a quota present the check below re-reads the
+            // quotas under it; a run admitted or claimed while a quota is being enabled counts as before the quota.
+            List<UsageQuota> quotas = await AdoDatabaseDriver.QueryAsync(connection, transaction, MatchingQuery(driver), c => BindMatching(c, run), AdoUsageQuotaMethods.Map, token).ConfigureAwait(false);
+            if (quotas.Count == 0) return null;
+            await LockTenantAsync(driver, connection, transaction, run.TenantId, token).ConfigureAwait(false);
+            return await CheckAsync(driver, connection, transaction, run, admission, token, accountingUtc).ConfigureAwait(false);
+        }
+
         internal static string MatchingQuery(AdoDatabaseDriver driver)
         {
             return "SELECT * FROM " + driver.Table("usage_quotas") + " WHERE tenantid = @tenantid AND enforcementenabled = " + driver.Dialect.BooleanLiteral(true) + " AND active = " + driver.Dialect.BooleanLiteral(true)

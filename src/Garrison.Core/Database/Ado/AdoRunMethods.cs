@@ -91,9 +91,8 @@ namespace Garrison.Core.Database.Ado
                         return;
                     }
                 }
-                await QuotaAccountingSql.LockTenantAsync(_Driver, connection, transaction, obj.TenantId, ct).ConfigureAwait(false);
                 DateTime admittedUtc = DateTime.UtcNow;
-                QuotaExceededException? refusal = await QuotaAccountingSql.CheckAsync(_Driver, connection, transaction, obj, true, ct, admittedUtc).ConfigureAwait(false);
+                QuotaExceededException? refusal = await QuotaAccountingSql.LockAndCheckAsync(_Driver, connection, transaction, obj, true, ct, admittedUtc).ConfigureAwait(false);
                 if (refusal != null) throw refusal;
                 await InsertRowAsync(connection, transaction, obj, ct).ConfigureAwait(false);
                 await QuotaAccountingSql.InsertLedgerAsync(_Driver, connection, transaction, obj.Id, ct, admittedUtc: admittedUtc).ConfigureAwait(false);
@@ -530,8 +529,7 @@ namespace Garrison.Core.Database.Ado
                 result = new ClaimResult();
                 List<Run> candidates = await AdoDatabaseDriver.QueryAsync(connection, transaction, candidateSql, c => AdoDatabaseDriver.Add(c, "id", runId), Map, ct).ConfigureAwait(false);
                 if (candidates.Count == 0) return;
-                await QuotaAccountingSql.LockTenantAsync(_Driver, connection, transaction, candidates[0].TenantId, ct).ConfigureAwait(false);
-                QuotaExceededException? refusal = await QuotaAccountingSql.CheckAsync(_Driver, connection, transaction, candidates[0], false, ct).ConfigureAwait(false);
+                QuotaExceededException? refusal = await QuotaAccountingSql.LockAndCheckAsync(_Driver, connection, transaction, candidates[0], false, ct).ConfigureAwait(false);
                 if (refusal != null)
                 {
                     result.QuotaId = refusal.QuotaId;
@@ -540,8 +538,9 @@ namespace Garrison.Core.Database.Ado
                 }
 
                 // Serialize claims for this deployment so the count below sees every committed claim (READ COMMITTED takes
-                // a new snapshot per statement, after the lock is granted). Sqlite already has a single writer.
-                if (lockSql != null)
+                // a new snapshot per statement, after the lock is granted). Sqlite already has a single writer. A deployment
+                // without a concurrency limit has no count to protect, so its claims do not wait on each other.
+                if (lockSql != null && maxConcurrentRuns > 0)
                 {
                     long lockStart = Stopwatch.GetTimestamp();
                     await AdoDatabaseDriver.ExecuteAsync(connection, transaction, lockSql, command => AdoDatabaseDriver.Add(command, "key", lockKey), ct).ConfigureAwait(false);
