@@ -114,6 +114,16 @@ namespace Garrison.Server.Protocols
                 "{\"type\":\"object\",\"properties\":{\"manifest\":{\"type\":\"string\"},\"dryRun\":{\"type\":\"boolean\"},\"allowSecretValues\":{\"type\":\"boolean\"}},\"required\":[\"manifest\"]}"));
             tools.Add(Management("garrison_export_manifest", ResourceTypeEnum.Manifest, OperationTypeEnum.Read,
                 "Export your tenant configuration as {manifest: YAML text, mediaType: application/yaml}. Secrets appear as metadata only, never plaintext values. Requires Manifest.Read permission.", "{\"type\":\"object\",\"properties\":{}}"));
+            tools.Add(Management("garrison_get_pipeline", ResourceTypeEnum.Pipeline, OperationTypeEnum.Read,
+                "Read the complete configuration of one pipeline, including its ordered stages, before replacing it. Requires pipeline (name or ID) and Pipeline.Read permission.",
+                "{\"type\":\"object\",\"properties\":{\"pipeline\":{\"type\":\"string\",\"description\":\"Pipeline name or identifier (ppl_...).\"}},\"required\":[\"pipeline\"]}"));
+            tools.Add(Management("garrison_create_pipeline", ResourceTypeEnum.Pipeline, OperationTypeEnum.Create,
+                "Create a pipeline in your tenant from configuration using the standard pipeline API fields: name, optional description and maxDurationSeconds, and ordered stages (each names an agentId and may pin a deploymentId, a handoffTemplateId, review settings, retries, and parameters). Supplied ID, tenant, version, and protection are ignored. Requires Pipeline.Create permission.", ConfigurationSchema(typeof(Pipeline), null)));
+            tools.Add(Management("garrison_update_pipeline", ResourceTypeEnum.Pipeline, OperationTypeEnum.Update,
+                "Replace a pipeline configuration and its stages. Required: pipeline (name or ID) and configuration (complete pipeline API body). Read garrison_get_pipeline first so stages you want to keep are included. The version advances; pipeline runs already started keep their snapshot. Protected pipelines cannot be changed.", ConfigurationSchema(typeof(Pipeline), "pipeline")));
+            tools.Add(Management("garrison_delete_pipeline", ResourceTypeEnum.Pipeline, OperationTypeEnum.Delete,
+                "Delete a pipeline. Requires pipeline (name or ID) and Pipeline.Delete permission. Finished pipeline runs are kept; while any pipeline run is active the delete fails with PipelineInUse. Protected pipelines cannot be deleted.",
+                "{\"type\":\"object\",\"properties\":{\"pipeline\":{\"type\":\"string\",\"description\":\"Pipeline name or identifier (ppl_...).\"}},\"required\":[\"pipeline\"]}"));
             tools.Add(Tool("garrison_upload_artifact", ResourceTypeEnum.Artifact, OperationTypeEnum.Create,
                 "Upload one workspace file selected by the producing deployment's artifact globs. Requires the current run and lease epoch; run tokens may upload only for their own execution. Provider credentials remain server-side.",
                 "{\"type\":\"object\",\"properties\":{\"runId\":{\"type\":\"string\"},\"storeId\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"mediaType\":{\"type\":\"string\"},\"epoch\":{\"type\":\"integer\"},\"repairAttempt\":{\"type\":\"integer\"},\"contentBase64\":{\"type\":\"string\"}},\"required\":[\"runId\",\"storeId\",\"name\",\"epoch\",\"repairAttempt\",\"contentBase64\"]}"));
@@ -153,6 +163,27 @@ namespace Garrison.Server.Protocols
             tools.Add(Tool("garrison_decide_approval", ResourceTypeEnum.Approval, OperationTypeEnum.Update,
                 "Allow or deny a pending permission approval; the waiting harness continues at once. Required: approvalId and decision (Allow or Deny). Optional: reason (shown to the harness on a denial), remember (true adds a deployment rule so the same request is decided the same way next time; needs permission to update the deployment), and rulePattern (the rule to add; defaults to the approval's suggested rule).",
                 "{\"type\":\"object\",\"properties\":{\"approvalId\":{\"type\":\"string\",\"description\":\"Approval identifier (apr_...).\"},\"decision\":{\"type\":\"string\",\"enum\":[\"Allow\",\"Deny\"],\"description\":\"Allow or Deny.\"},\"reason\":{\"type\":\"string\",\"description\":\"Optional. Why.\"},\"remember\":{\"type\":\"boolean\",\"description\":\"Optional. Also add a deployment rule. Default false.\"},\"rulePattern\":{\"type\":\"string\",\"description\":\"Optional. Rule to add when remember is true, for example Bash(git status:*).\"}},\"required\":[\"approvalId\",\"decision\"]}"));
+            tools.Add(UserTool("garrison_list_pipelines", ResourceTypeEnum.Pipeline, OperationTypeEnum.Read,
+                "List the pipelines in your tenant: ordered agent stages with optional human review gates. Call it with no arguments unless you need to narrow the list. Optional: search (part of a pipeline name) and maxResults (1 to 100, default 25).",
+                "{\"type\":\"object\",\"properties\":{\"search\":{\"type\":\"string\",\"description\":\"Optional. Part of a pipeline name.\"},\"maxResults\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100,\"description\":\"Optional. Default 25.\"}}}"));
+            tools.Add(UserTool("garrison_start_pipeline", ResourceTypeEnum.Pipeline, OperationTypeEnum.Execute,
+                "Start a pipeline: its stages run in order and each stage receives your input plus the earlier stages' results. Required: pipeline (name or identifier) and input (the complete request). Optional: waitSeconds waits until the pipeline run ends or waits for a review (omit it to return at once), idempotencyKey makes a repeated start return the same pipeline run, inputContentType, and priority. Requires permission to run every stage agent. Follow the returned pipelineRunId with garrison_get_pipeline_run.",
+                "{\"type\":\"object\",\"properties\":{\"pipeline\":{\"type\":\"string\",\"description\":\"Pipeline name or identifier (ppl_...).\"},\"input\":{\"type\":\"string\",\"description\":\"The complete request every stage works on.\"},\"waitSeconds\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":600,\"description\":\"Optional. Seconds to wait until the pipeline run ends or waits for a review. Omit it to return at once.\"},\"idempotencyKey\":{\"type\":\"string\",\"description\":\"Optional. Repeating a start with the same key and input returns the same pipeline run.\"},\"inputContentType\":{\"type\":\"string\",\"description\":\"Optional. Media type of the input. Default text/plain.\"},\"priority\":{\"type\":\"integer\",\"description\":\"Optional. Priority of the stage runs. Default 0.\"}},\"required\":[\"pipeline\",\"input\"]}"));
+            tools.Add(UserTool("garrison_get_pipeline_run", ResourceTypeEnum.PipelineRun, OperationTypeEnum.Read,
+                "Get a pipeline run: its status and outcome, each stage with its runs, and its reviews. Required: pipelineRunId. Optional: waitSeconds waits until the pipeline run ends or waits for a review.",
+                "{\"type\":\"object\",\"properties\":{\"pipelineRunId\":{\"type\":\"string\",\"description\":\"Pipeline run identifier (plr_...).\"},\"waitSeconds\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":600,\"description\":\"Optional. Seconds to wait until the pipeline run ends or waits for a review. Omit it to read at once.\"}},\"required\":[\"pipelineRunId\"]}"));
+            tools.Add(UserTool("garrison_list_pipeline_runs", ResourceTypeEnum.PipelineRun, OperationTypeEnum.Read,
+                "List recent pipeline runs, newest first. Call it with no arguments unless you need to filter. Optional: pipeline (name or identifier), status (Running, AwaitingReview, Cancelling, Succeeded, Failed, Cancelled, TimedOut), and maxResults (1 to 100, default 25).",
+                "{\"type\":\"object\",\"properties\":{\"pipeline\":{\"type\":\"string\",\"description\":\"Optional. Pipeline name or identifier.\"},\"status\":{\"type\":\"string\",\"description\":\"Optional. Running, AwaitingReview, Cancelling, Succeeded, Failed, Cancelled, or TimedOut.\"},\"maxResults\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100,\"description\":\"Optional. Default 25.\"}}}"));
+            tools.Add(UserTool("garrison_cancel_pipeline_run", ResourceTypeEnum.PipelineRun, OperationTypeEnum.Update,
+                "Cancel an active pipeline run: its pending review and its current stage run are cancelled too. Required: pipelineRunId.",
+                "{\"type\":\"object\",\"properties\":{\"pipelineRunId\":{\"type\":\"string\",\"description\":\"Pipeline run identifier (plr_...).\"}},\"required\":[\"pipelineRunId\"]}"));
+            tools.Add(UserTool("garrison_list_pipeline_reviews", ResourceTypeEnum.Approval, OperationTypeEnum.Read,
+                "List pipeline stage reviews, newest first. Call it with no arguments unless you need to filter. Optional: status (Pending, Approved, ChangesRequested, Rejected, Expired, Cancelled), pipelineRunId, and maxResults (1 to 100, default 25).",
+                "{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\",\"description\":\"Optional. Pending, Approved, ChangesRequested, Rejected, Expired, or Cancelled.\"},\"pipelineRunId\":{\"type\":\"string\",\"description\":\"Optional. Pipeline run identifier (plr_...).\"},\"maxResults\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100,\"description\":\"Optional. Default 25.\"}}}"));
+            tools.Add(UserTool("garrison_decide_pipeline_review", ResourceTypeEnum.Approval, OperationTypeEnum.Update,
+                "Decide a pending pipeline stage review. Required: reviewId and decision. Approve continues the pipeline (an optional comment reaches the next stage as review notes); RequestChanges runs the stage again with your comment as feedback (comment required, limited by the stage's maxRevisions); Reject fails the pipeline run.",
+                "{\"type\":\"object\",\"properties\":{\"reviewId\":{\"type\":\"string\",\"description\":\"Review identifier (prv_...).\"},\"decision\":{\"type\":\"string\",\"enum\":[\"Approve\",\"RequestChanges\",\"Reject\"],\"description\":\"Approve, RequestChanges, or Reject.\"},\"comment\":{\"type\":\"string\",\"description\":\"Optional for Approve and Reject, required for RequestChanges. At most 8000 characters.\"}},\"required\":[\"reviewId\",\"decision\"]}"));
             return tools;
         }
 
@@ -164,6 +195,14 @@ namespace Garrison.Server.Protocols
         {
             McpToolDefinition tool = Tool(name, resourceType, operation, description, schema);
             tool.ManagementTool = true;
+            tool.UserOnly = true;
+            return tool;
+        }
+
+        private static McpToolDefinition UserTool(string name, ResourceTypeEnum resourceType, OperationTypeEnum operation, string description, string schema)
+        {
+            McpToolDefinition tool = Tool(name, resourceType, operation, description, schema);
+            tool.UserOnly = true;
             return tool;
         }
 

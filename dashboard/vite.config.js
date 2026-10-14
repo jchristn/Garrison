@@ -37,6 +37,8 @@ export default defineConfig({
           // One chunk per locale (catalog plus tooltips) keeps every chunk under the size warning.
           const locale = id.match(/\/src\/i18n\/locales\/([A-Za-z-]+?)(?:\.tips)?\.js$/);
           if (locale) return `locale-${locale[1]}`;
+          // Pipeline components (P12.9) get their own chunk so the views chunk stays under the size warning.
+          if (/\/src\/components\/Pipeline/.test(id)) return 'pipelines';
           if (id.includes('/src/views/')) return 'views';
           return undefined;
         }

@@ -7,6 +7,7 @@ namespace Garrison.Core.Services
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Compilation;
     using Garrison.Core.Database;
     using Garrison.Core.Enums;
     using Garrison.Core.Helpers;
@@ -256,6 +257,133 @@ namespace Garrison.Core.Services
                 }
                 if (rule.Description != null && rule.Description.Length > 1000) errors[field + ".description"] = "The description is longer than 1000 characters.";
             }
+        }
+
+        /// <summary>
+        /// Validate a pipeline definition (P12.9): name, duration, stage count, stage names, agent and deployment
+        /// references (a stage's deployment must belong to its agent), handoff template kind (Task) and pinned version,
+        /// stage ranges, and stage run parameters (only with a deployment, checked against its allowed run overrides).
+        /// Fields are reported as stages[i].field.
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="pipeline">Pipeline.</param>
+        /// <param name="maxStages">Most stages allowed (the cluster setting Runtime.PipelineMaxStages, 1 to 100).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ValidationException">Thrown when the pipeline is invalid.</exception>
+        public static async Task PipelineAsync(DatabaseDriverBase database, string tenantId, Pipeline pipeline, int maxStages, CancellationToken token = default)
+        {
+            if (database == null) throw new ArgumentNullException(nameof(database));
+            if (pipeline == null) throw new ValidationException("A pipeline is required.");
+            Dictionary<string, string> errors = new Dictionary<string, string>();
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            if (!_AgentName.IsMatch(pipeline.Name ?? String.Empty)) errors["name"] = "Pipeline names are 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.";
+            if (pipeline.Description != null && pipeline.Description.Length > 4000) errors["description"] = "Descriptions are limited to 4000 characters.";
+            if (pipeline.MaxDurationSeconds < 0 || pipeline.MaxDurationSeconds > 2592000) errors["maxDurationSeconds"] = "maxDurationSeconds is 0 (no limit) to 2592000 (30 days).";
+            int limit = Math.Clamp(maxStages, 1, 100);
+            if (pipeline.Stages.Count == 0)
+            {
+                errors["stages"] = "A pipeline needs at least one stage.";
+                codes["stages"] = "PipelineEmpty";
+            }
+            else if (pipeline.Stages.Count > limit)
+            {
+                errors["stages"] = "A pipeline has at most " + limit + " stages (Runtime.PipelineMaxStages); this one has " + pipeline.Stages.Count + ".";
+                codes["stages"] = "TooManyStages";
+            }
+
+            HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < pipeline.Stages.Count; i++)
+            {
+                token.ThrowIfCancellationRequested();
+                PipelineStage stage = pipeline.Stages[i];
+                string field = "stages[" + i + "]";
+                if (String.IsNullOrWhiteSpace(stage.Name)) errors[field + ".name"] = "A stage name is required.";
+                else if (stage.Name.Length > 128) errors[field + ".name"] = "Stage names are limited to 128 characters.";
+                else if (!names.Add(stage.Name.Trim())) errors[field + ".name"] = "Stage name " + stage.Name + " is used twice.";
+                if (stage.Description != null && stage.Description.Length > 4000) errors[field + ".description"] = "Descriptions are limited to 4000 characters.";
+                if (stage.OutputCharLimit < 1000 || stage.OutputCharLimit > 200000) errors[field + ".outputCharLimit"] = "outputCharLimit is 1000 to 200000.";
+                if (stage.MaxAttempts < 1 || stage.MaxAttempts > 5) errors[field + ".maxAttempts"] = "maxAttempts is 1 to 5.";
+                if (stage.ReviewTimeoutSeconds < 0 || stage.ReviewTimeoutSeconds > 2592000) errors[field + ".reviewTimeoutSeconds"] = "reviewTimeoutSeconds is 0 (wait indefinitely) to 2592000 (30 days).";
+                if (stage.ReviewTimeoutAction == PipelineReviewDecisionEnum.RequestChanges) errors[field + ".reviewTimeoutAction"] = "The review timeout action is Approve or Reject.";
+                if (stage.MaxRevisions < 0 || stage.MaxRevisions > 10) errors[field + ".maxRevisions"] = "maxRevisions is 0 to 10.";
+
+                Agent? agent = String.IsNullOrEmpty(stage.AgentId) ? null : await database.Agents.ReadAsync(tenantId, stage.AgentId, token).ConfigureAwait(false);
+                if (agent == null)
+                {
+                    errors[field + ".agentId"] = "The agent does not exist in this tenant.";
+                    codes[field + ".agentId"] = "ReferenceNotFound";
+                }
+
+                Deployment? deployment = null;
+                if (!String.IsNullOrEmpty(stage.DeploymentId))
+                {
+                    deployment = await database.Deployments.ReadAsync(tenantId, stage.DeploymentId, token).ConfigureAwait(false);
+                    if (deployment == null)
+                    {
+                        errors[field + ".deploymentId"] = "The deployment does not exist in this tenant.";
+                        codes[field + ".deploymentId"] = "ReferenceNotFound";
+                    }
+                    else if (agent != null && deployment.AgentId != agent.Id)
+                    {
+                        errors[field + ".deploymentId"] = "Deployment " + deployment.Name + " belongs to another agent, not " + agent.Name + ".";
+                        codes[field + ".deploymentId"] = "DeploymentAgentMismatch";
+                    }
+                }
+
+                if (!String.IsNullOrEmpty(stage.HandoffTemplateId))
+                {
+                    PromptTemplate? template = await database.PromptTemplates.ReadAsync(tenantId, stage.HandoffTemplateId, token).ConfigureAwait(false);
+                    if (template == null)
+                    {
+                        errors[field + ".handoffTemplateId"] = "The prompt template does not exist or is not visible to this tenant.";
+                        codes[field + ".handoffTemplateId"] = "ReferenceNotFound";
+                    }
+                    else if (template.Kind != PromptTemplateKindEnum.Task)
+                    {
+                        errors[field + ".handoffTemplateId"] = "Prompt template " + template.Name + " is a " + template.Kind + " template; a pipeline stage handoff template must be a Task template.";
+                        codes[field + ".handoffTemplateId"] = "TemplateKindMismatch";
+                    }
+                    else if (stage.HandoffTemplateVersion.HasValue && stage.HandoffTemplateVersion.Value != template.CurrentVersion
+                        && await database.PromptTemplateVersions.ReadByVersionAsync(template.Id, stage.HandoffTemplateVersion.Value, token).ConfigureAwait(false) == null)
+                    {
+                        errors[field + ".handoffTemplateVersion"] = "Version " + stage.HandoffTemplateVersion.Value + " of " + template.Name + " does not exist.";
+                        codes[field + ".handoffTemplateVersion"] = "ReferenceNotFound";
+                    }
+                }
+                else if (stage.HandoffTemplateVersion.HasValue)
+                {
+                    errors[field + ".handoffTemplateVersion"] = "A pinned version needs a handoffTemplateId.";
+                }
+
+                if (stage.Parameters.Count > 0)
+                {
+                    HashSet<string> parameterNames = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (PipelineStageParameter parameter in stage.Parameters)
+                    {
+                        if (String.IsNullOrWhiteSpace(parameter.Name) || !parameterNames.Add(parameter.Name)) errors[field + ".parameters"] = "Parameter names are required and unique.";
+                    }
+                    if (String.IsNullOrEmpty(stage.DeploymentId))
+                    {
+                        errors[field + ".parameters"] = "Stage run parameters need a deploymentId, because they are checked against that deployment's allowed run overrides.";
+                    }
+                    else if (deployment != null && !errors.ContainsKey(field + ".parameters"))
+                    {
+                        try
+                        {
+                            RunOverrideValidator.Validate(deployment, stage.Parameters.Select(p => new RunParameter { Name = p.Name, Value = p.Value }).ToList());
+                        }
+                        catch (ValidationException e)
+                        {
+                            foreach (KeyValuePair<string, string> error in e.Fields) errors[field + "." + error.Key] = error.Value;
+                            foreach (KeyValuePair<string, string> code in e.Codes) codes[field + "." + code.Key] = code.Value;
+                        }
+                    }
+                }
+            }
+
+            if (errors.Count > 0) throw new ValidationException("The pipeline is invalid: " + String.Join(" ", errors.Select(e => e.Key + ": " + e.Value)), errors, codes);
         }
 
         /// <summary>

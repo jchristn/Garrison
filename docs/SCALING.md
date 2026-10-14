@@ -43,7 +43,8 @@ More than one replica needs PostgreSQL. Garrison refuses to start on Sqlite when
 | Permissions | Grant caches (15 seconds) are dropped on every replica when roles, permissions, assignments, users, or credentials change |
 | Revocation | Sessions are database rows, so revoking a token takes effect on every replica |
 | New work | Queuing a run wakes waiting long polls on every replica through the backplane. Without a message, a long poll still re-checks every `LeasePollMs` (500 ms) |
-| Run events | Event ingestion on any replica wakes that run's SSE, A2A, and synchronous-invoke waiters on every replica. Without a message, they re-read every `4 x Scheduling.EventPollMs` (1 second) |
+| Run events | Event ingestion on any replica wakes that run's SSE and A2A streaming subscribers on every replica. Without a message, they re-read every `4 x Scheduling.EventPollMs` (1 second) |
+| Run completion | A run finishing on any replica wakes its synchronous-invoke waiters on every replica. They ignore event batches, and without a message they re-read every `Scheduling.InvocationWaitPollMs` (5 seconds), so a backlog of waiting invocations costs about one read per waiter every 5 seconds instead of one per second plus one per event batch |
 | Permission approvals | A harness call waiting on an approval is held by the replica that received it. A decision on any replica is a compare-and-set update of the `approvals` row and publishes `ApprovalChanged`, which wakes the waiter wherever it is; without a message the waiter re-reads the row every 2 seconds. The leader's sweep cancels approvals of runs that stopped and expires approvals nobody is waiting on any more |
 | Signed-request replay | Nonces are stored in `request_nonces` until twice `Auth.SignedRequestSkewSeconds` has passed, so a captured request cannot be replayed on any replica |
 | Token rate limit | `Auth.RateLimitPerMinute` is counted in `rate_limit_buckets`, so the limit is the same however many replicas run |
@@ -179,6 +180,7 @@ All of these are cluster settings and apply live.
 | `Scheduling.NodeHeartbeatTimeoutMs` | 20000 | Same, for whole nodes | Same |
 | `Scheduling.LeaseWaitMs` | 20000 | Fewer lease requests from idle workers | Faster reaction when a replica's wake-up is missed |
 | `Scheduling.EventPollMs` | 250 | Less database load from streams | Lower streaming latency |
+| `Scheduling.InvocationWaitPollMs` | 5000 | Less database load from waiting invocations | A waiter whose completion signal was lost answers sooner |
 | `ControlPlane.HeartbeatIntervalMs` | 5000 | Fewer control node writes | Fresher activity counters |
 | `ControlPlane.OfflineAfterMs` | 30000 | Fewer false `Offline` rows on a slow database | A crashed replica shows `Offline` sooner |
 | `Scheduling.PauseGraceMs` | 5000 | Fewer false pause detections on a slow database | Shorter pauses are caught (see "Pauses" below) |

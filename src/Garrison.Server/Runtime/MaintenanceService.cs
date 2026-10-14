@@ -126,6 +126,13 @@ namespace Garrison.Server.Runtime
         public ApprovalService? Approvals { get; set; } = null;
 
         /// <summary>
+        /// Pipeline service (P12.9). When set, the leader sweeps pipeline runs every
+        /// <see cref="RuntimeOptions.PipelineSweepIntervalMs"/>, and retention also removes finished pipeline runs and skips
+        /// stage runs of active pipeline runs. Default null.
+        /// </summary>
+        public PipelineService? Pipelines { get; set; } = null;
+
+        /// <summary>
         /// Interval between blocked-run passes in the leader loop, in milliseconds. Minimum 1000, maximum 300000, default
         /// 5000. <see cref="RunOnceAsync"/> always runs a pass.
         /// </summary>
@@ -223,6 +230,7 @@ namespace Garrison.Server.Runtime
         private int _CleanupIntervalMs = 60000;
         private int _BackplaneRetentionMinutes = 5;
         private DateTime _LastCleanupUtc = DateTime.MinValue;
+        private DateTime _LastPipelineSweepUtc = DateTime.MinValue;
         private long _LeaderPasses = 0;
         private readonly SemaphoreSlim _BlockedLock = new SemaphoreSlim(1, 1);
         private readonly ConcurrentDictionary<string, BlockedRunState> _Blocked = new ConcurrentDictionary<string, BlockedRunState>(StringComparer.Ordinal);
@@ -323,11 +331,11 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
-        /// Apply run and event retention once, archiving first when an <see cref="Archiver"/> is set. Used by the leader
-        /// loop and by tests.
+        /// Apply run, event, and finished pipeline run retention once, archiving runs and events first when an
+        /// <see cref="Archiver"/> is set. Stage runs of active pipeline runs are kept. Used by the leader loop and by tests.
         /// </summary>
         /// <param name="token">Cancellation token.</param>
-        /// <returns>Runs and events removed.</returns>
+        /// <returns>Runs, events, and pipeline runs removed.</returns>
         public async Task<int> ApplyRetentionAsync(CancellationToken token = default)
         {
             DateTime runCutoff = Now.AddDays(-Math.Max(1, RunRetentionDays()));
@@ -347,9 +355,11 @@ namespace Garrison.Server.Runtime
                 events = await _Database.RunEvents.PruneAsync(eventCutoff, token).ConfigureAwait(false);
                 if (runs + events > 0) _Logging.Info(_Header + "retention pruned " + runs + " runs and " + events + " events");
             }
+            // Finished pipeline runs follow the run retention; stage runs of active pipeline runs are never pruned (P12.9).
+            int pipelineRuns = Pipelines != null ? Pruned("pipeline_runs", await _Database.PipelineRuns.PruneFinishedAsync(runCutoff, token).ConfigureAwait(false)) : 0;
             if (runs > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, runs, GarrisonMetrics.Tags("kind", "runs"));
             if (events > 0) GarrisonMetrics.Count(GarrisonMetricCatalog.RetentionDeleted, events, GarrisonMetrics.Tags("kind", "run_events"));
-            return runs + events;
+            return runs + events + pipelineRuns;
         }
 
         /// <summary>
@@ -453,6 +463,21 @@ namespace Garrison.Server.Runtime
                     if (await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "mark_offline_control_nodes", MarkOfflineControlNodesAsync, token).ConfigureAwait(false);
                     ApprovalService? approvals = Approvals;
                     if (approvals != null && await AwakeAsync(token).ConfigureAwait(false)) await GarrisonTracing.BackgroundAsync("maintenance", "approvals", approvals.SweepAsync, token).ConfigureAwait(false);
+                    PipelineService? pipelines = Pipelines;
+                    if (pipelines != null && (Now - _LastPipelineSweepUtc).TotalMilliseconds >= _Options.PipelineSweepIntervalMs && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        _LastPipelineSweepUtc = Now;
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "pipelines", pipelines.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // The sweep can legitimately take a while (it is bounded by PipelineService.SweepBudgetMs); its
+                            // own duration is work, not a pause, so it must not make the next step look paused.
+                            _Pause.Touch();
+                        }
+                    }
                     if ((forceBlockedCheck || (Now - _LastBlockedCheckUtc).TotalMilliseconds >= _BlockedCheckIntervalMs) && await AwakeAsync(token).ConfigureAwait(false))
                     {
                         _LastBlockedCheckUtc = Now;

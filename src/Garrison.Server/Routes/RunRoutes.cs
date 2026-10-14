@@ -157,6 +157,7 @@ namespace Garrison.Server.Routes
             filter.ParentRunId = RouteHelpers.Query(context, "parentRunId");
             filter.RootRunId = RouteHelpers.Query(context, "rootRunId");
             filter.ConversationId = RouteHelpers.Query(context, "conversationId");
+            filter.PipelineRunId = RouteHelpers.Query(context, "pipelineRunId");
             filter.Outcome = RouteHelpers.QueryEnum<RunOutcomeEnum>(context, "outcome");
             filter.CallerId = RouteHelpers.Query(context, "callerId");
             filter.FromUtc = RouteHelpers.QueryDate(context, "fromUtc");

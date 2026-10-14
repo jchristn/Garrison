@@ -1659,6 +1659,7 @@ const fr = {
           MasterKey: 'Clé maîtresse de chiffrement des secrets'
         },
         RequestHistory: {
+          CaptureNodeProtocol: 'Capturer les requêtes réussies du protocole des workers',
           MaxResponseBodyBytes: 'Corps de réponse enregistré au maximum (octets)',
           MaxRequestBodyBytes: 'Corps de requête enregistré au maximum (octets)',
           RetentionDays: 'Conservation de l\'historique des requêtes (jours)',
@@ -1682,6 +1683,7 @@ const fr = {
         },
         Scheduling: {
           EventPollMs: 'Intervalle d\'interrogation des événements (ms)',
+          InvocationWaitPollMs: 'Relecture de secours pendant l\'attente d\'invocation (ms)',
           NodeHeartbeatTimeoutMs: 'Délai de pulsation des nœuds (ms)',
           LeaseWaitMs: 'Attente de long polling des baux (ms)',
           LeaseDurationMs: 'Durée du bail d\'exécution (ms)',
@@ -1953,3 +1955,199 @@ fr.views.settings.fields.Leases = {"Provider": "Fournisseur", "ClutchEndpoint": 
 
 fr.enums.harnessType.ProviderApi = "API du fournisseur";
 fr.enums.outputParser.ProviderApiJsonl = "JSONL API du fournisseur";
+
+// Pipelines (P12.9) : définitions (Agents > Pipelines), exécutions de pipeline (Exécutions > Exécutions de pipeline)
+// et revues d'étape (Approbations > Revues d'étape).
+fr.nav.hubs.approvals.tip = "Appels d'outil et étapes de pipeline en attente d'une personne, et toutes les décisions";
+Object.assign(fr.nav, { approvalsPending_one: "{{count}} élément en attente d'une personne", approvalsPending_many: "{{count}} éléments en attente d'une personne", approvalsPending_other: "{{count}} éléments en attente d'une personne" });
+Object.assign(fr.nav.items, {
+  pipelines: { label: "Pipelines d'agents", tip: "Étapes d'agents ordonnées avec des points de revue facultatifs" },
+  pipelineRuns: { label: "Exécutions de pipeline", tip: "Exécutions des pipelines, étape par étape" },
+  pipelineReviews: { label: "Revues d'étape", tip: "Étapes de pipeline qui attendent la revue d'une personne" }
+});
+Object.assign(fr.errorCodes, {
+  RevisionLimitReached: "Cette étape a déjà utilisé toutes ses révisions : il n'est plus possible de demander des modifications. Approuvez-la ou rejetez-la.",
+  ReviewNotPending: "Cette revue a déjà été décidée, par quelqu'un d'autre ou par son délai d'expiration, et ne peut plus l'être à nouveau.",
+  PipelineInUse: "Ce pipeline a des exécutions non terminées. Attendez qu'elles se terminent, ou annulez-les, puis supprimez le pipeline.",
+  PipelineRunActive: "Seules les exécutions de pipeline terminées peuvent être supprimées. Annulez d'abord cette exécution de pipeline.",
+  PipelineRunFinished: "Cette exécution de pipeline est déjà terminée et ne peut donc pas être annulée.",
+  PipelineRunNotRetryable: "Seules les exécutions de pipeline échouées, expirées ou annulées peuvent être relancées.",
+  PipelineRunChanged: "Cette exécution de pipeline a changé pendant le traitement de la requête. Rechargez-la et réessayez.",
+  PipelineInactive: "Ce pipeline est inactif. Activez-le avant de le démarrer.",
+  PipelineEmpty: "Un pipeline doit comporter au moins une étape.",
+  PipelineStageRun: "Cette exécution est une étape d'une exécution de pipeline : elle ne peut pas être relancée seule. Relancez plutôt l'exécution de pipeline.",
+  ReferencedByPipeline: "Une étape de pipeline utilise cet agent. Retirez l'agent de tous les pipelines avant de le supprimer."
+});
+fr.enums.pipelineRunStatus = { Running: "En cours", AwaitingReview: "En attente de revue", Cancelling: "Annulation en cours", Succeeded: "Réussie", Failed: "Échouée", Cancelled: "Annulée", TimedOut: "Expirée" };
+fr.enums.pipelineRunOutcome = { None: "Aucun", Succeeded: "Réussite", StageFailed: "Échec d'une étape", StageStartFailed: "Étape impossible à démarrer", ReviewRejected: "Revue rejetée", ReviewExpired: "Revue expirée", Cancelled: "Annulée", TimedOut: "Délai dépassé", InternalError: "Erreur interne" };
+fr.enums.pipelineStageStatus = { Pending: "En attente", Running: "En cours", AwaitingReview: "En attente de revue", Succeeded: "Réussie", Failed: "Échouée", Cancelled: "Annulée" };
+fr.enums.pipelineReviewStatus = { Pending: "En attente", Approved: "Approuvée", ChangesRequested: "Modifications demandées", Rejected: "Rejetée", Expired: "Expirée", Cancelled: "Annulée" };
+fr.enums.pipelineReviewDecision = { Approve: "Approuver", RequestChanges: "Demander des modifications", Reject: "Rejeter" };
+fr.enums.pipelineReviewSource = { User: "Personne", Timeout: "Délai d'expiration", Cancelled: "Exécution de pipeline arrêtée" };
+Object.assign(fr.enums.resourceType, { Pipeline: "Pipeline d'agents", PipelineRun: "Exécution de pipeline" });
+Object.assign(fr.enums.auditEventType, { PipelineReviewDecided: "Revue d'étape décidée", PipelineRunCancelled: "Exécution de pipeline annulée" });
+fr.resources.deployments.promptRoles.PipelineStage = "Étape de pipeline (transmission)";
+Object.assign(fr.resources.runs.columns, { pipelineRunId: "Exécution de pipeline" });
+fr.resources.runs.pipelineStage = "étape {{position}}, exécution {{execution}}";
+fr.resources.pipelines = {
+  ...rp("Pipelines d'agents", "Étapes d'agents ordonnées : chaque étape exécute un agent et transmet sa sortie à la suivante, avec des points de revue facultatifs.", "Ajouter un pipeline", "Créer un pipeline", "Modifier le pipeline", "Détails du pipeline", "Supprimer le pipeline", "Aucun pipeline pour l'instant", "Créez un pipeline pour enchaîner des agents : chaque étape reçoit la sortie de l'étape précédente."),
+  columns: { name: "Nom", stages: "Étapes", reviewGates: "Points de revue", maxDurationSeconds: "Durée maximale", version: "Version", active: "Active", description: "Description", id: "ID", lastUpdateUtc: "Mis à jour", createdUtc: "Créé" },
+  fields: {
+    name: "Nom",
+    description: "Description",
+    maxDurationSeconds: "Durée maximale (secondes)",
+    active: "Active",
+    stages: "Étapes",
+    stageName: "Nom de l'étape",
+    agentId: "Agent",
+    deploymentId: "Déploiement",
+    handoffTemplateId: "Modèle de transmission",
+    handoffTemplateVersion: "Version de modèle épinglée",
+    outputCharLimit: "Limite de caractères transmis",
+    maxAttempts: "Nombre maximal de tentatives",
+    continueOnFailure: "Continuer en cas d'échec",
+    requiresReview: "Revue requise",
+    reviewTimeoutSeconds: "Délai de revue (secondes)",
+    reviewTimeoutAction: "À l'expiration de la revue",
+    maxRevisions: "Nombre maximal de révisions",
+    stageDescription: "Description de l'étape",
+    parameters: "Paramètres d'exécution"
+  },
+  hints: {
+    maxDurationSeconds: "De {{min}} à {{max}}. 0 signifie aucune limite. La limite couvre toute l'exécution du pipeline, y compris le temps d'attente des revues.",
+    stages: "Les étapes s'exécutent dans cet ordre. Chaque étape démarre quand la précédente réussit (ou échoue avec Continuer en cas d'échec) et, si elle exige une revue, après qu'une personne l'a approuvée.",
+    noDeployments: "Cet agent n'a pas encore de déploiement. Laissez le déploiement vide ou ajoutez-en un dans Déploiements.",
+    handoffTemplateVersion: "Vide : utilise la version actuelle du modèle.",
+    outputCharLimit: "De {{min}} à {{max}}. Par défaut {{default}}.",
+    maxAttempts: "De {{min}} à {{max}}. Par défaut {{default}}.",
+    reviewTimeoutSeconds: "De {{min}} à {{max}}. 0 attend indéfiniment.",
+    maxRevisions: "De {{min}} à {{max}}. Par défaut {{default}}.",
+    parameters: "Uniquement avec un déploiement, et seulement pour les paramètres que ce déploiement permet de remplacer."
+  },
+  errors: {
+    dnsName: "Utilisez de 1 à 64 lettres minuscules, chiffres et tirets, en commençant et en terminant par une lettre ou un chiffre.",
+    range: "Saisissez un nombre entier de {{min}} à {{max}}.",
+    noStages: "Ajoutez au moins une étape.",
+    tooManyStages: "Un pipeline comporte au plus {{max}} étapes.",
+    stageNameLong: "Les noms d'étape sont limités à 128 caractères.",
+    stageNameDuplicate: "Une autre étape s'appelle déjà {{name}}.",
+    version: "Saisissez un numéro de version supérieur ou égal à 1, ou laissez vide.",
+    parametersNeedDeployment: "Les paramètres d'exécution exigent un déploiement, car ils sont vérifiés par rapport aux remplacements qu'il autorise.",
+    parametersUnique: "Chaque nom de paramètre ne peut apparaître qu'une fois.",
+    stageInvalid: "cette étape contient des erreurs."
+  },
+  actions: { start: "Démarrer", preview: "Aperçu des prompts", runs: "Voir les exécutions de pipeline" },
+  stageHeading: "Étape {{position}} : {{name}}",
+  stageCount: "{{count}} sur {{max}} au plus",
+  stageSummary: "{{count}} étapes : {{chain}}",
+  addStage: "Ajouter une étape",
+  removeStage: "Supprimer l'étape",
+  noStages: "Aucune étape pour l'instant.",
+  chooseAgent: "Choisissez un agent",
+  anyDeployment: "Tout déploiement actif (pondéré)",
+  defaultHandoff: "Liaison du déploiement ou modèle intégré",
+  parameterName: "Paramètre",
+  parameterValue: "Valeur",
+  noLimit: "Aucune limite",
+  versionNotice: "Version {{version}}. L'enregistrement crée une nouvelle version ; les exécutions de pipeline déjà démarrées gardent leurs étapes d'origine."
+};
+fr.resources.pipelineRuns = {
+  ...rp("Exécutions de pipeline", "Chaque exécution d'un pipeline. Ouvrez-en une pour suivre ses étapes, décider ses revues, ou l'annuler et la relancer.", "Ajouter une exécution de pipeline", "Créer une exécution de pipeline", "Modifier l'exécution de pipeline", "Détails de l'exécution de pipeline", "Supprimer l'exécution de pipeline", "Aucune exécution de pipeline pour l'instant", "Démarrez un pipeline depuis Agents > Pipelines pour voir ses exécutions ici."),
+  columns: { id: "ID", pipelineName: "Pipeline d'agents", status: "État", outcome: "Résultat", progress: "Étape", callerName: "Démarrée par", errorMessage: "Erreur", priority: "Priorité", deadlineUtc: "Échéance", completedUtc: "Terminée", createdUtc: "Créée" },
+  actions: { cancel: "Annuler", retry: "Relancer", stageRuns: "Voir les exécutions d'étape", finalRun: "Ouvrir l'exécution finale" },
+  toasts: { cancelRequested: "Annulation demandée pour l'exécution de pipeline et son étape en cours.", retried: "L'exécution de pipeline reprend à l'étape où elle s'est arrêtée." },
+  progressValue: "{{position}} sur {{count}}",
+  versionShort: "(version n° {{version}})"
+};
+fr.resources.pipelineReviews = {
+  ...rp("Revues d'étape", "Étapes de pipeline qui attendent qu'une personne les approuve, demande des modifications ou les rejette.", "Ajouter une revue d'étape", "Créer une revue d'étape", "Modifier la revue d'étape", "Détails de la revue d'étape", "Supprimer la revue d'étape", "Aucune revue d'étape pour l'instant", "Les étapes qui exigent une revue apparaissent ici une fois terminées."),
+  columns: { createdUtc: "Demandée", pipelineName: "Pipeline d'agents", stageName: "Étape", status: "État", decision: "Décision", decisionSource: "Décidée par", comment: "Commentaire", decidedBy: "Relecteur", expiresUtc: "Expiration", pipelineRunId: "Exécution de pipeline", runId: "Exécution d'étape", decidedUtc: "Décidée", id: "ID" },
+  filters: { pipelineRunId: "ID de l'exécution de pipeline", pipelineRunIdPlaceholder: "ID de l'exécution de pipeline (plr_...)" },
+  actions: { approve: "Approuver", requestChanges: "Demander des modifications", reject: "Rejeter", openStageRun: "Ouvrir l'exécution d'étape" },
+  noTimeout: "Attend indéfiniment"
+};
+fr.components.pipelineReviews = {
+  decideTitle: "Revue de l'étape {{stage}} de {{pipeline}}",
+  decision: "Décision",
+  positionExecution: "étape {{position}}, exécution {{execution}}",
+  revisionsLeft: "Révisions restantes",
+  revisionsLeftValue: "{{left}} sur {{max}}",
+  noRevisionsLeft: "Cette étape a utilisé ses {{max}} révisions. Le serveur refusera Demander des modifications ; approuvez-la ou rejetez-la.",
+  timeoutThen: "puis {{decision}}",
+  commentApprove: "Notes pour l'étape suivante",
+  commentApprovePlaceholder: "Facultatif. L'étape suivante reçoit ces notes avec la sortie.",
+  commentRequestChanges: "Ce qui doit changer",
+  commentRequestChangesPlaceholder: "Obligatoire. L'étape s'exécute à nouveau avec ce retour.",
+  commentReject: "Motif",
+  commentRejectPlaceholder: "Facultatif. Enregistré avec la décision ; l'exécution de pipeline échoue.",
+  commentRequired: "Décrivez ce qui doit changer. L'étape s'exécute à nouveau avec ce retour.",
+  commentTooLong: "Les commentaires sont limités à {{max}} caractères.",
+  submit: { Approve: "Approuver l'étape", RequestChanges: "Demander des modifications", Reject: "Rejeter l'étape" },
+  toasts: {
+    Approve: "Étape {{stage}} de {{pipeline}} approuvée.",
+    RequestChanges: "Modifications demandées pour l'étape {{stage}} de {{pipeline}} ; elle s'exécute à nouveau avec votre retour.",
+    Reject: "Étape {{stage}} de {{pipeline}} rejetée ; l'exécution de pipeline échoue.",
+    notPending: "Cette revue a déjà été décidée, par quelqu'un d'autre ou par son délai d'expiration. La liste affiche maintenant l'état actuel.",
+    revisionLimit: "Cette étape a déjà utilisé toutes ses révisions (maximum {{max}}) : il n'est plus possible de demander des modifications. Approuvez-la ou rejetez-la."
+  }
+};
+fr.components.pipelineStart = {
+  title: "Démarrer {{name}}",
+  intro_one: "L'entrée est transmise à l'unique étape du pipeline.",
+  intro_many: "L'entrée est transmise à la première des {{count}} étapes ; chaque étape la voit aussi comme tâche d'origine.",
+  intro_other: "L'entrée est transmise à la première des {{count}} étapes ; chaque étape la voit aussi comme tâche d'origine.",
+  input: "Entrée",
+  inputPlaceholder: "Sur quoi le pipeline doit-il travailler ?",
+  shortcut: "Appuyez sur Ctrl+Entrée ou Cmd+Entrée pour démarrer.",
+  submit: "Démarrer le pipeline",
+  starting: "Démarrage...",
+  started: "{{name}} démarré."
+};
+fr.components.pipelinePreview = {
+  title: "Aperçu des prompts de {{name}}",
+  input: "Entrée d'exemple",
+  sampleInput: "Résume les tickets ouverts et propose un correctif pour le plus urgent.",
+  sampleOutput: "Sortie d'exemple de {{stage}}.",
+  outputOf: "Sortie d'exemple de l'étape {{position}} ({{stage}})",
+  render: "Générer les prompts",
+  rendering: "Génération...",
+  stageHeading: "Étape {{position}} : {{stage}} ({{agent}})",
+  deployment: "Déploiement : {{deployment}}",
+  rendered: "Généré",
+  failed: "Échec"
+};
+fr.views.pipelineRunDetail = {
+  title: "Exécution de pipeline",
+  heading: "Exécution de pipeline de {{pipeline}}",
+  notFoundTitle: "Exécution de pipeline introuvable",
+  notFoundBody: "Elle a peut-être été supprimée, ou elle appartient à un autre locataire.",
+  live: "En direct",
+  polling: "Actualisation",
+  finalRun: "Exécution finale",
+  started: "Démarrée",
+  input: "Entrée",
+  reviewTitle: "En attente de votre revue",
+  reviewBody: "L'étape {{position}} ({{stage}}) a terminé l'exécution {{execution}} et attend une revue. Lisez sa sortie dans l'exécution d'étape :",
+  reviewExpires: "Si personne ne décide avant {{time}}, la revue est décidée automatiquement : {{decision}}.",
+  reviewNoTimeout: "La revue attend qu'une personne décide, sauf si la durée maximale du pipeline met fin à l'exécution avant.",
+  stages: "Étapes",
+  stagesCount_one: "{{count}} étape",
+  stagesCount_many: "{{count}} étapes",
+  stagesCount_other: "{{count}} étapes",
+  noStages: "Cette exécution de pipeline n'a aucune étape.",
+  current: "En cours",
+  reviewGate: "Point de revue",
+  agent: "Agent : {{agent}}",
+  counts: "Exécutions {{executions}}, tentatives {{attempts}} sur {{maxAttempts}}, révisions {{revisions}} sur {{maxRevisions}}",
+  startedAt: "démarrée",
+  blocked: "En attente de démarrage : {{reason}}.",
+  nextAttempt: "Prochaine tentative à {{time}}.",
+  reviewItem: "Revue de l'exécution {{execution}}",
+  columns: { execution: "Exécution", run: "Exécution d'étape", status: "État", outcome: "Résultat", error: "Erreur", created: "Créée" },
+  confirmCancelTitle: "Annuler l'exécution de pipeline",
+  confirmCancel: "Annuler cette exécution de pipeline de {{pipeline}} ? Son exécution d'étape en cours est annulée et une revue en attente est fermée. Vous pourrez la relancer plus tard.",
+  confirmDelete: "Supprimer cette exécution de pipeline de {{pipeline}} et ses revues ? Ses exécutions d'étape restent sur la page Exécutions."
+};
+Object.assign(fr.views.runDetail, { pipelineRun: "Exécution de pipeline" });
+fr.views.settings.fields.Runtime.PipelineSweepIntervalMs = "Intervalle de balayage des pipelines (ms)";
+fr.views.settings.fields.Runtime.PipelineMaxStages = "Nombre maximal d'étapes par pipeline";

@@ -18,6 +18,27 @@ namespace Garrison.Core
         /// <summary>Usage quota identifier prefix.</summary>
         public const string UsageQuotaIdPrefix = "uqt_";
 
+        /// <summary>Pipeline definition identifier prefix (P12.9).</summary>
+        public const string PipelineIdPrefix = "ppl_";
+
+        /// <summary>Pipeline definition stage identifier prefix (P12.9).</summary>
+        public const string PipelineStageIdPrefix = "pst_";
+
+        /// <summary>Pipeline definition stage run parameter identifier prefix (P12.9).</summary>
+        public const string PipelineStageParameterIdPrefix = "psp_";
+
+        /// <summary>Pipeline run identifier prefix (P12.9).</summary>
+        public const string PipelineRunIdPrefix = "plr_";
+
+        /// <summary>Pipeline run stage snapshot identifier prefix (P12.9).</summary>
+        public const string PipelineRunStageIdPrefix = "prs_";
+
+        /// <summary>Pipeline run stage parameter snapshot identifier prefix (P12.9).</summary>
+        public const string PipelineRunStageParameterIdPrefix = "prp_";
+
+        /// <summary>Pipeline stage review identifier prefix (P12.9).</summary>
+        public const string PipelineReviewIdPrefix = "prv_";
+
         /// <summary>
         /// Product name.
         /// </summary>

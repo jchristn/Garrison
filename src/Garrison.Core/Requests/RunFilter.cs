@@ -55,6 +55,11 @@ namespace Garrison.Core.Requests
         public string? ConversationId { get; set; } = null;
 
         /// <summary>
+        /// Pipeline run filter (the stage runs of one pipeline run, P12.9).
+        /// </summary>
+        public string? PipelineRunId { get; set; } = null;
+
+        /// <summary>
         /// Outcome filter.
         /// </summary>
         public RunOutcomeEnum? Outcome { get; set; } = null;

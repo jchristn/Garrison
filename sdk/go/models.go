@@ -520,6 +520,12 @@ type Run struct {
 	// ConversationFallbackReason is one of the ConversationFallback constants when this turn started a fresh session
 	// from the transcript instead of resuming; nil otherwise.
 	ConversationFallbackReason *string `json:"conversationFallbackReason"`
+	// PipelineRunID is the pipeline run this run is a stage of; nil for runs outside a pipeline.
+	PipelineRunID *string `json:"pipelineRunId"`
+	// PipelinePosition is the position of the pipeline stage this run executes, starting at 1; 0 outside a pipeline.
+	PipelinePosition int `json:"pipelinePosition"`
+	// PipelineExecution is the execution number of the stage (retries, revisions, and resumes increase it); 0 outside a pipeline.
+	PipelineExecution int `json:"pipelineExecution"`
 }
 
 // Conversation is a multi-turn session with one agent. Each turn is a run; a follow-up turn resumes the harness

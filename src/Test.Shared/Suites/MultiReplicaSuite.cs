@@ -57,6 +57,7 @@ namespace Test.Shared.Suites
                     cases.Add(new TestCaseDescriptor(id, "max-concurrent-runs", "maxConcurrentRuns holds under concurrent claims through two replicas (" + provider + ")", ct => MaxConcurrentAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "settings-invalidation", "A cluster setting changed on replica A applies on B well before B's refresh interval (" + provider + ")", ct => SettingsInvalidationAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "control-nodes", "Two replicas list each other Ready with exactly one leader, answer with their own respondingNodeId, and a stopped or silent replica turns Offline (" + provider + ")", ct => ControlNodesAsync(provider, ct)));
+                    cases.Add(new TestCaseDescriptor(id, "pipeline-sweep-cross-replica", "A pipeline stage finishing on replica A with the completion hook off is advanced by B's sweep, and overlapping sweeps on both replicas create one run per stage execution (" + provider + ")", ct => PipelineAcrossReplicasAsync(provider, ct)));
                     cases.Add(new TestCaseDescriptor(id, "idempotent-invoke", "Invokes with one Idempotency-Key sent to two replicas at once create one run (" + provider + ")", ct => IdempotentInvokeAsync(provider, ct)));
                 }
                 cases.Add(new TestCaseDescriptor(id, "control-node-lifecycle", "A replica's control node row is Ready with its activity (streams, long polls), Draining once shutdown begins, and Offline after a clean stop (" + provider + ")", ct => ControlNodeLifecycleAsync(provider, ct)));
@@ -675,6 +676,55 @@ namespace Test.Shared.Suites
                 ControlNode offline = await WaitForControlNodeAsync(host, nodeId, n => n.Status == ControlNodeStatusEnum.Offline, 1000, "Offline after a clean stop", token).ConfigureAwait(false);
                 Assert.Equal(0, offline.ActiveRequests + offline.OpenStreams + offline.HeldLongPolls, "An Offline replica reports no activity");
                 Assert.Equal(ControlNodeStatusEnum.Offline, host.Server.ControlNode.Status, "Status the replica last wrote");
+            }
+        }
+
+        private static async Task PipelineAcrossReplicasAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestReplicaCluster cluster = await TestReplicaCluster.StartAsync(provider, 2, BackplaneModeEnum.Auto, null, token).ConfigureAwait(false))
+            {
+                TestServerHost a = cluster.Replicas[0];
+                TestServerHost b = cluster.Replicas[1];
+                DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+                while (!cluster.Replicas.Any(r => r.Server.Context.Get<ILeaderState>().IsLeader && r.Server.Context.Get<MaintenanceService>().LeaderPasses > 0) && DateTime.UtcNow < deadline) await Task.Delay(100, token).ConfigureAwait(false);
+                foreach (TestServerHost replica in cluster.Replicas)
+                {
+                    // Only the sweeps this test runs advance the pipeline: no completion hook, no leader pass.
+                    replica.Server.Context.Get<RuntimeOptions>().PipelineSweepIntervalMs = 600000;
+                    replica.Server.Context.Get<PipelineService>().HookEnabled = false;
+                }
+                await cluster.AddWorkerAsync(0, null, token).ConfigureAwait(false);
+                Agent agent = await cluster.CreateAgentAsync(0, "replica-pipe", null, token).ConfigureAwait(false);
+                Pipeline definition = new Pipeline { Name = "replica-flow" };
+                definition.Stages.Add(new PipelineStage { Name = "one", AgentId = agent.Id });
+                definition.Stages.Add(new PipelineStage { Name = "two", AgentId = agent.Id });
+                string tenantPath = "/v1.0/api/tenants/" + cluster.TenantId;
+                Pipeline pipeline = await HttpTestHelpers.SendAsync<Pipeline>(a.AdminClient, HttpMethod.Post, tenantPath + "/pipelines", definition, 201, token).ConfigureAwait(false);
+                PipelineRun started = await HttpTestHelpers.SendAsync<PipelineRun>(a.AdminClient, HttpMethod.Post, tenantPath + "/pipelines/" + pipeline.Id + "/start", new PipelineStartRequest { Input = "across replicas" }, 201, token).ConfigureAwait(false);
+                string firstRun = Assert.NotNull(started.Stages[0].CurrentRunId, "Stage 1 run");
+                Run? first = await a.Server.Context.Get<RunService>().WaitAsync(cluster.TenantId, firstRun, 90, token).ConfigureAwait(false);
+                Assert.Equal(RunStatusEnum.Succeeded, first?.Status, "Stage 1 finished on replica A");
+                await Task.Delay(500, token).ConfigureAwait(false);
+                PipelineRun waiting = Assert.NotNull(await b.Server.Context.Database.PipelineRuns.ReadAsync(cluster.TenantId, started.Id, token).ConfigureAwait(false), "Pipeline run");
+                Assert.Equal(1, waiting.CurrentPosition, "Without the hook the pipeline run waits for a sweep");
+
+                await b.Server.Context.Get<PipelineService>().SweepAsync(token).ConfigureAwait(false);
+                PipelineRun advanced = Assert.NotNull(await b.Server.Context.Database.PipelineRuns.ReadAsync(cluster.TenantId, started.Id, token).ConfigureAwait(false), "Pipeline run");
+                Assert.True(advanced.CurrentPosition == 2 && !String.IsNullOrEmpty(advanced.Stages[1].CurrentRunId), "Replica B's sweep moved the pipeline run to stage 2 and created its run");
+
+                deadline = DateTime.UtcNow.AddSeconds(90);
+                PipelineRun current = advanced;
+                while (!PipelineService.IsTerminal(current.Status))
+                {
+                    if (DateTime.UtcNow > deadline) throw new TestAssertionException("The pipeline run did not finish under overlapping sweeps (" + current.Status + ").");
+                    await Task.WhenAll(a.Server.Context.Get<PipelineService>().SweepAsync(token), b.Server.Context.Get<PipelineService>().SweepAsync(token)).ConfigureAwait(false);
+                    await Task.Delay(100, token).ConfigureAwait(false);
+                    current = (await a.Server.Context.Database.PipelineRuns.ReadAsync(cluster.TenantId, started.Id, token).ConfigureAwait(false))!;
+                }
+                Assert.Equal(PipelineRunStatusEnum.Succeeded, current.Status, "Pipeline status (" + current.ErrorMessage + ")");
+                EnumerationResult<Run> runs = await a.Server.Context.Database.Runs.EnumerateAsync(new RunFilter { TenantId = cluster.TenantId, PipelineRunId = started.Id, MaxResults = 100 }, token).ConfigureAwait(false);
+                Assert.Equal(2L, runs.TotalRecords, "One run per stage execution under overlapping sweeps");
+                Assert.True(current.Stages.All(s => s.Executions == 1), "Each stage executed once");
             }
         }
     }

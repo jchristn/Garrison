@@ -50,6 +50,7 @@ namespace Garrison.Server.Services
             "authorization", "proxy-authorization", "cookie", "set-cookie", "x-token", "x-secret-key", "x-api-key", "x-signature", "x-password"
         };
 
+        private const string NodeProtocolPrefix = "/v1.0/api/node/";
         private static readonly string[] _SecretPathFragments = new string[] { "/secrets", "/token", "/credentials", "/node/heartbeat", "/node/lease" };
 
         private readonly DatabaseDriverBase _Database;
@@ -132,10 +133,27 @@ namespace Garrison.Server.Services
             }
         }
 
+        /// <summary>
+        /// Whether a completed request should be captured: capture is enabled, and the request is not a successful worker
+        /// node protocol call while RequestHistory.CaptureNodeProtocol is off. A node call that failed is captured; one the
+        /// worker abandoned (it drops its cancellation watch whenever its set of runs changes) is not a failure.
+        /// </summary>
+        /// <param name="path">Request path without the query.</param>
+        /// <param name="statusCode">Response status code.</param>
+        /// <param name="aborted">True when the client hung up before the answer.</param>
+        /// <returns>True to capture.</returns>
+        public bool ShouldCapture(string? path, int statusCode, bool aborted)
+        {
+            if (!Enabled()) return false;
+            if (path == null || !path.StartsWith(NodeProtocolPrefix, StringComparison.OrdinalIgnoreCase)) return true;
+            if (_Cluster.GetBool("RequestHistory.CaptureNodeProtocol")) return true;
+            return !aborted && statusCode >= 400;
+        }
+
         /// <inheritdoc />
         public void Observe(HttpContextBase context)
         {
-            if (context == null || !Enabled()) return;
+            if (context == null || !ShouldCapture(context.Request.Url.RawWithoutQuery, context.Response.StatusCode, context.RequestAborted)) return;
             try
             {
                 RequestHistoryEntry entry = Build(context);

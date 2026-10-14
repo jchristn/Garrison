@@ -1676,3 +1676,226 @@ tips.views.settings.groups.Leases = "Coordinamento facoltativo: configurare tutt
 tips.views.settings.fields.Leases = {"Provider": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "ClutchEndpoint": "Fornire la chiave Clutch tramite un segreto o variabile di ambiente; evitare credenziali nell’endpoint.", "ClutchAccessKey": "Fornire la chiave Clutch tramite un segreto o variabile di ambiente; evitare credenziali nell’endpoint.", "KeyPrefix": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "RequestTimeoutMs": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "SweepIntervalMs": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "MaxLeaseMs": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito.", "MaxHoldMs": "Coordinamento facoltativo: configurare tutte le repliche allo stesso modo e riavviare. Database è il valore predefinito."};
 
 tips.enums.harnessType.ProviderApi = "Ciclo API facoltativo tramite PolyPrompt. Richiede endpoint e modello; i deployment CLI restano disponibili.";
+
+// Pipeline (P12.9).
+tips.nav.hubs.approvals = 'Tutto ciò che attende una persona: chiamate a strumenti richieste dagli agenti e fasi di pipeline che richiedono una revisione, con la cronologia di ogni decisione.';
+tips.nav.approvalsBadgeCombined = 'In attesa di una persona: {{approvals}} approvazioni di chiamate a strumenti e {{reviews}} revisioni di fasi di pipeline. Apri Approvazioni per deciderle.';
+Object.assign(tips.nav.tabs, {
+  approvals: 'Chiamate a strumenti richieste dagli agenti che attendono che una persona le consenta o le neghi, e ogni decisione passata presa da regola, predefinito, persona o timeout.',
+  pipelineReviews: 'Fasi di pipeline concluse che attendono una persona: approvale, richiedi modifiche (la fase viene eseguita di nuovo con il tuo riscontro) o rifiutale.',
+  pipelines: 'Catene di agenti: ogni fase esegue un agente, passa il suo output alla fase successiva tramite un modello di prompt e può attendere una revisione.',
+  pipelineRuns: 'Ogni esecuzione di una pipeline con stato ed esito. Aprine una per la sequenza delle fasi, le esecuzioni delle fasi e le revisioni.'
+});
+tips.filters.pipelineId = 'Mostra solo i record di una pipeline. Scegli Tutte per rimuovere il filtro.';
+tips.filters.pipelineRunId = 'Mostra solo le revisioni di un\'esecuzione di pipeline. Incolla un ID come plr_...; l\'elenco si aggiorna quando smetti di digitare.';
+Object.assign(tips.enums, {
+  pipelineRunStatus: {
+    Running: 'Una fase è in esecuzione, in avvio o sta per avviarsi.',
+    AwaitingReview: 'Una fase è conclusa e attende che una persona la approvi, richieda modifiche o la rifiuti.',
+    Cancelling: 'È stato richiesto l\'annullamento; l\'esecuzione della fase corrente è in fase di arresto.',
+    Succeeded: 'Ogni fase è conclusa e ogni punto di revisione è stato approvato.',
+    Failed: 'Una fase non è riuscita dopo i suoi tentativi, non è partita o un revisore l\'ha rifiutata. Riprova riprende da quella fase.',
+    Cancelled: 'Qualcuno ha annullato l\'esecuzione di pipeline. Riprova riprende dalla fase in cui si era fermata.',
+    TimedOut: 'La pipeline è durata più del suo limite di tempo, compreso il tempo di attesa delle revisioni.'
+  },
+  pipelineRunOutcome: {
+    None: 'L\'esecuzione di pipeline non è ancora conclusa.',
+    Succeeded: 'Ogni fase è riuscita e ogni revisione è stata approvata.',
+    StageFailed: 'Una fase non è riuscita in nessun tentativo e non è impostata per continuare in caso di errore.',
+    StageStartFailed: 'Una fase non è potuta partire, per esempio perché il suo agente o la sua distribuzione non esistono più o il suo prompt non è stato compilato.',
+    ReviewRejected: 'Un revisore ha rifiutato una fase, e questo termina l\'esecuzione di pipeline.',
+    ReviewExpired: 'Una revisione è scaduta e la sua azione alla scadenza era Rifiuta.',
+    Cancelled: 'Qualcuno ha annullato l\'esecuzione di pipeline o una delle esecuzioni delle sue fasi.',
+    TimedOut: 'La pipeline ha superato il suo limite di tempo.',
+    InternalError: 'Il server ha incontrato un errore imprevisto mentre faceva avanzare la pipeline. Controlla i log del server.'
+  },
+  pipelineStageStatus: {
+    Pending: 'La fase non è ancora partita; le fasi precedenti sono ancora in corso.',
+    Running: 'L\'esecuzione della fase è in coda o in corso. Un tentativo non riuscito avvia una nuova iterazione finché i tentativi non si esauriscono.',
+    AwaitingReview: 'La fase è conclusa e attende che una persona ne riveda l\'output.',
+    Succeeded: 'La fase è conclusa e, se richiede una revisione, è stata approvata.',
+    Failed: 'La fase non è riuscita in nessun tentativo, non è potuta partire oppure è stata rifiutata.',
+    Cancelled: 'La fase si è fermata perché l\'esecuzione di pipeline è stata annullata o è scaduta.'
+  },
+  pipelineReviewStatus: {
+    Pending: 'In attesa che una persona approvi, richieda modifiche o rifiuti.',
+    Approved: 'Approvata: la pipeline è passata alla fase successiva, con le eventuali note.',
+    ChangesRequested: 'Modifiche richieste: la fase è stata eseguita di nuovo con il riscontro.',
+    Rejected: 'Rifiutata: l\'esecuzione di pipeline è fallita in questa fase.',
+    Expired: 'Nessuno ha deciso in tempo, quindi ha deciso l\'azione alla scadenza della fase.',
+    Cancelled: 'L\'esecuzione di pipeline si è fermata prima che qualcuno decidesse.'
+  },
+  pipelineReviewDecision: {
+    Approve: 'Accetta l\'output della fase e continua con la fase successiva. Le note facoltative vanno alla fase successiva.',
+    RequestChanges: 'Esegui di nuovo la stessa fase con il tuo riscontro. Limitato dal numero massimo di rielaborazioni della fase.',
+    Reject: 'Ferma qui l\'esecuzione di pipeline. Fallisce con l\'esito Revisione rifiutata.'
+  },
+  pipelineReviewSource: {
+    User: 'Una persona ha deciso la revisione.',
+    Timeout: 'La revisione è scaduta e l\'azione alla scadenza della fase l\'ha decisa.',
+    Cancelled: 'L\'esecuzione di pipeline è stata annullata o è scaduta mentre la revisione era in sospeso.'
+  }
+});
+Object.assign(tips.enums.auditEventType, {
+  PipelineReviewDecided: 'Una persona o un timeout ha approvato, rifiutato o richiesto modifiche a una revisione di fase di pipeline.',
+  PipelineRunCancelled: 'Qualcuno ha annullato un\'esecuzione di pipeline, la sua revisione in sospeso e l\'esecuzione della fase corrente.'
+});
+Object.assign(tips.resources.runs, {
+  pipelineRunId: 'L\'esecuzione di pipeline di cui questa esecuzione è una fase, con posizione della fase e iterazione. Vuoto per le esecuzioni fuori dalle pipeline.',
+  pipelineStage: 'Posizione della fase nella pipeline e quale iterazione di quella fase è questa esecuzione (nuovi tentativi e rielaborazioni aggiungono iterazioni).'
+});
+tips.resources.pipelines = {
+  add: 'Crea una pipeline: un elenco ordinato di fasi, ognuna delle quali esegue un agente e passa il suo output alla successiva.',
+  name: 'Nome univoco della pipeline in questo tenant, usato da API, strumenti MCP, SDK e manifest. Lettere minuscole, cifre e trattini.',
+  stages: 'Le fasi in ordine di esecuzione. Ogni fase esegue un agente; il suo output passa alla fase successiva tramite un modello di prompt.',
+  reviewGates: 'Quante fasi attendono che una persona ne riveda l\'output prima che la pipeline continui.',
+  maxDurationSeconds: 'Durata massima dell\'intera esecuzione di pipeline, in secondi, comprese le attese di revisione. 0 significa nessun limite; oltre, l\'esecuzione scade.',
+  version: 'Aumenta a ogni modifica salvata. Le esecuzioni di pipeline registrano la versione con cui sono partite e ne mantengono le fasi.',
+  stageHeading: 'Una fase della pipeline, eseguita nell\'ordine mostrato. Usa le frecce per spostarla e il cestino per rimuoverla.',
+  moveUp: 'Sposta questa fase di un posto prima. Le fasi vengono eseguite nell\'ordine mostrato.',
+  moveDown: 'Sposta questa fase di un posto dopo. Le fasi vengono eseguite nell\'ordine mostrato.',
+  removeStage: 'Rimuovi questa fase dalla pipeline. Una pipeline richiede almeno una fase.',
+  addStage: 'Aggiungi una fase alla fine della pipeline. Riceve l\'output della fase precedente.',
+  stagesItems: {
+    name: 'Nome di questa fase, univoco nella pipeline. Compare nella sequenza, nelle revisioni e nei prompt di passaggio di consegne.',
+    agentId: 'L\'agente eseguito da questa fase. Per avviare la pipeline serve l\'autorizzazione a eseguire ogni agente delle fasi.',
+    deploymentId: 'Una distribuzione fissa dell\'agente della fase. Se vuoto, sceglie una delle distribuzioni attive dell\'agente in base al peso, come una normale invocazione.',
+    handoffTemplateId: 'Modello di prompt dell\'attività che racchiude l\'attività di questa fase con gli output precedenti, le note di revisione e il riscontro delle rielaborazioni. Se vuoto, usa l\'associazione PipelineStage della distribuzione o il modello integrato.',
+    handoffTemplateVersion: 'Usa questa versione del modello di passaggio di consegne anche dopo che cambia. Se vuoto, usa sempre la versione attuale.',
+    outputCharLimit: 'Numero massimo di caratteri dell\'output di ogni fase precedente passati a questa fase. Gli output più lunghi vengono tagliati e segnati come troncati.',
+    maxAttempts: 'Quante volte la fase viene eseguita quando la sua esecuzione fallisce o scade, prima che la fase risulti non riuscita.',
+    continueOnFailure: 'Quando la fase non riesce in nessun tentativo, continua comunque con la fase successiva; quella fase vede l\'errore nel passaggio di consegne.',
+    requiresReview: 'Dopo la conclusione della fase, attendi che una persona la approvi, richieda modifiche o la rifiuti in Approvazioni > Revisioni delle fasi.',
+    reviewTimeoutSeconds: 'Quanto può attendere la revisione prima che decida l\'azione alla scadenza. 0 attende finché una persona non decide.',
+    reviewTimeoutAction: 'Cosa succede quando la revisione scade: approvare e continuare, oppure rifiutare e far fallire l\'esecuzione di pipeline.',
+    maxRevisions: 'Quante volte un revisore può richiedere modifiche a questa fase. Dopo restano solo Approva e Rifiuta.',
+    description: 'Nota libera su cosa fa questa fase, per le persone. Non viene inviata all\'agente.',
+    parameters: 'Sostituzioni dei parametri di esecuzione per le esecuzioni di questa fase, come modello o formato. Consentite solo con una distribuzione che permette di sostituirli.'
+  },
+  actions: {
+    start: 'Avvia questa pipeline con un testo di input e segui le sue fasi nella pagina dell\'esecuzione di pipeline.',
+    preview: 'Genera il prompt di ogni fase da un input di esempio e da output di esempio delle fasi, senza avviare alcuna esecuzione.',
+    runs: 'Mostra le esecuzioni di questa pipeline nella scheda Esecuzioni di pipeline.'
+  }
+};
+tips.resources.pipelineRuns = {
+  id: 'Identificativo dell\'esecuzione di pipeline (plr_...). Usalo con API, strumenti MCP e SDK.',
+  pipelineName: 'La pipeline eseguita da questa esecuzione. Le esecuzioni di pipeline mantengono le fasi della versione con cui sono partite.',
+  pipelineVersion: 'La versione della pipeline con cui è partita questa esecuzione. Le modifiche successive alla pipeline non la cambiano.',
+  status: 'A che punto è l\'esecuzione di pipeline: in esecuzione, in attesa di revisione, in annullamento o conclusa.',
+  outcome: 'Perché l\'esecuzione di pipeline si è conclusa: riuscita, fase non riuscita o non avviata, revisione rifiutata o scaduta, annullata o scaduta.',
+  progress: 'La fase a cui si trova l\'esecuzione di pipeline, sul totale delle sue fasi.',
+  callerName: 'L\'utente o la chiave di accesso che ha avviato l\'esecuzione di pipeline.',
+  errorMessage: 'Cosa è andato storto, quando l\'esecuzione di pipeline è fallita o scaduta.',
+  priority: 'Priorità in coda assegnata a ogni esecuzione delle fasi. I numeri più alti vengono pianificati prima.',
+  deadlineUtc: 'Quando scade l\'esecuzione di pipeline, in base al limite di tempo della pipeline. Vuoto quando non c\'è limite.',
+  completedUtc: 'Quando si è conclusa l\'esecuzione di pipeline.',
+  createdUtc: 'Quando è stata avviata l\'esecuzione di pipeline. Passa il mouse sul valore per l\'ora esatta.',
+  actions: {
+    cancel: 'Annulla l\'esecuzione di pipeline: l\'esecuzione della fase corrente viene annullata e una revisione in sospeso viene chiusa.',
+    retry: 'Riprendi un\'esecuzione di pipeline non riuscita, scaduta o annullata dalla fase in cui si era fermata, con una nuova iterazione di quella fase.',
+    stageRuns: 'Mostra nella scheda Esecuzioni le esecuzioni di ogni fase di questa esecuzione di pipeline.',
+    finalRun: 'Apri l\'esecuzione dell\'ultima fase, il cui risultato è il risultato della pipeline.'
+  }
+};
+tips.resources.pipelineReviews = {
+  createdUtc: 'Quando la fase si è conclusa ed è stata richiesta la revisione. Passa il mouse sul valore per l\'ora esatta.',
+  pipelineName: 'La pipeline la cui fase attende la revisione.',
+  stageName: 'La fase da rivedere, con la sua posizione e l\'iterazione della fase che ha prodotto l\'output.',
+  positionExecution: 'Posizione della fase nella pipeline e iterazione della fase coperta da questa revisione. Le rielaborazioni aggiungono iterazioni.',
+  status: 'Le revisioni in sospeso attendono una persona; le altre mostrano come si è conclusa la revisione.',
+  decision: 'Approva, Richiedi modifiche o Rifiuta, una volta decisa la revisione.',
+  decisionSource: 'Chi ha deciso: una persona, il timeout di revisione della fase o l\'arresto dell\'esecuzione di pipeline.',
+  comment: 'Note passate alla fase successiva (approvazione), riscontro con cui la fase è stata rieseguita (richiesta di modifiche) o motivo (rifiuto).',
+  decidedBy: 'La persona che ha deciso la revisione.',
+  expiresUtc: 'Quando la revisione scade e decide l\'azione alla scadenza della fase. Vuoto quando attende finché una persona non decide.',
+  pipelineRunId: 'L\'esecuzione di pipeline a cui appartiene questa revisione. Fai clic su una riga per aprire la sequenza delle sue fasi.',
+  runId: 'L\'esecuzione della fase il cui output è in revisione. Aprila per leggere il risultato prima di decidere.',
+  decidedUtc: 'Quando è stata decisa la revisione.',
+  id: 'Identificativo della revisione (prv_...). Usalo con API, strumenti MCP e SDK per decidere la revisione.',
+  filters: { decisionSource: 'Mostra solo le revisioni decise in un certo modo: da una persona, dal timeout di revisione o dall\'arresto dell\'esecuzione di pipeline.' },
+  actions: {
+    approve: 'Approva l\'output della fase e lascia continuare la pipeline, facoltativamente con note per la fase successiva.',
+    requestChanges: 'Esegui di nuovo la fase con il tuo riscontro. Ogni richiesta consuma una delle rielaborazioni della fase.',
+    reject: 'Rifiuta l\'output della fase. L\'esecuzione di pipeline fallisce con l\'esito Revisione rifiutata.',
+    openStageRun: 'Apri l\'esecuzione della fase in revisione per leggerne trascrizione e risultato.'
+  }
+};
+tips.pipelineReviews = {
+  revisionsLeft: 'Quante altre volte si possono richiedere modifiche per questa fase prima che restino solo Approva e Rifiuta.',
+  decide: {
+    decision: 'Scegli cosa succede all\'output della fase. L\'esecuzione di pipeline prosegue appena invii.',
+    Approve: 'Accetta l\'output della fase; la pipeline continua con la fase successiva, o riesce dopo l\'ultima.',
+    RequestChanges: 'Rimanda indietro la fase con un riscontro. Viene eseguita di nuovo e torna in revisione.',
+    Reject: 'Rifiuta l\'output della fase. L\'esecuzione di pipeline si ferma e fallisce.',
+    commentApprove: 'Note facoltative che la fase successiva riceve insieme all\'output di questa fase.',
+    commentRequestChanges: 'Riscontro obbligatorio. La fase viene rieseguita con questo testo, quindi indica cosa cambiare.',
+    commentReject: 'Motivo facoltativo, salvato con la decisione e nel log di audit.',
+    submitApprove: 'Approva ora la fase. La decisione è definitiva e non può essere cambiata in seguito.',
+    submitRequestChanges: 'Invia ora il riscontro. La fase viene rieseguita; il suo prossimo output torna in revisione.',
+    submitReject: 'Rifiuta ora la fase. L\'esecuzione di pipeline fallisce; non si può annullare, ma si può riprovare.'
+  }
+};
+tips.pipelineStart = {
+  input: 'L\'attività per la pipeline. La prima fase ci lavora, e ogni fase successiva la vede come attività originale accanto agli output precedenti.',
+  submit: 'Avvia un\'esecuzione di pipeline con questo input e apri la sequenza delle sue fasi.'
+};
+tips.pipelinePreview = {
+  input: 'Input di esempio del chiamante usato per generare il prompt di ogni fase. Non viene eseguito nulla.',
+  sampleOutput: 'Output simulato della fase {{stage}}, passato alla fase successiva nell\'anteprima.',
+  render: 'Genera il prompt di ogni fase con questi esempi, come lo riceverebbero le esecuzioni delle fasi. I segreti vengono oscurati.',
+  stage: 'Il prompt che questa fase riceverebbe, generato dal suo modello di passaggio di consegne con gli esempi qui sopra.',
+  rendered: 'Il prompt della fase è stato generato senza errori.',
+  failed: 'Il prompt della fase non è stato generato; il messaggio spiega perché, per esempio un agente o una distribuzione mancante.'
+};
+Object.assign(tips.views.runDetail, {
+  pipelineRun: 'Questa esecuzione è una fase di un\'esecuzione di pipeline. Il testo dopo l\'ID indica posizione della fase e iterazione.',
+  openPipelineRun: 'Apri l\'esecuzione di pipeline a cui appartiene questa esecuzione, con la sequenza delle fasi e le revisioni.'
+});
+tips.views.pipelineRunDetail = {
+  viewJson: 'Mostra come JSON l\'intera esecuzione di pipeline con fasi, esecuzioni delle fasi e revisioni.',
+  delete: 'Elimina questa esecuzione di pipeline conclusa e le sue revisioni. Le esecuzioni delle sue fasi restano nella pagina Esecuzioni.',
+  live: 'Gli aggiornamenti arrivano tramite la connessione in tempo reale appena cambia una fase o una revisione.',
+  polling: 'La connessione in tempo reale non è disponibile, quindi la pagina rilegge l\'esecuzione di pipeline ogni pochi secondi.',
+  pipeline: 'La pipeline eseguita, con la versione con cui è partita. Fai clic per trovarla in Agenti > Pipeline di agenti.',
+  openPipeline: 'Apri Agenti > Pipeline di agenti filtrato su questa pipeline.',
+  openRun: 'Apri questa esecuzione della fase con trascrizione, risultato e telemetria.',
+  finalRun: 'L\'esecuzione dell\'ultima fase. Il suo risultato è il risultato dell\'esecuzione di pipeline.',
+  started: 'Quando è stata creata l\'esecuzione della prima fase.',
+  input: 'L\'input con cui è stata avviata l\'esecuzione di pipeline. Ogni fase lo vede come attività originale.',
+  reviewTitle: 'Una fase è conclusa e attende la tua decisione. Leggi il suo output nell\'esecuzione della fase, poi decidi.',
+  stages: 'Ogni fase in ordine di esecuzione con stato, iterazioni, tentativi, rielaborazioni, esecuzioni delle fasi e revisioni.',
+  current: 'La fase a cui si trova ora l\'esecuzione di pipeline.',
+  reviewGate: 'Questa fase attende che una persona ne riveda l\'output prima che la pipeline continui.',
+  agent: 'L\'agente eseguito da questa fase, come registrato all\'avvio dell\'esecuzione di pipeline.',
+  counts: 'Le iterazioni contano ogni esecuzione della fase; i tentativi contano le esecuzioni dall\'ultima revisione; le rielaborazioni contano le modifiche richieste.',
+  reviewItem: 'Una revisione di un\'iterazione di questa fase e come è stata decisa.',
+  columns: {
+    execution: 'Quale iterazione della fase è questa esecuzione. I nuovi tentativi dopo un errore e le rielaborazioni dopo una revisione aggiungono iterazioni.',
+    run: 'L\'esecuzione della fase. Fai clic per aprire trascrizione e risultato.',
+    status: 'Stato attuale dell\'esecuzione di questa fase.',
+    outcome: 'Perché si è conclusa l\'esecuzione della fase.',
+    error: 'Messaggio di errore dell\'esecuzione della fase, quando non è riuscita.',
+    created: 'Quando è stata creata l\'esecuzione della fase.'
+  }
+};
+tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Ogni quanto il leader fa avanzare le esecuzioni di pipeline che hanno perso un segnale di completamento, ritenta gli avvii di fase bloccati e applica i timeout di revisione e i limiti di tempo delle pipeline, in millisecondi.';
+tips.views.settings.fields.Runtime.PipelineMaxStages = 'Numero massimo di fasi che una definizione di pipeline può avere. Il salvataggio di una pipeline con più fasi viene rifiutato.';
+Object.assign(explainers, {
+  pipelines: {
+    title: 'Pipeline e fasi',
+    p1: 'Una pipeline concatena agenti. Ogni fase esegue un agente, facoltativamente su una distribuzione fissa, e passa il suo output (testo, output strutturato e riferimenti ad artefatti) alla fase successiva tramite un modello di prompt.',
+    p2: 'Una fase può ritentare le esecuzioni non riuscite, continuare dopo un errore e attendere una revisione. Le revisioni compaiono in Approvazioni > Revisioni delle fasi; richiedere modifiche esegue di nuovo la fase con il riscontro.',
+    p3: 'Modificare una pipeline crea una nuova versione. Le esecuzioni di pipeline già avviate mantengono le fasi con cui sono partite.'
+  },
+  pipelineRuns: {
+    title: 'Esecuzioni di pipeline',
+    p1: 'Un\'esecuzione di pipeline esegue in ordine le fasi di una versione della pipeline. Ogni iterazione di fase è una normale esecuzione, collegata dalla sequenza delle fasi.',
+    p2: 'Annulla ferma l\'esecuzione della fase corrente e chiude una revisione in sospeso. Riprova riprende un\'esecuzione di pipeline non riuscita, scaduta o annullata dalla fase in cui si era fermata.'
+  },
+  pipelineReviews: {
+    title: 'Revisioni delle fasi',
+    p1: 'Una fase che richiede una revisione attende qui quando termina. Approva continua con la fase successiva, Richiedi modifiche esegue di nuovo la fase con il tuo riscontro e Rifiuta fa fallire l\'esecuzione di pipeline.',
+    p2: 'Le revisioni senza timeout attendono finché una persona non decide. Con un timeout, decide l\'azione alla scadenza della fase quando il tempo finisce.'
+  }
+});

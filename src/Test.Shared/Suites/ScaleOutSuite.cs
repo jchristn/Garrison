@@ -48,6 +48,7 @@ namespace Test.Shared.Suites
                 cases.Add(new TestCaseDescriptor(id, "idempotent-create", "Concurrent creates with one idempotency key insert one run (" + provider + ")", ct => IdempotentCreateAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "retention-archive", "Retention archives runs with their events and old events to JSON Lines before deleting them (" + provider + ")", ct => ArchiveAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "control-nodes", "Control node rows upsert, enumerate, count by status, go Offline when silent, and are deleted after the Offline retention (" + provider + ")", ct => ControlNodesAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "invocation-wait-completion", "Synchronous invocation waiters wake on completion from any replica, not on event batches, and a queued cancel wakes them (" + provider + ")", ct => InvocationWaitCompletionAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "shared-state-cleanup", "The leader's cleanup removes expired nonces, buckets, sessions, and old backplane messages (" + provider + ")", ct => CleanupAsync(provider, ct)));
                 suites.Add(new TestSuiteDescriptor(id, "Scale-out data layer (" + provider + ")", cases));
             }
@@ -377,6 +378,44 @@ namespace Test.Shared.Suites
                 {
                     DisposePeers(db, peers);
                 }
+            }
+        }
+
+        private static async Task InvocationWaitCompletionAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            RunSignals signals = new RunSignals();
+            using (RunSignalSubscription completion = signals.SubscribeCompletion("run_signal_test"))
+            {
+                signals.Notify("run_signal_test");
+                signals.ApplyRemote(new BackplaneMessage(BackplaneMessageKindEnum.RunChanged, "run_signal_test"));
+                Assert.True(!await completion.WaitAsync(150, token).ConfigureAwait(false), "Event batches must not wake a completion waiter");
+                signals.Complete("run_signal_test");
+                Assert.True(await completion.WaitAsync(150, token).ConfigureAwait(false), "A local completion wakes the waiter");
+                signals.ApplyRemote(new BackplaneMessage(BackplaneMessageKindEnum.RunCompleted, "run_signal_test"));
+                Assert.True(await completion.WaitAsync(150, token).ConfigureAwait(false), "A completion from another replica wakes the waiter");
+            }
+
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            using (GarrisonTelemetry telemetry = new GarrisonTelemetry(new TelemetrySettings { Enabled = false }, "test", null))
+            {
+                RuntimeOptions options = new RuntimeOptions();
+                options.InvocationWaitPollMs = 60000;
+                RunService runs = new RunService(db, signals, options, telemetry);
+                Run queued = await db.Runs.CreateAsync(NewRun("ten_a", "dep_a"), token).ConfigureAwait(false);
+
+                Task<Run?> waiter = runs.WaitAsync("ten_a", queued.Id, 30, token);
+                await Task.Delay(300, token).ConfigureAwait(false);
+                signals.Notify(queued.Id);
+                await Task.Delay(200, token).ConfigureAwait(false);
+                Assert.True(!waiter.IsCompleted, "The waiter should still be waiting on a queued run");
+
+                DateTime cancelled = DateTime.UtcNow;
+                await runs.CancelAsync(queued, token).ConfigureAwait(false);
+                Task finished = await Task.WhenAny(waiter, Task.Delay(5000, token)).ConfigureAwait(false);
+                Assert.True(finished == waiter, "Cancelling a queued run wakes its waiter long before the 60-second fallback");
+                Run? result = await waiter.ConfigureAwait(false);
+                Assert.True(result != null && result.Status == RunStatusEnum.Cancelled, "The waiter returns the cancelled run");
+                Assert.True((DateTime.UtcNow - cancelled).TotalMilliseconds < 5000, "Woken promptly");
             }
         }
 

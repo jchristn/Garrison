@@ -94,7 +94,7 @@ namespace Garrison.Core.Telemetry
         public static readonly MetricDescriptor RunGuardTrips = new MetricDescriptor("garrison.runs.guard_trips", MetricKindEnum.Counter, "{run}", "guard, tenant, agent, harness", "Runs stopped by a guard: repetition, no_progress, output_limit, timeout, blocked", "server", "Agents", "garrison-agents");
 
         /// <summary>Run cancellations.</summary>
-        public static readonly MetricDescriptor RunCancellations = new MetricDescriptor("garrison.runs.cancellations", MetricKindEnum.Counter, "{run}", "tenant, agent, reason", "Cancellation requests accepted, by reason (request, disconnect, parent)", "server", "Runs", "garrison-runs");
+        public static readonly MetricDescriptor RunCancellations = new MetricDescriptor("garrison.runs.cancellations", MetricKindEnum.Counter, "{run}", "tenant, agent, reason", "Cancellation requests accepted, by reason (request, disconnect, parent, pipeline)", "server", "Runs", "garrison-runs");
 
         /// <summary>Permission requests evaluated (P12.3).</summary>
         public static readonly MetricDescriptor ApprovalsRequested = new MetricDescriptor("garrison.approvals.requested", MetricKindEnum.Counter, "{request}", "tenant, agent, kind, action", "Permission requests relayed by harnesses, by the action the deployment's rules chose (allow, deny, ask)", "server", "Runs", "garrison-runs");
@@ -122,6 +122,30 @@ namespace Garrison.Core.Telemetry
 
         /// <summary>Conversation turns refused because another turn was unfinished.</summary>
         public static readonly MetricDescriptor ConversationBusy = new MetricDescriptor("garrison.conversation.busy", MetricKindEnum.Counter, "{request}", "surface", "Conversation turns refused with 409 ConversationBusy because the conversation's previous turn had not finished, by surface (rest, mcp, a2a)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Pipeline runs started (P12.9).</summary>
+        public static readonly MetricDescriptor PipelinesStarted = new MetricDescriptor("garrison.pipelines.started", MetricKindEnum.Counter, "{pipeline_run}", "tenant, pipeline", "Pipeline runs started (an idempotent repeat of a start is not counted)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Pipeline runs finished (P12.9).</summary>
+        public static readonly MetricDescriptor PipelinesFinished = new MetricDescriptor("garrison.pipelines.finished", MetricKindEnum.Counter, "{pipeline_run}", "tenant, pipeline, outcome", "Pipeline runs that reached a terminal status, by outcome (Succeeded, StageFailed, StageStartFailed, ReviewRejected, ReviewExpired, Cancelled, TimedOut, InternalError)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Pipeline stage executions created (P12.9).</summary>
+        public static readonly MetricDescriptor PipelineStageExecutions = new MetricDescriptor("garrison.pipeline.stage.executions", MetricKindEnum.Counter, "{execution}", "tenant, pipeline, mode", "Pipeline stage runs created, by why the execution started: first, retry (a failed attempt), revision (a reviewer requested changes), or resume (a retried pipeline run)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Pipeline stage runs that could not be created (P12.9).</summary>
+        public static readonly MetricDescriptor PipelineStageStartFailures = new MetricDescriptor("garrison.pipeline.stage.start_failures", MetricKindEnum.Counter, "{failure}", "tenant, pipeline, kind", "Pipeline stage runs that could not be created, by kind: transient (for example QuotaExceeded, retried by the sweep) or permanent (the pipeline run fails with StageStartFailed)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Pipeline advancement passes (P12.9).</summary>
+        public static readonly MetricDescriptor PipelineAdvances = new MetricDescriptor("garrison.pipeline.advances", MetricKindEnum.Counter, "{pass}", "trigger, result", "Pipeline run advancement passes, by trigger (hook, sweep, api) and result (changed when the pass moved the pipeline run, unchanged otherwise)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Pipeline reviews decided (P12.9).</summary>
+        public static readonly MetricDescriptor PipelineReviewsDecided = new MetricDescriptor("garrison.pipeline.reviews.decided", MetricKindEnum.Counter, "{review}", "tenant, pipeline, source, decision", "Pipeline stage reviews decided, by who decided (user, timeout, cancelled) and the decision (approve, requestchanges, reject, none)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Pipeline review wait (P12.9).</summary>
+        public static readonly MetricDescriptor PipelineReviewWait = new MetricDescriptor("garrison.pipeline.review.wait", MetricKindEnum.Histogram, "s", "source, decision", "Time a pipeline stage review waited for its decision", "server", "Runs", "garrison-runs", TelemetryBuckets.Run);
+
+        /// <summary>Pending pipeline reviews (P12.9).</summary>
+        public static readonly MetricDescriptor PipelineReviewsPending = new MetricDescriptor("garrison.pipeline.reviews.pending", MetricKindEnum.ObservableGauge, "{review}", "", "Pipeline stage reviews waiting for a person, as of the leader's last pipeline sweep; aggregate with max", "server", "Runs", "garrison-runs");
 
         /// <summary>Run events received.</summary>
         public static readonly MetricDescriptor RunEvents = new MetricDescriptor("garrison.run.events", MetricKindEnum.Counter, "{event}", "type", "Run events received from workers, by event type", "server", "Runs", "garrison-runs");
@@ -387,7 +411,7 @@ namespace Garrison.Core.Telemetry
             HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, CompileDuration,
             LeaseExpirations, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,

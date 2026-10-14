@@ -13,6 +13,13 @@ async function login(page) {
 test('Process deployment and run views visibly identify trusted-only execution', async ({ page }) => {
   await installMocks(page);
   await page.route(/\/deployments\/dep_0001$/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...respond('GET', new URL(route.request().url())), executor: 'Process' }) }));
+  // The edit form opens from the list row, so the row must carry the explicit executor too; otherwise the deployment
+  // inherits pool np-1's KubernetesJob default once the form's pick lists load and the warning correctly disappears.
+  await page.route(/\/v1\.0\/api\/tenants\/[^/]+\/deployments(\?.*)?$/, (route) => {
+    const body = respond('GET', new URL(route.request().url()));
+    const objects = (body.objects || []).map((d) => (d.id === 'dep_0001' ? { ...d, executor: 'Process' } : d));
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...body, objects }) });
+  });
   await login(page);
   await page.goto('/dashboard/deployments');
   await page.locator('.data-table tbody tr', { hasText: 'deployment-1' }).getByText('deployment-1', { exact: true }).click();

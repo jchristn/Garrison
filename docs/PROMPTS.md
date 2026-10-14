@@ -32,6 +32,8 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/structured-output-instructions` | Fragment | Output schema instructions for harnesses that cannot enforce a schema themselves |
 | `builtin/structured-output-repair` | Task | Repair prompt sent when a run's output fails validation against the agent's output schema (see [Structured output repair](#structured-output-repair)) |
 | `builtin/conversation-fallback` | Task | Task prompt of a conversation turn that cannot resume its harness session and starts a fresh one: repeats the earlier turns, then the current task (see [Conversation fallback](#conversation-fallback)) |
+| `builtin/pipeline-stage` | Task | Task prompt of a pipeline stage run (P12.9): wraps the stage run's own task prompt (`pipeline.task`) and hands it the previous stage's output, structured output, artifact references, reviewer notes, and revision feedback |
+| `builtin/pipeline-revision` | Fragment | Review feedback wording that `builtin/pipeline-stage` includes when a reviewer requested changes and the stage runs again |
 | `builtin/mcp-tool-description` | ToolDescription | Description of an agent offered as its own MCP tool (`exposeMcpTool`, see `MCP_API.md`) |
 | `builtin/a2a-skill-description` | ToolDescription | Description of an agent's A2A skill |
 | `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the Garrison MCP tools (see `MCP_API.md`). A tenant overrides one with its own template named `mcp-tool-garrison_<tool>` |
@@ -85,6 +87,7 @@ A deployment's `promptBindings` map roles to templates:
 | `DelegatedTask` | `prompts.task` for runs started by another agent | Bound to `builtin/delegated-task` |
 | `Repair` | The prompt of the structured output repair attempt | `builtin/structured-output-repair` is used |
 | `ConversationFallback` | The task prompt of a conversation turn that starts a fresh session from the transcript | `builtin/conversation-fallback` is used |
+| `PipelineStage` | The task prompt of a pipeline stage run, rendered around the stage run's own task prompt (`pipeline.task`). A stage's own `handoffTemplateId` (optionally pinned with `handoffTemplateVersion`) takes precedence over this binding | `builtin/pipeline-stage` is used |
 
 If a deployment ends up with no `Task` binding at all, the caller's message is sent as is.
 
@@ -160,6 +163,80 @@ A fallback with no successful earlier turn to repeat sends the task prompt alone
 
 Configuration file templates are bound differently: harness profiles include them in file contents with `{{> name}}`. To change Claude Code's MCP configuration, clone `builtin/claude-code-mcp-config`, clone the profile, and point the profile's file at your template.
 
+## Pipeline stages
+
+A stage run of a [pipeline](PIPELINES.md) gets the caller's original input, like any run, and its `Task` (or `DelegatedTask`) template renders as usual. The result is then handed to a second template with the `PipelineStage` role, which wraps it with what the earlier stages produced. That second template is the stage's own `handoffTemplateId` (at its pinned `handoffTemplateVersion`, if any), else the deployment's `PipelineStage` binding, else `builtin/pipeline-stage`. A handoff template must have the kind `Task`.
+
+The `pipeline` variables are set for every template, with empty values outside a pipeline, so a shared template can test `pipeline.id`. Everything an earlier stage produced is cut at the current stage's `outputCharLimit` (default 16000 characters).
+
+| Variable | Contents |
+|---|---|
+| `pipeline.id`, `pipeline.name`, `pipeline.runId` | The pipeline and the pipeline run |
+| `pipeline.position`, `pipeline.stageName`, `pipeline.stageCount` | This stage (positions start at 1) and how many stages there are |
+| `pipeline.task` | The rendered `Task` or `DelegatedTask` prompt of this stage run. Only the `PipelineStage` template sees it |
+| `pipeline.hasPrevious`, `pipeline.previous` | Whether there is an earlier stage, and the one just before this one |
+| `pipeline.stages` | Every earlier stage, in order |
+| `pipeline.hasReviewNotes`, `pipeline.reviewNotes` | The comment of the reviewer who approved the previous stage, when there is one |
+| `pipeline.isRevision`, `pipeline.revision.number` | Whether the latest decided review of this stage asked for changes, or rejected it with a comment before the pipeline run was resumed, and how many such decisions there have been so far |
+| `pipeline.revision.feedback`, `pipeline.revision.reviewer` | The latest feedback and who gave it |
+| `pipeline.revision.previousOutput`, `pipeline.revision.previousOutputTruncated` | The output the feedback is about, and whether it was cut |
+
+`pipeline.previous` and each item of `pipeline.stages` have `position`, `stageName`, `agentName`, `status` (the stage run's status, `Failed` when a stage with `continueOnFailure` gave up), `outcome`, `output`, `outputTruncated`, `structured` (the structured output JSON, when the agent has an output schema and it fits under the limit), `hasArtifacts`, and `artifacts` (each with `id`, `name`, `mediaType`, and `sizeBytes`; artifact contents are never inlined).
+
+This is the built-in stage template:
+
+```text
+You are stage {{pipeline.position}} of {{pipeline.stageCount}} ("{{pipeline.stageName}}") in the pipeline {{pipeline.name}}. Earlier stages ran in their own workspaces, so their files are not in yours; use the outputs below.
+{{#if pipeline.hasPrevious}}
+
+The previous stage, {{pipeline.previous.stageName}} (agent {{pipeline.previous.agentName}}), finished with status {{pipeline.previous.status}}. Its output:
+
+--- Output of {{pipeline.previous.stageName}} ---
+{{pipeline.previous.output}}{{#if pipeline.previous.outputTruncated}} [cut short]{{/if}}
+--- End of output ---
+{{#if pipeline.previous.structured}}
+
+Structured output of {{pipeline.previous.stageName}}:
+{{pipeline.previous.structured}}
+{{/if}}
+{{#if pipeline.previous.hasArtifacts}}
+
+Artifacts produced by {{pipeline.previous.stageName}}:
+{{#each pipeline.previous.artifacts}}
+- {{this.name}} ({{this.mediaType}}, {{this.sizeBytes}} bytes, artifact {{this.id}})
+{{/each}}
+{{/if}}
+{{/if}}
+{{#if pipeline.hasReviewNotes}}
+
+A reviewer approved the previous stage with these notes:
+{{pipeline.reviewNotes}}
+{{/if}}
+{{#if pipeline.isRevision}}
+
+{{> builtin/pipeline-revision}}
+{{/if}}
+
+--- Your task ---
+{{pipeline.task}}
+```
+
+It includes `builtin/pipeline-revision`, a `Fragment`, when the stage runs again after a reviewer asked for changes:
+
+```text
+A reviewer did not accept your previous attempt at this stage (revision {{pipeline.revision.number}}) and left the feedback below. Address it and produce a complete new result.
+
+--- Reviewer feedback{{#if pipeline.revision.reviewer}} from {{pipeline.revision.reviewer}}{{/if}} ---
+{{pipeline.revision.feedback}}
+--- End of feedback ---
+
+--- Your previous output ---
+{{pipeline.revision.previousOutput}}{{#if pipeline.revision.previousOutputTruncated}} [cut short]{{/if}}
+--- End of previous output ---
+```
+
+To change the wording for one stage, create a `Task` template and set it as the stage's `handoffTemplateId`; to change it for every pipeline stage a deployment runs, bind it to the deployment's `PipelineStage` role. Your template can include `builtin/pipeline-revision` or word the revision block itself. `POST .../pipelines/{id}/preview` renders each stage's prompt from sample outputs, and the versions of the stage template and its includes are added to the run's `templateVersions`. `docs/PIPELINES.md` shows a rendered example.
+
 ## Template language
 
 The language is small on purpose. It has variables, filters, conditionals, loops, includes, comments, and raw blocks, and nothing that can call out of the renderer.
@@ -205,6 +282,7 @@ The variables available when a run is compiled (`tenant`, `agent`, `deployment`,
 | `deployment.parameters.<name>` | Deployment parameters, after allowed run overrides |
 | `caller.agentName`, `run.depth`, `run.callChain` | Who is asking, in a delegation chain |
 | `repair.error`, `repair.schema`, `repair.previousOutput` | Only during a structured output repair (see above) |
+| `pipeline.task`, `pipeline.previous.output`, `pipeline.reviewNotes`, `pipeline.revision.feedback` | Only meaningful in a pipeline stage run (see [Pipeline stages](#pipeline-stages)) |
 | `garrison.delegationEnabled`, `garrison.mcpServerName` | Whether this run can delegate, and the MCP server name to tell it about |
 | `harness.type`, `harness.nativeSchema` | Which harness will run the prompt |
 | `tool.name`, `tool.defaultDescription` | Only in tool description templates: the tool being described and its built-in description |

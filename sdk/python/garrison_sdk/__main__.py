@@ -28,7 +28,7 @@ def main():
                 if command in ('quit', 'exit'):
                     break
                 if command == 'help':
-                    print('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | quit')
+                    print('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | quit')
                 elif command == 'health': show(client.health())
                 elif command == 'login':
                     client.login(parts[2], secret('Password: '), parts[1])
@@ -42,6 +42,10 @@ def main():
                 elif command == 'invoke': show(client.agents.invoke(parts[1], parts[2], wait=False))
                 elif command == 'run': show(client.runs.get(parts[1]))
                 elif command == 'events': show(client.runs.events(parts[1]))
+                elif command == 'pipelines': show(client.pipelines.list())
+                elif command == 'pipeline-runs': show(client.pipeline_runs.list())
+                elif command == 'pipeline-reviews': show(client.pipeline_reviews.list())
+                elif command == 'start-pipeline': show(client.pipelines.start(parts[1], parts[2]))
                 elif command == 'watch':
                     for frame in client.runs.stream(parts[1]): show(frame)
                 else: print('Unknown command. Type help.')

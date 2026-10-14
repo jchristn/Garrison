@@ -78,7 +78,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -106,6 +106,28 @@ ApprovalCheckResponse result = await client.Approvals.CheckAsync(deploymentId, c
 ```
 
 `Approvals.ListAsync` filters by status, run, root run, agent, deployment, decision source (`ApprovalSourceEnum`), and time range; for a pending count, filter on `Pending` with `MaxResults = 1` and read `TotalRecords`. `GetAsync` returns 404 for an approval outside the tenant. `DecideAsync` answers 409 (`ApprovalNotPending`) when the approval was already decided, and `Remember` needs Update on the approval's deployment. `CheckAsync` records nothing and returns the action, whether a rule or the default decided (`Source`), the matching rule, a `SuggestedRule`, and whether approvals are enabled. `Run` carries `PendingApprovals`, `AwaitingApproval` (the run stays `Running` while it waits), and `ApprovalWaitMs`.
+
+## Pipelines
+
+A pipeline runs agents as ordered stages. Each stage runs in its own workspace and receives the caller's input plus the earlier stages' results through a `PipelineStage` prompt template. A stage with `RequiresReview` waits for a person before the pipeline continues.
+
+```csharp
+Pipeline pipeline = new Pipeline { Name = "draft-and-edit" };
+pipeline.Stages.Add(new PipelineStage { Name = "write", AgentId = writerId, RequiresReview = true });
+pipeline.Stages.Add(new PipelineStage { Name = "edit", AgentId = editorId });
+pipeline = await client.Pipelines.CreateAsync(pipeline);
+
+PipelineRun run = await client.Pipelines.StartAsync(pipeline.Name, new PipelineStartRequest { Input = "Write a haiku", Wait = true, WaitSeconds = 60 }, idempotencyKey: "haiku-1");
+PipelineReview review = (await client.PipelineReviews.ListAsync(new PipelineReviewFilter { Status = PipelineReviewStatusEnum.Pending, PipelineRunId = run.Id })).Objects[0];
+await client.PipelineReviews.DecideAsync(review.Id, new PipelineReviewDecideRequest { Decision = PipelineReviewDecisionEnum.Approve, Comment = "Keep the second line." });
+run = await client.PipelineRuns.GetAsync(run.Id, waitSeconds: 60);
+```
+
+`Pipelines` adds `StartAsync` (Pipeline Execute plus Agent Execute on every stage agent; the optional idempotency key is sent as the `Idempotency-Key` header, and a repeat with different content answers 409 `IdempotencyKeyConflict`) and `PreviewAsync` (renders every stage prompt from sample input and sample stage outputs; nothing runs) to the standard CRUD calls, which accept an identifier or a name. Updates advance `Version`; started pipeline runs keep their snapshot. Deleting a pipeline with active pipeline runs answers 409 `PipelineInUse`.
+
+`PipelineRuns` lists by pipeline, status (`PipelineRunStatusEnum`), caller, and time range; `GetAsync` takes an optional `waitSeconds` (up to 600) and returns when the pipeline run ends or waits for a review, with its `Stages`, stage `Runs`, and `Reviews`. `CancelAsync` cancels the pending review and the current stage run; `RetryAsync` resumes a `Failed`, `TimedOut`, or `Cancelled` pipeline run at the stage where it stopped; `DeleteAsync` removes a finished pipeline run (409 `PipelineRunActive` otherwise).
+
+`PipelineReviews` lists by status (`PipelineReviewStatusEnum`), pipeline run, pipeline, stage run, and decision source, and `DecideAsync` takes `Approve` (the comment reaches the next stage as review notes), `RequestChanges` (comment required; the stage runs again with it, up to the stage's `MaxRevisions`, then 409 `RevisionLimitReached`), or `Reject` (the pipeline run fails with outcome `ReviewRejected`). A second decision answers 409 `ReviewNotPending`. Reviews are authorized as `Approval` Read and Update. Run tokens cannot use pipelines, pipeline runs, or reviews.
 
 ## Streaming run events
 
@@ -277,7 +299,7 @@ Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to 
 dotnet run --project sdk/csharp/Garrison.Sdk.Console -f net10.0 -- http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
 ## Executor capabilities
 

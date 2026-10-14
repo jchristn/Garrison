@@ -151,6 +151,17 @@ namespace Garrison.Core.Enums
         ModelPrice,
 
         /// <summary>Usage quota configuration and counters.</summary>
-        UsageQuota
+        UsageQuota,
+
+        /// <summary>
+        /// Pipeline definitions: ordered agent stages with optional review gates (P12.9). Execute starts a pipeline.
+        /// </summary>
+        Pipeline,
+
+        /// <summary>
+        /// Pipeline runs (P12.9): read, cancel, retry, and delete executions of a pipeline. Stage reviews are authorized as
+        /// Approval.
+        /// </summary>
+        PipelineRun
     }
 }

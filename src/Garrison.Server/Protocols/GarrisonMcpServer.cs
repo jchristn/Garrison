@@ -384,7 +384,7 @@ namespace Garrison.Server.Protocols
             List<ToolDefinition> tools = new List<ToolDefinition>();
             foreach (McpToolDefinition tool in McpToolCatalog.All())
             {
-                if (tool.ManagementTool && !ManagementCaller(ctx)) continue;
+                if (tool.UserOnly && !ManagementCaller(ctx)) continue;
                 string description = await ToolDescriptionAsync(tenantId, tool, token).ConfigureAwait(false);
                 tools.Add(Definition(tool.Name, description, administrator ? _AdministratorSchemas[tool.Name] : _PublicSchemas[tool.Name]));
             }
@@ -582,6 +582,7 @@ namespace Garrison.Server.Protocols
             try
             {
                 if (tool.ManagementTool && !ManagementCaller(ctx)) throw ToolError("Forbidden", "Management tools require a user or developer API credential; hosted run and node tokens cannot manage configuration.");
+                if (tool.UserOnly && !ManagementCaller(ctx)) throw ToolError("Forbidden", tool.Name + " requires a user or API credential; hosted run and node tokens cannot use it.");
                 object result;
                 switch (tool.Name)
                 {
@@ -600,6 +601,34 @@ namespace Garrison.Server.Protocols
                     case "garrison_update_deployment":
                     case "garrison_delete_deployment":
                         result = await ManageDeploymentAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_get_pipeline":
+                    case "garrison_create_pipeline":
+                    case "garrison_update_pipeline":
+                    case "garrison_delete_pipeline":
+                        result = await ManagePipelineAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_pipelines":
+                        result = await ListPipelinesAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_start_pipeline":
+                        result = await StartPipelineAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_get_pipeline_run":
+                        result = await GetPipelineRunAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_pipeline_runs":
+                        result = await ListPipelineRunsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_cancel_pipeline_run":
+                        PipelineRun pipelineRunToCancel = await RequirePipelineRunAsync(ctx, tenantId, ManagementArguments<McpPipelineRunArguments>(args).PipelineRunId, OperationTypeEnum.Update, token).ConfigureAwait(false);
+                        result = await _Context.Get<PipelineService>().CancelAsync(ctx, pipelineRunToCancel, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_pipeline_reviews":
+                        result = await ListPipelineReviewsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_decide_pipeline_review":
+                        result = await DecidePipelineReviewAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
                     case "garrison_apply_manifest":
                         result = await ApplyManifestAsync(ctx, tenantId, args, token).ConfigureAwait(false);
@@ -700,7 +729,7 @@ namespace Garrison.Server.Protocols
         {
             if (String.IsNullOrWhiteSpace(args?.RawJson)) return new T();
             try { return Serializer.Deserialize<T>(args.RawJson) ?? new T(); }
-            catch (JsonException) { throw ToolError("ValidationFailed", "The management tool arguments do not match their typed configuration contract."); }
+            catch (JsonException) { throw ToolError("ValidationFailed", "The tool arguments do not match the tool's typed input contract."); }
         }
 
         private async Task<object> ManageAgentAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
@@ -734,6 +763,139 @@ namespace Garrison.Server.Protocols
             if (tool.Operation == OperationTypeEnum.Update)
                 return await _Mutations.UpdateDeploymentAsync(ctx, tenantId, existing, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
             return new McpConfigurationDeletion { Id = existing.Id, Deleted = await _Mutations.DeleteDeploymentAsync(ctx, tenantId, existing, token).ConfigureAwait(false) };
+        }
+
+        private async Task<object> ManagePipelineAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpPipelineConfigurationArguments arguments = ManagementArguments<McpPipelineConfigurationArguments>(args);
+            if (tool.Operation == OperationTypeEnum.Create)
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Pipeline, tool.Operation, null, token).ConfigureAwait(false);
+                return await _Mutations.CreatePipelineAsync(ctx, tenantId, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            }
+            Pipeline existing = await RequirePipelineAsync(ctx, tenantId, arguments.Pipeline, tool.Operation, token).ConfigureAwait(false);
+            if (tool.Operation == OperationTypeEnum.Read) return existing;
+            if (tool.Operation == OperationTypeEnum.Update)
+                return await _Mutations.UpdatePipelineAsync(ctx, tenantId, existing, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            return new McpConfigurationDeletion { Id = existing.Id, Deleted = await _Mutations.DeletePipelineAsync(ctx, tenantId, existing, token).ConfigureAwait(false) };
+        }
+
+        private async Task<Pipeline> RequirePipelineAsync(RequestContext ctx, string tenantId, string? idOrName, OperationTypeEnum operation, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(idOrName)) throw ToolError("ValidationFailed", "pipeline is required.");
+            string reference = idOrName.Trim();
+            Pipeline? pipeline = await _Context.Database.Pipelines.ReadAsync(tenantId, reference, token).ConfigureAwait(false);
+            if (pipeline == null) pipeline = await _Context.Database.Pipelines.ReadByNameAsync(tenantId, reference, token).ConfigureAwait(false);
+            if (pipeline == null) throw ToolError("NotFound", "Pipeline " + reference + " not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.Pipeline, operation, pipeline.Id, token).ConfigureAwait(false);
+            return pipeline;
+        }
+
+        private async Task<object> ListPipelinesAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.Pipeline, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            McpPipelineListArguments arguments = ManagementArguments<McpPipelineListArguments>(args);
+            EnumerationQuery query = new EnumerationQuery();
+            query.Search = String.IsNullOrWhiteSpace(arguments.Search) ? null : arguments.Search.Trim();
+            query.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+            return await _Context.Database.Pipelines.EnumerateAsync(tenantId, query, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> StartPipelineAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpPipelineStartArguments arguments = ManagementArguments<McpPipelineStartArguments>(args);
+            Pipeline pipeline = await RequirePipelineAsync(ctx, tenantId, arguments.Pipeline, OperationTypeEnum.Execute, token).ConfigureAwait(false);
+            if (String.IsNullOrWhiteSpace(arguments.Input)) throw ToolError("ValidationFailed", "input is required.");
+
+            // Starting a pipeline runs every stage agent on the caller's behalf, so the caller needs Agent Execute on each.
+            foreach (string agentId in pipeline.Stages.Select(s => s.AgentId).Distinct(StringComparer.Ordinal))
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Agent, OperationTypeEnum.Execute, agentId, token).ConfigureAwait(false);
+            }
+
+            PipelineStartRequest request = new PipelineStartRequest();
+            request.Input = arguments.Input;
+            request.InputContentType = arguments.InputContentType;
+            request.Priority = arguments.Priority ?? 0;
+            request.WaitSeconds = PipelineWaitSeconds(arguments.WaitSeconds);
+            request.Wait = request.WaitSeconds > 0;
+            return await _Context.Get<PipelineService>().StartAsync(ctx, pipeline, request, arguments.IdempotencyKey, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> GetPipelineRunAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpPipelineRunArguments arguments = ManagementArguments<McpPipelineRunArguments>(args);
+            PipelineRun run = await RequirePipelineRunAsync(ctx, tenantId, arguments.PipelineRunId, OperationTypeEnum.Read, token).ConfigureAwait(false);
+            PipelineService pipelines = _Context.Get<PipelineService>();
+            int waitSeconds = PipelineWaitSeconds(arguments.WaitSeconds);
+            if (waitSeconds > 0) run = await pipelines.WaitAsync(tenantId, run.Id, waitSeconds, token).ConfigureAwait(false) ?? run;
+            return await pipelines.DetailAsync(run, token).ConfigureAwait(false);
+        }
+
+        private int PipelineWaitSeconds(int? requested)
+        {
+            if (!requested.HasValue || requested.Value <= 0) return 0;
+            return Math.Clamp(requested.Value, 0, Math.Min(600, _Context.Settings.Mcp.MaxToolWaitSeconds));
+        }
+
+        private async Task<PipelineRun> RequirePipelineRunAsync(RequestContext ctx, string tenantId, string? pipelineRunId, OperationTypeEnum operation, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(pipelineRunId)) throw ToolError("ValidationFailed", "pipelineRunId is required.");
+            await Require(ctx, tenantId, ResourceTypeEnum.PipelineRun, operation, pipelineRunId, token).ConfigureAwait(false);
+            return await _Context.Database.PipelineRuns.ReadAsync(tenantId, pipelineRunId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Pipeline run " + pipelineRunId + " not found.");
+        }
+
+        private async Task<object> ListPipelineRunsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.PipelineRun, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            McpPipelineRunListArguments arguments = ManagementArguments<McpPipelineRunListArguments>(args);
+            PipelineRunFilter filter = new PipelineRunFilter();
+            filter.TenantId = tenantId;
+            if (!String.IsNullOrWhiteSpace(arguments.Pipeline))
+            {
+                filter.PipelineId = (await RequirePipelineAsync(ctx, tenantId, arguments.Pipeline, OperationTypeEnum.Read, token).ConfigureAwait(false)).Id;
+            }
+            if (!String.IsNullOrWhiteSpace(arguments.Status))
+            {
+                if (!Enum.TryParse<PipelineRunStatusEnum>(arguments.Status, true, out PipelineRunStatusEnum status) || !Enum.IsDefined(status)) throw ToolError("ValidationFailed", "status must be Running, AwaitingReview, Cancelling, Succeeded, Failed, Cancelled, or TimedOut.");
+                filter.Status = status;
+            }
+            filter.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+            return await _Context.Database.PipelineRuns.EnumerateAsync(filter, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> ListPipelineReviewsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.Approval, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            McpPipelineReviewListArguments arguments = ManagementArguments<McpPipelineReviewListArguments>(args);
+            PipelineReviewFilter filter = new PipelineReviewFilter();
+            filter.TenantId = tenantId;
+            if (!String.IsNullOrWhiteSpace(arguments.Status))
+            {
+                if (!Enum.TryParse<PipelineReviewStatusEnum>(arguments.Status, true, out PipelineReviewStatusEnum status) || !Enum.IsDefined(status)) throw ToolError("ValidationFailed", "status must be Pending, Approved, ChangesRequested, Rejected, Expired, or Cancelled.");
+                filter.Status = status;
+            }
+            filter.PipelineRunId = String.IsNullOrWhiteSpace(arguments.PipelineRunId) ? null : arguments.PipelineRunId.Trim();
+            filter.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+            return await _Context.Database.PipelineReviews.EnumerateAsync(filter, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> DecidePipelineReviewAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpPipelineReviewDecideArguments arguments = ManagementArguments<McpPipelineReviewDecideArguments>(args);
+            if (String.IsNullOrWhiteSpace(arguments.ReviewId)) throw ToolError("ValidationFailed", "reviewId is required.");
+            if (String.IsNullOrWhiteSpace(arguments.Decision)
+                || !Enum.TryParse<PipelineReviewDecisionEnum>(arguments.Decision, true, out PipelineReviewDecisionEnum decision)
+                || !Enum.IsDefined(decision))
+            {
+                throw ToolError("ValidationFailed", "decision must be Approve, RequestChanges, or Reject.");
+            }
+            await Require(ctx, tenantId, ResourceTypeEnum.Approval, OperationTypeEnum.Update, arguments.ReviewId, token).ConfigureAwait(false);
+            PipelineReview review = await _Context.Database.PipelineReviews.ReadAsync(tenantId, arguments.ReviewId, token).ConfigureAwait(false) ?? throw ToolError("NotFound", "Pipeline review " + arguments.ReviewId + " not found.");
+            PipelineReviewDecideRequest request = new PipelineReviewDecideRequest();
+            request.Decision = decision;
+            request.Comment = arguments.Comment;
+            return await _Context.Get<PipelineService>().DecideAsync(ctx, review, request, token).ConfigureAwait(false);
         }
 
         private async Task<object> ApplyManifestAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)

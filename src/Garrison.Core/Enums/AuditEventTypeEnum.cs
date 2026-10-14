@@ -113,6 +113,16 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// A person decided a permission approval (P12.3).
         /// </summary>
-        ApprovalDecided
+        ApprovalDecided,
+
+        /// <summary>
+        /// A person decided a pipeline stage review (P12.9).
+        /// </summary>
+        PipelineReviewDecided,
+
+        /// <summary>
+        /// A pipeline run was cancelled (P12.9).
+        /// </summary>
+        PipelineRunCancelled
     }
 }

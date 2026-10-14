@@ -230,6 +230,19 @@ namespace Garrison.Core.Database.Interfaces
         Task<Run?> ReadByIdempotencyKeyAsync(string tenantId, string? callerId, string idempotencyKey, CancellationToken token = default);
 
         /// <summary>
+        /// Read the run of a pipeline stage execution (P12.9), with no time window. At most one exists: a partial unique
+        /// index covers (pipelinerunid, pipelineposition, pipelineexecution) for runs inside pipelines.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="pipelineRunId">Pipeline run identifier.</param>
+        /// <param name="position">Stage position (1 or more).</param>
+        /// <param name="execution">Stage execution (1 or more).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Run or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or pipelineRunId is null or empty.</exception>
+        Task<Run?> ReadByPipelineExecutionAsync(string tenantId, string pipelineRunId, int position, int execution, CancellationToken token = default);
+
+        /// <summary>
         /// Enumerate runs with a typed filter (children not loaded).
         /// </summary>
         /// <param name="filter">Filter.</param>

@@ -79,6 +79,21 @@ namespace Garrison.FakeHarness
         public int ThinkMs { get; set; } = 20;
 
         /// <summary>
+        /// Characters of the prompt echoed after "Echo: ". 0 echoes the whole prompt. Minimum 0, default 200.
+        /// </summary>
+        public int EchoChars
+        {
+            get
+            {
+                return _EchoChars;
+            }
+            set
+            {
+                _EchoChars = Math.Max(0, value);
+            }
+        }
+
+        /// <summary>
         /// Answer text used instead of the echo (for example a JSON document). Null keeps the echo.
         /// </summary>
         public string? Answer { get; set; } = null;
@@ -171,6 +186,12 @@ namespace Garrison.FakeHarness
 
         #endregion
 
+        #region Private-Members
+
+        private int _EchoChars = 200;
+
+        #endregion
+
         #region Public-Methods
 
         /// <summary>
@@ -222,6 +243,9 @@ namespace Garrison.FakeHarness
                         break;
                     case "--think-ms":
                         if (next != null) { options.ThinkMs = Math.Max(0, Int32.Parse(next, CultureInfo.InvariantCulture)); i++; }
+                        break;
+                    case "--echo-chars":
+                        if (next != null) { options.EchoChars = Int32.Parse(next, CultureInfo.InvariantCulture); i++; }
                         break;
                     case "--answer":
                         if (next != null) { options.Answer = next; i++; }

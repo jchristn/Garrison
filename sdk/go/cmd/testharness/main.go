@@ -773,6 +773,163 @@ func main() {
 		}
 		return nil
 	})
+	check("pipelines round trip", func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+		defer cancel()
+		var editor garrison.Agent
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-editor-" + suffix, Description: "Go SDK harness pipeline stage."}, &editor); err != nil {
+			return err
+		}
+		defer client.Agents.Delete(ctx, editor.ID)
+		var editorDeployment garrison.Deployment
+		if err := client.Deployments.Create(ctx, garrison.Deployment{Name: "sdk-go-editor-" + suffix + "-fake", AgentID: editor.ID, HarnessProfileID: fakeID}, &editorDeployment); err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, editorDeployment.ID)
+
+		name := "sdk-go-pipeline-" + suffix
+		var created garrison.Pipeline
+		definition := garrison.Pipeline{Name: name, Stages: []garrison.PipelineStage{
+			{Name: "write", AgentID: agentID, RequiresReview: true},
+			{Name: "edit", AgentID: editor.ID},
+		}}
+		if err := client.Pipelines.Create(ctx, definition, &created); err != nil {
+			return err
+		}
+		deleted := false
+		defer func() {
+			if !deleted {
+				_ = client.Pipelines.Delete(ctx, created.ID)
+			}
+		}()
+		if !strings.HasPrefix(created.ID, "ppl_") || created.Version != 1 || len(created.Stages) != 2 || created.Stages[1].Position != 2 {
+			return fmt.Errorf("created %+v", created)
+		}
+		var byName garrison.Pipeline
+		if err := client.Pipelines.Get(ctx, name, &byName); err != nil {
+			return err
+		}
+		if byName.ID != created.ID {
+			return errors.New("get by name")
+		}
+		description := "Updated by the Go SDK harness."
+		byName.Description = &description
+		var updated garrison.Pipeline
+		if err := client.Pipelines.Update(ctx, created.ID, byName, &updated); err != nil {
+			return err
+		}
+		if updated.Version != 2 || updated.Description == nil || *updated.Description != description {
+			return fmt.Errorf("update version %d", updated.Version)
+		}
+		var page garrison.EnumerationResult[garrison.Pipeline]
+		if err := client.Pipelines.List(ctx, &garrison.ListOptions{Search: name}, &page); err != nil {
+			return err
+		}
+		if len(page.Objects) != 1 || page.Objects[0].ID != created.ID {
+			return errors.New("pipeline list")
+		}
+		preview, err := client.Pipelines.Preview(ctx, created.ID, garrison.PipelinePreviewRequest{Input: "Preview input", SampleOutputs: []string{"Sample stage one output"}})
+		if err != nil {
+			return err
+		}
+		if len(preview.Stages) != 2 || !preview.Stages[0].Success || preview.Stages[0].Prompt == nil || !strings.Contains(*preview.Stages[0].Prompt, "Preview input") {
+			return fmt.Errorf("preview %+v", preview.Stages)
+		}
+
+		key := "sdk-go-pipeline-key-" + suffix
+		started, err := client.Pipelines.Start(ctx, created.ID, garrison.PipelineStartRequest{Input: "Write a Go haiku", Wait: true, WaitSeconds: 30}, key)
+		if err != nil {
+			return err
+		}
+		if started.Status != garrison.PipelineRunStatusAwaitingReview || !strings.HasPrefix(started.ID, "plr_") || len(started.Stages) != 2 {
+			return fmt.Errorf("started status %s", started.Status)
+		}
+		repeated, err := client.Pipelines.Start(ctx, created.ID, garrison.PipelineStartRequest{Input: "Write a Go haiku"}, key)
+		if err != nil {
+			return err
+		}
+		if repeated.ID != started.ID {
+			return errors.New("idempotency key started a second pipeline run")
+		}
+		reviews, err := client.PipelineReviews.List(ctx, garrison.PipelineReviewFilter{Status: garrison.PipelineReviewStatusPending, PipelineRunID: started.ID})
+		if err != nil {
+			return err
+		}
+		if len(reviews.Objects) != 1 {
+			return fmt.Errorf("pending reviews %d", len(reviews.Objects))
+		}
+		review, err := client.PipelineReviews.Get(ctx, reviews.Objects[0].ID)
+		if err != nil {
+			return err
+		}
+		decided, err := client.PipelineReviews.Decide(ctx, review.ID, garrison.PipelineReviewDecideRequest{Decision: garrison.PipelineReviewDecisionApprove, Comment: "Looks good from Go"})
+		if err != nil {
+			return err
+		}
+		if decided.Status != garrison.PipelineReviewStatusApproved || decided.DecisionSource == nil || *decided.DecisionSource != garrison.PipelineReviewSourceUser {
+			return fmt.Errorf("decided status %s", decided.Status)
+		}
+		if _, err := client.PipelineReviews.Decide(ctx, review.ID, garrison.PipelineReviewDecideRequest{Decision: garrison.PipelineReviewDecisionReject}); !garrison.IsStatus(err, http.StatusConflict) {
+			return fmt.Errorf("second decision: %v", err)
+		}
+		finished, err := waitPipelineRun(ctx, client, started.ID, garrison.PipelineRunStatusSucceeded)
+		if err != nil {
+			return err
+		}
+		if finished.Outcome != garrison.PipelineRunOutcomeSucceeded || len(finished.Runs) != 2 || len(finished.Reviews) != 1 {
+			return fmt.Errorf("finished outcome %s runs %d reviews %d", finished.Outcome, len(finished.Runs), len(finished.Reviews))
+		}
+		runs, err := client.PipelineRuns.List(ctx, garrison.PipelineRunFilter{PipelineID: created.ID})
+		if err != nil {
+			return err
+		}
+		if len(runs.Objects) != 1 || runs.Objects[0].ID != started.ID {
+			return fmt.Errorf("pipeline runs listed %d", len(runs.Objects))
+		}
+
+		second, err := client.Pipelines.Start(ctx, created.ID, garrison.PipelineStartRequest{Input: "Write another"}, "")
+		if err != nil {
+			return err
+		}
+		if _, err := client.PipelineRuns.Cancel(ctx, second.ID); err != nil {
+			return err
+		}
+		if _, err := waitPipelineRun(ctx, client, second.ID, garrison.PipelineRunStatusCancelled); err != nil {
+			return err
+		}
+		resumed, err := client.PipelineRuns.Retry(ctx, second.ID)
+		if err != nil {
+			return err
+		}
+		if resumed.Status == garrison.PipelineRunStatusCancelled {
+			return errors.New("retry did not reopen the pipeline run")
+		}
+		if resumed.Status == garrison.PipelineRunStatusRunning || resumed.Status == garrison.PipelineRunStatusAwaitingReview {
+			if _, err := client.PipelineRuns.Cancel(ctx, second.ID); err != nil {
+				return err
+			}
+		}
+		final, err := client.PipelineRuns.Get(ctx, second.ID, 30)
+		if err != nil {
+			return err
+		}
+		if final.Status == garrison.PipelineRunStatusCancelling {
+			if final, err = waitPipelineRun(ctx, client, second.ID, garrison.PipelineRunStatusCancelled); err != nil {
+				return err
+			}
+		}
+		if err := client.PipelineRuns.Delete(ctx, second.ID); err != nil {
+			return err
+		}
+		if _, err := client.PipelineRuns.Get(ctx, second.ID, 0); !garrison.IsStatus(err, http.StatusNotFound) {
+			return fmt.Errorf("deleted pipeline run: %v", err)
+		}
+		if err := client.Pipelines.Delete(ctx, created.ID); err != nil {
+			return err
+		}
+		deleted = true
+		return nil
+	})
 	check("cleanup", func(ctx context.Context) error {
 		if conversationDeploymentID != "" {
 			if err := client.Deployments.Delete(ctx, conversationDeploymentID); err != nil {
@@ -796,5 +953,28 @@ func main() {
 	}
 	if len(failures) > 0 {
 		os.Exit(1)
+	}
+}
+
+// waitPipelineRun waits until a pipeline run reaches status (or any terminal status) and fails otherwise.
+func waitPipelineRun(ctx context.Context, client *garrison.Client, id, status string) (*garrison.PipelineRun, error) {
+	deadline := time.Now().Add(90 * time.Second)
+	for {
+		run, err := client.PipelineRuns.Get(ctx, id, 20)
+		if err != nil {
+			return nil, err
+		}
+		if run.Status == status {
+			return run, nil
+		}
+		terminal := run.Status == garrison.PipelineRunStatusSucceeded || run.Status == garrison.PipelineRunStatusFailed || run.Status == garrison.PipelineRunStatusCancelled || run.Status == garrison.PipelineRunStatusTimedOut
+		if terminal || time.Now().After(deadline) {
+			message := ""
+			if run.ErrorMessage != nil {
+				message = *run.ErrorMessage
+			}
+			return nil, fmt.Errorf("pipeline run %s is %s (%s), expected %s", id, run.Status, message, status)
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 }

@@ -47,6 +47,12 @@ namespace Garrison.Server.Protocols
         public bool ManagementTool { get; set; } = false;
 
         /// <summary>
+        /// Tool for people and API credentials only: hidden from and denied to hosted run and node tokens. True for every
+        /// management tool and for the pipeline tools (D-048). Default false.
+        /// </summary>
+        public bool UserOnly { get; set; } = false;
+
+        /// <summary>
         /// True for an agent offered as its own MCP tool (exposeMcpTool): calling it invokes that agent in the caller's
         /// tenant and waits for the answer. False for the built-in Garrison tools.
         /// </summary>

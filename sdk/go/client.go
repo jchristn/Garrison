@@ -105,6 +105,9 @@ type Client struct {
 	Runs                       *RunsClient
 	Conversations              *ConversationsClient
 	Approvals                  *ApprovalsClient
+	Pipelines                  *PipelinesClient
+	PipelineRuns               *PipelineRunsClient
+	PipelineReviews            *PipelineReviewsClient
 	Analytics                  *AnalyticsClient
 	Nodes                      *GlobalResource
 	ControlNodes               *ControlNodesClient
@@ -140,6 +143,9 @@ func NewClient(baseURL string) *Client {
 	c.Runs = &RunsClient{c: c, PollInterval: 500 * time.Millisecond}
 	c.Conversations = &ConversationsClient{c: c}
 	c.Approvals = &ApprovalsClient{c: c}
+	c.Pipelines = &PipelinesClient{Resource{c: c, segment: "pipelines"}}
+	c.PipelineRuns = &PipelineRunsClient{c: c}
+	c.PipelineReviews = &PipelineReviewsClient{c: c}
 	c.Analytics = &AnalyticsClient{c: c}
 	c.Nodes = &GlobalResource{c: c, path: "/v1.0/api/nodes"}
 	c.ControlNodes = &ControlNodesClient{c: c}
@@ -229,6 +235,11 @@ func (c *Client) TenantPath(suffix string) string {
 
 // Do sends a JSON request and decodes the JSON response into out (which may be nil).
 func (c *Client) Do(ctx context.Context, method, path string, query url.Values, body any, out any) error {
+	return c.doWithHeaders(ctx, method, path, query, nil, body, out)
+}
+
+// doWithHeaders is Do with extra request headers (for example Idempotency-Key); headers may be nil.
+func (c *Client) doWithHeaders(ctx context.Context, method, path string, query url.Values, headers map[string]string, body any, out any) error {
 	var payload []byte
 	contentType := ""
 	if body != nil {
@@ -239,7 +250,7 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 		}
 		contentType = "application/json"
 	}
-	resp, err := c.send(ctx, method, path, query, payload, contentType, "")
+	resp, err := c.sendWithHeaders(ctx, method, path, query, headers, payload, contentType, "")
 	if err != nil {
 		return err
 	}
@@ -262,6 +273,10 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 }
 
 func (c *Client) send(ctx context.Context, method, path string, query url.Values, body []byte, contentType, accept string) (*http.Response, error) {
+	return c.sendWithHeaders(ctx, method, path, query, nil, body, contentType, accept)
+}
+
+func (c *Client) sendWithHeaders(ctx context.Context, method, path string, query url.Values, headers map[string]string, body []byte, contentType, accept string) (*http.Response, error) {
 	rawQuery := ""
 	if len(query) > 0 {
 		rawQuery = query.Encode()
@@ -283,6 +298,11 @@ func (c *Client) send(ctx context.Context, method, path string, query url.Values
 	}
 	if accept != "" {
 		req.Header.Set("Accept", accept)
+	}
+	for name, value := range headers {
+		if value != "" {
+			req.Header.Set(name, value)
+		}
 	}
 	switch c.Mode {
 	case AuthToken:

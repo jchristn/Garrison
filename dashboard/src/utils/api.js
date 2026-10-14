@@ -717,6 +717,99 @@ class ApiClient {
     return page.totalCount ?? 0;
   }
 
+  // ------------------------------------------------------------------ pipelines (P12.9)
+
+  /** Pipeline definitions: ordered agent stages with optional review gates. filters: search, pageNumber, pageSize. */
+  listPipelines(tenantId, params) {
+    return this._list(this._t(tenantId, 'pipelines'), params);
+  }
+
+  /** Read a pipeline by ID or name, with its stages and stage parameters. */
+  getPipeline(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `pipelines/${enc(id)}`));
+  }
+
+  /** Create a pipeline. 400 ValidationFailed reports stage fields as stages[i].field. */
+  createPipeline(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'pipelines'), { body });
+  }
+
+  /** Update a pipeline (its version increments; pipeline runs already started keep their snapshot). */
+  updatePipeline(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `pipelines/${enc(id)}`), { body });
+  }
+
+  /** Delete a pipeline. 409 PipelineInUse while one of its pipeline runs is unfinished. */
+  deletePipeline(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `pipelines/${enc(id)}`));
+  }
+
+  /**
+   * Start a pipeline. body: { input, inputContentType?, priority? }. options.idempotencyKey sends the Idempotency-Key
+   * header, so a repeated start with the same key returns the first pipeline run. Returns the pipeline run.
+   */
+  startPipeline(tenantId, id, body, { idempotencyKey } = {}) {
+    return this._request('POST', this._t(tenantId, `pipelines/${enc(id)}/start`), {
+      body,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+      query: { wait: 'false' }
+    });
+  }
+
+  /** Render every stage prompt from sample input and sample stage outputs. body: { input, sampleOutputs: [] }. */
+  previewPipeline(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `pipelines/${enc(id)}/preview`), { body });
+  }
+
+  /** filters: pipelineId, status, callerId, fromUtc, toUtc, pageNumber, pageSize. */
+  listPipelineRuns(tenantId, params) {
+    return this._list(this._t(tenantId, 'pipeline-runs'), params);
+  }
+
+  /** A pipeline run with its stages, stage run summaries (runs), and reviews. */
+  getPipelineRun(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `pipeline-runs/${enc(id)}`));
+  }
+
+  /** Cancel a pipeline run, its pending review, and its current stage run. 409 PipelineRunFinished when it ended. */
+  cancelPipelineRun(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `pipeline-runs/${enc(id)}/cancel`));
+  }
+
+  /** Resume a Failed, TimedOut, or Cancelled pipeline run at the stage where it stopped. */
+  retryPipelineRun(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `pipeline-runs/${enc(id)}/retry`));
+  }
+
+  /** Delete a finished pipeline run and its reviews; stage runs are kept. 409 PipelineRunActive while unfinished. */
+  deletePipelineRun(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `pipeline-runs/${enc(id)}`));
+  }
+
+  /** Stage reviews. filters: status, pipelineRunId, pipelineId, runId, decisionSource, fromUtc, toUtc, pageNumber, pageSize. */
+  listPipelineReviews(tenantId, params) {
+    return this._list(this._t(tenantId, 'pipeline-reviews'), params);
+  }
+
+  getPipelineReview(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `pipeline-reviews/${enc(id)}`));
+  }
+
+  /**
+   * Decide a pending stage review. body: { decision: 'Approve'|'RequestChanges'|'Reject', comment? } (comment required
+   * for RequestChanges). 409 ReviewNotPending when it was already decided, 409 RevisionLimitReached when the stage used
+   * all its revisions.
+   */
+  decidePipelineReview(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `pipeline-reviews/${enc(id)}/decide`), { body });
+  }
+
+  /** Number of stage reviews waiting for a person (one-row page, totalRecords). */
+  async countPendingPipelineReviews(tenantId) {
+    const page = await this.listPipelineReviews(tenantId, { status: 'Pending', pageNumber: 1, pageSize: 1 });
+    return page.totalCount ?? 0;
+  }
+
   // ------------------------------------------------------------------ manifests
 
   /** Apply a multi-document YAML or JSON manifest. */

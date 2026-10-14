@@ -215,8 +215,17 @@ namespace Garrison.Server.WebSockets
                 AuthorizationDecision approvals = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Approval, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
                 return approvals.Permitted ? null : approvals.Reason;
             }
+            if (channel.StartsWith("pipeline-run:", StringComparison.Ordinal))
+            {
+                // One pipeline run's status, stages, stage runs, and reviews (P12.9).
+                string pipelineRunId = channel.Substring("pipeline-run:".Length);
+                AuthorizationDecision pipelineRuns = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.PipelineRun, OperationTypeEnum.Read, pipelineRunId, token).ConfigureAwait(false);
+                if (!pipelineRuns.Permitted) return pipelineRuns.Reason;
+                if (String.IsNullOrEmpty(pipelineRunId) || await _Context.Database.PipelineRuns.ReadAsync(ctx.TenantId, pipelineRunId, token).ConfigureAwait(false) == null) return "Pipeline run not found.";
+                return null;
+            }
             string? runId = channel.StartsWith("run:", StringComparison.Ordinal) ? channel.Substring(4) : null;
-            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, approvals, or nodes.";
+            if (channel != "runs" && runId == null) return "Unknown channel. Use runs, run:{id}, pipeline-run:{id}, approvals, or nodes.";
             AuthorizationDecision runs = await _Context.Authorization.AuthorizeAsync(ctx, ctx.TenantId, ResourceTypeEnum.Run, OperationTypeEnum.Read, runId, token).ConfigureAwait(false);
             if (!runs.Permitted) return runs.Reason;
             if (runId != null && await _Context.Database.Runs.ReadAsync(ctx.TenantId, runId, token).ConfigureAwait(false) == null) return "Run not found.";
@@ -238,6 +247,7 @@ namespace Garrison.Server.WebSockets
                             else if (subscription.Key == "nodes") await PumpNodesAsync(session, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key == "approvals") await PumpApprovalsAsync(session, ctx, subscription.Value, sendLock, token).ConfigureAwait(false);
                             else if (subscription.Key.StartsWith("run:", StringComparison.Ordinal)) await PumpRunAsync(session, ctx, subscription.Key.Substring(4), subscription.Value, sendLock, token).ConfigureAwait(false);
+                            else if (subscription.Key.StartsWith("pipeline-run:", StringComparison.Ordinal)) await PumpPipelineRunAsync(session, ctx, subscription.Key.Substring("pipeline-run:".Length), subscription.Value, sendLock, token).ConfigureAwait(false);
                         }
                     }
                 }
@@ -272,10 +282,13 @@ namespace Garrison.Server.WebSockets
             filter.Status = ApprovalStatusEnum.Pending;
             filter.MaxResults = 100;
             EnumerationResult<Approval> page = await _Context.Database.Approvals.EnumerateAsync(filter, token).ConfigureAwait(false);
-            string fingerprint = page.TotalRecords + "|" + String.Join("|", page.Objects.Select(a => a.Id));
+
+            // Pending pipeline stage reviews (P12.9) share the Approvals inbox and its badge, so their count rides along.
+            long reviewsPending = await _Context.Database.PipelineReviews.CountPendingAsync(ctx.TenantId, token).ConfigureAwait(false);
+            string fingerprint = page.TotalRecords + "|" + reviewsPending + "|" + String.Join("|", page.Objects.Select(a => a.Id));
             if (fingerprint == state.Fingerprint) return;
             state.Fingerprint = fingerprint;
-            await SendAsync(session, sendLock, new { type = "approvals.changed", pending = page.TotalRecords, approvals = page.Objects }, token).ConfigureAwait(false);
+            await SendAsync(session, sendLock, new { type = "approvals.changed", pending = page.TotalRecords, reviewsPending = reviewsPending, approvals = page.Objects }, token).ConfigureAwait(false);
         }
 
         private async Task PumpNodesAsync(WebSocketSession session, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
@@ -305,6 +318,19 @@ namespace Garrison.Server.WebSockets
                 state.Fingerprint = status;
                 await SendAsync(session, sendLock, new { type = "run.status", run }, token).ConfigureAwait(false);
             }
+        }
+
+        private async Task PumpPipelineRunAsync(WebSocketSession session, RequestContext ctx, string pipelineRunId, SubscriptionState state, SemaphoreSlim sendLock, CancellationToken token)
+        {
+            PipelineRun? run = await _Context.Database.PipelineRuns.ReadAsync(ctx.TenantId!, pipelineRunId, token).ConfigureAwait(false);
+            if (run == null) return;
+            PipelineService? pipelines = _Context.TryGet<PipelineService>();
+            if (pipelines != null) await pipelines.DetailAsync(run, token).ConfigureAwait(false);
+            string fingerprint = run.Status + ":" + run.CasVersion + ":" + String.Join(",", run.Stages.Select(s => s.Status + "/" + s.Executions + "/" + s.CurrentRunId))
+                + ":" + String.Join(",", run.Runs.Select(r => r.RunId + "/" + r.Status)) + ":" + String.Join(",", run.Reviews.Select(r => r.Id + "/" + r.Status));
+            if (fingerprint == state.Fingerprint) return;
+            state.Fingerprint = fingerprint;
+            await SendAsync(session, sendLock, new { type = "pipeline-run.status", pipelineRun = run }, token).ConfigureAwait(false);
         }
 
         private static async Task SendAsync(WebSocketSession session, SemaphoreSlim sendLock, object message, CancellationToken token)

@@ -29,7 +29,7 @@ export const UNTRANSLATED_ALLOWLIST = {
   de: [
     'Agent', 'Cluster', 'Delegation', 'Detail', 'Fragment', 'Labels', 'Live', 'Median (p50)', 'Name', 'Navigation',
     'Manifest', 'Offline', 'Operation', 'Parser', 'Reasoning', 'Repository', 'Server', 'Status', 'System', 'Transport',
-    'Version', 'Version {{version}}', 'Leader', 'Executor', 'Executors'
+    'Version', 'Version {{version}}', 'Leader', 'Executor', 'Executors', 'Pipeline', 'Pipelines'
   ],
   ja: [],
   es: [

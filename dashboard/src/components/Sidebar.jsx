@@ -23,7 +23,7 @@ function hubVisible(hub, principal) {
 export default function Sidebar({ onNavigateMobile }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { pending } = usePendingApprovals();
+  const { pending, approvalsPending, reviewsPending } = usePendingApprovals();
   const { pathname } = useLocation();
   const { principal } = useAuth();
   const { setWizardOpen, setTourOpen } = useApp();
@@ -68,7 +68,12 @@ export default function Sidebar({ onNavigateMobile }) {
                     {Icon && <Icon size={18} />}
                     <span>{label}</span>
                     {hub.key === 'approvals' && pending > 0 && (
-                      <span className="sidebar-badge" data-testid="approvals-badge" aria-label={t('nav.approvalsPending', { count: pending })} {...tip(t('tips.nav.approvalsBadge', { count: pending }))}>
+                      <span
+                        className="sidebar-badge"
+                        data-testid="approvals-badge"
+                        aria-label={t('nav.approvalsPending', { count: pending })}
+                        {...tip(reviewsPending ? t('tips.nav.approvalsBadgeCombined', { count: pending, approvals: approvalsPending ?? 0, reviews: reviewsPending }) : t('tips.nav.approvalsBadge', { count: pending }))}
+                      >
                         {pending > 99 ? '99+' : formatNumber(pending, {}, i18n.language)}
                       </span>
                     )}

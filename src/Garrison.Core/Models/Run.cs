@@ -361,6 +361,24 @@ namespace Garrison.Core.Models
         public ConversationFallbackReasonEnum? ConversationFallbackReason { get; set; } = null;
 
         /// <summary>
+        /// Pipeline run this run is a stage execution of (P12.9), or null for a run outside any pipeline. Always serialized,
+        /// including when null.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public string? PipelineRunId { get; set; } = null;
+
+        /// <summary>
+        /// Position of the pipeline stage this run executes, starting at 1; 0 for runs outside a pipeline.
+        /// </summary>
+        public int PipelinePosition { get; set; } = 0;
+
+        /// <summary>
+        /// Execution number of the pipeline stage this run is, starting at 1 (retries, revisions, and resumes increase it);
+        /// 0 for runs outside a pipeline.
+        /// </summary>
+        public int PipelineExecution { get; set; } = 0;
+
+        /// <summary>
         /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, or null
         /// for runs created before trace IDs were recorded. Server spans (run:create, run:claim, run:compile) and the
         /// worker span (harness &lt;type&gt; exec) for the run share this trace. Always serialized, including when null.

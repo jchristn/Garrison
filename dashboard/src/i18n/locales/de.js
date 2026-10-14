@@ -1635,6 +1635,7 @@ const de = {
           MasterKey: 'Hauptschlüssel für die Verschlüsselung von Geheimnissen'
         },
         RequestHistory: {
+          CaptureNodeProtocol: 'Erfolgreiche Worker-Protokollanfragen erfassen',
           MaxResponseBodyBytes: 'Maximal aufgezeichneter Antworttext (Bytes)',
           MaxRequestBodyBytes: 'Maximal aufgezeichneter Anfragetext (Bytes)',
           RetentionDays: 'Aufbewahrung des Anfrageverlaufs (Tage)',
@@ -1658,6 +1659,7 @@ const de = {
         },
         Scheduling: {
           EventPollMs: 'Abfrageintervall für Ereignisse (ms)',
+          InvocationWaitPollMs: 'Ersatz-Neulesen beim Warten auf Aufrufe (ms)',
           NodeHeartbeatTimeoutMs: 'Heartbeat-Zeitlimit für Knoten (ms)',
           LeaseWaitMs: 'Long-Poll-Wartezeit für Zuteilungen (ms)',
           LeaseDurationMs: 'Dauer der Laufzuteilung (ms)',
@@ -1941,3 +1943,197 @@ de.views.settings.fields.Leases = {"Provider": "Anbieter", "ClutchEndpoint": "Cl
 
 de.enums.harnessType.ProviderApi = "Anbieter-API";
 de.enums.outputParser.ProviderApiJsonl = "Anbieter-API-JSONL";
+
+// Pipelines (P12.9): Definitionen (Agenten > Pipelines), Pipeline-Läufe (Läufe > Pipeline-Läufe) und Stufenprüfungen
+// (Freigaben > Stufenprüfungen).
+de.nav.hubs.approvals.tip = 'Werkzeugaufrufe und Pipeline-Stufen, die auf eine Person warten, und alle Entscheidungen';
+Object.assign(de.nav, { approvalsPending_one: '{{count}} Eintrag wartet auf eine Person', approvalsPending_other: '{{count}} Einträge warten auf eine Person' });
+Object.assign(de.nav.items, {
+  pipelines: { label: 'Pipelines', tip: 'Geordnete Agentenstufen mit optionalen Prüfschritten' },
+  pipelineRuns: { label: 'Pipeline-Läufe', tip: 'Ausführungen von Pipelines, Stufe für Stufe' },
+  pipelineReviews: { label: 'Stufenprüfungen', tip: 'Pipeline-Stufen, die auf die Prüfung durch eine Person warten' }
+});
+Object.assign(de.errorCodes, {
+  RevisionLimitReached: 'Diese Stufe hat bereits alle Überarbeitungen verbraucht, daher können keine Änderungen mehr angefordert werden. Genehmigen oder lehnen Sie sie stattdessen ab.',
+  ReviewNotPending: 'Diese Prüfung wurde bereits von einer anderen Person oder durch ihr Zeitlimit entschieden und kann nicht erneut entschieden werden.',
+  PipelineInUse: 'Diese Pipeline hat nicht abgeschlossene Pipeline-Läufe. Warten Sie, bis sie enden, oder brechen Sie sie ab, und löschen Sie die Pipeline dann.',
+  PipelineRunActive: 'Nur abgeschlossene Pipeline-Läufe können gelöscht werden. Brechen Sie diesen Pipeline-Lauf zuerst ab.',
+  PipelineRunFinished: 'Dieser Pipeline-Lauf ist bereits beendet und kann nicht abgebrochen werden.',
+  PipelineRunNotRetryable: 'Nur fehlgeschlagene, abgebrochene oder wegen Zeitüberschreitung beendete Pipeline-Läufe können wiederholt werden.',
+  PipelineRunChanged: 'Dieser Pipeline-Lauf hat sich während der Verarbeitung der Anfrage geändert. Laden Sie ihn neu und versuchen Sie es erneut.',
+  PipelineInactive: 'Diese Pipeline ist inaktiv. Aktivieren Sie sie, bevor Sie sie starten.',
+  PipelineEmpty: 'Eine Pipeline braucht mindestens eine Stufe.',
+  PipelineStageRun: 'Dieser Lauf ist eine Stufe eines Pipeline-Laufs und kann nicht einzeln wiederholt werden. Wiederholen Sie stattdessen den Pipeline-Lauf.',
+  ReferencedByPipeline: 'Eine Pipeline-Stufe verwendet diesen Agenten. Entfernen Sie den Agenten aus allen Pipelines, bevor Sie ihn löschen.'
+});
+de.enums.pipelineRunStatus = { Running: 'Läuft', AwaitingReview: 'Wartet auf Prüfung', Cancelling: 'Wird abgebrochen', Succeeded: 'Erfolgreich', Failed: 'Fehlgeschlagen', Cancelled: 'Abgebrochen', TimedOut: 'Zeitüberschreitung' };
+de.enums.pipelineRunOutcome = { None: 'Keines', Succeeded: 'Erfolgreich', StageFailed: 'Stufe fehlgeschlagen', StageStartFailed: 'Stufe konnte nicht starten', ReviewRejected: 'Prüfung abgelehnt', ReviewExpired: 'Prüfung abgelaufen', Cancelled: 'Abgebrochen', TimedOut: 'Zeitüberschreitung', InternalError: 'Interner Fehler' };
+de.enums.pipelineStageStatus = { Pending: 'Ausstehend', Running: 'Läuft', AwaitingReview: 'Wartet auf Prüfung', Succeeded: 'Erfolgreich', Failed: 'Fehlgeschlagen', Cancelled: 'Abgebrochen' };
+de.enums.pipelineReviewStatus = { Pending: 'Ausstehend', Approved: 'Genehmigt', ChangesRequested: 'Änderungen angefordert', Rejected: 'Abgelehnt', Expired: 'Abgelaufen', Cancelled: 'Abgebrochen' };
+de.enums.pipelineReviewDecision = { Approve: 'Genehmigen', RequestChanges: 'Änderungen anfordern', Reject: 'Ablehnen' };
+de.enums.pipelineReviewSource = { User: 'Durch eine Person', Timeout: 'Zeitüberschreitung', Cancelled: 'Pipeline-Lauf gestoppt' };
+Object.assign(de.enums.resourceType, { Pipeline: 'Pipeline', PipelineRun: 'Pipeline-Lauf' });
+Object.assign(de.enums.auditEventType, { PipelineReviewDecided: 'Stufenprüfung entschieden', PipelineRunCancelled: 'Pipeline-Lauf abgebrochen' });
+de.resources.deployments.promptRoles.PipelineStage = 'Pipeline-Stufe (Übergabe)';
+Object.assign(de.resources.runs.columns, { pipelineRunId: 'Pipeline-Lauf' });
+de.resources.runs.pipelineStage = 'Stufe {{position}}, Ausführung {{execution}}';
+de.resources.pipelines = {
+  ...rp('Pipelines', 'Geordnete Agentenstufen: Jede Stufe führt einen Agenten aus und übergibt seine Ausgabe an die nächste, mit optionalen Prüfschritten.', 'Pipeline hinzufügen', 'Pipeline erstellen', 'Pipeline bearbeiten', 'Pipeline-Details', 'Pipeline löschen', 'Noch keine Pipelines', 'Erstellen Sie eine Pipeline, um Agenten zu verketten: Jede Stufe erhält die Ausgabe der vorherigen Stufe.'),
+  columns: { name: 'Name', stages: 'Stufen', reviewGates: 'Prüfschritte', maxDurationSeconds: 'Zeitlimit', version: 'Version', active: 'Aktiv', description: 'Beschreibung', id: 'ID', lastUpdateUtc: 'Aktualisiert', createdUtc: 'Erstellt' },
+  fields: {
+    name: 'Name',
+    description: 'Beschreibung',
+    maxDurationSeconds: 'Zeitlimit (Sekunden)',
+    active: 'Aktiv',
+    stages: 'Stufen',
+    stageName: 'Name der Stufe',
+    agentId: 'Agent',
+    deploymentId: 'Bereitstellung',
+    handoffTemplateId: 'Übergabevorlage',
+    handoffTemplateVersion: 'Festgelegte Vorlagenversion',
+    outputCharLimit: 'Zeichenlimit der Übergabe',
+    maxAttempts: 'Maximale Versuche',
+    continueOnFailure: 'Bei Fehler fortfahren',
+    requiresReview: 'Prüfung erforderlich',
+    reviewTimeoutSeconds: 'Zeitlimit der Prüfung (Sekunden)',
+    reviewTimeoutAction: 'Bei Zeitüberschreitung der Prüfung',
+    maxRevisions: 'Maximale Überarbeitungen',
+    stageDescription: 'Beschreibung der Stufe',
+    parameters: 'Laufparameter'
+  },
+  hints: {
+    maxDurationSeconds: 'Von {{min}} bis {{max}}. 0 bedeutet kein Limit. Das Limit gilt für den gesamten Pipeline-Lauf, einschließlich der Wartezeit auf Prüfungen.',
+    stages: 'Die Stufen laufen in dieser Reihenfolge. Jede Stufe startet, wenn die vorherige erfolgreich ist (oder mit „Bei Fehler fortfahren“ fehlschlägt) und, falls sie eine Prüfung erfordert, nachdem eine Person sie genehmigt hat.',
+    noDeployments: 'Dieser Agent hat noch keine Bereitstellungen. Lassen Sie die Bereitstellung leer oder fügen Sie unter Bereitstellungen eine hinzu.',
+    handoffTemplateVersion: 'Leer verwendet die aktuelle Version der Vorlage.',
+    outputCharLimit: 'Von {{min}} bis {{max}}. Standard {{default}}.',
+    maxAttempts: 'Von {{min}} bis {{max}}. Standard {{default}}.',
+    reviewTimeoutSeconds: 'Von {{min}} bis {{max}}. 0 wartet unbegrenzt.',
+    maxRevisions: 'Von {{min}} bis {{max}}. Standard {{default}}.',
+    parameters: 'Nur mit einer Bereitstellung, und nur Parameter, die diese Bereitstellung Aufrufenden zum Überschreiben freigibt.'
+  },
+  errors: {
+    dnsName: 'Verwenden Sie 1 bis 64 Kleinbuchstaben, Ziffern und Bindestriche, beginnend und endend mit einem Buchstaben oder einer Ziffer.',
+    range: 'Geben Sie eine ganze Zahl von {{min}} bis {{max}} ein.',
+    noStages: 'Fügen Sie mindestens eine Stufe hinzu.',
+    tooManyStages: 'Eine Pipeline hat höchstens {{max}} Stufen.',
+    stageNameLong: 'Namen von Stufen sind auf 128 Zeichen begrenzt.',
+    stageNameDuplicate: 'Eine andere Stufe heißt bereits {{name}}.',
+    version: 'Geben Sie eine Versionsnummer ab 1 ein oder lassen Sie das Feld leer.',
+    parametersNeedDeployment: 'Laufparameter brauchen eine Bereitstellung, weil sie gegen die erlaubten Überschreibungen dieser Bereitstellung geprüft werden.',
+    parametersUnique: 'Jeder Parametername darf nur einmal vorkommen.',
+    stageInvalid: 'diese Stufe enthält Fehler.'
+  },
+  actions: { start: 'Starten', preview: 'Prompts in der Vorschau', runs: 'Pipeline-Läufe anzeigen' },
+  stageHeading: 'Stufe {{position}}: {{name}}',
+  stageCount: '{{count}} von höchstens {{max}}',
+  stageSummary: '{{count}} Stufen: {{chain}}',
+  addStage: 'Stufe hinzufügen',
+  removeStage: 'Stufe entfernen',
+  noStages: 'Noch keine Stufen.',
+  chooseAgent: 'Agenten auswählen',
+  anyDeployment: 'Beliebige aktive Bereitstellung (gewichtet)',
+  defaultHandoff: 'Bindung der Bereitstellung oder integriert',
+  parameterName: 'Parametername',
+  parameterValue: 'Wert',
+  noLimit: 'Kein Limit',
+  versionNotice: 'Version {{version}}. Speichern erzeugt eine neue Version; bereits gestartete Pipeline-Läufe behalten ihre ursprünglichen Stufen.'
+};
+de.resources.pipelineRuns = {
+  ...rp('Pipeline-Läufe', 'Jede Ausführung einer Pipeline. Öffnen Sie einen Lauf, um seine Stufen zu verfolgen, Prüfungen zu entscheiden oder ihn abzubrechen und zu wiederholen.', 'Pipeline-Lauf hinzufügen', 'Pipeline-Lauf erstellen', 'Pipeline-Lauf bearbeiten', 'Details des Pipeline-Laufs', 'Pipeline-Lauf löschen', 'Noch keine Pipeline-Läufe', 'Starten Sie eine Pipeline unter Agenten > Pipelines, um ihre Läufe hier zu sehen.'),
+  columns: { id: 'ID', pipelineName: 'Pipeline', status: 'Status', outcome: 'Ergebnis', progress: 'Stufe', callerName: 'Gestartet von', errorMessage: 'Fehler', priority: 'Priorität', deadlineUtc: 'Frist', completedUtc: 'Abgeschlossen', createdUtc: 'Erstellt' },
+  actions: { cancel: 'Abbrechen', retry: 'Wiederholen', stageRuns: 'Stufenläufe anzeigen', finalRun: 'Letzten Lauf öffnen' },
+  toasts: { cancelRequested: 'Abbruch für den Pipeline-Lauf und seine aktuelle Stufe angefordert.', retried: 'Der Pipeline-Lauf wird an der Stufe fortgesetzt, an der er angehalten hat.' },
+  progressValue: '{{position}} von {{count}}',
+  versionShort: '(Version {{version}})'
+};
+de.resources.pipelineReviews = {
+  ...rp('Stufenprüfungen', 'Pipeline-Stufen, die darauf warten, dass eine Person sie genehmigt, Änderungen anfordert oder sie ablehnt.', 'Stufenprüfung hinzufügen', 'Stufenprüfung erstellen', 'Stufenprüfung bearbeiten', 'Details der Stufenprüfung', 'Stufenprüfung löschen', 'Noch keine Stufenprüfungen', 'Stufen, die eine Prüfung erfordern, erscheinen hier, sobald sie fertig sind.'),
+  columns: { createdUtc: 'Angefordert', pipelineName: 'Pipeline', stageName: 'Stufe', status: 'Status', decision: 'Entscheidung', decisionSource: 'Entschieden durch', comment: 'Kommentar', decidedBy: 'Prüfende Person', expiresUtc: 'Läuft ab', pipelineRunId: 'Pipeline-Lauf', runId: 'Stufenlauf', decidedUtc: 'Entschieden', id: 'ID' },
+  filters: { pipelineRunId: 'Pipeline-Lauf-ID', pipelineRunIdPlaceholder: 'Pipeline-Lauf-ID (plr_...)' },
+  actions: { approve: 'Genehmigen', requestChanges: 'Änderungen anfordern', reject: 'Ablehnen', openStageRun: 'Stufenlauf öffnen' },
+  noTimeout: 'Wartet unbegrenzt'
+};
+de.components.pipelineReviews = {
+  decideTitle: 'Stufe {{stage}} von {{pipeline}} prüfen',
+  decision: 'Entscheidung',
+  positionExecution: 'Stufe {{position}}, Ausführung {{execution}}',
+  revisionsLeft: 'Verbleibende Überarbeitungen',
+  revisionsLeftValue: '{{left}} von {{max}}',
+  noRevisionsLeft: 'Diese Stufe hat alle {{max}} Überarbeitungen verbraucht. Der Server lehnt „Änderungen anfordern“ ab; genehmigen oder lehnen Sie sie stattdessen ab.',
+  timeoutThen: 'dann {{decision}}',
+  commentApprove: 'Hinweise für die nächste Stufe',
+  commentApprovePlaceholder: 'Optional. Die nächste Stufe erhält diese Hinweise zusammen mit der Ausgabe.',
+  commentRequestChanges: 'Was soll sich ändern',
+  commentRequestChangesPlaceholder: 'Erforderlich. Die Stufe läuft mit dieser Rückmeldung erneut.',
+  commentReject: 'Begründung',
+  commentRejectPlaceholder: 'Optional. Wird mit der Entscheidung gespeichert; der Pipeline-Lauf schlägt fehl.',
+  commentRequired: 'Beschreiben Sie, was sich ändern soll. Die Stufe läuft mit dieser Rückmeldung erneut.',
+  commentTooLong: 'Kommentare sind auf {{max}} Zeichen begrenzt.',
+  submit: { Approve: 'Stufe genehmigen', RequestChanges: 'Änderungen anfordern', Reject: 'Stufe ablehnen' },
+  toasts: {
+    Approve: 'Stufe {{stage}} von {{pipeline}} genehmigt.',
+    RequestChanges: 'Änderungen an Stufe {{stage}} von {{pipeline}} angefordert; sie läuft mit Ihrer Rückmeldung erneut.',
+    Reject: 'Stufe {{stage}} von {{pipeline}} abgelehnt; der Pipeline-Lauf schlägt fehl.',
+    notPending: 'Diese Prüfung wurde bereits von einer anderen Person oder durch ihr Zeitlimit entschieden. Die Liste zeigt jetzt den aktuellen Stand.',
+    revisionLimit: 'Diese Stufe hat bereits alle Überarbeitungen verbraucht (höchstens {{max}}), daher können keine Änderungen mehr angefordert werden. Genehmigen oder lehnen Sie sie stattdessen ab.'
+  }
+};
+de.components.pipelineStart = {
+  title: '{{name}} starten',
+  intro_one: 'Die Eingabe geht an die einzige Stufe der Pipeline.',
+  intro_other: 'Die Eingabe geht an die erste von {{count}} Stufen; jede Stufe sieht sie außerdem als ursprüngliche Aufgabe.',
+  input: 'Eingabe',
+  inputPlaceholder: 'Woran soll die Pipeline arbeiten?',
+  shortcut: 'Mit Strg+Eingabe oder Cmd+Eingabe starten.',
+  submit: 'Pipeline starten',
+  starting: 'Wird gestartet...',
+  started: '{{name}} gestartet.'
+};
+de.components.pipelinePreview = {
+  title: 'Prompts von {{name}} in der Vorschau',
+  input: 'Beispieleingabe',
+  sampleInput: 'Fasse die offenen Issues zusammen und schlage eine Lösung für das dringendste vor.',
+  sampleOutput: 'Beispielausgabe von {{stage}}.',
+  outputOf: 'Beispielausgabe von Stufe {{position}} ({{stage}})',
+  render: 'Prompts rendern',
+  rendering: 'Wird gerendert...',
+  stageHeading: 'Stufe {{position}}: {{stage}} ({{agent}})',
+  deployment: 'Bereitstellung: {{deployment}}',
+  rendered: 'Gerendert',
+  failed: 'Fehlgeschlagen'
+};
+de.views.pipelineRunDetail = {
+  title: 'Pipeline-Lauf',
+  heading: 'Pipeline-Lauf von {{pipeline}}',
+  notFoundTitle: 'Pipeline-Lauf nicht gefunden',
+  notFoundBody: 'Er wurde möglicherweise gelöscht oder gehört zu einem anderen Mandanten.',
+  live: 'Live',
+  polling: 'Abfrage',
+  finalRun: 'Letzter Lauf',
+  started: 'Gestartet',
+  input: 'Eingabe',
+  reviewTitle: 'Wartet auf Ihre Prüfung',
+  reviewBody: 'Stufe {{position}} ({{stage}}) hat Ausführung {{execution}} beendet und wartet auf eine Prüfung. Lesen Sie ihre Ausgabe im Stufenlauf:',
+  reviewExpires: 'Entscheidet bis {{time}} niemand, wird die Prüfung automatisch entschieden: {{decision}}.',
+  reviewNoTimeout: 'Die Prüfung wartet, bis eine Person entscheidet, sofern das Zeitlimit der Pipeline den Lauf nicht vorher beendet.',
+  stages: 'Stufen',
+  stagesCount_one: '{{count}} Stufe',
+  stagesCount_other: '{{count}} Stufen',
+  noStages: 'Dieser Pipeline-Lauf hat keine Stufen.',
+  current: 'Aktuell',
+  reviewGate: 'Prüfschritt',
+  agent: 'Agent: {{agent}}',
+  counts: 'Ausführungen {{executions}}, Versuche {{attempts}} von {{maxAttempts}}, Überarbeitungen {{revisions}} von {{maxRevisions}}',
+  startedAt: 'gestartet',
+  blocked: 'Wartet auf den Start: {{reason}}.',
+  nextAttempt: 'Nächster Versuch um {{time}}.',
+  reviewItem: 'Prüfung von Ausführung {{execution}}',
+  columns: { execution: 'Ausführung', run: 'Stufenlauf', status: 'Status', outcome: 'Ergebnis', error: 'Fehler', created: 'Erstellt' },
+  confirmCancelTitle: 'Pipeline-Lauf abbrechen',
+  confirmCancel: 'Diesen Pipeline-Lauf von {{pipeline}} abbrechen? Sein aktueller Stufenlauf wird abgebrochen und eine offene Prüfung geschlossen. Sie können ihn später wiederholen.',
+  confirmDelete: 'Diesen Pipeline-Lauf von {{pipeline}} samt seinen Prüfungen löschen? Seine Stufenläufe bleiben auf der Seite Läufe.'
+};
+Object.assign(de.views.runDetail, { pipelineRun: 'Pipeline-Lauf' });
+de.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Prüfintervall für Pipelines (ms)';
+de.views.settings.fields.Runtime.PipelineMaxStages = 'Maximale Stufen pro Pipeline';

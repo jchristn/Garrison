@@ -8,7 +8,8 @@ import { tip } from './Tooltip';
  * Declarative form renderer. field: { name, type, label, tip?, hint?, options?, required?, min?, max?, rows?,
  * placeholder?, showIf?(data), readOnly?, fields? (objectList), span? }.
  * Types: text, textarea, code, number, checkbox, nullableToggle (null follows `defaultValue`), select, password, datetime, stringList, keyValue, objectList,
- * multiselect, json, custom (`render(data, { disabled })` draws a whole-row panel, for example a live test helper).
+ * multiselect, json, custom (`render(data, { disabled, onChange, errors })` draws a whole-row panel, for example a live test
+ * helper or a list editor that needs the whole record; onChange takes the next record).
  */
 export default function FormFields({ fields, data, onChange, errors = {}, disabled = false, idPrefix = 'f' }) {
   return (
@@ -18,7 +19,7 @@ export default function FormFields({ fields, data, onChange, errors = {}, disabl
         .map((f) =>
           f.type === 'custom' ? (
             <div key={f.name} className="field span-full" data-field={f.name}>
-              {f.render(data, { disabled })}
+              {f.render(data, { disabled, onChange, errors })}
             </div>
           ) : (
             <FormField

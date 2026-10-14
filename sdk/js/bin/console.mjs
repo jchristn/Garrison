@@ -34,7 +34,7 @@ try {
     try {
       const requireArgument = () => { if (!argument) throw new Error('Missing arguments. Type help.'); };
       switch (command.toLowerCase()) {
-        case 'help': console.log('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | quit'); break;
+        case 'help': console.log('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | quit'); break;
         case 'health': show(await client.health()); break;
         case 'login':
           requireArgument(); if (!rest) throw new Error('Missing email. Type help.');
@@ -48,6 +48,10 @@ try {
         case 'run': requireArgument(); show(await client.runs.get(argument)); break;
         case 'events': requireArgument(); show(await client.runs.events(argument)); break;
         case 'watch': requireArgument(); for await (const frame of client.runs.stream(argument)) show(frame); break;
+        case 'pipelines': show(await client.pipelines.list()); break;
+        case 'pipeline-runs': show(await client.pipelineRuns.list()); break;
+        case 'pipeline-reviews': show(await client.pipelineReviews.list()); break;
+        case 'start-pipeline': requireArgument(); if (!rest) throw new Error('Missing input. Type help.'); show(await client.pipelines.start(argument, { input: rest })); break;
         default: console.log('Unknown command. Type help.'); break;
       }
     } catch (error) { console.log(active.signal.aborted ? 'Cancelled.' : `Error: ${error.message}`); }

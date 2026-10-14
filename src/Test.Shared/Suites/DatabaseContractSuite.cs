@@ -36,6 +36,8 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v15-optin", "Existing active quotas upgrade from schema 15 with enforcement disabled (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 15)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v17-warm", "Existing executor reports upgrade with warm support disabled (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 17)));
             cases.Add(new TestCaseDescriptor(suiteId, "migrate-v16-capabilities", "Legacy executor names upgrade without inventing capability promises (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 16)));
+            cases.Add(new TestCaseDescriptor(suiteId, "migrate-v20-pipelines", "A version 20 database upgrades to pipelines: runs gain empty pipeline columns and pipeline tables work (" + provider + ")", ct => UpgradeConversationsAsync(provider, ct, 20)));
+            cases.Add(new TestCaseDescriptor(suiteId, "pipeline-cas", "Pipelines: definition children round-trip in order, tenant reads are isolated, stage claims, links, pipeline run transitions, and review decisions are compare-and-set, one review per stage execution, idempotent pipeline run creation (" + provider + ")", ct => PipelineCasAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "run-telemetry-roundtrip", "Run timing telemetry round-trips through create, complete, and update (" + provider + ")", ct => RunTelemetryRoundTripAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "tenant-crud", "Tenant create, read, update, enumerate, delete (" + provider + ")", ct => TenantCrudAsync(provider, ct)));
             cases.Add(new TestCaseDescriptor(suiteId, "children-roundtrip", "Harness profile child rows round-trip in order (" + provider + ")", ct => ChildrenRoundTripAsync(provider, ct)));
@@ -125,6 +127,17 @@ namespace Test.Shared.Suites
                             ? AdoConverters.Bool(reader, "capreported") && ExecutorCapabilitySql.Read(reader).ColdStartClass == ExecutorColdStartEnum.Cold
                             : !AdoConverters.Bool(reader, "capreported") && !ExecutorCapabilityRules.RequiresReport(ExecutorCapabilitySql.Read(reader))), token).ConfigureAwait(false);
                     Assert.True(legacy.Count == 1 && legacy[0], "Legacy executor names survive without advanced capability promises");
+                }
+                if (fromVersion == 20)
+                {
+                    Run plain = await upgraded.Runs.CreateAsync(new Run { TenantId = "ten_upgrade", AgentId = "agt_upgrade", DeploymentId = "dep_upgrade", Status = RunStatusEnum.Queued }, token).ConfigureAwait(false);
+                    Run stored = Assert.NotNull(await upgraded.Runs.ReadAsync("ten_upgrade", plain.Id, token).ConfigureAwait(false), "Run after upgrade");
+                    Assert.True(stored.PipelineRunId == null && stored.PipelinePosition == 0 && stored.PipelineExecution == 0, "Runs outside pipelines have empty pipeline columns");
+                    Pipeline pipeline = new Pipeline { TenantId = "ten_upgrade", Name = "upgraded" };
+                    pipeline.Stages.Add(new PipelineStage { Name = "only", AgentId = "agt_upgrade" });
+                    await upgraded.Pipelines.CreateAsync(pipeline, token).ConfigureAwait(false);
+                    Pipeline read = Assert.NotNull(await upgraded.Pipelines.ReadByNameAsync("ten_upgrade", "upgraded", token).ConfigureAwait(false), "Pipeline after upgrade");
+                    Assert.Equal(1, read.Stages.Count, "Pipeline stages after upgrade");
                 }
                 Conversation saved = Assert.NotNull(await upgraded.Conversations.ReadAsync(conversation.TenantId, conversation.Id, token).ConfigureAwait(false), "Conversation survives upgrade");
                 Assert.Equal(conversation.SessionId, saved.SessionId, "Harness session survives upgrade");
@@ -428,6 +441,85 @@ namespace Test.Shared.Suites
                 Assert.Equal("tenant", resolved.Content, "Tenant record should win");
                 PromptTemplate other = Assert.NotNull(await db.PromptTemplates.ReadByNameAsync("ten_b", "builtin/default-system", token).ConfigureAwait(false), "Other tenant");
                 Assert.Equal("built-in", other.Content, "Other tenant sees built-in");
+            }
+        }
+
+        private static async Task PipelineCasAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(provider, token).ConfigureAwait(false))
+            {
+                Pipeline pipeline = new Pipeline { TenantId = "ten_pa", Name = "flow", MaxDurationSeconds = 60 };
+                for (int i = 0; i < 3; i++)
+                {
+                    PipelineStage stage = new PipelineStage { Name = "stage-" + i, AgentId = "agt_" + i, RequiresReview = i == 1, ReviewTimeoutAction = PipelineReviewDecisionEnum.Approve };
+                    stage.Parameters.Add(new PipelineStageParameter { Name = "b" + i, Value = "2" });
+                    stage.Parameters.Add(new PipelineStageParameter { Name = "a" + i, Value = "1" });
+                    pipeline.Stages.Add(stage);
+                }
+                await db.Pipelines.CreateAsync(pipeline, token).ConfigureAwait(false);
+                Pipeline read = Assert.NotNull(await db.Pipelines.ReadAsync("ten_pa", pipeline.Id, token).ConfigureAwait(false), "Pipeline");
+                Assert.Equal("stage-0,stage-1,stage-2", String.Join(",", read.Stages.Select(s => s.Name)), "Stage order");
+                Assert.Equal("1,2,3", String.Join(",", read.Stages.Select(s => s.Position)), "Stage positions");
+                Assert.Equal("b1,a1", String.Join(",", read.Stages[1].Parameters.Select(p => p.Name)), "Parameter order");
+                Assert.True(read.Stages[1].RequiresReview && read.Stages[1].ReviewTimeoutAction == PipelineReviewDecisionEnum.Approve, "Stage settings round-trip");
+                Assert.True(await db.Pipelines.ReadAsync("ten_other", pipeline.Id, token).ConfigureAwait(false) == null, "Other tenants cannot read the pipeline");
+                Assert.Equal("flow", String.Join(",", await db.Pipelines.NamesByAgentAsync("ten_pa", "agt_2", token).ConfigureAwait(false)), "Pipelines by agent");
+                Assert.Equal(0, (await db.Pipelines.NamesByAgentAsync("ten_other", "agt_2", token).ConfigureAwait(false)).Count, "Agent references are tenant scoped");
+                read.Stages.RemoveAt(2);
+                read.Version = 2;
+                await db.Pipelines.UpdateAsync(read, token).ConfigureAwait(false);
+                Assert.Equal(2, (await db.Pipelines.ReadAsync("ten_pa", pipeline.Id, token).ConfigureAwait(false))!.Stages.Count, "Update replaces stages");
+
+                PipelineRun run = new PipelineRun { TenantId = "ten_pa", PipelineId = pipeline.Id, PipelineName = "flow", StageCount = 2, InputText = "go", IdempotencyKey = "key-1", CallerId = "usr_1" };
+                run.Stages.Add(new PipelineRunStage { Position = 1, Name = "stage-0", AgentId = "agt_0", AgentName = "a0" });
+                run.Stages.Add(new PipelineRunStage { Position = 2, Name = "stage-1", AgentId = "agt_1", AgentName = "a1", RequiresReview = true });
+                run.Stages[0].Parameters.Add(new PipelineRunStageParameter { Name = "a0", Value = "1" });
+                PipelineRun created = await db.PipelineRuns.CreateAsync(run, token).ConfigureAwait(false);
+                Assert.Equal(run.Id, created.Id, "Created");
+                PipelineRun again = await db.PipelineRuns.CreateAsync(new PipelineRun { TenantId = "ten_pa", PipelineId = pipeline.Id, PipelineName = "flow", StageCount = 2, InputText = "go", IdempotencyKey = "key-1", CallerId = "usr_1" }, token).ConfigureAwait(false);
+                Assert.Equal(run.Id, again.Id, "A repeated idempotency key returns the existing pipeline run");
+                Assert.Equal(2, again.Stages.Count, "with its stages");
+                Assert.Equal(1L, (await db.PipelineRuns.EnumerateAsync(new PipelineRunFilter { TenantId = "ten_pa" }, token).ConfigureAwait(false)).TotalRecords, "One pipeline run");
+                Assert.True(await db.PipelineRuns.ReadAsync("ten_other", run.Id, token).ConfigureAwait(false) == null, "Other tenants cannot read the pipeline run");
+
+                string stageId = created.Stages[0].Id;
+                Assert.True(await db.PipelineRuns.ClaimExecutionAsync(new PipelineStageClaim { RunStageId = stageId, ExpectedExecutions = 0, Attempts = 1 }, token).ConfigureAwait(false), "First claim");
+                Assert.True(!await db.PipelineRuns.ClaimExecutionAsync(new PipelineStageClaim { RunStageId = stageId, ExpectedExecutions = 0, Attempts = 1 }, token).ConfigureAwait(false), "A second claim of the same execution loses");
+                Assert.True(await db.PipelineRuns.LinkRunAsync(stageId, 1, "run_a", token).ConfigureAwait(false), "Link");
+                Assert.True(!await db.PipelineRuns.LinkRunAsync(stageId, 1, "run_b", token).ConfigureAwait(false), "A second link loses");
+                Assert.True(!await db.PipelineRuns.BlockAsync(stageId, 1, "QuotaExceeded", DateTime.UtcNow, token).ConfigureAwait(false), "A linked execution cannot be blocked");
+                Assert.True(await db.PipelineRuns.ClaimExecutionAsync(new PipelineStageClaim { RunStageId = stageId, ExpectedExecutions = 1, Attempts = 2 }, token).ConfigureAwait(false), "Retry claim");
+                PipelineRunStage claimed = (await db.PipelineRuns.ReadAsync("ten_pa", run.Id, token).ConfigureAwait(false))!.Stages[0];
+                Assert.True(claimed.Executions == 2 && claimed.Attempts == 2 && claimed.CurrentRunId == null && claimed.LastRunId == "run_a" && claimed.Status == PipelineStageStatusEnum.Running, "Retry claim moves the run to lastRunId");
+                Assert.Equal("a0", claimed.Parameters.Single().Name, "Stage parameter snapshot");
+
+                PipelineRun current = (await db.PipelineRuns.ReadAsync("ten_pa", run.Id, token).ConfigureAwait(false))!;
+                PipelineRunTransition move = new PipelineRunTransition { PipelineRunId = run.Id, ExpectedCasVersion = current.CasVersion, ToStatus = PipelineRunStatusEnum.AwaitingReview, CurrentPosition = 2 };
+                move.FromStatuses.Add(PipelineRunStatusEnum.Running);
+                Assert.True(await db.PipelineRuns.TransitionAsync(move, token).ConfigureAwait(false), "Transition with the current casVersion");
+                Assert.True(!await db.PipelineRuns.TransitionAsync(move, token).ConfigureAwait(false), "The same transition with a stale casVersion loses");
+                PipelineRun moved = (await db.PipelineRuns.ReadAsync("ten_pa", run.Id, token).ConfigureAwait(false))!;
+                Assert.True(moved.Status == PipelineRunStatusEnum.AwaitingReview && moved.CurrentPosition == 2 && moved.CasVersion == current.CasVersion + 1, "Transition applied once");
+                Assert.Equal(1L, await db.PipelineRuns.CountActiveAsync("ten_pa", pipeline.Id, token).ConfigureAwait(false), "Active pipeline runs");
+
+                PipelineReview review = new PipelineReview { TenantId = "ten_pa", PipelineRunId = run.Id, PipelineId = pipeline.Id, PipelineName = "flow", RunStageId = created.Stages[1].Id, Position = 2, StageName = "stage-1", RunId = "run_c", Execution = 1, ExpiresUtc = DateTime.UtcNow.AddSeconds(-1) };
+                Assert.True(await db.PipelineReviews.CreateIfAbsentAsync(review, token).ConfigureAwait(false), "Review created");
+                Assert.True(!await db.PipelineReviews.CreateIfAbsentAsync(new PipelineReview { TenantId = "ten_pa", PipelineRunId = run.Id, PipelineId = pipeline.Id, PipelineName = "flow", RunStageId = created.Stages[1].Id, Position = 2, StageName = "stage-1", RunId = "run_c", Execution = 1 }, token).ConfigureAwait(false), "One review per stage execution");
+                Assert.Equal(1, (await db.PipelineReviews.ListExpiredAsync(DateTime.UtcNow, 10, token).ConfigureAwait(false)).Count(r => r.Id == review.Id), "Expired pending review listed");
+                Assert.Equal(1L, await db.PipelineReviews.CountPendingAsync("ten_pa", token).ConfigureAwait(false), "Pending reviews");
+                Assert.True(await db.PipelineReviews.ReadAsync("ten_other", review.Id, token).ConfigureAwait(false) == null, "Other tenants cannot read the review");
+                PipelineReviewResolution approve = new PipelineReviewResolution { ReviewId = review.Id, Status = PipelineReviewStatusEnum.Approved, Decision = PipelineReviewDecisionEnum.Approve, Comment = "ok" };
+                Assert.True(await db.PipelineReviews.ResolveAsync(approve, token).ConfigureAwait(false), "Decision");
+                Assert.True(!await db.PipelineReviews.ResolveAsync(new PipelineReviewResolution { ReviewId = review.Id, Status = PipelineReviewStatusEnum.Rejected, Decision = PipelineReviewDecisionEnum.Reject }, token).ConfigureAwait(false), "A second decision loses");
+                Assert.Equal(PipelineReviewStatusEnum.Approved, (await db.PipelineReviews.ReadByExecutionAsync(created.Stages[1].Id, 1, token).ConfigureAwait(false))!.Status, "First decision kept");
+
+                PipelineRunTransition finish = new PipelineRunTransition { PipelineRunId = run.Id, ToStatus = PipelineRunStatusEnum.Succeeded, Outcome = PipelineRunOutcomeEnum.Succeeded, SetCompleted = true };
+                finish.FromStatuses.Add(PipelineRunStatusEnum.AwaitingReview);
+                Assert.True(await db.PipelineRuns.TransitionAsync(finish, token).ConfigureAwait(false), "Finish");
+                Assert.Equal(0, await db.PipelineRuns.PruneFinishedAsync(DateTime.UtcNow.AddDays(-1), token).ConfigureAwait(false), "Recent pipeline runs are kept");
+                Assert.Equal(1, await db.PipelineRuns.PruneFinishedAsync(DateTime.UtcNow.AddMinutes(1), token).ConfigureAwait(false), "Old finished pipeline runs are pruned");
+                Assert.True(await db.PipelineRuns.ReadAsync("ten_pa", run.Id, token).ConfigureAwait(false) == null && (await db.PipelineReviews.ListByPipelineRunAsync(run.Id, token).ConfigureAwait(false)).Count == 0, "Pruned with its reviews");
+                Assert.True(await db.Pipelines.DeleteAsync("ten_pa", pipeline.Id, token).ConfigureAwait(false), "Delete pipeline");
             }
         }
     }

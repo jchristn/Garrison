@@ -23,6 +23,12 @@ Creating an agent does not create its deployment. Create a deployment with `name
 
 Updates replace the configuration. Read it first, edit the fields you intend to change, and send the complete replacement with `agent` or `deploymentId`. Omitted fields take their defaults. Protected records reject updates/deletion. Agent deletion cascades its deployments, matching REST. Mutations use the shared REST validation and audit path.
 
+## Pipelines
+
+Pipeline tools are `garrison_get_pipeline`, `garrison_create_pipeline`, `garrison_update_pipeline`, and `garrison_delete_pipeline`. A pipeline `configuration` carries its whole ordered `stages` list, so read it with `garrison_get_pipeline`, change what you need, and send the complete list back; each update increments the pipeline `version`, and runs already in flight keep the stages they started with. Stage agents and deployments are checked the same way as over REST. Deleting a pipeline that still has active pipeline runs fails with `PipelineInUse`, and deleting an agent or deployment that a stage uses fails with `ReferencedByPipeline`.
+
+Starting and following pipelines (`garrison_start_pipeline`, `garrison_get_pipeline_run`, the review tools) are ordinary tools described in `MCP_API.md` and [PIPELINES.md](PIPELINES.md). None of the pipeline tools are offered to run tokens, so an agent cannot start a pipeline or approve its own stage.
+
 ## Manifests
 
 `garrison_apply_manifest` accepts `manifest` YAML/JSON text. Set `dryRun: true` to validate without changing configuration; the default applies it. Inspect `failedCount` and the per-document results. Reapplying unchanged documents remains idempotent.

@@ -34,7 +34,23 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Supported kinds in apply order.
         /// </summary>
-        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment" };
+        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment", "Pipeline" };
+
+        /// <summary>
+        /// Most stages a Pipeline document may have (P12.9). Minimum 1, maximum 100, default 20. The control plane sets it
+        /// from the cluster setting Runtime.PipelineMaxStages.
+        /// </summary>
+        public int MaxPipelineStages
+        {
+            get
+            {
+                return _MaxPipelineStages;
+            }
+            set
+            {
+                _MaxPipelineStages = Math.Clamp(value, 1, 100);
+            }
+        }
 
         #endregion
 
@@ -47,6 +63,7 @@ namespace Garrison.Core.Manifests
 
         private readonly DatabaseDriverBase _Database;
         private readonly SecretCipher _Cipher;
+        private int _MaxPipelineStages = 20;
 
         #endregion
 
@@ -205,6 +222,7 @@ namespace Garrison.Core.Manifests
             foreach (WorkspaceTemplate workspace in (await _Database.WorkspaceTemplates.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("WorkspaceTemplate", workspace.Name, await WorkspaceTreeAsync(workspace, resolver, token).ConfigureAwait(false)));
             foreach (Agent agent in (await _Database.Agents.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token).ConfigureAwait(false)));
             foreach (Deployment deployment in (await _Database.Deployments.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Deployment", deployment.Name, await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false)));
+            foreach (Pipeline pipeline in (await _Database.Pipelines.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
             return ManifestParser.ToYaml(documents);
         }
 
@@ -252,6 +270,9 @@ namespace Garrison.Core.Manifests
                     break;
                 case "deployment":
                     await PlanDeploymentAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
+                    break;
+                case "pipeline":
+                    await PlanPipelineAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
                     break;
             }
         }
@@ -572,6 +593,120 @@ namespace Garrison.Core.Manifests
             resolver.Add("Deployment", deployment.Name, deployment.Id);
         }
 
+        private async Task PlanPipelineAsync(string tenantId, ManifestDocument document, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            if (document.Spec.TryGetValue("stages", out object? stagesValue) && stagesValue is List<object?> stageList)
+            {
+                foreach (object? item in stageList)
+                {
+                    if (item is Dictionary<string, object?> stageMap && stageMap.TryGetValue("parameters", out object? mapValue) && mapValue is Dictionary<string, object?> stringMap)
+                    {
+                        foreach (string key in stringMap.Keys.ToList()) stringMap[key] = TemplateValues.ToText(stringMap[key]);
+                    }
+                }
+            }
+            PipelineSpec spec = Deserialize<PipelineSpec>(document);
+            Pipeline pipeline = new Pipeline();
+            pipeline.TenantId = tenantId;
+            pipeline.Name = document.Metadata.Name;
+            pipeline.Description = spec.Description;
+            pipeline.MaxDurationSeconds = spec.MaxDurationSeconds ?? 0;
+            pipeline.Active = spec.Active ?? true;
+            for (int i = 0; i < spec.Stages.Count; i++)
+            {
+                PipelineStageSpec stageSpec = spec.Stages[i];
+                string field = "stages[" + i + "]";
+                PipelineStage stage = new PipelineStage();
+                stage.Name = stageSpec.Name;
+                stage.Description = stageSpec.Description;
+                stage.AgentId = await resolver.RequireAsync("Agent", stageSpec.Agent, field + ".agent", token).ConfigureAwait(false);
+                if (!String.IsNullOrWhiteSpace(stageSpec.Deployment)) stage.DeploymentId = await resolver.RequireAsync("Deployment", stageSpec.Deployment, field + ".deployment", token).ConfigureAwait(false);
+                if (!String.IsNullOrWhiteSpace(stageSpec.HandoffTemplate))
+                {
+                    string templateName = stageSpec.HandoffTemplate.Trim();
+                    int at = templateName.LastIndexOf('@');
+                    if (at > 0 && Int32.TryParse(templateName.Substring(at + 1), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int pinned))
+                    {
+                        stage.HandoffTemplateVersion = pinned;
+                        templateName = templateName.Substring(0, at);
+                    }
+                    stage.HandoffTemplateId = await resolver.RequireAsync("PromptTemplate", templateName, field + ".handoffTemplate", token).ConfigureAwait(false);
+                }
+                stage.OutputCharLimit = stageSpec.OutputCharLimit ?? 16000;
+                stage.MaxAttempts = stageSpec.MaxAttempts ?? 1;
+                stage.ContinueOnFailure = stageSpec.ContinueOnFailure ?? false;
+                stage.RequiresReview = stageSpec.RequiresReview ?? false;
+                stage.ReviewTimeoutSeconds = stageSpec.ReviewTimeoutSeconds ?? 0;
+                stage.ReviewTimeoutAction = stageSpec.ReviewTimeoutAction ?? PipelineReviewDecisionEnum.Reject;
+                stage.MaxRevisions = stageSpec.MaxRevisions ?? 3;
+                foreach (KeyValuePair<string, string> parameter in stageSpec.Parameters.OrderBy(p => p.Key, StringComparer.Ordinal))
+                {
+                    stage.Parameters.Add(new PipelineStageParameter { Name = parameter.Key, Value = parameter.Value ?? String.Empty });
+                }
+                pipeline.Stages.Add(stage);
+            }
+
+            Pipeline? existing = await _Database.Pipelines.ReadByNameAsync(tenantId, pipeline.Name, token).ConfigureAwait(false);
+            if (existing != null)
+            {
+                if (existing.IsProtected) throw new ValidationException("Pipeline " + existing.Name + " is protected and cannot be changed by a manifest.");
+                pipeline.Id = existing.Id;
+                pipeline.CreatedUtc = existing.CreatedUtc;
+                pipeline.Version = existing.Version;
+            }
+            planned.Model = pipeline;
+            planned.ResourceId = pipeline.Id;
+            bool unchanged = false;
+            if (existing != null)
+            {
+                Dictionary<string, object?> before = await PipelineTreeAsync(existing, resolver, token).ConfigureAwait(false);
+                Dictionary<string, object?> after = await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false);
+                unchanged = Same(before, after);
+                if (!unchanged) planned.Changes = Diff(before, after);
+            }
+            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (unchanged ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            if (existing != null && !unchanged) pipeline.Version = existing.Version + 1;
+            resolver.Add("Pipeline", pipeline.Name, pipeline.Id);
+        }
+
+        private async Task<Dictionary<string, object?>> PipelineTreeAsync(Pipeline pipeline, Resolver resolver, CancellationToken token)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            if (pipeline.Description != null) tree["description"] = pipeline.Description;
+            if (pipeline.MaxDurationSeconds > 0) tree["maxDurationSeconds"] = (long)pipeline.MaxDurationSeconds;
+            if (!pipeline.Active) tree["active"] = false;
+            List<object?> stages = new List<object?>();
+            foreach (PipelineStage stage in pipeline.Stages)
+            {
+                Dictionary<string, object?> item = new Dictionary<string, object?>();
+                item["name"] = stage.Name;
+                if (stage.Description != null) item["description"] = stage.Description;
+                item["agent"] = await resolver.NameAsync("Agent", stage.AgentId, token).ConfigureAwait(false) ?? stage.AgentId;
+                if (!String.IsNullOrEmpty(stage.DeploymentId)) item["deployment"] = await resolver.NameAsync("Deployment", stage.DeploymentId, token).ConfigureAwait(false) ?? stage.DeploymentId;
+                if (!String.IsNullOrEmpty(stage.HandoffTemplateId))
+                {
+                    string name = await resolver.NameAsync("PromptTemplate", stage.HandoffTemplateId, token).ConfigureAwait(false) ?? stage.HandoffTemplateId;
+                    item["handoffTemplate"] = stage.HandoffTemplateVersion.HasValue ? name + "@" + stage.HandoffTemplateVersion.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : name;
+                }
+                if (stage.OutputCharLimit != 16000) item["outputCharLimit"] = (long)stage.OutputCharLimit;
+                if (stage.MaxAttempts != 1) item["maxAttempts"] = (long)stage.MaxAttempts;
+                if (stage.ContinueOnFailure) item["continueOnFailure"] = true;
+                if (stage.RequiresReview) item["requiresReview"] = true;
+                if (stage.ReviewTimeoutSeconds > 0) item["reviewTimeoutSeconds"] = (long)stage.ReviewTimeoutSeconds;
+                if (stage.ReviewTimeoutAction != PipelineReviewDecisionEnum.Reject) item["reviewTimeoutAction"] = stage.ReviewTimeoutAction.ToString();
+                if (stage.MaxRevisions != 3) item["maxRevisions"] = (long)stage.MaxRevisions;
+                if (stage.Parameters.Count > 0)
+                {
+                    Dictionary<string, object?> parameters = new Dictionary<string, object?>();
+                    foreach (PipelineStageParameter parameter in stage.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal)) parameters[parameter.Name] = parameter.Value;
+                    item["parameters"] = parameters;
+                }
+                stages.Add(item);
+            }
+            tree["stages"] = stages;
+            return tree;
+        }
+
         private async Task WriteAsync(string tenantId, Planned planned, CancellationToken token)
         {
             bool create = planned.Result == ManifestApplyResultEnum.Created;
@@ -615,6 +750,11 @@ namespace Garrison.Core.Manifests
                     await ConfigurationValidator.DeploymentAsync(_Database, tenantId, deployment, token).ConfigureAwait(false);
                     if (create) await _Database.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
                     else await _Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                    break;
+                case Pipeline pipeline:
+                    await ConfigurationValidator.PipelineAsync(_Database, tenantId, pipeline, _MaxPipelineStages, token).ConfigureAwait(false);
+                    if (create) await _Database.Pipelines.CreateAsync(pipeline, token).ConfigureAwait(false);
+                    else await _Database.Pipelines.UpdateAsync(pipeline, token).ConfigureAwait(false);
                     break;
             }
         }

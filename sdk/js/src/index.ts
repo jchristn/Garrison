@@ -184,6 +184,172 @@ export interface Approval extends Json {
   createdUtc: string; lastUpdateUtc: string;
 }
 
+/** Pipeline run status. Succeeded, Failed, Cancelled, and TimedOut are terminal. */
+export type PipelineRunStatus = "Running" | "AwaitingReview" | "Cancelling" | "Succeeded" | "Failed" | "Cancelled" | "TimedOut";
+/** Why a pipeline run ended (None while it is active). */
+export type PipelineRunOutcome = "None" | "Succeeded" | "StageFailed" | "StageStartFailed" | "ReviewRejected" | "ReviewExpired" | "Cancelled" | "TimedOut" | "InternalError";
+/** Status of one stage of a pipeline run. */
+export type PipelineStageStatus = "Pending" | "Running" | "AwaitingReview" | "Succeeded" | "Failed" | "Cancelled";
+/** Status of a pipeline stage review. */
+export type PipelineReviewStatus = "Pending" | "Approved" | "ChangesRequested" | "Rejected" | "Expired" | "Cancelled";
+/** A review decision. Also the action a stage applies when its review times out (Approve or Reject). */
+export type PipelineReviewDecision = "Approve" | "RequestChanges" | "Reject";
+/** Who decided a review: a person, the stage's review timeout, or cancellation of the pipeline run. */
+export type PipelineReviewSource = "User" | "Timeout" | "Cancelled";
+/** Terminal pipeline run statuses. */
+export const PIPELINE_TERMINAL_STATUSES: readonly PipelineRunStatus[] = ["Succeeded", "Failed", "Cancelled", "TimedOut"] as const;
+
+/** A run parameter override applied to a pipeline stage's runs. */
+export interface PipelineStageParameter extends Json { id?: string; stageId?: string; tenantId?: string; name: string; value: string; }
+
+/** One ordered stage of a pipeline: an agent, optional deployment and handoff template pins, retries, and review settings. */
+export interface PipelineStage extends Json {
+  id?: string; pipelineId?: string; tenantId?: string;
+  /** 1-based; assigned from the order of the stages list. */
+  position?: number;
+  name: string; description?: string | null;
+  agentId: string;
+  /** Null uses the agent's weighted deployment selection. */
+  deploymentId?: string | null;
+  /** PipelineStage template that renders the stage prompt; null uses the deployment binding, then builtin/pipeline-stage. */
+  handoffTemplateId?: string | null;
+  /** Pinned template version; null uses the current version. */
+  handoffTemplateVersion?: number | null;
+  /** Characters of each earlier output handed to this stage. Default 16000, 1000 to 200000. */
+  outputCharLimit?: number;
+  /** Attempts before the stage fails. Default 1, 1 to 5. */
+  maxAttempts?: number;
+  /** Advance to the next stage even when this stage fails. Default false. */
+  continueOnFailure?: boolean;
+  /** Wait for a person to review the stage's output. Default false. */
+  requiresReview?: boolean;
+  /** Seconds a review waits before reviewTimeoutAction applies; 0 (default) waits forever. */
+  reviewTimeoutSeconds?: number;
+  /** Approve or Reject (default) when the review times out. */
+  reviewTimeoutAction?: PipelineReviewDecision;
+  /** RequestChanges decisions allowed. Default 3, 0 to 10. */
+  maxRevisions?: number;
+  parameters?: PipelineStageParameter[];
+}
+
+/** Ordered agent stages with optional human review gates. */
+export interface Pipeline extends Json {
+  id: string; tenantId: string; name: string; description?: string | null;
+  /** Increments on every update; pipeline runs keep the version they started with. */
+  version: number;
+  /** Overall limit including review waits; 0 means no limit. */
+  maxDurationSeconds: number;
+  active: boolean; isProtected: boolean; createdUtc: string; lastUpdateUtc: string;
+  stages: PipelineStage[];
+}
+
+/** A parameter snapshot of a pipeline run stage. */
+export interface PipelineRunStageParameter extends Json { id: string; runStageId: string; tenantId: string; name: string; value: string; }
+
+/** A stage of a pipeline run: the stage definition snapshot at start plus its progress. */
+export interface PipelineRunStage extends Json {
+  id: string; pipelineRunId: string; tenantId: string; position: number; name: string; description?: string | null;
+  agentId: string; agentName: string; deploymentId?: string | null;
+  handoffTemplateId?: string | null; handoffTemplateVersion?: number | null;
+  outputCharLimit: number; maxAttempts: number; continueOnFailure: boolean; requiresReview: boolean;
+  reviewTimeoutSeconds: number; reviewTimeoutAction: PipelineReviewDecision; maxRevisions: number;
+  status: PipelineStageStatus; executions: number; attempts: number; revisions: number;
+  currentRunId?: string | null; lastRunId?: string | null; blockedReason?: string | null; nextAttemptUtc?: string | null;
+  startedUtc?: string | null; completedUtc?: string | null;
+  parameters: PipelineRunStageParameter[];
+}
+
+/** A stage run of a pipeline run, as listed in the pipeline run detail. */
+export interface PipelineStageRunSummary extends Json {
+  runId: string; position: number; execution: number; agentName: string;
+  status: string; outcome?: string | null; errorMessage?: string | null; createdUtc: string; completedUtc?: string | null;
+}
+
+/** A human review gate on a pipeline stage execution. */
+export interface PipelineReview extends Json {
+  id: string; tenantId: string; pipelineRunId: string; pipelineId: string; pipelineName: string;
+  runStageId: string; position: number; stageName: string;
+  /** The stage run under review. */
+  runId: string;
+  execution: number;
+  status: PipelineReviewStatus;
+  decision?: PipelineReviewDecision | null;
+  decisionSource?: PipelineReviewSource | null;
+  comment?: string | null; decidedBy?: string | null; decidedById?: string | null;
+  timeoutAction: PipelineReviewDecision;
+  requestedUtc: string; expiresUtc?: string | null; decidedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
+}
+
+/** One execution of a pipeline. Detail reads carry stages, reviews, and stage run summaries. */
+export interface PipelineRun extends Json {
+  id: string; tenantId: string; pipelineId: string; pipelineName: string; pipelineVersion: number;
+  status: PipelineRunStatus; outcome: PipelineRunOutcome;
+  /** 1-based position of the current (or last) stage. */
+  currentPosition: number;
+  stageCount: number; inputText: string; inputContentType: string;
+  callerType: string; callerId?: string | null; callerName?: string | null; idempotencyKey?: string | null;
+  priority: number; finalRunId?: string | null; errorMessage?: string | null; deadlineUtc?: string | null;
+  cancelRequested: boolean; startedUtc?: string | null; completedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
+  stages: PipelineRunStage[];
+  reviews: PipelineReview[];
+  runs: PipelineStageRunSummary[];
+}
+
+/** Start a pipeline. */
+export interface PipelineStartRequest {
+  /** The caller's input; every stage receives it as its task. */
+  input: string;
+  /** Default text/plain. */
+  inputContentType?: string;
+  /** Priority of the stage runs. Default 0. */
+  priority?: number;
+  /** Wait until the pipeline run ends or waits for a review. Default false. */
+  wait?: boolean;
+  /** Seconds to wait when wait is true. Default 60, at most 600. */
+  waitSeconds?: number;
+}
+
+/** Options of pipelines.start that travel outside the request body. */
+export interface PipelineStartOptions {
+  /** Sent as the Idempotency-Key header: a repeated start with the same key and input returns the same pipeline run. */
+  idempotencyKey?: string;
+}
+
+/** Render every stage prompt from sample input and sample stage outputs. */
+export interface PipelinePreviewRequest {
+  input?: string;
+  /** Sample output of each earlier stage, by position (index 0 is stage 1). Missing entries use a placeholder. */
+  sampleOutputs?: string[];
+}
+
+/** A rendered stage prompt (secrets redacted), or the error that prevented rendering it. */
+export interface PipelinePreviewStage extends Json {
+  position: number; stageName: string; agentName: string; deploymentId?: string | null; deploymentName?: string | null;
+  success: boolean; prompt?: string | null; errorCode?: string | null; errorMessage?: string | null;
+}
+
+/** Pipeline preview result. */
+export interface PipelinePreviewResponse extends Json { pipelineId: string; pipelineName: string; stages: PipelinePreviewStage[]; }
+
+/** Pipeline run list filter. */
+export interface PipelineRunFilter {
+  pipelineId?: string; status?: PipelineRunStatus; callerId?: string; fromUtc?: string | Date; toUtc?: string | Date;
+  maxResults?: number; skip?: number; ordering?: string;
+}
+
+/** Pipeline review list filter. */
+export interface PipelineReviewFilter {
+  status?: PipelineReviewStatus; pipelineRunId?: string; pipelineId?: string; runId?: string; decisionSource?: PipelineReviewSource;
+  fromUtc?: string | Date; toUtc?: string | Date; maxResults?: number; skip?: number; ordering?: string;
+}
+
+/** A decision on a pending pipeline review. */
+export interface PipelineReviewDecideRequest {
+  decision: PipelineReviewDecision;
+  /** At most 8000 characters. Required for RequestChanges (the feedback); Approve notes reach the next stage. */
+  comment?: string;
+}
+
 /** Approval list filter. */
 export interface ApprovalFilter {
   status?: ApprovalStatus; runId?: string; rootRunId?: string; agentId?: string; deploymentId?: string;
@@ -311,6 +477,12 @@ export interface Run extends Json {
   affinityUntilUtc?: string | null;
   /** Why this turn started a fresh session from the transcript instead of resuming, or null. */
   conversationFallbackReason?: ConversationFallbackReason | null;
+  /** Pipeline run this run is a stage of, or null for runs outside a pipeline. */
+  pipelineRunId?: string | null;
+  /** Position of the pipeline stage this run executes, starting at 1; 0 outside a pipeline. */
+  pipelinePosition?: number;
+  /** Execution number of the pipeline stage (retries, revisions, and resumes increase it); 0 outside a pipeline. */
+  pipelineExecution?: number;
 }
 
 /**
@@ -665,7 +837,7 @@ export class Transport {
     return headers;
   }
 
-  private async send(method: string, path: string, params?: Record<string, any>, body?: unknown, contentType?: string, accept?: string): Promise<Response> {
+  private async send(method: string, path: string, params?: Record<string, any>, body?: unknown, contentType?: string, accept?: string, additionalHeaders?: Record<string, string>): Promise<Response> {
     const query = queryString(params);
     let text: string | ArrayBuffer | undefined;
     const extra: Record<string, string> = {};
@@ -674,14 +846,16 @@ export class Transport {
       extra["Content-Type"] = body instanceof Uint8Array ? (contentType ?? "application/octet-stream") : typeof body === "string" ? (contentType ?? "application/json") : "application/json";
     }
     if (accept) extra["Accept"] = accept;
+    if (additionalHeaders) Object.assign(extra, additionalHeaders);
     const headers = { ...extra, ...(await this.headers(method, path, query, text)) };
     const response = await fetch(this.baseUrl + path + (query ? `?${query}` : ""), { method, headers, body: text, signal: this.abortSignal });
     if (!response.ok) throw new GarrisonError(response.status, await response.text());
     return response;
   }
 
-  async request<T = any>(method: string, path: string, params?: Record<string, any>, body?: unknown, contentType?: string): Promise<T> {
-    const response = await this.send(method, path, params, body, contentType);
+  /** Send a JSON request. additionalHeaders (for example Idempotency-Key) are sent as given. */
+  async request<T = any>(method: string, path: string, params?: Record<string, any>, body?: unknown, contentType?: string, additionalHeaders?: Record<string, string>): Promise<T> {
+    const response = await this.send(method, path, params, body, contentType, undefined, additionalHeaders);
     const text = await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
   }
@@ -936,6 +1110,62 @@ export class Approvals {
   }
 }
 
+/** Pipeline definitions (by identifier or name), start, and prompt preview. */
+export class Pipelines extends Resource<Pipeline> {
+  /**
+   * Start a pipeline. Needs Pipeline Execute and Agent Execute on every stage agent. Rejects with GarrisonError 409
+   * (PipelineInactive, PipelineEmpty, or IdempotencyKeyConflict when the key was used with a different input).
+   */
+  start(id: string, request: PipelineStartRequest, options: PipelineStartOptions = {}): Promise<PipelineRun> {
+    const headers = options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : undefined;
+    return this.t.request("POST", this.item(id) + "/start", undefined, request, undefined, headers);
+  }
+  /** Render each stage prompt from sample input and sample earlier outputs, with secrets redacted. */
+  preview(id: string, request: PipelinePreviewRequest = {}): Promise<PipelinePreviewResponse> {
+    return this.t.request("POST", this.item(id) + "/preview", undefined, request);
+  }
+}
+
+/** Pipeline runs: list, read (optionally waiting), cancel, resume, delete. */
+export class PipelineRuns {
+  pollIntervalMs = 500;
+  constructor(private readonly t: Transport) {}
+  private p(suffix = ""): string { return this.t.tenantPath("/pipeline-runs" + suffix); }
+  list(filter: PipelineRunFilter = {}): Promise<EnumerationResult<PipelineRun>> { return this.t.request("GET", this.p(), filter as any); }
+  /** Read a pipeline run with stages, stage runs, and reviews. waitSeconds (at most 600) waits until it ends or awaits a review. */
+  get(id: string, waitSeconds?: number): Promise<PipelineRun> { return this.t.request("GET", this.p(`/${seg(id)}`), waitSeconds ? { waitSeconds } : undefined); }
+  /** Cancel an active pipeline run. Rejects with GarrisonError 409 PipelineRunFinished when it already ended. */
+  cancel(id: string): Promise<PipelineRun> { return this.t.request("POST", this.p(`/${seg(id)}/cancel`)); }
+  /** Resume a Failed, TimedOut, or Cancelled pipeline run at its stopped stage. Rejects with 409 PipelineRunNotRetryable otherwise. */
+  retry(id: string): Promise<PipelineRun> { return this.t.request("POST", this.p(`/${seg(id)}/retry`)); }
+  /** Delete a finished pipeline run and its reviews. Rejects with 409 PipelineRunActive while it is active. */
+  delete(id: string): Promise<unknown> { return this.t.request("DELETE", this.p(`/${seg(id)}`)); }
+  /** Poll until the pipeline run is terminal (or awaiting review when untilReview is true) or the timeout passes. */
+  async waitFor(id: string, timeoutMs = 300000, untilReview = false): Promise<PipelineRun> {
+    const deadline = Date.now() + timeoutMs;
+    while (true) {
+      const run = await this.get(id);
+      if (PIPELINE_TERMINAL_STATUSES.includes(run.status) || (untilReview && run.status === "AwaitingReview") || Date.now() >= deadline) return run;
+      await new Promise((resolve) => setTimeout(resolve, this.pollIntervalMs));
+    }
+  }
+}
+
+/** Pipeline stage reviews (authorized as Approval Read and Update). */
+export class PipelineReviews {
+  constructor(private readonly t: Transport) {}
+  private p(suffix = ""): string { return this.t.tenantPath("/pipeline-reviews" + suffix); }
+  list(filter: PipelineReviewFilter = {}): Promise<EnumerationResult<PipelineReview>> { return this.t.request("GET", this.p(), filter as any); }
+  get(id: string): Promise<PipelineReview> { return this.t.request("GET", this.p(`/${seg(id)}`)); }
+  /**
+   * Decide a pending review. Rejects with GarrisonError 400 (RequestChanges without a comment) or 409 (ReviewNotPending,
+   * RevisionLimitReached).
+   */
+  decide(id: string, request: PipelineReviewDecideRequest): Promise<PipelineReview> {
+    return this.t.request("POST", this.p(`/${seg(id)}/decide`), undefined, request);
+  }
+}
+
 /** Tenant analytics. */
 export class Analytics {
   constructor(private readonly t: Transport) {}
@@ -1032,6 +1262,9 @@ export class GarrisonClient {
   readonly runs: Runs;
   readonly conversations: Conversations;
   readonly approvals: Approvals;
+  readonly pipelines: Pipelines;
+  readonly pipelineRuns: PipelineRuns;
+  readonly pipelineReviews: PipelineReviews;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
   readonly controlNodes: ControlNodes;
@@ -1065,6 +1298,9 @@ export class GarrisonClient {
     this.runs = new Runs(t);
     this.conversations = new Conversations(t);
     this.approvals = new Approvals(t);
+    this.pipelines = new Pipelines(t, "pipelines");
+    this.pipelineRuns = new PipelineRuns(t);
+    this.pipelineReviews = new PipelineReviews(t);
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");
     this.controlNodes = new ControlNodes(t);

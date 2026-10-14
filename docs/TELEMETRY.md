@@ -368,10 +368,18 @@ Each iteration is one call through `GarrisonTracing.BackgroundAsync`, which reco
 | `garrison_conversation_fallbacks_total` | counter | `reason` | server | garrison-runs | Conversation turns that could not resume their harness session and started a fresh one from the transcript, by reason (AffinityNodeLost, AffinityWaitExpired, WorkspaceLost, SessionMissing, HarnessChanged, ResumeUnsupported, ExecutorWithoutState) |
 | `garrison_conversation_turns_total` | counter | `tenant`, `agent`, `mode` | server | garrison-runs | Conversation turns created, by how the harness session starts: first (a new conversation), resume (the session on the affinity node), or fallback (a fresh session seeded with the transcript) |
 | `garrison_event_batch_size` | histogram | none | server | garrison-runs | Events per batch received from workers |
+| `garrison_pipeline_advances_total` | counter | `trigger`, `result` | server | garrison-runs | Pipeline run advancement passes, by trigger (hook, sweep, api) and result (changed when the pass moved the pipeline run, unchanged otherwise) |
+| `garrison_pipeline_review_wait_seconds` | histogram, seconds | `source`, `decision` | server | garrison-runs | Time a pipeline stage review waited for its decision |
+| `garrison_pipeline_reviews_decided_total` | counter | `tenant`, `pipeline`, `source`, `decision` | server | garrison-runs | Pipeline stage reviews decided, by who decided (user, timeout, cancelled) and the decision (approve, requestchanges, reject, none) |
+| `garrison_pipeline_reviews_pending` | gauge | none | server | garrison-runs | Pipeline stage reviews waiting for a person, as of the leader's last pipeline sweep; aggregate with max |
+| `garrison_pipeline_stage_executions_total` | counter | `tenant`, `pipeline`, `mode` | server | garrison-runs | Pipeline stage runs created, by why the execution started: first, retry (a failed attempt), revision (a reviewer requested changes), or resume (a retried pipeline run) |
+| `garrison_pipeline_stage_start_failures_total` | counter | `tenant`, `pipeline`, `kind` | server | garrison-runs | Pipeline stage runs that could not be created, by kind: transient (for example QuotaExceeded, retried by the sweep) or permanent (the pipeline run fails with StageStartFailed) |
+| `garrison_pipelines_finished_total` | counter | `tenant`, `pipeline`, `outcome` | server | garrison-runs | Pipeline runs that reached a terminal status, by outcome (Succeeded, StageFailed, StageStartFailed, ReviewRejected, ReviewExpired, Cancelled, TimedOut, InternalError) |
+| `garrison_pipelines_started_total` | counter | `tenant`, `pipeline` | server | garrison-runs | Pipeline runs started (an idempotent repeat of a start is not counted) |
 | `garrison_run_events_total` | counter | `type` | server | garrison-runs | Run events received from workers, by event type |
 | `garrison_run_stage_duration_seconds` | histogram, seconds | `stage`, `tenant`, `agent`, `deployment`, `harness`, `model` | server | garrison-agents | Per-run stage durations: queue (queued to leased), claim (scheduler claim and compile inside the lease request), startup (leased to harness start), first_token (TTFT), first_token_excl_delegation, streaming (first to last output), execution (harness start to exit), delegation_wait, total (queued to completion received) |
 | `garrison_runs_active` | gauge | none | server | garrison-runs | Runs leased, running, or cancelling, cluster-wide; aggregate with max |
-| `garrison_runs_cancellations_total` | counter | `tenant`, `agent`, `reason` | server | garrison-runs | Cancellation requests accepted, by reason (request, disconnect, parent) |
+| `garrison_runs_cancellations_total` | counter | `tenant`, `agent`, `reason` | server | garrison-runs | Cancellation requests accepted, by reason (request, disconnect, parent, pipeline) |
 | `garrison_runs_created_total` | counter | `tenant`, `agent`, `deployment`, `harness`, `kind`, `executor` | server | garrison-runs | Runs created (invocations), per agent and deployment |
 | `garrison_runs_finished_total` | counter | `tenant`, `agent`, `deployment`, `harness`, `model`, `outcome` | server | garrison-runs | Runs that reached a terminal status, by outcome and served model |
 | `garrison_runs_queued` | gauge | none | server | garrison-runs | Runs waiting for a worker (Pending and Queued), cluster-wide; aggregate with max |
@@ -549,6 +557,21 @@ Every route registers through the route registrar, which records it in the opera
 | DELETE | `/v1.0/api/tenants/{tenantId}/permissions/{id}` | `route="/v1.0/api/tenants/{tenantId}/permissions/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/permissions/{id}` | `route=/v1.0/api/tenants/{tenantId}/permissions/{id}` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/permissions/{id}` | `route="/v1.0/api/tenants/{tenantId}/permissions/{id}"` | `GET /v1.0/api/tenants/{tenantId}/permissions/{id}` | `route=/v1.0/api/tenants/{tenantId}/permissions/{id}` | garrison-http |
 | PUT | `/v1.0/api/tenants/{tenantId}/permissions/{id}` | `route="/v1.0/api/tenants/{tenantId}/permissions/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/permissions/{id}` | `route=/v1.0/api/tenants/{tenantId}/permissions/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/pipeline-reviews` | `route="/v1.0/api/tenants/{tenantId}/pipeline-reviews"` | `GET /v1.0/api/tenants/{tenantId}/pipeline-reviews` | `route=/v1.0/api/tenants/{tenantId}/pipeline-reviews` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}` | `route="/v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}"` | `GET /v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}` | `route=/v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}/decide` | `route="/v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}/decide"` | `POST /v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}/decide` | `route=/v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}/decide` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/pipeline-runs` | `route="/v1.0/api/tenants/{tenantId}/pipeline-runs"` | `GET /v1.0/api/tenants/{tenantId}/pipeline-runs` | `route=/v1.0/api/tenants/{tenantId}/pipeline-runs` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}` | `route="/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/pipeline-runs/{id}` | `route=/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}` | `route="/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}"` | `GET /v1.0/api/tenants/{tenantId}/pipeline-runs/{id}` | `route=/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/cancel` | `route="/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/cancel"` | `POST /v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/cancel` | `route=/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/cancel` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/retry` | `route="/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/retry"` | `POST /v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/retry` | `route=/v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/retry` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/pipelines` | `route="/v1.0/api/tenants/{tenantId}/pipelines"` | `GET /v1.0/api/tenants/{tenantId}/pipelines` | `route=/v1.0/api/tenants/{tenantId}/pipelines` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/pipelines` | `route="/v1.0/api/tenants/{tenantId}/pipelines"` | `POST /v1.0/api/tenants/{tenantId}/pipelines` | `route=/v1.0/api/tenants/{tenantId}/pipelines` | garrison-http |
+| DELETE | `/v1.0/api/tenants/{tenantId}/pipelines/{id}` | `route="/v1.0/api/tenants/{tenantId}/pipelines/{id}"` | `DELETE /v1.0/api/tenants/{tenantId}/pipelines/{id}` | `route=/v1.0/api/tenants/{tenantId}/pipelines/{id}` | garrison-http |
+| GET | `/v1.0/api/tenants/{tenantId}/pipelines/{id}` | `route="/v1.0/api/tenants/{tenantId}/pipelines/{id}"` | `GET /v1.0/api/tenants/{tenantId}/pipelines/{id}` | `route=/v1.0/api/tenants/{tenantId}/pipelines/{id}` | garrison-http |
+| PUT | `/v1.0/api/tenants/{tenantId}/pipelines/{id}` | `route="/v1.0/api/tenants/{tenantId}/pipelines/{id}"` | `PUT /v1.0/api/tenants/{tenantId}/pipelines/{id}` | `route=/v1.0/api/tenants/{tenantId}/pipelines/{id}` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/pipelines/{id}/preview` | `route="/v1.0/api/tenants/{tenantId}/pipelines/{id}/preview"` | `POST /v1.0/api/tenants/{tenantId}/pipelines/{id}/preview` | `route=/v1.0/api/tenants/{tenantId}/pipelines/{id}/preview` | garrison-http |
+| POST | `/v1.0/api/tenants/{tenantId}/pipelines/{id}/start` | `route="/v1.0/api/tenants/{tenantId}/pipelines/{id}/start"` | `POST /v1.0/api/tenants/{tenantId}/pipelines/{id}/start` | `route=/v1.0/api/tenants/{tenantId}/pipelines/{id}/start` | garrison-http |
 | GET | `/v1.0/api/tenants/{tenantId}/prompt-templates` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates"` | `GET /v1.0/api/tenants/{tenantId}/prompt-templates` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/prompt-templates` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates"` | `POST /v1.0/api/tenants/{tenantId}/prompt-templates` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates` | garrison-http |
 | POST | `/v1.0/api/tenants/{tenantId}/prompt-templates/render` | `route="/v1.0/api/tenants/{tenantId}/prompt-templates/render"` | `POST /v1.0/api/tenants/{tenantId}/prompt-templates/render` | `route=/v1.0/api/tenants/{tenantId}/prompt-templates/render` | garrison-http |
@@ -627,18 +650,40 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 <!-- telemetry-coverage:mcp-tools -->
 | Tool | Metric series | Span | Log | Panels |
 |---|---|---|---|---|
+| `garrison_apply_manifest` | `tool="garrison_apply_manifest"` | `mcp garrison_apply_manifest` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_cancel_pipeline_run` | `tool="garrison_cancel_pipeline_run"` | `mcp garrison_cancel_pipeline_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_cancel_run` | `tool="garrison_cancel_run"` | `mcp garrison_cancel_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_create_agent` | `tool="garrison_create_agent"` | `mcp garrison_create_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_create_deployment` | `tool="garrison_create_deployment"` | `mcp garrison_create_deployment` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_create_pipeline` | `tool="garrison_create_pipeline"` | `mcp garrison_create_pipeline` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_decide_approval` | `tool="garrison_decide_approval"` | `mcp garrison_decide_approval` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_decide_pipeline_review` | `tool="garrison_decide_pipeline_review"` | `mcp garrison_decide_pipeline_review` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_delete_agent` | `tool="garrison_delete_agent"` | `mcp garrison_delete_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_delete_deployment` | `tool="garrison_delete_deployment"` | `mcp garrison_delete_deployment` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_delete_pipeline` | `tool="garrison_delete_pipeline"` | `mcp garrison_delete_pipeline` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_export_manifest` | `tool="garrison_export_manifest"` | `mcp garrison_export_manifest` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_agent` | `tool="garrison_get_agent"` | `mcp garrison_get_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_agent_configuration` | `tool="garrison_get_agent_configuration"` | `mcp garrison_get_agent_configuration` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_approval` | `tool="garrison_get_approval"` | `mcp garrison_get_approval` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_deployment` | `tool="garrison_get_deployment"` | `mcp garrison_get_deployment` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_pipeline` | `tool="garrison_get_pipeline"` | `mcp garrison_get_pipeline` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_get_pipeline_run` | `tool="garrison_get_pipeline_run"` | `mcp garrison_get_pipeline_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_run` | `tool="garrison_get_run"` | `mcp garrison_get_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_get_run_events` | `tool="garrison_get_run_events"` | `mcp garrison_get_run_events` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_invoke_agent` | `tool="garrison_invoke_agent"` | `mcp garrison_invoke_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_agents` | `tool="garrison_list_agents"` | `mcp garrison_list_agents` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_approvals` | `tool="garrison_list_approvals"` | `mcp garrison_list_approvals` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_deployments` | `tool="garrison_list_deployments"` | `mcp garrison_list_deployments` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_pipeline_reviews` | `tool="garrison_list_pipeline_reviews"` | `mcp garrison_list_pipeline_reviews` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_pipeline_runs` | `tool="garrison_list_pipeline_runs"` | `mcp garrison_list_pipeline_runs` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_list_pipelines` | `tool="garrison_list_pipelines"` | `mcp garrison_list_pipelines` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_list_runs` | `tool="garrison_list_runs"` | `mcp garrison_list_runs` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_permission_prompt` | `tool="garrison_permission_prompt"` | `mcp garrison_permission_prompt` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_start_pipeline` | `tool="garrison_start_pipeline"` | `mcp garrison_start_pipeline` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_start_run` | `tool="garrison_start_run"` | `mcp garrison_start_run` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_update_agent` | `tool="garrison_update_agent"` | `mcp garrison_update_agent` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_update_deployment` | `tool="garrison_update_deployment"` | `mcp garrison_update_deployment` | `[Mcp]` lines, `tenant=` | garrison-protocols |
+| `garrison_update_pipeline` | `tool="garrison_update_pipeline"` | `mcp garrison_update_pipeline` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `garrison_upload_artifact` | `tool="garrison_upload_artifact"` | `mcp garrison_upload_artifact` | `[Mcp]` lines, `tenant=` | garrison-protocols |
 | `{mcpToolName}` (agent tools, one per exposed agent) | `tool="agent"` | `mcp agent` | `[Mcp]` lines, `tenant=`, `agent=` | garrison-protocols, garrison-agents |
 <!-- /telemetry-coverage:mcp-tools -->
@@ -669,7 +714,7 @@ Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metri
 | Run events: lifecycle, assistant text, tool calls and results, usage, warnings, errors, the final result | `GET .../runs/{id}/events`, SSE, WebSocket | `Runs.EventRetentionDays` (14) |
 | Runs, with outcome, usage, cost, served model, trace ID, exit code, stderr tail, and the template versions used | `GET .../runs` | `Runs.RetentionDays` (30) |
 
-Request history capture can be turned off with the `RequestHistory.Enabled` cluster setting, and the captured body size is limited by `RequestHistory.MaxRequestBodyBytes` and `MaxResponseBodyBytes`. The overview endpoint (`GET .../overview`) summarizes run counts, outcomes, and node state for dashboards.
+Request history capture can be turned off with the `RequestHistory.Enabled` cluster setting. Successful worker node protocol calls (`/v1.0/api/node/...`) are left out unless `RequestHistory.CaptureNodeProtocol` is on, because they were the largest source of database writes per run under load; failed node calls are still captured. The captured body size is limited by `RequestHistory.MaxRequestBodyBytes` and `MaxResponseBodyBytes`. The overview endpoint (`GET .../overview`) summarizes run counts, outcomes, and node state for dashboards.
 
 ## Kubernetes
 

@@ -1128,3 +1128,23 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .inline-actions { display: inline-flex; flex-wrap: wrap; gap: var(--spacing-xs); justify-content: flex-end; }
 .timeline-link { font-size: var(--font-size-xs); }
 .filter-text .filter-search { min-width: 180px; }
+
+/* Pipelines (P12.9): stage editor cards and the pipeline run stage timeline. */
+.pipeline-stages { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.pipeline-stage { background: var(--color-surface-alt); }
+.pipeline-stage-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
+.pipeline-stage-head .section-title { margin: 0; }
+.pipeline-stage-head .object-list-actions { flex-direction: row; }
+.pipeline-input { white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; margin: 0; }
+.pipeline-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.pipeline-timeline-stage { border: 1px solid var(--color-border); border-inline-start: 4px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-sm); display: flex; flex-direction: column; gap: var(--spacing-xs, 4px); }
+.pipeline-timeline-stage[data-status='Succeeded'] { border-inline-start-color: var(--color-success); }
+.pipeline-timeline-stage[data-status='Failed'] { border-inline-start-color: var(--color-danger); }
+.pipeline-timeline-stage[data-status='Running'] { border-inline-start-color: var(--color-info); }
+.pipeline-timeline-stage[data-status='AwaitingReview'], .pipeline-timeline-stage[data-status='Cancelled'] { border-inline-start-color: var(--color-warning); }
+.pipeline-timeline-stage.is-current { background: var(--color-primary-soft); }
+.pipeline-timeline-head { flex-wrap: wrap; }
+.pipeline-timeline-reviews li::before { content: none; }
+.pipeline-review-comment { white-space: pre-wrap; }
+.pipeline-review-panel { border-color: color-mix(in srgb, var(--color-warning) 45%, transparent); }
+.text-danger { color: var(--color-danger); }

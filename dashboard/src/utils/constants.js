@@ -82,15 +82,22 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun'],
   operationType: ['All', 'Create', 'Read', 'Write', 'Update', 'Delete', 'Execute', 'Admin'],
-  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided'],
+  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled'],
   // Permission approvals (P12.3).
   approvalStatus: ['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled'],
   approvalDecision: ['Allow', 'Deny'],
   approvalSource: ['Rule', 'Default', 'User', 'Timeout', 'Cancelled'],
   approvalRuleAction: ['Allow', 'Deny', 'Ask'],
   approvalKind: ['Tool', 'Command', 'FileChange'],
+  // Pipelines (P12.9): ordered agent stages with optional review gates.
+  pipelineRunStatus: ['Running', 'AwaitingReview', 'Cancelling', 'Succeeded', 'Failed', 'Cancelled', 'TimedOut'],
+  pipelineRunOutcome: ['None', 'Succeeded', 'StageFailed', 'StageStartFailed', 'ReviewRejected', 'ReviewExpired', 'Cancelled', 'TimedOut', 'InternalError'],
+  pipelineStageStatus: ['Pending', 'Running', 'AwaitingReview', 'Succeeded', 'Failed', 'Cancelled'],
+  pipelineReviewStatus: ['Pending', 'Approved', 'ChangesRequested', 'Rejected', 'Expired', 'Cancelled'],
+  pipelineReviewDecision: ['Approve', 'RequestChanges', 'Reject'],
+  pipelineReviewSource: ['User', 'Timeout', 'Cancelled'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -150,6 +157,95 @@ export const APPROVAL_TIMEOUT = { min: 10, max: 3600, default: 300 };
 
 /** How often the sidebar badge re-reads the pending approval count, in milliseconds, when no live push arrives. */
 export const APPROVAL_POLL_MS = 30000;
+
+/** Pipeline run statuses after which nothing changes unless someone retries the run (P12.9). */
+export const TERMINAL_PIPELINE_RUN_STATUSES = ['Succeeded', 'Failed', 'Cancelled', 'TimedOut'];
+
+/** Pipeline run statuses POST pipeline-runs/{id}/retry accepts: it resumes at the stage where the run stopped. */
+export const RETRYABLE_PIPELINE_RUN_STATUSES = ['Failed', 'TimedOut', 'Cancelled'];
+
+/**
+ * Pipeline definition ranges, matching the server's validation (P12.9). Durations are seconds; 0 means no limit for
+ * maxDurationSeconds and wait indefinitely for reviewTimeoutSeconds. maxStages is the default of the cluster setting
+ * Runtime.PipelineMaxStages; the server enforces the configured value.
+ */
+export const PIPELINE_LIMITS = {
+  maxDurationSeconds: { min: 0, max: 2592000, default: 0 },
+  outputCharLimit: { min: 1000, max: 200000, default: 16000 },
+  maxAttempts: { min: 1, max: 5, default: 1 },
+  reviewTimeoutSeconds: { min: 0, max: 2592000, default: 0 },
+  maxRevisions: { min: 0, max: 10, default: 3 },
+  maxStages: 20,
+  commentMax: 8000
+};
+
+/** How often (ms) a pipeline run page re-reads the run while it is unfinished and no live push arrives. */
+export const PIPELINE_RUN_POLL_MS = 3000;
+
+/** Semantic tone for a pipeline run status pill. */
+export function pipelineRunStatusTone(status) {
+  switch (status) {
+    case 'Succeeded':
+      return 'success';
+    case 'Failed':
+    case 'TimedOut':
+      return 'danger';
+    case 'Cancelled':
+    case 'Cancelling':
+    case 'AwaitingReview':
+      return 'warning';
+    case 'Running':
+      return 'info';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for a pipeline stage status pill. */
+export function pipelineStageStatusTone(status) {
+  switch (status) {
+    case 'Succeeded':
+      return 'success';
+    case 'Failed':
+      return 'danger';
+    case 'Cancelled':
+    case 'AwaitingReview':
+      return 'warning';
+    case 'Running':
+      return 'info';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for a pipeline review status pill: Pending needs a person. */
+export function pipelineReviewStatusTone(status) {
+  switch (status) {
+    case 'Pending':
+    case 'ChangesRequested':
+      return 'warning';
+    case 'Approved':
+      return 'success';
+    case 'Rejected':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for a pipeline review decision pill. */
+export function pipelineReviewDecisionTone(decision) {
+  switch (decision) {
+    case 'Approve':
+      return 'success';
+    case 'Reject':
+      return 'danger';
+    case 'RequestChanges':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
 
 /** Semantic tone for a node status pill. */
 export function nodeStatusTone(status) {

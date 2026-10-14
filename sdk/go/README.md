@@ -63,7 +63,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Resources
 
-`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Manifests`, `Runs`, `Conversations`, `Approvals`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
+`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Pipelines` adds typed `Start` and `Preview` to the same methods. `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
 
 Control-plane replicas are read-only: `client.ControlNodes.List(ctx, opts)` returns a `*garrison.ControlNodeList` (a page of `garrison.ControlNode` plus `RespondingNodeID`, the replica that answered) and `client.ControlNodes.Get(ctx, nodeID)` reads one replica. `Status` is one of the `ControlNodeStatus*` constants (`Starting`, `Ready`, `Draining`, `Offline`); `IsLeader` and `LeaderEpoch` (leader only) come from the coordination lease.
 
@@ -82,6 +82,36 @@ result, err := client.Approvals.Check(ctx, deploymentID, garrison.ApprovalCheckR
 ```
 
 `Approvals.List` filters by status, run, root run, agent, deployment, decision source, and time range (`FromUTC`, `ToUTC`); for a pending count, use `MaxResults: 1` and read `TotalRecords`. `Approvals.Get` returns an error matching `garrison.IsStatus(err, 404)` for an approval outside the tenant. `Approvals.Decide` fails with 409 (`ApprovalNotPending`) when the approval was already decided, and `Remember` needs Update on the approval's deployment. `Approvals.Check` records nothing and returns a `*garrison.ApprovalCheckResponse`. `garrison.Run` has `PendingApprovals`, `AwaitingApproval` (the run stays `Running` while it waits), and `ApprovalWaitMs`. The deployment approval fields use `omitempty`: zero values are left out of requests and the server applies its defaults.
+
+## Pipelines
+
+A pipeline runs agents as ordered stages. Each stage gets the caller's input plus the earlier stages' results, rendered by a `PipelineStage` prompt template, and a stage with `RequiresReview` waits for a person before the next stage starts.
+
+```go
+var pipeline garrison.Pipeline
+err := client.Pipelines.Create(ctx, garrison.Pipeline{Name: "draft-and-edit", Stages: []garrison.PipelineStage{
+	{Name: "draft", AgentID: writerID, RequiresReview: true},
+	{Name: "edit", AgentID: editorID},
+}}, &pipeline)
+run, err := client.Pipelines.Start(ctx, pipeline.ID, garrison.PipelineStartRequest{
+	Input: "Announce the release", Wait: true, WaitSeconds: 60,
+}, "release-announcement-1") // idempotency key, sent as the Idempotency-Key header; "" for none
+reviews, err := client.PipelineReviews.List(ctx, garrison.PipelineReviewFilter{
+	Status: garrison.PipelineReviewStatusPending, PipelineRunID: run.ID,
+})
+_, err = client.PipelineReviews.Decide(ctx, reviews.Objects[0].ID, garrison.PipelineReviewDecideRequest{
+	Decision: garrison.PipelineReviewDecisionApprove, Comment: "Keep it short",
+})
+finished, err := client.PipelineRuns.Get(ctx, run.ID, 60) // waits until it ends or waits for a review
+```
+
+`Pipelines` takes an identifier or a name for `Get`, `Update`, `Delete`, `Start`, and `Preview`. `Update` advances the pipeline's `Version`; pipeline runs already started keep their snapshot. `Delete` answers 409 (`PipelineInUse`) while pipeline runs are active. `Preview` renders every stage prompt from sample input and sample earlier outputs. Starting needs Execute on the pipeline and on every stage agent; a repeated idempotency key with the same input returns the same pipeline run, and different input answers 409.
+
+`PipelineRuns.List` filters by pipeline, status, caller, and time range. `Get` with `waitSeconds` above 0 (at most 600) waits until the pipeline run ends or waits for a review; the detail carries `Stages`, `Reviews`, and `Runs` (stage run summaries). `Cancel` also cancels the pending review and the current stage run; `Retry` resumes a Failed, TimedOut, or Cancelled pipeline run at the stage where it stopped; `Delete` removes a finished pipeline run (stage runs are kept).
+
+`PipelineReviews.Decide` takes `PipelineReviewDecisionApprove` (the comment reaches the next stage as review notes), `PipelineReviewDecisionRequestChanges` (comment required; the stage runs again with it, at most `MaxRevisions` times, then 409 `RevisionLimitReached`), or `PipelineReviewDecisionReject` (the pipeline run fails). A review that is no longer pending answers 409 (`ReviewNotPending`). Reviews are authorized as approvals (Approval Read and Update). Run tokens cannot use pipelines or reviews.
+
+The pipeline status, outcome, stage status, review status, decision, and decision source values are the `PipelineRunStatus*`, `PipelineRunOutcome*`, `PipelineStageStatus*`, `PipelineReviewStatus*`, `PipelineReviewDecision*`, and `PipelineReviewSource*` constants. Optional `Pipeline` and `PipelineStage` fields use `omitempty`, so zero values take the server defaults: `Active` nil means true, `OutputCharLimit` 0 means 16000, `MaxAttempts` 0 means 1, and `MaxRevisions` nil means 3.
 
 ## Streaming run events
 
@@ -249,7 +279,7 @@ Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to 
 cd sdk/go && go run ./cmd/console http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
 ## Executor capabilities
 

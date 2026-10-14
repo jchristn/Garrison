@@ -12,7 +12,7 @@ namespace Garrison.FakeHarness
 
     /// <summary>
     /// Deterministic fake agent harness. Reads the prompt from stdin and answers "Echo: " followed by the first 200
-    /// characters of the prompt, in Claude stream-json, Codex JSONL, Mux JSONL, or plain text format, or serves the
+    /// characters of the prompt (--echo-chars N changes the length; 0 echoes all of it), in Claude stream-json, Codex JSONL, Mux JSONL, or plain text format, or serves the
     /// Codex app-server JSON-RPC protocol (format codex-app-server).
     /// Usage: garrison-fake-harness --version | --format claude|codex|codex-app-server|mux|plain [--scenario file] [--delay-ms N]
     /// [--fail] [--exit-code N] [--hang] [--large-output N] [--mcp-call url,token,tool,argsjson]
@@ -61,7 +61,7 @@ namespace Garrison.FakeHarness
             }
 
             string prompt = Console.IsInputRedirected ? await Console.In.ReadToEndAsync().ConfigureAwait(false) : String.Empty;
-            string answer = "Echo: " + (prompt.Length > 200 ? prompt.Substring(0, 200) : prompt).Trim();
+            string answer = "Echo: " + (options.EchoChars > 0 && prompt.Length > options.EchoChars ? prompt.Substring(0, options.EchoChars) : prompt).Trim();
             if (!String.IsNullOrEmpty(options.ScenarioFile) && File.Exists(options.ScenarioFile)) answer = File.ReadAllText(options.ScenarioFile).Trim();
             if (options.Answer != null) answer = options.Answer;
 

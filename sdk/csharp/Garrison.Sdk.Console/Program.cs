@@ -37,7 +37,7 @@ namespace Garrison.Sdk.Console
                 {
                     switch (command)
                     {
-                        case "help": ConsoleIo.WriteLine("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | quit"); break;
+                        case "help": ConsoleIo.WriteLine("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | quit"); break;
                         case "health": Print(await client.HealthAsync(request.Token).ConfigureAwait(false)); break;
                         case "login":
                             Require(parts, 3);
@@ -50,6 +50,10 @@ namespace Garrison.Sdk.Console
                         case "agents": Print(await client.Agents.ListAsync(token: request.Token).ConfigureAwait(false)); break;
                         case "runs": Print(await client.Runs.ListAsync(token: request.Token).ConfigureAwait(false)); break;
                         case "invoke": Require(parts, 3); Print(await client.Agents.InvokeAsync(parts[1], new InvokeRequest { Input = parts[2], Wait = false }, request.Token).ConfigureAwait(false)); break;
+                        case "pipelines": Print(await client.Pipelines.ListAsync(token: request.Token).ConfigureAwait(false)); break;
+                        case "pipeline-runs": Print(await client.PipelineRuns.ListAsync(token: request.Token).ConfigureAwait(false)); break;
+                        case "pipeline-reviews": Print(await client.PipelineReviews.ListAsync(token: request.Token).ConfigureAwait(false)); break;
+                        case "start-pipeline": Require(parts, 3); Print(await client.Pipelines.StartAsync(parts[1], new PipelineStartRequest { Input = parts[2] }, null, request.Token).ConfigureAwait(false)); break;
                         case "run": Require(parts, 2); Print(await client.Runs.GetAsync(parts[1], request.Token).ConfigureAwait(false)); break;
                         case "events": Require(parts, 2); Print(await client.Runs.GetEventsAsync(parts[1], token: request.Token).ConfigureAwait(false)); break;
                         case "watch":

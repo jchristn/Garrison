@@ -2,6 +2,7 @@ namespace Garrison.Server.Services
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Enums;
@@ -9,6 +10,7 @@ namespace Garrison.Server.Services
     using Garrison.Core.Security;
     using Garrison.Core.Services;
     using Garrison.Server.Routes;
+    using Garrison.Server.Runtime;
 
     /// <summary>Shared REST/MCP configuration mutations. Callers authorize the operation before entering this service.</summary>
     public class TenantConfigurationService
@@ -115,6 +117,11 @@ namespace Garrison.Server.Services
         public async Task<bool> DeleteAgentAsync(RequestContext ctx, string tenantId, Agent existing, CancellationToken token)
         {
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Agent " + existing.Name);
+            List<string> pipelines = await _Server.Database.Pipelines.NamesByAgentAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+            if (pipelines.Count > 0)
+            {
+                throw new ConflictException("ReferencedByPipeline", "Agent " + existing.Name + " runs a stage of pipeline" + (pipelines.Count == 1 ? " " : "s ") + String.Join(", ", pipelines) + ". Remove it from " + (pipelines.Count == 1 ? "that pipeline" : "those pipelines") + " first.");
+            }
             int cascaded = 0;
             List<Deployment> deployments = await _Server.Database.Deployments.ListByAgentAsync(tenantId, existing.Id, token).ConfigureAwait(false);
             foreach (Deployment deployment in deployments)
@@ -132,9 +139,111 @@ namespace Garrison.Server.Services
         public async Task<bool> DeleteDeploymentAsync(RequestContext ctx, string tenantId, Deployment existing, CancellationToken token)
         {
             ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Deployment " + existing.Name);
+            List<string> pipelines = await _Server.Database.Pipelines.NamesByDeploymentAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+            if (pipelines.Count > 0)
+            {
+                throw new ConflictException("ReferencedByPipeline", "Deployment " + existing.Name + " is pinned by a stage of pipeline" + (pipelines.Count == 1 ? " " : "s ") + String.Join(", ", pipelines) + ". Change " + (pipelines.Count == 1 ? "that pipeline" : "those pipelines") + " first.");
+            }
             bool deleted = await _Server.Database.Deployments.DeleteAsync(existing.Id, token).ConfigureAwait(false);
             await AuditAsync(ctx, tenantId, "Deployment", existing.Id, "Deleted deployment " + existing.Name + ".", token).ConfigureAwait(false);
             return deleted;
+        }
+        /// <summary>Create a pipeline (P12.9) after validating its stages, references, and ranges.</summary>
+        /// <param name="ctx">Authorized caller.</param>
+        /// <param name="tenantId">Resolved tenant.</param>
+        /// <param name="pipeline">Configuration; identity, version, protection, and child identifiers are assigned here.</param>
+        /// <param name="token">Cancellation.</param>
+        /// <returns>Created pipeline.</returns>
+        /// <exception cref="ValidationException">Thrown when the pipeline is invalid.</exception>
+        /// <exception cref="ConflictException">Thrown when the name is taken.</exception>
+        public async Task<Pipeline> CreatePipelineAsync(RequestContext ctx, string tenantId, Pipeline pipeline, CancellationToken token)
+        {
+            if (pipeline == null) throw new ValidationException("A pipeline is required.");
+            token.ThrowIfCancellationRequested();
+            await RequireTenantAsync(tenantId, token).ConfigureAwait(false);
+            pipeline.Id = String.Empty;
+            pipeline.TenantId = tenantId;
+            pipeline.IsProtected = false;
+            pipeline.Version = 1;
+            Normalize(pipeline);
+            await ConfigurationValidator.PipelineAsync(_Server.Database, tenantId, pipeline, MaxStages(), token).ConfigureAwait(false);
+            Pipeline? existing = await _Server.Database.Pipelines.ReadByNameAsync(tenantId, pipeline.Name, token).ConfigureAwait(false);
+            ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, pipeline.Name);
+            Pipeline created = await _Server.Database.Pipelines.CreateAsync(pipeline, token).ConfigureAwait(false);
+            await AuditAsync(ctx, tenantId, "Pipeline", created.Id, "Created pipeline " + created.Name + " with " + created.Stages.Count + " stage(s).", token).ConfigureAwait(false);
+            return created;
+        }
+        /// <summary>Replace a pipeline's configuration and stages (P12.9) and advance its version. Pipeline runs already started keep their snapshot.</summary>
+        /// <param name="ctx">Authorized caller.</param>
+        /// <param name="tenantId">Resolved tenant.</param>
+        /// <param name="existing">Existing authorized pipeline.</param>
+        /// <param name="pipeline">Replacement configuration.</param>
+        /// <param name="token">Cancellation.</param>
+        /// <returns>Updated pipeline.</returns>
+        /// <exception cref="ValidationException">Thrown when the pipeline is invalid.</exception>
+        /// <exception cref="ConflictException">Thrown when the pipeline is protected or the new name is taken.</exception>
+        public async Task<Pipeline> UpdatePipelineAsync(RequestContext ctx, string tenantId, Pipeline existing, Pipeline pipeline, CancellationToken token)
+        {
+            if (existing == null) throw new ArgumentNullException(nameof(existing));
+            if (pipeline == null) throw new ValidationException("A pipeline is required.");
+            token.ThrowIfCancellationRequested();
+            ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Pipeline " + existing.Name);
+            pipeline.Id = existing.Id;
+            pipeline.TenantId = tenantId;
+            pipeline.CreatedUtc = existing.CreatedUtc;
+            pipeline.IsProtected = existing.IsProtected;
+            pipeline.Version = existing.Version + 1;
+            Normalize(pipeline);
+            await ConfigurationValidator.PipelineAsync(_Server.Database, tenantId, pipeline, MaxStages(), token).ConfigureAwait(false);
+            Pipeline? named = await _Server.Database.Pipelines.ReadByNameAsync(tenantId, pipeline.Name, token).ConfigureAwait(false);
+            ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, pipeline.Name);
+            Pipeline updated = await _Server.Database.Pipelines.UpdateAsync(pipeline, token).ConfigureAwait(false);
+            await AuditAsync(ctx, tenantId, "Pipeline", updated.Id, "Updated pipeline " + updated.Name + " to version " + updated.Version + ".", token).ConfigureAwait(false);
+            return updated;
+        }
+        /// <summary>Delete a pipeline (P12.9). Its finished pipeline runs are kept; while any pipeline run is active the delete answers 409 PipelineInUse.</summary>
+        /// <param name="ctx">Authorized caller.</param>
+        /// <param name="tenantId">Resolved tenant.</param>
+        /// <param name="existing">Existing authorized pipeline.</param>
+        /// <param name="token">Cancellation.</param>
+        /// <returns>Whether the row was deleted.</returns>
+        /// <exception cref="ConflictException">Thrown with PipelineInUse while pipeline runs are active, or when the pipeline is protected.</exception>
+        public async Task<bool> DeletePipelineAsync(RequestContext ctx, string tenantId, Pipeline existing, CancellationToken token)
+        {
+            if (existing == null) throw new ArgumentNullException(nameof(existing));
+            ConfigurationSupport.EnsureEditable(existing.TenantId, false, existing.IsProtected, tenantId, "Pipeline " + existing.Name);
+            long active = await _Server.Database.PipelineRuns.CountActiveAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+            if (active > 0) throw new ConflictException("PipelineInUse", "Pipeline " + existing.Name + " has " + active + " active pipeline run(s). Cancel them or wait for them to finish, then delete the pipeline.");
+            bool deleted = await _Server.Database.Pipelines.DeleteAsync(tenantId, existing.Id, token).ConfigureAwait(false);
+            await AuditAsync(ctx, tenantId, "Pipeline", existing.Id, "Deleted pipeline " + existing.Name + ".", token).ConfigureAwait(false);
+            return deleted;
+        }
+        private int MaxStages()
+        {
+            RuntimeOptions? options = _Server.TryGet<RuntimeOptions>();
+            return options?.PipelineMaxStages ?? 20;
+        }
+        private static void Normalize(Pipeline pipeline)
+        {
+            pipeline.Name = (pipeline.Name ?? String.Empty).Trim();
+            for (int i = 0; i < pipeline.Stages.Count; i++)
+            {
+                PipelineStage stage = pipeline.Stages[i];
+                // Child rows get fresh identifiers on every save; a definition change never rewrites another pipeline's rows.
+                stage.Id = String.Empty;
+                stage.PipelineId = pipeline.Id;
+                stage.TenantId = pipeline.TenantId;
+                stage.Position = i + 1;
+                stage.Name = (stage.Name ?? String.Empty).Trim();
+                if (String.IsNullOrWhiteSpace(stage.DeploymentId)) stage.DeploymentId = null;
+                if (String.IsNullOrWhiteSpace(stage.HandoffTemplateId)) stage.HandoffTemplateId = null;
+                foreach (PipelineStageParameter parameter in stage.Parameters)
+                {
+                    parameter.Id = String.Empty;
+                    parameter.StageId = stage.Id;
+                    parameter.TenantId = pipeline.TenantId;
+                }
+            }
         }
         private async Task RequireTenantAsync(string tenantId, CancellationToken token)
         {

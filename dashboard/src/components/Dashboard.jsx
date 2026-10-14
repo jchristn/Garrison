@@ -6,6 +6,7 @@ import { findHub, hubBySlug, detailPageBySlug, pageBySlug, DASHBOARD_BASE } from
 import { allowed } from '../utils/principal';
 import { STORAGE_KEYS, APPROVAL_POLL_MS } from '../utils/constants';
 import { ApprovalsProvider } from '../context/ApprovalsContext';
+import { combinedPending } from '../utils/approvals';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import SetupWizard from './SetupWizard';
@@ -47,30 +48,48 @@ export default function Dashboard() {
   const [health, setHealth] = useState(null);
   const [live, setLive] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState(null);
+  const [pendingReviews, setPendingReviews] = useState(null);
   const approvalsReadable = useRef(true);
+  const reviewsReadable = useRef(true);
   const route = resolveRoute(section, id);
 
-  // Pending approvals for the sidebar badge (P12.3): polled, and pushed over the WebSocket approvals channel when the
-  // live connection is up. A 403 or 404 (no Approval Read permission, or an older server) hides the badge for good.
+  // Pending approvals (P12.3) and pipeline stage reviews (P12.9) for the one sidebar badge: polled, and pushed over the
+  // WebSocket approvals channel (approvals.changed carries both counts) when the live connection is up. A 403 or 404
+  // (no Approval Read permission, or a server without that route) hides that part of the count for good.
   const refreshApprovals = useCallback(() => {
-    if (!apiClient || !tenantId || !approvalsReadable.current) return;
-    apiClient
-      .countPendingApprovals(tenantId)
-      .then((count) => setPendingApprovals(count))
-      .catch((e) => {
-        if (e?.status === 403 || e?.status === 404) approvalsReadable.current = false;
-        setPendingApprovals(null);
-      });
+    if (!apiClient || !tenantId) return;
+    if (approvalsReadable.current) {
+      apiClient
+        .countPendingApprovals(tenantId)
+        .then((count) => setPendingApprovals(count))
+        .catch((e) => {
+          if (e?.status === 403 || e?.status === 404) approvalsReadable.current = false;
+          setPendingApprovals(null);
+        });
+    }
+    if (reviewsReadable.current && typeof apiClient.countPendingPipelineReviews === 'function') {
+      apiClient
+        .countPendingPipelineReviews(tenantId)
+        .then((count) => setPendingReviews(count))
+        .catch((e) => {
+          if (e?.status === 403 || e?.status === 404) reviewsReadable.current = false;
+          setPendingReviews(null);
+        });
+    }
   }, [apiClient, tenantId]);
 
   useEffect(() => {
     approvalsReadable.current = true;
+    reviewsReadable.current = true;
     refreshApprovals();
     const timer = setInterval(refreshApprovals, APPROVAL_POLL_MS);
     return () => clearInterval(timer);
   }, [refreshApprovals]);
 
-  const approvals = useMemo(() => ({ pending: pendingApprovals, refresh: refreshApprovals }), [pendingApprovals, refreshApprovals]);
+  const approvals = useMemo(
+    () => ({ pending: combinedPending(pendingApprovals, pendingReviews), approvalsPending: pendingApprovals, reviewsPending: pendingReviews, refresh: refreshApprovals }),
+    [pendingApprovals, pendingReviews, refreshApprovals]
+  );
 
   useEffect(() => {
     if (!apiClient) return undefined;
@@ -107,7 +126,10 @@ export default function Dashboard() {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          if (message?.type === 'approvals.changed' && typeof message.pending === 'number') setPendingApprovals(message.pending);
+          if (message?.type === 'approvals.changed') {
+            if (typeof message.pending === 'number') setPendingApprovals(message.pending);
+            if (typeof message.reviewsPending === 'number' && reviewsReadable.current) setPendingReviews(message.reviewsPending);
+          }
         } catch {
           /* not JSON */
         }

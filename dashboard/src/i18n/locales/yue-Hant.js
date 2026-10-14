@@ -1613,6 +1613,7 @@ const yueHant = {
           MasterKey: '機密加密主金鑰'
         },
         RequestHistory: {
+          CaptureNodeProtocol: '記錄成功嘅工作節點協定請求',
           MaxResponseBodyBytes: '記錄嘅回應內容上限（位元組）',
           MaxRequestBodyBytes: '記錄嘅要求內容上限（位元組）',
           RetentionDays: '要求歷史保留日數',
@@ -1636,6 +1637,7 @@ const yueHant = {
         },
         Scheduling: {
           EventPollMs: '事件輪詢間隔（毫秒）',
+          InvocationWaitPollMs: '調用等待後備重讀間隔（毫秒）',
           NodeHeartbeatTimeoutMs: '節點心跳逾時（毫秒）',
           LeaseWaitMs: '租約長輪詢等候時間（毫秒）',
           LeaseDurationMs: '執行租約時長（毫秒）',
@@ -1906,3 +1908,197 @@ yueHant.views.settings.fields.Leases = {"Provider": "供應方", "ClutchEndpoint
 
 yueHant.enums.harnessType.ProviderApi = "供應方 API";
 yueHant.enums.outputParser.ProviderApiJsonl = "供應方 API JSONL";
+
+// Pipelines (P12.9): definitions (Agents > Pipelines), pipeline runs (Runs > Pipeline runs), and stage reviews
+// (Approvals > Stage reviews).
+yueHant.nav.hubs.approvals.tip = '等緊有人處理嘅工具呼叫同管線階段，同埋每一個決定';
+Object.assign(yueHant.nav, { approvalsPending_one: '{{count}} 項等緊有人處理', approvalsPending_other: '{{count}} 項等緊有人處理' });
+Object.assign(yueHant.nav.items, {
+  pipelines: { label: '管線', tip: '按次序排好嘅代理程式階段，可以加審閱關卡' },
+  pipelineRuns: { label: '管線執行', tip: '管線嘅每次執行，逐個階段睇' },
+  pipelineReviews: { label: '階段審閱', tip: '等緊有人審閱嘅管線階段' }
+});
+Object.assign(yueHant.errorCodes, {
+  RevisionLimitReached: '呢個階段已經用晒所有修訂次數，所以唔可以再要求修改。請改為批准或者駁回。',
+  ReviewNotPending: '呢個審閱已經由其他人或者逾時決定咗，所以唔可以再決定。',
+  PipelineInUse: '呢條管線仲有未完成嘅管線執行。等佢哋完成或者取消佢哋，再刪除管線。',
+  PipelineRunActive: '只可以刪除已完成嘅管線執行。請先取消呢個管線執行。',
+  PipelineRunFinished: '呢個管線執行已經完成，所以唔可以取消。',
+  PipelineRunNotRetryable: '只有失敗、逾時或者已取消嘅管線執行先可以重試。',
+  PipelineRunChanged: '處理請求期間呢個管線執行有變。請重新載入再試。',
+  PipelineInactive: '呢條管線未啟用。開始之前請先啟用佢。',
+  PipelineEmpty: '一條管線最少要有一個階段。',
+  PipelineStageRun: '呢個執行係某個管線執行嘅一個階段，所以唔可以單獨重試。請改為重試成個管線執行。',
+  ReferencedByPipeline: '有管線階段用緊呢個代理程式。刪除之前請先喺所有管線度移除佢。'
+});
+yueHant.enums.pipelineRunStatus = { Running: '執行中', AwaitingReview: '等候審閱', Cancelling: '取消緊', Succeeded: '成功', Failed: '失敗', Cancelled: '已取消', TimedOut: '逾時' };
+yueHant.enums.pipelineRunOutcome = { None: '無', Succeeded: '成功', StageFailed: '階段失敗', StageStartFailed: '階段開始唔到', ReviewRejected: '審閱被駁回', ReviewExpired: '審閱已過期', Cancelled: '已取消', TimedOut: '逾時', InternalError: '內部錯誤' };
+yueHant.enums.pipelineStageStatus = { Pending: '等候中', Running: '執行中', AwaitingReview: '等候審閱', Succeeded: '成功', Failed: '失敗', Cancelled: '已取消' };
+yueHant.enums.pipelineReviewStatus = { Pending: '等候中', Approved: '已批准', ChangesRequested: '已要求修改', Rejected: '已駁回', Expired: '已過期', Cancelled: '已取消' };
+yueHant.enums.pipelineReviewDecision = { Approve: '批准', RequestChanges: '要求修改', Reject: '駁回' };
+yueHant.enums.pipelineReviewSource = { User: '人手', Timeout: '逾時', Cancelled: '管線執行已停止' };
+Object.assign(yueHant.enums.resourceType, { Pipeline: '管線', PipelineRun: '管線執行' });
+Object.assign(yueHant.enums.auditEventType, { PipelineReviewDecided: '階段審閱已決定', PipelineRunCancelled: '管線執行已取消' });
+yueHant.resources.deployments.promptRoles.PipelineStage = '管線階段（交接）';
+Object.assign(yueHant.resources.runs.columns, { pipelineRunId: '管線執行' });
+yueHant.resources.runs.pipelineStage = '第 {{position}} 階段，第 {{execution}} 次執行';
+yueHant.resources.pipelines = {
+  ...rp('管線', '按次序排好嘅代理程式階段：每個階段執行一個代理程式，再將輸出交畀下一個階段，可以加審閱關卡。', '新增管線', '建立管線', '編輯管線', '管線詳情', '刪除管線', '仲未有管線', '建立一條管線將代理程式串連起嚟：每個階段都會收到上一個階段嘅輸出。'),
+  columns: { name: '名稱', stages: '階段', reviewGates: '審閱關卡', maxDurationSeconds: '時間上限', version: '版本', active: '啟用', description: '描述', id: 'ID', lastUpdateUtc: '更新時間', createdUtc: '建立時間' },
+  fields: {
+    name: '名稱',
+    description: '描述',
+    maxDurationSeconds: '時間上限（秒）',
+    active: '啟用',
+    stages: '階段',
+    stageName: '階段名稱',
+    agentId: '代理程式',
+    deploymentId: '部署',
+    handoffTemplateId: '交接範本',
+    handoffTemplateVersion: '固定範本版本',
+    outputCharLimit: '交接字元上限',
+    maxAttempts: '最多嘗試次數',
+    continueOnFailure: '失敗都繼續',
+    requiresReview: '需要審閱',
+    reviewTimeoutSeconds: '審閱逾時（秒）',
+    reviewTimeoutAction: '審閱逾時嗰陣',
+    maxRevisions: '最多修訂次數',
+    stageDescription: '階段描述',
+    parameters: '執行參數'
+  },
+  hints: {
+    maxDurationSeconds: '由 {{min}} 到 {{max}}。0 即係冇上限。上限涵蓋成個管線執行，包括等審閱嘅時間。',
+    stages: '階段會按呢個次序執行。每個階段喺上一個階段成功（或者喺「失敗都繼續」下失敗）之後開始；如果需要審閱，就要等有人批准。',
+    noDeployments: '呢個代理程式仲未有部署。部署可以留空，或者喺「部署」度新增一個。',
+    handoffTemplateVersion: '留空就用範本嘅目前版本。',
+    outputCharLimit: '由 {{min}} 到 {{max}}。預設 {{default}}。',
+    maxAttempts: '由 {{min}} 到 {{max}}。預設 {{default}}。',
+    reviewTimeoutSeconds: '由 {{min}} 到 {{max}}。0 即係一直等。',
+    maxRevisions: '由 {{min}} 到 {{max}}。預設 {{default}}。',
+    parameters: '只限有部署嘅時候，而且只可以用嗰個部署允許呼叫者覆寫嘅參數。'
+  },
+  errors: {
+    dnsName: '用 1 到 64 個細楷字母、數字同連字號，開頭同結尾要係字母或者數字。',
+    range: '請輸入 {{min}} 到 {{max}} 之間嘅整數。',
+    noStages: '最少要加一個階段。',
+    tooManyStages: '一條管線最多有 {{max}} 個階段。',
+    stageNameLong: '階段名稱最多 128 個字元。',
+    stageNameDuplicate: '已經有另一個階段叫 {{name}}。',
+    version: '請輸入 1 或以上嘅版本號，或者留空。',
+    parametersNeedDeployment: '執行參數需要一個部署，因為佢哋要對照嗰個部署允許嘅覆寫嚟檢查。',
+    parametersUnique: '每個參數名稱只可以出現一次。',
+    stageInvalid: '呢個階段有錯誤。'
+  },
+  actions: { start: '開始', preview: '預覽提示', runs: '睇管線執行' },
+  stageHeading: '第 {{position}} 階段：{{name}}',
+  stageCount: '{{count}} 個，最多 {{max}} 個',
+  stageSummary: '{{count}} 個階段：{{chain}}',
+  addStage: '新增階段',
+  removeStage: '移除階段',
+  noStages: '仲未有階段。',
+  chooseAgent: '揀一個代理程式',
+  anyDeployment: '任何啟用中嘅部署（按權重）',
+  defaultHandoff: '部署綁定或者內置範本',
+  parameterName: '參數',
+  parameterValue: '數值',
+  noLimit: '冇上限',
+  versionNotice: '版本 {{version}}。儲存會建立新版本；已經開始嘅管線執行會保留開始時嘅階段。'
+};
+yueHant.resources.pipelineRuns = {
+  ...rp('管線執行', '管線嘅每一次執行。打開一個就可以跟進佢嘅階段、決定審閱，或者取消同重試。', '新增管線執行', '建立管線執行', '編輯管線執行', '管線執行詳情', '刪除管線執行', '仲未有管線執行', '喺「代理程式 > 管線」開始一條管線，佢嘅執行就會喺度出現。'),
+  columns: { id: 'ID', pipelineName: '管線', status: '狀態', outcome: '結果', progress: '階段', callerName: '開始者', errorMessage: '錯誤', priority: '優先次序', deadlineUtc: '期限', completedUtc: '完成時間', createdUtc: '建立時間' },
+  actions: { cancel: '取消', retry: '重試', stageRuns: '睇階段執行', finalRun: '打開最後執行' },
+  toasts: { cancelRequested: '已要求取消管線執行同佢目前嘅階段。', retried: '管線執行會喺停低嗰個階段繼續。' },
+  progressValue: '{{position}} / {{count}}',
+  versionShort: '（版本 {{version}}）'
+};
+yueHant.resources.pipelineReviews = {
+  ...rp('階段審閱', '等緊有人批准、要求修改或者駁回嘅管線階段。', '新增階段審閱', '建立階段審閱', '編輯階段審閱', '階段審閱詳情', '刪除階段審閱', '仲未有階段審閱', '需要審閱嘅階段完成之後就會喺度出現。'),
+  columns: { createdUtc: '要求時間', pipelineName: '管線', stageName: '階段', status: '狀態', decision: '決定', decisionSource: '決定方式', comment: '備註', decidedBy: '審閱者', expiresUtc: '逾時時間', pipelineRunId: '管線執行', runId: '階段執行', decidedUtc: '決定時間', id: 'ID' },
+  filters: { pipelineRunId: '管線執行 ID', pipelineRunIdPlaceholder: '管線執行 ID（plr_...）' },
+  actions: { approve: '批准', requestChanges: '要求修改', reject: '駁回', openStageRun: '打開階段執行' },
+  noTimeout: '一直等'
+};
+yueHant.components.pipelineReviews = {
+  decideTitle: '審閱 {{pipeline}} 嘅階段 {{stage}}',
+  decision: '決定',
+  positionExecution: '第 {{position}} 階段，第 {{execution}} 次執行',
+  revisionsLeft: '剩餘修訂次數',
+  revisionsLeftValue: '{{max}} 次之中剩 {{left}} 次',
+  noRevisionsLeft: '呢個階段已經用晒 {{max}} 次修訂。伺服器會拒絕「要求修改」；請改為批准或者駁回。',
+  timeoutThen: '之後{{decision}}',
+  commentApprove: '畀下一個階段嘅備註',
+  commentApprovePlaceholder: '可選。下一個階段會連同輸出收到呢啲備註。',
+  commentRequestChanges: '要改啲乜',
+  commentRequestChangesPlaceholder: '必填。階段會帶住呢個意見再執行一次。',
+  commentReject: '原因',
+  commentRejectPlaceholder: '可選。會同決定一齊記錄；管線執行會失敗。',
+  commentRequired: '請講清楚要改啲乜。階段會帶住呢個意見再執行一次。',
+  commentTooLong: '備註最多 {{max}} 個字元。',
+  submit: { Approve: '批准階段', RequestChanges: '要求修改', Reject: '駁回階段' },
+  toasts: {
+    Approve: '已批准 {{pipeline}} 嘅階段 {{stage}}。',
+    RequestChanges: '已要求修改 {{pipeline}} 嘅階段 {{stage}}；佢會帶住你嘅意見再執行。',
+    Reject: '已駁回 {{pipeline}} 嘅階段 {{stage}}；管線執行會失敗。',
+    notPending: '呢個審閱已經由其他人或者逾時決定咗。清單而家顯示目前狀態。',
+    revisionLimit: '呢個階段已經用晒所有修訂次數（最多 {{max}} 次），所以唔可以再要求修改。請改為批准或者駁回。'
+  }
+};
+yueHant.components.pipelineStart = {
+  title: '開始 {{name}}',
+  intro_one: '輸入會交畀管線唯一嘅階段。',
+  intro_other: '輸入會交畀 {{count}} 個階段之中嘅第一個；每個階段都會將佢當做原本嘅任務。',
+  input: '輸入',
+  inputPlaceholder: '管線要處理啲乜？',
+  shortcut: '撳 Ctrl+Enter 或者 Cmd+Enter 開始。',
+  submit: '開始管線',
+  starting: '開始緊...',
+  started: '已開始 {{name}}。'
+};
+yueHant.components.pipelinePreview = {
+  title: '預覽 {{name}} 嘅提示',
+  input: '範例輸入',
+  sampleInput: '總結未處理嘅問題，再為最急嗰個提出修正方法。',
+  sampleOutput: '{{stage}} 嘅範例輸出。',
+  outputOf: '第 {{position}} 階段（{{stage}}）嘅範例輸出',
+  render: '渲染提示',
+  rendering: '渲染緊...',
+  stageHeading: '第 {{position}} 階段：{{stage}}（{{agent}}）',
+  deployment: '部署：{{deployment}}',
+  rendered: '已渲染',
+  failed: '失敗'
+};
+yueHant.views.pipelineRunDetail = {
+  title: '管線執行',
+  heading: '{{pipeline}} 嘅管線執行',
+  notFoundTitle: '搵唔到管線執行',
+  notFoundBody: '佢可能已經刪咗，或者屬於另一個租用戶。',
+  live: '即時',
+  polling: '重新整理緊',
+  finalRun: '最後執行',
+  started: '開始時間',
+  input: '輸入',
+  reviewTitle: '等緊你審閱',
+  reviewBody: '第 {{position}} 階段（{{stage}}）完成咗第 {{execution}} 次執行，等緊審閱。請喺階段執行度睇佢嘅輸出：',
+  reviewExpires: '如果 {{time}} 之前冇人決定，審閱就會自動決定：{{decision}}。',
+  reviewNoTimeout: '審閱會一直等到有人決定，除非管線嘅時間上限先結束咗個執行。',
+  stages: '階段',
+  stagesCount_one: '{{count}} 個階段',
+  stagesCount_other: '{{count}} 個階段',
+  noStages: '呢個管線執行冇階段。',
+  current: '目前',
+  reviewGate: '審閱關卡',
+  agent: '代理程式 {{agent}}',
+  counts: '執行 {{executions}} 次，嘗試 {{attempts}} / {{maxAttempts}}，修訂 {{revisions}} / {{maxRevisions}}',
+  startedAt: '開始於',
+  blocked: '等緊開始：{{reason}}。',
+  nextAttempt: '下次嘗試喺 {{time}}。',
+  reviewItem: '第 {{execution}} 次執行嘅審閱',
+  columns: { execution: '執行序號', run: '階段執行', status: '狀態', outcome: '結果', error: '錯誤', created: '建立時間' },
+  confirmCancelTitle: '取消管線執行',
+  confirmCancel: '要取消 {{pipeline}} 嘅呢個管線執行嗎？佢目前嘅階段執行會被取消，等候中嘅審閱會關閉。你之後可以重試。',
+  confirmDelete: '要刪除 {{pipeline}} 嘅呢個管線執行同佢嘅審閱嗎？佢嘅階段執行會留喺「執行」頁。'
+};
+Object.assign(yueHant.views.runDetail, { pipelineRun: '管線執行' });
+yueHant.views.settings.fields.Runtime.PipelineSweepIntervalMs = '管線巡查間隔（毫秒）';
+yueHant.views.settings.fields.Runtime.PipelineMaxStages = '每條管線最多階段數';

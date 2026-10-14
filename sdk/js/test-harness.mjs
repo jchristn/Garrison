@@ -304,6 +304,81 @@ await check("artifact collection and binary download", async () => {
     require((await client.artifacts.list({ runId: run.id })).objects.length === 0, "deleted artifact");
   } finally { await client.deployments.update(deployment.id, deployment); await client.artifactStores.delete(store.id); }
 });
+await check("pipeline definitions, runs, and reviews", async () => {
+  const writer = await client.agents.create({ name: `sdk-js-pipe-writer-${suffix}`, description: "JavaScript SDK pipeline stage 1." });
+  const editor = await client.agents.create({ name: `sdk-js-pipe-editor-${suffix}`, description: "JavaScript SDK pipeline stage 2." });
+  const deployments = [];
+  let pipeline;
+  try {
+    deployments.push(await client.deployments.create({ name: `sdk-js-pipe-writer-${suffix}`, agentId: writer.id, harnessProfileId: state.fake }));
+    deployments.push(await client.deployments.create({ name: `sdk-js-pipe-editor-${suffix}`, agentId: editor.id, harnessProfileId: state.fake }));
+    pipeline = await client.pipelines.create({
+      name: `sdk-js-pipe-${suffix}`, description: "JavaScript SDK harness pipeline.",
+      stages: [
+        { name: "write", agentId: writer.id, requiresReview: true, maxRevisions: 1 },
+        { name: "edit", agentId: editor.id, parameters: [] },
+      ],
+    });
+    require(pipeline.id.startsWith("ppl_") && pipeline.version === 1 && pipeline.stages.length === 2, "pipeline created with stages");
+    const byName = await client.pipelines.get(pipeline.name);
+    require(byName.id === pipeline.id && byName.stages[0].requiresReview === true, "pipeline read by name");
+    const updated = await client.pipelines.update(pipeline.id, { ...byName, description: "Updated by the JavaScript SDK." });
+    require(updated.version === 2 && updated.description === "Updated by the JavaScript SDK.", "pipeline update advances version");
+    require((await client.pipelines.list({ search: pipeline.name })).objects.some((p) => p.id === pipeline.id), "pipeline list");
+    const preview = await client.pipelines.preview(pipeline.id, { input: "Preview input", sampleOutputs: ["Sample stage one output"] });
+    require(preview.stages.length === 2 && preview.stages.every((s) => s.success && s.prompt), "pipeline preview renders every stage");
+
+    const key = `sdk-js-pipe-key-${suffix}`;
+    const started = await client.pipelines.start(pipeline.id, { input: "Write a haiku", wait: true, waitSeconds: 30 }, { idempotencyKey: key });
+    require(started.id.startsWith("plr_") && started.status === "AwaitingReview", `start waits for the review gate (${started.status})`);
+    const repeated = await client.pipelines.start(pipeline.id, { input: "Write a haiku" }, { idempotencyKey: key });
+    require(repeated.id === started.id, "same idempotency key returns the same pipeline run");
+    await expectStatus(409, () => client.pipelines.start(pipeline.id, { input: "Different input" }, { idempotencyKey: key }));
+
+    const pending = await client.pipelineReviews.list({ status: "Pending", pipelineRunId: started.id });
+    require(pending.objects.length === 1 && pending.objects[0].position === 1, "one pending review");
+    const review = await client.pipelineReviews.get(pending.objects[0].id);
+    require(review.id.startsWith("prv_") && review.pipelineRunId === started.id, "review read");
+    await expectStatus(400, () => client.pipelineReviews.decide(review.id, { decision: "RequestChanges" }));
+    const approved = await client.pipelineReviews.decide(review.id, { decision: "Approve", comment: "Looks good from the JavaScript SDK." });
+    require(approved.status === "Approved" && approved.decisionSource === "User", "review approved");
+    await expectStatus(409, () => client.pipelineReviews.decide(review.id, { decision: "Reject" }));
+
+    let finished = await client.pipelineRuns.get(started.id, 30);
+    if (finished.status !== "Succeeded") finished = await client.pipelineRuns.waitFor(started.id, 60000);
+    require(finished.status === "Succeeded" && finished.outcome === "Succeeded", `pipeline run succeeded (${finished.status})`);
+    require(finished.stages.every((s) => s.status === "Succeeded") && finished.runs.length === 2 && finished.reviews.length === 1, "detail carries stages, runs, and reviews");
+    require((await client.pipelineRuns.list({ pipelineId: pipeline.id })).objects.some((r) => r.id === started.id), "pipeline runs listed by pipeline");
+    require((await client.pipelineReviews.list({ pipelineId: pipeline.id })).objects.some((r) => r.id === review.id), "reviews listed by pipeline");
+
+    const second = await client.pipelines.start(pipeline.id, { input: "Write another" });
+    await expectStatus(409, () => client.pipelines.delete(pipeline.id));
+    const cancelling = await client.pipelineRuns.cancel(second.id);
+    require(["Cancelling", "Cancelled"].includes(cancelling.status), `cancel accepted (${cancelling.status})`);
+    let cancelled = await client.pipelineRuns.waitFor(second.id, 60000);
+    require(cancelled.status === "Cancelled" && cancelled.outcome === "Cancelled", `pipeline run cancelled (${cancelled.status})`);
+    const resumed = await client.pipelineRuns.retry(second.id);
+    require(["Running", "AwaitingReview", "Succeeded"].includes(resumed.status), `retry resumes the pipeline run (${resumed.status})`);
+    if (!["Succeeded", "Failed", "Cancelled", "TimedOut"].includes(resumed.status)) await client.pipelineRuns.cancel(second.id);
+    cancelled = await client.pipelineRuns.waitFor(second.id, 60000);
+    require(["Cancelled", "Succeeded"].includes(cancelled.status), `resumed pipeline run ended (${cancelled.status})`);
+    await client.pipelineRuns.delete(second.id);
+    await expectStatus(404, () => client.pipelineRuns.get(second.id));
+  } finally {
+    if (pipeline) {
+      for (const run of (await client.pipelineRuns.list({ pipelineId: pipeline.id, maxResults: 100 })).objects) {
+        if (!["Succeeded", "Failed", "Cancelled", "TimedOut"].includes(run.status)) {
+          await client.pipelineRuns.cancel(run.id).catch(() => undefined);
+          await client.pipelineRuns.waitFor(run.id, 30000);
+        }
+      }
+      await client.pipelines.delete(pipeline.id);
+    }
+    for (const deployment of deployments) await client.deployments.delete(deployment.id);
+    await client.agents.delete(writer.id);
+    await client.agents.delete(editor.id);
+  }
+});
 await check("stdio MCP worker diagnostic", async () => {
   const node = (await client.nodes.list()).objects.find((n) => n.supportsMcpTests && n.status === "Ready");
   require(node, "compatible worker");

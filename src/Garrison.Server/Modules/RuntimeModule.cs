@@ -5,6 +5,7 @@ namespace Garrison.Server.Modules
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
     using Garrison.Core.Enums;
+    using Garrison.Core.Manifests;
     using Garrison.Core.Services;
     using Garrison.Server.Leases;
     using Garrison.Core.Models;
@@ -56,6 +57,8 @@ namespace Garrison.Server.Modules
         private CompilerOptions? _Compiler = null;
         private CodexCredentialService? _Codex = null;
         private ApprovalService? _Approvals = null;
+        private PipelineService? _Pipelines = null;
+        private ManifestService? _Manifests = null;
 
         #endregion
 
@@ -104,6 +107,10 @@ namespace Garrison.Server.Modules
             _Runs.Approvals = _Approvals;
             _Events.Approvals = _Approvals;
             _Maintenance.Approvals = _Approvals;
+            _Pipelines = new PipelineService(context.Database, _Runs, _Signals, _Options, () => context.Get<InvocationCompiler>(), context.Audit, context.Logging);
+            _Pipelines.IsLeader = () => _Leader.IsLeader;
+            _Scheduler.Pipelines = _Pipelines;
+            _Maintenance.Pipelines = _Pipelines;
             if (context.Settings.Archive.Enabled)
             {
                 _Maintenance.Archiver = new RunArchiver(context.Database, context.Settings.Archive.Directory!, context.Logging);
@@ -125,6 +132,7 @@ namespace Garrison.Server.Modules
             context.Register(_Maintenance);
             context.Register(_Blocked);
             context.Register(_Approvals);
+            context.Register(_Pipelines);
             _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
             context.Register(_Gauges);
             _Codex = new CodexCredentialService(context.Database, context.Cipher, () => context.Settings.Codex, context.NodeId, context.Logging, leaseProvider: _Leases);
@@ -144,6 +152,9 @@ namespace Garrison.Server.Modules
             new NodeRoutes(context).Register(routes);
             new ControlNodeRoutes(context).Register(routes);
             new ApprovalRoutes(context, _Approvals!).Register(routes);
+            new PipelineRoutes(context, _Pipelines!).Register(routes);
+            new PipelineRunRoutes(context, _Pipelines!).Register(routes);
+            new PipelineReviewRoutes(context, _Pipelines!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             WatsonWebserver.Webserver server = context.Get<WatsonWebserver.Webserver>();
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
@@ -159,6 +170,7 @@ namespace Garrison.Server.Modules
                 _Backplane.Resynchronized += OnBackplaneResynchronized;
             }
 
+            _Manifests = context.TryGet<ManifestService>();
             ClusterSettingsService? cluster = context.TryGet<ClusterSettingsService>();
             if (cluster != null)
             {
@@ -192,6 +204,7 @@ namespace Garrison.Server.Modules
 
             _Leader!.Start(token);
             _Maintenance!.Start(token);
+            _Pipelines!.Start(token);
             _Codex!.Start(() => _Leader!.IsLeader, token);
             _Gauges?.Start(token);
             return Task.CompletedTask;
@@ -222,10 +235,12 @@ namespace Garrison.Server.Modules
             _Codex?.Dispose();
             if (_Gauges != null) await _Gauges.StopAsync().ConfigureAwait(false);
             _Gauges?.Dispose();
+            if (_Pipelines != null) await _Pipelines.StopAsync().ConfigureAwait(false);
             if (_Maintenance != null) await _Maintenance.StopAsync().ConfigureAwait(false);
             if (_Leader != null) await _Leader.StopAsync(token).ConfigureAwait(false);
             _Maintenance?.Dispose();
             _Approvals?.Dispose();
+            _Pipelines?.Dispose();
             _Leader?.Dispose();
             if (_Leases is ClutchLeaseProvider clutch) await clutch.StopAsync(token).ConfigureAwait(false);
             if (_Leases is IDisposable disposable) disposable.Dispose();
@@ -258,12 +273,16 @@ namespace Garrison.Server.Modules
             _Options.NodeHeartbeatTimeoutMs = cluster.GetInt("Scheduling.NodeHeartbeatTimeoutMs");
             _Options.PauseGraceMs = cluster.GetInt("Scheduling.PauseGraceMs");
             _Options.EventPollMs = cluster.GetInt("Scheduling.EventPollMs");
+            _Options.InvocationWaitPollMs = cluster.GetInt("Scheduling.InvocationWaitPollMs");
             _Options.MaxDelegationDepth = cluster.GetInt("Runs.MaxDelegationDepth");
             _Options.FailBlockedAfterSeconds = cluster.GetInt("Runtime.FailBlockedAfterSeconds");
             _Options.MaxRunSeconds = cluster.GetInt("Runtime.MaxRunSeconds");
             _Options.ConversationAffinityWaitMs = cluster.GetInt("Runtime.ConversationAffinityWaitMs");
             _Options.ConversationTranscriptTurns = cluster.GetInt("Runtime.ConversationTranscriptTurns");
             _Options.ConversationTranscriptChars = cluster.GetInt("Runtime.ConversationTranscriptChars");
+            _Options.PipelineSweepIntervalMs = cluster.GetInt("Runtime.PipelineSweepIntervalMs");
+            _Options.PipelineMaxStages = cluster.GetInt("Runtime.PipelineMaxStages");
+            if (_Manifests != null) _Manifests.MaxPipelineStages = _Options.PipelineMaxStages;
             if (_Compiler != null)
             {
                 _Compiler.DefaultTimeoutSeconds = cluster.GetInt("Runs.DefaultTimeoutSeconds");

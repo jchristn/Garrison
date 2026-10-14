@@ -85,6 +85,9 @@ namespace Garrison.Core.Manifests
                 case "Agent":
                     id = (await _Database.Agents.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
                     break;
+                case "Deployment":
+                    id = (await _Database.Deployments.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false))?.Id;
+                    break;
             }
             if (id == null) throw new ValidationException("Reference '" + field + "' points to " + kind + " '" + name + "', which does not exist and is not defined earlier in this manifest.");
             return id;
@@ -115,6 +118,8 @@ namespace Garrison.Core.Manifests
                     return (await _Database.WorkspaceTemplates.ReadAsync(id, token).ConfigureAwait(false))?.Name;
                 case "Agent":
                     return (await _Database.Agents.ReadAsync(id, token).ConfigureAwait(false))?.Name;
+                case "Deployment":
+                    return (await _Database.Deployments.ReadAsync(id, token).ConfigureAwait(false))?.Name;
                 default:
                     return null;
             }

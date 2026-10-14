@@ -66,6 +66,14 @@
       "condition": "{{deployment.parameters.resumeAnswer}}"
     },
     {
+      "template": "--echo-chars",
+      "condition": "{{deployment.parameters.echoChars}}"
+    },
+    {
+      "template": "{{deployment.parameters.echoChars}}",
+      "condition": "{{deployment.parameters.echoChars}}"
+    },
+    {
       "template": "--structured-output",
       "condition": "{{deployment.parameters.structuredOutput}}"
     },

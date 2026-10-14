@@ -17,7 +17,9 @@ namespace Test.Shared.Suites
     using Garrison.Core.Settings;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Services;
+    using Garrison.Server.Settings;
     using Garrison.Worker.Hosting;
+    using SyslogLogging;
     using Test.Shared.Infrastructure;
     using Touchstone.Core;
 
@@ -39,6 +41,7 @@ namespace Test.Shared.Suites
             string id = "observability";
             List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
             cases.Add(new TestCaseDescriptor(id, "settings", "Observability URL settings validate, trim, and yield to environment variables", ct => SettingsAsync(ct)));
+            cases.Add(new TestCaseDescriptor(id, "request-history-node-protocol", "Request history skips successful and abandoned worker node protocol calls unless RequestHistory.CaptureNodeProtocol is on, and keeps failed ones", ct => RequestHistoryNodeProtocolAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "server-info", "Server info reports observability URLs and Grafana UIDs only when configured", ct => ServerInfoAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "status-reachable", "Observability status probes report reachability and versions, and cache results", ct => StatusReachableAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "status-unreachable", "Observability status reports unreachable and unconfigured services without failing", ct => StatusUnreachableAsync(ct)));
@@ -54,6 +57,33 @@ namespace Test.Shared.Suites
         #endregion
 
         #region Private-Methods
+
+        private static async Task RequestHistoryNodeProtocolAsync(CancellationToken token)
+        {
+            using (DatabaseDriverBase db = await TestEnvironment.CreateDriverAsync(DatabaseTypeEnum.Sqlite, token).ConfigureAwait(false))
+            {
+                ClusterSettingsService cluster = new ClusterSettingsService(db, true, 30, name => null);
+                await cluster.RefreshAsync(token).ConfigureAwait(false);
+                LoggingModule logging = new LoggingModule();
+                logging.Settings.EnableConsole = false;
+                using (RequestHistoryCaptureService capture = new RequestHistoryCaptureService(db, new RequestHistorySettings(), cluster, logging))
+                {
+                    Assert.True(!cluster.GetBool("RequestHistory.CaptureNodeProtocol"), "Node protocol capture is off by default");
+                    Assert.True(!capture.ShouldCapture("/v1.0/api/node/lease", 200, false), "A successful lease poll is skipped");
+                    Assert.True(!capture.ShouldCapture("/v1.0/api/node/runs/run_1/events", 200, false), "A successful event batch is skipped");
+                    Assert.True(!capture.ShouldCapture("/v1.0/api/node/watch", 500, true), "An abandoned watch is skipped");
+                    Assert.True(capture.ShouldCapture("/v1.0/api/node/runs/run_1/complete", 409, false), "A failed node call is captured");
+                    Assert.True(capture.ShouldCapture("/v1.0/api/nodes", 200, false), "Node management is not node protocol");
+                    Assert.True(capture.ShouldCapture("/v1.0/api/node-pools", 200, false), "Node pools are not node protocol");
+                    Assert.True(capture.ShouldCapture("/v1.0/api/tenants/ten_a/agents", 200, false), "Other routes are captured");
+
+                    await cluster.SetAsync("RequestHistory.CaptureNodeProtocol", "true", "test", token).ConfigureAwait(false);
+                    Assert.True(capture.ShouldCapture("/v1.0/api/node/lease", 200, false), "Opting in captures node protocol calls");
+                    await cluster.SetAsync("RequestHistory.Enabled", "false", "test", token).ConfigureAwait(false);
+                    Assert.True(!capture.ShouldCapture("/v1.0/api/tenants/ten_a/agents", 200, false), "Nothing is captured when request history is off");
+                }
+            }
+        }
 
         private static async Task SettingsAsync(CancellationToken token)
         {

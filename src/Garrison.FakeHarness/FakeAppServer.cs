@@ -160,7 +160,7 @@ namespace Garrison.FakeHarness
                 await Task.Delay(Timeout.Infinite).ConfigureAwait(false);
             }
 
-            string answer = "Echo: " + (prompt.Length > 200 ? prompt.Substring(0, 200) : prompt).Trim();
+            string answer = "Echo: " + (_Options.EchoChars > 0 && prompt.Length > _Options.EchoChars ? prompt.Substring(0, _Options.EchoChars) : prompt).Trim();
             if (!String.IsNullOrEmpty(_Options.ScenarioFile) && File.Exists(_Options.ScenarioFile)) answer = File.ReadAllText(_Options.ScenarioFile).Trim();
             if (_Options.Answer != null) answer = _Options.Answer;
             if (_Resumed && _Options.ResumeAnswer != null) answer = _Options.ResumeAnswer;

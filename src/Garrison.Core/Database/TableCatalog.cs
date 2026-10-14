@@ -113,6 +113,13 @@ namespace Garrison.Core.Database
                 "conversations",
                 "deployment_approval_rules",
                 "approvals",
+                "pipelines",
+                "pipeline_stages",
+                "pipeline_stage_parameters",
+                "pipeline_runs",
+                "pipeline_run_stages",
+                "pipeline_run_stage_parameters",
+                "pipeline_reviews",
         };
 
         private readonly SqlDialect _Dialect;

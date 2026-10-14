@@ -6007,6 +6007,1347 @@
       ]
     },
     {
+      "name": "Pipelines",
+      "description": "Pipelines run agents as ordered stages on one request: each stage is an ordinary run of its agent, sees the earlier stages' results through its PipelineStage prompt template, and can wait for a person to approve, request changes, or reject. This folder creates a two-stage pipeline on the Postman agent, runs it through a revision and an approval, exercises cancel, retry, and the 409 cases, and deletes everything it made, so it must run before Cleanup deletes the agent. Definitions need Pipeline permissions, pipeline runs need PipelineRun, and stage reviews need Read or Update on Approval. Run tokens cannot use any of these routes. See docs/PIPELINES.md and the Pipelines section of REST_API.md.",
+      "item": [
+        {
+          "name": "Create pipeline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines"
+              ]
+            },
+            "description": "Creates a pipeline with two stages on the Postman agent. Stages run in list order and get positions 1 and 2. The first stage pins the deployment so it can pass the run parameter format (parameters are checked against that deployment's allowedRunOverrides when the pipeline is saved) and requires a review with at most one revision. The second stage uses the agent's weighted deployment selection and may run twice when it fails. Needs Create on Pipeline. Validation failures answer 400 ValidationFailed with field codes such as PipelineEmpty, TooManyStages, ReferenceNotFound, DeploymentAgentMismatch, and TemplateKindMismatch; a duplicate name answers 409 NameConflict.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-pipeline-{{suffix}}\",\n  \"description\": \"Two fake-harness stages with a review gate on the first\",\n  \"stages\": [\n    {\n      \"name\": \"draft\",\n      \"agentId\": \"{{agentId}}\",\n      \"deploymentId\": \"{{deploymentId}}\",\n      \"requiresReview\": true,\n      \"maxRevisions\": 1,\n      \"parameters\": [\n        {\n          \"name\": \"format\",\n          \"value\": \"claude\"\n        }\n      ]\n    },\n    {\n      \"name\": \"edit\",\n      \"agentId\": \"{{agentId}}\",\n      \"maxAttempts\": 2,\n      \"outputCharLimit\": 4000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('pipelineId', json.id);",
+                  "pm.collectionVariables.set('pipelineName', json.name);",
+                  "pm.test('ppl_ identifier and version 1', function () { pm.expect(json.id).to.match(/^ppl_/); pm.expect(json.version).to.eql(1); });",
+                  "pm.test('stages in order with defaults', function () { pm.expect(json.stages.map(function (s) { return s.position; })).to.eql([1, 2]); pm.expect(json.stages[0].outputCharLimit).to.eql(16000); pm.expect(json.stages[0].reviewTimeoutAction).to.eql('Reject'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List pipelines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines?search=postman-pipeline&maxResults=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "postman-pipeline"
+                },
+                {
+                  "key": "maxResults",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "Lists pipelines with their stages, newest first. Takes the usual enumeration parameters: search (part of the name), activeOnly, maxResults, skip, and ordering. Needs Read on Pipeline."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the pipeline is listed', function () { var ids = pm.response.json().objects.map(function (o) { return o.id; }); pm.expect(ids).to.include(pm.collectionVariables.get('pipelineId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read pipeline by name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines/{{pipelineName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines",
+                "{{pipelineName}}"
+              ]
+            },
+            "description": "Pipeline routes accept the name or the ppl_ identifier. When a name is used, resource-scoped permissions are checked against the resolved identifier."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('same pipeline', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('pipelineId')); pm.expect(json.stages.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update pipeline",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines/{{pipelineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines",
+                "{{pipelineId}}"
+              ]
+            },
+            "description": "Replaces the pipeline and all of its stages; send the complete definition, because stages left out are removed. The version goes up by one. Pipeline runs that already started keep the stage snapshot they started with. maxDurationSeconds (0 means no limit) sets the deadline of each pipeline run, review waits included.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-pipeline-{{suffix}}\",\n  \"description\": \"Updated by Postman\",\n  \"stages\": [\n    {\n      \"name\": \"draft\",\n      \"agentId\": \"{{agentId}}\",\n      \"deploymentId\": \"{{deploymentId}}\",\n      \"requiresReview\": true,\n      \"maxRevisions\": 1,\n      \"parameters\": [\n        {\n          \"name\": \"format\",\n          \"value\": \"claude\"\n        }\n      ]\n    },\n    {\n      \"name\": \"edit\",\n      \"agentId\": \"{{agentId}}\",\n      \"maxAttempts\": 2,\n      \"outputCharLimit\": 4000\n    }\n  ],\n  \"maxDurationSeconds\": 3600\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('version 2', function () { pm.expect(json.version).to.eql(2); pm.expect(json.maxDurationSeconds).to.eql(3600); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Preview stage prompts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines/{{pipelineId}}/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines",
+                "{{pipelineId}}",
+                "preview"
+              ]
+            },
+            "description": "Renders every stage's task prompt from a sample input and sample stage outputs without creating anything. sampleOutputs[0] is what stage 2 sees as pipeline.previous.output. A stage that cannot compile reports success false with errorCode and errorMessage. Secret values never appear. Needs Read on Pipeline.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Write release notes from Postman\",\n  \"sampleOutputs\": [\n    \"Sample draft from Postman\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('two stages compiled', function () { pm.expect(json.stages.length).to.eql(2); json.stages.forEach(function (s) { pm.expect(s.success).to.eql(true); }); });",
+                  "pm.test('stage 2 sees the sample output', function () { pm.expect(json.stages[1].prompt).to.include('Sample draft from Postman'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start pipeline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-pipeline-{{suffix}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines/{{pipelineId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines",
+                "{{pipelineId}}",
+                "start"
+              ]
+            },
+            "description": "Starts the pipeline and waits up to waitSeconds for it to finish or stop for a review. Needs Execute on Pipeline and Execute on every stage agent. Every stage run receives this input; earlier outputs reach later stages through the PipelineStage prompt template. The Idempotency-Key header makes a repeated start return the same pipeline run (201 either way); the same key with a different input answers 409 IdempotencyKeyConflict. wait and waitSeconds also work as query parameters. Here the first stage requires a review, so the pipeline run comes back AwaitingReview.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Write release notes from Postman\",\n  \"wait\": true,\n  \"waitSeconds\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('pipelineRunId', json.id);",
+                  "pm.test('plr_ identifier', function () { pm.expect(json.id).to.match(/^plr_/); pm.expect(json.pipelineVersion).to.eql(2); });",
+                  "pm.test('waiting for the review of stage 1', function () { pm.expect(json.status).to.eql('AwaitingReview'); pm.expect(json.currentPosition).to.eql(1); pm.expect(json.reviews.length).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start pipeline again with the same key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-pipeline-{{suffix}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines/{{pipelineId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines",
+                "{{pipelineId}}",
+                "start"
+              ]
+            },
+            "description": "Repeats the start with the same Idempotency-Key and input: no second pipeline run is created.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Write release notes from Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('same pipeline run', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('pipelineRunId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List pipeline runs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs?pipelineId={{pipelineId}}&status=AwaitingReview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs"
+              ],
+              "query": [
+                {
+                  "key": "pipelineId",
+                  "value": "{{pipelineId}}"
+                },
+                {
+                  "key": "status",
+                  "value": "AwaitingReview"
+                }
+              ]
+            },
+            "description": "Lists pipeline runs newest first. Filters: pipelineId, status (Running, AwaitingReview, Cancelling, Succeeded, Failed, Cancelled, TimedOut), callerId, fromUtc, toUtc, plus maxResults, skip, and ordering. List items carry stages but not runs or reviews. Needs Read on PipelineRun."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the pipeline run is listed', function () { var ids = pm.response.json().objects.map(function (o) { return o.id; }); pm.expect(ids).to.include(pm.collectionVariables.get('pipelineRunId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read pipeline run",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{pipelineRunId}}?waitSeconds=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{pipelineRunId}}"
+              ],
+              "query": [
+                {
+                  "key": "waitSeconds",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Reads the pipeline run with its stage snapshots, summaries of its stage runs (runs), and its reviews. waitSeconds (up to 600) first waits until it finishes or stops for a review."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('stage 1 waits for review', function () { pm.expect(json.stages[0].status).to.eql('AwaitingReview'); pm.expect(json.stages[1].status).to.eql('Pending'); });",
+                  "pm.test('one stage run so far', function () { pm.expect(json.runs.length).to.eql(1); pm.expect(json.runs[0].execution).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List stage runs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs?pipelineRunId={{pipelineRunId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "pipelineRunId",
+                  "value": "{{pipelineRunId}}"
+                }
+              ]
+            },
+            "description": "Stage runs are ordinary runs with kind Pipeline and the fields pipelineRunId, pipelinePosition, and pipelineExecution. The run list filters by pipelineRunId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('a Pipeline run at position 1', function () { pm.expect(json.totalRecords).to.be.at.least(1); var r = json.objects[0]; pm.expect(r.kind).to.eql('Pipeline'); pm.expect(r.pipelineRunId).to.eql(pm.collectionVariables.get('pipelineRunId')); pm.expect(r.pipelinePosition).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List pending stage reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-reviews?pipelineRunId={{pipelineRunId}}&status=Pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-reviews"
+              ],
+              "query": [
+                {
+                  "key": "pipelineRunId",
+                  "value": "{{pipelineRunId}}"
+                },
+                {
+                  "key": "status",
+                  "value": "Pending"
+                }
+              ]
+            },
+            "description": "Lists stage reviews newest first. Filters: status (Pending, Approved, ChangesRequested, Rejected, Expired, Cancelled), pipelineRunId, pipelineId, runId, decisionSource (User, Timeout, Cancelled), fromUtc, toUtc, plus maxResults, skip, and ordering. Stage reviews share the approvals inbox, so they need Read on Approval."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('one pending review', function () { pm.expect(json.totalRecords).to.eql(1); pm.expect(json.objects[0].status).to.eql('Pending'); });",
+                  "if (json.objects && json.objects.length > 0) { pm.collectionVariables.set('pipelineReviewId', json.objects[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read stage review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-reviews/{{pipelineReviewId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-reviews",
+                "{{pipelineReviewId}}"
+              ]
+            },
+            "description": "Reads a stage review. The output under review is the resultText of the run named by runId. expiresUtc is null because the stage waits indefinitely (reviewTimeoutSeconds 0)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('pending review of stage 1, execution 1', function () { pm.expect(json.id).to.match(/^prv_/); pm.expect(json.position).to.eql(1); pm.expect(json.execution).to.eql(1); pm.expect(json.timeoutAction).to.eql('Reject'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request changes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-reviews/{{pipelineReviewId}}/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-reviews",
+                "{{pipelineReviewId}}",
+                "decide"
+              ]
+            },
+            "description": "RequestChanges needs a comment: the stage runs again as a new execution with the comment as pipeline.revision.feedback in its prompt. Needs Update on Approval. A missing comment answers 400 ValidationFailed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"RequestChanges\",\n  \"comment\": \"List the breaking changes first.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('changes requested by a user', function () { pm.expect(json.status).to.eql('ChangesRequested'); pm.expect(json.decision).to.eql('RequestChanges'); pm.expect(json.decisionSource).to.eql('User'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wait for the revised stage",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{pipelineRunId}}?waitSeconds=60",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{pipelineRunId}}"
+              ],
+              "query": [
+                {
+                  "key": "waitSeconds",
+                  "value": "60"
+                }
+              ]
+            },
+            "description": "Waits for the second execution of stage 1 to finish and stop for its own review."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('stage 1 revised once', function () { pm.expect(json.status).to.eql('AwaitingReview'); pm.expect(json.stages[0].executions).to.eql(2); pm.expect(json.stages[0].revisions).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List the new pending review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-reviews?pipelineRunId={{pipelineRunId}}&status=Pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-reviews"
+              ],
+              "query": [
+                {
+                  "key": "pipelineRunId",
+                  "value": "{{pipelineRunId}}"
+                },
+                {
+                  "key": "status",
+                  "value": "Pending"
+                }
+              ]
+            },
+            "description": "Each stage execution gets its own review."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('a review of execution 2', function () { pm.expect(json.objects[0].execution).to.eql(2); });",
+                  "if (json.objects && json.objects.length > 0) { pm.collectionVariables.set('pipelineReviewId', json.objects[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request changes past maxRevisions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-reviews/{{pipelineReviewId}}/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-reviews",
+                "{{pipelineReviewId}}",
+                "decide"
+              ]
+            },
+            "description": "The stage allows one revision and has used it, so another RequestChanges answers 409 RevisionLimitReached and the review stays pending. Approve or reject it instead.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"RequestChanges\",\n  \"comment\": \"One more pass, please.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is RevisionLimitReached', function () { pm.expect(pm.response.json().code).to.eql('RevisionLimitReached'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve with notes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-reviews/{{pipelineReviewId}}/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-reviews",
+                "{{pipelineReviewId}}",
+                "decide"
+              ]
+            },
+            "description": "Approve continues the pipeline. The comment is optional and reaches the next stage's prompt as pipeline.reviewNotes. Reject would fail the pipeline run with outcome ReviewRejected. Each decision writes a PipelineReviewDecided audit record.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"Approve\",\n  \"comment\": \"Keep it short.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('approved', function () { pm.expect(json.status).to.eql('Approved'); pm.expect(json.comment).to.eql('Keep it short.'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decide an approved review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-reviews/{{pipelineReviewId}}/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-reviews",
+                "{{pipelineReviewId}}",
+                "decide"
+              ]
+            },
+            "description": "Decisions are compare-and-set from Pending, so a second decision answers 409 ReviewNotPending.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"Reject\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is ReviewNotPending', function () { pm.expect(pm.response.json().code).to.eql('ReviewNotPending'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wait for the pipeline run to finish",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{pipelineRunId}}?waitSeconds=60",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{pipelineRunId}}"
+              ],
+              "query": [
+                {
+                  "key": "waitSeconds",
+                  "value": "60"
+                }
+              ]
+            },
+            "description": "Stage 2 runs with stage 1's output and the review notes in its prompt. When it succeeds, the pipeline run is Succeeded and finalRunId is the stage 2 run."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('succeeded', function () { pm.expect(json.status).to.eql('Succeeded'); pm.expect(json.outcome).to.eql('Succeeded'); pm.expect(json.finalRunId).to.match(/^run_/); });",
+                  "if (json.finalRunId) { pm.collectionVariables.set('pipelineStageRunId', json.finalRunId); }",
+                  "pm.test('two reviews and three stage runs', function () { pm.expect(json.reviews.length).to.eql(2); pm.expect(json.runs.length).to.eql(3); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retry a succeeded pipeline run",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{pipelineRunId}}/retry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{pipelineRunId}}",
+                "retry"
+              ]
+            },
+            "description": "Only Failed, TimedOut, and Cancelled pipeline runs can be resumed; anything else answers 409 PipelineRunNotRetryable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is PipelineRunNotRetryable', function () { pm.expect(pm.response.json().code).to.eql('PipelineRunNotRetryable'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retry a stage run directly",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{pipelineStageRunId}}/retry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{pipelineStageRunId}}",
+                "retry"
+              ]
+            },
+            "description": "A stage run cannot be retried on its own, because the pipeline decides which execution counts: 409 PipelineStageRun. Retry the pipeline run instead."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is PipelineStageRun', function () { pm.expect(pm.response.json().code).to.eql('PipelineStageRun'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete finished pipeline run",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{pipelineRunId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{pipelineRunId}}"
+              ]
+            },
+            "description": "Deletes a finished pipeline run and its reviews. Its stage runs are kept, with pipelineRunId still set. Needs Delete on PipelineRun."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start pipeline without waiting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines/{{pipelineId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines",
+                "{{pipelineId}}",
+                "start"
+              ]
+            },
+            "description": "Starts a second pipeline run and returns at once (wait defaults to false).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"A pipeline run to cancel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.collectionVariables.set('cancelPipelineRunId', json.id);",
+                  "pm.test('active', function () { pm.expect(['Running', 'AwaitingReview']).to.include(json.status); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete an active pipeline run",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{cancelPipelineRunId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{cancelPipelineRunId}}"
+              ]
+            },
+            "description": "Only finished pipeline runs can be deleted. An active one answers 409, including one a concurrent retry has just reopened; cancel it first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete a pipeline in use",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines/{{pipelineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines",
+                "{{pipelineId}}"
+              ]
+            },
+            "description": "A pipeline with active pipeline runs cannot be deleted: 409 PipelineInUse."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is PipelineInUse', function () { pm.expect(pm.response.json().code).to.eql('PipelineInUse'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete an agent a pipeline uses",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{agentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{agentId}}"
+              ]
+            },
+            "description": "Agents and deployments that a pipeline stage references cannot be deleted: 409 ReferencedByPipeline names the pipelines."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is ReferencedByPipeline', function () { pm.expect(pm.response.json().code).to.eql('ReferencedByPipeline'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel pipeline run",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{cancelPipelineRunId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{cancelPipelineRunId}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancels the pipeline run, its pending review, and its current stage run (with any runs it delegated to). Cancelling the current stage run directly with POST .../runs/{id}/cancel cancels the pipeline run too. Writes a PipelineRunCancelled audit record. Needs Update on PipelineRun."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('cancelled', function () { pm.expect(json.status).to.eql('Cancelled'); pm.expect(json.outcome).to.eql('Cancelled'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel a finished pipeline run",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{cancelPipelineRunId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{cancelPipelineRunId}}",
+                "cancel"
+              ]
+            },
+            "description": "A pipeline run that already ended answers 409 PipelineRunFinished."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('code is PipelineRunFinished', function () { pm.expect(pm.response.json().code).to.eql('PipelineRunFinished'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retry cancelled pipeline run",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{cancelPipelineRunId}}/retry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{cancelPipelineRunId}}",
+                "retry"
+              ]
+            },
+            "description": "Resumes a Failed, TimedOut, or Cancelled pipeline run at the stage where it stopped, with a new execution and a fresh attempt count; earlier stages keep their outputs and the deadline restarts. 409 PipelineRunChanged means another request changed it first; 409 PipelineHistoryPruned means retention removed an earlier stage's run, so start the pipeline again instead."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('running again', function () { pm.expect(['Running', 'AwaitingReview']).to.include(json.status); pm.expect(json.outcome).to.eql('None'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel the resumed pipeline run",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{cancelPipelineRunId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{cancelPipelineRunId}}",
+                "cancel"
+              ]
+            },
+            "description": "Stops it again so it can be deleted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('cancelled', function () { pm.expect(json.status).to.eql('Cancelled'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete cancelled pipeline run",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipeline-runs/{{cancelPipelineRunId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipeline-runs",
+                "{{cancelPipelineRunId}}"
+              ]
+            },
+            "description": "Removes the second pipeline run."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete pipeline",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/pipelines/{{pipelineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "pipelines",
+                "{{pipelineId}}"
+              ]
+            },
+            "description": "Deletes the pipeline once no pipeline run is active. Needs Delete on Pipeline. Protected pipelines answer 409 Protected."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Node Pools",
       "description": "Node pools group workers and can be dedicated to tenants. Changing pools needs a system administrator.",
       "item": [
@@ -11527,6 +12868,30 @@
     },
     {
       "key": "managementDeploymentId",
+      "value": ""
+    },
+    {
+      "key": "pipelineId",
+      "value": ""
+    },
+    {
+      "key": "pipelineName",
+      "value": ""
+    },
+    {
+      "key": "pipelineRunId",
+      "value": ""
+    },
+    {
+      "key": "pipelineReviewId",
+      "value": ""
+    },
+    {
+      "key": "pipelineStageRunId",
+      "value": ""
+    },
+    {
+      "key": "cancelPipelineRunId",
       "value": ""
     }
   ]

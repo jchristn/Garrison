@@ -46,6 +46,12 @@ namespace Garrison.Server.Runtime
         /// </summary>
         public ConversationService? Conversations { get; set; } = null;
 
+        /// <summary>
+        /// Pipeline service (P12.9). When set, a pipeline stage run is compiled with its pipeline inputs (earlier stage
+        /// outputs, review notes, revision feedback) through the PipelineStage prompt role. Default null.
+        /// </summary>
+        public PipelineService? Pipelines { get; set; } = null;
+
         #endregion
 
         #region Private-Members
@@ -368,12 +374,16 @@ namespace Garrison.Server.Runtime
                     transcript = await Conversations.TranscriptAsync(run, token).ConfigureAwait(false);
                 }
 
+                // A pipeline stage run hands the earlier stages' outputs to its PipelineStage prompt (P12.9).
+                CompilationPipeline? pipeline = Pipelines != null && !String.IsNullOrEmpty(run.PipelineRunId) ? await Pipelines.CompilationInputsAsync(run, token).ConfigureAwait(false) : null;
+
                 CompilationResult compiled;
                 using (Activity? compile = RunTracing.Start("run:compile", claim?.Id ?? run.TraceParent))
                 {
                     compile?.SetTag("garrison.run_id", run.Id);
                     if (!String.IsNullOrEmpty(run.ConversationId)) compile?.SetTag("garrison.conversation_id", run.ConversationId);
-                    compiled = await _Compiler().CompileAsync(run, runToken, transcript, token).ConfigureAwait(false);
+                    if (pipeline != null) compile?.SetTag("garrison.pipeline_run_id", run.PipelineRunId);
+                    compiled = await _Compiler().CompileAsync(run, runToken, transcript, pipeline, token).ConfigureAwait(false);
                 }
 
                 // A compile that waited on a credential refresh (G-22) may have used up part of the lease; give the

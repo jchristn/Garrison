@@ -165,6 +165,10 @@ namespace Garrison.Core.Database.Ado
             v20.Index("mcp_test_tools", "parent", false, "testid", "position");
             migrations.Add(new SchemaMigration(20, "Transient worker stdio MCP diagnostics with structured outcomes", v20._Statements, v20._Columns));
 
+            SchemaBuilder v21 = new SchemaBuilder(catalog, dialect);
+            v21.BuildVersion21();
+            migrations.Add(new SchemaMigration(21, "Ordered pipelines and stage review gates", v21._Statements, v21._Columns));
+
             return migrations;
         }
 
@@ -217,9 +221,176 @@ namespace Garrison.Core.Database.Ado
             _Statements.Add(_Dialect.CreateIndex(name, _Catalog.Schema, _Catalog.RawName(rawTable), String.Join(", ", quoted), unique));
         }
 
+        private void PartialIndex(string rawTable, string suffix, bool unique, string where, params string[] columns)
+        {
+            List<string> quoted = new List<string>();
+            foreach (string column in columns) quoted.Add(_Dialect.Quote(column));
+            string name = "idx_" + _Catalog.RawName(rawTable) + "_" + suffix;
+            _Statements.Add(_Dialect.CreateIndex(name, _Catalog.Schema, _Catalog.RawName(rawTable), String.Join(", ", quoted), unique, where));
+        }
+
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion21()
+        {
+            SqlDialect d = _Dialect;
+            string boolean = d.TypeBool + " NOT NULL";
+
+            // runs: the pipeline run, stage position, and stage execution a run belongs to (P12.9); null and 0 otherwise.
+            Column("runs", "pipelinerunid", d.TypeId);
+            Column("runs", "pipelineposition", d.TypeInt + " NOT NULL DEFAULT 0");
+            Column("runs", "pipelineexecution", d.TypeInt + " NOT NULL DEFAULT 0");
+            // One run per stage execution, with no time window (the run idempotency key only looks back 24 hours). Partial:
+            // runs outside pipelines (pipelinerunid null, position and execution 0) are not indexed. It also serves
+            // lookups by pipelinerunid.
+            PartialIndex("runs", "pipelineexecution", true, "pipelinerunid IS NOT NULL", "pipelinerunid", "pipelineposition", "pipelineexecution");
+
+            // pipelines: ordered agent stages with optional review gates; stages and their run parameters are child tables.
+            Table("pipelines",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description " + d.TypeText,
+                "version " + d.TypeInt + " NOT NULL",
+                "maxdurationseconds " + d.TypeInt + " NOT NULL",
+                "active " + boolean,
+                "isprotected " + boolean,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("pipelines", "tenantname", true, "tenantid", "name");
+            Index("pipelines", "tenantcreated", false, "tenantid", "createdutc");
+            Table("pipeline_stages",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "pipelineid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description " + d.TypeText,
+                "agentid " + d.TypeId + " NOT NULL",
+                "deploymentid " + d.TypeId,
+                "handofftemplateid " + d.TypeId,
+                "handofftemplateversion " + d.TypeInt,
+                "outputcharlimit " + d.TypeInt + " NOT NULL",
+                "maxattempts " + d.TypeInt + " NOT NULL",
+                "continueonfailure " + boolean,
+                "requiresreview " + boolean,
+                "reviewtimeoutseconds " + d.TypeInt + " NOT NULL",
+                "reviewtimeoutaction VARCHAR(32) NOT NULL",
+                "maxrevisions " + d.TypeInt + " NOT NULL");
+            Index("pipeline_stages", "parent", false, "pipelineid", "position");
+            Index("pipeline_stages", "agent", false, "tenantid", "agentid");
+            Index("pipeline_stages", "deployment", false, "tenantid", "deploymentid");
+            Table("pipeline_stage_parameters",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "stageid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "name VARCHAR(256) NOT NULL",
+                "value " + d.TypeText + " NOT NULL");
+            Index("pipeline_stage_parameters", "parent", false, "stageid", "position");
+
+            // pipeline_runs: one execution of a pipeline, advanced with compare-and-set on casversion.
+            Table("pipeline_runs",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "pipelineid " + d.TypeId + " NOT NULL",
+                "pipelinename VARCHAR(128) NOT NULL",
+                "pipelineversion " + d.TypeInt + " NOT NULL",
+                "status VARCHAR(32) NOT NULL",
+                "outcome VARCHAR(32) NOT NULL",
+                "currentposition " + d.TypeInt + " NOT NULL",
+                "stagecount " + d.TypeInt + " NOT NULL",
+                "casversion " + d.TypeInt + " NOT NULL",
+                "inputtext " + d.TypeText + " NOT NULL",
+                "inputcontenttype VARCHAR(256) NOT NULL",
+                "callertype VARCHAR(64) NOT NULL",
+                "callerid " + d.TypeId,
+                "callername VARCHAR(256)",
+                "idempotencykey VARCHAR(256)",
+                "priority " + d.TypeInt + " NOT NULL",
+                "finalrunid " + d.TypeId,
+                "errormessage " + d.TypeText,
+                "deadlineutc " + d.TypeTimestamp,
+                "cancelrequested " + boolean,
+                "traceparent VARCHAR(128)",
+                "startedutc " + d.TypeTimestamp,
+                "completedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("pipeline_runs", "tenantstatus", false, "tenantid", "status", "createdutc");
+            Index("pipeline_runs", "deadline", false, "status", "deadlineutc");
+            Index("pipeline_runs", "idempotency", true, "tenantid", "callerid", "idempotencykey");
+            Index("pipeline_runs", "pipeline", false, "tenantid", "pipelineid");
+            Table("pipeline_run_stages",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "pipelinerunid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description " + d.TypeText,
+                "agentid " + d.TypeId + " NOT NULL",
+                "agentname VARCHAR(256) NOT NULL",
+                "deploymentid " + d.TypeId,
+                "handofftemplateid " + d.TypeId,
+                "handofftemplateversion " + d.TypeInt,
+                "outputcharlimit " + d.TypeInt + " NOT NULL",
+                "maxattempts " + d.TypeInt + " NOT NULL",
+                "continueonfailure " + boolean,
+                "requiresreview " + boolean,
+                "reviewtimeoutseconds " + d.TypeInt + " NOT NULL",
+                "reviewtimeoutaction VARCHAR(32) NOT NULL",
+                "maxrevisions " + d.TypeInt + " NOT NULL",
+                "status VARCHAR(32) NOT NULL",
+                "executions " + d.TypeInt + " NOT NULL",
+                "attempts " + d.TypeInt + " NOT NULL",
+                "revisions " + d.TypeInt + " NOT NULL",
+                "currentrunid " + d.TypeId,
+                "lastrunid " + d.TypeId,
+                "blockedreason " + d.TypeText,
+                "nextattemptutc " + d.TypeTimestamp,
+                "startedutc " + d.TypeTimestamp,
+                "completedutc " + d.TypeTimestamp);
+            Index("pipeline_run_stages", "position", true, "pipelinerunid", "position");
+            Table("pipeline_run_stage_parameters",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "runstageid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "name VARCHAR(256) NOT NULL",
+                "value " + d.TypeText + " NOT NULL");
+            Index("pipeline_run_stage_parameters", "parent", false, "runstageid", "position");
+
+            // pipeline_reviews: human review gates, decided with a compare-and-set from Pending.
+            Table("pipeline_reviews",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "pipelinerunid " + d.TypeId + " NOT NULL",
+                "pipelineid " + d.TypeId + " NOT NULL",
+                "pipelinename VARCHAR(128) NOT NULL",
+                "runstageid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "stagename VARCHAR(128) NOT NULL",
+                "runid " + d.TypeId + " NOT NULL",
+                "execution " + d.TypeInt + " NOT NULL",
+                "status VARCHAR(32) NOT NULL",
+                "decision VARCHAR(32)",
+                "decisionsource VARCHAR(32)",
+                "comment " + d.TypeText,
+                "decidedby VARCHAR(256)",
+                "decidedbyid " + d.TypeId,
+                "timeoutaction VARCHAR(32) NOT NULL",
+                "requestedutc " + d.TypeTimestamp + " NOT NULL",
+                "expiresutc " + d.TypeTimestamp,
+                "decidedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("pipeline_reviews", "execution", true, "runstageid", "execution");
+            Index("pipeline_reviews", "tenantstatus", false, "tenantid", "status", "createdutc");
+            Index("pipeline_reviews", "expires", false, "status", "expiresutc");
+            Index("pipeline_reviews", "pipelinerun", false, "pipelinerunid");
         }
 
         private void BuildVersion8()

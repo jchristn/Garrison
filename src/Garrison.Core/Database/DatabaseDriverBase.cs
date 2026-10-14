@@ -212,6 +212,21 @@ namespace Garrison.Core.Database
         /// </summary>
         public IApprovalMethods Approvals { get; protected set; } = null!;
 
+        /// <summary>
+        /// Pipeline definitions (P12.9).
+        /// </summary>
+        public IPipelineMethods Pipelines { get; protected set; } = null!;
+
+        /// <summary>
+        /// Pipeline runs and their stage snapshots (P12.9).
+        /// </summary>
+        public IPipelineRunMethods PipelineRuns { get; protected set; } = null!;
+
+        /// <summary>
+        /// Pipeline stage reviews (P12.9).
+        /// </summary>
+        public IPipelineReviewMethods PipelineReviews { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

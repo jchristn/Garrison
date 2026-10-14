@@ -102,5 +102,20 @@ namespace Garrison.Server.Runtime
         /// Protocol surface the run came from (rest, mcp, or a2a), used as a metric label. Default rest.
         /// </summary>
         public string Surface { get; set; } = "rest";
+
+        /// <summary>
+        /// Pipeline run this run executes a stage of (P12.9), or null. Set only by the pipeline service.
+        /// </summary>
+        public string? PipelineRunId { get; set; } = null;
+
+        /// <summary>
+        /// Position of the pipeline stage, starting at 1; 0 outside a pipeline.
+        /// </summary>
+        public int PipelinePosition { get; set; } = 0;
+
+        /// <summary>
+        /// Execution number of the pipeline stage, starting at 1; 0 outside a pipeline.
+        /// </summary>
+        public int PipelineExecution { get; set; } = 0;
     }
 }

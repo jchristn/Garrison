@@ -24,6 +24,8 @@ Defect fixes come first: tuning on top of a defect tunes the wrong thing. None o
 
 Status after round 1 (2026-10-12): I-01 (pool sizing and 503 `DatabaseBusy`; the invocation waits were not changed), I-02 (separate liveness listener), I-03 (JSON 503 `DatabaseUnavailable`), I-04 (fixed by P13.22), and I-07 (`ManifestInvalid`) are done. Open-loop 60 to 90 runs/s finished with 0 failures and no restarts, and `resilience database-restart` had 0 unclean errors (`benchmarks/RESULTS.md`, round 1).
 
+Status 2026-10-13: the rest of I-01 is done. Synchronous invocation waiters now wake only when their run finishes (on any replica, through the backplane), never on event batches, and fall back to re-reading the run every `Scheduling.InvocationWaitPollMs` (default 5000 ms) instead of every second. A queued run cancelled before it was leased now signals completion as well. I-05 is done: successful worker node protocol calls (`/v1.0/api/node/...`) are no longer written to request history unless `RequestHistory.CaptureNodeProtocol` is turned on; failed node calls are still captured, and abandoned watch long polls are not counted as failures. Both are covered by Touchstone cases on SQLite and PostgreSQL (`scaleout-*/invocation-wait-completion`, `observability/request-history-node-protocol`). The database operations per run and closed-loop throughput at 16 clients have not been re-measured with `load`; that needs the benchmark stack.
+
 ## Evidence
 
 ### I-01 / D-4: the shipped pool can exhaust the shipped PostgreSQL

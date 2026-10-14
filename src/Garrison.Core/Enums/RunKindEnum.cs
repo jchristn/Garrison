@@ -23,6 +23,11 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// Retry.
         /// </summary>
-        Retry
+        Retry,
+
+        /// <summary>
+        /// A stage of a pipeline run (P12.9). The run carries pipelineRunId, pipelinePosition, and pipelineExecution.
+        /// </summary>
+        Pipeline
     }
 }

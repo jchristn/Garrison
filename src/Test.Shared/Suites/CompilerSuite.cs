@@ -115,6 +115,25 @@ namespace Test.Shared.Suites
                 {
                     Assert.True(!argument.Contains("Summarize", StringComparison.Ordinal) || argument.Contains("<<", StringComparison.Ordinal), "no prompt text leaks into arguments");
                 }
+
+                // P12.9: a pipeline stage run's prompt is the PipelineStage template around the Task template, and the
+                // earlier stage's output arrives only through template variables.
+                PromptTemplate stageTemplate = await TemplateAsync(fixture, "marker-stage", "<<STAGE>>{{pipeline.previous.output}}|{{pipeline.task}}<</STAGE>>", token).ConfigureAwait(false);
+                deployment.PromptBindings.Add(new DeploymentPromptBinding { Role = InvocationCompiler.PipelineStageRole, TemplateId = stageTemplate.Id });
+                await fixture.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
+                CompilationPipeline pipeline = new CompilationPipeline { PipelineId = "ppl_marker", PipelineName = "marker", PipelineRunId = "plr_marker", Position = 2, StageName = "second", StageCount = 2 };
+                pipeline.Previous = new CompilationPipelineStage { Position = 1, StageName = "first", AgentName = "writer", Status = "Succeeded", Output = "<<PREVIOUS>>" };
+                pipeline.Stages.Add(pipeline.Previous);
+                Run stageRun = CompilerFixture.RunFor(deployment, false);
+                stageRun.Kind = RunKindEnum.Pipeline;
+                stageRun.PipelineRunId = "plr_marker";
+                stageRun.PipelinePosition = 2;
+                stageRun.PipelineExecution = 1;
+                CompilationResult stage = await fixture.Compiler.CompileAsync(stageRun, "run-token", null, pipeline, token).ConfigureAwait(false);
+                Assert.Equal("<<STAGE>><<PREVIOUS>>|<<TASK>>Summarize the repository.<</TASK>><</STAGE>>", stage.Spec.Stdin, "stage stdin is template text, the earlier output, and input only");
+                Assert.True(stage.TemplateVersions.Any(v => v.TemplateId == stageTemplate.Id), "the stage template version is recorded");
+                CompilationResult outside = await fixture.Compiler.CompileAsync(CompilerFixture.RunFor(deployment, false), "run-token", token).ConfigureAwait(false);
+                Assert.Equal("<<TASK>>Summarize the repository.<</TASK>>", outside.Spec.Stdin, "runs outside a pipeline ignore the PipelineStage binding");
             }
         }
 

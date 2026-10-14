@@ -190,15 +190,42 @@ namespace Garrison.Sdk.Http
         /// <exception cref="GarrisonException">Thrown on a non-success status.</exception>
         public async Task<string> SendTextAsync(HttpMethod method, string path, object? body = null, IDictionary<string, string?>? query = null, string contentType = "application/json", CancellationToken token = default)
         {
-            using (HttpRequestMessage request = Build(method, path, body, query, contentType))
-            {
-                using (HttpResponseMessage response = await _Http.SendAsync(request, token).ConfigureAwait(false))
-                {
-                    string text = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-                    if (!response.IsSuccessStatusCode) throw Error((int)response.StatusCode, text);
-                    return text;
-                }
-            }
+            return await SendCoreAsync(method, path, body, query, contentType, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Send a JSON request with extra request headers (for example Idempotency-Key) and deserialize the JSON response.
+        /// </summary>
+        /// <typeparam name="T">Response type.</typeparam>
+        /// <param name="method">HTTP method.</param>
+        /// <param name="path">Path beginning with a slash, without query.</param>
+        /// <param name="body">Optional body; strings are sent verbatim, other objects as JSON.</param>
+        /// <param name="query">Optional query parameters; null values are skipped.</param>
+        /// <param name="headers">Optional extra headers; null or empty values are skipped.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Deserialized response, or default for empty bodies.</returns>
+        /// <exception cref="GarrisonException">Thrown on a non-success status.</exception>
+        public async Task<T?> SendWithHeadersAsync<T>(HttpMethod method, string path, object? body, IDictionary<string, string?>? query, IDictionary<string, string?>? headers, CancellationToken token = default)
+        {
+            string text = await SendTextWithHeadersAsync(method, path, body, query, headers, token).ConfigureAwait(false);
+            if (String.IsNullOrWhiteSpace(text)) return default;
+            return JsonSerializer.Deserialize<T>(text, _JsonOptions);
+        }
+
+        /// <summary>
+        /// Send a JSON request with extra request headers and return the response text.
+        /// </summary>
+        /// <param name="method">HTTP method.</param>
+        /// <param name="path">Path.</param>
+        /// <param name="body">Optional body.</param>
+        /// <param name="query">Optional query parameters.</param>
+        /// <param name="headers">Optional extra headers; null or empty values are skipped.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Response text.</returns>
+        /// <exception cref="GarrisonException">Thrown on a non-success status.</exception>
+        public async Task<string> SendTextWithHeadersAsync(HttpMethod method, string path, object? body, IDictionary<string, string?>? query, IDictionary<string, string?>? headers, CancellationToken token = default)
+        {
+            return await SendCoreAsync(method, path, body, query, "application/json", headers, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -305,6 +332,26 @@ namespace Garrison.Sdk.Http
         #endregion
 
         #region Private-Methods
+
+        private async Task<string> SendCoreAsync(HttpMethod method, string path, object? body, IDictionary<string, string?>? query, string contentType, IDictionary<string, string?>? headers, CancellationToken token)
+        {
+            using (HttpRequestMessage request = Build(method, path, body, query, contentType))
+            {
+                if (headers != null)
+                {
+                    foreach (KeyValuePair<string, string?> header in headers)
+                    {
+                        if (!String.IsNullOrEmpty(header.Value)) request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                    }
+                }
+                using (HttpResponseMessage response = await _Http.SendAsync(request, token).ConfigureAwait(false))
+                {
+                    string text = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode) throw Error((int)response.StatusCode, text);
+                    return text;
+                }
+            }
+        }
 
         private HttpRequestMessage Build(HttpMethod method, string path, object? body, IDictionary<string, string?>? query, string contentType, bool binary = false)
         {

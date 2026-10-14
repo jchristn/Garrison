@@ -77,6 +77,13 @@ Each tool checks the same permission its REST equivalent does. Every tool also a
 | `garrison_get_approval` | Read on Approval | `approvalId` | none |
 | `garrison_decide_approval` | Update on Approval (and Update on Deployment with `remember`) | `approvalId`, `decision` (`Allow` or `Deny`) | `reason`, `remember` (default false), `rulePattern` |
 | `garrison_permission_prompt` | Run tokens only | `tool_name`, `input` (object) | `tool_use_id` |
+| `garrison_list_pipelines` | Read on Pipeline | none | `search` (part of a name), `maxResults` (1 to 100, default 25) |
+| `garrison_start_pipeline` | Execute on Pipeline, and Execute on Agent for every stage agent | `pipeline` (name or `ppl_` identifier), `input` | `waitSeconds` (0 to 600, capped by `Mcp.MaxToolWaitSeconds`; omit to return at once), `idempotencyKey`, `inputContentType` (default `text/plain`), `priority` (default 0) |
+| `garrison_get_pipeline_run` | Read on PipelineRun | `pipelineRunId` | `waitSeconds` (as above) |
+| `garrison_list_pipeline_runs` | Read on PipelineRun | none | `pipeline` (name or identifier), `status`, `maxResults` (1 to 100, default 25) |
+| `garrison_cancel_pipeline_run` | Update on PipelineRun | `pipelineRunId` | none |
+| `garrison_list_pipeline_reviews` | Read on Approval | none | `status` (`Pending`, `Approved`, `ChangesRequested`, `Rejected`, `Expired`, `Cancelled`), `pipelineRunId`, `maxResults` (1 to 100, default 25) |
+| `garrison_decide_pipeline_review` | Update on Approval | `reviewId`, `decision` (`Approve`, `RequestChanges`, or `Reject`) | `comment` (required for `RequestChanges`, at most 8000 characters) |
 
 Run summaries (`garrison_get_run`, `garrison_list_runs`, and the invoke tools) include `awaitingApproval`, true while the run's harness waits for a person to decide a permission approval. `garrison_list_approvals` returns the same page as `GET .../approvals` and `garrison_get_approval` and `garrison_decide_approval` return an `Approval` (see REST_API.md). A run token can neither list nor decide approvals, so an agent cannot approve its own requests.
 
@@ -110,7 +117,20 @@ Pass `"startConversation": true` to `garrison_invoke_agent` or `garrison_start_r
 {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"garrison_invoke_agent","arguments":{"agent":"docs-echo","input":"Now make it rhyme","conversationId":"cnv_mv4m..."}}}
 ```
 
-### Results
+### Pipelines
+
+The pipeline tools start and follow [pipelines](docs/PIPELINES.md): ordered agent stages where each stage sees the previous stage's result and a stage can wait for a person to review it. Only users and credentials get them. Run and node tokens neither see them in `tools/list` nor can call them, so an agent cannot start a pipeline or decide a stage review.
+
+```json
+{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"garrison_start_pipeline","arguments":{"pipeline":"release-notes","input":"Write release notes for 2.4 from the merged pull requests.","waitSeconds":60,"idempotencyKey":"release-2.4"}}}
+{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"garrison_list_pipeline_reviews","arguments":{"status":"Pending","pipelineRunId":"plr_mv5d0k3q_Rk2wT8mNbX4vLq7Y"}}}
+{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"garrison_decide_pipeline_review","arguments":{"reviewId":"prv_mv5d0k9a_Hq3Lz8WcN1tYb5Ks","decision":"Approve","comment":"Keep it under 200 words."}}}
+```
+
+`garrison_start_pipeline`, `garrison_get_pipeline_run`, and `garrison_cancel_pipeline_run` return the `PipelineRun` exactly as `GET .../pipeline-runs/{id}` does, with its stages, stage run summaries (`runs`), and reviews. A `waitSeconds` wait ends early when the pipeline run finishes or stops for a review (`status: AwaitingReview`); running out of time never cancels anything. `garrison_list_pipelines`, `garrison_list_pipeline_runs`, and `garrison_list_pipeline_reviews` return the same enumeration envelope as their REST lists (`objects`, `totalRecords`, and so on), newest first. `garrison_decide_pipeline_review` returns the decided `PipelineReview`. `REST_API.md` (section Pipelines) describes every field.
+
+Repeating `garrison_start_pipeline` with the same `idempotencyKey` and input returns the same pipeline run; the same key with a different pipeline or input fails with `IdempotencyKeyConflict`. Retrying or deleting a pipeline run and previewing stage prompts are REST-only.
+
 
 A successful call returns one text content item holding a JSON object. The run tools return a run summary:
 
@@ -211,7 +231,7 @@ Failures inside a tool (not found, not permitted, a missing argument, a rejected
 | `Forbidden` | The caller lacks the permission; the message names it |
 | `ValidationFailed` | A missing argument or a rejected value. Parameter errors name the parameter, for example `ValidationFailed: Run parameter model is not allowed for deployment echo-default: Deployment echo-default does not allow overriding model. parameters.model: ...` |
 | `TenantRequired`, `Unauthorized`, `UnknownTool`, `BadRequest` | The call could not be resolved |
-| Any REST conflict code | For example `RunFinished`, `NoActiveDeployment`, `DelegationNotAllowed`, `IdempotencyKeyConflict`, `ConversationBusy`, `ConversationAgentMismatch` (see the 409 codes in `REST_API.md`) |
+| Any REST conflict code | For example `RunFinished`, `NoActiveDeployment`, `DelegationNotAllowed`, `IdempotencyKeyConflict`, `ConversationBusy`, `ConversationAgentMismatch`, `PipelineInactive`, `PipelineRunFinished`, `PipelineInUse`, `ReviewNotPending`, `RevisionLimitReached` (see the 409 codes in `REST_API.md`) |
 | `DatabaseBusy`, `DatabaseUnavailable` | The database had no free connections, or could not be reached, while the tool ran. Nothing was started; retry in a few seconds |
 
 Tool result text is JSON written with plain `\"` escapes, so quotes in run output read naturally.
@@ -228,7 +248,7 @@ When an agent's delegation mode is anything other than `None`, the control plane
 
 A run token is narrower than the person who started the chain:
 
-- It can only use the run and agent tools above and `garrison_permission_prompt`, and only within the run's tenant. The approval list, read, and decide tools refuse it.
+- It can only use the run and agent tools above and `garrison_permission_prompt`, and only within the run's tenant. The approval list, read, and decide tools refuse it, and the pipeline tools are not offered to it at all.
 - `garrison_list_agents` shows only the agents the calling agent may delegate to: none when its delegation mode is `None`, the names on its allowlist when the mode is `AllowList`, and never itself unless recursion is allowed.
 - Invocations are checked against the delegation depth limit, cycles, and the allowlist, and fail with the reason when they break a rule.
 - Run lookups are limited to runs in the same delegation tree.
@@ -301,5 +321,9 @@ User/developer credentials can configure their tenant through these tools. `Agen
 | `garrison_delete_deployment` | Deployment.Delete on the ID | `deploymentId` |
 | `garrison_apply_manifest` | Manifest.Create; Secret.Create when `allowSecretValues` is true | `manifest`; optional `dryRun`, `allowSecretValues` |
 | `garrison_export_manifest` | Manifest.Read | none |
+| `garrison_get_pipeline` | Pipeline.Read on the resolved ID | `pipeline` (name or ID) |
+| `garrison_create_pipeline` | Pipeline.Create | `configuration` |
+| `garrison_update_pipeline` | Pipeline.Update on the resolved ID | `pipeline`, `configuration` |
+| `garrison_delete_pipeline` | Pipeline.Delete on the resolved ID | `pipeline` |
 
-Configuration uses the REST agent/deployment fields. Updates replace the full configuration, preserve identity/creation metadata, and increment deployment versions. Protected records cannot be changed. Creation ignores supplied identity/tenant/protection/version fields. A tenant-bound caller cannot override its tenant. Export returns `{manifest, mediaType}` with YAML and secret metadata only. Apply returns the normal manifest report; inspect `failedCount` and document results. See [management workflow and examples](docs/MANAGEMENT_MCP.md).
+Configuration uses the REST agent, deployment, and pipeline fields; a pipeline `configuration` carries its complete `stages` list, so read it with `garrison_get_pipeline` before an update. Deleting a pipeline with active pipeline runs fails with `PipelineInUse`. Updates replace the full configuration, preserve identity/creation metadata, and increment deployment versions. Protected records cannot be changed. Creation ignores supplied identity/tenant/protection/version fields. A tenant-bound caller cannot override its tenant. Export returns `{manifest, mediaType}` with YAML and secret metadata only. Apply returns the normal manifest report; inspect `failedCount` and document results. See [management workflow and examples](docs/MANAGEMENT_MCP.md).

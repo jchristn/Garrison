@@ -111,3 +111,14 @@ export function approvalErrors(form, t) {
   }
   return errors;
 }
+
+/**
+ * One sidebar badge count for everything waiting for a person: pending approvals (P12.3) plus pending pipeline stage
+ * reviews (P12.9). Null when both are unknown (null or undefined); an unknown part counts as zero.
+ */
+export function combinedPending(approvals, reviews) {
+  const a = approvals ?? null;
+  const r = reviews ?? null;
+  if (a === null && r === null) return null;
+  return (a ?? 0) + (r ?? 0);
+}

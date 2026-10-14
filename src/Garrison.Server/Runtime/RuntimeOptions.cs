@@ -102,6 +102,23 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Fallback interval at which a synchronous invocation waiter re-reads its run, in milliseconds. Waiters wake as
+        /// soon as their run finishes on any replica; this re-read only covers a completion signal that never arrived.
+        /// Event batches do not wake them. Minimum 250, maximum 60000, default 5000.
+        /// </summary>
+        public int InvocationWaitPollMs
+        {
+            get
+            {
+                return _InvocationWaitPollMs;
+            }
+            set
+            {
+                _InvocationWaitPollMs = Math.Clamp(value, 250, 60000);
+            }
+        }
+
+        /// <summary>
         /// Maximum delegation depth. Minimum 0, maximum 20, default 3.
         /// </summary>
         public int MaxDelegationDepth
@@ -249,6 +266,41 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Interval of the leader's pipeline sweep in milliseconds (P12.9): it advances pipeline runs whose stage run
+        /// finished without a local completion hook (for example on another replica that crashed), links claimed stage
+        /// executions, retries blocked stage starts, applies review timeouts and deadlines, and cancels stage runs left
+        /// under finished pipeline runs. Minimum 500, maximum 600000, default 5000. Refreshed from the cluster setting
+        /// Runtime.PipelineSweepIntervalMs.
+        /// </summary>
+        public int PipelineSweepIntervalMs
+        {
+            get
+            {
+                return _PipelineSweepIntervalMs;
+            }
+            set
+            {
+                _PipelineSweepIntervalMs = Math.Clamp(value, 500, 600000);
+            }
+        }
+
+        /// <summary>
+        /// Most stages a pipeline may have (P12.9). Minimum 1, maximum 100, default 20. Refreshed from the cluster setting
+        /// Runtime.PipelineMaxStages.
+        /// </summary>
+        public int PipelineMaxStages
+        {
+            get
+            {
+                return _PipelineMaxStages;
+            }
+            set
+            {
+                _PipelineMaxStages = Math.Clamp(value, 1, 100);
+            }
+        }
+
+        /// <summary>
         /// Interval at which this replica heartbeats its control node row, in milliseconds. Minimum 1000, maximum 60000,
         /// default 5000. Refreshed from the cluster setting ControlPlane.HeartbeatIntervalMs.
         /// </summary>
@@ -342,6 +394,9 @@ namespace Garrison.Server.Runtime
         private int _HeartbeatIntervalMs = 5000;
         private int _NodeHeartbeatTimeoutMs = 20000;
         private int _EventPollMs = 250;
+        private int _InvocationWaitPollMs = 5000;
+        private int _PipelineSweepIntervalMs = 5000;
+        private int _PipelineMaxStages = 20;
         private int _MaxDelegationDepth = 3;
         private int _DeadlineGraceSeconds = 120;
         private int _MaintenanceIntervalMs = 2000;

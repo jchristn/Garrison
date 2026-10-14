@@ -63,6 +63,7 @@ function TextFilter({ filter, value, onChange, tipText, t }) {
  * sortable headers, row actions (View, Edit, Duplicate, Delete, View JSON, extras), bulk delete, purpose-built
  * create/edit/view modal from field descriptors, custom confirmations, and loading/empty/error states.
  * Filters are selects (options may be a function of the lookups), date pickers, or free text (type 'text');
+ * `toDuplicate(row)` replaces the generic Duplicate stripping for records whose children keep references (pipelines);
  * `search: false` hides the name search for lists the server cannot search.
  */
 export default function ResourceView({ config }) {
@@ -264,7 +265,7 @@ export default function ResourceView({ config }) {
               label: t('common.actions.duplicate'),
               tip: t('tips.actions.duplicate'),
               hidden: !canManage || config.canDuplicate === false || !config.api.create,
-              onClick: () => open('create', stripForDuplicate(config.toForm ? config.toForm(r) : r, config.duplicateStrip || []))
+              onClick: () => open('create', config.toDuplicate ? config.toDuplicate(r) : stripForDuplicate(config.toForm ? config.toForm(r) : r, config.duplicateStrip || []))
             },
             ...((config.rowActions && config.rowActions(r, { ...ctx, reload: () => load(page.pageNumber), setExtraModal, setJsonValue })) || []),
             { label: t('common.actions.viewJson'), tip: t('tips.actions.viewJson'), onClick: () => setJsonValue(r) },
@@ -283,7 +284,7 @@ export default function ResourceView({ config }) {
   const missing = isMissingEndpoint(error);
   const noData = !loading && !error && items.length === 0 && !debouncedSearch && Object.values(filters).every((v) => !v);
 
-  const filterTip = (f) => f.tip || t(`tips.filters.${f.name}`);
+  const filterTip = (f) => (typeof f.tip === 'function' ? f.tip(t) : f.tip) || t(`tips.filters.${f.name}`);
   // Options may depend on the lookups (for example agent IDs with their names).
   const filterOptions = (f) => (typeof f.options === 'function' ? f.options(lookups, filters) : f.options || []);
   const defaults = config.defaultFilters || {};

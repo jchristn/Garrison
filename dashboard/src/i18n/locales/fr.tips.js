@@ -1676,3 +1676,226 @@ tips.views.settings.groups.Leases = "Coordination facultative : configurez les r
 tips.views.settings.fields.Leases = {"Provider": "Coordination facultative : configurez les répliques de façon identique puis redémarrez. Database est la valeur par défaut.", "ClutchEndpoint": "Fournissez la clé Clutch par un secret ou une variable d’environnement ; aucune identité dans le point de connexion.", "ClutchAccessKey": "Fournissez la clé Clutch par un secret ou une variable d’environnement ; aucune identité dans le point de connexion.", "KeyPrefix": "Coordination facultative : configurez les répliques de façon identique puis redémarrez. Database est la valeur par défaut.", "RequestTimeoutMs": "Coordination facultative : configurez les répliques de façon identique puis redémarrez. Database est la valeur par défaut.", "SweepIntervalMs": "Coordination facultative : configurez les répliques de façon identique puis redémarrez. Database est la valeur par défaut.", "MaxLeaseMs": "Coordination facultative : configurez les répliques de façon identique puis redémarrez. Database est la valeur par défaut.", "MaxHoldMs": "Coordination facultative : configurez les répliques de façon identique puis redémarrez. Database est la valeur par défaut."};
 
 tips.enums.harnessType.ProviderApi = "Boucle API facultative via PolyPrompt. Point de connexion et modèle requis ; les déploiements CLI restent disponibles.";
+
+// Pipelines (P12.9).
+tips.nav.hubs.approvals = "Tout ce qui attend une personne : les appels d'outil demandés par les agents et les étapes de pipeline qui exigent une revue, avec l'historique de chaque décision.";
+tips.nav.approvalsBadgeCombined = "En attente d'une personne : {{approvals}} approbations d'appel d'outil et {{reviews}} revues d'étape de pipeline. Ouvrez Approbations pour décider.";
+Object.assign(tips.nav.tabs, {
+  approvals: "Appels d'outil demandés par les agents qui attendent qu'une personne les autorise ou les refuse, et chaque décision passée par règle, valeur par défaut, personne ou délai d'expiration.",
+  pipelineReviews: "Étapes de pipeline terminées qui attendent une personne : approuvez-les, demandez des modifications (l'étape s'exécute à nouveau avec votre retour) ou rejetez-les.",
+  pipelines: "Chaînes d'agents : chaque étape exécute un agent, transmet sa sortie à l'étape suivante via un modèle de prompt et peut attendre une revue.",
+  pipelineRuns: "Chaque exécution d'un pipeline avec son état et son résultat. Ouvrez-en une pour voir la chronologie des étapes, ses exécutions d'étape et ses revues."
+});
+tips.filters.pipelineId = "Afficher uniquement les enregistrements d'un pipeline. Choisissez Tous pour retirer le filtre.";
+tips.filters.pipelineRunId = "Afficher uniquement les revues d'une exécution de pipeline. Collez un ID tel que plr_... ; la liste se met à jour quand vous arrêtez de taper.";
+Object.assign(tips.enums, {
+  pipelineRunStatus: {
+    Running: "Une étape est en cours, en démarrage ou sur le point de démarrer.",
+    AwaitingReview: "Une étape est terminée et attend qu'une personne l'approuve, demande des modifications ou la rejette.",
+    Cancelling: "L'annulation a été demandée ; l'exécution d'étape en cours est en train d'être arrêtée.",
+    Succeeded: "Toutes les étapes sont terminées et chaque point de revue a été approuvé.",
+    Failed: "Une étape a échoué après ses tentatives, n'a pas pu démarrer, ou un relecteur l'a rejetée. Relancer reprend à cette étape.",
+    Cancelled: "Quelqu'un a annulé l'exécution de pipeline. Relancer reprend à l'étape où elle s'est arrêtée.",
+    TimedOut: "Le pipeline a dépassé sa durée maximale, temps d'attente des revues compris."
+  },
+  pipelineRunOutcome: {
+    None: "L'exécution de pipeline n'est pas encore terminée.",
+    Succeeded: "Toutes les étapes ont réussi et chaque revue a été approuvée.",
+    StageFailed: "Une étape a échoué à chaque tentative et ne continue pas en cas d'échec.",
+    StageStartFailed: "Une étape n'a pas pu démarrer, par exemple parce que son agent ou son déploiement n'existe plus ou que son prompt n'a pas pu être compilé.",
+    ReviewRejected: "Un relecteur a rejeté une étape, ce qui met fin à l'exécution de pipeline.",
+    ReviewExpired: "Une revue a expiré et son action d'expiration était Rejeter.",
+    Cancelled: "Quelqu'un a annulé l'exécution de pipeline ou l'une de ses exécutions d'étape.",
+    TimedOut: "Le pipeline a dépassé sa durée maximale.",
+    InternalError: "Le serveur a rencontré une erreur inattendue en faisant avancer le pipeline. Consultez les journaux du serveur."
+  },
+  pipelineStageStatus: {
+    Pending: "L'étape n'a pas démarré ; les étapes précédentes sont encore en cours.",
+    Running: "L'exécution d'étape est en file d'attente ou en cours. Une tentative échouée lance une nouvelle exécution jusqu'à épuisement des tentatives.",
+    AwaitingReview: "L'étape est terminée et attend qu'une personne relise sa sortie.",
+    Succeeded: "L'étape est terminée et, si elle exige une revue, a été approuvée.",
+    Failed: "L'étape a échoué à chaque tentative, n'a pas pu démarrer ou a été rejetée.",
+    Cancelled: "L'étape s'est arrêtée parce que l'exécution de pipeline a été annulée ou a expiré."
+  },
+  pipelineReviewStatus: {
+    Pending: "Attend qu'une personne approuve, demande des modifications ou rejette.",
+    Approved: "Approuvée : le pipeline est passé à l'étape suivante, avec les notes éventuelles.",
+    ChangesRequested: "Modifications demandées : l'étape s'est exécutée à nouveau avec le retour.",
+    Rejected: "Rejetée : l'exécution de pipeline a échoué à cette étape.",
+    Expired: "Personne n'a décidé à temps : l'action d'expiration de l'étape a donc tranché.",
+    Cancelled: "L'exécution de pipeline s'est arrêtée avant que quelqu'un ne décide."
+  },
+  pipelineReviewDecision: {
+    Approve: "Accepter la sortie de l'étape et passer à l'étape suivante. Les notes facultatives sont transmises à l'étape suivante.",
+    RequestChanges: "Exécuter à nouveau la même étape avec votre retour. Limité par le nombre maximal de révisions de l'étape.",
+    Reject: "Arrêter l'exécution de pipeline ici. Elle échoue avec le résultat Revue rejetée."
+  },
+  pipelineReviewSource: {
+    User: "Une personne a décidé la revue.",
+    Timeout: "La revue a expiré et l'action d'expiration de l'étape l'a décidée.",
+    Cancelled: "L'exécution de pipeline a été annulée ou a expiré pendant que la revue était en attente."
+  }
+});
+Object.assign(tips.enums.auditEventType, {
+  PipelineReviewDecided: "Une personne ou un délai d'expiration a approuvé, rejeté ou demandé des modifications pour une revue d'étape de pipeline.",
+  PipelineRunCancelled: "Quelqu'un a annulé une exécution de pipeline, sa revue en attente et son exécution d'étape en cours."
+});
+Object.assign(tips.resources.runs, {
+  pipelineRunId: "L'exécution de pipeline dont cette exécution est une étape, avec la position de l'étape et le numéro d'exécution. Vide pour les exécutions hors pipeline.",
+  pipelineStage: "Position de l'étape dans le pipeline et numéro d'exécution de cette étape (les relances et les révisions ajoutent des exécutions)."
+});
+tips.resources.pipelines = {
+  add: "Créer un pipeline : une liste ordonnée d'étapes, chacune exécutant un agent et transmettant sa sortie à la suivante.",
+  name: "Nom de pipeline unique dans ce locataire, utilisé par l'API, les outils MCP, les SDK et les manifestes. Lettres minuscules, chiffres et tirets.",
+  stages: "Les étapes dans l'ordre d'exécution. Chaque étape exécute un agent ; sa sortie est transmise à l'étape suivante via un modèle de prompt.",
+  reviewGates: "Nombre d'étapes qui attendent qu'une personne relise leur sortie avant que le pipeline continue.",
+  maxDurationSeconds: "Durée maximale de toute l'exécution du pipeline, en secondes, attente des revues comprise. 0 signifie aucune limite ; au-delà, l'exécution expire.",
+  version: "Augmente à chaque modification enregistrée. Les exécutions de pipeline enregistrent la version de départ et gardent ses étapes.",
+  stageHeading: "Une étape du pipeline, exécutée dans l'ordre affiché. Utilisez les flèches pour la déplacer et la corbeille pour la supprimer.",
+  moveUp: "Déplacer cette étape d'un rang plus tôt. Les étapes s'exécutent dans l'ordre affiché.",
+  moveDown: "Déplacer cette étape d'un rang plus tard. Les étapes s'exécutent dans l'ordre affiché.",
+  removeStage: "Retirer cette étape du pipeline. Un pipeline doit comporter au moins une étape.",
+  addStage: "Ajouter une étape à la fin du pipeline. Elle reçoit la sortie de l'étape précédente.",
+  stagesItems: {
+    name: "Nom de cette étape, unique dans le pipeline. Affiché dans la chronologie, les revues et les prompts de transmission.",
+    agentId: "L'agent exécuté par cette étape. Démarrer le pipeline exige l'autorisation d'exécuter chaque agent d'étape.",
+    deploymentId: "Un déploiement fixe de l'agent de l'étape. Vide : choisit l'un des déploiements actifs de l'agent selon leur poids, comme une invocation ordinaire.",
+    handoffTemplateId: "Modèle de prompt de tâche qui enveloppe la tâche de cette étape avec les sorties précédentes, les notes de revue et les retours de révision. Vide : utilise la liaison PipelineStage du déploiement ou le modèle intégré.",
+    handoffTemplateVersion: "Utiliser cette version du modèle de transmission même après ses modifications. Vide : utilise toujours la version actuelle.",
+    outputCharLimit: "Nombre maximal de caractères de la sortie de chaque étape précédente transmis à cette étape. Les sorties plus longues sont coupées et marquées comme tronquées.",
+    maxAttempts: "Combien de fois l'étape s'exécute quand son exécution échoue ou expire, avant que l'étape soit considérée comme échouée.",
+    continueOnFailure: "Quand l'étape échoue à chaque tentative, passer quand même à l'étape suivante ; celle-ci voit l'échec dans la transmission.",
+    requiresReview: "Une fois l'étape terminée, attendre qu'une personne l'approuve, demande des modifications ou la rejette dans Approbations > Revues d'étape.",
+    reviewTimeoutSeconds: "Durée d'attente de la revue avant que l'action d'expiration ne la décide. 0 attend qu'une personne décide.",
+    reviewTimeoutAction: "Ce qui se passe à l'expiration de la revue : approuver et continuer, ou rejeter et faire échouer l'exécution de pipeline.",
+    maxRevisions: "Combien de fois un relecteur peut demander des modifications pour cette étape. Ensuite, seuls Approuver et Rejeter restent possibles.",
+    description: "Note libre sur le rôle de cette étape, destinée aux personnes. Elle n'est pas envoyée à l'agent.",
+    parameters: "Remplacements de paramètres d'exécution pour les exécutions de cette étape, comme le modèle ou le format. Autorisés uniquement avec un déploiement qui permet de les remplacer."
+  },
+  actions: {
+    start: "Démarrer ce pipeline avec un texte d'entrée et suivre ses étapes sur la page de l'exécution de pipeline.",
+    preview: "Générer chaque prompt d'étape à partir d'une entrée et de sorties d'étape d'exemple, sans lancer aucune exécution.",
+    runs: "Afficher les exécutions de ce pipeline dans l'onglet Exécutions de pipeline."
+  }
+};
+tips.resources.pipelineRuns = {
+  id: "Identifiant de l'exécution de pipeline (plr_...). Utilisez-le avec l'API, les outils MCP et les SDK.",
+  pipelineName: "Le pipeline exécuté. Les exécutions de pipeline gardent les étapes de la version avec laquelle elles ont démarré.",
+  pipelineVersion: "La version du pipeline au démarrage de cette exécution. Les modifications ultérieures du pipeline ne la changent pas.",
+  status: "Où en est l'exécution de pipeline : en cours, en attente de revue, en cours d'annulation ou terminée.",
+  outcome: "Pourquoi l'exécution de pipeline s'est terminée : réussite, échec ou démarrage impossible d'une étape, revue rejetée ou expirée, annulation ou dépassement de délai.",
+  progress: "L'étape où en est l'exécution de pipeline, sur l'ensemble de ses étapes.",
+  callerName: "L'utilisateur ou la clé d'accès qui a démarré l'exécution de pipeline.",
+  errorMessage: "Ce qui s'est mal passé, quand l'exécution de pipeline a échoué ou expiré.",
+  priority: "Priorité de file d'attente donnée à chaque exécution d'étape. Les valeurs plus élevées sont planifiées en premier.",
+  deadlineUtc: "Moment où l'exécution de pipeline expire, d'après la durée maximale du pipeline. Vide en l'absence de limite.",
+  completedUtc: "Moment où l'exécution de pipeline s'est terminée.",
+  createdUtc: "Moment où l'exécution de pipeline a démarré. Survolez la valeur pour l'heure exacte.",
+  actions: {
+    cancel: "Annuler l'exécution de pipeline : son exécution d'étape en cours est annulée et une revue en attente est fermée.",
+    retry: "Reprendre une exécution de pipeline échouée, expirée ou annulée à l'étape où elle s'est arrêtée, avec une nouvelle exécution de cette étape.",
+    stageRuns: "Afficher les exécutions de chaque étape de cette exécution de pipeline dans l'onglet Exécutions.",
+    finalRun: "Ouvrir l'exécution de la dernière étape, dont le résultat est celui du pipeline."
+  }
+};
+tips.resources.pipelineReviews = {
+  createdUtc: "Moment où l'étape s'est terminée et où la revue a été demandée. Survolez la valeur pour l'heure exacte.",
+  pipelineName: "Le pipeline dont l'étape attend la revue.",
+  stageName: "L'étape à relire, avec sa position et l'exécution de l'étape qui a produit la sortie.",
+  positionExecution: "Position de l'étape dans le pipeline, et l'exécution de l'étape couverte par cette revue. Les révisions ajoutent des exécutions.",
+  status: "Les revues en attente attendent une personne ; les autres indiquent comment la revue s'est terminée.",
+  decision: "Approuver, Demander des modifications ou Rejeter, une fois la revue décidée.",
+  decisionSource: "Qui a décidé : une personne, le délai de revue de l'étape ou l'arrêt de l'exécution de pipeline.",
+  comment: "Notes transmises à l'étape suivante (approbation), retour avec lequel l'étape a été réexécutée (modifications demandées) ou motif (rejet).",
+  decidedBy: "La personne qui a décidé la revue.",
+  expiresUtc: "Moment où la revue expire et où l'action d'expiration de l'étape la décide. Vide si elle attend qu'une personne décide.",
+  pipelineRunId: "L'exécution de pipeline à laquelle appartient cette revue. Cliquez sur une ligne pour ouvrir la chronologie de ses étapes.",
+  runId: "L'exécution d'étape dont la sortie est en revue. Ouvrez-la pour lire le résultat avant de décider.",
+  decidedUtc: "Moment où la revue a été décidée.",
+  id: "Identifiant de la revue (prv_...). Utilisez-le avec l'API, les outils MCP et les SDK pour décider la revue.",
+  filters: { decisionSource: "Afficher uniquement les revues décidées d'une certaine façon : par une personne, par le délai de revue ou par l'arrêt de l'exécution de pipeline." },
+  actions: {
+    approve: "Approuver la sortie de l'étape et laisser le pipeline continuer, avec des notes facultatives pour l'étape suivante.",
+    requestChanges: "Exécuter à nouveau l'étape avec votre retour. Chaque demande consomme l'une des révisions de l'étape.",
+    reject: "Rejeter la sortie de l'étape. L'exécution de pipeline échoue avec le résultat Revue rejetée.",
+    openStageRun: "Ouvrir l'exécution d'étape en revue pour lire sa transcription et son résultat."
+  }
+};
+tips.pipelineReviews = {
+  revisionsLeft: "Combien de fois encore des modifications peuvent être demandées pour cette étape avant qu'il ne reste que Approuver et Rejeter.",
+  decide: {
+    decision: "Choisissez ce qu'il advient de la sortie de l'étape. L'exécution de pipeline continue dès que vous validez.",
+    Approve: "Accepter la sortie de l'étape ; le pipeline passe à l'étape suivante, ou réussit après la dernière.",
+    RequestChanges: "Renvoyer l'étape avec un retour. Elle s'exécute à nouveau et revient en revue.",
+    Reject: "Refuser la sortie de l'étape. L'exécution de pipeline s'arrête et échoue.",
+    commentApprove: "Notes facultatives que l'étape suivante reçoit avec la sortie de cette étape.",
+    commentRequestChanges: "Retour obligatoire. L'étape s'exécute à nouveau avec ce retour : indiquez ce qu'il faut changer.",
+    commentReject: "Motif facultatif, enregistré avec la décision et dans le journal d'audit.",
+    submitApprove: "Approuver l'étape maintenant. La décision est définitive et ne peut plus être modifiée.",
+    submitRequestChanges: "Envoyer le retour maintenant. L'étape s'exécute à nouveau ; sa prochaine sortie revient en revue.",
+    submitReject: "Rejeter l'étape maintenant. L'exécution de pipeline échoue ; c'est irréversible, mais elle peut être relancée."
+  }
+};
+tips.pipelineStart = {
+  input: "La tâche du pipeline. La première étape y travaille, et chaque étape suivante la voit comme tâche d'origine à côté des sorties précédentes.",
+  submit: "Démarrer une exécution de pipeline avec cette entrée et ouvrir la chronologie de ses étapes."
+};
+tips.pipelinePreview = {
+  input: "Entrée d'appelant d'exemple utilisée pour générer chaque prompt d'étape. Rien n'est exécuté.",
+  sampleOutput: "Sortie fictive de l'étape {{stage}}, transmise à l'étape suivante dans l'aperçu.",
+  render: "Générer chaque prompt d'étape avec ces exemples, tel que les exécutions d'étape le recevraient. Les secrets sont masqués.",
+  stage: "Le prompt que cette étape recevrait, généré depuis son modèle de transmission avec les exemples ci-dessus.",
+  rendered: "Le prompt de l'étape a été généré sans erreur.",
+  failed: "Le prompt de l'étape n'a pas pu être généré ; le message indique pourquoi, par exemple un agent ou un déploiement manquant."
+};
+Object.assign(tips.views.runDetail, {
+  pipelineRun: "Cette exécution est une étape d'une exécution de pipeline. Le texte après l'ID indique la position de l'étape et le numéro d'exécution.",
+  openPipelineRun: "Ouvrir l'exécution de pipeline à laquelle appartient cette exécution, avec la chronologie des étapes et les revues."
+});
+tips.views.pipelineRunDetail = {
+  viewJson: "Afficher l'exécution de pipeline complète avec ses étapes, ses exécutions d'étape et ses revues au format JSON.",
+  delete: "Supprimer cette exécution de pipeline terminée et ses revues. Ses exécutions d'étape restent sur la page Exécutions.",
+  live: "Les mises à jour arrivent par la connexion en direct dès qu'une étape ou une revue change.",
+  polling: "La connexion en direct n'est pas disponible : la page relit l'exécution de pipeline toutes les quelques secondes.",
+  pipeline: "Le pipeline exécuté, avec la version de départ. Cliquez pour le retrouver dans Agents > Pipelines.",
+  openPipeline: "Ouvrir Agents > Pipelines filtré sur ce pipeline.",
+  openRun: "Ouvrir cette exécution d'étape avec sa transcription, son résultat et sa télémétrie.",
+  finalRun: "L'exécution de la dernière étape. Son résultat est celui de l'exécution de pipeline.",
+  started: "Moment où la première exécution d'étape a été créée.",
+  input: "L'entrée avec laquelle l'exécution de pipeline a démarré. Chaque étape la voit comme tâche d'origine.",
+  reviewTitle: "Une étape est terminée et attend votre décision. Lisez sa sortie dans l'exécution d'étape, puis décidez.",
+  stages: "Chaque étape dans l'ordre d'exécution avec son état, ses exécutions, tentatives, révisions, exécutions d'étape et revues.",
+  current: "L'étape où en est actuellement l'exécution de pipeline.",
+  reviewGate: "Cette étape attend qu'une personne relise sa sortie avant que le pipeline continue.",
+  agent: "L'agent exécuté par cette étape, tel qu'enregistré au démarrage de l'exécution de pipeline.",
+  counts: "Les exécutions comptent chaque passage de l'étape ; les tentatives comptent les passages depuis la dernière revue ; les révisions comptent les modifications demandées.",
+  reviewItem: "Une revue d'une exécution de cette étape et la façon dont elle a été décidée.",
+  columns: {
+    execution: "Le numéro d'exécution de l'étape. Les relances après échec et les révisions après revue ajoutent des exécutions.",
+    run: "L'exécution d'étape. Cliquez pour ouvrir sa transcription et son résultat.",
+    status: "État actuel de l'exécution d'étape (en file, en cours, terminée).",
+    outcome: "Pourquoi l'exécution d'étape s'est terminée.",
+    error: "Message d'erreur de l'exécution d'étape, en cas d'échec.",
+    created: "Moment où l'exécution d'étape a été créée."
+  }
+};
+tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = "Fréquence à laquelle le leader fait avancer les exécutions de pipeline qui ont manqué un signal de fin, relance les démarrages d'étape bloqués et applique les délais de revue et les durées maximales des pipelines, en millisecondes.";
+tips.views.settings.fields.Runtime.PipelineMaxStages = "Nombre maximal d'étapes d'une définition de pipeline. L'enregistrement d'un pipeline comportant plus d'étapes est refusé.";
+Object.assign(explainers, {
+  pipelines: {
+    title: "Pipelines et étapes",
+    p1: "Un pipeline enchaîne des agents. Chaque étape exécute un agent, éventuellement sur un déploiement fixe, et transmet sa sortie (texte, sortie structurée et références d'artefacts) à l'étape suivante via un modèle de prompt.",
+    p2: "Une étape peut relancer les exécutions échouées, continuer malgré un échec et attendre une revue. Les revues apparaissent dans Approbations > Revues d'étape ; demander des modifications exécute à nouveau l'étape avec le retour.",
+    p3: "Modifier un pipeline crée une nouvelle version. Les exécutions de pipeline déjà démarrées gardent leurs étapes d'origine."
+  },
+  pipelineRuns: {
+    title: "Exécutions de pipeline",
+    p1: "Une exécution de pipeline exécute dans l'ordre les étapes d'une version de pipeline. Chaque exécution d'étape est une exécution ordinaire, accessible depuis la chronologie des étapes.",
+    p2: "Annuler arrête l'exécution d'étape en cours et ferme une revue en attente. Relancer reprend une exécution de pipeline échouée, expirée ou annulée à l'étape où elle s'est arrêtée."
+  },
+  pipelineReviews: {
+    title: "Revues d'étape",
+    p1: "Une étape qui exige une revue attend ici une fois terminée. Approuver passe à l'étape suivante, Demander des modifications exécute à nouveau l'étape avec votre retour, et Rejeter fait échouer l'exécution de pipeline.",
+    p2: "Les revues sans délai attendent qu'une personne décide. Avec un délai, l'action d'expiration de l'étape décide quand le temps est écoulé."
+  }
+});

@@ -568,6 +568,68 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("pipelines, pipeline runs, and reviews", async () =>
+                {
+                    Agent editor = await client.Agents.CreateAsync(new Agent { Name = "sdk-cs-editor-" + suffix, Description = "C# SDK harness pipeline stage." }, token).ConfigureAwait(false);
+                    Deployment editorDeployment = await client.Deployments.CreateAsync(new Deployment { Name = "sdk-cs-editor-" + suffix + "-fake", AgentId = editor.Id, HarnessProfileId = fakeProfileId ?? throw new InvalidOperationException("no fake profile") }, token).ConfigureAwait(false);
+                    Pipeline? pipeline = null;
+                    try
+                    {
+                        Pipeline definition = new Pipeline();
+                        definition.Name = "sdk-cs-pipeline-" + suffix;
+                        definition.Description = "C# SDK harness pipeline.";
+                        definition.Stages.Add(new PipelineStage { Name = "write", AgentId = agentId!, RequiresReview = true, MaxRevisions = 1 });
+                        definition.Stages.Add(new PipelineStage { Name = "edit", AgentId = editor.Id, Parameters = new List<PipelineStageParameter>() });
+                        pipeline = await client.Pipelines.CreateAsync(definition, token).ConfigureAwait(false);
+                        Require(pipeline.Id.StartsWith("ppl_", StringComparison.Ordinal) && pipeline.Version == 1 && pipeline.Stages.Count == 2 && pipeline.Stages[0].RequiresReview, "pipeline create");
+                        Pipeline byName = await client.Pipelines.GetAsync(pipeline.Name, token).ConfigureAwait(false);
+                        Require(byName.Id == pipeline.Id && byName.Stages[1].Position == 2, "pipeline get by name");
+                        byName.Description = "C# SDK harness pipeline, updated.";
+                        Pipeline updated = await client.Pipelines.UpdateAsync(pipeline.Id, byName, token).ConfigureAwait(false);
+                        Require(updated.Version == 2 && updated.Description == byName.Description, "pipeline update version " + updated.Version);
+                        Require((await client.Pipelines.ListAsync(new EnumerationQuery { Search = pipeline.Name }, token).ConfigureAwait(false)).Objects.Any(p => p.Id == pipeline.Id), "pipeline list");
+                        PipelinePreviewResponse preview = await client.Pipelines.PreviewAsync(pipeline.Id, new PipelinePreviewRequest { Input = "preview input", SampleOutputs = new List<string> { "sample stage one output" } }, token).ConfigureAwait(false);
+                        Require(preview.Stages.Count == 2 && preview.Stages.All(s => s.Success && !String.IsNullOrEmpty(s.Prompt)), "pipeline preview");
+
+                        string key = "sdk-cs-key-" + suffix;
+                        PipelineRun started = await client.Pipelines.StartAsync(pipeline.Id, new PipelineStartRequest { Input = "Write a haiku", Wait = true, WaitSeconds = 30 }, key, token).ConfigureAwait(false);
+                        Require(started.Status == PipelineRunStatusEnum.AwaitingReview && started.Stages.Count == 2, "pipeline start waits for review, got " + started.Status);
+                        PipelineRun repeated = await client.Pipelines.StartAsync(pipeline.Name, new PipelineStartRequest { Input = "Write a haiku" }, key, token).ConfigureAwait(false);
+                        Require(repeated.Id == started.Id, "idempotent start");
+
+                        EnumerationResult<PipelineReview> pending = await client.PipelineReviews.ListAsync(new PipelineReviewFilter { Status = PipelineReviewStatusEnum.Pending, PipelineRunId = started.Id }, token).ConfigureAwait(false);
+                        Require(pending.Objects.Count == 1, "one pending review, got " + pending.Objects.Count);
+                        PipelineReview review = await client.PipelineReviews.GetAsync(pending.Objects[0].Id, token).ConfigureAwait(false);
+                        Require(review.Position == 1 && review.Status == PipelineReviewStatusEnum.Pending, "review get");
+                        PipelineReview approved = await client.PipelineReviews.DecideAsync(review.Id, new PipelineReviewDecideRequest { Decision = PipelineReviewDecisionEnum.Approve, Comment = "Looks good" }, token).ConfigureAwait(false);
+                        Require(approved.Status == PipelineReviewStatusEnum.Approved && approved.DecisionSource == PipelineReviewSourceEnum.User, "review approve");
+                        PipelineRun finished = await client.PipelineRuns.GetAsync(started.Id, 30, token).ConfigureAwait(false);
+                        Require(finished.Status == PipelineRunStatusEnum.Succeeded && finished.Outcome == PipelineRunOutcomeEnum.Succeeded && finished.Runs.Count == 2, "pipeline run succeeded, got " + finished.Status);
+                        Require((await client.PipelineRuns.ListAsync(new PipelineRunFilter { PipelineId = pipeline.Id }, token).ConfigureAwait(false)).Objects.Any(r => r.Id == started.Id), "pipeline runs by pipeline");
+
+                        PipelineRun second = await client.Pipelines.StartAsync(pipeline.Id, new PipelineStartRequest { Input = "Write another" }, null, token).ConfigureAwait(false);
+                        PipelineRun cancelling = await client.PipelineRuns.CancelAsync(second.Id, token).ConfigureAwait(false);
+                        Require(cancelling.Status == PipelineRunStatusEnum.Cancelling || cancelling.Status == PipelineRunStatusEnum.Cancelled, "cancel " + cancelling.Status);
+                        PipelineRun cancelled = await client.PipelineRuns.GetAsync(second.Id, 30, token).ConfigureAwait(false);
+                        Require(cancelled.Status == PipelineRunStatusEnum.Cancelled && cancelled.Outcome == PipelineRunOutcomeEnum.Cancelled, "cancelled " + cancelled.Status);
+                        PipelineRun resumed = await client.PipelineRuns.RetryAsync(second.Id, token).ConfigureAwait(false);
+                        Require(resumed.Status == PipelineRunStatusEnum.Running || resumed.Status == PipelineRunStatusEnum.AwaitingReview, "retry " + resumed.Status);
+                        await client.PipelineRuns.CancelAsync(second.Id, token).ConfigureAwait(false);
+                        Require((await client.PipelineRuns.GetAsync(second.Id, 30, token).ConfigureAwait(false)).Status == PipelineRunStatusEnum.Cancelled, "cancelled after retry");
+                        await client.PipelineRuns.DeleteAsync(second.Id, token).ConfigureAwait(false);
+                        int missing = 0;
+                        try { await client.PipelineRuns.GetAsync(second.Id, null, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) when (e.StatusCode == 404) { missing = e.StatusCode; }
+                        Require(missing == 404, "deleted pipeline run");
+                    }
+                    finally
+                    {
+                        if (pipeline != null) await client.Pipelines.DeleteAsync(pipeline.Id, token).ConfigureAwait(false);
+                        await client.Deployments.DeleteAsync(editorDeployment.Id, token).ConfigureAwait(false);
+                        await client.Agents.DeleteAsync(editor.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("stdio MCP worker diagnostic", async () =>
                 {
                     Node node = (await client.Nodes.ListAsync(token: token).ConfigureAwait(false)).Objects.First(n => n.SupportsMcpTests && n.Status == NodeStatusEnum.Ready);

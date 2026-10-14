@@ -42,6 +42,9 @@ const COLLECTIONS = {
   runs: 'runs',
   conversations: 'conversations',
   approvals: 'approvals',
+  pipelines: 'pipelines',
+  pipelineRuns: 'pipeline-runs',
+  pipelineReviews: 'pipeline-reviews',
   audit: 'audit'
 };
 

@@ -376,6 +376,76 @@ def t_stdio_mcp():
         client.mcp_servers.delete(server["id"])
 
 
+def _wait_pipeline(id, done, what, seconds=90):
+    deadline = time.monotonic() + seconds
+    while True:
+        run = client.pipeline_runs.get(id, wait_seconds=10)
+        if done(run):
+            return run
+        require(time.monotonic() < deadline, f"pipeline run {id} never reached {what} (status {run['status']})")
+        time.sleep(0.2)
+
+
+def t_pipelines():
+    second = client.agents.create({"name": f"sdk-py-{SUFFIX}-editor", "description": "Python SDK harness pipeline stage."})
+    second_deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-editor", "agentId": second["id"], "harnessProfileId": state["fake"]})
+    pipeline = None
+    try:
+        name = f"sdk-py-pipeline-{SUFFIX}"
+        pipeline = client.pipelines.create({"name": name, "description": "Python SDK harness pipeline.", "stages": [
+            {"name": "write", "agentId": state["agent"], "requiresReview": True, "maxRevisions": 1},
+            {"name": "edit", "agentId": second["id"]}]})
+        require(pipeline["id"].startswith("ppl_") and pipeline["version"] == 1 and len(pipeline["stages"]) == 2, "pipeline create")
+        by_name = client.pipelines.get(name)
+        require(by_name["id"] == pipeline["id"] and by_name["stages"][0]["requiresReview"], "pipeline get by name")
+        by_name["description"] = "Updated by the Python SDK harness."
+        updated = client.pipelines.update(pipeline["id"], by_name)
+        require(updated["version"] == 2 and updated["description"] == by_name["description"], "pipeline update")
+        require(any(p["id"] == pipeline["id"] for p in client.pipelines.list(search=name)["objects"]), "pipeline list")
+        preview = client.pipelines.preview(pipeline["id"], "Sample input", ["Sample stage one output"])
+        require(len(preview["stages"]) == 2 and all(s["success"] for s in preview["stages"]), f"pipeline preview {preview}")
+
+        key = f"sdk-py-pipeline-key-{SUFFIX}"
+        run = client.pipelines.start(pipeline["id"], "Write a haiku", wait=True, wait_seconds=30, idempotency_key=key)
+        require(run["status"] == "AwaitingReview", f"start waited to {run['status']}")
+        require(client.pipelines.start(pipeline["id"], "Write a haiku", idempotency_key=key)["id"] == run["id"], "idempotent start")
+        _expect_status(409, client.pipelines.start, pipeline["id"], "Different input", idempotency_key=key)
+        reviews = client.pipeline_reviews.list(status="Pending", pipeline_run_id=run["id"])["objects"]
+        require(len(reviews) == 1 and reviews[0]["position"] == 1, "one pending review")
+        require(client.pipeline_reviews.get(reviews[0]["id"])["status"] == "Pending", "review get")
+        _expect_status(400, client.pipeline_reviews.decide, reviews[0]["id"], "RequestChanges")
+        decided = client.pipeline_reviews.decide(reviews[0]["id"], "Approve", "Looks good from Python")
+        require(decided["status"] == "Approved" and decided["decisionSource"] == "User", "review approved")
+        _expect_status(409, client.pipeline_reviews.decide, reviews[0]["id"], "Reject")
+        finished = _wait_pipeline(run["id"], lambda r: r["status"] in ("Succeeded", "Failed", "Cancelled", "TimedOut"), "a terminal status")
+        require(finished["status"] == "Succeeded" and finished["outcome"] == "Succeeded", f"pipeline finished {finished['status']} {finished.get('errorMessage')}")
+        require(len(finished["runs"]) == 2 and len(finished["reviews"]) == 1, "pipeline run detail")
+        require(any(r["id"] == run["id"] for r in client.pipeline_runs.list(pipeline_id=pipeline["id"])["objects"]), "pipeline runs by pipeline")
+        require(all(r["status"] == "Succeeded" for r in client.pipeline_runs.list(status="Succeeded", max_results=5)["objects"]), "pipeline runs by status")
+
+        other = client.pipelines.start(pipeline["id"], "Write another")
+        _expect_status(409, client.pipelines.delete, pipeline["id"])
+        client.pipeline_runs.cancel(other["id"])
+        _wait_pipeline(other["id"], lambda r: r["status"] == "Cancelled", "Cancelled")
+        resumed = client.pipeline_runs.retry(other["id"])
+        require(resumed["status"] in ("Running", "AwaitingReview"), f"retry status {resumed['status']}")
+        client.pipeline_runs.cancel(other["id"])
+        _wait_pipeline(other["id"], lambda r: r["status"] == "Cancelled", "Cancelled again")
+        require(client.pipeline_runs.delete(other["id"]) is None, "pipeline run delete")
+        _expect_status(404, client.pipeline_runs.get, other["id"])
+        require(client.pipelines.delete(pipeline["id"]) is None, "pipeline delete")
+        pipeline = None
+        _expect_status(404, client.pipelines.get, name)
+    finally:
+        if pipeline is not None:
+            try:
+                client.pipelines.delete(pipeline["id"])
+            except GarrisonError:
+                pass
+        client.deployments.delete(second_deployment["id"])
+        client.agents.delete(second["id"])
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -407,7 +477,8 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("conversation read and list", t_conversation_read), ("conversation delete", t_conversation_delete),
                  ("control nodes", t_control_nodes),
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
-                 ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp), ("cleanup", t_cleanup)]:
+                 ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
+                 ("pipelines, runs, and reviews", t_pipelines), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

@@ -154,6 +154,21 @@ namespace Garrison.Sdk
         public ApprovalsClient Approvals { get; }
 
         /// <summary>
+        /// Pipeline definitions: ordered agent stages with optional review gates. Start and preview pipelines here.
+        /// </summary>
+        public PipelinesClient Pipelines { get; }
+
+        /// <summary>
+        /// Pipeline runs: read, wait for, cancel, retry, and delete executions of a pipeline.
+        /// </summary>
+        public PipelineRunsClient PipelineRuns { get; }
+
+        /// <summary>
+        /// Pipeline stage reviews: list, read, and decide.
+        /// </summary>
+        public PipelineReviewsClient PipelineReviews { get; }
+
+        /// <summary>
         /// Analytics.
         /// </summary>
         public AnalyticsClient Analytics { get; }
@@ -229,6 +244,9 @@ namespace Garrison.Sdk
             Runs = new RunsClient(Transport);
             Conversations = new ConversationsClient(Transport);
             Approvals = new ApprovalsClient(Transport);
+            Pipelines = new PipelinesClient(Transport);
+            PipelineRuns = new PipelineRunsClient(Transport);
+            PipelineReviews = new PipelineReviewsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);
             ControlNodes = new ControlNodesClient(Transport);

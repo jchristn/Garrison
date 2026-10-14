@@ -1614,6 +1614,7 @@ const zhHant = {
           MasterKey: '祕密加密主金鑰'
         },
         RequestHistory: {
+          CaptureNodeProtocol: '記錄成功的工作節點協定請求',
           MaxResponseBodyBytes: '記錄的回應本文上限（位元組）',
           MaxRequestBodyBytes: '記錄的要求本文上限（位元組）',
           RetentionDays: '要求歷程保留天數',
@@ -1637,6 +1638,7 @@ const zhHant = {
         },
         Scheduling: {
           EventPollMs: '事件輪詢間隔（毫秒）',
+          InvocationWaitPollMs: '調用等待備用重讀間隔（毫秒）',
           NodeHeartbeatTimeoutMs: '節點活動訊號逾時（毫秒）',
           LeaseWaitMs: '租約長輪詢等待時間（毫秒）',
           LeaseDurationMs: '執行租約時長（毫秒）',
@@ -1907,3 +1909,197 @@ zhHant.views.settings.fields.Leases = {"Provider": "提供方", "ClutchEndpoint"
 
 zhHant.enums.harnessType.ProviderApi = "提供方 API";
 zhHant.enums.outputParser.ProviderApiJsonl = "提供方 API JSONL";
+
+// Pipelines (P12.9): definitions (Agents > Pipelines), pipeline runs (Runs > Pipeline runs), and stage reviews
+// (Approvals > Stage reviews).
+zhHant.nav.hubs.approvals.tip = '等候人員處理的工具呼叫與管線階段，以及每一項決定';
+Object.assign(zhHant.nav, { approvalsPending_one: '{{count}} 個項目等候人員處理', approvalsPending_other: '{{count}} 個項目等候人員處理' });
+Object.assign(zhHant.nav.items, {
+  pipelines: { label: '管線', tip: '依序排列的代理程式階段，可選擇加上審查關卡' },
+  pipelineRuns: { label: '管線執行', tip: '管線的每次執行，逐一階段呈現' },
+  pipelineReviews: { label: '階段審查', tip: '等候人員審查的管線階段' }
+});
+Object.assign(zhHant.errorCodes, {
+  RevisionLimitReached: '此階段已用完所有修訂次數，因此無法再要求變更。請改為核准或拒絕。',
+  ReviewNotPending: '此審查已由其他人或因逾時而決定，因此無法再次決定。',
+  PipelineInUse: '此管線仍有未完成的管線執行。請等候它們結束或將其取消，然後再刪除管線。',
+  PipelineRunActive: '只能刪除已結束的管線執行。請先取消此管線執行。',
+  PipelineRunFinished: '此管線執行已經結束，因此無法取消。',
+  PipelineRunNotRetryable: '只有失敗、逾時或已取消的管線執行可以重試。',
+  PipelineRunChanged: '處理請求期間此管線執行已變更。請重新載入後再試一次。',
+  PipelineInactive: '此管線未啟用。請先開啟再啟動它。',
+  PipelineEmpty: '管線至少需要一個階段。',
+  PipelineStageRun: '此執行是管線執行的一個階段，因此無法單獨重試。請改為重試管線執行。',
+  ReferencedByPipeline: '有管線階段使用此代理程式。請先從每個管線移除此代理程式，再將其刪除。'
+});
+zhHant.enums.pipelineRunStatus = { Running: '執行中', AwaitingReview: '等候審查', Cancelling: '取消中', Succeeded: '成功', Failed: '失敗', Cancelled: '已取消', TimedOut: '逾時' };
+zhHant.enums.pipelineRunOutcome = { None: '無', Succeeded: '成功', StageFailed: '階段失敗', StageStartFailed: '階段無法啟動', ReviewRejected: '審查遭拒絕', ReviewExpired: '審查已過期', Cancelled: '已取消', TimedOut: '逾時', InternalError: '內部錯誤' };
+zhHant.enums.pipelineStageStatus = { Pending: '待處理', Running: '執行中', AwaitingReview: '等候審查', Succeeded: '成功', Failed: '失敗', Cancelled: '已取消' };
+zhHant.enums.pipelineReviewStatus = { Pending: '待處理', Approved: '已核准', ChangesRequested: '已要求變更', Rejected: '已拒絕', Expired: '已過期', Cancelled: '已取消' };
+zhHant.enums.pipelineReviewDecision = { Approve: '核准', RequestChanges: '要求變更', Reject: '拒絕' };
+zhHant.enums.pipelineReviewSource = { User: '人員', Timeout: '逾時', Cancelled: '管線執行已停止' };
+Object.assign(zhHant.enums.resourceType, { Pipeline: '管線', PipelineRun: '管線執行' });
+Object.assign(zhHant.enums.auditEventType, { PipelineReviewDecided: '已決定階段審查', PipelineRunCancelled: '管線執行已取消' });
+zhHant.resources.deployments.promptRoles.PipelineStage = '管線階段（交接）';
+Object.assign(zhHant.resources.runs.columns, { pipelineRunId: '管線執行' });
+zhHant.resources.runs.pipelineStage = '第 {{position}} 階段，第 {{execution}} 次執行';
+zhHant.resources.pipelines = {
+  ...rp('管線', '依序排列的代理程式階段：每個階段執行一個代理程式並將輸出交給下一個階段，可選擇加上審查關卡。', '新增管線', '建立管線', '編輯管線', '管線詳細資料', '刪除管線', '尚無管線', '建立管線以串連代理程式：每個階段都會收到前一個階段的輸出。'),
+  columns: { name: '名稱', stages: '階段', reviewGates: '審查關卡', maxDurationSeconds: '時間限制', version: '版本', active: '啟用', description: '描述', id: 'ID', lastUpdateUtc: '更新時間', createdUtc: '建立時間' },
+  fields: {
+    name: '名稱',
+    description: '描述',
+    maxDurationSeconds: '時間限制（秒）',
+    active: '啟用',
+    stages: '階段',
+    stageName: '階段名稱',
+    agentId: '代理程式',
+    deploymentId: '部署',
+    handoffTemplateId: '交接範本',
+    handoffTemplateVersion: '固定的範本版本',
+    outputCharLimit: '交接字元上限',
+    maxAttempts: '最多嘗試次數',
+    continueOnFailure: '失敗時繼續',
+    requiresReview: '需要審查',
+    reviewTimeoutSeconds: '審查逾時（秒）',
+    reviewTimeoutAction: '審查逾時時',
+    maxRevisions: '最多修訂次數',
+    stageDescription: '階段描述',
+    parameters: '執行參數'
+  },
+  hints: {
+    maxDurationSeconds: '介於 {{min}} 到 {{max}}。0 表示沒有限制。此限制涵蓋整個管線執行，包括等候審查的時間。',
+    stages: '階段依此順序執行。每個階段會在前一個階段成功（或在「失敗時繼續」下失敗）後開始；若前一個階段需要審查，則在人員核准後開始。',
+    noDeployments: '此代理程式尚無部署。請將部署留空，或在「部署」下新增一個。',
+    handoffTemplateVersion: '留空則使用範本的目前版本。',
+    outputCharLimit: '介於 {{min}} 到 {{max}}。預設為 {{default}}。',
+    maxAttempts: '介於 {{min}} 到 {{max}}。預設為 {{default}}。',
+    reviewTimeoutSeconds: '介於 {{min}} 到 {{max}}。0 表示無限期等候。',
+    maxRevisions: '介於 {{min}} 到 {{max}}。預設為 {{default}}。',
+    parameters: '僅在指定部署時可用，且只能使用該部署允許呼叫端覆寫的參數。'
+  },
+  errors: {
+    dnsName: '請使用 1 到 64 個小寫字母、數字與連字號，且開頭與結尾須為字母或數字。',
+    range: '請輸入 {{min}} 到 {{max}} 之間的整數。',
+    noStages: '請至少新增一個階段。',
+    tooManyStages: '管線最多只能有 {{max}} 個階段。',
+    stageNameLong: '階段名稱最多 128 個字元。',
+    stageNameDuplicate: '已有另一個階段名為 {{name}}。',
+    version: '請輸入 1 以上的版本號碼，或將其留空。',
+    parametersNeedDeployment: '執行參數需要指定部署，因為系統會依該部署允許的覆寫項目進行檢查。',
+    parametersUnique: '每個參數名稱只能出現一次。',
+    stageInvalid: '此階段有錯誤。'
+  },
+  actions: { start: '啟動', preview: '預覽提示', runs: '檢視管線執行' },
+  stageHeading: '第 {{position}} 階段：{{name}}',
+  stageCount: '{{count}} 個，最多 {{max}} 個',
+  stageSummary: '{{count}} 個階段：{{chain}}',
+  addStage: '新增階段',
+  removeStage: '移除階段',
+  noStages: '尚無階段。',
+  chooseAgent: '選擇代理程式',
+  anyDeployment: '任一啟用的部署（依權重）',
+  defaultHandoff: '部署繫結或內建範本',
+  parameterName: '參數',
+  parameterValue: '值',
+  noLimit: '無限制',
+  versionNotice: '版本 {{version}}。儲存會建立新版本；已開始的管線執行會保留開始時的階段。'
+};
+zhHant.resources.pipelineRuns = {
+  ...rp('管線執行', '管線的每次執行。開啟一筆即可追蹤其階段、決定其審查，或取消並重試。', '新增管線執行', '建立管線執行', '編輯管線執行', '管線執行詳細資料', '刪除管線執行', '尚無管線執行', '從「代理程式 > 管線」啟動管線，即可在這裡看到其執行。'),
+  columns: { id: 'ID', pipelineName: '管線', status: '狀態', outcome: '結果', progress: '階段', callerName: '啟動者', errorMessage: '錯誤', priority: '優先順序', deadlineUtc: '截止時間', completedUtc: '完成時間', createdUtc: '建立時間' },
+  actions: { cancel: '取消', retry: '重試', stageRuns: '檢視階段執行', finalRun: '開啟最終執行' },
+  toasts: { cancelRequested: '已要求取消管線執行及其目前階段。', retried: '管線執行會從停止的階段繼續。' },
+  progressValue: '第 {{position}} / {{count}} 個',
+  versionShort: '（版本 {{version}}）'
+};
+zhHant.resources.pipelineReviews = {
+  ...rp('階段審查', '等候人員核准、要求變更或拒絕的管線階段。', '新增階段審查', '建立階段審查', '編輯階段審查', '階段審查詳細資料', '刪除階段審查', '尚無階段審查', '需要審查的階段完成後會顯示在這裡。'),
+  columns: { createdUtc: '要求時間', pipelineName: '管線', stageName: '階段', status: '狀態', decision: '決定', decisionSource: '決定方式', comment: '意見', decidedBy: '審查者', expiresUtc: '逾時時間', pipelineRunId: '管線執行', runId: '階段執行', decidedUtc: '決定時間', id: 'ID' },
+  filters: { pipelineRunId: '管線執行 ID', pipelineRunIdPlaceholder: '管線執行 ID（plr_...）' },
+  actions: { approve: '核准', requestChanges: '要求變更', reject: '拒絕', openStageRun: '開啟階段執行' },
+  noTimeout: '無限期等候'
+};
+zhHant.components.pipelineReviews = {
+  decideTitle: '審查 {{pipeline}} 的階段 {{stage}}',
+  decision: '決定',
+  positionExecution: '第 {{position}} 階段，第 {{execution}} 次執行',
+  revisionsLeft: '剩餘修訂次數',
+  revisionsLeftValue: '{{left}} / {{max}}',
+  noRevisionsLeft: '此階段已用完全部 {{max}} 次修訂。伺服器會拒絕「要求變更」；請改為核准或拒絕。',
+  timeoutThen: '然後{{decision}}',
+  commentApprove: '給下一個階段的備註',
+  commentApprovePlaceholder: '選填。下一個階段會連同輸出一起收到這些備註。',
+  commentRequestChanges: '需要變更的內容',
+  commentRequestChangesPlaceholder: '必填。此階段會依據這些意見重新執行。',
+  commentReject: '原因',
+  commentRejectPlaceholder: '選填。會與決定一併記錄；管線執行將會失敗。',
+  commentRequired: '請描述需要變更的內容。此階段會依據這些意見重新執行。',
+  commentTooLong: '意見最多 {{max}} 個字元。',
+  submit: { Approve: '核准階段', RequestChanges: '要求變更', Reject: '拒絕階段' },
+  toasts: {
+    Approve: '已核准 {{pipeline}} 的階段 {{stage}}。',
+    RequestChanges: '已要求變更 {{pipeline}} 的階段 {{stage}}；它會依據你的意見重新執行。',
+    Reject: '已拒絕 {{pipeline}} 的階段 {{stage}}；管線執行將會失敗。',
+    notPending: '此審查已由其他人或因逾時而決定。清單現在會顯示目前狀態。',
+    revisionLimit: '此階段已用完所有修訂次數（最多 {{max}} 次），因此無法再要求變更。請改為核准或拒絕。'
+  }
+};
+zhHant.components.pipelineStart = {
+  title: '啟動 {{name}}',
+  intro_one: '輸入會交給此管線唯一的階段。',
+  intro_other: '輸入會交給 {{count}} 個階段中的第一個；每個階段也會將其視為原始任務。',
+  input: '輸入',
+  inputPlaceholder: '要讓管線處理什麼？',
+  shortcut: '按 Ctrl+Enter 或 Cmd+Enter 即可啟動。',
+  submit: '啟動管線',
+  starting: '啟動中...',
+  started: '已啟動 {{name}}。'
+};
+zhHant.components.pipelinePreview = {
+  title: '預覽 {{name}} 的提示',
+  input: '範例輸入',
+  sampleInput: '彙整未解決的問題，並為最緊急的問題提出修正方案。',
+  sampleOutput: '{{stage}} 的範例輸出。',
+  outputOf: '第 {{position}} 階段（{{stage}}）的範例輸出',
+  render: '轉譯提示',
+  rendering: '轉譯中...',
+  stageHeading: '第 {{position}} 階段：{{stage}}（{{agent}}）',
+  deployment: '部署：{{deployment}}',
+  rendered: '已轉譯',
+  failed: '失敗'
+};
+zhHant.views.pipelineRunDetail = {
+  title: '管線執行',
+  heading: '{{pipeline}} 的管線執行',
+  notFoundTitle: '找不到管線執行',
+  notFoundBody: '它可能已被刪除，或屬於其他租用戶。',
+  live: '即時',
+  polling: '重新整理中',
+  finalRun: '最終執行',
+  started: '開始時間',
+  input: '輸入',
+  reviewTitle: '等候你的審查',
+  reviewBody: '第 {{position}} 階段（{{stage}}）已完成第 {{execution}} 次執行，正在等候審查。請在階段執行中閱讀其輸出：',
+  reviewExpires: '若在 {{time}} 前無人決定，審查會自動決定為：{{decision}}。',
+  reviewNoTimeout: '審查會一直等候到人員決定，除非管線的時間限制先結束了執行。',
+  stages: '階段',
+  stagesCount_one: '{{count}} 個階段',
+  stagesCount_other: '{{count}} 個階段',
+  noStages: '此管線執行沒有階段。',
+  current: '目前',
+  reviewGate: '審查關卡',
+  agent: '代理程式 {{agent}}',
+  counts: '執行 {{executions}} 次，嘗試 {{attempts}} / {{maxAttempts}} 次，修訂 {{revisions}} / {{maxRevisions}} 次',
+  startedAt: '開始於',
+  blocked: '等候啟動：{{reason}}。',
+  nextAttempt: '下次嘗試時間：{{time}}。',
+  reviewItem: '第 {{execution}} 次執行的審查',
+  columns: { execution: '執行次序', run: '階段執行', status: '狀態', outcome: '結果', error: '錯誤', created: '建立時間' },
+  confirmCancelTitle: '取消管線執行',
+  confirmCancel: '要取消 {{pipeline}} 的這個管線執行嗎？其目前的階段執行會被取消，待處理的審查會被關閉。你之後可以重試。',
+  confirmDelete: '要刪除 {{pipeline}} 的這個管線執行及其審查嗎？其階段執行會保留在「執行」頁面。'
+};
+Object.assign(zhHant.views.runDetail, { pipelineRun: '管線執行' });
+zhHant.views.settings.fields.Runtime.PipelineSweepIntervalMs = '管線巡檢間隔（毫秒）';
+zhHant.views.settings.fields.Runtime.PipelineMaxStages = '每個管線的最多階段數';

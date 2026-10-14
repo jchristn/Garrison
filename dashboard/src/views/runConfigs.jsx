@@ -19,6 +19,9 @@ import ApprovalDecideModal from '../components/ApprovalDecideModal';
 import { ApprovalStatusBadge, ApprovalDecisionBadge, AwaitingApprovalBadge } from '../components/ApprovalBadges';
 import { truncate } from '../i18n/formatters';
 
+// Pipeline runs and stage reviews (P12.9) live in their own module; re-exported so configuration-wide tests cover them.
+export { pipelineRunsConfig, pipelineReviewsConfig } from './pipelineConfigs';
+
 function col(id, t, key, render, extra = {}) {
   return { key, label: t(`resources.${id}.columns.${key}`), tip: resourceTip(t, id, key), render, ...extra };
 }
@@ -153,7 +156,7 @@ export const runsConfig = {
   id: 'runs',
   explainer: 'runs',
   autoRefresh: 5,
-  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId'],
+  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId', 'pipelineRunId'],
   api: {
     list: (c, tenant, p) => c.listRuns(tenant, p),
     create: null,
@@ -208,6 +211,15 @@ export const runsConfig = {
         '-'
       ),
     { cellClass: 'cell-id', defaultHidden: true, csv: (r) => r.conversationId || '' }),
+    col('runs', t, 'pipelineRunId', (r) =>
+      r.pipelineRunId ? (
+        <>
+          <CopyableId value={r.pipelineRunId} /> <span className="text-muted nowrap" {...tip(t('tips.resources.runs.pipelineStage'))}>{t('resources.runs.pipelineStage', { position: r.pipelinePosition ?? 0, execution: r.pipelineExecution ?? 0 })}</span>
+        </>
+      ) : (
+        '-'
+      ),
+    { cellClass: 'cell-id', defaultHidden: true, csv: (r) => r.pipelineRunId || '' }),
     col('runs', t, 'createdUtc', (r) => <span {...tip(formatDateTime(r.createdUtc, i18n.language))}>{formatRelativeTime(r.createdUtc, i18n.language)}</span>, { sortable: true })
   ],
   fields: () => [],

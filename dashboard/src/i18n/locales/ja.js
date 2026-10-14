@@ -1612,6 +1612,7 @@ const ja = {
           MasterKey: 'シークレット暗号化のマスターキー'
         },
         RequestHistory: {
+          CaptureNodeProtocol: '成功したワーカープロトコル要求を記録',
           MaxResponseBodyBytes: '記録するレスポンス本文の上限 (バイト)',
           MaxRequestBodyBytes: '記録するリクエスト本文の上限 (バイト)',
           RetentionDays: 'リクエスト履歴の保持期間 (日)',
@@ -1635,6 +1636,7 @@ const ja = {
         },
         Scheduling: {
           EventPollMs: 'イベントのポーリング間隔 (ms)',
+          InvocationWaitPollMs: '呼び出し待機の予備再読み込み間隔 (ms)',
           NodeHeartbeatTimeoutMs: 'ノードのハートビートタイムアウト (ms)',
           LeaseWaitMs: 'リースのロングポーリング待機時間 (ms)',
           LeaseDurationMs: '実行リースの期間 (ms)',
@@ -1908,3 +1910,195 @@ ja.views.settings.fields.Leases = {"Provider": "プロバイダー", "ClutchEndp
 
 ja.enums.harnessType.ProviderApi = "プロバイダー API";
 ja.enums.outputParser.ProviderApiJsonl = "プロバイダー API JSONL";
+
+// Pipelines (P12.9): definitions (Agents > Pipelines), pipeline runs (Runs > Pipeline runs), and stage reviews
+// (Approvals > Stage reviews).
+ja.nav.hubs.approvals.tip = '人を待っているツール呼び出しとパイプラインのステージ、およびすべての決定';
+Object.assign(ja.nav, { approvalsPending_other: '{{count}} 件が人の対応待ち' });
+Object.assign(ja.nav.items, {
+  pipelines: { label: 'パイプライン', tip: '順序付けされたエージェントのステージと任意のレビューゲート' },
+  pipelineRuns: { label: 'パイプライン実行', tip: 'パイプラインの実行をステージごとに確認' },
+  pipelineReviews: { label: 'ステージレビュー', tip: '人によるレビューを待っているパイプラインのステージ' }
+});
+Object.assign(ja.errorCodes, {
+  RevisionLimitReached: 'このステージはすでに修正回数をすべて使い切ったため、これ以上変更を依頼できません。代わりに承認または却下してください。',
+  ReviewNotPending: 'このレビューは他の人またはタイムアウトによってすでに決定されているため、再度決定することはできません。',
+  PipelineInUse: 'このパイプラインには未完了のパイプライン実行があります。完了を待つかキャンセルしてから、パイプラインを削除してください。',
+  PipelineRunActive: '削除できるのは完了したパイプライン実行のみです。先にこのパイプライン実行をキャンセルしてください。',
+  PipelineRunFinished: 'このパイプライン実行はすでに完了しているため、キャンセルできません。',
+  PipelineRunNotRetryable: '再試行できるのは、失敗、タイムアウト、またはキャンセルされたパイプライン実行のみです。',
+  PipelineRunChanged: 'リクエストの処理中にこのパイプライン実行が変更されました。再読み込みしてからもう一度試してください。',
+  PipelineInactive: 'このパイプラインは無効です。開始する前に有効にしてください。',
+  PipelineEmpty: 'パイプラインには少なくとも 1 つのステージが必要です。',
+  PipelineStageRun: 'この実行はパイプライン実行のステージであるため、単独では再試行できません。代わりにパイプライン実行を再試行してください。',
+  ReferencedByPipeline: 'パイプラインのステージがこのエージェントを使用しています。削除する前に、すべてのパイプラインからこのエージェントを外してください。'
+});
+ja.enums.pipelineRunStatus = { Running: '実行中', AwaitingReview: 'レビュー待ち', Cancelling: 'キャンセル中', Succeeded: '成功', Failed: '失敗', Cancelled: 'キャンセル済み', TimedOut: 'タイムアウト' };
+ja.enums.pipelineRunOutcome = { None: 'なし', Succeeded: '成功', StageFailed: 'ステージ失敗', StageStartFailed: 'ステージを開始できません', ReviewRejected: 'レビューで却下', ReviewExpired: 'レビューの期限切れ', Cancelled: 'キャンセル済み', TimedOut: 'タイムアウト', InternalError: '内部エラー' };
+ja.enums.pipelineStageStatus = { Pending: '保留中', Running: '実行中', AwaitingReview: 'レビュー待ち', Succeeded: '成功', Failed: '失敗', Cancelled: 'キャンセル済み' };
+ja.enums.pipelineReviewStatus = { Pending: '保留中', Approved: '承認済み', ChangesRequested: '変更を依頼済み', Rejected: '却下済み', Expired: '期限切れ', Cancelled: 'キャンセル済み' };
+ja.enums.pipelineReviewDecision = { Approve: '承認', RequestChanges: '変更を依頼', Reject: '却下' };
+ja.enums.pipelineReviewSource = { User: '人', Timeout: 'タイムアウト', Cancelled: 'パイプライン実行の停止' };
+Object.assign(ja.enums.resourceType, { Pipeline: 'パイプライン', PipelineRun: 'パイプライン実行' });
+Object.assign(ja.enums.auditEventType, { PipelineReviewDecided: 'ステージレビューを決定', PipelineRunCancelled: 'パイプライン実行をキャンセル' });
+ja.resources.deployments.promptRoles.PipelineStage = 'パイプラインのステージ (引き継ぎ)';
+Object.assign(ja.resources.runs.columns, { pipelineRunId: 'パイプライン実行' });
+ja.resources.runs.pipelineStage = 'ステージ {{position}}、{{execution}} 回目の実行';
+ja.resources.pipelines = {
+  ...rp('パイプライン', '順序付けされたエージェントのステージです。各ステージは 1 つのエージェントを実行し、その出力を次のステージに渡します。任意でレビューゲートを設けられます。', 'パイプラインを追加', 'パイプラインを作成', 'パイプラインを編集', 'パイプラインの詳細', 'パイプラインを削除', 'パイプラインはまだありません', 'パイプラインを作成してエージェントをつなげましょう。各ステージは前のステージの出力を受け取ります。'),
+  columns: { name: '名前', stages: 'ステージ', reviewGates: 'レビューゲート', maxDurationSeconds: '制限時間', version: 'バージョン', active: '有効', description: '説明', id: 'ID', lastUpdateUtc: '更新日時', createdUtc: '作成日時' },
+  fields: {
+    name: '名前',
+    description: '説明',
+    maxDurationSeconds: '制限時間 (秒)',
+    active: '有効',
+    stages: 'ステージ',
+    stageName: 'ステージ名',
+    agentId: 'エージェント',
+    deploymentId: 'デプロイメント',
+    handoffTemplateId: '引き継ぎテンプレート',
+    handoffTemplateVersion: '固定するテンプレートのバージョン',
+    outputCharLimit: '引き継ぎの文字数上限',
+    maxAttempts: '最大試行回数',
+    continueOnFailure: '失敗しても続行',
+    requiresReview: 'レビューが必要',
+    reviewTimeoutSeconds: 'レビューのタイムアウト (秒)',
+    reviewTimeoutAction: 'レビューがタイムアウトしたとき',
+    maxRevisions: '最大修正回数',
+    stageDescription: 'ステージの説明',
+    parameters: '実行パラメーター'
+  },
+  hints: {
+    maxDurationSeconds: '{{min}} から {{max}} まで。0 は無制限です。この制限はレビュー待ちの時間を含むパイプライン実行全体に適用されます。',
+    stages: 'ステージはこの順序で実行されます。各ステージは、前のステージが成功したとき (または「失敗しても続行」で失敗したとき) に開始し、レビューが必要な場合は人が承認した後に開始します。',
+    noDeployments: 'このエージェントにはまだデプロイメントがありません。デプロイメントを空のままにするか、「デプロイメント」で追加してください。',
+    handoffTemplateVersion: '空の場合はテンプレートの現在のバージョンを使用します。',
+    outputCharLimit: '{{min}} から {{max}} まで。既定値は {{default}} です。',
+    maxAttempts: '{{min}} から {{max}} まで。既定値は {{default}} です。',
+    reviewTimeoutSeconds: '{{min}} から {{max}} まで。0 は無期限に待ちます。',
+    maxRevisions: '{{min}} から {{max}} まで。既定値は {{default}} です。',
+    parameters: 'デプロイメントを指定した場合のみ、かつそのデプロイメントが呼び出し元に上書きを許可するパラメーターのみ使用できます。'
+  },
+  errors: {
+    dnsName: '英小文字、数字、ハイフンを 1 から 64 文字で使用し、先頭と末尾は英字または数字にしてください。',
+    range: '{{min}} から {{max}} までの整数を入力してください。',
+    noStages: 'ステージを少なくとも 1 つ追加してください。',
+    tooManyStages: 'パイプラインのステージは最大 {{max}} 個です。',
+    stageNameLong: 'ステージ名は 128 文字までです。',
+    stageNameDuplicate: '{{name}} という名前のステージがすでにあります。',
+    version: '1 以上のバージョン番号を入力するか、空のままにしてください。',
+    parametersNeedDeployment: '実行パラメーターはデプロイメントで許可された上書きと照合されるため、デプロイメントが必要です。',
+    parametersUnique: '各パラメーター名は 1 回だけ指定できます。',
+    stageInvalid: 'このステージにはエラーがあります。'
+  },
+  actions: { start: '開始', preview: 'プロンプトをプレビュー', runs: 'パイプライン実行を表示' },
+  stageHeading: 'ステージ {{position}}: {{name}}',
+  stageCount: '{{count}} / 最大 {{max}}',
+  stageSummary: '{{count}} ステージ: {{chain}}',
+  addStage: 'ステージを追加',
+  removeStage: 'ステージを削除',
+  noStages: 'ステージはまだありません。',
+  chooseAgent: 'エージェントを選択',
+  anyDeployment: '有効な任意のデプロイメント (重み付け)',
+  defaultHandoff: 'デプロイメントの結び付けまたは組み込み',
+  parameterName: 'パラメーター',
+  parameterValue: '値',
+  noLimit: '無制限',
+  versionNotice: 'バージョン {{version}}。保存すると新しいバージョンが作成されます。すでに開始したパイプライン実行は、開始時のステージを使い続けます。'
+};
+ja.resources.pipelineRuns = {
+  ...rp('パイプライン実行', 'パイプラインのすべての実行です。開くとステージの進行を確認し、レビューを決定し、キャンセルや再試行を行えます。', 'パイプライン実行を追加', 'パイプライン実行を作成', 'パイプライン実行を編集', 'パイプライン実行の詳細', 'パイプライン実行を削除', 'パイプライン実行はまだありません', '「エージェント > パイプライン」からパイプラインを開始すると、ここに実行が表示されます。'),
+  columns: { id: 'ID', pipelineName: 'パイプライン', status: '状態', outcome: '結果', progress: 'ステージ', callerName: '開始したユーザー', errorMessage: 'エラー', priority: '優先度', deadlineUtc: '期限', completedUtc: '完了日時', createdUtc: '作成日時' },
+  actions: { cancel: 'キャンセル', retry: '再試行', stageRuns: 'ステージ実行を表示', finalRun: '最終実行を開く' },
+  toasts: { cancelRequested: 'パイプライン実行と現在のステージのキャンセルを要求しました。', retried: 'パイプライン実行は停止したステージから再開します。' },
+  progressValue: '{{position}} / {{count}}',
+  versionShort: '(バージョン {{version}})'
+};
+ja.resources.pipelineReviews = {
+  ...rp('ステージレビュー', '人による承認、変更の依頼、または却下を待っているパイプラインのステージです。', 'ステージレビューを追加', 'ステージレビューを作成', 'ステージレビューを編集', 'ステージレビューの詳細', 'ステージレビューを削除', 'ステージレビューはまだありません', 'レビューが必要なステージは、完了後にここに表示されます。'),
+  columns: { createdUtc: '要求日時', pipelineName: 'パイプライン', stageName: 'ステージ', status: '状態', decision: '決定', decisionSource: '決定者の種別', comment: 'コメント', decidedBy: 'レビュー担当者', expiresUtc: 'タイムアウト日時', pipelineRunId: 'パイプライン実行', runId: 'ステージ実行', decidedUtc: '決定日時', id: 'ID' },
+  filters: { pipelineRunId: 'パイプライン実行 ID', pipelineRunIdPlaceholder: 'パイプライン実行 ID (plr_...)' },
+  actions: { approve: '承認', requestChanges: '変更を依頼', reject: '却下', openStageRun: 'ステージ実行を開く' },
+  noTimeout: '無期限に待機'
+};
+ja.components.pipelineReviews = {
+  decideTitle: '{{pipeline}} のステージ {{stage}} をレビュー',
+  decision: '決定',
+  positionExecution: 'ステージ {{position}}、{{execution}} 回目の実行',
+  revisionsLeft: '残りの修正回数',
+  revisionsLeftValue: '{{left}} / {{max}}',
+  noRevisionsLeft: 'このステージは {{max}} 回の修正をすべて使い切りました。サーバーは変更の依頼を拒否するため、承認または却下してください。',
+  timeoutThen: 'その後 {{decision}}',
+  commentApprove: '次のステージへのメモ',
+  commentApprovePlaceholder: '任意。次のステージは出力とともにこのメモを受け取ります。',
+  commentRequestChanges: '変更してほしい内容',
+  commentRequestChangesPlaceholder: '必須。ステージはこのフィードバックをもとに再実行されます。',
+  commentReject: '理由',
+  commentRejectPlaceholder: '任意。決定とともに記録され、パイプライン実行は失敗します。',
+  commentRequired: '変更してほしい内容を記入してください。ステージはこのフィードバックをもとに再実行されます。',
+  commentTooLong: 'コメントは {{max}} 文字までです。',
+  submit: { Approve: 'ステージを承認', RequestChanges: '変更を依頼', Reject: 'ステージを却下' },
+  toasts: {
+    Approve: '{{pipeline}} のステージ {{stage}} を承認しました。',
+    RequestChanges: '{{pipeline}} のステージ {{stage}} に変更を依頼しました。フィードバックをもとに再実行されます。',
+    Reject: '{{pipeline}} のステージ {{stage}} を却下しました。パイプライン実行は失敗します。',
+    notPending: 'このレビューは他の人またはタイムアウトによってすでに決定されています。一覧に現在の状態が表示されています。',
+    revisionLimit: 'このステージはすでに修正回数をすべて使い切ったため (最大 {{max}} 回)、これ以上変更を依頼できません。代わりに承認または却下してください。'
+  }
+};
+ja.components.pipelineStart = {
+  title: '{{name}} を開始',
+  intro_other: '入力は {{count}} 個のステージのうち最初のステージに渡されます。すべてのステージは元のタスクとしてもこの入力を参照します。',
+  input: '入力',
+  inputPlaceholder: 'パイプラインに何を処理させますか?',
+  shortcut: 'Ctrl+Enter または Cmd+Enter で開始します。',
+  submit: 'パイプラインを開始',
+  starting: '開始しています...',
+  started: '{{name}} を開始しました。'
+};
+ja.components.pipelinePreview = {
+  title: '{{name}} のプロンプトをプレビュー',
+  input: 'サンプル入力',
+  sampleInput: '未解決の課題を要約し、最も緊急なものの修正案を提示してください。',
+  sampleOutput: '{{stage}} のサンプル出力です。',
+  outputOf: 'ステージ {{position}} ({{stage}}) のサンプル出力',
+  render: 'プロンプトをレンダリング',
+  rendering: 'レンダリング中...',
+  stageHeading: 'ステージ {{position}}: {{stage}} ({{agent}})',
+  deployment: 'デプロイメント: {{deployment}}',
+  rendered: 'レンダリング済み',
+  failed: '失敗'
+};
+ja.views.pipelineRunDetail = {
+  title: 'パイプライン実行',
+  heading: '{{pipeline}} のパイプライン実行',
+  notFoundTitle: 'パイプライン実行が見つかりません',
+  notFoundBody: '削除されたか、別のテナントに属している可能性があります。',
+  live: 'ライブ',
+  polling: '定期更新中',
+  finalRun: '最終実行',
+  started: '開始日時',
+  input: '入力',
+  reviewTitle: 'あなたのレビューを待っています',
+  reviewBody: 'ステージ {{position}} ({{stage}}) が {{execution}} 回目の実行を終え、レビューを待っています。ステージ実行で出力を確認してください:',
+  reviewExpires: '{{time}} までに誰も決定しない場合、レビューは自動的に決定されます: {{decision}}。',
+  reviewNoTimeout: 'パイプラインの制限時間で先に実行が終了しない限り、レビューは人が決定するまで待機します。',
+  stages: 'ステージ',
+  stagesCount_other: '{{count}} ステージ',
+  noStages: 'このパイプライン実行にはステージがありません。',
+  current: '現在',
+  reviewGate: 'レビューゲート',
+  agent: 'エージェント {{agent}}',
+  counts: '実行 {{executions}} 回、試行 {{attempts}} / {{maxAttempts}}、修正 {{revisions}} / {{maxRevisions}}',
+  startedAt: '開始',
+  blocked: '開始待ち: {{reason}}。',
+  nextAttempt: '次の試行は {{time}} です。',
+  reviewItem: '{{execution}} 回目の実行のレビュー',
+  columns: { execution: '実行回', run: 'ステージ実行', status: '状態', outcome: '結果', error: 'エラー', created: '作成日時' },
+  confirmCancelTitle: 'パイプライン実行をキャンセル',
+  confirmCancel: '{{pipeline}} のこのパイプライン実行をキャンセルしますか? 現在のステージ実行はキャンセルされ、保留中のレビューは閉じられます。後で再試行できます。',
+  confirmDelete: '{{pipeline}} のこのパイプライン実行とそのレビューを削除しますか? ステージ実行は「実行」ページに残ります。'
+};
+Object.assign(ja.views.runDetail, { pipelineRun: 'パイプライン実行' });
+ja.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'パイプラインの確認間隔 (ms)';
+ja.views.settings.fields.Runtime.PipelineMaxStages = 'パイプラインあたりの最大ステージ数';

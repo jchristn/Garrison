@@ -1614,6 +1614,7 @@ const zhHans = {
           MasterKey: '机密加密主密钥'
         },
         RequestHistory: {
+          CaptureNodeProtocol: '记录成功的工作节点协议请求',
           MaxResponseBodyBytes: '记录的响应正文上限（字节）',
           MaxRequestBodyBytes: '记录的请求正文上限（字节）',
           RetentionDays: '请求历史保留天数',
@@ -1637,6 +1638,7 @@ const zhHans = {
         },
         Scheduling: {
           EventPollMs: '事件轮询间隔（毫秒）',
+          InvocationWaitPollMs: '调用等待备用重读间隔（毫秒）',
           NodeHeartbeatTimeoutMs: '节点心跳超时（毫秒）',
           LeaseWaitMs: '租约长轮询等待时间（毫秒）',
           LeaseDurationMs: '运行租约时长（毫秒）',
@@ -1907,3 +1909,197 @@ zhHans.views.settings.fields.Leases = {"Provider": "提供方", "ClutchEndpoint"
 
 zhHans.enums.harnessType.ProviderApi = "提供方 API";
 zhHans.enums.outputParser.ProviderApiJsonl = "提供方 API JSONL";
+
+// Pipelines (P12.9): definitions (Agents > Pipelines), pipeline runs (Runs > Pipeline runs), and stage reviews
+// (Approvals > Stage reviews).
+zhHans.nav.hubs.approvals.tip = '等待人员处理的工具调用和流水线阶段，以及每项决定';
+Object.assign(zhHans.nav, { approvalsPending_one: '{{count}} 项等待人员处理', approvalsPending_other: '{{count}} 项等待人员处理' });
+Object.assign(zhHans.nav.items, {
+  pipelines: { label: '流水线', tip: '按顺序执行的智能体阶段，可选审核关卡' },
+  pipelineRuns: { label: '流水线运行', tip: '流水线的每次执行，逐阶段展示' },
+  pipelineReviews: { label: '阶段审核', tip: '等待人员审核的流水线阶段' }
+});
+Object.assign(zhHans.errorCodes, {
+  RevisionLimitReached: '此阶段已用完所有修订次数，无法再请求修改。请批准或驳回。',
+  ReviewNotPending: '此审核已被其他人或因超时作出决定，无法再次决定。',
+  PipelineInUse: '此流水线还有未完成的流水线运行。请等待其完成或将其取消，然后再删除流水线。',
+  PipelineRunActive: '只能删除已完成的流水线运行。请先取消此流水线运行。',
+  PipelineRunFinished: '此流水线运行已经完成，无法取消。',
+  PipelineRunNotRetryable: '只能重试失败、超时或已取消的流水线运行。',
+  PipelineRunChanged: '处理请求期间此流水线运行发生了变化。请重新加载后重试。',
+  PipelineInactive: '此流水线未启用。请先启用再启动。',
+  PipelineEmpty: '流水线至少需要一个阶段。',
+  PipelineStageRun: '此运行是某个流水线运行的阶段，不能单独重试。请改为重试流水线运行。',
+  ReferencedByPipeline: '有流水线阶段使用此智能体。请先从所有流水线中移除该智能体，再将其删除。'
+});
+zhHans.enums.pipelineRunStatus = { Running: '运行中', AwaitingReview: '等待审核', Cancelling: '取消中', Succeeded: '成功', Failed: '失败', Cancelled: '已取消', TimedOut: '已超时' };
+zhHans.enums.pipelineRunOutcome = { None: '无', Succeeded: '成功', StageFailed: '阶段失败', StageStartFailed: '阶段无法启动', ReviewRejected: '审核被驳回', ReviewExpired: '审核已过期', Cancelled: '已取消', TimedOut: '已超时', InternalError: '内部错误' };
+zhHans.enums.pipelineStageStatus = { Pending: '待处理', Running: '运行中', AwaitingReview: '等待审核', Succeeded: '成功', Failed: '失败', Cancelled: '已取消' };
+zhHans.enums.pipelineReviewStatus = { Pending: '待处理', Approved: '已批准', ChangesRequested: '已请求修改', Rejected: '已驳回', Expired: '已过期', Cancelled: '已取消' };
+zhHans.enums.pipelineReviewDecision = { Approve: '批准', RequestChanges: '请求修改', Reject: '驳回' };
+zhHans.enums.pipelineReviewSource = { User: '人员', Timeout: '超时', Cancelled: '流水线运行已停止' };
+Object.assign(zhHans.enums.resourceType, { Pipeline: '流水线', PipelineRun: '流水线运行' });
+Object.assign(zhHans.enums.auditEventType, { PipelineReviewDecided: '阶段审核已决定', PipelineRunCancelled: '流水线运行已取消' });
+zhHans.resources.deployments.promptRoles.PipelineStage = '流水线阶段（交接）';
+Object.assign(zhHans.resources.runs.columns, { pipelineRunId: '流水线运行' });
+zhHans.resources.runs.pipelineStage = '第 {{position}} 阶段，第 {{execution}} 次执行';
+zhHans.resources.pipelines = {
+  ...rp('流水线', '按顺序执行的智能体阶段：每个阶段运行一个智能体，并将输出交给下一个阶段，可选审核关卡。', '添加流水线', '创建流水线', '编辑流水线', '流水线详情', '删除流水线', '暂无流水线', '创建流水线来串联智能体：每个阶段都会收到上一阶段的输出。'),
+  columns: { name: '名称', stages: '阶段', reviewGates: '审核关卡', maxDurationSeconds: '时间限制', version: '版本', active: '启用', description: '描述', id: 'ID', lastUpdateUtc: '更新时间', createdUtc: '创建时间' },
+  fields: {
+    name: '名称',
+    description: '描述',
+    maxDurationSeconds: '时间限制（秒）',
+    active: '启用',
+    stages: '阶段',
+    stageName: '阶段名称',
+    agentId: '智能体',
+    deploymentId: '部署',
+    handoffTemplateId: '交接模板',
+    handoffTemplateVersion: '固定模板版本',
+    outputCharLimit: '交接字符上限',
+    maxAttempts: '最大尝试次数',
+    continueOnFailure: '失败时继续',
+    requiresReview: '需要审核',
+    reviewTimeoutSeconds: '审核超时（秒）',
+    reviewTimeoutAction: '审核超时后',
+    maxRevisions: '最大修订次数',
+    stageDescription: '阶段描述',
+    parameters: '运行参数'
+  },
+  hints: {
+    maxDurationSeconds: '范围 {{min}} 到 {{max}}。0 表示不限制。该限制涵盖整个流水线运行，包括等待审核的时间。',
+    stages: '阶段按此顺序运行。每个阶段在上一阶段成功（或在开启“失败时继续”时失败）后启动；如需审核，则在人员批准后启动。',
+    noDeployments: '此智能体还没有部署。可将部署留空，或在“部署”中添加。',
+    handoffTemplateVersion: '留空则使用模板的当前版本。',
+    outputCharLimit: '范围 {{min}} 到 {{max}}。默认 {{default}}。',
+    maxAttempts: '范围 {{min}} 到 {{max}}。默认 {{default}}。',
+    reviewTimeoutSeconds: '范围 {{min}} 到 {{max}}。0 表示无限期等待。',
+    maxRevisions: '范围 {{min}} 到 {{max}}。默认 {{default}}。',
+    parameters: '仅在指定部署时可用，且仅限该部署允许调用方覆盖的参数。'
+  },
+  errors: {
+    dnsName: '请使用 1 到 64 个小写字母、数字和连字符，且以字母或数字开头和结尾。',
+    range: '请输入 {{min}} 到 {{max}} 之间的整数。',
+    noStages: '请至少添加一个阶段。',
+    tooManyStages: '流水线最多有 {{max}} 个阶段。',
+    stageNameLong: '阶段名称最多 128 个字符。',
+    stageNameDuplicate: '已有另一个阶段名为 {{name}}。',
+    version: '请输入大于等于 1 的版本号，或留空。',
+    parametersNeedDeployment: '运行参数需要指定部署，因为它们会按该部署允许的覆盖项进行检查。',
+    parametersUnique: '每个参数名只能出现一次。',
+    stageInvalid: '此阶段存在错误。'
+  },
+  actions: { start: '启动', preview: '预览提示词', runs: '查看流水线运行' },
+  stageHeading: '第 {{position}} 阶段：{{name}}',
+  stageCount: '{{count}} 个，最多 {{max}} 个',
+  stageSummary: '{{count}} 个阶段：{{chain}}',
+  addStage: '添加阶段',
+  removeStage: '移除阶段',
+  noStages: '暂无阶段。',
+  chooseAgent: '选择智能体',
+  anyDeployment: '任一活动部署（按权重）',
+  defaultHandoff: '部署绑定或内置模板',
+  parameterName: '参数',
+  parameterValue: '值',
+  noLimit: '不限制',
+  versionNotice: '版本 {{version}}。保存会创建新版本；已启动的流水线运行会保留启动时的阶段。'
+};
+zhHans.resources.pipelineRuns = {
+  ...rp('流水线运行', '流水线的每次执行。打开一项可跟踪其阶段、决定审核，或取消并重试。', '添加流水线运行', '创建流水线运行', '编辑流水线运行', '流水线运行详情', '删除流水线运行', '暂无流水线运行', '从“智能体 > 流水线”启动流水线后，其运行会显示在这里。'),
+  columns: { id: 'ID', pipelineName: '流水线', status: '状态', outcome: '结果', progress: '阶段', callerName: '启动者', errorMessage: '错误', priority: '优先级', deadlineUtc: '截止时间', completedUtc: '完成时间', createdUtc: '创建时间' },
+  actions: { cancel: '取消', retry: '重试', stageRuns: '查看阶段运行', finalRun: '打开最终运行' },
+  toasts: { cancelRequested: '已请求取消该流水线运行及其当前阶段。', retried: '流水线运行将从停止的阶段继续。' },
+  progressValue: '{{position}} / {{count}}',
+  versionShort: '（版本 {{version}}）'
+};
+zhHans.resources.pipelineReviews = {
+  ...rp('阶段审核', '等待人员批准、请求修改或驳回的流水线阶段。', '添加阶段审核', '创建阶段审核', '编辑阶段审核', '阶段审核详情', '删除阶段审核', '暂无阶段审核', '需要审核的阶段完成后会显示在这里。'),
+  columns: { createdUtc: '请求时间', pipelineName: '流水线', stageName: '阶段', status: '状态', decision: '决定', decisionSource: '决定方', comment: '备注', decidedBy: '审核人', expiresUtc: '超时时间', pipelineRunId: '流水线运行', runId: '阶段运行', decidedUtc: '决定时间', id: 'ID' },
+  filters: { pipelineRunId: '流水线运行 ID', pipelineRunIdPlaceholder: '流水线运行 ID（plr_...）' },
+  actions: { approve: '批准', requestChanges: '请求修改', reject: '驳回', openStageRun: '打开阶段运行' },
+  noTimeout: '无限期等待'
+};
+zhHans.components.pipelineReviews = {
+  decideTitle: '审核 {{pipeline}} 的阶段 {{stage}}',
+  decision: '决定',
+  positionExecution: '第 {{position}} 阶段，第 {{execution}} 次执行',
+  revisionsLeft: '剩余修订次数',
+  revisionsLeftValue: '{{left}} / {{max}}',
+  noRevisionsLeft: '此阶段已用完全部 {{max}} 次修订。服务器将拒绝“请求修改”；请批准或驳回。',
+  timeoutThen: '然后{{decision}}',
+  commentApprove: '给下一阶段的说明',
+  commentApprovePlaceholder: '可选。下一阶段会随输出一起收到这些说明。',
+  commentRequestChanges: '需要修改的内容',
+  commentRequestChangesPlaceholder: '必填。该阶段将根据此反馈重新运行。',
+  commentReject: '原因',
+  commentRejectPlaceholder: '可选。随决定一起记录；流水线运行将失败。',
+  commentRequired: '请说明需要修改的内容。该阶段将根据此反馈重新运行。',
+  commentTooLong: '备注最多 {{max}} 个字符。',
+  submit: { Approve: '批准阶段', RequestChanges: '请求修改', Reject: '驳回阶段' },
+  toasts: {
+    Approve: '已批准 {{pipeline}} 的阶段 {{stage}}。',
+    RequestChanges: '已请求修改 {{pipeline}} 的阶段 {{stage}}；它将根据你的反馈重新运行。',
+    Reject: '已驳回 {{pipeline}} 的阶段 {{stage}}；流水线运行将失败。',
+    notPending: '此审核已被其他人或因超时作出决定。列表现在显示当前状态。',
+    revisionLimit: '此阶段已用完所有修订次数（最多 {{max}} 次），无法再请求修改。请批准或驳回。'
+  }
+};
+zhHans.components.pipelineStart = {
+  title: '启动 {{name}}',
+  intro_one: '输入将交给流水线唯一的阶段。',
+  intro_other: '输入将交给 {{count}} 个阶段中的第一个；每个阶段也会将其视为原始任务。',
+  input: '输入',
+  inputPlaceholder: '流水线要处理什么？',
+  shortcut: '按 Ctrl+Enter 或 Cmd+Enter 启动。',
+  submit: '启动流水线',
+  starting: '正在启动...',
+  started: '已启动 {{name}}。'
+};
+zhHans.components.pipelinePreview = {
+  title: '预览 {{name}} 的提示词',
+  input: '示例输入',
+  sampleInput: '汇总未解决的问题，并为最紧急的问题提出修复方案。',
+  sampleOutput: '{{stage}} 的示例输出。',
+  outputOf: '第 {{position}} 阶段（{{stage}}）的示例输出',
+  render: '渲染提示词',
+  rendering: '正在渲染...',
+  stageHeading: '第 {{position}} 阶段：{{stage}}（{{agent}}）',
+  deployment: '部署：{{deployment}}',
+  rendered: '已渲染',
+  failed: '失败'
+};
+zhHans.views.pipelineRunDetail = {
+  title: '流水线运行',
+  heading: '{{pipeline}} 的流水线运行',
+  notFoundTitle: '未找到流水线运行',
+  notFoundBody: '它可能已被删除，或属于其他租户。',
+  live: '实时',
+  polling: '刷新中',
+  finalRun: '最终运行',
+  started: '开始时间',
+  input: '输入',
+  reviewTitle: '等待你的审核',
+  reviewBody: '第 {{position}} 阶段（{{stage}}）已完成第 {{execution}} 次执行，正在等待审核。请在阶段运行中查看其输出：',
+  reviewExpires: '如果到 {{time}} 仍无人决定，审核将自动决定为：{{decision}}。',
+  reviewNoTimeout: '审核会一直等待人员决定，除非流水线的时间限制先结束运行。',
+  stages: '阶段',
+  stagesCount_one: '{{count}} 个阶段',
+  stagesCount_other: '{{count}} 个阶段',
+  noStages: '此流水线运行没有阶段。',
+  current: '当前',
+  reviewGate: '审核关卡',
+  agent: '智能体 {{agent}}',
+  counts: '执行 {{executions}} 次，尝试 {{attempts}} / {{maxAttempts}}，修订 {{revisions}} / {{maxRevisions}}',
+  startedAt: '开始于',
+  blocked: '等待启动：{{reason}}。',
+  nextAttempt: '下次尝试时间：{{time}}。',
+  reviewItem: '第 {{execution}} 次执行的审核',
+  columns: { execution: '执行', run: '阶段运行', status: '状态', outcome: '结果', error: '错误', created: '创建时间' },
+  confirmCancelTitle: '取消流水线运行',
+  confirmCancel: '要取消 {{pipeline}} 的这个流水线运行吗？其当前阶段运行将被取消，待处理的审核将被关闭。你可以稍后重试。',
+  confirmDelete: '要删除 {{pipeline}} 的这个流水线运行及其审核吗？其阶段运行会保留在“运行”页面。'
+};
+Object.assign(zhHans.views.runDetail, { pipelineRun: '流水线运行' });
+zhHans.views.settings.fields.Runtime.PipelineSweepIntervalMs = '流水线检查间隔 (ms)';
+zhHans.views.settings.fields.Runtime.PipelineMaxStages = '每条流水线的最大阶段数';

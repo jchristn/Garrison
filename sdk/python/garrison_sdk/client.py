@@ -49,6 +49,16 @@ APPROVAL_DECISIONS = ("Allow", "Deny")
 APPROVAL_SOURCES = ("Rule", "Default", "User", "Timeout", "Cancelled")
 APPROVAL_RULE_ACTIONS = ("Allow", "Deny", "Ask")
 APPROVAL_KINDS = ("Tool", "Command", "FileChange")
+# Pipelines (ordered agent stages with optional review gates). PipelineRun["status"] and ["outcome"],
+# PipelineRunStage["status"], PipelineReview["status"], ["decision"] (and stage "reviewTimeoutAction"), ["decisionSource"].
+PIPELINE_RUN_STATUSES = ("Running", "AwaitingReview", "Cancelling", "Succeeded", "Failed", "Cancelled", "TimedOut")
+PIPELINE_RUN_TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut"}
+PIPELINE_RUN_OUTCOMES = ("None", "Succeeded", "StageFailed", "StageStartFailed", "ReviewRejected", "ReviewExpired",
+                         "Cancelled", "TimedOut", "InternalError")
+PIPELINE_STAGE_STATUSES = ("Pending", "Running", "AwaitingReview", "Succeeded", "Failed", "Cancelled")
+PIPELINE_REVIEW_STATUSES = ("Pending", "Approved", "ChangesRequested", "Rejected", "Expired", "Cancelled")
+PIPELINE_REVIEW_DECISIONS = ("Approve", "RequestChanges", "Reject")
+PIPELINE_REVIEW_SOURCES = ("User", "Timeout", "Cancelled")
 
 
 class GarrisonError(Exception):
@@ -147,7 +157,8 @@ class Transport:
                 headers["x-tenant-id"] = self.tenant_id
         return headers
 
-    def _prepare(self, method: str, path: str, params: Optional[Dict[str, Any]], body: Any, content_type: Optional[str]):
+    def _prepare(self, method: str, path: str, params: Optional[Dict[str, Any]], body: Any, content_type: Optional[str],
+                 extra_headers: Optional[Dict[str, str]] = None):
         query = urlencode(_clean(params), quote_via=quote)
         data: Optional[bytes] = None
         headers: Dict[str, str] = {}
@@ -158,13 +169,15 @@ class Transport:
             else:
                 data = json.dumps(body).encode()
                 headers["Content-Type"] = "application/json"
+        if extra_headers:
+            headers.update(extra_headers)
         headers.update(self._headers(method, path, query, data))
         url = self.base_url + path + (f"?{query}" if query else "")
         return url, data, headers
 
     def request(self, method: str, path: str, params: Optional[Dict[str, Any]] = None, body: Any = None,
-                content_type: Optional[str] = None, raw: bool = False) -> Any:
-        url, data, headers = self._prepare(method, path, params, body, content_type)
+                content_type: Optional[str] = None, raw: bool = False, headers: Optional[Dict[str, str]] = None) -> Any:
+        url, data, headers = self._prepare(method, path, params, body, content_type, headers)
         response = self.session.request(method, url, data=data, headers=headers, timeout=self.timeout)
         if response.status_code >= 400:
             raise GarrisonError(response.status_code, response.text)
@@ -251,6 +264,114 @@ class UsageQuotas(Resource):
 
     def usage(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._item(id) + "/usage")
+
+
+class Pipelines(Resource):
+    """Pipeline definitions: ordered agent stages with optional human review gates. get, update, and delete accept an
+    identifier or a name. update replaces the stages and advances the version; started pipeline runs keep their
+    snapshot. delete raises GarrisonError 409 PipelineInUse while pipeline runs are active."""
+
+    def start(self, pipeline: str, input: str, input_content_type: Optional[str] = None, priority: int = 0,
+              wait: bool = False, wait_seconds: int = 60, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
+        """Start a pipeline. Needs Pipeline Execute and Agent Execute on every stage agent. With wait=True the call
+        returns when the pipeline run ends or waits for a review, or after wait_seconds (0 to 600). A repeated
+        idempotency_key (sent as the Idempotency-Key header) returns the same pipeline run; reusing it with a different
+        pipeline or input raises GarrisonError 409 IdempotencyKeyConflict."""
+        body: Dict[str, Any] = {"input": input, "priority": priority, "wait": wait, "waitSeconds": wait_seconds}
+        if input_content_type:
+            body["inputContentType"] = input_content_type
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        return self._t.request("POST", self._item(pipeline) + "/start", body=body, headers=headers)
+
+    def preview(self, pipeline: str, input: str = "", sample_outputs: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Render every stage prompt from a sample input and sample stage outputs (secrets redacted). Returns
+        {pipelineId, pipelineName, stages: [{position, stageName, agentName, deploymentId, deploymentName, success,
+        prompt, errorCode, errorMessage}]}."""
+        return self._t.request("POST", self._item(pipeline) + "/preview", body={"input": input, "sampleOutputs": sample_outputs or []})
+
+
+class PipelineRuns:
+    """Pipeline runs: list, read (with stages, stage run summaries, and reviews), cancel, retry, and delete."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def _p(self, suffix: str = "") -> str:
+        return self._t.tenant_path("/pipeline-runs" + suffix)
+
+    def list(self, pipeline_id: Optional[str] = None, status: Optional[str] = None, caller_id: Optional[str] = None,
+             from_utc: Optional[datetime] = None, to_utc: Optional[datetime] = None, max_results: Optional[int] = None,
+             skip: Optional[int] = None, ordering: Optional[str] = None) -> Dict[str, Any]:
+        """List pipeline runs, newest first. status is one of PIPELINE_RUN_STATUSES."""
+        return self._t.request("GET", self._p(), {
+            "pipelineId": pipeline_id, "status": status, "callerId": caller_id, "fromUtc": from_utc, "toUtc": to_utc,
+            "maxResults": max_results, "skip": skip, "ordering": ordering})
+
+    def get(self, id: str, wait_seconds: Optional[int] = None) -> Dict[str, Any]:
+        """Read a pipeline run. wait_seconds (1 to 600) waits until it ends or waits for a review."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}"), {"waitSeconds": wait_seconds})
+
+    def cancel(self, id: str) -> Dict[str, Any]:
+        """Cancel an active pipeline run, its pending review, and its current stage run. Raises GarrisonError 409
+        PipelineRunFinished when it already ended."""
+        return self._t.request("POST", self._p(f"/{_seg(id)}/cancel"))
+
+    def retry(self, id: str) -> Dict[str, Any]:
+        """Resume a Failed, TimedOut, or Cancelled pipeline run at the stage where it stopped. Raises GarrisonError 409
+        PipelineRunNotRetryable otherwise."""
+        return self._t.request("POST", self._p(f"/{_seg(id)}/retry"))
+
+    def delete(self, id: str) -> Any:
+        """Delete a finished pipeline run and its reviews (stage runs are kept). Raises GarrisonError 409
+        PipelineRunActive while it is active."""
+        return self._t.request("DELETE", self._p(f"/{_seg(id)}"))
+
+    def wait_for_completion(self, id: str, timeout: float = 300.0, wait_seconds: int = 30) -> Dict[str, Any]:
+        """Wait until the pipeline run reaches a terminal status (PIPELINE_RUN_TERMINAL_STATUSES) or timeout elapses.
+        A pipeline run waiting for a review keeps waiting until someone decides it."""
+        deadline = time.monotonic() + timeout
+        while True:
+            run = self.get(id)
+            remaining = deadline - time.monotonic()
+            if run.get("status") in PIPELINE_RUN_TERMINAL_STATUSES or remaining <= 0:
+                return run
+            if run.get("status") == "AwaitingReview":
+                time.sleep(min(0.5, remaining))
+            else:
+                self.get(id, wait_seconds=max(1, min(wait_seconds, int(remaining))))
+
+
+class PipelineReviews:
+    """Pipeline stage reviews (authorized as Approval Read and Update)."""
+
+    def __init__(self, transport: Transport):
+        self._t = transport
+
+    def _p(self, suffix: str = "") -> str:
+        return self._t.tenant_path("/pipeline-reviews" + suffix)
+
+    def list(self, status: Optional[str] = None, pipeline_run_id: Optional[str] = None, pipeline_id: Optional[str] = None,
+             run_id: Optional[str] = None, decision_source: Optional[str] = None, from_utc: Optional[datetime] = None,
+             to_utc: Optional[datetime] = None, max_results: Optional[int] = None, skip: Optional[int] = None,
+             ordering: Optional[str] = None) -> Dict[str, Any]:
+        """List reviews, newest first. status is one of PIPELINE_REVIEW_STATUSES, decision_source one of
+        PIPELINE_REVIEW_SOURCES."""
+        return self._t.request("GET", self._p(), {
+            "status": status, "pipelineRunId": pipeline_run_id, "pipelineId": pipeline_id, "runId": run_id,
+            "decisionSource": decision_source, "fromUtc": from_utc, "toUtc": to_utc, "maxResults": max_results,
+            "skip": skip, "ordering": ordering})
+
+    def get(self, id: str) -> Dict[str, Any]:
+        return self._t.request("GET", self._p(f"/{_seg(id)}"))
+
+    def decide(self, id: str, decision: str, comment: Optional[str] = None) -> Dict[str, Any]:
+        """Decide a pending review. decision is one of PIPELINE_REVIEW_DECISIONS: Approve (the comment reaches the next
+        stage as review notes), RequestChanges (comment required; the stage runs again with it), or Reject (the
+        pipeline run fails). Raises GarrisonError 409 ReviewNotPending or RevisionLimitReached."""
+        body: Dict[str, Any] = {"decision": decision}
+        if comment is not None:
+            body["comment"] = comment
+        return self._t.request("POST", self._p(f"/{_seg(id)}/decide"), body=body)
 
 
 class Users(Resource):
@@ -721,6 +842,9 @@ class GarrisonClient:
         self.artifacts = Artifacts(t)
         self.model_prices = Resource(t, "model-prices")
         self.usage_quotas = UsageQuotas(t, "usage-quotas")
+        self.pipelines = Pipelines(t, "pipelines")
+        self.pipeline_runs = PipelineRuns(t)
+        self.pipeline_reviews = PipelineReviews(t)
         self.manifests = Manifests(t)
         self.runs = Runs(t)
         self.conversations = Conversations(t)

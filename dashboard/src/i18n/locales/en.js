@@ -1641,6 +1641,7 @@ const en = {
           MasterKey: 'Secret encryption master key'
         },
         RequestHistory: {
+          CaptureNodeProtocol: 'Capture successful worker protocol requests',
           MaxResponseBodyBytes: 'Maximum captured response body (bytes)',
           MaxRequestBodyBytes: 'Maximum captured request body (bytes)',
           RetentionDays: 'Request history retention (days)',
@@ -1664,6 +1665,7 @@ const en = {
         },
         Scheduling: {
           EventPollMs: 'Event polling interval (ms)',
+          InvocationWaitPollMs: 'Invocation wait fallback re-read (ms)',
           NodeHeartbeatTimeoutMs: 'Node heartbeat timeout (ms)',
           LeaseWaitMs: 'Lease long-poll wait (ms)',
           LeaseDurationMs: 'Run lease duration (ms)',
@@ -1934,3 +1936,197 @@ en.views.settings.fields.Leases = {"Provider": "Provider", "ClutchEndpoint": "Cl
 
 en.enums.harnessType.ProviderApi = "Provider API";
 en.enums.outputParser.ProviderApiJsonl = "Provider API JSONL";
+
+// Pipelines (P12.9): definitions (Agents > Pipelines), pipeline runs (Runs > Pipeline runs), and stage reviews
+// (Approvals > Stage reviews).
+en.nav.hubs.approvals.tip = 'Tool calls and pipeline stages waiting for a person, and every decision';
+Object.assign(en.nav, { approvalsPending_one: '{{count}} item waiting for a person', approvalsPending_other: '{{count}} items waiting for a person' });
+Object.assign(en.nav.items, {
+  pipelines: { label: 'Pipelines', tip: 'Ordered agent stages with optional review gates' },
+  pipelineRuns: { label: 'Pipeline runs', tip: 'Executions of pipelines, stage by stage' },
+  pipelineReviews: { label: 'Stage reviews', tip: 'Pipeline stages waiting for a person to review them' }
+});
+Object.assign(en.errorCodes, {
+  RevisionLimitReached: 'This stage already used all its revisions, so changes can no longer be requested. Approve or reject it instead.',
+  ReviewNotPending: 'This review was already decided, by someone else or by its timeout, so it cannot be decided again.',
+  PipelineInUse: 'This pipeline has unfinished pipeline runs. Wait for them to finish, or cancel them, then delete the pipeline.',
+  PipelineRunActive: 'Only finished pipeline runs can be deleted. Cancel this pipeline run first.',
+  PipelineRunFinished: 'This pipeline run has already finished, so it cannot be cancelled.',
+  PipelineRunNotRetryable: 'Only failed, timed out, or cancelled pipeline runs can be retried.',
+  PipelineRunChanged: 'This pipeline run changed while the request was processed. Reload it and try again.',
+  PipelineInactive: 'This pipeline is inactive. Turn it on before starting it.',
+  PipelineEmpty: 'A pipeline needs at least one stage.',
+  PipelineStageRun: 'This run is a stage of a pipeline run, so it cannot be retried on its own. Retry the pipeline run instead.',
+  ReferencedByPipeline: 'A pipeline stage uses this agent. Remove the agent from every pipeline before deleting it.'
+});
+en.enums.pipelineRunStatus = { Running: 'Running', AwaitingReview: 'Awaiting review', Cancelling: 'Cancelling', Succeeded: 'Succeeded', Failed: 'Failed', Cancelled: 'Cancelled', TimedOut: 'Timed out' };
+en.enums.pipelineRunOutcome = { None: 'None', Succeeded: 'Succeeded', StageFailed: 'Stage failed', StageStartFailed: 'Stage could not start', ReviewRejected: 'Review rejected', ReviewExpired: 'Review expired', Cancelled: 'Cancelled', TimedOut: 'Timed out', InternalError: 'Internal error' };
+en.enums.pipelineStageStatus = { Pending: 'Pending', Running: 'Running', AwaitingReview: 'Awaiting review', Succeeded: 'Succeeded', Failed: 'Failed', Cancelled: 'Cancelled' };
+en.enums.pipelineReviewStatus = { Pending: 'Pending', Approved: 'Approved', ChangesRequested: 'Changes requested', Rejected: 'Rejected', Expired: 'Expired', Cancelled: 'Cancelled' };
+en.enums.pipelineReviewDecision = { Approve: 'Approve', RequestChanges: 'Request changes', Reject: 'Reject' };
+en.enums.pipelineReviewSource = { User: 'Person', Timeout: 'Timeout', Cancelled: 'Pipeline run stopped' };
+Object.assign(en.enums.resourceType, { Pipeline: 'Pipeline', PipelineRun: 'Pipeline run' });
+Object.assign(en.enums.auditEventType, { PipelineReviewDecided: 'Stage review decided', PipelineRunCancelled: 'Pipeline run cancelled' });
+en.resources.deployments.promptRoles.PipelineStage = 'Pipeline stage (handoff)';
+Object.assign(en.resources.runs.columns, { pipelineRunId: 'Pipeline run' });
+en.resources.runs.pipelineStage = 'stage {{position}}, execution {{execution}}';
+en.resources.pipelines = {
+  ...resourcePage('Pipelines', 'pipeline', 'Ordered agent stages: each stage runs one agent and hands its output to the next, with optional review gates.', 'Create a pipeline to chain agents: each stage receives the output of the stage before it.'),
+  columns: { name: 'Name', stages: 'Stages', reviewGates: 'Review gates', maxDurationSeconds: 'Time limit', version: 'Version', active: 'Active', description: 'Description', id: 'ID', lastUpdateUtc: 'Updated', createdUtc: 'Created' },
+  fields: {
+    name: 'Name',
+    description: 'Description',
+    maxDurationSeconds: 'Time limit (seconds)',
+    active: 'Active',
+    stages: 'Stages',
+    stageName: 'Stage name',
+    agentId: 'Agent',
+    deploymentId: 'Deployment',
+    handoffTemplateId: 'Handoff template',
+    handoffTemplateVersion: 'Pinned template version',
+    outputCharLimit: 'Handoff character limit',
+    maxAttempts: 'Maximum attempts',
+    continueOnFailure: 'Continue on failure',
+    requiresReview: 'Requires review',
+    reviewTimeoutSeconds: 'Review timeout (seconds)',
+    reviewTimeoutAction: 'When the review times out',
+    maxRevisions: 'Maximum revisions',
+    stageDescription: 'Stage description',
+    parameters: 'Run parameters'
+  },
+  hints: {
+    maxDurationSeconds: 'From {{min}} to {{max}}. 0 means no limit. The limit covers the whole pipeline run, including time spent waiting for reviews.',
+    stages: 'Stages run in this order. Each stage starts when the stage before it succeeds (or fails with Continue on failure) and, if it requires a review, after a person approves it.',
+    noDeployments: 'This agent has no deployments yet. Leave the deployment empty or add one under Deployments.',
+    handoffTemplateVersion: 'Empty uses the template\'s current version.',
+    outputCharLimit: 'From {{min}} to {{max}}. Default {{default}}.',
+    maxAttempts: 'From {{min}} to {{max}}. Default {{default}}.',
+    reviewTimeoutSeconds: 'From {{min}} to {{max}}. 0 waits indefinitely.',
+    maxRevisions: 'From {{min}} to {{max}}. Default {{default}}.',
+    parameters: 'Only with a deployment, and only parameters that deployment lets callers override.'
+  },
+  errors: {
+    dnsName: 'Use 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.',
+    range: 'Enter a whole number from {{min}} to {{max}}.',
+    noStages: 'Add at least one stage.',
+    tooManyStages: 'A pipeline has at most {{max}} stages.',
+    stageNameLong: 'Stage names are limited to 128 characters.',
+    stageNameDuplicate: 'Another stage is already named {{name}}.',
+    version: 'Enter a version number of 1 or more, or leave it empty.',
+    parametersNeedDeployment: 'Run parameters need a deployment, because they are checked against that deployment\'s allowed overrides.',
+    parametersUnique: 'Each parameter name may appear once.',
+    stageInvalid: 'this stage has errors.'
+  },
+  actions: { start: 'Start', preview: 'Preview prompts', runs: 'View pipeline runs' },
+  stageHeading: 'Stage {{position}}: {{name}}',
+  stageCount: '{{count}} of at most {{max}}',
+  stageSummary: '{{count}} stages: {{chain}}',
+  addStage: 'Add stage',
+  removeStage: 'Remove stage',
+  noStages: 'No stages yet.',
+  chooseAgent: 'Choose an agent',
+  anyDeployment: 'Any active deployment (weighted)',
+  defaultHandoff: 'Deployment binding or built-in',
+  parameterName: 'Parameter',
+  parameterValue: 'Value',
+  noLimit: 'No limit',
+  versionNotice: 'Version {{version}}. Saving creates a new version; pipeline runs already started keep the stages they started with.'
+};
+en.resources.pipelineRuns = {
+  ...resourcePage('Pipeline runs', 'pipeline run', 'Every execution of a pipeline. Open one to follow its stages, decide its reviews, or cancel and retry it.', 'Start a pipeline from Agents > Pipelines to see its runs here.'),
+  columns: { id: 'ID', pipelineName: 'Pipeline', status: 'Status', outcome: 'Outcome', progress: 'Stage', callerName: 'Started by', errorMessage: 'Error', priority: 'Priority', deadlineUtc: 'Deadline', completedUtc: 'Completed', createdUtc: 'Created' },
+  actions: { cancel: 'Cancel', retry: 'Retry', stageRuns: 'View stage runs', finalRun: 'Open final run' },
+  toasts: { cancelRequested: 'Cancellation requested for the pipeline run and its current stage.', retried: 'The pipeline run resumes at the stage where it stopped.' },
+  progressValue: '{{position}} of {{count}}',
+  versionShort: '(version {{version}})'
+};
+en.resources.pipelineReviews = {
+  ...resourcePage('Stage reviews', 'stage review', 'Pipeline stages that wait for a person to approve them, request changes, or reject them.', 'Stages that require a review appear here after they finish.'),
+  columns: { createdUtc: 'Requested', pipelineName: 'Pipeline', stageName: 'Stage', status: 'Status', decision: 'Decision', decisionSource: 'Decided by', comment: 'Comment', decidedBy: 'Reviewer', expiresUtc: 'Times out', pipelineRunId: 'Pipeline run', runId: 'Stage run', decidedUtc: 'Decided', id: 'ID' },
+  filters: { pipelineRunId: 'Pipeline run ID', pipelineRunIdPlaceholder: 'Pipeline run ID (plr_...)' },
+  actions: { approve: 'Approve', requestChanges: 'Request changes', reject: 'Reject', openStageRun: 'Open stage run' },
+  noTimeout: 'Waits indefinitely'
+};
+en.components.pipelineReviews = {
+  decideTitle: 'Review stage {{stage}} of {{pipeline}}',
+  decision: 'Decision',
+  positionExecution: 'stage {{position}}, execution {{execution}}',
+  revisionsLeft: 'Revisions left',
+  revisionsLeftValue: '{{left}} of {{max}}',
+  noRevisionsLeft: 'This stage used all {{max}} revisions. The server will refuse Request changes; approve or reject it instead.',
+  timeoutThen: 'then {{decision}}',
+  commentApprove: 'Notes for the next stage',
+  commentApprovePlaceholder: 'Optional. The next stage receives these notes with the output.',
+  commentRequestChanges: 'What should change',
+  commentRequestChangesPlaceholder: 'Required. The stage runs again with this feedback.',
+  commentReject: 'Reason',
+  commentRejectPlaceholder: 'Optional. Recorded with the decision; the pipeline run fails.',
+  commentRequired: 'Describe what should change. The stage runs again with this feedback.',
+  commentTooLong: 'Comments are limited to {{max}} characters.',
+  submit: { Approve: 'Approve stage', RequestChanges: 'Request changes', Reject: 'Reject stage' },
+  toasts: {
+    Approve: 'Approved stage {{stage}} of {{pipeline}}.',
+    RequestChanges: 'Requested changes to stage {{stage}} of {{pipeline}}; it runs again with your feedback.',
+    Reject: 'Rejected stage {{stage}} of {{pipeline}}; the pipeline run fails.',
+    notPending: 'This review was already decided, by someone else or by its timeout. The list now shows the current state.',
+    revisionLimit: 'This stage already used all its revisions (maximum {{max}}), so changes can no longer be requested. Approve or reject it instead.'
+  }
+};
+en.components.pipelineStart = {
+  title: 'Start {{name}}',
+  intro_one: 'The input goes to the pipeline\'s only stage.',
+  intro_other: 'The input goes to the first of {{count}} stages; every stage also sees it as the original task.',
+  input: 'Input',
+  inputPlaceholder: 'What should the pipeline work on?',
+  shortcut: 'Press Ctrl+Enter or Cmd+Enter to start.',
+  submit: 'Start pipeline',
+  starting: 'Starting...',
+  started: 'Started {{name}}.'
+};
+en.components.pipelinePreview = {
+  title: 'Preview prompts of {{name}}',
+  input: 'Sample input',
+  sampleInput: 'Summarize the open issues and propose a fix for the most urgent one.',
+  sampleOutput: 'Sample output of {{stage}}.',
+  outputOf: 'Sample output of stage {{position}} ({{stage}})',
+  render: 'Render prompts',
+  rendering: 'Rendering...',
+  stageHeading: 'Stage {{position}}: {{stage}} ({{agent}})',
+  deployment: 'Deployment: {{deployment}}',
+  rendered: 'Rendered',
+  failed: 'Failed'
+};
+en.views.pipelineRunDetail = {
+  title: 'Pipeline run',
+  heading: 'Pipeline run of {{pipeline}}',
+  notFoundTitle: 'Pipeline run not found',
+  notFoundBody: 'It may have been deleted, or it belongs to another tenant.',
+  live: 'Live',
+  polling: 'Refreshing',
+  finalRun: 'Final run',
+  started: 'Started',
+  input: 'Input',
+  reviewTitle: 'Waiting for your review',
+  reviewBody: 'Stage {{position}} ({{stage}}) finished execution {{execution}} and waits for a review. Read its output in the stage run:',
+  reviewExpires: 'If nobody decides by {{time}}, the review is decided automatically: {{decision}}.',
+  reviewNoTimeout: 'The review waits until a person decides, unless the pipeline\'s time limit ends the run first.',
+  stages: 'Stages',
+  stagesCount_one: '{{count}} stage',
+  stagesCount_other: '{{count}} stages',
+  noStages: 'This pipeline run has no stages.',
+  current: 'Current',
+  reviewGate: 'Review gate',
+  agent: 'Agent {{agent}}',
+  counts: 'Executions {{executions}}, attempts {{attempts}} of {{maxAttempts}}, revisions {{revisions}} of {{maxRevisions}}',
+  startedAt: 'started',
+  blocked: 'Waiting to start: {{reason}}.',
+  nextAttempt: 'Next attempt at {{time}}.',
+  reviewItem: 'Review of execution {{execution}}',
+  columns: { execution: 'Execution', run: 'Stage run', status: 'Status', outcome: 'Outcome', error: 'Error', created: 'Created' },
+  confirmCancelTitle: 'Cancel pipeline run',
+  confirmCancel: 'Cancel this pipeline run of {{pipeline}}? Its current stage run is cancelled and a pending review is closed. You can retry it later.',
+  confirmDelete: 'Delete this pipeline run of {{pipeline}} and its reviews? Its stage runs stay on the Runs page.'
+};
+Object.assign(en.views.runDetail, { pipelineRun: 'Pipeline run' });
+en.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Pipeline sweep interval (ms)';
+en.views.settings.fields.Runtime.PipelineMaxStages = 'Maximum stages per pipeline';

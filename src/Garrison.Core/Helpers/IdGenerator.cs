@@ -271,6 +271,69 @@ namespace Garrison.Core.Helpers
             return New(Constants.UsageQuotaIdPrefix);
         }
 
+        /// <summary>
+        /// Generate a pipeline definition identifier (prefix ppl_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPipelineId()
+        {
+            return New(Constants.PipelineIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a pipeline definition stage identifier (prefix pst_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPipelineStageId()
+        {
+            return New(Constants.PipelineStageIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a pipeline stage parameter identifier (prefix psp_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPipelineStageParameterId()
+        {
+            return New(Constants.PipelineStageParameterIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a pipeline run identifier (prefix plr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPipelineRunId()
+        {
+            return New(Constants.PipelineRunIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a pipeline run stage identifier (prefix prs_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPipelineRunStageId()
+        {
+            return New(Constants.PipelineRunStageIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a pipeline run stage parameter identifier (prefix prp_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPipelineRunStageParameterId()
+        {
+            return New(Constants.PipelineRunStageParameterIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a pipeline review identifier (prefix prv_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewPipelineReviewId()
+        {
+            return New(Constants.PipelineReviewIdPrefix);
+        }
+
         /// <summary>Generate an artifact identifier (prefix art_).</summary>
         /// <returns>Identifier.</returns>
         public static string NewArtifactId()

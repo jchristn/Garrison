@@ -1,6 +1,6 @@
 # Manifests
 
-A manifest describes a tenant's configuration (secrets, prompt templates, harness profiles, MCP servers, workspace templates, agents, and deployments) as YAML or JSON documents you can keep in source control, review, and apply to any Garrison. Applying the same manifest twice changes nothing. Exporting a tenant gives you a manifest that recreates it.
+A manifest describes a tenant's configuration (secrets, prompt templates, harness profiles, MCP servers, workspace templates, agents, deployments, and pipelines) as YAML or JSON documents you can keep in source control, review, and apply to any Garrison. Applying the same manifest twice changes nothing. Exporting a tenant gives you a manifest that recreates it.
 
 Every example on this page was checked with a dry run against a live server.
 
@@ -21,7 +21,7 @@ spec:
 | Field | Meaning |
 |---|---|
 | `apiVersion` | Always `garrison/v1` |
-| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `Agent`, or `Deployment` |
+| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `Agent`, `Deployment`, or `Pipeline` |
 | `metadata.name` | The record's name, which is also how other documents refer to it. Names starting with `builtin/` are reserved |
 | `metadata.description` | Optional; becomes the record's description |
 | `spec` | The record's fields in camelCase, as in the REST API, with the conveniences listed below |
@@ -82,7 +82,7 @@ A successful apply answers 200. If any document fails, the response is 400 with 
 
 ```json
 { "kind": "Secret", "name": "k1", "result": "Failed", "message": "Secret k1 carries a value but this apply does not allow secret values." }
-{ "kind": "Gadget", "name": "x", "result": "Failed", "message": "Document 1 has unknown kind 'Gadget'. Supported: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, Agent, Deployment." }
+{ "kind": "Gadget", "name": "x", "result": "Failed", "message": "Document 1 has unknown kind 'Gadget'. Supported: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, Agent, Deployment, Pipeline." }
 ```
 
 A failed item also carries `errorCode` and, when one field is at fault, `errorField`. A spec field with the wrong type or a value it does not accept gives `ManifestInvalid`, and the message names the document, the field, the value, and what the field accepts:
@@ -321,6 +321,48 @@ spec:
 | `model`, `fallbackModel`, `effort`, `maxTurns`, `maxBudgetUsd`, `timeoutSeconds`, `maxConcurrentRuns`, `maxAttempts`, `retryOnNodeLoss`, `weight` | As in the REST API |
 | `executor` | `Process` or `KubernetesJob` (a pod per run). Omit it to use the node pool's default, then `Process` |
 | `podResources` | Run pod `cpuRequest`, `cpuLimit`, `memoryRequest`, `memoryLimit`, `ephemeralStorageRequest`, `ephemeralStorageLimit` for `KubernetesJob` runs. It is not called `resources` because that key holds the secret and MCP server bindings |
+
+### Pipeline
+
+A pipeline runs agents in order, each stage seeing the previous stage's result, with optional review gates (see [PIPELINES.md](PIPELINES.md)). Stages refer to agents, deployments, and handoff templates by name, so the same document works in any tenant that has those agents. Pipelines are applied last, after the agents and deployments in the same manifest.
+
+```yaml
+apiVersion: garrison/v1
+kind: Pipeline
+metadata:
+  name: release-notes
+  description: Draft release notes, have a person check them, then edit
+spec:
+  maxDurationSeconds: 86400
+  stages:
+    - name: draft
+      agent: writer
+      requiresReview: true
+      reviewTimeoutSeconds: 14400
+      reviewTimeoutAction: Reject
+      maxRevisions: 2
+    - name: edit
+      agent: editor
+      deployment: editor-claude
+      handoffTemplate: edit-handoff@2
+      maxAttempts: 2
+      outputCharLimit: 32000
+      parameters:
+        model: opus
+```
+
+| Field | Meaning |
+|---|---|
+| `description`, `maxDurationSeconds`, `active` | As in the REST API. `maxDurationSeconds` 0 or absent means no limit; `active` defaults to true |
+| `stages` | The stages in run order, 1 to `Runtime.PipelineMaxStages` (default 20) |
+| `stages[].name`, `stages[].description` | Stage name, unique within the pipeline, and an optional description |
+| `stages[].agent` | The agent, by name |
+| `stages[].deployment` | One of that agent's deployments, by name. Leave it out for the agent's weighted deployment selection |
+| `stages[].handoffTemplate` | A `Task` template rendered as the stage's `PipelineStage` prompt, by name. Append `@<version>` to pin a version |
+| `stages[].outputCharLimit`, `maxAttempts`, `continueOnFailure`, `requiresReview`, `reviewTimeoutSeconds`, `reviewTimeoutAction`, `maxRevisions` | As in the REST API; fields you leave out take the stage defaults (16000, 1, false, false, 0, `Reject`, 3) |
+| `stages[].parameters` | A map of run parameter overrides. They must be allowed run overrides of the named `deployment`, so a stage with parameters needs one. Quote values YAML would read as numbers or booleans |
+
+Applying a changed Pipeline document replaces its stages and increases the pipeline's version; pipeline runs that already started keep their own copy of the stages. An unchanged document reports `Unchanged` and keeps the version. A protected pipeline cannot be changed by a manifest. Export writes every tenant pipeline in this form and leaves out fields that hold their defaults.
 
 ## A complete example on the fake harness
 

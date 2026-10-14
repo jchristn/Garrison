@@ -62,7 +62,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
 
 Control-plane replicas are read-only: `client.control_nodes.list(max_results, skip, search)` returns a page with `respondingNodeId` (the replica that answered), and `client.control_nodes.get(node_id)` reads one replica. Each record carries `status` (`Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -78,6 +78,30 @@ print(result["action"], result["source"], result.get("rulePattern"))
 ```
 
 `approvals.list` filters by `status`, `run_id`, `root_run_id`, `agent_id`, `deployment_id`, `decision_source`, `from_utc`, and `to_utc`; for a pending count, pass `status="Pending", max_results=1` and read `totalRecords`. `approvals.get` raises `GarrisonError` (404) for an approval outside the tenant. `approvals.decide` raises 409 (`ApprovalNotPending`) when the approval was already decided, and `remember=True` adds a rule to the deployment (`rule_pattern`, or the approval's `suggestedRule`) and needs Update on that deployment. `approvals.check` records nothing; the input uses Claude Code tool input names (`command`, `cwd`, `url`, `file_path`, `notebook_path`, `path`, `paths`, `pattern`, `query`). Runs carry `pendingApprovals`, `awaitingApproval` (the run stays `Running` while it waits), and `approvalWaitMs`. The module exports `APPROVAL_STATUSES`, `APPROVAL_DECISIONS`, `APPROVAL_SOURCES`, `APPROVAL_RULE_ACTIONS`, and `APPROVAL_KINDS`.
+
+## Pipelines
+
+A pipeline runs ordered agent stages, each in its own workspace, and hands each stage the earlier stages' results through a `PipelineStage` prompt template. A stage with `requiresReview` waits for a person before the next stage starts.
+
+```python
+pipeline = client.pipelines.create({"name": "draft-and-edit", "stages": [
+    {"name": "write", "agentId": writer_id, "requiresReview": True, "maxRevisions": 2},
+    {"name": "edit", "agentId": editor_id}]})
+preview = client.pipelines.preview(pipeline["id"], "Announce the release", ["Sample draft"])
+run = client.pipelines.start("draft-and-edit", "Announce the release", wait=True, wait_seconds=60,
+                             idempotency_key="release-42")
+review = client.pipeline_reviews.list(status="Pending", pipeline_run_id=run["id"])["objects"][0]
+client.pipeline_reviews.decide(review["id"], "Approve", "Keep it short")
+finished = client.pipeline_runs.wait_for_completion(run["id"])
+```
+
+`pipelines` offers `list`, `get`, `create`, `update`, and `delete` (identifier or name), plus `start` and `preview`. `start` needs Pipeline Execute and Agent Execute on every stage agent. With `wait=True` it returns when the pipeline run ends or waits for a review, or after `wait_seconds` (0 to 600). `idempotency_key` is sent as the `Idempotency-Key` header: a repeated start returns the same pipeline run, and the same key with a different pipeline or input raises 409 `IdempotencyKeyConflict`. `update` replaces the stages and advances `version`; started pipeline runs keep their snapshot. `delete` raises 409 `PipelineInUse` while pipeline runs are active.
+
+`pipeline_runs.list` filters by `pipeline_id`, `status`, `caller_id`, `from_utc`, and `to_utc`. `get(id, wait_seconds=...)` waits until the pipeline run ends or waits for a review; the detail carries `stages`, `runs` (stage run summaries), and `reviews`. `cancel` also cancels the pending review and the current stage run (409 `PipelineRunFinished` once it ended). `retry` resumes a Failed, TimedOut, or Cancelled pipeline run at the stage where it stopped. `delete` removes a finished pipeline run and its reviews (409 `PipelineRunActive` otherwise). `wait_for_completion` polls until a terminal status and keeps waiting while a review is pending.
+
+`pipeline_reviews.list` filters by `status`, `pipeline_run_id`, `pipeline_id`, `run_id`, `decision_source`, `from_utc`, and `to_utc`. `decide(id, decision, comment)` takes `Approve` (the comment reaches the next stage as review notes), `RequestChanges` (comment required; the stage runs again with it, up to the stage's `maxRevisions`, then 409 `RevisionLimitReached`), or `Reject` (the pipeline run fails with outcome `ReviewRejected`). A decided review raises 409 `ReviewNotPending`. Reviews are authorized as Approval Read and Update; run tokens cannot use pipelines or reviews.
+
+The module exports `PIPELINE_RUN_STATUSES`, `PIPELINE_RUN_TERMINAL_STATUSES`, `PIPELINE_RUN_OUTCOMES`, `PIPELINE_STAGE_STATUSES`, `PIPELINE_REVIEW_STATUSES`, `PIPELINE_REVIEW_DECISIONS`, and `PIPELINE_REVIEW_SOURCES`.
 
 ## Streaming run events
 
@@ -232,7 +256,7 @@ Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to 
 python -m garrison_sdk http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
 ## Executor capabilities
 

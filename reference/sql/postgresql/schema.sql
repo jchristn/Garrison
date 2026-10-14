@@ -1,4 +1,4 @@
--- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 20).
+-- Garrison reference schema for Postgresql. Generated from Garrison.Core SchemaBuilder (migrations 1 to 21).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1165,3 +1165,154 @@ CREATE UNIQUE INDEX IF NOT EXISTS "idx_mcp_tests_node" ON "mcp_tests" ("nodeid")
 CREATE INDEX IF NOT EXISTS "idx_mcp_tests_expires" ON "mcp_tests" ("expiresutc");
 CREATE TABLE IF NOT EXISTS "mcp_test_tools" (id VARCHAR(64) NOT NULL PRIMARY KEY, tenantid VARCHAR(64) NOT NULL, testid VARCHAR(64) NOT NULL, kind VARCHAR(16) NOT NULL, name VARCHAR(512) NOT NULL, position INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS "idx_mcp_test_tools_parent" ON "mcp_test_tools" ("testid", "position");
+
+-- Migration 21: Ordered pipelines and stage review gates
+ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS pipelinerunid VARCHAR(64);
+ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS pipelineposition INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "runs" ADD COLUMN IF NOT EXISTS pipelineexecution INTEGER NOT NULL DEFAULT 0;
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_runs_pipelineexecution" ON "runs" ("pipelinerunid", "pipelineposition", "pipelineexecution") WHERE pipelinerunid IS NOT NULL;
+CREATE TABLE IF NOT EXISTS "pipelines" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    version INTEGER NOT NULL,
+    maxdurationseconds INTEGER NOT NULL,
+    active BOOLEAN NOT NULL,
+    isprotected BOOLEAN NOT NULL,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_pipelines_tenantname" ON "pipelines" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_pipelines_tenantcreated" ON "pipelines" ("tenantid", "createdutc");
+CREATE TABLE IF NOT EXISTS "pipeline_stages" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    pipelineid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    agentid VARCHAR(64) NOT NULL,
+    deploymentid VARCHAR(64),
+    handofftemplateid VARCHAR(64),
+    handofftemplateversion INTEGER,
+    outputcharlimit INTEGER NOT NULL,
+    maxattempts INTEGER NOT NULL,
+    continueonfailure BOOLEAN NOT NULL,
+    requiresreview BOOLEAN NOT NULL,
+    reviewtimeoutseconds INTEGER NOT NULL,
+    reviewtimeoutaction VARCHAR(32) NOT NULL,
+    maxrevisions INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_pipeline_stages_parent" ON "pipeline_stages" ("pipelineid", "position");
+CREATE INDEX IF NOT EXISTS "idx_pipeline_stages_agent" ON "pipeline_stages" ("tenantid", "agentid");
+CREATE INDEX IF NOT EXISTS "idx_pipeline_stages_deployment" ON "pipeline_stages" ("tenantid", "deploymentid");
+CREATE TABLE IF NOT EXISTS "pipeline_stage_parameters" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    stageid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    name VARCHAR(256) NOT NULL,
+    value TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_pipeline_stage_parameters_parent" ON "pipeline_stage_parameters" ("stageid", "position");
+CREATE TABLE IF NOT EXISTS "pipeline_runs" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    pipelineid VARCHAR(64) NOT NULL,
+    pipelinename VARCHAR(128) NOT NULL,
+    pipelineversion INTEGER NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    outcome VARCHAR(32) NOT NULL,
+    currentposition INTEGER NOT NULL,
+    stagecount INTEGER NOT NULL,
+    casversion INTEGER NOT NULL,
+    inputtext TEXT NOT NULL,
+    inputcontenttype VARCHAR(256) NOT NULL,
+    callertype VARCHAR(64) NOT NULL,
+    callerid VARCHAR(64),
+    callername VARCHAR(256),
+    idempotencykey VARCHAR(256),
+    priority INTEGER NOT NULL,
+    finalrunid VARCHAR(64),
+    errormessage TEXT,
+    deadlineutc TIMESTAMPTZ,
+    cancelrequested BOOLEAN NOT NULL,
+    traceparent VARCHAR(128),
+    startedutc TIMESTAMPTZ,
+    completedutc TIMESTAMPTZ,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_pipeline_runs_tenantstatus" ON "pipeline_runs" ("tenantid", "status", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_pipeline_runs_deadline" ON "pipeline_runs" ("status", "deadlineutc");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_pipeline_runs_idempotency" ON "pipeline_runs" ("tenantid", "callerid", "idempotencykey");
+CREATE INDEX IF NOT EXISTS "idx_pipeline_runs_pipeline" ON "pipeline_runs" ("tenantid", "pipelineid");
+CREATE TABLE IF NOT EXISTS "pipeline_run_stages" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    pipelinerunid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    agentid VARCHAR(64) NOT NULL,
+    agentname VARCHAR(256) NOT NULL,
+    deploymentid VARCHAR(64),
+    handofftemplateid VARCHAR(64),
+    handofftemplateversion INTEGER,
+    outputcharlimit INTEGER NOT NULL,
+    maxattempts INTEGER NOT NULL,
+    continueonfailure BOOLEAN NOT NULL,
+    requiresreview BOOLEAN NOT NULL,
+    reviewtimeoutseconds INTEGER NOT NULL,
+    reviewtimeoutaction VARCHAR(32) NOT NULL,
+    maxrevisions INTEGER NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    executions INTEGER NOT NULL,
+    attempts INTEGER NOT NULL,
+    revisions INTEGER NOT NULL,
+    currentrunid VARCHAR(64),
+    lastrunid VARCHAR(64),
+    blockedreason TEXT,
+    nextattemptutc TIMESTAMPTZ,
+    startedutc TIMESTAMPTZ,
+    completedutc TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_pipeline_run_stages_position" ON "pipeline_run_stages" ("pipelinerunid", "position");
+CREATE TABLE IF NOT EXISTS "pipeline_run_stage_parameters" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    runstageid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    name VARCHAR(256) NOT NULL,
+    value TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_pipeline_run_stage_parameters_parent" ON "pipeline_run_stage_parameters" ("runstageid", "position");
+CREATE TABLE IF NOT EXISTS "pipeline_reviews" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    pipelinerunid VARCHAR(64) NOT NULL,
+    pipelineid VARCHAR(64) NOT NULL,
+    pipelinename VARCHAR(128) NOT NULL,
+    runstageid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    stagename VARCHAR(128) NOT NULL,
+    runid VARCHAR(64) NOT NULL,
+    execution INTEGER NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    decision VARCHAR(32),
+    decisionsource VARCHAR(32),
+    comment TEXT,
+    decidedby VARCHAR(256),
+    decidedbyid VARCHAR(64),
+    timeoutaction VARCHAR(32) NOT NULL,
+    requestedutc TIMESTAMPTZ NOT NULL,
+    expiresutc TIMESTAMPTZ,
+    decidedutc TIMESTAMPTZ,
+    createdutc TIMESTAMPTZ NOT NULL,
+    lastupdateutc TIMESTAMPTZ NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_pipeline_reviews_execution" ON "pipeline_reviews" ("runstageid", "execution");
+CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_tenantstatus" ON "pipeline_reviews" ("tenantid", "status", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_expires" ON "pipeline_reviews" ("status", "expiresutc");
+CREATE INDEX IF NOT EXISTS "idx_pipeline_reviews_pipelinerun" ON "pipeline_reviews" ("pipelinerunid");

@@ -23,6 +23,11 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// Retry.
         /// </summary>
-        Retry
+        Retry,
+
+        /// <summary>
+        /// A stage of a pipeline run (PipelineRunId, PipelinePosition, and PipelineExecution are set).
+        /// </summary>
+        Pipeline
     }
 }

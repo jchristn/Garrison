@@ -164,6 +164,7 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Scheduling.LeaseWaitMs` | `20000` | 0 to 60000 | Longest a lease long poll waits for work |
 | `Scheduling.NodeHeartbeatTimeoutMs` | `20000` | 5000 to 600000 | Silence after which a node is marked lost |
 | `Scheduling.EventPollMs` | `250` | 50 to 10000 | How often streaming subscribers check for new events |
+| `Scheduling.InvocationWaitPollMs` | `5000` | 250 to 60000 | How often a synchronous invocation (`invoke?wait=true`, MCP `garrison_invoke_agent`, blocking A2A `message/send`) re-reads its run if no completion signal has arrived. Waiters wake as soon as their run finishes on any replica, so this is only a safety net; event batches do not wake them |
 | `Scheduling.PauseGraceMs` | `5000` | 1000 to 600000 | Pause tolerance. When a leader maintenance tick comes more than the maintenance interval (2 seconds) plus this long after the previous one, or a pass stalls this long between two steps, the leader treats it as a pause (host sleep, frozen VM, clock jump). It then expires no leases, enforces no deadlines, marks no node `Lost` and no control node `Offline`, and fails no blocked run until one heartbeat window (the larger of the worker and control-plane heartbeat intervals) plus this grace has passed since the resume: 10 seconds with the defaults. Keep it above your slowest maintenance query. See `docs/SCALING.md`, "Pauses" |
 | `Runs.DefaultTimeoutSeconds` | `1800` | 5 to 86400 | Run deadline when neither the deployment nor the profile sets one |
 | `Runs.MaxDelegationDepth` | `3` | 0 to 10 | Deepest allowed chain of agents calling agents |
@@ -177,11 +178,14 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Runtime.ConversationAffinityWaitMs` | `30000` | 0 to 600000 | How long a conversation turn waits for the node that holds the conversation's harness session. Other nodes leave the turn queued for this long while that node is Ready, then take it and start a fresh session seeded with the transcript (a fallback). They take it at once when the node is not Ready. `0` never waits |
 | `Runtime.ConversationTranscriptTurns` | `20` | 1 to 200 | Most earlier turns repeated to a fallback turn; the newest are kept |
 | `Runtime.ConversationTranscriptChars` | `4000` | 200 to 200000 | Most characters of each earlier input and answer repeated to a fallback turn; longer ones are cut and marked |
+| `Runtime.PipelineSweepIntervalMs` | `5000` | 500 to 600000 | How often the leader sweeps pipeline runs: it advances pipeline runs whose stage finished without a completion hook (for example on a replica that stopped), links stage runs that were claimed but not linked, retries stage starts refused for a transient reason (such as `QuotaExceeded`), applies stage review timeouts and pipeline deadlines, and cancels stage runs left under finished pipeline runs |
+| `Runtime.PipelineMaxStages` | `20` | 1 to 100 | Most stages a pipeline may have; creating or updating a pipeline (REST or a `Pipeline` manifest) with more fails validation |
 | `ControlPlane.HeartbeatIntervalMs` | `5000` | 1000 to 60000 | How often each control-plane replica heartbeats its row in `control_nodes` (status, activity counters) |
 | `ControlPlane.OfflineAfterMs` | `30000` | 5000 to 600000 | Silence after which the leader marks a control-plane replica `Offline`. Keep it several heartbeat intervals long |
 | `ControlPlane.OfflineRetentionHours` | `24` | 1 to 8760 | How long an `Offline` control-plane replica stays listed (counted from its last heartbeat) before the leader deletes its row |
 | `Audit.RetentionDays` | `365` | 1 to 3650 | How long audit records are kept |
 | `RequestHistory.Enabled` | `true` | | Capture HTTP requests |
+| `RequestHistory.CaptureNodeProtocol` | `false` | | Also capture successful worker node protocol calls (`/v1.0/api/node/...`: lease, watch, heartbeat, events, started, complete). Each run makes dozens of them, so they are left out by default; failed node calls are captured either way, and calls a worker abandoned (its cancellation watch) are not failures |
 | `RequestHistory.RetentionDays` | `30` | 1 to 3650 | How long captured requests are kept |
 
 ### Observability

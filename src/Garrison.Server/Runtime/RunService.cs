@@ -170,6 +170,9 @@ namespace Garrison.Server.Runtime
             run.CallerName = create.CallerName;
             run.IdempotencyKey = create.IdempotencyKey;
             run.RetryOfRunId = create.RetryOfRunId;
+            run.PipelineRunId = create.PipelineRunId;
+            run.PipelinePosition = create.PipelinePosition;
+            run.PipelineExecution = create.PipelineExecution;
             run.MaxAttempts = deployment.MaxAttempts;
             run.Attempt = 1;
 
@@ -269,6 +272,31 @@ namespace Garrison.Server.Runtime
         }
 
         /// <summary>
+        /// Cancel a stage run on behalf of its pipeline run (P12.9): the pipeline run was cancelled or timed out, or the run
+        /// was left behind under a finished pipeline run. Delegated child runs are cancelled too. Does nothing and returns
+        /// false when the run already finished; never throws for a run that finished meanwhile.
+        /// </summary>
+        /// <param name="run">Run.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when a cancellation was requested.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
+        public async Task<bool> CancelForPipelineAsync(Run run, CancellationToken token = default)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
+            if (TerminalStatuses.Contains(run.Status) || run.Status == RunStatusEnum.Cancelling) return false;
+            try
+            {
+                await CancelAsync(run, "pipeline", token).ConfigureAwait(false);
+            }
+            catch (ConflictException)
+            {
+                return false;
+            }
+            _Logging?.Info("[Runs] cancelled run " + run.Id + " with its pipeline run " + run.PipelineRunId + " " + RunTracing.LogFields(run.Id, run.TraceId));
+            return true;
+        }
+
+        /// <summary>
         /// Cancel a run because its caller went away (client disconnect, cancelled MCP request, closed MCP session).
         /// Does nothing when the run already finished. Never throws for a run that finished meanwhile.
         /// </summary>
@@ -312,7 +340,8 @@ namespace Garrison.Server.Runtime
             queued.Outcome = RunOutcomeEnum.Cancelled;
             queued.SetCompleted = true;
             queued.CancelRequested = true;
-            if (await _Database.Runs.TransitionAsync(queued, token).ConfigureAwait(false))
+            bool finished = await _Database.Runs.TransitionAsync(queued, token).ConfigureAwait(false);
+            if (finished)
             {
                 run.Status = RunStatusEnum.Cancelled;
                 run.Outcome = RunOutcomeEnum.Cancelled;
@@ -330,7 +359,9 @@ namespace Garrison.Server.Runtime
                 await _Database.Runs.TransitionAsync(active, token).ConfigureAwait(false);
             }
 
-            _Signals.Notify(run.Id);
+            // A queued run is finished now, so its completion waiters wake too; an active run finishes when its worker reports.
+            if (finished) _Signals.Complete(run.Id);
+            else _Signals.Notify(run.Id);
             if (Approvals != null) await Approvals.CancelPendingAsync(run.Id, "The run was cancelled.", token).ConfigureAwait(false);
             GarrisonMetrics.Count(GarrisonMetricCatalog.RunCancellations, "tenant", run.TenantId, "agent", run.AgentName, "reason", reason);
             _Logging?.Info("[Runs] cancellation requested for run " + run.Id + " " + RunTracing.LogFields(run.Id, run.TraceId) + " " + GarrisonTracing.LogFields("tenant", run.TenantId, "agent", run.AgentName));
@@ -370,11 +401,17 @@ namespace Garrison.Server.Runtime
         /// <param name="token">Cancellation token.</param>
         /// <returns>New run.</returns>
         /// <exception cref="ArgumentNullException">Thrown when original is null.</exception>
-        /// <exception cref="ConflictException">Thrown with RunNotFinished when the run has not finished, AgentDeleted when its agent was deleted, or DeploymentDeleted when its deployment was deleted.</exception>
+        /// <exception cref="ConflictException">Thrown with RunNotFinished when the run has not finished, PipelineStageRun when it is a pipeline stage run, AgentDeleted when its agent was deleted, or DeploymentDeleted when its deployment was deleted.</exception>
         public async Task<Run> RetryAsync(Run original, PrincipalTypeEnum callerType, string? callerId, string? callerName, CancellationToken token = default)
         {
             if (original == null) throw new ArgumentNullException(nameof(original));
             if (!TerminalStatuses.Contains(original.Status)) throw new ConflictException("RunNotFinished", "Only finished runs can be retried.");
+            if (!String.IsNullOrEmpty(original.PipelineRunId))
+            {
+                // A stage run is retried by its pipeline (stage maxAttempts, or POST pipeline-runs/{id}/retry), so the
+                // pipeline keeps track of which execution counts (P12.9).
+                throw new ConflictException("PipelineStageRun", "Run " + original.Id + " is stage " + original.PipelinePosition + " of pipeline run " + original.PipelineRunId + ". Retry the pipeline run instead (POST /v1.0/api/tenants/" + original.TenantId + "/pipeline-runs/" + original.PipelineRunId + "/retry).");
+            }
 
             Agent agent = await _Database.Agents.ReadAsync(original.TenantId, original.AgentId, token).ConfigureAwait(false)
                 ?? throw new ConflictException("AgentDeleted", "Run " + original.Id + " cannot be retried because the agent " + original.AgentName + " was deleted.");
@@ -416,7 +453,7 @@ namespace Garrison.Server.Runtime
         public async Task<Run?> WaitAsync(string tenantId, string runId, int waitSeconds, CancellationToken token = default)
         {
             DateTime deadline = DateTime.UtcNow.AddSeconds(Math.Clamp(waitSeconds, 0, 600));
-            using (RunSignalSubscription signal = _Signals.Subscribe(runId))
+            using (RunSignalSubscription signal = _Signals.SubscribeCompletion(runId))
             {
                 while (true)
                 {
@@ -429,7 +466,7 @@ namespace Garrison.Server.Runtime
                     {
                         try
                         {
-                            await signal.WaitAsync(Math.Min(remaining, _Options.EventPollMs * 4), wait.Token).ConfigureAwait(false);
+                            await signal.WaitAsync(Math.Min(remaining, _Options.InvocationWaitPollMs), wait.Token).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested && !token.IsCancellationRequested)
                         {

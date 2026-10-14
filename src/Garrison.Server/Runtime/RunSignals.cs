@@ -27,6 +27,14 @@ namespace Garrison.Server.Runtime
         public IEventBackplane? Backplane { get; set; } = null;
 
         /// <summary>
+        /// Raised on this replica after <see cref="Complete"/> is called here, with the completed identifier (a run, or a
+        /// pipeline run when a pipeline run ends or waits for a review). Not raised for completions received from other
+        /// replicas through the backplane, so each completion is handled once, by the replica that recorded it (P12.9).
+        /// Handlers run on the caller's thread, must return quickly, and must not throw; exceptions are swallowed.
+        /// </summary>
+        public event EventHandler<string>? LocalCompleted;
+
+        /// <summary>
         /// Runs that currently have at least one waiter on this replica.
         /// </summary>
         public int WatchedRuns
@@ -72,6 +80,20 @@ namespace Garrison.Server.Runtime
                 signal = entry.Signal;
             }
             return new RunSignalSubscription(this, runId, signal);
+        }
+
+        /// <summary>
+        /// Start waiting for a run to finish. Unlike <see cref="Subscribe"/>, the subscription wakes only on
+        /// <see cref="Complete"/> (here or on another replica), never on event batches, so a synchronous invocation
+        /// waiter does not re-read its run for every event. Dispose the subscription when done.
+        /// </summary>
+        /// <param name="runId">Run identifier.</param>
+        /// <returns>Subscription.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when runId is null or empty.</exception>
+        public RunSignalSubscription SubscribeCompletion(string runId)
+        {
+            if (String.IsNullOrEmpty(runId)) throw new ArgumentNullException(nameof(runId));
+            return Subscribe(CompletionSubject(runId));
         }
 
         /// <summary>
@@ -141,7 +163,20 @@ namespace Garrison.Server.Runtime
         {
             if (String.IsNullOrEmpty(runId)) return;
             SignalLocal(runId);
+            SignalLocal(CompletionSubject(runId));
             Backplane?.Publish(new BackplaneMessage(BackplaneMessageKindEnum.RunCompleted, runId));
+            EventHandler<string>? handler = LocalCompleted;
+            if (handler != null)
+            {
+                try
+                {
+                    handler(this, runId);
+                }
+                catch (Exception)
+                {
+                    // A completion hook must never break the path that finished the run; the pipeline sweep repairs it.
+                }
+            }
         }
 
         /// <summary>
@@ -163,8 +198,14 @@ namespace Garrison.Server.Runtime
             switch (message.Kind)
             {
                 case BackplaneMessageKindEnum.RunChanged:
-                case BackplaneMessageKindEnum.RunCompleted:
                     if (!String.IsNullOrEmpty(message.Subject)) SignalLocal(message.Subject!);
+                    break;
+                case BackplaneMessageKindEnum.RunCompleted:
+                    if (!String.IsNullOrEmpty(message.Subject))
+                    {
+                        SignalLocal(message.Subject!);
+                        SignalLocal(CompletionSubject(message.Subject!));
+                    }
                     break;
                 case BackplaneMessageKindEnum.QueueChanged:
                     QueueChanged.Signal();
@@ -211,6 +252,11 @@ namespace Garrison.Server.Runtime
         private static string ApprovalSubject(string approvalId)
         {
             return "approval:" + approvalId;
+        }
+
+        private static string CompletionSubject(string runId)
+        {
+            return "done:" + runId;
         }
 
         private static string NodeSubject(string nodeId)

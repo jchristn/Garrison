@@ -43,6 +43,7 @@ namespace Test.Shared.Suites
                 string id = "cancel-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "latency", "Cancel reaches the harness and the run ends Cancelled within 5 seconds, with a 15-second heartbeat, for a harness that exits on SIGTERM and one that must be killed (" + provider + ")", ct => LatencyAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "latency-under-load", "Cancel reaches the harness and the run ends Cancelled within 5 seconds while two workers churn through event-heavy runs (" + provider + ")", ct => LatencyUnderLoadAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "guard-end-to-end", "A \"* \\n\" loop ends Failed with RepetitionDetected, one RunGuardTriggered warning, and partial result text (" + provider + ")", ct => GuardEndToEndAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "rest-disconnect", "REST wait=true invoke cancels its run when the client disconnects; cancelOnDisconnect=false keeps it (" + provider + ")", ct => RestDisconnectAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "mcp-cancel", "MCP garrison_invoke_agent cancels its run on notifications/cancelled and when the session is deleted (" + provider + ")", ct => McpCancelAsync(provider, ct)));
@@ -165,6 +166,68 @@ namespace Test.Shared.Suites
                     Assert.True(events.Events.Any(e => e.Code == "HarnessExited"), "HarnessExited recorded for " + agent.Name);
                     RunGuardSuite.Measure("cancel latency " + provider + " " + agent.Name + ": cancel request to run Cancelled in " + watch.ElapsedMilliseconds + " ms (heartbeat 15 s, kill grace " + (agent.Name == "stubborn" ? "1 s, SIGTERM ignored" : "5 s, exits on SIGTERM") + ")");
                 }
+            }
+        }
+
+        private static async Task LatencyUnderLoadAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await TestCluster.StartAsync(provider, 2, token).ConfigureAwait(false))
+            {
+                // A long heartbeat proves the cancellation watch delivers the cancel while it keeps restarting for churn.
+                cluster.Server.Server.Context.Get<RuntimeOptions>().HeartbeatIntervalMs = 15000;
+                await CreateProfileAsync(cluster, "hang-fake", 5, token, "--format", "claude", "--hang").ConfigureAwait(false);
+                await CreateProfileAsync(cluster, "churn-fake", 5, token, "--format", "claude", "--tool-calls", "150", "--tool-sleep-ms", "10").ConfigureAwait(false);
+                Agent hanging = await cluster.CreateAgentAsync("load-hang", "hang-fake", null, token).ConfigureAwait(false);
+                Agent churn = await cluster.CreateAgentAsync("load-churn", "churn-fake", null, token).ConfigureAwait(false);
+
+                int submitted = 0;
+                using (CancellationTokenSource stop = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    Task load = Task.Run(async () =>
+                    {
+                        while (!stop.IsCancellationRequested)
+                        {
+                            InvokeRequest request = new InvokeRequest();
+                            request.Input = "Stream for a while";
+                            request.Wait = false;
+                            try
+                            {
+                                await HttpTestHelpers.SendAsync<Run>(cluster.Server.AdminClient, HttpMethod.Post, "/v1.0/api/tenants/" + cluster.Server.TenantId + "/agents/" + churn.Id + "/invoke", request, 202, stop.Token).ConfigureAwait(false);
+                                Interlocked.Increment(ref submitted);
+                                await Task.Delay(400, stop.Token).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException) when (stop.IsCancellationRequested)
+                            {
+                                return;
+                            }
+                        }
+                    });
+
+                    try
+                    {
+                        await Task.Delay(2000, token).ConfigureAwait(false);
+                        List<long> latencies = new List<long>();
+                        for (int i = 0; i < 3; i++)
+                        {
+                            Run running = await StartRunAsync(cluster, hanging, token).ConfigureAwait(false);
+                            await Task.Delay(500, token).ConfigureAwait(false);
+                            Stopwatch watch = Stopwatch.StartNew();
+                            await HttpTestHelpers.SendAsync<Run>(cluster.Server.AdminClient, HttpMethod.Post, Runs(cluster) + "/" + running.Id + "/cancel", null, 200, token).ConfigureAwait(false);
+                            Run final = await WaitForAsync(cluster, running.Id, r => RunService.IsTerminal(r.Status), 20, 25, token).ConfigureAwait(false);
+                            watch.Stop();
+                            Assert.Equal(RunStatusEnum.Cancelled, final.Status, "status after cancel under load");
+                            Assert.True(watch.ElapsedMilliseconds < 5000, "cancel under load took " + watch.ElapsedMilliseconds + " ms (limit 5,000 ms)");
+                            latencies.Add(watch.ElapsedMilliseconds);
+                        }
+                        RunGuardSuite.Measure("cancel latency under load " + provider + ": " + String.Join(", ", latencies) + " ms with " + Volatile.Read(ref submitted) + " churn runs submitted (heartbeat 15 s, 2 workers)");
+                    }
+                    finally
+                    {
+                        stop.Cancel();
+                        await IgnoreAsync(load).ConfigureAwait(false);
+                    }
+                }
+                Assert.True(Volatile.Read(ref submitted) >= 5, "the load loop kept submitting runs");
             }
         }
 

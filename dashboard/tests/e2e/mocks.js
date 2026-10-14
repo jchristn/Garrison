@@ -107,7 +107,13 @@ function run(i) {
     // P13.16: W3C trace ID (32 lowercase hex) of the trace the run was compiled in.
     traceId: `4bf92f3577b34da6a3ce929d0e0e${pad(i)}`,
     // P12.1: always serialized; conversationTurn is 0 outside a conversation. Runs 36, 40, and 42 are the turns of cnv_0001.
-    ...conversationFields(i)
+    ...conversationFields(i),
+    // P12.9: always serialized; 0 outside a pipeline. Stage runs also carry pipelineRunId.
+    pipelinePosition: 0,
+    pipelineExecution: 0,
+    pipelineRunId: null,
+    // Always serialized; null unless the caller sent an Idempotency-Key.
+    idempotencyKey: null
   });
   if (!queued) {
     Object.assign(out, {
@@ -298,7 +304,7 @@ const FACTORIES = {
       retention: 'Delete',
       files: [{ id: `chr_wst_${pad(i)}_0000fil`, workspaceTemplateId: `wst_${pad(i)}`, path: 'README.md', content: 'hello' }]
     }),
-  'artifact-stores': (i) => base('as', i, { description: 'Database store', kind: 'Database' }),
+  'artifact-stores': (i) => base('as', i, { description: 'Database store', kind: 'Database', region: null, forcePathStyle: false }),
   'model-prices': (i) => base('mpr', i, { model: `fixture-model-${i}`, harnessType: 'Generic', inputUsdPerMillion: 2, outputUsdPerMillion: 10, cachedInputUsdPerMillion: null, reasoningUsdPerMillion: null, inputIncludesCachedTokens: true, outputIncludesReasoningTokens: true, description: 'Fixture rates' }),
   'usage-quotas': (i) => base('uqt', i, { enforcementEnabled: false, scope: i === 1 ? 'Tenant' : i % 2 ? 'Agent' : 'Deployment', resourceId: i === 1 ? 'default' : i % 2 ? `agt_${pad(i)}` : `dep_${pad(i)}`, dailyRunLimit: 100, dailyTokenLimit: 1000000, dailyCostUsdLimit: 25, maxConcurrentRuns: 4, description: 'Daily quota' }),
   agents: (i) =>
@@ -340,6 +346,8 @@ const FACTORIES = {
       nodePoolId: 'np_0001',
       workspaceTemplateId: 'wst_0001',
       artifactStoreId: 'as_0001',
+      // P12.8: explicit collection globs; none means collection is off (D-046).
+      artifactGlobs: [],
       configVersion: 3,
       active: i !== 3,
       promptBindings: [
@@ -395,9 +403,11 @@ const FACTORIES = {
       labels: [{ id: `chr_${id}_0000lab`, nodeId: id, key: 'zone', value: 'a' }],
       executors: i === 1 ? ['Process', 'KubernetesJob'] : ['Process'],
       executorCapabilities: [
-        { ...defaultExecutorRequirements(), executor: 'Process', coldStartClass: 'Immediate', sessionContinuation: true },
-        ...(i === 1 ? [{ ...defaultExecutorRequirements(), executor: 'KubernetesJob', isolation: 'Container', coldStartClass: 'Cold' }] : [])
+        { ...defaultExecutorRequirements(), executor: 'Process', coldStartClass: 'Immediate', sessionContinuation: true, warmStart: false },
+        ...(i === 1 ? [{ ...defaultExecutorRequirements(), executor: 'KubernetesJob', isolation: 'Container', coldStartClass: 'Cold', warmStart: true }] : [])
       ],
+      // P12.12: whether this worker can run stdio MCP server tests.
+      supportsMcpTests: true,
       capabilities: [{ id: `chr_${id}_0000cap`, nodeId: id, harnessType: 'ClaudeCode', executable: 'claude', detectedVersion: '2.1.0', available: true, detail: '2.1.0 (Claude Code)' }]
     });
   },
@@ -547,6 +557,253 @@ export function decidedApproval(id) {
 /** POST /deployments/{id}/approval-check: what the saved rules do with a tool call. Nothing is recorded. */
 export const APPROVAL_CHECK = { action: 'Allow', source: 'Rule', ruleId: 'dar_0001', rulePattern: 'Bash(git status:*)', suggestedRule: 'Bash(git status:*)', approvalsEnabled: true };
 
+/**
+ * Pipelines (P12.9), shaped like the server's Pipeline, PipelineRun, and PipelineReview. ppl_0001 (triage-and-fix) has
+ * three stages; stage 2 requires a review. plr_0001 waits for review prv_0001 on stage 2; plr_0002 succeeded after a
+ * revision; plr_0003 failed at stage 1 (retryable); plr_0004 is running stage 1.
+ */
+const PIPELINE_STAGES = [
+  { name: 'triage', agentId: 'agt_0001', deploymentId: 'dep_0001', maxAttempts: 2 },
+  { name: 'fix', agentId: 'agt_0002', handoffTemplateId: 'tpl_builtin_default_task', handoffTemplateVersion: 1, requiresReview: true, reviewTimeoutSeconds: 3600, reviewTimeoutAction: 'Approve', maxRevisions: 2 },
+  { name: 'summarize', agentId: 'agt_0001', continueOnFailure: true, outputCharLimit: 8000 }
+];
+
+/** One pipeline definition by row number (1-based). */
+export function pipeline(i) {
+  const id = `ppl_${pad(i)}`;
+  const stages = (i === 2 ? PIPELINE_STAGES.slice(0, 1) : PIPELINE_STAGES).map((st, k) => {
+    const stageId = `pst_${pad(i)}_${k + 1}`;
+    const out = {
+      id: stageId,
+      pipelineId: id,
+      tenantId: TENANT,
+      position: k + 1,
+      name: st.name,
+      agentId: st.agentId,
+      outputCharLimit: st.outputCharLimit ?? 16000,
+      maxAttempts: st.maxAttempts ?? 1,
+      continueOnFailure: !!st.continueOnFailure,
+      requiresReview: !!st.requiresReview,
+      reviewTimeoutSeconds: st.reviewTimeoutSeconds ?? 0,
+      reviewTimeoutAction: st.reviewTimeoutAction || 'Reject',
+      maxRevisions: st.maxRevisions ?? 3,
+      parameters: st.deploymentId ? [{ id: `psp_${pad(i)}_${k + 1}`, stageId, tenantId: TENANT, name: 'format', value: 'claude' }] : []
+    };
+    for (const key of ['deploymentId', 'handoffTemplateId', 'handoffTemplateVersion']) if (st[key] !== undefined) out[key] = st[key];
+    return out;
+  });
+  return {
+    id,
+    tenantId: TENANT,
+    name: i === 1 ? 'triage-and-fix' : i === 2 ? 'summarize-only' : `pipeline-${i}`,
+    description: i === 1 ? 'Triage an issue, fix it with a review gate, then summarize.' : undefined,
+    version: i === 1 ? 3 : 1,
+    maxDurationSeconds: i === 1 ? 7200 : 0,
+    active: i !== 2,
+    isProtected: false,
+    createdUtc: iso(i * 60),
+    lastUpdateUtc: iso(i * 30),
+    stages
+  };
+}
+
+const PIPELINE_RUN_ROWS = [
+  { status: 'AwaitingReview', outcome: 'None', position: 2 },
+  { status: 'Succeeded', outcome: 'Succeeded', position: 3 },
+  { status: 'Failed', outcome: 'StageFailed', position: 1, errorMessage: 'Stage 1 (triage) failed on every attempt: the harness exited with code 1.' },
+  { status: 'Running', outcome: 'None', position: 1 }
+];
+
+const stageStatus = (row, position) => {
+  if (position < row.position) return 'Succeeded';
+  if (position > row.position) return row.status === 'Succeeded' ? 'Succeeded' : 'Pending';
+  if (row.status === 'AwaitingReview') return 'AwaitingReview';
+  if (row.status === 'Failed') return 'Failed';
+  return row.status === 'Succeeded' ? 'Succeeded' : 'Running';
+};
+
+/** One pipeline run by row number (1-based). With detail, it carries stages, stage run summaries, and reviews. */
+export function pipelineRun(i, detail = true) {
+  const row = PIPELINE_RUN_ROWS[(i - 1) % PIPELINE_RUN_ROWS.length];
+  const id = `plr_${pad(i)}`;
+  const def = pipeline(1);
+  const terminal = ['Succeeded', 'Failed', 'Cancelled', 'TimedOut'].includes(row.status);
+  const out = {
+    id,
+    tenantId: TENANT,
+    pipelineId: def.id,
+    pipelineName: def.name,
+    pipelineVersion: def.version,
+    status: row.status,
+    outcome: row.outcome,
+    currentPosition: row.position,
+    stageCount: def.stages.length,
+    casVersion: 4,
+    inputText: 'Issue #42: the export button does nothing in Safari.',
+    inputContentType: 'text/plain',
+    callerType: 'User',
+    callerId: 'usr_admin',
+    callerName: 'admin@garrison',
+    priority: 0,
+    cancelRequested: false,
+    deadlineUtc: iso(i * 10 - 120),
+    startedUtc: iso(i * 10),
+    createdUtc: iso(i * 10),
+    lastUpdateUtc: iso(i * 10 - 1),
+    stages: [],
+    reviews: [],
+    runs: []
+  };
+  if (row.errorMessage) out.errorMessage = row.errorMessage;
+  if (terminal) out.completedUtc = iso(i * 10 - 5);
+  if (row.status === 'Succeeded') out.finalRunId = `run_${pad(i * 10 + 3)}`;
+  if (!detail) return out;
+  out.stages = def.stages.map((st) => {
+    const status = stageStatus(row, st.position);
+    const revised = row.status === 'Succeeded' && st.requiresReview;
+    const executions = status === 'Pending' ? 0 : revised ? 2 : row.status === 'Failed' && st.position === 1 ? 2 : 1;
+    const s = {
+      id: `prs_${pad(i)}_${st.position}`,
+      pipelineRunId: id,
+      tenantId: TENANT,
+      position: st.position,
+      name: st.name,
+      agentId: st.agentId,
+      agentName: st.agentId === 'agt_0001' ? 'echo-agent' : 'agent-2',
+      outputCharLimit: st.outputCharLimit,
+      maxAttempts: st.maxAttempts,
+      continueOnFailure: st.continueOnFailure,
+      requiresReview: st.requiresReview,
+      reviewTimeoutSeconds: st.reviewTimeoutSeconds,
+      reviewTimeoutAction: st.reviewTimeoutAction,
+      maxRevisions: st.maxRevisions,
+      status,
+      executions,
+      currentRunId: null,
+      attempts: revised ? 1 : executions,
+      revisions: revised ? 1 : 0,
+      parameters: st.parameters.map((p) => ({ id: p.id.replace('psp_', 'prp_'), runStageId: `prs_${pad(i)}_${st.position}`, tenantId: TENANT, name: p.name, value: p.value }))
+    };
+    for (const key of ['deploymentId', 'handoffTemplateId', 'handoffTemplateVersion']) if (st[key] !== undefined) s[key] = st[key];
+    if (executions > 0) {
+      s.lastRunId = `run_${pad(i * 10 + st.position)}`;
+      s.startedUtc = iso(i * 10 - st.position);
+      if (status === 'Running') s.currentRunId = s.lastRunId;
+      if (['Succeeded', 'Failed'].includes(status)) s.completedUtc = iso(i * 10 - st.position - 1);
+    }
+    return s;
+  });
+  for (const s of out.stages) {
+    for (let e = 1; e <= s.executions; e++) {
+      const last = e === s.executions;
+      const runStatus = last ? (s.status === 'Running' ? 'Running' : s.status === 'Failed' ? 'Failed' : 'Succeeded') : s.requiresReview ? 'Succeeded' : 'Failed';
+      const summary = { runId: e === s.executions ? s.lastRunId : `run_${pad(i * 10 + s.position)}_${e}`, position: s.position, execution: e, agentName: s.agentName, status: runStatus, createdUtc: iso(i * 10 - s.position - e / 10) };
+      if (runStatus !== 'Running') {
+        summary.outcome = runStatus === 'Failed' ? 'HarnessFailed' : 'Succeeded';
+        summary.completedUtc = iso(i * 10 - s.position - e / 10 - 0.5);
+      }
+      if (runStatus === 'Failed') summary.errorMessage = 'The harness exited with code 1.';
+      out.runs.push(summary);
+    }
+  }
+  out.reviews = pipelineReviewRows().filter((r) => r.pipelineRunId === id);
+  return out;
+}
+
+const REVIEW_ROWS = [
+  { pipelineRun: 1, execution: 1, status: 'Pending' },
+  { pipelineRun: 2, execution: 1, status: 'ChangesRequested', decision: 'RequestChanges', decisionSource: 'User', comment: 'Add a regression test for Safari before approving.' },
+  { pipelineRun: 2, execution: 2, status: 'Approved', decision: 'Approve', decisionSource: 'User', comment: 'Looks good. Mention the Safari version in the summary.' },
+  { pipelineRun: 5, execution: 1, status: 'Expired', decision: 'Approve', decisionSource: 'Timeout' }
+];
+
+/** One stage review by row number (1-based). */
+export function pipelineReview(i) {
+  const row = REVIEW_ROWS[(i - 1) % REVIEW_ROWS.length];
+  const plr = `plr_${pad(row.pipelineRun)}`;
+  const out = {
+    id: `prv_${pad(i)}`,
+    tenantId: TENANT,
+    pipelineRunId: plr,
+    pipelineId: 'ppl_0001',
+    pipelineName: 'triage-and-fix',
+    runStageId: `prs_${pad(row.pipelineRun)}_2`,
+    position: 2,
+    stageName: 'fix',
+    runId: row.execution === 2 || row.pipelineRun === 1 ? `run_${pad(row.pipelineRun * 10 + 2)}` : `run_${pad(row.pipelineRun * 10 + 2)}_${row.execution}`,
+    execution: row.execution,
+    status: row.status,
+    timeoutAction: 'Approve',
+    requestedUtc: iso(i * 5),
+    expiresUtc: iso(i * 5 - 60),
+    createdUtc: iso(i * 5),
+    lastUpdateUtc: iso(i * 5 - 1)
+  };
+  for (const key of ['decision', 'decisionSource', 'comment']) if (row[key]) out[key] = row[key];
+  if (row.decisionSource === 'User') {
+    out.decidedBy = 'admin@garrison';
+    out.decidedById = 'usr_admin';
+  }
+  if (row.status !== 'Pending') out.decidedUtc = iso(i * 5 - 1);
+  return out;
+}
+
+function pipelineReviewRows() {
+  return REVIEW_ROWS.map((_, k) => pipelineReview(k + 1));
+}
+
+/** EnumerationResult over a fixed list, with skip and maxResults. */
+function pageOf(rows, url) {
+  const maxResults = Number(url.searchParams.get('maxResults') || 25);
+  const skip = Number(url.searchParams.get('skip') || 0);
+  const objects = rows.slice(skip, skip + maxResults);
+  return { success: true, maxResults, skip, totalRecords: rows.length, recordsRemaining: Math.max(0, rows.length - skip - objects.length), endOfResults: skip + objects.length >= rows.length, timestampUtc: iso(0), objects };
+}
+
+/** GET /pipeline-runs with the filters the list sends (status, pipelineId). List rows carry no stages. */
+function pipelineRunList(url) {
+  let rows = PIPELINE_RUN_ROWS.map((_, k) => pipelineRun(k + 1, false));
+  for (const key of ['status', 'pipelineId']) {
+    const value = url.searchParams.get(key);
+    if (value) rows = rows.filter((r) => r[key] === value);
+  }
+  return pageOf(rows, url);
+}
+
+/** GET /pipeline-reviews with the filters the inbox sends (status, pipelineRunId, pipelineId, decisionSource). */
+function pipelineReviewList(url) {
+  let rows = pipelineReviewRows();
+  for (const key of ['status', 'pipelineRunId', 'pipelineId', 'decisionSource', 'runId']) {
+    const value = url.searchParams.get(key);
+    if (value) rows = rows.filter((r) => r[key] === value);
+  }
+  return pageOf(rows, url);
+}
+
+/** POST /pipeline-reviews/{id}/decide: the review as a person approved it. */
+export function decidedPipelineReview(id) {
+  const source = pipelineReview(/^prv_\d+$/.test(id) ? Number(id.slice(4)) : 1);
+  const out = { ...source, id, status: 'Approved', decision: 'Approve', decisionSource: 'User', decidedBy: 'admin@garrison', decidedById: 'usr_admin', decidedUtc: iso(0) };
+  return out;
+}
+
+/** POST /pipelines/{id}/preview: every stage prompt rendered; the last stage shows a render failure. */
+export function pipelinePreview(id) {
+  const def = pipeline(1);
+  return {
+    pipelineId: id,
+    pipelineName: def.name,
+    stages: def.stages.map((s) => ({
+      position: s.position,
+      stageName: s.name,
+      agentName: s.agentId === 'agt_0001' ? 'echo-agent' : 'agent-2',
+      ...(s.deploymentId ? { deploymentId: s.deploymentId, deploymentName: 'deployment-1' } : {}),
+      success: s.position !== 3,
+      ...(s.position === 3 ? { errorCode: 'NoActiveDeployment', errorMessage: 'Agent echo-agent has no active deployment.' } : { prompt: `Stage ${s.position} (${s.name}). Task: Summarize the open issues.` })
+    }))
+  };
+}
+
 /** EnumerationResult: the maxResults and skip envelope most list routes return. */
 function enumerate(collection, url) {
   const factory = FACTORIES[collection];
@@ -591,6 +848,9 @@ const SETTINGS = {
     { path: 'Runtime.ConversationAffinityWaitMs', group: 'Runtime', description: "Milliseconds a conversation turn waits for the node that holds the conversation's harness session before another node may take it and start a fresh session from the transcript. Other nodes take it at once when that node is not Ready. 0 never waits.", type: 'int', value: '30000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 600000 },
     { path: 'Runtime.ConversationTranscriptTurns', group: 'Runtime', description: 'Most earlier turns repeated to a conversation turn that starts a fresh harness session (a fallback); the newest are kept.', type: 'int', value: '20', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 200 },
     { path: 'Runtime.ConversationTranscriptChars', group: 'Runtime', description: 'Most characters of each earlier input and answer repeated to a fallback conversation turn; longer ones are truncated.', type: 'int', value: '4000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 200, maximum: 200000 },
+    // P12.9: the leader's pipeline sweep and the stage limit of a pipeline definition.
+    { path: 'Runtime.PipelineSweepIntervalMs', group: 'Runtime', description: "Interval of the leader's pipeline sweep: advances pipeline runs whose stage finished without a completion hook, links claimed stage executions, retries blocked stage starts, and applies review timeouts and pipeline deadlines.", type: 'int', value: '5000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 500, maximum: 600000 },
+    { path: 'Runtime.PipelineMaxStages', group: 'Runtime', description: 'Most stages a pipeline definition may have.', type: 'int', value: '20', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 100 },
     { path: 'Runtime.FailBlockedAfterSeconds', group: 'Runtime', description: 'Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever.', type: 'int', value: '0', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 604800 },
     // G-22: control-plane refresh of Codex ChatGPT logins; settings-file values that apply live.
     { path: 'Codex.RefreshBeforeExpirySeconds', group: 'Codex', description: 'Refresh a ChatGPT login stored in a CodexAuthJson secret when its access token expires within this many seconds (half the token lifetime for short-lived tokens). Keep it above Runtime.MaxRunSeconds.', type: 'int', value: '86400', isSecret: false, isSet: true, source: 'File', applyMode: 'Live', editable: true, minimum: 300, maximum: 2592000 },
@@ -973,6 +1233,18 @@ export function respond(method, url) {
     // apr_0003 style IDs map to that row; any other ID gets row 3 (decided by a rule, the shape the contract test seeds).
     if (collection === 'approvals' && parts.length === 2) return { ...approval(/^apr_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 3), id: parts[1] };
     if (collection === 'deployments' && parts[2] === 'approval-check') return APPROVAL_CHECK;
+    // P12.9: pipelines, pipeline runs, and stage reviews.
+    if (collection === 'pipelines' && parts.length === 1) return method === 'GET' ? pageOf([1, 2].map(pipeline), url) : { ...pipeline(1), id: 'ppl_0099', name: 'new-pipeline', version: 1 };
+    if (collection === 'pipelines' && parts[2] === 'start') return { ...pipelineRun(4), id: 'plr_0099' };
+    if (collection === 'pipelines' && parts[2] === 'preview') return pipelinePreview(parts[1]);
+    if (collection === 'pipelines' && parts.length === 2) return /^ppl_\d+$/.test(parts[1]) ? pipeline(Number(parts[1].slice(4))) : { ...pipeline(1), name: parts[1] };
+    if (collection === 'pipeline-runs' && parts.length === 1) return pipelineRunList(url);
+    if (collection === 'pipeline-runs' && parts[2] === 'cancel') return { ...pipelineRun(Number(parts[1].slice(4)) || 1), status: 'Cancelling' };
+    if (collection === 'pipeline-runs' && parts[2] === 'retry') return { ...pipelineRun(Number(parts[1].slice(4)) || 3), status: 'Running', outcome: 'None' };
+    if (collection === 'pipeline-runs' && parts.length === 2) return { ...pipelineRun(/^plr_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 2), id: parts[1] };
+    if (collection === 'pipeline-reviews' && parts.length === 1) return pipelineReviewList(url);
+    if (collection === 'pipeline-reviews' && parts[2] === 'decide') return decidedPipelineReview(parts[1]);
+    if (collection === 'pipeline-reviews' && parts.length === 2) return { ...pipelineReview(/^prv_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 2), id: parts[1] };
     if (parts.length === 1) return method === 'GET' ? enumerate(collection, url) : FACTORIES[collection]?.(99) || {};
     if (parts.length === 2 && FACTORIES[collection]) return FACTORIES[collection](1);
     return {};

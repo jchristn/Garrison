@@ -1659,6 +1659,7 @@ const it = {
           MasterKey: 'Chiave master per la cifratura dei segreti'
         },
         RequestHistory: {
+          CaptureNodeProtocol: 'Acquisire le richieste riuscite del protocollo dei worker',
           MaxResponseBodyBytes: 'Corpo della risposta registrato al massimo (byte)',
           MaxRequestBodyBytes: 'Corpo della richiesta registrato al massimo (byte)',
           RetentionDays: 'Conservazione della cronologia delle richieste (giorni)',
@@ -1682,6 +1683,7 @@ const it = {
         },
         Scheduling: {
           EventPollMs: 'Intervallo di polling degli eventi (ms)',
+          InvocationWaitPollMs: 'Rilettura di riserva durante l\'attesa delle invocazioni (ms)',
           NodeHeartbeatTimeoutMs: 'Timeout dell\'heartbeat dei nodi (ms)',
           LeaseWaitMs: 'Attesa di long polling dei lease (ms)',
           LeaseDurationMs: 'Durata del lease delle esecuzioni (ms)',
@@ -1953,3 +1955,199 @@ it.views.settings.fields.Leases = {"Provider": "Fornitore", "ClutchEndpoint": "E
 
 it.enums.harnessType.ProviderApi = "API del fornitore";
 it.enums.outputParser.ProviderApiJsonl = "JSONL API del fornitore";
+
+// Pipeline (P12.9): definizioni (Agenti > Pipeline), esecuzioni di pipeline (Esecuzioni > Esecuzioni di pipeline) e
+// revisioni delle fasi (Approvazioni > Revisioni delle fasi).
+it.nav.hubs.approvals.tip = 'Chiamate a strumenti e fasi di pipeline in attesa di una persona, e ogni decisione';
+Object.assign(it.nav, { approvalsPending_one: '{{count}} elemento in attesa di una persona', approvalsPending_other: '{{count}} elementi in attesa di una persona', approvalsPending_many: '{{count}} elementi in attesa di una persona' });
+Object.assign(it.nav.items, {
+  pipelines: { label: 'Pipeline di agenti', tip: 'Fasi ordinate di agenti con punti di revisione facoltativi' },
+  pipelineRuns: { label: 'Esecuzioni di pipeline', tip: 'Esecuzioni delle pipeline, fase per fase' },
+  pipelineReviews: { label: 'Revisioni delle fasi', tip: 'Fasi di pipeline in attesa della revisione di una persona' }
+});
+Object.assign(it.errorCodes, {
+  RevisionLimitReached: 'Questa fase ha già usato tutte le sue rielaborazioni, quindi non si possono più richiedere modifiche. Approvala o rifiutala.',
+  ReviewNotPending: 'Questa revisione è già stata decisa, da qualcun altro o dal suo timeout, quindi non può essere decisa di nuovo.',
+  PipelineInUse: 'Questa pipeline ha esecuzioni non ancora concluse. Attendi che finiscano, o annullale, e poi elimina la pipeline.',
+  PipelineRunActive: 'Si possono eliminare solo le esecuzioni di pipeline concluse. Annulla prima questa esecuzione di pipeline.',
+  PipelineRunFinished: 'Questa esecuzione di pipeline è già conclusa, quindi non può essere annullata.',
+  PipelineRunNotRetryable: 'Si possono riprovare solo le esecuzioni di pipeline non riuscite, scadute o annullate.',
+  PipelineRunChanged: 'Questa esecuzione di pipeline è cambiata durante l\'elaborazione della richiesta. Ricaricala e riprova.',
+  PipelineInactive: 'Questa pipeline non è attiva. Attivala prima di avviarla.',
+  PipelineEmpty: 'Una pipeline richiede almeno una fase.',
+  PipelineStageRun: 'Questa esecuzione è una fase di un\'esecuzione di pipeline, quindi non può essere riprovata da sola. Riprova invece l\'esecuzione di pipeline.',
+  ReferencedByPipeline: 'Una fase di pipeline usa questo agente. Rimuovi l\'agente da ogni pipeline prima di eliminarlo.'
+});
+it.enums.pipelineRunStatus = { Running: 'In esecuzione', AwaitingReview: 'In attesa di revisione', Cancelling: 'Annullamento in corso', Succeeded: 'Riuscita', Failed: 'Non riuscita', Cancelled: 'Annullata', TimedOut: 'Scaduta' };
+it.enums.pipelineRunOutcome = { None: 'Nessuno', Succeeded: 'Riuscita', StageFailed: 'Fase non riuscita', StageStartFailed: 'Impossibile avviare la fase', ReviewRejected: 'Revisione rifiutata', ReviewExpired: 'Revisione scaduta', Cancelled: 'Annullata', TimedOut: 'Tempo scaduto', InternalError: 'Errore interno' };
+it.enums.pipelineStageStatus = { Pending: 'In sospeso', Running: 'In esecuzione', AwaitingReview: 'In attesa di revisione', Succeeded: 'Riuscita', Failed: 'Non riuscita', Cancelled: 'Annullata' };
+it.enums.pipelineReviewStatus = { Pending: 'In sospeso', Approved: 'Approvata', ChangesRequested: 'Modifiche richieste', Rejected: 'Rifiutata', Expired: 'Scaduta', Cancelled: 'Annullata' };
+it.enums.pipelineReviewDecision = { Approve: 'Approva', RequestChanges: 'Richiedi modifiche', Reject: 'Rifiuta' };
+it.enums.pipelineReviewSource = { User: 'Persona', Timeout: 'Tempo scaduto', Cancelled: 'Esecuzione di pipeline fermata' };
+Object.assign(it.enums.resourceType, { Pipeline: 'Pipeline di agenti', PipelineRun: 'Esecuzione di pipeline' });
+Object.assign(it.enums.auditEventType, { PipelineReviewDecided: 'Revisione di fase decisa', PipelineRunCancelled: 'Esecuzione di pipeline annullata' });
+it.resources.deployments.promptRoles.PipelineStage = 'Fase di pipeline (passaggio di consegne)';
+Object.assign(it.resources.runs.columns, { pipelineRunId: 'Esecuzione di pipeline' });
+it.resources.runs.pipelineStage = 'fase {{position}}, iterazione {{execution}}';
+it.resources.pipelines = {
+  ...rp('Pipeline di agenti', 'Fasi ordinate di agenti: ogni fase esegue un agente e passa il suo output alla successiva, con punti di revisione facoltativi.', 'Aggiungi pipeline', 'Crea pipeline', 'Modifica pipeline', 'Dettagli della pipeline', 'Elimina pipeline', 'Ancora nessuna pipeline', 'Crea una pipeline per concatenare agenti: ogni fase riceve l\'output della fase precedente.'),
+  columns: { name: 'Nome', stages: 'Fasi', reviewGates: 'Punti di revisione', maxDurationSeconds: 'Limite di tempo', version: 'Versione', active: 'Attiva', description: 'Descrizione', id: 'ID', lastUpdateUtc: 'Aggiornata', createdUtc: 'Creata' },
+  fields: {
+    name: 'Nome',
+    description: 'Descrizione',
+    maxDurationSeconds: 'Limite di tempo (secondi)',
+    active: 'Attiva',
+    stages: 'Fasi',
+    stageName: 'Nome della fase',
+    agentId: 'Agente',
+    deploymentId: 'Distribuzione',
+    handoffTemplateId: 'Modello di passaggio di consegne',
+    handoffTemplateVersion: 'Versione fissata del modello',
+    outputCharLimit: 'Limite di caratteri passati',
+    maxAttempts: 'Numero massimo di tentativi',
+    continueOnFailure: 'Continua in caso di errore',
+    requiresReview: 'Richiede revisione',
+    reviewTimeoutSeconds: 'Timeout della revisione (secondi)',
+    reviewTimeoutAction: 'Alla scadenza della revisione',
+    maxRevisions: 'Numero massimo di rielaborazioni',
+    stageDescription: 'Descrizione della fase',
+    parameters: 'Parametri di esecuzione'
+  },
+  hints: {
+    maxDurationSeconds: 'Da {{min}} a {{max}}. 0 significa nessun limite. Il limite copre l\'intera esecuzione di pipeline, compreso il tempo di attesa delle revisioni.',
+    stages: 'Le fasi vengono eseguite in questo ordine. Ogni fase parte quando la precedente riesce (o fallisce con Continua in caso di errore) e, se richiede una revisione, dopo che una persona l\'ha approvata.',
+    noDeployments: 'Questo agente non ha ancora distribuzioni. Lascia vuota la distribuzione o aggiungine una in Distribuzioni.',
+    handoffTemplateVersion: 'Vuoto usa la versione attuale del modello.',
+    outputCharLimit: 'Da {{min}} a {{max}}. Predefinito {{default}}.',
+    maxAttempts: 'Da {{min}} a {{max}}. Predefinito {{default}}.',
+    reviewTimeoutSeconds: 'Da {{min}} a {{max}}. 0 attende senza limiti.',
+    maxRevisions: 'Da {{min}} a {{max}}. Predefinito {{default}}.',
+    parameters: 'Solo con una distribuzione, e solo i parametri che quella distribuzione consente di sostituire.'
+  },
+  errors: {
+    dnsName: 'Usa da 1 a 64 lettere minuscole, cifre e trattini, iniziando e terminando con una lettera o una cifra.',
+    range: 'Inserisci un numero intero da {{min}} a {{max}}.',
+    noStages: 'Aggiungi almeno una fase.',
+    tooManyStages: 'Una pipeline ha al massimo {{max}} fasi.',
+    stageNameLong: 'I nomi delle fasi hanno un limite di 128 caratteri.',
+    stageNameDuplicate: 'Un\'altra fase si chiama già {{name}}.',
+    version: 'Inserisci un numero di versione pari o superiore a 1, oppure lascia vuoto.',
+    parametersNeedDeployment: 'I parametri di esecuzione richiedono una distribuzione, perché vengono verificati rispetto alle sostituzioni che essa consente.',
+    parametersUnique: 'Ogni nome di parametro può comparire una sola volta.',
+    stageInvalid: 'questa fase contiene errori.'
+  },
+  actions: { start: 'Avvia', preview: 'Anteprima dei prompt', runs: 'Visualizza esecuzioni di pipeline' },
+  stageHeading: 'Fase {{position}}: {{name}}',
+  stageCount: '{{count}} su un massimo di {{max}}',
+  stageSummary: '{{count}} fasi: {{chain}}',
+  addStage: 'Aggiungi fase',
+  removeStage: 'Rimuovi fase',
+  noStages: 'Ancora nessuna fase.',
+  chooseAgent: 'Scegli un agente',
+  anyDeployment: 'Qualsiasi distribuzione attiva (ponderata)',
+  defaultHandoff: 'Associazione della distribuzione o modello integrato',
+  parameterName: 'Parametro',
+  parameterValue: 'Valore',
+  noLimit: 'Nessun limite',
+  versionNotice: 'Versione {{version}}. Il salvataggio crea una nuova versione; le esecuzioni di pipeline già avviate mantengono le fasi con cui sono partite.'
+};
+it.resources.pipelineRuns = {
+  ...rp('Esecuzioni di pipeline', 'Ogni esecuzione di una pipeline. Aprine una per seguirne le fasi, decidere le revisioni, oppure annullarla e riprovarla.', 'Aggiungi esecuzione di pipeline', 'Crea esecuzione di pipeline', 'Modifica esecuzione di pipeline', 'Dettagli dell\'esecuzione di pipeline', 'Elimina esecuzione di pipeline', 'Ancora nessuna esecuzione di pipeline', 'Avvia una pipeline da Agenti > Pipeline di agenti per vederne qui le esecuzioni.'),
+  columns: { id: 'ID', pipelineName: 'Pipeline di agenti', status: 'Stato', outcome: 'Esito', progress: 'Fase', callerName: 'Avviata da', errorMessage: 'Errore', priority: 'Priorità', deadlineUtc: 'Scadenza', completedUtc: 'Completata', createdUtc: 'Creata' },
+  actions: { cancel: 'Annulla', retry: 'Riprova', stageRuns: 'Visualizza esecuzioni delle fasi', finalRun: 'Apri esecuzione finale' },
+  toasts: { cancelRequested: 'Annullamento richiesto per l\'esecuzione di pipeline e la sua fase corrente.', retried: 'L\'esecuzione di pipeline riprende dalla fase in cui si era fermata.' },
+  progressValue: '{{position}} di {{count}}',
+  versionShort: '(versione {{version}})'
+};
+it.resources.pipelineReviews = {
+  ...rp('Revisioni delle fasi', 'Fasi di pipeline che attendono che una persona le approvi, richieda modifiche o le rifiuti.', 'Aggiungi revisione di fase', 'Crea revisione di fase', 'Modifica revisione di fase', 'Dettagli della revisione di fase', 'Elimina revisione di fase', 'Ancora nessuna revisione delle fasi', 'Le fasi che richiedono una revisione compaiono qui quando terminano.'),
+  columns: { createdUtc: 'Richiesta il', pipelineName: 'Pipeline di agenti', stageName: 'Fase', status: 'Stato', decision: 'Decisione', decisionSource: 'Decisa da', comment: 'Commento', decidedBy: 'Revisore', expiresUtc: 'Scadenza', pipelineRunId: 'Esecuzione di pipeline', runId: 'Esecuzione della fase', decidedUtc: 'Decisa il', id: 'ID' },
+  filters: { pipelineRunId: 'ID dell\'esecuzione di pipeline', pipelineRunIdPlaceholder: 'ID dell\'esecuzione di pipeline (plr_...)' },
+  actions: { approve: 'Approva', requestChanges: 'Richiedi modifiche', reject: 'Rifiuta', openStageRun: 'Apri esecuzione della fase' },
+  noTimeout: 'Attende senza limiti'
+};
+it.components.pipelineReviews = {
+  decideTitle: 'Revisione della fase {{stage}} di {{pipeline}}',
+  decision: 'Decisione',
+  positionExecution: 'fase {{position}}, iterazione {{execution}}',
+  revisionsLeft: 'Rielaborazioni rimaste',
+  revisionsLeftValue: '{{left}} di {{max}}',
+  noRevisionsLeft: 'Questa fase ha usato tutte le {{max}} rielaborazioni. Il server rifiuterà Richiedi modifiche; approvala o rifiutala.',
+  timeoutThen: 'poi {{decision}}',
+  commentApprove: 'Note per la fase successiva',
+  commentApprovePlaceholder: 'Facoltativo. La fase successiva riceve queste note insieme all\'output.',
+  commentRequestChanges: 'Cosa deve cambiare',
+  commentRequestChangesPlaceholder: 'Obbligatorio. La fase viene eseguita di nuovo con questo riscontro.',
+  commentReject: 'Motivo',
+  commentRejectPlaceholder: 'Facoltativo. Registrato con la decisione; l\'esecuzione di pipeline fallisce.',
+  commentRequired: 'Descrivi cosa deve cambiare. La fase viene eseguita di nuovo con questo riscontro.',
+  commentTooLong: 'I commenti hanno un limite di {{max}} caratteri.',
+  submit: { Approve: 'Approva fase', RequestChanges: 'Richiedi modifiche', Reject: 'Rifiuta fase' },
+  toasts: {
+    Approve: 'Fase {{stage}} di {{pipeline}} approvata.',
+    RequestChanges: 'Modifiche richieste alla fase {{stage}} di {{pipeline}}; viene eseguita di nuovo con il tuo riscontro.',
+    Reject: 'Fase {{stage}} di {{pipeline}} rifiutata; l\'esecuzione di pipeline fallisce.',
+    notPending: 'Questa revisione è già stata decisa, da qualcun altro o dal suo timeout. L\'elenco ora mostra lo stato attuale.',
+    revisionLimit: 'Questa fase ha già usato tutte le sue rielaborazioni (massimo {{max}}), quindi non si possono più richiedere modifiche. Approvala o rifiutala.'
+  }
+};
+it.components.pipelineStart = {
+  title: 'Avvia {{name}}',
+  intro_one: 'L\'input va all\'unica fase della pipeline.',
+  intro_other: 'L\'input va alla prima di {{count}} fasi; ogni fase lo vede anche come attività originale.',
+  intro_many: 'L\'input va alla prima di {{count}} fasi; ogni fase lo vede anche come attività originale.',
+  input: 'Input',
+  inputPlaceholder: 'Su cosa deve lavorare la pipeline?',
+  shortcut: 'Premi Ctrl+Invio o Cmd+Invio per avviare.',
+  submit: 'Avvia pipeline',
+  starting: 'Avvio...',
+  started: '{{name}} avviata.'
+};
+it.components.pipelinePreview = {
+  title: 'Anteprima dei prompt di {{name}}',
+  input: 'Input di esempio',
+  sampleInput: 'Riassumi i problemi aperti e proponi una correzione per il più urgente.',
+  sampleOutput: 'Output di esempio di {{stage}}.',
+  outputOf: 'Output di esempio della fase {{position}} ({{stage}})',
+  render: 'Genera i prompt',
+  rendering: 'Generazione...',
+  stageHeading: 'Fase {{position}}: {{stage}} ({{agent}})',
+  deployment: 'Distribuzione: {{deployment}}',
+  rendered: 'Generato',
+  failed: 'Non riuscito'
+};
+it.views.pipelineRunDetail = {
+  title: 'Esecuzione di pipeline',
+  heading: 'Esecuzione della pipeline {{pipeline}}',
+  notFoundTitle: 'Esecuzione di pipeline non trovata',
+  notFoundBody: 'Potrebbe essere stata eliminata oppure appartiene a un altro tenant.',
+  live: 'In tempo reale',
+  polling: 'Aggiornamento periodico',
+  finalRun: 'Esecuzione finale',
+  started: 'Avviata',
+  input: 'Input',
+  reviewTitle: 'In attesa della tua revisione',
+  reviewBody: 'La fase {{position}} ({{stage}}) ha concluso l\'iterazione {{execution}} e attende una revisione. Leggi il suo output nell\'esecuzione della fase:',
+  reviewExpires: 'Se nessuno decide entro {{time}}, la revisione viene decisa automaticamente: {{decision}}.',
+  reviewNoTimeout: 'La revisione attende finché una persona non decide, a meno che il limite di tempo della pipeline non termini prima l\'esecuzione.',
+  stages: 'Fasi',
+  stagesCount_one: '{{count}} fase',
+  stagesCount_other: '{{count}} fasi',
+  stagesCount_many: '{{count}} fasi',
+  noStages: 'Questa esecuzione di pipeline non ha fasi.',
+  current: 'Corrente',
+  reviewGate: 'Punto di revisione',
+  agent: 'Agente {{agent}}',
+  counts: 'Iterazioni {{executions}}, tentativi {{attempts}} di {{maxAttempts}}, rielaborazioni {{revisions}} di {{maxRevisions}}',
+  startedAt: 'avviata',
+  blocked: 'In attesa di avvio: {{reason}}.',
+  nextAttempt: 'Prossimo tentativo alle {{time}}.',
+  reviewItem: 'Revisione dell\'iterazione {{execution}}',
+  columns: { execution: 'Iterazione', run: 'Esecuzione della fase', status: 'Stato', outcome: 'Esito', error: 'Errore', created: 'Creata' },
+  confirmCancelTitle: 'Annulla esecuzione di pipeline',
+  confirmCancel: 'Annullare questa esecuzione della pipeline {{pipeline}}? L\'esecuzione della fase corrente viene annullata e una revisione in sospeso viene chiusa. Puoi riprovarla in seguito.',
+  confirmDelete: 'Eliminare questa esecuzione della pipeline {{pipeline}} e le sue revisioni? Le esecuzioni delle sue fasi restano nella pagina Esecuzioni.'
+};
+Object.assign(it.views.runDetail, { pipelineRun: 'Esecuzione di pipeline' });
+it.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Intervallo di controllo delle pipeline (ms)';
+it.views.settings.fields.Runtime.PipelineMaxStages = 'Numero massimo di fasi per pipeline';

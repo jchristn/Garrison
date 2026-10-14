@@ -332,8 +332,33 @@ async function seed(api) {
   const second = await api.post(tp(`agents/${ids.agent}/invoke?wait=true&waitSeconds=90`), { input: 'Continue the conversation', conversationId: ids.conversation });
   ids.conversationRun = second.id;
   await seedApprovals(api, ids);
+  await seedPipelines(api, ids);
   await sleep(1500);
   return ids;
+}
+
+/**
+ * Pipelines (P12.9): two stages on the fake harness, the second behind a review gate. Starting with wait returns once
+ * the pipeline run awaits the review, so the definition, pipeline run, stage runs, and a pending review all have data.
+ */
+async function seedPipelines(api, ids) {
+  ids.pipeline = (
+    await api.post(tp('pipelines'), {
+      name: 'contract-pipeline',
+      description: 'Two echo stages with a review gate',
+      maxDurationSeconds: 600,
+      stages: [
+        { position: 1, name: 'draft', agentId: ids.agent, deploymentId: ids.deployment, maxAttempts: 2 },
+        { position: 2, name: 'check', agentId: ids.agent, requiresReview: true, reviewTimeoutSeconds: 3600, reviewTimeoutAction: 'Approve', maxRevisions: 2 }
+      ]
+    })
+  ).id;
+  const started = await api.post(tp(`pipelines/${ids.pipeline}/start?wait=true&waitSeconds=120`), { input: 'Draft a release note' });
+  if (started.status !== 'AwaitingReview') throw new Error(`pipeline seed run is ${started.status}, expected AwaitingReview: ${started.errorMessage || ''}`);
+  ids.pipelineRun = started.id;
+  const reviews = (await api.get(tp(`pipeline-reviews?pipelineRunId=${started.id}&maxResults=25&skip=0`))).objects || [];
+  if (!reviews.length) throw new Error('pipeline seed run recorded no review');
+  ids.pipelineReview = reviews[0].id;
 }
 
 /**
@@ -549,6 +574,15 @@ function routes(ids) {
     ['getApproval', tp(`approvals/${ids.approval}`)],
     ['getDeployment (approvals)', tp(`deployments/${ids.approvalDeployment}`)],
     ['getRun (approvals)', tp(`runs/${ids.approvalRun}`)],
+    ['listPipelines', tp(`pipelines?${list}`)],
+    ['getPipeline', tp(`pipelines/${ids.pipeline}`)],
+    ['listPipelineRuns', tp(`pipeline-runs?${list}`)],
+    ['listPipelineRuns (status)', tp(`pipeline-runs?${list}&status=AwaitingReview`)],
+    ['getPipelineRun', tp(`pipeline-runs/${ids.pipelineRun}`)],
+    ['listPipelineReviews', tp(`pipeline-reviews?${list}`)],
+    ['listPipelineReviews (pending)', tp(`pipeline-reviews?${list}&status=Pending`)],
+    ['getPipelineReview', tp(`pipeline-reviews/${ids.pipelineReview}`)],
+    ['listRuns (pipelineRunId)', tp(`runs?${list}&pipelineRunId=${ids.pipelineRun}`)],
     ['listNodes', `/v1.0/api/nodes?${list}`],
     ['getNode', `/v1.0/api/nodes/${ids.node}`],
     ['listNodePools', `/v1.0/api/node-pools?${list}`],

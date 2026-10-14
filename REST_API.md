@@ -6,7 +6,7 @@ The server listens on port 8700 by default. MCP is on its own port (8701, see `M
 
 ## Conventions
 
-JSON bodies use camelCase property names. Enumerations travel as their string names (`"status": "Succeeded"`), timestamps are ISO 8601 in UTC, and properties whose value is null are omitted from responses. Identifiers are prefixed, K-sortable strings such as `agt_mv1pdwem_PWOwUcelVy0GXphYF11`; the prefix tells you the type (`ten_` tenant, `usr_` user, `crd_` credential, `ses_` session, `rol_` role, `prm_` permission, `agt_` agent, `dep_` deployment, `hrn_` harness profile, `tpl_` prompt template, `mcp_` MCP server, `sec_` secret, `wsp_` workspace template, `ast_` artifact store, `mpr_` model price, `uqt_` usage quota, `run_` run, `rev_` run event, `nod_` node, `npl_` node pool, `req_` request history entry, `aud_` audit record).
+JSON bodies use camelCase property names. Enumerations travel as their string names (`"status": "Succeeded"`), timestamps are ISO 8601 in UTC, and properties whose value is null are omitted from responses. Identifiers are prefixed, K-sortable strings such as `agt_mv1pdwem_PWOwUcelVy0GXphYF11`; the prefix tells you the type (`ten_` tenant, `usr_` user, `crd_` credential, `ses_` session, `rol_` role, `prm_` permission, `agt_` agent, `dep_` deployment, `hrn_` harness profile, `tpl_` prompt template, `mcp_` MCP server, `sec_` secret, `wsp_` workspace template, `ast_` artifact store, `mpr_` model price, `uqt_` usage quota, `ppl_` pipeline, `pst_` pipeline stage, `plr_` pipeline run, `prs_` pipeline run stage, `prv_` pipeline stage review, `run_` run, `rev_` run event, `nod_` node, `npl_` node pool, `req_` request history entry, `aud_` audit record).
 
 Deleting one resource (`DELETE` on a path that ends in an identifier) answers 204 No Content with an empty body, for identity, runtime, and configuration resources alike, and 404 when the resource does not exist. Deletes that take a filter instead of an identifier (runs, audit records, request history) answer 200 with a `DeleteCountResponse`, because the count is the result. `DELETE /v1.0/token` is the one other exception: it answers 200 with `{"valid": false}` (see below).
 
@@ -86,7 +86,7 @@ Query string values are decoded the way browsers and HTTP clients encode them: p
 | 401 | Missing or invalid credentials (`AuthenticationRequired`, `InvalidCredentials`) |
 | 403 | Authenticated but not permitted (`AuthorizationDenied`) |
 | 404 | The resource does not exist or belongs to another tenant (`NotFound`, `RouteNotFound`). A system administrator who names a tenant that does not exist in a `/tenants/{tenantId}/...` path gets `TenantNotFound`; other callers get `NotFound` for any tenant but their own, so the response does not reveal which tenants exist |
-| 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound`, and the conversation codes `ConversationBusy` (the conversation's previous turn is unfinished), `ConversationAgentMismatch`, `ConversationDeploymentMismatch`, `ConversationDeploymentUnavailable` |
+| 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound`, and the conversation codes `ConversationBusy` (the conversation's previous turn is unfinished), `ConversationAgentMismatch`, `ConversationDeploymentMismatch`, `ConversationDeploymentUnavailable`, and the pipeline codes `PipelineInUse`, `PipelineInactive`, `PipelineEmpty`, `PipelineRunFinished`, `PipelineRunActive`, `PipelineRunNotRetryable`, `PipelineRunChanged`, `PipelineHistoryPruned`, `PipelineStageRun` (a stage run cannot be retried on its own), `ReferencedByPipeline` (an agent or deployment a pipeline stage uses), `ReviewNotPending`, and `RevisionLimitReached` |
 | 429 | Too many authentication attempts from one address (`RateLimited`) |
 | 500 | An unexpected failure (`InternalError`); the server log has the request identifier |
 | 503 | The database cannot take the request right now: `DatabaseBusy` (the connection pool is exhausted, or PostgreSQL has no connection slots left) or `DatabaseUnavailable` (the database cannot be reached, is restarting, or is shutting down). Both carry a `Retry-After` header in seconds (`Rest.DatabaseRetryAfterSeconds`, default 2). Retrying is safe for reads and for creations that send an `Idempotency-Key`. `Cancelled` means the server is shutting down and dropped the request |
@@ -2643,7 +2643,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/retry"
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Only finished runs can be retried (409 `RunNotFinished` otherwise). If the run's agent was deleted, the retry returns 409 `AgentDeleted` ("Run ... cannot be retried because the agent ... was deleted."); if only its deployment was deleted, 409 `DeploymentDeleted`. Invoke the agent again instead.
+Only finished runs can be retried (409 `RunNotFinished` otherwise). A pipeline stage run answers 409 `PipelineStageRun`; retry its pipeline run with `POST .../pipeline-runs/{id}/retry` instead (see [Pipelines](#pipelines)). If the run's agent was deleted, the retry returns 409 `AgentDeleted` ("Run ... cannot be retried because the agent ... was deleted."); if only its deployment was deleted, 409 `DeploymentDeleted`. Invoke the agent again instead.
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events`
 
@@ -2947,6 +2947,443 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/deployments/{dep
   "approvalsEnabled": true
 }
 ```
+
+### Pipelines
+
+A pipeline (P12.9) runs agents in a fixed order on one request: each stage is an ordinary run of its agent, the next stage sees the previous stage's result through its `PipelineStage` prompt template, and a stage with `requiresReview` waits for a person to approve, request changes, or reject before the pipeline continues. [docs/PIPELINES.md](docs/PIPELINES.md) explains the model, the handoff templates, reviews, and failure handling; this section is the route reference.
+
+Three resources make up the API. Pipeline definitions (`ppl_`) are configuration and are authorized as `Pipeline`. Pipeline runs (`plr_`) are executions, authorized as `PipelineRun`. Stage reviews (`prv_`) share the approvals inbox and are authorized as `Approval`. Run tokens cannot use any of these routes.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /pipelines` | Read on `Pipeline` | `EnumerationResult<Pipeline>`, 200 |
+| `POST /pipelines` | Create on `Pipeline` | `Pipeline`, 201 |
+| `GET /pipelines/{idOrName}` | Read on `Pipeline` | `Pipeline`, 200 |
+| `PUT /pipelines/{idOrName}` | Update on `Pipeline` | `Pipeline`, 200 |
+| `DELETE /pipelines/{idOrName}` | Delete on `Pipeline` | Empty, 204 |
+| `POST /pipelines/{idOrName}/start` | Execute on `Pipeline` and Execute on `Agent` for every stage agent | `PipelineRun`, 201 |
+| `POST /pipelines/{idOrName}/preview` | Read on `Pipeline` | `PipelinePreviewResponse`, 200 |
+| `GET /pipeline-runs` | Read on `PipelineRun` | `EnumerationResult<PipelineRun>`, 200 |
+| `GET /pipeline-runs/{id}` | Read on `PipelineRun` | `PipelineRun` with stages, stage runs, and reviews, 200 |
+| `POST /pipeline-runs/{id}/cancel` | Update on `PipelineRun` | `PipelineRun`, 200 |
+| `POST /pipeline-runs/{id}/retry` | Update on `PipelineRun` | `PipelineRun`, 200 |
+| `DELETE /pipeline-runs/{id}` | Delete on `PipelineRun` | Empty, 204 |
+| `GET /pipeline-reviews` | Read on `Approval` | `EnumerationResult<PipelineReview>`, 200 |
+| `GET /pipeline-reviews/{id}` | Read on `Approval` | `PipelineReview`, 200 |
+| `POST /pipeline-reviews/{id}/decide` | Update on `Approval` | `PipelineReview`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Pipelines of another tenant, and their runs and reviews, answer 404.
+
+#### `GET /v1.0/api/tenants/{tenantId}/pipelines`
+
+List pipelines with the [enumeration](#enumeration) parameters (`search` matches the name, `activeOnly` hides inactive ones). Each pipeline comes with its stages.
+
+| | |
+|---|---|
+| Permission | Read on `Pipeline` |
+| Response | `EnumerationResult<Pipeline>` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/pipelines?search=release" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/pipelines`
+
+Create a pipeline. Stages run in list order; `position` is assigned from the order (1 to N) and any value you send is ignored. Identifiers, `tenantId`, `version`, and `isProtected` in the body are ignored too.
+
+| | |
+|---|---|
+| Permission | Create on `Pipeline` |
+| Request body | `Pipeline` |
+| Response | `Pipeline` |
+| Success | 201 |
+| Errors | 400 `ValidationFailed` with per-field codes (`PipelineEmpty`, `TooManyStages`, `ReferenceNotFound`, `DeploymentAgentMismatch`, `TemplateKindMismatch`, `ParameterNotAllowed`, `ParameterInvalid`, `Invalid`); 409 `NameConflict` |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/pipelines" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "release-notes",
+    "description": "Draft release notes, have a person check them, then edit",
+    "maxDurationSeconds": 86400,
+    "stages": [
+      { "name": "draft", "agentId": "agt_mv1a0c4e_2nKqLw9ZtBv7XsRm", "requiresReview": true, "reviewTimeoutSeconds": 14400, "reviewTimeoutAction": "Reject", "maxRevisions": 2 },
+      { "name": "edit", "agentId": "agt_mv1a0c7k_8TqPw3ZxLm5RvBn", "deploymentId": "dep_mv1a0c7m_Yh2Kq9WtRb4ZxLp",
+        "maxAttempts": 2, "outputCharLimit": 32000, "parameters": [ { "name": "model", "value": "opus" } ] }
+    ]
+  }'
+```
+
+```json
+{
+  "id": "ppl_mv5c9r2d_Wq8LmT3xZb7KvRn",
+  "tenantId": "default",
+  "name": "release-notes",
+  "description": "Draft release notes, have a person check them, then edit",
+  "version": 1,
+  "maxDurationSeconds": 86400,
+  "active": true,
+  "isProtected": false,
+  "createdUtc": "2026-10-13T17:52:11.402118Z",
+  "lastUpdateUtc": "2026-10-13T17:52:11.402118Z",
+  "stages": [
+    {
+      "id": "pst_mv5c9r2e_Bn4Kq7WzLt2XmPv",
+      "pipelineId": "ppl_mv5c9r2d_Wq8LmT3xZb7KvRn",
+      "tenantId": "default",
+      "position": 1,
+      "name": "draft",
+      "agentId": "agt_mv1a0c4e_2nKqLw9ZtBv7XsRm",
+      "outputCharLimit": 16000,
+      "maxAttempts": 1,
+      "continueOnFailure": false,
+      "requiresReview": true,
+      "reviewTimeoutSeconds": 14400,
+      "reviewTimeoutAction": "Reject",
+      "maxRevisions": 2,
+      "parameters": []
+    },
+    {
+      "id": "pst_mv5c9r2f_Rk7Tz2QwNb8LxVm",
+      "pipelineId": "ppl_mv5c9r2d_Wq8LmT3xZb7KvRn",
+      "tenantId": "default",
+      "position": 2,
+      "name": "edit",
+      "agentId": "agt_mv1a0c7k_8TqPw3ZxLm5RvBn",
+      "deploymentId": "dep_mv1a0c7m_Yh2Kq9WtRb4ZxLp",
+      "outputCharLimit": 32000,
+      "maxAttempts": 2,
+      "continueOnFailure": false,
+      "requiresReview": false,
+      "reviewTimeoutSeconds": 0,
+      "reviewTimeoutAction": "Reject",
+      "maxRevisions": 3,
+      "parameters": [ { "id": "psp_mv5c9r2g_Lq3Wn8TzKb5RxYv", "stageId": "pst_mv5c9r2f_Rk7Tz2QwNb8LxVm", "tenantId": "default", "name": "model", "value": "opus" } ]
+    }
+  ]
+}
+```
+
+Validation covers the name (1 to 64 lowercase letters, digits, and hyphens), one to `Runtime.PipelineMaxStages` stages (default 20), unique stage names of up to 128 characters, every numeric range listed under the `PipelineStage` model, that each agent exists, that a pinned `deploymentId` belongs to the stage's agent, that a `handoffTemplateId` is a `Task` template (and a pinned `handoffTemplateVersion` exists), and that `parameters` are allowed run overrides of the pinned deployment. Stage parameters therefore need a `deploymentId`. Field keys look like `stages[1].deploymentId`.
+
+#### `GET /v1.0/api/tenants/{tenantId}/pipelines/{idOrName}`
+
+Read a pipeline by identifier or name. When addressed by name, resource-scoped permissions are checked against the resolved identifier.
+
+| | |
+|---|---|
+| Permission | Read on `Pipeline` |
+| Response | `Pipeline` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/pipelines/release-notes" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### `PUT /v1.0/api/tenants/{tenantId}/pipelines/{idOrName}`
+
+Replace a pipeline and all of its stages. Send the complete definition: stages left out are removed. `version` goes up by one. Pipeline runs that already started keep the stage snapshot they started with.
+
+| | |
+|---|---|
+| Permission | Update on `Pipeline` |
+| Request body | `Pipeline` |
+| Response | `Pipeline` |
+| Success | 200 |
+| Errors | As for create, plus 409 `Protected` for a protected pipeline |
+
+```bash
+curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/pipelines/release-notes" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "release-notes", "stages": [ { "name": "draft", "agentId": "agt_mv1a0c4e_2nKqLw9ZtBv7XsRm", "requiresReview": true } ]}'
+```
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/pipelines/{idOrName}`
+
+Delete a pipeline. Its finished pipeline runs are kept. While any of its pipeline runs is active (`Running`, `AwaitingReview`, or `Cancelling`), the delete answers 409 `PipelineInUse`; cancel them or let them finish first.
+
+| | |
+|---|---|
+| Permission | Delete on `Pipeline` |
+| Success | 204 |
+| Errors | 409 `PipelineInUse`, 409 `Protected` |
+
+```bash
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/pipelines/release-notes" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Agents and deployments that a pipeline stage references cannot be deleted while the reference exists: deleting them answers 409 `ReferencedByPipeline` and names the pipelines.
+
+#### `POST /v1.0/api/tenants/{tenantId}/pipelines/{idOrName}/start`
+
+Start a pipeline. The caller needs Execute on the pipeline and Execute on every stage's agent, checked before anything is created. The pipeline run snapshots the stages, creates the first stage run at once, and answers 201 with the pipeline run.
+
+With `wait` true the call holds until the pipeline run ends or stops for a review, or until `waitSeconds` (default 60, at most 600) elapses, and then returns its current state. `wait` and `waitSeconds` may also be passed as query parameters. Running out of time never cancels anything.
+
+Send an `Idempotency-Key` header to make retries safe: a start with a key the same caller already used returns that pipeline run (201, even when it already finished). A key reused for a different pipeline or a different input answers 409 `IdempotencyKeyConflict`.
+
+| | |
+|---|---|
+| Permission | Execute on `Pipeline`, and Execute on `Agent` for each stage agent |
+| Headers | `Idempotency-Key` (optional) |
+| Request body | `PipelineStartRequest`: `input`, `inputContentType` (default `text/plain`), `priority` (given to every stage run, default 0), `wait` (default false), `waitSeconds` (0 to 600, default 60) |
+| Response | `PipelineRun` with `stages`, `runs`, and `reviews` |
+| Success | 201 |
+| Errors | 409 `PipelineInactive`, 409 `PipelineEmpty`, 409 `IdempotencyKeyConflict`, 403 when an agent is not permitted |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/pipelines/release-notes/start" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: release-2.4" \
+  -d '{"input": "Write release notes for 2.4 from the merged pull requests.", "wait": true, "waitSeconds": 60}'
+```
+
+```json
+{
+  "id": "plr_mv5d0k3q_Rk2wT8mNbX4vLq7Y",
+  "tenantId": "default",
+  "pipelineId": "ppl_mv5c9r2d_Wq8LmT3xZb7KvRn",
+  "pipelineName": "release-notes",
+  "pipelineVersion": 1,
+  "status": "AwaitingReview",
+  "outcome": "None",
+  "currentPosition": 1,
+  "stageCount": 2,
+  "casVersion": 4,
+  "inputText": "Write release notes for 2.4 from the merged pull requests.",
+  "inputContentType": "text/plain",
+  "callerType": "User",
+  "callerId": "usr_mv1pdwe4_Kx8TqLm2WbZr5Nv",
+  "callerName": "admin@garrison",
+  "idempotencyKey": "release-2.4",
+  "priority": 0,
+  "deadlineUtc": "2026-10-14T18:01:07.488Z",
+  "cancelRequested": false,
+  "startedUtc": "2026-10-13T18:01:07.488Z",
+  "createdUtc": "2026-10-13T18:01:07.491Z",
+  "lastUpdateUtc": "2026-10-13T18:01:09.102Z",
+  "stages": [
+    { "id": "prs_mv5d0k3r_Tz4Lq8WbNm2XvKp", "position": 1, "name": "draft", "agentId": "agt_mv1a0c4e_2nKqLw9ZtBv7XsRm", "agentName": "writer", "requiresReview": true, "maxRevisions": 2, "status": "AwaitingReview", "executions": 1, "attempts": 1, "revisions": 0, "currentRunId": "run_mv5d0k3s_9VbQx2LmT7nRp4Wz", "startedUtc": "2026-10-13T18:01:07.495Z", "parameters": [] },
+    { "id": "prs_mv5d0k3r_Qm7Kz2WtLb9XnRv", "position": 2, "name": "edit", "agentId": "agt_mv1a0c7k_8TqPw3ZxLm5RvBn", "agentName": "editor", "status": "Pending", "executions": 0, "attempts": 0, "revisions": 0, "parameters": [ { "name": "model", "value": "opus" } ] }
+  ],
+  "runs": [
+    { "runId": "run_mv5d0k3s_9VbQx2LmT7nRp4Wz", "position": 1, "execution": 1, "agentName": "writer", "status": "Succeeded", "outcome": "Succeeded", "createdUtc": "2026-10-13T18:01:07.497Z", "completedUtc": "2026-10-13T18:01:09.044Z" }
+  ],
+  "reviews": [
+    { "id": "prv_mv5d0k9a_Hq3Lz8WcN1tYb5Ks", "pipelineRunId": "plr_mv5d0k3q_Rk2wT8mNbX4vLq7Y", "position": 1, "stageName": "draft", "runId": "run_mv5d0k3s_9VbQx2LmT7nRp4Wz", "execution": 1, "status": "Pending", "timeoutAction": "Reject", "requestedUtc": "2026-10-13T18:01:09.098Z", "expiresUtc": "2026-10-13T22:01:09.098Z" }
+  ]
+}
+```
+
+(Stage snapshots carry every stage setting; the example trims them.)
+
+#### `POST /v1.0/api/tenants/{tenantId}/pipelines/{idOrName}/preview`
+
+Render every stage's task prompt from a sample input and sample stage outputs, without creating anything. Each stage compiles against its pinned deployment, or else the agent's first active deployment with a weight above zero. `sampleOutputs[i]` is the output stage `i + 2` sees as `pipeline.previous.output`; missing entries are empty. A stage that cannot compile reports `success: false` with `errorCode` (`AgentNotFound`, `NoActiveDeployment`, or a compilation code such as `TemplateRenderFailed`) instead of failing the whole preview. Secret values never appear in previews.
+
+| | |
+|---|---|
+| Permission | Read on `Pipeline` |
+| Request body | `PipelinePreviewRequest`: `input`, `sampleOutputs` |
+| Response | `PipelinePreviewResponse` |
+| Success | 200 |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/pipelines/release-notes/preview" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Write release notes for 2.4.", "sampleOutputs": ["Garrison 2.4 adds pipelines."]}'
+```
+
+```json
+{
+  "pipelineId": "ppl_mv5c9r2d_Wq8LmT3xZb7KvRn",
+  "pipelineName": "release-notes",
+  "stages": [
+    { "position": 1, "stageName": "draft", "agentName": "writer", "deploymentId": "dep_mv1a0c4f_Pq7RtLw2ZxYv9NmK", "deploymentName": "writer-claude", "success": true, "prompt": "You are stage 1 of 2 (\"draft\") in the pipeline release-notes. ...\n\n--- Your task ---\nWrite release notes for 2.4." },
+    { "position": 2, "stageName": "edit", "agentName": "editor", "deploymentId": "dep_mv1a0c7m_Yh2Kq9WtRb4ZxLp", "deploymentName": "editor-claude", "success": true, "prompt": "You are stage 2 of 2 (\"edit\") in the pipeline release-notes. ...\n\n--- Output of draft ---\nGarrison 2.4 adds pipelines.\n--- End of output ---\n\n--- Your task ---\nWrite release notes for 2.4." }
+  ]
+}
+```
+
+#### `GET /v1.0/api/tenants/{tenantId}/pipeline-runs`
+
+List pipeline runs, newest first. Filters: `pipelineId` (the `ppl_` identifier), `status` (`Running`, `AwaitingReview`, `Cancelling`, `Succeeded`, `Failed`, `Cancelled`, `TimedOut`), `callerId`, `fromUtc`, `toUtc`, plus `maxResults`, `skip`, and `ordering`. List items carry their stages but not `runs` or `reviews`; read one pipeline run for those.
+
+| | |
+|---|---|
+| Permission | Read on `PipelineRun` |
+| Response | `EnumerationResult<PipelineRun>` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-runs?status=AwaitingReview" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### `GET /v1.0/api/tenants/{tenantId}/pipeline-runs/{id}`
+
+Read a pipeline run with its stage snapshots, summaries of every stage run (`runs`, ordered by position and execution), and its reviews (oldest first). With `waitSeconds` (1 to 600) the call first waits until the pipeline run ends or stops for a review, or the time runs out.
+
+| | |
+|---|---|
+| Permission | Read on `PipelineRun` |
+| Response | `PipelineRun` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-runs/{id}?waitSeconds=60" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The stage runs themselves are ordinary runs with `kind: Pipeline` and the fields `pipelineRunId`, `pipelinePosition`, and `pipelineExecution`; `GET .../runs?pipelineRunId={id}` lists them in full.
+
+#### `POST /v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/cancel`
+
+Cancel an active pipeline run. It moves to `Cancelling`, its pending review is cancelled, its current stage run (with the runs it delegated to) is cancelled, and it ends `Cancelled` with outcome `Cancelled`. Writes a `PipelineRunCancelled` audit record. Cancelling a pipeline run that is already `Cancelling` is accepted and finishes the cancellation.
+
+| | |
+|---|---|
+| Permission | Update on `PipelineRun` |
+| Response | `PipelineRun` |
+| Success | 200 |
+| Errors | 409 `PipelineRunFinished` when it already ended |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-runs/{id}/cancel" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Cancelling the current stage run directly with `POST .../runs/{runId}/cancel` also cancels the pipeline run.
+
+#### `POST /v1.0/api/tenants/{tenantId}/pipeline-runs/{id}/retry`
+
+Resume a `Failed`, `TimedOut`, or `Cancelled` pipeline run at the stage where it stopped. That stage runs again as a new execution with a fresh attempt count, the earlier stages keep their outputs, and the deadline restarts from now. The pipeline run is `Running` again with outcome `None`.
+
+| | |
+|---|---|
+| Permission | Update on `PipelineRun` |
+| Response | `PipelineRun` |
+| Success | 200 |
+| Errors | 409 `PipelineRunNotRetryable` (active or succeeded), 409 `PipelineRunChanged` (another request changed it first; read it and try again), 409 `PipelineHistoryPruned` (retention removed the run of an earlier stage, so its output cannot be handed on; start the pipeline again) |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-runs/{id}/retry" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+A single stage run cannot be retried with `POST .../runs/{runId}/retry`: that answers 409 `PipelineStageRun`. Retry the pipeline run instead.
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/pipeline-runs/{id}`
+
+Delete a finished pipeline run and its reviews. Its stage runs are kept (with `pipelineRunId` still set) for history and analytics. A pipeline run that is not terminal answers 409, including one a concurrent retry has just reopened; cancel it first.
+
+| | |
+|---|---|
+| Permission | Delete on `PipelineRun` |
+| Success | 204 |
+| Errors | 409 `PipelineRunActive` |
+
+```bash
+curl -s -X DELETE "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-runs/{id}" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Finished pipeline runs are also removed by retention after `Runs.RetentionDays`. The runs of an active pipeline run are never pruned.
+
+#### `GET /v1.0/api/tenants/{tenantId}/pipeline-reviews`
+
+List stage reviews, newest first. Filters: `status` (`Pending`, `Approved`, `ChangesRequested`, `Rejected`, `Expired`, `Cancelled`), `pipelineRunId`, `pipelineId`, `runId` (the stage run under review), `decisionSource` (`User`, `Timeout`, `Cancelled`), `fromUtc`, `toUtc`, plus the [enumeration](#enumeration) parameters. For an inbox badge, ask for `status=Pending&maxResults=1` and read `totalRecords`, or follow `reviewsPending` on the WebSocket `approvals` channel.
+
+| | |
+|---|---|
+| Permission | Read on `Approval` |
+| Response | `EnumerationResult<PipelineReview>` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-reviews?status=Pending" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "success": true,
+  "maxResults": 25,
+  "skip": 0,
+  "totalRecords": 1,
+  "recordsRemaining": 0,
+  "endOfResults": true,
+  "timestampUtc": "2026-10-13T18:02:30.118034Z",
+  "objects": [
+    {
+      "id": "prv_mv5d0k9a_Hq3Lz8WcN1tYb5Ks",
+      "tenantId": "default",
+      "pipelineRunId": "plr_mv5d0k3q_Rk2wT8mNbX4vLq7Y",
+      "pipelineId": "ppl_mv5c9r2d_Wq8LmT3xZb7KvRn",
+      "pipelineName": "release-notes",
+      "runStageId": "prs_mv5d0k3r_Tz4Lq8WbNm2XvKp",
+      "position": 1,
+      "stageName": "draft",
+      "runId": "run_mv5d0k3s_9VbQx2LmT7nRp4Wz",
+      "execution": 1,
+      "status": "Pending",
+      "timeoutAction": "Reject",
+      "requestedUtc": "2026-10-13T18:01:09.098Z",
+      "expiresUtc": "2026-10-13T22:01:09.098Z",
+      "createdUtc": "2026-10-13T18:01:09.098Z",
+      "lastUpdateUtc": "2026-10-13T18:01:09.098Z"
+    }
+  ]
+}
+```
+
+#### `GET /v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}`
+
+Read a stage review. The output under review is the `resultText` of the run named by `runId`.
+
+| | |
+|---|---|
+| Permission | Read on `Approval` |
+| Response | `PipelineReview` |
+| Success | 200 |
+
+```bash
+curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-reviews/{id}" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/pipeline-reviews/{id}/decide`
+
+Decide a pending stage review, then advance the pipeline run.
+
+- `Approve` continues with the next stage, or ends the pipeline run `Succeeded` after the last one. The optional `comment` reaches the next stage's prompt as `pipeline.reviewNotes`.
+- `RequestChanges` runs the same stage again as a new execution, with `comment` (required) as `pipeline.revision.feedback`. When the stage already used `maxRevisions` revisions, the decision answers 409 `RevisionLimitReached` and the review stays pending.
+- `Reject` ends the pipeline run `Failed` with outcome `ReviewRejected`; `comment` is the optional reason.
+
+| | |
+|---|---|
+| Permission | Update on `Approval` |
+| Request body | `PipelineReviewDecideRequest`: `decision` (`Approve`, `RequestChanges`, or `Reject`, required), `comment` (up to 8000 characters; required for `RequestChanges`) |
+| Response | `PipelineReview` |
+| Success | 200 |
+| Errors | 400 `ValidationFailed` (missing decision, missing comment for `RequestChanges`, comment too long); 409 `ReviewNotPending` (already decided, expired, or cancelled, or the pipeline run is cancelling or finished); 409 `RevisionLimitReached` |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-reviews/{id}/decide" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"decision": "RequestChanges", "comment": "List the breaking changes first."}'
+```
+
+Decisions are compare-and-set updates, so they are safe from any replica and two people deciding at once produce one decision and one 409. Every decision a person makes writes a `PipelineReviewDecided` audit record. Undecided reviews wait indefinitely unless the stage sets `reviewTimeoutSeconds`; then the leader applies the stage's `reviewTimeoutAction` with `decisionSource: Timeout` (a timed-out `Reject` gives the review status `Expired` and the pipeline outcome `ReviewExpired`).
 
 ### Analytics
 
@@ -3615,7 +4052,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors. Besides deployment parameters, a deployment can allow the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds` (validate it with an `IntegerRange` rule, for example `"pattern": "30,1800"`); a per-run `timeoutSeconds` is still capped by `Runtime.MaxRunSeconds`. A waiting call cancels its run when the client disconnects unless `cancelOnDisconnect` is false.
 
-**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
+**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
 **Run events.** `GET .../runs/{id}/events?afterSequence=0&limit=500` returns events with a sequence greater than `afterSequence`, in order, plus the run's current status. Poll with the last sequence you saw to follow a run.
 
@@ -3911,7 +4348,7 @@ Security and configuration audit record.
 
 #### `AuditEventTypeEnum`
 
-`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`
+`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`
 
 #### `AuthSchemeEnum`
 
@@ -4425,7 +4862,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`
 
 #### `OperationTypeEnum`
 
@@ -5005,6 +5442,9 @@ One invocation of one deployment.
 | `affinityNodeId` | `string?` | Node this turn waits for because it holds the conversation's directories, or `null`. Always present. |
 | `affinityUntilUtc` | `DateTime?` | End of the affinity wait; after it any capable node may take the turn as a fallback. Always present. |
 | `conversationFallbackReason` | `ConversationFallbackReasonEnum?` | Why this turn started a fresh session seeded with the transcript instead of resuming, or `null`. Always present. |
+| `pipelineRunId` | `string?` | Pipeline run this run is a stage execution of, or `null`. Always present. See [Pipelines](#pipelines). |
+| `pipelinePosition` | `int` | Position of the pipeline stage this run executes, starting at 1; 0 outside a pipeline. |
+| `pipelineExecution` | `int` | Execution number of that stage, starting at 1 (retries, revisions, and resumes increase it); 0 outside a pipeline. |
 | `traceId` | `string?` | W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in; the server's `run:create`, `run:claim`, and `run:compile` spans and the worker's `harness <type> exec` span share it, and delegated runs join their parent's trace. Use it to open the trace in Tempo or search logs (`trace=<traceId>`). `null` for runs created before schema migration 5. Always present. See `docs/TELEMETRY.md`. |
 | `exitCode` | `int?` | Process exit code. |
 | `stderrTail` | `string?` | Stderr tail (scrubbed). |
@@ -5031,7 +5471,7 @@ One invocation of one deployment.
 
 #### `RunKindEnum`
 
-`Invoke`, `Delegated`, `Test`, `Retry`
+`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run)
 
 #### `RunStatusEnum`
 
@@ -5146,6 +5586,176 @@ Custom permission create or update request.
 | `resourceTypes` | `List<string>?` | Resource type names (ResourceTypeEnum) or All. |
 | `operationTypes` | `List<string>?` | Operation names (OperationTypeEnum) or All. |
 | `active` | `bool?` | Whether the permission is active. |
+
+#### `Pipeline`
+
+Ordered agent stages with optional review gates (P12.9). See [Pipelines](#pipelines).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`ppl_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `name` | `string` | 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit; unique per tenant. |
+| `description` | `string?` | Description, up to 4000 characters. |
+| `version` | `int` | Definition version, starting at 1 and increased by every change. Read-only. |
+| `maxDurationSeconds` | `int` | Most seconds a pipeline run may take, review waits included. 0 (default) is no limit; maximum 2592000. |
+| `active` | `bool` | Whether the pipeline can be started. Default true. |
+| `isProtected` | `bool` | Whether the pipeline is protected from changes and deletion. |
+| `createdUtc` | `DateTime` | Creation timestamp (UTC). |
+| `lastUpdateUtc` | `DateTime` | Last update timestamp (UTC). |
+| `stages` | `List<PipelineStage>` | Stages in run order; 1 to `Runtime.PipelineMaxStages` (default 20). |
+
+#### `PipelineStage`
+
+Child record of Pipeline: one stage.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`pst_`). |
+| `pipelineId` | `string` | Parent Pipeline identifier. |
+| `tenantId` | `string` | Tenant identifier. |
+| `position` | `int` | Position, starting at 1, assigned from list order when the pipeline is saved. |
+| `name` | `string` | Stage name, 1 to 128 characters, unique within the pipeline. |
+| `description` | `string?` | Description (not sent to the harness). |
+| `agentId` | `string` | Agent that runs the stage. |
+| `deploymentId` | `string?` | Deployment of that agent to use, or `null` for the agent's weighted deployment selection. |
+| `handoffTemplateId` | `string?` | `Task` prompt template rendered as this stage's `PipelineStage` prompt, or `null` for the deployment's `PipelineStage` binding and then `builtin/pipeline-stage`. |
+| `handoffTemplateVersion` | `int?` | Pinned version of the handoff template, or `null` for its current version. Needs `handoffTemplateId`. |
+| `outputCharLimit` | `int` | Most characters of each earlier output (and of a revised output) rendered into the prompt; longer outputs are cut and marked. 1000 to 200000, default 16000. |
+| `maxAttempts` | `int` | Executions, including the first, before a failure counts. 1 to 5, default 1. |
+| `continueOnFailure` | `bool` | Whether the pipeline moves on after this stage fails all its attempts. Default false (the pipeline run fails with `StageFailed`). |
+| `requiresReview` | `bool` | Whether a person reviews the stage result before the pipeline continues. Default false. |
+| `reviewTimeoutSeconds` | `int` | Seconds a review waits before `reviewTimeoutAction` applies. 0 (default) waits indefinitely; maximum 2592000. |
+| `reviewTimeoutAction` | `PipelineReviewDecisionEnum` | `Approve` or `Reject` (default). `RequestChanges` is not allowed. |
+| `maxRevisions` | `int` | Most `RequestChanges` decisions for this stage in one pipeline run. 0 to 10, default 3. |
+| `parameters` | `List<PipelineStageParameter>` | Run parameter overrides for every run of the stage, validated against the pinned deployment's `allowedRunOverrides`. |
+
+#### `PipelineStageParameter`
+
+Child record of PipelineStage: a run parameter override (`psp_`). Fields `id`, `stageId`, `tenantId`, `name`, `value`.
+
+#### `PipelineRun`
+
+One execution of a pipeline.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`plr_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `pipelineId` | `string` | Pipeline that was started. |
+| `pipelineName` | `string` | Pipeline name at start. |
+| `pipelineVersion` | `int` | Pipeline version at start. |
+| `status` | `PipelineRunStatusEnum` | Status. |
+| `outcome` | `PipelineRunOutcomeEnum` | Why it ended; `None` while active. |
+| `currentPosition` | `int` | Position of the stage being run or reviewed. |
+| `stageCount` | `int` | Number of stages. |
+| `casVersion` | `int` | Compare-and-set version, increased by every change of the record. Read-only. |
+| `inputText` | `string` | Caller input. Every stage run receives it as its input. |
+| `inputContentType` | `string` | Input content type. Default `text/plain`. |
+| `callerType`, `callerId`, `callerName` | `PrincipalTypeEnum`, `string?`, `string?` | Who started it. |
+| `idempotencyKey` | `string?` | `Idempotency-Key` of the start request. |
+| `priority` | `int` | Priority given to every stage run. |
+| `finalRunId` | `string?` | Run of the last stage when the pipeline run succeeded. |
+| `errorMessage` | `string?` | Why it failed, timed out, or was cancelled. |
+| `deadlineUtc` | `DateTime?` | End of the allowed duration, or `null` without a limit. |
+| `cancelRequested` | `bool` | Whether cancellation was requested. |
+| `traceParent` | `string?` | W3C traceparent of the start request. |
+| `startedUtc`, `completedUtc` | `DateTime?` | Start and completion times (UTC). |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
+| `stages` | `List<PipelineRunStage>` | Stage snapshots in order, with their progress. |
+| `runs` | `List<PipelineStageRunSummary>` | Stage run summaries ordered by position and execution. Filled in by single reads, start, cancel, and retry; empty in lists. |
+| `reviews` | `List<PipelineReview>` | Reviews, oldest first. Filled in like `runs`. |
+
+#### `PipelineRunStage`
+
+Child record of PipelineRun: the snapshot of one stage taken at start (`prs_`), with its progress. It has every `PipelineStage` setting (`position`, `name`, `description`, `agentId`, `deploymentId`, `handoffTemplateId`, `handoffTemplateVersion`, `outputCharLimit`, `maxAttempts`, `continueOnFailure`, `requiresReview`, `reviewTimeoutSeconds`, `reviewTimeoutAction`, `maxRevisions`, and `parameters` as `prp_` records with `runStageId`) plus:
+
+| Field | Type | Description |
+|---|---|---|
+| `pipelineRunId` | `string` | Parent PipelineRun identifier. |
+| `agentName` | `string` | Agent name at start. |
+| `status` | `PipelineStageStatusEnum` | Stage status. |
+| `executions` | `int` | Executions claimed so far. |
+| `attempts` | `int` | Attempt number of the current execution within its retry cycle (a revision or a resume starts again at 1). |
+| `revisions` | `int` | `RequestChanges` decisions applied to the stage. |
+| `currentRunId` | `string?` | Run of the current execution, or `null` before it is created. |
+| `lastRunId` | `string?` | Run of the previous execution. |
+| `blockedReason` | `string?` | Why the current execution has no run yet: a transient refusal such as `QuotaExceeded: ...`, retried about every five seconds without using an attempt. |
+| `nextAttemptUtc` | `DateTime?` | When a blocked execution is tried again. |
+| `startedUtc`, `completedUtc` | `DateTime?` | When the first execution was claimed and when the stage finished. |
+
+#### `PipelineStageRunSummary`
+
+One stage run of a pipeline run: `runId`, `position`, `execution`, `agentName`, `status` (`RunStatusEnum`), `outcome` (`RunOutcomeEnum?`, `null` while active), `errorMessage`, `createdUtc`, `completedUtc`.
+
+#### `PipelineReview`
+
+A stage review (`prv_`). Authorized as `Approval`.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`prv_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `pipelineRunId`, `pipelineId`, `pipelineName` | `string` | The pipeline run and its pipeline. |
+| `runStageId`, `position`, `stageName` | `string`, `int`, `string` | The stage under review. |
+| `runId` | `string` | The stage run whose output is under review. |
+| `execution` | `int` | The stage execution under review; one review per stage execution. |
+| `status` | `PipelineReviewStatusEnum` | Status. |
+| `decision` | `PipelineReviewDecisionEnum?` | The decision, or `null` while pending and for cancelled reviews. |
+| `decisionSource` | `PipelineReviewSourceEnum?` | Who decided, or `null` while pending. |
+| `comment` | `string?` | Up to 8000 characters: notes for the next stage on `Approve`, feedback on `RequestChanges`, the reason on `Reject`, or Garrison's reason for a cancellation. |
+| `decidedBy`, `decidedById` | `string?` | Display name and user or credential identifier of the decider (`timeout` or `system` for automatic decisions). |
+| `timeoutAction` | `PipelineReviewDecisionEnum` | Decision applied if the review expires. |
+| `requestedUtc` | `DateTime` | When the review was requested. |
+| `expiresUtc` | `DateTime?` | When the timeout action applies, or `null` to wait indefinitely. |
+| `decidedUtc` | `DateTime?` | When it was decided. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
+
+#### `PipelineStartRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `input` | `string` | Caller input given to every stage run. |
+| `inputContentType` | `string?` | Media type of the input, or `null` for `text/plain`. |
+| `priority` | `int` | Priority of every stage run. Default 0. |
+| `wait` | `bool` | Wait until the pipeline run ends or stops for a review. Default false. |
+| `waitSeconds` | `int` | Most seconds to wait. 0 to 600, default 60. |
+
+#### `PipelinePreviewRequest`
+
+`input` (`string`, sample caller input) and `sampleOutputs` (`List<string>`, sample result text of each stage in order: entry `i` is what stage `i + 2` sees as `pipeline.previous.output`).
+
+#### `PipelinePreviewResponse`
+
+`pipelineId`, `pipelineName`, and `stages`, a list of `PipelinePreviewStage`: `position`, `stageName`, `agentName`, `deploymentId`, `deploymentName`, `success`, `prompt` (the rendered task prompt, or `null` on failure), `errorCode`, `errorMessage`.
+
+#### `PipelineReviewDecideRequest`
+
+`decision` (`PipelineReviewDecisionEnum`, required) and `comment` (`string?`, up to 8000 characters, required for `RequestChanges`).
+
+#### `PipelineRunStatusEnum`
+
+`Running`, `AwaitingReview`, `Cancelling` (active); `Succeeded`, `Failed`, `Cancelled`, `TimedOut` (terminal)
+
+#### `PipelineRunOutcomeEnum`
+
+`None`, `Succeeded`, `StageFailed`, `StageStartFailed`, `ReviewRejected`, `ReviewExpired`, `Cancelled`, `TimedOut`, `InternalError`
+
+#### `PipelineStageStatusEnum`
+
+`Pending`, `Running`, `AwaitingReview`, `Succeeded`, `Failed`, `Cancelled`
+
+#### `PipelineReviewStatusEnum`
+
+`Pending`, `Approved`, `ChangesRequested`, `Rejected`, `Expired`, `Cancelled`
+
+#### `PipelineReviewDecisionEnum`
+
+`Approve`, `RequestChanges`, `Reject`
+
+#### `PipelineReviewSourceEnum`
+
+`User`, `Timeout`, `Cancelled`
 
 #### `PromptRenderRequest`
 

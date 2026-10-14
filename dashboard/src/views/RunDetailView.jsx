@@ -366,6 +366,24 @@ export default function RunDetailView({ recordId }) {
             )}
           </>
         )}
+        {run.pipelineRunId && (
+          <Detail label={t('views.runDetail.pipelineRun')} tip={t('tips.views.runDetail.pipelineRun')}>
+            <span className="inline-meta">
+              <a
+                href={pathFor('pipelineRuns', run.pipelineRunId)}
+                data-testid="run-pipeline-link"
+                {...tip(t('tips.views.runDetail.openPipelineRun'))}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(pathFor('pipelineRuns', run.pipelineRunId));
+                }}
+              >
+                <code>{run.pipelineRunId}</code>
+              </a>
+              <span className="text-muted">{t('resources.runs.pipelineStage', { position: run.pipelinePosition ?? 0, execution: run.pipelineExecution ?? 0 })}</span>
+            </span>
+          </Detail>
+        )}
         <Detail label={t('views.runDetail.attempt')} tip={t('tips.views.runDetail.attempt')}>{`${run.attempt ?? 1} / ${run.maxAttempts ?? 1}`}</Detail>
         {run.outputSchemaValid != null && (
           <Detail label={t('views.runDetail.outputSchema')} tip={t('tips.views.runDetail.outputSchema')}>

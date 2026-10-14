@@ -170,8 +170,24 @@ namespace Garrison.Core.Database.Sql
         /// <returns>DDL.</returns>
         public virtual string CreateIndex(string indexName, string? schema, string rawTableName, string columnsCsv, bool unique)
         {
+            return CreateIndex(indexName, schema, rawTableName, columnsCsv, unique, null);
+        }
+
+        /// <summary>
+        /// CREATE INDEX statement that is a no-op when the index exists, optionally partial (only rows matching a
+        /// predicate are indexed; Sqlite and PostgreSQL both support it).
+        /// </summary>
+        /// <param name="indexName">Unquoted index name.</param>
+        /// <param name="schema">Optional schema.</param>
+        /// <param name="rawTableName">Unquoted table name.</param>
+        /// <param name="columnsCsv">Quoted column list.</param>
+        /// <param name="unique">Whether the index is unique.</param>
+        /// <param name="where">Predicate of a partial index (without WHERE), or null for a full index.</param>
+        /// <returns>DDL.</returns>
+        public virtual string CreateIndex(string indexName, string? schema, string rawTableName, string columnsCsv, bool unique, string? where)
+        {
             string keyword = unique ? "CREATE UNIQUE INDEX" : "CREATE INDEX";
-            return keyword + " IF NOT EXISTS " + Quote(indexName) + " ON " + QualifiedReference(schema, rawTableName) + " (" + columnsCsv + ");";
+            return keyword + " IF NOT EXISTS " + Quote(indexName) + " ON " + QualifiedReference(schema, rawTableName) + " (" + columnsCsv + ")" + (String.IsNullOrWhiteSpace(where) ? String.Empty : " WHERE " + where) + ";";
         }
 
         /// <summary>

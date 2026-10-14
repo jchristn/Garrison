@@ -1,6 +1,6 @@
 # Garrison WebSocket API
 
-The dashboard keeps its run list, node list, and run detail pages current over one WebSocket connection, and any other client can do the same. The channel is read-only: you subscribe to topics and Garrison pushes changes. To start or cancel runs, use REST, MCP, or A2A.
+The dashboard keeps its run list, node list, run detail, and pipeline run pages current over one WebSocket connection, and any other client can do the same. The channel is read-only: you subscribe to topics and Garrison pushes changes. To start or cancel runs, use REST, MCP, or A2A.
 
 ```text
 ws://<server>:8700/v1.0/ws
@@ -39,16 +39,17 @@ Until the connection is authenticated, every message except `auth` and `ping` ge
 | `runs` | Read on Run in your tenant | `runs.changed` with the 25 most recent runs whenever any of them changes status or records a new event |
 | `run:{runId}` | Read on Run for that run | Every event of the run as `run.event`, in order, then `run.status` each time the status changes |
 | `nodes` | Read on Node | `nodes` with every node (up to 500) whenever a node's status or active run count changes |
-| `approvals` | Read on Approval in your tenant | `approvals.changed` with the pending count and the pending approvals (newest first, up to 100) whenever the pending set changes |
+| `approvals` | Read on Approval in your tenant | `approvals.changed` with the pending count, the pending approvals (newest first, up to 100), and the count of pending pipeline stage reviews, whenever either changes |
+| `pipeline-run:{pipelineRunId}` | Read on PipelineRun for that pipeline run | `pipeline-run.status` with the whole pipeline run (stages, stage run summaries, and reviews) each time its status, a stage, a stage run, or a review changes |
 
-A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
+A subscription starts with the current state: `runs`, `nodes`, and `approvals` send their lists at once, `pipeline-run:{pipelineRunId}` sends the pipeline run, and `run:{runId}` replays the run's events from the first one before following new ones. Subscribing again to a channel you already have restarts it from scratch the same way.
 
-The `runs`, `run:{runId}`, and `approvals` channels follow the tenant of the token, so they only ever show that tenant's data. `runs` and `run:{runId}` also send an update when a run starts or stops waiting for a permission approval (`awaitingApproval`).
+The `runs`, `run:{runId}`, `pipeline-run:{pipelineRunId}`, and `approvals` channels follow the tenant of the token, so they only ever show that tenant's data. `runs` and `run:{runId}` also send an update when a run starts or stops waiting for a permission approval (`awaitingApproval`).
 
-The `approvals` channel is the push side of the approvals inbox: subscribe to it to show a badge or to notify someone (a chat hook, for example) when a harness is waiting for a decision. Decide over REST or MCP.
+The `approvals` channel is the push side of the approvals inbox: subscribe to it to show a badge or to notify someone (a chat hook, for example) when a harness is waiting for a decision. Pipeline stage reviews share the inbox, so the message also carries `reviewsPending`, the number of stage reviews waiting for a person; the dashboard's Approvals badge is `pending` plus `reviewsPending`. The reviews themselves are not in the message; list them with `GET .../pipeline-reviews?status=Pending`. Decide over REST or MCP.
 
 ```json
-{"type":"approvals.changed","pending":1,"approvals":[{"id":"apr_mv3k2a1b_7QxJm2LhR8sWcN4dTzEf","runId":"run_mv3k29zq_Hc8wPnB2dLx5rTq1VkYa","agentName":"release-helper","toolName":"Bash","summary":"git push origin main","status":"Pending","expiresUtc":"2026-10-11T21:09:03.502117Z", ...}]}
+{"type":"approvals.changed","pending":1,"reviewsPending":2,"approvals":[{"id":"apr_mv3k2a1b_7QxJm2LhR8sWcN4dTzEf","runId":"run_mv3k29zq_Hc8wPnB2dLx5rTq1VkYa","agentName":"release-helper","toolName":"Bash","summary":"git push origin main","status":"Pending","expiresUtc":"2026-10-11T21:09:03.502117Z", ...}]}
 ```
 
 ```json
@@ -62,6 +63,17 @@ The `approvals` channel is the push side of the approvals inbox: subscribe to it
 {"type":"run.status","run":{"id":"run_mv1r5tum_PzmDRtwczukdCvf7i62","agentName":"docs-echo","status":"Succeeded","outcome":"Succeeded","resultText":"Echo: ws demo", ...}}
 ```
 
+Follow a pipeline run with `pipeline-run:{pipelineRunId}`. Each message is the whole `PipelineRun` as `GET .../pipeline-runs/{id}` returns it; to see a stage's output as it is produced, subscribe to `run:{runId}` for the stage's `currentRunId` as well.
+
+```json
+{"type":"subscribe","channel":"pipeline-run:plr_mv5d0k3q_Rk2wT8mNbX4vLq7Y"}
+```
+
+```json
+{"type":"subscribed","channel":"pipeline-run:plr_mv5d0k3q_Rk2wT8mNbX4vLq7Y"}
+{"type":"pipeline-run.status","pipelineRun":{"id":"plr_mv5d0k3q_Rk2wT8mNbX4vLq7Y","pipelineName":"release-notes","status":"AwaitingReview","outcome":"None","currentPosition":1,"stages":[...],"runs":[...],"reviews":[{"id":"prv_mv5d0k9a_Hq3Lz8WcN1tYb5Ks","status":"Pending", ...}], ...}}
+```
+
 The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as REST returns them (see `REST_API.md`), including `rawEventJson`, the harness's original line, when the parser kept it. `runs.changed` carries `runs`, an array of `Run`; `nodes` carries `nodes`, an array of `Node`.
 
 ## Server messages
@@ -73,7 +85,8 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 | `pong` | none |
 | `runs.changed` | `runs` |
 | `nodes` | `nodes` |
-| `approvals.changed` | `pending`, `approvals` |
+| `approvals.changed` | `pending`, `reviewsPending`, `approvals` |
+| `pipeline-run.status` | `pipelineRun` |
 | `run.event` | `runId`, `event` |
 | `run.status` | `run` |
 | `error` | `code`, `message`, and `channel` for subscription errors |
@@ -82,7 +95,7 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 |---|---|
 | `InvalidJson` | The message is not a JSON object with a `type` |
 | `AuthenticationRequired` | The token is invalid, or the connection is not authenticated yet |
-| `SubscriptionDenied` | Unknown channel, missing permission, a run that does not exist, or a session without a tenant |
+| `SubscriptionDenied` | Unknown channel, missing permission, a run or pipeline run that does not exist, or a session without a tenant. Run tokens are denied `pipeline-run:{id}` |
 
 Errors never close the connection.
 

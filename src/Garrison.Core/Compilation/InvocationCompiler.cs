@@ -74,6 +74,23 @@ namespace Garrison.Core.Compilation
         public static readonly string ConversationFallbackTemplateName = Constants.BuiltInPrefix + "conversation-fallback";
 
         /// <summary>
+        /// Deployment prompt role used for the task prompt of a pipeline stage run (P12.9): it renders around the stage
+        /// run's own task prompt (<c>pipeline.task</c>) and hands the earlier stages' outputs to the stage. A stage's own
+        /// handoff template takes precedence over the deployment's binding.
+        /// </summary>
+        public static readonly string PipelineStageRole = "PipelineStage";
+
+        /// <summary>
+        /// Built-in template used for the PipelineStage role when neither the stage nor the deployment binds one.
+        /// </summary>
+        public static readonly string PipelineStageTemplateName = Constants.BuiltInPrefix + "pipeline-stage";
+
+        /// <summary>
+        /// Built-in fragment included by the built-in pipeline stage template to carry review feedback wording.
+        /// </summary>
+        public static readonly string PipelineRevisionTemplateName = Constants.BuiltInPrefix + "pipeline-revision";
+
+        /// <summary>
         /// Compiler options.
         /// </summary>
         public CompilerOptions Options
@@ -144,10 +161,30 @@ namespace Garrison.Core.Compilation
         public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CompilationConversation? conversation, CancellationToken token = default)
         {
             if (run == null) throw new ArgumentNullException(nameof(run));
+            return await CompileAsync(run, runToken, conversation, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Compile a run for execution with the conversation inputs of a conversation turn and the pipeline inputs of a
+        /// pipeline stage run (P12.9). A stage run renders its Task (or DelegatedTask) prompt as <c>pipeline.task</c>, then
+        /// its task prompt through the PipelineStage role: the stage's handoff template (respecting a pinned version),
+        /// else the deployment's PipelineStage binding, else <c>builtin/pipeline-stage</c>.
+        /// </summary>
+        /// <param name="run">Run (with parameters loaded).</param>
+        /// <param name="runToken">Run token placed in the Garrison MCP configuration, or null when delegation is disabled.</param>
+        /// <param name="conversation">Conversation inputs, or null for runs outside a conversation or turns that resume.</param>
+        /// <param name="pipeline">Pipeline inputs, or null for runs outside a pipeline.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Compilation result.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when run is null.</exception>
+        /// <exception cref="CompilationException">Thrown when the run cannot be compiled.</exception>
+        public async Task<CompilationResult> CompileAsync(Run run, string? runToken, CompilationConversation? conversation, CompilationPipeline? pipeline, CancellationToken token = default)
+        {
+            if (run == null) throw new ArgumentNullException(nameof(run));
             bool fallback = run.ConversationFallbackReason.HasValue && conversation != null && conversation.Turns.Count > 0;
-            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback).ConfigureAwait(false);
+            CompilationInputs inputs = await LoadCoreAsync(run.TenantId, run.DeploymentId, false, true, token, fallback, pipeline).ConfigureAwait(false);
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
-            return Compile(inputs, run, runToken, null, fallback ? conversation : null);
+            return Compile(inputs, run, runToken, null, fallback ? conversation : null, pipeline);
         }
 
         /// <summary>
@@ -183,10 +220,26 @@ namespace Garrison.Core.Compilation
         /// <exception cref="CompilationException">Thrown when the deployment cannot be compiled.</exception>
         public async Task<CompilationResult> PreviewAsync(string tenantId, string deploymentId, string input, Dictionary<string, string>? parameters, CancellationToken token = default)
         {
+            return await PreviewAsync(tenantId, deploymentId, input, parameters, null, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Compile a preview for a deployment with secret values redacted, optionally as a pipeline stage run (P12.9).
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="deploymentId">Deployment identifier.</param>
+        /// <param name="input">Sample input message.</param>
+        /// <param name="parameters">Sample run parameters.</param>
+        /// <param name="pipeline">Sample pipeline inputs, or null for a run outside a pipeline.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Compilation result with redacted secrets.</returns>
+        /// <exception cref="CompilationException">Thrown when the deployment cannot be compiled.</exception>
+        public async Task<CompilationResult> PreviewAsync(string tenantId, string deploymentId, string input, Dictionary<string, string>? parameters, CompilationPipeline? pipeline, CancellationToken token = default)
+        {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             if (String.IsNullOrEmpty(deploymentId)) throw new ArgumentNullException(nameof(deploymentId));
 
-            CompilationInputs inputs = await LoadAsync(tenantId, deploymentId, token).ConfigureAwait(false);
+            CompilationInputs inputs = await LoadCoreAsync(tenantId, deploymentId, false, false, token, false, pipeline).ConfigureAwait(false);
             Run run = new Run();
             run.Id = "run_preview";
             run.TenantId = tenantId;
@@ -210,8 +263,15 @@ namespace Garrison.Core.Compilation
                 }
             }
 
+            if (pipeline != null)
+            {
+                run.Kind = RunKindEnum.Pipeline;
+                run.PipelineRunId = String.IsNullOrEmpty(pipeline.PipelineRunId) ? "plr_preview" : pipeline.PipelineRunId;
+                run.PipelinePosition = pipeline.Position;
+                run.PipelineExecution = 1;
+            }
             await new UsageQuotaPolicy(_Database).ApplyBudgetAsync(inputs.Deployment, run, token).ConfigureAwait(false);
-            CompilationResult result = Compile(inputs, run, "preview-run-token");
+            CompilationResult result = Compile(inputs, run, "preview-run-token", null, null, pipeline);
             Redact(result.Spec);
             return result;
         }
@@ -243,7 +303,7 @@ namespace Garrison.Core.Compilation
             return LoadCoreAsync(tenantId, deploymentId, includeRepair, false, token);
         }
 
-        private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token, bool includeConversationFallback = false)
+        private async Task<CompilationInputs> LoadCoreAsync(string tenantId, string deploymentId, bool includeRepair, bool prepareSecrets, CancellationToken token, bool includeConversationFallback = false, CompilationPipeline? pipeline = null)
         {
             CompilationInputs inputs = new CompilationInputs();
             inputs.Tenant = await _Database.Tenants.ReadAsync(tenantId, token).ConfigureAwait(false);
@@ -333,6 +393,43 @@ namespace Garrison.Core.Compilation
                 inputs.Prompts[ConversationFallbackRole] = bound;
             }
 
+            if (pipeline != null)
+            {
+                // Precedence (P12.9): the stage's own handoff template (respecting its pinned version), then the
+                // deployment's PipelineStage binding, then the built-in template.
+                if (!String.IsNullOrEmpty(pipeline.HandoffTemplateId))
+                {
+                    PromptTemplate handoff = await _Database.PromptTemplates.ReadAsync(tenantId, pipeline.HandoffTemplateId, token).ConfigureAwait(false)
+                        ?? throw new CompilationException("ReferenceNotFound", "Prompt template " + pipeline.HandoffTemplateId + " for role " + PipelineStageRole + " of pipeline stage " + pipeline.StageName + " was not found.");
+                    BoundPrompt bound = new BoundPrompt();
+                    bound.Role = PipelineStageRole;
+                    bound.TemplateId = handoff.Id;
+                    bound.TemplateName = handoff.Name;
+                    bound.Version = handoff.CurrentVersion;
+                    bound.Content = handoff.Content;
+                    if (pipeline.HandoffTemplateVersion.HasValue && pipeline.HandoffTemplateVersion.Value != handoff.CurrentVersion)
+                    {
+                        PromptTemplateVersion version = await _Database.PromptTemplateVersions.ReadByVersionAsync(handoff.Id, pipeline.HandoffTemplateVersion.Value, token).ConfigureAwait(false)
+                            ?? throw new CompilationException("ReferenceNotFound", "Version " + pipeline.HandoffTemplateVersion.Value + " of prompt template " + handoff.Name + " was not found.");
+                        bound.Version = version.Version;
+                        bound.Content = version.Content;
+                    }
+                    inputs.Prompts[PipelineStageRole] = bound;
+                }
+                else if (!inputs.Prompts.ContainsKey(PipelineStageRole))
+                {
+                    PromptTemplate stage = await _Database.PromptTemplates.ReadByNameAsync(tenantId, PipelineStageTemplateName, token).ConfigureAwait(false)
+                        ?? throw new CompilationException("ReferenceNotFound", "Prompt template " + PipelineStageTemplateName + " for role " + PipelineStageRole + " was not found.");
+                    BoundPrompt bound = new BoundPrompt();
+                    bound.Role = PipelineStageRole;
+                    bound.TemplateId = stage.Id;
+                    bound.TemplateName = stage.Name;
+                    bound.Version = stage.CurrentVersion;
+                    bound.Content = stage.Content;
+                    inputs.Prompts[PipelineStageRole] = bound;
+                }
+            }
+
             await LoadIncludesAsync(tenantId, inputs, token).ConfigureAwait(false);
             return inputs;
         }
@@ -377,6 +474,24 @@ namespace Garrison.Core.Compilation
         /// <exception cref="CompilationException">Thrown when compilation fails.</exception>
         public CompilationResult Compile(CompilationInputs inputs, Run run, string? runToken, CompilationRepair? repair, CompilationConversation? conversation)
         {
+            return Compile(inputs, run, runToken, repair, conversation, null);
+        }
+
+        /// <summary>
+        /// Compile loaded inputs, optionally as a structured output repair, with the conversation inputs of a fallback
+        /// turn and the pipeline inputs of a pipeline stage run (P12.9).
+        /// </summary>
+        /// <param name="inputs">Inputs (loaded with the PipelineStage role when pipeline is set).</param>
+        /// <param name="run">Run.</param>
+        /// <param name="runToken">Run token, or null.</param>
+        /// <param name="repair">Repair inputs, or null for the original execution.</param>
+        /// <param name="conversation">Transcript of the earlier turns for a fallback turn, or null.</param>
+        /// <param name="pipeline">Pipeline inputs of a stage run, or null.</param>
+        /// <returns>Result.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when inputs or run is null.</exception>
+        /// <exception cref="CompilationException">Thrown when compilation fails.</exception>
+        public CompilationResult Compile(CompilationInputs inputs, Run run, string? runToken, CompilationRepair? repair, CompilationConversation? conversation, CompilationPipeline? pipeline)
+        {
             if (inputs == null) throw new ArgumentNullException(nameof(inputs));
             if (run == null) throw new ArgumentNullException(nameof(run));
 
@@ -419,6 +534,7 @@ namespace Garrison.Core.Compilation
             }
 
             TemplateContext context = BaseContext(inputs, run, parameters, delegationEnabled, repair, conversation);
+            context.Set("pipeline", PipelineContext(pipeline));
             context.Set("approval", ApprovalContext(deployment, approvalsEnabled));
             Dictionary<string, object?> secrets = SecretContext(inputs, scrub);
             context.Set("secret", secrets);
@@ -446,6 +562,16 @@ namespace Garrison.Core.Compilation
                 context.Set("conversation", conversationMap);
                 task = RenderPrompt(inputs, ConversationFallbackRole, context, includes, usedIncludes);
             }
+            if (repair == null && pipeline != null && inputs.Prompts.ContainsKey(PipelineStageRole))
+            {
+                // A pipeline stage run (P12.9): the stage template renders around the run's own task prompt and hands the
+                // earlier stages' outputs, review notes, and revision feedback to the harness.
+                Dictionary<string, object?> pipelineMap = context.Root.TryGetValue("pipeline", out object? current) && current is Dictionary<string, object?> existingPipeline ? existingPipeline : TemplateContext.NewMap();
+                pipelineMap["task"] = task;
+                context.Set("pipeline", pipelineMap);
+                task = RenderPrompt(inputs, PipelineStageRole, context, includes, usedIncludes);
+            }
+            string taskPrompt = task;
             if (repair == null && profile.SystemPromptDelivery == SystemPromptDeliveryEnum.PrependToPrompt && system.Length > 0)
             {
                 task = system + Environment.NewLine + Environment.NewLine + task;
@@ -585,6 +711,7 @@ namespace Garrison.Core.Compilation
             CompilationResult result = new CompilationResult();
             result.Spec = spec;
             result.TemplateVersions = TemplateVersions(inputs, run, usedIncludes);
+            result.TaskPrompt = taskPrompt;
             return result;
         }
 
@@ -620,6 +747,68 @@ namespace Garrison.Core.Compilation
         #endregion
 
         #region Private-Methods
+
+        private static Dictionary<string, object?> PipelineContext(CompilationPipeline? pipeline)
+        {
+            // pipeline.* (P12.9): empty values for runs outside a pipeline, so shared templates can test pipeline.id.
+            Dictionary<string, object?> map = TemplateContext.NewMap();
+            map["id"] = pipeline?.PipelineId;
+            map["name"] = pipeline?.PipelineName;
+            map["runId"] = pipeline?.PipelineRunId;
+            map["position"] = pipeline?.Position ?? 0;
+            map["stageName"] = pipeline?.StageName;
+            map["stageCount"] = pipeline?.StageCount ?? 0;
+            map["task"] = null;
+            map["hasPrevious"] = pipeline?.Previous != null;
+            map["previous"] = pipeline?.Previous == null ? null : PipelineStageContext(pipeline.Previous);
+            List<object?> stages = new List<object?>();
+            if (pipeline != null)
+            {
+                foreach (CompilationPipelineStage stage in pipeline.Stages) stages.Add(PipelineStageContext(stage));
+            }
+            map["stages"] = stages;
+            map["hasReviewNotes"] = !String.IsNullOrEmpty(pipeline?.ReviewNotes);
+            map["reviewNotes"] = pipeline?.ReviewNotes;
+            map["isRevision"] = pipeline?.Revision != null;
+            Dictionary<string, object?>? revision = null;
+            if (pipeline?.Revision != null)
+            {
+                revision = TemplateContext.NewMap();
+                revision["number"] = pipeline.Revision.Number;
+                revision["feedback"] = pipeline.Revision.Feedback;
+                revision["reviewer"] = pipeline.Revision.Reviewer;
+                revision["previousOutput"] = pipeline.Revision.PreviousOutput;
+                revision["previousOutputTruncated"] = pipeline.Revision.PreviousOutputTruncated;
+            }
+            map["revision"] = revision;
+            return map;
+        }
+
+        private static Dictionary<string, object?> PipelineStageContext(CompilationPipelineStage stage)
+        {
+            Dictionary<string, object?> item = TemplateContext.NewMap();
+            item["position"] = stage.Position;
+            item["stageName"] = stage.StageName;
+            item["agentName"] = stage.AgentName;
+            item["status"] = stage.Status;
+            item["outcome"] = stage.Outcome;
+            item["output"] = stage.Output;
+            item["outputTruncated"] = stage.OutputTruncated;
+            item["structured"] = stage.Structured;
+            item["hasArtifacts"] = stage.Artifacts.Count > 0;
+            List<object?> artifacts = new List<object?>();
+            foreach (CompilationPipelineArtifact artifact in stage.Artifacts)
+            {
+                Dictionary<string, object?> entry = TemplateContext.NewMap();
+                entry["id"] = artifact.Id;
+                entry["name"] = artifact.Name;
+                entry["mediaType"] = artifact.MediaType;
+                entry["sizeBytes"] = artifact.SizeBytes;
+                artifacts.Add(entry);
+            }
+            item["artifacts"] = artifacts;
+            return item;
+        }
 
         private async Task LoadIncludesAsync(string tenantId, CompilationInputs inputs, CancellationToken token)
         {

@@ -12,6 +12,8 @@ The gateway shares the REST listener (port 8700 by default). Agents are addresse
 
 An agent that does not exist or is not exposed answers 404 for its card and `-32001` on the JSON-RPC endpoint. So does an agent in a tenant other than the caller's, unless the caller is a system administrator.
 
+Only agents are exposed over A2A. Pipelines (`docs/PIPELINES.md`) have no agent card and no A2A endpoint; start them over REST, MCP, or an SDK. An agent that is a pipeline stage still has its own card, and a message sent to it runs that agent alone, outside any pipeline.
+
 ## Agent cards
 
 ```bash

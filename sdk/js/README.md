@@ -65,7 +65,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `Conversation`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -80,6 +80,31 @@ const result = await client.approvals.check(deploymentId, { toolName: "Bash", in
 ```
 
 `approvals.list` takes an `ApprovalFilter` (`status`, `runId`, `rootRunId`, `agentId`, `deploymentId`, `decisionSource`, `fromUtc`, `toUtc`); for a pending count, pass `{ status: "Pending", maxResults: 1 }` and read `totalRecords`. `approvals.get` rejects with `GarrisonError` (404) for an approval outside the tenant. `approvals.decide` rejects with 409 (`ApprovalNotPending`) when the approval was already decided, and `remember` needs Update on the approval's deployment. `approvals.check` records nothing and resolves to an `ApprovalCheckResponse` (`action`, `source`, `ruleId`, `rulePattern`, `suggestedRule`, `approvalsEnabled`); its input uses Claude Code tool input names (`file_path`, `notebook_path`). `Approval` is typed, and `Run` has `pendingApprovals`, `awaitingApproval` (the run stays `Running` while it waits), and `approvalWaitMs`.
+
+## Pipelines
+
+A pipeline runs agents as ordered stages. Each stage receives the caller's input plus the earlier stages' results (text, structured output, and artifact references), rendered by a `PipelineStage` prompt template, and a stage with `requiresReview` waits for a person before the pipeline continues.
+
+```ts
+const pipeline = await client.pipelines.create({
+  name: "draft-and-edit",
+  stages: [
+    { name: "write", agentId: writerId, requiresReview: true, maxRevisions: 2 },
+    { name: "edit", agentId: editorId },
+  ],
+});
+const preview = await client.pipelines.preview(pipeline.id, { input: "Sample request", sampleOutputs: ["Sample draft"] });
+const run = await client.pipelines.start(pipeline.name, { input: "Draft the release note", wait: true, waitSeconds: 60 }, { idempotencyKey: "release-note-42" });
+const [review] = (await client.pipelineReviews.list({ status: "Pending", pipelineRunId: run.id })).objects;
+await client.pipelineReviews.decide(review.id, { decision: "Approve", comment: "Mention the upgrade steps." });
+const finished = await client.pipelineRuns.get(run.id, 60);
+```
+
+- `pipelines` accepts an identifier or a name for `get`, `update`, `delete`, `start`, and `preview`. `update` replaces the stages and advances `version`; started pipeline runs keep their snapshot. `delete` rejects with 409 (`PipelineInUse`) while a pipeline run is active.
+- `pipelines.start` sends `idempotencyKey` as the `Idempotency-Key` header: the same key and input return the same pipeline run, and a different input rejects with 409 (`IdempotencyKeyConflict`). With `wait`, it returns when the pipeline run ends or waits for a review, or after `waitSeconds` (default 60, at most 600). It needs Pipeline Execute plus Agent Execute on every stage agent.
+- `pipelineRuns.list` takes a `PipelineRunFilter` (`pipelineId`, `status`, `callerId`, `fromUtc`, `toUtc`). `get(id, waitSeconds)` returns the detail (`stages`, `runs`, `reviews`); `waitFor(id, timeoutMs, untilReview)` polls. `cancel` rejects with 409 (`PipelineRunFinished`) once the pipeline run ended, `retry` resumes a Failed, TimedOut, or Cancelled pipeline run at its stopped stage (409 `PipelineRunNotRetryable` otherwise), and `delete` removes a finished pipeline run (409 `PipelineRunActive` while active).
+- `pipelineReviews` are authorized as Approval Read and Update. `decide` takes `Approve` (the optional comment reaches the next stage), `RequestChanges` (comment required, 400 without one; the stage runs again with the feedback, 409 `RevisionLimitReached` past `maxRevisions`), or `Reject` (the pipeline run fails). A second decision rejects with 409 (`ReviewNotPending`).
+- Enums are string unions: `PipelineRunStatus`, `PipelineRunOutcome`, `PipelineStageStatus`, `PipelineReviewStatus`, `PipelineReviewDecision`, and `PipelineReviewSource`. Run tokens cannot use the pipeline APIs.
 
 ## Streaming run events
 
@@ -228,7 +253,7 @@ Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to 
 node sdk/js/bin/console.mjs http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
 The npm package installs the `garrison` console command. Set `client.transport.abortSignal` to an AbortSignal to cancel SDK HTTP calls and streams; leave it unset for ordinary use.
 

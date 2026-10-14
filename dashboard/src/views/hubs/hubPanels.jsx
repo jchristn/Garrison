@@ -35,6 +35,10 @@ import RolesView from '../RolesView';
 import AssignmentsView from '../AssignmentsView';
 import SettingsView from '../SettingsView';
 import ServerInfoView from '../ServerInfoView';
+import PipelinesView from '../PipelinesView';
+import PipelineRunsView from '../PipelineRunsView';
+import PipelineRunDetailView from '../PipelineRunDetailView';
+import PipelineReviewsView from '../PipelineReviewsView';
 
 /**
  * View components keyed by page id (see config/navConfig.js). Labels, ordering, hub membership,
@@ -46,14 +50,17 @@ export const PAGE_VIEWS = {
   runs: RunsView,
   artifacts: ArtifactsView,
   conversations: ConversationsView,
+  pipelineRuns: PipelineRunsView,
   queue: QueueView,
   approvals: ApprovalsView,
+  pipelineReviews: PipelineReviewsView,
   analytics: AnalyticsView,
   nodes: NodesView,
   controlNodes: ControlNodesView,
   nodePools: NodePoolsView,
   agents: AgentsView,
   deployments: DeploymentsView,
+  pipelines: PipelinesView,
   harnessProfiles: HarnessProfilesView,
   promptTemplates: PromptTemplatesView,
   mcpServers: McpServersView,
@@ -79,6 +86,7 @@ export const PAGE_VIEWS = {
 export const DETAIL_VIEWS = {
   runs: RunDetailView,
   conversations: ConversationDetailView,
+  pipelineRuns: PipelineRunDetailView,
   approvals: ApprovalDetailView,
   agents: AgentDetailView,
   promptTemplates: PromptTemplateEditorView

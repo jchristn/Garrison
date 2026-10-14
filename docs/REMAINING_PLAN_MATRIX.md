@@ -2,7 +2,7 @@
 
 Updated 2026-10-13 under D-042/D-043. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-There are 2 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20/P12.8/P12.10/P12.11/P12.12/P12.13 are complete. Two selected phase tasks remain: pipeline implementation and its documentation, plus the 2 conditional P10 tasks and 4 active core follow-ups.
+There are 0 active phase tasks, 2 conditional P10 tasks, and 58 deferred phase tasks. P6.17/P6.19/P7.5/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17 are complete. What remains is the 2 conditional P10 tasks and 2 active core follow-ups (G-8, G-12; I-01, I-05, and cancellation latency were completed 2026-10-13).
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -18,7 +18,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.4 | Execute remote A2A/MCP agents | Deferred | Registration health checks and expiry |
 | P12.5 | Cron and signed webhook triggers | Deferred | New invocation entry points |
 | P12.8 | Filesystem/S3 artifact stores and browser | Complete | Deployed and validated; explicit globs only. |
-| P12.9 | Multi-agent pipelines with review gates | Active | Adds orchestration beyond individual runs |
+| P12.9 | Multi-agent pipelines with review gates | Complete | D-048; schema 21; REST, MCP, SDKs, dashboard; not yet validated live |
 | P12.10 | Management MCP tools | Complete | Shared REST mutation path; credential/tenant/protection/versioning checks and live Docker CRUD/manifest roundtrip validated |
 | P12.11 | Clutch-backed lease provider | Complete | Opt-in; real-service expiry/disconnect/outage checks pass on both databases; default Docker deployment healthy |
 | P12.12 | Test stdio MCP servers from workers | Complete | Deployed; selected-worker API/UI/SDK diagnostics validated |
@@ -26,7 +26,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.14 | Completion/failure webhook notifications | Deferred | Operator integrations |
 | P12.15 | Dashboard coverage for retained Phase 12 features | Deferred | Only for features the user retains |
 | P12.16 | SDK coverage for retained Phase 12 features | Deferred | Only for features the user retains |
-| P12.17 | API docs/Postman for retained Phase 12 features | In progress | Artifact/stdio/Clutch/provider/management coverage added; remaining retained features pending |
+| P12.17 | API docs/Postman for retained Phase 12 features | Complete | Pipelines added 2026-10-13 (docs/PIPELINES.md, Postman folder) |
 | P12.18 | Tests for retained Phase 12 features | Deferred | Only for features the user retains |
 | P12.19 | NotDory memory integration example | Deferred | Documentation/example integration |
 | P12.20 | Conductor integration example | Deferred | Documentation/example integration |
@@ -82,8 +82,9 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 |---|---|---|
 | G-8 | Console probe opt-out | Active |
 | G-12 | Codex app-server default after compatibility checks | Active |
-| I-01 | Synchronous invocation connection handling | Active |
-| Cancellation | Cancellation latency under load | Active |
+| I-05 | Request history writes for node protocol traffic | Done 2026-10-13: off by default, `RequestHistory.CaptureNodeProtocol` |
+| I-01 | Synchronous invocation connection handling | Done 2026-10-13: completion-only wakeups, `Scheduling.InvocationWaitPollMs` fallback |
+| Cancellation | Cancellation latency under load | Done 2026-10-13 at in-process scale: 40 to 85 ms with two workers churning event-heavy runs (`cancel-*/latency-under-load`); overload-level measurement belongs to P14.15 |
 | Approval soak | Permission waits beyond one hour | Deferred with P12 advanced work |
 | Conversation cleanup | Delete worker directories on conversation deletion | Deferred with P12 conversation work |
 | Conversation retention | Retention end-to-end verification | Deferred with P12 conversation work |

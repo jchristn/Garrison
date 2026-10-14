@@ -6,6 +6,8 @@
   { "key": "structured-output-instructions", "kind": "Fragment", "description": "Output schema instructions for harnesses without native schema support." },
   { "key": "structured-output-repair", "kind": "Task", "description": "Repair prompt sent when output fails schema validation." },
   { "key": "conversation-fallback", "kind": "Task", "description": "Task prompt of a conversation turn that starts a fresh harness session because the original session could not be resumed: repeats the earlier turns, then the current task." },
+  { "key": "pipeline-stage", "kind": "Task", "description": "Task prompt of a pipeline stage run (P12.9): renders around the stage run's own task prompt (pipeline.task) and hands it the previous stage's output, structured output, artifact references, reviewer notes, and revision feedback." },
+  { "key": "pipeline-revision", "kind": "Fragment", "description": "Review feedback wording included by builtin/pipeline-stage when a stage runs again after a reviewer requested changes (P12.9)." },
   { "key": "mcp-tool-description", "kind": "ToolDescription", "description": "Description of an agent exposed as its own MCP tool." },
   { "key": "a2a-skill-description", "kind": "ToolDescription", "description": "Description of an agent's A2A skill." },
   { "key": "claude-code-mcp-config", "kind": "ConfigFile", "description": "Claude Code --mcp-config JSON file." },

@@ -26,6 +26,9 @@ import ApprovalCheckPanel from '../components/ApprovalCheckPanel';
 import { approvalFormDefaults, approvalRulesToBody, approvalErrors } from '../utils/approvals';
 import { EXECUTOR_REQUIREMENT_FLAGS, capabilityField, requirementsToForm, POD_RESOURCE_KEYS, POD_RESOURCE_EXAMPLES, podField, podResourceErrors, podResourcesToForm, deploymentToForm, deploymentToBody } from '../utils/podResources';
 
+// Pipeline definitions (P12.9) live in their own module; re-exported so configuration-wide tests cover them.
+export { pipelinesConfig } from './pipelineConfigs';
+
 // ---------------------------------------------------------------- helpers
 //
 // Every field and column carries a tooltip from tips.resources.<id>.<name> (falling back to

@@ -135,6 +135,9 @@ namespace Garrison.Core.Database.Ado
             ControlNodes = new AdoControlNodeMethods(this);
             Conversations = new AdoConversationMethods(this);
             Approvals = new AdoApprovalMethods(this);
+            Pipelines = new AdoPipelineMethods(this);
+            PipelineRuns = new AdoPipelineRunMethods(this);
+            PipelineReviews = new AdoPipelineReviewMethods(this);
         }
 
         #endregion

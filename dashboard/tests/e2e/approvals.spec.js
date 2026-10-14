@@ -24,8 +24,9 @@ test.beforeEach(async ({ page }) => {
 test('the sidebar counts pending approvals and the inbox opens on them', async ({ page }) => {
   await login(page);
   const badge = page.locator('.sidebar-item[data-nav="approvals"] [data-testid="approvals-badge"]');
-  await expect(badge).toHaveText('2');
-  await expect(badge).toHaveAttribute('data-tip', /2 tool calls are waiting/);
+  // Two pending approvals plus one pending pipeline stage review (P12.9) share the one badge.
+  await expect(badge).toHaveText('3');
+  await expect(badge).toHaveAttribute('data-tip', /tool call approvals \(2\) and pipeline stage reviews \(1\)/);
   await page.locator('.sidebar-item[data-nav="approvals"]').click();
   await expect(page).toHaveURL(/\/dashboard\/approvals$/);
   await expect(page.locator('.page-header-title').first()).toHaveText('Approvals');

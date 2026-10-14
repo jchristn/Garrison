@@ -1674,3 +1674,226 @@ tips.views.settings.groups.Leases = "Optional coordination backend; configure al
 tips.views.settings.fields.Leases = {"Provider": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "ClutchEndpoint": "Supply a Clutch access key through a secret or environment override; endpoints must not contain credentials.", "ClutchAccessKey": "Supply a Clutch access key through a secret or environment override; endpoints must not contain credentials.", "KeyPrefix": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "RequestTimeoutMs": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "SweepIntervalMs": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "MaxLeaseMs": "Optional coordination backend; configure all replicas consistently and restart. Database is the default.", "MaxHoldMs": "Optional coordination backend; configure all replicas consistently and restart. Database is the default."};
 
 tips.enums.harnessType.ProviderApi = "Optional direct provider API loop through PolyPrompt. Requires an endpoint and model; CLI deployments are unchanged.";
+
+// Pipelines (P12.9).
+tips.nav.hubs.approvals = 'Everything waiting for a person: tool calls agents asked to make and pipeline stages that require a review, with the history of every decision.';
+tips.nav.approvalsBadgeCombined = 'Waiting for a person: tool call approvals ({{approvals}}) and pipeline stage reviews ({{reviews}}). Open Approvals to decide them.';
+Object.assign(tips.nav.tabs, {
+  approvals: 'Tool calls agents asked to make that wait for a person to allow or deny them, and every past decision by rule, default, person, or timeout.',
+  pipelineReviews: 'Pipeline stages that finished and wait for a person: approve them, request changes (the stage runs again with your feedback), or reject them.',
+  pipelines: 'Chains of agents: each stage runs one agent, hands its output to the next stage through a prompt template, and can wait for a review.',
+  pipelineRuns: 'Every execution of a pipeline with its status and outcome. Open one for the stage timeline, its stage runs, and its reviews.'
+});
+tips.filters.pipelineId = 'Show only records of one pipeline. Choose All to remove the filter.';
+tips.filters.pipelineRunId = 'Show only the reviews of one pipeline run. Paste an ID such as plr_...; the list updates when you stop typing.';
+Object.assign(tips.enums, {
+  pipelineRunStatus: {
+    Running: 'A stage is running, starting, or about to start.',
+    AwaitingReview: 'A stage finished and waits for a person to approve it, request changes, or reject it.',
+    Cancelling: 'Cancellation was requested; the current stage run is being stopped.',
+    Succeeded: 'Every stage finished and every review gate was approved.',
+    Failed: 'A stage failed after its attempts, could not start, or a reviewer rejected it. Retry resumes at that stage.',
+    Cancelled: 'Someone cancelled the pipeline run. Retry resumes at the stage where it stopped.',
+    TimedOut: 'The pipeline ran longer than its time limit, including time spent waiting for reviews.'
+  },
+  pipelineRunOutcome: {
+    None: 'The pipeline run has not finished yet.',
+    Succeeded: 'Every stage succeeded and every review was approved.',
+    StageFailed: 'A stage failed on every attempt and does not continue on failure.',
+    StageStartFailed: 'A stage could not start, for example because its agent or deployment is gone or its prompt did not compile.',
+    ReviewRejected: 'A reviewer rejected a stage, which ends the pipeline run.',
+    ReviewExpired: 'A review timed out and its timeout action was Reject.',
+    Cancelled: 'Someone cancelled the pipeline run or one of its stage runs.',
+    TimedOut: 'The pipeline ran past its time limit.',
+    InternalError: 'The server hit an unexpected error while advancing the pipeline. Check the server logs.'
+  },
+  pipelineStageStatus: {
+    Pending: 'The stage has not started; earlier stages are still running.',
+    Running: 'The stage run is queued or running. A failed attempt starts a new execution until the attempts run out.',
+    AwaitingReview: 'The stage finished and waits for a person to review its output.',
+    Succeeded: 'The stage finished and, if it requires a review, was approved.',
+    Failed: 'The stage failed on every attempt, could not start, or was rejected.',
+    Cancelled: 'The stage stopped because the pipeline run was cancelled or timed out.'
+  },
+  pipelineReviewStatus: {
+    Pending: 'Waiting for a person to approve, request changes, or reject.',
+    Approved: 'Approved: the pipeline moved on to the next stage, with the notes if any.',
+    ChangesRequested: 'Changes requested: the stage ran again with the feedback.',
+    Rejected: 'Rejected: the pipeline run failed at this stage.',
+    Expired: 'Nobody decided in time, so the stage\'s timeout action decided it.',
+    Cancelled: 'The pipeline run stopped before anyone decided.'
+  },
+  pipelineReviewDecision: {
+    Approve: 'Accept the stage output and continue with the next stage. Optional notes go to the next stage.',
+    RequestChanges: 'Run the same stage again with your feedback. Limited by the stage\'s maximum revisions.',
+    Reject: 'Stop the pipeline run here. It fails with the outcome Review rejected.'
+  },
+  pipelineReviewSource: {
+    User: 'A person decided the review.',
+    Timeout: 'The review timed out and the stage\'s timeout action decided it.',
+    Cancelled: 'The pipeline run was cancelled or timed out while the review was pending.'
+  }
+});
+Object.assign(tips.enums.auditEventType, {
+  PipelineReviewDecided: 'A person or a timeout approved, rejected, or requested changes to a pipeline stage review.',
+  PipelineRunCancelled: 'Someone cancelled a pipeline run, its pending review, and its current stage run.'
+});
+Object.assign(tips.resources.runs, {
+  pipelineRunId: 'The pipeline run this run is a stage of, with the stage position and execution. Empty for runs outside pipelines.',
+  pipelineStage: 'Stage position in the pipeline and which execution of that stage this run is (retries and revisions add executions).'
+});
+tips.resources.pipelines = {
+  add: 'Create a pipeline: an ordered list of stages, each running one agent and handing its output to the next.',
+  name: 'Unique pipeline name in this tenant, used by the API, MCP tools, SDKs, and manifests. Lowercase letters, digits, and hyphens.',
+  stages: 'The stages in run order. Each stage runs one agent; its output is handed to the next stage through a prompt template.',
+  reviewGates: 'How many stages wait for a person to review their output before the pipeline continues.',
+  maxDurationSeconds: 'Longest the whole pipeline run may take, in seconds, including review waits. 0 means no limit; past it the run times out.',
+  version: 'Increases with every saved change. Pipeline runs record the version they started with and keep its stages.',
+  stageHeading: 'One stage of the pipeline, run in the order shown. Use the arrows to move it and the bin to remove it.',
+  moveUp: 'Move this stage one place earlier. Stages run in the order shown.',
+  moveDown: 'Move this stage one place later. Stages run in the order shown.',
+  removeStage: 'Remove this stage from the pipeline. A pipeline needs at least one stage.',
+  addStage: 'Add a stage at the end of the pipeline. It receives the output of the stage before it.',
+  stagesItems: {
+    name: 'Name of this stage, unique within the pipeline. Shown in the timeline, reviews, and handoff prompts.',
+    agentId: 'The agent this stage runs. Starting the pipeline needs permission to execute every stage agent.',
+    deploymentId: 'A fixed deployment of the stage agent. Empty picks one of the agent\'s active deployments by weight, like an ordinary invoke.',
+    handoffTemplateId: 'Task prompt template that wraps this stage\'s task with earlier outputs, review notes, and revision feedback. Empty uses the deployment\'s PipelineStage binding or the built-in template.',
+    handoffTemplateVersion: 'Use this version of the handoff template even after it changes. Empty always uses the current version.',
+    outputCharLimit: 'Most characters of each earlier stage\'s output passed to this stage. Longer outputs are cut and marked as truncated.',
+    maxAttempts: 'How many times the stage runs when its run fails or times out, before the stage counts as failed.',
+    continueOnFailure: 'When the stage fails on every attempt, continue with the next stage anyway; that stage sees the failure in the handoff.',
+    requiresReview: 'After the stage finishes, wait for a person to approve it, request changes, or reject it under Approvals > Stage reviews.',
+    reviewTimeoutSeconds: 'How long the review may wait before the timeout action decides it. 0 waits until a person decides.',
+    reviewTimeoutAction: 'What happens when the review times out: approve and continue, or reject and fail the pipeline run.',
+    maxRevisions: 'How many times a reviewer may request changes to this stage. After that only Approve and Reject remain.',
+    description: 'Free-text note about what this stage does, for people. It is not sent to the agent.',
+    parameters: 'Run parameter overrides for this stage\'s runs, such as model or format. Allowed only with a deployment that lets callers override them.'
+  },
+  actions: {
+    start: 'Start this pipeline with input text and follow its stages on the pipeline run page.',
+    preview: 'Render every stage prompt from sample input and sample stage outputs, without starting any run.',
+    runs: 'Show the runs of this pipeline on the Pipeline runs tab.'
+  }
+};
+tips.resources.pipelineRuns = {
+  id: 'Pipeline run identifier (plr_...). Use it with the API, MCP tools, and SDKs.',
+  pipelineName: 'The pipeline this run executes. Pipeline runs keep the stages of the version they started with.',
+  pipelineVersion: 'The pipeline version this run started with. Later edits to the pipeline do not change it.',
+  status: 'Where the pipeline run is now: running, awaiting a review, cancelling, or finished.',
+  outcome: 'Why the pipeline run finished: succeeded, a stage failed or could not start, a review was rejected or expired, cancelled, or timed out.',
+  progress: 'The stage the pipeline run is at, out of all its stages.',
+  callerName: 'The user or access key that started the pipeline run.',
+  errorMessage: 'What went wrong, when the pipeline run failed or timed out.',
+  priority: 'Queue priority given to every stage run. Higher numbers are scheduled first.',
+  deadlineUtc: 'When the pipeline run times out, from the pipeline\'s time limit. Empty when there is no limit.',
+  completedUtc: 'When the pipeline run finished.',
+  createdUtc: 'When the pipeline run was started. Hover the value for the exact time.',
+  actions: {
+    cancel: 'Cancel the pipeline run: its current stage run is cancelled and a pending review is closed.',
+    retry: 'Resume a failed, timed out, or cancelled pipeline run at the stage where it stopped, with a new execution of that stage.',
+    stageRuns: 'Show the runs of every stage of this pipeline run on the Runs tab.',
+    finalRun: 'Open the run of the last stage, whose result is the result of the pipeline.'
+  }
+};
+tips.resources.pipelineReviews = {
+  createdUtc: 'When the stage finished and the review was requested. Hover the value for the exact time.',
+  pipelineName: 'The pipeline whose stage waits for the review.',
+  stageName: 'The stage to review, with its position and which execution of the stage produced the output.',
+  positionExecution: 'Stage position in the pipeline, and which execution of the stage this review covers. Revisions add executions.',
+  status: 'Pending reviews wait for a person; the others show how the review ended.',
+  decision: 'Approve, Request changes, or Reject, once the review is decided.',
+  decisionSource: 'Who decided: a person, the stage\'s review timeout, or the pipeline run stopping.',
+  comment: 'Notes passed to the next stage (approve), feedback the stage ran again with (request changes), or the reason (reject).',
+  decidedBy: 'The person who decided the review.',
+  expiresUtc: 'When the review times out and the stage\'s timeout action decides it. Empty when it waits until a person decides.',
+  pipelineRunId: 'The pipeline run this review belongs to. Click a row to open its stage timeline.',
+  runId: 'The stage run whose output is under review. Open it to read the result before deciding.',
+  decidedUtc: 'When the review was decided.',
+  id: 'Review identifier (prv_...). Use it with the API, MCP tools, and SDKs to decide the review.',
+  filters: { decisionSource: 'Show only reviews decided one way: by a person, by the review timeout, or by the pipeline run stopping.' },
+  actions: {
+    approve: 'Approve the stage output and let the pipeline continue, optionally with notes for the next stage.',
+    requestChanges: 'Run the stage again with your feedback. Each request uses one of the stage\'s revisions.',
+    reject: 'Reject the stage output. The pipeline run fails with the outcome Review rejected.',
+    openStageRun: 'Open the stage run under review to read its transcript and result.'
+  }
+};
+tips.pipelineReviews = {
+  revisionsLeft: 'How many more times changes may be requested for this stage before only Approve and Reject remain.',
+  decide: {
+    decision: 'Choose what happens to the stage output. The pipeline run continues as soon as you submit.',
+    Approve: 'Accept the stage output; the pipeline continues with the next stage, or succeeds after the last one.',
+    RequestChanges: 'Send the stage back with feedback. It runs again and comes back for review.',
+    Reject: 'Refuse the stage output. The pipeline run stops and fails.',
+    commentApprove: 'Optional notes the next stage receives together with this stage\'s output.',
+    commentRequestChanges: 'Required feedback. The stage runs again with it, so say what to change.',
+    commentReject: 'Optional reason, saved with the decision and in the audit log.',
+    submitApprove: 'Approve the stage now. The decision is final and cannot be changed afterwards.',
+    submitRequestChanges: 'Send the feedback now. The stage runs again; its next output comes back for review.',
+    submitReject: 'Reject the stage now. The pipeline run fails; this cannot be undone, but it can be retried.'
+  }
+};
+tips.pipelineStart = {
+  input: 'The task for the pipeline. The first stage works on it, and every later stage sees it as the original task next to the earlier outputs.',
+  submit: 'Start a pipeline run with this input and open its stage timeline.'
+};
+tips.pipelinePreview = {
+  input: 'Sample caller input used to render every stage prompt. Nothing is run.',
+  sampleOutput: 'Pretend output of stage {{stage}}, handed to the stage after it in the preview.',
+  render: 'Render every stage prompt with these samples, as the stage runs would receive them. Secrets are redacted.',
+  stage: 'The prompt this stage would receive, rendered from its handoff template with the samples above.',
+  rendered: 'The stage prompt rendered without errors.',
+  failed: 'The stage prompt could not be rendered; the message says why, for example a missing agent or deployment.'
+};
+Object.assign(tips.views.runDetail, {
+  pipelineRun: 'This run is a stage of a pipeline run. The text after the ID names the stage position and execution.',
+  openPipelineRun: 'Open the pipeline run this run belongs to, with its stage timeline and reviews.'
+});
+tips.views.pipelineRunDetail = {
+  viewJson: 'Show the full pipeline run with its stages, stage runs, and reviews as JSON.',
+  delete: 'Delete this finished pipeline run and its reviews. Its stage runs stay on the Runs page.',
+  live: 'Updates arrive over the live connection as soon as a stage or review changes.',
+  polling: 'The live connection is not available, so the page re-reads the pipeline run every few seconds.',
+  pipeline: 'The pipeline this run executes, with the version it started with. Click to find it under Agents > Pipelines.',
+  openPipeline: 'Open Agents > Pipelines filtered to this pipeline.',
+  openRun: 'Open this stage run with its transcript, result, and telemetry.',
+  finalRun: 'The run of the last stage. Its result is the result of the pipeline run.',
+  started: 'When the first stage run was created.',
+  input: 'The input the pipeline run was started with. Every stage sees it as the original task.',
+  reviewTitle: 'A stage finished and waits for your decision. Read its output in the stage run, then decide.',
+  stages: 'Every stage in run order with its status, executions, attempts, revisions, stage runs, and reviews.',
+  current: 'The stage the pipeline run is at now.',
+  reviewGate: 'This stage waits for a person to review its output before the pipeline continues.',
+  agent: 'The agent this stage runs, as recorded when the pipeline run started.',
+  counts: 'Executions count every run of the stage; attempts count runs since the last review; revisions count requested changes.',
+  reviewItem: 'A review of one execution of this stage and how it was decided.',
+  columns: {
+    execution: 'Which execution of the stage this run is. Retries after failures and revisions after reviews add executions.',
+    run: 'The stage run. Click to open its transcript and result.',
+    status: 'Status of the stage run: queued, running, or how it finished.',
+    outcome: 'Why the stage run finished.',
+    error: 'Error message of the stage run, when it failed.',
+    created: 'When the stage run was created.'
+  }
+};
+tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'How often the leader advances pipeline runs that missed a completion signal, retries blocked stage starts, and applies review timeouts and pipeline time limits, in milliseconds.';
+tips.views.settings.fields.Runtime.PipelineMaxStages = 'Most stages a pipeline definition may have. Saving a pipeline with more stages is refused.';
+Object.assign(explainers, {
+  pipelines: {
+    title: 'Pipelines and stages',
+    p1: 'A pipeline chains agents. Each stage runs one agent, optionally on a fixed deployment, and hands its output (text, structured output, and artifact references) to the next stage through a prompt template.',
+    p2: 'A stage can retry failed runs, continue past a failure, and wait for a review. Reviews appear under Approvals > Stage reviews; requesting changes runs the stage again with the feedback.',
+    p3: 'Editing a pipeline creates a new version. Pipeline runs that already started keep the stages they started with.'
+  },
+  pipelineRuns: {
+    title: 'Pipeline runs',
+    p1: 'A pipeline run executes the stages of one pipeline version in order. Every stage execution is an ordinary run, linked from the stage timeline.',
+    p2: 'Cancel stops the current stage run and closes a pending review. Retry resumes a failed, timed out, or cancelled pipeline run at the stage where it stopped.'
+  },
+  pipelineReviews: {
+    title: 'Stage reviews',
+    p1: 'A stage that requires a review waits here after it finishes. Approve continues with the next stage, Request changes runs the stage again with your feedback, and Reject fails the pipeline run.',
+    p2: 'Reviews without a timeout wait until a person decides. With a timeout, the stage\'s timeout action decides when time runs out.'
+  }
+});

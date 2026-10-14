@@ -181,7 +181,10 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
     ['/dashboard/runs/run_0042', 'conversation turn run detail'],
     ['/dashboard/invoke?agentId=agt_0001&conversationId=cnv_0001', 'invoke continuing a conversation'],
     ['/dashboard/prompt-templates/pt_0004', 'template editor'],
-    ['/dashboard/prompt-templates/new', 'new template']
+    ['/dashboard/prompt-templates/new', 'new template'],
+    // P12.9: a pipeline run awaiting review (review panel) and a failed one (Retry, Delete), and a stage run.
+    ['/dashboard/pipeline-runs/plr_0001', 'pipeline run awaiting review'],
+    ['/dashboard/pipeline-runs/plr_0003', 'failed pipeline run']
   ]) {
     await page.goto(path);
     await settle(page);
@@ -216,7 +219,11 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
     ['configuration?tab=mcp-servers', 'Test connection', 'MCP test'],
     ['access?tab=users', 'Effective permissions', 'effective permissions'],
     ['configuration?tab=secrets', 'Set value', 'secret value'],
-    ['configuration?tab=secrets', 'View JSON', 'JSON viewer']
+    ['configuration?tab=secrets', 'View JSON', 'JSON viewer'],
+    // P12.9: start and preview a pipeline, and decide a stage review.
+    ['agents?tab=pipelines', 'Start', 'pipeline start'],
+    ['agents?tab=pipelines', 'Preview prompts', 'pipeline preview'],
+    ['approvals?tab=pipeline-reviews', 'Request changes', 'stage review decide']
   ];
   for (const [path, item, context] of modals) {
     await page.goto(`/dashboard/${path}`);
@@ -228,6 +235,16 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
     await audit(page, context);
     await closeModal(page);
   }
+  // The pipeline preview with rendered stage prompts and a render failure.
+  await page.goto('/dashboard/agents?tab=pipelines');
+  await settle(page);
+  await page.locator('.data-table .action-menu-trigger').first().click();
+  await page.locator('.action-menu-dropdown [role="menuitem"]', { hasText: 'Preview prompts' }).click();
+  await page.getByTestId('pipeline-preview-render').click();
+  await expect(page.getByTestId('pipeline-preview-result')).toBeVisible();
+  await audit(page, 'pipeline preview rendered');
+  await closeModal(page);
+
   await page.goto('/dashboard/configuration?tab=secrets');
   await settle(page);
   await page.locator('.data-table .action-menu-trigger').first().click();

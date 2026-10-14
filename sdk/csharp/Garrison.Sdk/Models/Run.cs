@@ -327,6 +327,22 @@ namespace Garrison.Sdk.Models
         public ConversationFallbackReasonEnum? ConversationFallbackReason { get; set; } = null;
 
         /// <summary>
+        /// Pipeline run this run is a stage of, or null for runs outside a pipeline.
+        /// </summary>
+        public string? PipelineRunId { get; set; } = null;
+
+        /// <summary>
+        /// Position of the pipeline stage this run executes, starting at 1; 0 for runs outside a pipeline.
+        /// </summary>
+        public int PipelinePosition { get; set; } = 0;
+
+        /// <summary>
+        /// Execution number of the pipeline stage this run is, starting at 1 (retries, revisions, and resumes increase it);
+        /// 0 for runs outside a pipeline.
+        /// </summary>
+        public int PipelineExecution { get; set; } = 0;
+
+        /// <summary>
         /// Model that served the run.
         /// </summary>
         public string? ServedModel { get; set; } = null;

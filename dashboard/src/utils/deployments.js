@@ -16,8 +16,8 @@ export function trafficShares(deployments) {
   return out;
 }
 
-/** Prompt roles the invocation compiler reads (System, Task, DelegatedTask, Repair, ConversationFallback). */
-export const PROMPT_ROLES = ['System', 'Task', 'DelegatedTask', 'Repair', 'ConversationFallback'];
+/** Prompt roles the invocation compiler reads (System, Task, DelegatedTask, Repair, ConversationFallback, PipelineStage). */
+export const PROMPT_ROLES = ['System', 'Task', 'DelegatedTask', 'Repair', 'ConversationFallback', 'PipelineStage'];
 
 /** Built-in template each prompt role defaults to (M1-03), matching the server's DefaultPromptBindings. */
 export const ROLE_DEFAULT_TEMPLATES = {
@@ -26,13 +26,15 @@ export const ROLE_DEFAULT_TEMPLATES = {
   DelegatedTask: 'builtin/delegated-task',
   Repair: 'builtin/structured-output-repair',
   // P12.1: wraps a conversation turn that starts a fresh session with the transcript of the earlier turns.
-  ConversationFallback: 'builtin/conversation-fallback'
+  ConversationFallback: 'builtin/conversation-fallback',
+  // P12.9: wraps a pipeline stage's task with the handoff from earlier stages, review notes, and revision feedback.
+  PipelineStage: 'builtin/pipeline-stage'
 };
 
 /** Template kind that fits a prompt role, or null for a custom role (any kind). */
 export function templateKindForRole(role) {
   if (role === 'System') return 'System';
-  if (role === 'Task' || role === 'DelegatedTask' || role === 'Repair' || role === 'ConversationFallback') return 'Task';
+  if (role === 'Task' || role === 'DelegatedTask' || role === 'Repair' || role === 'ConversationFallback' || role === 'PipelineStage') return 'Task';
   return null;
 }
 

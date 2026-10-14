@@ -1674,3 +1674,226 @@ tips.views.settings.groups.Leases = "Optionale Koordinierung: alle Replikate gle
 tips.views.settings.fields.Leases = {"Provider": "Optionale Koordinierung: alle Replikate gleich konfigurieren und neu starten. Standard ist Database.", "ClutchEndpoint": "Clutch-Zugriffsschlüssel als Geheimnis oder Umgebungsvariable bereitstellen; keine Zugangsdaten im Endpunkt.", "ClutchAccessKey": "Clutch-Zugriffsschlüssel als Geheimnis oder Umgebungsvariable bereitstellen; keine Zugangsdaten im Endpunkt.", "KeyPrefix": "Optionale Koordinierung: alle Replikate gleich konfigurieren und neu starten. Standard ist Database.", "RequestTimeoutMs": "Optionale Koordinierung: alle Replikate gleich konfigurieren und neu starten. Standard ist Database.", "SweepIntervalMs": "Optionale Koordinierung: alle Replikate gleich konfigurieren und neu starten. Standard ist Database.", "MaxLeaseMs": "Optionale Koordinierung: alle Replikate gleich konfigurieren und neu starten. Standard ist Database.", "MaxHoldMs": "Optionale Koordinierung: alle Replikate gleich konfigurieren und neu starten. Standard ist Database."};
 
 tips.enums.harnessType.ProviderApi = "Optionale API-Schleife über PolyPrompt. Endpunkt und Modell erforderlich; CLI-Bereitstellungen bleiben verfügbar.";
+
+// Pipelines (P12.9).
+tips.nav.hubs.approvals = 'Alles, was auf eine Person wartet: Werkzeugaufrufe, die Agenten ausführen möchten, und Pipeline-Stufen, die eine Prüfung erfordern, samt dem Verlauf aller Entscheidungen.';
+tips.nav.approvalsBadgeCombined = 'Wartet auf eine Person: {{approvals}} Freigaben für Werkzeugaufrufe und {{reviews}} Prüfungen von Pipeline-Stufen. Öffnen Sie Freigaben, um zu entscheiden.';
+Object.assign(tips.nav.tabs, {
+  approvals: 'Werkzeugaufrufe von Agenten, die darauf warten, dass eine Person sie erlaubt oder verweigert, und alle früheren Entscheidungen durch Regel, Standard, Person oder Zeitüberschreitung.',
+  pipelineReviews: 'Fertige Pipeline-Stufen, die auf eine Person warten: genehmigen, Änderungen anfordern (die Stufe läuft mit Ihrer Rückmeldung erneut) oder ablehnen.',
+  pipelines: 'Ketten von Agenten: Jede Stufe führt einen Agenten aus, übergibt seine Ausgabe über eine Prompt-Vorlage an die nächste Stufe und kann auf eine Prüfung warten.',
+  pipelineRuns: 'Jede Ausführung einer Pipeline mit Status und Ergebnis. Öffnen Sie einen Lauf für den Stufenverlauf, seine Stufenläufe und seine Prüfungen.'
+});
+tips.filters.pipelineId = 'Nur Einträge einer Pipeline anzeigen. Wählen Sie Alle, um den Filter zu entfernen.';
+tips.filters.pipelineRunId = 'Nur die Prüfungen eines Pipeline-Laufs anzeigen. Fügen Sie eine ID wie plr_... ein; die Liste aktualisiert sich, wenn Sie aufhören zu tippen.';
+Object.assign(tips.enums, {
+  pipelineRunStatus: {
+    Running: 'Eine Stufe läuft, startet gerade oder steht kurz vor dem Start.',
+    AwaitingReview: 'Eine Stufe ist fertig und wartet darauf, dass eine Person sie genehmigt, Änderungen anfordert oder sie ablehnt.',
+    Cancelling: 'Ein Abbruch wurde angefordert; der aktuelle Stufenlauf wird gestoppt.',
+    Succeeded: 'Alle Stufen sind fertig und alle Prüfschritte wurden genehmigt.',
+    Failed: 'Eine Stufe ist nach allen Versuchen fehlgeschlagen, konnte nicht starten oder wurde bei der Prüfung abgelehnt. Wiederholen setzt an dieser Stufe fort.',
+    Cancelled: 'Jemand hat den Pipeline-Lauf abgebrochen. Wiederholen setzt an der Stufe fort, an der er angehalten hat.',
+    TimedOut: 'Die Pipeline lief länger als ihr Zeitlimit, einschließlich der Wartezeit auf Prüfungen.'
+  },
+  pipelineRunOutcome: {
+    None: 'Der Pipeline-Lauf ist noch nicht beendet.',
+    Succeeded: 'Alle Stufen waren erfolgreich und alle Prüfungen wurden genehmigt.',
+    StageFailed: 'Eine Stufe ist bei jedem Versuch fehlgeschlagen und fährt bei Fehlern nicht fort.',
+    StageStartFailed: 'Eine Stufe konnte nicht starten, etwa weil ihr Agent oder ihre Bereitstellung fehlt oder ihr Prompt nicht kompiliert wurde.',
+    ReviewRejected: 'Eine prüfende Person hat eine Stufe abgelehnt, was den Pipeline-Lauf beendet.',
+    ReviewExpired: 'Eine Prüfung ist abgelaufen und ihre Aktion bei Zeitüberschreitung war Ablehnen.',
+    Cancelled: 'Jemand hat den Pipeline-Lauf oder einen seiner Stufenläufe abgebrochen.',
+    TimedOut: 'Die Pipeline lief über ihr Zeitlimit hinaus.',
+    InternalError: 'Beim Fortschalten der Pipeline trat auf dem Server ein unerwarteter Fehler auf. Prüfen Sie die Serverprotokolle.'
+  },
+  pipelineStageStatus: {
+    Pending: 'Die Stufe hat noch nicht begonnen; frühere Stufen laufen noch.',
+    Running: 'Der Stufenlauf ist eingereiht oder läuft. Ein fehlgeschlagener Versuch startet eine neue Ausführung, bis die Versuche aufgebraucht sind.',
+    AwaitingReview: 'Die Stufe ist fertig und wartet darauf, dass eine Person ihre Ausgabe prüft.',
+    Succeeded: 'Die Stufe ist fertig und wurde, falls eine Prüfung nötig war, genehmigt.',
+    Failed: 'Die Stufe ist bei jedem Versuch fehlgeschlagen, konnte nicht starten oder wurde abgelehnt.',
+    Cancelled: 'Die Stufe wurde gestoppt, weil der Pipeline-Lauf abgebrochen wurde oder sein Zeitlimit überschritten hat.'
+  },
+  pipelineReviewStatus: {
+    Pending: 'Wartet darauf, dass eine Person genehmigt, Änderungen anfordert oder ablehnt.',
+    Approved: 'Genehmigt: Die Pipeline ging zur nächsten Stufe über, gegebenenfalls mit den Hinweisen.',
+    ChangesRequested: 'Änderungen angefordert: Die Stufe lief mit der Rückmeldung erneut.',
+    Rejected: 'Abgelehnt: Der Pipeline-Lauf ist an dieser Stufe fehlgeschlagen.',
+    Expired: 'Niemand hat rechtzeitig entschieden, daher hat die Aktion bei Zeitüberschreitung der Stufe entschieden.',
+    Cancelled: 'Der Pipeline-Lauf wurde gestoppt, bevor jemand entschieden hat.'
+  },
+  pipelineReviewDecision: {
+    Approve: 'Die Ausgabe der Stufe annehmen und mit der nächsten Stufe fortfahren. Optionale Hinweise gehen an die nächste Stufe.',
+    RequestChanges: 'Dieselbe Stufe mit Ihrer Rückmeldung erneut ausführen. Begrenzt durch die maximalen Überarbeitungen der Stufe.',
+    Reject: 'Den Pipeline-Lauf hier beenden. Er schlägt mit dem Ergebnis „Prüfung abgelehnt“ fehl.'
+  },
+  pipelineReviewSource: {
+    User: 'Eine Person hat die Prüfung entschieden.',
+    Timeout: 'Die Prüfung ist abgelaufen und die Aktion bei Zeitüberschreitung der Stufe hat entschieden.',
+    Cancelled: 'Der Pipeline-Lauf wurde abgebrochen oder hat sein Zeitlimit überschritten, während die Prüfung offen war.'
+  }
+});
+Object.assign(tips.enums.auditEventType, {
+  PipelineReviewDecided: 'Eine Person oder eine Zeitüberschreitung hat eine Stufenprüfung genehmigt, abgelehnt oder Änderungen angefordert.',
+  PipelineRunCancelled: 'Jemand hat einen Pipeline-Lauf, seine offene Prüfung und seinen aktuellen Stufenlauf abgebrochen.'
+});
+Object.assign(tips.resources.runs, {
+  pipelineRunId: 'Der Pipeline-Lauf, zu dem dieser Lauf als Stufe gehört, mit Stufenposition und Ausführung. Leer bei Läufen außerhalb von Pipelines.',
+  pipelineStage: 'Position der Stufe in der Pipeline und welche Ausführung dieser Stufe dieser Lauf ist (Wiederholungen und Überarbeitungen erzeugen weitere Ausführungen).'
+});
+tips.resources.pipelines = {
+  add: 'Eine Pipeline erstellen: eine geordnete Liste von Stufen, die jeweils einen Agenten ausführen und dessen Ausgabe an die nächste übergeben.',
+  name: 'Eindeutiger Pipeline-Name in diesem Mandanten, verwendet von API, MCP-Werkzeugen, SDKs und Manifesten. Kleinbuchstaben, Ziffern und Bindestriche.',
+  stages: 'Die Stufen in Ausführungsreihenfolge. Jede Stufe führt einen Agenten aus; seine Ausgabe geht über eine Prompt-Vorlage an die nächste Stufe.',
+  reviewGates: 'Wie viele Stufen darauf warten, dass eine Person ihre Ausgabe prüft, bevor die Pipeline weiterläuft.',
+  maxDurationSeconds: 'Maximale Dauer des gesamten Pipeline-Laufs in Sekunden, einschließlich Wartezeit auf Prüfungen. 0 bedeutet kein Limit; danach endet der Lauf mit Zeitüberschreitung.',
+  version: 'Steigt mit jeder gespeicherten Änderung. Pipeline-Läufe speichern die Version, mit der sie gestartet sind, und behalten deren Stufen.',
+  stageHeading: 'Eine Stufe der Pipeline, ausgeführt in der angezeigten Reihenfolge. Mit den Pfeilen verschieben, mit dem Papierkorb entfernen.',
+  moveUp: 'Diese Stufe eine Position nach vorn verschieben. Die Stufen laufen in der angezeigten Reihenfolge.',
+  moveDown: 'Diese Stufe eine Position nach hinten verschieben. Die Stufen laufen in der angezeigten Reihenfolge.',
+  removeStage: 'Diese Stufe aus der Pipeline entfernen. Eine Pipeline braucht mindestens eine Stufe.',
+  addStage: 'Eine Stufe am Ende der Pipeline hinzufügen. Sie erhält die Ausgabe der vorherigen Stufe.',
+  stagesItems: {
+    name: 'Name dieser Stufe, eindeutig innerhalb der Pipeline. Erscheint im Stufenverlauf, in Prüfungen und in Übergabe-Prompts.',
+    agentId: 'Der Agent, den diese Stufe ausführt. Zum Starten der Pipeline ist die Berechtigung nötig, jeden Stufenagenten auszuführen.',
+    deploymentId: 'Eine feste Bereitstellung des Stufenagenten. Leer wählt eine der aktiven Bereitstellungen des Agenten nach Gewichtung, wie bei einem normalen Aufruf.',
+    handoffTemplateId: 'Aufgaben-Prompt-Vorlage, die die Aufgabe dieser Stufe mit früheren Ausgaben, Prüfhinweisen und Überarbeitungswünschen umhüllt. Leer verwendet die PipelineStage-Bindung der Bereitstellung oder die integrierte Vorlage.',
+    handoffTemplateVersion: 'Diese Version der Übergabevorlage auch nach Änderungen verwenden. Leer verwendet immer die aktuelle Version.',
+    outputCharLimit: 'Höchstzahl an Zeichen jeder früheren Stufenausgabe, die an diese Stufe übergeben werden. Längere Ausgaben werden gekürzt und als gekürzt markiert.',
+    maxAttempts: 'Wie oft die Stufe läuft, wenn ihr Lauf fehlschlägt oder das Zeitlimit überschreitet, bevor die Stufe als fehlgeschlagen gilt.',
+    continueOnFailure: 'Schlägt die Stufe bei jedem Versuch fehl, trotzdem mit der nächsten Stufe fortfahren; diese sieht den Fehler in der Übergabe.',
+    requiresReview: 'Nach Abschluss der Stufe darauf warten, dass eine Person sie unter Freigaben > Stufenprüfungen genehmigt, Änderungen anfordert oder ablehnt.',
+    reviewTimeoutSeconds: 'Wie lange die Prüfung warten darf, bevor die Aktion bei Zeitüberschreitung entscheidet. 0 wartet, bis eine Person entscheidet.',
+    reviewTimeoutAction: 'Was bei Zeitüberschreitung der Prüfung passiert: genehmigen und fortfahren oder ablehnen und den Pipeline-Lauf fehlschlagen lassen.',
+    maxRevisions: 'Wie oft eine prüfende Person Änderungen an dieser Stufe anfordern darf. Danach bleiben nur Genehmigen und Ablehnen.',
+    description: 'Freitextnotiz für Menschen darüber, was diese Stufe tut. Sie wird nicht an den Agenten gesendet.',
+    parameters: 'Überschreibungen von Laufparametern für die Läufe dieser Stufe, etwa Modell oder Format. Nur erlaubt mit einer Bereitstellung, die solche Überschreibungen zulässt.'
+  },
+  actions: {
+    start: 'Diese Pipeline mit einem Eingabetext starten und ihre Stufen auf der Seite des Pipeline-Laufs verfolgen.',
+    preview: 'Alle Stufen-Prompts aus Beispieleingabe und Beispielausgaben der Stufen rendern, ohne einen Lauf zu starten.',
+    runs: 'Die Läufe dieser Pipeline auf der Registerkarte Pipeline-Läufe anzeigen.'
+  }
+};
+tips.resources.pipelineRuns = {
+  id: 'Kennung des Pipeline-Laufs (plr_...). Verwenden Sie sie mit der API, MCP-Werkzeugen und SDKs.',
+  pipelineName: 'Die Pipeline, die dieser Lauf ausführt. Pipeline-Läufe behalten die Stufen der Version, mit der sie gestartet sind.',
+  pipelineVersion: 'Die Pipeline-Version, mit der dieser Lauf gestartet ist. Spätere Änderungen an der Pipeline ändern sie nicht.',
+  status: 'Wo der Pipeline-Lauf gerade steht: läuft, wartet auf eine Prüfung, wird abgebrochen oder ist beendet.',
+  outcome: 'Warum der Pipeline-Lauf endete: erfolgreich, eine Stufe schlug fehl oder konnte nicht starten, eine Prüfung wurde abgelehnt oder lief ab, abgebrochen oder Zeitüberschreitung.',
+  progress: 'Die Stufe, an der der Pipeline-Lauf steht, von allen seinen Stufen.',
+  callerName: 'Der Benutzer oder Zugangsschlüssel, der den Pipeline-Lauf gestartet hat.',
+  errorMessage: 'Was schiefging, wenn der Pipeline-Lauf fehlgeschlagen ist oder sein Zeitlimit überschritten hat.',
+  priority: 'Priorität in der Warteschlange für jeden Stufenlauf. Höhere Zahlen werden zuerst eingeplant.',
+  deadlineUtc: 'Wann der Pipeline-Lauf wegen des Zeitlimits der Pipeline abbricht. Leer, wenn es kein Limit gibt.',
+  completedUtc: 'Wann der Pipeline-Lauf beendet wurde.',
+  createdUtc: 'Wann der Pipeline-Lauf gestartet wurde. Fahren Sie über den Wert für die genaue Zeit.',
+  actions: {
+    cancel: 'Den Pipeline-Lauf abbrechen: Sein aktueller Stufenlauf wird abgebrochen und eine offene Prüfung geschlossen.',
+    retry: 'Einen fehlgeschlagenen, abgebrochenen oder abgelaufenen Pipeline-Lauf an der Stufe fortsetzen, an der er angehalten hat, mit einer neuen Ausführung dieser Stufe.',
+    stageRuns: 'Die Läufe aller Stufen dieses Pipeline-Laufs auf der Registerkarte Läufe anzeigen.',
+    finalRun: 'Den Lauf der letzten Stufe öffnen, dessen Ergebnis das Ergebnis der Pipeline ist.'
+  }
+};
+tips.resources.pipelineReviews = {
+  createdUtc: 'Wann die Stufe fertig war und die Prüfung angefordert wurde. Fahren Sie über den Wert für die genaue Zeit.',
+  pipelineName: 'Die Pipeline, deren Stufe auf die Prüfung wartet.',
+  stageName: 'Die zu prüfende Stufe, mit ihrer Position und der Ausführung, die die Ausgabe erzeugt hat.',
+  positionExecution: 'Position der Stufe in der Pipeline und welche Ausführung der Stufe diese Prüfung betrifft. Überarbeitungen erzeugen weitere Ausführungen.',
+  status: 'Offene Prüfungen warten auf eine Person; die übrigen zeigen, wie die Prüfung endete.',
+  decision: 'Genehmigen, Änderungen anfordern oder Ablehnen, sobald die Prüfung entschieden ist.',
+  decisionSource: 'Wer entschieden hat: eine Person, das Prüfzeitlimit der Stufe oder das Stoppen des Pipeline-Laufs.',
+  comment: 'Hinweise an die nächste Stufe (Genehmigen), Rückmeldung für die erneute Ausführung (Änderungen anfordern) oder die Begründung (Ablehnen).',
+  decidedBy: 'Die Person, die die Prüfung entschieden hat.',
+  expiresUtc: 'Wann die Prüfung abläuft und die Aktion bei Zeitüberschreitung der Stufe entscheidet. Leer, wenn sie wartet, bis eine Person entscheidet.',
+  pipelineRunId: 'Der Pipeline-Lauf, zu dem diese Prüfung gehört. Klicken Sie auf eine Zeile, um seinen Stufenverlauf zu öffnen.',
+  runId: 'Der Stufenlauf, dessen Ausgabe geprüft wird. Öffnen Sie ihn, um das Ergebnis vor der Entscheidung zu lesen.',
+  decidedUtc: 'Wann die Prüfung entschieden wurde.',
+  id: 'Kennung der Prüfung (prv_...). Verwenden Sie sie mit der API, MCP-Werkzeugen und SDKs, um die Prüfung zu entscheiden.',
+  filters: { decisionSource: 'Nur auf eine Art entschiedene Prüfungen anzeigen: durch eine Person, durch das Prüfzeitlimit oder durch das Stoppen des Pipeline-Laufs.' },
+  actions: {
+    approve: 'Die Ausgabe der Stufe genehmigen und die Pipeline fortfahren lassen, optional mit Hinweisen für die nächste Stufe.',
+    requestChanges: 'Die Stufe mit Ihrer Rückmeldung erneut ausführen. Jede Anforderung verbraucht eine der Überarbeitungen der Stufe.',
+    reject: 'Die Ausgabe der Stufe ablehnen. Der Pipeline-Lauf schlägt mit dem Ergebnis „Prüfung abgelehnt“ fehl.',
+    openStageRun: 'Den zu prüfenden Stufenlauf öffnen, um Protokoll und Ergebnis zu lesen.'
+  }
+};
+tips.pipelineReviews = {
+  revisionsLeft: 'Wie oft für diese Stufe noch Änderungen angefordert werden können, bevor nur Genehmigen und Ablehnen bleiben.',
+  decide: {
+    decision: 'Wählen Sie, was mit der Ausgabe der Stufe geschieht. Der Pipeline-Lauf geht weiter, sobald Sie absenden.',
+    Approve: 'Die Ausgabe der Stufe annehmen; die Pipeline fährt mit der nächsten Stufe fort oder ist nach der letzten erfolgreich.',
+    RequestChanges: 'Die Stufe mit einer Rückmeldung zurückschicken. Sie läuft erneut und kommt wieder zur Prüfung.',
+    Reject: 'Die Ausgabe der Stufe verwerfen. Der Pipeline-Lauf stoppt und schlägt fehl.',
+    commentApprove: 'Optionale Hinweise, die die nächste Stufe zusammen mit der Ausgabe dieser Stufe erhält.',
+    commentRequestChanges: 'Erforderliche Rückmeldung. Die Stufe läuft damit erneut, also beschreiben Sie, was sich ändern soll.',
+    commentReject: 'Optionale Begründung, gespeichert mit der Entscheidung und im Audit-Protokoll.',
+    submitApprove: 'Die Stufe jetzt genehmigen. Die Entscheidung ist endgültig und kann danach nicht geändert werden.',
+    submitRequestChanges: 'Die Rückmeldung jetzt senden. Die Stufe läuft erneut; ihre nächste Ausgabe kommt wieder zur Prüfung.',
+    submitReject: 'Die Stufe jetzt ablehnen. Der Pipeline-Lauf schlägt fehl; das lässt sich nicht rückgängig machen, der Lauf kann aber wiederholt werden.'
+  }
+};
+tips.pipelineStart = {
+  input: 'Die Aufgabe für die Pipeline. Die erste Stufe bearbeitet sie, und jede spätere Stufe sieht sie als ursprüngliche Aufgabe neben den früheren Ausgaben.',
+  submit: 'Einen Pipeline-Lauf mit dieser Eingabe starten und seinen Stufenverlauf öffnen.'
+};
+tips.pipelinePreview = {
+  input: 'Beispielhafte Eingabe, mit der jeder Stufen-Prompt gerendert wird. Es wird nichts ausgeführt.',
+  sampleOutput: 'Angenommene Ausgabe von Stufe {{stage}}, die in der Vorschau an die nachfolgende Stufe übergeben wird.',
+  render: 'Jeden Stufen-Prompt mit diesen Beispielen rendern, so wie die Stufenläufe ihn erhalten würden. Geheimnisse werden geschwärzt.',
+  stage: 'Der Prompt, den diese Stufe erhalten würde, gerendert aus ihrer Übergabevorlage mit den Beispielen oben.',
+  rendered: 'Der Stufen-Prompt wurde ohne Fehler gerendert.',
+  failed: 'Der Stufen-Prompt konnte nicht gerendert werden; die Meldung nennt den Grund, etwa einen fehlenden Agenten oder eine fehlende Bereitstellung.'
+};
+Object.assign(tips.views.runDetail, {
+  pipelineRun: 'Dieser Lauf ist eine Stufe eines Pipeline-Laufs. Der Text nach der ID nennt Stufenposition und Ausführung.',
+  openPipelineRun: 'Den Pipeline-Lauf öffnen, zu dem dieser Lauf gehört, mit Stufenverlauf und Prüfungen.'
+});
+tips.views.pipelineRunDetail = {
+  viewJson: 'Den vollständigen Pipeline-Lauf mit Stufen, Stufenläufen und Prüfungen als JSON anzeigen.',
+  delete: 'Diesen beendeten Pipeline-Lauf samt Prüfungen löschen. Seine Stufenläufe bleiben auf der Seite Läufe.',
+  live: 'Aktualisierungen kommen über die Live-Verbindung, sobald sich eine Stufe oder Prüfung ändert.',
+  polling: 'Die Live-Verbindung ist nicht verfügbar, daher liest die Seite den Pipeline-Lauf alle paar Sekunden neu.',
+  pipeline: 'Die Pipeline, die dieser Lauf ausführt, mit der Version beim Start. Klicken Sie, um sie unter Agenten > Pipelines zu finden.',
+  openPipeline: 'Agenten > Pipelines gefiltert auf diese Pipeline öffnen.',
+  openRun: 'Diesen Stufenlauf mit Protokoll, Ergebnis und Telemetrie öffnen.',
+  finalRun: 'Der Lauf der letzten Stufe. Sein Ergebnis ist das Ergebnis des Pipeline-Laufs.',
+  started: 'Wann der erste Stufenlauf erstellt wurde.',
+  input: 'Die Eingabe, mit der der Pipeline-Lauf gestartet wurde. Jede Stufe sieht sie als ursprüngliche Aufgabe.',
+  reviewTitle: 'Eine Stufe ist fertig und wartet auf Ihre Entscheidung. Lesen Sie ihre Ausgabe im Stufenlauf und entscheiden Sie dann.',
+  stages: 'Alle Stufen in Ausführungsreihenfolge mit Status, Ausführungen, Versuchen, Überarbeitungen, Stufenläufen und Prüfungen.',
+  current: 'Die Stufe, an der der Pipeline-Lauf gerade steht.',
+  reviewGate: 'Diese Stufe wartet darauf, dass eine Person ihre Ausgabe prüft, bevor die Pipeline weiterläuft.',
+  agent: 'Der Agent, den diese Stufe ausführt, wie beim Start des Pipeline-Laufs festgehalten.',
+  counts: 'Ausführungen zählen jeden Lauf der Stufe; Versuche zählen Läufe seit der letzten Prüfung; Überarbeitungen zählen angeforderte Änderungen.',
+  reviewItem: 'Eine Prüfung einer Ausführung dieser Stufe und wie sie entschieden wurde.',
+  columns: {
+    execution: 'Welche Ausführung der Stufe dieser Lauf ist. Wiederholungen nach Fehlern und Überarbeitungen nach Prüfungen erzeugen weitere Ausführungen.',
+    run: 'Der Stufenlauf. Klicken Sie, um Protokoll und Ergebnis zu öffnen.',
+    status: 'Aktueller Status des Stufenlaufs in diesem Pipeline-Lauf.',
+    outcome: 'Warum der Stufenlauf beendet wurde.',
+    error: 'Fehlermeldung des Stufenlaufs, falls er fehlgeschlagen ist.',
+    created: 'Wann der Stufenlauf erstellt wurde.'
+  }
+};
+tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Wie oft der Leader Pipeline-Läufe weiterschaltet, die ein Abschlusssignal verpasst haben, blockierte Stufenstarts wiederholt und Prüfzeitlimits sowie Zeitlimits von Pipelines anwendet, in Millisekunden.';
+tips.views.settings.fields.Runtime.PipelineMaxStages = 'Höchstzahl an Stufen, die eine Pipeline-Definition haben darf. Das Speichern einer Pipeline mit mehr Stufen wird abgelehnt.';
+Object.assign(explainers, {
+  pipelines: {
+    title: 'Pipelines und Stufen',
+    p1: 'Eine Pipeline verkettet Agenten. Jede Stufe führt einen Agenten aus, optional auf einer festen Bereitstellung, und übergibt seine Ausgabe (Text, strukturierte Ausgabe und Artefaktverweise) über eine Prompt-Vorlage an die nächste Stufe.',
+    p2: 'Eine Stufe kann fehlgeschlagene Läufe wiederholen, nach einem Fehler weitermachen und auf eine Prüfung warten. Prüfungen erscheinen unter Freigaben > Stufenprüfungen; Änderungen anzufordern führt die Stufe mit der Rückmeldung erneut aus.',
+    p3: 'Das Bearbeiten einer Pipeline erzeugt eine neue Version. Bereits gestartete Pipeline-Läufe behalten ihre ursprünglichen Stufen.'
+  },
+  pipelineRuns: {
+    title: 'Pipeline-Läufe',
+    p1: 'Ein Pipeline-Lauf führt die Stufen einer Pipeline-Version der Reihe nach aus. Jede Ausführung einer Stufe ist ein gewöhnlicher Lauf, verlinkt im Stufenverlauf.',
+    p2: 'Abbrechen stoppt den aktuellen Stufenlauf und schließt eine offene Prüfung. Wiederholen setzt einen fehlgeschlagenen, abgebrochenen oder abgelaufenen Pipeline-Lauf an der Stufe fort, an der er angehalten hat.'
+  },
+  pipelineReviews: {
+    title: 'Stufenprüfungen',
+    p1: 'Eine Stufe, die eine Prüfung erfordert, wartet nach Abschluss hier. Genehmigen fährt mit der nächsten Stufe fort, Änderungen anfordern führt die Stufe mit Ihrer Rückmeldung erneut aus, und Ablehnen lässt den Pipeline-Lauf fehlschlagen.',
+    p2: 'Prüfungen ohne Zeitlimit warten, bis eine Person entscheidet. Mit Zeitlimit entscheidet die Aktion bei Zeitüberschreitung der Stufe, wenn die Zeit abläuft.'
+  }
+});

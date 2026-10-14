@@ -33,12 +33,23 @@ export const NAV_SECTIONS = [
         tabs: [
           { id: 'runs', slug: 'runs', detail: true },
           { id: 'conversations', slug: 'conversations', detail: true },
+          // P12.9: executions of pipelines; /dashboard/pipeline-runs/<id> is the stage timeline.
+          { id: 'pipelineRuns', slug: 'pipeline-runs', detail: true },
           { id: 'queue', slug: 'queue' },
           { id: 'artifacts', slug: 'artifacts' }
         ]
       },
-      // Permission approvals (P12.3): the inbox of tool calls waiting for a person, with a pending-count badge.
-      { key: 'approvals', slug: 'approvals', icon: 'ShieldCheckIcon', page: { id: 'approvals', slug: 'approvals', detail: true } },
+      // Permission approvals (P12.3) and pipeline stage reviews (P12.9): everything waiting for a person. The sidebar
+      // badge counts both.
+      {
+        key: 'approvals',
+        slug: 'approvals',
+        icon: 'ShieldCheckIcon',
+        tabs: [
+          { id: 'approvals', slug: 'approvals', detail: true },
+          { id: 'pipelineReviews', slug: 'pipeline-reviews' }
+        ]
+      },
       { key: 'analytics', slug: 'analytics', icon: 'ChartIcon', page: { id: 'analytics', slug: 'analytics' } },
       {
         key: 'agents',
@@ -46,7 +57,9 @@ export const NAV_SECTIONS = [
         icon: 'BotIcon',
         tabs: [
           { id: 'agents', slug: 'agents', detail: true },
-          { id: 'deployments', slug: 'deployments' }
+          { id: 'deployments', slug: 'deployments' },
+          // P12.9: ordered agent stages with optional review gates.
+          { id: 'pipelines', slug: 'pipelines' }
         ]
       }
     ]

@@ -1676,3 +1676,226 @@ tips.views.settings.groups.Leases = "Coordinación opcional; configure todas las
 tips.views.settings.fields.Leases = {"Provider": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "ClutchEndpoint": "Proporcione la clave de Clutch mediante un secreto o variable de entorno; no incluya credenciales en el endpoint.", "ClutchAccessKey": "Proporcione la clave de Clutch mediante un secreto o variable de entorno; no incluya credenciales en el endpoint.", "KeyPrefix": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "RequestTimeoutMs": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "SweepIntervalMs": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "MaxLeaseMs": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado.", "MaxHoldMs": "Coordinación opcional; configure todas las réplicas igual y reinicie. Database es el valor predeterminado."};
 
 tips.enums.harnessType.ProviderApi = "Bucle opcional de API mediante PolyPrompt. Requiere endpoint y modelo; los despliegues CLI se mantienen.";
+
+// Pipelines (P12.9).
+tips.nav.hubs.approvals = 'Todo lo que espera a una persona: llamadas a herramientas que pidieron los agentes y etapas de canalización que requieren revisión, con el historial de todas las decisiones.';
+tips.nav.approvalsBadgeCombined = 'Esperan a una persona: {{approvals}} aprobaciones de llamadas a herramientas y {{reviews}} revisiones de etapas de canalización. Abre Aprobaciones para decidirlas.';
+Object.assign(tips.nav.tabs, {
+  approvals: 'Llamadas a herramientas que pidieron los agentes y que esperan a que una persona las permita o deniegue, y todas las decisiones pasadas por regla, valor predeterminado, persona o tiempo de espera.',
+  pipelineReviews: 'Etapas de canalización que terminaron y esperan a una persona: apruébalas, pide cambios (la etapa se vuelve a ejecutar con tus comentarios) o recházalas.',
+  pipelines: 'Cadenas de agentes: cada etapa ejecuta un agente, pasa su salida a la siguiente etapa mediante una plantilla de prompt y puede esperar una revisión.',
+  pipelineRuns: 'Cada ejecución de una canalización con su estado y su resultado. Abre una para ver la línea de tiempo de etapas, sus ejecuciones de etapa y sus revisiones.'
+});
+tips.filters.pipelineId = 'Muestra solo los registros de una canalización. Elige Todas para quitar el filtro.';
+tips.filters.pipelineRunId = 'Muestra solo las revisiones de una ejecución de canalización. Pega un ID como plr_...; la lista se actualiza cuando dejas de escribir.';
+Object.assign(tips.enums, {
+  pipelineRunStatus: {
+    Running: 'Una etapa se está ejecutando, iniciando o está a punto de empezar.',
+    AwaitingReview: 'Una etapa terminó y espera a que una persona la apruebe, pida cambios o la rechace.',
+    Cancelling: 'Se pidió la cancelación; se está deteniendo la ejecución de la etapa actual.',
+    Succeeded: 'Todas las etapas terminaron y se aprobaron todos los puntos de revisión.',
+    Failed: 'Una etapa falló tras sus intentos, no pudo iniciarse o un revisor la rechazó. Reintentar continúa en esa etapa.',
+    Cancelled: 'Alguien canceló la ejecución de canalización. Reintentar continúa en la etapa donde se detuvo.',
+    TimedOut: 'La canalización superó su límite de tiempo, incluido el tiempo de espera de las revisiones.'
+  },
+  pipelineRunOutcome: {
+    None: 'La ejecución de canalización aún no ha terminado.',
+    Succeeded: 'Todas las etapas terminaron bien y se aprobaron todas las revisiones.',
+    StageFailed: 'Una etapa falló en todos sus intentos y no está configurada para continuar si falla.',
+    StageStartFailed: 'Una etapa no pudo iniciarse, por ejemplo porque su agente o despliegue ya no existe o su prompt no se compiló.',
+    ReviewRejected: 'Un revisor rechazó una etapa, lo que termina la ejecución de canalización.',
+    ReviewExpired: 'Una revisión agotó su tiempo y su acción al agotarse el tiempo era Rechazar.',
+    Cancelled: 'Alguien canceló la ejecución de canalización o una de sus ejecuciones de etapa.',
+    TimedOut: 'La canalización superó su límite de tiempo.',
+    InternalError: 'El servidor sufrió un error inesperado al avanzar la canalización. Revisa los registros del servidor.'
+  },
+  pipelineStageStatus: {
+    Pending: 'La etapa no ha empezado; las etapas anteriores siguen en ejecución.',
+    Running: 'La ejecución de la etapa está en cola o en curso. Un intento fallido inicia una pasada nueva hasta agotar los intentos.',
+    AwaitingReview: 'La etapa terminó y espera a que una persona revise su salida.',
+    Succeeded: 'La etapa terminó y, si requiere revisión, se aprobó.',
+    Failed: 'La etapa falló en todos sus intentos, no pudo iniciarse o se rechazó.',
+    Cancelled: 'La etapa se detuvo porque la ejecución de canalización se canceló o agotó su tiempo.'
+  },
+  pipelineReviewStatus: {
+    Pending: 'Espera a que una persona apruebe, pida cambios o rechace.',
+    Approved: 'Aprobada: la canalización pasó a la siguiente etapa, con las notas si las había.',
+    ChangesRequested: 'Cambios pedidos: la etapa se volvió a ejecutar con los comentarios.',
+    Rejected: 'Rechazada: la ejecución de canalización falló en esta etapa.',
+    Expired: 'Nadie decidió a tiempo, así que decidió la acción de tiempo agotado de la etapa.',
+    Cancelled: 'La ejecución de canalización se detuvo antes de que nadie decidiera.'
+  },
+  pipelineReviewDecision: {
+    Approve: 'Acepta la salida de la etapa y continúa con la siguiente. Las notas opcionales van a la siguiente etapa.',
+    RequestChanges: 'Vuelve a ejecutar la misma etapa con tus comentarios. Lo limita el máximo de correcciones de la etapa.',
+    Reject: 'Detiene aquí la ejecución de canalización. Falla con el resultado Revisión rechazada.'
+  },
+  pipelineReviewSource: {
+    User: 'Una persona decidió la revisión.',
+    Timeout: 'La revisión agotó su tiempo y la decidió la acción de tiempo agotado de la etapa.',
+    Cancelled: 'La ejecución de canalización se canceló o agotó su tiempo mientras la revisión estaba pendiente.'
+  }
+});
+Object.assign(tips.enums.auditEventType, {
+  PipelineReviewDecided: 'Una persona o un tiempo de espera aprobó, rechazó o pidió cambios en una revisión de etapa de canalización.',
+  PipelineRunCancelled: 'Alguien canceló una ejecución de canalización, su revisión pendiente y la ejecución de su etapa actual.'
+});
+Object.assign(tips.resources.runs, {
+  pipelineRunId: 'La ejecución de canalización de la que esta ejecución es una etapa, con la posición de la etapa y la pasada. Vacío en ejecuciones fuera de canalizaciones.',
+  pipelineStage: 'Posición de la etapa en la canalización y qué pasada de esa etapa es esta ejecución (los reintentos y las correcciones añaden pasadas).'
+});
+tips.resources.pipelines = {
+  add: 'Crea una canalización: una lista ordenada de etapas, cada una ejecuta un agente y pasa su salida a la siguiente.',
+  name: 'Nombre único de la canalización en este inquilino, usado por la API, las herramientas MCP, los SDK y los manifiestos. Letras minúsculas, dígitos y guiones.',
+  stages: 'Las etapas en orden de ejecución. Cada etapa ejecuta un agente; su salida pasa a la siguiente etapa mediante una plantilla de prompt.',
+  reviewGates: 'Cuántas etapas esperan a que una persona revise su salida antes de que la canalización continúe.',
+  maxDurationSeconds: 'Duración máxima de toda la ejecución de canalización, en segundos, incluidas las esperas de revisión. 0 significa sin límite; al superarlo, la ejecución agota su tiempo.',
+  version: 'Aumenta con cada cambio guardado. Las ejecuciones de canalización registran la versión con la que empezaron y conservan sus etapas.',
+  stageHeading: 'Una etapa de la canalización, ejecutada en el orden mostrado. Usa las flechas para moverla y la papelera para quitarla.',
+  moveUp: 'Mueve esta etapa un puesto antes. Las etapas se ejecutan en el orden mostrado.',
+  moveDown: 'Mueve esta etapa un puesto después. Las etapas se ejecutan en el orden mostrado.',
+  removeStage: 'Quita esta etapa de la canalización. Una canalización necesita al menos una etapa.',
+  addStage: 'Añade una etapa al final de la canalización. Recibe la salida de la etapa anterior.',
+  stagesItems: {
+    name: 'Nombre de esta etapa, único dentro de la canalización. Se muestra en la línea de tiempo, las revisiones y los prompts de traspaso.',
+    agentId: 'El agente que ejecuta esta etapa. Iniciar la canalización requiere permiso para ejecutar todos los agentes de sus etapas.',
+    deploymentId: 'Un despliegue fijo del agente de la etapa. Vacío elige uno de los despliegues activos del agente según su peso, como una invocación normal.',
+    handoffTemplateId: 'Plantilla de prompt de tarea que envuelve la tarea de esta etapa con las salidas anteriores, las notas de revisión y los comentarios de corrección. Vacío usa la vinculación PipelineStage del despliegue o la plantilla integrada.',
+    handoffTemplateVersion: 'Usa esta versión de la plantilla de traspaso aunque la plantilla cambie. Vacío usa siempre la versión actual.',
+    outputCharLimit: 'Máximo de caracteres de la salida de cada etapa anterior que recibe esta etapa. Las salidas más largas se recortan y se marcan como truncadas.',
+    maxAttempts: 'Cuántas veces se ejecuta la etapa cuando su ejecución falla o agota el tiempo, antes de considerarla fallida.',
+    continueOnFailure: 'Si la etapa falla en todos sus intentos, continúa igualmente con la siguiente; esa etapa ve el fallo en el traspaso.',
+    requiresReview: 'Cuando la etapa termina, espera a que una persona la apruebe, pida cambios o la rechace en Aprobaciones > Revisiones de etapa.',
+    reviewTimeoutSeconds: 'Cuánto puede esperar la revisión antes de que la decida la acción de tiempo agotado. 0 espera hasta que decida una persona.',
+    reviewTimeoutAction: 'Qué ocurre cuando la revisión agota su tiempo: aprobar y continuar, o rechazar y hacer fallar la ejecución de canalización.',
+    maxRevisions: 'Cuántas veces puede un revisor pedir cambios en esta etapa. Después solo quedan Aprobar y Rechazar.',
+    description: 'Nota libre sobre lo que hace esta etapa, para las personas. No se envía al agente.',
+    parameters: 'Sobrescrituras de parámetros para las ejecuciones de esta etapa, como el modelo o el formato. Solo se permiten con un despliegue que deje sobrescribirlos.'
+  },
+  actions: {
+    start: 'Inicia esta canalización con un texto de entrada y sigue sus etapas en la página de la ejecución de canalización.',
+    preview: 'Genera el prompt de cada etapa a partir de una entrada y unas salidas de ejemplo, sin iniciar ninguna ejecución.',
+    runs: 'Muestra las ejecuciones de esta canalización en la pestaña Ejecuciones de canalización.'
+  }
+};
+tips.resources.pipelineRuns = {
+  id: 'Identificador de la ejecución de canalización (plr_...). Úsalo con la API, las herramientas MCP y los SDK.',
+  pipelineName: 'La canalización que ejecuta. Las ejecuciones de canalización conservan las etapas de la versión con la que empezaron.',
+  pipelineVersion: 'La versión de la canalización con la que empezó esta ejecución. Las ediciones posteriores no la cambian.',
+  status: 'En qué punto está la ejecución de canalización: en ejecución, pendiente de revisión, cancelando o terminada.',
+  outcome: 'Por qué terminó la ejecución de canalización: correcta, una etapa falló o no pudo iniciarse, una revisión se rechazó o caducó, cancelada o tiempo agotado.',
+  progress: 'La etapa en la que está la ejecución de canalización, del total de sus etapas.',
+  callerName: 'El usuario o la clave de acceso que inició la ejecución de canalización.',
+  errorMessage: 'Qué salió mal, cuando la ejecución de canalización falló o agotó su tiempo.',
+  priority: 'Prioridad de cola que recibe cada ejecución de etapa. Los números más altos se planifican antes.',
+  deadlineUtc: 'Cuándo agota su tiempo la ejecución de canalización, según el límite de tiempo de la canalización. Vacío si no hay límite.',
+  completedUtc: 'Cuándo terminó la ejecución de canalización.',
+  createdUtc: 'Cuándo se inició la ejecución de canalización. Pasa el cursor sobre el valor para ver la hora exacta.',
+  actions: {
+    cancel: 'Cancela la ejecución de canalización: se cancela la ejecución de su etapa actual y se cierra la revisión pendiente.',
+    retry: 'Reanuda una ejecución de canalización fallida, con tiempo agotado o cancelada en la etapa donde se detuvo, con una pasada nueva de esa etapa.',
+    stageRuns: 'Muestra las ejecuciones de todas las etapas de esta ejecución de canalización en la pestaña Ejecuciones.',
+    finalRun: 'Abre la ejecución de la última etapa, cuyo resultado es el resultado de la canalización.'
+  }
+};
+tips.resources.pipelineReviews = {
+  createdUtc: 'Cuándo terminó la etapa y se solicitó la revisión. Pasa el cursor sobre el valor para ver la hora exacta.',
+  pipelineName: 'La canalización cuya etapa espera la revisión.',
+  stageName: 'La etapa que hay que revisar, con su posición y la pasada de la etapa que produjo la salida.',
+  positionExecution: 'Posición de la etapa en la canalización y qué pasada de la etapa cubre esta revisión. Las correcciones añaden pasadas.',
+  status: 'Las revisiones pendientes esperan a una persona; las demás muestran cómo terminó la revisión.',
+  decision: 'Aprobar, Pedir cambios o Rechazar, una vez decidida la revisión.',
+  decisionSource: 'Quién decidió: una persona, el tiempo de espera de revisión de la etapa o la detención de la ejecución de canalización.',
+  comment: 'Notas para la siguiente etapa (aprobar), comentarios con los que la etapa se volvió a ejecutar (pedir cambios) o el motivo (rechazar).',
+  decidedBy: 'La persona que decidió la revisión.',
+  expiresUtc: 'Cuándo agota su tiempo la revisión y la decide la acción de tiempo agotado de la etapa. Vacío si espera hasta que decida una persona.',
+  pipelineRunId: 'La ejecución de canalización a la que pertenece esta revisión. Haz clic en una fila para abrir su línea de tiempo de etapas.',
+  runId: 'La ejecución de etapa cuya salida se revisa. Ábrela para leer el resultado antes de decidir.',
+  decidedUtc: 'Cuándo se decidió la revisión.',
+  id: 'Identificador de la revisión (prv_...). Úsalo con la API, las herramientas MCP y los SDK para decidir la revisión.',
+  filters: { decisionSource: 'Muestra solo las revisiones decididas de una forma: por una persona, por el tiempo de espera o por la detención de la ejecución de canalización.' },
+  actions: {
+    approve: 'Aprueba la salida de la etapa y deja que la canalización continúe, opcionalmente con notas para la siguiente etapa.',
+    requestChanges: 'Vuelve a ejecutar la etapa con tus comentarios. Cada petición consume una de las correcciones de la etapa.',
+    reject: 'Rechaza la salida de la etapa. La ejecución de canalización falla con el resultado Revisión rechazada.',
+    openStageRun: 'Abre la ejecución de etapa en revisión para leer su transcripción y su resultado.'
+  }
+};
+tips.pipelineReviews = {
+  revisionsLeft: 'Cuántas veces más se pueden pedir cambios en esta etapa antes de que solo queden Aprobar y Rechazar.',
+  decide: {
+    decision: 'Elige qué pasa con la salida de la etapa. La ejecución de canalización continúa en cuanto envías la decisión.',
+    Approve: 'Acepta la salida de la etapa; la canalización continúa con la siguiente etapa, o termina bien tras la última.',
+    RequestChanges: 'Devuelve la etapa con comentarios. Se vuelve a ejecutar y regresa para revisión.',
+    Reject: 'Rechaza la salida de la etapa. La ejecución de canalización se detiene y falla.',
+    commentApprove: 'Notas opcionales que la siguiente etapa recibe junto con la salida de esta etapa.',
+    commentRequestChanges: 'Comentarios obligatorios. La etapa se vuelve a ejecutar con ellos, así que indica qué cambiar.',
+    commentReject: 'Motivo opcional, guardado con la decisión y en el registro de auditoría.',
+    submitApprove: 'Aprueba la etapa ahora. La decisión es definitiva y no se puede cambiar después.',
+    submitRequestChanges: 'Envía los comentarios ahora. La etapa se vuelve a ejecutar; su próxima salida vuelve para revisión.',
+    submitReject: 'Rechaza la etapa ahora. La ejecución de canalización falla; no se puede deshacer, pero se puede reintentar.'
+  }
+};
+tips.pipelineStart = {
+  input: 'La tarea para la canalización. La primera etapa trabaja en ella, y cada etapa posterior la ve como la tarea original junto a las salidas anteriores.',
+  submit: 'Inicia una ejecución de canalización con esta entrada y abre su línea de tiempo de etapas.'
+};
+tips.pipelinePreview = {
+  input: 'Entrada de ejemplo del llamador usada para generar el prompt de cada etapa. No se ejecuta nada.',
+  sampleOutput: 'Salida simulada de la etapa {{stage}}, que se pasa a la etapa siguiente en la vista previa.',
+  render: 'Genera el prompt de cada etapa con estos ejemplos, tal como lo recibirían las ejecuciones de etapa. Los secretos se ocultan.',
+  stage: 'El prompt que recibiría esta etapa, generado desde su plantilla de traspaso con los ejemplos anteriores.',
+  rendered: 'El prompt de la etapa se generó sin errores.',
+  failed: 'No se pudo generar el prompt de la etapa; el mensaje explica por qué, por ejemplo un agente o despliegue que falta.'
+};
+Object.assign(tips.views.runDetail, {
+  pipelineRun: 'Esta ejecución es una etapa de una ejecución de canalización. El texto tras el ID indica la posición de la etapa y la pasada.',
+  openPipelineRun: 'Abre la ejecución de canalización a la que pertenece esta ejecución, con su línea de tiempo de etapas y sus revisiones.'
+});
+tips.views.pipelineRunDetail = {
+  viewJson: 'Muestra la ejecución de canalización completa con sus etapas, ejecuciones de etapa y revisiones como JSON.',
+  delete: 'Elimina esta ejecución de canalización terminada y sus revisiones. Sus ejecuciones de etapa se quedan en la página Ejecuciones.',
+  live: 'Las actualizaciones llegan por la conexión en vivo en cuanto cambia una etapa o una revisión.',
+  polling: 'La conexión en vivo no está disponible, así que la página vuelve a leer la ejecución de canalización cada pocos segundos.',
+  pipeline: 'La canalización que ejecuta, con la versión con la que empezó. Haz clic para buscarla en Agentes > Canalizaciones.',
+  openPipeline: 'Abre Agentes > Canalizaciones filtrado por esta canalización.',
+  openRun: 'Abre esta ejecución de etapa con su transcripción, su resultado y su telemetría.',
+  finalRun: 'La ejecución de la última etapa. Su resultado es el resultado de la ejecución de canalización.',
+  started: 'Cuándo se creó la ejecución de la primera etapa.',
+  input: 'La entrada con la que se inició la ejecución de canalización. Todas las etapas la ven como la tarea original.',
+  reviewTitle: 'Una etapa terminó y espera tu decisión. Lee su salida en la ejecución de etapa y luego decide.',
+  stages: 'Todas las etapas en orden de ejecución con su estado, pasadas, intentos, correcciones, ejecuciones de etapa y revisiones.',
+  current: 'La etapa en la que está ahora la ejecución de canalización.',
+  reviewGate: 'Esta etapa espera a que una persona revise su salida antes de que la canalización continúe.',
+  agent: 'El agente que ejecuta esta etapa, tal como se registró al iniciar la ejecución de canalización.',
+  counts: 'Las pasadas cuentan cada ejecución de la etapa; los intentos, las ejecuciones desde la última revisión; las correcciones, los cambios pedidos.',
+  reviewItem: 'Una revisión de una pasada de esta etapa y cómo se decidió.',
+  columns: {
+    execution: 'Qué pasada de la etapa es esta ejecución. Los reintentos tras fallos y las correcciones tras revisiones añaden pasadas.',
+    run: 'La ejecución de etapa. Haz clic para abrir su transcripción y su resultado.',
+    status: 'Estado de la ejecución de etapa en este momento.',
+    outcome: 'Por qué terminó la ejecución de etapa.',
+    error: 'Mensaje de error de la ejecución de etapa, cuando falló.',
+    created: 'Cuándo se creó la ejecución de etapa.'
+  }
+};
+tips.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Cada cuánto el líder hace avanzar las ejecuciones de canalización que perdieron una señal de finalización, reintenta inicios de etapa bloqueados y aplica los tiempos de espera de revisión y los límites de tiempo de las canalizaciones, en milisegundos.';
+tips.views.settings.fields.Runtime.PipelineMaxStages = 'Máximo de etapas que puede tener una definición de canalización. Se rechaza guardar una canalización con más etapas.';
+Object.assign(explainers, {
+  pipelines: {
+    title: 'Canalizaciones y etapas',
+    p1: 'Una canalización encadena agentes. Cada etapa ejecuta un agente, opcionalmente en un despliegue fijo, y pasa su salida (texto, salida estructurada y referencias a artefactos) a la siguiente etapa mediante una plantilla de prompt.',
+    p2: 'Una etapa puede reintentar ejecuciones fallidas, continuar tras un fallo y esperar una revisión. Las revisiones aparecen en Aprobaciones > Revisiones de etapa; pedir cambios vuelve a ejecutar la etapa con los comentarios.',
+    p3: 'Editar una canalización crea una versión nueva. Las ejecuciones de canalización ya iniciadas conservan las etapas con las que empezaron.'
+  },
+  pipelineRuns: {
+    title: 'Ejecuciones de canalización',
+    p1: 'Una ejecución de canalización ejecuta en orden las etapas de una versión de la canalización. Cada pasada de etapa es una ejecución normal, enlazada desde la línea de tiempo de etapas.',
+    p2: 'Cancelar detiene la ejecución de la etapa actual y cierra la revisión pendiente. Reintentar reanuda una ejecución de canalización fallida, con tiempo agotado o cancelada en la etapa donde se detuvo.'
+  },
+  pipelineReviews: {
+    title: 'Revisiones de etapa',
+    p1: 'Una etapa que requiere revisión espera aquí cuando termina. Aprobar continúa con la siguiente etapa, Pedir cambios vuelve a ejecutar la etapa con tus comentarios y Rechazar hace fallar la ejecución de canalización.',
+    p2: 'Las revisiones sin tiempo de espera esperan hasta que decida una persona. Con tiempo de espera, la acción de tiempo agotado de la etapa decide cuando se acaba el tiempo.'
+  }
+});

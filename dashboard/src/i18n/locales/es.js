@@ -1663,6 +1663,7 @@ const es = {
           MasterKey: 'Clave maestra de cifrado de secretos'
         },
         RequestHistory: {
+          CaptureNodeProtocol: 'Capturar solicitudes correctas del protocolo de workers',
           MaxResponseBodyBytes: 'Cuerpo de respuesta máximo registrado (bytes)',
           MaxRequestBodyBytes: 'Cuerpo de solicitud máximo registrado (bytes)',
           RetentionDays: 'Retención del historial de solicitudes (días)',
@@ -1686,6 +1687,7 @@ const es = {
         },
         Scheduling: {
           EventPollMs: 'Intervalo de sondeo de eventos (ms)',
+          InvocationWaitPollMs: 'Relectura de respaldo al esperar invocaciones (ms)',
           NodeHeartbeatTimeoutMs: 'Tiempo límite de latido de los nodos (ms)',
           LeaseWaitMs: 'Espera de sondeo largo de concesiones (ms)',
           LeaseDurationMs: 'Duración de la concesión de ejecuciones (ms)',
@@ -1957,3 +1959,199 @@ es.views.settings.fields.Leases = {"Provider": "Proveedor", "ClutchEndpoint": "E
 
 es.enums.harnessType.ProviderApi = "API del proveedor";
 es.enums.outputParser.ProviderApiJsonl = "JSONL de API del proveedor";
+
+// Pipelines (P12.9): definiciones (Agentes > Canalizaciones), ejecuciones de canalización (Ejecuciones > Ejecuciones de canalización)
+// y revisiones de etapa (Aprobaciones > Revisiones de etapa).
+es.nav.hubs.approvals.tip = 'Llamadas a herramientas y etapas de canalización que esperan a una persona, y todas las decisiones';
+Object.assign(es.nav, { approvalsPending_one: '{{count}} elemento espera a una persona', approvalsPending_other: '{{count}} elementos esperan a una persona', approvalsPending_many: '{{count}} elementos esperan a una persona' });
+Object.assign(es.nav.items, {
+  pipelines: { label: 'Canalizaciones', tip: 'Etapas ordenadas de agentes con puntos de revisión opcionales' },
+  pipelineRuns: { label: 'Ejecuciones de canalización', tip: 'Ejecuciones de canalizaciones, etapa por etapa' },
+  pipelineReviews: { label: 'Revisiones de etapa', tip: 'Etapas de canalización que esperan la revisión de una persona' }
+});
+Object.assign(es.errorCodes, {
+  RevisionLimitReached: 'Esta etapa ya agotó todas sus correcciones, así que ya no se pueden pedir cambios. Apruébala o recházala.',
+  ReviewNotPending: 'Esta revisión ya se decidió, por otra persona o por su tiempo de espera, así que no se puede volver a decidir.',
+  PipelineInUse: 'Esta canalización tiene ejecuciones sin terminar. Espera a que terminen, o cancélalas, y luego elimina la canalización.',
+  PipelineRunActive: 'Solo se pueden eliminar ejecuciones de canalización terminadas. Cancela primero esta ejecución de canalización.',
+  PipelineRunFinished: 'Esta ejecución de canalización ya terminó, así que no se puede cancelar.',
+  PipelineRunNotRetryable: 'Solo se pueden reintentar ejecuciones de canalización fallidas, con tiempo agotado o canceladas.',
+  PipelineRunChanged: 'Esta ejecución de canalización cambió mientras se procesaba la solicitud. Vuelve a cargarla e inténtalo de nuevo.',
+  PipelineInactive: 'Esta canalización está inactiva. Actívala antes de iniciarla.',
+  PipelineEmpty: 'Una canalización necesita al menos una etapa.',
+  PipelineStageRun: 'Esta ejecución es una etapa de una ejecución de canalización, así que no se puede reintentar por separado. Reintenta la ejecución de canalización.',
+  ReferencedByPipeline: 'Una etapa de canalización usa este agente. Quita el agente de todas las canalizaciones antes de eliminarlo.'
+});
+es.enums.pipelineRunStatus = { Running: 'En ejecución', AwaitingReview: 'Pendiente de revisión', Cancelling: 'Cancelando', Succeeded: 'Correcta', Failed: 'Fallida', Cancelled: 'Cancelada', TimedOut: 'Tiempo agotado' };
+es.enums.pipelineRunOutcome = { None: 'Ninguno', Succeeded: 'Correcto', StageFailed: 'Etapa fallida', StageStartFailed: 'La etapa no pudo iniciarse', ReviewRejected: 'Revisión rechazada', ReviewExpired: 'Revisión caducada', Cancelled: 'Cancelado', TimedOut: 'Tiempo agotado', InternalError: 'Error interno' };
+es.enums.pipelineStageStatus = { Pending: 'Pendiente', Running: 'En ejecución', AwaitingReview: 'Pendiente de revisión', Succeeded: 'Correcta', Failed: 'Fallida', Cancelled: 'Cancelada' };
+es.enums.pipelineReviewStatus = { Pending: 'Pendiente', Approved: 'Aprobada', ChangesRequested: 'Cambios pedidos', Rejected: 'Rechazada', Expired: 'Caducada', Cancelled: 'Cancelada' };
+es.enums.pipelineReviewDecision = { Approve: 'Aprobar', RequestChanges: 'Pedir cambios', Reject: 'Rechazar' };
+es.enums.pipelineReviewSource = { User: 'Persona', Timeout: 'Tiempo de espera agotado', Cancelled: 'Ejecución de canalización detenida' };
+Object.assign(es.enums.resourceType, { Pipeline: 'Canalización', PipelineRun: 'Ejecución de canalización' });
+Object.assign(es.enums.auditEventType, { PipelineReviewDecided: 'Revisión de etapa decidida', PipelineRunCancelled: 'Ejecución de canalización cancelada' });
+es.resources.deployments.promptRoles.PipelineStage = 'Etapa de canalización (traspaso)';
+Object.assign(es.resources.runs.columns, { pipelineRunId: 'Ejecución de canalización' });
+es.resources.runs.pipelineStage = 'etapa {{position}}, pasada {{execution}}';
+es.resources.pipelines = {
+  ...rp('Canalizaciones', 'Etapas ordenadas de agentes: cada etapa ejecuta un agente y pasa su salida a la siguiente, con puntos de revisión opcionales.', 'Añadir canalización', 'Crear canalización', 'Editar canalización', 'Detalles de la canalización', 'Eliminar canalización', 'Aún no hay canalizaciones', 'Crea una canalización para encadenar agentes: cada etapa recibe la salida de la etapa anterior.'),
+  columns: { name: 'Nombre', stages: 'Etapas', reviewGates: 'Puntos de revisión', maxDurationSeconds: 'Límite de tiempo', version: 'Versión', active: 'Activa', description: 'Descripción', id: 'ID', lastUpdateUtc: 'Actualizada', createdUtc: 'Creada' },
+  fields: {
+    name: 'Nombre',
+    description: 'Descripción',
+    maxDurationSeconds: 'Límite de tiempo (segundos)',
+    active: 'Activa',
+    stages: 'Etapas',
+    stageName: 'Nombre de la etapa',
+    agentId: 'Agente',
+    deploymentId: 'Despliegue',
+    handoffTemplateId: 'Plantilla de traspaso',
+    handoffTemplateVersion: 'Versión fijada de la plantilla',
+    outputCharLimit: 'Límite de caracteres del traspaso',
+    maxAttempts: 'Intentos máximos',
+    continueOnFailure: 'Continuar si falla',
+    requiresReview: 'Requiere revisión',
+    reviewTimeoutSeconds: 'Tiempo de espera de la revisión (segundos)',
+    reviewTimeoutAction: 'Al agotarse el tiempo de revisión',
+    maxRevisions: 'Correcciones máximas',
+    stageDescription: 'Descripción de la etapa',
+    parameters: 'Parámetros de ejecución'
+  },
+  hints: {
+    maxDurationSeconds: 'De {{min}} a {{max}}. 0 significa sin límite. El límite cubre toda la ejecución de canalización, incluido el tiempo de espera de las revisiones.',
+    stages: 'Las etapas se ejecutan en este orden. Cada etapa empieza cuando la anterior termina bien (o falla con Continuar si falla) y, si requiere revisión, después de que una persona la apruebe.',
+    noDeployments: 'Este agente aún no tiene despliegues. Deja el despliegue vacío o añade uno en Despliegues.',
+    handoffTemplateVersion: 'Vacío usa la versión actual de la plantilla.',
+    outputCharLimit: 'De {{min}} a {{max}}. Predeterminado: {{default}}.',
+    maxAttempts: 'De {{min}} a {{max}}. Predeterminado: {{default}}.',
+    reviewTimeoutSeconds: 'De {{min}} a {{max}}. 0 espera indefinidamente.',
+    maxRevisions: 'De {{min}} a {{max}}. Predeterminado: {{default}}.',
+    parameters: 'Solo con un despliegue, y solo los parámetros que ese despliegue permite sobrescribir.'
+  },
+  errors: {
+    dnsName: 'Usa de 1 a 64 letras minúsculas, dígitos y guiones, empezando y terminando con una letra o un dígito.',
+    range: 'Introduce un número entero de {{min}} a {{max}}.',
+    noStages: 'Añade al menos una etapa.',
+    tooManyStages: 'Una canalización tiene como máximo {{max}} etapas.',
+    stageNameLong: 'Los nombres de etapa admiten como máximo 128 caracteres.',
+    stageNameDuplicate: 'Ya hay otra etapa llamada {{name}}.',
+    version: 'Introduce un número de versión igual o mayor que 1, o déjalo vacío.',
+    parametersNeedDeployment: 'Los parámetros de ejecución necesitan un despliegue, porque se comprueban contra las sobrescrituras que permite ese despliegue.',
+    parametersUnique: 'Cada nombre de parámetro puede aparecer una sola vez.',
+    stageInvalid: 'esta etapa tiene errores.'
+  },
+  actions: { start: 'Iniciar', preview: 'Previsualizar prompts', runs: 'Ver ejecuciones de canalización' },
+  stageHeading: 'Etapa {{position}}: {{name}}',
+  stageCount: '{{count}} de un máximo de {{max}}',
+  stageSummary: '{{count}} etapas: {{chain}}',
+  addStage: 'Añadir etapa',
+  removeStage: 'Quitar etapa',
+  noStages: 'Aún no hay etapas.',
+  chooseAgent: 'Elige un agente',
+  anyDeployment: 'Cualquier despliegue activo (ponderado)',
+  defaultHandoff: 'Vinculación del despliegue o integrada',
+  parameterName: 'Parámetro',
+  parameterValue: 'Valor',
+  noLimit: 'Sin límite',
+  versionNotice: 'Versión {{version}}. Al guardar se crea una versión nueva; las ejecuciones de canalización ya iniciadas conservan sus etapas originales.'
+};
+es.resources.pipelineRuns = {
+  ...rp('Ejecuciones de canalización', 'Cada ejecución de una canalización. Abre una para seguir sus etapas, decidir sus revisiones, o cancelarla y reintentarla.', 'Añadir ejecución de canalización', 'Crear ejecución de canalización', 'Editar ejecución de canalización', 'Detalles de la ejecución de canalización', 'Eliminar ejecución de canalización', 'Aún no hay ejecuciones de canalización', 'Inicia una canalización desde Agentes > Canalizaciones para ver aquí sus ejecuciones.'),
+  columns: { id: 'ID', pipelineName: 'Canalización', status: 'Estado', outcome: 'Resultado', progress: 'Etapa', callerName: 'Iniciada por', errorMessage: 'Error', priority: 'Prioridad', deadlineUtc: 'Fecha límite', completedUtc: 'Completada', createdUtc: 'Creada' },
+  actions: { cancel: 'Cancelar', retry: 'Reintentar', stageRuns: 'Ver ejecuciones de etapa', finalRun: 'Abrir ejecución final' },
+  toasts: { cancelRequested: 'Se pidió cancelar la ejecución de canalización y su etapa actual.', retried: 'La ejecución de canalización se reanuda en la etapa donde se detuvo.' },
+  progressValue: '{{position}} de {{count}}',
+  versionShort: '(versión {{version}})'
+};
+es.resources.pipelineReviews = {
+  ...rp('Revisiones de etapa', 'Etapas de canalización que esperan a que una persona las apruebe, pida cambios o las rechace.', 'Añadir revisión de etapa', 'Crear revisión de etapa', 'Editar revisión de etapa', 'Detalles de la revisión de etapa', 'Eliminar revisión de etapa', 'Aún no hay revisiones de etapa', 'Las etapas que requieren revisión aparecen aquí cuando terminan.'),
+  columns: { createdUtc: 'Solicitada', pipelineName: 'Canalización', stageName: 'Etapa', status: 'Estado', decision: 'Decisión', decisionSource: 'Decidida por', comment: 'Comentario', decidedBy: 'Revisor', expiresUtc: 'Caduca', pipelineRunId: 'Ejecución de canalización', runId: 'Ejecución de etapa', decidedUtc: 'Decidida', id: 'ID' },
+  filters: { pipelineRunId: 'ID de la ejecución de canalización', pipelineRunIdPlaceholder: 'ID de la ejecución de canalización (plr_...)' },
+  actions: { approve: 'Aprobar', requestChanges: 'Pedir cambios', reject: 'Rechazar', openStageRun: 'Abrir ejecución de etapa' },
+  noTimeout: 'Espera indefinidamente'
+};
+es.components.pipelineReviews = {
+  decideTitle: 'Revisar la etapa {{stage}} de {{pipeline}}',
+  decision: 'Decisión',
+  positionExecution: 'etapa {{position}}, pasada {{execution}}',
+  revisionsLeft: 'Correcciones restantes',
+  revisionsLeftValue: '{{left}} de {{max}}',
+  noRevisionsLeft: 'Esta etapa agotó sus {{max}} correcciones. El servidor rechazará Pedir cambios; apruébala o recházala.',
+  timeoutThen: 'después {{decision}}',
+  commentApprove: 'Notas para la siguiente etapa',
+  commentApprovePlaceholder: 'Opcional. La siguiente etapa recibe estas notas junto con la salida.',
+  commentRequestChanges: 'Qué debe cambiar',
+  commentRequestChangesPlaceholder: 'Obligatorio. La etapa se vuelve a ejecutar con estos comentarios.',
+  commentReject: 'Motivo',
+  commentRejectPlaceholder: 'Opcional. Se guarda con la decisión; la ejecución de canalización falla.',
+  commentRequired: 'Describe qué debe cambiar. La etapa se vuelve a ejecutar con estos comentarios.',
+  commentTooLong: 'Los comentarios admiten como máximo {{max}} caracteres.',
+  submit: { Approve: 'Aprobar etapa', RequestChanges: 'Pedir cambios', Reject: 'Rechazar etapa' },
+  toasts: {
+    Approve: 'Se aprobó la etapa {{stage}} de {{pipeline}}.',
+    RequestChanges: 'Se pidieron cambios en la etapa {{stage}} de {{pipeline}}; se vuelve a ejecutar con tus comentarios.',
+    Reject: 'Se rechazó la etapa {{stage}} de {{pipeline}}; la ejecución de canalización falla.',
+    notPending: 'Otra persona o su tiempo de espera ya decidió esta revisión. La lista muestra ahora el estado actual.',
+    revisionLimit: 'Esta etapa ya agotó sus correcciones (máximo {{max}}), así que ya no se pueden pedir cambios. Apruébala o recházala.'
+  }
+};
+es.components.pipelineStart = {
+  title: 'Iniciar {{name}}',
+  intro_one: 'La entrada va a la única etapa de la canalización.',
+  intro_other: 'La entrada va a la primera de {{count}} etapas; todas las etapas la ven también como la tarea original.',
+  intro_many: 'La entrada va a la primera de {{count}} etapas; todas las etapas la ven también como la tarea original.',
+  input: 'Entrada',
+  inputPlaceholder: '¿En qué debe trabajar la canalización?',
+  shortcut: 'Pulsa Ctrl+Intro o Cmd+Intro para iniciar.',
+  submit: 'Iniciar canalización',
+  starting: 'Iniciando...',
+  started: 'Se inició {{name}}.'
+};
+es.components.pipelinePreview = {
+  title: 'Previsualizar los prompts de {{name}}',
+  input: 'Entrada de ejemplo',
+  sampleInput: 'Resume las incidencias abiertas y propón una solución para la más urgente.',
+  sampleOutput: 'Salida de ejemplo de {{stage}}.',
+  outputOf: 'Salida de ejemplo de la etapa {{position}} ({{stage}})',
+  render: 'Generar prompts',
+  rendering: 'Generando...',
+  stageHeading: 'Etapa {{position}}: {{stage}} ({{agent}})',
+  deployment: 'Despliegue: {{deployment}}',
+  rendered: 'Generado',
+  failed: 'Con errores'
+};
+es.views.pipelineRunDetail = {
+  title: 'Ejecución de canalización',
+  heading: 'Ejecución de canalización de {{pipeline}}',
+  notFoundTitle: 'No se encontró la ejecución de canalización',
+  notFoundBody: 'Puede que se haya eliminado o que pertenezca a otro inquilino.',
+  live: 'En vivo',
+  polling: 'Actualizando',
+  finalRun: 'Ejecución final',
+  started: 'Iniciada',
+  input: 'Entrada',
+  reviewTitle: 'Espera tu revisión',
+  reviewBody: 'La etapa {{position}} ({{stage}}) terminó la pasada {{execution}} y espera una revisión. Lee su salida en la ejecución de etapa:',
+  reviewExpires: 'Si nadie decide antes de {{time}}, la revisión se decide automáticamente: {{decision}}.',
+  reviewNoTimeout: 'La revisión espera hasta que decida una persona, salvo que el límite de tiempo de la canalización termine antes la ejecución.',
+  stages: 'Etapas',
+  stagesCount_one: '{{count}} etapa',
+  stagesCount_other: '{{count}} etapas',
+  stagesCount_many: '{{count}} etapas',
+  noStages: 'Esta ejecución de canalización no tiene etapas.',
+  current: 'Actual',
+  reviewGate: 'Punto de revisión',
+  agent: 'Agente {{agent}}',
+  counts: 'Pasadas {{executions}}, intentos {{attempts}} de {{maxAttempts}}, correcciones {{revisions}} de {{maxRevisions}}',
+  startedAt: 'iniciada',
+  blocked: 'Esperando para iniciar: {{reason}}.',
+  nextAttempt: 'Próximo intento a las {{time}}.',
+  reviewItem: 'Revisión de la pasada {{execution}}',
+  columns: { execution: 'Pasada', run: 'Ejecución de etapa', status: 'Estado', outcome: 'Resultado', error: 'Error', created: 'Creada' },
+  confirmCancelTitle: 'Cancelar ejecución de canalización',
+  confirmCancel: '¿Cancelar esta ejecución de canalización de {{pipeline}}? Se cancela la ejecución de su etapa actual y se cierra la revisión pendiente. Puedes reintentarla más tarde.',
+  confirmDelete: '¿Eliminar esta ejecución de canalización de {{pipeline}} y sus revisiones? Sus ejecuciones de etapa se quedan en la página Ejecuciones.'
+};
+Object.assign(es.views.runDetail, { pipelineRun: 'Ejecución de canalización' });
+es.views.settings.fields.Runtime.PipelineSweepIntervalMs = 'Intervalo de revisión de canalizaciones (ms)';
+es.views.settings.fields.Runtime.PipelineMaxStages = 'Máximo de etapas por canalización';
