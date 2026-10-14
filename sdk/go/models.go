@@ -183,9 +183,12 @@ type NodePool struct {
 
 // Node is a worker node. Executors lists what it can run; empty means Process only. ChildReserveSlots and
 // MaxResidentWaiters are the delegation capacity the worker reported: reserve slots for children of waiting runs, and
-// the most runs that may wait on a child at once (0 means MaxConcurrentRuns).
+// the most runs that may wait on a child at once (0 means MaxConcurrentRuns). Containerized is true when the worker
+// reported at registration that it runs inside a container or pod (GARRISON_WORKER_CONTAINERIZED); the built-in Codex
+// profiles then default their sandbox to danger-full-access.
 type Node struct {
 	SupportsMcpTests     bool                   `json:"supportsMcpTests"`
+	Containerized        bool                   `json:"containerized"`
 	ExecutorCapabilities []ExecutorCapabilities `json:"executorCapabilities,omitempty"`
 	ID                   string                 `json:"id"`
 	Name                 string                 `json:"name"`
@@ -204,6 +207,27 @@ type WorkspaceTemplate struct {
 	Name                  string `json:"name"`
 	Kind                  string `json:"kind,omitempty"`
 	PersistentVolumeClaim string `json:"persistentVolumeClaim,omitempty"`
+	// Warnings is set on create and update responses only; see FieldWarning.
+	Warnings []FieldWarning `json:"warnings,omitempty"`
+}
+
+// Field warning codes (FieldWarning.Code).
+const (
+	// FieldWarningValueClamped means the value was outside its allowed range and the nearest allowed value was stored.
+	FieldWarningValueClamped = "ValueClamped"
+)
+
+// FieldWarning reports one field of a create or update request, or of a manifest document, that the server accepted
+// but did not store as given, for example a number outside its range that was clamped (Code ValueClamped). Field is
+// the REST field name (maxAttempts, delegationMaxDepth); Given and Stored are the values as text, nil when absent.
+// Create and update responses for agents, deployments, harness profiles, MCP servers, and workspace templates carry a
+// warnings array (omitted when empty); reads never do.
+type FieldWarning struct {
+	Field   string  `json:"field"`
+	Code    string  `json:"code"`
+	Given   *string `json:"given,omitempty"`
+	Stored  *string `json:"stored,omitempty"`
+	Message string  `json:"message"`
 }
 
 // TokenResponse is returned by POST /v1.0/token.
@@ -283,6 +307,8 @@ type Agent struct {
 	DelegationMode string   `json:"delegationMode,omitempty"`
 	Tags           []string `json:"tags,omitempty"`
 	CreatedUTC     string   `json:"createdUtc,omitempty"`
+	// Warnings is set on create and update responses only; see FieldWarning.
+	Warnings []FieldWarning `json:"warnings,omitempty"`
 }
 
 // Deployment binds an agent to a harness profile and model.
@@ -317,6 +343,8 @@ type Deployment struct {
 	// ApprovalRules are the approval rules in display order (at most 500). Deny beats Ask, Ask beats Allow.
 	ApprovalRules []DeploymentApprovalRule `json:"approvalRules,omitempty"`
 	CreatedUTC    string                   `json:"createdUtc,omitempty"`
+	// Warnings is set on create and update responses only; see FieldWarning.
+	Warnings []FieldWarning `json:"warnings,omitempty"`
 }
 
 // Permission approval statuses (Approval.Status). Pending is the only state that can change.
@@ -465,6 +493,8 @@ type HarnessProfile struct {
 	HarnessType string `json:"harnessType"`
 	Executable  string `json:"executable"`
 	BuiltIn     bool   `json:"builtIn"`
+	// Warnings is set on create and update responses only; see FieldWarning.
+	Warnings []FieldWarning `json:"warnings,omitempty"`
 }
 
 // Run is one execution of an agent.
@@ -715,6 +745,8 @@ type ManifestApplyItem struct {
 	ErrorField string `json:"errorField,omitempty"`
 	// Changes lists field-level changes for Updated items (dry runs report them too); empty otherwise.
 	Changes []ManifestFieldChange `json:"changes,omitempty"`
+	// Warnings lists values in the document that were accepted but not stored as written (dry runs report them too).
+	Warnings []FieldWarning `json:"warnings,omitempty"`
 }
 
 // ManifestFieldChange is one changed field of an Updated manifest item. Before and After are strings

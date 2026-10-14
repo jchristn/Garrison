@@ -424,8 +424,9 @@ const FACTORIES = {
       ],
       // P12.12: whether this worker can run stdio MCP server tests.
       supportsMcpTests: true,
-      // G-29: whether the worker runs in a container (the worker image reports true).
-      containerized: true,
+      // G-29: whether the worker runs in a container (the worker image reports true). The first worker runs in a
+      // container and the others on a host, so the node list shows both values.
+      containerized: i === 1,
       capabilities: [{ id: `chr_${id}_0000cap`, nodeId: id, harnessType: 'ClaudeCode', executable: 'claude', detectedVersion: '2.1.0', available: true, detail: '2.1.0 (Claude Code)' }]
     });
   },
@@ -1226,7 +1227,7 @@ export function respond(method, url) {
       return {
         items: [
           { kind: 'Agent', name: 'echo-agent', result: 'Validated', plannedResult: 'Created', message: 'Would be created.' },
-          { kind: 'Deployment', name: 'echo-agent-default', result: 'Validated', plannedResult: 'Updated', message: 'Would be updated.', changes: [{ field: 'timeoutSeconds', before: '300', after: '120' }] }
+          { kind: 'Deployment', name: 'echo-agent-default', result: 'Validated', plannedResult: 'Updated', message: 'Would be updated.', changes: [{ field: 'timeoutSeconds', before: '300', after: '120' }], warnings: [{ field: 'maxAttempts', code: 'ValueClamped', given: '99', stored: '10', message: 'maxAttempts 99 is outside the allowed range 1 to 10; 10 was stored.' }] }
         ]
       };
     if (collection === 'runs' && parts[2] === 'events') {

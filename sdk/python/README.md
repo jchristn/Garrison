@@ -182,7 +182,7 @@ client.deployments.create({"agentId": agent["id"], "name": "helper-pod", "harnes
                            "executor": "KubernetesJob", "podResources": {"memoryLimit": "2Gi", "cpuLimit": "1"}})
 ```
 
-Runs carry `executor`, nodes list `executors`, and only nodes reporting a run's executor claim it. Workspace templates of kind `"PersistentVolume"` mount the claim named by `persistentVolumeClaim` (KubernetesJob runs only). Run pod failures outside the harness end with outcome `PodFailed`. See `docs/KUBERNETES.md`.
+Runs carry `executor`, nodes list `executors`, and only nodes reporting a run's executor claim it. Workspace templates of kind `"PersistentVolume"` mount the claim named by `persistentVolumeClaim` (KubernetesJob runs only). Run pod failures outside the harness end with outcome `PodFailed`. Nodes also report `containerized` (bool, default `False`): whether the worker runs inside a container or pod, which makes the built-in Codex profiles default their sandbox to `danger-full-access`. See `docs/KUBERNETES.md`.
 
 ## Secret status
 
@@ -226,7 +226,20 @@ for item in result["items"]:
         print("  ", change["field"], change.get("before"), "->", change.get("after"))
 ```
 
-Each item reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `changes`, a list of `{"field", "before", "after"}` with values as strings truncated to 200 characters.
+Each item reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `changes`, a list of `{"field", "before", "after"}` with values as strings truncated to 200 characters. Every item also carries `warnings` (a list of `FieldWarning`, empty when there is nothing to report) for dry runs and applies alike; see "Clamped values".
+
+## Clamped values
+
+Numbers outside their documented range are not rejected: the server stores the nearest allowed value (deployment `maxAttempts` 99 is stored as 10). Create and update responses for agents, deployments, harness profiles, MCP servers, and workspace templates then carry `warnings`, a list of `FieldWarning` dictionaries (`field`, `code`, `given`, `stored`, `message`). The key is absent when every value was stored as given, and reads never carry it. `FIELD_WARNING_CODES` lists the codes; today the only one is `"ValueClamped"`.
+
+```python
+deployment = client.deployments.create({"agentId": agent["id"], "name": "helper", "harnessProfileId": profile_id,
+                                        "maxAttempts": 99})
+for warning in deployment.get("warnings", []):
+    print(warning["field"], warning["code"], warning["given"], "->", warning["stored"], warning["message"])
+```
+
+Drop `warnings` before sending a dictionary you read back as an update body; the server ignores it, but it is response-only. See "Warnings" in `REST_API.md`.
 
 ## Errors
 

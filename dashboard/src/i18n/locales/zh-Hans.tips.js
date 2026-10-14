@@ -30,6 +30,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  fieldWarnings: { dismiss: '隐藏此提示。记录已按此处列出的值保存。' },
   approvals: {
     awaiting_one: 'Harness 在工具调用前发出询问，正在等待人员处理。打开“审批”标签页来允许或拒绝（{{count}} 个待处理）。',
     awaiting_other: 'Harness 在工具调用前发出询问，正在等待人员处理。打开“审批”标签页来允许或拒绝（{{count}} 个待处理）。',
@@ -928,6 +929,7 @@ const tips = {
       conversationTurn: '此运行在对话中的位置，开始对话的那一轮为 1。'
     },
     nodes: {
+      containerized: '工作节点是否在容器或 Pod 中运行，取自其注册时的报告。容器化工作节点上的 Codex 运行默认使用 danger-full-access 沙箱，因为容器本身就是隔离边界。',
       name: '节点名称，通常是工作节点的 Kubernetes Pod 名称。',
       status: '节点是否接受新的运行。维护前请先封锁或排空节点。',
       capacity: '节点当前持有的运行数，以及它同时接受的最大运行数。',
@@ -1229,6 +1231,7 @@ const tips = {
       }
     },
     manifests: {
+      warnings: '此文档中已被接受但保存结果不同的值，例如超出范围而被限制的数字。行下方的列表列出每个字段。',
       planned: '应用此文档会执行的操作：创建记录、更新记录或保持不变。试运行只做验证，不会更改任何内容。',
       changes: { after: '清单要设置的值。过长的值会在 200 个字符处截断。', before: '当前存储的值。过长的值会在 200 个字符处截断。', field: '清单要更改的此记录的设置，例如 model 或 parameters.model。' },
       results: '应用操作对清单中每个文档的处理结果。',

@@ -13,6 +13,13 @@ namespace Garrison.Sdk.Models
         #region Public-Members
 
         /// <summary>
+        /// Warnings from the create or update request that returned this record (responses only): one entry per value
+        /// the server did not store as given, for example code ValueClamped for a number outside its range. Null when
+        /// there is nothing to report, and on reads.
+        /// </summary>
+        public List<FieldWarning>? Warnings { get; set; } = null;
+
+        /// <summary>
         /// Identifier.
         /// </summary>
         public string Id

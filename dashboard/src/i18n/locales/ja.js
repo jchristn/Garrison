@@ -34,7 +34,8 @@ const ja = {
       guardRepetitionUnit: '繰り返しガード: アシスタントテキストの直近 {{window}} 文字が、{{size}} 文字の単位「{{unit}}」の {{count}} 回の繰り返しです。',
       guardDegenerate: '繰り返しガード: アシスタントテキストの直近 {{window}} 文字に文字や数字がなく (空白、句読点、記号のみ)、「{{tail}}」で終わっています。',
       guardNoProgress: '実行が {{seconds}} 秒間進行しませんでした (アシスタントテキスト、思考、ツール呼び出し、ツール結果がなく、開いているツール呼び出しもありません)。noProgressSeconds の上限は {{limit}} です。',
-      guardOutputLimit: 'アシスタントテキストが実行の maxAssistantChars の上限 {{limit}} 文字を超えました。'
+      guardOutputLimit: 'アシスタントテキストが実行の maxAssistantChars の上限 {{limit}} 文字を超えました。',
+      valueClamped: '{{field}} の値 {{given}} は許容範囲 {{minimum}} から {{maximum}} の外にあるため、{{stored}} を保存しました。'
     },
     appName: 'Garrison',
     language: { label: '言語' },
@@ -449,6 +450,7 @@ const ja = {
     run: '実行トークン'
   },
   components: {
+    fieldWarnings: { title_one: '{{count}} 件の値を調整して保存しました', title_other: '{{count}} 件の値を調整して保存しました', body: 'サーバーはリクエストを受け付けましたが、次の値は送信した内容とは異なる値で保存されました。', dismiss: '閉じる', codes: { ValueClamped: '値を許容範囲に制限しました' } },
     approvals: {
       awaiting: '承認待ち',
       decideTitle: '{{tool}} を決定',
@@ -1042,7 +1044,7 @@ const ja = {
     },
     nodes: {
       ...rp('ノード', '実行をリースして処理するワーカーノードです。メンテナンス前には隔離またはドレインしてください。', 'ノードを追加', 'ノードを作成', 'ノードを編集', 'ノードの詳細', 'ノードを削除', 'ノードはまだありません', 'ワーカーノードは起動時に自動で登録されます。ワーカーの StatefulSet をデプロイするか、Garrison.Worker をローカルで起動してください。'),
-      columns: { name: '名前', status: '状態', capacity: '実行', harnesses: 'ハーネス', executors: 'エグゼキューター', labels: 'ラベル', nodeVersion: 'バージョン', lastHeartbeatUtc: '最終ハートビート', id: 'ID' },
+      columns: { name: '名前', status: '状態', capacity: '実行', harnesses: 'ハーネス', executors: 'エグゼキューター', containerized: 'コンテナ内', labels: 'ラベル', nodeVersion: 'バージョン', lastHeartbeatUtc: '最終ハートビート', id: 'ID' },
       fields: { address: 'アドレス', maxConcurrentRuns: '容量', childReserveSlots: '子用の予約枠', maxResidentWaiters: '待機中の実行の上限', activeRuns: '実行中', capabilities: '対応機能', detectedVersion: 'バージョン', available: '利用可能', detail: '詳細' },
       actions: { cordon: '隔離', uncordon: '隔離を解除', drain: 'ドレイン', runs: '実行を表示', grafana: 'Grafana で開く' },
       toasts: { cordoned: 'ノードを隔離しました。', uncordoned: 'ノードの隔離を解除しました。', draining: 'ノードをドレインしています。' }
@@ -1430,6 +1432,8 @@ const ja = {
       }
     },
     manifests: {
+      warnings_one: '警告 {{count}} 件',
+      warnings_other: '警告 {{count}} 件',
       planned: '予定: {{result}}',
       changes: { count_other: '{{count}} 個のフィールドが変わります。', count_one: '{{count}} 個のフィールドが変わります。', empty: '(空)', after: '変更後', before: '変更前', field: 'フィールド' },
       title: 'マニフェスト',

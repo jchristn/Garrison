@@ -85,7 +85,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | G-29 | Codex shell commands blocked by bubblewrap in containerized workers | Done 2026-10-14 (D-050): `executor.containerized` selects `danger-full-access` in containers, `workspace-write` on hosts; an explicit `sandbox` wins. Real-Codex check in Docker pending an image rebuild |
 | Empty input | Invoke with no body or empty input started a run | Done 2026-10-14 (D-050): 400 `ValidationFailed` with field code `InputRequired` on `input` for REST invoke, run create, deployment test, conversation turns, MCP, A2A, and pipeline start |
 | I-06 | Manifest apply reloads the same references per document | Done 2026-10-14: one reference cache per apply; harness profile reads per apply no longer grow with documents (12 deployments: 84/168/252 to 7/7/7 statements for dry run/apply/re-apply) |
-| I-08 | Silent clamping | Done 2026-10-14: `warnings` (`ValueClamped`) on REST and MCP create/update responses and on manifest apply items; storage still clamps |
+| I-08 | Silent clamping | Done 2026-10-14: `warnings` (`ValueClamped`) on REST and MCP create/update responses and on manifest apply items; storage still clamps; typed in all four SDKs and shown in the dashboard |
 | I-05 | Request history writes for node protocol traffic | Done 2026-10-13: off by default, `RequestHistory.CaptureNodeProtocol` |
 | I-01 | Synchronous invocation connection handling | Done 2026-10-13: completion-only wakeups, `Scheduling.InvocationWaitPollMs` fallback |
 | Cancellation | Cancellation latency under load | Done 2026-10-13 at in-process scale: 40 to 85 ms with two workers churning event-heavy runs (`cancel-*/latency-under-load`); overload-level measurement belongs to P14.15 |

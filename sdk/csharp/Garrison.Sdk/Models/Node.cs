@@ -12,6 +12,13 @@ namespace Garrison.Sdk.Models
     {
         #region Public-Members
 
+        /// <summary>
+        /// Whether the worker runs inside a container or pod, as reported at registration (worker setting Containerized,
+        /// GARRISON_WORKER_CONTAINERIZED). Containerized workers default the built-in Codex profiles to the
+        /// danger-full-access sandbox because the container is the isolation boundary. Default false.
+        /// </summary>
+        public bool Containerized { get; set; } = false;
+
         /// <summary>Whether this worker supports stdio MCP connection diagnostics.</summary>
         public bool SupportsMcpTests { get; set; } = false;
 

@@ -31,6 +31,7 @@ const FILE_ITEMS = {
 };
 
 const tips = {
+  fieldWarnings: { dismiss: 'Hide this notice. The record is already saved with the values listed here.' },
   approvals: {
     awaiting_one: 'The harness asked before a tool call and is waiting for a person. Open the Approvals tab to allow or deny it ({{count}} waiting).',
     awaiting_other: 'The harness asked before tool calls and is waiting for a person. Open the Approvals tab to allow or deny them ({{count}} waiting).',
@@ -929,6 +930,7 @@ const tips = {
       conversationTurn: 'Position of this run in its conversation, starting at 1 for the turn that started it.'
     },
     nodes: {
+      containerized: 'Whether the worker runs inside a container or pod, as it reported at registration. Codex runs on a containerized worker default to the danger-full-access sandbox because the container is the isolation boundary.',
       name: 'Node name, usually the Kubernetes pod name of the worker.',
       status: 'Whether the node accepts new runs. Cordon or drain a node before maintenance.',
       capacity: 'Runs the node holds now out of the most it accepts at once.',
@@ -1230,6 +1232,7 @@ const tips = {
       }
     },
     manifests: {
+      warnings: 'Values in this document that were accepted but stored differently, for example a number outside its range that was clamped. The list under the row names each field.',
       planned: 'What applying this document would do: create the record, update it, or leave it unchanged. A dry run validates without changing anything.',
       changes: { after: 'The value the manifest sets. Long values are cut at 200 characters.', before: 'The value stored now. Long values are cut at 200 characters.', field: 'The setting of this record that the manifest changes, for example model or parameters.model.' },
       results: 'What the apply did with each document in the manifest.',

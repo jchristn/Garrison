@@ -34,7 +34,8 @@ const zhHans = {
       guardRepetitionUnit: '重复防护：助手文本的最后 {{window}} 个字符是 {{size}} 个字符的单元“{{unit}}”重复了 {{count}} 次。',
       guardDegenerate: '重复防护：助手文本的最后 {{window}} 个字符不含字母或数字（只有空白、标点或符号），结尾为“{{tail}}”。',
       guardNoProgress: '运行在 {{seconds}} 秒内没有进展（没有助手文本、思考、工具调用或工具结果，也没有未完成的工具调用）；其 noProgressSeconds 限制为 {{limit}}。',
-      guardOutputLimit: '助手文本超过了运行的 maxAssistantChars 限制 {{limit}} 个字符。'
+      guardOutputLimit: '助手文本超过了运行的 maxAssistantChars 限制 {{limit}} 个字符。',
+      valueClamped: '{{field}} 的值 {{given}} 超出允许范围 {{minimum}} 到 {{maximum}}，已保存 {{stored}}。'
     },
     appName: 'Garrison',
     language: { label: '语言' },
@@ -449,6 +450,7 @@ const zhHans = {
     run: '运行令牌'
   },
   components: {
+    fieldWarnings: { title_one: '已保存，{{count}} 个值已调整', title_other: '已保存，{{count}} 个值已调整', body: '服务器已接受请求，但以下值的保存结果与提交的值不同。', dismiss: '关闭', codes: { ValueClamped: '值已限制在允许范围内' } },
     approvals: {
       awaiting: '等待审批',
       decideTitle: '决定 {{tool}}',
@@ -1043,7 +1045,7 @@ const zhHans = {
     },
     nodes: {
       ...rp('节点', '租用并执行运行的工作节点。维护前请先封锁或排空节点。', '添加节点', '创建节点', '编辑节点', '节点详情', '删除节点', '暂无节点', '工作节点启动时会自动注册。请部署工作节点 StatefulSet，或在本地运行 Garrison.Worker。'),
-      columns: { name: '名称', status: '状态', capacity: '运行数', harnesses: 'Harness', executors: '执行器', labels: '标签', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳', id: 'ID' },
+      columns: { name: '名称', status: '状态', capacity: '运行数', harnesses: 'Harness', executors: '执行器', containerized: '容器化', labels: '标签', nodeVersion: '版本', lastHeartbeatUtc: '上次心跳', id: 'ID' },
       fields: { address: '地址', maxConcurrentRuns: '容量', childReserveSlots: '子运行预留', maxResidentWaiters: '最多等待运行数', activeRuns: '活动运行', capabilities: '能力', detectedVersion: '版本', available: '可用', detail: '详细信息' },
       actions: { cordon: '封锁', uncordon: '解除封锁', drain: '排空', runs: '查看运行', grafana: '在 Grafana 中打开' },
       toasts: { cordoned: '节点已封锁。', uncordoned: '节点已解除封锁。', draining: '节点正在排空。' }
@@ -1432,6 +1434,8 @@ const zhHans = {
       }
     },
     manifests: {
+      warnings_one: '{{count}} 条警告',
+      warnings_other: '{{count}} 条警告',
       planned: '预计结果：{{result}}',
       changes: { count_other: '{{count}} 个字段有变更。', count_one: '{{count}} 个字段有变更。', empty: '（空）', after: '变更后', before: '变更前', field: '字段' },
       title: '清单',

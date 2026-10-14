@@ -1098,6 +1098,11 @@ input:disabled, select:disabled, textarea:disabled, textarea[readonly], input[re
 .guard-notice p { margin: 0; overflow-wrap: anywhere; }
 .guard-notice-title { font-size: var(--font-size-base); }
 .stream-preview .guard-notice { margin-bottom: 0; }
+.field-warnings { flex-direction: column; align-items: stretch; gap: var(--spacing-xs); }
+.field-warnings p { margin: 0; }
+.field-warnings-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); flex-wrap: wrap; }
+.field-warnings-list { margin: 0; padding-inline-start: var(--spacing-lg); display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.manifest-results .field-warnings { margin-bottom: 0; }
 
 /* Invoke actions: Send, Cancel, and the stop-on-leave setting (P3.15). */
 .invoke-actions { flex-wrap: wrap; align-items: center; }

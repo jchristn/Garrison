@@ -118,6 +118,23 @@ namespace Garrison.Sdk.Models
             }
         }
 
+        /// <summary>
+        /// Values in this document that the server accepted but did not store as written, for example a number outside
+        /// its range that was clamped (code ValueClamped). Reported on dry runs and applies alike; empty when there is
+        /// nothing to report. Never null.
+        /// </summary>
+        public List<FieldWarning> Warnings
+        {
+            get
+            {
+                return _Warnings;
+            }
+            set
+            {
+                _Warnings = value ?? new List<FieldWarning>();
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -127,6 +144,7 @@ namespace Garrison.Sdk.Models
         private string _Kind = String.Empty;
         private string _Name = String.Empty;
         private List<ManifestFieldChange> _Changes = new List<ManifestFieldChange>();
+        private List<FieldWarning> _Warnings = new List<FieldWarning>();
 
         #endregion
     }

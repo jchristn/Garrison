@@ -65,7 +65,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -178,7 +178,7 @@ When the agent has an output schema, the server validates each run's final outpu
 
 ## Executors and run pods
 
-`Deployment.executor` (`RunExecutor`: `"Process"`, the default, or `"KubernetesJob"` for a Kubernetes Job per run) chooses how runs execute; null uses the node pool's `defaultExecutor`, then Process. `Deployment.podResources` (`RunPodResources`) sets the run pod's requests and limits as Kubernetes quantities. Runs carry `executor`, worker nodes (`WorkerNode`) list `executors`, and only nodes reporting a run's executor claim it. `WorkspaceTemplate` kind `"PersistentVolume"` mounts `persistentVolumeClaim` at the workspace path (KubernetesJob runs only). `RUN_OUTCOMES` includes `PodFailed` for run pods that fail outside the harness. See `docs/KUBERNETES.md`.
+`Deployment.executor` (`RunExecutor`: `"Process"`, the default, or `"KubernetesJob"` for a Kubernetes Job per run) chooses how runs execute; null uses the node pool's `defaultExecutor`, then Process. `Deployment.podResources` (`RunPodResources`) sets the run pod's requests and limits as Kubernetes quantities. Runs carry `executor`, worker nodes (`WorkerNode`) list `executors`, and only nodes reporting a run's executor claim it. `WorkspaceTemplate` kind `"PersistentVolume"` mounts `persistentVolumeClaim` at the workspace path (KubernetesJob runs only). `RUN_OUTCOMES` includes `PodFailed` for run pods that fail outside the harness. `WorkerNode.containerized` (default `false`) says whether the worker runs inside a container or pod, which makes the built-in Codex profiles default their sandbox to `danger-full-access`. See `docs/KUBERNETES.md`.
 
 ## Secret status
 
@@ -221,7 +221,18 @@ for (const item of result.items) {
 }
 ```
 
-Each item (`ManifestApplyItem`) reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `changes` (`ManifestFieldChange`: `field`, `before`, `after`), with values as strings truncated to 200 characters.
+Each item (`ManifestApplyItem`) reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `changes` (`ManifestFieldChange`: `field`, `before`, `after`), with values as strings truncated to 200 characters. Every item also carries `warnings` (`FieldWarning[]`, empty when there is nothing to report) for dry runs and applies alike; see "Clamped values".
+
+## Clamped values
+
+Numbers outside their documented range are not rejected: the server stores the nearest allowed value (deployment `maxAttempts` 99 is stored as 10). Create and update responses for agents, deployments, harness profiles, MCP servers, and workspace templates (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`) then carry `warnings?: FieldWarning[]` (`field`, `code`, `given`, `stored`, `message`). The property is absent when every value was stored as given, and reads never carry it. `FieldWarningCode` lists the codes; today the only one is `"ValueClamped"`.
+
+```ts
+const deployment = await client.deployments.create({ agentId: agent.id, name: "helper", harnessProfileId: profileId, maxAttempts: 99 });
+for (const w of deployment.warnings ?? []) console.log(w.field, w.code, w.given, "->", w.stored, w.message);
+```
+
+Leave `warnings` out when you spread a response into an update body; it is response-only. See "Warnings" in `REST_API.md`.
 
 ## Errors
 

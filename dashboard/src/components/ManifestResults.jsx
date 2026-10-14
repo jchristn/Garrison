@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from './StatusBadge';
+import FieldWarnings, { fieldWarningsOf } from './FieldWarnings';
 import { tip } from './Tooltip';
 import { enumTip } from '../utils/tips';
 import { enumLabel } from '../utils/enums';
@@ -11,6 +12,7 @@ const RESULT_TONE = { Created: 'success', Updated: 'info', Unchanged: 'neutral',
 /**
  * Per-document manifest results with field-level changes (M1-14). Each Updated item lists its `changes`
  * ({ field, before, after }) in a diff table under its row; values are the server's strings (up to 200 characters).
+ * Items with `warnings` (I-08, for example a clamped value) list them in a notice under the row.
  */
 export default function ManifestResults({ items, testId = 'manifest-results' }) {
   const { t } = useTranslation();
@@ -29,6 +31,7 @@ export default function ManifestResults({ items, testId = 'manifest-results' }) 
         <tbody>
           {(items || []).map((it, i) => {
             const changes = Array.isArray(it.changes) ? it.changes : [];
+            const warnings = fieldWarningsOf(it);
             return (
               <Fragment key={it.id || i}>
                 <tr data-item={it.name}>
@@ -49,8 +52,23 @@ export default function ManifestResults({ items, testId = 'manifest-results' }) 
                   <td>
                     {it.errorCode && <><code className="text-danger" data-testid="manifest-error-code">{it.errorCode}</code>{' '}</>}
                     {it.message ? translateServerText(t, it.message) : changes.length ? t('views.manifests.changes.count', { count: changes.length }) : '-'}
+                    {warnings.length > 0 && (
+                      <>
+                        {' '}
+                        <Badge tone="warning" tip={t('tips.views.manifests.warnings')}>
+                          {t('views.manifests.warnings', { count: warnings.length })}
+                        </Badge>
+                      </>
+                    )}
                   </td>
                 </tr>
+                {warnings.length > 0 && (
+                  <tr className="manifest-warnings-row">
+                    <td colSpan={4}>
+                      <FieldWarnings warnings={warnings} compact testId="manifest-warnings" />
+                    </td>
+                  </tr>
+                )}
                 {changes.length > 0 && (
                   <tr className="manifest-changes-row">
                     <td colSpan={4}>

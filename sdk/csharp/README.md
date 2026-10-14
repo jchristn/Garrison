@@ -265,7 +265,21 @@ foreach (ManifestApplyItem item in result.Items)
 }
 ```
 
-Each item reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `Changes` (`ManifestFieldChange`: `Field`, `Before`, `After`), with values as strings truncated to 200 characters.
+Each item reports what the apply did, or for a dry run what it would do. Items that are (or would be) `Updated` carry `Changes` (`ManifestFieldChange`: `Field`, `Before`, `After`), with values as strings truncated to 200 characters. Every item also carries `Warnings` (a `List<FieldWarning>`, never null, empty when there is nothing to report) for values that were accepted but not stored as written; see "Warnings".
+
+## Warnings
+
+A few numeric fields have a documented range, and the server clamps an out-of-range value to the nearest allowed value instead of rejecting the request. The create and update responses of `Agents`, `Deployments`, `HarnessProfiles`, `McpServers`, and `WorkspaceTemplates` then carry `Warnings` (`List<FieldWarning>?`): one `FieldWarning` per value, with `Field` (the REST field name, for example `maxAttempts` or `delegationMaxDepth`), `Code` (`ValueClamped`), `Given` and `Stored` (the values as text), and `Message`. `Warnings` is null when there is nothing to report and on reads, and the server never stores it. Manifest apply items carry the same warnings on dry runs and applies.
+
+```csharp
+Deployment saved = await client.Deployments.UpdateAsync(deployment.Id, deployment);
+if (saved.Warnings != null)
+{
+    foreach (FieldWarning warning in saved.Warnings) Console.WriteLine(warning.Field + ": " + warning.Message);
+}
+```
+
+The typed models in this SDK clamp the same ranges when you set a property (setting `MaxAttempts = 99` stores 10 locally), so a request built from them rarely produces a warning. Warnings matter when values come from somewhere else: manifests, or bodies sent through `client.Transport`. See "Warnings" in `REST_API.md`.
 
 ## Errors
 
@@ -318,6 +332,10 @@ Kubernetes workers can report `warmStart: true` alongside `coldStartClass: "Cold
 ## Artifacts
 
 The artifact client lists metadata, reads individual records, downloads raw bytes, creates temporary download links, and deletes files. Deployments select `artifactStoreId` and explicit `artifactGlobs`; empty globs disable automatic collection. Uploads require the active run lease epoch and repair attempt. See [Run artifacts](../../docs/ARTIFACTS.md) for store configuration and API behavior.
+
+## Containerized workers
+
+`Node.Containerized` is true when the worker reported at registration that it runs inside a container or pod (worker setting `Containerized`, environment `GARRISON_WORKER_CONTAINERIZED`, set by the worker image, Docker Compose, and the Kubernetes manifests). The built-in Codex profiles default their sandbox to `danger-full-access` on such workers, because the container is the isolation boundary; a deployment `sandbox` parameter still wins. Default false. See `docs/SECURITY.md`, "Codex sandbox in containers".
 
 ## Worker stdio MCP diagnostics
 

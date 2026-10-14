@@ -34,7 +34,8 @@ const fr = {
       guardRepetitionUnit: 'Garde de répétition : les {{window}} derniers caractères du texte de l\'assistant sont l\'unité de {{size}} caractères « {{unit}} » répétée {{count}} fois.',
       guardDegenerate: 'Garde de répétition : les {{window}} derniers caractères du texte de l\'assistant ne contiennent ni lettre ni chiffre (seulement des espaces, de la ponctuation ou des symboles) et se terminent par « {{tail}} ».',
       guardNoProgress: 'L\'exécution n\'a pas progressé pendant {{seconds}} secondes (aucun texte de l\'assistant, raisonnement, appel d\'outil ni résultat d\'outil, et aucun appel d\'outil ouvert) ; sa limite noProgressSeconds est {{limit}}.',
-      guardOutputLimit: 'Le texte de l\'assistant a dépassé la limite maxAssistantChars de l\'exécution, soit {{limit}} caractères.'
+      guardOutputLimit: 'Le texte de l\'assistant a dépassé la limite maxAssistantChars de l\'exécution, soit {{limit}} caractères.',
+      valueClamped: 'La valeur {{given}} de {{field}} est hors de la plage autorisée de {{minimum}} à {{maximum}} ; {{stored}} a été enregistré.'
     },
     appName: 'Garrison',
     language: { label: 'Langue' },
@@ -476,6 +477,7 @@ const fr = {
     run: 'Jeton d\'exécution'
   },
   components: {
+    fieldWarnings: { title_one: 'Enregistré avec {{count}} valeur ajustée', title_other: 'Enregistré avec {{count}} valeurs ajustées', body: 'Le serveur a accepté la requête, mais n\'a pas enregistré ces valeurs telles qu\'envoyées.', dismiss: 'Masquer', codes: { ValueClamped: 'Valeur ramenée dans la plage autorisée' } },
     approvals: {
       awaiting: 'En attente d\'approbation',
       decideTitle: 'Décider pour {{tool}}',
@@ -1082,7 +1084,7 @@ const fr = {
     },
     nodes: {
       ...rp('Nœuds', 'Nœuds worker qui prennent à bail et exécutent les exécutions. Isolez ou drainez un nœud avant une maintenance.', 'Ajouter un nœud', 'Créer un nœud', 'Modifier le nœud', 'Détails du nœud', 'Supprimer le nœud', 'Aucun nœud pour l\'instant', 'Les nœuds worker s\'enregistrent eux-mêmes au démarrage. Déployez le StatefulSet worker ou lancez Garrison.Worker en local.'),
-      columns: { name: 'Nom', status: 'Statut', capacity: 'Exécutions', harnesses: 'Harness', executors: 'Exécuteurs', labels: 'Étiquettes', nodeVersion: 'Version', lastHeartbeatUtc: 'Dernier signal de vie', id: 'ID' },
+      columns: { name: 'Nom', status: 'Statut', capacity: 'Exécutions', harnesses: 'Harness', executors: 'Exécuteurs', containerized: 'Conteneurisé', labels: 'Étiquettes', nodeVersion: 'Version', lastHeartbeatUtc: 'Dernier signal de vie', id: 'ID' },
       fields: { address: 'Adresse', maxConcurrentRuns: 'Capacité', childReserveSlots: 'Réserve pour les enfants', maxResidentWaiters: 'Exécutions en attente au maximum', activeRuns: 'Exécutions actives', capabilities: 'Capacités', detectedVersion: 'Version', available: 'Disponible', detail: 'Détail' },
       actions: { cordon: 'Isoler', uncordon: 'Réintégrer', drain: 'Drainer', runs: 'Voir les exécutions', grafana: 'Ouvrir dans Grafana' },
       toasts: { cordoned: 'Nœud isolé.', uncordoned: 'Nœud réintégré.', draining: 'Drainage du nœud en cours.' }
@@ -1477,6 +1479,8 @@ const fr = {
       }
     },
     manifests: {
+      warnings_one: '{{count}} avertissement',
+      warnings_other: '{{count}} avertissements',
       planned: 'Résultat prévu : {{result}}',
       changes: { count_many: '{{count}} champs changent.', count_other: '{{count}} champs changent.', count_one: '{{count}} champ change.', empty: '(vide)', after: 'Après', before: 'Avant', field: 'Champ' },
       title: 'Manifestes',

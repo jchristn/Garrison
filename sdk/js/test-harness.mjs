@@ -166,6 +166,32 @@ await check("manifest dry run", async () => {
   const result = await client.manifests.apply(yaml, { dryRun: true });
   require(result.dryRun, "not a dry run");
   require(result.failedCount === 0, `failed ${result.failedCount}`);
+  require(Array.isArray(result.items[0].warnings) && result.items[0].warnings.length === 0, `unexpected warnings ${JSON.stringify(result.items[0].warnings)}`);
+  const clamped = await client.manifests.apply(yaml.replace("description: Dry run only.", "description: Dry run only.\n  delegationMaxDepth: 99"), { dryRun: true });
+  const warning = (clamped.items[0].warnings ?? []).find((w) => w.field === "delegationMaxDepth");
+  require(warning && warning.code === "ValueClamped" && warning.given === "99" && warning.stored === "10", `manifest warnings ${JSON.stringify(clamped.items[0].warnings)}`);
+});
+await check("clamped values return ValueClamped warnings", async () => {
+  const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-clamp`, agentId: state.agent, harnessProfileId: state.fake, weight: 0, maxAttempts: 99 });
+  try {
+    require(deployment.maxAttempts === 10, `stored maxAttempts ${deployment.maxAttempts}`);
+    const warning = (deployment.warnings ?? []).find((w) => w.field === "maxAttempts");
+    require(warning && warning.code === "ValueClamped" && warning.given === "99" && warning.stored === "10" && warning.message, `create warnings ${JSON.stringify(deployment.warnings)}`);
+    const { warnings, ...body } = deployment;
+    const updated = await client.deployments.update(deployment.id, { ...body, maxAttempts: 3 });
+    require(updated.maxAttempts === 3 && updated.warnings === undefined, `update warnings ${JSON.stringify(updated.warnings)}`);
+    const read = await client.deployments.get(deployment.id);
+    require(read.warnings === undefined, "reads carry no warnings");
+  } finally {
+    await client.deployments.delete(deployment.id);
+  }
+});
+await check("nodes report containerized", async () => {
+  const nodes = (await client.nodes.list()).objects;
+  require(nodes.length > 0, "no nodes");
+  require(nodes.every((n) => typeof n.containerized === "boolean"), "containerized missing");
+  const worker = nodes.find((n) => n.name === "sdk-harness-worker");
+  require(!worker || worker.containerized === false, `harness worker containerized ${worker && worker.containerized}`);
 });
 await check("list runs by agent", async () => {
   const page = await client.runs.list({ agentId: state.agent });

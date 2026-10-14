@@ -29,6 +29,23 @@ class ExecutorCapabilities(ExecutorRequirements, total=False):
     warmStart: bool
 
 
+class FieldWarning(TypedDict, total=False):
+    """A request field that was accepted but not stored as given (I-08), for example a number outside its range that was
+    clamped. Create and update responses for agents, deployments, harness profiles, MCP servers, and workspace templates
+    carry these in "warnings" only when something was not stored as given (reads never do), and every manifest apply item
+    carries a "warnings" list (empty when there is nothing to report). Never stored on the resource itself."""
+    field: str
+    """Field name as the REST API spells it, for example "maxAttempts"."""
+    code: str
+    """Stable machine code from FIELD_WARNING_CODES; treat unknown codes as informational."""
+    given: Optional[str]
+    """The value the caller sent, as text; absent or None when there was none."""
+    stored: Optional[str]
+    """The value stored instead, as text; absent or None when nothing was stored."""
+    message: str
+    """Explanation naming the field, the given value, the allowed range, and the stored value."""
+
+
 DEFAULT_BASE_URL = "http://127.0.0.1:8700"
 TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"}
 # Run executors: deployment "executor", node pool "defaultExecutor", run "executor", node "executors".
@@ -43,6 +60,10 @@ TRUST_LEVELS = ("Trusted", "Untrusted")
 # accepted (true is AtLeastOnce, false is AtMostOnce); sending both with different meanings is a 400 with field code
 # EffectPolicyConflict, so drop "retryOnNodeLoss" from a deployment you read back before changing "effectPolicy".
 EFFECT_POLICIES = ("AtMostOnce", "AtLeastOnce", "Journaled")
+# FieldWarning["code"] values. ValueClamped: the value was outside its allowed range and the nearest allowed value was
+# stored (for example deployment maxAttempts 99 is stored as 10).
+FIELD_WARNING_CODES = ("ValueClamped",)
+# Node["containerized"] (bool, default False): whether the worker runs inside a container or pod, reported at registration.
 # Run["blockedReason"] values, computed on read for Queued runs no Ready worker can take; None otherwise.
 RUN_BLOCKED_REASONS = ("NoReadyWorker", "NoCapableWorker", "NoMatchingPool", "NoIsolatingWorker")
 

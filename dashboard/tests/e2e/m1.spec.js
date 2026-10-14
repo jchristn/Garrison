@@ -192,6 +192,39 @@ test('M1-14 manifest dry run shows field changes in a diff table', async ({ page
   await expect(changes.locator('tbody tr').first()).toContainText('300');
   await expect(changes.locator('tbody tr').first()).toContainText('120');
   await expect(page.getByTestId('manifest-results')).toContainText('Would be: Updated');
+  // I-08: a clamped value is listed under its document.
+  const warnings = page.getByTestId('manifest-warnings');
+  await expect(warnings).toHaveCount(1);
+  await expect(warnings).toContainText('maxAttempts');
+  await expect(warnings).toContainText('The value 99 for maxAttempts is outside the allowed range 1 to 10; 10 was stored.');
+  await expect(page.locator('tr[data-item="echo-agent-default"]')).toContainText('1 warning');
+});
+
+test('I-08 saving a deployment lists clamped values until dismissed', async ({ page }) => {
+  await page.route(/\/v1\.0\/api\/tenants\/[^/]+\/deployments\/dep_0002$/, (route) => {
+    if (route.request().method() !== 'PUT') return route.fallback();
+    const body = route.request().postDataJSON();
+    const warnings = [{ field: 'maxAttempts', code: 'ValueClamped', given: '99', stored: '10', message: 'maxAttempts 99 is outside the allowed range 1 to 10; 10 was stored.' }];
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...body, id: 'dep_0002', maxAttempts: 10, warnings }) });
+  });
+  await login(page);
+  await page.goto('/dashboard/deployments');
+  await page.locator('.data-table tbody tr', { hasText: 'deployment-2' }).getByText('deployment-2', { exact: true }).click();
+  await expect(page.locator('.modal')).toBeVisible();
+  await page.getByTestId('save-button').click();
+  const notice = page.getByTestId('save-warnings');
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText('Saved with 1 adjusted value');
+  await expect(notice.locator('li[data-field="maxAttempts"]')).toContainText('outside the allowed range 1 to 10');
+  await page.getByTestId('save-warnings-dismiss').click();
+  await expect(notice).toHaveCount(0);
+});
+
+test('G-29 the worker node list shows whether each node is containerized', async ({ page }) => {
+  await login(page);
+  await page.goto('/dashboard/nodes');
+  await expect(page.locator('.data-table tbody tr', { hasText: 'garrison-worker-0' }).getByTestId('node-containerized')).toHaveText('Yes');
+  await expect(page.locator('.data-table tbody tr', { hasText: 'garrison-worker-1' }).getByTestId('node-containerized')).toHaveText('No');
 });
 
 test('M1-20, M1-22, and M1-23 run detail shows names, template links, and why retry is unavailable', async ({ page }) => {

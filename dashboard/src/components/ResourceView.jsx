@@ -9,6 +9,7 @@ import JsonViewerModal from './JsonViewerModal';
 import ActionMenu from './ActionMenu';
 import FormFields from './FormFields';
 import Explainer from './Explainer';
+import FieldWarnings, { fieldWarningsOf } from './FieldWarnings';
 import { tip } from './Tooltip';
 import { EmptyState, ErrorBanner } from './States';
 import { PlusIcon, TrashIcon } from './Icons';
@@ -94,6 +95,7 @@ export default function ResourceView({ config }) {
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [saveWarnings, setSaveWarnings] = useState([]);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [selected, setSelected] = useState([]);
@@ -195,6 +197,8 @@ export default function ResourceView({ config }) {
       if (editing.mode === 'edit') result = await config.api.update(apiClient, tenantId, d.id, body);
       else result = await config.api.create(apiClient, tenantId, body);
       addToast({ type: 'success', message: t(editing.mode === 'edit' ? 'common.toasts.saved' : 'common.toasts.created') });
+      // I-08: values the server stored differently (clamped) stay listed on the page until dismissed.
+      setSaveWarnings(fieldWarningsOf(result));
       setEditing(null);
       if (config.afterCreate && editing.mode !== 'edit') config.afterCreate(result, { ...ctx, setExtraModal });
       load(page.pageNumber);
@@ -358,6 +362,8 @@ export default function ResourceView({ config }) {
           </>
         }
       />
+
+      <FieldWarnings warnings={saveWarnings} onDismiss={() => setSaveWarnings([])} testId="save-warnings" />
 
       {config.explainer && <Explainer topic={config.explainer} diagram={config.explainerDiagram ? config.explainerDiagram(ctx) : null} />}
       {intro && <div className="page-intro">{intro}</div>}

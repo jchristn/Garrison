@@ -34,7 +34,8 @@ const it = {
       guardRepetitionUnit: 'Protezione dalle ripetizioni: gli ultimi {{window}} caratteri del testo dell\'assistente sono l\'unità di {{size}} caratteri "{{unit}}" ripetuta {{count}} volte.',
       guardDegenerate: 'Protezione dalle ripetizioni: gli ultimi {{window}} caratteri del testo dell\'assistente non contengono lettere né cifre (solo spazi, punteggiatura o simboli) e terminano con "{{tail}}".',
       guardNoProgress: 'L\'esecuzione non è avanzata per {{seconds}} secondi (nessun testo dell\'assistente, ragionamento, chiamata a strumento o risultato di strumento, e nessuna chiamata a strumento aperta); il suo limite noProgressSeconds è {{limit}}.',
-      guardOutputLimit: 'Il testo dell\'assistente ha superato il limite maxAssistantChars dell\'esecuzione, pari a {{limit}} caratteri.'
+      guardOutputLimit: 'Il testo dell\'assistente ha superato il limite maxAssistantChars dell\'esecuzione, pari a {{limit}} caratteri.',
+      valueClamped: 'Il valore {{given}} di {{field}} è fuori dall\'intervallo consentito da {{minimum}} a {{maximum}}; è stato salvato {{stored}}.'
     },
     appName: 'Garrison',
     language: { label: 'Lingua' },
@@ -476,6 +477,7 @@ const it = {
     run: 'Token di esecuzione'
   },
   components: {
+    fieldWarnings: { title_one: 'Salvato con {{count}} valore modificato', title_other: 'Salvato con {{count}} valori modificati', body: 'Il server ha accettato la richiesta, ma ha salvato questi valori in modo diverso da come sono stati inviati.', dismiss: 'Chiudi', codes: { ValueClamped: 'Valore limitato all\'intervallo consentito' } },
     approvals: {
       awaiting: 'In attesa di approvazione',
       decideTitle: 'Decidi {{tool}}',
@@ -1082,7 +1084,7 @@ const it = {
     },
     nodes: {
       ...rp('Nodi', 'Nodi worker che prendono in lease ed eseguono le esecuzioni. Isola o svuota un nodo prima della manutenzione.', 'Aggiungi nodo', 'Crea nodo', 'Modifica nodo', 'Dettagli del nodo', 'Elimina nodo', 'Ancora nessun nodo', 'I nodi worker si registrano automaticamente all\'avvio. Distribuisci lo StatefulSet dei worker oppure avvia Garrison.Worker in locale.'),
-      columns: { name: 'Nome', status: 'Stato', capacity: 'Esecuzioni', harnesses: 'Harness', executors: 'Esecutori', labels: 'Etichette', nodeVersion: 'Versione', lastHeartbeatUtc: 'Ultimo heartbeat', id: 'ID' },
+      columns: { name: 'Nome', status: 'Stato', capacity: 'Esecuzioni', harnesses: 'Harness', executors: 'Esecutori', containerized: 'In container', labels: 'Etichette', nodeVersion: 'Versione', lastHeartbeatUtc: 'Ultimo heartbeat', id: 'ID' },
       fields: { address: 'Indirizzo', maxConcurrentRuns: 'Capacità', childReserveSlots: 'Riserva per le figlie', maxResidentWaiters: 'Massimo di esecuzioni in attesa', activeRuns: 'Esecuzioni attive', capabilities: 'Capacità harness', detectedVersion: 'Versione', available: 'Disponibile', detail: 'Dettaglio' },
       actions: { cordon: 'Isola', uncordon: 'Annulla isolamento', drain: 'Svuota', runs: 'Visualizza esecuzioni', grafana: 'Apri in Grafana' },
       toasts: { cordoned: 'Nodo isolato.', uncordoned: 'Isolamento del nodo annullato.', draining: 'Svuotamento del nodo in corso.' }
@@ -1477,6 +1479,8 @@ const it = {
       }
     },
     manifests: {
+      warnings_one: '{{count}} avviso',
+      warnings_other: '{{count}} avvisi',
       planned: 'Esito previsto: {{result}}',
       changes: { count_many: 'Cambiano {{count}} campi.', count_other: 'Cambiano {{count}} campi.', count_one: 'Cambia {{count}} campo.', empty: '(vuoto)', after: 'Dopo', before: 'Prima', field: 'Campo' },
       title: 'Manifest',
