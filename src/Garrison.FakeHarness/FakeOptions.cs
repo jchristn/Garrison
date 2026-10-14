@@ -94,6 +94,41 @@ namespace Garrison.FakeHarness
         }
 
         /// <summary>
+        /// Paced output events per second streamed before the answer, for load tests (P14.15). Each event is one assistant
+        /// text delta ("event N" on its own line), sent on a fixed schedule from the start of the stream so the rate does
+        /// not drift. 0 sends none. Minimum 0, maximum 10,000, default 0.
+        /// </summary>
+        public int EventsPerSecond
+        {
+            get
+            {
+                return _EventsPerSecond;
+            }
+            set
+            {
+                _EventsPerSecond = Math.Clamp(value, 0, 10000);
+            }
+        }
+
+        /// <summary>
+        /// Milliseconds the paced stream lasts before the answer, for load tests (P14.15). With
+        /// <see cref="EventsPerSecond"/> above 0 the run sends round(EventsPerSecond * DurationMs / 1000) events (at least
+        /// one) spread over this time; with EventsPerSecond 0 it only waits. 0 turns the stream off. Minimum 0, maximum
+        /// 3,600,000, default 0.
+        /// </summary>
+        public int DurationMs
+        {
+            get
+            {
+                return _DurationMs;
+            }
+            set
+            {
+                _DurationMs = Math.Clamp(value, 0, 3600000);
+            }
+        }
+
+        /// <summary>
         /// Answer text used instead of the echo (for example a JSON document). Null keeps the echo.
         /// </summary>
         public string? Answer { get; set; } = null;
@@ -198,6 +233,8 @@ namespace Garrison.FakeHarness
         #region Private-Members
 
         private int _EchoChars = 200;
+        private int _EventsPerSecond = 0;
+        private int _DurationMs = 0;
 
         #endregion
 
@@ -255,6 +292,12 @@ namespace Garrison.FakeHarness
                         break;
                     case "--echo-chars":
                         if (next != null) { options.EchoChars = Int32.Parse(next, CultureInfo.InvariantCulture); i++; }
+                        break;
+                    case "--events-per-second":
+                        if (next != null) { options.EventsPerSecond = Int32.Parse(next, CultureInfo.InvariantCulture); i++; }
+                        break;
+                    case "--duration-ms":
+                        if (next != null) { options.DurationMs = Int32.Parse(next, CultureInfo.InvariantCulture); i++; }
                         break;
                     case "--answer":
                         if (next != null) { options.Answer = next; i++; }

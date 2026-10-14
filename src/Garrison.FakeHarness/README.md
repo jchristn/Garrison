@@ -11,6 +11,7 @@ garrison-fake-harness --format claude|codex|codex-app-server|mux|plain [--scenar
                       [--ignore-sigterm] [--loop-text text] [--spawn-child pidfile] [--tool-sleep-ms N]
                       [--request-approval] [--approval-command text] [--request-file-approval path]
                       [--permission-prompt-tool mcp__server__tool] [--mcp-config file] [--permission-request Tool=inputJson]
+                      [--events-per-second N] [--duration-ms N]
 ```
 
 | Option | Effect |
@@ -40,6 +41,8 @@ garrison-fake-harness --format claude|codex|codex-app-server|mux|plain [--scenar
 | `--permission-prompt-tool name` | Claude Code's flag (`mcp__<server>__<tool>`). In Claude format, each `--permission-request` is asked through that tool on the server of that name in `--mcp-config`, with `tool_name`, `input`, and `tool_use_id`, the way Claude Code does. Without it every request is denied, like Claude Code in print mode. |
 | `--mcp-config file` | Claude Code's flag: the MCP configuration file, read for the permission prompt tool's URL and headers. |
 | `--permission-request Tool=inputJson` | Repeatable. In Claude format, emit a `tool_use` for the tool with that input, ask for permission, emit the `tool_result` (the denial message as an error when denied), and append `permission <Tool>: allow` or `deny` to the answer. Used by the approval tests. |
+| `--events-per-second N` | With `--duration-ms`, stream round(N x duration / 1000) assistant text deltas (`event 000001`, `event 000002`, ...; at least one) before the answer, each at its scheduled offset from the start of the stream so the rate does not drift. 0 to 10,000; default 0. Used by the control plane load test (`benchmarks/scale.sh`). |
+| `--duration-ms N` | How long the paced stream lasts, in milliseconds (0 to 3,600,000; default 0, no stream). Without `--events-per-second` the harness only waits this long, which gives a run a fixed duration. The event count and content are deterministic; only the timing follows the clock. |
 | `--think-ms N` | Pause between the thinking event and the first answer chunk. Default 20, so every run has a measurable time to first token and streaming time. |
 
 In the Claude, Codex, and Mux formats the answer is preceded by one thinking event (a `thinking_delta`, a `reasoning` item, or `assistant_thinking`), and the final usage reports 2 reasoning tokens (`output_tokens_details.thinking_tokens` for Claude, `reasoning_output_tokens` for Codex). Plain format has no thinking event.

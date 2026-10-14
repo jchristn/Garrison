@@ -103,6 +103,7 @@ None were added. Garrison already exposes what the suite needs: per-run timing f
 | P14.12 | `IMPROVEMENTS.md` | Done |
 | P14.13 | Every script as a `.sh` and `.bat` pair | Done |
 | P14.14 | Definition of Done (below) | Done, with the departures listed below |
+| P14.15 | Control plane load to failure: the `scale` command, the fake harness paced mode, and `benchmarks/scale.sh` with `scale-up.sh` and `scale-down.sh` (shell only: the scale stack needs Docker and a POSIX shell, so there is no `.bat` pair) | Tooling done; the 1k and 10k tiers are not measured yet |
 
 ## Definition of Done
 

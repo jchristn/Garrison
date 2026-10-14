@@ -185,11 +185,20 @@ namespace Garrison.Core.Telemetry
         /// <summary>Lease long-poll wait.</summary>
         public static readonly MetricDescriptor LeaseWait = new MetricDescriptor("garrison.scheduler.lease_wait.duration", MetricKindEnum.Histogram, "s", "result", "How long a lease request waited (long poll) before it was answered", "server", "Scheduler", "garrison-scheduler", TelemetryBuckets.Request);
 
+        /// <summary>Lease long-poll wakeups.</summary>
+        public static readonly MetricDescriptor QueueWakeups = new MetricDescriptor("garrison.scheduler.queue_wakeups", MetricKindEnum.Counter, "{wakeup}", "source", "Lease long polls woken to look for work again, by source: notify (a run was queued or released on any replica) or poll (the fallback poll interval, Runtime.LeasePollMs, passed without a signal)", "server", "Scheduler", "garrison-scheduler");
+
+        /// <summary>Deployment claim lock wait.</summary>
+        public static readonly MetricDescriptor DeploymentLockWait = new MetricDescriptor("garrison.scheduler.deployment_lock.wait", MetricKindEnum.Histogram, "s", "", "Time a claim waited for the per-deployment concurrency lock that serializes claims of one deployment (Postgresql only; Sqlite has a single writer)", "server", "Scheduler", "garrison-scheduler", TelemetryBuckets.Fast);
+
         /// <summary>Compile duration.</summary>
         public static readonly MetricDescriptor CompileDuration = new MetricDescriptor("garrison.compile.duration", MetricKindEnum.Histogram, "s", "harness, agent, result", "Time to compile a claimed run into an execution spec", "server", "Scheduler", "garrison-scheduler", TelemetryBuckets.Fast);
 
         /// <summary>Lease expirations.</summary>
         public static readonly MetricDescriptor LeaseExpirations = new MetricDescriptor("garrison.lease.expirations", MetricKindEnum.Counter, "{run}", "action", "Runs whose worker stopped renewing the lease (requeued or failed)", "server", "Scheduler", "garrison-scheduler");
+
+        /// <summary>Lease renewals.</summary>
+        public static readonly MetricDescriptor LeaseRenewals = new MetricDescriptor("garrison.lease.renewals", MetricKindEnum.Counter, "{renewal}", "result", "Run leases extended by worker heartbeats, by result: renewed, or lost (the lease had moved on, so the worker is told to stop the run)", "server", "Scheduler", "garrison-scheduler");
 
         /// <summary>Node heartbeats.</summary>
         public static readonly MetricDescriptor NodeHeartbeats = new MetricDescriptor("garrison.node.heartbeats", MetricKindEnum.Counter, "{heartbeat}", "result", "Worker heartbeats received (ok, unknown_node, rejected)", "server", "Workers", "garrison-workers");
@@ -412,8 +421,8 @@ namespace Garrison.Core.Telemetry
             AuthFailures, AuthRateLimited, AuthzDenials, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
             RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, RunEvents, EventBatchSize, RunsQueued, RunsActive,
-            QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, CompileDuration,
-            LeaseExpirations, NodeHeartbeats, NodeTransitions, Nodes,
+            QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,
+            LeaseExpirations, LeaseRenewals, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,
             SseStreamsActive, SseEvents, WebSocketSessions, WebSocketMessages, DelegationDepth, DelegationDenials, InvocationWait, DisconnectCancels,
             ControlNodes, ControlNodeHeartbeats, ControlNodeTransitions, LeaderChanges, IsLeader, MaintenancePauses,

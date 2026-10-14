@@ -3,6 +3,7 @@ namespace Garrison.Core.Database.Ado
     using System;
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Diagnostics;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace Garrison.Core.Database.Ado
     using Garrison.Core.Requests;
     using Garrison.Core.Responses;
     using Garrison.Core.Services;
+    using Garrison.Core.Telemetry;
 
     /// <summary>
     /// Provider-neutral Run data access. Thread-safe.
@@ -529,7 +531,12 @@ namespace Garrison.Core.Database.Ado
 
                 // Serialize claims for this deployment so the count below sees every committed claim (READ COMMITTED takes
                 // a new snapshot per statement, after the lock is granted). Sqlite already has a single writer.
-                if (lockSql != null) await AdoDatabaseDriver.ExecuteAsync(connection, transaction, lockSql, command => AdoDatabaseDriver.Add(command, "key", lockKey), ct).ConfigureAwait(false);
+                if (lockSql != null)
+                {
+                    long lockStart = Stopwatch.GetTimestamp();
+                    await AdoDatabaseDriver.ExecuteAsync(connection, transaction, lockSql, command => AdoDatabaseDriver.Add(command, "key", lockKey), ct).ConfigureAwait(false);
+                    GarrisonMetrics.Observe(GarrisonMetricCatalog.DeploymentLockWait, GarrisonMetrics.SecondsSince(lockStart));
+                }
 
                 DateTime now = DateTime.UtcNow;
                 int affected = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, claimSql, command =>

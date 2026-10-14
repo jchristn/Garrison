@@ -22,7 +22,7 @@ namespace Garrison.FakeHarness
     /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--session-id id] [resume sessionId] [--report-turns].
     /// [--spawn-child pidfile] [--tool-sleep-ms N] [--request-approval] [--approval-command text]
     /// [--request-file-approval path] [--permission-prompt-tool mcp__server__tool] [--mcp-config file]
-    /// [--permission-request Tool=inputJson] [--mcp-invoke server,tool,argsjson].
+    /// [--permission-request Tool=inputJson] [--mcp-invoke server,tool,argsjson] [--events-per-second N] [--duration-ms N].
     /// </summary>
     public static class Program
     {
@@ -99,6 +99,7 @@ namespace Garrison.FakeHarness
                 emitter.Loop(answer, options.LoopText.Length == 0 ? " " : options.LoopText);
             }
 
+            emitter.Stream();
             for (int i = 0; i < options.LargeOutputLines; i++) emitter.Filler(i);
             for (int i = 0; i < options.ToolCalls; i++) emitter.ToolCall("fake_tool", "ok " + (i + 1), true);
 
