@@ -2,7 +2,7 @@
 
 Updated 2026-10-14 under D-042/D-043 and D-049. The user selected all remaining P6/P7 work now, P11.18-20, and P12.8-13/P12.17. Other unfinished P11/P12 work and all unfinished P14/P15 work are deferred. Completed implementations remain. Daily quotas and cost estimation stay implemented, with quota enforcement explicitly opt-in and off by default.
 
-D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 0 active phase tasks, 2 conditional P10 tasks (P10.24 now evidenced by P14.15, P10.25 not), and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.29/P12.38/P14.15 are complete. Active core follow-ups are G-8 (SyslogLogging 2.4.1 per `~/Code/SyslogLogging/BUGFIX.md`, executed by another agent) and G-12 (real-Codex soak, then new Codex deployments on `builtin/codex-app-server`). I-01, I-05, and cancellation latency were completed 2026-10-13.
+D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 0 active phase tasks, 2 conditional P10 tasks (P10.24 now evidenced by P14.15, P10.25 not), and 55 deferred phase tasks. P6.17/P6.19/P7.5/P11.14/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.29/P12.38/P14.15 are complete. G-8 is done (SyslogLogging 2.4.1). G-12 is done (new Codex deployments use `builtin/codex-app-server`). G-29 (Codex shell commands blocked by the bubblewrap sandbox in containerized workers) is open and needs a decision. I-01, I-05, and cancellation latency were completed 2026-10-13.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -80,8 +80,9 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 
 | Tracking | Remaining work | Scope |
 |---|---|---|
-| G-8 | Console probe opt-out | Active: SyslogLogging 2.4.1 plan in `~/Code/SyslogLogging/BUGFIX.md` (another agent), then a package bump here |
-| G-12 | Codex app-server default after compatibility checks | Active: first soak 2026-10-14 hit the Codex account rate limit (HTTP 429) after a few runs; re-run when it resets |
+| G-8 | Console probe opt-out | Done 2026-10-14: SyslogLogging 2.4.1 `DetectConsole` |
+| G-12 | Codex app-server default after compatibility checks | Done 2026-10-14: soak passed 17/20, the 3 failures are G-29 |
+| G-29 | Codex shell commands blocked by bubblewrap in containerized workers | Open: needs a sandbox decision |
 | I-05 | Request history writes for node protocol traffic | Done 2026-10-13: off by default, `RequestHistory.CaptureNodeProtocol` |
 | I-01 | Synchronous invocation connection handling | Done 2026-10-13: completion-only wakeups, `Scheduling.InvocationWaitPollMs` fallback |
 | Cancellation | Cancellation latency under load | Done 2026-10-13 at in-process scale: 40 to 85 ms with two workers churning event-heavy runs (`cancel-*/latency-under-load`); overload-level measurement belongs to P14.15 |

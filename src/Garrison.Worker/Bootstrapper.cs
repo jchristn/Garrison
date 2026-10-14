@@ -46,10 +46,10 @@ namespace Garrison.Worker
         public static LoggingModule BuildLogging(WorkerLoggingSettings settings)
         {
             LoggingModule logging = new LoggingModule();
-            // Only call the setter to turn the console off. Setting EnableConsole to true makes SyslogLogging probe for a
-            // terminal (UserInteractive and WindowHeight), which fails in containers and silently disables console output,
-            // so kubectl logs would show nothing. The LoggingModule default is already true and skips the probe.
-            if (!settings.ConsoleLogging) logging.Settings.EnableConsole = false;
+            // Skip SyslogLogging's terminal probe: containers have no terminal, but their stdout is still collected
+            // (kubectl logs, docker logs), so the probe would silently turn console output off.
+            logging.Settings.DetectConsole = false;
+            logging.Settings.EnableConsole = settings.ConsoleLogging;
             logging.Settings.MinimumSeverity = (Severity)settings.MinimumSeverity;
             return logging;
         }

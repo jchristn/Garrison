@@ -83,7 +83,7 @@ metadata:
   name: coder-codex
 spec:
   agent: coder
-  harnessProfile: builtin/codex
+  harnessProfile: builtin/codex-app-server
   maxTurns: 8
   timeoutSeconds: 300
   resources:

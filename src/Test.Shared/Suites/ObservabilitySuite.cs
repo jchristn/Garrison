@@ -42,6 +42,7 @@ namespace Test.Shared.Suites
             List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
             cases.Add(new TestCaseDescriptor(id, "settings", "Observability URL settings validate, trim, and yield to environment variables", ct => SettingsAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "request-history-node-protocol", "Request history skips successful and abandoned worker node protocol calls unless RequestHistory.CaptureNodeProtocol is on, and keeps failed ones", ct => RequestHistoryNodeProtocolAsync(ct)));
+            cases.Add(new TestCaseDescriptor(id, "console-logging-without-terminal", "Server and worker console logging follows ConsoleLogging even with no terminal attached (G-8, SyslogLogging DetectConsole)", ct => ConsoleLoggingWithoutTerminalAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "server-info", "Server info reports observability URLs and Grafana UIDs only when configured", ct => ServerInfoAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "status-reachable", "Observability status probes report reachability and versions, and cache results", ct => StatusReachableAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "status-unreachable", "Observability status reports unreachable and unconfigured services without failing", ct => StatusUnreachableAsync(ct)));
@@ -120,6 +121,28 @@ namespace Test.Shared.Suites
                 Assert.Equal("http://grafana.example.com", reloaded.GetString("Observability.GrafanaUrl"), "Stored value survives a reload");
                 Assert.Equal(String.Empty, reloaded.GetString("Observability.LokiUrl"), "Without the environment variable the Loki URL is empty");
             }
+        }
+
+        private static Task ConsoleLoggingWithoutTerminalAsync(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            foreach (bool enabled in new bool[] { true, false })
+            {
+                Garrison.Server.Settings.LoggingSettings serverSettings = new Garrison.Server.Settings.LoggingSettings();
+                serverSettings.ConsoleLogging = enabled;
+                using (LoggingModule server = Garrison.Server.Bootstrapper.BuildLogging(serverSettings))
+                {
+                    Assert.Equal(enabled, server.Settings.EnableConsole, "Server console logging with ConsoleLogging " + enabled + " (the test host has no terminal)");
+                }
+
+                Garrison.Worker.Settings.WorkerLoggingSettings workerSettings = new Garrison.Worker.Settings.WorkerLoggingSettings();
+                workerSettings.ConsoleLogging = enabled;
+                using (LoggingModule worker = Garrison.Worker.Bootstrapper.BuildLogging(workerSettings))
+                {
+                    Assert.Equal(enabled, worker.Settings.EnableConsole, "Worker console logging with ConsoleLogging " + enabled + " (the test host has no terminal)");
+                }
+            }
+            return Task.CompletedTask;
         }
 
         private static async Task ServerInfoAsync(CancellationToken token)
