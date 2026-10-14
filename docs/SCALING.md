@@ -322,7 +322,7 @@ Two other costs stand out. Authentication lookups (tenants, credentials, users, 
 
 ### Control-plane tuning (P10.24)
 
-P14.15 found the thundering herd above, claims that queued behind each other, and about 75 authentication statements per run. P10.24 changes all three. Measurement pending: the before and after numbers from `benchmarks/scale.sh 1k` are added here when they are run on a quiet machine.
+P14.15 found the thundering herd above, claims that queued behind each other, and about 75 authentication statements per run. P10.24 changes all three. The measured effect is under "Results after P10.24" at the end of this section.
 
 **Targeted queue wakeups.** Every lease long poll registers with its replica's `LeaseWaiters` before its first claim pass, with what its node can take: harnesses, node pool, and whether it is a child reserve poll. Queuing a run builds a notice (run, harness, pool, delegated or not, affinity node) and wakes one sleeping poll that matches it, the affinity node's poll first, then regular polls before child reserve polls, asleep longest first. The notice travels to the other replicas as the subject of the `QueueChanged` message. When the queuing replica woke a poll of its own, the others hold the notice for `Scheduling.RemoteWakeDelayMs` (250 ms) and drop it when they see the run change (the claim publishes `RunChanged`); otherwise they wake one matching poll at once. So a run normally wakes one poll in the whole cluster instead of every poll on every replica.
 
@@ -339,6 +339,24 @@ Nothing may sleep through a run it could take, so three rules close the gaps:
 **Authentication cache.** Every request read its session, tenant, user, and credential (and wrote the credential's `lastUsedUtc`). Each replica now keeps these for `Auth.CacheSeconds` (default 5, 0 turns the cache off, at most 60). Run-token sessions are never cached, since the run's lease epoch is checked on every request anyway, and failed lookups are never cached, so a new user or credential works at once. Callers get copies of cached records. Invalidation is explicit: every change through the API to tenants, users, credentials (including rotation), roles, permissions, or assignments clears the cache on every replica through `PermissionsChanged`, and a logout drops its session everywhere through `SessionRevoked`, so these take effect within the backplane's delivery time (milliseconds with `PostgresNotify`, `Cluster.BackplanePollMs` with `Polling`). A read that started before an invalidation never stores its result. `Auth.CacheSeconds` is the bound for a change made outside the API (a direct database edit, a replica that missed a message). A credential's `lastUsedUtc` is now written at most once per `Auth.CacheSeconds` per replica. `garrison_auth_cache_lookups_total{entity,result}` counts hits and misses.
 
 The scale report (`benchmarks/scale.sh`) adds wakeups per run, lost claims per run, authentication statements per run (tables `tenants`, `users`, `credentials`, `authsessions`), and authentication cache hits and misses to each level.
+
+
+#### Results after P10.24, 2026-10-14
+
+Same machine and stack as the P14.15 results (3 servers, 10 workers x 32 slots, PostgreSQL 17 in Docker, 20 events/s for 1,000 ms per run), at `ad17841` (`benchmarks/results/20261014-1930*`).
+
+| | Before (P14.15) | After (P10.24) |
+|---|---|---|
+| Max sustained | 25.1 runs/s, 666 events/s | 49.9 runs/s, 1,268 events/s |
+| Claim p95 at 25/s | 58 ms | 20 ms |
+| Claim p95 at 50/s | 15.8 s (broke) | 38 ms (held) |
+| Wakeups per run at 25/s | 17.8 | 1.0 |
+| Lost claims per run at 25/s | 7.3 | 0.1 |
+| Authentication statements per run | about 75 | about 4 (cache hits 60,000 to 244 misses) |
+| Database statements per run at 25/s | 524 | 236 |
+| Breaking level | 50/s | 100/s |
+
+At 100/s the run still breaks with a plateau at about 50 runs/s, with 85 of 320 slots busy and 481 runs waiting, but the shape is different: polls almost never sleep (wakeups fall to near zero because every poll is already busy claiming), and the host is far past its capacity (one-minute load average 44.6 on 18 logical processors, since every fake run launches a .NET process). Two limits remain that this machine cannot separate: each worker's regular lease loop asks for one run per request (`MaxRuns = 1`), and host CPU. Measuring further needs either a worker that leases several runs per request or a host with more cores than the harness launches need.
 
 ## Event insertion microbenchmark (P10.22)
 
