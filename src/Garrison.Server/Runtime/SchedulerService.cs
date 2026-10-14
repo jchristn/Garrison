@@ -520,7 +520,7 @@ namespace Garrison.Server.Runtime
                     compile?.SetTag("garrison.run_id", run.Id);
                     if (!String.IsNullOrEmpty(run.ConversationId)) compile?.SetTag("garrison.conversation_id", run.ConversationId);
                     if (pipeline != null) compile?.SetTag("garrison.pipeline_run_id", run.PipelineRunId);
-                    compiled = await _Compiler().CompileAsync(run, runToken, transcript, pipeline, token).ConfigureAwait(false);
+                    compiled = await _Compiler().CompileAsync(run, runToken, transcript, pipeline, node, token).ConfigureAwait(false);
                 }
 
                 // A compile that waited on a credential refresh (G-22) may have used up part of the lease; give the
