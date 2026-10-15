@@ -3,6 +3,8 @@ namespace Garrison.Core.Database.Ado
     using System;
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Linq;
+    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Database.Interfaces;
@@ -23,6 +25,7 @@ namespace Garrison.Core.Database.Ado
         private readonly AdoDatabaseDriver _Driver;
         private readonly string _Table;
         private readonly string _HeadersTable;
+        private const int HeaderInsertChunk = 100;
 
         #endregion
 
@@ -421,23 +424,37 @@ namespace Garrison.Core.Database.Ado
 
         private async Task InsertChildrenAsync(DbConnection connection, DbTransaction transaction, RequestHistoryEntry obj, CancellationToken token)
         {
+            // One multi-row INSERT per chunk of headers instead of one statement per header: request history is written
+            // for every captured request, and a request carries a dozen or more headers.
             string batch = IdGenerator.NewChildRowId() + "_";
             for (int i = 0; i < obj.Headers.Count; i++)
             {
                 RequestHistoryHeader child = obj.Headers[i];
                 child.Id = batch + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + "hea";
                 child.RequestHistoryEntryId = obj.Id;
-                await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
-                    "INSERT INTO " + _HeadersTable + " (id, requesthistoryentryid, tenantid, direction, name, value) VALUES (@id, @requesthistoryentryid, @tenantid, @direction, @name, @value);",
-                    command =>
+            }
+            for (int offset = 0; offset < obj.Headers.Count; offset += HeaderInsertChunk)
+            {
+                List<RequestHistoryHeader> chunk = obj.Headers.Skip(offset).Take(HeaderInsertChunk).ToList();
+                StringBuilder sql = new StringBuilder("INSERT INTO " + _HeadersTable + " (id, requesthistoryentryid, tenantid, direction, name, value) VALUES ");
+                for (int i = 0; i < chunk.Count; i++)
+                {
+                    if (i > 0) sql.Append(", ");
+                    sql.Append("(@id" + i + ", @requesthistoryentryid, @tenantid, @direction" + i + ", @name" + i + ", @value" + i + ")");
+                }
+                sql.Append(';');
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, sql.ToString(), command =>
+                {
+                    AdoDatabaseDriver.Add(command, "requesthistoryentryid", obj.Id);
+                    AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
+                    for (int i = 0; i < chunk.Count; i++)
                     {
-                        AdoDatabaseDriver.Add(command, "id", child.Id);
-                        AdoDatabaseDriver.Add(command, "requesthistoryentryid", obj.Id);
-                        AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
-                        AdoDatabaseDriver.Add(command, "direction", child.Direction.ToString());
-                        AdoDatabaseDriver.Add(command, "name", child.Name);
-                        AdoDatabaseDriver.Add(command, "value", child.Value);
-                    }, token).ConfigureAwait(false);
+                        AdoDatabaseDriver.Add(command, "id" + i, chunk[i].Id);
+                        AdoDatabaseDriver.Add(command, "direction" + i, chunk[i].Direction.ToString());
+                        AdoDatabaseDriver.Add(command, "name" + i, chunk[i].Name);
+                        AdoDatabaseDriver.Add(command, "value" + i, chunk[i].Value);
+                    }
+                }, token).ConfigureAwait(false);
             }
         }
 

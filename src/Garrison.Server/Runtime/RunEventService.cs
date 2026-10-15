@@ -129,7 +129,7 @@ namespace Garrison.Server.Runtime
                 return;
             }
 
-            Run? run = await _Database.Runs.ReadAsync(runId, token).ConfigureAwait(false);
+            Run? run = await _Database.Runs.ReadRowAsync(runId, token).ConfigureAwait(false);
             bool alreadyRunning = run != null && run.LeaseNodeId == request.NodeId && run.LeaseEpoch == request.Epoch && (run.Status == RunStatusEnum.Running || run.Status == RunStatusEnum.Cancelling);
             if (!alreadyRunning) throw new ConflictException("StaleLease", "Run " + runId + " is not leased to node " + request.NodeId + " at epoch " + request.Epoch + ".");
         }
@@ -145,7 +145,8 @@ namespace Garrison.Server.Runtime
         public async Task<int> IngestAsync(string runId, RunEventsRequest request, CancellationToken token = default)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
-            Run run = await RequireLeaseAsync(runId, request.NodeId, request.Epoch, token).ConfigureAwait(false);
+            // Event batches arrive several times per run; the fencing check needs only the run's row.
+            Run run = await RequireLeaseAsync(runId, request.NodeId, request.Epoch, false, token).ConfigureAwait(false);
             if (request.Events.Count == 0) return 0;
 
             List<RunEvent> events = request.Events.Where(e => e.Sequence > 0).Select(e =>
@@ -191,7 +192,7 @@ namespace Garrison.Server.Runtime
         public async Task<RunCompleteResponse> CompleteAsync(string runId, RunCompleteRequest request, CancellationToken token = default)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
-            Run run = await RequireLeaseAsync(runId, request.NodeId, request.Epoch, token).ConfigureAwait(false);
+            Run run = await RequireLeaseAsync(runId, request.NodeId, request.Epoch, true, token).ConfigureAwait(false);
 
             if (request.RepairAttempt < run.RepairAttempts && _StructuredOutput != null && !String.IsNullOrEmpty(run.SessionId))
             {
@@ -445,9 +446,9 @@ namespace Garrison.Server.Runtime
             return Math.Max(0, value.Value);
         }
 
-        private async Task<Run> RequireLeaseAsync(string runId, string nodeId, long epoch, CancellationToken token)
+        private async Task<Run> RequireLeaseAsync(string runId, string nodeId, long epoch, bool withChildren, CancellationToken token)
         {
-            Run? run = await _Database.Runs.ReadAsync(runId, token).ConfigureAwait(false);
+            Run? run = withChildren ? await _Database.Runs.ReadAsync(runId, token).ConfigureAwait(false) : await _Database.Runs.ReadRowAsync(runId, token).ConfigureAwait(false);
             if (run == null) throw new NotFoundException("Run " + runId + " not found.");
             bool active = run.Status == RunStatusEnum.Leased || run.Status == RunStatusEnum.Running || run.Status == RunStatusEnum.Cancelling;
             if (!active || run.LeaseNodeId != nodeId || run.LeaseEpoch != epoch)

@@ -122,6 +122,17 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<Run?> ReadRowAsync(string id, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(id));
+            return await _Driver.QuerySingleAsync(
+                "SELECT * FROM " + _Table + " WHERE id = @id;",
+                command => AdoDatabaseDriver.Add(command, "id", id),
+                Map,
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<Run?> ReadAsync(string tenantId, string id, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));

@@ -34,6 +34,16 @@ namespace Garrison.Core.Database.Interfaces
         Task<Run?> ReadAsync(string id, CancellationToken token = default);
 
         /// <summary>
+        /// Read only a Run's own row, without its parameters, requirements, and template versions (those lists are left
+        /// empty). For hot paths that check status or lease fencing, such as event ingestion. Never write the result
+        /// back: an update from it would drop the run's child rows.
+        /// </summary>
+        /// <param name="id">Identifier.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The record without child rows, or null.</returns>
+        Task<Run?> ReadRowAsync(string id, CancellationToken token = default);
+
+        /// <summary>
         /// Read a Run by identifier within a tenant.
         /// </summary>
         /// <param name="tenantId">Tenant identifier.</param>
