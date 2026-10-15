@@ -59,7 +59,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P15.1 | Security review | Complete | D-054. `docs/SECURITY_REVIEW.md`: 26 findings; SR-01 to SR-07 fixed with regression suites (`security-unit`, `security-<provider>`), the rest open in P15.22 |
 | P15.2 | Versioned master-key rotation | Deferred | Production key lifecycle |
 | P15.3 | Credential and run-token expiry policies | Deferred | Bound credential lifetimes |
-| P15.4 | Dependency/image vulnerability scans | Complete | D-054. `Security scans` workflow (push, pull request, weekly, dispatch): NuGet, npm, pip-audit, govulncheck, Trivy. Remaining failures tracked in P15.23 |
+| P15.4 | Dependency/image vulnerability scans | Complete | D-054. `Security scans` workflow (push only, D-055): NuGet, npm, pip-audit, govulncheck, Trivy. Remaining failures tracked in P15.23 |
 | P15.5 | Signed images and SBOMs | Deferred | Supply-chain release artifacts |
 | P15.6 | Upgrade-path tests across releases | Complete | D-054. `upgrade-sqlite` and `upgrade-postgresql` suites: schema 1 and schema 15 installations upgrade with data, sign-in, and an end-to-end run; rolling replacement stays in `k8s/tests/rolling-upgrade-test.sh` |
 | P15.22 | Open security review findings | Active, needs decisions | SR-08 to SR-25 and the open parts of SR-03, SR-04, SR-07; most change existing behavior |
