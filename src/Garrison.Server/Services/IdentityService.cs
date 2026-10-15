@@ -187,6 +187,7 @@ namespace Garrison.Server.Services
         /// <param name="token">Cancellation token.</param>
         /// <returns>User.</returns>
         /// <exception cref="NotFoundException">Thrown when the user does not exist.</exception>
+        /// <exception cref="ValidationException">Thrown when the request is invalid, or when a caller who is not a system administrator changes a system administrator's flag, password, or email.</exception>
         public async Task<User> UpdateUserAsync(RequestContext ctx, string tenantId, string id, UserRequest request, CancellationToken token = default)
         {
             User user = await _Database.Users.ReadAsync(tenantId, id, token).ConfigureAwait(false) ?? throw new NotFoundException("User not found.");
@@ -195,6 +196,8 @@ namespace Garrison.Server.Services
             if (request.Email != null && (String.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))) errors["email"] = "A valid email is required.";
             if (request.Password != null && request.Password.Length < 8) errors["password"] = "Passwords must be at least 8 characters.";
             if (request.IsAdmin.HasValue && request.IsAdmin.Value != user.IsAdmin && !ctx.IsAdmin) errors["isAdmin"] = "Only system administrators may change the system administrator flag.";
+            if (user.IsAdmin && !ctx.IsAdmin && request.Password != null) errors["password"] = "Only system administrators may change a system administrator's password.";
+            if (user.IsAdmin && !ctx.IsAdmin && request.Email != null && !String.Equals(request.Email.Trim(), user.Email, StringComparison.OrdinalIgnoreCase)) errors["email"] = "Only system administrators may change a system administrator's email.";
             if (errors.Count > 0) throw new ValidationException("The user is invalid.", errors);
 
             if (request.Email != null && !String.Equals(request.Email.Trim(), user.Email, StringComparison.OrdinalIgnoreCase))
@@ -254,13 +257,16 @@ namespace Garrison.Server.Services
         /// <param name="request">Request.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Credential and secret.</returns>
-        /// <exception cref="ValidationException">Thrown when the request is invalid.</exception>
+        /// <exception cref="ValidationException">Thrown when the request is invalid, or when a caller who is not a system administrator creates a credential for a system administrator.</exception>
         public async Task<CredentialCreateResponse> CreateCredentialAsync(RequestContext ctx, string tenantId, CredentialRequest request, CancellationToken token = default)
         {
             if (request == null || String.IsNullOrWhiteSpace(request.Name)) throw Invalid("name", "A credential name is required.");
             string? userId = String.IsNullOrEmpty(request.UserId) ? ctx.UserId : request.UserId;
             if (String.IsNullOrEmpty(userId)) throw Invalid("userId", "An owning user is required.");
             User owner = await _Database.Users.ReadAsync(tenantId, userId, token).ConfigureAwait(false) ?? throw Invalid("userId", "The owning user does not exist in this tenant.");
+            // A credential acts with its owner's IsAdmin flag, so minting one for a system administrator is itself a
+            // system administrator operation.
+            if (owner.IsAdmin && !ctx.IsAdmin) throw Invalid("userId", "Only system administrators may create credentials for a system administrator.");
 
             BuiltInRole? builtIn = null;
             Role? custom = null;
@@ -341,9 +347,15 @@ namespace Garrison.Server.Services
         /// <param name="token">Cancellation token.</param>
         /// <returns>Credential and new secret.</returns>
         /// <exception cref="NotFoundException">Thrown when the credential does not exist.</exception>
+        /// <exception cref="ValidationException">Thrown when a caller who is not a system administrator rotates a system administrator's credential.</exception>
         public async Task<CredentialCreateResponse> RotateCredentialAsync(RequestContext ctx, string tenantId, string id, CancellationToken token = default)
         {
             Credential credential = await _Database.Credentials.ReadAsync(tenantId, id, token).ConfigureAwait(false) ?? throw new NotFoundException("Credential not found.");
+            if (!ctx.IsAdmin)
+            {
+                User? owner = await _Database.Users.ReadAsync(tenantId, credential.UserId, token).ConfigureAwait(false);
+                if (owner != null && owner.IsAdmin) throw Invalid("id", "Only system administrators may rotate a system administrator's credential.");
+            }
             string secret = SecretGenerator.NewSecretKey();
             credential.SecretKeyEncrypted = _Cipher.Encrypt(secret, credential.Id);
             credential.SecretKeyLast4 = SecretGenerator.Last4(secret);

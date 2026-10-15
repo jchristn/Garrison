@@ -102,7 +102,8 @@ Query string values are decoded the way browsers and HTTP clients encode them: p
 |---|---|
 | 400 | Malformed JSON (`InvalidJson`, `InvalidBody`), invalid input (`ValidationFailed`, `BadRequest`), template errors (`TemplateRenderFailed`), unknown references (`ReferenceNotFound`) |
 | 401 | Missing or invalid credentials (`AuthenticationRequired`, `InvalidCredentials`) |
-| 403 | Authenticated but not permitted (`AuthorizationDenied`) |
+| 403 | Authenticated but not permitted (`AuthorizationDenied`); a run token asked to retry a run (`RunTokenRetryNotAllowed`) |
+| 413 | The request's Content-Length is larger than `Rest.MaxRequestBodyBytes` (128 MiB by default), refused before the body is read |
 | 404 | The resource does not exist or belongs to another tenant (`NotFound`, `RouteNotFound`). A system administrator who names a tenant that does not exist in a `/tenants/{tenantId}/...` path gets `TenantNotFound`; other callers get `NotFound` for any tenant but their own, so the response does not reveal which tenants exist |
 | 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound`, and the conversation codes `ConversationBusy` (the conversation's previous turn is unfinished), `ConversationAgentMismatch`, `ConversationDeploymentMismatch`, `ConversationDeploymentUnavailable`, and the pipeline codes `PipelineInUse`, `PipelineInactive`, `PipelineEmpty`, `PipelineRunFinished`, `PipelineRunActive`, `PipelineRunNotRetryable`, `PipelineRunChanged`, `PipelineHistoryPruned`, `PipelineStageRun` (a stage run cannot be retried on its own), `ReferencedByPipeline` (an agent or deployment a pipeline stage uses), `ReviewNotPending`, and `RevisionLimitReached` |
 | 429 | Too many authentication attempts from one address (`RateLimited`); a quota refused admission (`QuotaExceeded`); or a run that delegates and waits was refused because waiting could leave no capacity to run its child (`DelegationCapacityExhausted`: the parent's worker already keeps as many waiting runs as it may, or `Runs.DelegationChildQueueDepth` waited children are already queued). `QuotaExceeded` and `DelegationCapacityExhausted` carry `Retry-After` in seconds (`Runs.DelegationRetryAfterSeconds`, default 5, for delegation). Delegating without waiting (`wait: false`) is never refused this way |
@@ -465,6 +466,8 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/users/{id}" \
   -d '{"email": "string", "password": "string", "firstName": "string", "lastName": "string", "isTenantAdmin": false, "isAdmin": false, "active": false}'
 ```
 
+Only a system administrator may change a system administrator's `password` or `email` (400 `ValidationFailed` on that field otherwise).
+
 #### `DELETE /v1.0/api/tenants/{tenantId}/users/{id}`
 
 Delete a user with credentials, sessions, and assignments.
@@ -529,6 +532,8 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials" \
   -d '{"name": "ci key", "userId": "usr_...", "roleName": "AgentInvoker"}'
 ```
 
+A credential acts with its owner's system administrator flag, so only a system administrator may create one for a system administrator (400 `ValidationFailed` on `userId` otherwise).
+
 #### `GET /v1.0/api/tenants/{tenantId}/credentials/{id}`
 
 Read a credential.
@@ -576,6 +581,8 @@ Rotate a credential secret (the new secret is returned once).
 curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/credentials/{id}/rotate" \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+Only a system administrator may rotate a credential owned by a system administrator (400 `ValidationFailed` on `id` otherwise).
 
 #### `DELETE /v1.0/api/tenants/{tenantId}/credentials/{id}`
 
@@ -1669,6 +1676,8 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers/{id}
   -H "Authorization: Bearer $TOKEN"
 ```
 
+An HTTP server whose host is, or resolves to, an unspecified, link-local, multicast, or broadcast address (including the cloud metadata addresses 169.254.169.254 and fd00:ec2::254) is not contacted: the test answers 200 with `success` false and an `error` that names the address. A stdio server is tested on the worker named by `?nodeId=`; in a tenant with `requireUntrustedDeployments` that answers 400 `ValidationFailed` with field code `StdioDiagnosticsRequireTrust` on `transport`, because the command would run on the worker host, outside run isolation.
+
 ### Secrets
 
 #### `GET /v1.0/api/tenants/{tenantId}/secrets`
@@ -2664,7 +2673,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/runs/{id}/retry"
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Only finished runs can be retried (409 `RunNotFinished` otherwise). A pipeline stage run answers 409 `PipelineStageRun`; retry its pipeline run with `POST .../pipeline-runs/{id}/retry` instead (see [Pipelines](#pipelines)). If the run's agent was deleted, the retry returns 409 `AgentDeleted` ("Run ... cannot be retried because the agent ... was deleted."); if only its deployment was deleted, 409 `DeploymentDeleted`. Invoke the agent again instead.
+Only finished runs can be retried (409 `RunNotFinished` otherwise). A pipeline stage run answers 409 `PipelineStageRun`; retry its pipeline run with `POST .../pipeline-runs/{id}/retry` instead (see [Pipelines](#pipelines)). If the run's agent was deleted, the retry returns 409 `AgentDeleted` ("Run ... cannot be retried because the agent ... was deleted."); if only its deployment was deleted, 409 `DeploymentDeleted`. Invoke the agent again instead. Run tokens cannot retry runs (403 `RunTokenRetryNotAllowed`): a retry starts a top-level run, outside the delegation policy, so a delegating harness invokes the agent instead.
 
 #### `GET /v1.0/api/tenants/{tenantId}/runs/{id}/events`
 

@@ -62,6 +62,8 @@ namespace Test.Shared
                 suites.AddRange(EgressAllowlistSuite.Build());
                 suites.AddRange(IsolationProbeSuite.Build());
                 suites.AddRange(ControlPlaneTuningSuite.Build());
+                suites.AddRange(SecurityReviewSuite.Build());
+                suites.AddRange(UpgradeSuite.Build());
                 return suites;
             }
         }

@@ -3,6 +3,7 @@ namespace Garrison.Server.Services
     using System;
     using System.Collections.Generic;
     using System.Collections.Specialized;
+    using System.Linq;
     using System.Text;
     using System.Threading;
     using System.Threading.Channels;
@@ -51,7 +52,8 @@ namespace Garrison.Server.Services
         };
 
         private const string NodeProtocolPrefix = "/v1.0/api/node/";
-        private static readonly string[] _SecretPathFragments = new string[] { "/secrets", "/token", "/credentials", "/node/heartbeat", "/node/lease" };
+        private static readonly string[] _SecretPathFragments = new string[] { "/secrets", "/token", "/credentials", "/node/heartbeat", "/node/lease", "/users", "/manifests/apply", "/v1.0/api/settings" };
+        private static readonly string[] _SecretQueryFragments = new string[] { "token", "secret", "password", "ticket", "key", "signature" };
 
         private readonly DatabaseDriverBase _Database;
         private readonly RequestHistorySettings _Settings;
@@ -179,7 +181,7 @@ namespace Garrison.Server.Services
             RequestHistoryEntry entry = new RequestHistoryEntry();
             entry.Method = context.Request.Method.ToString();
             entry.Path = Truncate(context.Request.Url.RawWithoutQuery ?? String.Empty, 1024);
-            entry.Url = entry.Path.Contains("/artifact-download/", StringComparison.Ordinal) ? entry.Path + "?ticket=" + Redacted : context.Request.Url.RawWithQuery ?? entry.Path;
+            entry.Url = RedactQuery(context.Request.Url.RawWithQuery ?? entry.Path);
             entry.StatusCode = context.Response.StatusCode;
             entry.DurationMs = Math.Round(context.Timestamp.TotalMs ?? 0, 3);
             entry.CreatedUtc = context.Timestamp.Start;
@@ -233,6 +235,28 @@ namespace Garrison.Server.Services
                 if (path.IndexOf(fragment, StringComparison.OrdinalIgnoreCase) >= 0) return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Replace the value of every query parameter whose name suggests a credential (token, secret, password, ticket,
+        /// key, signature), for example the WebSocket <c>token</c> and the artifact download <c>ticket</c>.
+        /// </summary>
+        /// <param name="url">Path with an optional query string.</param>
+        /// <returns>The URL with sensitive query values replaced by <see cref="Redacted"/>.</returns>
+        public static string RedactQuery(string? url)
+        {
+            if (String.IsNullOrEmpty(url)) return String.Empty;
+            int question = url.IndexOf('?');
+            if (question < 0 || question == url.Length - 1) return url;
+            string[] pairs = url.Substring(question + 1).Split('&');
+            for (int i = 0; i < pairs.Length; i++)
+            {
+                int equals = pairs[i].IndexOf('=');
+                string name = equals < 0 ? pairs[i] : pairs[i].Substring(0, equals);
+                string lower = Uri.UnescapeDataString(name).ToLowerInvariant();
+                if (_SecretQueryFragments.Any(f => lower.Contains(f, StringComparison.Ordinal))) pairs[i] = name + "=" + Redacted;
+            }
+            return url.Substring(0, question + 1) + String.Join("&", pairs);
         }
 
         /// <summary>

@@ -1,0 +1,140 @@
+name: Security scans
+
+# Dependency and image vulnerability scans (plan P15.4, decision D-054). Fails on High or Critical findings that have a
+# fix available: NuGet packages across the solution (including transitive), npm packages in the dashboard and the
+# JavaScript SDK, Python SDK dependencies (pip-audit), Go SDK modules and reachable standard library code
+# (govulncheck), and the server, worker, and dashboard images built from this commit (Trivy, ignore-unfixed).
+# Runs on pushes, pull requests, weekly (new advisories appear without code changes), and on demand. Images are built
+# locally on the runner and never pushed.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nuget:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Restore
+        run: dotnet restore src/Garrison.sln
+      - name: Vulnerable packages (High and Critical fail)
+        run: |
+          set -euo pipefail
+          dotnet list src/Garrison.sln package --vulnerable --include-transitive --format json > nuget-vulnerable.json
+          jq -r '.projects[] | .path as $p | (.frameworks // [])[] | .framework as $f
+            | ((.topLevelPackages // []) + (.transitivePackages // []))[]
+            | .id as $id | .resolvedVersion as $v | (.vulnerabilities // [])[]
+            | "\(.severity)\t\($id) \($v)\t\($f)\t\($p)\t\(.advisoryurl)"' nuget-vulnerable.json | sort -u | tee nuget-findings.tsv
+          if grep -qiE '^(high|critical)' nuget-findings.tsv; then
+            echo "High or Critical NuGet vulnerabilities found" >&2
+            exit 1
+          fi
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-vulnerable
+          path: nuget-vulnerable.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  npm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: [dashboard, sdk/js]
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit (High and Critical fail)
+        run: npm audit --audit-level=high
+
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pip-audit
+        run: python -m pip install pip-audit==2.10.1
+      - name: pip-audit
+        run: pip-audit sdk/python
+
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: sdk/go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+      - name: govulncheck
+        run: govulncheck ./...
+
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: server
+            dockerfile: src/Garrison.Server/Dockerfile
+            context: .
+          - name: worker
+            dockerfile: src/Garrison.Worker/Dockerfile
+            context: .
+          - name: dashboard
+            dockerfile: dashboard/Dockerfile
+            context: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f ${{ matrix.dockerfile }} -t garrison-${{ matrix.name }}:scan ${{ matrix.context }}
+      # Pinned to the commit behind trivy-action v0.36.0 rather than a movable tag, and the Trivy binary to an exact
+      # release, so a rewritten tag cannot change what runs here.
+      - name: Trivy (HIGH and CRITICAL with a fix fail)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          version: v0.75.0
+          image-ref: garrison-${{ matrix.name }}:scan
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'

@@ -114,6 +114,7 @@ namespace Garrison.Server.Routes
             {
                 if (String.IsNullOrWhiteSpace(store.Bucket) || store.Bucket.Length > 255) errors["bucket"] = "An S3 bucket name is required.";
                 if (!String.IsNullOrEmpty(store.Endpoint) && (!Uri.TryCreate(store.Endpoint, UriKind.Absolute, out Uri? endpoint) || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.UserInfo.Length > 0 || endpoint.Query.Length > 0 || endpoint.Fragment.Length > 0)) errors["endpoint"] = "Use an http or https S3 endpoint without embedded credentials or query parameters.";
+                else if (!String.IsNullOrEmpty(store.Endpoint) && Garrison.Core.Security.OutboundAddressPolicy.LiteralBlockedReason(new Uri(store.Endpoint, UriKind.Absolute)) is string blocked) errors["endpoint"] = blocked;
                 if (store.Region.Length > 128) errors["region"] = "The S3 region is too long.";
                 if (!String.IsNullOrEmpty(store.SecretId) && await _Server.Database.Secrets.ReadAsync(tenantId, store.SecretId, http.Token).ConfigureAwait(false) == null) errors["secretId"] = "The S3 credential secret does not exist in this tenant.";
             }

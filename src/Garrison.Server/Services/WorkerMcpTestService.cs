@@ -37,9 +37,24 @@ namespace Garrison.Server.Services
         /// <param name="timeoutMs">Protocol timeout.</param>
         /// <param name="token">Calling request cancellation.</param>
         /// <returns>Worker test outcome.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when server is null.</exception>
+        /// <exception cref="ValidationException">Thrown when the tenant requires Untrusted deployments (field code <c>StdioDiagnosticsRequireTrust</c>), no worker is selected, or the worker cannot run diagnostics.</exception>
+        /// <exception cref="NotFoundException">Thrown when the worker does not exist.</exception>
+        /// <exception cref="ConflictException">Thrown when the worker already has a diagnostic pending.</exception>
         public async Task<McpServerTestResponse> TestAsync(McpServer server, string? nodeId, int timeoutMs, CancellationToken token)
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
+            Tenant? tenant = await _Context.Database.Tenants.ReadAsync(server.TenantId, token).ConfigureAwait(false);
+            if (tenant != null && tenant.RequireUntrustedDeployments)
+            {
+                // The diagnostic runs the configured command as a child of the worker process itself, outside any run
+                // pod, so it would bypass the isolation this tenant requires for everything it runs.
+                Dictionary<string, string> errors = new Dictionary<string, string>();
+                errors["transport"] = "Stdio MCP diagnostics run on the worker host, outside run isolation, so tenants that require Untrusted deployments cannot run them.";
+                Dictionary<string, string> codes = new Dictionary<string, string>();
+                codes["transport"] = "StdioDiagnosticsRequireTrust";
+                throw new ValidationException("Stdio MCP diagnostics are not available in this tenant.", errors, codes);
+            }
             if (String.IsNullOrEmpty(nodeId)) throw new ValidationException("Select a worker node for a stdio MCP test.");
             Node node = await _Context.Database.Nodes.ReadAsync(nodeId, token).ConfigureAwait(false) ?? throw new NotFoundException("Worker node not found.");
             if (!node.Active || !node.SupportsMcpTests || !node.LastHeartbeatUtc.HasValue || node.Status != NodeStatusEnum.Ready || node.LastHeartbeatUtc < DateTime.UtcNow.AddSeconds(-HeartbeatFreshnessSeconds) || !node.RegisteredUtc.HasValue)

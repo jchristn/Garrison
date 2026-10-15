@@ -103,6 +103,25 @@ namespace Garrison.Server.Settings
             }
         }
 
+        /// <summary>
+        /// Largest request body, in bytes, the REST listener accepts. A request whose Content-Length is larger is refused
+        /// before its body is read, ahead of authentication, so one oversized request cannot hold the body in memory.
+        /// Default 134217728 (128 MiB), which leaves room for the largest artifact upload (64 MiB). Minimum 0, where 0
+        /// turns the check off; maximum 2147483647. Applies when the server starts. Bodies sent with chunked transfer
+        /// encoding carry no Content-Length and are not limited by this setting.
+        /// </summary>
+        public long MaxRequestBodyBytes
+        {
+            get
+            {
+                return _MaxRequestBodyBytes;
+            }
+            set
+            {
+                _MaxRequestBodyBytes = Math.Clamp(value, 0L, (long)Int32.MaxValue);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -111,6 +130,7 @@ namespace Garrison.Server.Settings
         private int _Port = 8700;
         private int _LivenessPort = 8702;
         private int _DatabaseRetryAfterSeconds = 2;
+        private long _MaxRequestBodyBytes = 134217728;
 
         #endregion
     }

@@ -189,6 +189,13 @@ namespace Garrison.Server.Services
                 return await EvaluateRunAsync(ctx, effectiveTenant!, resourceType, operation, resourceId, token).ConfigureAwait(false);
             }
 
+            if (resourceType == ResourceTypeEnum.Node && operation == OperationTypeEnum.Execute)
+            {
+                // Acting as a worker node leases every tenant's runs with their decrypted secrets, so it needs a grant
+                // that names Node explicitly (the NodeAgent role). Tenant administration and "All" grants do not count.
+                return await EvaluateNodeExecuteAsync(ctx, effectiveTenant, token).ConfigureAwait(false);
+            }
+
             if (ctx.IsTenantAdmin && !String.IsNullOrEmpty(effectiveTenant))
             {
                 AuthorizationDecision tenantAdmin = AuthorizationDecision.Permit("Tenant administrator.");
@@ -323,6 +330,44 @@ namespace Garrison.Server.Services
             if (resourceType == ResourceTypeEnum.Tenant && (operation == OperationTypeEnum.Create || operation == OperationTypeEnum.Delete)) return true;
             if (resourceType == ResourceTypeEnum.Node && operation != OperationTypeEnum.Read && operation != OperationTypeEnum.Execute) return true;
             return false;
+        }
+
+        private async Task<AuthorizationDecision> EvaluateNodeExecuteAsync(RequestContext ctx, string? tenantId, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(tenantId)) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "No tenant could be resolved.");
+            List<PermissionGrant> grants = new List<PermissionGrant>();
+            bool credentialScoped = false;
+            if (ctx.PrincipalType == PrincipalTypeEnum.Credential && !String.IsNullOrEmpty(ctx.CredentialId))
+            {
+                grants = await GrantsForCredentialAsync(tenantId, ctx.CredentialId, token).ConfigureAwait(false);
+                credentialScoped = grants.Count > 0;
+            }
+            if (!credentialScoped)
+            {
+                if (String.IsNullOrEmpty(ctx.UserId)) return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Principal has no grants.");
+                grants = await GrantsForUserAsync(tenantId, ctx.UserId, token).ConfigureAwait(false);
+            }
+            else if (!String.IsNullOrEmpty(ctx.UserId))
+            {
+                List<PermissionGrant> ownerGrants = await GrantsForUserAsync(tenantId, ctx.UserId, token).ConfigureAwait(false);
+                AuthorizationDecision owner = PermissionEvaluator.Evaluate(ownerGrants, ResourceTypeEnum.Node, OperationTypeEnum.Execute, null);
+                if (!owner.Permitted && !ctx.IsTenantAdmin)
+                {
+                    owner.Reason = "Owner ceiling: " + owner.Reason;
+                    return owner;
+                }
+            }
+
+            List<PermissionGrant> explicitNode = grants
+                .Where(g => g.ResourceTypes.Any(t => String.Equals(t, ResourceTypeEnum.Node.ToString(), StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            if (!explicitNode.Any(g => g.PermissionType == PermissionTypeEnum.Permit))
+            {
+                return AuthorizationDecision.Deny(AuthorizationResultEnum.DeniedImplicit, "Acting as a worker node requires a role that grants Execute on Node explicitly, such as NodeAgent.");
+            }
+            AuthorizationDecision all = PermissionEvaluator.Evaluate(grants, ResourceTypeEnum.Node, OperationTypeEnum.Execute, null);
+            if (!all.Permitted) return all;
+            return PermissionEvaluator.Evaluate(explicitNode, ResourceTypeEnum.Node, OperationTypeEnum.Execute, null);
         }
 
         private async Task<AuthorizationDecision> EvaluateRunAsync(RequestContext ctx, string tenantId, ResourceTypeEnum resourceType, OperationTypeEnum operation, string? resourceId, CancellationToken token)
