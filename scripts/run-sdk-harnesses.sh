@@ -63,6 +63,9 @@ for i in $(seq 1 60); do
   sleep 1
 done
 curl -fs "$BASE_URL/v1.0/api/health" > /dev/null || { tail -40 "$WORK/server.log"; echo "server did not become healthy"; exit 1; }
+# A healthy answer from another process on the same port (for example a second harness run) would test the wrong
+# server; make sure the server started here is the one answering.
+kill -0 "$SERVER_PID" 2>/dev/null || { tail -40 "$WORK/server.log"; echo "the harness server exited (port ${REST_PORT} or ${MCP_PORT} in use?); set GARRISON_SDK_REST_PORT and GARRISON_SDK_MCP_PORT"; exit 1; }
 
 echo "== starting worker"
 (cd "$WORK/worker" && PATH="$WORK/bin:$PATH" \
