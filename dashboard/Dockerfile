@@ -14,6 +14,8 @@ LABEL org.opencontainers.image.title="garrison-dashboard" \
       org.opencontainers.image.version="${GARRISON_VERSION}" \
       org.opencontainers.image.source="https://github.com/jchristn/Garrison" \
       org.opencontainers.image.licenses="MIT"
+# Apply Alpine security updates published after the nginx base image was built.
+RUN apk upgrade --no-cache
 RUN apk add --no-cache curl
 COPY --from=build /app/dist/ /usr/share/nginx/html/
 COPY nginx.conf /etc/nginx/conf.d/default.conf

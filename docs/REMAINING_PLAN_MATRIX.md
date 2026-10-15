@@ -63,7 +63,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P15.5 | Signed images and SBOMs | Deferred | Supply-chain release artifacts |
 | P15.6 | Upgrade-path tests across releases | Complete | D-054. `upgrade-sqlite` and `upgrade-postgresql` suites: schema 1 and schema 15 installations upgrade with data, sign-in, and an end-to-end run; rolling replacement stays in `k8s/tests/rolling-upgrade-test.sh` |
 | P15.22 | Open security review findings | Active, needs decisions | SR-08 to SR-25 and the open parts of SR-03, SR-04, SR-07; most change existing behavior |
-| P15.23 | Clear scan failures | Active | Dashboard vitest 2 to 5 (major), image rebuilds on current base images |
+| P15.23 | Clear scan failures | Complete | vitest 5.0.3; rebuilds pull current bases; Trivy HIGH/CRITICAL 0 on all three images |
 | P15.7 | Full simulated user session and report | Deferred | Proves initial setup and core workflows |
 | P15.8 | User review and verification of findings | Deferred | Human review after P15.7 |
 | P15.9 | Documentation completeness review | Deferred | Scope follows retained features |

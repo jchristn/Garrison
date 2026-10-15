@@ -79,7 +79,8 @@ if [ "${MODE}" = "pull" ]; then
   "${COMPOSE[@]}" pull
 else
   echo "[1/4] Building images (the worker image takes several minutes on the first build)..."
-  "${COMPOSE[@]}" build
+  # --pull refreshes the base images, so a rebuild picks up runtime and OS security fixes.
+  "${COMPOSE[@]}" build --pull
 fi
 
 echo

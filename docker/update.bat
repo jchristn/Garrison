@@ -79,7 +79,8 @@ if "%MODE%"=="pull" (
   %COMPOSE% pull || goto :fail
 ) else (
   echo [1/4] Building images, the worker image takes several minutes on the first build...
-  %COMPOSE% build || goto :fail
+  REM --pull refreshes the base images, so a rebuild picks up runtime and OS security fixes.
+  %COMPOSE% build --pull || goto :fail
 )
 
 echo [2/4] Stopping the stack, volumes are preserved...
