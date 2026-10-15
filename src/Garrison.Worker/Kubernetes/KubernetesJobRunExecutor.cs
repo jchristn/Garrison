@@ -324,15 +324,18 @@ namespace Garrison.Worker.Kubernetes
             using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, watchdog.Token))
             {
                 V1Pod? pod = null;
+                string stage = "reserving a warm pod";
                 try
                 {
                     pod = await _WarmPool!.TakeAsync(assignment, required, linked.Token).ConfigureAwait(false);
                     if (pod == null) return required ? Fail(RunOutcomeEnum.PodFailed, "No warm pod became ready within the pending timeout.") : null;
                     IKubernetes client = _Runtime.Client!;
+                    stage = "attaching to the pod's stdin";
                     using (WebSocket attach = await client.WebSocketNamespacedPodAttachAsync(pod.Metadata.Name, _Runtime.Namespace,
                         container: RunPodNames.ContainerName, stdin: true, stdout: false, stderr: false, tty: false,
                         webSocketSubProtocol: "v4.channel.k8s.io", cancellationToken: linked.Token).ConfigureAwait(false))
                     {
+                        stage = "sending the run spec";
                         byte[] payload = Encoding.UTF8.GetBytes(request.EnvelopeJson + "\n");
                         // Kubernetes channel zero carries stdin. Bound individual websocket messages.
                         for (int offset = 0; offset < payload.Length; offset += 16384)
@@ -342,9 +345,11 @@ namespace Garrison.Worker.Kubernetes
                             Buffer.BlockCopy(payload, offset, frame, 1, length);
                             await attach.SendAsync(new ArraySegment<byte>(frame), WebSocketMessageType.Binary, true, linked.Token).ConfigureAwait(false);
                         }
+                        stage = "closing stdin";
                         await attach.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, String.Empty, linked.Token).ConfigureAwait(false);
                     }
                     Lifecycle(reporter, "RunPodStarted", "Reserved warm run pod " + pod.Metadata.Name + ".");
+                    stage = "streaming the pod's output";
                     PodLineParser parser = new PodLineParser(nonce, _Runtime.Settings.MaxLineBytes);
                     RunCompleteRequest? complete = await StreamAsync(client, _Runtime.Namespace, pod.Metadata.Name, parser, reporter, linked.Token).ConfigureAwait(false);
                     if (complete != null)
@@ -370,8 +375,13 @@ namespace Garrison.Worker.Kubernetes
                 }
                 catch (Exception ex) when (ex is HttpOperationException || ex is HttpRequestException || ex is IOException || ex is WebSocketException)
                 {
-                    // Never log attach exceptions with the run input or provider credentials.
-                    return Fail(RunOutcomeEnum.PodFailed, "Warm run pod transport failed: " + ex.GetType().Name + ".");
+                    // Name the step and the transport error so the failure can be diagnosed, scrubbed of the run's secrets. The
+                    // exception never carries the run input: the spec is only ever written to the socket.
+                    string code = ex is WebSocketException socket ? " (" + socket.WebSocketErrorCode + ")" : String.Empty;
+                    string detail = ex is HttpOperationException http ? Describe(http) : ex.Message;
+                    string message = "Warm run pod transport failed while " + stage + ": " + ex.GetType().Name + code + ": " + detail;
+                    _Log?.Invoke(scrubber.Scrub(message) ?? String.Empty);
+                    return Fail(RunOutcomeEnum.PodFailed, scrubber.Scrub(message));
                 }
                 finally
                 {
