@@ -120,11 +120,17 @@ if [ -n "${MISSING}" ]; then
   echo "Add them to ${ENV_FILE} and run this again, or run factory/reset.sh to delete all data and start over with new values."
   exit 1
 fi
+if [ -n "${DEFAULTS}" ] && [ "$(current GARRISON_ALLOW_INSECURE_DEFAULTS)" = "true" ]; then
+  printf 'Development mode (GARRISON_ALLOW_INSECURE_DEFAULTS=true in %s): starting with these public built-in defaults:\n%b' "${ENV_FILE}" "${DEFAULTS}"
+  echo "Anyone who can reach this stack can use them. Never expose it beyond this machine."
+  exit 0
+fi
 if [ -n "${DEFAULTS}" ]; then
   printf 'These values in %s are the public built-in defaults, which the server refuses to start with (SR-08):\n%b' "${ENV_FILE}" "${DEFAULTS}"
   echo "Set new values. The signing key and the admin API key can change at any time. The administrator password and the"
   echo "seeded credentials are fixed in the database at its first start: change them through the dashboard or API, then"
   echo "here. The master key encrypts stored secrets: run factory/reset.sh to start over with a new one."
+  echo "For a stack only you can reach, GARRISON_ALLOW_INSECURE_DEFAULTS=true in ${ENV_FILE} keeps them (docs/DOCKER.md)."
   exit 1
 fi
 exit 0

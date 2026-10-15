@@ -103,6 +103,8 @@ services:
       GARRISON_ADMIN_API_KEY: '${GARRISON_ADMIN_API_KEY:?set GARRISON_ADMIN_API_KEY in docker/.env (update.sh generates it)}'
       GARRISON_ADMIN_EMAIL: '${GARRISON_ADMIN_EMAIL:-admin@garrison}'
       GARRISON_ADMIN_PASSWORD: '${GARRISON_ADMIN_PASSWORD:?set GARRISON_ADMIN_PASSWORD in docker/.env (update.sh generates it)}'
+      # Development mode for a stack only you can reach: start with public default keys and passwords (docs/DOCKER.md).
+      GARRISON_ALLOW_INSECURE_DEFAULTS: '${GARRISON_ALLOW_INSECURE_DEFAULTS:-false}'
       GARRISON_DEFAULT_ACCESS_KEY: '${GARRISON_DEFAULT_ACCESS_KEY:?set GARRISON_DEFAULT_ACCESS_KEY in docker/.env (update.sh generates it)}'
       GARRISON_DEFAULT_SECRET_KEY: '${GARRISON_DEFAULT_SECRET_KEY:?set GARRISON_DEFAULT_SECRET_KEY in docker/.env (update.sh generates it)}'
       GARRISON_NODE_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:?set GARRISON_NODE_ACCESS_KEY in docker/.env (update.sh generates it)}'

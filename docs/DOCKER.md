@@ -38,6 +38,16 @@ Read the values with `grep -E '^GARRISON_(ADMIN_PASSWORD|ADMIN_API_KEY)=' docker
 
 `update.sh` will not invent the database password, the master key, the administrator password, or the seeded credentials while the Postgres volume exists, because the database was created with the old values and new ones would lock the stack out of its own data. It stops and names the missing variables instead. A stack created when `compose.yaml` still had defaults used `GARRISON_DB_PASSWORD=garrison`; add that line to `.env` (or rotate the Postgres password and use the new one) and run `./update.sh` again. If any value in `.env` is still a public default, `update.sh` names it as well. Change the administrator password and seeded credentials through the dashboard or API first, then in `.env`, since the server only applies them when it seeds a new database. A factory reset deletes the data and generates everything that is missing.
 
+### Keeping the built-in defaults on a local machine
+
+For a development stack that only you can reach, you can keep the public defaults (for example the `password` administrator password) instead of rotating them. Add this line to `docker/.env`:
+
+```bash
+GARRISON_ALLOW_INSECURE_DEFAULTS=true
+```
+
+`update.sh` and `update.bat` then list the defaults still in use and continue instead of stopping, and Compose passes the setting to the server, which starts with a warning naming each default. Missing values are still generated, and `GARRISON_DB_PASSWORD` must still match the Postgres volume. Anyone who can reach the stack can sign in with the defaults, so never set it on a stack bound to anything but `127.0.0.1`, and remove the line (after rotating the values) before you share the machine or expose a port. The same switch is `Security.AllowInsecureDefaults` in the server settings (`docs/CONFIGURATION.md`).
+
 Every port binds to `127.0.0.1` only, so nothing is reachable from other machines.
 
 ## When a port is already taken

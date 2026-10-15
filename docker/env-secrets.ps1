@@ -113,12 +113,19 @@ if ($missing.Count -gt 0) {
     Write-Host "Add them to $envFile and run this again, or run factory\reset.bat to delete all data and start over with new values."
     exit 1
 }
+if ($defaults.Count -gt 0 -and (Get-Current 'GARRISON_ALLOW_INSECURE_DEFAULTS') -eq 'true') {
+    Write-Host "Development mode (GARRISON_ALLOW_INSECURE_DEFAULTS=true in $envFile): starting with these public built-in defaults:"
+    $defaults | ForEach-Object { Write-Host $_ }
+    Write-Host 'Anyone who can reach this stack can use them. Never expose it beyond this machine.'
+    exit 0
+}
 if ($defaults.Count -gt 0) {
     Write-Host "These values in $envFile are the public built-in defaults, which the server refuses to start with (SR-08):"
     $defaults | ForEach-Object { Write-Host $_ }
     Write-Host 'Set new values. The signing key and the admin API key can change at any time. The administrator password and the'
     Write-Host 'seeded credentials are fixed in the database at its first start: change them through the dashboard or API, then'
     Write-Host 'here. The master key encrypts stored secrets: run factory\reset.bat to start over with a new one.'
+    Write-Host "For a stack only you can reach, GARRISON_ALLOW_INSECURE_DEFAULTS=true in $envFile keeps them (docs/DOCKER.md)."
     exit 1
 }
 exit 0
