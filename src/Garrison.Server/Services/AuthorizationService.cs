@@ -287,6 +287,85 @@ namespace Garrison.Server.Services
         }
 
         /// <summary>
+        /// A checker for the permission to use secrets (Execute on Secret, SR-10) on behalf of a caller in a tenant.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <returns>Checker.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or tenantId is null.</exception>
+        public SecretUseChecker SecretUse(RequestContext ctx, string tenantId)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            return new SecretUseChecker(_Database, async (secretId, token) =>
+            {
+                AuthorizationDecision decision = await EvaluateAsync(ctx, tenantId, ResourceTypeEnum.Secret, OperationTypeEnum.Execute, secretId, token).ConfigureAwait(false);
+                return decision.Permitted;
+            });
+        }
+
+        /// <summary>
+        /// Expanded grants of one role, as an assignment with the given scope would confer them. When a role identifier is
+        /// given the role is resolved by identifier only, so a tenant role whose name matches a built-in role never
+        /// receives the built-in's grants.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="roleId">Role identifier, or null to resolve by name.</param>
+        /// <param name="roleName">Role name, used only when roleId is empty.</param>
+        /// <param name="scope">Assignment scope.</param>
+        /// <param name="resourceId">Resource identifier for Resource scope, or null.</param>
+        /// <param name="inherits">Whether the grant inherits to child resources.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Grants, empty when the role does not resolve or is inactive.</returns>
+        public Task<List<PermissionGrant>> GrantsForRoleAsync(string tenantId, string? roleId, string? roleName, ResourceScopeEnum scope, string? resourceId, bool inherits, CancellationToken token = default)
+        {
+            return ExpandAsync(roleId, roleName, scope, resourceId, inherits, tenantId, token);
+        }
+
+        /// <summary>
+        /// The grant ceiling (SR-13): the first operation in a set of grants that the caller does not hold itself, or null
+        /// when the caller holds all of them. Assigning a role, mapping a permission to a role, or minting or rotating a
+        /// credential that acts for another user may only confer what the caller already has. Operations that only system
+        /// administrators can perform anyway are skipped, as is Execute on Node unless a grant names Node explicitly. System
+        /// administrators have no ceiling.
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant the grants apply in.</param>
+        /// <param name="grants">Grants that would be conferred.</param>
+        /// <param name="targetHolds">Optional filter: an operation the receiving principal would not hold anyway (for
+        /// example because a credential is bounded by its owner) is skipped when this returns false.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>A description such as "Execute on Secret", or null.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or grants is null.</exception>
+        public async Task<string?> CeilingViolationAsync(RequestContext ctx, string tenantId, IEnumerable<PermissionGrant> grants, Func<ResourceTypeEnum, OperationTypeEnum, string?, Task<bool>>? targetHolds, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (grants == null) throw new ArgumentNullException(nameof(grants));
+            if (ctx.PrincipalType == PrincipalTypeEnum.Administrator || ctx.IsAdmin) return null;
+
+            HashSet<string> checkedPairs = new HashSet<string>(StringComparer.Ordinal);
+            foreach (PermissionGrant grant in grants.Where(g => g.PermissionType == PermissionTypeEnum.Permit))
+            {
+                string? resourceId = grant.Scope == ResourceScopeEnum.Resource ? grant.ResourceId : null;
+                bool namesNode = grant.ResourceTypes.Any(t => String.Equals(t, ResourceTypeEnum.Node.ToString(), StringComparison.OrdinalIgnoreCase));
+                foreach (ResourceTypeEnum resourceType in ExpandResourceTypes(grant.ResourceTypes))
+                {
+                    foreach (OperationTypeEnum operation in ExpandOperations(grant.Operations))
+                    {
+                        if (IsPlatformOnly(resourceType, operation)) continue;
+                        if (resourceType == ResourceTypeEnum.Node && operation == OperationTypeEnum.Execute && !namesNode) continue;
+                        if (!checkedPairs.Add(resourceType + ":" + operation + ":" + resourceId)) continue;
+                        token.ThrowIfCancellationRequested();
+                        if (targetHolds != null && !await targetHolds(resourceType, operation, resourceId).ConfigureAwait(false)) continue;
+                        AuthorizationDecision decision = await EvaluateAsync(ctx, tenantId, resourceType, operation, resourceId, token).ConfigureAwait(false);
+                        if (!decision.Permitted) return operation + " on " + resourceType;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Drop every cached grant set here and, through the backplane, on every other replica. Call after any change to
         /// roles, permissions, assignments, users, or credentials.
         /// </summary>
@@ -330,6 +409,38 @@ namespace Garrison.Server.Services
             if (resourceType == ResourceTypeEnum.Tenant && (operation == OperationTypeEnum.Create || operation == OperationTypeEnum.Delete)) return true;
             if (resourceType == ResourceTypeEnum.Node && operation != OperationTypeEnum.Read && operation != OperationTypeEnum.Execute) return true;
             return false;
+        }
+
+        private static List<ResourceTypeEnum> ExpandResourceTypes(List<string> types)
+        {
+            if (types.Any(t => String.Equals(t, "All", StringComparison.OrdinalIgnoreCase)))
+            {
+                return Enum.GetValues<ResourceTypeEnum>().Where(r => r != ResourceTypeEnum.All).ToList();
+            }
+            List<ResourceTypeEnum> expanded = new List<ResourceTypeEnum>();
+            foreach (string type in types)
+            {
+                if (Enum.TryParse<ResourceTypeEnum>(type, true, out ResourceTypeEnum parsed) && parsed != ResourceTypeEnum.All && !expanded.Contains(parsed)) expanded.Add(parsed);
+            }
+            return expanded;
+        }
+
+        private static List<OperationTypeEnum> ExpandOperations(List<string> operations)
+        {
+            if (operations.Any(o => String.Equals(o, "All", StringComparison.OrdinalIgnoreCase)))
+            {
+                return Enum.GetValues<OperationTypeEnum>().Where(o => o != OperationTypeEnum.All).ToList();
+            }
+            List<OperationTypeEnum> expanded = new List<OperationTypeEnum>();
+            foreach (string operation in operations)
+            {
+                if (!Enum.TryParse<OperationTypeEnum>(operation, true, out OperationTypeEnum parsed) || parsed == OperationTypeEnum.All) continue;
+                List<OperationTypeEnum> implied = parsed == OperationTypeEnum.Write
+                    ? new List<OperationTypeEnum> { OperationTypeEnum.Write, OperationTypeEnum.Create, OperationTypeEnum.Update, OperationTypeEnum.Delete }
+                    : new List<OperationTypeEnum> { parsed };
+                foreach (OperationTypeEnum one in implied) if (!expanded.Contains(one)) expanded.Add(one);
+            }
+            return expanded;
         }
 
         private async Task<AuthorizationDecision> EvaluateNodeExecuteAsync(RequestContext ctx, string? tenantId, CancellationToken token)
@@ -423,7 +534,9 @@ namespace Garrison.Server.Services
         {
             List<PermissionGrant> grants = new List<PermissionGrant>();
 
-            BuiltInRole? builtIn = BuiltInRoles.All.FirstOrDefault(r => r.Id == roleId) ?? BuiltInRoles.Find(roleName);
+            // An assignment that carries a role identifier resolves by that identifier only. Resolving by name as well let a
+            // tenant role named like a built-in role (for example "tenantadmin") receive the built-in's grants (SR-13).
+            BuiltInRole? builtIn = !String.IsNullOrEmpty(roleId) ? BuiltInRoles.All.FirstOrDefault(r => r.Id == roleId) : BuiltInRoles.Find(roleName);
             if (builtIn != null)
             {
                 foreach (BuiltInPermission permission in builtIn.Permissions)
@@ -435,7 +548,7 @@ namespace Garrison.Server.Services
 
             Role? role = null;
             if (!String.IsNullOrEmpty(roleId)) role = await _Database.Roles.ReadAsync(tenantId, roleId, token).ConfigureAwait(false);
-            if (role == null && !String.IsNullOrEmpty(roleName)) role = await _Database.Roles.ReadByNameAsync(tenantId, roleName, token).ConfigureAwait(false);
+            else if (!String.IsNullOrEmpty(roleName)) role = await _Database.Roles.ReadByNameAsync(tenantId, roleName, token).ConfigureAwait(false);
             if (role == null || !role.Active) return grants;
 
             List<RolePermissionMap> maps = await _Database.RolePermissionMaps.ListByRoleAsync(role.Id, token).ConfigureAwait(false);

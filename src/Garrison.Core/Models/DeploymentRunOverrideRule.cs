@@ -59,9 +59,10 @@ namespace Garrison.Core.Models
         }
 
         /// <summary>
-        /// Validation kind.
+        /// Validation kind. Default Enum, so a rule saved without a validation needs its allowed values in Pattern; choose
+        /// Any explicitly to accept whatever the caller sends (SR-26).
         /// </summary>
-        public RunOverrideValidationEnum Validation { get; set; } = RunOverrideValidationEnum.Any;
+        public RunOverrideValidationEnum Validation { get; set; } = RunOverrideValidationEnum.Enum;
 
         /// <summary>
         /// Regex, comma-separated enum values, or min,max range.

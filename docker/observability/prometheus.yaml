@@ -1,7 +1,10 @@
-# Prometheus configuration for the Docker Compose observability profile. The server serves /metrics on its REST
-# port (8700) and each worker on its health port (8710), relayed from the dedicated metrics listener. The node label
-# is the Garrison node name (GARRISON_NODE_ID for the server, GARRISON_WORKER_NODE_NAME for workers), so Grafana
-# variables and dashboard deep links work the same way as on Kubernetes. Add a target here when you add a worker.
+# Prometheus configuration for the Docker Compose observability profile. The server serves /metrics on its metrics
+# listener (9464) and each worker on its own (9465). Those listeners answer only requests addressed to the
+# container's host name, so every Garrison service sets hostname: to its service name and the targets use it.
+# /metrics is not served on the REST port or the worker health port (Telemetry.ServeMetricsOnServicePort is false
+# by default, since that endpoint is anonymous). The node label is the Garrison node name (GARRISON_NODE_ID for the
+# server, GARRISON_WORKER_NODE_NAME for workers), so Grafana variables and dashboard deep links work the same way as
+# on Kubernetes. Add a target here when you add a worker.
 global:
   scrape_interval: 15s
   scrape_timeout: 10s
@@ -13,15 +16,15 @@ scrape_configs:
   - job_name: garrison
     metrics_path: /metrics
     static_configs:
-      - targets: ["garrison-server:8700"]
+      - targets: ["garrison-server:9464"]
         labels:
           component: server
           node: garrison-server
-      - targets: ["garrison-worker-1:8710"]
+      - targets: ["garrison-worker-1:9465"]
         labels:
           component: worker
           node: garrison-worker-1
-      - targets: ["garrison-worker-2:8710"]
+      - targets: ["garrison-worker-2:9465"]
         labels:
           component: worker
           node: garrison-worker-2

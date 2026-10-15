@@ -44,6 +44,22 @@ namespace Garrison.Server.WebSockets
             }
         }
 
+        /// <summary>
+        /// Most subscriptions one WebSocket session may hold at a time; each one polls the database. A subscribe beyond the
+        /// cap answers an error with code TooManySubscriptions. Minimum 1, maximum 1024, default 64.
+        /// </summary>
+        public int MaxSubscriptionsPerSession
+        {
+            get
+            {
+                return _MaxSubscriptionsPerSession;
+            }
+            set
+            {
+                _MaxSubscriptionsPerSession = Math.Clamp(value, 1, 1024);
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -52,6 +68,7 @@ namespace Garrison.Server.WebSockets
         private readonly RunEventService _Events;
         private readonly BlockedRunService _Blocked;
         private int _PollMs = 1000;
+        private int _MaxSubscriptionsPerSession = 64;
 
         #endregion
 
@@ -155,6 +172,11 @@ namespace Garrison.Server.WebSockets
                         }
                         if (request.Type == "subscribe" && !String.IsNullOrEmpty(request.Channel))
                         {
+                            if (!subscriptions.ContainsKey(request.Channel) && subscriptions.Count >= _MaxSubscriptionsPerSession)
+                            {
+                                await SendAsync(session, sendLock, new { type = "error", code = "TooManySubscriptions", channel = request.Channel, message = "This session already holds " + _MaxSubscriptionsPerSession + " subscriptions. Unsubscribe from one first." }, token).ConfigureAwait(false);
+                                continue;
+                            }
                             string? denial = await AuthorizeChannelAsync(ctx, request.Channel, token).ConfigureAwait(false);
                             if (denial != null)
                             {

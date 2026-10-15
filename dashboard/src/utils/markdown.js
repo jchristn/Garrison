@@ -6,6 +6,11 @@
 // scheme is not http, https, or mailto. Sanitizing happens after parsing, so Markdown cannot smuggle anything past
 // it. Both libraries are small, widely used, and maintained, and marked is fast enough to re-parse a growing
 // stream on every throttled update.
+//
+// Media never loads from another origin (SR-25): an image, video, or audio source that names a scheme or another host
+// is dropped, so prompt-injected output cannot send data out through a URL the browser fetches on its own. Only
+// relative (same-origin) and data: sources survive. The dashboard's Content-Security-Policy (img-src 'self' data:)
+// enforces the same rule in the container image; this check also covers the Vite dev server.
 
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -14,6 +19,16 @@ import DOMPurify from 'dompurify';
 const SAFE_URL = /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 
 const FORBID_TAGS = ['style', 'script', 'form', 'input', 'button', 'textarea', 'select', 'option', 'iframe', 'frame', 'frameset', 'object', 'embed', 'base', 'link', 'meta', 'dialog', 'template'];
+
+/** Attributes that make the browser fetch a URL without a click. */
+const FETCH_ATTRS = ['src', 'poster', 'background'];
+
+/** True when a URL leaves this origin: it names a scheme (other than data:) or is protocol-relative. */
+export function isRemoteUrl(url) {
+  const value = String(url || '').trim();
+  if (/^data:/i.test(value)) return false;
+  return /^(?:[a-z][a-z0-9+.-]*:|\/\/|\\\\|\/\\|\\\/)/i.test(value);
+}
 
 const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -39,6 +54,9 @@ function getPurifier() {
   if (typeof window === 'undefined') return null;
   purifier = DOMPurify(window);
   purifier.addHook('afterSanitizeAttributes', (node) => {
+    for (const attr of FETCH_ATTRS) {
+      if (node.hasAttribute && node.hasAttribute(attr) && isRemoteUrl(node.getAttribute(attr))) node.removeAttribute(attr);
+    }
     if (node.tagName === 'A' && node.hasAttribute('href')) {
       node.setAttribute('target', '_blank');
       node.setAttribute('rel', 'noopener noreferrer');

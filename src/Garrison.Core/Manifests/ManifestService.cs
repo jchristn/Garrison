@@ -118,13 +118,18 @@ namespace Garrison.Core.Manifests
                 try
                 {
                     await PlanAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
+                    if (options.SecretUse != null && (planned.Result == ManifestApplyResultEnum.Created || planned.Result == ManifestApplyResultEnum.Updated))
+                    {
+                        await options.SecretUse.RequireForModelAsync(tenantId, planned.Model, token).ConfigureAwait(false);
+                    }
                 }
                 catch (ValidationException e)
                 {
                     planned.Result = ManifestApplyResultEnum.Failed;
                     planned.Message = e.Code == ManifestSpecError.Code ? e.Message : e.Message + (e.Fields.Count > 0 ? " " + String.Join("; ", e.Fields.Select(f => f.Key + ": " + f.Value)) : String.Empty);
-                    planned.ErrorCode = e.Code;
                     planned.ErrorField = e.Fields.Keys.FirstOrDefault();
+                    // A secret the caller may not use reports its own code (SecretUseDenied); other plan errors keep theirs.
+                    planned.ErrorCode = planned.ErrorField != null && e.Codes.TryGetValue(planned.ErrorField, out string? fieldCode) && fieldCode == SecretUseChecker.DeniedCode ? fieldCode : e.Code;
                 }
                 catch (CompilationException e)
                 {
@@ -302,7 +307,7 @@ namespace Garrison.Core.Manifests
             if (!String.IsNullOrEmpty(spec.Value))
             {
                 if (!options.AllowSecretValues) throw new ValidationException("Secret " + secret.Name + " carries a value but this apply does not allow secret values.");
-                string fingerprint = SecretGenerator.Fingerprint(spec.Value);
+                string fingerprint = _Cipher.Fingerprint(spec.Value);
                 valueChanged = existing == null || existing.Fingerprint != fingerprint;
                 secret.ValueEncrypted = _Cipher.Encrypt(spec.Value, secret.Id);
                 secret.ValueLast4 = SecretGenerator.Last4(spec.Value);

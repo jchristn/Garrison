@@ -72,6 +72,11 @@ namespace Garrison.Core.Security
         public const string SecretManager = "SecretManager";
 
         /// <summary>
+        /// SecretUser role name: use secrets in configuration (Execute on Secret) without managing them.
+        /// </summary>
+        public const string SecretUser = "SecretUser";
+
+        /// <summary>
         /// NodeAgent role name.
         /// </summary>
         public const string NodeAgent = "NodeAgent";
@@ -275,13 +280,24 @@ namespace Garrison.Core.Security
             BuiltInRole secretmanager = new BuiltInRole();
             secretmanager.Id = "rol_builtin_secretmanager";
             secretmanager.Name = SecretManager;
-            secretmanager.Description = "Manage secrets.";
+            secretmanager.Description = "Manage secrets and use them in configuration.";
             BuiltInPermission p_secretmanager_all = new BuiltInPermission();
             p_secretmanager_all.Name = "SecretManager.All";
             p_secretmanager_all.ResourceTypes = new List<string> { "Secret" };
             p_secretmanager_all.Operations = new List<string> { "All" };
             secretmanager.Permissions.Add(p_secretmanager_all);
             roles.Add(secretmanager);
+
+            BuiltInRole secretuser = new BuiltInRole();
+            secretuser.Id = "rol_builtin_secretuser";
+            secretuser.Name = SecretUser;
+            secretuser.Description = "Use secrets in deployments, MCP servers, harness profiles, artifact stores, workspace templates, and agents (Execute on Secret) without managing them. Assign at Resource scope to allow one secret.";
+            BuiltInPermission p_secretuser_use = new BuiltInPermission();
+            p_secretuser_use.Name = "SecretUser.Use";
+            p_secretuser_use.ResourceTypes = new List<string> { "Secret" };
+            p_secretuser_use.Operations = new List<string> { "Read", "Execute" };
+            secretuser.Permissions.Add(p_secretuser_use);
+            roles.Add(secretuser);
 
             BuiltInRole nodeagent = new BuiltInRole();
             nodeagent.Id = "rol_builtin_nodeagent";

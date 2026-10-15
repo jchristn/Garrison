@@ -104,6 +104,8 @@ namespace Test.Shared.Infrastructure
             settings.RequestHistory.Enabled = true;
             settings.Auth.SigningKey = "test-signing-key";
             settings.Security.MasterKey = "test-master-key";
+            // Tests use the public default administrator key and credentials, so they run in explicit development mode.
+            settings.Security.AllowInsecureDefaults = true;
             configure?.Invoke(settings);
 
             LoggingModule logging = Bootstrapper.BuildLogging(settings.Logging);

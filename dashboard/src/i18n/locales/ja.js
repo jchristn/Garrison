@@ -2156,3 +2156,5 @@ ja.tips.enums.runBlockedReason.NoIsolatingWorker = "ブロック中: この実�
 ja.tips.resources.deployments.egressRules = "このデプロイメントの実行 Pod が到達できる宛先です。CIDR ブロックと、任意のポートとプロトコルで指定します。空の場合は既定の実行用送信を使います。";
 ja.tips.resources.deployments.egressRulesItems = {"cidr": "CIDR 表記の宛先ブロック (IPv4 または IPv6、例: 203.0.113.0/24)。ホスト名はご自身でアドレスに解決してください。", "port": "1 から 65535 の宛先ポート。空にするとブロックのすべてのポートを許可します。", "protocol": "多くのサービスは TCP、または UDP。"};
 ja.tips.resources.deployments.egressDefault = "送信許可リストなし: 実行 Pod はクラスターの既定の実行用送信を使います。";
+Object.assign(ja.common.fieldCodes, {"SecretUseDenied": "このシークレットを使用する権限がありません。このシークレットに対する SecretUser または SecretManager ロールを依頼してください。", "GrantCeiling": "付与できるのは、自分が持っている権限だけです。", "ReservedRoleName": "組み込みロールの名前です。別の名前を選んでください。"});
+ja.components.mcpTest.noWorkers = "準備完了のワーカーで stdio 診断を提供しているものはありません。コマンドは実行の分離の外側、ワーカーのホスト上で動くため、オペレーターがワーカーに GARRISON_WORKER_MCP_TESTS_ENABLED=true を設定した場合にのみ実行されます。";

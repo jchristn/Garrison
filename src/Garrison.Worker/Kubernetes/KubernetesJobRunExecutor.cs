@@ -168,6 +168,12 @@ namespace Garrison.Worker.Kubernetes
                 // P11.15 (D-052): never run an allowlisted run without its NetworkPolicy.
                 return Fail(RunOutcomeEnum.NoCapableWorker, "This run's deployment has an egress allowlist, but this worker cannot enforce it right now (" + _Runtime.EgressDetail + "); the run was not started.");
             }
+            string? claimRefusal = await WorkspaceClaimGuard.CheckAsync(client, ns, spec, token).ConfigureAwait(false);
+            if (claimRefusal != null)
+            {
+                // SR-09: a run mounts only claims labeled for its own tenant, never backups, observability, or another tenant's.
+                return Fail(RunOutcomeEnum.WorkspaceFailed, claimRefusal);
+            }
             bool requireWarm = spec.RequiredCapabilities?.ColdStartClass == ExecutorColdStartEnum.Warm;
             bool allowWarm = spec.RequiredCapabilities?.ColdStartClass != ExecutorColdStartEnum.Cold;
             if (requireWarm && (_WarmPool?.Available != true || !KubernetesWarmPool.Compatible(spec)))

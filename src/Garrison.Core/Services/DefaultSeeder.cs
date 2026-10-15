@@ -202,22 +202,8 @@ namespace Garrison.Core.Services
             Credential? existing = await _Database.Credentials.ReadByAccessKeyAsync(accessKey, token).ConfigureAwait(false);
             if (existing != null)
             {
-                string current = String.Empty;
-                try
-                {
-                    current = _Cipher.Decrypt(existing.SecretKeyEncrypted, existing.Id);
-                }
-                catch (Exception e) when (e is System.Security.Cryptography.CryptographicException || e is FormatException)
-                {
-                    current = String.Empty;
-                }
-                if (current != secretKey)
-                {
-                    existing.SecretKeyEncrypted = _Cipher.Encrypt(secretKey, existing.Id);
-                    existing.SecretKeyLast4 = SecretGenerator.Last4(secretKey);
-                    await _Database.Credentials.UpdateAsync(existing, token).ConfigureAwait(false);
-                    _Log?.Invoke("updated secret for credential " + name);
-                }
+                // The configured secret applies only when the credential is created. A restart never overwrites it, so a
+                // secret rotated through the API stays rotated (SR-11).
                 return;
             }
 

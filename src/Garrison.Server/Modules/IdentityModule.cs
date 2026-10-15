@@ -89,8 +89,8 @@ namespace Garrison.Server.Modules
             new TenantRoutes(context, identity).Register(routes);
             new UserRoutes(context, identity).Register(routes);
             new CredentialRoutes(context, identity).Register(routes);
-            new RoleRoutes(context).Register(routes);
-            new PermissionRoutes(context).Register(routes);
+            new RoleRoutes(context, identity).Register(routes);
+            new PermissionRoutes(context, identity).Register(routes);
             new AssignmentRoutes(context, identity).Register(routes);
             new AuditRoutes(context).Register(routes);
             new RequestHistoryRoutes(context, context.Get<RequestHistoryCaptureService>()).Register(routes);

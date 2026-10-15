@@ -19,6 +19,7 @@ namespace Garrison.Server.Services
     {
         private readonly ServerContext _Context;
         private readonly ArtifactStorage _Storage;
+        private readonly TokenService _Tickets;
 
         /// <summary>Construct artifact services.</summary>
         /// <param name="context">Server context.</param>
@@ -27,6 +28,9 @@ namespace Garrison.Server.Services
         {
             _Context = context ?? throw new ArgumentNullException(nameof(context));
             _Storage = new ArtifactStorage(context);
+            // Tickets use their own keys, derived from the signing key and the master key under an artifact label, so a
+            // session token never validates as a ticket and forging one needs both secrets (SR-12).
+            _Tickets = new TokenService(context.Settings.Auth.SigningKey, context.Settings.Auth.Issuer, context.Settings.Auth.TokenLifetimeMinutes, "artifact-download:" + context.Settings.Security.MasterKey);
         }
 
         /// <summary>Upload a configured workspace file. Retries return the same artifact only when content matches.</summary>
@@ -101,7 +105,7 @@ namespace Garrison.Server.Services
         {
             if (artifact == null) throw new ArgumentNullException(nameof(artifact));
             expiresUtc = DateTime.UtcNow.AddSeconds(_Context.Settings.Artifacts.DownloadLifetimeSeconds);
-            return _Context.Tokens.Issue(new TokenPayload
+            return _Tickets.Issue(new TokenPayload
             {
                 Purpose = "ArtifactDownload", TokenId = artifact.Id, TenantId = artifact.TenantId, RunId = artifact.RunId,
                 SessionId = "artifact-download", ExpiresUtc = expiresUtc
@@ -115,7 +119,7 @@ namespace Garrison.Server.Services
         /// <returns>Artifact, or null for invalid, expired, wrong-purpose, or mismatched tickets.</returns>
         public async Task<Artifact?> ResolveTicketAsync(string id, string ticket, CancellationToken token)
         {
-            TokenPayload? payload = _Context.Tokens.Validate(ticket);
+            TokenPayload? payload = _Tickets.Validate(ticket);
             if (payload?.Purpose != "ArtifactDownload" || payload.TokenId != id || String.IsNullOrEmpty(payload.TenantId)) return null;
             return await _Context.Database.Artifacts.ReadAsync(payload.TenantId, id, token).ConfigureAwait(false);
         }

@@ -156,9 +156,8 @@ namespace Garrison.Server.Modules
             new PipelineRunRoutes(context, _Pipelines!).Register(routes);
             new PipelineReviewRoutes(context, _Pipelines!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
-            WatsonWebserver.Webserver server = context.Get<WatsonWebserver.Webserver>();
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
-            server.WebSocket("/v1.0/ws", live.HandleAsync);
+            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, approvals, nodes)", "Live updates");
         }
 
         /// <inheritdoc />

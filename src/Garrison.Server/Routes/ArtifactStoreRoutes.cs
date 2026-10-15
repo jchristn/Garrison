@@ -67,6 +67,7 @@ namespace Garrison.Server.Routes
             store.TenantId = tenantId;
             store.IsProtected = false;
             await ValidateAsync(tenantId, store, null, http).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForModelAsync(tenantId, store, http.Token).ConfigureAwait(false);
             ArtifactStore created = await _Server.Database.ArtifactStores.CreateAsync(store, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "ArtifactStore", created.Id, "Created artifact store " + created.Name + ".").ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
@@ -87,6 +88,7 @@ namespace Garrison.Server.Routes
             store.TenantId = tenantId;
             store.CreatedUtc = existing.CreatedUtc;
             await ValidateAsync(tenantId, store, existing.Id, http).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForModelAsync(tenantId, store, http.Token).ConfigureAwait(false);
             ArtifactStore updated = await _Server.Database.ArtifactStores.UpdateAsync(store, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "ArtifactStore", updated.Id, "Updated artifact store " + updated.Name + ".").ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);
@@ -117,6 +119,8 @@ namespace Garrison.Server.Routes
                 else if (!String.IsNullOrEmpty(store.Endpoint) && Garrison.Core.Security.OutboundAddressPolicy.LiteralBlockedReason(new Uri(store.Endpoint, UriKind.Absolute)) is string blocked) errors["endpoint"] = blocked;
                 if (store.Region.Length > 128) errors["region"] = "The S3 region is too long.";
                 if (!String.IsNullOrEmpty(store.SecretId) && await _Server.Database.Secrets.ReadAsync(tenantId, store.SecretId, http.Token).ConfigureAwait(false) == null) errors["secretId"] = "The S3 credential secret does not exist in this tenant.";
+                else if (String.IsNullOrEmpty(store.SecretId) && !String.IsNullOrEmpty(store.Endpoint) && !_Server.Settings.Artifacts.AllowAmbientCredentialsWithCustomEndpoint)
+                    errors["secretId"] = "An S3 store with a custom endpoint needs a credential secret; Garrison does not send the server's own cloud identity to an endpoint a tenant chooses.";
             }
             if (!String.IsNullOrEmpty(currentId))
             {

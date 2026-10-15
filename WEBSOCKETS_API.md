@@ -96,6 +96,7 @@ The `event` object is a `RunEvent` and the `run` object is a `Run`, exactly as R
 | `InvalidJson` | The message is not a JSON object with a `type` |
 | `AuthenticationRequired` | The token is invalid, or the connection is not authenticated yet |
 | `SubscriptionDenied` | Unknown channel, missing permission, a run or pipeline run that does not exist, or a session without a tenant. Run tokens are denied `pipeline-run:{id}` |
+| `TooManySubscriptions` | The session already holds 64 subscriptions, each of which polls the database. Unsubscribe from one first |
 
 Errors never close the connection.
 

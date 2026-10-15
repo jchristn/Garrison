@@ -2157,3 +2157,5 @@ zhHant.tips.enums.runBlockedReason.NoIsolatingWorker = "已封鎖：這個執行
 zhHant.tips.resources.deployments.egressRules = "這個部署的執行 Pod 可以連到的目的地，以 CIDR 位址區塊表示，可選連接埠和通訊協定。留空則使用預設的執行出站規則。";
 zhHant.tips.resources.deployments.egressRulesItems = {"cidr": "CIDR 表示法的目的位址區塊，IPv4 或 IPv6，例如 203.0.113.0/24。請自行將主機名稱解析為位址。", "port": "1 到 65535 之間的目的連接埠。留空則允許該位址區塊的所有連接埠。", "protocol": "大多數服務使用 TCP，或選擇 UDP。"};
 zhHant.tips.resources.deployments.egressDefault = "沒有出站允許清單：執行 Pod 使用叢集預設的執行出站規則。";
+Object.assign(zhHant.common.fieldCodes, {"SecretUseDenied": "你沒有使用此祕密的權限。請申請此祕密的 SecretUser 或 SecretManager 角色。", "GrantCeiling": "你只能授予自己擁有的權限。", "ReservedRoleName": "這是內建角色的名稱。請選擇其他名稱。"});
+zhHant.components.mcpTest.noWorkers = "沒有就緒的工作節點提供 stdio 診斷。指令會在工作節點主機上、執行隔離之外執行，因此只有營運人員在工作節點上設定 GARRISON_WORKER_MCP_TESTS_ENABLED=true 時才會執行。";

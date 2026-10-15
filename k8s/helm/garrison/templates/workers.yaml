@@ -81,7 +81,7 @@ spec:
         {{- end }}
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8710"
+        prometheus.io/port: "9465"
         prometheus.io/path: /metrics
         checksum/settings: {{ $settingsJson | sha256sum }}
     spec:
@@ -140,6 +140,9 @@ spec:
             - { name: GARRISON_WORKER_CONTAINERIZED, value: "true" }
             - name: GARRISON_WORKER_NODE_NAME
               valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            # The metrics listener (9465) binds the pod IP that Prometheus scrapes; /metrics is not served on 8710.
+            - name: GARRISON_WORKER_PROMETHEUS_HOSTNAME
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
             - name: GARRISON_WORKER_ACCESS_KEY
               valueFrom: { secretKeyRef: { name: {{ $.Values.secrets.nodeCredential }}, key: access-key } }
             - name: GARRISON_WORKER_SECRET_KEY

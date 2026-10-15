@@ -16,7 +16,9 @@ namespace Garrison.Server.Settings
         public string Issuer { get; set; } = "garrison";
 
         /// <summary>
-        /// Token signing key. Override with GARRISON_AUTH_SIGNING_KEY; never commit a real value.
+        /// Token signing key. Use at least 32 random bytes; shorter values are logged as weak at startup. Override with
+        /// GARRISON_AUTH_SIGNING_KEY; never commit a real value. The built-in default is public, so the server refuses to start
+        /// with it unless Security.AllowInsecureDefaults is true. Artifact download tickets use a separate key derived from it.
         /// </summary>
         public string SigningKey { get; set; } = "garrison-default-signing-key-override-me";
 
@@ -36,7 +38,8 @@ namespace Garrison.Server.Settings
         }
 
         /// <summary>
-        /// System administrator API key accepted in x-api-key. Override with GARRISON_ADMIN_API_KEY.
+        /// System administrator API key accepted in x-api-key. Override with GARRISON_ADMIN_API_KEY. The built-in default is
+        /// public, so the server refuses to start with it unless Security.AllowInsecureDefaults is true.
         /// </summary>
         public string AdminApiKey { get; set; } = "garrisonadmin";
 

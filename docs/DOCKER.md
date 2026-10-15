@@ -14,20 +14,29 @@ The worker build runs `claude --version` and `codex --version` after installing 
 
 ```bash
 cd docker
-cp .env.example .env          # ports, keys, and harness credentials; every value is optional
 ./update.sh                   # Windows: update.bat
 ```
 
-`update.sh` checks that the host ports are free, builds the three Garrison images from this repository, recreates the stack, and prints the container status and the URLs:
+`update.sh` first makes sure `docker/.env` holds every key and password the stack needs. It creates `.env` from `.env.example` when there is none, then appends a random value for each of these that is missing: `GARRISON_MASTER_KEY`, `GARRISON_AUTH_SIGNING_KEY`, `GARRISON_ADMIN_PASSWORD`, `GARRISON_ADMIN_API_KEY`, `GARRISON_DB_PASSWORD`, the default and node access and secret keys, and `GARRISON_GRAFANA_PASSWORD`. Values already in `.env` (or in your shell environment) are kept. It prints a generated administrator password once; afterwards it is in `.env` as `GARRISON_ADMIN_PASSWORD`. The script that does this is `env-secrets.sh` (`env-secrets.ps1` on Windows), and you can run it on its own.
+
+Then it checks that the host ports are free, builds the three Garrison images from this repository, recreates the stack, and prints the container status and the URLs:
 
 | What | Default URL or value |
 |---|---|
 | Dashboard | http://127.0.0.1:8080 |
 | REST and A2A | http://127.0.0.1:8700 |
 | MCP | http://127.0.0.1:8701/mcp |
-| Sign-in | tenant `default`, email `admin@garrison`, password `password` |
-| Administrator API key (`x-api-key`) | `garrisonadmin` |
-| Postgres | 127.0.0.1:5433, database and user `garrison`, password `garrison` |
+| Sign-in | tenant `default`, email `admin@garrison`, password `GARRISON_ADMIN_PASSWORD` from `.env` |
+| Administrator API key (`x-api-key`) | `GARRISON_ADMIN_API_KEY` from `.env` |
+| Postgres | 127.0.0.1:5433, database and user `garrison`, password `GARRISON_DB_PASSWORD` from `.env` |
+
+Compose has no defaults for these keys and passwords. A plain `docker compose up` without them stops with `required variable GARRISON_MASTER_KEY is missing a value`, and the server refuses to start with the public built-in defaults (`garrisonadmin`, `password`, and the `*_change_me` and `*-override-me` keys) unless `GARRISON_ALLOW_INSECURE_DEFAULTS=true` is set, which is for local development only (see `docs/SECURITY.md`).
+
+Read the values with `grep -E '^GARRISON_(ADMIN_PASSWORD|ADMIN_API_KEY)=' docker/.env`. The examples in these documents use `garrisonadmin` and `password` as placeholders; substitute yours.
+
+### Stacks created before keys were required
+
+`update.sh` will not invent the database password, the master key, the administrator password, or the seeded credentials while the Postgres volume exists, because the database was created with the old values and new ones would lock the stack out of its own data. It stops and names the missing variables instead. A stack created when `compose.yaml` still had defaults used `GARRISON_DB_PASSWORD=garrison`; add that line to `.env` (or rotate the Postgres password and use the new one) and run `./update.sh` again. If any value in `.env` is still a public default, `update.sh` names it as well. Change the administrator password and seeded credentials through the dashboard or API first, then in `.env`, since the server only applies them when it seeds a new database. A factory reset deletes the data and generates everything that is missing.
 
 Every port binds to `127.0.0.1` only, so nothing is reachable from other machines.
 
@@ -120,7 +129,7 @@ docker compose -f compose.yaml -f compose.observability.yaml --profile observabi
 
 | What | Default URL or value |
 |---|---|
-| Grafana | http://127.0.0.1:3000, user `admin`, password `GARRISON_GRAFANA_PASSWORD` (default `password`) |
+| Grafana | http://127.0.0.1:3000, user `admin`, password `GARRISON_GRAFANA_PASSWORD` from `.env` |
 | Prometheus | http://127.0.0.1:9090 |
 | Loki | http://127.0.0.1:3100 |
 | Tempo | http://127.0.0.1:3200 |
@@ -129,7 +138,7 @@ The ports are `GARRISON_GRAFANA_PORT`, `GARRISON_PROMETHEUS_PORT`, `GARRISON_LOK
 
 How it is wired:
 
-- Prometheus scrapes `/metrics` on the server's REST port and each worker's health port (`docker/observability/prometheus.yaml`), labeling series with `component` and `node` (the container name). Add a target there if you add a worker.
+- Prometheus scrapes `/metrics` on the metrics listeners, `garrison-server:9464` and `garrison-worker-N:9465` (`docker/observability/prometheus.yaml`), labeling series with `component` and `node` (the container name). Those listeners answer only requests addressed to the container's host name, so every Garrison service sets `hostname:` to its service name. `/metrics` is not served on the REST port or the worker health port, because that endpoint needs no authentication (`Telemetry.ServeMetricsOnServicePort`, false by default). Add a target there if you add a worker, and give the worker a `hostname:`.
 - Alloy reads the logs of this project's Garrison containers through the Docker socket (mounted read-only) and ships them to Loki with `app="garrison"`, `component`, `node`, and `level` (`docker/observability/config.alloy`). It also receives OTLP on 4317 and 4318 inside the Compose network and forwards traces to Tempo.
 - Loki, Tempo, the Grafana datasources and dashboard provider, and the dashboards themselves are mounted from `k8s/components/observability`, so Compose and Kubernetes run the same configuration.
 
@@ -142,14 +151,14 @@ Retention is 3 days (or 1 GB) for metrics, 72 hours for logs, and 24 hours for t
 | `docker compose stop` | Stops the containers; `docker compose start` brings them back | Kept |
 | `docker compose down` | Removes the containers and the network | Kept |
 | `./update.sh` (`update.bat`) | Rebuilds the images from source, `down`, `up -d`, status. `--pull` pulls the published images instead of building; `--observability` adds the observability profile | Kept |
-| `./factory/reset.sh` (`.bat`) | After you type `RESET`: removes the containers and every volume, including the observability data, then rebuilds and starts a fresh stack (without the observability profile; run `./update.sh --observability` afterwards to bring it back). `--no-start` only removes | Deleted |
+| `./factory/reset.sh` (`.bat`) | After you type `RESET`: removes the containers and every volume, including the observability data, generates any keys and passwords missing from `.env`, then rebuilds and starts a fresh stack (without the observability profile; run `./update.sh --observability` afterwards to bring it back). `--no-start` only removes | Deleted |
 | `docker compose --profile observability down -v` | Removes containers and volumes, including the observability ones, without rebuilding | Deleted |
 
 Deleting the volumes removes the database (agents, runs, secrets, users) and the worker workspaces. The next start seeds tenant `default`, `admin@garrison`, and the sample agents again from your `.env`. To also reclaim the image space, `docker image rm jchristn77/garrison-server:v0.1.0-alpha jchristn77/garrison-worker:v0.1.0-alpha jchristn77/garrison-dashboard:v0.1.0-alpha`.
 
 ## Notes
 
-- Keys in `compose.yaml` default to the server's development defaults, and the server log warns about them at startup. For anything other than your own machine, set `GARRISON_MASTER_KEY`, `GARRISON_AUTH_SIGNING_KEY`, `GARRISON_ADMIN_PASSWORD`, `GARRISON_ADMIN_API_KEY`, and the access and secret keys in `.env` before the first start. The master key encrypts stored secrets, so changing it later makes them unreadable; run a factory reset if you need to change it.
+- Keys and passwords come from `.env` only; `compose.yaml` has no defaults for them. `update.sh` and the factory reset generate random values for any that are missing, and you can set your own in `.env` before the first start instead. The master key encrypts stored secrets, so changing it later makes them unreadable; run a factory reset if you need to change it.
 - Agents call back into Garrison (delegation) at `http://garrison-server:8701`, the in-network address, so delegation works without exposing anything extra.
 - Garrison uses two URLs. Runs get the internal ones (`GARRISON_PUBLIC_BASE_URL=http://garrison-server:8700` and `GARRISON_MCP_PUBLIC_URL=http://garrison-server:8701`). A2A agent cards and server info advertise `GARRISON_EXTERNAL_BASE_URL`, which defaults to `http://127.0.0.1:<GARRISON_REST_PORT>`, the address you use from the host. If other machines or a proxy reach the stack under a different name, set `GARRISON_EXTERNAL_BASE_URL` in `.env` (for example `https://garrison.example.com`) and run `./update.sh`.
 - The containers have fixed names (`garrison-server`, `garrison-worker-1`, and so on), so one machine runs one copy of this stack. A second copy, even under a different Compose project name, collides on those names.

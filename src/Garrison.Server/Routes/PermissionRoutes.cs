@@ -19,6 +19,7 @@ namespace Garrison.Server.Routes
         #region Private-Members
 
         private readonly ServerContext _Context;
+        private readonly IdentityService _Identity;
 
         #endregion
 
@@ -28,10 +29,12 @@ namespace Garrison.Server.Routes
         /// Instantiate.
         /// </summary>
         /// <param name="context">Server context.</param>
-        /// <exception cref="ArgumentNullException">Thrown when context is null.</exception>
-        public PermissionRoutes(ServerContext context)
+        /// <param name="identity">Identity service, which applies the grant ceiling.</param>
+        /// <exception cref="ArgumentNullException">Thrown when context or identity is null.</exception>
+        public PermissionRoutes(ServerContext context, IdentityService identity)
         {
             _Context = context ?? throw new ArgumentNullException(nameof(context));
+            _Identity = identity ?? throw new ArgumentNullException(nameof(identity));
         }
 
         #endregion
@@ -107,6 +110,9 @@ namespace Garrison.Server.Routes
                 permission.OperationTypes = operations;
             }
             if (request.Active.HasValue) permission.Active = request.Active.Value;
+            // A permission already mapped to an assigned role grants its new lists at once, so the change is limited to
+            // what the caller holds itself (SR-13).
+            await _Identity.RequirePermissionWithinCallerAsync(RouteHelpers.Context(context), RouteHelpers.Tenant(context), permission, context.Token).ConfigureAwait(false);
             await _Context.Database.Permissions.UpdateAsync(permission, context.Token).ConfigureAwait(false);
             await ChangedAsync(context, permission.Id, "Permission " + permission.Name + " updated.").ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, permission).ConfigureAwait(false);

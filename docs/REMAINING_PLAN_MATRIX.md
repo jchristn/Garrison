@@ -4,7 +4,7 @@ Updated 2026-10-14 under D-042/D-043 and D-049. The user selected all remaining 
 
 D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active scope. There are 0 active phase tasks, 1 conditional P10 task (P10.25, not evidenced: P14.15 never filled the slots; P10.24 completed 2026-10-14), and 53 deferred phase tasks. D-051 brought P11.15 and P11.17 into scope; P11.15 is complete (D-052, schema 27) and P11.17 is complete (D-053). P6.17/P6.19/P7.5/P11.14/P11.15/P11.17/P11.18/P11.19/P11.20/P12.8/P12.9/P12.10/P12.11/P12.12/P12.13/P12.17/P12.29/P12.38/P14.15 are complete. G-8 is done (SyslogLogging 2.4.1). G-12 is done (new Codex deployments use `builtin/codex-app-server`). G-29 is done (D-050: containerized workers and run pods default Codex to `danger-full-access`; the container is the sandbox). Under D-050, I-06 (manifest references resolved once per apply), I-08 (warnings for clamped values), and the empty-input rejection (400 `InputRequired`) are done. P10.24 is complete. I-01, I-05, and cancellation latency were completed 2026-10-13.
 
-D-054 (2026-10-14) brought claim collision tuning, release hardening (P15.1, P15.4, P15.6), triggers and webhooks (P12.5, P12.14), and convenience work (P12.21, P12.22, P12.27) into scope. P15.1, P15.4, and P15.6 are complete; their follow-ups are P15.22 (open security findings, each needing a decision) and P15.23 (scan failures to clear before the next image publication).
+D-054 (2026-10-14) brought claim collision tuning, release hardening (P15.1, P15.4, P15.6), triggers and webhooks (P12.5, P12.14), and convenience work (P12.21, P12.22, P12.27) into scope. P15.1, P15.4, and P15.6 are complete; their follow-ups are P15.22 (the open security findings, fixed under D-055) and P15.23 (scan failures to clear before the next image publication).
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -56,13 +56,14 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P12.45 | Canary promotion/rollback recommendations | Deferred | Depends on traffic experiments; operator approves changes |
 | P12.46 | Git/workspace caching | Deferred | Performance optimization; snapshot cache needs artifacts |
 | P14.15 | Load the control plane to failure | Complete | 2026-10-14: ceiling about 25 to 28 runs/s with 320 slots; thundering-herd claim races are the limit (see `docs/SCALING.md`) |
-| P15.1 | Security review | Complete | D-054. `docs/SECURITY_REVIEW.md`: 26 findings; SR-01 to SR-07 fixed with regression suites (`security-unit`, `security-<provider>`), the rest open in P15.22 |
+| P15.1 | Security review | Complete | D-054. `docs/SECURITY_REVIEW.md`: 26 findings; SR-01 to SR-07 fixed with regression suites (`security-unit`, `security-<provider>`), the rest fixed in P15.22 |
 | P15.2 | Versioned master-key rotation | Deferred | Production key lifecycle |
 | P15.3 | Credential and run-token expiry policies | Deferred | Bound credential lifetimes |
 | P15.4 | Dependency/image vulnerability scans | Complete | D-054. `Security scans` workflow (push, pull request, weekly, dispatch): NuGet, npm, pip-audit, govulncheck, Trivy. Remaining failures tracked in P15.23 |
 | P15.5 | Signed images and SBOMs | Deferred | Supply-chain release artifacts |
 | P15.6 | Upgrade-path tests across releases | Complete | D-054. `upgrade-sqlite` and `upgrade-postgresql` suites: schema 1 and schema 15 installations upgrade with data, sign-in, and an end-to-end run; rolling replacement stays in `k8s/tests/rolling-upgrade-test.sh` |
-| P15.22 | Open security review findings | Active, needs decisions | SR-08 to SR-25 and the open parts of SR-03, SR-04, SR-07; most change existing behavior |
+| P15.22 | Open security review findings | Complete | D-055. SR-08 to SR-26 and the open parts of SR-03 and SR-04 fixed, with `security-hardening-*`, `security-worker-*`, and `security-assets` suites. SR-07 is fixed except the HTTP MCP server test, which needs a handler hook in Voltaic (planned for Voltaic 2.4.0), tracked as P15.24 |
+| P15.24 | Voltaic handler for MCP clients | Not started | Waits for Voltaic 2.4.0; closes SR-07 redirects and DNS rebinding for the MCP test, worker preflight, and provider bridge |
 | P15.23 | Clear scan failures | Active | Dashboard vitest 2 to 5 (major), image rebuilds on current base images |
 | P15.7 | Full simulated user session and report | Deferred | Proves initial setup and core workflows |
 | P15.8 | User review and verification of findings | Deferred | Human review after P15.7 |

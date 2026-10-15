@@ -437,7 +437,7 @@ namespace Garrison.Server.Runtime
             Secret updated = Copy(current);
             updated.ValueEncrypted = _Cipher.Encrypt(value, updated.Id);
             updated.ValueLast4 = SecretGenerator.Last4(value);
-            updated.Fingerprint = SecretGenerator.Fingerprint(value);
+            updated.Fingerprint = _Cipher.Fingerprint(value);
             updated.KeyVersion = _Cipher.KeyVersion;
             updated.Status = SecretStatusEnum.Ok;
             updated.StatusMessage = null;

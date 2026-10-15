@@ -40,6 +40,18 @@ describe('worker MCP diagnostics', () => {
     expect(load).toHaveBeenCalledWith('node-ready');
     expect(document.body.textContent).toContain('fixture_status');
   });
+  it('explains that workers offer stdio diagnostics only when an operator turns them on', async () => {
+    const loadNodes = vi.fn().mockResolvedValue({ items: [{ id: 'node-old', name: 'Worker', status: 'Ready', supportsMcpTests: false }] });
+    await mount({ load: vi.fn(), loadNodes });
+    const hint = document.querySelector('[data-testid="mcp-test-no-workers"]');
+    expect(hint).not.toBeNull();
+    expect(hint.textContent).toContain('GARRISON_WORKER_MCP_TESTS_ENABLED=true');
+  });
+  it('shows no hint while an eligible worker exists', async () => {
+    const loadNodes = vi.fn().mockResolvedValue({ items: [{ id: 'node-ready', name: 'Ready worker', status: 'Ready', supportsMcpTests: true }] });
+    await mount({ load: vi.fn(), loadNodes });
+    expect(document.querySelector('[data-testid="mcp-test-no-workers"]')).toBeNull();
+  });
   it('preserves automatic HTTP tests without requiring a worker', async () => {
     const load = vi.fn().mockResolvedValue({ success: true, tools: [] });
     await mount({ load });

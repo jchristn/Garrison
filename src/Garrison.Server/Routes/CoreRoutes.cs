@@ -208,16 +208,28 @@ namespace Garrison.Server.Routes
             if (ctx.PrincipalType == PrincipalTypeEnum.User && ctx.User != null)
             {
                 TokenResponse issued = await _Context.Authentication.IssueForUserAsync(ctx.User, AuthSchemeEnum.BearerToken, context.Request.Source.IpAddress, context.Request.Useragent, context.Token).ConfigureAwait(false);
+                await RevokeRefreshedAsync(context).ConfigureAwait(false);
                 await RouteHelpers.JsonAsync(context, 200, issued).ConfigureAwait(false);
                 return;
             }
             if (ctx.PrincipalType == PrincipalTypeEnum.Credential && ctx.Credential != null)
             {
                 TokenResponse issued = await _Context.Authentication.IssueForCredentialAsync(ctx.Credential, AuthSchemeEnum.BearerToken, context.Request.Source.IpAddress, context.Request.Useragent, context.Token).ConfigureAwait(false);
+                await RevokeRefreshedAsync(context).ConfigureAwait(false);
                 await RouteHelpers.JsonAsync(context, 200, issued).ConfigureAwait(false);
                 return;
             }
             await RouteHelpers.ErrorAsync(context, 400, "RefreshNotSupported", "Only user and credential sessions can be refreshed.").ConfigureAwait(false);
+        }
+
+        private async Task RevokeRefreshedAsync(HttpContextBase context)
+        {
+            // A refresh replaces the session it was made with, so a token can be renewed but never multiplied (SR-17).
+            // Requests signed with access keys have no session token and nothing to revoke.
+            string? bearer = context.Request.Headers["Authorization"];
+            string? raw = !String.IsNullOrEmpty(bearer) && bearer.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? bearer.Substring(7) : context.Request.Headers[Constants.HeaderToken];
+            if (String.IsNullOrEmpty(raw)) return;
+            await _Context.Authentication.RevokeAsync(raw, "Refreshed.", context.Token).ConfigureAwait(false);
         }
 
         private async Task RevokeAsync(HttpContextBase context)

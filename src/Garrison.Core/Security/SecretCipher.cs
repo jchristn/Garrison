@@ -30,6 +30,7 @@ namespace Garrison.Core.Security
         #region Private-Members
 
         private readonly byte[] _Key;
+        private readonly byte[] _FingerprintKey;
         private readonly int _KeyVersion;
 
         #endregion
@@ -46,6 +47,7 @@ namespace Garrison.Core.Security
         {
             if (String.IsNullOrEmpty(masterKey)) throw new ArgumentNullException(nameof(masterKey));
             _Key = DeriveKey(masterKey);
+            _FingerprintKey = HMACSHA256.HashData(_Key, Encoding.UTF8.GetBytes("garrison-secret-fingerprint"));
             _KeyVersion = Math.Clamp(keyVersion, 1, 255);
         }
 
@@ -86,7 +88,7 @@ namespace Garrison.Core.Security
         /// <param name="associatedData">Associated data used at encryption.</param>
         /// <returns>Plaintext.</returns>
         /// <exception cref="ArgumentNullException">Thrown when encoded is null or empty.</exception>
-        /// <exception cref="CryptographicException">Thrown when the value was tampered with or the key is wrong.</exception>
+        /// <exception cref="CryptographicException">Thrown when the value was tampered with, the key is wrong, or the value was written with another key version.</exception>
         public string Decrypt(string encoded, string associatedData)
         {
             if (String.IsNullOrEmpty(encoded)) throw new ArgumentNullException(nameof(encoded));
@@ -103,6 +105,38 @@ namespace Garrison.Core.Security
             }
         }
 
+        /// <summary>
+        /// Fingerprint of a secret value for change detection and display: the first 16 hex characters of HMAC-SHA256 under a
+        /// key derived from the master key. Without the master key, the fingerprint cannot be used to confirm a guessed value.
+        /// </summary>
+        /// <param name="value">Value.</param>
+        /// <returns>Fingerprint.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when value is null.</exception>
+        public string Fingerprint(string value)
+        {
+            if (value == null) throw new ArgumentNullException(nameof(value));
+            return Convert.ToHexString(HMACSHA256.HashData(_FingerprintKey, Encoding.UTF8.GetBytes(value))).Substring(0, 16).ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Whether a master key is base64 of exactly 32 bytes and used as the AES key directly. Any other value is hashed
+        /// with SHA-256 without stretching, so a short passphrase gives a guessable key; the server logs a warning for it.
+        /// </summary>
+        /// <param name="masterKey">Master key, or null.</param>
+        /// <returns>True when the key is base64 of 32 bytes.</returns>
+        public static bool IsStrongKey(string? masterKey)
+        {
+            if (String.IsNullOrEmpty(masterKey)) return false;
+            try
+            {
+                return Convert.FromBase64String(masterKey).Length == 32;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
         #endregion
 
         #region Private-Methods
@@ -111,6 +145,7 @@ namespace Garrison.Core.Security
         {
             byte[] raw = Convert.FromBase64String(encoded);
             if (raw.Length < 29) throw new CryptographicException("Encrypted value is truncated.");
+            if (raw[0] != _KeyVersion) throw new CryptographicException("Encrypted value was written with master key version " + raw[0] + ", but this server holds key version " + _KeyVersion + " only.");
             byte[] nonce = new byte[12];
             byte[] tag = new byte[16];
             byte[] cipher = new byte[raw.Length - 29];

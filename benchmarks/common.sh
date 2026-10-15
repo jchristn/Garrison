@@ -56,6 +56,9 @@ SERVER_DLL="${BUILD_DIR}/bin/Garrison.Server/release_net10.0/Garrison.Server.dll
 WORKER_DLL="${BUILD_DIR}/bin/Garrison.Worker/release_net10.0/Garrison.Worker.dll"
 FAKE_DLL="${BUILD_DIR}/bin/Garrison.FakeHarness/release_net10.0/garrison-fake-harness.dll"
 
+# Development mode: benchmark servers use the public default keys and credentials (SR-08).
+export GARRISON_ALLOW_INSECURE_DEFAULTS=true
+
 log() { printf '[bench %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 fail() { printf '[bench] error: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || fail "$1 is required but was not found on PATH"; }

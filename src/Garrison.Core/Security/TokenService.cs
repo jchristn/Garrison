@@ -45,12 +45,27 @@ namespace Garrison.Core.Security
         /// <param name="issuer">Issuer.</param>
         /// <param name="lifetimeMinutes">Default lifetime. Minimum 1, maximum 10080.</param>
         /// <exception cref="ArgumentNullException">Thrown when signingKey or issuer is null or empty.</exception>
-        public TokenService(string signingKey, string issuer, int lifetimeMinutes)
+        public TokenService(string signingKey, string issuer, int lifetimeMinutes) : this(signingKey, issuer, lifetimeMinutes, null)
+        {
+        }
+
+        /// <summary>
+        /// Instantiate a token service whose keys are bound to a purpose label, so its tokens and the session tokens of the
+        /// unlabelled service never validate against each other. Used for artifact download tickets.
+        /// </summary>
+        /// <param name="signingKey">Server signing key (any length; derived with SHA-256).</param>
+        /// <param name="issuer">Issuer.</param>
+        /// <param name="lifetimeMinutes">Default lifetime. Minimum 1, maximum 10080.</param>
+        /// <param name="keyLabel">Purpose label mixed into the derived keys, or null for session tokens. Include any
+        /// additional key material here (for example a second secret) to require it as well.</param>
+        /// <exception cref="ArgumentNullException">Thrown when signingKey or issuer is null or empty.</exception>
+        public TokenService(string signingKey, string issuer, int lifetimeMinutes, string? keyLabel)
         {
             if (String.IsNullOrEmpty(signingKey)) throw new ArgumentNullException(nameof(signingKey));
             if (String.IsNullOrEmpty(issuer)) throw new ArgumentNullException(nameof(issuer));
-            _EncryptionKey = SHA256.HashData(Encoding.UTF8.GetBytes("enc:" + signingKey));
-            _MacKey = SHA256.HashData(Encoding.UTF8.GetBytes("mac:" + signingKey));
+            string label = String.IsNullOrEmpty(keyLabel) ? String.Empty : keyLabel + ":";
+            _EncryptionKey = SHA256.HashData(Encoding.UTF8.GetBytes("enc:" + label + signingKey));
+            _MacKey = SHA256.HashData(Encoding.UTF8.GetBytes("mac:" + label + signingKey));
             _Issuer = issuer;
             _LifetimeMinutes = Math.Clamp(lifetimeMinutes, 1, 10080);
         }
@@ -58,6 +73,17 @@ namespace Garrison.Core.Security
         #endregion
 
         #region Public-Methods
+
+        /// <summary>
+        /// Whether a signing key has at least 32 characters. Shorter keys are derived with SHA-256 without stretching and are
+        /// logged as weak at startup.
+        /// </summary>
+        /// <param name="signingKey">Signing key, or null.</param>
+        /// <returns>True when the key is at least 32 characters long.</returns>
+        public static bool IsStrongKey(string? signingKey)
+        {
+            return !String.IsNullOrEmpty(signingKey) && signingKey.Length >= 32;
+        }
 
         /// <summary>
         /// Issue a token for a payload.

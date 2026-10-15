@@ -7,9 +7,18 @@ metadata:
 spec:
   podSelector:
     matchLabels: { app.kubernetes.io/name: garrison-worker }
-  policyTypes: ["Ingress"]
+  policyTypes: ["Ingress", "Egress"]
   ingress:
     - ports: [ { port: 8710 }, { port: 9465 } ]
+  egress:
+    # Any pod in the cluster (DNS, Postgres, the server, run pods), and any address outside it except the cloud
+    # instance metadata service: these pods fetch tenant-chosen URLs and must not hand them the node's identity (SR-23).
+    - to:
+        - namespaceSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [169.254.169.254/32]
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -19,9 +28,18 @@ metadata:
 spec:
   podSelector:
     matchLabels: { app.kubernetes.io/name: garrison-server }
-  policyTypes: ["Ingress"]
+  policyTypes: ["Ingress", "Egress"]
   ingress:
     - ports: [ { port: 8700 }, { port: 8701 }, { port: 9464 } ]
+  egress:
+    # Any pod in the cluster (DNS, Postgres, the server, run pods), and any address outside it except the cloud
+    # instance metadata service: these pods fetch tenant-chosen URLs and must not hand them the node's identity (SR-23).
+    - to:
+        - namespaceSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [169.254.169.254/32]
 {{- if eq .Values.database.mode "embedded" }}
 ---
 apiVersion: networking.k8s.io/v1

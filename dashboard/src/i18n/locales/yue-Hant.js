@@ -2156,3 +2156,5 @@ yueHant.tips.enums.runBlockedReason.NoIsolatingWorker = "已封鎖：呢個執�
 yueHant.tips.resources.deployments.egressRules = "呢個部署嘅執行 Pod 可以連去嘅目的地，用 CIDR 位址區塊表示，可以加連接埠同通訊協定。留空就用預設嘅執行出站規則。";
 yueHant.tips.resources.deployments.egressRulesItems = {"cidr": "用 CIDR 表示法寫嘅目的位址區塊，IPv4 或者 IPv6，例如 203.0.113.0/24。請自己將主機名稱解析成位址。", "port": "1 到 65535 之間嘅目的連接埠。留空就容許呢個位址區塊嘅所有連接埠。", "protocol": "大部分服務用 TCP，或者揀 UDP。"};
 yueHant.tips.resources.deployments.egressDefault = "冇出站允許清單：執行 Pod 用叢集預設嘅執行出站規則。";
+Object.assign(yueHant.common.fieldCodes, {"SecretUseDenied": "你冇權限用呢個機密。請人俾你呢個機密嘅 SecretUser 或者 SecretManager 角色。", "GrantCeiling": "你只可以授予你自己有嘅權限。", "ReservedRoleName": "呢個係內建角色嘅名。請揀第二個名。"});
+yueHant.components.mcpTest.noWorkers = "冇一部就緒嘅工作節點提供 stdio 診斷。因為指令會喺工作節點主機度、執行隔離以外運行，所以只有營運人員喺工作節點設定 GARRISON_WORKER_MCP_TESTS_ENABLED=true 先會運行。";

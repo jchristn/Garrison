@@ -21,5 +21,7 @@ namespace Garrison.Core.Database.Interfaces
         Task DeleteAsync(string tenantId, string id, CancellationToken token = default);
         /// <summary>Remove expired entries and child outcomes; the queue contains no credentials.</summary>
         Task RemoveExpiredAsync(CancellationToken token = default);
+        /// <summary>Remove a worker's finished entries and their child outcomes, which a caller whose cleanup did not complete can leave behind; returns the entries removed.</summary>
+        Task<int> RemoveFinishedByNodeAsync(string nodeId, CancellationToken token = default);
     }
 }

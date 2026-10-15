@@ -35,6 +35,7 @@ namespace Garrison.Server.Services
             agent.TenantId = tenantId;
             agent.IsProtected = false;
             ConfigurationValidator.Agent(agent);
+            await _Server.Authorization.SecretUse(ctx, tenantId).RequireForModelAsync(tenantId, agent, token).ConfigureAwait(false);
             Agent? existing = await _Server.Database.Agents.ReadByNameAsync(tenantId, agent.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, agent.Name);
             Agent created = await _Server.Database.Agents.CreateAsync(agent, token).ConfigureAwait(false);
@@ -57,6 +58,7 @@ namespace Garrison.Server.Services
             agent.CreatedUtc = existing.CreatedUtc;
             agent.LastRegisteredUtc = existing.LastRegisteredUtc;
             ConfigurationValidator.Agent(agent);
+            await _Server.Authorization.SecretUse(ctx, tenantId).RequireForModelAsync(tenantId, agent, token).ConfigureAwait(false);
             Agent? named = await _Server.Database.Agents.ReadByNameAsync(tenantId, agent.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, agent.Name);
             Agent updated = await _Server.Database.Agents.UpdateAsync(agent, token).ConfigureAwait(false);
@@ -79,6 +81,7 @@ namespace Garrison.Server.Services
             deployment.ConfigVersion = 1;
             DefaultPromptBindings.Apply(deployment);
             await ConfigurationValidator.DeploymentAsync(_Server.Database, tenantId, deployment, token).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(ctx, tenantId).RequireForDeploymentAsync(tenantId, deployment, token).ConfigureAwait(false);
             Deployment? existing = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, deployment.Name);
             Deployment created = await _Server.Database.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
@@ -102,6 +105,7 @@ namespace Garrison.Server.Services
             deployment.ConfigVersion = existing.ConfigVersion + 1;
             DefaultPromptBindings.Apply(deployment);
             await ConfigurationValidator.DeploymentAsync(_Server.Database, tenantId, deployment, token).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(ctx, tenantId).RequireForDeploymentAsync(tenantId, deployment, token).ConfigureAwait(false);
             Deployment? named = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, deployment.Name);
             Deployment updated = await _Server.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);

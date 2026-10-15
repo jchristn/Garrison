@@ -21,6 +21,8 @@ set LOCAL_URL=http://127.0.0.1:37800
 set LOCAL_HEALTH_BASE=37810
 set LOCAL_METRICS_BASE=37820
 set ADMIN_KEY=garrison-benchmark-admin-key-not-for-production
+rem Development mode: benchmark servers use the public default keys and credentials (SR-08).
+set GARRISON_ALLOW_INSECURE_DEFAULTS=true
 set "HARNESS_DLL=%BUILD_DIR%\bin\Test.Benchmark\release_net10.0\Garrison.Benchmark.dll"
 set "SERVER_DLL=%BUILD_DIR%\bin\Garrison.Server\release_net10.0\Garrison.Server.dll"
 set "WORKER_DLL=%BUILD_DIR%\bin\Garrison.Worker\release_net10.0\Garrison.Worker.dll"

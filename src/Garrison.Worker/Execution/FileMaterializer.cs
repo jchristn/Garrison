@@ -12,7 +12,8 @@ namespace Garrison.Worker.Execution
 
     /// <summary>
     /// Writes execution files into the run's config, workspace, or home directory with path traversal protection and
-    /// optional Unix modes. Secret files default to mode 600. Thread-safe.
+    /// optional Unix modes. Secret files default to mode 600. An existing link at a file's path is replaced, and a linked
+    /// directory on the way is refused, so a reused conversation directory cannot redirect a write. Thread-safe.
     /// </summary>
     public static class FileMaterializer
     {
@@ -23,7 +24,7 @@ namespace Garrison.Worker.Execution
         /// <param name="directories">Run directories.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Absolute path written.</returns>
-        /// <exception cref="UnauthorizedAccessException">Thrown when the path escapes its base directory.</exception>
+        /// <exception cref="UnauthorizedAccessException">Thrown when the path escapes its base directory or a directory on the way is a filesystem link.</exception>
         /// <exception cref="FormatException">Thrown when the mode is not octal.</exception>
         public static async Task<string> WriteAsync(ExecutionFile file, RunDirectories directories, CancellationToken token)
         {
@@ -33,9 +34,9 @@ namespace Garrison.Worker.Execution
             string baseDirectory = file.BaseDirectory == FileBaseDirectoryEnum.Workspace ? directories.Workspace
                 : file.BaseDirectory == FileBaseDirectoryEnum.Home ? directories.Home
                 : directories.Config;
-            string path = SafePaths.Combine(baseDirectory, file.Path);
-            string? parent = Path.GetDirectoryName(path);
-            if (!String.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+            // A reused conversation directory was under the previous turn's harness control: never write through a link
+            // it planted (SR-24).
+            string path = SafePaths.PrepareWrite(baseDirectory, file.Path);
             await File.WriteAllTextAsync(path, file.Content ?? String.Empty, new UTF8Encoding(false), token).ConfigureAwait(false);
 
             string? mode = file.Mode ?? (file.IsSecret ? "600" : null);

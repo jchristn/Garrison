@@ -2157,3 +2157,5 @@ zhHans.tips.enums.runBlockedReason.NoIsolatingWorker = "已阻塞：此运行需
 zhHans.tips.resources.deployments.egressRules = "此部署的运行 Pod 可以访问的目标，以 CIDR 地址块表示，可选端口和协议。留空则使用默认的运行出站规则。";
 zhHans.tips.resources.deployments.egressRulesItems = {"cidr": "CIDR 表示法的目标地址块，IPv4 或 IPv6，例如 203.0.113.0/24。请自行将主机名解析为地址。", "port": "1 到 65535 之间的目标端口。留空则允许该地址块的所有端口。", "protocol": "大多数服务使用 TCP，或选择 UDP。"};
 zhHans.tips.resources.deployments.egressDefault = "没有出站允许列表：运行 Pod 使用集群默认的运行出站规则。";
+Object.assign(zhHans.common.fieldCodes, {"SecretUseDenied": "你没有使用此机密的权限。请申请此机密的 SecretUser 或 SecretManager 角色。", "GrantCeiling": "你只能授予自己拥有的权限。", "ReservedRoleName": "这是内置角色的名称。请选择其他名称。"});
+zhHans.components.mcpTest.noWorkers = "没有就绪的工作节点提供 stdio 诊断。命令会在工作节点主机上、运行隔离之外执行，因此只有运维人员在工作节点上设置 GARRISON_WORKER_MCP_TESTS_ENABLED=true 时才会运行。";

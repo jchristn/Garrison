@@ -125,6 +125,17 @@ namespace Garrison.Core.Database.Interfaces
         Task<int> PruneExpiredAsync(DateTime olderThanUtc, CancellationToken token = default);
 
         /// <summary>
+        /// Revoke every active user session of a user (sessions issued to the user's login, not to their credentials),
+        /// optionally keeping one, for example the caller's own session after a password change.
+        /// </summary>
+        /// <param name="userId">User identifier.</param>
+        /// <param name="exceptSessionId">Session to keep, or null to revoke all.</param>
+        /// <param name="reason">Revocation reason.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Sessions revoked.</returns>
+        Task<int> RevokeByUserAsync(string userId, string? exceptSessionId, string reason, CancellationToken token = default);
+
+        /// <summary>
         /// Delete every session of a user.
         /// </summary>
         /// <param name="userId">User identifier.</param>

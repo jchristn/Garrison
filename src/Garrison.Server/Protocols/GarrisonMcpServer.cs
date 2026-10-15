@@ -904,7 +904,7 @@ namespace Garrison.Server.Protocols
             McpManifestArguments arguments = ManagementArguments<McpManifestArguments>(args);
             if (String.IsNullOrWhiteSpace(arguments.Manifest)) throw ToolError("ValidationFailed", "manifest is required.");
             if (arguments.AllowSecretValues) await Require(ctx, tenantId, ResourceTypeEnum.Secret, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
-            ManifestApply result = await _Context.Get<ManifestService>().ApplyAsync(tenantId, arguments.Manifest, new ManifestApplyOptions { DryRun = arguments.DryRun, AllowSecretValues = arguments.AllowSecretValues, PrincipalName = ctx.PrincipalName }, token).ConfigureAwait(false);
+            ManifestApply result = await _Context.Get<ManifestService>().ApplyAsync(tenantId, arguments.Manifest, new ManifestApplyOptions { DryRun = arguments.DryRun, AllowSecretValues = arguments.AllowSecretValues, PrincipalName = ctx.PrincipalName, SecretUse = _Context.Authorization.SecretUse(ctx, tenantId) }, token).ConfigureAwait(false);
             await _Context.Audit.WriteAsync(ctx, AuditEventTypeEnum.ManifestApplied, "Manifest", result.Id,
                 (arguments.DryRun ? "Dry-run manifest apply: " : "Manifest apply: ") + result.CreatedCount + " created, " + result.UpdatedCount + " updated, " + result.UnchangedCount + " unchanged, " + result.FailedCount + " failed.", tenantId, token).ConfigureAwait(false);
             return result;

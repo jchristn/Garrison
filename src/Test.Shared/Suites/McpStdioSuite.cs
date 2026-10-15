@@ -37,7 +37,7 @@ namespace Test.Shared.Suites
                 string id = "mcp-stdio-" + provider.ToString().ToLowerInvariant();
                 suites.Add(new TestSuiteDescriptor(id, "Worker stdio MCP dispatch", new List<TestCaseDescriptor>
                 {
-                    new TestCaseDescriptor(id, "queue", "MCP diagnostic queue atomically claims once, fences worker registrations, scopes outcomes, and expires", ct => QueueAsync(provider, ct)),
+                    new TestCaseDescriptor(id, "queue", "MCP diagnostic queue atomically claims once, fences worker registrations, scopes outcomes, expires, and clears finished leftovers", ct => QueueAsync(provider, ct)),
                     new TestCaseDescriptor(id, "worker", "A stdio diagnostic requested on replica B executes on the selected worker of replica A and leaves no queue entry", ct => WorkerAsync(provider, ct))
                 }));
             }
@@ -77,6 +77,21 @@ namespace Test.Shared.Suites
                 Assert.True(await db.McpTests.ClaimAsync(entry.NodeId, registration, token).ConfigureAwait(false) == null, "Expired cannot start");
                 await db.McpTests.RemoveExpiredAsync(token).ConfigureAwait(false);
                 Assert.True(await db.McpTests.ReadAsync(entry.TenantId, entry.Id, token).ConfigureAwait(false) == null, "Expired queue cleanup");
+
+                // A finished entry whose caller never cleaned it up is removable, so it cannot block the worker; a pending
+                // entry is not.
+                Node reset = await db.Nodes.ReadAsync(entry.NodeId, token).ConfigureAwait(false) ?? throw new InvalidOperationException("Missing fixture node");
+                reset.RegisteredUtc = registration;
+                await db.Nodes.UpdateAsync(reset, token).ConfigureAwait(false);
+                entry.Id = Garrison.Core.Helpers.IdGenerator.New(Garrison.Core.Constants.McpTestIdPrefix); entry.ExpiresUtc = DateTime.UtcNow.AddMinutes(5);
+                await db.McpTests.CreateAsync(entry, token).ConfigureAwait(false);
+                Assert.Equal(0, await db.McpTests.RemoveFinishedByNodeAsync(entry.NodeId, token).ConfigureAwait(false), "A pending entry is kept");
+                Assert.NotNull(await db.McpTests.ClaimAsync(entry.NodeId, registration, token).ConfigureAwait(false), "Claim");
+                Assert.True(await db.McpTests.CompleteAsync(entry.NodeId, registration, entry.Id, outcome, token).ConfigureAwait(false), "Complete");
+                Assert.Equal(1, await db.McpTests.RemoveFinishedByNodeAsync(entry.NodeId, token).ConfigureAwait(false), "A finished leftover is removed");
+                entry.Id = Garrison.Core.Helpers.IdGenerator.New(Garrison.Core.Constants.McpTestIdPrefix);
+                await db.McpTests.CreateAsync(entry, token).ConfigureAwait(false);
+                await db.McpTests.DeleteAsync(entry.TenantId, entry.Id, token).ConfigureAwait(false);
             }
         }
 
@@ -89,7 +104,11 @@ namespace Test.Shared.Suites
                 settings.NodeId = "stdio-second-replica";
             }, token).ConfigureAwait(false))
             {
-                cluster.Workers.Add(await TestCluster.StartWorkerAsync(cluster.Server.BaseUrl, "single-slot-diagnostic", settings => settings.MaxConcurrentRuns = 1, token).ConfigureAwait(false));
+                cluster.Workers.Add(await TestCluster.StartWorkerAsync(cluster.Server.BaseUrl, "single-slot-diagnostic", settings =>
+                {
+                    settings.MaxConcurrentRuns = 1;
+                    settings.McpTestsEnabled = true;
+                }, token).ConfigureAwait(false));
                 string api = "/v1.0/api/tenants/" + cluster.Server.TenantId;
                 await HttpTestHelpers.SendAsync<Secret>(cluster.Server.AdminClient, HttpMethod.Post, api + "/secrets", new SecretRequest { Name = "fixture_stdio_secret", Value = "fixture-private-value" }, 201, token).ConfigureAwait(false);
                 McpServer server = await HttpTestHelpers.SendAsync<McpServer>(cluster.Server.AdminClient, HttpMethod.Post, api + "/mcp-servers", new McpServer

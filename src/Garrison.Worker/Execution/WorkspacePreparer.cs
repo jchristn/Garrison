@@ -9,6 +9,7 @@ namespace Garrison.Worker.Execution
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
     using Garrison.Core.Enums;
+    using Garrison.Core.Services;
     using Garrison.Harnesses.Execution;
 
     /// <summary>
@@ -54,7 +55,8 @@ namespace Garrison.Worker.Execution
         /// <param name="baseEnvironment">Base environment for git.</param>
         /// <param name="token">Cancellation token.</param>
         /// <returns>Task.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when the git clone fails.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the git clone fails or the repository URL or reference is not allowed.</exception>
+        /// <exception cref="UnauthorizedAccessException">Thrown when a seeded file's path escapes the workspace or a directory on the way is a filesystem link.</exception>
         public async Task PrepareAsync(ExecutionWorkspace workspace, RunDirectories directories, Dictionary<string, string> baseEnvironment, CancellationToken token)
         {
             if (workspace == null) throw new ArgumentNullException(nameof(workspace));
@@ -67,9 +69,8 @@ namespace Garrison.Worker.Execution
 
             foreach (ExecutionWorkspaceFile file in workspace.Files)
             {
-                string path = SafePaths.Combine(directories.Workspace, file.Path);
-                string? parent = Path.GetDirectoryName(path);
-                if (!String.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+                // Conversation turns reuse the workspace the previous harness controlled: never write through its links (SR-24).
+                string path = SafePaths.PrepareWrite(directories.Workspace, file.Path);
                 await File.WriteAllTextAsync(path, file.Content ?? String.Empty, new UTF8Encoding(false), token).ConfigureAwait(false);
             }
         }
@@ -81,9 +82,15 @@ namespace Garrison.Worker.Execution
         private async Task CloneAsync(ExecutionWorkspace workspace, RunDirectories directories, Dictionary<string, string> baseEnvironment, CancellationToken token)
         {
             if (String.IsNullOrEmpty(workspace.GitUrl)) throw new InvalidOperationException("GitRepository workspace has no GitUrl.");
+            // SR-22: the control plane validates these too; a worker never hands git a local path, another transport, or
+            // an argument that reads as an option.
+            if (!ConfigurationValidator.IsAllowedGitUrl(workspace.GitUrl)) throw new InvalidOperationException("The repository URL must be https://, ssh://, or user@host:path.");
+            if (!String.IsNullOrEmpty(workspace.GitRef) && !ConfigurationValidator.IsAllowedGitRef(workspace.GitRef)) throw new InvalidOperationException("The git reference is not allowed.");
 
             Dictionary<string, string> environment = new Dictionary<string, string>(baseEnvironment);
             environment["GIT_TERMINAL_PROMPT"] = "0";
+            environment["GIT_ALLOW_PROTOCOL"] = "https:ssh";
+            environment["GIT_PROTOCOL_FROM_USER"] = "0";
             environment["HOME"] = directories.Home;
             if (!String.IsNullOrEmpty(workspace.GitPassword))
             {
@@ -109,6 +116,7 @@ namespace Garrison.Worker.Execution
                 arguments.Add("--branch");
                 arguments.Add(workspace.GitRef);
             }
+            arguments.Add("--");
             arguments.Add(workspace.GitUrl);
             arguments.Add(directories.Workspace);
 
@@ -120,11 +128,11 @@ namespace Garrison.Worker.Execution
             if (!String.IsNullOrEmpty(workspace.GitRef))
             {
                 if (Directory.Exists(directories.Workspace)) Directory.Delete(directories.Workspace, true);
-                List<string> full = new List<string> { "clone", workspace.GitUrl, directories.Workspace };
+                List<string> full = new List<string> { "clone", "--", workspace.GitUrl, directories.Workspace };
                 ProcessRunResult fallback = await RunGitAsync(full, directories.Root, environment, token).ConfigureAwait(false);
                 if (fallback.ExitCode == 0)
                 {
-                    ProcessRunResult checkout = await RunGitAsync(new List<string> { "-C", directories.Workspace, "checkout", workspace.GitRef }, directories.Root, environment, token).ConfigureAwait(false);
+                    ProcessRunResult checkout = await RunGitAsync(new List<string> { "-C", directories.Workspace, "checkout", "--end-of-options", workspace.GitRef, "--" }, directories.Root, environment, token).ConfigureAwait(false);
                     if (checkout.ExitCode == 0) return;
                     throw new InvalidOperationException("git checkout " + workspace.GitRef + " failed: " + LastLine(checkout.StderrTail));
                 }

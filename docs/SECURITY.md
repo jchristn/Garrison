@@ -15,7 +15,7 @@ Every one of these defaults is public, so change them all:
 | `Security.DefaultAccessKey` / `DefaultSecretKey` | `access_garrison_default` / `secret_garrison_default_change_me` | Random values before first start, or rotate the credential afterwards |
 | `Security.NodeAccessKey` / `NodeSecretKey` | `access_garrison_node` / `secret_garrison_node_change_me` | Random values, set identically on the server and every worker |
 
-`k8s/scripts/generate-secrets.sh` generates all of these for Kubernetes. Terminate TLS at the ingress (or set `Rest.Ssl`); credentials and tokens otherwise cross the network in the clear.
+`k8s/scripts/generate-secrets.sh` generates all of these for Kubernetes, including a random administrator password unless you set `GARRISON_ADMIN_PASSWORD`. For Docker Compose, `docker/update.sh` and `docker/factory/reset.sh` generate any that are missing into `docker/.env`, and `compose.yaml` has no defaults for them. Terminate TLS at the ingress (or set `Rest.Ssl`); credentials and tokens otherwise cross the network in the clear.
 
 ## Identities
 
@@ -35,6 +35,10 @@ Session tokens are opaque. Each one is AES-256-CBC encrypted with a random IV an
 
 Each replica caches the user and credential sessions, tenants, users, and credentials it reads to authenticate requests for `Auth.CacheSeconds` (5 by default, 0 turns the cache off). The cache never weakens revocation done through the API: logging out drops the session from every replica's cache, and any change to tenants, users, credentials, roles, permissions, or assignments clears every replica's cache, both through the backplane within milliseconds. `Auth.CacheSeconds` bounds only a change made outside the API, such as a direct database edit, or a replica that missed a backplane message (a replica that reconnects to the backplane clears its cache). Run tokens and failed lookups are never cached.
 
+Changing a user's password revokes every other session of that user at once; a user who changes their own password keeps the session they did it from. `POST /v1.0/token/refresh` issues a new session and revokes the one it was called with, so a token can be renewed but never multiplied (SR-17).
+
+Artifact download tickets use their own keys, derived from both `Auth.SigningKey` and `Security.MasterKey` under an artifact label, so a session token never works as a ticket and forging one needs both secrets (SR-12).
+
 Run tokens are sessions too. They are issued when a run is leased (only for agents that may delegate), expire at the run's deadline, and are revoked when the run finishes, times out, or loses its lease. They are scrubbed from the harness's output.
 
 Each run token is also fenced by the lease epoch it was minted for (the epoch increases every time a worker claims the run). Garrison accepts a run token only while its run is Leased, Running, or Cancelling at that same epoch. When a lease expires and the run is requeued, the reaper revokes every token minted for the expired attempt, and the next claim mints a new one for the new epoch. A harness that kept running on a partitioned worker after its lease expired therefore cannot delegate, read runs, or open an MCP session with its old token, and the check does not depend on the revocation having happened: a token for an older epoch is refused on its own. Only a run that never started, or one admitted under the `AtLeastOnce` effect policy, is requeued after its lease expires; under the default `AtMostOnce` a started run ends `NodeLost` instead, so its effects are never repeated by Garrison (see "Effect policy" in `REST_API.md`).
@@ -47,9 +51,11 @@ A signed request carries an HMAC-SHA256 signature over the method, path, query, 
 
 | What | How it is stored |
 |---|---|
-| Garrison secrets (API keys and the like) | AES-256-GCM under `Security.MasterKey`, with the secret's identifier as associated data so a ciphertext cannot be moved to another record. Only the last four characters and a fingerprint are ever returned |
+| Garrison secrets (API keys and the like) | AES-256-GCM under `Security.MasterKey`, with the secret's identifier as associated data so a ciphertext cannot be moved to another record. Only the last four characters (empty for values shorter than 12 characters) and a fingerprint are ever returned. The fingerprint is HMAC-SHA256 under a key derived from the master key, so it cannot be used to confirm a guessed value without that key (SR-18) |
 | Credential secret keys | AES-256-GCM under the master key; they must be recoverable to verify signed requests. Returned once, at creation or rotation |
 | User passwords | PBKDF2-HMAC-SHA256, random 16-byte salt, 600,000 iterations (`Auth.PasswordHashIterations`), constant-time comparison; legacy SHA-256 hashes are upgraded at the next successful sign-in |
+
+Every encrypted value records the master key version it was written with (`Security.MasterKeyVersion`), and a value written under another version is refused with a clear error instead of failing as a bad tag. Use base64 of 32 random bytes for the master key and at least 32 random characters for the signing key; anything else is hashed with SHA-256 without stretching, and the server logs a warning for it at startup (SR-19).
 
 Passwords are stored as `pbkdf2-sha256$<iterations>$<salt>$<hash>`. Hashes written by earlier builds still verify and are replaced on the next successful sign-in. Signing in to an unknown or inactive account takes as long as a real verification, so timing does not reveal which accounts exist. Rolling the database back to an earlier build would leave upgraded users unable to sign in until their passwords are reset.
 
@@ -69,11 +75,11 @@ Treat a login stored in Garrison as belonging to Garrison. The same login used o
 
 ### Rate limiting
 
-Token issuance is limited per source address (`Auth.RateLimitPerMinute`, 60), answering 429 `RateLimited` beyond it. The counter lives in the database, so the limit holds across all control-plane replicas. Behind a proxy or load balancer the source address is the address the server sees, so all clients behind one proxy share a budget. Other routes are not rate limited.
+Token issuance is limited per source address (`Auth.RateLimitPerMinute`, 60), answering 429 `RateLimited` beyond it. Failed administrator API key, secret key, and signature attempts count against the same per-minute limit, separately from token issuance; once an address passes it, requests from that address that present `x-api-key` or `x-access-key` get 429 `RateLimited` for the rest of the minute, even with the right key. Successful requests are never counted. The counters live in the database, so the limits hold across all control-plane replicas. Behind a proxy or load balancer the source address is the address the server sees, so all clients behind one proxy share a budget. Other routes are not rate limited.
 
 ## Authorization
 
-Every route and MCP tool is registered together with its authorization rule in an operation scope map: anonymous (health, token issuance, A2A cards), any authenticated caller with checks made inside the handler (self-service routes, A2A JSON-RPC), or a resource type and operation. Each route's rule is listed in `REST_API.md`.
+Every route and MCP tool is registered together with its authorization rule in an operation scope map: anonymous (health, token issuance, A2A cards), any authenticated caller with checks made inside the handler (self-service routes, A2A JSON-RPC, and the live-updates WebSocket `/v1.0/ws`, which authorizes each subscription and allows at most 64 per connection), or a resource type and operation. Each route's rule is listed in `REST_API.md`.
 
 **Resource types:** `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, plus `All`.
 
@@ -93,6 +99,15 @@ The decision for a request is made in this order:
 
 A system administrator's account can only be changed by a system administrator: creating or rotating one of their credentials, or changing their password or email, answers 400 to anyone else, since a credential acts with its owner's administrator flag.
 
+Nobody can grant more than they hold (SR-13). These answer 400 with field code `GrantCeiling` unless the caller holds every permission involved (system administrators have no ceiling):
+
+- assigning a role to a user or credential, including one's own;
+- mapping a permission to a role, or changing a permission's resource types or operations;
+- creating a credential with a role, or for another user (the new secret acts as that user);
+- rotating another user's credential, or changing another user's password or email (both let the caller act as that user).
+
+Setting or clearing `isTenantAdmin`, and acting for a tenant administrator in the ways above, needs a tenant administrator. A tenant role may not be named like a built-in role in any letter case (400, `ReservedRoleName`), and an assignment that carries a role identifier is resolved by that identifier only.
+
 Denials are audited with the permission that was missing, and the response carries it (`requiredPermission`, `resourceType`), so a 403 tells you exactly what to grant. `GET .../users/{id}/permissions` and `GET .../credentials/{id}/permissions` show the effective permissions of a principal.
 
 ### Built-in roles
@@ -109,7 +124,8 @@ Denials are audited with the permission that was missing, and the response carri
 | `AgentDeveloper` | Author harness profiles, prompts, agents, deployments, MCP servers, and workspaces; invoke agents |
 | `AgentOperator` | Operate runs and conversations (read, cancel, retry, delete), decide permission approvals, and observe nodes |
 | `AgentInvoker` | Invoke agents and read runs and conversations; meant for integration credentials |
-| `SecretManager` | Manage secrets |
+| `SecretManager` | Manage secrets and use them in configuration |
+| `SecretUser` | Use secrets in configuration (`Execute` on `Secret`) without managing them; assign with resource scope to allow one secret |
 | `NodeAgent` | The node protocol only; for worker credentials |
 | `AgentRegistrar` | Self-registration of remote agents |
 | `Custom` | No permissions; a starting point for tenant-defined roles |
@@ -145,7 +161,7 @@ Each run gets its own Job and pod (`docs/KUBERNETES.md`, "Pod-per-run executor")
 - has no Garrison credentials besides the run token in its MCP configuration (needed for delegation, limited to its delegation tree, and revoked when the run ends) and the secrets its own deployment binds;
 - runs as UID 10001 with `runAsNonRoot`, a read-only root filesystem, every capability dropped, `allowPrivilegeEscalation: false`, the `RuntimeDefault` seccomp profile, and no service environment variables (`enableServiceLinks: false`);
 - is limited by the deployment's CPU, memory, and ephemeral storage requests and limits, so a runaway harness is OOMKilled or evicted instead of starving the node's other runs;
-- accepts no inbound traffic and may only resolve DNS, reach the Garrison MCP port (the `garrison-run` NetworkPolicy), and make HTTPS connections (the `garrison-run-default-egress` NetworkPolicy). A deployment with an egress allowlist replaces that HTTPS rule with its own CIDR and port rules ("Egress allowlists" below). Policies need a network plugin that enforces them; K3S's default one does;
+- accepts no inbound traffic and may only resolve DNS, reach the Garrison MCP port (the `garrison-run` NetworkPolicy), and make HTTPS connections to any address except link-local ones such as the cloud metadata service, 169.254.0.0/16 (the `garrison-run-default-egress` NetworkPolicy, SR-23). A deployment with an egress allowlist replaces that HTTPS rule with its own CIDR and port rules ("Egress allowlists" below). Policies need a network plugin that enforces them; K3S's default one does;
 - can optionally run under gVisor or Kata Containers (`runtimeClassName`) for a kernel boundary as well.
 
 The worker trusts nothing the pod prints except lines that start with the run's random nonce, which only the worker and the pod's spec Secret know. JSON encoding keeps harness text on one line, and `run-one` marks itself non-dumpable so the harness, which runs as the same user with no capabilities, cannot open `run-one`'s stdout through `/proc`. A harness that reads its own spec file learns its own nonce and could, at worst, misreport its own run; it cannot affect other runs or the control plane.
@@ -292,25 +308,59 @@ Approvals (P12.3) put a person, or rules a person wrote, between a Claude Code o
 
 Callers' messages, parameters, and other agents' replies are inserted into prompts as text. Garrison does not and cannot stop a harness from following instructions embedded in that text. Limit what an agent can do (tools, MCP servers, secrets, sandbox, delegation allowlist) to what its job needs, and expose agents that hold powerful credentials only to callers you trust.
 
-Harness processes are started with an argument list, never through a shell, and each argument template renders to exactly one argument. Run parameters can only set values a deployment explicitly allows, each with a validation rule; prefer `Enum` or `Regex` rules for anything that lands in a command line, since `Any` accepts whatever the caller sends. The built-in profiles deliver the prompt on stdin. A custom profile with `promptDelivery: Argument` passes the task text as the last argument with no `--` before it, so text that starts with `-` can be read as an option by the CLI; use stdin or file delivery for untrusted input (SR-14 in `docs/SECURITY_REVIEW.md`).
+Harness processes are started with an argument list, never through a shell, and each argument template renders to exactly one argument. Run parameters can only set values a deployment explicitly allows, each with a validation rule. A rule saved without a validation is an `Enum` rule, which needs its allowed values; `Any`, which accepts whatever the caller sends, has to be chosen explicitly, and should not be used for anything that lands in a command line. The built-in profiles deliver the prompt on stdin. A custom profile with `promptDelivery: Argument` gets `--` before the task text, so text that starts with `-` is never read as an option; a `promptArgumentTemplate` with a literal prefix, such as `--prompt={{input.text}}`, is one argument the CLI reads as a value and needs no separator (SR-14).
 
 ## Configuration authors and tenant secrets
 
-Secret values are never returned by the API, but anyone who can configure deployments or MCP servers in a tenant (`Editor`, `AgentDeveloper`, and up) can bind any of the tenant's secrets to a deployment or reference them in an MCP server's headers, arguments, or environment, and so can send them wherever that configuration points. Grant configuration roles only to people you would trust with the tenant's secrets, or keep sensitive secrets in a separate tenant (SR-10 in `docs/SECURITY_REVIEW.md`).
+Secret values are never returned by the API. Sending a secret somewhere through configuration is a separate permission, `Execute` on `Secret` ("use"), which `TenantAdmin`, `SecretManager`, and `SecretUser` hold and `Editor` and `AgentDeveloper` do not (SR-10). It is checked, for each secret involved, whenever someone saves configuration that would send a secret's value somewhere:
 
-Stdio MCP server tests (`POST .../mcp-servers/{id}/test?nodeId=`) run the server's command directly on the selected worker, outside any run pod. A tenant with `requireUntrustedDeployments` cannot run them (400, field code `StdioDiagnosticsRequireTrust`). In other tenants, treat the permission to test stdio MCP servers like the permission to run Process deployments.
+- a deployment that binds secrets (every bound secret, on every save, since any change to a deployment can change where its secrets go);
+- an MCP server or harness profile whose templates reference secrets, for the secrets of every deployment that uses it;
+- an artifact store (`secretId`), workspace template (`gitCredentialSecretId`), or agent (`remoteCredentialSecretId`);
+- an MCP server test, for the secrets its templates name (only those are decrypted);
+- the same records in a manifest apply, where a document that fails the check is reported with `SecretUseDenied`.
+
+A caller without the permission gets 400 with field code `SecretUseDenied`. To let someone configure agents with one secret, assign `SecretUser` with resource scope on that secret. Invoking an agent never needs the permission: whoever configured the deployment already had it.
+
+Stdio MCP server tests (`POST .../mcp-servers/{id}/test?nodeId=`) run the server's command directly on the selected worker, outside any run pod. Workers do not run them unless the operator sets `McpTestsEnabled` (`GARRISON_WORKER_MCP_TESTS_ENABLED=true`) on that worker; the default is off, so the worker images, Docker Compose, and Kubernetes workers never offer them. Turn it on only for Process workers whose host you already accept as the boundary for tenant-configured commands, never on KubernetesJob workers. A tenant with `requireUntrustedDeployments` cannot run them on any worker (400, field code `StdioDiagnosticsRequireTrust`). Where they are on, treat the permission to test stdio MCP servers like the permission to run Process deployments.
+
+## Worker hardening
+
+- **Node identity.** A node name is bound to the credential that registered it. Another credential gets 409 `NodeIdentityMismatch` when it registers that name or reports `started`, `events`, or `complete` for that node, until the bound credential is deleted or deactivated (then the name can move). System administrators are exempt. Lifecycle reports check the binding through a 30-second per-replica cache, so event ingestion does not read the node row per batch. Give each worker pool its own `NodeAgent` credential if pools must not be able to act for each other (SR-16).
+- **Git workspaces.** `gitUrl` must be `https://`, `ssh://`, or scp-like `user@host:path`; local paths, `file://`, `http://`, `git://`, `ext::`, and anything starting with `-` are refused when the workspace template is saved, and again by the worker. `gitRef` may not start with `-` or contain whitespace or `..`. The worker passes `--` before the URL, uses `--end-of-options` before the reference, and runs git with `GIT_ALLOW_PROTOCOL=https:ssh` and `GIT_PROTOCOL_FROM_USER=0` (SR-22).
+- **Reused conversation directories.** Before writing spec files or seeded workspace files into a directory a previous turn's harness controlled, the worker replaces a link at the file's path with a regular file and refuses to write through a linked directory. Artifact uploads check, after opening a file, that it is the regular file at its path inside the workspace; on Linux the open descriptor itself is checked through `/proc/self/fd`, so a link swapped in between selection and upload is caught (SR-24).
+- **PersistentVolume workspaces.** A KubernetesJob run mounts a PersistentVolumeClaim only when the claim's `garrison.io/tenant` label equals the run's tenant (SR-09, `docs/KUBERNETES.md`).
 
 ## Outbound requests and request limits
 
-The control plane refuses to contact unspecified, link-local, multicast, and broadcast addresses on a tenant's behalf. That includes the cloud metadata services at 169.254.169.254 and fd00:ec2::254. The rule applies to the HTTP MCP server test, which resolves the host before connecting, and to S3 artifact store endpoints given as an IP address. Loopback and private ranges are allowed, because in-cluster MCP servers and object stores live there. The check runs before the connection and the MCP client follows redirects, so it is not a complete SSRF defense; keep egress NetworkPolicies on the server and worker pods as well (SR-07 and SR-23 in `docs/SECURITY_REVIEW.md`).
+The control plane refuses to contact unspecified, link-local, multicast, and broadcast addresses on a tenant's behalf. That includes the cloud metadata services at 169.254.169.254 and fd00:ec2::254. Loopback and private ranges are allowed, because in-cluster MCP servers and object stores live there (SR-07):
 
-The REST listener refuses a request whose Content-Length exceeds `Rest.MaxRequestBodyBytes` (128 MiB by default) with 413 before reading it, and the MCP listener does the same with `Mcp.MaxMessageSize`. Bodies sent with chunked transfer encoding are not covered by this check.
+- **S3 artifact stores with a custom endpoint** connect through `OutboundAddressPolicy.CreateHandler` (`src/Garrison.Core/Security/OutboundAddressPolicy.cs`). Its connect callback resolves the host and connects only to an allowed address, so a DNS answer that changes between a check and the connection cannot reach a blocked address, and it never follows redirects. Such a store also needs a credential secret: the server's own cloud identity (IRSA, an instance role) is never sent to an endpoint a tenant chose, unless the operator sets `Artifacts.AllowAmbientCredentialsWithCustomEndpoint` (SR-21).
+- **The HTTP MCP server test** resolves the host before connecting and fails fast with the reason. The MCP client comes from the Voltaic library, which does not yet accept a handler, so a redirect or a DNS answer that changes after the check is not caught there yet; a Voltaic release that accepts a handler (planned for v2.4.0) closes it. Its errors name only the class of failure, never the raw exception text.
+- **Remote agent endpoints** (`remoteEndpointUrl`) must be absolute http or https URLs without credentials, and are refused when the host is a blocked address.
+
+`OutboundAddressPolicy.CreateHandler(allowPrivateNetworks)` is public so any feature that calls tenant-chosen URLs (webhooks, remote agents) can use it; pass `false` to refuse loopback and private ranges as well. Keep the egress NetworkPolicies below as the second layer.
+
+The REST listener refuses a request whose Content-Length exceeds `Rest.MaxRequestBodyBytes` (128 MiB by default) with 413 before reading it, and reads a body sent with chunked transfer encoding chunk by chunk, answering 413 as soon as it passes the limit. The MCP listener does the same with `Mcp.MaxMessageSize`. Authentication reads the body only for signed requests (`x-signature`), so an unauthenticated request is refused before its body is read (SR-03).
 
 Request history redacts request and response bodies for secrets, tokens, credentials, users, manifest applies, settings, artifact uploads and downloads, and node leases and heartbeats, redacts authentication headers, and replaces the value of any query parameter whose name contains `token`, `secret`, `password`, `ticket`, `key`, or `signature`.
 
+On Kubernetes the server and worker pods have egress NetworkPolicies too (`garrison-server`, `garrison-worker` in `k8s/base/networkpolicies.yaml` and the Helm chart): any pod in the cluster and any address outside it except 169.254.169.254, so a request Garrison makes for a tenant cannot reach the node's cloud identity even if an address check is bypassed (SR-23). Metrics are served on the dedicated metrics listeners (9464, 9465), not on the REST port: `Telemetry.ServeMetricsOnServicePort` defaults to false because `/metrics` needs no authentication and labels series with tenant identifiers and agent names (SR-20).
+
+## Dashboard
+
+The dashboard image's nginx sends these headers on every response (`dashboard/nginx-security-headers.conf`, SR-25):
+
+- `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' <API origins>; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`. The API origins are the origin of `GARRISON_API_URL` (with its `ws`/`wss` form) and whatever `GARRISON_CSP_CONNECT_SRC` lists; with neither set, the browser may call only the dashboard's own origin, which proxies `/v1.0`. A server URL typed on the sign-in page has to be one of those.
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer`.
+
+Run output is rendered as Markdown through DOMPurify with a strict URL scheme check, and image, video, and audio sources that point at another origin are dropped, so prompt-injected output cannot make the browser send data to an outside host by loading an image. The CSP blocks the same thing a second time, and blocks inline and remote scripts outright.
+
+The session token is kept in `localStorage`, so script running in the dashboard's origin could read it. Garrison has no cookie-based sign-in to move it to; the CSP above (no inline or third-party script, no framing) is what keeps other script out of that origin. Sign out on shared machines, and keep `Auth.TokenLifetimeMinutes` short where that matters.
+
 ## Security review
 
-`docs/SECURITY_REVIEW.md` records the P15.1 review: what was checked, what was fixed, and the open findings with recommendations.
+`docs/SECURITY_REVIEW.md` records the P15.1 review and the P15.22 fixes: what was checked, what was found, and how each finding was fixed, with the test that covers it.
 
 ## Audit
 

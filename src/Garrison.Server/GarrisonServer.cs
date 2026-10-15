@@ -383,11 +383,13 @@ namespace Garrison.Server
             await context.Response.Send().ConfigureAwait(false);
         }
 
-        private Task PreRoutingAsync(HttpContextBase context)
+        private async Task PreRoutingAsync(HttpContextBase context)
         {
             _InFlight[context.Request.Guid] = DateTime.UtcNow;
             RequestTelemetry.CaptureSpan(context);
-            return Task.CompletedTask;
+            // Watson checks Content-Length against Rest.MaxRequestBodyBytes; a chunked body is capped here, before
+            // authentication or any handler reads it (SR-03).
+            await RequestBodyLimiter.BufferChunkedAsync(context, _Context.Settings.Rest.MaxRequestBodyBytes, context.Token).ConfigureAwait(false);
         }
 
         private async Task PostRoutingAsync(HttpContextBase context)

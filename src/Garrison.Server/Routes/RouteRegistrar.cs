@@ -171,6 +171,23 @@ namespace Garrison.Server.Routes
         }
 
         /// <summary>
+        /// Register a WebSocket endpoint that authenticates and authorizes inside its handler (for example per subscription)
+        /// and record it in the operation scope map as handler-authorized, like every other route.
+        /// </summary>
+        /// <param name="path">Path.</param>
+        /// <param name="handler">Session handler.</param>
+        /// <param name="summary">Summary recorded in the scope map.</param>
+        /// <param name="tag">Tag recorded in the scope map.</param>
+        /// <exception cref="ArgumentNullException">Thrown when path or handler is null.</exception>
+        public void WebSocket(string path, Func<HttpContextBase, WatsonWebserver.Core.WebSockets.WebSocketSession, Task> handler, string summary, string tag)
+        {
+            if (String.IsNullOrEmpty(path)) throw new ArgumentNullException(nameof(path));
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            Record(HttpMethod.GET, path, null, null, RouteAuthorizationEnum.Handler, summary, tag);
+            _Server.WebSocket(path, handler);
+        }
+
+        /// <summary>
         /// Authorize inside a handler-authorized route and send the denial when not permitted.
         /// </summary>
         /// <param name="context">HTTP context.</param>

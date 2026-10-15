@@ -150,6 +150,17 @@ namespace Garrison.Worker.Settings
         public bool Containerized { get; set; } = false;
 
         /// <summary>
+        /// Whether this worker runs stdio MCP server diagnostics (POST .../mcp-servers/{id}/test?nodeId=) on request
+        /// (SR-04). A diagnostic starts the MCP server's configured command, arguments, and environment as a child of
+        /// the worker process itself, outside any run pod, so it can read what the worker can read (the node credential
+        /// and, on a KubernetesJob worker, its service account token). Turn it on only on Process workers whose host is
+        /// already the isolation boundary you accept for tenant-configured commands. When false the worker does not
+        /// advertise the capability, the control plane offers it no diagnostics, and any assigned diagnostic is refused.
+        /// Default false. Environment override GARRISON_WORKER_MCP_TESTS_ENABLED.
+        /// </summary>
+        public bool McpTestsEnabled { get; set; } = false;
+
+        /// <summary>
         /// Root directory for per-run work, home, and config directories. Default workspaces (Kubernetes: /workspaces).
         /// </summary>
         public string WorkRoot
@@ -457,7 +468,8 @@ namespace Garrison.Worker.Settings
         /// <summary>
         /// Telemetry settings (Radiant). Defaults: service name garrison-worker, Prometheus on port 9465 at /metrics,
         /// OTLP export disabled. Override with GARRISON_WORKER_TELEMETRY_ENABLE, GARRISON_WORKER_PROMETHEUS_PORT,
-        /// GARRISON_WORKER_OTLP_ENABLE, and GARRISON_WORKER_OTLP_ENDPOINT.
+        /// GARRISON_WORKER_PROMETHEUS_HOSTNAME (the name or address the metrics listener binds and answers to; Kubernetes
+        /// sets the pod IP), GARRISON_WORKER_OTLP_ENABLE, and GARRISON_WORKER_OTLP_ENDPOINT.
         /// </summary>
         public TelemetrySettings Telemetry
         {
@@ -606,6 +618,8 @@ namespace Garrison.Worker.Settings
             if (value != null && Int32.TryParse(value, out int waiters)) MaxResidentWaiters = waiters;
             value = Env("GARRISON_WORKER_CONTAINERIZED");
             if (value != null && Boolean.TryParse(value, out bool containerized)) Containerized = containerized;
+            value = Env("GARRISON_WORKER_MCP_TESTS_ENABLED");
+            if (value != null && Boolean.TryParse(value, out bool mcpTests)) McpTestsEnabled = mcpTests;
             value = Env("GARRISON_WORKER_WORK_ROOT");
             if (value != null) WorkRoot = value;
             value = Env("GARRISON_WORKER_CONVERSATION_RETENTION_HOURS");
@@ -618,6 +632,8 @@ namespace Garrison.Worker.Settings
             if (value != null && Boolean.TryParse(value, out bool telemetryEnabled)) Telemetry.Enabled = telemetryEnabled;
             value = Env("GARRISON_WORKER_PROMETHEUS_PORT");
             if (value != null && Int32.TryParse(value, out int prometheusPort)) Telemetry.PrometheusPort = prometheusPort;
+            value = Env("GARRISON_WORKER_PROMETHEUS_HOSTNAME");
+            if (value != null) Telemetry.PrometheusHostname = value;
             value = Env("GARRISON_WORKER_OTLP_ENABLE");
             if (value != null && Boolean.TryParse(value, out bool otlpEnabled)) Telemetry.OtlpEnable = otlpEnabled;
             value = Env("GARRISON_WORKER_OTLP_ENDPOINT");

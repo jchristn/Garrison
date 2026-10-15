@@ -473,7 +473,7 @@ namespace Garrison.Worker.Hosting
         {
             NodeRegisterRequest request = new NodeRegisterRequest();
             request.Name = _Settings.EffectiveNodeName;
-            request.SupportsMcpTests = true;
+            request.SupportsMcpTests = _Settings.McpTestsEnabled;
             request.Containerized = _Settings.Containerized;
             request.Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
             request.Address = Environment.MachineName;
@@ -555,6 +555,12 @@ namespace Garrison.Worker.Hosting
         private void StartMcpTest(McpWorkerTest test, CancellationToken token)
         {
             if (!test.Id.StartsWith(Garrison.Core.Constants.McpTestIdPrefix, StringComparison.Ordinal) || test.Id.Length > 64 || test.Id.Any(c => !Char.IsAsciiLetterOrDigit(c) && c != '_' && c != '-')) return;
+            if (!_Settings.McpTestsEnabled)
+            {
+                // Stdio diagnostics run tenant-configured commands on the worker host (SR-04); only an operator opt-in allows them.
+                StoreMcpTestResult(new McpWorkerTestResult { Id = test.Id, Result = new McpServerTestResponse { Error = "Stdio MCP diagnostics are turned off on this worker (McpTestsEnabled)." } });
+                return;
+            }
             if (Draining || !Volatile.Read(ref _McpTestTask).IsCompleted)
             {
                 StoreMcpTestResult(new McpWorkerTestResult { Id = test.Id, Result = new McpServerTestResponse { Error = "Worker has no free diagnostic slot." } });

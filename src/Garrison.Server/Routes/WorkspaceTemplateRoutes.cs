@@ -67,6 +67,7 @@ namespace Garrison.Server.Routes
             workspace.TenantId = tenantId;
             workspace.IsProtected = false;
             await ValidateAsync(tenantId, workspace, null, http).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForModelAsync(tenantId, workspace, http.Token).ConfigureAwait(false);
             WorkspaceTemplate created = await _Server.Database.WorkspaceTemplates.CreateAsync(workspace, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Workspace", created.Id, "Created workspace template " + created.Name + ".").ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 201, created).ConfigureAwait(false);
@@ -87,6 +88,7 @@ namespace Garrison.Server.Routes
             workspace.TenantId = tenantId;
             workspace.CreatedUtc = existing.CreatedUtc;
             await ValidateAsync(tenantId, workspace, existing.Id, http).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForModelAsync(tenantId, workspace, http.Token).ConfigureAwait(false);
             WorkspaceTemplate updated = await _Server.Database.WorkspaceTemplates.UpdateAsync(workspace, http.Token).ConfigureAwait(false);
             await ConfigurationSupport.AuditAsync(_Server, http, AuditEventTypeEnum.ConfigurationChanged, "Workspace", updated.Id, "Updated workspace template " + updated.Name + ".").ConfigureAwait(false);
             await RouteHelpers.JsonAsync(http, 200, updated).ConfigureAwait(false);

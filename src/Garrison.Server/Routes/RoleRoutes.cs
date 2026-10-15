@@ -10,6 +10,7 @@ namespace Garrison.Server.Routes
     using Garrison.Core.Requests;
     using Garrison.Core.Security;
     using Garrison.Core.Services;
+    using Garrison.Server.Services;
     using WatsonWebserver.Core;
 
     /// <summary>
@@ -20,6 +21,7 @@ namespace Garrison.Server.Routes
         #region Private-Members
 
         private readonly ServerContext _Context;
+        private readonly IdentityService _Identity;
 
         #endregion
 
@@ -29,10 +31,12 @@ namespace Garrison.Server.Routes
         /// Instantiate.
         /// </summary>
         /// <param name="context">Server context.</param>
-        /// <exception cref="ArgumentNullException">Thrown when context is null.</exception>
-        public RoleRoutes(ServerContext context)
+        /// <param name="identity">Identity service, which applies the grant ceiling.</param>
+        /// <exception cref="ArgumentNullException">Thrown when context or identity is null.</exception>
+        public RoleRoutes(ServerContext context, IdentityService identity)
         {
             _Context = context ?? throw new ArgumentNullException(nameof(context));
+            _Identity = identity ?? throw new ArgumentNullException(nameof(identity));
         }
 
         #endregion
@@ -92,6 +96,7 @@ namespace Garrison.Server.Routes
             RoleRequest request = RouteHelpers.RequiredBody<RoleRequest>(context);
             if (!String.IsNullOrWhiteSpace(request.Name) && request.Name.Trim() != role.Name)
             {
+                RejectBuiltInName(request.Name);
                 if (await _Context.Database.Roles.ReadByNameAsync(tenantId, request.Name.Trim(), context.Token).ConfigureAwait(false) != null) throw new ConflictException("Duplicate", "A role named '" + request.Name + "' already exists.");
                 role.Name = request.Name.Trim();
             }
@@ -172,6 +177,8 @@ namespace Garrison.Server.Routes
             if (String.IsNullOrEmpty(request.RoleId) || String.IsNullOrEmpty(request.PermissionId)) throw new ValidationException("roleId and permissionId are required.");
             Role role = await EditableRoleAsync(tenantId, request.RoleId, context).ConfigureAwait(false);
             Permission permission = await _Context.Database.Permissions.ReadAsync(tenantId, request.PermissionId, context.Token).ConfigureAwait(false) ?? throw new ValidationException("The permission does not exist.");
+            // Mapping a permission into a role that is already assigned grants it at once (SR-13).
+            await _Identity.RequirePermissionWithinCallerAsync(RouteHelpers.Context(context), tenantId, permission, context.Token).ConfigureAwait(false);
             RolePermissionMap map = await MapAsync(tenantId, role.Id, permission.Id, context).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 201, map).ConfigureAwait(false);
         }
@@ -190,6 +197,7 @@ namespace Garrison.Server.Routes
         private async Task<Role> NewRoleAsync(string tenantId, RoleRequest request, HttpContextBase context)
         {
             if (String.IsNullOrWhiteSpace(request.Name)) throw new ValidationException("A role name is required.", new Dictionary<string, string> { { "name", "A role name is required." } });
+            RejectBuiltInName(request.Name);
             if (await _Context.Database.Roles.ReadByNameAsync(tenantId, request.Name.Trim(), context.Token).ConfigureAwait(false) != null) throw new ConflictException("Duplicate", "A role named '" + request.Name + "' already exists.");
             Role role = new Role();
             role.TenantId = tenantId;
@@ -199,6 +207,15 @@ namespace Garrison.Server.Routes
             await _Context.Database.Roles.CreateAsync(role, context.Token).ConfigureAwait(false);
             await ChangedAsync(context, "Role", role.Id, "Role " + role.Name + " created.").ConfigureAwait(false);
             return role;
+        }
+
+        private static void RejectBuiltInName(string name)
+        {
+            // A tenant role may not share a built-in role's name in any letter case, so a name can never stand for a
+            // built-in role's grants (SR-13).
+            if (BuiltInRoles.Find(name.Trim()) == null) return;
+            string message = "'" + name.Trim() + "' is the name of a built-in role. Choose another name.";
+            throw new ValidationException(message, new Dictionary<string, string> { { "name", message } }, new Dictionary<string, string> { { "name", "ReservedRoleName" } });
         }
 
         private async Task<Role> EditableRoleAsync(string tenantId, string id, HttpContextBase context)

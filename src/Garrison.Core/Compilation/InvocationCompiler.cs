@@ -655,6 +655,13 @@ namespace Garrison.Core.Compilation
                     spec.Stdin = task;
                     break;
                 case PromptDeliveryEnum.Argument:
+                    // The task is caller text. When it, or a template that starts with a variable, would be the start of the
+                    // argument, "--" goes first so text that begins with "-" is never read as an option (SR-14). A template
+                    // with a literal prefix, such as --prompt={{task}}, is one argument the CLI already reads as a value.
+                    if (String.IsNullOrWhiteSpace(profile.PromptArgumentTemplate) || profile.PromptArgumentTemplate.TrimStart().StartsWith("{{", StringComparison.Ordinal))
+                    {
+                        spec.Arguments.Add("--");
+                    }
                     spec.Arguments.Add(String.IsNullOrWhiteSpace(profile.PromptArgumentTemplate) ? task : Render(profile.PromptArgumentTemplate, context, includes, usedIncludes, false, scrub, "promptArgument"));
                     break;
                 case PromptDeliveryEnum.File:

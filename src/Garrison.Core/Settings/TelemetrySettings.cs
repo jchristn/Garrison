@@ -26,7 +26,10 @@ namespace Garrison.Core.Settings
         public bool PrometheusEnable { get; set; } = true;
 
         /// <summary>
-        /// Prometheus listener hostname. Default *.
+        /// Prometheus listener hostname: the name or address the metrics listener binds, and the only Host header it
+        /// answers. Default *, which binds the machine's host name (falling back to 127.0.0.1). Set it to the address
+        /// scrapers use, for example the pod IP on Kubernetes (GARRISON_PROMETHEUS_HOSTNAME on the server,
+        /// GARRISON_WORKER_PROMETHEUS_HOSTNAME on workers, from the downward API status.podIP).
         /// </summary>
         public string PrometheusHostname { get; set; } = "*";
 
@@ -64,9 +67,10 @@ namespace Garrison.Core.Settings
         /// Whether GET /metrics is also served from the process's main listener (the server's REST port 8700, or the
         /// worker's health port 8710), relayed from the Prometheus listener. The Prometheus listener binds the pod
         /// host name, so kubectl port-forward and in-pod 127.0.0.1 requests cannot reach it; the main listener binds all
-        /// interfaces. The relayed endpoint needs no authentication. Default true.
+        /// interfaces. The relayed endpoint needs no authentication and its series carry tenant and agent labels, so it is
+        /// off by default: scrape the Prometheus listener (port 9464) instead. Default false.
         /// </summary>
-        public bool ServeMetricsOnServicePort { get; set; } = true;
+        public bool ServeMetricsOnServicePort { get; set; } = false;
 
         /// <summary>
         /// Distinct values each metric label (tenant, agent, deployment, model, and so on) may take before new values are
