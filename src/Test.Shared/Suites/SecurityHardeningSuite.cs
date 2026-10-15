@@ -60,6 +60,7 @@ namespace Test.Shared.Suites
             {
                 string id = "security-hardening-" + provider.ToString().ToLowerInvariant();
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
+                cases.Add(new TestCaseDescriptor(id, "mcp-test-redirect", "The HTTP MCP server test uses the outbound handler through Voltaic 2.4.0: a 302 from the server is reported, and its target is never contacted (SR-07, " + provider + ")", ct => McpTestRedirectAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "chunked-body-limit", "A chunked request body larger than Rest.MaxRequestBodyBytes is refused with 413; a small chunked body still works (SR-03, " + provider + ")", ct => ChunkedBodyAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "secret-use", "Configuring a deployment, MCP server test, or manifest that uses a secret needs Execute on that secret (SR-10, " + provider + ")", ct => SecretUseAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "seeded-credential-kept", "Seeding again never overwrites a seeded credential's secret (SR-11, " + provider + ")", ct => SeededCredentialAsync(provider, ct)));
@@ -555,6 +556,75 @@ namespace Test.Shared.Suites
                 await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, t + "/artifact-stores", new ArtifactStore { Name = "regional", Kind = ArtifactStoreKindEnum.S3, Bucket = "b", Region = "us-east-1" }, 201, token).ConfigureAwait(false);
                 host.Settings.Artifacts.AllowAmbientCredentialsWithCustomEndpoint = true;
                 await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, t + "/artifact-stores", new ArtifactStore { Name = "vpc-endpoint", Kind = ArtifactStoreKindEnum.S3, Bucket = "b", Endpoint = "https://bucket.vpce.example.com" }, 201, token).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task McpTestRedirectAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestServerHost host = await TestServerHost.StartAsync(provider, null, token).ConfigureAwait(false))
+            {
+                string t = "/v1.0/api/tenants/" + host.TenantId;
+                TcpListener target = new TcpListener(IPAddress.Loopback, 0);
+                TcpListener redirector = new TcpListener(IPAddress.Loopback, 0);
+                target.Start();
+                redirector.Start();
+                int targetPort = ((IPEndPoint)target.LocalEndpoint).Port;
+                int redirectorPort = ((IPEndPoint)redirector.LocalEndpoint).Port;
+                int targetHits = 0;
+                using (CancellationTokenSource stop = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    Task countTarget = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            while (true)
+                            {
+                                using (TcpClient client = await target.AcceptTcpClientAsync(stop.Token).ConfigureAwait(false))
+                                {
+                                    Interlocked.Increment(ref targetHits);
+                                }
+                            }
+                        }
+                        catch (Exception e) when (e is OperationCanceledException || e is SocketException || e is ObjectDisposedException)
+                        {
+                        }
+                    }, CancellationToken.None);
+                    Task redirect = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            while (true)
+                            {
+                                using (TcpClient client = await redirector.AcceptTcpClientAsync(stop.Token).ConfigureAwait(false))
+                                using (NetworkStream stream = client.GetStream())
+                                {
+                                    byte[] buffer = new byte[8192];
+                                    await stream.ReadAsync(buffer, stop.Token).ConfigureAwait(false);
+                                    byte[] reply = Encoding.ASCII.GetBytes("HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:" + targetPort + "/mcp\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                                    await stream.WriteAsync(reply, stop.Token).ConfigureAwait(false);
+                                }
+                            }
+                        }
+                        catch (Exception e) when (e is OperationCanceledException || e is SocketException || e is IOException || e is ObjectDisposedException)
+                        {
+                        }
+                    }, CancellationToken.None);
+                    McpServerTestResponse result;
+                    try
+                    {
+                        McpServer redirecting = await HttpTestHelpers.SendAsync<McpServer>(host.AdminClient, HttpMethod.Post, t + "/mcp-servers", new McpServer { Name = "redirecting", Transport = McpTransportEnum.Http, Url = "http://127.0.0.1:" + redirectorPort }, 201, token).ConfigureAwait(false);
+                        result = await HttpTestHelpers.SendAsync<McpServerTestResponse>(host.AdminClient, HttpMethod.Post, t + "/mcp-servers/" + redirecting.Id + "/test", null, 200, token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        stop.Cancel();
+                        target.Stop();
+                        redirector.Stop();
+                        await Task.WhenAll(countTarget, redirect).ConfigureAwait(false);
+                    }
+                    Assert.True(!result.Success, "A redirecting MCP server fails the test: " + result.Error);
+                    Assert.Equal(0, Volatile.Read(ref targetHits), "The redirect target was never contacted");
+                }
             }
         }
 

@@ -1,6 +1,6 @@
 # Security Review (P15.1)
 
-Review date: 2026-10-14, against commit `a441fa1` (schema 27). Decision D-054 brought this review into scope. File and line references point at that commit. P15.1 fixed SR-01 to SR-07 (SR-03, SR-04, and SR-07 in part); P15.22 (decision D-055: there are no existing installations, so nothing is held back for compatibility) fixed the rest, as described under each finding.
+Review date: 2026-10-14, against commit `a441fa1` (schema 27). Decision D-054 brought this review into scope. File and line references point at that commit. P15.1 fixed SR-01 to SR-07 (SR-03, SR-04, and SR-07 in part); P15.22 (decision D-055: there are no existing installations, so nothing is held back for compatibility) fixed the rest, as described under each finding, and P15.24 closed the last part of SR-07 with Voltaic 2.4.0.
 
 The review covered the server, worker, core, harness, and provider-harness projects, the dashboard, `docs/SECURITY.md`, and the Kubernetes manifests. It looked at:
 
@@ -24,7 +24,7 @@ Every fix has a Touchstone regression test, and each test was confirmed to fail 
 | `security-worker-unit`, `security-worker-<provider>` | `src/Test.Shared/Suites/SecurityWorkerSuite.cs` | P15.22 worker fixes |
 | `security-assets` | `src/Test.Shared/Suites/SecurityAssetsSuite.cs` | P15.22 Docker Compose, Kubernetes, Helm, and dashboard files |
 
-One part remains open: redirects and DNS rebinding for the HTTP MCP server test, whose client comes from the Voltaic library (SR-07, below).
+Every finding is fixed. The last open part, redirects and DNS rebinding for Garrison's MCP clients (SR-07), closed in P15.24 once Voltaic 2.4.0 accepted a caller-supplied HTTP handler.
 
 ## Summary
 
@@ -36,7 +36,7 @@ One part remains open: redirects and DNS rebinding for the HTTP MCP server test,
 | SR-04 | High | Stdio MCP diagnostics run tenant-chosen commands on the worker host | Fixed: refused for Untrusted-only tenants (P15.1), off on every worker unless `McpTestsEnabled` (P15.22) |
 | SR-05 | Medium | Run tokens could start runs outside the delegation policy through retry | Fixed |
 | SR-06 | Medium | Request history stored passwords and secret values; debug log wrote WebSocket tokens | Fixed |
-| SR-07 | Medium | MCP server test and S3 endpoints could target cloud metadata and link-local addresses | Fixed except the Voltaic MCP client: connect-time checks and no redirects for S3, public handler for new features (P15.22); MCP test redirects and rebinding wait for Voltaic v2.4.0 |
+| SR-07 | Medium | MCP server test and S3 endpoints could target cloud metadata and link-local addresses | Fixed: connect-time checks and no redirects for S3 (P15.22) and for the Voltaic MCP clients (P15.24) |
 | SR-08 | High | Public default keys and credentials accepted at startup | Fixed: refused unless `GARRISON_ALLOW_INSECURE_DEFAULTS`; Compose and Kubernetes generate or require real values |
 | SR-09 | High (conditional) | PersistentVolume workspaces can mount any claim in the run namespace | Fixed: the claim needs label `garrison.io/tenant` equal to the run's tenant |
 | SR-10 | Medium | Anyone who configures MCP servers or deployments can use any tenant secret | Fixed: separate use permission (`Execute` on `Secret`, role `SecretUser`) |
@@ -203,9 +203,9 @@ The recommendation is a Voltaic constructor that accepts an `HttpMessageHandler`
 - S3 artifact stores with a custom endpoint use it through `GuardedS3HttpClientFactory` (`AmazonS3Config.HttpClientFactory`), so the S3 check now covers names as well as literal addresses.
 - `remoteEndpointUrl` is validated as an absolute http or https URL without credentials and refused on blocked literal addresses, ahead of remote invocation (SR-26).
 
-**Still open:** the HTTP MCP server test. Voltaic 2.3.0's `McpHttpClient` builds its own `HttpClient` and offers no way to pass a handler, so the test keeps its pre-connect check (which still catches literal and resolved metadata addresses and fails fast), but a redirect or a DNS answer that changes between the check and the connection is not caught there. MCP preflight on workers and the provider harness bridge use the same client, behind the SR-23 NetworkPolicies. A minor, backward-compatible Voltaic release (v2.4.0) adding `McpHttpClient(HttpMessageHandler handler, bool disposeHandler = true)` is planned; Garrison then passes `OutboundAddressPolicy.CreateHandler()` in those three places.
+**Fixed in P15.24:** Voltaic 2.4.0 adds `McpHttpClient(HttpMessageHandler handler, bool disposeHandler = true)`. The HTTP MCP server test (`McpServerRoutes`), MCP preflight on workers (`McpPreflight`), and the provider harness bridge (`ProviderMcpBridge`) now pass `OutboundAddressPolicy.CreateHandler()`, so every request goes through the connect-time address check and none follows a redirect. An MCP server that answers with a redirect now fails the test with its status (for example HTTP 302); configure the final URL instead. The MCP clients that only talk to Garrison's own MCP server (the fake harness, the Codex approval relay, and the artifact uploader) keep the default client.
 
-**Tests:** `security-unit/outbound-address-policy`, `security-<provider>/outbound-blocked`, `security-hardening-unit/outbound-handler`.
+**Tests:** `security-unit/outbound-address-policy`, `security-<provider>/outbound-blocked`, `security-hardening-unit/outbound-handler`, `security-hardening-<provider>/mcp-test-redirect` (fails with the default client: the redirect target is contacted).
 
 ## Fixed in P15.22 (formerly open)
 

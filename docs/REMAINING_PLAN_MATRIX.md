@@ -6,7 +6,7 @@ D-049 (2026-10-14) brought P11.14, P12.29, P12.38, and P14.15 back into active s
 
 D-054 (2026-10-14) brought claim collision tuning, release hardening (P15.1, P15.4, P15.6), triggers and webhooks (P12.5, P12.14), and convenience work (P12.21, P12.22, P12.27) into scope. P15.1, P15.4, and P15.6 are complete; their follow-ups are P15.22 (the open security findings, fixed under D-055) and P15.23 (scan failures to clear before the next image publication).
 
-D-058 (2026-10-14): new work is paused after D-054 to D-057 were delivered. P12.47 (pipeline handoff schema validation) is approved for later. P15.24 waits for Voltaic 2.4.0, which the user is building; NuGet is polled and the package is adopted when published.
+D-058 (2026-10-14): new work is paused after D-054 to D-057 were delivered. P12.47 (pipeline handoff schema validation) is approved for later. P15.24 is complete: Voltaic 2.4.0 was published and adopted.
 
 Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20) is skipped at user request. The repository remains private unless the user explicitly changes its visibility.
 
@@ -67,7 +67,7 @@ Image publication (P7.5) is complete for amd64 and arm64. SDK publication (P6.20
 | P15.6 | Upgrade-path tests across releases | Complete | D-054. `upgrade-sqlite` and `upgrade-postgresql` suites: schema 1 and schema 15 installations upgrade with data, sign-in, and an end-to-end run; rolling replacement stays in `k8s/tests/rolling-upgrade-test.sh` |
 | P15.22 | Open security review findings | Complete | D-055. SR-08 to SR-26 and the open parts of SR-03 and SR-04 fixed, with `security-hardening-*`, `security-worker-*`, and `security-assets` suites. SR-07 is fixed except the HTTP MCP server test, which needs a handler hook in Voltaic (planned for Voltaic 2.4.0), tracked as P15.24 |
 | P15.23 | Clear scan failures | Complete | vitest 5.0.3; rebuilds pull current bases; Trivy HIGH/CRITICAL 0 on all three images |
-| P15.24 | Voltaic handler for MCP clients | Waiting on Voltaic 2.4.0 (D-058, NuGet polled) | Waits for Voltaic 2.4.0; closes SR-07 redirects and DNS rebinding for the MCP test, worker preflight, and provider bridge |
+| P15.24 | Voltaic handler for MCP clients | Complete | Voltaic 2.4.0; MCP test, worker preflight, and provider bridge connect through the outbound handler; SR-07 fixed |
 | P15.7 | Full simulated user session and report | Deferred | Proves initial setup and core workflows |
 | P15.8 | User review and verification of findings | Deferred | Human review after P15.7 |
 | P15.9 | Documentation completeness review | Deferred | Scope follows retained features |

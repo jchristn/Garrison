@@ -9,6 +9,7 @@ namespace Garrison.ProviderHarness
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core;
+    using Garrison.Core.Security;
     using Garrison.Core.Serialization;
     using Garrison.Core.Services;
     using PolyPrompt.Models;
@@ -46,7 +47,8 @@ namespace Garrison.ProviderHarness
                 {
                     if (spec.Transport != "http") throw new InvalidOperationException("Only HTTP MCP servers are supported in provider API mode.");
                     stage = "connection";
-                    client = new McpHttpClient();
+                    // A tenant chooses this URL: connect only to addresses the outbound policy allows, never follow redirects (SR-07).
+                    client = new McpHttpClient(OutboundAddressPolicy.CreateHandler(), true);
                     _Clients.Add(client);
                     client.MaxMessageSize = _Config.MaxMcpMessageBytes;
                     client.RequestTimeoutMs = Math.Clamp(spec.ToolTimeoutSeconds, 1, 86400) * 1000;

@@ -179,7 +179,8 @@ namespace Garrison.Server.Routes
                 using (CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(http.Token))
                 {
                     timeout.CancelAfter(_TestTimeoutMs);
-                    using (McpHttpClient client = new McpHttpClient())
+                    // A tenant chooses this URL: connect only to addresses the outbound policy allows, never follow redirects (SR-07).
+                    using (McpHttpClient client = new McpHttpClient(OutboundAddressPolicy.CreateHandler(), true))
                     {
                         foreach (McpServerHeader header in server.Headers)
                         {

@@ -7,6 +7,7 @@ namespace Garrison.Harnesses.Preflight
     using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core.Compilation;
+    using Garrison.Core.Security;
     using Voltaic.Mcp;
 
     /// <summary>
@@ -99,7 +100,8 @@ namespace Garrison.Harnesses.Preflight
             List<string> tools = new List<string>();
             using (CancellationTokenSource timeout = new CancellationTokenSource(_TimeoutMs))
             using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token))
-            using (McpHttpClient client = new McpHttpClient())
+            // A tenant chooses this URL: connect only to addresses the outbound policy allows, never follow redirects (SR-07).
+            using (McpHttpClient client = new McpHttpClient(OutboundAddressPolicy.CreateHandler(), true))
             {
                 foreach (ExecutionEnvironmentVariable header in check.Headers) client.SetRequestHeader(header.Name, header.Value);
                 bool connected = await client.ConnectStreamableAsync(check.Url.TrimEnd('/'), String.IsNullOrEmpty(check.Path) ? "/mcp" : check.Path, linked.Token).ConfigureAwait(false);
