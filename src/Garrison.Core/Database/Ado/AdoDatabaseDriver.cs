@@ -138,6 +138,10 @@ namespace Garrison.Core.Database.Ado
             Pipelines = new AdoPipelineMethods(this);
             PipelineRuns = new AdoPipelineRunMethods(this);
             PipelineReviews = new AdoPipelineReviewMethods(this);
+            Triggers = new AdoTriggerMethods(this);
+            TriggerFires = new AdoTriggerFireMethods(this);
+            NotificationEndpoints = new AdoNotificationEndpointMethods(this);
+            NotificationDeliveries = new AdoNotificationDeliveryMethods(this);
         }
 
         #endregion

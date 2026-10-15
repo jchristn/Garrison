@@ -143,6 +143,7 @@ type PipelineRun struct {
 	CallerID         *string                   `json:"callerId"`
 	CallerName       *string                   `json:"callerName"`
 	IdempotencyKey   *string                   `json:"idempotencyKey"`
+	TriggerID        *string                   `json:"triggerId"`
 	Priority         int                       `json:"priority"`
 	FinalRunID       *string                   `json:"finalRunId"`
 	ErrorMessage     *string                   `json:"errorMessage"`

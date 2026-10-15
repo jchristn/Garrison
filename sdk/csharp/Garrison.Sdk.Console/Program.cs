@@ -37,7 +37,7 @@ namespace Garrison.Sdk.Console
                 {
                     switch (command)
                     {
-                        case "help": ConsoleIo.WriteLine("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | quit"); break;
+                        case "help": ConsoleIo.WriteLine("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | quit"); break;
                         case "health": Print(await client.HealthAsync(request.Token).ConfigureAwait(false)); break;
                         case "login":
                             Require(parts, 3);
@@ -50,6 +50,9 @@ namespace Garrison.Sdk.Console
                         case "agents": Print(await client.Agents.ListAsync(token: request.Token).ConfigureAwait(false)); break;
                         case "runs": Print(await client.Runs.ListAsync(token: request.Token).ConfigureAwait(false)); break;
                         case "invoke": Require(parts, 3); Print(await client.Agents.InvokeAsync(parts[1], new InvokeRequest { Input = parts[2], Wait = false }, request.Token).ConfigureAwait(false)); break;
+                        case "triggers": Print(await client.Triggers.ListAsync(token: request.Token).ConfigureAwait(false)); break;
+                        case "fire-trigger": Require(parts, 2); Print(await client.Triggers.FireAsync(parts[1], null, request.Token).ConfigureAwait(false)); break;
+                        case "notification-endpoints": Print(await client.NotificationEndpoints.ListAsync(token: request.Token).ConfigureAwait(false)); break;
                         case "pipelines": Print(await client.Pipelines.ListAsync(token: request.Token).ConfigureAwait(false)); break;
                         case "pipeline-runs": Print(await client.PipelineRuns.ListAsync(token: request.Token).ConfigureAwait(false)); break;
                         case "pipeline-reviews": Print(await client.PipelineReviews.ListAsync(token: request.Token).ConfigureAwait(false)); break;

@@ -145,6 +145,8 @@ namespace Garrison.Core.Manifests
                     return (await _Database.Agents.ReadAsync(id, token).ConfigureAwait(false))?.Name;
                 case "Deployment":
                     return (await _Database.Deployments.ReadAsync(id, token).ConfigureAwait(false))?.Name;
+                case "Pipeline":
+                    return (await _Database.Pipelines.ReadAsync(id, token).ConfigureAwait(false))?.Name;
                 default:
                     return null;
             }

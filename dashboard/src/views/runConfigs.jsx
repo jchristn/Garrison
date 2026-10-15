@@ -156,7 +156,7 @@ export const runsConfig = {
   id: 'runs',
   explainer: 'runs',
   autoRefresh: 5,
-  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId', 'pipelineRunId'],
+  urlFilters: ['status', 'agentId', 'deploymentId', 'nodeId', 'harnessType', 'fromUtc', 'toUtc', 'parentRunId', 'conversationId', 'pipelineRunId', 'triggerId'],
   api: {
     list: (c, tenant, p) => c.listRuns(tenant, p),
     create: null,
@@ -171,7 +171,7 @@ export const runsConfig = {
   ],
   canDelete: (r) => TERMINAL_RUN_STATUSES.includes(r.status),
   canDuplicate: false,
-  columns: ({ t, i18n }) => [
+  columns: ({ t, i18n, navigate }) => [
     col('runs', t, 'id', (r) => <CopyableId value={r.id} />, { pinned: true, cellClass: 'cell-id' }),
     col('runs', t, 'agentName', (r) => <strong>{r.agentName}</strong>, { sortable: true, serverSort: false }),
     col('runs', t, 'status', (r) => (
@@ -220,6 +220,25 @@ export const runsConfig = {
         '-'
       ),
     { cellClass: 'cell-id', defaultHidden: true, csv: (r) => r.pipelineRunId || '' }),
+    // P12.5: the trigger that started the run opens that trigger's fire history.
+    col('runs', t, 'triggerId', (r) =>
+      r.triggerId ? (
+        <a
+          href={pathFor('triggers', null, { fires: r.triggerId })}
+          {...tip(t('tips.resources.runs.openTrigger'))}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(pathFor('triggers', null, { fires: r.triggerId }));
+          }}
+        >
+          <code>{r.triggerId}</code>
+        </a>
+      ) : (
+        '-'
+      ),
+    { cellClass: 'cell-id', defaultHidden: true, csv: (r) => r.triggerId || '' }),
+    col('runs', t, 'kind', (r) => <span {...tip(enumTip(t, 'runKind', r.kind))}>{enumLabel(t, 'runKind', r.kind || 'Invoke')}</span>, { defaultHidden: true, csv: (r) => r.kind || '' }),
     col('runs', t, 'createdUtc', (r) => <span {...tip(formatDateTime(r.createdUtc, i18n.language))}>{formatRelativeTime(r.createdUtc, i18n.language)}</span>, { sortable: true })
   ],
   fields: () => [],

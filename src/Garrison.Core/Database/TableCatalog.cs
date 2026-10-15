@@ -123,6 +123,12 @@ namespace Garrison.Core.Database
                 "pipeline_reviews",
                 "run_child_waits",
                 "deployment_egress_rules",
+                "triggers",
+                "trigger_fires",
+                "notification_endpoints",
+                "notification_endpoint_events",
+                "notification_deliveries",
+                "notification_cursors",
         };
 
         private readonly SqlDialect _Dialect;

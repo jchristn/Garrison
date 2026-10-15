@@ -169,6 +169,16 @@ namespace Garrison.Sdk
         public PipelineReviewsClient PipelineReviews { get; }
 
         /// <summary>
+        /// Triggers (P12.5): cron schedules and signed webhooks that start runs or pipeline runs.
+        /// </summary>
+        public TriggersClient Triggers { get; }
+
+        /// <summary>
+        /// Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events.
+        /// </summary>
+        public NotificationEndpointsClient NotificationEndpoints { get; }
+
+        /// <summary>
         /// Analytics.
         /// </summary>
         public AnalyticsClient Analytics { get; }
@@ -247,6 +257,8 @@ namespace Garrison.Sdk
             Pipelines = new PipelinesClient(Transport);
             PipelineRuns = new PipelineRunsClient(Transport);
             PipelineReviews = new PipelineReviewsClient(Transport);
+            Triggers = new TriggersClient(Transport);
+            NotificationEndpoints = new NotificationEndpointsClient(Transport);
             Analytics = new AnalyticsClient(Transport);
             Nodes = new NodesClient(Transport);
             ControlNodes = new ControlNodesClient(Transport);

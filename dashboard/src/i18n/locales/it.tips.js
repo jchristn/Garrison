@@ -1914,3 +1914,224 @@ tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields
 tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
   CacheSeconds: "Per quanto tempo ogni replica conserva le sessioni, i tenant, gli utenti e le credenziali che legge per autenticare le richieste, in secondi. Revocare un token o modificare utenti, credenziali, ruoli o tenant tramite l’API ha effetto subito su ogni replica; questo è il tempo massimo per cui una modifica fatta in altro modo può passare inosservata. 0 disattiva la cache. Predefinito 5."
 });
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "triggers": "Avvia esecuzioni senza un chiamante: pianificazioni cron valutate in un fuso orario e URL di webhook che accettano richieste firmate HMAC da altri sistemi.",
+   "notifications": "Avvisa altri sistemi: Garrison invia in POST una notifica JSON firmata quando un'esecuzione o una pipeline termina o un'approvazione attende una persona."
+  }
+ },
+ "filters": {
+  "type": "Mostra solo attivatori cron o solo attivatori webhook. Scegli Tutti per vederli entrambi.",
+  "outcome": "Mostra solo le attivazioni che hanno avviato un'esecuzione, non sono riuscite o sono state saltate.",
+  "deliveryStatus": "Mostra solo le consegne in uno stato: in attesa, in invio, consegnate o abbandonate."
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Si attiva con una pianificazione cron a cinque campi che il leader del piano di controllo valuta nel fuso dell'attivatore.",
+   "Webhook": "Si attiva quando al suo URL arriva una richiesta firmata con il segreto dell'attivatore."
+  },
+  "triggerTargetType": {
+   "Agent": "Ogni attivazione mette in coda un'esecuzione dell'agente, su una distribuzione fissa o in base al peso del traffico.",
+   "Pipeline": "Ogni attivazione avvia un'esecuzione della pipeline con tutte le fasi."
+  },
+  "triggerFireSource": {
+   "Cron": "La pianificazione cron è scaduta e il leader ha attivato.",
+   "Webhook": "È arrivata una consegna webhook firmata correttamente.",
+   "Manual": "Una persona o una credenziale ha usato l'azione Attiva ora."
+  },
+  "triggerFireOutcome": {
+   "Started": "L'attivazione ha creato un'esecuzione o un'esecuzione di pipeline; segui il collegamento per vederla.",
+   "Failed": "Non è partito nulla: il modello non è riuscito, l'identità di esecuzione ha perso l'accesso o la destinazione mancava.",
+   "Skipped": "L'occorrenza è stata persa più a lungo del limite di recupero cron e non è stata attivata."
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Inviato quando un'esecuzione termina con successo.",
+   "RunFailed": "Inviato quando un'esecuzione non riesce o viene rifiutata.",
+   "RunCancelled": "Inviato quando un'esecuzione viene annullata prima della fine.",
+   "RunTimedOut": "Inviato quando un'esecuzione supera la scadenza e viene fermata.",
+   "PipelineCompleted": "Inviato quando tutte le fasi di un'esecuzione di pipeline sono riuscite.",
+   "PipelineFailed": "Inviato quando un'esecuzione di pipeline non riesce, scade o viene annullata.",
+   "ApprovalRequested": "Inviato quando un'approvazione di strumento o una revisione di fase attende una persona.",
+   "Test": "Inviato solo dall'azione Invia prova, per verificare che l'endpoint funzioni."
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "Attende il prossimo tentativo; i tentativi falliti vengono ripetuti con attese crescenti.",
+   "Delivering": "Una replica del piano di controllo la sta inviando ora.",
+   "Succeeded": "L'endpoint ha risposto con uno stato 2xx e la notifica è conclusa.",
+   "Failed": "Garrison ha rinunciato: i tentativi sono esauriti o l'endpoint ha risposto con uno stato che non viene ritentato."
+  },
+  "runKind": {
+   "Invoke": "Avviata da un chiamante tramite REST, MCP, A2A o la dashboard.",
+   "Delegated": "Avviata da un altro agente tramite la delega di Garrison.",
+   "Test": "Un'esecuzione di prova di una distribuzione dalla dashboard o dall'API.",
+   "Retry": "Un nuovo tentativo di un'esecuzione precedente che qualcuno ha ripetuto.",
+   "Pipeline": "Un'esecuzione di fase di un'esecuzione di pipeline.",
+   "Trigger": "Avviata da una pianificazione cron, un webhook firmato o un'attivazione manuale."
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Qualcuno ha sostituito il segreto di firma di un attivatore o di un endpoint di notifica; quello vecchio non funziona più."
+  }
+ },
+ "resources": {
+  "runs": {
+   "triggerId": "L'attivatore che ha avviato questa esecuzione. Fai clic per aprire la sua cronologia attivazioni.",
+   "kind": "Come è stata avviata l'esecuzione: da un chiamante, da un altro agente, come prova, nuovo tentativo, fase di pipeline o da un attivatore.",
+   "openTrigger": "Apri la cronologia attivazioni dell'attivatore che ha avviato questa esecuzione."
+  },
+  "triggers": {
+   "add": "Crea una pianificazione cron o un webhook firmato che avvia un agente o una pipeline senza che nessuno lo invochi.",
+   "type": "Cron si attiva secondo una pianificazione; Webhook quando un altro sistema invia una richiesta firmata. Non modificabile in seguito.",
+   "target": "Cosa avvia ogni attivazione: un'esecuzione di un agente o di una pipeline.",
+   "schedule": "L'espressione cron con il suo fuso orario, oppure l'indicazione che l'attivatore attende consegne webhook.",
+   "lastFire": "Quando l'attivatore si è attivato l'ultima volta e se quell'attivazione ha avviato un'esecuzione.",
+   "nextFireUtc": "Quando un attivatore cron attivo si attiverà di nuovo. Gli attivatori webhook e inattivi non ne hanno.",
+   "fireCount": "Quante volte si è attivato, comprese le attivazioni non riuscite e saltate.",
+   "runAs": "L'utente o la credenziale per cui agiscono le esecuzioni. Ogni attivazione verifica che possa ancora eseguire la destinazione.",
+   "signingSecretLast4": "Gli ultimi quattro caratteri del segreto di firma, per capire quale segreto usa un mittente.",
+   "targetType": "Se ogni attivazione esegue un agente o avvia una pipeline completa.",
+   "agentId": "L'agente eseguito a ogni attivazione. Serve il permesso di eseguirlo.",
+   "deploymentId": "Fissa le esecuzioni su una distribuzione dell'agente, oppure lascia vuoto per scegliere in base al peso.",
+   "pipelineId": "La pipeline avviata a ogni attivazione. Serve il permesso di avviarla e di eseguire i suoi agenti di fase.",
+   "inputTemplateId": "Il modello di prompt che trasforma l'attivazione (ora, contenuto, ID consegna) nell'input dell'esecuzione.",
+   "priority": "Priorità in coda delle esecuzioni avviate, da -100 a 100. Le più alte vengono assegnate prima.",
+   "cronExpression": "Quando l'attivatore si attiva, come espressione cron a cinque campi o macro come @hourly.",
+   "timeZone": "Il fuso IANA in cui viene letta l'espressione cron, ad esempio Europe/Rome.",
+   "webhook": "Invia qui richieste POST firmate. Quelle con firma mancante, scaduta o errata vengono rifiutate con 401.",
+   "actions": {
+    "fire": "Attiva una volta ora, con un contenuto di prova facoltativo, e guarda l'esecuzione avviata.",
+    "fires": "Guarda quando e perché si è attivato e quale esecuzione ha avviato ogni attivazione.",
+    "runs": "Apri l'elenco delle esecuzioni filtrato su quelle avviate da questo attivatore.",
+    "rotateSecret": "Crea un nuovo segreto di firma del webhook. Il precedente smette subito di funzionare."
+   },
+   "fires": {
+    "firedUtc": "Quando è stata elaborata l'attivazione. Le attivazioni cron mostrano anche l'occorrenza a cui si riferiscono.",
+    "source": "Perché si è attivato: la pianificazione, una consegna webhook o una persona.",
+    "outcome": "Se l'attivazione ha avviato un'esecuzione, non è riuscita o è stata saltata.",
+    "started": "L'esecuzione o l'esecuzione di pipeline creata da questa attivazione. Fai clic per aprirla.",
+    "deliveryId": "L'intestazione X-Garrison-Delivery della richiesta; le ripetizioni con lo stesso valore attivano una volta.",
+    "error": "Perché l'attivazione non ha avviato nulla, con un codice di errore stabile.",
+    "runId": "L'esecuzione creata da questa attivazione. Fai clic per aprirla.",
+    "pipelineRunId": "L'esecuzione di pipeline avviata da questa attivazione. Fai clic per aprirla."
+   }
+  },
+  "notifications": {
+   "add": "Registra un URL che riceve un POST HTTP firmato quando in questo tenant si verificano gli eventi scelti.",
+   "url": "Dove Garrison invia le notifiche. Gli indirizzi privati e dei metadati sono rifiutati e i reindirizzamenti non vengono seguiti.",
+   "events": "Gli eventi ricevuti da questo endpoint. Passa il mouse sul valore per vederli tutti.",
+   "filters": "Filtri di agente o distribuzione che limitano quali eventi di esecuzione e approvazione vengono inviati.",
+   "signingSecretLast4": "Gli ultimi quattro caratteri del segreto di firma, per far capire ai destinatari quale segreto firma.",
+   "includeResultText": "Se le notifiche di esecuzione includono il testo del risultato, tagliato al limite configurato.",
+   "agentId": "Invia solo gli eventi delle esecuzioni di questo agente. Gli eventi delle pipeline si fermano finché è impostato un filtro.",
+   "deploymentId": "Invia solo gli eventi delle esecuzioni di questa distribuzione. Gli eventi delle pipeline si fermano finché è impostato un filtro.",
+   "resultTextMaxChars": "Testo del risultato più lungo incluso in una notifica, in caratteri.",
+   "actions": {
+    "test": "Invia ora una notifica di prova e mostra se l'endpoint l'ha accettata.",
+    "deliveries": "Guarda tutte le notifiche inviate a questo endpoint con tentativi, stato HTTP ed errori.",
+    "rotateSecret": "Crea un nuovo segreto di firma. Anche i nuovi tentativi già in coda vengono firmati con esso."
+   },
+   "deliveries": {
+    "createdUtc": "Quando l'evento è stato messo in coda per questo endpoint. Fai clic per vedere i dettagli.",
+    "event": "Quale evento segnala questa notifica.",
+    "status": "Se la notifica è in attesa, in invio, consegnata o abbandonata.",
+    "attempts": "Tentativi fatti finora e il massimo previsto.",
+    "lastStatusCode": "Stato HTTP restituito dall'endpoint all'ultimo tentativo; vuoto se non è arrivata risposta.",
+    "lastError": "Cosa è andato storto all'ultimo tentativo, ad esempio un timeout o una destinazione rifiutata.",
+    "lastAttemptUtc": "Quando si è tentato l'ultima volta di inviare questa notifica.",
+    "nextAttemptUtc": "Quando è previsto il prossimo tentativo; vuoto quando la consegna è conclusa.",
+    "deliveredUtc": "Quando l'endpoint ha accettato la notifica.",
+    "payload": "Il corpo JSON esatto inviato a ogni tentativo. Non contiene mai segreti.",
+    "id": "Identificatore di consegna, inviato anche come X-Garrison-Delivery per permettere ai destinatari di ignorare le ripetizioni."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "L'attivatore che ha avviato questa esecuzione e come è stata avviata.",
+   "openTrigger": "Apri la cronologia attivazioni di questo attivatore in Agenti > Attivatori."
+  },
+  "pipelineRunDetail": {
+   "trigger": "L'attivatore che ha avviato questa esecuzione di pipeline. Le sue esecuzioni di fase portano lo stesso attivatore."
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Limiti per i webhook degli attivatori, recupero cron dopo un fermo e conservazione della cronologia attivazioni.",
+    "Notifications": "Consegna delle notifiche in uscita: protezione SSRF, nuovi tentativi e attese, timeout e conservazione del registro consegne."
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Corpo massimo di una richiesta webhook in byte. Le consegne più grandi ricevono 413 prima della verifica della firma.",
+     "WebhookToleranceSeconds": "Differenza massima tra il timestamp della firma e l'orologio del server. Le consegne più vecchie sono rifiutate, così una richiesta intercettata non può essere ripetuta.",
+     "CronMaxLatenessSeconds": "Le occorrenze cron perse diventano un'unica attivazione, a meno che l'ultima sia più vecchia di questi secondi; allora viene registrata come Saltata. 0 attiva sempre una volta.",
+     "FireRetentionDays": "Giorni di conservazione della cronologia attivazioni."
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Consenti URL di notifica su reti di loopback e private. Disattivato per impostazione predefinita per prevenire la falsificazione di richieste lato server; gli indirizzi link-local e dei metadati restano bloccati.",
+     "MaxAttempts": "Numero massimo di tentativi di consegna di una notifica prima di abbandonarla.",
+     "InitialBackoffSeconds": "Attesa prima del secondo tentativo; ogni attesa successiva raddoppia fino all'attesa massima.",
+     "MaxBackoffSeconds": "L'attesa più lunga tra due tentativi di una notifica.",
+     "TimeoutSeconds": "Secondi concessi a un tentativo di consegna, connessione compresa.",
+     "DispatchIntervalMs": "Ogni quanto ogni replica del piano di controllo cerca notifiche da inviare, in millisecondi.",
+     "SweepOverlapSeconds": "Secondi di cronologia già esaminata che il leader rilegge a ogni passaggio per non perdere eventi tardivi.",
+     "DeliveryRetentionDays": "Giorni in cui le consegne concluse restano nel registro."
+    }
+   }
+  }
+ },
+ "signingSecret": {
+  "done": "Chiudi questa finestra. Il segreto non può essere mostrato di nuovo, quindi copialo prima.",
+  "secret": "Il segreto di firma. Mittenti e destinatari lo usano per calcolare la firma HMAC-SHA256.",
+  "copy": "Copia il segreto di firma negli appunti per salvarlo nell'altro sistema.",
+  "url": "L'URL a cui altri sistemi inviano in POST consegne webhook firmate.",
+  "copyUrl": "Copia l'URL del webhook negli appunti."
+ },
+ "triggerFire": {
+  "submit": "Attiva una volta ora con questo contenuto. L'esecuzione parte con l'identità di esecuzione dell'attivatore.",
+  "body": "Testo facoltativo. Il modello di input lo vede come webhook.body, e come webhook.json se è JSON.",
+  "contentType": "Tipo di media del contenuto, ad esempio application/json. Vuoto per testo semplice.",
+  "openRun": "Apri l'esecuzione avviata da questa attivazione.",
+  "openPipelineRun": "Apri l'esecuzione di pipeline avviata da questa attivazione."
+ },
+ "triggerFires": {
+  "refresh": "Ricarica le attivazioni più recenti di questo attivatore."
+ },
+ "notificationDeliveries": {
+  "refresh": "Ricarica le consegne più recenti di questo endpoint.",
+  "open": "Mostra contenuto, tentativi e ultimo errore di questa consegna sotto l'elenco.",
+  "detail": "Tutti i campi della consegna selezionata, compreso il corpo JSON inviato."
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "triggers": {
+  "title": "Attivatori",
+  "p1": "Un attivatore avvia un'esecuzione di agente o di pipeline senza che nessuno la invochi: secondo una pianificazione cron o quando un altro sistema invia un webhook firmato con il segreto dell'attivatore.",
+  "p2": "L'input dell'esecuzione viene da un modello di prompt che può usare l'ora dell'attivazione e il contenuto del webhook. Le esecuzioni agiscono come l'utente o la credenziale che ha salvato l'attivatore per ultimo, e ogni attivazione verifica che possa ancora eseguire la destinazione.",
+  "p3": "Se per un po' nessuna replica ha potuto attivare una pianificazione, le occorrenze perse diventano un'unica attivazione. Le consegne webhook che ripetono un valore X-Garrison-Delivery attivano una volta."
+ },
+ "notifications": {
+  "title": "Notifiche",
+  "p1": "Un endpoint di notifica riceve un POST JSON firmato quando si verifica un evento sottoscritto: un'esecuzione o una pipeline che termina, o un'approvazione che attende una persona.",
+  "p2": "Le consegne vengono messe in coda in modo durevole e ritentate con attese crescenti. Ogni tentativo porta lo stesso ID consegna, così i destinatari possono ignorare le ripetizioni.",
+  "p3": "Le notifiche non includono mai segreti né l'input dell'esecuzione, e l'output solo se lo consenti. Gli indirizzi di reti private sono rifiutati a meno che un operatore li consenta."
+ }
+});

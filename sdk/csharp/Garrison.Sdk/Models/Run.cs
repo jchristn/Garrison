@@ -343,6 +343,11 @@ namespace Garrison.Sdk.Models
         public int PipelineExecution { get; set; } = 0;
 
         /// <summary>
+        /// Trigger that started this run (P12.5), or null.
+        /// </summary>
+        public string? TriggerId { get; set; } = null;
+
+        /// <summary>
         /// Model that served the run.
         /// </summary>
         public string? ServedModel { get; set; } = null;

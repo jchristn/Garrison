@@ -123,6 +123,11 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// A pipeline run was cancelled (P12.9).
         /// </summary>
-        PipelineRunCancelled
+        PipelineRunCancelled,
+
+        /// <summary>
+        /// A trigger or notification endpoint signing secret was rotated (P12.5, P12.14).
+        /// </summary>
+        SigningSecretRotated
     }
 }

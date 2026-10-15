@@ -161,6 +161,39 @@ namespace Garrison.Sdk.Http
             }
         }
 
+        /// <summary>Send raw binary content with extra request headers and deserialize the JSON response. Used to deliver
+        /// signed trigger webhooks, whose signature covers the exact body bytes.</summary>
+        /// <typeparam name="T">Response type.</typeparam>
+        /// <param name="method">HTTP method.</param>
+        /// <param name="path">Relative API path.</param>
+        /// <param name="body">Body bytes, sent verbatim.</param>
+        /// <param name="contentType">Body media type.</param>
+        /// <param name="headers">Optional extra headers; null or empty values are skipped.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Deserialized response, or default for empty bodies.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when body is null.</exception>
+        /// <exception cref="GarrisonException">Thrown on a non-success response.</exception>
+        public async Task<T?> SendBinaryWithHeadersAsync<T>(HttpMethod method, string path, byte[] body, string contentType, IDictionary<string, string?>? headers, CancellationToken token = default)
+        {
+            if (body == null) throw new ArgumentNullException(nameof(body));
+            using (HttpRequestMessage request = Build(method, path, body, null, String.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType, true))
+            {
+                if (headers != null)
+                {
+                    foreach (KeyValuePair<string, string?> header in headers)
+                    {
+                        if (!String.IsNullOrEmpty(header.Value)) request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                    }
+                }
+                using (HttpResponseMessage response = await _Http.SendAsync(request, token).ConfigureAwait(false))
+                {
+                    string text = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode) throw Error((int)response.StatusCode, text);
+                    return String.IsNullOrWhiteSpace(text) ? default : JsonSerializer.Deserialize<T>(text, _JsonOptions);
+                }
+            }
+        }
+
         /// <summary>Read a raw content response using the configured authentication.</summary>
         /// <param name="path">Relative API path.</param>
         /// <param name="query">Optional query parameters.</param>

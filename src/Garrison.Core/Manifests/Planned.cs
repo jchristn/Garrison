@@ -56,5 +56,10 @@ namespace Garrison.Core.Manifests
         /// Field changes for an Updated document; empty otherwise.
         /// </summary>
         public List<ManifestFieldChange> Changes { get; set; } = new List<ManifestFieldChange>();
+
+        /// <summary>
+        /// The stored record before this apply, for kinds whose write needs it (Trigger keeps its schedule), or null.
+        /// </summary>
+        public object? Previous { get; set; } = null;
     }
 }

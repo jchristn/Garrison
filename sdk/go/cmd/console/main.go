@@ -68,13 +68,13 @@ func main() {
 }
 
 func execute(ctx context.Context, client *garrison.Client, command, argument, rest string, secret func(string) (string, error)) (any, error) {
-	needsArgument := command == "login" || command == "tenant" || command == "invoke" || command == "run" || command == "events" || command == "watch" || command == "start-pipeline"
+	needsArgument := command == "login" || command == "tenant" || command == "invoke" || command == "run" || command == "events" || command == "watch" || command == "start-pipeline" || command == "fire-trigger"
 	if needsArgument && argument == "" {
 		return nil, fmt.Errorf("missing arguments; type help")
 	}
 	switch command {
 	case "help":
-		fmt.Println("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | quit")
+		fmt.Println("health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | quit")
 		return nil, nil
 	case "health":
 		return client.Health(ctx)
@@ -125,6 +125,14 @@ func execute(ctx context.Context, client *garrison.Client, command, argument, re
 		return client.Runs.Events(ctx, argument, 0, 500)
 	case "watch":
 		return nil, client.Runs.Stream(ctx, argument, 0, func(frame garrison.RunStreamItem) bool { _ = json.NewEncoder(os.Stdout).Encode(frame); return true })
+	case "triggers":
+		return client.Triggers.List(ctx, nil, "")
+	case "fire-trigger":
+		return client.Triggers.Fire(ctx, argument, nil)
+	case "notification-endpoints":
+		var endpoints garrison.EnumerationResult[garrison.NotificationEndpoint]
+		err := client.NotificationEndpoints.List(ctx, nil, &endpoints)
+		return endpoints, err
 	case "pipelines":
 		var out garrison.EnumerationResult[garrison.Pipeline]
 		err := client.Pipelines.List(ctx, nil, &out)

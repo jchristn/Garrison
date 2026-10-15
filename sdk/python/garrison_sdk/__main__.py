@@ -28,7 +28,7 @@ def main():
                 if command in ('quit', 'exit'):
                     break
                 if command == 'help':
-                    print('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | quit')
+                    print('health | login <tenant> <email> | keys | tenant <id> | agents | runs | invoke <agent> <input> | run <id> | events <id> | watch <id> | pipelines | pipeline-runs | pipeline-reviews | start-pipeline <pipeline> <input> | triggers | fire-trigger <trigger> | notification-endpoints | quit')
                 elif command == 'health': show(client.health())
                 elif command == 'login':
                     client.login(parts[2], secret('Password: '), parts[1])
@@ -42,6 +42,9 @@ def main():
                 elif command == 'invoke': show(client.agents.invoke(parts[1], parts[2], wait=False))
                 elif command == 'run': show(client.runs.get(parts[1]))
                 elif command == 'events': show(client.runs.events(parts[1]))
+                elif command == 'triggers': show(client.triggers.list())
+                elif command == 'fire-trigger': show(client.triggers.fire(parts[1]))
+                elif command == 'notification-endpoints': show(client.notification_endpoints.list())
                 elif command == 'pipelines': show(client.pipelines.list())
                 elif command == 'pipeline-runs': show(client.pipeline_runs.list())
                 elif command == 'pipeline-reviews': show(client.pipeline_reviews.list())

@@ -175,6 +175,7 @@ namespace Garrison.Server.Runtime
             run.PipelineRunId = create.PipelineRunId;
             run.PipelinePosition = create.PipelinePosition;
             run.PipelineExecution = create.PipelineExecution;
+            run.TriggerId = create.TriggerId;
             run.MaxAttempts = deployment.MaxAttempts;
             run.Attempt = 1;
 

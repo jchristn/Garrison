@@ -39,6 +39,8 @@ export default defineConfig({
           if (locale) return `locale-${locale[1]}`;
           // Pipeline components (P12.9) get their own chunk so the views chunk stays under the size warning.
           if (/\/src\/components\/Pipeline/.test(id)) return 'pipelines';
+          // Trigger and notification components (P12.5, P12.14) likewise.
+          if (/\/src\/components\/(Trigger|Notification|SigningSecret)/.test(id)) return 'triggers';
           if (id.includes('/src/views/')) return 'views';
           return undefined;
         }

@@ -62,7 +62,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `role_permissions`, `user_role_assignments`, `credential_scope_assignments`, `agents`, `deployments`, `harness_profiles`, `prompt_templates`, `mcp_servers`, `secrets`, `workspace_templates`, `artifact_stores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipeline_runs`, `pipeline_reviews`, `triggers`, `notification_endpoints`, `analytics`, `nodes`, `control_nodes`, `node_pools`, `request_history`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls.
 
 Control-plane replicas are read-only: `client.control_nodes.list(max_results, skip, search)` returns a page with `respondingNodeId` (the replica that answered), and `client.control_nodes.get(node_id)` reads one replica. Each record carries `status` (`Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -102,6 +102,26 @@ finished = client.pipeline_runs.wait_for_completion(run["id"])
 `pipeline_reviews.list` filters by `status`, `pipeline_run_id`, `pipeline_id`, `run_id`, `decision_source`, `from_utc`, and `to_utc`. `decide(id, decision, comment)` takes `Approve` (the comment reaches the next stage as review notes), `RequestChanges` (comment required; the stage runs again with it, up to the stage's `maxRevisions`, then 409 `RevisionLimitReached`), or `Reject` (the pipeline run fails with outcome `ReviewRejected`). A decided review raises 409 `ReviewNotPending`. Reviews are authorized as Approval Read and Update; run tokens cannot use pipelines or reviews.
 
 The module exports `PIPELINE_RUN_STATUSES`, `PIPELINE_RUN_TERMINAL_STATUSES`, `PIPELINE_RUN_OUTCOMES`, `PIPELINE_STAGE_STATUSES`, `PIPELINE_REVIEW_STATUSES`, `PIPELINE_REVIEW_DECISIONS`, and `PIPELINE_REVIEW_SOURCES`.
+
+## Triggers and notifications
+
+A trigger starts an agent run or a pipeline run on a cron schedule or when a signed webhook arrives. It runs as the principal that last created or changed it, so creating one needs Execute on its agent (or on the pipeline and every stage agent). A webhook trigger's `signingSecret` is returned only by `create` and `rotate_secret`; store it then.
+
+```python
+from garrison_sdk import verify_webhook
+
+hook = client.triggers.create({"name": "on-push", "type": "Webhook", "agentId": agent_id})
+fire = client.triggers.deliver_webhook(hook["id"], hook["signingSecret"], '{"ref": "main"}', delivery_id="delivery-1")
+nightly = client.triggers.create({"name": "nightly", "type": "Cron", "agentId": agent_id,
+                                  "cronExpression": "0 2 * * *", "timeZone": "America/New_York"})
+failed = client.triggers.list_fires(nightly["id"], outcome="Failed")
+```
+
+`client.triggers` adds `list(type=...)`, `rotate_secret`, `fire` (fires now; an optional `body` reaches the input template as `webhook.body`), `list_fires` (filter by `TRIGGER_FIRE_OUTCOMES`), and `deliver_webhook` (signs and posts a webhook as an external sender would). Runs a trigger started have `kind` `Trigger` and `triggerId`; `client.runs.list(trigger_id=...)` lists them, and pipeline runs carry `triggerId` too.
+
+`client.notification_endpoints` manages URLs that receive signed JSON notifications for `NOTIFICATION_EVENTS` (`Test` is only sent by the test action). It adds `rotate_secret`, `test` (sends a `Test` notification and returns the delivery after its first attempt), `list_deliveries` (filter by `NOTIFICATION_DELIVERY_STATUSES`), and `get_delivery`. A loopback or private URL raises `GarrisonError` 400 with `error["fieldCodes"]["url"] == "DestinationBlocked"` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
+
+`sign_webhook(secret, unix_seconds, body)` builds a signature and `verify_webhook(header, secret, body, tolerance_seconds=300)` checks one. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
 ## Streaming run events
 
@@ -269,7 +289,7 @@ Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to 
 python -m garrison_sdk http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
 ## Executor capabilities
 

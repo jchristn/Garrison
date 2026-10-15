@@ -29,6 +29,8 @@ import { EXECUTOR_REQUIREMENT_FLAGS, capabilityField, requirementsToForm, POD_RE
 
 // Pipeline definitions (P12.9) live in their own module; re-exported so configuration-wide tests cover them.
 export { pipelinesConfig } from './pipelineConfigs';
+// Triggers (P12.5) and notification endpoints (P12.14) live in their own module too.
+export { triggersConfig, notificationEndpointsConfig } from './triggerConfigs';
 
 // ---------------------------------------------------------------- helpers
 //

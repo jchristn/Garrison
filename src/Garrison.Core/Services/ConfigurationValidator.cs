@@ -435,6 +435,258 @@ namespace Garrison.Core.Services
         }
 
         /// <summary>
+        /// Validate a trigger (P12.5) and resolve its references: agentId, deploymentId, pipelineId, and inputTemplateId
+        /// may be given as identifiers or names and are replaced with identifiers.
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="trigger">Trigger; references are normalized in place.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when database is null.</exception>
+        /// <exception cref="ValidationException">Thrown when the trigger is invalid, with field codes ReferenceNotFound,
+        /// DeploymentAgentMismatch, TemplateKindMismatch, InvalidCron, InvalidTimeZone, and TargetMismatch.</exception>
+        public static async Task TriggerAsync(DatabaseDriverBase database, string tenantId, Trigger trigger, CancellationToken token = default)
+        {
+            if (database == null) throw new ArgumentNullException(nameof(database));
+            if (trigger == null) throw new ValidationException("A trigger is required.");
+            Dictionary<string, string> errors = new Dictionary<string, string>();
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            if (!_AgentName.IsMatch(trigger.Name ?? String.Empty)) errors["name"] = "Trigger names are 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.";
+            if (trigger.Description != null && trigger.Description.Length > 4000) errors["description"] = "Descriptions are limited to 4000 characters.";
+            if (!Enum.IsDefined(trigger.Type)) errors["type"] = "type is Cron or Webhook.";
+            if (!Enum.IsDefined(trigger.TargetType)) errors["targetType"] = "targetType is Agent or Pipeline.";
+
+            if (trigger.TargetType == TriggerTargetTypeEnum.Agent)
+            {
+                if (!String.IsNullOrEmpty(trigger.PipelineId))
+                {
+                    errors["pipelineId"] = "A trigger that runs an agent has no pipelineId.";
+                    codes["pipelineId"] = "TargetMismatch";
+                }
+                Agent? agent = null;
+                if (String.IsNullOrWhiteSpace(trigger.AgentId))
+                {
+                    errors["agentId"] = "An agentId is required when targetType is Agent.";
+                }
+                else
+                {
+                    agent = await database.Agents.ReadAsync(tenantId, trigger.AgentId.Trim(), token).ConfigureAwait(false)
+                        ?? await database.Agents.ReadByNameAsync(tenantId, trigger.AgentId.Trim(), token).ConfigureAwait(false);
+                    if (agent == null)
+                    {
+                        errors["agentId"] = "The agent does not exist in this tenant.";
+                        codes["agentId"] = "ReferenceNotFound";
+                    }
+                    else
+                    {
+                        trigger.AgentId = agent.Id;
+                    }
+                }
+                if (!String.IsNullOrWhiteSpace(trigger.DeploymentId))
+                {
+                    Deployment? deployment = await database.Deployments.ReadAsync(tenantId, trigger.DeploymentId.Trim(), token).ConfigureAwait(false)
+                        ?? await database.Deployments.ReadByNameAsync(tenantId, trigger.DeploymentId.Trim(), token).ConfigureAwait(false);
+                    if (deployment == null)
+                    {
+                        errors["deploymentId"] = "The deployment does not exist in this tenant.";
+                        codes["deploymentId"] = "ReferenceNotFound";
+                    }
+                    else if (agent != null && deployment.AgentId != agent.Id)
+                    {
+                        errors["deploymentId"] = "Deployment " + deployment.Name + " belongs to another agent, not " + agent.Name + ".";
+                        codes["deploymentId"] = "DeploymentAgentMismatch";
+                    }
+                    else
+                    {
+                        trigger.DeploymentId = deployment.Id;
+                    }
+                }
+                else
+                {
+                    trigger.DeploymentId = null;
+                }
+            }
+            else if (trigger.TargetType == TriggerTargetTypeEnum.Pipeline)
+            {
+                if (!String.IsNullOrEmpty(trigger.AgentId) || !String.IsNullOrEmpty(trigger.DeploymentId))
+                {
+                    errors["agentId"] = "A trigger that starts a pipeline has no agentId or deploymentId.";
+                    codes["agentId"] = "TargetMismatch";
+                }
+                if (String.IsNullOrWhiteSpace(trigger.PipelineId))
+                {
+                    errors["pipelineId"] = "A pipelineId is required when targetType is Pipeline.";
+                }
+                else
+                {
+                    Pipeline? pipeline = await database.Pipelines.ReadAsync(tenantId, trigger.PipelineId.Trim(), token).ConfigureAwait(false)
+                        ?? await database.Pipelines.ReadByNameAsync(tenantId, trigger.PipelineId.Trim(), token).ConfigureAwait(false);
+                    if (pipeline == null)
+                    {
+                        errors["pipelineId"] = "The pipeline does not exist in this tenant.";
+                        codes["pipelineId"] = "ReferenceNotFound";
+                    }
+                    else
+                    {
+                        trigger.PipelineId = pipeline.Id;
+                    }
+                }
+            }
+
+            if (!String.IsNullOrWhiteSpace(trigger.InputTemplateId))
+            {
+                PromptTemplate? template = await database.PromptTemplates.ReadAsync(tenantId, trigger.InputTemplateId.Trim(), token).ConfigureAwait(false)
+                    ?? await database.PromptTemplates.ReadByNameAsync(tenantId, trigger.InputTemplateId.Trim(), token).ConfigureAwait(false);
+                if (template == null)
+                {
+                    errors["inputTemplateId"] = "The prompt template does not exist or is not visible to this tenant.";
+                    codes["inputTemplateId"] = "ReferenceNotFound";
+                }
+                else if (template.Kind != PromptTemplateKindEnum.Task)
+                {
+                    errors["inputTemplateId"] = "Prompt template " + template.Name + " is a " + template.Kind + " template; a trigger input template must be a Task template.";
+                    codes["inputTemplateId"] = "TemplateKindMismatch";
+                }
+                else
+                {
+                    trigger.InputTemplateId = template.Id;
+                }
+            }
+            else
+            {
+                trigger.InputTemplateId = null;
+            }
+
+            if (trigger.Type == TriggerTypeEnum.Cron)
+            {
+                if (!CronSchedule.Validate(trigger.CronExpression, trigger.TimeZone, out string? cronError, out string? zoneError))
+                {
+                    if (cronError != null)
+                    {
+                        errors["cronExpression"] = cronError;
+                        codes["cronExpression"] = "InvalidCron";
+                    }
+                    if (zoneError != null)
+                    {
+                        errors["timeZone"] = zoneError;
+                        codes["timeZone"] = "InvalidTimeZone";
+                    }
+                }
+                else
+                {
+                    trigger.CronExpression = trigger.CronExpression!.Trim();
+                }
+            }
+            else if (!String.IsNullOrWhiteSpace(trigger.CronExpression))
+            {
+                errors["cronExpression"] = "Only Cron triggers have a cron expression.";
+            }
+
+            if (errors.Count > 0) throw new ValidationException("The trigger is invalid: " + String.Join(" ", errors.Select(e => e.Key + ": " + e.Value)), errors, codes);
+        }
+
+        /// <summary>
+        /// Validate a notification endpoint (P12.14): name, URL against the SSRF rules (without resolving the host; the
+        /// resolved address is checked again on every delivery), events, and filters. agentId and deploymentId may be
+        /// identifiers or names and are replaced with identifiers; duplicate events are removed.
+        /// </summary>
+        /// <param name="database">Database.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="endpoint">Endpoint; references and events are normalized in place.</param>
+        /// <param name="allowPrivateDestinations">Whether loopback and private destinations are allowed (cluster setting
+        /// Notifications.AllowPrivateDestinations).</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when database is null.</exception>
+        /// <exception cref="ValidationException">Thrown when the endpoint is invalid, with field codes InvalidUrl,
+        /// DestinationBlocked, EventsRequired, InvalidEvent, ReferenceNotFound, and DeploymentAgentMismatch.</exception>
+        public static async Task NotificationEndpointAsync(DatabaseDriverBase database, string tenantId, NotificationEndpoint endpoint, bool allowPrivateDestinations, CancellationToken token = default)
+        {
+            if (database == null) throw new ArgumentNullException(nameof(database));
+            if (endpoint == null) throw new ValidationException("A notification endpoint is required.");
+            Dictionary<string, string> errors = new Dictionary<string, string>();
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            if (!_AgentName.IsMatch(endpoint.Name ?? String.Empty)) errors["name"] = "Notification endpoint names are 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.";
+            if (endpoint.Description != null && endpoint.Description.Length > 4000) errors["description"] = "Descriptions are limited to 4000 characters.";
+
+            endpoint.Url = (endpoint.Url ?? String.Empty).Trim();
+            DestinationBlockReasonEnum reason = DestinationGuard.CheckUrl(endpoint.Url, allowPrivateDestinations, out Uri? _);
+            if (reason == DestinationBlockReasonEnum.InvalidUrl || reason == DestinationBlockReasonEnum.Scheme)
+            {
+                errors["url"] = reason == DestinationBlockReasonEnum.Scheme
+                    ? "Notification URLs use http or https."
+                    : "The URL must be an absolute http or https URL with a host, without user information, at most 2048 characters.";
+                codes["url"] = "InvalidUrl";
+            }
+            else if (reason != DestinationBlockReasonEnum.None)
+            {
+                errors["url"] = "The destination is refused (" + reason + "). Loopback and private destinations need the cluster setting Notifications.AllowPrivateDestinations; link-local, multicast, and reserved addresses are always refused.";
+                codes["url"] = "DestinationBlocked";
+            }
+
+            if (endpoint.Events.Count == 0)
+            {
+                errors["events"] = "Subscribe to at least one event.";
+                codes["events"] = "EventsRequired";
+            }
+            else if (endpoint.Events.Any(e => e == NotificationEventEnum.Test || !Enum.IsDefined(e)))
+            {
+                errors["events"] = "Events are RunSucceeded, RunFailed, RunCancelled, RunTimedOut, PipelineCompleted, PipelineFailed, and ApprovalRequested.";
+                codes["events"] = "InvalidEvent";
+            }
+            else
+            {
+                endpoint.Events = endpoint.Events.Distinct().ToList();
+            }
+
+            Agent? agent = null;
+            if (!String.IsNullOrWhiteSpace(endpoint.AgentId))
+            {
+                agent = await database.Agents.ReadAsync(tenantId, endpoint.AgentId.Trim(), token).ConfigureAwait(false)
+                    ?? await database.Agents.ReadByNameAsync(tenantId, endpoint.AgentId.Trim(), token).ConfigureAwait(false);
+                if (agent == null)
+                {
+                    errors["agentId"] = "The agent does not exist in this tenant.";
+                    codes["agentId"] = "ReferenceNotFound";
+                }
+                else
+                {
+                    endpoint.AgentId = agent.Id;
+                }
+            }
+            else
+            {
+                endpoint.AgentId = null;
+            }
+            if (!String.IsNullOrWhiteSpace(endpoint.DeploymentId))
+            {
+                Deployment? deployment = await database.Deployments.ReadAsync(tenantId, endpoint.DeploymentId.Trim(), token).ConfigureAwait(false)
+                    ?? await database.Deployments.ReadByNameAsync(tenantId, endpoint.DeploymentId.Trim(), token).ConfigureAwait(false);
+                if (deployment == null)
+                {
+                    errors["deploymentId"] = "The deployment does not exist in this tenant.";
+                    codes["deploymentId"] = "ReferenceNotFound";
+                }
+                else if (agent != null && deployment.AgentId != agent.Id)
+                {
+                    errors["deploymentId"] = "Deployment " + deployment.Name + " belongs to another agent, not " + agent.Name + ".";
+                    codes["deploymentId"] = "DeploymentAgentMismatch";
+                }
+                else
+                {
+                    endpoint.DeploymentId = deployment.Id;
+                }
+            }
+            else
+            {
+                endpoint.DeploymentId = null;
+            }
+
+            if (errors.Count > 0) throw new ValidationException("The notification endpoint is invalid: " + String.Join(" ", errors.Select(e => e.Key + ": " + e.Value)), errors, codes);
+        }
+
+        /// <summary>
         /// Validate a deployment and its references (plan P2.6.2).
         /// </summary>
         /// <param name="database">Database.</param>

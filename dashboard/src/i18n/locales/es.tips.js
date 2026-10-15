@@ -1914,3 +1914,224 @@ tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields
 tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
   CacheSeconds: "Cuánto tiempo guarda cada réplica las sesiones, inquilinos, usuarios y credenciales que lee para autenticar solicitudes, en segundos. Revocar un token o cambiar usuarios, credenciales, roles o inquilinos mediante la API surte efecto en todas las réplicas de inmediato; este es el tiempo máximo que un cambio hecho de otra forma puede pasar inadvertido. 0 desactiva la caché. Predeterminado 5."
 });
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "triggers": "Inicia ejecuciones sin un llamador: programaciones cron evaluadas en una zona horaria y URL de webhook que aceptan solicitudes firmadas con HMAC desde otros sistemas.",
+   "notifications": "Avisa a otros sistemas: Garrison envía por POST una notificación JSON firmada cuando termina una ejecución o canalización o una aprobación espera a una persona."
+  }
+ },
+ "filters": {
+  "type": "Muestra solo disparadores cron o solo de webhook. Elige Todos para ver ambos.",
+  "outcome": "Muestra solo disparos que iniciaron una ejecución, fallaron o se omitieron.",
+  "deliveryStatus": "Muestra solo entregas en un estado: en espera, enviándose, entregadas o abandonadas."
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Se dispara según una programación cron de cinco campos que el líder del plano de control evalúa en la zona horaria del disparador.",
+   "Webhook": "Se dispara cuando llega a su URL una solicitud firmada con el secreto del disparador."
+  },
+  "triggerTargetType": {
+   "Agent": "Cada disparo pone en cola una ejecución del agente, en un despliegue fijo o según el peso del tráfico.",
+   "Pipeline": "Cada disparo inicia una ejecución de la canalización con todas sus etapas."
+  },
+  "triggerFireSource": {
+   "Cron": "La programación cron venció y el líder la disparó.",
+   "Webhook": "Llegó una entrega de webhook firmada correctamente.",
+   "Manual": "Una persona o credencial usó la acción Disparar ahora."
+  },
+  "triggerFireOutcome": {
+   "Started": "El disparo creó una ejecución o ejecución de canalización; sigue el enlace para verla.",
+   "Failed": "No se inició nada: la plantilla falló, la identidad de ejecución perdió acceso o faltaba el destino.",
+   "Skipped": "La ocurrencia se perdió durante más tiempo que el límite de recuperación de cron y no se disparó."
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Se envía cuando una ejecución termina correctamente.",
+   "RunFailed": "Se envía cuando una ejecución termina con fallo o rechazada.",
+   "RunCancelled": "Se envía cuando una ejecución se cancela antes de terminar.",
+   "RunTimedOut": "Se envía cuando una ejecución supera su plazo y se detiene.",
+   "PipelineCompleted": "Se envía cuando todas las etapas de una ejecución de canalización salieron bien.",
+   "PipelineFailed": "Se envía cuando una ejecución de canalización falla, agota el tiempo o se cancela.",
+   "ApprovalRequested": "Se envía cuando una aprobación de herramienta o una revisión de etapa espera a una persona.",
+   "Test": "Solo lo envía la acción Enviar prueba, para comprobar que el endpoint funciona."
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "Espera su próximo intento; los intentos fallidos se repiten con esperas crecientes.",
+   "Delivering": "Una réplica del plano de control la está enviando ahora.",
+   "Succeeded": "El endpoint respondió con un estado 2xx y la notificación terminó.",
+   "Failed": "Garrison dejó de intentarlo: se agotaron los intentos o el endpoint respondió con un estado que no se reintenta."
+  },
+  "runKind": {
+   "Invoke": "Iniciada por un llamador mediante REST, MCP, A2A o el panel.",
+   "Delegated": "Iniciada por otro agente mediante la delegación de Garrison.",
+   "Test": "Una ejecución de prueba de un despliegue desde el panel o la API.",
+   "Retry": "Un nuevo intento de una ejecución anterior que alguien reintentó.",
+   "Pipeline": "Una ejecución de etapa de una ejecución de canalización.",
+   "Trigger": "Iniciada por una programación cron, un webhook firmado o un disparo manual."
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Alguien reemplazó el secreto de firma de un disparador o endpoint de notificación; el anterior dejó de funcionar."
+  }
+ },
+ "resources": {
+  "runs": {
+   "triggerId": "El disparador que inició esta ejecución. Haz clic para abrir su historial de disparos.",
+   "kind": "Cómo se inició la ejecución: por un llamador, otro agente, como prueba, reintento, etapa de canalización o por un disparador.",
+   "openTrigger": "Abre el historial de disparos del disparador que inició esta ejecución."
+  },
+  "triggers": {
+   "add": "Crea una programación cron o un webhook firmado que inicie un agente o una canalización sin que nadie lo invoque.",
+   "type": "Cron se dispara según una programación; Webhook cuando otro sistema envía una solicitud firmada. No se puede cambiar después.",
+   "target": "Qué inicia cada disparo: una ejecución de un agente o de una canalización.",
+   "schedule": "La expresión cron y su zona horaria, o la indicación de que el disparador espera entregas de webhook.",
+   "lastFire": "Cuándo se disparó por última vez y si ese disparo inició una ejecución.",
+   "nextFireUtc": "Cuándo se dispara de nuevo un disparador cron activo. Los de webhook y los inactivos no tienen.",
+   "fireCount": "Cuántas veces se disparó, incluidos los disparos fallidos y omitidos.",
+   "runAs": "El usuario o credencial con cuyos permisos actúan las ejecuciones. Cada disparo comprueba que aún puede ejecutar el destino.",
+   "signingSecretLast4": "Los cuatro últimos caracteres del secreto de firma, para saber qué secreto usa un emisor.",
+   "targetType": "Si cada disparo ejecuta un agente o inicia una canalización completa.",
+   "agentId": "El agente que ejecuta cada disparo. Necesitas permiso para ejecutarlo.",
+   "deploymentId": "Fija las ejecuciones a un despliegue del agente o déjalo vacío para elegir por peso.",
+   "pipelineId": "La canalización que inicia cada disparo. Necesitas permiso para iniciarla y para ejecutar sus agentes de etapa.",
+   "inputTemplateId": "La plantilla de prompt que convierte el disparo (hora, carga útil, ID de entrega) en la entrada de la ejecución.",
+   "priority": "Prioridad en cola de las ejecuciones que inicia, de -100 a 100. Las más altas se asignan antes.",
+   "cronExpression": "Cuándo se dispara, como expresión cron de cinco campos o una macro como @hourly.",
+   "timeZone": "La zona horaria IANA en la que se lee la expresión cron, por ejemplo Europe/Madrid.",
+   "webhook": "Envía aquí solicitudes POST firmadas. Las que no tienen firma, la tienen caducada o incorrecta se rechazan con 401.",
+   "actions": {
+    "fire": "Dispara este disparador una vez ahora, con una carga útil de prueba opcional, y ve la ejecución que inició.",
+    "fires": "Mira cuándo y por qué se disparó y qué ejecución inició cada disparo.",
+    "runs": "Abre la lista de ejecuciones filtrada a las que inició este disparador.",
+    "rotateSecret": "Crea un nuevo secreto de firma del webhook. El anterior deja de funcionar al instante."
+   },
+   "fires": {
+    "firedUtc": "Cuándo se procesó el disparo. Los disparos cron también muestran la ocurrencia a la que corresponden.",
+    "source": "Por qué se disparó: su programación, una entrega de webhook o una persona.",
+    "outcome": "Si el disparo inició una ejecución, falló o se omitió.",
+    "started": "La ejecución o ejecución de canalización que creó este disparo. Haz clic para abrirla.",
+    "deliveryId": "La cabecera X-Garrison-Delivery de la solicitud; las repeticiones con el mismo valor disparan una vez.",
+    "error": "Por qué el disparo no inició nada, con un código de error estable.",
+    "runId": "La ejecución que creó este disparo. Haz clic para abrirla.",
+    "pipelineRunId": "La ejecución de canalización que inició este disparo. Haz clic para abrirla."
+   }
+  },
+  "notifications": {
+   "add": "Registra una URL que recibe un POST HTTP firmado cuando ocurren los eventos elegidos en este inquilino.",
+   "url": "Dónde envía Garrison las notificaciones. Las direcciones privadas y de metadatos se rechazan y no se siguen redirecciones.",
+   "events": "Los eventos que recibe este endpoint. Pasa el cursor por el valor para verlos todos.",
+   "filters": "Filtros de agente o despliegue que limitan qué eventos de ejecución y aprobación se envían.",
+   "signingSecretLast4": "Los cuatro últimos caracteres del secreto de firma, para que los receptores sepan qué secreto firma.",
+   "includeResultText": "Si las notificaciones de ejecución incluyen el texto del resultado, recortado al límite configurado.",
+   "agentId": "Envía solo eventos de ejecuciones de este agente. Los eventos de canalización se detienen mientras haya un filtro.",
+   "deploymentId": "Envía solo eventos de ejecuciones de este despliegue. Los eventos de canalización se detienen mientras haya un filtro.",
+   "resultTextMaxChars": "Texto de resultado más largo incluido en una notificación, en caracteres.",
+   "actions": {
+    "test": "Envía ahora una notificación de prueba y muestra si el endpoint la aceptó.",
+    "deliveries": "Mira todas las notificaciones enviadas a este endpoint con intentos, estado HTTP y fallos.",
+    "rotateSecret": "Crea un nuevo secreto de firma. Los reintentos ya en cola también se firman con él."
+   },
+   "deliveries": {
+    "createdUtc": "Cuándo se puso en cola el evento para este endpoint. Haz clic para ver los detalles.",
+    "event": "Qué evento informa esta notificación.",
+    "status": "Si la notificación espera, se está enviando, se entregó o se abandonó.",
+    "attempts": "Intentos realizados hasta ahora y el máximo que se hará.",
+    "lastStatusCode": "Estado HTTP que respondió el endpoint en el último intento; vacío si no hubo respuesta.",
+    "lastError": "Qué salió mal en el último intento, como un tiempo agotado o un destino rechazado.",
+    "lastAttemptUtc": "Cuándo se intentó enviar esta notificación por última vez.",
+    "nextAttemptUtc": "Cuándo toca el próximo reintento; vacío cuando la entrega terminó.",
+    "deliveredUtc": "Cuándo aceptó el endpoint la notificación.",
+    "payload": "El cuerpo JSON exacto que se envía en cada intento. Nunca contiene secretos.",
+    "id": "Identificador de entrega, enviado también como X-Garrison-Delivery para que los receptores ignoren repeticiones."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "El disparador que inició esta ejecución y cómo se inició.",
+   "openTrigger": "Abre el historial de disparos de este disparador en Agentes > Disparadores."
+  },
+  "pipelineRunDetail": {
+   "trigger": "El disparador que inició esta ejecución de canalización. Sus ejecuciones de etapa llevan el mismo disparador."
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Límites de los webhooks de disparadores, recuperación de cron tras una caída y conservación del historial de disparos.",
+    "Notifications": "Entrega de notificaciones salientes: protección SSRF, reintentos y esperas, tiempos límite y conservación del registro de entregas."
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Cuerpo de solicitud de webhook más grande en bytes. Las entregas mayores responden 413 antes de comprobar la firma.",
+     "WebhookToleranceSeconds": "Diferencia máxima entre la marca de tiempo de la firma y el reloj del servidor. Las entregas antiguas se rechazan, así que no se pueden repetir solicitudes capturadas.",
+     "CronMaxLatenessSeconds": "Las ocurrencias de cron perdidas se agrupan en un disparo, salvo que la última sea más antigua que estos segundos; entonces se registra como Omitido. 0 siempre dispara una vez.",
+     "FireRetentionDays": "Días que se conserva el historial de disparos."
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Permite URL de notificación en redes de loopback y privadas. Desactivado por defecto para evitar la falsificación de solicitudes del lado del servidor; las direcciones de enlace local y de metadatos siguen bloqueadas.",
+     "MaxAttempts": "Máximo de intentos de entrega de una notificación antes de abandonarla.",
+     "InitialBackoffSeconds": "Espera antes del segundo intento; cada espera siguiente se duplica hasta la espera máxima.",
+     "MaxBackoffSeconds": "La espera más larga entre dos intentos de una notificación.",
+     "TimeoutSeconds": "Segundos que puede durar un intento de entrega, conexión incluida.",
+     "DispatchIntervalMs": "Cada cuánto busca cada réplica del plano de control notificaciones pendientes, en milisegundos.",
+     "SweepOverlapSeconds": "Segundos de historial ya revisado que el líder vuelve a leer en cada pasada para no perder eventos tardíos.",
+     "DeliveryRetentionDays": "Días que las entregas terminadas permanecen en el registro."
+    }
+   }
+  }
+ },
+ "signingSecret": {
+  "done": "Cierra esta ventana. El secreto no se puede volver a mostrar, así que cópialo antes.",
+  "secret": "El secreto de firma. Emisores y receptores lo usan para calcular la firma HMAC-SHA256.",
+  "copy": "Copia el secreto de firma al portapapeles para guardarlo en el otro sistema.",
+  "url": "La URL a la que otros sistemas envían por POST entregas de webhook firmadas.",
+  "copyUrl": "Copia la URL del webhook al portapapeles."
+ },
+ "triggerFire": {
+  "submit": "Dispara el disparador una vez ahora con esta carga útil. La ejecución se inicia con la identidad de ejecución del disparador.",
+  "body": "Texto de carga útil opcional. La plantilla de entrada lo ve como webhook.body, y como webhook.json si es JSON.",
+  "contentType": "Tipo de medio de la carga útil, como application/json. Vacío para texto plano.",
+  "openRun": "Abre la ejecución que inició este disparo.",
+  "openPipelineRun": "Abre la ejecución de canalización que inició este disparo."
+ },
+ "triggerFires": {
+  "refresh": "Vuelve a cargar los disparos más recientes de este disparador."
+ },
+ "notificationDeliveries": {
+  "refresh": "Vuelve a cargar las entregas más recientes de este endpoint.",
+  "open": "Muestra la carga útil, los intentos y el último fallo de esta entrega debajo de la lista.",
+  "detail": "Todos los campos de la entrega seleccionada, incluido el cuerpo JSON enviado."
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "triggers": {
+  "title": "Disparadores",
+  "p1": "Un disparador inicia una ejecución de agente o de canalización sin que nadie la invoque: según una programación cron o cuando otro sistema envía un webhook firmado con el secreto del disparador.",
+  "p2": "La entrada de la ejecución sale de una plantilla de prompt que puede usar la hora del disparo y la carga útil del webhook. Las ejecuciones actúan como el usuario o credencial que guardó el disparador por última vez, y cada disparo comprueba que aún puede ejecutar el destino.",
+  "p3": "Si ninguna réplica pudo disparar una programación durante un tiempo, las ocurrencias perdidas se convierten en un único disparo. Las entregas de webhook que repiten un valor X-Garrison-Delivery disparan una vez."
+ },
+ "notifications": {
+  "title": "Notificaciones",
+  "p1": "Un endpoint de notificación recibe un POST JSON firmado cuando ocurre un evento suscrito: una ejecución o canalización que termina, o una aprobación que espera a una persona.",
+  "p2": "Las entregas se ponen en cola de forma duradera y se reintentan con esperas crecientes. Cada intento lleva el mismo ID de entrega, así que los receptores pueden ignorar repeticiones.",
+  "p3": "Las notificaciones nunca incluyen secretos ni la entrada de la ejecución, y la salida solo si lo permites. Las direcciones de redes privadas se rechazan salvo que un operador las permita."
+ }
+});

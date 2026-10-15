@@ -260,6 +260,21 @@ export default function PipelineRunDetailView({ recordId }) {
         <Detail label={t('resources.pipelineRuns.columns.callerName')} tip={t('tips.resources.pipelineRuns.callerName')}>
           {r.callerName || r.callerId ? `${r.callerName || r.callerId} (${enumLabel(t, 'principalType', r.callerType)})` : null}
         </Detail>
+        {r.triggerId && (
+          <Detail label={t('views.runDetail.trigger')} tip={t('tips.views.pipelineRunDetail.trigger')}>
+            <a
+              href={pathFor('triggers', null, { fires: r.triggerId })}
+              data-testid="pipeline-run-trigger-link"
+              {...tip(t('tips.views.runDetail.openTrigger'))}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(pathFor('triggers', null, { fires: r.triggerId }));
+              }}
+            >
+              <code>{r.triggerId}</code>
+            </a>
+          </Detail>
+        )}
         <Detail label={t('resources.pipelineRuns.columns.priority')} tip={t('tips.resources.pipelineRuns.priority')}>{formatNumber(r.priority ?? 0, {}, lng)}</Detail>
         <Detail label={t('views.pipelineRunDetail.finalRun')} tip={t('tips.views.pipelineRunDetail.finalRun')}>{r.finalRunId ? runLink(r.finalRunId, 'pipeline-run-final') : null}</Detail>
         <Detail label={t('resources.pipelineRuns.columns.deadlineUtc')} tip={t('tips.resources.pipelineRuns.deadlineUtc')}>{r.deadlineUtc ? when(r.deadlineUtc) : t('resources.pipelines.noLimit')}</Detail>

@@ -259,6 +259,8 @@ namespace Garrison.Core.Services
                     return await _Database.Agents.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
                 case "Deployment":
                     return await _Database.Deployments.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
+                case "Pipeline":
+                    return await _Database.Pipelines.ReadAsync(_TenantId, id, token).ConfigureAwait(false);
                 default:
                     throw new ArgumentException("Unknown reference kind '" + kind + "'.", nameof(kind));
             }
@@ -282,6 +284,8 @@ namespace Garrison.Core.Services
                     return await _Database.Agents.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
                 case "Deployment":
                     return await _Database.Deployments.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
+                case "Pipeline":
+                    return await _Database.Pipelines.ReadByNameAsync(_TenantId, name, token).ConfigureAwait(false);
                 default:
                     throw new ArgumentException("Unknown reference kind '" + kind + "'.", nameof(kind));
             }
@@ -305,6 +309,8 @@ namespace Garrison.Core.Services
                     return agent.Id;
                 case Deployment deployment:
                     return deployment.Id;
+                case Pipeline pipeline:
+                    return pipeline.Id;
                 default:
                     return null;
             }
@@ -328,6 +334,8 @@ namespace Garrison.Core.Services
                     return agent.Name;
                 case Deployment deployment:
                     return deployment.Name;
+                case Pipeline pipeline:
+                    return pipeline.Name;
                 default:
                     return null;
             }

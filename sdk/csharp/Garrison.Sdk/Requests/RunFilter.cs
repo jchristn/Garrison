@@ -65,6 +65,11 @@ namespace Garrison.Sdk.Requests
         public string? ConversationId { get; set; } = null;
 
         /// <summary>
+        /// Trigger filter: only runs this trigger started.
+        /// </summary>
+        public string? TriggerId { get; set; } = null;
+
+        /// <summary>
         /// Created at or after (UTC).
         /// </summary>
         public DateTime? FromUtc { get; set; } = null;

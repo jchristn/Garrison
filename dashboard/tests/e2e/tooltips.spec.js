@@ -223,7 +223,12 @@ test('every interactive and labeled element has a useful tooltip', async ({ page
     // P12.9: start and preview a pipeline, and decide a stage review.
     ['agents?tab=pipelines', 'Start', 'pipeline start'],
     ['agents?tab=pipelines', 'Preview prompts', 'pipeline preview'],
-    ['approvals?tab=pipeline-reviews', 'Request changes', 'stage review decide']
+    ['approvals?tab=pipeline-reviews', 'Request changes', 'stage review decide'],
+    // P12.5 and P12.14: fire a trigger, its fire history, a test notification, and the delivery log.
+    ['agents?tab=triggers', 'Fire now', 'trigger fire'],
+    ['agents?tab=triggers', 'Fire history', 'trigger fire history'],
+    ['configuration?tab=notifications', 'Send test', 'notification test'],
+    ['configuration?tab=notifications', 'Delivery log', 'notification delivery log']
   ];
   for (const [path, item, context] of modals) {
     await page.goto(`/dashboard/${path}`);

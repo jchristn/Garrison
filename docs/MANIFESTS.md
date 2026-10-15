@@ -1,6 +1,6 @@
 # Manifests
 
-A manifest describes a tenant's configuration (secrets, prompt templates, harness profiles, MCP servers, workspace templates, agents, deployments, and pipelines) as YAML or JSON documents you can keep in source control, review, and apply to any Garrison. Applying the same manifest twice changes nothing. Exporting a tenant gives you a manifest that recreates it.
+A manifest describes a tenant's configuration (secrets, prompt templates, harness profiles, MCP servers, workspace templates, agents, deployments, pipelines, triggers, and notification endpoints) as YAML or JSON documents you can keep in source control, review, and apply to any Garrison. Applying the same manifest twice changes nothing. Exporting a tenant gives you a manifest that recreates it.
 
 Every example on this page was checked with a dry run against a live server.
 
@@ -21,7 +21,7 @@ spec:
 | Field | Meaning |
 |---|---|
 | `apiVersion` | Always `garrison/v1` |
-| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `Agent`, `Deployment`, or `Pipeline` |
+| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `Agent`, `Deployment`, `Pipeline`, `Trigger`, or `NotificationEndpoint` |
 | `metadata.name` | The record's name, which is also how other documents refer to it. Names starting with `builtin/` are reserved |
 | `metadata.description` | Optional; becomes the record's description |
 | `spec` | The record's fields in camelCase, as in the REST API, with the conveniences listed below |
@@ -82,7 +82,7 @@ A successful apply answers 200. If any document fails, the response is 400 with 
 
 ```json
 { "kind": "Secret", "name": "k1", "result": "Failed", "message": "Secret k1 carries a value but this apply does not allow secret values." }
-{ "kind": "Gadget", "name": "x", "result": "Failed", "message": "Document 1 has unknown kind 'Gadget'. Supported: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, Agent, Deployment, Pipeline." }
+{ "kind": "Gadget", "name": "x", "result": "Failed", "message": "Document 1 has unknown kind 'Gadget'. Supported: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, Agent, Deployment, Pipeline, Trigger, NotificationEndpoint." }
 ```
 
 A failed item also carries `errorCode` and, when one field is at fault, `errorField`. A spec field with the wrong type or a value it does not accept gives `ManifestInvalid`, and the message names the document, the field, the value, and what the field accepts:
@@ -378,6 +378,63 @@ spec:
 | `stages[].parameters` | A map of run parameter overrides. They must be allowed run overrides of the named `deployment`, so a stage with parameters needs one. Quote values YAML would read as numbers or booleans |
 
 Applying a changed Pipeline document replaces its stages and increases the pipeline's version; pipeline runs that already started keep their own copy of the stages. An unchanged document reports `Unchanged` and keeps the version. A protected pipeline cannot be changed by a manifest. Export writes every tenant pipeline in this form and leaves out fields that hold their defaults.
+
+### Trigger
+
+A trigger starts an agent run or a pipeline run on a cron schedule or when a signed webhook arrives (see [TRIGGERS.md](TRIGGERS.md)). Triggers are applied after pipelines, so they can name agents, deployments, pipelines, and templates from the same manifest.
+
+```yaml
+apiVersion: garrison/v1
+kind: Trigger
+metadata:
+  name: nightly-report
+  description: Summarize yesterday's failed runs
+spec:
+  type: Cron
+  agent: reporter
+  deployment: reporter-claude
+  inputTemplate: nightly-report-input
+  cron: "0 6 * * *"
+  timeZone: Europe/Berlin
+```
+
+| Field | Meaning |
+|---|---|
+| `type` | `Cron` (the default) or `Webhook`. Applying a document with a different type to an existing trigger fails with `TypeImmutable`; delete the trigger first |
+| `agent`, `deployment` | The agent to run and, optionally, one of its deployments, by name |
+| `pipeline` | The pipeline to start, by name. Give either `agent` or `pipeline`, not both |
+| `inputTemplate` | A `Task` template by name. Leave it out for `builtin/trigger-input` |
+| `priority`, `active` | As in the REST API; default 0 and true |
+| `cron`, `timeZone` | Cron triggers only. `timeZone` defaults to `UTC`. A dry run reports an invalid expression (`InvalidCron`) or zone (`InvalidTimeZone`) |
+| `signingSecret` | Webhook triggers only, and only in an apply with `allowSecretValues=true` (which also needs `Secret.Create`) |
+
+A trigger that the apply creates or changes runs as the principal that applied the manifest; an `Unchanged` trigger keeps its run-as principal. A new webhook trigger without `signingSecret` gets a generated secret that the apply result does not show (its message says so); read it by rotating it with `POST .../triggers/{id}/rotate-secret`. Export writes `type`, the target, the template, the schedule, and non-default fields, and never the secret.
+
+### NotificationEndpoint
+
+A notification endpoint receives signed notifications about runs, pipeline runs, and approvals (see [NOTIFICATIONS.md](NOTIFICATIONS.md)).
+
+```yaml
+apiVersion: garrison/v1
+kind: NotificationEndpoint
+metadata:
+  name: ops-alerts
+spec:
+  url: https://hooks.example.com/garrison
+  events: [RunFailed, RunTimedOut, PipelineFailed, ApprovalRequested]
+  agent: reporter
+  includeResultText: false
+```
+
+| Field | Meaning |
+|---|---|
+| `url` | `http` or `https`. A refused destination fails with `DestinationBlocked`, already in a dry run |
+| `events` | One or more of `RunSucceeded`, `RunFailed`, `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed`, `ApprovalRequested` |
+| `agent`, `deployment` | Optional filters, by name |
+| `includeResultText`, `resultTextMaxChars`, `active` | As in the REST API; default false, 1000, and true |
+| `signingSecret` | Only in an apply with `allowSecretValues=true` |
+
+As with triggers, a new endpoint without `signingSecret` gets a generated secret that you read by rotating it, and export never includes it.
 
 ## A complete example on the fake harness
 

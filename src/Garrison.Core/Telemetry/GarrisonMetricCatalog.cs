@@ -150,6 +150,18 @@ namespace Garrison.Core.Telemetry
         /// <summary>Pending pipeline reviews (P12.9).</summary>
         public static readonly MetricDescriptor PipelineReviewsPending = new MetricDescriptor("garrison.pipeline.reviews.pending", MetricKindEnum.ObservableGauge, "{review}", "", "Pipeline stage reviews waiting for a person, as of the leader's last pipeline sweep; aggregate with max", "server", "Runs", "garrison-runs");
 
+        /// <summary>Trigger fires (P12.5).</summary>
+        public static readonly MetricDescriptor TriggerFires = new MetricDescriptor("garrison.trigger.fires", MetricKindEnum.Counter, "{fire}", "tenant, source, outcome", "Trigger fires, by source (cron, webhook, manual) and outcome (started, failed, skipped); repeated webhook deliveries are not counted", "server", "Runs", "garrison-runs");
+
+        /// <summary>Trigger webhook deliveries refused before firing (P12.5).</summary>
+        public static readonly MetricDescriptor TriggerWebhookRejections = new MetricDescriptor("garrison.trigger.webhook.rejections", MetricKindEnum.Counter, "{request}", "reason", "Trigger webhook deliveries refused before firing, by reason (missing, malformed, stale, mismatch, too_large, inactive, bad_delivery_id)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Notification delivery attempts (P12.14).</summary>
+        public static readonly MetricDescriptor NotificationDeliveries = new MetricDescriptor("garrison.notification.deliveries", MetricKindEnum.Counter, "{attempt}", "event, result", "Notification delivery attempts, by event and result (succeeded, retry, failed, blocked)", "server", "Runs", "garrison-runs");
+
+        /// <summary>Notifications queued (P12.14).</summary>
+        public static readonly MetricDescriptor NotificationsQueued = new MetricDescriptor("garrison.notifications.queued", MetricKindEnum.Counter, "{notification}", "event", "Notifications queued in the outbox, by event", "server", "Runs", "garrison-runs");
+
         /// <summary>Run events received.</summary>
         public static readonly MetricDescriptor RunEvents = new MetricDescriptor("garrison.run.events", MetricKindEnum.Counter, "{event}", "type", "Run events received from workers, by event type", "server", "Runs", "garrison-runs");
 
@@ -423,7 +435,7 @@ namespace Garrison.Core.Telemetry
             HttpRequests, HttpRequestDuration, HttpRequestSize, HttpResponseSize, HttpInFlight,
             AuthFailures, AuthRateLimited, AuthzDenials, AuthCacheLookups, AuthTokensIssued, SecretDecrypts, CodexTokenRefresh, AuditEvents,
             RunsCreated, RunsFinished, RunStageDuration, RunTokens, HarnessTokens, RunCostUsd, RunCost, RunOutputRate, RunToolCalls,
-            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, RunEvents, EventBatchSize, RunsQueued, RunsActive,
+            RunGuardTrips, RunCancellations, ApprovalsRequested, ApprovalsDecided, ApprovalWait, ApprovalsPending, SchemaValidations, Repairs, ConversationTurns, ConversationFallbacks, ConversationBusy, PipelinesStarted, PipelinesFinished, PipelineStageExecutions, PipelineStageStartFailures, PipelineAdvances, PipelineReviewsDecided, PipelineReviewWait, PipelineReviewsPending, TriggerFires, TriggerWebhookRejections, NotificationDeliveries, NotificationsQueued, RunEvents, EventBatchSize, RunsQueued, RunsActive,
             QueueDepth, RunsBlockedCurrent, RunsBlocked, RunsBlockedFailed, Claims, ClaimDuration, LeaseRequests, LeaseWait, QueueWakeups, DeploymentLockWait, CompileDuration,
             LeaseExpirations, LeaseRenewals, NodeHeartbeats, NodeTransitions, Nodes,
             McpToolCalls, McpToolResults, McpToolDuration, McpSessionsActive, McpSessions, A2aRequests, A2aDuration, A2aTasks,

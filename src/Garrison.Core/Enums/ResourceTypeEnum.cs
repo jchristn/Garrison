@@ -162,6 +162,18 @@ namespace Garrison.Core.Enums
         /// Pipeline runs (P12.9): read, cancel, retry, and delete executions of a pipeline. Stage reviews are authorized as
         /// Approval.
         /// </summary>
-        PipelineRun
+        PipelineRun,
+
+        /// <summary>
+        /// Triggers (P12.5): cron schedules and signed webhooks that start runs or pipeline runs. Execute fires a trigger
+        /// by hand; Update also rotates a webhook signing secret.
+        /// </summary>
+        Trigger,
+
+        /// <summary>
+        /// Notification endpoints (P12.14): outbound webhook subscriptions to run, pipeline, and approval events, with
+        /// their delivery log. Execute sends a test notification; Update also rotates the signing secret.
+        /// </summary>
+        NotificationEndpoint
     }
 }

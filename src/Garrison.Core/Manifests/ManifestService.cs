@@ -34,7 +34,7 @@ namespace Garrison.Core.Manifests
         /// <summary>
         /// Supported kinds in apply order.
         /// </summary>
-        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment", "Pipeline" };
+        public static readonly IReadOnlyList<string> Kinds = new List<string> { "Secret", "PromptTemplate", "HarnessProfile", "McpServer", "WorkspaceTemplate", "Agent", "Deployment", "Pipeline", "Trigger", "NotificationEndpoint" };
 
         /// <summary>
         /// Most stages a Pipeline document may have (P12.9). Minimum 1, maximum 100, default 20. The control plane sets it
@@ -51,6 +51,12 @@ namespace Garrison.Core.Manifests
                 _MaxPipelineStages = Math.Clamp(value, 1, 100);
             }
         }
+
+        /// <summary>
+        /// Whether NotificationEndpoint documents may name loopback and private destinations (P12.14). Default false. The
+        /// control plane sets it from the cluster setting Notifications.AllowPrivateDestinations.
+        /// </summary>
+        public bool AllowPrivateNotificationDestinations { get; set; } = false;
 
         #endregion
 
@@ -228,6 +234,8 @@ namespace Garrison.Core.Manifests
             foreach (Agent agent in (await _Database.Agents.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Agent", agent.Name, await AgentTreeAsync(agent, resolver, token).ConfigureAwait(false)));
             foreach (Deployment deployment in (await _Database.Deployments.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Deployment", deployment.Name, await DeploymentTreeAsync(deployment, resolver, token).ConfigureAwait(false)));
             foreach (Pipeline pipeline in (await _Database.Pipelines.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Pipeline", pipeline.Name, await PipelineTreeAsync(pipeline, resolver, token).ConfigureAwait(false)));
+            foreach (Trigger trigger in (await _Database.Triggers.EnumerateAsync(tenantId, null, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("Trigger", trigger.Name, await TriggerTreeAsync(trigger, resolver, token).ConfigureAwait(false)));
+            foreach (NotificationEndpoint endpoint in (await _Database.NotificationEndpoints.EnumerateAsync(tenantId, query, token).ConfigureAwait(false)).Objects) documents.Add(Wrap("NotificationEndpoint", endpoint.Name, await NotificationEndpointTreeAsync(endpoint, resolver, token).ConfigureAwait(false)));
             return ManifestParser.ToYaml(documents);
         }
 
@@ -278,6 +286,12 @@ namespace Garrison.Core.Manifests
                     break;
                 case "pipeline":
                     await PlanPipelineAsync(tenantId, document, resolver, planned, token).ConfigureAwait(false);
+                    break;
+                case "trigger":
+                    await PlanTriggerAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
+                    break;
+                case "notificationendpoint":
+                    await PlanNotificationEndpointAsync(tenantId, document, options, resolver, planned, token).ConfigureAwait(false);
                     break;
             }
         }
@@ -726,13 +740,228 @@ namespace Garrison.Core.Manifests
             return tree;
         }
 
+        private async Task PlanTriggerAsync(string tenantId, ManifestDocument document, ManifestApplyOptions options, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            TriggerSpec spec = Deserialize<TriggerSpec>(document);
+            Trigger trigger = new Trigger();
+            trigger.TenantId = tenantId;
+            trigger.Name = document.Metadata.Name;
+            trigger.Description = spec.Description;
+            trigger.Type = spec.Type ?? TriggerTypeEnum.Cron;
+            if (!String.IsNullOrWhiteSpace(spec.Pipeline))
+            {
+                trigger.TargetType = TriggerTargetTypeEnum.Pipeline;
+                trigger.PipelineId = await resolver.RequireAsync("Pipeline", spec.Pipeline, "spec.pipeline", token).ConfigureAwait(false);
+                if (!String.IsNullOrWhiteSpace(spec.Agent)) throw new ValidationException("Trigger " + trigger.Name + " names both an agent and a pipeline; give one.");
+            }
+            else
+            {
+                trigger.TargetType = TriggerTargetTypeEnum.Agent;
+                trigger.AgentId = String.IsNullOrWhiteSpace(spec.Agent) ? null : await resolver.RequireAsync("Agent", spec.Agent, "spec.agent", token).ConfigureAwait(false);
+            }
+            if (!String.IsNullOrWhiteSpace(spec.Deployment)) trigger.DeploymentId = await resolver.RequireAsync("Deployment", spec.Deployment, "spec.deployment", token).ConfigureAwait(false);
+            if (!String.IsNullOrWhiteSpace(spec.InputTemplate)) trigger.InputTemplateId = await resolver.RequireAsync("PromptTemplate", spec.InputTemplate, "spec.inputTemplate", token).ConfigureAwait(false);
+            trigger.Priority = spec.Priority ?? 0;
+            trigger.CronExpression = String.IsNullOrWhiteSpace(spec.Cron) ? null : spec.Cron.Trim();
+            trigger.TimeZone = spec.TimeZone ?? "UTC";
+            trigger.Active = spec.Active ?? true;
+
+            Trigger? existing = await _Database.Triggers.ReadByNameAsync(tenantId, trigger.Name, token).ConfigureAwait(false);
+            if (existing != null)
+            {
+                if (existing.Type != trigger.Type) throw new ValidationException("Trigger " + existing.Name + " is a " + existing.Type + " trigger; the type cannot change. Delete it and apply it again to change the type.", new Dictionary<string, string> { { "spec.type", "The type cannot change." } }, new Dictionary<string, string> { { "spec.type", "TypeImmutable" } });
+                trigger.Id = existing.Id;
+                trigger.CreatedUtc = existing.CreatedUtc;
+                trigger.SecretEncrypted = existing.SecretEncrypted;
+                trigger.SecretKeyVersion = existing.SecretKeyVersion;
+                trigger.SigningSecretLast4 = existing.SigningSecretLast4;
+                trigger.SigningSecretRotatedUtc = existing.SigningSecretRotatedUtc;
+                trigger.RunAsType = existing.RunAsType;
+                trigger.RunAsId = existing.RunAsId;
+                trigger.RunAsName = existing.RunAsName;
+                trigger.LastFireUtc = existing.LastFireUtc;
+                trigger.LastFireOutcome = existing.LastFireOutcome;
+                trigger.FireCount = existing.FireCount;
+            }
+            // References may be defined earlier in this manifest, so the full validation runs when the trigger is written;
+            // the schedule is checked now so a dry run reports it.
+            if (trigger.Type == TriggerTypeEnum.Cron && !CronSchedule.Validate(trigger.CronExpression, trigger.TimeZone, out string? cronError, out string? zoneError))
+            {
+                Dictionary<string, string> errors = new Dictionary<string, string>();
+                Dictionary<string, string> codes = new Dictionary<string, string>();
+                if (cronError != null)
+                {
+                    errors["spec.cron"] = cronError;
+                    codes["spec.cron"] = "InvalidCron";
+                }
+                if (zoneError != null)
+                {
+                    errors["spec.timeZone"] = zoneError;
+                    codes["spec.timeZone"] = "InvalidTimeZone";
+                }
+                throw new ValidationException("Trigger " + trigger.Name + " has an invalid schedule.", errors, codes);
+            }
+
+            bool secretChanged = false;
+            if (!String.IsNullOrEmpty(spec.SigningSecret))
+            {
+                if (!options.AllowSecretValues) throw new ValidationException("Trigger " + trigger.Name + " carries a signing secret but this apply does not allow secret values.");
+                if (trigger.Type != TriggerTypeEnum.Webhook) throw new ValidationException("Trigger " + trigger.Name + " is a Cron trigger; only Webhook triggers have a signing secret.");
+                string? invalid = SigningSecrets.Validate(spec.SigningSecret);
+                if (invalid != null) throw new ValidationException("Trigger " + trigger.Name + ": " + invalid, new Dictionary<string, string> { { "spec.signingSecret", invalid } });
+                string? current = existing == null ? null : SigningSecrets.Read(existing, _Cipher);
+                if (!String.Equals(current, spec.SigningSecret, StringComparison.Ordinal))
+                {
+                    SigningSecrets.Apply(trigger, spec.SigningSecret, _Cipher);
+                    secretChanged = true;
+                }
+            }
+            else if (trigger.Type == TriggerTypeEnum.Webhook && String.IsNullOrEmpty(trigger.SecretEncrypted))
+            {
+                SigningSecrets.Apply(trigger, WebhookSigner.NewSecret(), _Cipher);
+                secretChanged = existing != null;
+                planned.Message = "A signing secret was generated; rotate it (POST .../triggers/{id}/rotate-secret) to read it.";
+            }
+
+            planned.Model = trigger;
+            planned.ResourceId = trigger.Id;
+            bool unchanged = false;
+            if (existing != null)
+            {
+                Dictionary<string, object?> before = await TriggerTreeAsync(existing, resolver, token).ConfigureAwait(false);
+                Dictionary<string, object?> after = await TriggerTreeAsync(trigger, resolver, token).ConfigureAwait(false);
+                unchanged = Same(before, after) && !secretChanged;
+                if (!unchanged)
+                {
+                    planned.Changes = Diff(before, after);
+                    if (secretChanged) planned.Changes.Add(new ManifestFieldChange("signingSecret", "(hidden)", "(hidden, changed)"));
+                }
+            }
+            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (unchanged ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            if (planned.Result != ManifestApplyResultEnum.Unchanged)
+            {
+                // A written trigger runs as the principal that applied the manifest.
+                trigger.RunAsType = options.PrincipalType;
+                trigger.RunAsId = options.PrincipalId;
+                trigger.RunAsName = options.PrincipalName;
+            }
+            planned.Previous = existing;
+            resolver.Add("Trigger", trigger.Name, trigger.Id);
+        }
+
+        private async Task<Dictionary<string, object?>> TriggerTreeAsync(Trigger trigger, Resolver resolver, CancellationToken token)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            if (trigger.Description != null) tree["description"] = trigger.Description;
+            tree["type"] = trigger.Type.ToString();
+            if (trigger.TargetType == TriggerTargetTypeEnum.Pipeline)
+            {
+                tree["pipeline"] = await resolver.NameAsync("Pipeline", trigger.PipelineId, token).ConfigureAwait(false) ?? trigger.PipelineId;
+            }
+            else
+            {
+                tree["agent"] = await resolver.NameAsync("Agent", trigger.AgentId, token).ConfigureAwait(false) ?? trigger.AgentId;
+                if (!String.IsNullOrEmpty(trigger.DeploymentId)) tree["deployment"] = await resolver.NameAsync("Deployment", trigger.DeploymentId, token).ConfigureAwait(false) ?? trigger.DeploymentId;
+            }
+            if (!String.IsNullOrEmpty(trigger.InputTemplateId)) tree["inputTemplate"] = await resolver.NameAsync("PromptTemplate", trigger.InputTemplateId, token).ConfigureAwait(false) ?? trigger.InputTemplateId;
+            if (trigger.Priority != 0) tree["priority"] = (long)trigger.Priority;
+            if (!String.IsNullOrEmpty(trigger.CronExpression)) tree["cron"] = trigger.CronExpression;
+            if (trigger.Type == TriggerTypeEnum.Cron && !String.Equals(trigger.TimeZone, "UTC", StringComparison.Ordinal)) tree["timeZone"] = trigger.TimeZone;
+            if (!trigger.Active) tree["active"] = false;
+            return tree;
+        }
+
+        private async Task PlanNotificationEndpointAsync(string tenantId, ManifestDocument document, ManifestApplyOptions options, Resolver resolver, Planned planned, CancellationToken token)
+        {
+            NotificationEndpointSpec spec = Deserialize<NotificationEndpointSpec>(document);
+            NotificationEndpoint endpoint = new NotificationEndpoint();
+            endpoint.TenantId = tenantId;
+            endpoint.Name = document.Metadata.Name;
+            endpoint.Description = spec.Description;
+            endpoint.Url = spec.Url ?? String.Empty;
+            endpoint.Events = spec.Events ?? new List<NotificationEventEnum>();
+            if (!String.IsNullOrWhiteSpace(spec.Agent)) endpoint.AgentId = await resolver.RequireAsync("Agent", spec.Agent, "spec.agent", token).ConfigureAwait(false);
+            if (!String.IsNullOrWhiteSpace(spec.Deployment)) endpoint.DeploymentId = await resolver.RequireAsync("Deployment", spec.Deployment, "spec.deployment", token).ConfigureAwait(false);
+            endpoint.IncludeResultText = spec.IncludeResultText ?? false;
+            endpoint.ResultTextMaxChars = spec.ResultTextMaxChars ?? 1000;
+            endpoint.Active = spec.Active ?? true;
+
+            NotificationEndpoint? existing = await _Database.NotificationEndpoints.ReadByNameAsync(tenantId, endpoint.Name, token).ConfigureAwait(false);
+            if (existing != null)
+            {
+                endpoint.Id = existing.Id;
+                endpoint.CreatedUtc = existing.CreatedUtc;
+                endpoint.SecretEncrypted = existing.SecretEncrypted;
+                endpoint.SecretKeyVersion = existing.SecretKeyVersion;
+                endpoint.SigningSecretLast4 = existing.SigningSecretLast4;
+                endpoint.SigningSecretRotatedUtc = existing.SigningSecretRotatedUtc;
+            }
+            DestinationBlockReasonEnum blocked = DestinationGuard.CheckUrl(endpoint.Url, AllowPrivateNotificationDestinations, out Uri? _);
+            if (blocked != DestinationBlockReasonEnum.None)
+            {
+                string code = blocked == DestinationBlockReasonEnum.InvalidUrl || blocked == DestinationBlockReasonEnum.Scheme ? "InvalidUrl" : "DestinationBlocked";
+                throw new ValidationException("Notification endpoint " + endpoint.Name + " has a refused URL (" + blocked + ").", new Dictionary<string, string> { { "spec.url", "The destination is refused (" + blocked + ")." } }, new Dictionary<string, string> { { "spec.url", code } });
+            }
+
+            bool secretChanged = false;
+            if (!String.IsNullOrEmpty(spec.SigningSecret))
+            {
+                if (!options.AllowSecretValues) throw new ValidationException("Notification endpoint " + endpoint.Name + " carries a signing secret but this apply does not allow secret values.");
+                string? invalid = SigningSecrets.Validate(spec.SigningSecret);
+                if (invalid != null) throw new ValidationException("Notification endpoint " + endpoint.Name + ": " + invalid, new Dictionary<string, string> { { "spec.signingSecret", invalid } });
+                string? current = existing == null ? null : SigningSecrets.Read(existing, _Cipher);
+                if (!String.Equals(current, spec.SigningSecret, StringComparison.Ordinal))
+                {
+                    SigningSecrets.Apply(endpoint, spec.SigningSecret, _Cipher);
+                    secretChanged = true;
+                }
+            }
+            else if (String.IsNullOrEmpty(endpoint.SecretEncrypted))
+            {
+                SigningSecrets.Apply(endpoint, WebhookSigner.NewSecret(), _Cipher);
+                secretChanged = existing != null;
+                planned.Message = "A signing secret was generated; rotate it (POST .../notification-endpoints/{id}/rotate-secret) to read it.";
+            }
+
+            planned.Model = endpoint;
+            planned.ResourceId = endpoint.Id;
+            bool unchanged = false;
+            if (existing != null)
+            {
+                Dictionary<string, object?> before = await NotificationEndpointTreeAsync(existing, resolver, token).ConfigureAwait(false);
+                Dictionary<string, object?> after = await NotificationEndpointTreeAsync(endpoint, resolver, token).ConfigureAwait(false);
+                unchanged = Same(before, after) && !secretChanged;
+                if (!unchanged)
+                {
+                    planned.Changes = Diff(before, after);
+                    if (secretChanged) planned.Changes.Add(new ManifestFieldChange("signingSecret", "(hidden)", "(hidden, changed)"));
+                }
+            }
+            planned.Result = existing == null ? ManifestApplyResultEnum.Created : (unchanged ? ManifestApplyResultEnum.Unchanged : ManifestApplyResultEnum.Updated);
+            resolver.Add("NotificationEndpoint", endpoint.Name, endpoint.Id);
+        }
+
+        private async Task<Dictionary<string, object?>> NotificationEndpointTreeAsync(NotificationEndpoint endpoint, Resolver resolver, CancellationToken token)
+        {
+            Dictionary<string, object?> tree = new Dictionary<string, object?>();
+            if (endpoint.Description != null) tree["description"] = endpoint.Description;
+            tree["url"] = endpoint.Url;
+            tree["events"] = endpoint.Events.Select(e => (object?)e.ToString()).ToList();
+            if (!String.IsNullOrEmpty(endpoint.AgentId)) tree["agent"] = await resolver.NameAsync("Agent", endpoint.AgentId, token).ConfigureAwait(false) ?? endpoint.AgentId;
+            if (!String.IsNullOrEmpty(endpoint.DeploymentId)) tree["deployment"] = await resolver.NameAsync("Deployment", endpoint.DeploymentId, token).ConfigureAwait(false) ?? endpoint.DeploymentId;
+            if (endpoint.IncludeResultText) tree["includeResultText"] = true;
+            if (endpoint.ResultTextMaxChars != 1000) tree["resultTextMaxChars"] = (long)endpoint.ResultTextMaxChars;
+            if (!endpoint.Active) tree["active"] = false;
+            return tree;
+        }
+
         private async Task WriteAsync(string tenantId, Planned planned, ConfigurationReferenceCache cache, CancellationToken token)
         {
             bool create = planned.Result == ManifestApplyResultEnum.Created;
 
             // A written record must be read fresh by later documents in the same apply.
             string? kind = Kinds.FirstOrDefault(k => k.Equals(planned.Document.Kind, StringComparison.OrdinalIgnoreCase));
-            if (kind != null && kind != "Pipeline") cache.Forget(kind);
+            if (kind != null) cache.Forget(kind);
             switch (planned.Model)
             {
                 case Secret secret:
@@ -778,6 +1007,17 @@ namespace Garrison.Core.Manifests
                     await ConfigurationValidator.PipelineAsync(_Database, tenantId, pipeline, _MaxPipelineStages, token).ConfigureAwait(false);
                     if (create) await _Database.Pipelines.CreateAsync(pipeline, token).ConfigureAwait(false);
                     else await _Database.Pipelines.UpdateAsync(pipeline, token).ConfigureAwait(false);
+                    break;
+                case Trigger trigger:
+                    await ConfigurationValidator.TriggerAsync(_Database, tenantId, trigger, token).ConfigureAwait(false);
+                    trigger.NextFireUtc = CronSchedule.NextFireFor(trigger, planned.Previous as Trigger, DateTime.UtcNow);
+                    if (create) await _Database.Triggers.CreateAsync(trigger, token).ConfigureAwait(false);
+                    else await _Database.Triggers.UpdateAsync(trigger, token).ConfigureAwait(false);
+                    break;
+                case NotificationEndpoint endpoint:
+                    await ConfigurationValidator.NotificationEndpointAsync(_Database, tenantId, endpoint, AllowPrivateNotificationDestinations, token).ConfigureAwait(false);
+                    if (create) await _Database.NotificationEndpoints.CreateAsync(endpoint, token).ConfigureAwait(false);
+                    else await _Database.NotificationEndpoints.UpdateAsync(endpoint, token).ConfigureAwait(false);
                     break;
             }
         }

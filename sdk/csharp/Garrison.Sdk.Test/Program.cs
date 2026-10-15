@@ -782,6 +782,88 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("webhook signature helper", () =>
+                {
+                    byte[] sample = System.Text.Encoding.UTF8.GetBytes("{\"a\":1}");
+                    long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    string header = WebhookSignature.Header("whsec_test_secret_value", now, sample);
+                    Require(header.StartsWith("t=" + now + ",v1=", StringComparison.Ordinal) && header.Length == ("t=" + now + ",v1=").Length + 64, "header shape " + header);
+                    Require(WebhookSignature.Verify(header, "whsec_test_secret_value", sample), "verify own signature");
+                    Require(WebhookSignature.Verify("t=" + now + ",v1=" + new string('0', 64) + ",v1=" + WebhookSignature.Sign("whsec_test_secret_value", now, sample), "whsec_test_secret_value", sample), "verify second v1");
+                    Require(!WebhookSignature.Verify(header, "whsec_other_secret_value", sample), "wrong secret");
+                    Require(!WebhookSignature.Verify(WebhookSignature.Header("whsec_test_secret_value", now - 3600, sample), "whsec_test_secret_value", sample), "stale timestamp");
+                    return Task.CompletedTask;
+                }).ConfigureAwait(false);
+
+                await CheckAsync("webhook and cron triggers", async () =>
+                {
+                    Trigger? webhook = null;
+                    Trigger? cron = null;
+                    try
+                    {
+                        webhook = await client.Triggers.CreateAsync(new Trigger { Name = "sdk-cs-hook-" + suffix, Type = TriggerTypeEnum.Webhook, AgentId = agentId! }, token).ConfigureAwait(false);
+                        string secret = webhook.SigningSecret ?? throw new InvalidOperationException("no signing secret on create");
+                        Require(webhook.Id.StartsWith("trg_", StringComparison.Ordinal) && secret.StartsWith("whsec_", StringComparison.Ordinal) && webhook.SigningSecretLast4 == secret.Substring(secret.Length - 4), "webhook create");
+                        Trigger read = await client.Triggers.GetAsync(webhook.Name, token).ConfigureAwait(false);
+                        Require(read.Id == webhook.Id && read.SigningSecret == null && read.RunAsType == PrincipalTypeEnum.Credential, "get by name hides the secret");
+
+                        string deliveryId = "sdk-cs-delivery-" + suffix;
+                        TriggerFire fire = await client.Triggers.DeliverWebhookAsync(webhook.Id, secret, "{\"event\":\"push\"}", "application/json", deliveryId, token).ConfigureAwait(false);
+                        Require(fire.Outcome == TriggerFireOutcomeEnum.Started && fire.RunId != null && !fire.Duplicate && fire.DeliveryId == deliveryId, "signed delivery started a run: " + fire.Outcome + " " + fire.ErrorMessage);
+                        TriggerFire repeat = await client.Triggers.DeliverWebhookAsync(webhook.Id, secret, "{\"event\":\"push\"}", "application/json", deliveryId, token).ConfigureAwait(false);
+                        Require(repeat.Duplicate && repeat.Id == fire.Id, "repeated delivery returns the same fire");
+                        Run started = await client.Runs.GetAsync(fire.RunId!, token).ConfigureAwait(false);
+                        Require(started.TriggerId == webhook.Id && started.Kind == RunKindEnum.Trigger, "run carries the trigger");
+                        Require((await client.Runs.ListAsync(new RunFilter { TriggerId = webhook.Id }, token).ConfigureAwait(false)).Objects.Any(r => r.Id == fire.RunId), "runs by trigger");
+
+                        int badStatus = 0;
+                        string badCode = String.Empty;
+                        try { await client.Triggers.DeliverWebhookAsync(webhook.Id, "whsec_wrong_secret_for_this_trigger", "{}", "application/json", null, token).ConfigureAwait(false); }
+                        catch (GarrisonException e) { badStatus = e.StatusCode; badCode = e.Error?.Code ?? String.Empty; }
+                        Require(badStatus == 401 && badCode == "InvalidSignature", "bad signature answers 401 InvalidSignature, got " + badStatus + " " + badCode);
+
+                        EnumerationResult<TriggerFire> fires = await client.Triggers.ListFiresAsync(webhook.Id, TriggerFireOutcomeEnum.Started, null, token).ConfigureAwait(false);
+                        Require(fires.Objects.Count == 1 && fires.Objects[0].Id == fire.Id, "fire history");
+                        Trigger rotated = await client.Triggers.RotateSecretAsync(webhook.Id, token).ConfigureAwait(false);
+                        Require(rotated.SigningSecret != null && rotated.SigningSecret != secret, "rotate secret");
+
+                        cron = await client.Triggers.CreateAsync(new Trigger { Name = "sdk-cs-cron-" + suffix, Type = TriggerTypeEnum.Cron, AgentId = agentId!, CronExpression = "0 9 * * 1-5", TimeZone = "America/New_York" }, token).ConfigureAwait(false);
+                        Require(cron.NextFireUtc.HasValue && cron.NextFireUtc.Value > DateTime.UtcNow && cron.SigningSecret == null, "cron next fire");
+                        Require((await client.Triggers.ListAsync(null, TriggerTypeEnum.Cron, token).ConfigureAwait(false)).Objects.Any(t => t.Id == cron.Id), "list by type");
+                    }
+                    finally
+                    {
+                        if (webhook != null) await client.Triggers.DeleteAsync(webhook.Id, token).ConfigureAwait(false);
+                        if (cron != null) await client.Triggers.DeleteAsync(cron.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
+                await CheckAsync("notification endpoints", async () =>
+                {
+                    int blockedStatus = 0;
+                    string? blockedCode = null;
+                    try { await client.NotificationEndpoints.CreateAsync(new NotificationEndpoint { Name = "sdk-cs-local-" + suffix, Url = "http://127.0.0.1:9/x", Events = new List<NotificationEventEnum> { NotificationEventEnum.RunFailed } }, token).ConfigureAwait(false); }
+                    catch (GarrisonException e) { blockedStatus = e.StatusCode; e.Error?.FieldCodes?.TryGetValue("url", out blockedCode); }
+                    Require(blockedStatus == 400 && blockedCode == "DestinationBlocked", "loopback URL refused, got " + blockedStatus + " " + blockedCode);
+
+                    NotificationEndpoint endpoint = await client.NotificationEndpoints.CreateAsync(new NotificationEndpoint { Name = "sdk-cs-notify-" + suffix, Url = "https://example.invalid/hook", Events = new List<NotificationEventEnum> { NotificationEventEnum.RunSucceeded, NotificationEventEnum.RunFailed } }, token).ConfigureAwait(false);
+                    try
+                    {
+                        Require(endpoint.Id.StartsWith("nep_", StringComparison.Ordinal) && endpoint.SigningSecret != null && endpoint.Events.Count == 2, "endpoint create");
+                        NotificationEndpoint read = await client.NotificationEndpoints.GetAsync(endpoint.Name, token).ConfigureAwait(false);
+                        Require(read.SigningSecret == null && read.SigningSecretLast4 != null, "get hides the secret");
+                        NotificationDelivery test = await client.NotificationEndpoints.TestAsync(endpoint.Id, token).ConfigureAwait(false);
+                        Require(test.Event == NotificationEventEnum.Test && test.Attempts == 1 && (test.Status == NotificationDeliveryStatusEnum.Pending || test.Status == NotificationDeliveryStatusEnum.Failed), "test delivery " + test.Status + " " + test.LastError);
+                        EnumerationResult<NotificationDelivery> deliveries = await client.NotificationEndpoints.ListDeliveriesAsync(endpoint.Id, null, null, token).ConfigureAwait(false);
+                        Require(deliveries.Objects.Any(d => d.Id == test.Id), "delivery log");
+                        NotificationDelivery one = await client.NotificationEndpoints.GetDeliveryAsync(endpoint.Id, test.Id, token).ConfigureAwait(false);
+                        Require(one.Payload.Contains("\"event\":\"Test\"", StringComparison.Ordinal), "delivery payload");
+                        read.Active = false;
+                        Require(!(await client.NotificationEndpoints.UpdateAsync(endpoint.Id, read, token).ConfigureAwait(false)).Active, "endpoint update");
+                    }
+                    finally { await client.NotificationEndpoints.DeleteAsync(endpoint.Id, token).ConfigureAwait(false); }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("stdio MCP worker diagnostic", async () =>
                 {
                     Node node = (await client.Nodes.ListAsync(token: token).ConfigureAwait(false)).Objects.First(n => n.SupportsMcpTests && n.Status == NodeStatusEnum.Ready);

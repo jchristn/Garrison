@@ -64,6 +64,8 @@ namespace Test.Shared
                 suites.AddRange(ControlPlaneTuningSuite.Build());
                 suites.AddRange(SecurityReviewSuite.Build());
                 suites.AddRange(UpgradeSuite.Build());
+                suites.AddRange(TriggerSuite.Build());
+                suites.AddRange(NotificationSuite.Build());
                 return suites;
             }
         }

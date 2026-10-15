@@ -26,7 +26,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _Parameters;
         private readonly string _Reviews;
         private readonly string _Runs;
-        private static readonly string _Columns = "id, tenantid, pipelineid, pipelinename, pipelineversion, status, outcome, currentposition, stagecount, casversion, inputtext, inputcontenttype, callertype, callerid, callername, idempotencykey, priority, finalrunid, errormessage, deadlineutc, cancelrequested, traceparent, startedutc, completedutc, createdutc, lastupdateutc";
+        private static readonly string _Columns = "id, tenantid, pipelineid, pipelinename, pipelineversion, status, outcome, currentposition, stagecount, casversion, inputtext, inputcontenttype, callertype, callerid, callername, idempotencykey, triggerid, priority, finalrunid, errormessage, deadlineutc, cancelrequested, traceparent, startedutc, completedutc, createdutc, lastupdateutc";
         private static readonly string _StageColumns = "id, pipelinerunid, tenantid, position, name, description, agentid, agentname, deploymentid, handofftemplateid, handofftemplateversion, outputcharlimit, maxattempts, continueonfailure, requiresreview, reviewtimeoutseconds, reviewtimeoutaction, maxrevisions, status, executions, attempts, revisions, currentrunid, lastrunid, blockedreason, nextattemptutc, startedutc, completedutc";
         private static readonly string _ActiveStatuses = "('Running', 'AwaitingReview', 'Cancelling')";
         private static readonly string _TerminalStatuses = "('Succeeded', 'Failed', 'Cancelled', 'TimedOut')";
@@ -442,6 +442,7 @@ namespace Garrison.Core.Database.Ado
             obj.CallerId = AdoConverters.NullableStr(reader, "callerid");
             obj.CallerName = AdoConverters.NullableStr(reader, "callername");
             obj.IdempotencyKey = AdoConverters.NullableStr(reader, "idempotencykey");
+            obj.TriggerId = AdoConverters.NullableStr(reader, "triggerid");
             obj.Priority = AdoConverters.Int(reader, "priority");
             obj.FinalRunId = AdoConverters.NullableStr(reader, "finalrunid");
             obj.ErrorMessage = AdoConverters.NullableStr(reader, "errormessage");
@@ -494,6 +495,7 @@ namespace Garrison.Core.Database.Ado
             AdoDatabaseDriver.Add(command, "callerid", obj.CallerId);
             AdoDatabaseDriver.Add(command, "callername", Truncate(obj.CallerName, 256));
             AdoDatabaseDriver.Add(command, "idempotencykey", obj.IdempotencyKey);
+            AdoDatabaseDriver.Add(command, "triggerid", obj.TriggerId);
             AdoDatabaseDriver.Add(command, "priority", obj.Priority);
             AdoDatabaseDriver.Add(command, "finalrunid", obj.FinalRunId);
             AdoDatabaseDriver.Add(command, "errormessage", obj.ErrorMessage);

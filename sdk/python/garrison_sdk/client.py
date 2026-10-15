@@ -96,6 +96,62 @@ PIPELINE_STAGE_STATUSES = ("Pending", "Running", "AwaitingReview", "Succeeded", 
 PIPELINE_REVIEW_STATUSES = ("Pending", "Approved", "ChangesRequested", "Rejected", "Expired", "Cancelled")
 PIPELINE_REVIEW_DECISIONS = ("Approve", "RequestChanges", "Reject")
 PIPELINE_REVIEW_SOURCES = ("User", "Timeout", "Cancelled")
+# Triggers (cron schedules and signed webhooks). Trigger["type"], ["targetType"], TriggerFire["source"] and ["outcome"].
+# Run["kind"] is "Trigger" and Run["triggerId"] (and PipelineRun["triggerId"]) is set for runs a trigger started.
+TRIGGER_TYPES = ("Cron", "Webhook")
+TRIGGER_TARGET_TYPES = ("Agent", "Pipeline")
+TRIGGER_FIRE_SOURCES = ("Cron", "Webhook", "Manual")
+TRIGGER_FIRE_OUTCOMES = ("Started", "Failed", "Skipped")
+# Notification endpoints. NotificationEndpoint["events"] items (Test is only sent by the test action and cannot be
+# subscribed to) and NotificationDelivery["status"].
+NOTIFICATION_EVENTS = ("RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed",
+                       "ApprovalRequested", "Test")
+NOTIFICATION_DELIVERY_STATUSES = ("Pending", "Delivering", "Succeeded", "Failed")
+WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature"
+WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery"
+WEBHOOK_EVENT_HEADER = "X-Garrison-Event"
+
+
+def sign_webhook(secret: str, unix_seconds: int, body: bytes) -> str:
+    """Build the X-Garrison-Signature header value: t=<unix>,v1=<lowercase hex HMAC-SHA256 of "<t>." + raw body>, keyed
+    with the UTF-8 bytes of the signing secret. Senders of trigger webhooks use it."""
+    if not secret:
+        raise ValueError("secret is required")
+    message = str(int(unix_seconds)).encode("ascii") + b"." + (body or b"")
+    digest = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
+    return f"t={int(unix_seconds)},v1={digest}"
+
+
+def verify_webhook(header: Optional[str], secret: str, body: bytes, tolerance_seconds: int = 300) -> bool:
+    """Verify an X-Garrison-Signature header against the raw body: any v1 value may match (constant-time comparison) and
+    the timestamp must be within tolerance_seconds of now. Receivers of notifications use it."""
+    if not header or not secret:
+        return False
+    timestamp: Optional[int] = None
+    candidates: List[str] = []
+    for part in header.split(","):
+        name, sep, value = part.strip().partition("=")
+        if not sep or not name:
+            return False
+        name, value = name.strip(), value.strip()
+        if name == "t":
+            if timestamp is not None or not value.isdigit():
+                return False
+            timestamp = int(value)
+        elif name == "v1":
+            if len(value) != 64:
+                return False
+            candidates.append(value.lower())
+    if timestamp is None or not candidates:
+        return False
+    if abs(int(time.time()) - timestamp) > max(1, tolerance_seconds):
+        return False
+    expected = sign_webhook(secret, timestamp, body).split(",v1=", 1)[1]
+    matched = False
+    for candidate in candidates:
+        if hmac.compare_digest(candidate, expected):
+            matched = True
+    return matched
 
 
 class GarrisonError(Exception):
@@ -411,6 +467,67 @@ class PipelineReviews:
         return self._t.request("POST", self._p(f"/{_seg(id)}/decide"), body=body)
 
 
+class Triggers(Resource):
+    """Triggers: cron schedules and signed webhooks that start an agent run or a pipeline run. get/update/delete take an
+    identifier or a name. Create and update need Execute on the target; the trigger runs as the caller. A Webhook trigger's
+    "signingSecret" is returned only by create and rotate_secret."""
+
+    def list(self, max_results: Optional[int] = None, skip: Optional[int] = None, ordering: Optional[str] = None,
+             search: Optional[str] = None, active_only: Optional[bool] = None, include_built_in: Optional[bool] = None,
+             type: Optional[str] = None) -> Dict[str, Any]:
+        """List triggers; type is one of TRIGGER_TYPES."""
+        params = _enum(max_results, skip, ordering, search, active_only, include_built_in)
+        params["type"] = type
+        return self._t.request("GET", self._base(), params)
+
+    def rotate_secret(self, trigger: str) -> Dict[str, Any]:
+        """Replace a webhook trigger's signing secret; the new one is in the returned "signingSecret" only."""
+        return self._t.request("POST", self._item(trigger) + "/rotate-secret")
+
+    def fire(self, trigger: str, body: Optional[str] = None, content_type: Optional[str] = None) -> Dict[str, Any]:
+        """Fire a trigger now. The optional payload reaches the input template as webhook.body. Returns the fire."""
+        return self._t.request("POST", self._item(trigger) + "/fire", body={"body": body, "contentType": content_type})
+
+    def list_fires(self, trigger: str, outcome: Optional[str] = None, max_results: Optional[int] = None,
+                   skip: Optional[int] = None) -> Dict[str, Any]:
+        """List a trigger's fires, newest first; outcome is one of TRIGGER_FIRE_OUTCOMES."""
+        return self._t.request("GET", self._item(trigger) + "/fires", {"outcome": outcome, "maxResults": max_results, "skip": skip})
+
+    def deliver_webhook(self, trigger_id: str, signing_secret: str, body: Union[bytes, str],
+                        content_type: str = "application/json", delivery_id: Optional[str] = None) -> Dict[str, Any]:
+        """Deliver a signed webhook to a Webhook trigger as an external sender would (signed with sign_webhook at the
+        current time). A repeated delivery_id returns the earlier fire with "duplicate" true. Raises GarrisonError 401
+        InvalidSignature, 409 TriggerInactive, or 413."""
+        data = body.encode("utf-8") if isinstance(body, str) else body
+        headers = {WEBHOOK_SIGNATURE_HEADER: sign_webhook(signing_secret, int(time.time()), data)}
+        if delivery_id:
+            headers[WEBHOOK_DELIVERY_HEADER] = delivery_id
+        return self._t.request("POST", self._item(trigger_id) + "/webhook", body=data, content_type=content_type, headers=headers)
+
+
+class NotificationEndpoints(Resource):
+    """Notification endpoints: URLs that receive signed JSON notifications for run, pipeline, and approval events.
+    "signingSecret" is returned only by create and rotate_secret. Receivers check each request with verify_webhook and
+    ignore repeated X-Garrison-Delivery values (delivery is at least once)."""
+
+    def rotate_secret(self, endpoint: str) -> Dict[str, Any]:
+        """Replace the signing secret; the new one is in the returned "signingSecret" only."""
+        return self._t.request("POST", self._item(endpoint) + "/rotate-secret")
+
+    def test(self, endpoint: str) -> Dict[str, Any]:
+        """Send a test notification now; returns the delivery after its first attempt."""
+        return self._t.request("POST", self._item(endpoint) + "/test")
+
+    def list_deliveries(self, endpoint: str, status: Optional[str] = None, max_results: Optional[int] = None,
+                        skip: Optional[int] = None) -> Dict[str, Any]:
+        """List an endpoint's deliveries, newest first; status is one of NOTIFICATION_DELIVERY_STATUSES."""
+        return self._t.request("GET", self._item(endpoint) + "/deliveries", {"status": status, "maxResults": max_results, "skip": skip})
+
+    def get_delivery(self, endpoint: str, delivery_id: str) -> Dict[str, Any]:
+        """Read one delivery with its payload and last attempt."""
+        return self._t.request("GET", self._item(endpoint) + f"/deliveries/{_seg(delivery_id)}")
+
+
 class Users(Resource):
     def permissions(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._item(id) + "/permissions")
@@ -592,8 +709,9 @@ class Runs:
              harness_type: Optional[str] = None, node_id: Optional[str] = None, parent_run_id: Optional[str] = None,
              root_run_id: Optional[str] = None, outcome: Optional[str] = None, from_utc: Optional[datetime] = None,
              to_utc: Optional[datetime] = None, max_results: Optional[int] = None, skip: Optional[int] = None,
-             ordering: Optional[str] = None, caller_id: Optional[str] = None, conversation_id: Optional[str] = None) -> Dict[str, Any]:
-        return self._t.request("GET", self._p(), {
+             ordering: Optional[str] = None, caller_id: Optional[str] = None, conversation_id: Optional[str] = None,
+             trigger_id: Optional[str] = None) -> Dict[str, Any]:
+        return self._t.request("GET", self._p(), {"triggerId": trigger_id,
             "status": status, "agentId": agent_id, "deploymentId": deployment_id, "harnessType": harness_type, "nodeId": node_id,
             "parentRunId": parent_run_id, "rootRunId": root_run_id, "outcome": outcome, "fromUtc": from_utc, "toUtc": to_utc,
             "maxResults": max_results, "skip": skip, "ordering": ordering, "callerId": caller_id,
@@ -882,6 +1000,8 @@ class GarrisonClient:
         self.pipelines = Pipelines(t, "pipelines")
         self.pipeline_runs = PipelineRuns(t)
         self.pipeline_reviews = PipelineReviews(t)
+        self.triggers = Triggers(t, "triggers")
+        self.notification_endpoints = NotificationEndpoints(t, "notification-endpoints")
         self.manifests = Manifests(t)
         self.runs = Runs(t)
         self.conversations = Conversations(t)

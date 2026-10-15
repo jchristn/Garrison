@@ -2205,3 +2205,335 @@ it.tips.enums.runBlockedReason.NoIsolatingWorker = "Bloccata: questa esecuzione 
 it.tips.resources.deployments.egressRules = "Destinazioni che i pod di esecuzione di questa distribuzione possono raggiungere, come blocchi CIDR con porta e protocollo facoltativi. Vuoto usa l'uscita predefinita.";
 it.tips.resources.deployments.egressRulesItems = {"cidr": "Blocco di destinazione in notazione CIDR, IPv4 o IPv6, ad esempio 203.0.113.0/24. Risolvi tu i nomi host in indirizzi.", "port": "Porta di destinazione da 1 a 65535. Lascia vuoto per consentire tutte le porte del blocco.", "protocol": "TCP per la maggior parte dei servizi, oppure UDP."};
 it.tips.resources.deployments.egressDefault = "Nessun elenco di uscita consentito: i pod di esecuzione usano l'uscita predefinita del cluster.";
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "nav": {
+  "items": {
+   "triggers": {
+    "label": "Attivatori",
+    "tip": "Pianificazioni cron e webhook firmati che avviano esecuzioni"
+   },
+   "notifications": {
+    "label": "Notifiche",
+    "tip": "Webhook firmati su esecuzioni, pipeline e approvazioni"
+   }
+  }
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Pianificazione cron",
+   "Webhook": "Webhook firmato"
+  },
+  "triggerTargetType": {
+   "Agent": "Esecuzione di agente",
+   "Pipeline": "Esecuzione di pipeline"
+  },
+  "triggerFireSource": {
+   "Cron": "Pianificazione",
+   "Webhook": "Consegna webhook",
+   "Manual": "Attivato a mano"
+  },
+  "triggerFireOutcome": {
+   "Started": "Avviato",
+   "Failed": "Non riuscito",
+   "Skipped": "Saltato"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Esecuzione riuscita",
+   "RunFailed": "Esecuzione non riuscita",
+   "RunCancelled": "Esecuzione annullata",
+   "RunTimedOut": "Esecuzione scaduta",
+   "PipelineCompleted": "Pipeline completata",
+   "PipelineFailed": "Pipeline non riuscita",
+   "ApprovalRequested": "Approvazione richiesta",
+   "Test": "Notifica di prova"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "In attesa",
+   "Delivering": "In consegna",
+   "Succeeded": "Consegnata",
+   "Failed": "Abbandonata"
+  },
+  "runKind": {
+   "Invoke": "Invocazione",
+   "Delegated": "Delegata",
+   "Test": "Esecuzione di prova",
+   "Retry": "Nuovo tentativo",
+   "Pipeline": "Fase di pipeline",
+   "Trigger": "Avviata da un attivatore"
+  },
+  "resourceType": {
+   "Trigger": "Attivatore",
+   "NotificationEndpoint": "Endpoint di notifica"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Segreto di firma rinnovato"
+  }
+ },
+ "errorCodes": {
+  "ReferencedByTrigger": "Un attivatore usa questo record. Modifica o elimina prima quell'attivatore.",
+  "ReferencedByNotificationEndpoint": "Un endpoint di notifica filtra su questo record. Modifica o elimina prima quell'endpoint.",
+  "NotAWebhookTrigger": "Solo gli attivatori webhook hanno un segreto di firma.",
+  "TriggerInactive": "Questo attivatore è inattivo.",
+  "InvalidSignature": "La firma del webhook manca, è malformata, troppo vecchia o non corrisponde.",
+  "PayloadTooLarge": "Il contenuto supera quanto accetta il server."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidUrl": "Inserisci un URL HTTP o HTTPS assoluto, senza nome utente né password.",
+   "DestinationBlocked": "Il server rifiuta questa destinazione: gli indirizzi di loopback, privati, link-local e dei metadati sono bloccati a meno che un operatore consenta destinazioni private.",
+   "EventsRequired": "Scegli almeno un evento.",
+   "InvalidEvent": "Uno degli eventi non è supportato.",
+   "InvalidCron": "L'espressione cron non è valida. Usa cinque campi: minuto, ora, giorno del mese, mese e giorno della settimana.",
+   "InvalidTimeZone": "Fuso orario sconosciuto. Usa un nome IANA come UTC o Europe/Rome.",
+   "TypeImmutable": "Il tipo di un attivatore non può cambiare. Creane uno nuovo.",
+   "TargetMismatch": "Questo campo non appartiene alla destinazione scelta.",
+   "PayloadTooLarge": "Il contenuto supera quanto accetta il server."
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "triggerId": "Attivatore",
+    "kind": "Tipo di esecuzione"
+   }
+  },
+  "triggers": {
+   "title": "Attivatori",
+   "subtitle": "Pianificazioni cron e webhook firmati che avviano un'esecuzione di agente o di pipeline.",
+   "add": "Aggiungi attivatore",
+   "create": "Crea attivatore",
+   "edit": "Modifica attivatore",
+   "view": "Dettagli dell'attivatore",
+   "deleteTitle": "Elimina attivatore",
+   "emptyTitle": "Ancora nessun attivatore",
+   "emptyBody": "Crea un attivatore per eseguire un agente secondo una pianificazione o quando un altro sistema invia un webhook.",
+   "columns": {
+    "name": "Nome",
+    "type": "Tipo",
+    "target": "Avvia",
+    "schedule": "Pianificazione",
+    "active": "Attivo",
+    "lastFire": "Ultima attivazione",
+    "nextFireUtc": "Prossima attivazione",
+    "fireCount": "Attivazioni",
+    "runAs": "Viene eseguito come",
+    "signingSecretLast4": "Il segreto termina con",
+    "description": "Descrizione",
+    "id": "ID",
+    "createdUtc": "Creato"
+   },
+   "fields": {
+    "name": "Nome",
+    "type": "Tipo",
+    "description": "Descrizione",
+    "targetType": "Avvia",
+    "agentId": "Agente",
+    "deploymentId": "Distribuzione",
+    "pipelineId": "Pipeline di agenti",
+    "inputTemplateId": "Modello di input",
+    "priority": "Priorità",
+    "cronExpression": "Espressione cron",
+    "timeZone": "Fuso orario",
+    "active": "Attivo",
+    "webhook": "URL del webhook"
+   },
+   "hints": {
+    "type": "Il tipo non può cambiare dopo la creazione dell'attivatore.",
+    "inputTemplateId": "Un modello Task che produce l'input dell'esecuzione dalle variabili trigger.* e webhook.*. Vuoto usa il modello integrato trigger-input.",
+    "priority": "Da {{min}} a {{max}}. Le più alte vengono eseguite prima.",
+    "cronExpression": "Cinque campi: minuto, ora, giorno del mese, mese, giorno della settimana. Esempio: 0 9 * * 1-5 viene eseguito alle 09:00 nei giorni feriali.",
+    "timeZone": "Nome IANA come UTC o Europe/Rome. I cambi dell'ora legale sono gestiti automaticamente.",
+    "webhookNew": "L'URL del webhook e il segreto di firma compaiono dopo il salvataggio. Il segreto viene mostrato una sola volta."
+   },
+   "errors": {
+    "name": "Usa da 1 a 64 lettere minuscole, cifre e trattini, iniziando e terminando con una lettera o una cifra.",
+    "description": "Le descrizioni sono limitate a {{max}} caratteri.",
+    "agentRequired": "Scegli l'agente eseguito da questo attivatore.",
+    "pipelineRequired": "Scegli la pipeline avviata da questo attivatore.",
+    "cron": "Inserisci cinque campi (minuto ora giorno mese giorno-della-settimana) o una macro come @daily.",
+    "priority": "Inserisci un numero intero da {{min}} a {{max}}."
+   },
+   "actions": {
+    "fire": "Attiva ora",
+    "fires": "Cronologia attivazioni",
+    "runs": "Vedi esecuzioni",
+    "rotateSecret": "Rinnova segreto"
+   },
+   "fires": {
+    "firedUtc": "Attivato",
+    "source": "Origine",
+    "outcome": "Esito",
+    "started": "Esecuzione avviata",
+    "deliveryId": "ID consegna",
+    "error": "Errore",
+    "runId": "Esecuzione",
+    "pipelineRunId": "Esecuzione di pipeline"
+   },
+   "confirmRotateTitle": "Rinnova segreto di firma",
+   "confirmRotate": "Sostituire il segreto di firma di {{name}}? Il segreto precedente smette subito di funzionare, quindi i mittenti devono passare al nuovo.",
+   "anyDeployment": "Qualsiasi distribuzione attiva (ponderata)",
+   "builtinTemplate": "Modello integrato trigger-input",
+   "webhookSchedule": "Quando arriva un webhook firmato",
+   "neverFired": "Non ancora attivato",
+   "runAsNotice": "Viene eseguito come {{name}}. Salvando le modifiche, questo attivatore verrà eseguito come te.",
+   "secretEnding": "Il segreto attuale termina con {{last4}}."
+  },
+  "notifications": {
+   "title": "Notifiche",
+   "subtitle": "Endpoint webhook che ricevono notifiche firmate quando esecuzioni e pipeline terminano o le approvazioni restano in attesa.",
+   "add": "Aggiungi endpoint",
+   "create": "Crea endpoint di notifica",
+   "edit": "Modifica endpoint di notifica",
+   "view": "Dettagli dell'endpoint di notifica",
+   "deleteTitle": "Elimina endpoint di notifica",
+   "emptyTitle": "Ancora nessun endpoint di notifica",
+   "emptyBody": "Aggiungi un endpoint per ricevere un POST HTTP firmato quando un'esecuzione fallisce, una pipeline termina o un'approvazione è in attesa.",
+   "columns": {
+    "name": "Nome",
+    "url": "URL",
+    "events": "Eventi",
+    "filters": "Filtri",
+    "active": "Attivo",
+    "signingSecretLast4": "Il segreto termina con",
+    "includeResultText": "Testo del risultato",
+    "description": "Descrizione",
+    "id": "ID",
+    "createdUtc": "Creato",
+    "agent": "Agente",
+    "deployment": "Distribuzione"
+   },
+   "fields": {
+    "name": "Nome",
+    "description": "Descrizione",
+    "url": "URL",
+    "events": "Eventi",
+    "agentId": "Solo questo agente",
+    "deploymentId": "Solo questa distribuzione",
+    "includeResultText": "Includi il testo del risultato",
+    "resultTextMaxChars": "Limite del testo del risultato (caratteri)",
+    "active": "Attivo"
+   },
+   "hints": {
+    "url": "Un URL HTTP o HTTPS. Gli indirizzi di loopback, privati e dei metadati sono rifiutati a meno che un operatore consenta destinazioni private, e i reindirizzamenti non vengono seguiti.",
+    "events": "Gli eventi delle pipeline non vengono inviati finché è impostato un filtro di agente o di distribuzione.",
+    "agentId": "Vuoto invia gli eventi di tutti gli agenti.",
+    "deploymentId": "Vuoto invia gli eventi di tutte le distribuzioni.",
+    "includeResultText": "Disattivato per impostazione predefinita: le notifiche contengono identificatori, stato e orari, ma nessun output dell'esecuzione.",
+    "resultTextMaxChars": "Da {{min}} a {{max}}. Predefinito {{default}}."
+   },
+   "errors": {
+    "name": "Usa da 1 a 64 lettere minuscole, cifre e trattini, iniziando e terminando con una lettera o una cifra.",
+    "url": "Inserisci un URL HTTP o HTTPS assoluto, senza nome utente né password.",
+    "events": "Scegli almeno un evento.",
+    "resultTextMaxChars": "Inserisci un numero intero da {{min}} a {{max}}."
+   },
+   "actions": {
+    "test": "Invia prova",
+    "deliveries": "Registro consegne",
+    "rotateSecret": "Rinnova segreto"
+   },
+   "deliveries": {
+    "createdUtc": "In coda dal",
+    "event": "Evento",
+    "status": "Stato",
+    "attempts": "Tentativi",
+    "lastStatusCode": "Stato HTTP",
+    "lastError": "Ultimo errore",
+    "lastAttemptUtc": "Ultimo tentativo",
+    "nextAttemptUtc": "Prossimo tentativo",
+    "deliveredUtc": "Consegnata",
+    "payload": "Contenuto",
+    "id": "ID consegna"
+   },
+   "confirmRotateTitle": "Rinnova segreto di firma",
+   "confirmRotate": "Sostituire il segreto di firma di {{name}}? Da ora le notifiche sono firmate con il nuovo segreto, compresi i nuovi tentativi già in coda.",
+   "anyAgent": "Tutti gli agenti",
+   "anyDeployment": "Tutte le distribuzioni",
+   "noFilter": "Tutto",
+   "eventCount_one": "{{count}} evento",
+   "eventCount_other": "{{count}} eventi",
+   "resultTextUpTo_one": "Fino a {{count}} carattere",
+   "resultTextUpTo_other": "Fino a {{count}} caratteri",
+   "secretNotice": "Le notifiche sono firmate con un segreto che termina con {{last4}}, impostato il {{time}}. Rinnovalo per ottenerne uno nuovo."
+  }
+ },
+ "components": {
+  "signingSecret": {
+   "title": "Segreto di firma",
+   "warning": "Copia ora questo segreto. Garrison lo conserva cifrato e non lo mostrerà più; rinnovalo se va perso.",
+   "secret": "Segreto",
+   "url": "URL del webhook",
+   "done": "L'ho salvato",
+   "scheme": "Firma ogni richiesta con l'intestazione {{header}}: {{format}}. Invia {{delivery}} perché le consegne ripetute contino una volta sola."
+  },
+  "triggerFire": {
+   "title": "Attiva {{name}}",
+   "intro": "Avvia ora questo attivatore. Il contenuto è facoltativo; il modello di input lo vede come webhook.body.",
+   "body": "Contenuto",
+   "contentType": "Tipo di contenuto",
+   "submit": "Attiva",
+   "firing": "Attivazione..."
+  },
+  "triggerFires": {
+   "title": "Cronologia attivazioni",
+   "count_one": "{{shown}} di {{count}} attivazione",
+   "count_other": "{{shown}} di {{count}} attivazioni",
+   "empty": "Questo attivatore non è ancora stato attivato.",
+   "scheduled": "per {{time}}"
+  },
+  "notificationDeliveries": {
+   "title": "Registro consegne",
+   "count_one": "{{shown}} di {{count}} consegna",
+   "count_other": "{{shown}} di {{count}} consegne",
+   "empty": "A questo endpoint non è ancora stato inviato nulla.",
+   "detail": "Consegna selezionata"
+  },
+  "notificationTest": {
+   "title": "Notifica di prova",
+   "sending": "Invio di una notifica di prova...",
+   "succeeded": "L'endpoint ha accettato la notifica di prova.",
+   "failed": "La notifica di prova non è riuscita e non verrà ritentata. Vedi l'errore qui sotto.",
+   "pending": "Il primo tentativo non è riuscito; Garrison riproverà. Vedi l'errore qui sotto."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "Attivatore"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Attivatori",
+    "Notifications": "Notifiche"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Corpo massimo del webhook (byte)",
+     "WebhookToleranceSeconds": "Tolleranza sul timestamp del webhook (secondi)",
+     "CronMaxLatenessSeconds": "Limite di recupero cron (secondi)",
+     "FireRetentionDays": "Conservazione della cronologia attivazioni (giorni)"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Consenti destinazioni private",
+     "MaxAttempts": "Tentativi di consegna",
+     "InitialBackoffSeconds": "Attesa prima del primo nuovo tentativo (secondi)",
+     "MaxBackoffSeconds": "Attesa massima tra i tentativi (secondi)",
+     "TimeoutSeconds": "Timeout di consegna (secondi)",
+     "DispatchIntervalMs": "Intervallo di invio (ms)",
+     "SweepOverlapSeconds": "Sovrapposizione della scansione eventi (secondi)",
+     "DeliveryRetentionDays": "Conservazione del registro consegne (giorni)"
+    }
+   }
+  }
+ }
+});

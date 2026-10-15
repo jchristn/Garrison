@@ -164,6 +164,8 @@ function run(i) {
     if (outcome === 'RepetitionDetected') out.resultText = GUARD_PARTIAL;
   }
   if (status === 'Running') out.resultText = 'Hello from the fake harness.';
+  // P12.5: run_0007 was started by the cron trigger trg_0001.
+  if (i === 7) Object.assign(out, { kind: 'Trigger', triggerId: 'trg_0001' });
   return out;
 }
 
@@ -836,6 +838,186 @@ export function pipelinePreview(id) {
   };
 }
 
+// ---------------------------------------------------------------- triggers (P12.5) and notifications (P12.14)
+
+/** A signing secret as create and rotate-secret return it, once. */
+export const SIGNING_SECRET = 'whsec_0123456789abcdefghijABCDEFGHIJ0123456789';
+
+const TRIGGER_ROWS = [
+  { name: 'nightly-report', type: 'Cron', targetType: 'Agent', agentId: 'agt_0001', deploymentId: 'dep_0001', cronExpression: '0 9 * * 1-5', timeZone: 'Europe/Berlin', lastFireOutcome: 'Started', fireCount: 42 },
+  { name: 'github-issues', type: 'Webhook', targetType: 'Agent', agentId: 'agt_0001', deploymentId: 'dep_0001', lastFireOutcome: 'Failed', fireCount: 7 },
+  { name: 'weekly-pipeline', type: 'Cron', targetType: 'Pipeline', pipelineId: 'ppl_0001', cronExpression: '@weekly', timeZone: 'UTC', active: false, fireCount: 0 }
+];
+
+/** One trigger by row number (1-based), shaped like GET /triggers/{id} (nulls omitted). */
+export function trigger(i) {
+  const row = TRIGGER_ROWS[(i - 1) % TRIGGER_ROWS.length];
+  const out = {
+    id: `trg_${pad(i)}`,
+    tenantId: TENANT,
+    name: i <= TRIGGER_ROWS.length ? row.name : `trigger-${i}`,
+    description: i === 1 ? 'Summarize yesterday\'s failed runs every weekday morning.' : undefined,
+    type: row.type,
+    targetType: row.targetType,
+    priority: 0,
+    timeZone: row.timeZone || 'UTC',
+    active: row.active !== false,
+    runAsType: 'User',
+    runAsId: 'usr_0001',
+    runAsName: 'admin@garrison',
+    fireCount: row.fireCount,
+    createdUtc: iso(i * 600),
+    lastUpdateUtc: iso(i * 60)
+  };
+  for (const key of ['agentId', 'deploymentId', 'pipelineId', 'cronExpression']) if (row[key]) out[key] = row[key];
+  if (row.type === 'Webhook') {
+    out.signingSecretLast4 = '6789';
+    out.signingSecretRotatedUtc = iso(i * 600);
+  }
+  if (row.lastFireOutcome) {
+    out.lastFireUtc = iso(i * 5);
+    out.lastFireOutcome = row.lastFireOutcome;
+  }
+  if (row.type === 'Cron' && out.active) out.nextFireUtc = iso(-120);
+  return out;
+}
+
+const FIRE_ROWS = [
+  { source: 'Cron', outcome: 'Started', runId: 'run_0001' },
+  { source: 'Webhook', outcome: 'Started', runId: 'run_0002', deliveryId: 'gh-delivery-7' },
+  { source: 'Webhook', outcome: 'Failed', errorCode: 'RunAsNotAuthorized', errorMessage: 'Trigger github-issues runs as admin@garrison, who may no longer run agent agt_0001.' },
+  { source: 'Cron', outcome: 'Skipped', errorCode: 'MissedSchedule', errorMessage: 'The occurrence was missed by 7200 seconds, more than Triggers.CronMaxLatenessSeconds (3600), so it was not fired.' },
+  { source: 'Manual', outcome: 'Started', pipelineRunId: 'plr_0001' }
+];
+
+/** One trigger fire by row number (1-based), shaped like GET /triggers/{id}/fires. */
+export function triggerFire(i, triggerId = 'trg_0001') {
+  const row = FIRE_ROWS[(i - 1) % FIRE_ROWS.length];
+  const out = {
+    id: `tfr_${pad(i)}`,
+    tenantId: TENANT,
+    triggerId,
+    triggerName: 'nightly-report',
+    source: row.source,
+    scheduledUtc: iso(i * 60),
+    firedUtc: iso(i * 60 - 1),
+    outcome: row.outcome,
+    duplicate: false,
+    createdUtc: iso(i * 60)
+  };
+  for (const key of ['runId', 'pipelineRunId', 'deliveryId', 'errorCode', 'errorMessage']) if (row[key]) out[key] = row[key];
+  return out;
+}
+
+function triggerFireList(url, triggerId) {
+  let rows = FIRE_ROWS.map((_, k) => triggerFire(k + 1, triggerId));
+  const outcome = url.searchParams.get('outcome');
+  if (outcome) rows = rows.filter((r) => r.outcome === outcome);
+  return pageOf(rows, url);
+}
+
+function triggerList(url) {
+  let rows = TRIGGER_ROWS.map((_, k) => trigger(k + 1));
+  const type = url.searchParams.get('type');
+  if (type) rows = rows.filter((r) => r.type === type);
+  return pageOf(rows, url);
+}
+
+/** One notification endpoint by row number (1-based). */
+export function notificationEndpoint(i) {
+  const out = {
+    id: `nep_${pad(i)}`,
+    tenantId: TENANT,
+    name: i === 1 ? 'ops-alerts' : i === 2 ? 'agent-1-results' : `endpoint-${i}`,
+    description: i === 1 ? 'Failures and timeouts go to the operations chat bridge.' : undefined,
+    url: i === 1 ? 'https://hooks.example.com/garrison/ops' : `https://hooks.example.com/garrison/${i}`,
+    events: i === 1 ? ['RunFailed', 'RunTimedOut', 'PipelineFailed', 'ApprovalRequested'] : ['RunSucceeded', 'RunFailed'],
+    includeResultText: i === 2,
+    resultTextMaxChars: i === 2 ? 2000 : 1000,
+    active: true,
+    signingSecretLast4: i === 1 ? 'a1b2' : 'c3d4',
+    signingSecretRotatedUtc: iso(i * 600),
+    createdUtc: iso(i * 600),
+    lastUpdateUtc: iso(i * 60)
+  };
+  if (i === 2) out.agentId = 'agt_0001';
+  return out;
+}
+
+const DELIVERY_ROWS = [
+  { event: 'RunFailed', status: 'Succeeded', attempts: 1, lastStatusCode: 204 },
+  { event: 'RunTimedOut', status: 'Pending', attempts: 2, lastStatusCode: 503, lastError: 'The endpoint answered 503.' },
+  { event: 'ApprovalRequested', status: 'Failed', attempts: 1, lastStatusCode: 302, lastError: 'The endpoint answered 302 (redirect to https://login.example.com/); redirects are not followed.' },
+  { event: 'Test', status: 'Succeeded', attempts: 1, lastStatusCode: 200 }
+];
+
+/** One notification delivery by row number (1-based), shaped like GET /notification-endpoints/{id}/deliveries. */
+export function notificationDelivery(i, endpointId = 'nep_0001') {
+  const row = DELIVERY_ROWS[(i - 1) % DELIVERY_ROWS.length];
+  const id = `ndl_${pad(i)}`;
+  const payload = { id, event: row.event, tenantId: TENANT, endpointId, occurredUtc: iso(i * 10) };
+  if (row.event !== 'Test') {
+    payload.link = `http://127.0.0.1:8700/v1.0/api/tenants/${TENANT}/runs/run_000${i}`;
+    payload.run = { id: `run_000${i}`, agentId: 'agt_0001', agentName: 'echo-agent', deploymentId: 'dep_0001', kind: 'Invoke', status: 'Failed', outcome: 'HarnessFailed', attempt: 1, createdUtc: iso(i * 12), completedUtc: iso(i * 10) };
+  }
+  const out = {
+    id,
+    tenantId: TENANT,
+    endpointId,
+    event: row.event,
+    subjectType: row.event === 'Test' ? 'Test' : 'Run',
+    status: row.status,
+    attempts: row.attempts,
+    maxAttempts: 8,
+    lastAttemptUtc: iso(i * 9),
+    lastDurationMs: 120,
+    payload: JSON.stringify(payload),
+    createdUtc: iso(i * 10),
+    lastUpdateUtc: iso(i * 9)
+  };
+  if (row.event !== 'Test') out.subjectId = `run_000${i}`;
+  if (row.lastStatusCode) out.lastStatusCode = row.lastStatusCode;
+  if (row.lastError) out.lastError = row.lastError;
+  if (row.status === 'Pending') out.nextAttemptUtc = iso(-1);
+  if (row.status === 'Succeeded') out.deliveredUtc = iso(i * 9);
+  return out;
+}
+
+function notificationDeliveryList(url, endpointId) {
+  let rows = DELIVERY_ROWS.map((_, k) => notificationDelivery(k + 1, endpointId));
+  const status = url.searchParams.get('status');
+  if (status) rows = rows.filter((r) => r.status === status);
+  return pageOf(rows, url);
+}
+
+/** POST /notification-endpoints/{id}/test: the test delivery after its first attempt. */
+export function testDelivery(endpointId) {
+  return { ...notificationDelivery(4, endpointId), id: 'ndl_0099' };
+}
+
+/** Responses for the trigger and notification endpoint routes, or undefined for other collections. */
+function triggerRoutes(method, url, parts) {
+  const collection = parts[0];
+  const num = (id, prefix, fallback) => (new RegExp(`^${prefix}_\\d+$`).test(id) ? Number(id.slice(prefix.length + 1)) : fallback);
+  if (collection === 'triggers') {
+    if (parts.length === 1) return method === 'GET' ? triggerList(url) : { ...trigger(2), id: 'trg_0099', name: 'new-trigger', signingSecret: SIGNING_SECRET, fireCount: 0 };
+    if (parts[2] === 'rotate-secret') return { ...trigger(num(parts[1], 'trg', 2)), signingSecret: SIGNING_SECRET, signingSecretLast4: '6789' };
+    if (parts[2] === 'fire') return { ...triggerFire(5, parts[1]), id: 'tfr_0099', source: 'Manual', outcome: 'Started', runId: 'run_0001', pipelineRunId: undefined };
+    if (parts[2] === 'fires') return triggerFireList(url, parts[1]);
+    // An ID the fixtures do not know (the contract test's real IDs) gets every optional field of both trigger types.
+    if (parts.length === 2) return /^trg_\d+$/.test(parts[1]) ? trigger(num(parts[1], 'trg', 1)) : { ...trigger(2), ...trigger(1), signingSecretLast4: '6789', signingSecretRotatedUtc: iso(600), id: parts[1] };
+  }
+  if (collection === 'notification-endpoints') {
+    if (parts.length === 1) return method === 'GET' ? pageOf([1, 2].map(notificationEndpoint), url) : { ...notificationEndpoint(1), id: 'nep_0099', name: 'new-endpoint', signingSecret: SIGNING_SECRET };
+    if (parts[2] === 'rotate-secret') return { ...notificationEndpoint(num(parts[1], 'nep', 1)), signingSecret: SIGNING_SECRET, signingSecretLast4: '6789' };
+    if (parts[2] === 'test') return testDelivery(parts[1]);
+    if (parts[2] === 'deliveries' && parts.length === 3) return notificationDeliveryList(url, parts[1]);
+    if (parts[2] === 'deliveries' && parts.length === 4) return { ...notificationDelivery(num(parts[3], 'ndl', 2), parts[1]), id: parts[3] };
+    if (parts.length === 2) return { ...notificationEndpoint(num(parts[1], 'nep', 1)), id: parts[1] };
+  }
+  return undefined;
+}
+
 /** EnumerationResult: the maxResults and skip envelope most list routes return. */
 function enumerate(collection, url) {
   const factory = FACTORIES[collection];
@@ -887,6 +1069,19 @@ const SETTINGS = {
     { path: 'Runtime.PipelineSweepIntervalMs', group: 'Runtime', description: "Interval of the leader's pipeline sweep: advances pipeline runs whose stage finished without a completion hook, links claimed stage executions, retries blocked stage starts, and applies review timeouts and pipeline deadlines.", type: 'int', value: '5000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 500, maximum: 600000 },
     { path: 'Runtime.PipelineMaxStages', group: 'Runtime', description: 'Most stages a pipeline definition may have.', type: 'int', value: '20', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 100 },
     { path: 'Runtime.FailBlockedAfterSeconds', group: 'Runtime', description: 'Seconds a queued run may wait with no Ready worker able to run it before it fails with outcome NoCapableWorker. 0 waits forever.', type: 'int', value: '0', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 604800 },
+    // P12.5 and P12.14: trigger webhook limits, cron catch-up, and outbound notification delivery.
+    { path: 'Triggers.WebhookMaxBodyBytes', group: 'Triggers', description: 'Largest trigger webhook request body in bytes.', type: 'int', value: '262144', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1024, maximum: 1048576 },
+    { path: 'Triggers.WebhookToleranceSeconds', group: 'Triggers', description: 'Largest difference between a webhook signature timestamp and the server clock.', type: 'int', value: '300', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 30, maximum: 3600 },
+    { path: 'Triggers.CronMaxLatenessSeconds', group: 'Triggers', description: 'Cron catch-up bound.', type: 'int', value: '3600', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 604800 },
+    { path: 'Triggers.FireRetentionDays', group: 'Triggers', description: 'Days trigger fire history is retained.', type: 'int', value: '30', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 3650 },
+    { path: 'Notifications.AllowPrivateDestinations', group: 'Notifications', description: 'Whether notification endpoints may deliver to loopback and private addresses.', type: 'bool', value: 'false', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true },
+    { path: 'Notifications.MaxAttempts', group: 'Notifications', description: 'Most delivery attempts for one notification.', type: 'int', value: '8', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 20 },
+    { path: 'Notifications.InitialBackoffSeconds', group: 'Notifications', description: 'Delay before the second attempt.', type: 'int', value: '10', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 3600 },
+    { path: 'Notifications.MaxBackoffSeconds', group: 'Notifications', description: 'Longest delay between two attempts.', type: 'int', value: '3600', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 86400 },
+    { path: 'Notifications.TimeoutSeconds', group: 'Notifications', description: 'Seconds one notification attempt may take.', type: 'int', value: '10', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 60 },
+    { path: 'Notifications.DispatchIntervalMs', group: 'Notifications', description: 'How often each replica looks for notifications due to be sent.', type: 'int', value: '1000', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 100, maximum: 60000 },
+    { path: 'Notifications.SweepOverlapSeconds', group: 'Notifications', description: 'Seconds of scanned history the leader reads again.', type: 'int', value: '30', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 0, maximum: 600 },
+    { path: 'Notifications.DeliveryRetentionDays', group: 'Notifications', description: 'Days finished notification deliveries are kept.', type: 'int', value: '14', isSecret: false, isSet: true, source: 'Database', applyMode: 'Live', editable: true, minimum: 1, maximum: 3650 },
     // G-22: control-plane refresh of Codex ChatGPT logins; settings-file values that apply live.
     { path: 'Codex.RefreshBeforeExpirySeconds', group: 'Codex', description: 'Refresh a ChatGPT login stored in a CodexAuthJson secret when its access token expires within this many seconds (half the token lifetime for short-lived tokens). Keep it above Runtime.MaxRunSeconds.', type: 'int', value: '86400', isSecret: false, isSet: true, source: 'File', applyMode: 'Live', editable: true, minimum: 300, maximum: 2592000 },
     { path: 'Codex.TokenEndpoint', group: 'Codex', description: 'OAuth token endpoint for Codex login refreshes. Empty uses https://auth.openai.com/oauth/token, the endpoint the Codex CLI uses.', type: 'string', value: 'https://auth.openai.com/oauth/token', isSecret: false, isSet: true, source: 'File', applyMode: 'Live', editable: true },
@@ -1280,6 +1475,8 @@ export function respond(method, url) {
     if (collection === 'pipeline-reviews' && parts.length === 1) return pipelineReviewList(url);
     if (collection === 'pipeline-reviews' && parts[2] === 'decide') return decidedPipelineReview(parts[1]);
     if (collection === 'pipeline-reviews' && parts.length === 2) return { ...pipelineReview(/^prv_\d+$/.test(parts[1]) ? Number(parts[1].slice(4)) : 2), id: parts[1] };
+    const triggered = triggerRoutes(method, url, parts);
+    if (triggered !== undefined) return triggered;
     if (parts.length === 1) return method === 'GET' ? enumerate(collection, url) : FACTORIES[collection]?.(99) || {};
     if (parts.length === 2 && FACTORIES[collection]) return FACTORIES[collection](1);
     return {};

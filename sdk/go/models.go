@@ -527,9 +527,11 @@ type Run struct {
 	AgentID              string                `json:"agentId"`
 	AgentName            string                `json:"agentName"`
 	DeploymentID         string                `json:"deploymentId"`
-	Status               string                `json:"status"`
-	Outcome              string                `json:"outcome"`
-	Executor             string                `json:"executor,omitempty"`
+	// Kind is Invoke, Delegated, Test, Retry, Pipeline, or Trigger.
+	Kind     string `json:"kind"`
+	Status   string `json:"status"`
+	Outcome  string `json:"outcome"`
+	Executor string `json:"executor,omitempty"`
 	// TrustLevel is the deployment's trust level when the run was admitted.
 	TrustLevel string `json:"trustLevel,omitempty"`
 	// EffectPolicy is the deployment's effect policy when the run was admitted.
@@ -615,6 +617,8 @@ type Run struct {
 	PipelinePosition int `json:"pipelinePosition"`
 	// PipelineExecution is the execution number of the stage (retries, revisions, and resumes increase it); 0 outside a pipeline.
 	PipelineExecution int `json:"pipelineExecution"`
+	// TriggerID is the trigger that started this run (Kind Trigger); nil otherwise.
+	TriggerID *string `json:"triggerId"`
 }
 
 // Conversation is a multi-turn session with one agent. Each turn is a run; a follow-up turn resumes the harness
@@ -742,6 +746,8 @@ type RunFilter struct {
 	MaxResults, Skip                                                                              int
 	// ConversationID keeps only the turns of this conversation.
 	ConversationID string
+	// TriggerID keeps only the runs this trigger started.
+	TriggerID string
 }
 
 // ManifestApply is the result of applying manifests. Items is kept raw for forward compatibility; call

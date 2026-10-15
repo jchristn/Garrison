@@ -902,6 +902,162 @@ func main() {
 		}
 		return nil
 	})
+	check("webhook signature helper", func(ctx context.Context) error {
+		body := []byte(`{"a":1}`)
+		now := time.Now().Unix()
+		header := garrison.SignWebhook("whsec_test_secret_value", now, body)
+		prefix := fmt.Sprintf("t=%d,v1=", now)
+		if !strings.HasPrefix(header, prefix) || len(header) != len(prefix)+64 {
+			return fmt.Errorf("header shape %s", header)
+		}
+		if !garrison.VerifyWebhook(header, "whsec_test_secret_value", body, 0) {
+			return errors.New("verify own signature")
+		}
+		if !garrison.VerifyWebhook(prefix+strings.Repeat("0", 64)+",v1="+strings.TrimPrefix(header, prefix), "whsec_test_secret_value", body, 0) {
+			return errors.New("verify second v1")
+		}
+		if garrison.VerifyWebhook(header, "whsec_other_secret_value", body, 0) {
+			return errors.New("wrong secret accepted")
+		}
+		if garrison.VerifyWebhook(garrison.SignWebhook("whsec_test_secret_value", now-3600, body), "whsec_test_secret_value", body, 0) {
+			return errors.New("stale accepted")
+		}
+		return nil
+	})
+	check("webhook and cron triggers", func(ctx context.Context) error {
+		var webhook, cron garrison.Trigger
+		defer func() {
+			if webhook.ID != "" {
+				_ = client.Triggers.Delete(ctx, webhook.ID)
+			}
+			if cron.ID != "" {
+				_ = client.Triggers.Delete(ctx, cron.ID)
+			}
+		}()
+		agent := agentID
+		if err := client.Triggers.Create(ctx, garrison.Trigger{Name: "sdk-go-hook-" + suffix, Type: garrison.TriggerTypeWebhook, AgentID: &agent}, &webhook); err != nil {
+			return err
+		}
+		if webhook.SigningSecret == nil || !strings.HasPrefix(*webhook.SigningSecret, "whsec_") || !strings.HasPrefix(webhook.ID, "trg_") {
+			return errors.New("webhook create returns the signing secret")
+		}
+		secret := *webhook.SigningSecret
+		var read garrison.Trigger
+		if err := client.Triggers.Get(ctx, webhook.Name, &read); err != nil {
+			return err
+		}
+		if read.ID != webhook.ID || read.SigningSecret != nil || read.RunAsType != "Credential" {
+			return errors.New("get by name hides the secret")
+		}
+		deliveryID := "sdk-go-delivery-" + suffix
+		fire, err := client.Triggers.DeliverWebhook(ctx, webhook.ID, secret, []byte(`{"event":"push"}`), "", deliveryID)
+		if err != nil {
+			return err
+		}
+		if fire.Outcome != garrison.TriggerFireOutcomeStarted || fire.RunID == nil || fire.Duplicate {
+			return fmt.Errorf("signed delivery: %+v", fire)
+		}
+		repeat, err := client.Triggers.DeliverWebhook(ctx, webhook.ID, secret, []byte(`{"event":"push"}`), "", deliveryID)
+		if err != nil {
+			return err
+		}
+		if !repeat.Duplicate || repeat.ID != fire.ID {
+			return errors.New("repeated delivery returns the same fire")
+		}
+		run, err := client.Runs.Get(ctx, *fire.RunID)
+		if err != nil {
+			return err
+		}
+		if run.TriggerID == nil || *run.TriggerID != webhook.ID || run.Kind != "Trigger" {
+			return errors.New("run carries the trigger")
+		}
+		byTrigger, err := client.Runs.List(ctx, garrison.RunFilter{TriggerID: webhook.ID})
+		if err != nil || len(byTrigger.Objects) != 1 {
+			return fmt.Errorf("runs by trigger: %v", err)
+		}
+		_, err = client.Triggers.DeliverWebhook(ctx, webhook.ID, "whsec_wrong_secret_for_this_trigger", []byte(`{}`), "", "")
+		var apiErr *garrison.Error
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusUnauthorized || apiErr.Code != "InvalidSignature" {
+			return fmt.Errorf("bad signature: %v", err)
+		}
+		fires, err := client.Triggers.ListFires(ctx, webhook.ID, garrison.TriggerFireOutcomeStarted, nil)
+		if err != nil || len(fires.Objects) != 1 || fires.Objects[0].ID != fire.ID {
+			return fmt.Errorf("fire history: %v", err)
+		}
+		rotated, err := client.Triggers.RotateSecret(ctx, webhook.ID)
+		if err != nil || rotated.SigningSecret == nil || *rotated.SigningSecret == secret {
+			return fmt.Errorf("rotate secret: %v", err)
+		}
+		expression := "0 9 * * 1-5"
+		if err := client.Triggers.Create(ctx, garrison.Trigger{Name: "sdk-go-cron-" + suffix, Type: garrison.TriggerTypeCron, AgentID: &agent, CronExpression: &expression, TimeZone: "America/New_York"}, &cron); err != nil {
+			return err
+		}
+		if cron.NextFireUTC == nil || cron.SigningSecret != nil {
+			return errors.New("cron next fire")
+		}
+		crons, err := client.Triggers.List(ctx, nil, garrison.TriggerTypeCron)
+		if err != nil {
+			return err
+		}
+		found := false
+		for _, t := range crons.Objects {
+			if t.ID == cron.ID {
+				found = true
+			}
+		}
+		if !found {
+			return errors.New("list by type")
+		}
+		return nil
+	})
+	check("notification endpoints", func(ctx context.Context) error {
+		var refused garrison.NotificationEndpoint
+		err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-local-" + suffix, URL: "http://127.0.0.1:9/x", Events: []string{garrison.NotificationEventRunFailed}}, &refused)
+		var apiErr *garrison.Error
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.FieldCodes["url"] != "DestinationBlocked" {
+			return fmt.Errorf("loopback URL refused: %v", err)
+		}
+		var endpoint garrison.NotificationEndpoint
+		if err := client.NotificationEndpoints.Create(ctx, garrison.NotificationEndpoint{Name: "sdk-go-notify-" + suffix, URL: "https://example.invalid/hook", Events: []string{garrison.NotificationEventRunSucceeded, garrison.NotificationEventRunFailed}}, &endpoint); err != nil {
+			return err
+		}
+		defer func() { _ = client.NotificationEndpoints.Delete(ctx, endpoint.ID) }()
+		if !strings.HasPrefix(endpoint.ID, "nep_") || endpoint.SigningSecret == nil || len(endpoint.Events) != 2 {
+			return errors.New("endpoint create")
+		}
+		var read garrison.NotificationEndpoint
+		if err := client.NotificationEndpoints.Get(ctx, endpoint.Name, &read); err != nil {
+			return err
+		}
+		if read.SigningSecret != nil || read.SigningSecretLast4 == nil {
+			return errors.New("get hides the secret")
+		}
+		test, err := client.NotificationEndpoints.Test(ctx, endpoint.ID)
+		if err != nil {
+			return err
+		}
+		if test.Event != garrison.NotificationEventTest || test.Attempts != 1 || (test.Status != garrison.NotificationDeliveryPending && test.Status != garrison.NotificationDeliveryFailed) {
+			return fmt.Errorf("test delivery %+v", test)
+		}
+		deliveries, err := client.NotificationEndpoints.ListDeliveries(ctx, endpoint.ID, "", nil)
+		if err != nil || len(deliveries.Objects) == 0 {
+			return fmt.Errorf("delivery log: %v", err)
+		}
+		one, err := client.NotificationEndpoints.GetDelivery(ctx, endpoint.ID, test.ID)
+		if err != nil || !strings.Contains(one.Payload, `"event":"Test"`) {
+			return fmt.Errorf("delivery payload: %v", err)
+		}
+		inactive := false
+		read.Active = &inactive
+		var updated garrison.NotificationEndpoint
+		if err := client.NotificationEndpoints.Update(ctx, endpoint.ID, read, &updated); err != nil {
+			return err
+		}
+		if updated.Active == nil || *updated.Active {
+			return errors.New("endpoint update")
+		}
+		return nil
+	})
 	check("stdio MCP worker diagnostic", func(ctx context.Context) error {
 		var nodes garrison.EnumerationResult[garrison.Node]
 		if err := client.Nodes.List(ctx, nil, &nodes); err != nil {

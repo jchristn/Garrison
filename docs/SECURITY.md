@@ -49,6 +49,7 @@ A signed request carries an HMAC-SHA256 signature over the method, path, query, 
 |---|---|
 | Garrison secrets (API keys and the like) | AES-256-GCM under `Security.MasterKey`, with the secret's identifier as associated data so a ciphertext cannot be moved to another record. Only the last four characters and a fingerprint are ever returned |
 | Credential secret keys | AES-256-GCM under the master key; they must be recoverable to verify signed requests. Returned once, at creation or rotation |
+| Trigger and notification endpoint signing secrets | AES-256-GCM under the master key with the record's identifier as associated data; they must be recoverable to verify webhooks and sign notifications. Returned once, at creation or rotation, with only the last four characters shown afterwards |
 | User passwords | PBKDF2-HMAC-SHA256, random 16-byte salt, 600,000 iterations (`Auth.PasswordHashIterations`), constant-time comparison; legacy SHA-256 hashes are upgraded at the next successful sign-in |
 
 Passwords are stored as `pbkdf2-sha256$<iterations>$<salt>$<hash>`. Hashes written by earlier builds still verify and are replaced on the next successful sign-in. Signing in to an unknown or inactive account takes as long as a real verification, so timing does not reveal which accounts exist. Rolling the database back to an earlier build would leave upgraded users unable to sign in until their passwords are reset.
@@ -113,6 +114,8 @@ Denials are audited with the permission that was missing, and the response carri
 | `NodeAgent` | The node protocol only; for worker credentials |
 | `AgentRegistrar` | Self-registration of remote agents |
 | `Custom` | No permissions; a starting point for tenant-defined roles |
+
+Triggers and notification endpoints (resource types `Trigger` and `NotificationEndpoint`): `Viewer`, `Auditor`, and `AgentOperator` can read them; `Editor` and `AgentDeveloper` can create, change, and delete them and run their actions (manual fire, test send); `AgentOperator` can also fire triggers by hand. Saving a trigger additionally needs Execute on the agent or pipeline it starts.
 
 Permission approvals (resource type `Approval`): `Viewer`, `Auditor`, `AgentDeveloper`, and `AgentOperator` can read them; `Editor`, `AgentOperator`, `ResourceAdmin`, and `TenantAdmin` can decide them (Update on `Approval`). Deciding with `remember`, which adds a rule to the deployment, also needs Update on that deployment.
 
@@ -288,6 +291,22 @@ Approvals (P12.3) put a person, or rules a person wrote, between a Claude Code o
 - A request that cannot be decided in time is denied by default (`approvalTimeoutDecision`). Cancelling a run, its completion, or a lost lease cancels its pending approvals and the waiting harness is told no. Decisions are compare-and-set in the database, so two people deciding at once on different replicas produce one decision; the second gets 409 `ApprovalNotPending`.
 - The Codex relay uses the run token, so a worker that lost its lease cannot ask on behalf of a newer attempt.
 
+## Trigger webhooks
+
+A webhook trigger's URL (`POST /v1.0/api/tenants/{tenantId}/triggers/{id}/webhook`) takes no token; the `X-Garrison-Signature` header is its only authorization, so the details matter (see [TRIGGERS.md](TRIGGERS.md#webhook-triggers)).
+
+The header is `t=<unix seconds>,v1=<hex>`, where the hex value is HMAC-SHA256 under the trigger's signing secret of the timestamp, a period, and the raw body bytes. The server compares signatures in constant time. A timestamp more than `Triggers.WebhookToleranceSeconds` (300) away from the server clock is refused, which bounds how long a captured request stays usable; within that window, a sender that sets `X-Garrison-Delivery` gets idempotency on top (a repeated delivery identifier returns the first fire and starts nothing). Senders that cannot set a delivery identifier should treat the tolerance window as the replay window and keep it short. Bodies over `Triggers.WebhookMaxBodyBytes` (256 KiB) are refused with 413 before any work is done.
+
+Every verification failure answers the same 401 `InvalidSignature`: an unknown tenant, an unknown trigger, a cron trigger, and a missing, malformed, stale, or wrong signature are indistinguishable, and the server still computes an HMAC against a random key when it has no secret so the timing matches. Only a correctly signed request learns whether the trigger is active (409 `TriggerInactive`). Rejections are counted by reason in `garrison_trigger_webhook_rejections_total`.
+
+A fire runs as the principal that last saved the trigger, and that principal's permission to run the target is checked again on every fire, not only when the trigger was saved. Deactivating a user or credential, or removing its role, stops its triggers from starting anything (the fires record `RunAsNotAuthorized`). The webhook payload reaches the agent only through the trigger's input template, so treat it like any other untrusted input (below).
+
+## Outbound notifications
+
+Notification endpoints make the control plane send HTTP requests to URLs a tenant chooses, which is a classic server-side request forgery risk. Garrison checks the URL when it is saved (http or https only, no user information, `localhost` and IP literals judged right away) and again on every connection: it resolves the host itself and connects only to addresses that pass, so a name that resolves or rebinds to an internal address gets no connection. Loopback and private ranges are refused unless the cluster setting `Notifications.AllowPrivateDestinations` is on; link-local addresses (169.254.0.0/16, home of 169.254.169.254 and other metadata services, and fe80::/10), multicast, and reserved ranges are refused regardless. IPv6 addresses that embed an IPv4 address are judged by that address. Redirects are never followed (a 3xx fails the delivery) and no HTTP proxy is used.
+
+Each notification is signed with the endpoint's own secret using the same `X-Garrison-Signature` scheme, and carries `X-Garrison-Delivery` so receivers can drop repeats; delivery is at least once. Payloads hold identifiers, status, outcome, agent, deployment, timestamps, and a link. They never hold secrets, run input, error text, or tool input, and they hold run output only when an endpoint opts in with `includeResultText`, cut to `resultTextMaxChars` (see [NOTIFICATIONS.md](NOTIFICATIONS.md)).
+
 ## Prompts and untrusted input
 
 Callers' messages, parameters, and other agents' replies are inserted into prompts as text. Garrison does not and cannot stop a harness from following instructions embedded in that text. Limit what an agent can do (tools, MCP servers, secrets, sandbox, delegation allowlist) to what its job needs, and expose agents that hold powerful credentials only to callers you trust.
@@ -314,7 +333,7 @@ Request history redacts request and response bodies for secrets, tokens, credent
 
 ## Audit
 
-Garrison records authentication successes and failures, sessions issued and revoked, credential creation, rotation, and use, authorization denials and administrator bypasses, changes to roles, permissions, assignments, configuration, secrets, and settings, restarts, manifest applies, node registration and status changes, run cancellations, and permission approval decisions. Read them at `GET .../audit` with the `Audit` permission. They are kept for `Audit.RetentionDays` (365).
+Garrison records authentication successes and failures, sessions issued and revoked, credential creation, rotation, and use, authorization denials and administrator bypasses, changes to roles, permissions, assignments, configuration, secrets, and settings, restarts, manifest applies, node registration and status changes, run cancellations, permission approval decisions, trigger and notification endpoint changes, manual trigger fires, and signing secret rotations (`SigningSecretRotated`). Read them at `GET .../audit` with the `Audit` permission. They are kept for `Audit.RetentionDays` (365).
 
 ## Reporting a vulnerability
 

@@ -333,8 +333,31 @@ async function seed(api) {
   ids.conversationRun = second.id;
   await seedApprovals(api, ids);
   await seedPipelines(api, ids);
+  await seedTriggers(api, ids);
   await sleep(1500);
   return ids;
+}
+
+/**
+ * Triggers (P12.5) and notification endpoints (P12.14): a cron trigger and a webhook trigger on the fake agent, each
+ * fired by hand (the webhook one with a JSON payload) so fire history and a trigger-started run exist, and a
+ * notification endpoint whose test send fails to resolve its host, so the delivery log has a pending retry.
+ */
+async function seedTriggers(api, ids) {
+  ids.cronTrigger = (
+    await api.post(tp('triggers'), { name: 'contract-cron', description: 'Weekday report', type: 'Cron', targetType: 'Agent', agentId: ids.agent, deploymentId: ids.deployment, cronExpression: '0 9 * * 1-5', timeZone: 'Europe/Berlin', active: true })
+  ).id;
+  const webhook = await api.post(tp('triggers'), { name: 'contract-webhook', type: 'Webhook', targetType: 'Agent', agentId: ids.agent, active: true });
+  if (!webhook.signingSecret) throw new Error('webhook trigger create returned no signingSecret');
+  ids.webhookTrigger = webhook.id;
+  const fire = await api.post(tp(`triggers/${ids.cronTrigger}/fire`), {});
+  if (!fire.runId) throw new Error(`manual fire started no run: ${fire.errorCode || ''} ${fire.errorMessage || ''}`);
+  ids.triggerRun = fire.runId;
+  await api.post(tp(`triggers/${ids.webhookTrigger}/fire`), { body: '{"action":"opened","number":7}', contentType: 'application/json' });
+  ids.endpoint = (
+    await api.post(tp('notification-endpoints'), { name: 'contract-endpoint', description: 'Unresolvable host', url: 'https://notifications.example.invalid/hook', events: ['RunFailed', 'PipelineFailed'], includeResultText: true, resultTextMaxChars: 500, active: true })
+  ).id;
+  ids.delivery = (await api.post(tp(`notification-endpoints/${ids.endpoint}/test`))).id;
 }
 
 /**
@@ -583,6 +606,18 @@ function routes(ids) {
     ['listPipelineReviews (pending)', tp(`pipeline-reviews?${list}&status=Pending`)],
     ['getPipelineReview', tp(`pipeline-reviews/${ids.pipelineReview}`)],
     ['listRuns (pipelineRunId)', tp(`runs?${list}&pipelineRunId=${ids.pipelineRun}`)],
+    ['listTriggers', tp(`triggers?${list}`)],
+    ['listTriggers (type)', tp(`triggers?${list}&type=Webhook`)],
+    ['getTrigger', tp(`triggers/${ids.webhookTrigger}`)],
+    ['getTrigger (cron)', tp(`triggers/${ids.cronTrigger}`)],
+    ['listTriggerFires', tp(`triggers/${ids.cronTrigger}/fires?maxResults=50&skip=0`)],
+    ['listTriggerFires (webhook)', tp(`triggers/${ids.webhookTrigger}/fires?maxResults=50&skip=0`)],
+    ['listRuns (triggerId)', tp(`runs?${list}&triggerId=${ids.cronTrigger}`)],
+    ['getRun (trigger)', tp(`runs/${ids.triggerRun}`)],
+    ['listNotificationEndpoints', tp(`notification-endpoints?${list}`)],
+    ['getNotificationEndpoint', tp(`notification-endpoints/${ids.endpoint}`)],
+    ['listNotificationDeliveries', tp(`notification-endpoints/${ids.endpoint}/deliveries?maxResults=50&skip=0`)],
+    ['getNotificationDelivery', tp(`notification-endpoints/${ids.endpoint}/deliveries/${ids.delivery}`)],
     ['listNodes', `/v1.0/api/nodes?${list}`],
     ['getNode', `/v1.0/api/nodes/${ids.node}`],
     ['listNodePools', `/v1.0/api/node-pools?${list}`],

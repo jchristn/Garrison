@@ -2191,3 +2191,335 @@ de.tips.enums.runBlockedReason.NoIsolatingWorker = "Blockiert: Dieser Lauf brauc
 de.tips.resources.deployments.egressRules = "Ziele, die Lauf-Pods dieser Bereitstellung erreichen dürfen, als CIDR-Blöcke mit optionalem Port und Protokoll. Leer nutzt den Standard-Egress für Läufe.";
 de.tips.resources.deployments.egressRulesItems = {"cidr": "Zielblock in CIDR-Notation, IPv4 oder IPv6, zum Beispiel 203.0.113.0/24. Lösen Sie Hostnamen selbst in Adressen auf.", "port": "Zielport von 1 bis 65535. Leer lassen, um jeden Port des Blocks zu erlauben.", "protocol": "TCP für die meisten Dienste oder UDP."};
 de.tips.resources.deployments.egressDefault = "Keine Egress-Zulassungsliste: Lauf-Pods nutzen den Standard-Egress des Clusters.";
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "nav": {
+  "items": {
+   "triggers": {
+    "label": "Auslöser",
+    "tip": "Cron-Zeitpläne und signierte Webhooks, die Läufe starten"
+   },
+   "notifications": {
+    "label": "Benachrichtigungen",
+    "tip": "Signierte Webhooks zu Läufen, Pipelines und Freigaben"
+   }
+  }
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Cron-Zeitplan",
+   "Webhook": "Signierter Webhook"
+  },
+  "triggerTargetType": {
+   "Agent": "Agentenlauf",
+   "Pipeline": "Pipeline-Lauf"
+  },
+  "triggerFireSource": {
+   "Cron": "Zeitplan",
+   "Webhook": "Webhook-Zustellung",
+   "Manual": "Von Hand ausgelöst"
+  },
+  "triggerFireOutcome": {
+   "Started": "Gestartet",
+   "Failed": "Fehlgeschlagen",
+   "Skipped": "Übersprungen"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Lauf erfolgreich",
+   "RunFailed": "Lauf fehlgeschlagen",
+   "RunCancelled": "Lauf abgebrochen",
+   "RunTimedOut": "Lauf-Zeitüberschreitung",
+   "PipelineCompleted": "Pipeline abgeschlossen",
+   "PipelineFailed": "Pipeline fehlgeschlagen",
+   "ApprovalRequested": "Freigabe angefordert",
+   "Test": "Testbenachrichtigung"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "Wartend",
+   "Delivering": "Wird zugestellt",
+   "Succeeded": "Zugestellt",
+   "Failed": "Aufgegeben"
+  },
+  "runKind": {
+   "Invoke": "Aufruf",
+   "Delegated": "Delegiert",
+   "Test": "Testlauf",
+   "Retry": "Wiederholung",
+   "Pipeline": "Pipeline-Stufe",
+   "Trigger": "Von einem Auslöser gestartet"
+  },
+  "resourceType": {
+   "Trigger": "Auslöser",
+   "NotificationEndpoint": "Benachrichtigungsendpunkt"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Signaturgeheimnis erneuert"
+  }
+ },
+ "errorCodes": {
+  "ReferencedByTrigger": "Ein Auslöser verwendet diesen Datensatz. Ändern oder löschen Sie zuerst diesen Auslöser.",
+  "ReferencedByNotificationEndpoint": "Ein Benachrichtigungsendpunkt filtert nach diesem Datensatz. Ändern oder löschen Sie zuerst diesen Endpunkt.",
+  "NotAWebhookTrigger": "Nur Webhook-Auslöser haben ein Signaturgeheimnis.",
+  "TriggerInactive": "Dieser Auslöser ist inaktiv.",
+  "InvalidSignature": "Die Webhook-Signatur fehlt, ist fehlerhaft, zu alt oder passt nicht.",
+  "PayloadTooLarge": "Die Nutzlast ist größer, als der Server annimmt."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidUrl": "Geben Sie eine absolute HTTP- oder HTTPS-URL ohne Benutzernamen und Passwort ein.",
+   "DestinationBlocked": "Der Server lehnt dieses Ziel ab: Loopback-, private, Link-Local- und Metadatenadressen sind gesperrt, solange ein Betreiber private Ziele nicht erlaubt.",
+   "EventsRequired": "Wählen Sie mindestens ein Ereignis.",
+   "InvalidEvent": "Eines der Ereignisse wird nicht unterstützt.",
+   "InvalidCron": "Der Cron-Ausdruck ist ungültig. Verwenden Sie fünf Felder: Minute, Stunde, Tag des Monats, Monat und Wochentag.",
+   "InvalidTimeZone": "Unbekannte Zeitzone. Verwenden Sie einen IANA-Namen wie UTC oder Europe/Berlin.",
+   "TypeImmutable": "Der Typ eines Auslösers kann sich nicht ändern. Legen Sie stattdessen einen neuen Auslöser an.",
+   "TargetMismatch": "Dieses Feld gehört nicht zum gewählten Ziel.",
+   "PayloadTooLarge": "Die Nutzlast ist größer, als der Server annimmt."
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "triggerId": "Auslöser",
+    "kind": "Laufart"
+   }
+  },
+  "triggers": {
+   "title": "Auslöser",
+   "subtitle": "Cron-Zeitpläne und signierte Webhooks, die einen Agentenlauf oder einen Pipeline-Lauf starten.",
+   "add": "Auslöser hinzufügen",
+   "create": "Auslöser anlegen",
+   "edit": "Auslöser bearbeiten",
+   "view": "Auslöserdetails",
+   "deleteTitle": "Auslöser löschen",
+   "emptyTitle": "Noch keine Auslöser",
+   "emptyBody": "Legen Sie einen Auslöser an, um einen Agenten nach Zeitplan oder auf einen Webhook eines anderen Systems hin auszuführen.",
+   "columns": {
+    "name": "Name",
+    "type": "Typ",
+    "target": "Startet",
+    "schedule": "Zeitplan",
+    "active": "Aktiv",
+    "lastFire": "Letzte Auslösung",
+    "nextFireUtc": "Nächste Auslösung",
+    "fireCount": "Auslösungen",
+    "runAs": "Läuft als",
+    "signingSecretLast4": "Geheimnis endet auf",
+    "description": "Beschreibung",
+    "id": "ID",
+    "createdUtc": "Erstellt"
+   },
+   "fields": {
+    "name": "Name",
+    "type": "Typ",
+    "description": "Beschreibung",
+    "targetType": "Startet",
+    "agentId": "Agent",
+    "deploymentId": "Bereitstellung",
+    "pipelineId": "Pipeline",
+    "inputTemplateId": "Eingabevorlage",
+    "priority": "Priorität",
+    "cronExpression": "Cron-Ausdruck",
+    "timeZone": "Zeitzone",
+    "active": "Aktiv",
+    "webhook": "Webhook-URL"
+   },
+   "hints": {
+    "type": "Der Typ lässt sich nach dem Anlegen nicht mehr ändern.",
+    "inputTemplateId": "Eine Task-Vorlage, die die Laufeingabe aus den Variablen trigger.* und webhook.* erzeugt. Leer verwendet die eingebaute Vorlage trigger-input.",
+    "priority": "Von {{min}} bis {{max}}. Höhere Werte laufen zuerst.",
+    "cronExpression": "Fünf Felder: Minute, Stunde, Tag des Monats, Monat, Wochentag. Beispiel: 0 9 * * 1-5 läuft werktags um 09:00.",
+    "timeZone": "IANA-Name wie UTC oder Europe/Berlin. Sommerzeitwechsel werden berücksichtigt.",
+    "webhookNew": "Webhook-URL und Signaturgeheimnis erscheinen nach dem Speichern. Das Geheimnis wird einmal angezeigt."
+   },
+   "errors": {
+    "name": "Verwenden Sie 1 bis 64 Kleinbuchstaben, Ziffern und Bindestriche, beginnend und endend mit einem Buchstaben oder einer Ziffer.",
+    "description": "Beschreibungen sind auf {{max}} Zeichen begrenzt.",
+    "agentRequired": "Wählen Sie den Agenten, den dieser Auslöser ausführt.",
+    "pipelineRequired": "Wählen Sie die Pipeline, die dieser Auslöser startet.",
+    "cron": "Geben Sie fünf Felder (Minute Stunde Tag Monat Wochentag) oder ein Makro wie @daily ein.",
+    "priority": "Geben Sie eine ganze Zahl von {{min}} bis {{max}} ein."
+   },
+   "actions": {
+    "fire": "Jetzt auslösen",
+    "fires": "Auslöseverlauf",
+    "runs": "Läufe anzeigen",
+    "rotateSecret": "Geheimnis erneuern"
+   },
+   "fires": {
+    "firedUtc": "Ausgelöst",
+    "source": "Quelle",
+    "outcome": "Ergebnis",
+    "started": "Gestarteter Lauf",
+    "deliveryId": "Zustellungs-ID",
+    "error": "Fehler",
+    "runId": "Lauf",
+    "pipelineRunId": "Pipeline-Lauf"
+   },
+   "confirmRotateTitle": "Signaturgeheimnis erneuern",
+   "confirmRotate": "Das Signaturgeheimnis von {{name}} ersetzen? Das alte Geheimnis ist sofort ungültig, Absender müssen auf das neue umstellen.",
+   "anyDeployment": "Beliebige aktive Bereitstellung (gewichtet)",
+   "builtinTemplate": "Eingebaute Vorlage trigger-input",
+   "webhookSchedule": "Wenn ein signierter Webhook eintrifft",
+   "neverFired": "Noch nicht ausgelöst",
+   "runAsNotice": "Läuft als {{name}}. Wenn Sie Änderungen speichern, läuft dieser Auslöser künftig als Sie.",
+   "secretEnding": "Das aktuelle Geheimnis endet auf {{last4}}."
+  },
+  "notifications": {
+   "title": "Benachrichtigungen",
+   "subtitle": "Webhook-Endpunkte, die signierte Benachrichtigungen erhalten, wenn Läufe und Pipelines enden oder Freigaben warten.",
+   "add": "Endpunkt hinzufügen",
+   "create": "Benachrichtigungsendpunkt anlegen",
+   "edit": "Benachrichtigungsendpunkt bearbeiten",
+   "view": "Details des Benachrichtigungsendpunkts",
+   "deleteTitle": "Benachrichtigungsendpunkt löschen",
+   "emptyTitle": "Noch keine Benachrichtigungsendpunkte",
+   "emptyBody": "Fügen Sie einen Endpunkt hinzu, der einen signierten HTTP-POST erhält, wenn ein Lauf scheitert, eine Pipeline endet oder eine Freigabe wartet.",
+   "columns": {
+    "name": "Name",
+    "url": "URL",
+    "events": "Ereignisse",
+    "filters": "Filter",
+    "active": "Aktiv",
+    "signingSecretLast4": "Geheimnis endet auf",
+    "includeResultText": "Ergebnistext",
+    "description": "Beschreibung",
+    "id": "ID",
+    "createdUtc": "Erstellt",
+    "agent": "Agent",
+    "deployment": "Bereitstellung"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Beschreibung",
+    "url": "URL",
+    "events": "Ereignisse",
+    "agentId": "Nur dieser Agent",
+    "deploymentId": "Nur diese Bereitstellung",
+    "includeResultText": "Ergebnistext mitsenden",
+    "resultTextMaxChars": "Grenze für Ergebnistext (Zeichen)",
+    "active": "Aktiv"
+   },
+   "hints": {
+    "url": "Eine HTTP- oder HTTPS-URL. Loopback-, private und Metadatenadressen werden abgelehnt, solange ein Betreiber private Ziele nicht erlaubt, und Weiterleitungen werden nicht verfolgt.",
+    "events": "Pipeline-Ereignisse werden nicht gesendet, solange ein Agenten- oder Bereitstellungsfilter gesetzt ist.",
+    "agentId": "Leer sendet Ereignisse aller Agenten.",
+    "deploymentId": "Leer sendet Ereignisse aller Bereitstellungen.",
+    "includeResultText": "Standardmäßig aus: Benachrichtigungen enthalten Kennungen, Status und Zeitstempel, aber keine Laufausgabe.",
+    "resultTextMaxChars": "Von {{min}} bis {{max}}. Standard {{default}}."
+   },
+   "errors": {
+    "name": "Verwenden Sie 1 bis 64 Kleinbuchstaben, Ziffern und Bindestriche, beginnend und endend mit einem Buchstaben oder einer Ziffer.",
+    "url": "Geben Sie eine absolute HTTP- oder HTTPS-URL ohne Benutzernamen und Passwort ein.",
+    "events": "Wählen Sie mindestens ein Ereignis.",
+    "resultTextMaxChars": "Geben Sie eine ganze Zahl von {{min}} bis {{max}} ein."
+   },
+   "actions": {
+    "test": "Test senden",
+    "deliveries": "Zustellprotokoll",
+    "rotateSecret": "Geheimnis erneuern"
+   },
+   "deliveries": {
+    "createdUtc": "Eingereiht",
+    "event": "Ereignis",
+    "status": "Status",
+    "attempts": "Versuche",
+    "lastStatusCode": "HTTP-Status",
+    "lastError": "Letzter Fehler",
+    "lastAttemptUtc": "Letzter Versuch",
+    "nextAttemptUtc": "Nächster Versuch",
+    "deliveredUtc": "Zugestellt",
+    "payload": "Nutzlast",
+    "id": "Zustellungs-ID"
+   },
+   "confirmRotateTitle": "Signaturgeheimnis erneuern",
+   "confirmRotate": "Das Signaturgeheimnis von {{name}} ersetzen? Benachrichtigungen werden ab jetzt mit dem neuen Geheimnis signiert, auch bereits eingereihte Wiederholungen.",
+   "anyAgent": "Alle Agenten",
+   "anyDeployment": "Alle Bereitstellungen",
+   "noFilter": "Alles",
+   "eventCount_one": "{{count}} Ereignis",
+   "eventCount_other": "{{count}} Ereignisse",
+   "resultTextUpTo_one": "Bis zu {{count}} Zeichen",
+   "resultTextUpTo_other": "Bis zu {{count}} Zeichen",
+   "secretNotice": "Benachrichtigungen werden mit einem Geheimnis signiert, das auf {{last4}} endet, gesetzt am {{time}}. Erneuern Sie es, um ein neues zu erhalten."
+  }
+ },
+ "components": {
+  "signingSecret": {
+   "title": "Signaturgeheimnis",
+   "warning": "Kopieren Sie dieses Geheimnis jetzt. Garrison speichert es verschlüsselt und zeigt es nie wieder an; erneuern Sie es, falls es verloren geht.",
+   "secret": "Geheimnis",
+   "url": "Webhook-URL",
+   "done": "Gespeichert",
+   "scheme": "Signieren Sie jede Anfrage mit dem Header {{header}}: {{format}}. Senden Sie {{delivery}}, damit wiederholte Zustellungen nur einmal zählen."
+  },
+  "triggerFire": {
+   "title": "{{name}} auslösen",
+   "intro": "Diesen Auslöser jetzt starten. Eine Nutzlast ist optional; die Eingabevorlage sieht sie als webhook.body.",
+   "body": "Nutzlast",
+   "contentType": "Inhaltstyp der Nutzlast",
+   "submit": "Auslösen",
+   "firing": "Wird ausgelöst..."
+  },
+  "triggerFires": {
+   "title": "Auslöseverlauf",
+   "count_one": "{{shown}} von {{count}} Auslösung",
+   "count_other": "{{shown}} von {{count}} Auslösungen",
+   "empty": "Dieser Auslöser wurde noch nicht ausgelöst.",
+   "scheduled": "für {{time}}"
+  },
+  "notificationDeliveries": {
+   "title": "Zustellprotokoll",
+   "count_one": "{{shown}} von {{count}} Zustellung",
+   "count_other": "{{shown}} von {{count}} Zustellungen",
+   "empty": "An diesen Endpunkt wurde noch nichts gesendet.",
+   "detail": "Ausgewählte Zustellung"
+  },
+  "notificationTest": {
+   "title": "Testbenachrichtigung",
+   "sending": "Testbenachrichtigung wird gesendet...",
+   "succeeded": "Der Endpunkt hat die Testbenachrichtigung angenommen.",
+   "failed": "Die Testbenachrichtigung ist fehlgeschlagen und wird nicht wiederholt. Siehe Fehler unten.",
+   "pending": "Der erste Versuch ist fehlgeschlagen; Garrison versucht es erneut. Siehe Fehler unten."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "Auslöser"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Auslöser",
+    "Notifications": "Benachrichtigungen"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Größter Webhook-Inhalt (Bytes)",
+     "WebhookToleranceSeconds": "Toleranz für Webhook-Zeitstempel (Sekunden)",
+     "CronMaxLatenessSeconds": "Grenze für Cron-Nachholung (Sekunden)",
+     "FireRetentionDays": "Aufbewahrung des Auslöseverlaufs (Tage)"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Private Ziele erlauben",
+     "MaxAttempts": "Zustellversuche",
+     "InitialBackoffSeconds": "Erste Wartezeit vor Wiederholung (Sekunden)",
+     "MaxBackoffSeconds": "Längste Wartezeit vor Wiederholung (Sekunden)",
+     "TimeoutSeconds": "Zeitlimit pro Zustellung (Sekunden)",
+     "DispatchIntervalMs": "Versandintervall (ms)",
+     "SweepOverlapSeconds": "Überlappung der Ereignissuche (Sekunden)",
+     "DeliveryRetentionDays": "Aufbewahrung des Zustellprotokolls (Tage)"
+    }
+   }
+  }
+ }
+});

@@ -59,7 +59,9 @@ export const NAV_SECTIONS = [
           { id: 'agents', slug: 'agents', detail: true },
           { id: 'deployments', slug: 'deployments' },
           // P12.9: ordered agent stages with optional review gates.
-          { id: 'pipelines', slug: 'pipelines' }
+          { id: 'pipelines', slug: 'pipelines' },
+          // P12.5: cron schedules and signed webhooks that start agent runs or pipeline runs.
+          { id: 'triggers', slug: 'triggers' }
         ]
       }
     ]
@@ -80,6 +82,8 @@ export const NAV_SECTIONS = [
           { id: 'artifactStores', slug: 'artifact-stores' },
           { id: 'modelPrices', slug: 'model-prices' },
           { id: 'usageQuotas', slug: 'usage-quotas' },
+          // P12.14: outbound signed webhooks about runs, pipeline runs, and approvals.
+          { id: 'notifications', slug: 'notifications' },
           { id: 'manifests', slug: 'manifests' }
         ]
       },

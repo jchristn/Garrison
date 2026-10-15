@@ -55,6 +55,8 @@ type Error struct {
 	Fields map[string]string `json:"fields,omitempty"`
 	// Errors holds per-setting validation errors keyed by setting path (settings routes, HTTP 400).
 	Errors map[string]string `json:"errors,omitempty"`
+	// FieldCodes holds machine codes of validation errors keyed by field path (for example url: DestinationBlocked).
+	FieldCodes map[string]string `json:"fieldCodes,omitempty"`
 }
 
 func (e *Error) Error() string {
@@ -108,6 +110,8 @@ type Client struct {
 	Pipelines                  *PipelinesClient
 	PipelineRuns               *PipelineRunsClient
 	PipelineReviews            *PipelineReviewsClient
+	Triggers                   *TriggersClient
+	NotificationEndpoints      *NotificationEndpointsClient
 	Analytics                  *AnalyticsClient
 	Nodes                      *GlobalResource
 	ControlNodes               *ControlNodesClient
@@ -146,6 +150,8 @@ func NewClient(baseURL string) *Client {
 	c.Pipelines = &PipelinesClient{Resource{c: c, segment: "pipelines"}}
 	c.PipelineRuns = &PipelineRunsClient{c: c}
 	c.PipelineReviews = &PipelineReviewsClient{c: c}
+	c.Triggers = &TriggersClient{Resource{c: c, segment: "triggers"}}
+	c.NotificationEndpoints = &NotificationEndpointsClient{Resource{c: c, segment: "notification-endpoints"}}
 	c.Analytics = &AnalyticsClient{c: c}
 	c.Nodes = &GlobalResource{c: c, path: "/v1.0/api/nodes"}
 	c.ControlNodes = &ControlNodesClient{c: c}

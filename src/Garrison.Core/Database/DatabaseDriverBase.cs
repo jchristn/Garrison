@@ -227,6 +227,26 @@ namespace Garrison.Core.Database
         /// </summary>
         public IPipelineReviewMethods PipelineReviews { get; protected set; } = null!;
 
+        /// <summary>
+        /// Triggers: cron schedules and signed webhooks (P12.5).
+        /// </summary>
+        public ITriggerMethods Triggers { get; protected set; } = null!;
+
+        /// <summary>
+        /// Trigger fire history (P12.5).
+        /// </summary>
+        public ITriggerFireMethods TriggerFires { get; protected set; } = null!;
+
+        /// <summary>
+        /// Notification endpoints (P12.14).
+        /// </summary>
+        public INotificationEndpointMethods NotificationEndpoints { get; protected set; } = null!;
+
+        /// <summary>
+        /// Notification outbox, delivery log, and event sweep cursors (P12.14).
+        /// </summary>
+        public INotificationDeliveryMethods NotificationDeliveries { get; protected set; } = null!;
+
         #endregion
 
         #region Private-Members

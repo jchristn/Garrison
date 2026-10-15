@@ -2205,3 +2205,335 @@ fr.tips.enums.runBlockedReason.NoIsolatingWorker = "Bloquée : cette exécution 
 fr.tips.resources.deployments.egressRules = "Destinations que les pods d'exécution de ce déploiement peuvent atteindre, sous forme de blocs CIDR avec port et protocole facultatifs. Vide utilise la sortie par défaut.";
 fr.tips.resources.deployments.egressRulesItems = {"cidr": "Bloc de destination en notation CIDR, IPv4 ou IPv6, par exemple 203.0.113.0/24. Résolvez vous-même les noms d'hôte en adresses.", "port": "Port de destination de 1 à 65535. Laissez vide pour autoriser tous les ports du bloc.", "protocol": "TCP pour la plupart des services, ou UDP."};
 fr.tips.resources.deployments.egressDefault = "Aucune liste de sortie autorisée : les pods d'exécution utilisent la sortie par défaut du cluster.";
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(fr, {
+ "nav": {
+  "items": {
+   "triggers": {
+    "label": "Déclencheurs",
+    "tip": "Planifications cron et webhooks signés qui lancent des exécutions"
+   },
+   "notifications": {
+    "label": "Notifications sortantes",
+    "tip": "Webhooks signés sur les exécutions, pipelines et approbations"
+   }
+  }
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Planification cron",
+   "Webhook": "Webhook signé"
+  },
+  "triggerTargetType": {
+   "Agent": "Exécution d'agent",
+   "Pipeline": "Exécution de pipeline"
+  },
+  "triggerFireSource": {
+   "Cron": "Planification",
+   "Webhook": "Livraison de webhook",
+   "Manual": "Déclenché à la main"
+  },
+  "triggerFireOutcome": {
+   "Started": "Lancé",
+   "Failed": "Échoué",
+   "Skipped": "Ignoré"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Exécution réussie",
+   "RunFailed": "Exécution échouée",
+   "RunCancelled": "Exécution annulée",
+   "RunTimedOut": "Exécution hors délai",
+   "PipelineCompleted": "Pipeline terminé",
+   "PipelineFailed": "Pipeline échoué",
+   "ApprovalRequested": "Approbation demandée",
+   "Test": "Notification d'essai"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "En attente",
+   "Delivering": "En cours de livraison",
+   "Succeeded": "Livrée",
+   "Failed": "Abandonnée"
+  },
+  "runKind": {
+   "Invoke": "Appel",
+   "Delegated": "Déléguée",
+   "Test": "Exécution d'essai",
+   "Retry": "Nouvelle tentative",
+   "Pipeline": "Étape de pipeline",
+   "Trigger": "Lancée par un déclencheur"
+  },
+  "resourceType": {
+   "Trigger": "Déclencheur",
+   "NotificationEndpoint": "Point de terminaison de notification"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Secret de signature renouvelé"
+  }
+ },
+ "errorCodes": {
+  "ReferencedByTrigger": "Un déclencheur utilise cet enregistrement. Modifiez ou supprimez d'abord ce déclencheur.",
+  "ReferencedByNotificationEndpoint": "Un point de terminaison de notification filtre sur cet enregistrement. Modifiez ou supprimez-le d'abord.",
+  "NotAWebhookTrigger": "Seuls les déclencheurs webhook ont un secret de signature.",
+  "TriggerInactive": "Ce déclencheur est inactif.",
+  "InvalidSignature": "La signature du webhook est absente, mal formée, trop ancienne ou ne correspond pas.",
+  "PayloadTooLarge": "La charge utile dépasse ce que le serveur accepte."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidUrl": "Saisissez une URL HTTP ou HTTPS absolue, sans nom d'utilisateur ni mot de passe.",
+   "DestinationBlocked": "Le serveur refuse cette destination : les adresses de bouclage, privées, de lien local et de métadonnées sont bloquées sauf si un opérateur autorise les destinations privées.",
+   "EventsRequired": "Choisissez au moins un événement.",
+   "InvalidEvent": "L'un des événements n'est pas pris en charge.",
+   "InvalidCron": "L'expression cron n'est pas valide. Utilisez cinq champs : minute, heure, jour du mois, mois et jour de la semaine.",
+   "InvalidTimeZone": "Fuseau horaire inconnu. Utilisez un nom IANA comme UTC ou Europe/Paris.",
+   "TypeImmutable": "Le type d'un déclencheur ne peut pas changer. Créez plutôt un nouveau déclencheur.",
+   "TargetMismatch": "Ce champ n'appartient pas à la cible choisie.",
+   "PayloadTooLarge": "La charge utile dépasse ce que le serveur accepte."
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "triggerId": "Déclencheur",
+    "kind": "Type d'exécution"
+   }
+  },
+  "triggers": {
+   "title": "Déclencheurs",
+   "subtitle": "Planifications cron et webhooks signés qui lancent une exécution d'agent ou de pipeline.",
+   "add": "Ajouter un déclencheur",
+   "create": "Créer un déclencheur",
+   "edit": "Modifier le déclencheur",
+   "view": "Détails du déclencheur",
+   "deleteTitle": "Supprimer le déclencheur",
+   "emptyTitle": "Aucun déclencheur pour le moment",
+   "emptyBody": "Créez un déclencheur pour exécuter un agent selon une planification ou quand un autre système envoie un webhook.",
+   "columns": {
+    "name": "Nom",
+    "type": "Type",
+    "target": "Lance",
+    "schedule": "Planification",
+    "active": "Actif",
+    "lastFire": "Dernier déclenchement",
+    "nextFireUtc": "Prochain déclenchement",
+    "fireCount": "Déclenchements",
+    "runAs": "S'exécute en tant que",
+    "signingSecretLast4": "Fin du secret",
+    "description": "Description",
+    "id": "ID",
+    "createdUtc": "Créé"
+   },
+   "fields": {
+    "name": "Nom",
+    "type": "Type",
+    "description": "Description",
+    "targetType": "Lance",
+    "agentId": "Agent",
+    "deploymentId": "Déploiement",
+    "pipelineId": "Pipeline d'agents",
+    "inputTemplateId": "Modèle d'entrée",
+    "priority": "Priorité",
+    "cronExpression": "Expression cron",
+    "timeZone": "Fuseau horaire",
+    "active": "Actif",
+    "webhook": "URL du webhook"
+   },
+   "hints": {
+    "type": "Le type ne peut plus changer une fois le déclencheur créé.",
+    "inputTemplateId": "Un modèle Task qui produit l'entrée de l'exécution à partir des variables trigger.* et webhook.*. Vide utilise le modèle intégré trigger-input.",
+    "priority": "De {{min}} à {{max}}. Les plus élevées passent en premier.",
+    "cronExpression": "Cinq champs : minute, heure, jour du mois, mois, jour de la semaine. Exemple : 0 9 * * 1-5 s'exécute à 09:00 en semaine.",
+    "timeZone": "Nom IANA comme UTC ou Europe/Paris. Les changements d'heure sont pris en compte.",
+    "webhookNew": "L'URL du webhook et le secret de signature apparaissent après l'enregistrement. Le secret est affiché une seule fois."
+   },
+   "errors": {
+    "name": "Utilisez de 1 à 64 lettres minuscules, chiffres et tirets, en commençant et finissant par une lettre ou un chiffre.",
+    "description": "Les descriptions sont limitées à {{max}} caractères.",
+    "agentRequired": "Choisissez l'agent exécuté par ce déclencheur.",
+    "pipelineRequired": "Choisissez le pipeline lancé par ce déclencheur.",
+    "cron": "Saisissez cinq champs (minute heure jour mois jour-de-semaine) ou une macro comme @daily.",
+    "priority": "Saisissez un nombre entier de {{min}} à {{max}}."
+   },
+   "actions": {
+    "fire": "Déclencher maintenant",
+    "fires": "Historique des déclenchements",
+    "runs": "Voir les exécutions",
+    "rotateSecret": "Renouveler le secret"
+   },
+   "fires": {
+    "firedUtc": "Déclenché",
+    "source": "Origine",
+    "outcome": "Résultat",
+    "started": "Exécution lancée",
+    "deliveryId": "ID de livraison",
+    "error": "Erreur",
+    "runId": "Exécution",
+    "pipelineRunId": "Exécution de pipeline"
+   },
+   "confirmRotateTitle": "Renouveler le secret de signature",
+   "confirmRotate": "Remplacer le secret de signature de {{name}} ? L'ancien secret cesse de fonctionner immédiatement, les expéditeurs doivent passer au nouveau.",
+   "anyDeployment": "Tout déploiement actif (pondéré)",
+   "builtinTemplate": "Modèle intégré trigger-input",
+   "webhookSchedule": "À l'arrivée d'un webhook signé",
+   "neverFired": "Pas encore déclenché",
+   "runAsNotice": "S'exécute en tant que {{name}}. Si vous enregistrez des modifications, ce déclencheur s'exécutera en votre nom.",
+   "secretEnding": "Le secret actuel se termine par {{last4}}."
+  },
+  "notifications": {
+   "title": "Notifications sortantes",
+   "subtitle": "Points de terminaison webhook qui reçoivent des notifications signées quand des exécutions et pipelines se terminent ou que des approbations attendent.",
+   "add": "Ajouter un point de terminaison",
+   "create": "Créer un point de terminaison de notification",
+   "edit": "Modifier le point de terminaison de notification",
+   "view": "Détails du point de terminaison de notification",
+   "deleteTitle": "Supprimer le point de terminaison de notification",
+   "emptyTitle": "Aucun point de terminaison de notification",
+   "emptyBody": "Ajoutez un point de terminaison pour recevoir un POST HTTP signé quand une exécution échoue, qu'un pipeline se termine ou qu'une approbation attend.",
+   "columns": {
+    "name": "Nom",
+    "url": "URL",
+    "events": "Événements",
+    "filters": "Filtres",
+    "active": "Actif",
+    "signingSecretLast4": "Fin du secret",
+    "includeResultText": "Texte du résultat",
+    "description": "Description",
+    "id": "ID",
+    "createdUtc": "Créé",
+    "agent": "Agent",
+    "deployment": "Déploiement"
+   },
+   "fields": {
+    "name": "Nom",
+    "description": "Description",
+    "url": "URL",
+    "events": "Événements",
+    "agentId": "Uniquement cet agent",
+    "deploymentId": "Uniquement ce déploiement",
+    "includeResultText": "Inclure le texte du résultat",
+    "resultTextMaxChars": "Limite du texte du résultat (caractères)",
+    "active": "Actif"
+   },
+   "hints": {
+    "url": "Une URL HTTP ou HTTPS. Les adresses de bouclage, privées et de métadonnées sont refusées sauf si un opérateur autorise les destinations privées, et les redirections ne sont pas suivies.",
+    "events": "Les événements de pipeline ne sont pas envoyés tant qu'un filtre d'agent ou de déploiement est défini.",
+    "agentId": "Vide envoie les événements de tous les agents.",
+    "deploymentId": "Vide envoie les événements de tous les déploiements.",
+    "includeResultText": "Désactivé par défaut : les notifications portent des identifiants, l'état et des horodatages, mais aucune sortie d'exécution.",
+    "resultTextMaxChars": "De {{min}} à {{max}}. Par défaut {{default}}."
+   },
+   "errors": {
+    "name": "Utilisez de 1 à 64 lettres minuscules, chiffres et tirets, en commençant et finissant par une lettre ou un chiffre.",
+    "url": "Saisissez une URL HTTP ou HTTPS absolue, sans nom d'utilisateur ni mot de passe.",
+    "events": "Choisissez au moins un événement.",
+    "resultTextMaxChars": "Saisissez un nombre entier de {{min}} à {{max}}."
+   },
+   "actions": {
+    "test": "Envoyer un essai",
+    "deliveries": "Journal des livraisons",
+    "rotateSecret": "Renouveler le secret"
+   },
+   "deliveries": {
+    "createdUtc": "Mise en file",
+    "event": "Événement",
+    "status": "État",
+    "attempts": "Tentatives",
+    "lastStatusCode": "Statut HTTP",
+    "lastError": "Dernière erreur",
+    "lastAttemptUtc": "Dernière tentative",
+    "nextAttemptUtc": "Prochaine tentative",
+    "deliveredUtc": "Livrée",
+    "payload": "Charge utile",
+    "id": "ID de livraison"
+   },
+   "confirmRotateTitle": "Renouveler le secret de signature",
+   "confirmRotate": "Remplacer le secret de signature de {{name}} ? Les notifications seront désormais signées avec le nouveau secret, y compris les nouvelles tentatives déjà en file.",
+   "anyAgent": "Tous les agents",
+   "anyDeployment": "Tous les déploiements",
+   "noFilter": "Tout",
+   "eventCount_one": "{{count}} événement",
+   "eventCount_other": "{{count}} événements",
+   "resultTextUpTo_one": "Jusqu'à {{count}} caractère",
+   "resultTextUpTo_other": "Jusqu'à {{count}} caractères",
+   "secretNotice": "Les notifications sont signées avec un secret se terminant par {{last4}}, défini le {{time}}. Renouvelez-le pour en obtenir un nouveau."
+  }
+ },
+ "components": {
+  "signingSecret": {
+   "title": "Secret de signature",
+   "warning": "Copiez ce secret maintenant. Garrison le stocke chiffré et ne l'affichera plus ; renouvelez-le s'il est perdu.",
+   "secret": "Valeur secrète",
+   "url": "URL du webhook",
+   "done": "Je l'ai enregistré",
+   "scheme": "Signez chaque requête avec l'en-tête {{header}} : {{format}}. Envoyez {{delivery}} pour que les livraisons répétées ne comptent qu'une fois."
+  },
+  "triggerFire": {
+   "title": "Déclencher {{name}}",
+   "intro": "Lancez ce déclencheur maintenant. La charge utile est facultative ; le modèle d'entrée la voit comme webhook.body.",
+   "body": "Charge utile",
+   "contentType": "Type de contenu de la charge utile",
+   "submit": "Déclencher",
+   "firing": "Déclenchement..."
+  },
+  "triggerFires": {
+   "title": "Historique des déclenchements",
+   "count_one": "{{shown}} sur {{count}} déclenchement",
+   "count_other": "{{shown}} sur {{count}} déclenchements",
+   "empty": "Ce déclencheur n'a pas encore été déclenché.",
+   "scheduled": "pour {{time}}"
+  },
+  "notificationDeliveries": {
+   "title": "Journal des livraisons",
+   "count_one": "{{shown}} sur {{count}} livraison",
+   "count_other": "{{shown}} sur {{count}} livraisons",
+   "empty": "Rien n'a encore été envoyé à ce point de terminaison.",
+   "detail": "Livraison sélectionnée"
+  },
+  "notificationTest": {
+   "title": "Notification d'essai",
+   "sending": "Envoi d'une notification d'essai...",
+   "succeeded": "Le point de terminaison a accepté la notification d'essai.",
+   "failed": "La notification d'essai a échoué et ne sera pas renvoyée. Voir l'erreur ci-dessous.",
+   "pending": "La première tentative a échoué ; Garrison va réessayer. Voir l'erreur ci-dessous."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "Déclencheur"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Déclencheurs",
+    "Notifications": "Notifications sortantes"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Corps de webhook maximal (octets)",
+     "WebhookToleranceSeconds": "Tolérance d'horodatage des webhooks (secondes)",
+     "CronMaxLatenessSeconds": "Limite de rattrapage cron (secondes)",
+     "FireRetentionDays": "Conservation de l'historique des déclenchements (jours)"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Autoriser les destinations privées",
+     "MaxAttempts": "Tentatives de livraison",
+     "InitialBackoffSeconds": "Délai avant la première relance (secondes)",
+     "MaxBackoffSeconds": "Délai maximal entre relances (secondes)",
+     "TimeoutSeconds": "Délai de livraison (secondes)",
+     "DispatchIntervalMs": "Intervalle d'envoi (ms)",
+     "SweepOverlapSeconds": "Chevauchement du balayage des événements (secondes)",
+     "DeliveryRetentionDays": "Conservation du journal des livraisons (jours)"
+    }
+   }
+  }
+ }
+});
