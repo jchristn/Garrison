@@ -113,6 +113,7 @@ Sign the bytes you send. Re-serializing the JSON on either side (reordering keys
 | 200 | A repeated `X-Garrison-Delivery`: the earlier fire with `duplicate: true` |
 | 400 `InvalidDeliveryId` | The delivery header is empty, longer than 128 characters, or not printable ASCII |
 | 401 `InvalidSignature` | Anything that fails verification |
+| 429 `RateLimited` | The source address sent more deliveries that failed verification than `Auth.RateLimitPerMinute` (default 60) in the current minute, counted across replicas; it is refused until the minute ends, even with a valid signature |
 | 409 `TriggerInactive` | A correctly signed delivery to an inactive trigger |
 | 413 `PayloadTooLarge` | The body is larger than `Triggers.WebhookMaxBodyBytes` (default 256 KiB); checked before the signature |
 

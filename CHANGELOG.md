@@ -120,6 +120,7 @@ The first build of Garrison: a multi-tenant control plane that runs headless age
 - Request history writes a request's headers in one statement, and event ingestion checks the lease without loading the run's child rows.
 - Dashboard tests run on vitest 5; `docker/update.sh` rebuilds with fresh base images and the dashboard image applies Alpine security updates.
 - `GARRISON_ALLOW_INSECURE_DEFAULTS=true` in `docker/.env` keeps the public defaults on a local Compose stack: the update scripts warn instead of stopping and Compose passes the setting to the server (`docs/DOCKER.md`).
+- Webhook deliveries with an invalid signature count against `Auth.RateLimitPerMinute` per source address (429 past it), and MCP gains `garrison_fire_trigger`, `garrison_rotate_trigger_secret`, `garrison_rotate_notification_endpoint_secret`, and `garrison_test_notification_endpoint`. Every outbound address check uses one classifier.
 - Warm run pods failed with a 403 on older Kubernetes versions (seen on k3s v1.31), which authorize the WebSocket stdin attach as `get`: the worker Role now grants `pods/attach` get and create, and a worker without both runs cold. Warm pod transport failures name the step and error.
 - Leader election through a database lease, with a maintenance loop that requeues or fails runs whose node disappeared, enforces deadlines, marks silent nodes lost, and prunes old runs and events.
 - Run lifecycle with cancellation, retry, idempotency keys, events streamed over SSE and WebSocket, and delegation limited by allowlist, depth, and recursion rules.

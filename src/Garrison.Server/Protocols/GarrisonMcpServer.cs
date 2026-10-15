@@ -643,6 +643,18 @@ namespace Garrison.Server.Protocols
                     case "garrison_list_trigger_fires":
                         result = await ListTriggerFiresAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_fire_trigger":
+                        result = await FireTriggerAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_rotate_trigger_secret":
+                        result = await RotateTriggerSecretAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_rotate_notification_endpoint_secret":
+                        result = await RotateNotificationEndpointSecretAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_test_notification_endpoint":
+                        result = await TestNotificationEndpointAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_get_notification_endpoint":
                     case "garrison_create_notification_endpoint":
                     case "garrison_update_notification_endpoint":
@@ -874,6 +886,40 @@ namespace Garrison.Server.Protocols
             EnumerationQuery query = new EnumerationQuery();
             query.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
             return await _Context.Database.TriggerFires.EnumerateAsync(tenantId, trigger.Id, outcome, query, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> FireTriggerAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpTriggerFireArguments arguments = ManagementArguments<McpTriggerFireArguments>(args);
+            Trigger trigger = await RequireTriggerAsync(ctx, tenantId, arguments.Trigger, OperationTypeEnum.Execute, token).ConfigureAwait(false);
+            TriggerService triggers = _Context.Get<TriggerService>();
+            byte[]? body = String.IsNullOrEmpty(arguments.Body) ? null : System.Text.Encoding.UTF8.GetBytes(arguments.Body);
+            if (body != null && body.Length > triggers.Options.WebhookMaxBodyBytes) throw ToolError("ValidationFailed", "body is larger than " + triggers.Options.WebhookMaxBodyBytes + " bytes (Triggers.WebhookMaxBodyBytes).");
+            TriggerFire fire = await triggers.FireAsync(trigger, TriggerFireSourceEnum.Manual, DateTime.UtcNow, null, body, arguments.ContentType, token).ConfigureAwait(false);
+            await _Context.Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "Trigger", trigger.Id,
+                "Fired trigger " + trigger.Name + " by hand: " + fire.Outcome + (fire.ErrorCode != null ? " (" + fire.ErrorCode + ")" : String.Empty) + ".", tenantId, token).ConfigureAwait(false);
+            return fire;
+        }
+
+        private async Task<object> RotateTriggerSecretAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpTriggerConfigurationArguments arguments = ManagementArguments<McpTriggerConfigurationArguments>(args);
+            Trigger existing = await RequireTriggerAsync(ctx, tenantId, arguments.Trigger, OperationTypeEnum.Update, token).ConfigureAwait(false);
+            return await _Mutations.RotateTriggerSecretAsync(ctx, tenantId, existing, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> RotateNotificationEndpointSecretAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpNotificationEndpointConfigurationArguments arguments = ManagementArguments<McpNotificationEndpointConfigurationArguments>(args);
+            NotificationEndpoint existing = await RequireNotificationEndpointAsync(ctx, tenantId, arguments.Endpoint, OperationTypeEnum.Update, token).ConfigureAwait(false);
+            return await _Mutations.RotateNotificationEndpointSecretAsync(ctx, tenantId, existing, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> TestNotificationEndpointAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpNotificationEndpointConfigurationArguments arguments = ManagementArguments<McpNotificationEndpointConfigurationArguments>(args);
+            NotificationEndpoint endpoint = await RequireNotificationEndpointAsync(ctx, tenantId, arguments.Endpoint, OperationTypeEnum.Execute, token).ConfigureAwait(false);
+            return await _Context.Get<NotificationService>().SendTestAsync(endpoint, token).ConfigureAwait(false);
         }
 
         private async Task<object> ManageNotificationEndpointAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)

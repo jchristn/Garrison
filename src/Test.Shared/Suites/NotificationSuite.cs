@@ -565,7 +565,7 @@ namespace Test.Shared.Suites
                 Assert.True(export.Body.Contains("kind: NotificationEndpoint", StringComparison.Ordinal) && export.Body.Contains("manifest-endpoint", StringComparison.Ordinal) && !export.Body.Contains(secret, StringComparison.Ordinal) && !export.Body.Contains("signingSecret", StringComparison.Ordinal), "Export carries the endpoint without its secret");
 
                 await client.ConnectAsync(host, null, token).ConfigureAwait(false);
-                List<string> names = new List<string> { "garrison_list_notification_endpoints", "garrison_get_notification_endpoint", "garrison_create_notification_endpoint", "garrison_update_notification_endpoint", "garrison_delete_notification_endpoint", "garrison_list_notification_deliveries" };
+                List<string> names = new List<string> { "garrison_list_notification_endpoints", "garrison_get_notification_endpoint", "garrison_create_notification_endpoint", "garrison_update_notification_endpoint", "garrison_delete_notification_endpoint", "garrison_list_notification_deliveries", "garrison_rotate_notification_endpoint_secret", "garrison_test_notification_endpoint" };
                 ProviderToolPage listed = await client.ToolsAsync(token).ConfigureAwait(false);
                 foreach (string name in names)
                 {
@@ -577,6 +577,10 @@ namespace Test.Shared.Suites
                 NotificationEndpoint mcpCreated = await client.CallAsync<NotificationEndpoint>("garrison_create_notification_endpoint", new { configuration = Endpoint("mcp-endpoint", "https://hooks.example.net/x", NotificationEventEnum.RunSucceeded) }, token).ConfigureAwait(false);
                 Assert.True(mcpCreated.SigningSecret != null && mcpCreated.Id.StartsWith(Constants.NotificationEndpointIdPrefix, StringComparison.Ordinal), "Creation through MCP returns the secret once");
                 await client.ExpectErrorAsync("garrison_create_notification_endpoint", new { configuration = Endpoint("mcp-blocked", "http://127.0.0.1/x", NotificationEventEnum.RunSucceeded) }, "ValidationFailed", token).ConfigureAwait(false);
+                NotificationEndpoint rotatedEndpoint = await client.CallAsync<NotificationEndpoint>("garrison_rotate_notification_endpoint_secret", new { endpoint = mcpCreated.Name }, token).ConfigureAwait(false);
+                Assert.True(rotatedEndpoint.SigningSecret != null && rotatedEndpoint.SigningSecret != mcpCreated.SigningSecret, "Rotation through MCP returns a new secret once");
+                NotificationDelivery testDelivery = await client.CallAsync<NotificationDelivery>("garrison_test_notification_endpoint", new { endpoint = mcpCreated.Id }, token).ConfigureAwait(false);
+                Assert.True(testDelivery.EndpointId == mcpCreated.Id, "A test send through MCP returns its delivery");
                 NotificationEndpoint read = await client.CallAsync<NotificationEndpoint>("garrison_get_notification_endpoint", new { endpoint = "mcp-endpoint" }, token).ConfigureAwait(false);
                 Assert.True(read.SigningSecret == null && read.Id == mcpCreated.Id, "Reads never return the secret");
                 read.Active = false;

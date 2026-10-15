@@ -712,7 +712,7 @@ namespace Test.Shared.Suites
             {
                 TestServerHost host = cluster.Server;
                 await client.ConnectAsync(host, null, token).ConfigureAwait(false);
-                List<string> names = new List<string> { "garrison_list_triggers", "garrison_get_trigger", "garrison_create_trigger", "garrison_update_trigger", "garrison_delete_trigger", "garrison_list_trigger_fires" };
+                List<string> names = new List<string> { "garrison_list_triggers", "garrison_get_trigger", "garrison_create_trigger", "garrison_update_trigger", "garrison_delete_trigger", "garrison_list_trigger_fires", "garrison_fire_trigger", "garrison_rotate_trigger_secret" };
                 ProviderToolPage listed = await client.ToolsAsync(token).ConfigureAwait(false);
                 foreach (string name in names)
                 {
@@ -737,6 +737,13 @@ namespace Test.Shared.Suites
                 EnumerationResult<TriggerFire> fires = await client.CallAsync<EnumerationResult<TriggerFire>>("garrison_list_trigger_fires", new { trigger = created.Id, outcome = "Started" }, token).ConfigureAwait(false);
                 Assert.Equal(1, fires.Objects.Count, "Fires through MCP");
                 await client.ExpectErrorAsync("garrison_list_trigger_fires", new { trigger = created.Id, outcome = "Sometimes" }, "ValidationFailed", token).ConfigureAwait(false);
+                TriggerFire manual = await client.CallAsync<TriggerFire>("garrison_fire_trigger", new { trigger = created.Name, body = "{\"n\":1}" }, token).ConfigureAwait(false);
+                Assert.True(manual.Outcome == TriggerFireOutcomeEnum.Started && manual.Source == TriggerFireSourceEnum.Manual && manual.RunId != null, "Fire through MCP starts a run (" + manual.Outcome + ")");
+                await client.ExpectErrorAsync("garrison_fire_trigger", new { trigger = created.Id, body = new string('x', 300000) }, "ValidationFailed", token).ConfigureAwait(false);
+                Trigger rotated = await client.CallAsync<Trigger>("garrison_rotate_trigger_secret", new { trigger = created.Id }, token).ConfigureAwait(false);
+                Assert.True(rotated.SigningSecret != null && rotated.SigningSecret != created.SigningSecret, "Rotation through MCP returns a new secret once");
+                Assert.Equal(401, (await DeliverAsync(host, host.TenantId, created.Id, created.SigningSecret!, "{}", "mcp-2", 0, token).ConfigureAwait(false)).StatusCode, "The old secret stops working");
+                Assert.Equal(202, (await DeliverAsync(host, host.TenantId, created.Id, rotated.SigningSecret!, "{}", "mcp-3", 0, token).ConfigureAwait(false)).StatusCode, "The rotated secret signs deliveries");
                 EnumerationResult<Trigger> all = await client.CallAsync<EnumerationResult<Trigger>>("garrison_list_triggers", new { type = "Webhook" }, token).ConfigureAwait(false);
                 Assert.True(all.Objects.Any(t => t.Id == created.Id), "List through MCP");
                 await client.ExpectErrorAsync("garrison_get_trigger", new { trigger = "missing-trigger" }, "NotFound", token).ConfigureAwait(false);
