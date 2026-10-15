@@ -5,13 +5,15 @@ namespace Garrison.Core.Security
     using System.Text;
 
     /// <summary>
-    /// Generates access keys, secret keys, and random tokens from a cryptographic RNG. Thread-safe.
+    /// Generates access keys, secret keys, and random tokens from a cryptographic RNG. Thread-safe. Fingerprints of secret
+    /// values are keyed with the master key: see <see cref="SecretCipher.Fingerprint"/>.
     /// </summary>
     public static class SecretGenerator
     {
         #region Private-Members
 
         private static readonly string _Alphanumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        private static int _Last4MinimumLength = 12;
 
         #endregion
 
@@ -49,25 +51,30 @@ namespace Garrison.Core.Security
         }
 
         /// <summary>
-        /// Last four characters of a value, for redacted display.
+        /// Shortest value whose last four characters are shown. Shorter values return an empty string, because four
+        /// characters of a short secret give most of it away. Minimum 5, maximum 256, default 12.
         /// </summary>
-        /// <param name="value">Value.</param>
-        /// <returns>Last four characters, or the whole value when shorter.</returns>
-        public static string Last4(string? value)
+        public static int Last4MinimumLength
         {
-            if (String.IsNullOrEmpty(value)) return String.Empty;
-            return value.Length <= 4 ? value : value.Substring(value.Length - 4);
+            get
+            {
+                return _Last4MinimumLength;
+            }
+            set
+            {
+                _Last4MinimumLength = Math.Clamp(value, 5, 256);
+            }
         }
 
         /// <summary>
-        /// SHA-256 fingerprint prefix of a value (first 16 hex characters).
+        /// Last four characters of a value, for redacted display.
         /// </summary>
         /// <param name="value">Value.</param>
-        /// <returns>Fingerprint.</returns>
-        public static string Fingerprint(string value)
+        /// <returns>Last four characters, or an empty string when the value is shorter than <see cref="Last4MinimumLength"/>.</returns>
+        public static string Last4(string? value)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
-            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).Substring(0, 16).ToLowerInvariant();
+            if (String.IsNullOrEmpty(value) || value.Length < _Last4MinimumLength) return String.Empty;
+            return value.Substring(value.Length - 4);
         }
 
         #endregion

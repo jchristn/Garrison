@@ -1,6 +1,8 @@
-# Workers accept no inbound traffic except health and metrics probes; their egress is open so harnesses
-# can reach model APIs and MCP servers. The server accepts traffic from the dashboard, workers, ingress, and the
-# bootstrap Job. Tighten egress in production to the endpoints your harnesses actually call.
+# Workers accept no inbound traffic except health and metrics probes. The server accepts traffic from the dashboard,
+# workers, ingress, and the bootstrap Job. Both may reach any pod in the cluster (DNS, Postgres, the server, run pods)
+# and any address outside it except the cloud instance metadata service, 169.254.169.254, because they fetch
+# tenant-chosen URLs (MCP server tests, S3 endpoints, MCP preflight) and must not hand those requests the node's cloud
+# identity (SR-23). Tighten egress in production to the endpoints your harnesses actually call.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -9,11 +11,19 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: garrison-worker
-  policyTypes: ["Ingress"]
+  policyTypes: ["Ingress", "Egress"]
   ingress:
     - ports:
         - port: 8710
         - port: 9465
+  egress:
+    - to:
+        - namespaceSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -23,12 +33,20 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: garrison-server
-  policyTypes: ["Ingress"]
+  policyTypes: ["Ingress", "Egress"]
   ingress:
     - ports:
         - port: 8700
         - port: 8701
         - port: 9464
+  egress:
+    - to:
+        - namespaceSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
 ---
 # Run pods (KubernetesJob executor) accept no inbound traffic. They may resolve DNS and reach the Garrison MCP port on
 # the server (agent-to-agent delegation). This policy selects every run pod.
@@ -57,7 +75,8 @@ spec:
       ports:
         - port: 8701
 ---
-# Default run egress: the internet on 443 only (model APIs, git over HTTPS), for run pods whose deployment has no
+# Default run egress: the internet on 443 only (model APIs, git over HTTPS), never link-local addresses such as the
+# cloud instance metadata service (169.254.0.0/16, SR-23), for run pods whose deployment has no
 # egress allowlist. Pods of deployments with egressRules carry garrison.io/egress=allowlist, so this policy does not
 # select them; the worker gives each of them a NetworkPolicy that allows only DNS, the MCP port, and the deployment's
 # rules (P11.15). Widen or narrow this rule to the endpoints your harnesses need; the Helm chart's runEgress value does
@@ -79,5 +98,7 @@ spec:
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
+            except:
+              - 169.254.0.0/16
       ports:
         - port: 443

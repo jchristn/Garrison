@@ -110,6 +110,7 @@ namespace Garrison.Server.Routes
             profile.BuiltInKey = existing.BuiltInKey;
             profile.CreatedUtc = existing.CreatedUtc;
             ConfigurationValidator.HarnessProfile(profile);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForHarnessProfileAsync(tenantId, profile, http.Token).ConfigureAwait(false);
             HarnessProfile? named = await _Server.Database.HarnessProfiles.ReadByNameAsync(tenantId, profile.Name, http.Token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named?.TenantId == tenantId ? named : null, named?.Id, id, profile.Name);
             HarnessProfile updated = await _Server.Database.HarnessProfiles.UpdateAsync(profile, http.Token).ConfigureAwait(false);

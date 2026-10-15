@@ -64,7 +64,8 @@ cat > "$WORK/server/garrison.json" <<JSON
 JSON
 
 start_server() {
-  (cd "$WORK/server" && GARRISON_SETTINGS_FILE="$WORK/server/garrison.json" GARRISON_TELEMETRY_ENABLE=false \
+  # Development mode: this throwaway server uses the public default keys and credentials (SR-08).
+  (cd "$WORK/server" && GARRISON_SETTINGS_FILE="$WORK/server/garrison.json" GARRISON_TELEMETRY_ENABLE=false GARRISON_ALLOW_INSECURE_DEFAULTS=true \
     exec dotnet "$ART/bin/Garrison.Server/debug_net10.0/Garrison.Server.dll" >> "$WORK/server.log" 2>&1) &
   SERVER_PID=$!
   PIDS+=($SERVER_PID)

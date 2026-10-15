@@ -1,6 +1,7 @@
 namespace Garrison.Server.Services
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Security.Cryptography;
     using System.Threading;
@@ -43,6 +44,8 @@ namespace Garrison.Server.Services
         private readonly SecretCipher _Cipher;
         private readonly ServerSettings _Settings;
         private readonly AuditService _Audit;
+        private readonly AuthRateLimiter _KeyFailures;
+        private readonly ConcurrentDictionary<string, DateTime> _Throttled = new ConcurrentDictionary<string, DateTime>(StringComparer.Ordinal);
 
         #endregion
 
@@ -65,6 +68,10 @@ namespace Garrison.Server.Services
             _Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _Audit = audit ?? throw new ArgumentNullException(nameof(audit));
             Cache = new AuthCache(database);
+            // Failed administrator API key, secret key, and signature attempts count per source address, shared by every
+            // replica, under the same per-minute limit as /v1.0/token (SR-26). Successful requests are never counted.
+            _KeyFailures = new AuthRateLimiter(database, () => _Settings.Auth.RateLimitPerMinute);
+            _KeyFailures.Scope = "key-failure";
         }
 
         #endregion
@@ -84,12 +91,21 @@ namespace Garrison.Server.Services
                 context.Request.Method.ToString(),
                 context.Request.Url.RawWithoutQuery,
                 QueryString(context.Request.Url.RawWithQuery),
-                context.Request.DataAsBytes,
+                // Only a signed request needs its body to authenticate; other requests are not read until authenticated.
+                String.IsNullOrEmpty(context.Request.Headers[Constants.HeaderSignature]) ? null : context.Request.DataAsBytes,
                 context.Request.Source.IpAddress,
                 context.Token).ConfigureAwait(false);
 
             context.Metadata = resolved;
-            if (!resolved.IsAuthenticated)
+            if (!resolved.IsAuthenticated && resolved.RateLimited)
+            {
+                context.Response.StatusCode = 429;
+                context.Response.ContentType = "application/json";
+                ErrorResponse limited = new ErrorResponse("Too Many Requests", "RateLimited", "Too many failed authentication attempts from this address. Try again in a minute.");
+                limited.RequestId = resolved.RequestId;
+                await context.Response.Send(Serializer.Serialize(limited)).ConfigureAwait(false);
+            }
+            else if (!resolved.IsAuthenticated)
             {
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = "application/json";
@@ -118,6 +134,11 @@ namespace Garrison.Server.Services
             if (!String.IsNullOrEmpty(requestId) && requestId.Length <= 64) ctx.RequestId = requestId;
 
             string? apiKey = headers[Constants.HeaderApiKey];
+            if ((!String.IsNullOrEmpty(apiKey) || !String.IsNullOrEmpty(headers[Constants.HeaderAccessKey])) && IsThrottled(sourceIp))
+            {
+                ctx.RateLimited = true;
+                return await FailAsync(ctx, !String.IsNullOrEmpty(apiKey) ? AuthSchemeEnum.AdminApiKey : AuthSchemeEnum.AccessKeySecret, AuthResultEnum.Invalid, "Too many failed key attempts from this address.", token).ConfigureAwait(false);
+            }
             if (!String.IsNullOrEmpty(apiKey))
             {
                 if (PasswordHasher.FixedTimeEquals(apiKey, _Settings.Auth.AdminApiKey))
@@ -166,6 +187,11 @@ namespace Garrison.Server.Services
                 }
 
                 string storedSecret = DecryptCredentialSecret(credential);
+                if (String.IsNullOrEmpty(storedSecret))
+                {
+                    // A secret that cannot be decrypted (for example after a master key change) fails closed with 401.
+                    return await FailAsync(ctx, String.IsNullOrEmpty(signature) ? AuthSchemeEnum.AccessKeySecret : AuthSchemeEnum.AccessKeySignature, AuthResultEnum.Invalid, "The credential's secret cannot be read.", token).ConfigureAwait(false);
+                }
                 if (!String.IsNullOrEmpty(signature))
                 {
                     string? date = headers[Constants.HeaderDate];
@@ -480,11 +506,33 @@ namespace Garrison.Server.Services
             return owner != null && owner.Active;
         }
 
+        private bool IsThrottled(string? sourceIp)
+        {
+            string key = String.IsNullOrEmpty(sourceIp) ? "unknown" : sourceIp;
+            if (!_Throttled.TryGetValue(key, out DateTime until)) return false;
+            if (until > DateTime.UtcNow) return true;
+            _Throttled.TryRemove(key, out DateTime _);
+            return false;
+        }
+
+        private async Task CountKeyFailureAsync(string? sourceIp, CancellationToken token)
+        {
+            string key = String.IsNullOrEmpty(sourceIp) ? "unknown" : sourceIp;
+            if (await _KeyFailures.TryAcquireAsync(key, token).ConfigureAwait(false)) return;
+            long minute = DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute;
+            _Throttled[key] = new DateTime((minute + 1) * TimeSpan.TicksPerMinute, DateTimeKind.Utc);
+            if (_Throttled.Count > 100000) _Throttled.Clear();
+        }
+
         private async Task<RequestContext> FailAsync(RequestContext ctx, AuthSchemeEnum scheme, AuthResultEnum result, string reason, CancellationToken token)
         {
             ctx.IsAuthenticated = false;
             ctx.AuthResult = result;
             ctx.AuthScheme = scheme;
+            if (!ctx.RateLimited && (scheme == AuthSchemeEnum.AdminApiKey || scheme == AuthSchemeEnum.AccessKeySecret || scheme == AuthSchemeEnum.AccessKeySignature))
+            {
+                await CountKeyFailureAsync(ctx.SourceIp, token).ConfigureAwait(false);
+            }
             GarrisonMetrics.Count(GarrisonMetricCatalog.AuthFailures, "scheme", scheme.ToString(), "reason", result.ToString());
             AuditRecord record = new AuditRecord();
             record.EventType = AuditEventTypeEnum.AuthFailure;

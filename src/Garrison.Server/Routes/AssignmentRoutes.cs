@@ -231,6 +231,7 @@ namespace Garrison.Server.Routes
             Role role = await _Identity.ResolveRoleAsync(tenantId, request.RoleId, request.RoleName, context.Token).ConfigureAwait(false);
             ResourceScopeEnum scope = request.ResourceScope ?? ResourceScopeEnum.Tenant;
             if (scope == ResourceScopeEnum.Resource && String.IsNullOrEmpty(request.ResourceId)) throw Invalid("resourceId", "A resource identifier is required for Resource scope.");
+            await _Identity.RequireAssignableAsync(RouteHelpers.Context(context), tenantId, role, scope, scope == ResourceScopeEnum.Resource ? request.ResourceId : null, request.InheritsToChildren ?? true, context.Token).ConfigureAwait(false);
             apply(role, scope, scope == ResourceScopeEnum.Resource ? request.ResourceId : null, request.InheritsToChildren ?? true, request.Active ?? true);
         }
 

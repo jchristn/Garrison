@@ -300,6 +300,26 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<int> RevokeByUserAsync(string userId, string? exceptSessionId, string reason, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(userId)) throw new ArgumentNullException(nameof(userId));
+            string sql = "UPDATE " + _Table + " SET revokedutc = @now, revocationreason = @reason, active = @inactive, lastupdateutc = @now WHERE userid = @userid AND principaltype = @principaltype AND revokedutc IS NULL"
+                + (String.IsNullOrEmpty(exceptSessionId) ? ";" : " AND id <> @except;");
+            return await _Driver.NonQueryAsync(
+                sql,
+                command =>
+                {
+                    AdoDatabaseDriver.Add(command, "userid", userId);
+                    AdoDatabaseDriver.Add(command, "principaltype", PrincipalTypeEnum.User.ToString());
+                    AdoDatabaseDriver.Add(command, "reason", reason);
+                    AdoDatabaseDriver.Add(command, "inactive", false);
+                    AdoDatabaseDriver.Add(command, "now", DateTime.UtcNow);
+                    if (!String.IsNullOrEmpty(exceptSessionId)) AdoDatabaseDriver.Add(command, "except", exceptSessionId);
+                },
+                token).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc />
         public async Task<int> DeleteByUserAsync(string userId, CancellationToken token = default)
         {
             if (String.IsNullOrEmpty(userId)) throw new ArgumentNullException(nameof(userId));

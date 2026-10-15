@@ -24,6 +24,14 @@ namespace Garrison.Server.Settings
         public int CollectionTimeoutSeconds { get { return _Collection.TimeoutSeconds; } set { _Collection.TimeoutSeconds = value; } }
         /// <summary>Signed download URL lifetime. Default 900 seconds; range 30 to 3600.</summary>
         public int DownloadLifetimeSeconds { get { return _DownloadLifetimeSeconds; } set { _DownloadLifetimeSeconds = Math.Clamp(value, 30, 3600); } }
+        /// <summary>
+        /// Whether an S3 artifact store with a custom endpoint may omit its credential secret and sign with the server's
+        /// ambient cloud identity (IRSA, an instance role, or AWS environment variables). Default false: a tenant chooses the
+        /// endpoint, so the signed requests, which carry the access key identifier and session token, would go to a host the
+        /// tenant controls. Turn it on only when every tenant is trusted and the endpoint is, for example, an S3 VPC endpoint
+        /// (SR-21). Override with GARRISON_ARTIFACT_ALLOW_AMBIENT_CUSTOM_ENDPOINT.
+        /// </summary>
+        public bool AllowAmbientCredentialsWithCustomEndpoint { get; set; } = false;
 
         private string _RootDirectory = "data/artifacts";
         private readonly ExecutionArtifacts _Collection = new ExecutionArtifacts();

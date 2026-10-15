@@ -2537,3 +2537,5 @@ it.tips.resources.deployments.egressDefault = "Nessun elenco di uscita consentit
   }
  }
 });
+Object.assign(it.common.fieldCodes, {"SecretUseDenied": "Non hai il permesso di usare questo segreto. Chiedi il ruolo SecretUser o SecretManager su di esso.", "GrantCeiling": "Puoi concedere solo i permessi che hai tu stesso.", "ReservedRoleName": "È il nome di un ruolo integrato. Scegli un altro nome."});
+it.components.mcpTest.noWorkers = "Nessun worker pronto offre diagnostica stdio. I worker la eseguono solo quando un operatore imposta GARRISON_WORKER_MCP_TESTS_ENABLED=true su di loro, perché il comando gira sull'host del worker, fuori dall'isolamento delle esecuzioni.";

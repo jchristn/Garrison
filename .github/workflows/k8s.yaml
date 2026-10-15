@@ -65,9 +65,15 @@ jobs:
       - name: Validate Docker Compose
         run: |
           set -e
+          bash -n docker/env-secrets.sh
+          # compose.yaml requires every key and password (SR-08): without them config must fail, and the generator must
+          # produce a complete .env.
+          if docker compose -f docker/compose.yaml config -q 2>/dev/null; then echo "compose.yaml accepted missing secrets"; exit 1; fi
+          bash docker/env-secrets.sh --fresh > /dev/null
           docker compose -f docker/compose.yaml config -q
           docker compose -f docker/compose.yaml --profile observability config -q
           docker compose -f docker/compose.yaml -f docker/compose.observability.yaml --profile observability config -q
+          rm -f docker/.env
           bash -n docker/update.sh
           bash -n docker/factory/reset.sh
           diff docker/worker/garrison-worker.json k8s/base/config/garrison-worker.json

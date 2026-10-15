@@ -94,6 +94,9 @@ Authorization failures add `requiredPermission`, `resourceType`, and `tenantId`.
 | `ParameterNotAllowed`, `ParameterInvalid` | A run parameter the deployment does not allow, or a value its rule rejects |
 | `ExpiryInPast` | A secret `expiresUtc` that has already passed |
 | `InputRequired` | A run or pipeline start without input, or with an input that is empty or only whitespace |
+| `SecretUseDenied` | The configuration would send a secret's value somewhere and the caller lacks `Execute` on that `Secret` (see [Using secrets](#using-secrets)) |
+| `GrantCeiling` | An assignment, role permission, credential, or password or email change would give the caller, or someone the caller controls, a permission the caller does not hold, or would act for a tenant administrator |
+| `ReservedRoleName` | A tenant role named like a built-in role, in any letter case |
 | `Invalid` | Any other field problem; read the message |
 
 Query string values are decoded the way browsers and HTTP clients encode them: percent escapes are decoded and a `+` is a space, so send a literal plus sign as `%2B`. A model name such as `gpt-oss:20b` works raw or encoded (`gpt-oss%3A20b`). Timestamps keep a raw `+` as a time zone offset sign.
@@ -103,10 +106,10 @@ Query string values are decoded the way browsers and HTTP clients encode them: p
 | 400 | Malformed JSON (`InvalidJson`, `InvalidBody`), invalid input (`ValidationFailed`, `BadRequest`), template errors (`TemplateRenderFailed`), unknown references (`ReferenceNotFound`) |
 | 401 | Missing or invalid credentials (`AuthenticationRequired`, `InvalidCredentials`) |
 | 403 | Authenticated but not permitted (`AuthorizationDenied`); a run token asked to retry a run (`RunTokenRetryNotAllowed`) |
-| 413 | The request's Content-Length is larger than `Rest.MaxRequestBodyBytes` (128 MiB by default), refused before the body is read |
+| 413 | The request body is larger than `Rest.MaxRequestBodyBytes` (128 MiB by default): refused before the body is read when Content-Length says so, or as soon as a chunked body passes the limit (`RequestTooLarge`) |
 | 404 | The resource does not exist or belongs to another tenant (`NotFound`, `RouteNotFound`). A system administrator who names a tenant that does not exist in a `/tenants/{tenantId}/...` path gets `TenantNotFound`; other callers get `NotFound` for any tenant but their own, so the response does not reveal which tenants exist |
 | 409 | The request conflicts with current state. Codes include `NameInUse`, `NameConflict`, `Duplicate`, `Protected`, `BuiltInImmutable`, `InUse`, `RunActive`, `RunFinished`, `RunNotFinished`, `AgentInactive`, `DeploymentInactive`, `NoActiveDeployment` (the agent has no active deployment with a weight above zero), `AgentDeleted` and `DeploymentDeleted` (a retried run's agent or deployment no longer exists), `IdempotencyKeyConflict` (an `Idempotency-Key` reused with different input), `RemoteAgentNotSupported`, `NodeActive`, `NodeHasRuns`, `PoolInUse`, `StaleLease`, `NodeIdentityMismatch`, and the delegation codes `DelegationDisabled`, `DelegationNotAllowed`, `DelegationCycle`, `DelegationDepthExceeded`, `DelegationDenied`, `ParentRunFinished`, `ParentRunNotFound`, and the conversation codes `ConversationBusy` (the conversation's previous turn is unfinished), `ConversationAgentMismatch`, `ConversationDeploymentMismatch`, `ConversationDeploymentUnavailable`, and the pipeline codes `PipelineInUse`, `PipelineInactive`, `PipelineEmpty`, `PipelineRunFinished`, `PipelineRunActive`, `PipelineRunNotRetryable`, `PipelineRunChanged`, `PipelineHistoryPruned`, `PipelineStageRun` (a stage run cannot be retried on its own), `ReferencedByPipeline` (an agent or deployment a pipeline stage uses), `ReviewNotPending`, and `RevisionLimitReached` |
-| 429 | Too many authentication attempts from one address (`RateLimited`); a quota refused admission (`QuotaExceeded`); or a run that delegates and waits was refused because waiting could leave no capacity to run its child (`DelegationCapacityExhausted`: the parent's worker already keeps as many waiting runs as it may, or `Runs.DelegationChildQueueDepth` waited children are already queued). `QuotaExceeded` and `DelegationCapacityExhausted` carry `Retry-After` in seconds (`Runs.DelegationRetryAfterSeconds`, default 5, for delegation). Delegating without waiting (`wait: false`) is never refused this way |
+| 429 | Too many authentication attempts from one address (`RateLimited`): token requests, or failed administrator API key, secret key, and signature attempts, beyond `Auth.RateLimitPerMinute` in a minute; a quota refused admission (`QuotaExceeded`); or a run that delegates and waits was refused because waiting could leave no capacity to run its child (`DelegationCapacityExhausted`: the parent's worker already keeps as many waiting runs as it may, or `Runs.DelegationChildQueueDepth` waited children are already queued). `QuotaExceeded` and `DelegationCapacityExhausted` carry `Retry-After` in seconds (`Runs.DelegationRetryAfterSeconds`, default 5, for delegation). Delegating without waiting (`wait: false`) is never refused this way |
 | 500 | An unexpected failure (`InternalError`); the server log has the request identifier |
 | 503 | The database cannot take the request right now: `DatabaseBusy` (the connection pool is exhausted, or PostgreSQL has no connection slots left) or `DatabaseUnavailable` (the database cannot be reached, is restarting, or is shutting down). Both carry a `Retry-After` header in seconds (`Rest.DatabaseRetryAfterSeconds`, default 2). Retrying is safe for reads and for creations that send an `Idempotency-Key`. `Cancelled` means the server is shutting down and dropped the request |
 
@@ -127,6 +130,8 @@ Every route except health, token issuance, and A2A agent cards requires credenti
 ### Session tokens
 
 `POST /v1.0/token` exchanges a user's email and password (with `tenantId`, which defaults to the Default tenant) or a credential's access and secret keys for an opaque token. The same values can be sent as headers instead of a body: `x-tenant-id`, `x-email`, `x-password`, `x-access-key`, `x-secret-key`.
+
+The examples in this document use the development defaults (`admin@garrison` with password `password`, administrator key `garrisonadmin`), which only a server started with `GARRISON_ALLOW_INSECURE_DEFAULTS=true` accepts. Substitute your own values: Docker Compose keeps them in `docker/.env`, and Kubernetes in the `garrison-secrets` Secret.
 
 Passwords are stored as salted PBKDF2-HMAC-SHA256 hashes (`Auth.PasswordHashIterations`, 600,000 by default). A password stored by an earlier build as unsalted SHA-256 still works and is rehashed on its next successful sign-in, with no change for the client.
 
@@ -224,7 +229,7 @@ curl -s -X GET "http://127.0.0.1:8702/v1.0/api/health/live"
 
 #### `GET /metrics`
 
-Prometheus metrics in text exposition format, relayed from the metrics listener (port 9464) so that `kubectl port-forward` to the REST port and in-pod requests to `127.0.0.1` work. Not under `/v1.0`, and not recorded in request history. Answers 404 when `Telemetry.ServeMetricsOnServicePort` is false and 503 (`MetricsUnavailable`) when the Prometheus listener is off or did not answer. Workers serve the same at `GET /metrics` on their health port (8710). See `docs/TELEMETRY.md`.
+Prometheus metrics in text exposition format, relayed from the metrics listener (port 9464) so that `kubectl port-forward` to the REST port and in-pod requests to `127.0.0.1` work. Not under `/v1.0`, and not recorded in request history. Off by default: answers 404 while `Telemetry.ServeMetricsOnServicePort` is false (the default, because the endpoint needs no authentication and its series carry tenant and agent labels; scrape the metrics listener instead) and 503 (`MetricsUnavailable`) when the Prometheus listener is off or did not answer. Workers serve the same at `GET /metrics` on their health port (8710). See `docs/TELEMETRY.md`.
 
 | | |
 |---|---|
@@ -286,7 +291,7 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/token/details" \
 
 #### `POST /v1.0/token/refresh`
 
-Issue a fresh token for the authenticated principal.
+Issue a fresh token for the authenticated principal. When called with a session token, that session is revoked, so the old token stops working as soon as the new one is issued.
 
 | | |
 |---|---|
@@ -466,7 +471,7 @@ curl -s -X PUT "http://127.0.0.1:8700/v1.0/api/tenants/default/users/{id}" \
   -d '{"email": "string", "password": "string", "firstName": "string", "lastName": "string", "isTenantAdmin": false, "isAdmin": false, "active": false}'
 ```
 
-Only a system administrator may change a system administrator's `password` or `email` (400 `ValidationFailed` on that field otherwise).
+Only a system administrator may change a system administrator's `password` or `email` (400 `ValidationFailed` on that field otherwise). Only a tenant administrator may set or clear `isTenantAdmin`, or change a tenant administrator's `password` or `email`. Changing another user's `password` or `email` also needs every permission that user has (400 with field code `GrantCeiling` otherwise), since it lets the caller sign in as them. A password change revokes the user's other sessions; a user changing their own password keeps the session they used.
 
 #### `DELETE /v1.0/api/tenants/{tenantId}/users/{id}`
 
@@ -632,7 +637,7 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/roles" \
 
 #### `POST /v1.0/api/tenants/{tenantId}/roles`
 
-Create a custom role.
+Create a custom role. A name that matches a built-in role in any letter case answers 400 with field code `ReservedRoleName`.
 
 | | |
 |---|---|
@@ -861,7 +866,7 @@ curl -s -X GET "http://127.0.0.1:8700/v1.0/api/tenants/default/user-role-assignm
 
 #### `POST /v1.0/api/tenants/{tenantId}/user-role-assignments`
 
-Assign a role to a user.
+Assign a role to a user. The caller must hold every permission the role grants at the requested scope (system administrators excepted); otherwise 400 with field code `GrantCeiling` names the first missing one. The same ceiling applies to credential scope assignments, `POST .../role-permissions`, `PUT .../permissions/{id}`, and creating or rotating a credential that acts for another user. A `roleId` is resolved by identifier only.
 
 | | |
 |---|---|
@@ -1676,9 +1681,23 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/mcp-servers/{id}
   -H "Authorization: Bearer $TOKEN"
 ```
 
-An HTTP server whose host is, or resolves to, an unspecified, link-local, multicast, or broadcast address (including the cloud metadata addresses 169.254.169.254 and fd00:ec2::254) is not contacted: the test answers 200 with `success` false and an `error` that names the address. A stdio server is tested on the worker named by `?nodeId=`; in a tenant with `requireUntrustedDeployments` that answers 400 `ValidationFailed` with field code `StdioDiagnosticsRequireTrust` on `transport`, because the command would run on the worker host, outside run isolation.
+The test renders only the secrets its command, arguments, environment, and headers name (`{{secret.NAME}}`), and the caller needs `Execute` on each of them (400 `SecretUseDenied` otherwise). An HTTP server whose host is, or resolves to, an unspecified, link-local, multicast, or broadcast address (including the cloud metadata addresses 169.254.169.254 and fd00:ec2::254) is not contacted: the test answers 200 with `success` false and an `error` that names the address. Other connection failures report only their class (for example "The MCP server could not be reached (ConnectionError)."), never the raw exception text. A stdio server is tested on the worker named by `?nodeId=`; in a tenant with `requireUntrustedDeployments` that answers 400 `ValidationFailed` with field code `StdioDiagnosticsRequireTrust` on `transport`, because the command would run on the worker host, outside run isolation.
 
 ### Secrets
+
+#### Using secrets
+
+Reading and managing secrets (`Read`, `Create`, `Update`, `Delete` on `Secret`) is separate from using them. Using a secret, `Execute` on `Secret`, is what it takes to save configuration that sends a secret's value somewhere. `TenantAdmin`, `SecretManager`, and `SecretUser` hold it; `Editor` and `AgentDeveloper` do not. Assign `SecretUser` with `resourceScope: Resource` and the secret's identifier to allow one secret. Without it, these answer 400 `ValidationFailed` with field code `SecretUseDenied` and name the secret:
+
+| Request | Secrets checked |
+|---|---|
+| Create or update a deployment | Every secret in `resourceBindings`, on every save |
+| Update an MCP server or harness profile whose templates reference `secret.*` | Every secret bound by a deployment that uses it |
+| Create or update an artifact store, workspace template, or agent | `secretId`, `gitCredentialSecretId`, `remoteCredentialSecretId` |
+| Test an MCP server | The secrets its templates name |
+| Manifest apply, REST or MCP | The same, per document; a failing document reports `errorCode` `SecretUseDenied` |
+
+Invoking an agent does not need it.
 
 #### `GET /v1.0/api/tenants/{tenantId}/secrets`
 
@@ -5015,7 +5034,7 @@ Child record of Deployment: parameters callers may override per run.
 | `id` | `string` | Identifier. |
 | `deploymentId` | `string` | Parent Deployment identifier. |
 | `name` | `string` | Parameter name (deployment parameter or model). |
-| `validation` | `RunOverrideValidationEnum` | Validation kind. |
+| `validation` | `RunOverrideValidationEnum` | Validation kind. Default `Enum`, so a rule sent without it needs its allowed values in `pattern`; send `Any` explicitly to accept any value. |
 | `pattern` | `string?` | Regex, comma-separated enum values, or min,max range. |
 
 #### `RunOverrideValidationEnum`

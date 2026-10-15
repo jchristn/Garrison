@@ -2523,3 +2523,5 @@ de.tips.resources.deployments.egressDefault = "Keine Egress-Zulassungsliste: Lau
   }
  }
 });
+Object.assign(de.common.fieldCodes, {"SecretUseDenied": "Sie dürfen dieses Geheimnis nicht verwenden. Bitten Sie um die Rolle SecretUser oder SecretManager dafür.", "GrantCeiling": "Sie können nur Berechtigungen vergeben, die Sie selbst haben.", "ReservedRoleName": "Das ist der Name einer integrierten Rolle. Wählen Sie einen anderen Namen."});
+de.components.mcpTest.noWorkers = "Kein bereiter Worker bietet stdio-Diagnosen an. Worker führen sie nur aus, wenn ein Betreiber GARRISON_WORKER_MCP_TESTS_ENABLED=true für sie setzt, denn der Befehl läuft auf dem Worker-Host außerhalb der Laufisolation.";

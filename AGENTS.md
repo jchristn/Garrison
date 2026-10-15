@@ -11,7 +11,7 @@ Shared tests live in `src/Test.Shared`, with fixtures in `Fixtures/` and compile
 Use the .NET 10 SDK and Node.js 22. Run from the repository root unless noted:
 
 - `dotnet build src/Garrison.sln`: build the solution; leave zero errors and warnings.
-- `dotnet run --project src/Garrison.Server -f net10.0`: start the server, REST on `127.0.0.1:8700` and MCP on `8701`.
+- `GARRISON_ALLOW_INSECURE_DEFAULTS=true dotnet run --project src/Garrison.Server -f net10.0`: start the server in development mode, REST on `127.0.0.1:8700` and MCP on `8701`. Without that variable the server refuses to start on the public default keys and passwords.
 - `dotnet run --project src/Garrison.Worker -f net10.0`: start a worker in another terminal.
 - `dotnet run --project src/Test.Automated -f net10.0`: run shared Touchstone suites.
 - `dotnet test src/Test.Xunit -f net10.0` and `dotnet test src/Test.Nunit -f net10.0`: run adapter tests.

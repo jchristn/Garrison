@@ -227,6 +227,7 @@ namespace Garrison.Server.Settings
             Str("GARRISON_DEFAULT_SECRET_KEY", "Security.DefaultSecretKey", v => Security.DefaultSecretKey = v);
             Str("GARRISON_NODE_ACCESS_KEY", "Security.NodeAccessKey", v => Security.NodeAccessKey = v);
             Str("GARRISON_NODE_SECRET_KEY", "Security.NodeSecretKey", v => Security.NodeSecretKey = v);
+            Bool("GARRISON_ALLOW_INSECURE_DEFAULTS", "Security.AllowInsecureDefaults", v => Security.AllowInsecureDefaults = v);
             Int("GARRISON_REST_PORT", "Rest.Port", v => Rest.Port = v);
             Int("GARRISON_LIVENESS_PORT", "Rest.LivenessPort", v => Rest.LivenessPort = v);
             Int("GARRISON_REST_MAX_REQUEST_BODY_BYTES", "Rest.MaxRequestBodyBytes", v => Rest.MaxRequestBodyBytes = v);
@@ -243,12 +244,14 @@ namespace Garrison.Server.Settings
             Int("GARRISON_ARTIFACT_MAX_SCAN_ENTRIES", "Artifacts.MaxScanEntries", v => Artifacts.MaxScanEntries = v);
             Int("GARRISON_ARTIFACT_COLLECTION_TIMEOUT_SECONDS", "Artifacts.CollectionTimeoutSeconds", v => Artifacts.CollectionTimeoutSeconds = v);
             Int("GARRISON_ARTIFACT_DOWNLOAD_LIFETIME_SECONDS", "Artifacts.DownloadLifetimeSeconds", v => Artifacts.DownloadLifetimeSeconds = v);
+            Bool("GARRISON_ARTIFACT_ALLOW_AMBIENT_CUSTOM_ENDPOINT", "Artifacts.AllowAmbientCredentialsWithCustomEndpoint", v => Artifacts.AllowAmbientCredentialsWithCustomEndpoint = v);
             Str("GARRISON_ARCHIVE_DIRECTORY", "Archive.Directory", v => Archive.Directory = v);
             Str("GARRISON_CODEX_TOKEN_ENDPOINT", "Codex.TokenEndpoint", v => Codex.TokenEndpoint = v);
             Str("GARRISON_CODEX_CLIENT_ID", "Codex.ClientId", v => Codex.ClientId = v);
             Int("GARRISON_CODEX_REFRESH_BEFORE_EXPIRY_SECONDS", "Codex.RefreshBeforeExpirySeconds", v => Codex.RefreshBeforeExpirySeconds = v);
             Bool("GARRISON_SETTINGS_READONLY", "Cluster.SettingsFileReadOnly", v => Cluster.SettingsFileReadOnly = v);
             Bool("GARRISON_TELEMETRY_ENABLE", "Telemetry.Enabled", v => Telemetry.Enabled = v);
+            Str("GARRISON_PROMETHEUS_HOSTNAME", "Telemetry.PrometheusHostname", v => Telemetry.PrometheusHostname = v);
             Bool("GARRISON_OTLP_ENABLE", "Telemetry.OtlpEnable", v => Telemetry.OtlpEnable = v);
             Str("GARRISON_OTLP_ENDPOINT", "Telemetry.OtlpEndpoint", v => Telemetry.OtlpEndpoint = v);
             Int("GARRISON_TELEMETRY_MAX_LABEL_VALUES", "Telemetry.MaxLabelValues", v => Telemetry.MaxLabelValues = v);
@@ -281,11 +284,41 @@ namespace Garrison.Server.Settings
             {
                 throw new InvalidOperationException("Cluster.Backplane PostgresNotify requires Postgresql. Use Auto, Local, or Polling with Sqlite.");
             }
+            List<string> insecure = InsecureDefaults();
+            if (insecure.Count > 0 && !Security.AllowInsecureDefaults)
+            {
+                throw new InvalidOperationException("Refusing to start: " + String.Join(", ", insecure) + (insecure.Count == 1 ? " is" : " are") + " empty or set to the public built-in default, which gives anyone administrator access. Set real values (Docker Compose and Kubernetes generate them), or set GARRISON_ALLOW_INSECURE_DEFAULTS=true for local development only.");
+            }
+        }
+
+        /// <summary>
+        /// The keys and credentials that are empty or equal to their public built-in defaults, each named with its setting
+        /// path and environment variable. With <see cref="SecuritySettings.AllowInsecureDefaults"/> false, startup refuses
+        /// when this list is not empty.
+        /// </summary>
+        /// <returns>Setting descriptions, empty when every value is set.</returns>
+        public List<string> InsecureDefaults()
+        {
+            SecuritySettings securityDefaults = new SecuritySettings();
+            AuthSettings authDefaults = new AuthSettings();
+            List<string> found = new List<string>();
+            AddIfDefault(found, Security.MasterKey, securityDefaults.MasterKey, "Security.MasterKey (GARRISON_MASTER_KEY)");
+            AddIfDefault(found, Auth.SigningKey, authDefaults.SigningKey, "Auth.SigningKey (GARRISON_AUTH_SIGNING_KEY)");
+            AddIfDefault(found, Auth.AdminApiKey, authDefaults.AdminApiKey, "Auth.AdminApiKey (GARRISON_ADMIN_API_KEY)");
+            AddIfDefault(found, Security.AdminPassword, securityDefaults.AdminPassword, "Security.AdminPassword (GARRISON_ADMIN_PASSWORD)");
+            AddIfDefault(found, Security.DefaultSecretKey, securityDefaults.DefaultSecretKey, "Security.DefaultSecretKey (GARRISON_DEFAULT_SECRET_KEY)");
+            AddIfDefault(found, Security.NodeSecretKey, securityDefaults.NodeSecretKey, "Security.NodeSecretKey (GARRISON_NODE_SECRET_KEY)");
+            return found;
         }
 
         #endregion
 
         #region Private-Methods
+
+        private static void AddIfDefault(List<string> found, string? value, string builtIn, string description)
+        {
+            if (String.IsNullOrWhiteSpace(value) || String.Equals(value, builtIn, StringComparison.Ordinal)) found.Add(description);
+        }
 
         private void Str(string variable, string path, Action<string> apply)
         {

@@ -426,7 +426,7 @@ namespace Test.Shared.Suites
             secret.Kind = SecretKindEnum.CodexAuthJson;
             secret.ValueEncrypted = Cipher().Encrypt(value, secret.Id);
             secret.ValueLast4 = SecretGenerator.Last4(value);
-            secret.Fingerprint = SecretGenerator.Fingerprint(value);
+            secret.Fingerprint = Cipher().Fingerprint(value);
             return await db.Secrets.CreateAsync(secret, token).ConfigureAwait(false);
         }
 

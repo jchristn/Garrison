@@ -5,6 +5,8 @@ REM ==========================================================================
 REM update.bat - Rebuild the Garrison images and recreate the Docker stack.
 REM
 REM Non-destructive: named volumes (database, worker workspaces) are preserved.
+REM First, env-secrets.ps1 makes sure .env holds every key and password the stack
+REM requires, generating random values for any that can safely be created.
 REM For a destructive reset use docker\factory\reset.bat.
 REM
 REM Usage:   update.bat                   rebuild images from this repository (default)
@@ -30,6 +32,14 @@ echo ==========================================================
 echo.
 
 pushd "%SCRIPT_DIR%"
+
+REM Keys, passwords, and seeded credentials: compose.yaml has no defaults for them (SR-08).
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%env-secrets.ps1"
+if errorlevel 1 (
+  popd
+  endlocal
+  exit /b 1
+)
 
 REM Port settings: .env values, else the compose.yaml defaults.
 set "REST_PORT=8700"
@@ -95,10 +105,10 @@ echo [4/4] Container status:
 popd
 echo.
 echo Update complete.
-echo   Dashboard  http://127.0.0.1:%DASHBOARD_PORT%  ^(tenant default, admin@garrison, password password unless you changed it^)
+echo   Dashboard  http://127.0.0.1:%DASHBOARD_PORT%  ^(tenant default, admin@garrison, GARRISON_ADMIN_PASSWORD from .env^)
 echo   REST, A2A  http://127.0.0.1:%REST_PORT%
 echo   MCP        http://127.0.0.1:%MCP_PORT%/mcp
-if "%OBSERVABILITY%"=="1" echo   Grafana    http://127.0.0.1:%GRAFANA_PORT%  ^(admin, GARRISON_GRAFANA_PASSWORD, default password^)
+if "%OBSERVABILITY%"=="1" echo   Grafana    http://127.0.0.1:%GRAFANA_PORT%  ^(admin, GARRISON_GRAFANA_PASSWORD from .env^)
 if "%OBSERVABILITY%"=="1" echo   Prometheus http://127.0.0.1:%PROMETHEUS_PORT%
 echo The garrison-bootstrap container is meant to exit with code 0 once it has created the sample agents.
 echo.

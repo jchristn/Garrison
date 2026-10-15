@@ -36,7 +36,7 @@ if "%OBSERVABILITY%"=="1" set OVERLAY=k3s-observability
 echo [garrison] applying overlays\%OVERLAY%
 kubectl apply -k "%K8S%\overlays\%OVERLAY%" || exit /b 1
 call "%~dp0wait-rollout.bat" || exit /b 1
-if "%OBSERVABILITY%"=="1" echo [garrison] Grafana: run port-forward.bat, then open http://127.0.0.1:3000 ^(user admin, password from GARRISON_GRAFANA_PASSWORD, default password^)
+if "%OBSERVABILITY%"=="1" echo [garrison] Grafana: run port-forward.bat, then open http://127.0.0.1:3000 ^(user admin, password from GARRISON_GRAFANA_PASSWORD or the one generate-secrets printed^)
 echo [garrison] add "127.0.0.1 garrison.local" to your hosts file, then open http://garrison.local
 echo [garrison] when K3S runs in Docker with -p 127.0.0.1:8080:80, use http://garrison.local:8080, or run port-forward.bat
 endlocal

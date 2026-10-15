@@ -92,6 +92,7 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
         /// <exception cref="ValidationException">Thrown when the name is missing.</exception>
         /// <exception cref="InvalidOperationException">Thrown when a pool or node created concurrently cannot be read back.</exception>
+        /// <exception cref="ConflictException">Thrown with code NodeIdentityMismatch when a node of that name is bound to another active credential.</exception>
         public async Task<NodeRegisterResponse> RegisterAsync(RequestContext ctx, NodeRegisterRequest request, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -122,6 +123,7 @@ namespace Garrison.Server.Runtime
             }
 
             Node? node = await _Database.Nodes.ReadByNameAsync(request.Name, token).ConfigureAwait(false);
+            if (node != null) await EnsureBindableAsync(ctx, node, token).ConfigureAwait(false);
             bool create = node == null;
             if (node == null)
             {
@@ -179,6 +181,7 @@ namespace Garrison.Server.Runtime
                     // The same node registered twice at once (a retry racing the first attempt): update the row that won.
                     Node existing = await _Database.Nodes.ReadByNameAsync(request.Name, token).ConfigureAwait(false)
                         ?? throw new InvalidOperationException("Node " + request.Name + " was registered concurrently but could not be read back.", e);
+                    await EnsureBindableAsync(ctx, existing, token).ConfigureAwait(false);
                     node.Id = existing.Id;
                     node.Status = existing.Status == NodeStatusEnum.Lost || existing.Status == NodeStatusEnum.Offline || existing.Status == NodeStatusEnum.Draining ? NodeStatusEnum.Ready : existing.Status;
                     node.CreatedUtc = existing.CreatedUtc;
@@ -291,6 +294,16 @@ namespace Garrison.Server.Runtime
         #endregion
 
         #region Private-Methods
+
+        private async Task EnsureBindableAsync(RequestContext ctx, Node existing, CancellationToken token)
+        {
+            // SR-16: a node name stays bound to the credential that registered it. Another credential may take it over only
+            // when the bound credential is gone or deactivated (for example after the node credential was replaced).
+            if (ctx.IsAdmin || String.IsNullOrEmpty(existing.CredentialId) || existing.CredentialId == ctx.CredentialId) return;
+            Credential? bound = await _Database.Credentials.ReadAsync(existing.CredentialId, token).ConfigureAwait(false);
+            if (bound == null || !bound.Active) return;
+            throw new ConflictException("NodeIdentityMismatch", "Node " + existing.Name + " is registered to a different credential. Use that node's credential, pick another node name, or have an administrator delete the node.");
+        }
 
         private static NodeApprovalNotice Notice(Approval approval)
         {

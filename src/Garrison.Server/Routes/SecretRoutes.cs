@@ -142,7 +142,7 @@ namespace Garrison.Server.Routes
         {
             secret.ValueEncrypted = _Server.Cipher.Encrypt(value, secret.Id);
             secret.ValueLast4 = SecretGenerator.Last4(value);
-            secret.Fingerprint = SecretGenerator.Fingerprint(value);
+            secret.Fingerprint = _Server.Cipher.Fingerprint(value);
             secret.KeyVersion = _Server.Cipher.KeyVersion;
             secret.RotatedUtc = DateTime.UtcNow;
             SecretValueState.Reset(secret, value);

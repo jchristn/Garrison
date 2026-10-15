@@ -85,7 +85,7 @@ A successful apply answers 200. If any document fails, the response is 400 with 
 { "kind": "Gadget", "name": "x", "result": "Failed", "message": "Document 1 has unknown kind 'Gadget'. Supported: Secret, PromptTemplate, HarnessProfile, McpServer, WorkspaceTemplate, Agent, Deployment, Pipeline, Trigger, NotificationEndpoint." }
 ```
 
-A failed item also carries `errorCode` and, when one field is at fault, `errorField`. A spec field with the wrong type or a value it does not accept gives `ManifestInvalid`, and the message names the document, the field, the value, and what the field accepts:
+A failed item also carries `errorCode` and, when one field is at fault, `errorField`. A document that would send a secret's value somewhere (a deployment's `resources.secrets`, an MCP server or harness profile that renders a deployment's secrets, a workspace template's git credential, or an agent's remote credential) fails with `SecretUseDenied` unless the caller holds `Execute` on that secret, for example through the `SecretManager` or `SecretUser` role; see "Using secrets" in `REST_API.md`. A spec field with the wrong type or a value it does not accept gives `ManifestInvalid`, and the message names the document, the field, the value, and what the field accepts:
 
 ```json
 { "kind": "Secret", "name": "mux-api-key", "result": "Failed", "errorCode": "ManifestInvalid", "errorField": "documents[1].spec.kind",

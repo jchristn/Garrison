@@ -15,13 +15,17 @@ export default function McpTestModal({ load, loadNodes = null, name, onClose }) 
   const [error, setError] = useState(null);
   const [nodes, setNodes] = useState([]);
   const [nodeId, setNodeId] = useState('');
+  const [nodesLoaded, setNodesLoaded] = useState(false);
   const [running, setRunning] = useState(!loadNodes);
 
   useEffect(() => {
     let cancelled = false;
     if (loadNodes) {
       loadNodes().then((page) => {
-        if (!cancelled) setNodes((page.items || []).filter((n) => n.status === 'Ready' && n.supportsMcpTests));
+        if (!cancelled) {
+          setNodes((page.items || []).filter((n) => n.status === 'Ready' && n.supportsMcpTests));
+          setNodesLoaded(true);
+        }
       }).catch((e) => { if (!cancelled) setError(e); });
     } else {
       load().then((value) => { if (!cancelled) setResult(value); })
@@ -52,6 +56,7 @@ export default function McpTestModal({ load, loadNodes = null, name, onClose }) 
             {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
           </select>
           <p className="text-muted">{t('components.mcpTest.chooseWorker')}</p>
+          {nodesLoaded && nodes.length === 0 && <p className="text-muted" data-testid="mcp-test-no-workers">{t('components.mcpTest.noWorkers')}</p>}
           <button type="button" className="btn btn-primary" disabled={!nodeId || running} onClick={run} {...tip(t('components.mcpTest.chooseWorker'))}>{t('components.mcpTest.runTest')}</button>
         </div>
       )}

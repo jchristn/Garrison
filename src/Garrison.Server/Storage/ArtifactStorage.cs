@@ -140,8 +140,19 @@ namespace Garrison.Server.Storage
                 MaxErrorRetry = 2
             };
             if (String.IsNullOrEmpty(store.Endpoint)) config.RegionEndpoint = RegionEndpoint.GetBySystemName(store.Region);
-            else config.ServiceURL = store.Endpoint;
-            if (String.IsNullOrEmpty(store.SecretId)) return new AmazonS3Client(config);
+            else
+            {
+                // A tenant-chosen endpoint: connect only to addresses the outbound policy allows, checked at connect time,
+                // and never follow redirects (SR-07).
+                config.ServiceURL = store.Endpoint;
+                config.HttpClientFactory = new GuardedS3HttpClientFactory();
+            }
+            if (String.IsNullOrEmpty(store.SecretId))
+            {
+                if (!String.IsNullOrEmpty(store.Endpoint) && !_Context.Settings.Artifacts.AllowAmbientCredentialsWithCustomEndpoint)
+                    throw new ValidationException("Artifact store " + store.Name + " has a custom endpoint but no credential secret; the server's own cloud identity is not sent to it.");
+                return new AmazonS3Client(config);
+            }
             Secret secret = await _Context.Database.Secrets.ReadAsync(store.TenantId, store.SecretId, token).ConfigureAwait(false)
                 ?? throw new NotFoundException("Artifact store credential secret not found.");
             if (!secret.Active || String.IsNullOrEmpty(secret.ValueEncrypted)) throw new ValidationException("Artifact store credentials are inactive or empty.");

@@ -1,16 +1,16 @@
 # Garrison on Docker Compose: one control-plane server, two workers, the dashboard, and Postgres.
 #
 #   cd docker
-#   cp .env.example .env        # optional: ports, keys, and harness credentials
-#   docker compose up -d --build
+#   ./update.sh                 # first run: writes random keys and passwords to .env, then builds and starts
 #
-# Dashboard http://127.0.0.1:8080 (tenant default, admin@garrison, password password), REST http://127.0.0.1:8700,
-# MCP http://127.0.0.1:8701/mcp. Every port is overridable in .env.
+# Dashboard http://127.0.0.1:8080 (tenant default, admin@garrison, the GARRISON_ADMIN_PASSWORD from .env), REST
+# http://127.0.0.1:8700, MCP http://127.0.0.1:8701/mcp. Every port is overridable in .env.
 #
 # Each Garrison service names its image (jchristn77/garrison-*:v0.1.0-alpha) AND has a build stanza, so
 # `docker compose up` uses or pulls the named image and `docker compose up --build` (or update.sh) rebuilds it from
-# this repository. Third-party images are pinned. Host ports bind 127.0.0.1 only. The secrets below have
-# development defaults that match the server's built-in defaults; set real values in .env for anything shared.
+# this repository. Third-party images are pinned. Host ports bind 127.0.0.1 only. The keys, passwords, and seeded
+# credentials have no defaults: Compose refuses to start until they are set in .env. update.sh, update.bat, and
+# factory/reset generate any that are missing, and the server itself refuses the public built-in defaults (SR-08).
 #
 # update.sh / update.bat rebuild the images and recreate the stack without touching data.
 # factory/reset.sh / factory/reset.bat delete all data (volumes) and start fresh.
@@ -22,7 +22,7 @@
 #   docker compose -f compose.yaml -f compose.observability.yaml --profile observability up -d
 #   ./update.sh --observability          (the same, with a rebuild)
 #
-# Grafana http://127.0.0.1:3000 (admin, GARRISON_GRAFANA_PASSWORD, default password), Prometheus
+# Grafana http://127.0.0.1:3000 (admin, GARRISON_GRAFANA_PASSWORD from .env), Prometheus
 # http://127.0.0.1:9090. Loki, Tempo, Grafana provisioning, and the dashboards are mounted from
 # ../k8s/components/observability so Compose and Kubernetes share one copy.
 
@@ -49,8 +49,8 @@ x-worker-environment: &worker-environment
   GARRISON_WORKER_SETTINGS_FILE: '/etc/garrison/garrison-worker.json'
   GARRISON_WORKER_SERVER_URL: 'http://garrison-server:8700'
   GARRISON_WORKER_CONTAINERIZED: 'true'
-  GARRISON_WORKER_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:-access_garrison_node}'
-  GARRISON_WORKER_SECRET_KEY: '${GARRISON_NODE_SECRET_KEY:-secret_garrison_node_change_me}'
+  GARRISON_WORKER_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:?set GARRISON_NODE_ACCESS_KEY in docker/.env (update.sh generates it)}'
+  GARRISON_WORKER_SECRET_KEY: '${GARRISON_NODE_SECRET_KEY:?set GARRISON_NODE_SECRET_KEY in docker/.env (update.sh generates it)}'
 
 services:
 
@@ -66,7 +66,7 @@ services:
     environment:
       POSTGRES_DB: 'garrison'
       POSTGRES_USER: 'garrison'
-      POSTGRES_PASSWORD: '${GARRISON_DB_PASSWORD:-garrison}'
+      POSTGRES_PASSWORD: '${GARRISON_DB_PASSWORD:?set GARRISON_DB_PASSWORD in docker/.env (update.sh generates it)}'
     volumes:
       - garrison-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -82,6 +82,9 @@ services:
   # ------------------------------------------------------------------
   garrison-server:
     container_name: 'garrison-server'
+    # The metrics listener (9464) answers only requests addressed to the container's host name, so Prometheus
+    # scrapes garrison-server:9464. /metrics is not served on the REST port (Telemetry.ServeMetricsOnServicePort).
+    hostname: 'garrison-server'
     image: 'jchristn77/garrison-server:v0.1.0-alpha'
     build:
       context: '..'
@@ -94,16 +97,16 @@ services:
       GARRISON_SETTINGS_FILE: '/etc/garrison/garrison.json'
       GARRISON_SETTINGS_READONLY: 'true'
       GARRISON_NODE_ID: 'garrison-server'
-      GARRISON_DB_PASSWORD: '${GARRISON_DB_PASSWORD:-garrison}'
-      GARRISON_MASTER_KEY: '${GARRISON_MASTER_KEY:-garrison-default-master-key-override-me}'
-      GARRISON_AUTH_SIGNING_KEY: '${GARRISON_AUTH_SIGNING_KEY:-garrison-default-signing-key-override-me}'
-      GARRISON_ADMIN_API_KEY: '${GARRISON_ADMIN_API_KEY:-garrisonadmin}'
+      GARRISON_DB_PASSWORD: '${GARRISON_DB_PASSWORD:?set GARRISON_DB_PASSWORD in docker/.env (update.sh generates it)}'
+      GARRISON_MASTER_KEY: '${GARRISON_MASTER_KEY:?set GARRISON_MASTER_KEY in docker/.env (update.sh generates it)}'
+      GARRISON_AUTH_SIGNING_KEY: '${GARRISON_AUTH_SIGNING_KEY:?set GARRISON_AUTH_SIGNING_KEY in docker/.env (update.sh generates it)}'
+      GARRISON_ADMIN_API_KEY: '${GARRISON_ADMIN_API_KEY:?set GARRISON_ADMIN_API_KEY in docker/.env (update.sh generates it)}'
       GARRISON_ADMIN_EMAIL: '${GARRISON_ADMIN_EMAIL:-admin@garrison}'
-      GARRISON_ADMIN_PASSWORD: '${GARRISON_ADMIN_PASSWORD:-password}'
-      GARRISON_DEFAULT_ACCESS_KEY: '${GARRISON_DEFAULT_ACCESS_KEY:-access_garrison_default}'
-      GARRISON_DEFAULT_SECRET_KEY: '${GARRISON_DEFAULT_SECRET_KEY:-secret_garrison_default_change_me}'
-      GARRISON_NODE_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:-access_garrison_node}'
-      GARRISON_NODE_SECRET_KEY: '${GARRISON_NODE_SECRET_KEY:-secret_garrison_node_change_me}'
+      GARRISON_ADMIN_PASSWORD: '${GARRISON_ADMIN_PASSWORD:?set GARRISON_ADMIN_PASSWORD in docker/.env (update.sh generates it)}'
+      GARRISON_DEFAULT_ACCESS_KEY: '${GARRISON_DEFAULT_ACCESS_KEY:?set GARRISON_DEFAULT_ACCESS_KEY in docker/.env (update.sh generates it)}'
+      GARRISON_DEFAULT_SECRET_KEY: '${GARRISON_DEFAULT_SECRET_KEY:?set GARRISON_DEFAULT_SECRET_KEY in docker/.env (update.sh generates it)}'
+      GARRISON_NODE_ACCESS_KEY: '${GARRISON_NODE_ACCESS_KEY:?set GARRISON_NODE_ACCESS_KEY in docker/.env (update.sh generates it)}'
+      GARRISON_NODE_SECRET_KEY: '${GARRISON_NODE_SECRET_KEY:?set GARRISON_NODE_SECRET_KEY in docker/.env (update.sh generates it)}'
       # Internal URLs: agents on the workers call back into Garrison (delegation) through these, so they use the
       # service name. They are never shown in A2A agent cards.
       GARRISON_MCP_PUBLIC_URL: 'http://garrison-server:8701'
@@ -190,7 +193,7 @@ services:
       GARRISON_API_URL: 'http://garrison-server:8700'
       GARRISON_TENANT_ID: 'default'
       GARRISON_MANIFEST_DIR: '/manifests'
-      GARRISON_ADMIN_API_KEY: '${GARRISON_ADMIN_API_KEY:-garrisonadmin}'
+      GARRISON_ADMIN_API_KEY: '${GARRISON_ADMIN_API_KEY:?set GARRISON_ADMIN_API_KEY in docker/.env (update.sh generates it)}'
       ANTHROPIC_API_KEY: '${ANTHROPIC_API_KEY:-}'
       CLAUDE_CODE_OAUTH_TOKEN: '${CLAUDE_CODE_OAUTH_TOKEN:-}'
       OPENAI_API_KEY: '${OPENAI_API_KEY:-}'
@@ -307,7 +310,7 @@ services:
       - '127.0.0.1:${GARRISON_GRAFANA_PORT:-3000}:3000'
     environment:
       GF_SECURITY_ADMIN_USER: 'admin'
-      GF_SECURITY_ADMIN_PASSWORD: '${GARRISON_GRAFANA_PASSWORD:-password}'
+      GF_SECURITY_ADMIN_PASSWORD: '${GARRISON_GRAFANA_PASSWORD:?set GARRISON_GRAFANA_PASSWORD in docker/.env (update.sh generates it)}'
       GF_SERVER_ROOT_URL: 'http://127.0.0.1:${GARRISON_GRAFANA_PORT:-3000}'
       GF_USERS_ALLOW_SIGN_UP: 'false'
       GF_ANALYTICS_REPORTING_ENABLED: 'false'

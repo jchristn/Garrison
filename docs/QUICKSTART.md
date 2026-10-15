@@ -26,19 +26,21 @@ You need a running stack and its URLs:
 
 If you moved the ports (in `docker/.env`, or with `REST_PORT` and friends on `port-forward.sh`), use yours everywhere below. The commands also need `curl` and `jq`.
 
-Everything below runs from the repository root. Set the URLs once, and sign in to get a session token:
+Everything below runs from the repository root. Garrison has no default administrator password: Docker Compose generates one into `docker/.env` (`GARRISON_ADMIN_PASSWORD`), `k8s/scripts/generate-secrets.sh` prints the one it generated (or uses `GARRISON_ADMIN_PASSWORD` if you set it), and a source build in development mode uses `password` (`docs/DEVELOPMENT.md`). Set the URLs and the password once, and sign in to get a session token:
 
 ```bash
 export GARRISON_URL=http://127.0.0.1:8700
 export GARRISON_MCP_URL=http://127.0.0.1:8701/mcp
 API=$GARRISON_URL/v1.0/api/tenants/default
+# Docker Compose; on Kubernetes paste the password generate-secrets.sh printed
+GARRISON_ADMIN_PASSWORD=$(grep -E '^GARRISON_ADMIN_PASSWORD=' docker/.env | cut -d= -f2-)
 
-TOKEN=$(curl -s -X POST $GARRISON_URL/v1.0/token -H "Content-Type: application/json" \
-  -d '{"email":"admin@garrison","password":"password","tenantId":"default"}' | jq -r .token)
+TOKEN=$(jq -n --arg p "$GARRISON_ADMIN_PASSWORD" '{email:"admin@garrison",password:$p,tenantId:"default"}' |
+  curl -s -X POST $GARRISON_URL/v1.0/token -H "Content-Type: application/json" --data-binary @- | jq -r .token)
 echo ${TOKEN:0:12}
 ```
 
-If that prints `null`, the password is not `password`: on Kubernetes it is whatever `GARRISON_ADMIN_PASSWORD` was when you ran `generate-secrets.sh`. A session token lasts eight hours. Sign in to the dashboard with the same email and password, tenant `default`.
+If that prints `null`, the password is wrong: on Kubernetes it is whatever `GARRISON_ADMIN_PASSWORD` was when you ran `generate-secrets.sh`, or the random one it printed. A session token lasts eight hours. Sign in to the dashboard with the same email and password, tenant `default`.
 
 On Docker and Kubernetes the bootstrap already created three sample agents (`claude-helper`, `codex-coder`, `mux-helper`) from whatever credentials you gave it. They are fine to keep. This guide builds its own set so that you see every step.
 

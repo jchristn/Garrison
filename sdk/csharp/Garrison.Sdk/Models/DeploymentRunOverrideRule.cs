@@ -58,9 +58,9 @@ namespace Garrison.Sdk.Models
         }
 
         /// <summary>
-        /// Validation kind.
+        /// Validation kind. Default Enum, matching the server: list the allowed values in Pattern, or choose Any explicitly.
         /// </summary>
-        public RunOverrideValidationEnum Validation { get; set; } = RunOverrideValidationEnum.Any;
+        public RunOverrideValidationEnum Validation { get; set; } = RunOverrideValidationEnum.Enum;
 
         /// <summary>
         /// Regex, comma-separated enum values, or min,max range.

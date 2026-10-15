@@ -25,14 +25,18 @@ The build must finish with zero errors and zero warnings; product projects treat
 Run the server and at least one worker in separate terminals. Sqlite is the default, so nothing else is needed.
 
 ```bash
-# Terminal 1: REST on 127.0.0.1:8700, MCP on 8701
-cd src/Garrison.Server && dotnet run -f net10.0
+# Terminal 1: REST on 127.0.0.1:8700, MCP on 8701, development mode (public default keys allowed)
+cd src/Garrison.Server && GARRISON_ALLOW_INSECURE_DEFAULTS=true dotnet run -f net10.0
 
 # Terminal 2: a worker
 cd src/Garrison.Worker && dotnet run -f net10.0
 ```
 
-The server writes `garrison.json` and `data/garrison.db` in its working directory on first start and seeds the default tenant, the `admin@garrison` user (password `password`), the administrator credential, and the worker credential. Delete the database file to start over.
+`GARRISON_ALLOW_INSECURE_DEFAULTS=true` (`Security.AllowInsecureDefaults`) is the explicit development mode. Without it, the server refuses to start while the master key, signing key, administrator API key, administrator password, or the seeded default or node secret key is empty or still its public built-in default, and the log names each one (SR-08). In development mode it starts and logs a warning instead. Never set it on anything another person can reach; set real values instead (`docs/SECURITY.md`).
+
+The server writes `garrison.json` and `data/garrison.db` in its working directory on first start and seeds the default tenant, the `admin@garrison` user (password `password` in development mode), the administrator credential (`access_garrison_default`, `secret_garrison_default_change_me`), and the worker credential that a worker uses by default. The administrator API key is `garrisonadmin`. Delete the database file to start over.
+
+The throwaway servers that `scripts/run-sdk-harnesses.sh`, `dashboard/tests/contract/run.mjs`, `k8s/tests/local-dry-run.sh`, and the benchmarks start set development mode themselves, and Touchstone's in-process servers set `Security.AllowInsecureDefaults` in code.
 
 To run more than one worker on one machine, give each a distinct name and health port:
 

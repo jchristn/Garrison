@@ -217,7 +217,7 @@ Settings, including MCP servers, are written to an isolated `GEMINI_CLI_HOME` fr
 | `arguments` | Ordered argument templates (below). |
 | `environment` | Environment variable templates. `isSecret` marks values to scrub from output. |
 | `files` | Files to write before launch (below). |
-| `promptDelivery` | `Stdin`, `Argument` (the prompt, or `promptArgumentTemplate`, is appended as the last argument), `File` (written to the config directory as `promptArgumentTemplate`, default `prompt.md`), or `CodexAppServer` (the worker drives `codex app-server` over JSON-RPC and sends the prompt as one turn; see [Streaming with `codex app-server`](#streaming-with-codex-app-server-builtincodex-app-server)). |
+| `promptDelivery` | `Stdin`, `Argument` (the prompt, or `promptArgumentTemplate`, is appended as the last argument, after `--` unless the template starts with literal text such as `--prompt=`, so caller text that begins with `-` is never read as an option), `File` (written to the config directory as `promptArgumentTemplate`, default `prompt.md`), or `CodexAppServer` (the worker drives `codex app-server` over JSON-RPC and sends the prompt as one turn; see [Streaming with `codex app-server`](#streaming-with-codex-app-server-builtincodex-app-server)). |
 | `systemPromptDelivery` | `File` (written to `systemPromptTarget` in the config directory), `Argument` (`systemPromptTarget` is the flag), `Environment` (`systemPromptTarget` is the variable), `PrependToPrompt`, or `None` (the profile handles it with its own arguments or files). |
 | `mcpConfigFormat`, `mcpConfigFileName` | Which MCP configuration dialect the harness reads and where. Informational for the built-in formats, which are produced by the profile's own files and arguments. |
 | `outputParser` | `ClaudeStreamJson`, `CodexJsonl`, `CodexAppServer`, `MuxJsonl`, `GeminiStreamJson`, `GenericJsonl`, or `PlainText`. |
@@ -468,7 +468,7 @@ The same steps apply as a manifest; see `docs/MANIFESTS.md`.
 
 ## Test a stdio MCP server on a worker
 
-In Configuration > MCP Servers, choose **Test**, select a Ready worker, and run the test. The worker must advertise `supportsMcpTests`; older workers are not offered. HTTP tests still run from the control plane.
+In Configuration > MCP Servers, choose **Test**, select a Ready worker, and run the test. The worker must advertise `supportsMcpTests`, which it does only when its operator sets `McpTestsEnabled` (`GARRISON_WORKER_MCP_TESTS_ENABLED=true`, default off, `docs/SECURITY.md`); other workers are not offered. HTTP tests still run from the control plane.
 
 The equivalent request is `POST /v1.0/api/tenants/{tenantId}/mcp-servers/{id}/test?nodeId={nodeId}`, requiring MCP configuration update permission. The response includes success, tool names, missing required tools, duration, selected node, and a safe error. C# exposes `McpServers.TestOnWorkerAsync`; Python and JavaScript accept a worker argument on `mcp_servers.test` / `mcpServers.test`; Go exposes `TestMcpServer`.
 

@@ -84,6 +84,7 @@ namespace Garrison.Server.Routes
             Agent incoming = RouteHelpers.RequiredBody<Agent>(http);
             incoming.TenantId = tenantId;
             ConfigurationValidator.Agent(incoming);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForModelAsync(tenantId, incoming, http.Token).ConfigureAwait(false);
             Agent? existing = await _Server.Database.Agents.ReadByNameAsync(tenantId, incoming.Name, http.Token).ConfigureAwait(false);
             incoming.LastRegisteredUtc = DateTime.UtcNow;
             Agent saved;

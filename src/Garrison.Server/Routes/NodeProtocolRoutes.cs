@@ -22,6 +22,7 @@ namespace Garrison.Server.Routes
         private readonly NodeService _Nodes;
         private readonly SchedulerService _Scheduler;
         private readonly RunEventService _Events;
+        private readonly NodeBindingCache _Bindings;
 
         #endregion
 
@@ -41,6 +42,7 @@ namespace Garrison.Server.Routes
             _Nodes = nodes ?? throw new ArgumentNullException(nameof(nodes));
             _Scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
             _Events = events ?? throw new ArgumentNullException(nameof(events));
+            _Bindings = new NodeBindingCache(context.Database);
         }
 
         #endregion
@@ -74,6 +76,7 @@ namespace Garrison.Server.Routes
         {
             NodeRegisterRequest request = RouteHelpers.RequiredBody<NodeRegisterRequest>(context);
             NodeRegisterResponse response = await _Nodes.RegisterAsync(RouteHelpers.Context(context), request, context.Token).ConfigureAwait(false);
+            _Bindings.Forget(response.NodeId);
             await RouteHelpers.JsonAsync(context, 200, response).ConfigureAwait(false);
         }
 
@@ -125,6 +128,7 @@ namespace Garrison.Server.Routes
         private async Task StartedAsync(HttpContextBase context)
         {
             RunStartedRequest request = RouteHelpers.RequiredBody<RunStartedRequest>(context);
+            await _Bindings.RequireAsync(RouteHelpers.Context(context), request.NodeId, context.Token).ConfigureAwait(false);
             await _Events.StartedAsync(RouteHelpers.Param(context, "runId") ?? String.Empty, request, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, new NodeAckResponse()).ConfigureAwait(false);
         }
@@ -132,6 +136,7 @@ namespace Garrison.Server.Routes
         private async Task EventsAsync(HttpContextBase context)
         {
             RunEventsRequest request = RouteHelpers.RequiredBody<RunEventsRequest>(context);
+            await _Bindings.RequireAsync(RouteHelpers.Context(context), request.NodeId, context.Token).ConfigureAwait(false);
             int inserted = await _Events.IngestAsync(RouteHelpers.Param(context, "runId") ?? String.Empty, request, context.Token).ConfigureAwait(false);
             NodeAckResponse ack = new NodeAckResponse();
             ack.Message = inserted + " inserted";
@@ -141,6 +146,7 @@ namespace Garrison.Server.Routes
         private async Task CompleteAsync(HttpContextBase context)
         {
             RunCompleteRequest request = RouteHelpers.RequiredBody<RunCompleteRequest>(context);
+            await _Bindings.RequireAsync(RouteHelpers.Context(context), request.NodeId, context.Token).ConfigureAwait(false);
             RunCompleteResponse response = await _Events.CompleteAsync(RouteHelpers.Param(context, "runId") ?? String.Empty, request, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, response).ConfigureAwait(false);
         }

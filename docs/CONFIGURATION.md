@@ -43,7 +43,7 @@ Keep secrets (`Auth.SigningKey`, `Auth.AdminApiKey`, `Security.*` keys, `Databas
 | `Rest.PublicBaseUrl` | none | Restart | Internal URL handed to runs (the `garrison.apiUrl` template variable) so harnesses on workers can call back, for example `http://garrison-server:8700`. Never shown in A2A agent cards. Defaults to the bind address (`http://127.0.0.1:<port>` when bound to every interface). The name is kept for compatibility. Environment: `GARRISON_PUBLIC_BASE_URL` |
 | `Rest.ExternalBaseUrl` | none | Live | External URL that people and clients outside the cluster use, for example `https://garrison.example.com`. Used in A2A agent cards and server info. When unset, Garrison uses the scheme (`X-Forwarded-Proto` when present) and `Host` header of each request. Environment: `GARRISON_EXTERNAL_BASE_URL` |
 | `Rest.LivenessPort` | `8702` | Restart | Separate liveness port, 0 to 65535 (0 turns it off). It answers only `GET /v1.0/api/health/live`, from its own thread, from the moment the process starts, without the database or the REST request queue, so liveness probes keep passing under overload. Must differ from `Rest.Port` and `Mcp.Port`. Environment: `GARRISON_LIVENESS_PORT` |
-| `Rest.MaxRequestBodyBytes` | `134217728` | Restart | Largest request body in bytes (128 MiB), 0 to 2147483647 (0 turns the check off). A request whose Content-Length is larger is refused with 413 before its body is read. Keep it above the largest artifact upload (64 MiB). Chunked bodies are not limited. Environment: `GARRISON_REST_MAX_REQUEST_BODY_BYTES` |
+| `Rest.MaxRequestBodyBytes` | `134217728` | Restart | Largest request body in bytes (128 MiB), 0 to 2147483647 (0 turns the check off). A request whose Content-Length is larger is refused with 413 before its body is read; a chunked body is read chunk by chunk and refused with 413 as soon as it passes the limit. Keep it above the largest artifact upload (64 MiB). Environment: `GARRISON_REST_MAX_REQUEST_BODY_BYTES` |
 | `Rest.DatabaseRetryAfterSeconds` | `2` | Live | Seconds in the `Retry-After` header of `503 DatabaseBusy` and `503 DatabaseUnavailable` answers, 1 to 300 |
 
 Garrison keeps two REST URLs because they answer different questions. `Rest.PublicBaseUrl` (with `Mcp.PublicUrl`) is where workers inside the cluster or Compose network reach the server, so it is usually a service name. `Rest.ExternalBaseUrl` is what an A2A agent card fetched from outside should advertise, so it is usually your ingress host. Earlier builds used `Rest.PublicBaseUrl` for both, so cards fetched from outside showed the internal host.
@@ -92,27 +92,30 @@ All database settings need a restart. Size the pool so that `max_connections >= 
 | Path | Default | Applies | Meaning |
 |---|---|---|---|
 | `Auth.Issuer` | `garrison` | Restart | Token issuer name |
-| `Auth.SigningKey` | placeholder | Restart | Key for session tokens. Changing it invalidates every token. Environment: `GARRISON_AUTH_SIGNING_KEY` |
+| `Auth.SigningKey` | public placeholder | Restart | Key for session tokens, and with the master key for artifact download tickets. Use at least 32 random characters. Changing it invalidates every token. The server refuses to start with the placeholder (see `Security.AllowInsecureDefaults`). Environment: `GARRISON_AUTH_SIGNING_KEY` |
 | `Auth.TokenLifetimeMinutes` | `480` | Restart | Session token lifetime, 1 to 10080 |
-| `Auth.AdminApiKey` | `garrisonadmin` | Live | System administrator key for `x-api-key`. Environment: `GARRISON_ADMIN_API_KEY` |
+| `Auth.AdminApiKey` | `garrisonadmin` (public) | Live | System administrator key for `x-api-key`. The server refuses to start with the public default or an empty value (see `Security.AllowInsecureDefaults`). Environment: `GARRISON_ADMIN_API_KEY` |
 | `Auth.SignedRequestSkewSeconds` | `300` | Live | Allowed clock difference for signed requests, 10 to 3600 |
-| `Auth.RateLimitPerMinute` | `60` | Live | Token requests allowed per source address per minute, counted in the database across all replicas |
+| `Auth.RateLimitPerMinute` | `60` | Live | Token requests allowed per source address per minute, and separately failed administrator API key, secret key, and signature attempts per source address per minute; counted in the database across all replicas. Beyond it the address gets 429 `RateLimited` until the minute ends |
 | `Auth.PasswordHashIterations` | `600000` | Live | PBKDF2-HMAC-SHA256 iterations for new password hashes, 10000 to 10000000. Existing hashes with fewer iterations, and legacy SHA-256 hashes, are rehashed at the next successful sign-in. Values below the default are for tests |
 
 ### Security
 
 These seed the first boot and protect stored secrets.
 
+The defaults below are public. The server refuses to start while `Security.MasterKey`, `Auth.SigningKey`, `Auth.AdminApiKey`, `Security.AdminPassword`, `Security.DefaultSecretKey`, or `Security.NodeSecretKey` is empty or equal to its default, and names the environment variables to set. Docker Compose and Kubernetes generate real values (`docker/update.sh`, `k8s/scripts/generate-secrets.sh`). For local development only, set `GARRISON_ALLOW_INSECURE_DEFAULTS=true`.
+
 | Path | Default | Meaning |
 |---|---|---|
-| `Security.MasterKey` | placeholder | Key that encrypts stored secrets: base64 of 32 bytes, or a passphrase. Losing it makes every secret unreadable. Environment: `GARRISON_MASTER_KEY` |
-| `Security.MasterKeyVersion` | `1` | Version written with each encrypted value, 1 to 255 |
+| `Security.AllowInsecureDefaults` | `false` | Development mode: start even with empty or public default keys and credentials, with a warning. Never set it on a server anyone else can reach. Environment: `GARRISON_ALLOW_INSECURE_DEFAULTS` |
+| `Security.MasterKey` | public placeholder | Key that encrypts stored secrets: base64 of 32 random bytes (`openssl rand -base64 32`). Any other value is hashed with SHA-256 and logged as weak. Losing it makes every secret unreadable. Environment: `GARRISON_MASTER_KEY` |
+| `Security.MasterKeyVersion` | `1` | Version written with each encrypted value, 1 to 255. A value written under another version is refused with a clear error |
 | `Security.AdminEmail` | `admin@garrison` | Email of the seeded administrator (first start only). Environment: `GARRISON_ADMIN_EMAIL` |
 | `Security.AdminPassword` | `password` | Password of the seeded `admin@garrison`. Environment: `GARRISON_ADMIN_PASSWORD` |
 | `Security.DefaultAccessKey`, `Security.DefaultSecretKey` | `access_garrison_default`, `secret_garrison_default_change_me` | Seeded administrator credential. Environment: `GARRISON_DEFAULT_ACCESS_KEY`, `GARRISON_DEFAULT_SECRET_KEY` |
 | `Security.NodeAccessKey`, `Security.NodeSecretKey` | `access_garrison_node`, `secret_garrison_node_change_me` | Seeded worker credential. Environment: `GARRISON_NODE_ACCESS_KEY`, `GARRISON_NODE_SECRET_KEY` |
 
-Seeding happens only when the records do not exist yet. Changing these values later does not change existing users or credentials; rotate those through the API.
+Seeding happens only when the records do not exist yet. Changing these values later does not change existing users or credentials, and a restart never resets a secret rotated through the API; rotate those through the API.
 
 ### Logging, request history, telemetry, cluster
 
@@ -128,10 +131,10 @@ Seeding happens only when the records do not exist yet. Changing these values la
 | `Telemetry.Enabled` | `true` | Restart | Collect metrics. Environment: `GARRISON_TELEMETRY_ENABLE` |
 | `Telemetry.ServiceName` | `garrison-server` | Restart | Service name on exported metrics |
 | `Telemetry.PrometheusEnable` | `true` | Restart | Serve a Prometheus scrape endpoint |
-| `Telemetry.PrometheusHostname`, `Telemetry.PrometheusPort`, `Telemetry.PrometheusPath` | `*`, `9464`, `/metrics` | Restart | Where it is served |
+| `Telemetry.PrometheusHostname`, `Telemetry.PrometheusPort`, `Telemetry.PrometheusPath` | `*`, `9464`, `/metrics` | Restart | Where it is served. The listener answers only requests addressed to the hostname it binds; `*` binds the machine host name. Kubernetes sets the pod IP. Environment: `GARRISON_PROMETHEUS_HOSTNAME` |
 | `Telemetry.OtlpEnable` | `false` | Restart | Export over OTLP. Environment: `GARRISON_OTLP_ENABLE` |
 | `Telemetry.OtlpEndpoint` | `http://127.0.0.1:4317` | Restart | OTLP collector (gRPC). Environment: `GARRISON_OTLP_ENDPOINT` |
-| `Telemetry.ServeMetricsOnServicePort` | `true` | Live | Also serve `GET /metrics` on the REST port, without authentication, relayed from the Prometheus listener, so `kubectl port-forward` and in-pod `127.0.0.1` scrapes work (see `docs/TELEMETRY.md`) |
+| `Telemetry.ServeMetricsOnServicePort` | `false` | Live | Also serve `GET /metrics` on the REST port, without authentication, relayed from the Prometheus listener. Off by default because the endpoint is anonymous and labels series with tenants and agents (SR-20); scrape the metrics listener instead (see `docs/TELEMETRY.md`) |
 | `Telemetry.MaxLabelValues` | `200` | Restart | Distinct values each metric label (tenant, agent, deployment, model, and so on) may take before new values are reported as `other`; 10 to 10000. Environment: `GARRISON_TELEMETRY_MAX_LABEL_VALUES` |
 | `Telemetry.Exemplars` | `true` | Restart | Attach the current trace to duration histogram samples, so Grafana can jump from a panel to the trace (sets `OTEL_METRICS_EXEMPLAR_FILTER=trace_based` unless it is set) |
 | `Cluster.ExpectedReplicas` | `1` | Restart | Control-plane replicas you intend to run. Above 1, Garrison refuses to start on Sqlite. Environment: `GARRISON_EXPECTED_REPLICAS` |
@@ -229,7 +232,7 @@ A service counts as configured when its browser URL is set. The browser URLs app
 
 ```bash
 curl -s -X PUT http://127.0.0.1:8700/v1.0/api/settings \
-  -H "x-api-key: garrisonadmin" -H "Content-Type: application/json" \
+  -H "x-api-key: $GARRISON_ADMIN_API_KEY" -H "Content-Type: application/json" \
   -d '{"values":[{"path":"Runs.MaxDelegationDepth","value":"2"},{"path":"Logging.MinimumSeverity","value":"0"}]}'
 ```
 
@@ -250,6 +253,7 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `ChildReserveSlots` | `2` | Child reserve, 0 to 64: extra slots that only a delegated run whose parent waits on it may use. One opens for each of this worker's runs that is waiting on a child, so waiting parents lend their slots to children. The worker runs at most `MaxConcurrentRuns` plus this many processes; size its memory for that. `0` turns lending off, and then at most `MaxConcurrentRuns - 1` runs may wait at once. Environment: `GARRISON_WORKER_CHILD_RESERVE_SLOTS` |
 | `MaxResidentWaiters` | `0` | Most runs on this worker that may wait on a delegated run at once while keeping their process, 0 to 1024; `0` means `MaxConcurrentRuns`. The control plane also never lets more than `MaxConcurrentRuns + ChildReserveSlots - 1` wait. A delegation beyond it fails at once with `DelegationCapacityExhausted`. Environment: `GARRISON_WORKER_MAX_RESIDENT_WAITERS` |
 | `Containerized` | `false` | Whether this worker runs inside a container or pod. Reported at registration and exposed to harness profiles as `executor.containerized`; the built-in Codex profiles then default their sandbox to `danger-full-access`, because Codex's bubblewrap sandbox cannot work in a container (G-29, `docs/HARNESSES.md`). The worker image sets it to `true`; leave it `false` for a worker run directly on a host. Environment: `GARRISON_WORKER_CONTAINERIZED` |
+| `McpTestsEnabled` | `false` | Whether this worker runs stdio MCP server diagnostics (`POST .../mcp-servers/{id}/test?nodeId=`). A diagnostic starts the MCP server's configured command as a child of the worker process, outside any run pod, where it can read the node credential and, on a KubernetesJob worker, the service account token. Turn it on only for Process workers whose host you accept as the boundary for tenant-configured commands. While `false` the worker does not advertise `supportsMcpTests`, is not offered for diagnostics, and refuses any it is sent (SR-04). Environment: `GARRISON_WORKER_MCP_TESTS_ENABLED` |
 | `WorkRoot` | `workspaces` | Root of per-run workspace, home, and config directories. Conversation turns use `<WorkRoot>/conversations/<conversationId>/` instead, kept between turns. Environment: `GARRISON_WORKER_WORK_ROOT` |
 | `ConversationRetentionHours` | `24` | Hours a conversation's directories may go unused before the worker deletes them, 0 to 8760; `0` keeps them until the work root is emptied. The next turn of a removed conversation starts a fresh session seeded with the transcript. Environment: `GARRISON_WORKER_CONVERSATION_RETENTION_HOURS` |
 | `ConversationSweepIntervalSeconds` | `600` | How often the worker looks for unused conversation directories, 10 to 86400 |
@@ -270,13 +274,13 @@ The worker reads `garrison-worker.json` from its working directory, or the path 
 | `Probes` | `claude`, `codex`, `mux`, `gemini`, `garrison-fake-harness`, each with `--version` | Harness checks run at startup. An available harness adds the label `garrison.io/harness-<label>=true` |
 | `Kubernetes` | disabled | The KubernetesJob (pod-per-run) executor: `Enabled`, `RunNamespace`, `RunImage`, `ImagePullPolicy`, `ImagePullSecrets`, `ServiceAccountName`, `RuntimeClassName`, `NodeSelector`, `PodLabels`, `JobTtlSeconds`, `PendingTimeoutSeconds`, `DefaultResources`, `RunAsUser`, `RunAsGroup`, `EmptyDirSizeLimit`, `EgressCanary`, `ReconcileIntervalSeconds`, and more. Environment: `GARRISON_WORKER_KUBERNETES_ENABLED` and `GARRISON_WORKER_RUN_*`. Every field is described in `docs/KUBERNETES.md`, "Pod-per-run executor" |
 | `Logging.ConsoleLogging`, `Logging.MinimumSeverity` | `true`, `1` | Logging |
-| `Telemetry` | service `garrison-worker`, Prometheus on `*:9465/metrics`, OTLP off, `/metrics` also served on the health port | Same fields as the server's `Telemetry` block; `ServeMetricsOnServicePort` applies to the health listener. Environment: `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT`, `GARRISON_WORKER_TELEMETRY_MAX_LABEL_VALUES` |
+| `Telemetry` | service `garrison-worker`, Prometheus on `*:9465/metrics`, OTLP off, `/metrics` not served on the health port | Same fields as the server's `Telemetry` block; `ServeMetricsOnServicePort` (default `false`) applies to the health listener. Environment: `GARRISON_WORKER_TELEMETRY_ENABLE`, `GARRISON_WORKER_PROMETHEUS_PORT`, `GARRISON_WORKER_PROMETHEUS_HOSTNAME`, `GARRISON_WORKER_OTLP_ENABLE`, `GARRISON_WORKER_OTLP_ENDPOINT`, `GARRISON_WORKER_TELEMETRY_MAX_LABEL_VALUES` |
 
 The environment allowlist is a security boundary: credentials in the worker's environment never reach a harness unless you add them here. The supported way to give a harness a key is a Garrison secret mapped in the harness profile or deployment (see `docs/HARNESSES.md`).
 
 ## Dashboard
 
-The dashboard image reads two variables at startup: `GARRISON_API_UPSTREAM`, where nginx proxies `/v1.0` and `/openapi.json` (default `http://garrison-server:8700`), and `GARRISON_API_URL`, the API URL the browser should call directly (empty means the same origin, through the proxy). For local development, `npm run dev` proxies to `http://127.0.0.1:8700`.
+The dashboard image reads three variables at startup: `GARRISON_API_UPSTREAM`, where nginx proxies `/v1.0` and `/openapi.json` (default `http://garrison-server:8700`), `GARRISON_API_URL`, the API URL the browser should call directly (empty means the same origin, through the proxy), and `GARRISON_CSP_CONNECT_SRC`, extra space-separated origins the browser may call (default none). Every response carries a Content-Security-Policy whose `connect-src` allows only the dashboard's own origin, the origin of `GARRISON_API_URL` (and its `ws`/`wss` form), and `GARRISON_CSP_CONNECT_SRC`, so a server URL typed on the sign-in page must be one of those (see `docs/SECURITY.md`, "Dashboard"). For local development, `npm run dev` proxies to `http://127.0.0.1:8700`.
 
 ## Operator model prices
 

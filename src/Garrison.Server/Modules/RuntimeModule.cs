@@ -172,9 +172,8 @@ namespace Garrison.Server.Modules
             new TriggerRoutes(context, _Triggers!).Register(routes);
             new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
-            WatsonWebserver.Webserver server = context.Get<WatsonWebserver.Webserver>();
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
-            server.WebSocket("/v1.0/ws", live.HandleAsync);
+            routes.WebSocket("/v1.0/ws", live.HandleAsync, "Live updates WebSocket: authenticates with a token, then authorizes each subscription (runs, run:{id}, pipeline-run:{id}, approvals, nodes)", "Live updates");
         }
 
         /// <inheritdoc />

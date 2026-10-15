@@ -67,7 +67,14 @@ namespace Garrison.Server.Services
                 ExpiresUtc = DateTime.UtcNow.AddMilliseconds(DispatchTimeoutMs + Math.Clamp(timeoutMs, 1000, 120000) + 10000)
             };
             try { await _Context.Database.McpTests.CreateAsync(entry, token).ConfigureAwait(false); }
-            catch (Exception ex) when (DatabaseFailures.IsUniqueViolation(ex)) { throw new ConflictException("McpDiagnosticBusy", "This worker already has an MCP diagnostic pending."); }
+            catch (Exception ex) when (DatabaseFailures.IsUniqueViolation(ex))
+            {
+                // The worker holds one entry at a time. A finished entry is only waiting for its caller's cleanup; if that
+                // cleanup did not complete, it would block the worker until it expires, so remove it and try once more.
+                if (await _Context.Database.McpTests.RemoveFinishedByNodeAsync(node.Id, token).ConfigureAwait(false) == 0) throw new ConflictException("McpDiagnosticBusy", "This worker already has an MCP diagnostic pending.");
+                try { await _Context.Database.McpTests.CreateAsync(entry, token).ConfigureAwait(false); }
+                catch (Exception retry) when (DatabaseFailures.IsUniqueViolation(retry)) { throw new ConflictException("McpDiagnosticBusy", "This worker already has an MCP diagnostic pending."); }
+            }
             DateTime dispatchDeadline = DateTime.UtcNow.AddMilliseconds(DispatchTimeoutMs);
             try
             {
@@ -84,12 +91,75 @@ namespace Garrison.Server.Services
             }
             finally
             {
-                using (CancellationTokenSource cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                // Retry the cleanup a few times: a leftover entry blocks the worker's next diagnostic until it expires.
+                for (int attempt = 0; attempt < 3; attempt++)
                 {
-                    try { await _Context.Database.McpTests.DeleteAsync(entry.TenantId, entry.Id, cleanup.Token).ConfigureAwait(false); }
-                    catch (Exception ex) when (ex is System.Data.Common.DbException || ex is OperationCanceledException) { }
+                    using (CancellationTokenSource cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                    {
+                        try
+                        {
+                            await _Context.Database.McpTests.DeleteAsync(entry.TenantId, entry.Id, cleanup.Token).ConfigureAwait(false);
+                            break;
+                        }
+                        catch (Exception ex) when (ex is System.Data.Common.DbException || ex is OperationCanceledException)
+                        {
+                            _Context.Logging.Debug("[WorkerMcpTestService] cleanup of MCP diagnostic " + entry.Id + " failed (attempt " + (attempt + 1) + "): " + ex.Message);
+                        }
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// The active secrets an MCP server's templates reference by name (secret.NAME), or every active secret when a
+        /// template uses the whole secret map. Values stay encrypted.
+        /// </summary>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="server">MCP server.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Referenced secrets.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when tenantId or server is null.</exception>
+        public async Task<List<Secret>> ReferencedSecretsAsync(string tenantId, McpServer server, CancellationToken token)
+        {
+            if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
+            if (server == null) throw new ArgumentNullException(nameof(server));
+            List<string> names = SecretUseChecker.ReferencedSecretNames(SecretUseChecker.McpServerTemplates(server));
+            List<Secret> secrets = new List<Secret>();
+            if (names.Count == 0) return secrets;
+            EnumerationResult<Secret> page = await _Context.Database.Secrets.EnumerateAsync(tenantId, new EnumerationQuery { MaxResults = 1000 }, token).ConfigureAwait(false);
+            bool all = names.Contains(String.Empty);
+            foreach (Secret secret in page.Objects)
+            {
+                if (!secret.Active || String.IsNullOrEmpty(secret.ValueEncrypted)) continue;
+                if (all || names.Contains(secret.Name, StringComparer.Ordinal)) secrets.Add(secret);
+            }
+            return secrets;
+        }
+
+        /// <summary>
+        /// A template context whose secret map holds the decrypted values of the given secrets, keyed by name. A value that
+        /// cannot be decrypted is left out.
+        /// </summary>
+        /// <param name="secrets">Secrets to expose.</param>
+        /// <returns>Context.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when secrets is null.</exception>
+        public TemplateContext SecretContext(IEnumerable<Secret> secrets)
+        {
+            if (secrets == null) throw new ArgumentNullException(nameof(secrets));
+            TemplateContext context = new TemplateContext();
+            Dictionary<string, object?> map = TemplateContext.NewMap();
+            foreach (Secret secret in secrets)
+            {
+                try
+                {
+                    map[secret.Name] = _Context.Cipher.Decrypt(secret.ValueEncrypted!, secret.Id);
+                }
+                catch (Exception e) when (e is System.Security.Cryptography.CryptographicException || e is FormatException)
+                {
+                }
+            }
+            context.Set("secret", map);
+            return context;
         }
 
         /// <summary>Accept idempotent completions and claim at most one test for a worker heartbeat.</summary>
@@ -122,12 +192,8 @@ namespace Garrison.Server.Services
             }
             try
             {
-                TemplateContext context = new TemplateContext();
-                Dictionary<string, object?> secrets = TemplateContext.NewMap();
-                EnumerationResult<Secret> page = await _Context.Database.Secrets.EnumerateAsync(entry.TenantId, new EnumerationQuery { MaxResults = 1000 }, token).ConfigureAwait(false);
-                foreach (Secret secret in page.Objects)
-                    if (secret.Active && !String.IsNullOrEmpty(secret.ValueEncrypted)) secrets[secret.Name] = _Context.Cipher.Decrypt(secret.ValueEncrypted, secret.Id);
-                context.Set("secret", secrets);
+                // Only the secrets the server's templates name are decrypted; the route checked the caller may use them.
+                TemplateContext context = SecretContext(await ReferencedSecretsAsync(entry.TenantId, server, token).ConfigureAwait(false));
                 TemplateRenderOptions options = new TemplateRenderOptions { AllowSecrets = true };
                 McpWorkerTest assignment = new McpWorkerTest
                 {

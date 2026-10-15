@@ -63,6 +63,9 @@ namespace Test.Shared
                 suites.AddRange(IsolationProbeSuite.Build());
                 suites.AddRange(ControlPlaneTuningSuite.Build());
                 suites.AddRange(SecurityReviewSuite.Build());
+                suites.AddRange(SecurityHardeningSuite.Build());
+                suites.AddRange(SecurityWorkerSuite.Build());
+                suites.AddRange(SecurityAssetsSuite.Build());
                 suites.AddRange(UpgradeSuite.Build());
                 suites.AddRange(TriggerSuite.Build());
                 suites.AddRange(NotificationSuite.Build());

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Creates the Garrison Secrets with random values. Existing garrison-secrets, garrison-node-credential, and
 # garrison-grafana are kept unless --force is given (rotating them after first boot changes admin and node keys).
-# garrison-grafana (Grafana admin, user admin, password GARRISON_GRAFANA_PASSWORD, default password) is always
+# garrison-grafana (Grafana admin, user admin, password GARRISON_GRAFANA_PASSWORD, or a random one) is always
 # created, even without the observability stack, so enabling it later needs no extra step. It is tiny and unused
 # until Grafana is deployed.
 # Optional harness credentials are read from the caller's environment and always refreshed:
 #   ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, OPENAI_API_KEY, MUX_BASE_URL, MUX_MODEL, MUX_API_KEY, MUX_ADAPTER_TYPE,
 #   and CODEX_AUTH_JSON_FILE (path to a Codex auth.json, for example ~/.codex/auth.json)
-# Secret values are never printed, except the generated admin password once.
+# The administrator and Grafana passwords are GARRISON_ADMIN_PASSWORD and GARRISON_GRAFANA_PASSWORD when set, otherwise
+# random; there is no default password (SR-08). Secret values are never printed, except a generated administrator or
+# Grafana password, once.
 source "$(dirname "$0")/common.sh"
 need kubectl
 need openssl
@@ -20,7 +22,7 @@ rand() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c "$1"; }
 kubectl get namespace "${GARRISON_NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${GARRISON_NAMESPACE}" >/dev/null
 
 if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garrison-secrets >/dev/null 2>&1; then
-  ADMIN_PASSWORD="${GARRISON_ADMIN_PASSWORD:-password}"
+  ADMIN_PASSWORD="${GARRISON_ADMIN_PASSWORD:-$(rand 20)}"
   kubectl -n "${GARRISON_NAMESPACE}" create secret generic garrison-secrets \
     --from-literal=master-key="$(openssl rand -base64 32)" \
     --from-literal=signing-key="$(rand 48)" \
@@ -31,9 +33,10 @@ if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garri
     --from-literal=default-secret-key="secret_$(rand 48)" \
     --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   log "created secret garrison-secrets"
-  log "  tenant: default   admin user: admin@garrison   admin password: ${ADMIN_PASSWORD}"
   if [ -z "${GARRISON_ADMIN_PASSWORD:-}" ]; then
-    log "WARNING: using the default administrator password. Set GARRISON_ADMIN_PASSWORD before deploying anywhere shared."
+    log "  tenant: default   admin user: admin@garrison   admin password (generated, shown once): ${ADMIN_PASSWORD}"
+  else
+    log "  tenant: default   admin user: admin@garrison   admin password: GARRISON_ADMIN_PASSWORD"
   fi
 else
   log "secret garrison-secrets exists; keeping it (use --force to rotate)"
@@ -50,15 +53,16 @@ else
 fi
 
 if [ "${FORCE}" = "1" ] || ! kubectl -n "${GARRISON_NAMESPACE}" get secret garrison-grafana >/dev/null 2>&1; then
-  GRAFANA_PASSWORD="${GARRISON_GRAFANA_PASSWORD:-password}"
+  GRAFANA_PASSWORD="${GARRISON_GRAFANA_PASSWORD:-$(rand 20)}"
   kubectl -n "${GARRISON_NAMESPACE}" create secret generic garrison-grafana \
     --from-literal=admin-user=admin \
     --from-literal=admin-password="${GRAFANA_PASSWORD}" \
     --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   log "created secret garrison-grafana"
-  log "  Grafana (observability overlays) user: admin   password: ${GRAFANA_PASSWORD}"
   if [ -z "${GARRISON_GRAFANA_PASSWORD:-}" ]; then
-    log "WARNING: using the default Grafana password. Set GARRISON_GRAFANA_PASSWORD before deploying anywhere shared."
+    log "  Grafana (observability overlays) user: admin   password (generated, shown once): ${GRAFANA_PASSWORD}"
+  else
+    log "  Grafana (observability overlays) user: admin   password: GARRISON_GRAFANA_PASSWORD"
   fi
 else
   log "secret garrison-grafana exists; keeping it (use --force to rotate)"

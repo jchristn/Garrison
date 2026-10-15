@@ -49,7 +49,7 @@ namespace Test.Shared.Suites
             cases.Add(new TestCaseDescriptor(id, "run-tracing", "RunTracing parses trace IDs, formats log fields, and always yields a traceparent", ct => RunTracingAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "run-trace-spans", "A run records its trace ID and its create, claim, compile, and harness spans share it", ct => RunTraceSpansAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "otlp-sources", "With OTLP enabled, Radiant records spans from the Garrison and Garrison.Worker sources", ct => OtlpSourcesAsync(ct)));
-            cases.Add(new TestCaseDescriptor(id, "metrics-rest", "GET /metrics on the REST port relays the Prometheus listener and can be turned off", ct => MetricsRestAsync(ct)));
+            cases.Add(new TestCaseDescriptor(id, "metrics-rest", "GET /metrics on the REST port relays the Prometheus listener when turned on (off by default, SR-20) and can be turned off", ct => MetricsRestAsync(ct)));
             cases.Add(new TestCaseDescriptor(id, "metrics-health", "GET /metrics on the worker health port relays the exposition or answers 503", ct => MetricsHealthAsync(ct)));
             suites.Add(new TestSuiteDescriptor(id, "Observability (P13)", cases));
             return suites;
@@ -373,6 +373,7 @@ namespace Test.Shared.Suites
                 s.Telemetry.PrometheusEnable = true;
                 s.Telemetry.PrometheusHostname = "127.0.0.1";
                 s.Telemetry.PrometheusPort = metricsPort;
+                s.Telemetry.ServeMetricsOnServicePort = true;
             }, token).ConfigureAwait(false))
             {
                 Assert.True(host.Server.Context.Telemetry.Active, "Telemetry is active");

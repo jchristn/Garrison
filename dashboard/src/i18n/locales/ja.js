@@ -2488,3 +2488,5 @@ ja.tips.resources.deployments.egressDefault = "送信許可リストなし: 実�
   }
  }
 });
+Object.assign(ja.common.fieldCodes, {"SecretUseDenied": "このシークレットを使用する権限がありません。このシークレットに対する SecretUser または SecretManager ロールを依頼してください。", "GrantCeiling": "付与できるのは、自分が持っている権限だけです。", "ReservedRoleName": "組み込みロールの名前です。別の名前を選んでください。"});
+ja.components.mcpTest.noWorkers = "準備完了のワーカーで stdio 診断を提供しているものはありません。コマンドは実行の分離の外側、ワーカーのホスト上で動くため、オペレーターがワーカーに GARRISON_WORKER_MCP_TESTS_ENABLED=true を設定した場合にのみ実行されます。";

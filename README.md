@@ -61,7 +61,7 @@ The control plane compiles each run into a fully resolved execution spec: comman
 
 ## Getting started
 
-Pick the runtime you already have. Docker Compose is the quickest way to see Garrison work: one command, nothing to install beyond Docker. Kubernetes is where Garrison is meant to run for real. Building from source is for working on Garrison itself. Every route ends in the same place: a control plane, two workers, the dashboard, and a tenant called `default` you sign in to as `admin@garrison` with password `password`. Change that password before anyone else can reach the stack.
+Pick the runtime you already have. Docker Compose is the quickest way to see Garrison work: one command, nothing to install beyond Docker. Kubernetes is where Garrison is meant to run for real. Building from source is for working on Garrison itself. Every route ends in the same place: a control plane, two workers, the dashboard, and a tenant called `default` you sign in to as `admin@garrison`. There is no default password: Docker Compose and the Kubernetes scripts generate one, and the server refuses to start with public default keys or passwords outside an explicit development mode.
 
 Harness credentials are optional at this point. Without them the fake harness still runs end to end; with them, the stack creates three sample agents (`claude-helper` on Claude Code, `codex-coder` on Codex, and `mux-helper` on Mux) the first time it starts.
 
@@ -71,11 +71,10 @@ You need Docker with Compose v2, about 5 GB of free disk for the images and buil
 
 ```bash
 git clone https://github.com/jchristn/Garrison && cd Garrison/docker
-cp .env.example .env      # ports, keys, and optional harness credentials (Claude, Codex, Mux)
-./update.sh               # builds the images and starts the stack; Windows: update.bat
+./update.sh               # generates keys into .env, builds the images, starts the stack; Windows: update.bat
 ```
 
-Then open http://127.0.0.1:8080. The stack uses ports 8700 (REST and A2A), 8701 (MCP), 8080 (dashboard), and 5433 (Postgres) on 127.0.0.1. If any of them is taken, `update.sh` says which before it builds anything; set other ports in `.env` and run it again. `docs/DOCKER.md` covers credentials, what a healthy stack looks like, and how to stop, update, and reset it.
+Then open http://127.0.0.1:8080 and sign in with the administrator password `update.sh` printed (it is also `GARRISON_ADMIN_PASSWORD` in `docker/.env`). Optional harness credentials (Claude, Codex, Mux) and ports go in `docker/.env` too. The stack uses ports 8700 (REST and A2A), 8701 (MCP), 8080 (dashboard), and 5433 (Postgres) on 127.0.0.1. If any of them is taken, `update.sh` says which before it builds anything; set other ports in `.env` and run it again. `docs/DOCKER.md` covers credentials, what a healthy stack looks like, and how to stop, update, and reset it.
 
 ### Kubernetes
 
@@ -97,7 +96,7 @@ You need the .NET 10 SDK, and Node.js for the dashboard (CI uses Node 22). Each 
 
 ```bash
 dotnet build src/Garrison.sln
-cd src/Garrison.Server && dotnet run -f net10.0     # Sqlite; REST and A2A on 127.0.0.1:8700, MCP on 8701
+cd src/Garrison.Server && GARRISON_ALLOW_INSECURE_DEFAULTS=true dotnet run -f net10.0   # development mode; Sqlite; REST and A2A on 127.0.0.1:8700, MCP on 8701
 cd src/Garrison.Worker && dotnet run -f net10.0     # one worker; a second needs its own GARRISON_WORKER_NODE_NAME and GARRISON_WORKER_HEALTH_PORT
 cd dashboard && npm install && npm run dev          # dashboard; open the URL it prints
 ```
@@ -112,12 +111,12 @@ The shortest possible check, once a stack is up:
 
 ```bash
 TOKEN=$(curl -s -X POST http://127.0.0.1:8700/v1.0/token -H "Content-Type: application/json" \
-  -d '{"email":"admin@garrison","password":"password"}' | jq -r .token)
+  -d '{"email":"admin@garrison","password":"<your administrator password>"}' | jq -r .token)
 curl -s http://127.0.0.1:8700/v1.0/api/nodes -H "Authorization: Bearer $TOKEN" | jq -r '.objects[] | "\(.name) \(.status)"'
 curl -s http://127.0.0.1:8700/v1.0/api/control-nodes -H "Authorization: Bearer $TOKEN" | jq -r '.objects[] | "\(.name) \(.status) leader=\(.isLeader)"'
 ```
 
-Both workers should be listed as `Ready`, and so should the control plane (one `Ready` control node, the leader). Most examples in these documents use a session token like this one. Some use `x-api-key`, the platform administrator API key: `garrisonadmin` on a source build or Docker unless you set `GARRISON_ADMIN_API_KEY`, and a random value on Kubernetes (`docs/KUBERNETES.md` shows how to read it).
+Both workers should be listed as `Ready`, and so should the control plane (one `Ready` control node, the leader). Most examples in these documents use a session token like this one. Some use `x-api-key`, the platform administrator API key: `GARRISON_ADMIN_API_KEY` in `docker/.env` on Docker, a random value on Kubernetes (`docs/KUBERNETES.md` shows how to read it), and `garrisonadmin` only on a source build in development mode. Examples that show `garrisonadmin` or `password` mean your values.
 
 The dashboard explains itself as you go. Every control carries a tooltip, each configuration page opens with a short note on how its records relate to agents and deployments, and the Analytics page charts time to first token, execution and queue time, tokens, cost, outcomes, and tool calls by agent, harness, deployment, and model.
 

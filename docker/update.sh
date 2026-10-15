@@ -3,6 +3,8 @@
 #  update.sh - rebuild the Garrison images and recreate the Docker stack.
 #
 #  Non-destructive: named volumes (database, worker workspaces) are preserved.
+#  First, env-secrets.sh makes sure .env holds every key and password the stack
+#  requires, generating random values for any that can safely be created.
 #  For a destructive reset use docker/factory/reset.sh.
 #
 #  Usage:   ./update.sh                   rebuild images from this repository (default)
@@ -31,6 +33,9 @@ if [ "${OBSERVABILITY}" = "1" ]; then
 fi
 
 cd "${SCRIPT_DIR}"
+
+# Keys, passwords, and seeded credentials: compose.yaml has no defaults for them (SR-08).
+"${SCRIPT_DIR}/env-secrets.sh"
 
 # Port settings: the shell environment wins, then .env, then the compose.yaml defaults (the same order Compose uses).
 env_value() {
@@ -97,11 +102,11 @@ echo "[4/4] Container status:"
 
 echo
 echo "Update complete."
-echo "  Dashboard  http://127.0.0.1:${DASHBOARD_PORT}  (tenant default, admin@garrison, password password unless you changed it)"
+echo "  Dashboard  http://127.0.0.1:${DASHBOARD_PORT}  (tenant default, admin@garrison, GARRISON_ADMIN_PASSWORD from .env)"
 echo "  REST, A2A  http://127.0.0.1:${REST_PORT}"
 echo "  MCP        http://127.0.0.1:${MCP_PORT}/mcp"
 if [ "${OBSERVABILITY}" = "1" ]; then
-  echo "  Grafana    http://127.0.0.1:${GRAFANA_PORT}  (admin, GARRISON_GRAFANA_PASSWORD, default password)"
+  echo "  Grafana    http://127.0.0.1:${GRAFANA_PORT}  (admin, GARRISON_GRAFANA_PASSWORD from .env)"
   echo "  Prometheus http://127.0.0.1:${PROMETHEUS_PORT}"
 fi
 echo "The garrison-bootstrap container is meant to exit with code 0 once it has created the sample agents."

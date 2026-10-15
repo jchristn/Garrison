@@ -2537,3 +2537,5 @@ fr.tips.resources.deployments.egressDefault = "Aucune liste de sortie autorisée
   }
  }
 });
+Object.assign(fr.common.fieldCodes, {"SecretUseDenied": "Vous n'avez pas le droit d'utiliser ce secret. Demandez le rôle SecretUser ou SecretManager sur ce secret.", "GrantCeiling": "Vous ne pouvez accorder que les permissions que vous avez vous-même.", "ReservedRoleName": "C'est le nom d'un rôle intégré. Choisissez un autre nom."});
+fr.components.mcpTest.noWorkers = "Aucun worker prêt ne propose de diagnostic stdio. Les workers ne les exécutent que si un opérateur définit GARRISON_WORKER_MCP_TESTS_ENABLED=true sur eux, car la commande s'exécute sur l'hôte du worker, hors de l'isolation des exécutions.";

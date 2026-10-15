@@ -2488,3 +2488,5 @@ yueHant.tips.resources.deployments.egressDefault = "冇出站允許清單：執�
   }
  }
 });
+Object.assign(yueHant.common.fieldCodes, {"SecretUseDenied": "你冇權限用呢個機密。請人俾你呢個機密嘅 SecretUser 或者 SecretManager 角色。", "GrantCeiling": "你只可以授予你自己有嘅權限。", "ReservedRoleName": "呢個係內建角色嘅名。請揀第二個名。"});
+yueHant.components.mcpTest.noWorkers = "冇一部就緒嘅工作節點提供 stdio 診斷。因為指令會喺工作節點主機度、執行隔離以外運行，所以只有營運人員喺工作節點設定 GARRISON_WORKER_MCP_TESTS_ENABLED=true 先會運行。";

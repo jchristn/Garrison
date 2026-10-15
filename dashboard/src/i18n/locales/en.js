@@ -2516,3 +2516,5 @@ en.tips.resources.deployments.egressDefault = "No egress allowlist: run pods use
   }
  }
 });
+Object.assign(en.common.fieldCodes, {"SecretUseDenied": "You do not have permission to use this secret. Ask for the SecretUser or SecretManager role on it.", "GrantCeiling": "You can only grant permissions you hold yourself.", "ReservedRoleName": "This is the name of a built-in role. Choose another name."});
+en.components.mcpTest.noWorkers = "No Ready worker offers stdio diagnostics. Workers run them only when an operator sets GARRISON_WORKER_MCP_TESTS_ENABLED=true on them, because the command runs on the worker host, outside run isolation.";

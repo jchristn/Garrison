@@ -19,8 +19,10 @@ RUN apk upgrade --no-cache
 RUN apk add --no-cache curl
 COPY --from=build /app/dist/ /usr/share/nginx/html/
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx-security-headers.conf /etc/nginx/garrison-security-headers.inc
 COPY docker-entrypoint.sh /docker-entrypoint.d/40-garrison-config.sh
 RUN chmod 755 /docker-entrypoint.d/40-garrison-config.sh
 ENV GARRISON_API_URL="" \
+    GARRISON_CSP_CONNECT_SRC="" \
     GARRISON_API_UPSTREAM="http://garrison-server:8700"
 EXPOSE 80

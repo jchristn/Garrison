@@ -67,6 +67,7 @@ namespace Garrison.Server.Routes
             options.PrincipalName = RouteHelpers.Context(http).PrincipalName;
             options.PrincipalType = RouteHelpers.Context(http).PrincipalType;
             options.PrincipalId = RouteHelpers.Context(http).PrincipalType == PrincipalTypeEnum.Administrator ? null : RouteHelpers.Context(http).PrincipalId;
+            options.SecretUse = _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId);
             if (options.AllowSecretValues && !await _Routes!.RequireAsync(http, tenantId, ResourceTypeEnum.Secret, OperationTypeEnum.Create, null).ConfigureAwait(false)) return;
 
             ManifestApply result = await _Manifests.ApplyAsync(tenantId, http.Request.DataAsString, options, http.Token).ConfigureAwait(false);

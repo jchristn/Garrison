@@ -67,7 +67,7 @@ namespace Garrison.Worker.Execution
                         linked.Token.ThrowIfCancellationRequested();
                         try
                         {
-                            byte[] bytes = await ReadAsync(file.FullPath, Math.Min(settings.MaxFileBytes, settings.MaxTotalBytes - transferred), linked.Token).ConfigureAwait(false);
+                            byte[] bytes = await ReadAsync(workspace, file.FullPath, Math.Min(settings.MaxFileBytes, settings.MaxTotalBytes - transferred), linked.Token).ConfigureAwait(false);
                             Dictionary<string, string?> query = new Dictionary<string, string?>
                             {
                                 ["storeId"] = settings.StoreId, ["name"] = file.Name, ["mediaType"] = ArtifactMediaTypes.Of(file.Name),
@@ -111,12 +111,26 @@ namespace Garrison.Worker.Execution
             return uploaded;
         }
 
-        private static async Task<byte[]> ReadAsync(string path, long maximum, CancellationToken token)
+        /// <summary>
+        /// Read a selected artifact file, refusing it unless the file actually opened is the regular file at that path
+        /// inside the workspace (SR-24): a link swapped in after selection, at the file or any directory above it, is
+        /// detected after the open, so the harness cannot redirect an upload to a file outside its workspace.
+        /// </summary>
+        /// <param name="workspace">Workspace root the file was selected under.</param>
+        /// <param name="path">Absolute file path.</param>
+        /// <param name="maximum">Most bytes to read.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>File content.</returns>
+        /// <exception cref="IOException">Thrown when the file is a link, resolves outside the workspace, or exceeds the limit.</exception>
+        public static async Task<byte[]> ReadAsync(string workspace, string path, long maximum, CancellationToken token)
         {
-            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new IOException("Artifact became a filesystem link.");
+            if (workspace == null) throw new ArgumentNullException(nameof(workspace));
+            if (path == null) throw new ArgumentNullException(nameof(path));
+            if (SafePaths.IsLink(path)) throw new IOException("Artifact became a filesystem link.");
             using (FileStream input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 16384, FileOptions.Asynchronous))
             using (MemoryStream output = new MemoryStream())
             {
+                if (!SafePaths.OpenedInside(input.SafeFileHandle, workspace, path)) throw new IOException("Artifact resolved outside the workspace through a filesystem link.");
                 byte[] buffer = new byte[16384];
                 while (true)
                 {

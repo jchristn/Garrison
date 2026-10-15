@@ -24,6 +24,12 @@ namespace Garrison.Core.Security
         public bool IsAuthenticated { get; set; } = false;
 
         /// <summary>
+        /// Whether authentication was refused because the source address made too many failed key attempts in the current
+        /// minute. The REST listener answers 429 instead of 401.
+        /// </summary>
+        public bool RateLimited { get; set; } = false;
+
+        /// <summary>
         /// Authentication result.
         /// </summary>
         public AuthResultEnum AuthResult { get; set; } = AuthResultEnum.NotFound;

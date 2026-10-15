@@ -212,7 +212,9 @@ kubernetesExecutor:
   # Default egress of run pods besides DNS and the Garrison MCP port: CIDRs with optional except lists and ports. It
   # does not apply to run pods of deployments with egressRules (garrison-run-default-egress skips them).
   runEgress:
+    # Never link-local: 169.254.0.0/16 holds the cloud instance metadata service (SR-23).
     - cidr: 0.0.0.0/0
+      except: [169.254.0.0/16]
       ports: [443]
 
 smokeTest:

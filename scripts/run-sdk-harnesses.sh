@@ -54,7 +54,8 @@ cat > "$WORK/server/garrison.json" <<JSON
 JSON
 
 echo "== starting server on $BASE_URL"
-(cd "$WORK/server" && GARRISON_SETTINGS_FILE="$WORK/server/garrison.json" GARRISON_TELEMETRY_ENABLE=false \
+# Development mode: this throwaway server uses the public default keys and credentials the harnesses expect (SR-08).
+(cd "$WORK/server" && GARRISON_SETTINGS_FILE="$WORK/server/garrison.json" GARRISON_TELEMETRY_ENABLE=false GARRISON_ALLOW_INSECURE_DEFAULTS=true \
   exec dotnet "$ART/bin/Garrison.Server/debug_net10.0/Garrison.Server.dll" > "$WORK/server.log" 2>&1) &
 SERVER_PID=$!
 
@@ -71,7 +72,7 @@ echo "== starting worker"
 (cd "$WORK/worker" && PATH="$WORK/bin:$PATH" \
   GARRISON_WORKER_SERVER_URL="$BASE_URL" GARRISON_WORKER_NODE_NAME="sdk-harness-worker" \
   GARRISON_WORKER_HEALTH_PORT="$HEALTH_PORT" GARRISON_WORKER_WORK_ROOT="$WORK/worker/workspaces" \
-  GARRISON_WORKER_MAX_CONCURRENT_RUNS=4 GARRISON_WORKER_TELEMETRY_ENABLE=false \
+  GARRISON_WORKER_MAX_CONCURRENT_RUNS=4 GARRISON_WORKER_TELEMETRY_ENABLE=false GARRISON_WORKER_MCP_TESTS_ENABLED=true \
   exec dotnet "$ART/bin/Garrison.Worker/debug_net10.0/Garrison.Worker.dll" > "$WORK/worker.log" 2>&1) &
 WORKER_PID=$!
 

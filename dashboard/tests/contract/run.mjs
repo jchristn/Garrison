@@ -154,7 +154,8 @@ async function bootstrap() {
   log(`== starting server on ${base}`);
   start('server', 'dotnet', [bin('Garrison.Server', 'Garrison.Server.dll')], {
     cwd: path.join(work, 'server'),
-    env: { ...process.env, GARRISON_SETTINGS_FILE: settings, GARRISON_TELEMETRY_ENABLE: 'false' }
+    // Development mode: this throwaway server uses the public default keys and credentials (SR-08).
+    env: { ...process.env, GARRISON_SETTINGS_FILE: settings, GARRISON_TELEMETRY_ENABLE: 'false', GARRISON_ALLOW_INSECURE_DEFAULTS: 'true' }
   });
   await waitFor('server', async () => (await fetch(`${base}/v1.0/api/health`)).ok);
 

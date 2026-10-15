@@ -25,6 +25,8 @@ set DBFILE=%WORK:\=/%/server/garrison.db
 echo == starting server on %BASE_URL%
 set GARRISON_SETTINGS_FILE=%WORK%\server\garrison.json
 set GARRISON_TELEMETRY_ENABLE=false
+rem Development mode: this throwaway server uses the public default keys and credentials (SR-08).
+set GARRISON_ALLOW_INSECURE_DEFAULTS=true
 start "garrison-sdk-server" /B /D "%WORK%\server" dotnet "%ART%\bin\Garrison.Server\debug_net10.0\Garrison.Server.dll" > "%WORK%\server.log" 2>&1
 for /L %%i in (1,1,60) do (
   curl -fs "%BASE_URL%/v1.0/api/health" > nul 2>&1 && goto server_ready
@@ -40,6 +42,7 @@ set GARRISON_WORKER_NODE_NAME=sdk-harness-worker
 set GARRISON_WORKER_HEALTH_PORT=%GARRISON_SDK_WORKER_HEALTH_PORT%
 set GARRISON_WORKER_WORK_ROOT=%WORK%\worker\workspaces
 set GARRISON_WORKER_MAX_CONCURRENT_RUNS=4
+set GARRISON_WORKER_MCP_TESTS_ENABLED=true
 start "garrison-sdk-worker" /B /D "%WORK%\worker" dotnet "%ART%\bin\Garrison.Worker\debug_net10.0\Garrison.Worker.dll" > "%WORK%\worker.log" 2>&1
 for /L %%i in (1,1,60) do (
   curl -fs -H "x-api-key: garrisonadmin" "%BASE_URL%/v1.0/api/nodes" 2>nul | findstr /C:"\"status\":\"Ready\"" > nul && goto worker_ready

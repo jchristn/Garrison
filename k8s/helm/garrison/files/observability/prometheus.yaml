@@ -2,11 +2,13 @@
 # mirrors this file; CI diffs them).
 #
 # Garrison pods carry prometheus.io/scrape, prometheus.io/port, and prometheus.io/path annotations. Targets are
-# built from the pod IP and the annotated port: the server's REST port (8700) and the worker's health port (8710),
-# which serve /metrics relayed from the dedicated metrics listener (Telemetry.ServeMetricsOnServicePort). The
-# dedicated listeners (9464, 9465) bind the pod host name and answer only requests whose Host header is that name,
-# so a scrape by pod IP gets 404 there. Every series gets component (server, worker) and node (the pod name, which
-# is also the Garrison node name) so Grafana variables and dashboard deep links can filter on them.
+# built from the pod IP and the annotated port: the dedicated metrics listeners, 9464 on the server and 9465 on
+# workers. Those listeners answer only requests whose Host header is the name they bind, so the pods set
+# GARRISON_PROMETHEUS_HOSTNAME and GARRISON_WORKER_PROMETHEUS_HOSTNAME to the pod IP from the downward API.
+# /metrics is not served on the REST port or the worker health port: Telemetry.ServeMetricsOnServicePort is
+# false by default because that endpoint is anonymous (SR-20). Every series gets component (server, worker) and
+# node (the pod name, which is also the Garrison node name) so Grafana variables and dashboard deep links can
+# filter on them.
 global:
   scrape_interval: 15s
   scrape_timeout: 10s

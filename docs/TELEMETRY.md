@@ -9,30 +9,28 @@ The control plane publishes metrics through Radiant (OpenTelemetry) and serves t
 | Setting | Default |
 |---|---|
 | `Telemetry.Enabled` | `true` |
-| `Telemetry.PrometheusEnable`, `PrometheusHostname`, `PrometheusPort`, `PrometheusPath` | `true`, `*`, `9464`, `/metrics` |
+| `Telemetry.PrometheusEnable`, `PrometheusHostname`, `PrometheusPort`, `PrometheusPath` | `true`, `*`, `9464`, `/metrics` (hostname environment: `GARRISON_PROMETHEUS_HOSTNAME`, worker `GARRISON_WORKER_PROMETHEUS_HOSTNAME`) |
 | `Telemetry.OtlpEnable`, `OtlpEndpoint` | `false`, `http://127.0.0.1:4317` |
-| `Telemetry.ServeMetricsOnServicePort` | `true`: `GET /metrics` is also served on the REST port (8700), without authentication |
+| `Telemetry.ServeMetricsOnServicePort` | `false`: when `true`, `GET /metrics` is also served on the REST port (8700) or the worker health port (8710), without authentication |
 | `Telemetry.ServiceName` | `garrison-server`; the control-plane node identifier is the service instance |
 | `Telemetry.MaxLabelValues` | `200` (10 to 10000): distinct values each metric label may take before new values are reported as `other` (environment `GARRISON_TELEMETRY_MAX_LABEL_VALUES`, worker `GARRISON_WORKER_TELEMETRY_MAX_LABEL_VALUES`) |
 | `Telemetry.Exemplars` | `true`: duration histograms carry the trace that produced a sample (sets `OTEL_METRICS_EXEMPLAR_FILTER=trace_based` unless it is already set) |
 
-The Prometheus listener cannot bind a true wildcard, so a hostname of `*`, `+`, or `0.0.0.0` binds to the machine host name instead (in Kubernetes that resolves to the pod IP, which is what Prometheus scrapes) and falls back to `127.0.0.1` if that fails. The startup log names the address it used: `metrics listening on garrison-worker-0:9465/metrics`.
+The Prometheus listener cannot bind a true wildcard, so a hostname of `*`, `+`, or `0.0.0.0` binds to the machine host name instead and falls back to `127.0.0.1` if that fails. It answers only requests addressed to the name it bound. Set `Telemetry.PrometheusHostname` (environment `GARRISON_PROMETHEUS_HOSTNAME`, or `GARRISON_WORKER_PROMETHEUS_HOSTNAME` on workers) to the address scrapers use: the Kustomize base and the Helm chart set it to the pod IP from the downward API (`status.podIP`), and Docker Compose gives every Garrison container a `hostname:` equal to its service name, which is what its Prometheus scrapes. The startup log names the address it used: `metrics listening on 10.42.0.17:9465/metrics`.
 
-Because that listener answers only on the pod IP, `kubectl port-forward` to port 9464 or 9465 and `curl http://127.0.0.1:9464/metrics` inside the pod do not reach it. To cover those cases, the same exposition is also served from each process's main listener, which binds every interface:
+| Process | Metrics listener (what Prometheus scrapes) |
+|---|---|
+| Server | `http://<pod IP>:9464/metrics` (Compose: `http://garrison-server:9464/metrics`) |
+| Worker | `http://<pod IP>:9465/metrics` (Compose: `http://garrison-worker-1:9465/metrics`) |
 
-| Process | Pod-IP listener (what Prometheus scrapes) | Also served at |
-|---|---|---|
-| Server | `http://<pod IP>:9464/metrics` | `http://127.0.0.1:8700/metrics` (REST port) |
-| Worker | `http://<pod IP>:9465/metrics` | `http://127.0.0.1:8710/metrics` (health port) |
+`kubectl port-forward` to 9464 or 9465 and `curl http://127.0.0.1:9464/metrics` inside the pod do not reach the listener, because it is bound to the pod IP. Ask it from inside the pod by that address instead:
 
 ```bash
-kubectl -n garrison port-forward deploy/garrison-server 8700:8700 &
-curl -s http://127.0.0.1:8700/metrics | head
-kubectl -n garrison port-forward garrison-worker-0 8710:8710 &
-curl -s http://127.0.0.1:8710/metrics | head
+kubectl -n garrison exec deploy/garrison-server -- sh -c 'curl -s http://$GARRISON_PROMETHEUS_HOSTNAME:9464/metrics' | head
+kubectl -n garrison exec garrison-worker-0 -- sh -c 'curl -s http://$GARRISON_WORKER_PROMETHEUS_HOSTNAME:9465/metrics' | head
 ```
 
-The relayed endpoint asks the pod-IP listener for a fresh scrape on every request, passing the scraper's `Accept` header through so an OpenMetrics scrape (which is what carries exemplars) stays OpenMetrics, so both return the same values; it answers 503 when the Prometheus listener is off or did not answer. It needs no authentication, like the 9464 listener, so turn it off with `Telemetry.ServeMetricsOnServicePort` set to `false` (server settings file, or the worker's `Telemetry` block) if the REST port is exposed somewhere metrics should not be. Scrapes of `/metrics` on the REST port are not recorded in request history. Radiant has no API that renders the exposition in process and binds one host per listener, which is why Garrison relays the scrape instead of binding a second listener.
+`Telemetry.ServeMetricsOnServicePort` (default `false`) also serves the exposition at `GET /metrics` on each process's main listener, the REST port 8700 on the server and the health port 8710 on workers, which bind every interface. That endpoint needs no authentication and labels series with tenant identifiers and agent names, and the REST port is the one an Ingress exposes, so it is off unless you turn it on for a reason, for example a scraper that can only reach the main port (SR-20). When on, it asks the metrics listener for a fresh scrape on every request, passing the scraper's `Accept` header through so an OpenMetrics scrape (which is what carries exemplars) stays OpenMetrics, so both return the same values; it answers 503 when the Prometheus listener is off or did not answer, and 404 while the setting is off. Scrapes of `/metrics` on the REST port are not recorded in request history. Radiant has no API that renders the exposition in process and binds one host per listener, which is why Garrison relays the scrape instead of binding a second listener.
 
 If the pipeline cannot start at all, for example because the scrape port is taken, Garrison keeps running without metrics and logs `telemetry disabled: ...` at warning severity with the underlying cause.
 
@@ -667,6 +665,7 @@ Every route registers through the route registrar, which records it in the opera
 | POST | `/v1.0/token` | `route="/v1.0/token"` | `POST /v1.0/token` | `route=/v1.0/token` | garrison-http, garrison-security |
 | GET | `/v1.0/token/details` | `route="/v1.0/token/details"` | `GET /v1.0/token/details` | `route=/v1.0/token/details` | garrison-http, garrison-security |
 | POST | `/v1.0/token/refresh` | `route="/v1.0/token/refresh"` | `POST /v1.0/token/refresh` | `route=/v1.0/token/refresh` | garrison-http, garrison-security |
+| GET | `/v1.0/ws` | `route="/v1.0/ws"` | `GET /v1.0/ws` | `route=/v1.0/ws` | garrison-http |
 <!-- /telemetry-coverage:routes -->
 
 Routes outside the registrar: the WebSocket endpoint `/v1.0/ws` (WebSocket metrics, `[LiveUpdates]` lines, panel garrison-protocols), `GET /metrics` (not recorded, to keep scrapes out of request metrics), CORS preflight `OPTIONS` (Watson metrics), and the MCP endpoint on port 8701 (see MCP sessions above).
@@ -756,6 +755,6 @@ Request history capture can be turned off with the `RequestHistory.Enabled` clus
 
 ## Kubernetes
 
-The Helm chart and Kustomize base annotate the server and worker pods with `prometheus.io/scrape: "true"`, `prometheus.io/path: /metrics`, and `prometheus.io/port` set to the main listener that relays `/metrics`: 8700 on the server and 8710 on workers. Point a Prometheus that honors those annotations at the pod IPs and it finds every replica. Do not scrape the dedicated listeners (9464, 9465) by pod IP: they answer only requests addressed to the pod host name and return 404 otherwise. The packaged observability stack (Prometheus, Grafana with the Garrison dashboards, Tempo, Loki, and Grafana Alloy) lives in `k8s/components/observability`; `docs/KUBERNETES.md` covers the overlays that enable it, and `docs/DOCKER.md` the Compose profile.
+The Helm chart and Kustomize base annotate the server and worker pods with `prometheus.io/scrape: "true"`, `prometheus.io/path: /metrics`, and `prometheus.io/port` set to the metrics listener: 9464 on the server and 9465 on workers. The pods bind those listeners to their pod IP (`GARRISON_PROMETHEUS_HOSTNAME` and `GARRISON_WORKER_PROMETHEUS_HOSTNAME` from `status.podIP`), so a Prometheus that honors the annotations and scrapes pod IPs finds every replica. `/metrics` is not served on 8700 or 8710 (`Telemetry.ServeMetricsOnServicePort` is false). The packaged observability stack (Prometheus, Grafana with the Garrison dashboards, Tempo, Loki, and Grafana Alloy) lives in `k8s/components/observability`; `docs/KUBERNETES.md` covers the overlays that enable it, and `docs/DOCKER.md` the Compose profile.
 
 The packaged Grafana is configured mostly through `GF_*` environment variables. Settings that have no environment override, such as feature toggles, live in `k8s/components/observability/config/grafana.ini` (mirrored in the Helm chart as `files/observability/grafana.ini`), mounted as `/etc/grafana/grafana.ini` by Kustomize, Helm, and Docker Compose. It turns off the Grafana 13 `splashScreen` feature toggle, so nobody is shown the "What's new in Grafana" announcement (the Grafana Assistant slide) on first sign-in. Without it the announcement would come back after every pod restart, because Grafana's database is not persisted. The news feed, usage reporting, and update checks are off through `GF_NEWS_NEWS_FEED_ENABLED`, `GF_ANALYTICS_REPORTING_ENABLED`, `GF_ANALYTICS_CHECK_FOR_UPDATES`, and `GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES`. Count panels over the selected range (run outcomes, harness availability problems, HTTP requests and errors) round `increase()` to whole numbers.

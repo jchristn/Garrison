@@ -34,7 +34,7 @@ spec:
         app.kubernetes.io/component: control-plane
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8700"
+        prometheus.io/port: "9464"
         prometheus.io/path: /metrics
         checksum/settings: {{ .Files.Get "files/garrison.json" | sha256sum }}
     spec:
@@ -95,6 +95,9 @@ spec:
             - { name: GARRISON_SETTINGS_READONLY, value: "true" }
             - name: GARRISON_NODE_ID
               valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            # The metrics listener binds the pod IP that Prometheus scrapes; /metrics is not served on the REST port.
+            - name: GARRISON_PROMETHEUS_HOSTNAME
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
             - { name: GARRISON_DB_TYPE, value: Postgresql }
             {{- include "garrison.dbEnv" . | nindent 12 }}
             {{- range $pair := list (list "GARRISON_MASTER_KEY" "master-key") (list "GARRISON_AUTH_SIGNING_KEY" "signing-key") (list "GARRISON_ADMIN_API_KEY" "admin-api-key") (list "GARRISON_ADMIN_PASSWORD" "admin-password") (list "GARRISON_DEFAULT_ACCESS_KEY" "default-access-key") (list "GARRISON_DEFAULT_SECRET_KEY" "default-secret-key") }}

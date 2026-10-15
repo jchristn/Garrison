@@ -31,7 +31,7 @@ spec:
         garrison.io/pool: mux
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8710"
+        prometheus.io/port: "9465"
         prometheus.io/path: /metrics
     spec:
       serviceAccountName: garrison-worker
@@ -102,6 +102,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            # The metrics listener (9465) binds the pod IP that Prometheus scrapes; /metrics is not served on 8710.
+            - name: GARRISON_WORKER_PROMETHEUS_HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: GARRISON_WORKER_ACCESS_KEY
               valueFrom:
                 secretKeyRef:

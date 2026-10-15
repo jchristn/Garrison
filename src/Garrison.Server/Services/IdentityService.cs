@@ -149,6 +149,7 @@ namespace Garrison.Server.Services
             if (String.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@')) errors["email"] = "A valid email is required.";
             if (String.IsNullOrEmpty(request.Password) || request.Password.Length < 8) errors["password"] = "A password of at least 8 characters is required.";
             if (request.IsAdmin == true && !ctx.IsAdmin) errors["isAdmin"] = "Only system administrators may create system administrators.";
+            if (request.IsTenantAdmin == true && !ctx.IsAdmin && !ctx.IsTenantAdmin) errors["isTenantAdmin"] = "Only tenant administrators may create tenant administrators.";
             if (errors.Count > 0) throw new ValidationException("The user is invalid.", errors);
             await RequireTenantAsync(tenantId, token).ConfigureAwait(false);
             if (await _Database.Users.ReadByEmailAsync(tenantId, request.Email!.Trim(), token).ConfigureAwait(false) != null) throw new ConflictException("Duplicate", "A user with that email already exists in the tenant.");
@@ -198,7 +199,15 @@ namespace Garrison.Server.Services
             if (request.IsAdmin.HasValue && request.IsAdmin.Value != user.IsAdmin && !ctx.IsAdmin) errors["isAdmin"] = "Only system administrators may change the system administrator flag.";
             if (user.IsAdmin && !ctx.IsAdmin && request.Password != null) errors["password"] = "Only system administrators may change a system administrator's password.";
             if (user.IsAdmin && !ctx.IsAdmin && request.Email != null && !String.Equals(request.Email.Trim(), user.Email, StringComparison.OrdinalIgnoreCase)) errors["email"] = "Only system administrators may change a system administrator's email.";
+            if (request.IsTenantAdmin.HasValue && request.IsTenantAdmin.Value != user.IsTenantAdmin && !ctx.IsAdmin && !ctx.IsTenantAdmin) errors["isTenantAdmin"] = "Only tenant administrators may change the tenant administrator flag.";
             if (errors.Count > 0) throw new ValidationException("The user is invalid.", errors);
+            bool emailChanges = request.Email != null && !String.Equals(request.Email.Trim(), user.Email, StringComparison.OrdinalIgnoreCase);
+            if ((request.Password != null || emailChanges) && user.Id != ctx.UserId)
+            {
+                // Whoever sets another user's password or email can sign in as that user, so it is limited to users whose
+                // permissions the caller holds itself (SR-13).
+                await RequireWithinCallerAsync(ctx, tenantId, user, null, request.Password != null ? "password" : "email", "Changing this user's " + (request.Password != null ? "password" : "email"), token).ConfigureAwait(false);
+            }
 
             if (request.Email != null && !String.Equals(request.Email.Trim(), user.Email, StringComparison.OrdinalIgnoreCase))
             {
@@ -206,6 +215,7 @@ namespace Garrison.Server.Services
                 user.Email = request.Email.Trim();
             }
             if (request.Password != null) user.PasswordHash = PasswordHasher.Hash(request.Password, _PasswordHashIterations());
+            bool passwordChanged = request.Password != null;
             if (request.FirstName != null) user.FirstName = request.FirstName;
             if (request.LastName != null) user.LastName = request.LastName;
             if (request.IsTenantAdmin.HasValue) user.IsTenantAdmin = request.IsTenantAdmin.Value;
@@ -216,6 +226,13 @@ namespace Garrison.Server.Services
                 user.Active = request.Active.Value;
             }
             await _Database.Users.UpdateAsync(user, token).ConfigureAwait(false);
+            if (passwordChanged)
+            {
+                // A password change ends the user's other sessions at once (SR-17). A user changing their own password keeps
+                // the session they did it from.
+                int revoked = await _Database.Sessions.RevokeByUserAsync(user.Id, user.Id == ctx.UserId ? ctx.SessionId : null, "Password changed.", token).ConfigureAwait(false);
+                if (revoked > 0) await _Audit.WriteAsync(ctx, AuditEventTypeEnum.SessionRevoked, "User", user.Id, "Password changed; " + revoked + " session(s) revoked.", tenantId, token).ConfigureAwait(false);
+            }
             _Authorization.Invalidate();
             await _Audit.WriteAsync(ctx, AuditEventTypeEnum.ConfigurationChanged, "User", user.Id, "User updated.", tenantId, token).ConfigureAwait(false);
             return user;
@@ -275,6 +292,18 @@ namespace Garrison.Server.Services
                 builtIn = BuiltInRoles.Find(request.RoleName);
                 if (builtIn == null) custom = await _Database.Roles.ReadByNameAsync(tenantId, request.RoleName, token).ConfigureAwait(false);
                 if (builtIn == null && custom == null) throw Invalid("roleName", "Unknown role '" + request.RoleName + "'.");
+            }
+            List<PermissionGrant>? roleGrants = null;
+            if (builtIn != null || custom != null)
+            {
+                roleGrants = await _Authorization.GrantsForRoleAsync(tenantId, builtIn != null ? builtIn.Id : custom!.Id, null, ResourceScopeEnum.Tenant, null, true, token).ConfigureAwait(false);
+                await RequireCeilingAsync(ctx, tenantId, roleGrants, null, "roleName", "Role " + (builtIn != null ? builtIn.Name : custom!.Name), token).ConfigureAwait(false);
+            }
+            if (owner.Id != ctx.UserId)
+            {
+                // The holder of the new secret acts as the owner (bounded by the credential's role), so minting one for
+                // another user is limited to what the caller holds itself (SR-13).
+                await RequireWithinCallerAsync(ctx, tenantId, owner, roleGrants, "userId", "A credential for this user", token).ConfigureAwait(false);
             }
 
             string secret = SecretGenerator.NewSecretKey();
@@ -355,6 +384,11 @@ namespace Garrison.Server.Services
             {
                 User? owner = await _Database.Users.ReadAsync(tenantId, credential.UserId, token).ConfigureAwait(false);
                 if (owner != null && owner.IsAdmin) throw Invalid("id", "Only system administrators may rotate a system administrator's credential.");
+                if (owner != null && owner.Id != ctx.UserId)
+                {
+                    List<PermissionGrant> credentialGrants = await _Authorization.GrantsForCredentialAsync(tenantId, credential.Id, token).ConfigureAwait(false);
+                    await RequireWithinCallerAsync(ctx, tenantId, owner, credentialGrants, "id", "Rotating this credential", token).ConfigureAwait(false);
+                }
             }
             string secret = SecretGenerator.NewSecretKey();
             credential.SecretKeyEncrypted = _Cipher.Encrypt(secret, credential.Id);
@@ -431,6 +465,52 @@ namespace Garrison.Server.Services
             if (role == null && !String.IsNullOrEmpty(roleName)) role = await _Database.Roles.ReadByNameAsync(tenantId, roleName, token).ConfigureAwait(false);
             if (role == null) throw Invalid("roleId", "The role does not exist.");
             return role;
+        }
+
+        /// <summary>
+        /// Require that the caller holds every permission an assignment of a role would grant (the grant ceiling, SR-13).
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="role">Role being assigned.</param>
+        /// <param name="scope">Assignment scope.</param>
+        /// <param name="resourceId">Resource identifier for Resource scope, or null.</param>
+        /// <param name="inherits">Whether the assignment inherits to child resources.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or role is null.</exception>
+        /// <exception cref="ValidationException">Thrown with field code GrantCeiling when the role grants something the caller does not hold.</exception>
+        public async Task RequireAssignableAsync(RequestContext ctx, string tenantId, Role role, ResourceScopeEnum scope, string? resourceId, bool inherits, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (role == null) throw new ArgumentNullException(nameof(role));
+            List<PermissionGrant> grants = await _Authorization.GrantsForRoleAsync(tenantId, role.Id, null, scope, resourceId, inherits, token).ConfigureAwait(false);
+            await RequireCeilingAsync(ctx, tenantId, grants, null, "roleId", "Role " + role.Name, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Require that the caller holds every permission a permission record grants, before it is mapped to a role or its
+        /// lists change (the grant ceiling, SR-13).
+        /// </summary>
+        /// <param name="ctx">Caller.</param>
+        /// <param name="tenantId">Tenant identifier.</param>
+        /// <param name="permission">Permission.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>Task.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when ctx or permission is null.</exception>
+        /// <exception cref="ValidationException">Thrown with field code GrantCeiling when the permission grants something the caller does not hold.</exception>
+        public async Task RequirePermissionWithinCallerAsync(RequestContext ctx, string tenantId, Permission permission, CancellationToken token = default)
+        {
+            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
+            if (permission == null) throw new ArgumentNullException(nameof(permission));
+            PermissionGrant grant = new PermissionGrant();
+            grant.ResourceTypes = new List<string>(permission.ResourceTypes);
+            grant.Operations = new List<string>(permission.OperationTypes);
+            grant.PermissionType = permission.PermissionType;
+            grant.Scope = ResourceScopeEnum.Tenant;
+            grant.InheritsToChildren = true;
+            grant.Source = permission.Name;
+            await RequireCeilingAsync(ctx, tenantId, new List<PermissionGrant> { grant }, null, "permissionId", "Permission " + permission.Name, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -519,6 +599,34 @@ namespace Garrison.Server.Services
                 }
             }
             return response;
+        }
+
+        private async Task RequireCeilingAsync(RequestContext ctx, string tenantId, List<PermissionGrant> grants, Func<ResourceTypeEnum, OperationTypeEnum, string?, Task<bool>>? targetHolds, string field, string subject, CancellationToken token)
+        {
+            string? missing = await _Authorization.CeilingViolationAsync(ctx, tenantId, grants, targetHolds, token).ConfigureAwait(false);
+            if (missing == null) return;
+            string message = subject + " would grant " + missing + ", which you do not hold. You can only grant permissions you hold yourself.";
+            throw new ValidationException(message, new Dictionary<string, string> { { field, message } }, new Dictionary<string, string> { { field, "GrantCeiling" } });
+        }
+
+        private async Task RequireWithinCallerAsync(RequestContext ctx, string tenantId, User target, List<PermissionGrant>? credentialGrants, string field, string subject, CancellationToken token)
+        {
+            if (ctx.IsAdmin) return;
+            if (target.IsTenantAdmin && !ctx.IsTenantAdmin)
+            {
+                string message = subject + " would act as a tenant administrator. Only tenant administrators may do this.";
+                throw new ValidationException(message, new Dictionary<string, string> { { field, message } }, new Dictionary<string, string> { { field, "GrantCeiling" } });
+            }
+            List<PermissionGrant> targetGrants = await _Authorization.GrantsForUserAsync(tenantId, target.Id, token).ConfigureAwait(false);
+            if (credentialGrants != null && credentialGrants.Count > 0)
+            {
+                // A credential with roles is bounded by its owner, so only what both grant needs checking.
+                Func<ResourceTypeEnum, OperationTypeEnum, string?, Task<bool>> ownerHolds = (resourceType, operation, resourceId) =>
+                    Task.FromResult(target.IsTenantAdmin || PermissionEvaluator.Evaluate(targetGrants, resourceType, operation, resourceId).Permitted);
+                await RequireCeilingAsync(ctx, tenantId, credentialGrants, ownerHolds, field, subject, token).ConfigureAwait(false);
+                return;
+            }
+            await RequireCeilingAsync(ctx, tenantId, targetGrants, null, field, subject, token).ConfigureAwait(false);
         }
 
         private async Task DeleteCredentialCascadeAsync(string tenantId, string credentialId, CancellationToken token)

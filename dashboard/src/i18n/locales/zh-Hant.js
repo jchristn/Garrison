@@ -2489,3 +2489,5 @@ zhHant.tips.resources.deployments.egressDefault = "沒有出站允許清單：�
   }
  }
 });
+Object.assign(zhHant.common.fieldCodes, {"SecretUseDenied": "你沒有使用此祕密的權限。請申請此祕密的 SecretUser 或 SecretManager 角色。", "GrantCeiling": "你只能授予自己擁有的權限。", "ReservedRoleName": "這是內建角色的名稱。請選擇其他名稱。"});
+zhHant.components.mcpTest.noWorkers = "沒有就緒的工作節點提供 stdio 診斷。指令會在工作節點主機上、執行隔離之外執行，因此只有營運人員在工作節點上設定 GARRISON_WORKER_MCP_TESTS_ENABLED=true 時才會執行。";

@@ -231,7 +231,8 @@ namespace Test.Shared.Suites
                 TestResponse store = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, t + "/artifact-stores", new ArtifactStore { Name = "metadata-store", Kind = ArtifactStoreKindEnum.S3, Bucket = "b", Endpoint = "http://169.254.169.254" }, token).ConfigureAwait(false);
                 Assert.Equal(400, store.StatusCode, "Link-local S3 endpoint: " + store.Body);
                 Assert.True(store.Body.Contains("endpoint", StringComparison.Ordinal), "Error names endpoint: " + store.Body);
-                await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, t + "/artifact-stores", new ArtifactStore { Name = "minio-store", Kind = ArtifactStoreKindEnum.S3, Bucket = "b", Endpoint = "http://10.0.0.5:9000" }, 201, token).ConfigureAwait(false);
+                Secret s3 = await HttpTestHelpers.SendAsync<Secret>(host.AdminClient, HttpMethod.Post, t + "/secrets", new SecretRequest { Name = "minio-credential", Value = "{\"accessKey\":\"a\",\"secretKey\":\"b\"}" }, 201, token).ConfigureAwait(false);
+                await HttpTestHelpers.SendAsync<ArtifactStore>(host.AdminClient, HttpMethod.Post, t + "/artifact-stores", new ArtifactStore { Name = "minio-store", Kind = ArtifactStoreKindEnum.S3, Bucket = "b", Endpoint = "http://10.0.0.5:9000", SecretId = s3.Id }, 201, token).ConfigureAwait(false);
             }
         }
 

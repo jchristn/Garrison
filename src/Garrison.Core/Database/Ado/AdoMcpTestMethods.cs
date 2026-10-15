@@ -119,6 +119,25 @@ namespace Garrison.Core.Database.Ado
         }
 
         /// <inheritdoc />
+        public async Task<int> RemoveFinishedByNodeAsync(string nodeId, CancellationToken token = default)
+        {
+            if (String.IsNullOrEmpty(nodeId)) throw new ArgumentNullException(nameof(nodeId));
+            int removed = 0;
+            await _Driver.ExecuteInTransactionAsync(async (connection, transaction, ct) =>
+            {
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Tools + " WHERE testid IN (SELECT id FROM " + _Table + " WHERE nodeid=@node AND finished=@yes);", command =>
+                {
+                    AdoDatabaseDriver.Add(command, "node", nodeId); AdoDatabaseDriver.Add(command, "yes", true);
+                }, ct).ConfigureAwait(false);
+                removed = await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _Table + " WHERE nodeid=@node AND finished=@yes;", command =>
+                {
+                    AdoDatabaseDriver.Add(command, "node", nodeId); AdoDatabaseDriver.Add(command, "yes", true);
+                }, ct).ConfigureAwait(false);
+            }, token).ConfigureAwait(false);
+            return removed;
+        }
+
+        /// <inheritdoc />
         public async Task RemoveExpiredAsync(CancellationToken token = default)
         {
             DateTime now = DateTime.UtcNow;

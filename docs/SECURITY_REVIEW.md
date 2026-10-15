@@ -1,6 +1,6 @@
 # Security Review (P15.1)
 
-Review date: 2026-10-14, against commit `a441fa1` (schema 27). Decision D-054 brought this review into scope. File and line references point at that commit unless a finding says it was fixed, in which case the fix is in this change.
+Review date: 2026-10-14, against commit `a441fa1` (schema 27). Decision D-054 brought this review into scope. File and line references point at that commit. P15.1 fixed SR-01 to SR-07 (SR-03, SR-04, and SR-07 in part); P15.22 (decision D-055: there are no existing installations, so nothing is held back for compatibility) fixed the rest, as described under each finding.
 
 The review covered the server, worker, core, harness, and provider-harness projects, the dashboard, `docs/SECURITY.md`, and the Kubernetes manifests. It looked at:
 
@@ -15,7 +15,16 @@ The review covered the server, worker, core, harness, and provider-harness proje
 
 Exploit notes describe the class of problem only.
 
-Fixed issues each have a Touchstone regression test in `security-unit` or `security-<provider>` (`src/Test.Shared/Suites/SecurityReviewSuite.cs`). Each test was confirmed to fail with its fix removed. Open issues are left for the maintainer to decide, because fixing them changes behavior existing installations rely on, or needs a design choice.
+Every fix has a Touchstone regression test, and each test was confirmed to fail with its fix removed:
+
+| Suite | File | Covers |
+|---|---|---|
+| `security-unit`, `security-<provider>` | `src/Test.Shared/Suites/SecurityReviewSuite.cs` | P15.1 fixes |
+| `security-hardening-unit`, `security-hardening-<provider>` | `src/Test.Shared/Suites/SecurityHardeningSuite.cs` | P15.22 server and core fixes |
+| `security-worker-unit`, `security-worker-<provider>` | `src/Test.Shared/Suites/SecurityWorkerSuite.cs` | P15.22 worker fixes |
+| `security-assets` | `src/Test.Shared/Suites/SecurityAssetsSuite.cs` | P15.22 Docker Compose, Kubernetes, Helm, and dashboard files |
+
+One part remains open: redirects and DNS rebinding for the HTTP MCP server test, whose client comes from the Voltaic library (SR-07, below).
 
 ## Summary
 
@@ -23,32 +32,32 @@ Fixed issues each have a Touchstone regression test in `security-unit` or `secur
 |---|---|---|---|
 | SR-01 | Critical | Tenant administrators could act as worker nodes and lease other tenants' runs | Fixed |
 | SR-02 | High | Tenant security roles could take over a system administrator through credentials or a password reset | Fixed |
-| SR-03 | High | No request body limit; bodies buffered before authentication | Fixed for Content-Length; chunked bodies open |
-| SR-04 | High | Stdio MCP diagnostics run tenant-chosen commands on the worker host | Fixed for Untrusted-only tenants; rest open |
+| SR-03 | High | No request body limit; bodies buffered before authentication | Fixed: Content-Length (P15.1), chunked bodies capped while read, body read before authentication only when signed (P15.22) |
+| SR-04 | High | Stdio MCP diagnostics run tenant-chosen commands on the worker host | Fixed: refused for Untrusted-only tenants (P15.1), off on every worker unless `McpTestsEnabled` (P15.22) |
 | SR-05 | Medium | Run tokens could start runs outside the delegation policy through retry | Fixed |
 | SR-06 | Medium | Request history stored passwords and secret values; debug log wrote WebSocket tokens | Fixed |
-| SR-07 | Medium | MCP server test and S3 endpoints could target cloud metadata and link-local addresses | Fixed for link-local and metadata; redirects and DNS rebinding open |
-| SR-08 | High | Public default keys and credentials accepted at startup | Open |
-| SR-09 | High (conditional) | PersistentVolume workspaces can mount any claim in the run namespace | Open |
-| SR-10 | Medium | Anyone who configures MCP servers or deployments can use any tenant secret | Open (design) |
-| SR-11 | Medium | Restart resets rotated seeded credentials to the configured secret | Open |
-| SR-12 | Medium | Artifact download tickets depend on the signing key alone | Open |
-| SR-13 | Medium | No grant ceiling on role assignment; tenant admin flag self-assignable | Open |
-| SR-14 | Medium | Prompts delivered as an argument can be read as flags | Open |
-| SR-15 | Medium | `/v1.0/ws` is outside the operation scope map and subscriptions are unbounded | Open |
-| SR-16 | Low | Node name re-registration and lifecycle reports are not bound to the node's credential | Open (Low after SR-01) |
-| SR-17 | Low | Password changes keep sessions; refresh extends a session indefinitely | Open |
-| SR-18 | Low | Short secrets fully shown in `last4`; unsalted fingerprints | Open |
-| SR-19 | Low | Weak master or signing keys are not stretched; key version not checked | Open |
-| SR-20 | Low | Anonymous `/metrics` on the REST port by default, with tenant labels | Open |
-| SR-21 | Low | S3 stores with a custom endpoint and no secret use the server's ambient cloud identity | Open |
-| SR-22 | Low | Git URLs accept any scheme and are passed without `--` | Open |
-| SR-23 | Low | Default run egress allows 169.254.0.0/16 on 443; server and worker pods have open egress | Open |
-| SR-24 | Low | Workspace writes on reused conversation directories follow symlinks | Open |
-| SR-25 | Low | Dashboard serves no CSP or framing headers; token in localStorage | Open |
-| SR-26 | Info | Smaller observations | Open |
+| SR-07 | Medium | MCP server test and S3 endpoints could target cloud metadata and link-local addresses | Fixed except the Voltaic MCP client: connect-time checks and no redirects for S3, public handler for new features (P15.22); MCP test redirects and rebinding wait for Voltaic v2.4.0 |
+| SR-08 | High | Public default keys and credentials accepted at startup | Fixed: refused unless `GARRISON_ALLOW_INSECURE_DEFAULTS`; Compose and Kubernetes generate or require real values |
+| SR-09 | High (conditional) | PersistentVolume workspaces can mount any claim in the run namespace | Fixed: the claim needs label `garrison.io/tenant` equal to the run's tenant |
+| SR-10 | Medium | Anyone who configures MCP servers or deployments can use any tenant secret | Fixed: separate use permission (`Execute` on `Secret`, role `SecretUser`) |
+| SR-11 | Medium | Restart resets rotated seeded credentials to the configured secret | Fixed: seeded secrets are set only at creation |
+| SR-12 | Medium | Artifact download tickets depend on the signing key alone | Fixed: tickets use keys derived from the signing and master keys |
+| SR-13 | Medium | No grant ceiling on role assignment; tenant admin flag self-assignable | Fixed: grant ceiling, tenant administrator flag, reserved role names, role resolution by identifier |
+| SR-14 | Medium | Prompts delivered as an argument can be read as flags | Fixed: `--` before the task |
+| SR-15 | Medium | `/v1.0/ws` is outside the operation scope map and subscriptions are unbounded | Fixed: in the scope map, 64 subscriptions per session |
+| SR-16 | Low | Node name re-registration and lifecycle reports are not bound to the node's credential | Fixed: 409 `NodeIdentityMismatch` |
+| SR-17 | Low | Password changes keep sessions; refresh extends a session indefinitely | Fixed: revoked on password change and on refresh |
+| SR-18 | Low | Short secrets fully shown in `last4`; unsalted fingerprints | Fixed: no `last4` under 12 characters; HMAC fingerprints |
+| SR-19 | Low | Weak master or signing keys are not stretched; key version not checked | Fixed: weak keys logged, key version checked |
+| SR-20 | Low | Anonymous `/metrics` on the REST port by default, with tenant labels | Fixed: off by default; scrapers use the metrics listeners |
+| SR-21 | Low | S3 stores with a custom endpoint and no secret use the server's ambient cloud identity | Fixed: a secret is required unless the operator allows ambient credentials |
+| SR-22 | Low | Git URLs accept any scheme and are passed without `--` | Fixed: https and ssh only, `--`, `GIT_ALLOW_PROTOCOL` |
+| SR-23 | Low | Default run egress allows 169.254.0.0/16 on 443; server and worker pods have open egress | Fixed: metadata ranges excluded everywhere |
+| SR-24 | Low | Workspace writes on reused conversation directories follow symlinks | Fixed: links replaced or refused; uploads checked after open |
+| SR-25 | Low | Dashboard serves no CSP or framing headers; token in localStorage | Fixed: CSP and framing headers, remote media dropped; token kept in localStorage behind the CSP |
+| SR-26 | Info | Smaller observations | Fixed |
 
-## Fixed in this change
+## Fixed in P15.1
 
 ### SR-01 Critical: tenant administrators could act as worker nodes
 
@@ -103,9 +112,11 @@ Anyone else gets 400 `ValidationFailed`, with the field named. Nothing changes f
 - The REST listener refuses any request whose Content-Length is larger with 413, before reading the body.
 - The MCP listener applies `Mcp.MaxMessageSize` the same way.
 
-**Open part:** Watson checks only Content-Length, so a body sent with chunked transfer encoding is still unbounded. The recommendation, which needs a Watson change, is a streaming cap, and reading the body during authentication only when an `x-signature` header is present.
+**Formerly open part:** Watson checks only Content-Length, so a body sent with chunked transfer encoding was still unbounded.
 
-**Test:** `security-<provider>/request-body-limit`.
+**Fixed in P15.22:** a chunked body is read chunk by chunk before routing and refused with 413 `RequestTooLarge` as soon as it passes the limit; a body within it replaces the request stream, so handlers read it as usual (`RequestBodyLimiter`, used by the REST listener with `Rest.MaxRequestBodyBytes` and the MCP listener with `Mcp.MaxMessageSize`). Authentication reads the body only when `x-signature` is present. No Watson change was needed.
+
+**Tests:** `security-<provider>/request-body-limit`, `security-hardening-<provider>/chunked-body-limit`.
 
 ### SR-04 High: stdio MCP diagnostics run on the worker host
 
@@ -127,9 +138,9 @@ On a KubernetesJob worker, that process can read what the worker can read:
 - a worker setting `McpTestsEnabled`, off by default, so operators turn the diagnostic on only on Process workers;
 - running stdio diagnostics in a run pod.
 
-Either one changes the behavior existing users see, so it is left for a decision.
+**Fixed in P15.22:** workers have a setting `McpTestsEnabled` (`GARRISON_WORKER_MCP_TESTS_ENABLED`), off by default. A worker advertises stdio diagnostics, and runs one it is sent, only when an operator turns it on, which is meant for Process workers whose host is already the boundary. Docker Compose, Kubernetes, and the images leave it off. The dashboard explains why no worker is offered.
 
-**Test:** `security-<provider>/stdio-test-untrusted-tenant`.
+**Tests:** `security-<provider>/stdio-test-untrusted-tenant`, `security-worker-<provider>/mcp-tests-opt-in`.
 
 ### SR-05 Medium: run-token retries bypassed the delegation policy
 
@@ -186,9 +197,19 @@ Loopback and private ranges stay allowed, because MCP servers and object stores 
 
 The recommendation is a Voltaic constructor that accepts an `HttpMessageHandler`, so Garrison can pass a `SocketsHttpHandler` with redirects off and a `ConnectCallback` that applies the policy at connect time. Do the same for the AWS SDK through its HTTP client factory. Optionally add an operator setting that also blocks loopback and private ranges for tenant-defined destinations.
 
-**Tests:** `security-unit/outbound-address-policy` and `security-<provider>/outbound-blocked`.
+**Fixed in P15.22:**
 
-## Open, with recommendations
+- `OutboundAddressPolicy.CreateHandler(allowPrivateNetworks)` returns a `SocketsHttpHandler` with redirects off, no proxy, and a `ConnectCallback` that resolves the host and connects only to an address the policy allows, so neither a redirect nor a DNS answer that changes after a check can reach a blocked address. `allowPrivateNetworks: false` also refuses loopback and private ranges, for features whose destinations should be on the public internet. It is public for reuse by triggers, webhooks, and remote agents.
+- S3 artifact stores with a custom endpoint use it through `GuardedS3HttpClientFactory` (`AmazonS3Config.HttpClientFactory`), so the S3 check now covers names as well as literal addresses.
+- `remoteEndpointUrl` is validated as an absolute http or https URL without credentials and refused on blocked literal addresses, ahead of remote invocation (SR-26).
+
+**Still open:** the HTTP MCP server test. Voltaic 2.3.0's `McpHttpClient` builds its own `HttpClient` and offers no way to pass a handler, so the test keeps its pre-connect check (which still catches literal and resolved metadata addresses and fails fast), but a redirect or a DNS answer that changes between the check and the connection is not caught there. MCP preflight on workers and the provider harness bridge use the same client, behind the SR-23 NetworkPolicies. A minor, backward-compatible Voltaic release (v2.4.0) adding `McpHttpClient(HttpMessageHandler handler, bool disposeHandler = true)` is planned; Garrison then passes `OutboundAddressPolicy.CreateHandler()` in those three places.
+
+**Tests:** `security-unit/outbound-address-policy`, `security-<provider>/outbound-blocked`, `security-hardening-unit/outbound-handler`.
+
+## Fixed in P15.22 (formerly open)
+
+Each finding keeps its original description and recommendation, followed by what was done.
 
 ### SR-08 High: public default keys and credentials are accepted at startup
 
@@ -205,6 +226,14 @@ The recommendation is a Voltaic constructor that accepts an `HttpMessageHandler`
 
 **Recommendation:** refuse to start when any of these equal their default, unless `GARRISON_ALLOW_INSECURE_DEFAULTS=true` is set, and set it in the development Compose file. This breaks installations that rely on defaults until they set values, so it needs your approval.
 
+**Fixed:**
+
+- The server refuses to start while the master key, signing key, administrator API key, administrator password, default secret key, or node secret key is empty or equal to its public default, and names the environment variables to set. `Security.AllowInsecureDefaults` (`GARRISON_ALLOW_INSECURE_DEFAULTS=true`) is the explicit development mode, used by Touchstone, the SDK harness and contract test scripts, the local Kubernetes dry run, and the benchmarks.
+- Docker Compose has no fallback values: `compose.yaml` requires every key and password (`${VAR:?}`), and `docker/env-secrets.sh` (run by `update.sh` and `factory/reset.sh`) generates any that are missing into `docker/.env`. It never overwrites a value, and never generates the database password or keys for an existing Postgres volume.
+- `k8s/scripts/generate-secrets.sh` now also generates random administrator and Grafana passwords.
+
+**Tests:** `security-hardening-unit/insecure-defaults`, `security-assets/compose-no-default-secrets`, `security-assets/secret-scripts-no-default-password`, `security-assets/dev-mode-explicit`.
+
 ### SR-09 High (conditional): any PersistentVolumeClaim can be mounted as a workspace
 
 **Where:** `src/Garrison.Core/Services/ConfigurationValidator.cs:198-202` and `src/Garrison.Worker/Kubernetes/RunPodManifestBuilder.cs:330-339`.
@@ -219,6 +248,10 @@ The recommendation is a Voltaic constructor that accepts an `HttpMessageHandler`
 
 **Recommendation:** require claim names to carry a per-tenant prefix, or have the worker read the claim and require a `garrison.io/tenant` label (this adds `get` on persistentvolumeclaims to the worker Role). Both break existing templates whose claims don't follow the rule. Until then, keep `kubernetesExecutor.runNamespace` separate from backup and observability volumes.
 
+**Fixed:** the worker reads the claim before creating the run Job (`WorkspaceClaimGuard`) and fails the run with outcome `WorkspaceFailed` unless the claim's `garrison.io/tenant` label equals the run's tenant. The worker Role in the Kustomize base and the Helm chart gains `get` on persistentvolumeclaims. Operators label each claim they offer to a tenant.
+
+**Test:** `security-worker-unit/pvc-tenant-label`.
+
 ### SR-10 Medium: configuration authors can use any tenant secret
 
 **Where:**
@@ -232,6 +265,10 @@ The recommendation is a Voltaic constructor that accepts an `HttpMessageHandler`
 
 **Recommendation:** add `Secret` `Execute` (use) to `SecretManager` and `TenantAdmin`. Require it when a deployment binds a secret, and when an MCP server test renders a template that references `secret.*`. Render only the secrets a template references.
 
+**Fixed:** using a secret is `Execute` on `Secret`, held by `TenantAdmin` and `SecretManager` and by a new built-in role `SecretUser` (assign it with resource scope to allow one secret); `Editor` and `AgentDeveloper` do not hold it. `SecretUseChecker` requires it, per secret, when someone saves a deployment that binds secrets (all of them, on every save), an MCP server or harness profile whose templates reference secrets (for the secrets of every deployment that uses it), an artifact store, workspace template, or agent that names a secret, or a manifest document that does any of these; and when an MCP server test renders secrets, where only the secrets its templates name are decrypted. Denials are 400 with field code `SecretUseDenied`.
+
+**Test:** `security-hardening-<provider>/secret-use`.
+
 ### SR-11 Medium: restart resets rotated seeded credentials
 
 **Where:** `src/Garrison.Core/Services/DefaultSeeder.cs:202-220`.
@@ -240,6 +277,10 @@ The recommendation is a Voltaic constructor that accepts an `HttpMessageHandler`
 
 **Recommendation:** set the secret only when the credential is created, or overwrite it only when the setting comes from the environment. Operators who change the environment variable on purpose would then need to rotate through the API instead, so this needs a decision.
 
+**Fixed:** the seeded secret is set only when the credential is created; a restart never changes an existing credential. Rotate through the API.
+
+**Test:** `security-hardening-<provider>/seeded-credential-kept`.
+
 ### SR-12 Medium: artifact download tickets depend on the signing key alone
 
 **Where:** `src/Garrison.Server/Services/ArtifactService.cs:116-121`.
@@ -247,6 +288,10 @@ The recommendation is a Voltaic constructor that accepts an `HttpMessageHandler`
 **What is wrong:** session tokens also need a random session row in the database. A download ticket, by contrast, is valid whenever its signature checks out. With a known signing key (see SR-08), anyone can forge a ticket for a known artifact identifier.
 
 **Recommendation:** derive a separate key for tickets from the signing key, labelled for artifacts. Optionally record ticket identifiers. Refusing default keys (SR-08) removes the practical risk.
+
+**Fixed:** tickets are issued and checked by their own token service, whose keys are derived from the signing key and the master key under an artifact label, so a session token never works as a ticket and forging one needs both secrets. SR-08 removes the public defaults.
+
+**Test:** `security-hardening-<provider>/artifact-ticket-key`.
 
 ### SR-13 Medium: no ceiling on what an assigner may grant
 
@@ -266,6 +311,14 @@ The recommendation is a Voltaic constructor that accepts an `HttpMessageHandler`
 
 The ceiling check changes what `SecurityAdmin` can do today.
 
+**Fixed:**
+
+- `AuthorizationService.CeilingViolationAsync` expands a set of grants into resource type and operation pairs and requires the caller to hold each one (system administrators have no ceiling; operations only system administrators can perform anyway, and node `Execute` unless named, are skipped). It applies to user and credential role assignments, mapping a permission to a role, changing a permission's lists, creating a credential with a role, and, because the caller can then act as that user, creating or rotating another user's credential and changing another user's password or email. Denials are 400 with field code `GrantCeiling`.
+- Setting or clearing `isTenantAdmin`, and acting for a tenant administrator in those ways, needs a tenant administrator.
+- An assignment with a role identifier resolves by identifier only, and tenant roles cannot take a built-in role's name in any letter case (`ReservedRoleName`).
+
+**Test:** `security-hardening-<provider>/grant-ceiling`.
+
 ### SR-14 Medium: prompts delivered as an argument can be read as flags
 
 **Where:** `src/Garrison.Core/Compilation/InvocationCompiler.cs:657-658`.
@@ -274,6 +327,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 
 **Recommendation:** add a profile field for an end-of-options separator, defaulting to `--` for new profiles. That needs a schema change. Otherwise, reject prompts that start with `-` in this mode.
 
+**Fixed without a schema change:** in `Argument` mode the compiler adds `--` before the prompt argument whenever caller text would begin it: with no `promptArgumentTemplate`, or a template that starts with a variable. A template with a literal prefix, such as `--prompt={{input.text}}`, is a single option value and needs no separator. No built-in profile uses this mode.
+
+**Test:** `security-hardening-<provider>/prompt-argument-separator`.
+
 ### SR-15 Medium: the live-updates WebSocket is outside the scope map
 
 **Where:** `src/Garrison.Server/Modules/RuntimeModule.cs:161` and `src/Garrison.Server/WebSockets/LiveUpdatesHandler.cs`.
@@ -281,6 +338,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 **What is wrong:** `/v1.0/ws` is registered directly on Watson and authenticates itself. It has no operation scope map entry, which the architecture rules require for every route. Subscriptions per socket are unbounded, and each one polls the database.
 
 **Recommendation:** record a scope entry, and cap subscriptions per session (for example 64).
+
+**Fixed:** the WebSocket is registered through `RouteRegistrar.WebSocket`, which records it in the operation scope map as handler-authorized. A session holds at most 64 subscriptions (`LiveUpdatesHandler.MaxSubscriptionsPerSession`); another subscribe answers `TooManySubscriptions`.
+
+**Test:** `security-hardening-<provider>/websocket-scope-and-cap`.
 
 ### SR-16 Low: node identity binding
 
@@ -293,6 +354,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 
 **Recommendation:** reject re-registration with 409 `NodeIdentityMismatch` when the node is bound to another credential. Call `RequireNodeAsync` in the three lifecycle handlers, with a short-lived cache, since event ingestion is on the claim-path budget (G-33).
 
+**Fixed:** registration answers 409 `NodeIdentityMismatch` when the name is bound to another active credential (a deleted or deactivated credential releases the name, so a replaced node credential is not locked out). `started`, `events`, and `complete` check the binding through `NodeBindingCache`, a 30-second per-replica cache, so event ingestion does not read the node row per batch. System administrators are exempt.
+
+**Test:** `security-worker-<provider>/node-identity`.
+
 ### SR-17 Low: session lifetime
 
 **Where:** `src/Garrison.Server/Services/IdentityService.cs:205` and `src/Garrison.Server/Routes/CoreRoutes.cs:205-221`.
@@ -300,6 +365,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 **What is wrong:** a password change leaves existing sessions valid until they expire. Refresh issues a new session without revoking the old one and has no overall cap.
 
 **Recommendation:** revoke a user's sessions on password change. Revoke the old session on refresh, or cap total session age. This belongs with P15.3, token expiry policies.
+
+**Fixed:** a password change revokes every other session of the user (a user who changes their own password keeps the session they used), and `POST /v1.0/token/refresh` revokes the session it was called with. A refreshed chain therefore never holds more than one live session, and it ends at the next password change, deactivation, or logout. A cap on total session age stays with P15.3.
+
+**Test:** `security-hardening-<provider>/session-lifetime`.
 
 ### SR-18 Low: secret metadata
 
@@ -309,6 +378,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 
 **Recommendation:** return an empty `last4` below about 12 characters. Key the fingerprint with an HMAC derived from the master key; this changes existing fingerprints.
 
+**Fixed:** `last4` is empty for values shorter than 12 characters (`SecretGenerator.Last4MinimumLength`), and fingerprints are HMAC-SHA256 under a key derived from the master key (`SecretCipher.Fingerprint`).
+
+**Test:** `security-hardening-unit/secret-metadata`.
+
 ### SR-19 Low: key handling
 
 **Where:** `src/Garrison.Core/Security/SecretCipher.cs:128-139` and `src/Garrison.Core/Security/TokenService.cs:52-53`.
@@ -316,6 +389,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 **What is wrong:** a key that is not base64 of 32 bytes is SHA-256 hashed with no stretching. The key-version byte is written but not checked on decrypt.
 
 **Recommendation:** warn when a key is not 32 random bytes. Key rotation is P15.2.
+
+**Fixed:** startup logs a warning when the master key is not base64 of 32 bytes or the signing key is shorter than 32 characters, and decryption refuses a value written under another key version with a clear error. Rotation remains P15.2.
+
+**Test:** `security-hardening-unit/key-handling`.
 
 ### SR-20 Low: anonymous metrics
 
@@ -325,6 +402,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 
 **Recommendation:** default it to false and scrape the telemetry port. This changes the default for existing scrapers.
 
+**Fixed:** `ServeMetricsOnServicePort` defaults to false on the server and workers. The Kubernetes annotations, the Helm chart, and the Compose and Kubernetes Prometheus configurations scrape the metrics listeners (9464, 9465), which bind the pod IP (`GARRISON_PROMETHEUS_HOSTNAME`, `GARRISON_WORKER_PROMETHEUS_HOSTNAME`) or the Compose service name.
+
+**Tests:** `security-hardening-unit/metrics-default`, `security-hardening-<provider>/metrics-service-port`, `security-assets/metrics-scrape-listener`, `security-assets/metrics-listener-hostname`.
+
 ### SR-21 Low: ambient cloud credentials with custom S3 endpoints
 
 **Where:** `src/Garrison.Server/Storage/ArtifactStorage.cs:143-144`.
@@ -332,6 +413,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 **What is wrong:** an S3 store with no `secretId` signs with the server's ambient identity, such as IRSA or an instance role. With a tenant-chosen endpoint, the signed requests, including the access key identifier and session token header, go to that host. The signatures are bound to the host and can't be replayed elsewhere.
 
 **Recommendation:** require `secretId` whenever `endpoint` is set, behind a setting so existing stores keep working.
+
+**Fixed:** an S3 store with a custom endpoint needs `secretId`, at validation and again when the client is built. `Artifacts.AllowAmbientCredentialsWithCustomEndpoint` (default false) is a deliberate operator choice for trusted tenants on, for example, an S3 VPC endpoint.
+
+**Test:** `security-hardening-<provider>/s3-ambient-credentials`.
 
 ### SR-22 Low: git clone arguments
 
@@ -345,6 +430,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 - Pass `--` before the URL and the ref.
 - Set `GIT_ALLOW_PROTOCOL=https:ssh`.
 
+**Fixed:** `gitUrl` must be `https://`, `ssh://`, or `user@host:path`; local paths, `file://`, `http://`, `git://`, `::` transports, a leading `-`, and whitespace are refused when the template is saved and again by the worker. `gitRef` may not start with `-` or contain whitespace, control characters, or `..`. The worker passes `--` before the URL, `--end-of-options` before the reference, and runs git with `GIT_ALLOW_PROTOCOL=https:ssh` and `GIT_PROTOCOL_FROM_USER=0`.
+
+**Tests:** `security-worker-unit/git-url-policy`, `security-worker-unit/git-clone-local-refused`.
+
 ### SR-23 Low: egress for pods that fetch tenant URLs
 
 **Where:** `k8s/base/networkpolicies.yaml:1-26,78-83` and Helm `runEgress`.
@@ -356,6 +445,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 - Add `except: [169.254.0.0/16]` to the default run egress rule.
 - Add egress policies for the server and worker that exclude 169.254.169.254/32.
 
+**Fixed:** both, in the Kustomize base and the Helm chart (`runEgress.except`). The server and worker egress policies allow cluster pods and any address outside the cluster except 169.254.169.254/32 (IPv4; `docs/KUBERNETES.md` covers adding fd00:ec2::254/128 on IPv6 AWS clusters).
+
+**Test:** `security-assets/network-policies-metadata`.
+
 ### SR-24 Low: symlinks in reused conversation directories
 
 **Where:** `src/Garrison.Worker/Execution/FileMaterializer.cs:36-44`, `src/Garrison.Worker/Execution/WorkspacePreparer.cs:70-73`, and `src/Garrison.Worker/Execution/ArtifactUploader.cs:115-116`.
@@ -363,6 +456,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 **What is wrong:** on a conversation turn, the worker writes spec files into directories the previous turn's harness controlled, following any links planted there. The artifact uploader checks for a link and then opens the file, so a link swapped in between those two steps is followed. The harness runs as the same user, so it gains nothing it doesn't already have; this is defense in depth.
 
 **Recommendation:** delete an existing link before writing, and compare the canonical path after opening.
+
+**Fixed:** `FileMaterializer` and `WorkspacePreparer` replace a link at a file's own path with a regular file and refuse to write through a linked base or parent directory. `ArtifactUploader` checks after opening that the file is the regular file at its canonical path inside the workspace; on Linux it compares the open descriptor's real path through `/proc/self/fd`.
+
+**Tests:** `security-worker-unit/link-safe-writes`, `security-worker-unit/artifact-link-swap`.
 
 ### SR-25 Low: dashboard hardening
 
@@ -378,6 +475,10 @@ The ceiling check changes what `SecurityAdmin` can do today.
 
 **Recommendation:** add `Content-Security-Policy: default-src 'self'; img-src 'self' data:; connect-src 'self' <api>; frame-ancestors 'none'` with `nosniff` and `no-referrer`. A cross-origin `GARRISON_API_URL` has to be added to `connect-src`.
 
+**Fixed:** `dashboard/nginx-security-headers.conf` sends the CSP (with `blob:` images for the chart export, and `connect-src` built from `GARRISON_API_URL` and `GARRISON_CSP_CONNECT_SRC`), `X-Frame-Options: DENY`, `nosniff`, and `no-referrer` on every location. The Markdown renderer drops remote image, video, and audio sources, so the vite development server is covered too. The token stays in `localStorage`: Garrison has no cookie sign-in, and the CSP is what keeps other script out of the origin (`docs/SECURITY.md`).
+
+**Tests:** `security-assets/dashboard-headers`, and the dashboard unit test `markdown.test.js`.
+
 ### SR-26 Info
 
 - The MCP server test returns the raw exception message to the caller (`McpServerRoutes.cs:193`).
@@ -386,6 +487,17 @@ The ceiling check changes what `SecurityAdmin` can do today.
 - `A2ARoutes.cs:130` navigates a `JsonDocument`, against the repository's style rules.
 - Run parameter overrides default to validation `Any`, so an allowed override takes any value. New rules could default to `Enum`.
 - `Agent.remoteEndpointUrl` is stored but never called. Route remote invocation (P12.4) through `OutboundAddressPolicy` from the start.
+
+**Fixed:**
+
+- MCP server test errors name only the class of failure (for example "The MCP server could not be reached (ConnectionError)."), never the raw exception text, which could echo an internal service's response; the detail goes to the debug log.
+- A credential secret that cannot be decrypted answers 401.
+- Failed administrator API key, secret key, and signature attempts count per source address against `Auth.RateLimitPerMinute`, across replicas; past it, key-authenticated requests from that address get 429 for the rest of the minute.
+- A2A JSON-RPC requests are read with typed classes (`A2AJsonRpcHead`, `A2AJsonRpcEnvelope<T>`, `JsonRpcIdConverter`); a fractional `id` no longer fails the request with 500.
+- Run parameter override rules default to `Enum`, so a rule saved without a validation needs its allowed values; `Any` must be chosen explicitly.
+- `remoteEndpointUrl` must be an absolute http or https URL without credentials and is refused on metadata and other blocked literal addresses; remote invocation should connect through `OutboundAddressPolicy.CreateHandler`.
+
+**Test:** `security-hardening-<provider>/info-findings`.
 
 ## Checked and found sound
 
@@ -420,7 +532,7 @@ The ceiling check changes what `SecurityAdmin` can do today.
 - Deployment references are resolved inside the tenant (`ConfigurationValidator.cs`, `ConfigurationReferenceCache.cs`).
 - Database reads for tenant-owned rows filter on the tenant.
 
-**Scope map:** every REST route goes through `RouteRegistrar` and every MCP tool through `McpToolCatalog`, except `/v1.0/ws` (SR-15).
+**Scope map:** every REST route goes through `RouteRegistrar` and every MCP tool through `McpToolCatalog`; `/v1.0/ws` was the exception until SR-15.
 
 **Paging:** list sizes are capped at 1,000, run events at 5,000.
 

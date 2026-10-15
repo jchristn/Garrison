@@ -30,22 +30,28 @@ The repository's `docker/` directory runs one server, two workers, the dashboard
 
 ```bash
 git clone https://github.com/jchristn/Garrison && cd Garrison/docker
-cp .env.example .env      # optional: ports, keys, and harness credentials
-./update.sh               # builds the images and starts the stack; ./update.sh --pull uses these published images
+./update.sh               # generates keys into .env, builds the images, starts the stack; --pull uses these published images
 ```
 
-Open http://127.0.0.1:8080 and sign in to tenant `default` as `admin@garrison` with password `password`. See `docs/DOCKER.md` in the repository.
+Open http://127.0.0.1:8080 and sign in to tenant `default` as `admin@garrison` with the password `update.sh` printed (`GARRISON_ADMIN_PASSWORD` in `docker/.env`). See `docs/DOCKER.md` in the repository.
 
 ## Trying it with Docker
 
 
-The containers below use Sqlite and a user-defined network, which is enough to see a run go end to end. Change every default key before exposing anything.
+The containers below use Sqlite and a user-defined network, which is enough to see a run go end to end. The server has no usable default keys or passwords: it refuses to start while any of them is empty or a public built-in default (unless `GARRISON_ALLOW_INSECURE_DEFAULTS=true`, which is for local development only), so generate them first and keep them.
 
 ```bash
 docker network create garrison
+rand() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c "$1"; }
+MASTER_KEY=$(openssl rand -base64 32); SIGNING_KEY=$(rand 48); ADMIN_API_KEY=$(rand 40); ADMIN_PASSWORD=$(rand 20)
+DEFAULT_SECRET_KEY=secret_$(rand 48); NODE_ACCESS_KEY=access_$(rand 32); NODE_SECRET_KEY=secret_$(rand 48)
 
 docker run -d --name garrison-server --network garrison \
   -p 127.0.0.1:8700:8700 -p 127.0.0.1:8701:8701 \
+  -e GARRISON_MASTER_KEY="$MASTER_KEY" -e GARRISON_AUTH_SIGNING_KEY="$SIGNING_KEY" \
+  -e GARRISON_ADMIN_API_KEY="$ADMIN_API_KEY" -e GARRISON_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+  -e GARRISON_DEFAULT_SECRET_KEY="$DEFAULT_SECRET_KEY" \
+  -e GARRISON_NODE_ACCESS_KEY="$NODE_ACCESS_KEY" -e GARRISON_NODE_SECRET_KEY="$NODE_SECRET_KEY" \
   -e GARRISON_DB_FILENAME=/app/data/garrison.db \
   -e GARRISON_MCP_PUBLIC_URL=http://garrison-server:8701 \
   -e GARRISON_PUBLIC_BASE_URL=http://garrison-server:8700 \
@@ -55,6 +61,7 @@ docker run -d --name garrison-server --network garrison \
 docker run -d --name garrison-worker-0 --network garrison \
   -e GARRISON_WORKER_SERVER_URL=http://garrison-server:8700 \
   -e GARRISON_WORKER_NODE_NAME=worker-0 \
+  -e GARRISON_WORKER_ACCESS_KEY="$NODE_ACCESS_KEY" -e GARRISON_WORKER_SECRET_KEY="$NODE_SECRET_KEY" \
   jchristn77/garrison-worker:latest
 
 docker run -d --name garrison-dashboard --network garrison \
@@ -62,11 +69,11 @@ docker run -d --name garrison-dashboard --network garrison \
   jchristn77/garrison-dashboard:latest
 ```
 
-Open http://127.0.0.1:8080 and sign in as `admin@garrison` with password `password`, or call the API directly:
+Open http://127.0.0.1:8080 and sign in as `admin@garrison` with `$ADMIN_PASSWORD`, or call the API directly:
 
 ```bash
 curl -s http://127.0.0.1:8700/v1.0/api/health
-curl -s http://127.0.0.1:8700/v1.0/api/nodes -H "x-api-key: garrisonadmin"
+curl -s http://127.0.0.1:8700/v1.0/api/nodes -H "x-api-key: $ADMIN_API_KEY"
 ```
 
 Mount a volume at `/app/data` on the server to keep the Sqlite database. Multiple control-plane replicas need PostgreSQL (`GARRISON_DB_TYPE=Postgresql` plus the `GARRISON_DB_*` variables below).
@@ -84,13 +91,14 @@ Mount a volume at `/app/data` on the server to keep the Sqlite database. Multipl
 | `GARRISON_EXTERNAL_BASE_URL` | External REST URL advertised in A2A agent cards and server info | the scheme and `Host` of each request |
 | `GARRISON_PUBLIC_BASE_URL` | Internal REST URL handed to runs (the `garrison.apiUrl` template variable); never shown in cards | `http://127.0.0.1:<REST port>` |
 | `GARRISON_MCP_PUBLIC_URL` | Internal MCP URL handed to harnesses for delegation | `http://127.0.0.1:<MCP port>` |
-| `GARRISON_ADMIN_API_KEY` | Administrator API key | `garrisonadmin` |
-| `GARRISON_AUTH_SIGNING_KEY` | Session token key | a placeholder; set it |
-| `GARRISON_MASTER_KEY` | Secret encryption key | a placeholder; set it |
+| `GARRISON_ADMIN_API_KEY` | Administrator API key | required (public placeholder `garrisonadmin` is refused) |
+| `GARRISON_AUTH_SIGNING_KEY` | Session token key | required |
+| `GARRISON_MASTER_KEY` | Secret encryption key (base64 of 32 random bytes) | required |
 | `GARRISON_ADMIN_EMAIL` | Seeded administrator email | `admin@garrison` |
-| `GARRISON_ADMIN_PASSWORD` | Seeded administrator password | `password` |
-| `GARRISON_DEFAULT_ACCESS_KEY`, `GARRISON_DEFAULT_SECRET_KEY` | Seeded administrator credential | `access_garrison_default`, `secret_garrison_default_change_me` |
-| `GARRISON_NODE_ACCESS_KEY`, `GARRISON_NODE_SECRET_KEY` | Seeded worker credential | `access_garrison_node`, `secret_garrison_node_change_me` |
+| `GARRISON_ADMIN_PASSWORD` | Seeded administrator password | required |
+| `GARRISON_DEFAULT_ACCESS_KEY`, `GARRISON_DEFAULT_SECRET_KEY` | Seeded administrator credential | `access_garrison_default`, secret required |
+| `GARRISON_NODE_ACCESS_KEY`, `GARRISON_NODE_SECRET_KEY` | Seeded worker credential | `access_garrison_node`, secret required |
+| `GARRISON_ALLOW_INSECURE_DEFAULTS` | Development mode: start with the public built-in keys and passwords instead of refusing | `false` |
 | `GARRISON_NODE_ID` | Control-plane node identifier | the host name |
 | `GARRISON_EXPECTED_REPLICAS` | Control-plane replicas (above 1 needs PostgreSQL) | `1` |
 | `GARRISON_SETTINGS_READONLY` | Treat the settings file as read-only (ConfigMap) | `false` |

@@ -20,6 +20,7 @@ namespace Garrison.Server.Protocols
     using Garrison.Core.Serialization;
     using Garrison.Core.Telemetry;
     using Garrison.Server.Backplane;
+    using Garrison.Server.Services;
     using WatsonWebserver;
     using WatsonWebserver.Core;
 
@@ -298,6 +299,8 @@ namespace Garrison.Server.Protocols
         {
             try
             {
+                // Mcp.MaxMessageSize also bounds chunked bodies, which Watson's Content-Length check cannot see (SR-03).
+                if (!await RequestBodyLimiter.BufferChunkedAsync(context, _Context.Settings.Mcp.MaxMessageSize, context.Token).ConfigureAwait(false)) return;
                 await ProxyAsync(context).ConfigureAwait(false);
             }
             catch (OperationCanceledException)

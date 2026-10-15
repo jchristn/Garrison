@@ -2541,3 +2541,5 @@ es.tips.resources.deployments.egressDefault = "Sin lista de salida permitida: lo
   }
  }
 });
+Object.assign(es.common.fieldCodes, {"SecretUseDenied": "No tienes permiso para usar este secreto. Pide el rol SecretUser o SecretManager sobre él.", "GrantCeiling": "Solo puedes conceder permisos que tú mismo tienes.", "ReservedRoleName": "Es el nombre de un rol integrado. Elige otro nombre."});
+es.components.mcpTest.noWorkers = "Ningún worker listo ofrece diagnósticos stdio. Los workers solo los ejecutan cuando un operador define GARRISON_WORKER_MCP_TESTS_ENABLED=true en ellos, porque el comando se ejecuta en el host del worker, fuera del aislamiento de las ejecuciones.";

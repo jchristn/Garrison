@@ -2489,3 +2489,5 @@ zhHans.tips.resources.deployments.egressDefault = "没有出站允许列表：�
   }
  }
 });
+Object.assign(zhHans.common.fieldCodes, {"SecretUseDenied": "你没有使用此机密的权限。请申请此机密的 SecretUser 或 SecretManager 角色。", "GrantCeiling": "你只能授予自己拥有的权限。", "ReservedRoleName": "这是内置角色的名称。请选择其他名称。"});
+zhHans.components.mcpTest.noWorkers = "没有就绪的工作节点提供 stdio 诊断。命令会在工作节点主机上、运行隔离之外执行，因此只有运维人员在工作节点上设置 GARRISON_WORKER_MCP_TESTS_ENABLED=true 时才会运行。";

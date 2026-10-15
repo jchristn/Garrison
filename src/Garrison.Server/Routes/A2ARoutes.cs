@@ -123,17 +123,13 @@ namespace Garrison.Server.Routes
             string agentName = RouteHelpers.Param(context, "agentName") ?? String.Empty;
             object? id = null;
             string method;
-            JsonElement parameters;
+            string body = context.Request.DataAsString ?? String.Empty;
 
             try
             {
-                using (JsonDocument document = JsonDocument.Parse(context.Request.DataAsString ?? String.Empty))
-                {
-                    JsonElement root = document.RootElement;
-                    if (root.TryGetProperty("id", out JsonElement idElement)) id = idElement.ValueKind == JsonValueKind.Number ? (object)idElement.GetInt64() : idElement.ToString();
-                    method = root.TryGetProperty("method", out JsonElement methodElement) ? methodElement.GetString() ?? String.Empty : String.Empty;
-                    parameters = root.TryGetProperty("params", out JsonElement paramsElement) ? paramsElement.Clone() : default;
-                }
+                A2AJsonRpcHead head = JsonSerializer.Deserialize<A2AJsonRpcHead>(body, A2AJson.DefaultOptions) ?? throw new JsonException("The request is empty.");
+                id = head.Id;
+                method = head.Method ?? String.Empty;
             }
             catch (JsonException)
             {
@@ -166,22 +162,22 @@ namespace Garrison.Server.Routes
                     {
                         case A2AProtocol.SendMessage:
                         case "message/send":
-                            await SendMessageAsync(context, ctx, tenantId, agent, id, Parse<SendMessageRequest>(parameters), false).ConfigureAwait(false);
+                            await SendMessageAsync(context, ctx, tenantId, agent, id, Parse<SendMessageRequest>(body), false).ConfigureAwait(false);
                             return;
                         case A2AProtocol.SendStreamingMessage:
                         case "message/stream":
-                            await SendMessageAsync(context, ctx, tenantId, agent, id, Parse<SendMessageRequest>(parameters), true).ConfigureAwait(false);
+                            await SendMessageAsync(context, ctx, tenantId, agent, id, Parse<SendMessageRequest>(body), true).ConfigureAwait(false);
                             return;
                         case A2AProtocol.GetTask:
                         case "tasks/get":
-                            GetTaskRequest get = Parse<GetTaskRequest>(parameters);
+                            GetTaskRequest get = Parse<GetTaskRequest>(body);
                             Run run = await RequireTaskAsync(ctx, tenantId, agent, get.Id, OperationTypeEnum.Read, context).ConfigureAwait(false);
                             CountTask(run);
                             await SendRpcResultAsync(context, id, A2AMapper.Task(run, true, await ContextIdAsync(run, null, context).ConfigureAwait(false))).ConfigureAwait(false);
                             return;
                         case A2AProtocol.CancelTask:
                         case "tasks/cancel":
-                            CancelTaskRequest cancel = Parse<CancelTaskRequest>(parameters);
+                            CancelTaskRequest cancel = Parse<CancelTaskRequest>(body);
                             Run toCancel = await RequireTaskAsync(ctx, tenantId, agent, cancel.Id, OperationTypeEnum.Update, context).ConfigureAwait(false);
                             if (RunService.IsTerminal(toCancel.Status))
                             {
@@ -195,11 +191,11 @@ namespace Garrison.Server.Routes
                             return;
                         case A2AProtocol.ListTasks:
                         case "tasks/list":
-                            await ListTasksAsync(context, ctx, tenantId, agent, id, Parse<ListTasksRequest>(parameters)).ConfigureAwait(false);
+                            await ListTasksAsync(context, ctx, tenantId, agent, id, Parse<ListTasksRequest>(body)).ConfigureAwait(false);
                             return;
                         case A2AProtocol.SubscribeToTask:
                         case "tasks/resubscribe":
-                            SubscribeToTaskRequest subscribe = Parse<SubscribeToTaskRequest>(parameters);
+                            SubscribeToTaskRequest subscribe = Parse<SubscribeToTaskRequest>(body);
                             Run watched = await RequireTaskAsync(ctx, tenantId, agent, subscribe.Id, OperationTypeEnum.Read, context).ConfigureAwait(false);
                             await StreamAsync(context, id, tenantId, watched).ConfigureAwait(false);
                             return;
@@ -505,10 +501,10 @@ namespace Garrison.Server.Routes
             return ExternalUrls.RestBaseUrl(_Context, context);
         }
 
-        private static T Parse<T>(JsonElement parameters) where T : new()
+        private static T Parse<T>(string body) where T : class, new()
         {
-            if (parameters.ValueKind == JsonValueKind.Undefined || parameters.ValueKind == JsonValueKind.Null) return new T();
-            return JsonSerializer.Deserialize<T>(parameters.GetRawText(), A2AJson.DefaultOptions) ?? new T();
+            A2AJsonRpcEnvelope<T>? envelope = JsonSerializer.Deserialize<A2AJsonRpcEnvelope<T>>(body, A2AJson.DefaultOptions);
+            return envelope?.Params ?? new T();
         }
 
         private static JsonRpcError Error(int code, string message)

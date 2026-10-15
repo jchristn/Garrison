@@ -1,6 +1,7 @@
 namespace Garrison.Server
 {
     using System;
+    using System.Collections.Generic;
     using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
@@ -148,8 +149,10 @@ namespace Garrison.Server
             }
 
             SecretCipher cipher = new SecretCipher(settings.Security.MasterKey, settings.Security.MasterKeyVersion);
-            if (settings.Security.MasterKey == new SecuritySettings().MasterKey) logging.Warn("[Garrison] Security.MasterKey is the built-in default. Set GARRISON_MASTER_KEY before storing real secrets.");
-            if (settings.Auth.SigningKey == new AuthSettings().SigningKey) logging.Warn("[Garrison] Auth.SigningKey is the built-in default. Set GARRISON_AUTH_SIGNING_KEY.");
+            List<string> insecure = settings.InsecureDefaults();
+            if (insecure.Count > 0) logging.Warn("[Garrison] development mode (GARRISON_ALLOW_INSECURE_DEFAULTS): " + String.Join(", ", insecure) + (insecure.Count == 1 ? " is" : " are") + " empty or the public built-in default. Anyone who knows the defaults has administrator access. Never expose this server.");
+            if (!SecretCipher.IsStrongKey(settings.Security.MasterKey)) logging.Warn("[Garrison] Security.MasterKey is not base64 of 32 bytes, so it is hashed with SHA-256 without stretching. Use a random key such as the output of openssl rand -base64 32.");
+            if (!TokenService.IsStrongKey(settings.Auth.SigningKey)) logging.Warn("[Garrison] Auth.SigningKey is shorter than 32 characters. Use at least 32 random bytes.");
 
             SeedOptions seed = new SeedOptions();
             seed.AdminEmail = settings.Security.AdminEmail;

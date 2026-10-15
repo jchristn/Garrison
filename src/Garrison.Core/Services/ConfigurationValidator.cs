@@ -26,6 +26,7 @@ namespace Garrison.Core.Services
         private static readonly Regex _McpToolName = new Regex("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$", RegexOptions.Compiled);
         private static readonly Regex _ServerName = new Regex("^[A-Za-z0-9_-]{1,64}$", RegexOptions.Compiled);
         private static readonly Regex _EnvName = new Regex("^[A-Za-z_][A-Za-z0-9_]{0,255}$", RegexOptions.Compiled);
+        private static readonly Regex _ScpGitUrl = new Regex("^[A-Za-z0-9._~+-]+@[A-Za-z0-9][A-Za-z0-9.-]*:[^:\\s][^\\s]*$", RegexOptions.Compiled);
 
         #endregion
 
@@ -164,6 +165,13 @@ namespace Garrison.Core.Services
             Json(agent.InputSchemaJson, errors, "inputSchemaJson");
             Json(agent.OutputSchemaJson, errors, "outputSchemaJson");
             if (agent.Kind == AgentKindEnum.Remote && String.IsNullOrWhiteSpace(agent.RemoteEndpointUrl)) errors["remoteEndpointUrl"] = "Remote agents need an endpoint URL.";
+            else if (!String.IsNullOrWhiteSpace(agent.RemoteEndpointUrl))
+            {
+                // Remote invocation (P12.4) must also connect through OutboundAddressPolicy.CreateHandler; refusing metadata
+                // and link-local literals here keeps such endpoints out of the configuration from the start (SR-26).
+                if (!Uri.TryCreate(agent.RemoteEndpointUrl, UriKind.Absolute, out Uri? remote) || (remote.Scheme != "http" && remote.Scheme != "https") || remote.UserInfo.Length > 0) errors["remoteEndpointUrl"] = "Use an absolute http or https URL without embedded credentials.";
+                else if (Garrison.Core.Security.OutboundAddressPolicy.LiteralBlockedReason(remote) is string blocked) errors["remoteEndpointUrl"] = blocked;
+            }
             if (!String.IsNullOrWhiteSpace(agent.McpToolName) && !IsValidMcpToolName(agent.McpToolName.Trim())) errors["mcpToolName"] = "MCP tool names are 1 to 64 letters, digits, underscores, dots, and hyphens, not starting with a dot or hyphen, and cannot start with the reserved prefix garrison_.";
             foreach (string name in agent.DelegationAllowList)
             {
@@ -185,6 +193,41 @@ namespace Garrison.Core.Services
         }
 
         /// <summary>
+        /// Whether a git repository URL may be cloned (SR-22): https://, ssh://, or scp-like user@host:path (ssh). Local
+        /// paths, file://, http://, git://, ext:: and other transports, a leading '-', whitespace, and control characters
+        /// are refused. Workers re-check this before cloning and also restrict git to https and ssh with GIT_ALLOW_PROTOCOL.
+        /// </summary>
+        /// <param name="url">URL.</param>
+        /// <returns>True when allowed.</returns>
+        public static bool IsAllowedGitUrl(string? url)
+        {
+            if (String.IsNullOrWhiteSpace(url) || url.Length > 2048) return false;
+            if (url.StartsWith("-", StringComparison.Ordinal) || url.Any(c => Char.IsWhiteSpace(c) || Char.IsControl(c))) return false;
+            if (url.Contains("::", StringComparison.Ordinal)) return false;
+            if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)) return false;
+                if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != "ssh") return false;
+                return !String.IsNullOrEmpty(uri.Host) && !uri.Host.StartsWith("-", StringComparison.Ordinal);
+            }
+            if (url.Contains("://", StringComparison.Ordinal)) return false;
+            return _ScpGitUrl.IsMatch(url);
+        }
+
+        /// <summary>
+        /// Whether a git branch, tag, or commit may be passed to git (SR-22): no leading '-', no whitespace or control
+        /// characters, no '..', at most 255 characters.
+        /// </summary>
+        /// <param name="gitRef">Reference.</param>
+        /// <returns>True when allowed.</returns>
+        public static bool IsAllowedGitRef(string? gitRef)
+        {
+            if (String.IsNullOrEmpty(gitRef) || gitRef.Length > 255) return false;
+            if (gitRef.StartsWith("-", StringComparison.Ordinal) || gitRef.Contains("..", StringComparison.Ordinal)) return false;
+            return !gitRef.Any(c => Char.IsWhiteSpace(c) || Char.IsControl(c));
+        }
+
+        /// <summary>
         /// Validate a workspace template.
         /// </summary>
         /// <param name="workspace">Workspace template.</param>
@@ -195,6 +238,8 @@ namespace Garrison.Core.Services
             Dictionary<string, string> errors = new Dictionary<string, string>();
             Name(workspace.Name, errors);
             if (workspace.Kind == WorkspaceKindEnum.GitRepository && String.IsNullOrWhiteSpace(workspace.GitUrl)) errors["gitUrl"] = "Git workspaces need a repository URL.";
+            else if (!String.IsNullOrEmpty(workspace.GitUrl) && !IsAllowedGitUrl(workspace.GitUrl)) errors["gitUrl"] = "Repository URLs must be https://, ssh://, or user@host:path (scp-like ssh). Local paths, file://, http://, git://, and other transports are not allowed.";
+            if (!String.IsNullOrEmpty(workspace.GitRef) && !IsAllowedGitRef(workspace.GitRef)) errors["gitRef"] = "A branch, tag, or commit must not start with '-' and must not contain whitespace, control characters, or '..'.";
             if (workspace.Kind == WorkspaceKindEnum.PersistentVolume)
             {
                 if (String.IsNullOrWhiteSpace(workspace.PersistentVolumeClaim)) errors["persistentVolumeClaim"] = "PersistentVolume workspaces need the name of an existing PersistentVolumeClaim in the run namespace.";
