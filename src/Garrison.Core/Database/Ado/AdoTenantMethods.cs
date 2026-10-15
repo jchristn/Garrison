@@ -181,7 +181,7 @@ namespace Garrison.Core.Database.Ado
             if (String.IsNullOrEmpty(tenantId)) throw new ArgumentNullException(nameof(tenantId));
             HashSet<string> withoutTenant = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "tenants", "node_pools", "node_pool_tenants", "nodes", "node_labels", "node_capabilities", "node_executors", "coordination_leases", "cluster_settings", "request_nonces", "rate_limit_buckets", "mcp_sessions", "backplane_messages", "control_nodes"
+                "tenants", "node_pools", "node_pool_tenants", "nodes", "node_labels", "node_capabilities", "node_executors", "coordination_leases", "cluster_settings", "request_nonces", "rate_limit_buckets", "mcp_sessions", "backplane_messages", "control_nodes", "notification_cursors"
             };
 
             int total = 0;

@@ -327,5 +327,19 @@ User/developer credentials can configure their tenant through these tools. `Agen
 | `garrison_create_pipeline` | Pipeline.Create | `configuration` |
 | `garrison_update_pipeline` | Pipeline.Update on the resolved ID | `pipeline`, `configuration` |
 | `garrison_delete_pipeline` | Pipeline.Delete on the resolved ID | `pipeline` |
+| `garrison_list_triggers` | Trigger.Read | none; optional `search`, `type` (`Cron` or `Webhook`), `maxResults` |
+| `garrison_get_trigger` | Trigger.Read on the resolved ID | `trigger` (name or ID) |
+| `garrison_create_trigger` | Trigger.Create, and Execute on the target agent (or the pipeline and every stage agent) | `configuration` |
+| `garrison_update_trigger` | Trigger.Update on the resolved ID, and Execute on the target | `trigger`, `configuration` |
+| `garrison_delete_trigger` | Trigger.Delete on the resolved ID | `trigger` |
+| `garrison_list_trigger_fires` | Trigger.Read on the resolved ID | `trigger`; optional `outcome` (`Started`, `Failed`, `Skipped`), `maxResults` |
+| `garrison_list_notification_endpoints` | NotificationEndpoint.Read | none; optional `search`, `maxResults` |
+| `garrison_get_notification_endpoint` | NotificationEndpoint.Read on the resolved ID | `endpoint` (name or ID) |
+| `garrison_create_notification_endpoint` | NotificationEndpoint.Create | `configuration` |
+| `garrison_update_notification_endpoint` | NotificationEndpoint.Update on the resolved ID | `endpoint`, `configuration` |
+| `garrison_delete_notification_endpoint` | NotificationEndpoint.Delete on the resolved ID | `endpoint` |
+| `garrison_list_notification_deliveries` | NotificationEndpoint.Read on the resolved ID | `endpoint`; optional `status` (`Pending`, `Delivering`, `Succeeded`, `Failed`), `maxResults` |
 
 Configuration uses the REST agent, deployment, and pipeline fields; a pipeline `configuration` carries its complete `stages` list, so read it with `garrison_get_pipeline` before an update. Deleting a pipeline with active pipeline runs fails with `PipelineInUse`. Updates replace the full configuration, preserve identity/creation metadata, and increment deployment versions. Protected records cannot be changed. Creation ignores supplied identity/tenant/protection/version fields. A deployment `configuration` takes `effectPolicy` (`AtMostOnce` when omitted, `AtLeastOnce`, or `Journaled`); the deprecated `retryOnNodeLoss` is still accepted for one release (`true` is `AtLeastOnce`, `false` is `AtMostOnce`), and a configuration whose two values disagree fails with `ValidationFailed` naming `effectPolicy` (field code `EffectPolicyConflict`). Results carry both, with `retryOnNodeLoss` derived from `effectPolicy`. A deployment `configuration` also takes `egressRules` (a list of `cidr`, optional `port`, and `protocol`), validated as over REST: an invalid rule fails with `ValidationFailed` naming the field, such as `egressRules[0].cidr`. A tenant-bound caller cannot override its tenant. Export returns `{manifest, mediaType}` with YAML and secret metadata only. Apply returns the normal manifest report; inspect `failedCount` and document results. See [management workflow and examples](docs/MANAGEMENT_MCP.md).
+
+Trigger and notification endpoint `configuration` objects use the REST models (see [docs/TRIGGERS.md](docs/TRIGGERS.md) and [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)). A trigger created or updated over MCP runs as the calling credential. The `signingSecret` of a new webhook trigger or notification endpoint is in the create result and nowhere else; `garrison_get_*` never returns it. Rotating secrets, firing a trigger by hand, and sending a test notification are REST and dashboard actions.

@@ -630,6 +630,30 @@ namespace Garrison.Server.Protocols
                     case "garrison_decide_pipeline_review":
                         result = await DecidePipelineReviewAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
+                    case "garrison_get_trigger":
+                    case "garrison_create_trigger":
+                    case "garrison_update_trigger":
+                    case "garrison_delete_trigger":
+                        result = await ManageTriggerAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_triggers":
+                        result = await ListTriggersAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_trigger_fires":
+                        result = await ListTriggerFiresAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_get_notification_endpoint":
+                    case "garrison_create_notification_endpoint":
+                    case "garrison_update_notification_endpoint":
+                    case "garrison_delete_notification_endpoint":
+                        result = await ManageNotificationEndpointAsync(ctx, tenantId, tool, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_notification_endpoints":
+                        result = await ListNotificationEndpointsAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
+                    case "garrison_list_notification_deliveries":
+                        result = await ListNotificationDeliveriesAsync(ctx, tenantId, args, token).ConfigureAwait(false);
+                        break;
                     case "garrison_apply_manifest":
                         result = await ApplyManifestAsync(ctx, tenantId, args, token).ConfigureAwait(false);
                         break;
@@ -780,6 +804,123 @@ namespace Garrison.Server.Protocols
             return new McpConfigurationDeletion { Id = existing.Id, Deleted = await _Mutations.DeletePipelineAsync(ctx, tenantId, existing, token).ConfigureAwait(false) };
         }
 
+        private async Task<object> ManageTriggerAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpTriggerConfigurationArguments arguments = ManagementArguments<McpTriggerConfigurationArguments>(args);
+            Func<ResourceTypeEnum, string, Task<bool>> target = async (resourceType, resourceId) =>
+            {
+                await Require(ctx, tenantId, resourceType, OperationTypeEnum.Execute, resourceId, token).ConfigureAwait(false);
+                return true;
+            };
+            if (tool.Operation == OperationTypeEnum.Create)
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.Trigger, tool.Operation, null, token).ConfigureAwait(false);
+                Trigger? created = await _Mutations.CreateTriggerAsync(ctx, tenantId, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), target, token).ConfigureAwait(false);
+                return created ?? throw ToolError("Forbidden", "Not permitted to run the trigger's target.");
+            }
+            Trigger existing = await RequireTriggerAsync(ctx, tenantId, arguments.Trigger, tool.Operation, token).ConfigureAwait(false);
+            if (tool.Operation == OperationTypeEnum.Read) return existing;
+            if (tool.Operation == OperationTypeEnum.Update)
+            {
+                Trigger? updated = await _Mutations.UpdateTriggerAsync(ctx, tenantId, existing, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), target, token).ConfigureAwait(false);
+                return updated ?? throw ToolError("Forbidden", "Not permitted to run the trigger's target.");
+            }
+            return new McpConfigurationDeletion { Id = existing.Id, Deleted = await _Mutations.DeleteTriggerAsync(ctx, tenantId, existing, token).ConfigureAwait(false) };
+        }
+
+        private async Task<Trigger> RequireTriggerAsync(RequestContext ctx, string tenantId, string? idOrName, OperationTypeEnum operation, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(idOrName)) throw ToolError("ValidationFailed", "trigger is required.");
+            string reference = idOrName.Trim();
+            Trigger? trigger = await _Context.Database.Triggers.ReadAsync(tenantId, reference, token).ConfigureAwait(false);
+            if (trigger == null) trigger = await _Context.Database.Triggers.ReadByNameAsync(tenantId, reference, token).ConfigureAwait(false);
+            if (trigger == null) throw ToolError("NotFound", "Trigger " + reference + " not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.Trigger, operation, trigger.Id, token).ConfigureAwait(false);
+            return trigger;
+        }
+
+        private async Task<object> ListTriggersAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.Trigger, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            McpTriggerListArguments arguments = ManagementArguments<McpTriggerListArguments>(args);
+            TriggerTypeEnum? type = null;
+            if (!String.IsNullOrWhiteSpace(arguments.Type))
+            {
+                if (!Enum.TryParse<TriggerTypeEnum>(arguments.Type, true, out TriggerTypeEnum parsed) || !Enum.IsDefined(parsed)) throw ToolError("ValidationFailed", "type must be Cron or Webhook.");
+                type = parsed;
+            }
+            EnumerationQuery query = new EnumerationQuery();
+            query.Search = String.IsNullOrWhiteSpace(arguments.Search) ? null : arguments.Search.Trim();
+            query.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+            return await _Context.Database.Triggers.EnumerateAsync(tenantId, type, query, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> ListTriggerFiresAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpTriggerFireListArguments arguments = ManagementArguments<McpTriggerFireListArguments>(args);
+            Trigger trigger = await RequireTriggerAsync(ctx, tenantId, arguments.Trigger, OperationTypeEnum.Read, token).ConfigureAwait(false);
+            TriggerFireOutcomeEnum? outcome = null;
+            if (!String.IsNullOrWhiteSpace(arguments.Outcome))
+            {
+                if (!Enum.TryParse<TriggerFireOutcomeEnum>(arguments.Outcome, true, out TriggerFireOutcomeEnum parsed) || !Enum.IsDefined(parsed)) throw ToolError("ValidationFailed", "outcome must be Started, Failed, or Skipped.");
+                outcome = parsed;
+            }
+            EnumerationQuery query = new EnumerationQuery();
+            query.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+            return await _Context.Database.TriggerFires.EnumerateAsync(tenantId, trigger.Id, outcome, query, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> ManageNotificationEndpointAsync(RequestContext ctx, string tenantId, McpToolDefinition tool, RpcParameters? args, CancellationToken token)
+        {
+            McpNotificationEndpointConfigurationArguments arguments = ManagementArguments<McpNotificationEndpointConfigurationArguments>(args);
+            if (tool.Operation == OperationTypeEnum.Create)
+            {
+                await Require(ctx, tenantId, ResourceTypeEnum.NotificationEndpoint, tool.Operation, null, token).ConfigureAwait(false);
+                return await _Mutations.CreateNotificationEndpointAsync(ctx, tenantId, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            }
+            NotificationEndpoint existing = await RequireNotificationEndpointAsync(ctx, tenantId, arguments.Endpoint, tool.Operation, token).ConfigureAwait(false);
+            if (tool.Operation == OperationTypeEnum.Read) return existing;
+            if (tool.Operation == OperationTypeEnum.Update)
+                return await _Mutations.UpdateNotificationEndpointAsync(ctx, tenantId, existing, arguments.Configuration ?? throw ToolError("ValidationFailed", "configuration is required."), token).ConfigureAwait(false);
+            return new McpConfigurationDeletion { Id = existing.Id, Deleted = await _Mutations.DeleteNotificationEndpointAsync(ctx, tenantId, existing, token).ConfigureAwait(false) };
+        }
+
+        private async Task<NotificationEndpoint> RequireNotificationEndpointAsync(RequestContext ctx, string tenantId, string? idOrName, OperationTypeEnum operation, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(idOrName)) throw ToolError("ValidationFailed", "endpoint is required.");
+            string reference = idOrName.Trim();
+            NotificationEndpoint? endpoint = await _Context.Database.NotificationEndpoints.ReadAsync(tenantId, reference, token).ConfigureAwait(false);
+            if (endpoint == null) endpoint = await _Context.Database.NotificationEndpoints.ReadByNameAsync(tenantId, reference, token).ConfigureAwait(false);
+            if (endpoint == null) throw ToolError("NotFound", "Notification endpoint " + reference + " not found.");
+            await Require(ctx, tenantId, ResourceTypeEnum.NotificationEndpoint, operation, endpoint.Id, token).ConfigureAwait(false);
+            return endpoint;
+        }
+
+        private async Task<object> ListNotificationEndpointsAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            await Require(ctx, tenantId, ResourceTypeEnum.NotificationEndpoint, OperationTypeEnum.Read, null, token).ConfigureAwait(false);
+            McpNotificationEndpointListArguments arguments = ManagementArguments<McpNotificationEndpointListArguments>(args);
+            EnumerationQuery query = new EnumerationQuery();
+            query.Search = String.IsNullOrWhiteSpace(arguments.Search) ? null : arguments.Search.Trim();
+            query.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+            return await _Context.Database.NotificationEndpoints.EnumerateAsync(tenantId, query, token).ConfigureAwait(false);
+        }
+
+        private async Task<object> ListNotificationDeliveriesAsync(RequestContext ctx, string tenantId, RpcParameters? args, CancellationToken token)
+        {
+            McpNotificationDeliveryListArguments arguments = ManagementArguments<McpNotificationDeliveryListArguments>(args);
+            NotificationEndpoint endpoint = await RequireNotificationEndpointAsync(ctx, tenantId, arguments.Endpoint, OperationTypeEnum.Read, token).ConfigureAwait(false);
+            NotificationDeliveryStatusEnum? status = null;
+            if (!String.IsNullOrWhiteSpace(arguments.Status))
+            {
+                if (!Enum.TryParse<NotificationDeliveryStatusEnum>(arguments.Status, true, out NotificationDeliveryStatusEnum parsed) || !Enum.IsDefined(parsed)) throw ToolError("ValidationFailed", "status must be Pending, Delivering, Succeeded, or Failed.");
+                status = parsed;
+            }
+            EnumerationQuery query = new EnumerationQuery();
+            query.MaxResults = Math.Clamp(arguments.MaxResults ?? 25, 1, 100);
+            return await _Context.Database.NotificationDeliveries.EnumerateAsync(tenantId, endpoint.Id, status, query, token).ConfigureAwait(false);
+        }
+
         private async Task<Pipeline> RequirePipelineAsync(RequestContext ctx, string tenantId, string? idOrName, OperationTypeEnum operation, CancellationToken token)
         {
             if (String.IsNullOrWhiteSpace(idOrName)) throw ToolError("ValidationFailed", "pipeline is required.");
@@ -904,7 +1045,7 @@ namespace Garrison.Server.Protocols
             McpManifestArguments arguments = ManagementArguments<McpManifestArguments>(args);
             if (String.IsNullOrWhiteSpace(arguments.Manifest)) throw ToolError("ValidationFailed", "manifest is required.");
             if (arguments.AllowSecretValues) await Require(ctx, tenantId, ResourceTypeEnum.Secret, OperationTypeEnum.Create, null, token).ConfigureAwait(false);
-            ManifestApply result = await _Context.Get<ManifestService>().ApplyAsync(tenantId, arguments.Manifest, new ManifestApplyOptions { DryRun = arguments.DryRun, AllowSecretValues = arguments.AllowSecretValues, PrincipalName = ctx.PrincipalName }, token).ConfigureAwait(false);
+            ManifestApply result = await _Context.Get<ManifestService>().ApplyAsync(tenantId, arguments.Manifest, new ManifestApplyOptions { DryRun = arguments.DryRun, AllowSecretValues = arguments.AllowSecretValues, PrincipalName = ctx.PrincipalName, PrincipalType = ctx.PrincipalType, PrincipalId = ctx.PrincipalType == PrincipalTypeEnum.Administrator ? null : ctx.PrincipalId }, token).ConfigureAwait(false);
             await _Context.Audit.WriteAsync(ctx, AuditEventTypeEnum.ManifestApplied, "Manifest", result.Id,
                 (arguments.DryRun ? "Dry-run manifest apply: " : "Manifest apply: ") + result.CreatedCount + " created, " + result.UpdatedCount + " updated, " + result.UnchangedCount + " unchanged, " + result.FailedCount + " failed.", tenantId, token).ConfigureAwait(false);
             return result;

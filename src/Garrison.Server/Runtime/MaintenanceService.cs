@@ -133,6 +133,16 @@ namespace Garrison.Server.Runtime
         public PipelineService? Pipelines { get; set; } = null;
 
         /// <summary>
+        /// Trigger service (P12.5). When set, the leader fires due cron triggers on every pass.
+        /// </summary>
+        public TriggerService? Triggers { get; set; } = null;
+
+        /// <summary>
+        /// Notification service (P12.14). When set, the leader queues notifications for new events on every pass.
+        /// </summary>
+        public NotificationService? Notifications { get; set; } = null;
+
+        /// <summary>
         /// Interval between blocked-run passes in the leader loop, in milliseconds. Minimum 1000, maximum 300000, default
         /// 5000. <see cref="RunOnceAsync"/> always runs a pass.
         /// </summary>
@@ -478,6 +488,31 @@ namespace Garrison.Server.Runtime
                         {
                             // The sweep can legitimately take a while (it is bounded by PipelineService.SweepBudgetMs); its
                             // own duration is work, not a pause, so it must not make the next step look paused.
+                            _Pause.Touch();
+                        }
+                    }
+                    TriggerService? triggers = Triggers;
+                    if (triggers != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "triggers", triggers.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // Firing creates runs; that work is not a pause.
+                            _Pause.Touch();
+                        }
+                    }
+                    NotificationService? notifications = Notifications;
+                    if (notifications != null && await AwakeAsync(token).ConfigureAwait(false))
+                    {
+                        try
+                        {
+                            await GarrisonTracing.BackgroundAsync("maintenance", "notifications", notifications.SweepAsync, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
                             _Pause.Touch();
                         }
                     }

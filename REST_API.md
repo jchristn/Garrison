@@ -3406,6 +3406,175 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/pipeline-reviews
 
 Decisions are compare-and-set updates, so they are safe from any replica and two people deciding at once produce one decision and one 409. Every decision a person makes writes a `PipelineReviewDecided` audit record. Undecided reviews wait indefinitely unless the stage sets `reviewTimeoutSeconds`; then the leader applies the stage's `reviewTimeoutAction` with `decisionSource: Timeout` (a timed-out `Reject` gives the review status `Expired` and the pipeline outcome `ReviewExpired`).
 
+### Triggers
+
+A trigger (P12.5) starts an agent run or a pipeline run on a cron schedule, when a signed webhook arrives, or when someone fires it by hand. Every fire runs as the principal that last saved the trigger and goes through the normal invocation path; the run has `kind: Trigger` and `triggerId`. [docs/TRIGGERS.md](docs/TRIGGERS.md) covers schedules, catch-up, signing, and run-as semantics; this section is the route reference.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /triggers` | Read on `Trigger` | `EnumerationResult<Trigger>`, 200 |
+| `POST /triggers` | Create on `Trigger`, and Execute on the target | `Trigger`, 201 |
+| `GET /triggers/{idOrName}` | Read on `Trigger` | `Trigger`, 200 |
+| `PUT /triggers/{idOrName}` | Update on `Trigger`, and Execute on the target | `Trigger`, 200 |
+| `DELETE /triggers/{idOrName}` | Delete on `Trigger` | Empty, 204 |
+| `POST /triggers/{idOrName}/rotate-secret` | Update on `Trigger` | `Trigger` with `signingSecret`, 200 |
+| `POST /triggers/{idOrName}/fire` | Execute on `Trigger` | `TriggerFire`, 201 |
+| `GET /triggers/{idOrName}/fires` | Read on `Trigger` | `EnumerationResult<TriggerFire>`, 200 |
+| `POST /triggers/{id}/webhook` | None: the `X-Garrison-Signature` header | `TriggerFire`, 202 (200 for a repeated delivery) |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Triggers of another tenant answer 404. "Execute on the target" means Execute on the trigger's agent, or Execute on its pipeline and on every stage agent of that pipeline; when it is missing the save answers 403 and nothing changes.
+
+#### `GET /v1.0/api/tenants/{tenantId}/triggers`
+
+List triggers with the [enumeration](#enumeration) parameters (`search` matches the name, `activeOnly` hides inactive ones) and an optional `type` (`Cron` or `Webhook`).
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers?type=Cron" -H "Authorization: Bearer $TOKEN"
+```
+
+#### `POST /v1.0/api/tenants/{tenantId}/triggers`
+
+Create a trigger. `agentId`, `deploymentId`, `pipelineId`, and `inputTemplateId` accept identifiers or names and are stored as identifiers. The caller becomes the run-as principal (`runAsType`, `runAsId`, `runAsName`); supplied values for those, for the identifier, and for the fire bookkeeping are ignored. A `Webhook` trigger's response carries `signingSecret`, the only time it is returned.
+
+| | |
+|---|---|
+| Request body | `Trigger` |
+| Response | `Trigger`, 201 |
+| Errors | 400 `ValidationFailed` with field codes `ReferenceNotFound`, `DeploymentAgentMismatch`, `TemplateKindMismatch`, `TargetMismatch`, `InvalidCron`, `InvalidTimeZone`; 403 when the caller may not run the target; 409 `NameConflict` |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "nightly-report", "type": "Cron", "agentId": "reporter", "cronExpression": "0 6 * * *", "timeZone": "Europe/Berlin"}'
+```
+
+```json
+{
+  "id": "trg_mv8d1k2a_Pq7LwT2xZb9KvRm",
+  "tenantId": "default",
+  "name": "nightly-report",
+  "type": "Cron",
+  "targetType": "Agent",
+  "agentId": "agt_mv1a0c4e_2nKqLw9ZtBv7XsRm",
+  "priority": 0,
+  "cronExpression": "0 6 * * *",
+  "timeZone": "Europe/Berlin",
+  "active": true,
+  "runAsType": "User",
+  "runAsId": "usr_mv1a0b9z_Kq2LwT7xZb3VmRn",
+  "runAsName": "admin@garrison",
+  "nextFireUtc": "2026-10-15T04:00:00Z",
+  "fireCount": 0,
+  "createdUtc": "2026-10-14T18:02:11.402118Z",
+  "lastUpdateUtc": "2026-10-14T18:02:11.402118Z"
+}
+```
+
+#### `PUT /v1.0/api/tenants/{tenantId}/triggers/{idOrName}`
+
+Replace a trigger's configuration with a complete `Trigger` body. The caller becomes the run-as principal. `type` cannot change (400 with field code `TypeImmutable`); the signing secret, fire count, and last fire are kept. When the cron expression, time zone, and active flag are unchanged the scheduled `nextFireUtc` is kept; otherwise it is computed again from now, so reactivating a trigger never catches up on the time it was off.
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/triggers/{idOrName}`
+
+Delete a trigger and its fire history. Runs it started are kept.
+
+#### `POST /v1.0/api/tenants/{tenantId}/triggers/{idOrName}/rotate-secret`
+
+Replace a webhook trigger's signing secret. The response carries the new `signingSecret`; the old one stops working at once. A `Cron` trigger answers 409 `NotAWebhookTrigger`. Writes a `SigningSecretRotated` audit record.
+
+#### `POST /v1.0/api/tenants/{tenantId}/triggers/{idOrName}/fire`
+
+Fire the trigger now, whatever its type or schedule. The optional body is a `TriggerFireRequest`; its `body` reaches the input template as `webhook.body` (and `webhook.json` when it parses as JSON). The answer is 201 with the `TriggerFire`, whose `outcome` is `Started` with a `runId` or `pipelineRunId`, or `Failed` with an `errorCode` such as `RunAsNotAuthorized`, `InputRequired`, `TemplateRenderFailed`, `InputTemplateNotFound`, `AgentNotFound`, `NoActiveDeployment`, or `QuotaExceeded`. A payload over `Triggers.WebhookMaxBodyBytes` answers 400 with field code `PayloadTooLarge`.
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers/pr-review/fire" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"body": "{\"action\":\"opened\",\"number\":42}", "contentType": "application/json"}'
+```
+
+#### `GET /v1.0/api/tenants/{tenantId}/triggers/{idOrName}/fires`
+
+List the trigger's fires, newest first, with the [enumeration](#enumeration) parameters and an optional `outcome` (`Started`, `Failed`, `Skipped`). Fires are kept for `Triggers.FireRetentionDays` (30). The runs a trigger started are also listed by `GET .../runs?triggerId={id}`.
+
+#### `POST /v1.0/api/tenants/{tenantId}/triggers/{id}/webhook`
+
+Deliver a webhook to a `Webhook` trigger. The route takes no token and must be addressed by the trigger identifier. It is authorized only by `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, the lowercase HMAC-SHA256 under the signing secret of `<t>.<raw body>`, with the timestamp within `Triggers.WebhookToleranceSeconds` (300) of the server clock. An optional `X-Garrison-Delivery` header (1 to 128 printable ASCII characters) makes repeats idempotent. The raw body and its `Content-Type` reach the input template as `webhook.body`, `webhook.json`, and `webhook.contentType`.
+
+| Status | Body | When |
+|---|---|---|
+| 202 | `TriggerFire` | The delivery was accepted and recorded (check `outcome`) |
+| 200 | `TriggerFire` with `duplicate: true` | A repeated `X-Garrison-Delivery` |
+| 400 | `InvalidDeliveryId` | The delivery header is not 1 to 128 printable ASCII characters |
+| 401 | `InvalidSignature` | Any verification failure, including an unknown tenant or trigger and a cron trigger |
+| 409 | `TriggerInactive` | A correctly signed delivery to an inactive trigger |
+| 413 | `PayloadTooLarge` | The body is larger than `Triggers.WebhookMaxBodyBytes` (262144 bytes) |
+
+```bash
+BODY='{"action":"opened","number":42}'; TS=$(date +%s)
+SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/^.* //')
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/triggers/trg_mv8d1k2a_Pq7LwT2xZb9KvRm/webhook" \
+  -H "Content-Type: application/json" -H "X-Garrison-Delivery: pr-42-opened" \
+  -H "X-Garrison-Signature: t=$TS,v1=$SIG" --data-binary "$BODY"
+```
+
+### Notification endpoints
+
+A notification endpoint (P12.14) receives a signed JSON POST when a subscribed run, pipeline, or approval event happens in the tenant. Delivery is asynchronous and at least once, with retries and exponential backoff, and every attempt is checked against the SSRF rules. [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md) explains events, the payload, verification, retries, and the SSRF rules.
+
+| Method and path suffix | Permission | Result |
+|---|---|---|
+| `GET /notification-endpoints` | Read on `NotificationEndpoint` | `EnumerationResult<NotificationEndpoint>`, 200 |
+| `POST /notification-endpoints` | Create on `NotificationEndpoint` | `NotificationEndpoint` with `signingSecret`, 201 |
+| `GET /notification-endpoints/{idOrName}` | Read on `NotificationEndpoint` | `NotificationEndpoint`, 200 |
+| `PUT /notification-endpoints/{idOrName}` | Update on `NotificationEndpoint` | `NotificationEndpoint`, 200 |
+| `DELETE /notification-endpoints/{idOrName}` | Delete on `NotificationEndpoint` | Empty, 204 |
+| `POST /notification-endpoints/{idOrName}/rotate-secret` | Update on `NotificationEndpoint` | `NotificationEndpoint` with `signingSecret`, 200 |
+| `POST /notification-endpoints/{idOrName}/test` | Execute on `NotificationEndpoint` | `NotificationDelivery`, 200 |
+| `GET /notification-endpoints/{idOrName}/deliveries` | Read on `NotificationEndpoint` | `EnumerationResult<NotificationDelivery>`, 200 |
+| `GET /notification-endpoints/{idOrName}/deliveries/{deliveryId}` | Read on `NotificationEndpoint` | `NotificationDelivery`, 200 |
+
+Paths are relative to `/v1.0/api/tenants/{tenantId}`. Endpoints of another tenant answer 404.
+
+#### `POST /v1.0/api/tenants/{tenantId}/notification-endpoints`
+
+Create an endpoint. The response carries `signingSecret`, the only time it is returned. `agentId` and `deploymentId` accept identifiers or names.
+
+| | |
+|---|---|
+| Request body | `NotificationEndpoint` |
+| Response | `NotificationEndpoint`, 201 |
+| Errors | 400 `ValidationFailed` with field codes `InvalidUrl`, `DestinationBlocked`, `EventsRequired`, `InvalidEvent`, `ReferenceNotFound`, `DeploymentAgentMismatch`; 409 `NameConflict` |
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/default/notification-endpoints" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "ops-alerts", "url": "https://hooks.example.com/garrison", "events": ["RunFailed", "PipelineFailed", "ApprovalRequested"]}'
+```
+
+#### `PUT /v1.0/api/tenants/{tenantId}/notification-endpoints/{idOrName}`
+
+Replace the configuration with a complete `NotificationEndpoint` body. The signing secret is kept. Deliveries already queued are sent to the new URL on their next attempt.
+
+#### `DELETE /v1.0/api/tenants/{tenantId}/notification-endpoints/{idOrName}`
+
+Delete the endpoint and its delivery log. Queued deliveries are never sent.
+
+#### `POST /v1.0/api/tenants/{tenantId}/notification-endpoints/{idOrName}/rotate-secret`
+
+Replace the signing secret and return it once. Later attempts of queued deliveries are signed with the new secret. Writes a `SigningSecretRotated` audit record.
+
+#### `POST /v1.0/api/tenants/{tenantId}/notification-endpoints/{idOrName}/test`
+
+Queue a `Test` notification and make its first attempt before answering, so the returned `NotificationDelivery` already shows `status`, `lastStatusCode`, and `lastError`. Works on inactive endpoints. A retryable failure stays `Pending` and is retried on the normal schedule.
+
+#### `GET /v1.0/api/tenants/{tenantId}/notification-endpoints/{idOrName}/deliveries`
+
+The delivery log, newest first, with the [enumeration](#enumeration) parameters and an optional `status` (`Pending`, `Delivering`, `Succeeded`, `Failed`). Finished deliveries are kept for `Notifications.DeliveryRetentionDays` (14).
+
+#### `GET /v1.0/api/tenants/{tenantId}/notification-endpoints/{idOrName}/deliveries/{deliveryId}`
+
+One delivery, including the exact `payload` sent on every attempt.
+
 ### Analytics
 
 #### `GET /v1.0/api/tenants/{tenantId}/analytics/runs`
@@ -4075,7 +4244,7 @@ curl -s -X POST "http://127.0.0.1:8700/v1.0/a2a/default/{agentName}" \
 
 **Invoking agents.** `POST .../agents/{agentId}/invoke` accepts the agent's identifier or its name. With `wait` true (the default for invoke) the call holds until the run finishes or `waitSeconds` (default 60) elapses, then returns the run: 200 when it finished, 202 when it is still queued or running. `wait` and `waitSeconds` may also be passed as query parameters. Send an `Idempotency-Key` header to make retries safe: a repeated key from the same caller within 24 hours returns the original run. `parameters` must be allowed by the deployment's `allowedRunOverrides`; anything else is a 400 with field errors. Besides deployment parameters, a deployment can allow the fields `model`, `effort`, `maxTurns`, and `timeoutSeconds` (validate it with an `IntegerRange` rule, for example `"pattern": "30,1800"`); a per-run `timeoutSeconds` is still capped by `Runtime.MaxRunSeconds`. A waiting call cancels its run when the client disconnects unless `cancelOnDisconnect` is false. Every call that starts a run from caller input (invoke, conversation turns, `POST .../runs`, `POST .../deployments/{deploymentId}/test`, and pipeline start) needs a non-empty `input`: a missing body or an empty or whitespace input returns 400 `ValidationFailed` with field code `InputRequired` on `input` instead of starting a run that spends harness quota on nothing. Retrying a run (`POST .../runs/{id}/retry`) reuses the stored input and is not checked.
 
-**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
+**Run filters.** `GET .../runs` also accepts `status`, `agentId`, `deploymentId`, `harnessType`, `nodeId`, `parentRunId`, `rootRunId`, `conversationId`, `pipelineRunId` (the stage runs of one pipeline run), `triggerId` (runs a trigger started), `outcome`, `callerId`, `fromUtc`, and `toUtc`. `DELETE .../runs` deletes finished runs matching `status`, `agentId`, `fromUtc`, and `toUtc` (up to 1000 per call). Active runs cannot be deleted; cancel them first.
 
 **Run events.** `GET .../runs/{id}/events?afterSequence=0&limit=500` returns events with a sequence greater than `afterSequence`, in order, plus the run's current status. Poll with the last sequence you saw to follow a run.
 
@@ -4371,7 +4540,7 @@ Security and configuration audit record.
 
 #### `AuditEventTypeEnum`
 
-`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`
+`AuthSuccess`, `AuthFailure`, `SessionIssued`, `SessionRevoked`, `CredentialCreated`, `CredentialRotated`, `CredentialUsed`, `AuthorizationDenied`, `AuthorizationBypass`, `RoleChanged`, `PermissionChanged`, `AssignmentChanged`, `ConfigurationChanged`, `SecretChanged`, `SettingsChanged`, `RestartRequested`, `ManifestApplied`, `NodeRegistered`, `NodeStatusChanged`, `RunCancelled`, `ConversationDeleted`, `ApprovalDecided`, `PipelineReviewDecided`, `PipelineRunCancelled`, `SigningSecretRotated`
 
 #### `AuthSchemeEnum`
 
@@ -4888,7 +5057,7 @@ Result of one hasPermission evaluation at tenant level.
 
 #### `ResourceTypeEnum`
 
-`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`
+`All`, `Account`, `Tenant`, `Admin`, `User`, `Credential`, `Session`, `Role`, `Permission`, `Assignment`, `Audit`, `RequestHistory`, `Settings`, `HarnessProfile`, `PromptTemplate`, `Agent`, `Deployment`, `McpServer`, `Secret`, `Workspace`, `ArtifactStore`, `Run`, `Node`, `NodePool`, `Manifest`, `Conversation`, `Approval`, `Artifact`, `ModelPrice`, `UsageQuota`, `Pipeline`, `PipelineRun`, `Trigger`, `NotificationEndpoint`
 
 #### `OperationTypeEnum`
 
@@ -5494,6 +5663,7 @@ One invocation of one deployment.
 | `pipelineRunId` | `string?` | Pipeline run this run is a stage execution of, or `null`. Always present. See [Pipelines](#pipelines). |
 | `pipelinePosition` | `int` | Position of the pipeline stage this run executes, starting at 1; 0 outside a pipeline. |
 | `pipelineExecution` | `int` | Execution number of that stage, starting at 1 (retries, revisions, and resumes increase it); 0 outside a pipeline. |
+| `triggerId` | `string?` | Trigger that started the run (also set on the stage runs of a pipeline run a trigger started), or `null`. See [Triggers](#triggers). |
 | `traceId` | `string?` | W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in; the server's `run:create`, `run:claim`, and `run:compile` spans and the worker's `harness <type> exec` span share it, and delegated runs join their parent's trace. Use it to open the trace in Tempo or search logs (`trace=<traceId>`). `null` for runs created before schema migration 5. Always present. See `docs/TELEMETRY.md`. |
 | `exitCode` | `int?` | Process exit code. |
 | `stderrTail` | `string?` | Stderr tail (scrubbed). |
@@ -5520,7 +5690,7 @@ One invocation of one deployment.
 
 #### `RunKindEnum`
 
-`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run)
+`Invoke`, `Delegated`, `Test`, `Retry`, `Pipeline` (a stage run of a pipeline run), `Trigger` (started by a trigger fire)
 
 #### `RunStatusEnum`
 
@@ -5715,6 +5885,7 @@ One execution of a pipeline.
 | `inputContentType` | `string` | Input content type. Default `text/plain`. |
 | `callerType`, `callerId`, `callerName` | `PrincipalTypeEnum`, `string?`, `string?` | Who started it. |
 | `idempotencyKey` | `string?` | `Idempotency-Key` of the start request. |
+| `triggerId` | `string?` | Trigger that started the pipeline run, or `null`. |
 | `priority` | `int` | Priority given to every stage run. |
 | `finalRunId` | `string?` | Run of the last stage when the pipeline run succeeded. |
 | `errorMessage` | `string?` | Why it failed, timed out, or was cancelled. |
@@ -5793,6 +5964,126 @@ A stage review (`prv_`). Authorized as `Approval`.
 #### `PipelineReviewDecideRequest`
 
 `decision` (`PipelineReviewDecisionEnum`, required) and `comment` (`string?`, up to 8000 characters, required for `RequestChanges`).
+
+#### `Trigger`
+
+A cron schedule or signed webhook that starts runs (P12.5). See [docs/TRIGGERS.md](docs/TRIGGERS.md).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`trg_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `name` | `string` | Unique per tenant; 1 to 64 lowercase letters, digits, and hyphens. |
+| `description` | `string?` | At most 4000 characters. |
+| `type` | `TriggerTypeEnum` | `Cron` (default) or `Webhook`. Cannot change. |
+| `targetType` | `TriggerTargetTypeEnum` | `Agent` (default) or `Pipeline`. |
+| `agentId` | `string?` | Agent to run (identifier or name on input). Required for `Agent` targets. |
+| `deploymentId` | `string?` | Optional deployment of that agent to pin runs to. |
+| `pipelineId` | `string?` | Pipeline to start. Required for `Pipeline` targets. |
+| `inputTemplateId` | `string?` | `Task` prompt template that renders the input; `null` uses `builtin/trigger-input`. |
+| `priority` | `int` | Run priority, -100 to 100 (clamped), default 0. |
+| `cronExpression` | `string?` | Five-field cron expression (Cron triggers only). |
+| `timeZone` | `string` | IANA time zone of the expression, default `UTC`. |
+| `active` | `bool` | Whether it fires. Default true. |
+| `signingSecret` | `string?` | Webhook signing secret. Only in the responses to create and rotate-secret. |
+| `signingSecretLast4` | `string?` | Last four characters of the current secret. |
+| `signingSecretRotatedUtc` | `DateTime?` | When the secret was last set. |
+| `runAsType`, `runAsId`, `runAsName` | `PrincipalTypeEnum`, `string?`, `string?` | Principal fires run as: whoever last created or updated the trigger. Read-only. |
+| `lastFireUtc` | `DateTime?` | Scheduled time of the last fire. |
+| `lastFireOutcome` | `TriggerFireOutcomeEnum?` | Outcome of the last fire. |
+| `nextFireUtc` | `DateTime?` | Next cron occurrence for active Cron triggers, else `null`. |
+| `fireCount` | `long` | Fires recorded, including failed and skipped ones. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
+
+#### `TriggerFire`
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`tfr_`). |
+| `tenantId`, `triggerId`, `triggerName` | `string` | Tenant, trigger, and the trigger's name at the time. |
+| `source` | `TriggerFireSourceEnum` | `Cron`, `Webhook`, or `Manual`. |
+| `deliveryId` | `string?` | `X-Garrison-Delivery` of a webhook delivery. |
+| `scheduledUtc` | `DateTime` | The cron occurrence, or the arrival time. |
+| `firedUtc` | `DateTime` | When the fire was processed. |
+| `outcome` | `TriggerFireOutcomeEnum` | `Started`, `Failed`, or `Skipped`. |
+| `runId`, `pipelineRunId` | `string?` | What the fire started. |
+| `errorCode`, `errorMessage` | `string?` | Why it failed or was skipped. |
+| `duplicate` | `bool` | True when a webhook response repeats an earlier fire for the same delivery identifier. Not stored. |
+| `createdUtc` | `DateTime` | Timestamp (UTC). |
+
+#### `TriggerFireRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `body` | `string?` | Payload text for the input template (`webhook.body`). |
+| `contentType` | `string?` | Payload media type (`webhook.contentType`). |
+
+#### `NotificationEndpoint`
+
+A webhook subscription to tenant events (P12.14). See [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`nep_`). |
+| `tenantId` | `string` | Tenant identifier. |
+| `name` | `string` | Unique per tenant; 1 to 64 lowercase letters, digits, and hyphens. |
+| `description` | `string?` | At most 4000 characters. |
+| `url` | `string` | `http` or `https` destination, at most 2048 characters, checked against the SSRF rules. |
+| `events` | `List<NotificationEventEnum>` | Subscribed events; at least one, `Test` excluded. |
+| `agentId`, `deploymentId` | `string?` | Optional filters. With either set, pipeline events are not sent. |
+| `includeResultText` | `bool` | Include run result text in run notifications. Default false. |
+| `resultTextMaxChars` | `int` | Result text limit, 1 to 16000 (clamped), default 1000. |
+| `active` | `bool` | Default true. |
+| `signingSecret` | `string?` | Only in the responses to create and rotate-secret. |
+| `signingSecretLast4` | `string?` | Last four characters of the current secret. |
+| `signingSecretRotatedUtc` | `DateTime?` | When the secret was last set. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). Events before `createdUtc` are never sent. |
+
+#### `NotificationDelivery`
+
+One notification to one endpoint: the outbox row and its delivery log entry.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Identifier (`ndl_`), also the `X-Garrison-Delivery` header and payload `id`. |
+| `tenantId`, `endpointId` | `string` | Tenant and endpoint. |
+| `event` | `NotificationEventEnum` | Event. |
+| `subjectType` | `string` | `Run`, `PipelineRun`, `Approval`, `PipelineReview`, or `Test`. |
+| `subjectId` | `string?` | Identifier of the subject. |
+| `status` | `NotificationDeliveryStatusEnum` | Delivery status. |
+| `attempts`, `maxAttempts` | `int` | Attempts made, and the limit when it was queued. |
+| `nextAttemptUtc` | `DateTime?` | Next attempt, or `null` once finished. |
+| `lastStatusCode` | `int?` | HTTP status of the last attempt. |
+| `lastError` | `string?` | Error of the last attempt. |
+| `lastAttemptUtc` | `DateTime?` | Time of the last attempt. |
+| `lastDurationMs` | `long` | Duration of the last attempt. |
+| `deliveredUtc` | `DateTime?` | When the endpoint accepted it. |
+| `payload` | `string` | The JSON body sent on every attempt. |
+| `createdUtc`, `lastUpdateUtc` | `DateTime` | Timestamps (UTC). |
+
+#### `TriggerTypeEnum`
+
+`Cron`, `Webhook`
+
+#### `TriggerTargetTypeEnum`
+
+`Agent`, `Pipeline`
+
+#### `TriggerFireSourceEnum`
+
+`Cron`, `Webhook`, `Manual`
+
+#### `TriggerFireOutcomeEnum`
+
+`Started`, `Failed`, `Skipped`
+
+#### `NotificationEventEnum`
+
+`RunSucceeded`, `RunFailed` (Failed or Rejected), `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed` (Failed, TimedOut, or Cancelled), `ApprovalRequested`, `Test` (test sends only)
+
+#### `NotificationDeliveryStatusEnum`
+
+`Pending`, `Delivering`, `Succeeded`, `Failed`
 
 #### `PipelineRunStatusEnum`
 

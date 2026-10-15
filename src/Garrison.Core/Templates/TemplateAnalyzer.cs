@@ -29,7 +29,7 @@ namespace Garrison.Core.Templates
 
         private static readonly HashSet<string> _KnownRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "tenant", "agent", "deployment", "run", "input", "caller", "resources", "garrison", "harness", "executor", "approval", "tool", "now", "prompts", "secret", "repair", "conversation", "pipeline", "this", "@index", "@first", "@last"
+            "tenant", "agent", "deployment", "run", "input", "caller", "resources", "garrison", "harness", "executor", "approval", "tool", "now", "prompts", "secret", "repair", "conversation", "pipeline", "trigger", "webhook", "this", "@index", "@first", "@last"
         };
 
         #endregion

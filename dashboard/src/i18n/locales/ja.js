@@ -2156,3 +2156,335 @@ ja.tips.enums.runBlockedReason.NoIsolatingWorker = "ブロック中: この実�
 ja.tips.resources.deployments.egressRules = "このデプロイメントの実行 Pod が到達できる宛先です。CIDR ブロックと、任意のポートとプロトコルで指定します。空の場合は既定の実行用送信を使います。";
 ja.tips.resources.deployments.egressRulesItems = {"cidr": "CIDR 表記の宛先ブロック (IPv4 または IPv6、例: 203.0.113.0/24)。ホスト名はご自身でアドレスに解決してください。", "port": "1 から 65535 の宛先ポート。空にするとブロックのすべてのポートを許可します。", "protocol": "多くのサービスは TCP、または UDP。"};
 ja.tips.resources.deployments.egressDefault = "送信許可リストなし: 実行 Pod はクラスターの既定の実行用送信を使います。";
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(ja, {
+ "nav": {
+  "items": {
+   "triggers": {
+    "label": "トリガー",
+    "tip": "実行を開始する cron スケジュールと署名付き Webhook"
+   },
+   "notifications": {
+    "label": "通知",
+    "tip": "実行、パイプライン、承認に関する署名付き Webhook"
+   }
+  }
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "cron スケジュール",
+   "Webhook": "署名付き Webhook"
+  },
+  "triggerTargetType": {
+   "Agent": "エージェント実行",
+   "Pipeline": "パイプライン実行"
+  },
+  "triggerFireSource": {
+   "Cron": "スケジュール",
+   "Webhook": "Webhook の配信",
+   "Manual": "手動で起動"
+  },
+  "triggerFireOutcome": {
+   "Started": "開始済み",
+   "Failed": "失敗",
+   "Skipped": "スキップ"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "実行成功",
+   "RunFailed": "実行失敗",
+   "RunCancelled": "実行キャンセル",
+   "RunTimedOut": "実行タイムアウト",
+   "PipelineCompleted": "パイプライン完了",
+   "PipelineFailed": "パイプライン失敗",
+   "ApprovalRequested": "承認依頼",
+   "Test": "テスト通知"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "待機中",
+   "Delivering": "配信中",
+   "Succeeded": "配信済み",
+   "Failed": "断念"
+  },
+  "runKind": {
+   "Invoke": "呼び出し",
+   "Delegated": "委任",
+   "Test": "テスト実行",
+   "Retry": "再試行",
+   "Pipeline": "パイプラインのステージ",
+   "Trigger": "トリガーによる開始"
+  },
+  "resourceType": {
+   "Trigger": "トリガー",
+   "NotificationEndpoint": "通知エンドポイント"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "署名シークレットを更新"
+  }
+ },
+ "errorCodes": {
+  "ReferencedByTrigger": "トリガーがこのレコードを使用しています。先にそのトリガーを変更または削除してください。",
+  "ReferencedByNotificationEndpoint": "通知エンドポイントがこのレコードで絞り込んでいます。先にそのエンドポイントを変更または削除してください。",
+  "NotAWebhookTrigger": "署名シークレットを持つのは Webhook トリガーだけです。",
+  "TriggerInactive": "このトリガーは無効です。",
+  "InvalidSignature": "Webhook の署名がない、形式が不正、古すぎる、または一致しません。",
+  "PayloadTooLarge": "ペイロードがサーバーの受け付ける上限を超えています。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidUrl": "ユーザー名とパスワードを含まない、絶対形式の HTTP または HTTPS の URL を入力してください。",
+   "DestinationBlocked": "サーバーはこの宛先を拒否します。運用者がプライベートな宛先を許可しない限り、ループバック、プライベート、リンクローカル、メタデータのアドレスはブロックされます。",
+   "EventsRequired": "イベントを 1 つ以上選んでください。",
+   "InvalidEvent": "サポートされていないイベントが含まれています。",
+   "InvalidCron": "cron 式が不正です。分、時、日、月、曜日の 5 つのフィールドを使ってください。",
+   "InvalidTimeZone": "不明なタイムゾーンです。UTC や Asia/Tokyo などの IANA 名を使ってください。",
+   "TypeImmutable": "トリガーの種類は変更できません。新しいトリガーを作成してください。",
+   "TargetMismatch": "このフィールドは選択した対象に属しません。",
+   "PayloadTooLarge": "ペイロードがサーバーの受け付ける上限を超えています。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "triggerId": "トリガー",
+    "kind": "実行の種類"
+   }
+  },
+  "triggers": {
+   "title": "トリガー",
+   "subtitle": "エージェント実行またはパイプライン実行を開始する cron スケジュールと署名付き Webhook。",
+   "add": "トリガーを追加",
+   "create": "トリガーを作成",
+   "edit": "トリガーを編集",
+   "view": "トリガーの詳細",
+   "deleteTitle": "トリガーを削除",
+   "emptyTitle": "トリガーはまだありません",
+   "emptyBody": "スケジュールで、または他のシステムから Webhook が届いたときにエージェントを実行するには、トリガーを作成します。",
+   "columns": {
+    "name": "名前",
+    "type": "種類",
+    "target": "開始対象",
+    "schedule": "スケジュール",
+    "active": "有効",
+    "lastFire": "前回の起動",
+    "nextFireUtc": "次回の起動",
+    "fireCount": "起動回数",
+    "runAs": "実行ユーザー",
+    "signingSecretLast4": "シークレット末尾",
+    "description": "説明",
+    "id": "ID",
+    "createdUtc": "作成日時"
+   },
+   "fields": {
+    "name": "名前",
+    "type": "種類",
+    "description": "説明",
+    "targetType": "開始対象",
+    "agentId": "エージェント",
+    "deploymentId": "デプロイメント",
+    "pipelineId": "パイプライン",
+    "inputTemplateId": "入力テンプレート",
+    "priority": "優先度",
+    "cronExpression": "cron 式",
+    "timeZone": "タイムゾーン",
+    "active": "有効",
+    "webhook": "Webhook の URL"
+   },
+   "hints": {
+    "type": "種類は作成後に変更できません。",
+    "inputTemplateId": "trigger.* と webhook.* の変数から実行の入力を作る Task テンプレート。空欄なら組み込みの trigger-input テンプレートを使います。",
+    "priority": "{{min}} から {{max}} まで。大きいほど先に実行されます。",
+    "cronExpression": "5 つのフィールド: 分、時、日、月、曜日。例: 0 9 * * 1-5 は平日の 09:00 に実行します。",
+    "timeZone": "UTC や Asia/Tokyo などの IANA 名。夏時間の切り替えは自動で処理されます。",
+    "webhookNew": "保存すると Webhook の URL と署名シークレットが表示されます。シークレットは 1 回だけ表示されます。"
+   },
+   "errors": {
+    "name": "小文字、数字、ハイフンを 1 から 64 文字で使い、先頭と末尾は英字か数字にしてください。",
+    "description": "説明は {{max}} 文字までです。",
+    "agentRequired": "このトリガーで実行するエージェントを選んでください。",
+    "pipelineRequired": "このトリガーで開始するパイプラインを選んでください。",
+    "cron": "5 つのフィールド (分 時 日 月 曜日) か、@daily などのマクロを入力してください。",
+    "priority": "{{min}} から {{max}} までの整数を入力してください。"
+   },
+   "actions": {
+    "fire": "今すぐ起動",
+    "fires": "起動履歴",
+    "runs": "実行を表示",
+    "rotateSecret": "シークレットを更新"
+   },
+   "fires": {
+    "firedUtc": "起動日時",
+    "source": "起動元",
+    "outcome": "結果",
+    "started": "開始した実行",
+    "deliveryId": "配信 ID",
+    "error": "エラー",
+    "runId": "実行",
+    "pipelineRunId": "パイプライン実行"
+   },
+   "confirmRotateTitle": "署名シークレットを更新",
+   "confirmRotate": "{{name}} の署名シークレットを置き換えますか？古いシークレットはすぐに使えなくなるため、送信側は新しいものに切り替える必要があります。",
+   "anyDeployment": "任意の有効なデプロイメント (重み付け)",
+   "builtinTemplate": "組み込みの trigger-input テンプレート",
+   "webhookSchedule": "署名付き Webhook が届いたとき",
+   "neverFired": "まだ起動していません",
+   "runAsNotice": "{{name}} として実行します。変更を保存すると、このトリガーはあなたとして実行されます。",
+   "secretEnding": "現在のシークレットの末尾は {{last4}} です。"
+  },
+  "notifications": {
+   "title": "通知",
+   "subtitle": "実行やパイプラインの終了時、承認待ちの発生時に署名付き通知を受け取る Webhook エンドポイント。",
+   "add": "エンドポイントを追加",
+   "create": "通知エンドポイントを作成",
+   "edit": "通知エンドポイントを編集",
+   "view": "通知エンドポイントの詳細",
+   "deleteTitle": "通知エンドポイントを削除",
+   "emptyTitle": "通知エンドポイントはまだありません",
+   "emptyBody": "実行の失敗、パイプラインの終了、承認待ちのときに署名付きの HTTP POST を受け取るエンドポイントを追加します。",
+   "columns": {
+    "name": "名前",
+    "url": "URL",
+    "events": "イベント",
+    "filters": "絞り込み",
+    "active": "有効",
+    "signingSecretLast4": "シークレット末尾",
+    "includeResultText": "結果テキスト",
+    "description": "説明",
+    "id": "ID",
+    "createdUtc": "作成日時",
+    "agent": "エージェント",
+    "deployment": "デプロイメント"
+   },
+   "fields": {
+    "name": "名前",
+    "description": "説明",
+    "url": "URL",
+    "events": "イベント",
+    "agentId": "このエージェントのみ",
+    "deploymentId": "このデプロイメントのみ",
+    "includeResultText": "結果テキストを含める",
+    "resultTextMaxChars": "結果テキストの上限 (文字)",
+    "active": "有効"
+   },
+   "hints": {
+    "url": "HTTP または HTTPS の URL。運用者がプライベートな宛先を許可しない限り、ループバック、プライベート、メタデータのアドレスは拒否され、リダイレクトはたどりません。",
+    "events": "エージェントまたはデプロイメントの絞り込みがある間は、パイプラインのイベントは送信されません。",
+    "agentId": "空欄ならすべてのエージェントのイベントを送ります。",
+    "deploymentId": "空欄ならすべてのデプロイメントのイベントを送ります。",
+    "includeResultText": "既定ではオフ: 通知には ID、状態、タイムスタンプが含まれますが、実行の出力は含まれません。",
+    "resultTextMaxChars": "{{min}} から {{max}} まで。既定値 {{default}}。"
+   },
+   "errors": {
+    "name": "小文字、数字、ハイフンを 1 から 64 文字で使い、先頭と末尾は英字か数字にしてください。",
+    "url": "ユーザー名とパスワードを含まない、絶対形式の HTTP または HTTPS の URL を入力してください。",
+    "events": "イベントを 1 つ以上選んでください。",
+    "resultTextMaxChars": "{{min}} から {{max}} までの整数を入力してください。"
+   },
+   "actions": {
+    "test": "テスト送信",
+    "deliveries": "配信ログ",
+    "rotateSecret": "シークレットを更新"
+   },
+   "deliveries": {
+    "createdUtc": "キュー投入",
+    "event": "イベント",
+    "status": "状態",
+    "attempts": "試行回数",
+    "lastStatusCode": "HTTP ステータス",
+    "lastError": "最後のエラー",
+    "lastAttemptUtc": "最後の試行",
+    "nextAttemptUtc": "次の試行",
+    "deliveredUtc": "配信日時",
+    "payload": "ペイロード",
+    "id": "配信 ID"
+   },
+   "confirmRotateTitle": "署名シークレットを更新",
+   "confirmRotate": "{{name}} の署名シークレットを置き換えますか？今後の通知は、すでにキューにある再試行も含めて新しいシークレットで署名されます。",
+   "anyAgent": "すべてのエージェント",
+   "anyDeployment": "すべてのデプロイメント",
+   "noFilter": "すべて",
+   "eventCount_one": "{{count}} 件のイベント",
+   "eventCount_other": "{{count}} 件のイベント",
+   "resultTextUpTo_one": "最大 {{count}} 文字",
+   "resultTextUpTo_other": "最大 {{count}} 文字",
+   "secretNotice": "通知は末尾が {{last4}} のシークレット ({{time}} に設定) で署名されます。新しいものにするには更新してください。"
+  }
+ },
+ "components": {
+  "signingSecret": {
+   "title": "署名シークレット",
+   "warning": "このシークレットを今すぐコピーしてください。Garrison は暗号化して保存し、二度と表示しません。紛失したら更新してください。",
+   "secret": "シークレット",
+   "url": "Webhook の URL",
+   "done": "保存しました",
+   "scheme": "各リクエストにヘッダー {{header}} で署名します: {{format}}。{{delivery}} を送ると、繰り返しの配信は 1 回として扱われます。"
+  },
+  "triggerFire": {
+   "title": "{{name}} を起動",
+   "intro": "このトリガーを今すぐ開始します。ペイロードは任意で、入力テンプレートでは webhook.body として参照できます。",
+   "body": "ペイロード",
+   "contentType": "ペイロードのコンテンツタイプ",
+   "submit": "起動",
+   "firing": "起動中..."
+  },
+  "triggerFires": {
+   "title": "起動履歴",
+   "count_one": "{{count}} 件中 {{shown}} 件の起動",
+   "count_other": "{{count}} 件中 {{shown}} 件の起動",
+   "empty": "このトリガーはまだ起動していません。",
+   "scheduled": "{{time}} の予定分"
+  },
+  "notificationDeliveries": {
+   "title": "配信ログ",
+   "count_one": "{{count}} 件中 {{shown}} 件の配信",
+   "count_other": "{{count}} 件中 {{shown}} 件の配信",
+   "empty": "このエンドポイントにはまだ何も送信されていません。",
+   "detail": "選択した配信"
+  },
+  "notificationTest": {
+   "title": "テスト通知",
+   "sending": "テスト通知を送信しています...",
+   "succeeded": "エンドポイントがテスト通知を受け付けました。",
+   "failed": "テスト通知は失敗し、再試行されません。下のエラーを確認してください。",
+   "pending": "最初の試行が失敗しました。Garrison が再試行します。下のエラーを確認してください。"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "トリガー"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "トリガー",
+    "Notifications": "通知"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Webhook 本文の最大サイズ (バイト)",
+     "WebhookToleranceSeconds": "Webhook タイムスタンプの許容差 (秒)",
+     "CronMaxLatenessSeconds": "cron の追いつき上限 (秒)",
+     "FireRetentionDays": "起動履歴の保持期間 (日)"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "プライベートな宛先を許可",
+     "MaxAttempts": "配信の試行回数",
+     "InitialBackoffSeconds": "最初の再試行までの待ち時間 (秒)",
+     "MaxBackoffSeconds": "再試行の最長待ち時間 (秒)",
+     "TimeoutSeconds": "配信のタイムアウト (秒)",
+     "DispatchIntervalMs": "送信間隔 (ミリ秒)",
+     "SweepOverlapSeconds": "イベント走査の重なり (秒)",
+     "DeliveryRetentionDays": "配信ログの保持期間 (日)"
+    }
+   }
+  }
+ }
+});

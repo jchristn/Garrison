@@ -113,6 +113,21 @@ namespace Garrison.Sdk.Enums
         /// <summary>
         /// A person decided a permission approval.
         /// </summary>
-        ApprovalDecided
+        ApprovalDecided,
+
+        /// <summary>
+        /// A person decided a pipeline stage review.
+        /// </summary>
+        PipelineReviewDecided,
+
+        /// <summary>
+        /// A pipeline run was cancelled.
+        /// </summary>
+        PipelineRunCancelled,
+
+        /// <summary>
+        /// A trigger or notification endpoint signing secret was rotated.
+        /// </summary>
+        SigningSecretRotated
     }
 }

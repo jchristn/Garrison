@@ -86,9 +86,9 @@ export const ENUMS = {
   permissionType: ['Permit', 'Deny'],
   resourceScope: ['Tenant', 'Resource'],
   usageQuotaScope: ['Tenant', 'Agent', 'Deployment'],
-  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun'],
+  resourceType: ['All', 'Account', 'Tenant', 'Admin', 'User', 'Credential', 'Session', 'Role', 'Permission', 'Assignment', 'Audit', 'RequestHistory', 'Settings', 'HarnessProfile', 'PromptTemplate', 'Agent', 'Deployment', 'McpServer', 'Secret', 'Workspace', 'ArtifactStore', 'ModelPrice', 'UsageQuota', 'Run', 'Node', 'NodePool', 'Manifest', 'Conversation', 'Approval', 'Artifact', 'Pipeline', 'PipelineRun', 'Trigger', 'NotificationEndpoint'],
   operationType: ['All', 'Create', 'Read', 'Write', 'Update', 'Delete', 'Execute', 'Admin'],
-  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled'],
+  auditEventType: ['AuthSuccess', 'AuthFailure', 'SessionIssued', 'SessionRevoked', 'CredentialCreated', 'CredentialRotated', 'CredentialUsed', 'AuthorizationDenied', 'AuthorizationBypass', 'RoleChanged', 'PermissionChanged', 'AssignmentChanged', 'ConfigurationChanged', 'SecretChanged', 'SettingsChanged', 'RestartRequested', 'ManifestApplied', 'NodeRegistered', 'NodeStatusChanged', 'RunCancelled', 'ConversationDeleted', 'ApprovalDecided', 'PipelineReviewDecided', 'PipelineRunCancelled', 'SigningSecretRotated'],
   // Permission approvals (P12.3).
   approvalStatus: ['Pending', 'Approved', 'Denied', 'Expired', 'Cancelled'],
   approvalDecision: ['Allow', 'Deny'],
@@ -102,6 +102,15 @@ export const ENUMS = {
   pipelineReviewStatus: ['Pending', 'Approved', 'ChangesRequested', 'Rejected', 'Expired', 'Cancelled'],
   pipelineReviewDecision: ['Approve', 'RequestChanges', 'Reject'],
   pipelineReviewSource: ['User', 'Timeout', 'Cancelled'],
+  // Triggers (P12.5): cron schedules and signed webhooks that start runs or pipeline runs.
+  triggerType: ['Cron', 'Webhook'],
+  triggerTargetType: ['Agent', 'Pipeline'],
+  triggerFireSource: ['Cron', 'Webhook', 'Manual'],
+  triggerFireOutcome: ['Started', 'Failed', 'Skipped'],
+  // Notifications (P12.14): outbound signed webhooks about runs, pipeline runs, and approvals.
+  notificationEvent: ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested', 'Test'],
+  notificationDeliveryStatus: ['Pending', 'Delivering', 'Succeeded', 'Failed'],
+  runKind: ['Invoke', 'Delegated', 'Test', 'Retry', 'Pipeline', 'Trigger'],
   credentialAuthMode: ['DirectHeader', 'SignedRequest', 'SessionExchange', 'Hybrid'],
   principalType: ['Administrator', 'User', 'Credential', 'Run']
 };
@@ -245,6 +254,46 @@ export function pipelineReviewDecisionTone(decision) {
     case 'Reject':
       return 'danger';
     case 'RequestChanges':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Events a notification endpoint can subscribe to (Test is only sent by the test action). */
+export const SUBSCRIBABLE_NOTIFICATION_EVENTS = ['RunSucceeded', 'RunFailed', 'RunCancelled', 'RunTimedOut', 'PipelineCompleted', 'PipelineFailed', 'ApprovalRequested'];
+
+/** Trigger and notification endpoint ranges, matching the server's validation (P12.5, P12.14). */
+export const TRIGGER_LIMITS = {
+  priority: { min: -100, max: 100, default: 0 },
+  resultTextMaxChars: { min: 1, max: 16000, default: 1000 },
+  descriptionMax: 4000
+};
+
+/** Semantic tone for a trigger fire outcome pill. */
+export function triggerFireOutcomeTone(outcome) {
+  switch (outcome) {
+    case 'Started':
+      return 'success';
+    case 'Failed':
+      return 'danger';
+    case 'Skipped':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
+
+/** Semantic tone for a notification delivery status pill. */
+export function notificationDeliveryStatusTone(status) {
+  switch (status) {
+    case 'Succeeded':
+      return 'success';
+    case 'Failed':
+      return 'danger';
+    case 'Delivering':
+      return 'info';
+    case 'Pending':
       return 'warning';
     default:
       return 'neutral';

@@ -277,7 +277,27 @@ namespace Garrison.Server.Runtime
         /// <exception cref="ValidationException">Thrown with the field code InputRequired when the input is empty or whitespace.</exception>
         /// <exception cref="ConflictException">Thrown with PipelineInactive when the pipeline is inactive, or PipelineEmpty when it has no stages.</exception>
         /// <exception cref="IdempotencyConflictException">Thrown when the key belongs to a pipeline run with different content.</exception>
-        public async Task<PipelineRun> StartAsync(RequestContext ctx, Pipeline pipeline, PipelineStartRequest request, string? idempotencyKey, CancellationToken token = default)
+        public Task<PipelineRun> StartAsync(RequestContext ctx, Pipeline pipeline, PipelineStartRequest request, string? idempotencyKey, CancellationToken token = default)
+        {
+            return StartAsync(ctx, pipeline, request, idempotencyKey, null, token);
+        }
+
+        /// <summary>
+        /// Start a pipeline for a trigger (P12.5): like <see cref="StartAsync(RequestContext, Pipeline, PipelineStartRequest, string?, CancellationToken)"/>,
+        /// and the pipeline run and its stage runs record the trigger.
+        /// </summary>
+        /// <param name="ctx">Principal the pipeline runs as (the trigger's run-as principal).</param>
+        /// <param name="pipeline">Pipeline (with stages).</param>
+        /// <param name="request">Start request.</param>
+        /// <param name="idempotencyKey">Idempotency key, or null.</param>
+        /// <param name="triggerId">Trigger identifier, or null.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>The pipeline run with stages, reviews, and stage run summaries.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
+        /// <exception cref="ValidationException">Thrown with the field code InputRequired when the input is empty or whitespace.</exception>
+        /// <exception cref="ConflictException">Thrown with PipelineInactive when the pipeline is inactive, or PipelineEmpty when it has no stages.</exception>
+        /// <exception cref="IdempotencyConflictException">Thrown when the key belongs to a pipeline run with different content.</exception>
+        public async Task<PipelineRun> StartAsync(RequestContext ctx, Pipeline pipeline, PipelineStartRequest request, string? idempotencyKey, string? triggerId, CancellationToken token = default)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (pipeline == null) throw new ArgumentNullException(nameof(pipeline));
@@ -299,6 +319,7 @@ namespace Garrison.Server.Runtime
             run.InputContentType = String.IsNullOrEmpty(request.InputContentType) ? "text/plain" : request.InputContentType;
             ApplyCaller(ctx, run);
             run.IdempotencyKey = String.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim();
+            run.TriggerId = String.IsNullOrWhiteSpace(triggerId) ? null : triggerId;
             run.Priority = request.Priority;
             run.StartedUtc = DateTime.UtcNow;
             run.DeadlineUtc = pipeline.MaxDurationSeconds > 0 ? run.StartedUtc.Value.AddSeconds(pipeline.MaxDurationSeconds) : null;
@@ -1045,6 +1066,7 @@ namespace Garrison.Server.Runtime
             create.PipelineRunId = run.Id;
             create.PipelinePosition = stage.Position;
             create.PipelineExecution = execution;
+            create.TriggerId = run.TriggerId;
 
             Run created;
             try

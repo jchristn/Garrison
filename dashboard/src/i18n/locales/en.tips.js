@@ -1912,3 +1912,224 @@ tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields
 tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
   CacheSeconds: "How long each replica keeps the sessions, tenants, users, and credentials it reads to authenticate requests, in seconds. Revoking a token or changing users, credentials, roles, or tenants through the API takes effect on every replica at once; this is the longest a change made any other way can go unnoticed. 0 turns the cache off. Default 5."
 });
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "triggers": "Start runs without a caller: cron schedules evaluated in a time zone, and webhook URLs that accept HMAC-signed requests from other systems.",
+   "notifications": "Tell other systems what happened: Garrison POSTs a signed JSON notification when a run or pipeline finishes or an approval waits for a person."
+  }
+ },
+ "filters": {
+  "type": "Show only cron triggers or only webhook triggers. Choose All to see both.",
+  "outcome": "Show only fires that started a run, failed, or were skipped. Choose All to see every fire.",
+  "deliveryStatus": "Show only deliveries in one state: waiting, being sent, delivered, or given up."
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Fires on a five-field cron schedule evaluated by the control-plane leader in the trigger time zone.",
+   "Webhook": "Fires when a request signed with the trigger secret arrives at its webhook URL."
+  },
+  "triggerTargetType": {
+   "Agent": "Each fire queues one run of the agent, on a fixed deployment or by traffic weight.",
+   "Pipeline": "Each fire starts one run of the pipeline with all of its stages."
+  },
+  "triggerFireSource": {
+   "Cron": "The cron schedule came due and the leader fired it.",
+   "Webhook": "A correctly signed webhook delivery arrived.",
+   "Manual": "A person or credential used the Fire now action."
+  },
+  "triggerFireOutcome": {
+   "Started": "The fire created a run or pipeline run; follow the link to see it.",
+   "Failed": "Nothing started: the template failed, the run-as principal lost access, or the target was missing.",
+   "Skipped": "The occurrence was missed for longer than the cron catch-up limit and was not fired."
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Sent when a run finishes with status Succeeded.",
+   "RunFailed": "Sent when a run finishes with status Failed or Rejected.",
+   "RunCancelled": "Sent when a run is cancelled before it finishes.",
+   "RunTimedOut": "Sent when a run passes its deadline and is stopped.",
+   "PipelineCompleted": "Sent when every stage of a pipeline run succeeded.",
+   "PipelineFailed": "Sent when a pipeline run fails, times out, or is cancelled.",
+   "ApprovalRequested": "Sent when a tool call approval or a pipeline stage review waits for a person.",
+   "Test": "Sent only by the Send test action, to check that the endpoint works."
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "Waiting for its next attempt; failed attempts are retried with growing delays.",
+   "Delivering": "A control-plane replica is sending it right now.",
+   "Succeeded": "The endpoint answered with a 2xx status and the notification is done.",
+   "Failed": "Garrison stopped trying: the attempts ran out or the endpoint answered with a status that is not retried."
+  },
+  "runKind": {
+   "Invoke": "Started by a caller over REST, MCP, A2A, or the dashboard.",
+   "Delegated": "Started by another agent through Garrison delegation.",
+   "Test": "A test run of one deployment from the dashboard or API.",
+   "Retry": "A new attempt of an earlier run that someone retried.",
+   "Pipeline": "One stage execution of a pipeline run.",
+   "Trigger": "Started by a cron schedule, a signed webhook, or a manual fire of a trigger."
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Someone replaced the signing secret of a trigger or a notification endpoint; the old secret stopped working."
+  }
+ },
+ "resources": {
+  "runs": {
+   "triggerId": "The trigger that started this run, if any. Click it to open that trigger's fire history.",
+   "kind": "How the run was started: by a caller, by another agent, as a test, retry, pipeline stage, or by a trigger.",
+   "openTrigger": "Open the fire history of the trigger that started this run."
+  },
+  "triggers": {
+   "add": "Create a cron schedule or a signed webhook that starts an agent or pipeline without anyone invoking it.",
+   "type": "Cron fires on a schedule; Webhook fires when another system sends a signed request. It cannot change later.",
+   "target": "What each fire starts: a run of an agent or a run of a pipeline.",
+   "schedule": "The cron expression and its time zone, or the note that the trigger waits for webhook deliveries.",
+   "lastFire": "When the trigger last fired and whether that fire started a run.",
+   "nextFireUtc": "When an active cron trigger fires next. Webhook and inactive triggers have none.",
+   "fireCount": "How many times this trigger fired, including failed and skipped fires.",
+   "runAs": "The user or credential runs started by this trigger act as. Every fire checks that it may still run the target.",
+   "signingSecretLast4": "The last four characters of the webhook signing secret, so you can tell which secret a sender uses.",
+   "targetType": "Whether each fire runs one agent or starts a whole pipeline.",
+   "agentId": "The agent each fire runs. You need permission to execute it.",
+   "deploymentId": "Pin runs to one deployment of the agent, or leave empty to choose by traffic weight.",
+   "pipelineId": "The pipeline each fire starts. You need permission to start it and to run its stage agents.",
+   "inputTemplateId": "The prompt template that turns the fire (time, payload, delivery ID) into the run input.",
+   "priority": "Queue priority of the runs this trigger starts, from -100 to 100. Higher runs are leased first.",
+   "cronExpression": "When the trigger fires, as a five-field cron expression or a macro such as @hourly.",
+   "timeZone": "The IANA time zone the cron expression is read in, for example Europe/Berlin.",
+   "webhook": "Send signed POST requests here. Requests with a missing, stale, or wrong signature are refused with 401.",
+   "actions": {
+    "fire": "Fire this trigger once now, optionally with a test payload, and see the run it started.",
+    "fires": "See when this trigger fired, why, and which run or pipeline run each fire started.",
+    "runs": "Open the Runs list filtered to the runs this trigger started.",
+    "rotateSecret": "Create a new webhook signing secret. The old one stops working immediately."
+   },
+   "fires": {
+    "firedUtc": "When the fire was processed. Cron fires also show the occurrence they were for.",
+    "source": "Why the trigger fired: its schedule, a webhook delivery, or a person.",
+    "outcome": "Whether the fire started a run, failed, or was skipped.",
+    "started": "The run or pipeline run this fire created. Click it to open it.",
+    "deliveryId": "The X-Garrison-Delivery header of the webhook request; repeats with the same value fire once.",
+    "error": "Why the fire did not start anything, with a stable error code.",
+    "runId": "The run this fire created. Click it to open the run.",
+    "pipelineRunId": "The pipeline run this fire started. Click it to open it."
+   }
+  },
+  "notifications": {
+   "add": "Register a URL that receives a signed HTTP POST when chosen events happen in this tenant.",
+   "url": "Where Garrison sends notifications. Private and metadata addresses are refused and redirects are not followed.",
+   "events": "The events this endpoint receives. Hover a value in the list to see all of them.",
+   "filters": "Agent or deployment filters that narrow which run and approval events are sent.",
+   "signingSecretLast4": "The last four characters of the signing secret, so receivers can tell which secret signs requests.",
+   "includeResultText": "Whether run notifications carry the run result text, cut to the configured limit.",
+   "agentId": "Send only events about runs of this agent. Pipeline events stop while a filter is set.",
+   "deploymentId": "Send only events about runs of this deployment. Pipeline events stop while a filter is set.",
+   "resultTextMaxChars": "Longest result text included in a notification, in characters.",
+   "actions": {
+    "test": "Send a Test notification now and show whether the endpoint accepted it.",
+    "deliveries": "See every notification sent to this endpoint with attempts, HTTP status, and errors.",
+    "rotateSecret": "Create a new signing secret. Retries already queued are signed with it too."
+   },
+   "deliveries": {
+    "createdUtc": "When the event was queued for this endpoint. Click it to show the delivery details.",
+    "event": "Which event this notification reports.",
+    "status": "Whether the notification is waiting, being sent, delivered, or given up.",
+    "attempts": "Attempts made so far and the most that will be made.",
+    "lastStatusCode": "HTTP status the endpoint answered on the last attempt; empty when no response arrived.",
+    "lastError": "What went wrong on the last attempt, such as a timeout or a refused destination.",
+    "lastAttemptUtc": "When the last attempt to send this notification was made.",
+    "nextAttemptUtc": "When the next retry is due; empty once the delivery is finished.",
+    "deliveredUtc": "When the endpoint accepted the notification.",
+    "payload": "The exact JSON body sent on every attempt. It never contains secrets.",
+    "id": "Delivery identifier, also sent as X-Garrison-Delivery so receivers can ignore repeats."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "The trigger that started this run, and how the run was started.",
+   "openTrigger": "Open the fire history of this trigger in Agents > Triggers."
+  },
+  "pipelineRunDetail": {
+   "trigger": "The trigger that started this pipeline run. Its stage runs carry the same trigger."
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Limits for trigger webhooks, cron catch-up after downtime, and how long fire history is kept.",
+    "Notifications": "Outbound notification delivery: SSRF protection, retries and backoff, timeouts, and how long the delivery log is kept."
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Largest webhook request body in bytes. Larger deliveries answer 413 before the signature is checked.",
+     "WebhookToleranceSeconds": "Largest difference between a webhook signature timestamp and the server clock. Older deliveries are refused, so captured requests cannot be replayed.",
+     "CronMaxLatenessSeconds": "Missed cron occurrences collapse into one fire, unless the latest is older than this many seconds; then it is recorded as Skipped. 0 always fires once.",
+     "FireRetentionDays": "Days trigger fire history is kept before it is deleted."
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Allow notification URLs on loopback and private networks. Off by default to prevent server-side request forgery; link-local and metadata addresses stay blocked.",
+     "MaxAttempts": "Most delivery attempts for one notification before it is marked as given up.",
+     "InitialBackoffSeconds": "Delay before the second attempt; each later delay doubles up to the longest retry delay.",
+     "MaxBackoffSeconds": "The longest delay between two attempts of one notification.",
+     "TimeoutSeconds": "Seconds one delivery attempt may take, including the connection.",
+     "DispatchIntervalMs": "How often each control-plane replica looks for notifications that are due, in milliseconds.",
+     "SweepOverlapSeconds": "Seconds of already scanned history the leader reads again on each pass, so late events are not missed.",
+     "DeliveryRetentionDays": "Days finished deliveries stay in the delivery log."
+    }
+   }
+  }
+ },
+ "signingSecret": {
+  "done": "Close this window. The secret cannot be shown again, so copy it first.",
+  "secret": "The signing secret. Senders and receivers use it to compute the HMAC-SHA256 signature.",
+  "copy": "Copy the signing secret to the clipboard so you can store it in the other system.",
+  "url": "The URL other systems POST signed webhook deliveries to.",
+  "copyUrl": "Copy the webhook URL to the clipboard."
+ },
+ "triggerFire": {
+  "submit": "Fire the trigger once now with this payload. The run starts as the trigger's run-as principal.",
+  "body": "Optional payload text. The input template sees it as webhook.body, and as webhook.json when it is JSON.",
+  "contentType": "Media type of the payload, such as application/json. Leave empty for plain text.",
+  "openRun": "Open the run this fire started.",
+  "openPipelineRun": "Open the pipeline run this fire started."
+ },
+ "triggerFires": {
+  "refresh": "Load the newest fires of this trigger again."
+ },
+ "notificationDeliveries": {
+  "refresh": "Load the newest deliveries of this endpoint again.",
+  "open": "Show this delivery's payload, attempts, and last error below the list.",
+  "detail": "Every field of the selected delivery, including the JSON payload that was sent."
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "triggers": {
+  "title": "Triggers",
+  "p1": "A trigger starts an agent run or a pipeline run without anyone invoking it: on a cron schedule, or when another system sends a webhook signed with the trigger's secret.",
+  "p2": "The run input comes from a prompt template that can use the fire time and the webhook payload. Runs act as the user or credential that last saved the trigger, and every fire checks that it may still run the target.",
+  "p3": "If no control-plane replica could fire a schedule for a while, the missed occurrences become one fire. Webhook deliveries that repeat an X-Garrison-Delivery value fire once."
+ },
+ "notifications": {
+  "title": "Notifications",
+  "p1": "A notification endpoint receives a signed JSON POST when a subscribed event happens: a run or pipeline finishing, or an approval waiting for a person.",
+  "p2": "Deliveries are queued durably and retried with growing delays. The same delivery ID is sent on every attempt, so receivers can ignore repeats.",
+  "p3": "Notifications never include secrets or run input, and include run output only when you allow it. Private network addresses are refused unless an operator allows them."
+ }
+});

@@ -63,7 +63,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Resources
 
-`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Pipelines` adds typed `Start` and `Preview` to the same methods. `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
+`Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Nodes`, and `NodePools` provide `List`, `Get`, `Create`, `Update`, `Delete`, and `Action` (for sub-routes such as `rotate` or `cordon`). They decode into whatever you pass as `out`: a typed struct such as `garrison.Agent` or a `map[string]any`. `Pipelines` adds typed `Start` and `Preview` to the same methods; `Triggers` and `NotificationEndpoints` add typed trigger and notification calls (see "Triggers and notifications"). `Manifests`, `Runs`, `Conversations`, `Approvals`, `PipelineRuns`, `PipelineReviews`, `Analytics`, and `ControlNodes` are fully typed. For anything else, `client.Do(ctx, method, path, query, body, &out)` sends an authenticated request.
 
 Control-plane replicas are read-only: `client.ControlNodes.List(ctx, opts)` returns a `*garrison.ControlNodeList` (a page of `garrison.ControlNode` plus `RespondingNodeID`, the replica that answered) and `client.ControlNodes.Get(ctx, nodeID)` reads one replica. `Status` is one of the `ControlNodeStatus*` constants (`Starting`, `Ready`, `Draining`, `Offline`); `IsLeader` and `LeaderEpoch` (leader only) come from the coordination lease.
 
@@ -112,6 +112,26 @@ finished, err := client.PipelineRuns.Get(ctx, run.ID, 60) // waits until it ends
 `PipelineReviews.Decide` takes `PipelineReviewDecisionApprove` (the comment reaches the next stage as review notes), `PipelineReviewDecisionRequestChanges` (comment required; the stage runs again with it, at most `MaxRevisions` times, then 409 `RevisionLimitReached`), or `PipelineReviewDecisionReject` (the pipeline run fails). A review that is no longer pending answers 409 (`ReviewNotPending`). Reviews are authorized as approvals (Approval Read and Update). Run tokens cannot use pipelines or reviews.
 
 The pipeline status, outcome, stage status, review status, decision, and decision source values are the `PipelineRunStatus*`, `PipelineRunOutcome*`, `PipelineStageStatus*`, `PipelineReviewStatus*`, `PipelineReviewDecision*`, and `PipelineReviewSource*` constants. Optional `Pipeline` and `PipelineStage` fields use `omitempty`, so zero values take the server defaults: `Active` nil means true, `OutputCharLimit` 0 means 16000, `MaxAttempts` 0 means 1, and `MaxRevisions` nil means 3.
+
+## Triggers and notifications
+
+A trigger starts an agent run or a pipeline run on a cron schedule or when a signed webhook arrives. It runs as the principal that last created or changed it, so creating one needs Execute on its agent (or on the pipeline and every stage agent). A webhook trigger's `SigningSecret` is returned only by `Create` and `RotateSecret`; store it then.
+
+```go
+var hook garrison.Trigger
+err := client.Triggers.Create(ctx, garrison.Trigger{Name: "on-push", Type: garrison.TriggerTypeWebhook, AgentID: &agentID}, &hook)
+fire, err := client.Triggers.DeliverWebhook(ctx, hook.ID, *hook.SigningSecret, []byte(`{"ref":"main"}`), "", "delivery-1")
+expression := "0 2 * * *"
+var nightly garrison.Trigger
+err = client.Triggers.Create(ctx, garrison.Trigger{Name: "nightly", Type: garrison.TriggerTypeCron, AgentID: &agentID, CronExpression: &expression, TimeZone: "America/New_York"}, &nightly)
+failed, err := client.Triggers.ListFires(ctx, nightly.ID, garrison.TriggerFireOutcomeFailed, nil)
+```
+
+`client.Triggers` adds `List(ctx, opts, triggerType)`, `RotateSecret`, `Fire` (fires now; an optional `TriggerFireRequest.Body` reaches the input template as `webhook.body`), `ListFires`, and `DeliverWebhook` (signs and posts a webhook as an external sender would). Runs a trigger started have `Kind` `Trigger` and `TriggerID`; `RunFilter.TriggerID` lists them, and `PipelineRun.TriggerID` is set the same way.
+
+`client.NotificationEndpoints` manages URLs that receive signed JSON notifications for the `NotificationEvent` constants. It adds `RotateSecret`, `Test` (sends a `Test` notification and returns the delivery after its first attempt), `ListDeliveries` (filter by status), and `GetDelivery`. A loopback or private URL returns an `*garrison.Error` with status 400 and `FieldCodes["url"] == "DestinationBlocked"` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
+
+`garrison.SignWebhook(secret, unixSeconds, body)` builds a signature and `garrison.VerifyWebhook(header, secret, body, tolerance)` checks one (a zero tolerance means 300 seconds). The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
 ## Streaming run events
 
@@ -298,7 +318,7 @@ Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to 
 cd sdk/go && go run ./cmd/console http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
 ## Executor capabilities
 

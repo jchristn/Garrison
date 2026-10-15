@@ -243,6 +243,141 @@ export type PipelineReviewSource = "User" | "Timeout" | "Cancelled";
 /** Terminal pipeline run statuses. */
 export const PIPELINE_TERMINAL_STATUSES: readonly PipelineRunStatus[] = ["Succeeded", "Failed", "Cancelled", "TimedOut"] as const;
 
+/** What starts a trigger. */
+export type TriggerType = "Cron" | "Webhook";
+/** What a trigger starts. */
+export type TriggerTargetType = "Agent" | "Pipeline";
+/** Why a trigger fired. */
+export type TriggerFireSource = "Cron" | "Webhook" | "Manual";
+/** Result of one trigger fire. */
+export type TriggerFireOutcome = "Started" | "Failed" | "Skipped";
+export const TRIGGER_TYPES: readonly TriggerType[] = ["Cron", "Webhook"] as const;
+export const TRIGGER_FIRE_OUTCOMES: readonly TriggerFireOutcome[] = ["Started", "Failed", "Skipped"] as const;
+
+/** A cron schedule or signed webhook that starts an agent run or a pipeline run. Fires run as the principal that last saved it. */
+export interface Trigger extends Json {
+  id?: string; tenantId?: string; name: string; description?: string | null;
+  /** Cron or Webhook; cannot change after creation. */
+  type: TriggerType;
+  /** Agent (default) or Pipeline. */
+  targetType?: TriggerTargetType;
+  agentId?: string | null; deploymentId?: string | null; pipelineId?: string | null;
+  /** Task prompt template that renders the run input; null uses builtin/trigger-input. */
+  inputTemplateId?: string | null;
+  priority?: number;
+  /** Five-field cron expression (Cron triggers). */
+  cronExpression?: string | null;
+  /** IANA time zone of the cron expression. Default UTC. */
+  timeZone?: string;
+  active?: boolean;
+  /** Webhook signing secret: present only in the create and rotateSecret responses. */
+  signingSecret?: string | null;
+  signingSecretLast4?: string | null; signingSecretRotatedUtc?: string | null;
+  runAsType?: string; runAsId?: string | null; runAsName?: string | null;
+  lastFireUtc?: string | null; lastFireOutcome?: TriggerFireOutcome | null; nextFireUtc?: string | null; fireCount?: number;
+  createdUtc?: string; lastUpdateUtc?: string;
+}
+
+/** One fire of a trigger and the run or pipeline run it started. */
+export interface TriggerFire extends Json {
+  id: string; tenantId: string; triggerId: string; triggerName: string; source: TriggerFireSource;
+  deliveryId?: string | null; scheduledUtc: string; firedUtc: string; outcome: TriggerFireOutcome;
+  runId?: string | null; pipelineRunId?: string | null; errorCode?: string | null; errorMessage?: string | null;
+  /** True when this answer repeats an earlier fire for the same webhook delivery identifier. */
+  duplicate?: boolean;
+  createdUtc: string;
+}
+
+/** Optional body of a manual fire; the payload reaches the input template as webhook.body. */
+export interface TriggerFireRequest { body?: string; contentType?: string; }
+
+/** Event a notification endpoint can subscribe to (Test is only sent by the test action). */
+export type NotificationEvent = "RunSucceeded" | "RunFailed" | "RunCancelled" | "RunTimedOut" | "PipelineCompleted" | "PipelineFailed" | "ApprovalRequested" | "Test";
+export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = ["RunSucceeded", "RunFailed", "RunCancelled", "RunTimedOut", "PipelineCompleted", "PipelineFailed", "ApprovalRequested", "Test"] as const;
+/** State of a notification delivery. */
+export type NotificationDeliveryStatus = "Pending" | "Delivering" | "Succeeded" | "Failed";
+
+/** A URL that receives signed JSON notifications for subscribed events. */
+export interface NotificationEndpoint extends Json {
+  id?: string; tenantId?: string; name: string; description?: string | null;
+  /** http or https; loopback and private addresses need Notifications.AllowPrivateDestinations, link-local is always refused. */
+  url: string;
+  events: NotificationEvent[];
+  agentId?: string | null; deploymentId?: string | null;
+  includeResultText?: boolean; resultTextMaxChars?: number; active?: boolean;
+  /** Signing secret: present only in the create and rotateSecret responses. */
+  signingSecret?: string | null;
+  signingSecretLast4?: string | null; signingSecretRotatedUtc?: string | null;
+  createdUtc?: string; lastUpdateUtc?: string;
+}
+
+/** One notification to one endpoint: the outbox entry and its delivery log record. */
+export interface NotificationDelivery extends Json {
+  id: string; tenantId: string; endpointId: string; event: NotificationEvent; subjectType: string; subjectId?: string | null;
+  status: NotificationDeliveryStatus; attempts: number; maxAttempts: number; nextAttemptUtc?: string | null;
+  lastStatusCode?: number | null; lastError?: string | null; lastAttemptUtc?: string | null; lastDurationMs: number;
+  deliveredUtc?: string | null; payload: string; createdUtc: string; lastUpdateUtc: string;
+}
+
+export const WEBHOOK_SIGNATURE_HEADER = "X-Garrison-Signature";
+export const WEBHOOK_DELIVERY_HEADER = "X-Garrison-Delivery";
+export const WEBHOOK_EVENT_HEADER = "X-Garrison-Event";
+
+function webhookBytes(body: string | Uint8Array): Uint8Array {
+  return typeof body === "string" ? new TextEncoder().encode(body) : body;
+}
+
+/**
+ * Build the X-Garrison-Signature header value: t=<unix>,v1=<lowercase hex HMAC-SHA256 of "<t>." + raw body>, keyed with the
+ * UTF-8 bytes of the signing secret. Senders of trigger webhooks use it.
+ */
+export async function signWebhook(secret: string, unixSeconds: number, body: string | Uint8Array): Promise<string> {
+  if (!secret) throw new Error("secret is required");
+  const crypto = await subtle();
+  const t = Math.trunc(unixSeconds).toString();
+  const prefix = new TextEncoder().encode(t + ".");
+  const payload = webhookBytes(body);
+  const message = new Uint8Array(prefix.length + payload.length);
+  message.set(prefix, 0);
+  message.set(payload, prefix.length);
+  const key = await crypto.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return `t=${t},v1=${hex(await crypto.sign("HMAC", key, message))}`;
+}
+
+/**
+ * Verify an X-Garrison-Signature header against the raw body: any v1 value may match (constant-time comparison) and the
+ * timestamp must be within toleranceSeconds of now. Receivers of notifications use it.
+ */
+export async function verifyWebhook(header: string | null | undefined, secret: string, body: string | Uint8Array, toleranceSeconds = 300): Promise<boolean> {
+  if (!header || !secret) return false;
+  let timestamp: number | undefined;
+  const candidates: string[] = [];
+  for (const part of header.split(",")) {
+    const item = part.trim();
+    const equals = item.indexOf("=");
+    if (equals <= 0) return false;
+    const name = item.slice(0, equals).trim();
+    const value = item.slice(equals + 1).trim();
+    if (name === "t") {
+      if (timestamp !== undefined || !/^\d+$/.test(value)) return false;
+      timestamp = Number(value);
+    } else if (name === "v1") {
+      if (value.length !== 64) return false;
+      candidates.push(value.toLowerCase());
+    }
+  }
+  if (timestamp === undefined || candidates.length === 0) return false;
+  if (Math.abs(Math.floor(Date.now() / 1000) - timestamp) > Math.max(1, toleranceSeconds)) return false;
+  const expected = (await signWebhook(secret, timestamp, body)).split(",v1=")[1];
+  let matched = false;
+  for (const candidate of candidates) {
+    let diff = 0;
+    for (let i = 0; i < 64; i++) diff |= candidate.charCodeAt(i) ^ expected.charCodeAt(i);
+    if (diff === 0) matched = true;
+  }
+  return matched;
+}
+
 /** A run parameter override applied to a pipeline stage's runs. */
 export interface PipelineStageParameter extends Json { id?: string; stageId?: string; tenantId?: string; name: string; value: string; }
 
@@ -334,6 +469,8 @@ export interface PipelineRun extends Json {
   callerType: string; callerId?: string | null; callerName?: string | null; idempotencyKey?: string | null;
   priority: number; finalRunId?: string | null; errorMessage?: string | null; deadlineUtc?: string | null;
   cancelRequested: boolean; startedUtc?: string | null; completedUtc?: string | null; createdUtc: string; lastUpdateUtc: string;
+  /** Trigger that started this pipeline run, or null. */
+  triggerId?: string | null;
   stages: PipelineRunStage[];
   reviews: PipelineReview[];
   runs: PipelineStageRunSummary[];
@@ -538,6 +675,8 @@ export interface Run extends Json {
   pipelinePosition?: number;
   /** Execution number of the pipeline stage (retries, revisions, and resumes increase it); 0 outside a pipeline. */
   pipelineExecution?: number;
+  /** Trigger that started this run (kind Trigger), or null. */
+  triggerId?: string | null;
 }
 
 /**
@@ -687,6 +826,8 @@ export interface RunFilter {
   rootRunId?: string; outcome?: string; callerId?: string; fromUtc?: string | Date; toUtc?: string | Date;
   /** Only the turns of this conversation. */
   conversationId?: string;
+  /** Only runs this trigger started. */
+  triggerId?: string;
   maxResults?: number; skip?: number; ordering?: string;
 }
 
@@ -827,6 +968,8 @@ export class GarrisonError extends Error {
   get code(): string | undefined { return this.error?.code; }
   /** Field-level validation details keyed by field path, when the server returned them. */
   get fields(): Record<string, string> | undefined { return this.error?.fields; }
+  /** Machine codes of validation errors keyed by field path (for example url: DestinationBlocked). */
+  get fieldCodes(): Record<string, string> | undefined { return this.error?.fieldCodes; }
   /** Per-setting validation errors keyed by setting path (settings routes, HTTP 400). */
   get errors(): Record<string, string> | undefined { return this.error?.errors; }
 }
@@ -1203,6 +1346,51 @@ export class Pipelines extends Resource<Pipeline> {
   }
 }
 
+/**
+ * Triggers: cron schedules and signed webhooks that start an agent run or a pipeline run. Create and update need Execute
+ * on the target; the trigger runs as the caller. signingSecret is returned only by create and rotateSecret.
+ */
+export class Triggers extends Resource<Trigger> {
+  /** List triggers; type narrows to Cron or Webhook. */
+  list(query?: EnumerationQuery & { type?: TriggerType }): Promise<EnumerationResult<Trigger>> { return this.t.request("GET", this.base(), query as any); }
+  /** Replace a webhook trigger's signing secret; the new one is in signingSecret of the response only. */
+  rotateSecret(id: string): Promise<Trigger> { return this.t.request("POST", this.item(id) + "/rotate-secret"); }
+  /** Fire a trigger now; the optional payload reaches the input template as webhook.body. */
+  fire(id: string, request: TriggerFireRequest = {}): Promise<TriggerFire> { return this.t.request("POST", this.item(id) + "/fire", undefined, request); }
+  /** List a trigger's fires, newest first. */
+  listFires(id: string, filter: { outcome?: TriggerFireOutcome; maxResults?: number; skip?: number } = {}): Promise<EnumerationResult<TriggerFire>> {
+    return this.t.request("GET", this.item(id) + "/fires", filter as any);
+  }
+  /**
+   * Deliver a signed webhook to a Webhook trigger as an external sender would (signed with signWebhook at the current time).
+   * A repeated deliveryId returns the earlier fire with duplicate true. Rejects with GarrisonError 401 InvalidSignature,
+   * 409 TriggerInactive, or 413.
+   */
+  async deliverWebhook(id: string, signingSecret: string, body: string | Uint8Array, options: { contentType?: string; deliveryId?: string } = {}): Promise<TriggerFire> {
+    const bytes = webhookBytes(body);
+    const headers: Record<string, string> = { [WEBHOOK_SIGNATURE_HEADER]: await signWebhook(signingSecret, Math.floor(Date.now() / 1000), bytes) };
+    if (options.deliveryId) headers[WEBHOOK_DELIVERY_HEADER] = options.deliveryId;
+    return this.t.request("POST", this.item(id) + "/webhook", undefined, bytes, options.contentType ?? "application/json", headers);
+  }
+}
+
+/**
+ * Notification endpoints: URLs that receive signed JSON notifications for run, pipeline, and approval events. Receivers check
+ * each request with verifyWebhook and ignore repeated X-Garrison-Delivery values (delivery is at least once).
+ */
+export class NotificationEndpoints extends Resource<NotificationEndpoint> {
+  /** Replace the signing secret; the new one is in signingSecret of the response only. */
+  rotateSecret(id: string): Promise<NotificationEndpoint> { return this.t.request("POST", this.item(id) + "/rotate-secret"); }
+  /** Send a test notification now; resolves with the delivery after its first attempt. */
+  test(id: string): Promise<NotificationDelivery> { return this.t.request("POST", this.item(id) + "/test"); }
+  /** List an endpoint's deliveries, newest first. */
+  listDeliveries(id: string, filter: { status?: NotificationDeliveryStatus; maxResults?: number; skip?: number } = {}): Promise<EnumerationResult<NotificationDelivery>> {
+    return this.t.request("GET", this.item(id) + "/deliveries", filter as any);
+  }
+  /** Read one delivery with its payload and last attempt. */
+  getDelivery(id: string, deliveryId: string): Promise<NotificationDelivery> { return this.t.request("GET", this.item(id) + `/deliveries/${seg(deliveryId)}`); }
+}
+
 /** Pipeline runs: list, read (optionally waiting), cancel, resume, delete. */
 export class PipelineRuns {
   pollIntervalMs = 500;
@@ -1342,6 +1530,8 @@ export class GarrisonClient {
   readonly pipelines: Pipelines;
   readonly pipelineRuns: PipelineRuns;
   readonly pipelineReviews: PipelineReviews;
+  readonly triggers: Triggers;
+  readonly notificationEndpoints: NotificationEndpoints;
   readonly analytics: Analytics;
   readonly nodes: Nodes;
   readonly controlNodes: ControlNodes;
@@ -1378,6 +1568,8 @@ export class GarrisonClient {
     this.pipelines = new Pipelines(t, "pipelines");
     this.pipelineRuns = new PipelineRuns(t);
     this.pipelineReviews = new PipelineReviews(t);
+    this.triggers = new Triggers(t, "triggers");
+    this.notificationEndpoints = new NotificationEndpoints(t, "notification-endpoints");
     this.analytics = new Analytics(t);
     this.nodes = new Nodes(t, "/v1.0/api/nodes");
     this.controlNodes = new ControlNodes(t);

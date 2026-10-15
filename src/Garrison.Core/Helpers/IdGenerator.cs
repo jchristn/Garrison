@@ -272,6 +272,51 @@ namespace Garrison.Core.Helpers
         }
 
         /// <summary>
+        /// Generate a trigger identifier (prefix trg_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewTriggerId()
+        {
+            return New(Constants.TriggerIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a trigger fire identifier (prefix tfr_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewTriggerFireId()
+        {
+            return New(Constants.TriggerFireIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a notification endpoint identifier (prefix nep_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewNotificationEndpointId()
+        {
+            return New(Constants.NotificationEndpointIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a notification endpoint event row identifier (prefix nev_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewNotificationEndpointEventId()
+        {
+            return New(Constants.NotificationEndpointEventIdPrefix);
+        }
+
+        /// <summary>
+        /// Generate a notification delivery identifier (prefix ndl_).
+        /// </summary>
+        /// <returns>Identifier.</returns>
+        public static string NewNotificationDeliveryId()
+        {
+            return New(Constants.NotificationDeliveryIdPrefix);
+        }
+
+        /// <summary>
         /// Generate a pipeline definition identifier (prefix ppl_).
         /// </summary>
         /// <returns>Identifier.</returns>

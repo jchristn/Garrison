@@ -29,6 +29,12 @@ Pipeline tools are `garrison_get_pipeline`, `garrison_create_pipeline`, `garriso
 
 Starting and following pipelines (`garrison_start_pipeline`, `garrison_get_pipeline_run`, the review tools) are ordinary tools described in `MCP_API.md` and [PIPELINES.md](PIPELINES.md). None of the pipeline tools are offered to run tokens, so an agent cannot start a pipeline or approve its own stage.
 
+## Triggers and notification endpoints
+
+Trigger tools are `garrison_list_triggers`, `garrison_get_trigger`, `garrison_create_trigger`, `garrison_update_trigger`, `garrison_delete_trigger`, and `garrison_list_trigger_fires`; they take `trigger` (name or ID) and, for create and update, a `configuration` in the REST trigger model. A trigger runs as whoever saved it last, so creating or updating one over MCP makes the calling credential its run-as principal and needs Execute on the agent or pipeline it starts. A webhook trigger's `signingSecret` appears once, in the create result. Rotation and manual fires are REST and dashboard actions (see [TRIGGERS.md](TRIGGERS.md)).
+
+Notification endpoint tools are `garrison_list_notification_endpoints`, `garrison_get_notification_endpoint`, `garrison_create_notification_endpoint`, `garrison_update_notification_endpoint`, `garrison_delete_notification_endpoint`, and `garrison_list_notification_deliveries`, keyed by `endpoint` (name or ID). The URL is checked against the same SSRF rules as over REST, and the `signingSecret` is returned once, by create. Test sends and secret rotation are REST and dashboard actions (see [NOTIFICATIONS.md](NOTIFICATIONS.md)). Deleting an agent, deployment, or pipeline that a trigger or endpoint names fails with `ReferencedByTrigger` or `ReferencedByNotificationEndpoint`.
+
 ## Manifests
 
 `garrison_apply_manifest` accepts `manifest` YAML/JSON text. Set `dryRun: true` to validate without changing configuration; the default applies it. Inspect `failedCount` and the per-document results. Reapplying unchanged documents remains idempotent.

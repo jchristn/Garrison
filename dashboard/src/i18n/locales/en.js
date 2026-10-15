@@ -2184,3 +2184,335 @@ en.tips.enums.runBlockedReason.NoIsolatingWorker = "Blocked: this run needs an i
 en.tips.resources.deployments.egressRules = "Destinations that run pods of this deployment may reach, as CIDR blocks with an optional port and protocol. Empty uses the default run egress.";
 en.tips.resources.deployments.egressRulesItems = {"cidr": "Destination block in CIDR notation, IPv4 or IPv6, for example 203.0.113.0/24. Resolve host names to addresses yourself.", "port": "Destination port from 1 to 65535. Leave empty to allow every port of the block.", "protocol": "TCP for most services, or UDP."};
 en.tips.resources.deployments.egressDefault = "No egress allowlist: run pods use the cluster's default run egress.";
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "nav": {
+  "items": {
+   "triggers": {
+    "label": "Triggers",
+    "tip": "Cron schedules and signed webhooks that start runs"
+   },
+   "notifications": {
+    "label": "Notifications",
+    "tip": "Signed webhooks about runs, pipelines, and approvals"
+   }
+  }
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Cron schedule",
+   "Webhook": "Signed webhook"
+  },
+  "triggerTargetType": {
+   "Agent": "Agent run",
+   "Pipeline": "Pipeline run"
+  },
+  "triggerFireSource": {
+   "Cron": "Schedule",
+   "Webhook": "Webhook delivery",
+   "Manual": "Fired by hand"
+  },
+  "triggerFireOutcome": {
+   "Started": "Started",
+   "Failed": "Failed",
+   "Skipped": "Skipped"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Run succeeded",
+   "RunFailed": "Run failed",
+   "RunCancelled": "Run cancelled",
+   "RunTimedOut": "Run timed out",
+   "PipelineCompleted": "Pipeline completed",
+   "PipelineFailed": "Pipeline failed",
+   "ApprovalRequested": "Approval requested",
+   "Test": "Test notification"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "Pending",
+   "Delivering": "Delivering",
+   "Succeeded": "Delivered",
+   "Failed": "Gave up"
+  },
+  "runKind": {
+   "Invoke": "Invocation",
+   "Delegated": "Delegated",
+   "Test": "Test run",
+   "Retry": "Retry",
+   "Pipeline": "Pipeline stage",
+   "Trigger": "Started by a trigger"
+  },
+  "resourceType": {
+   "Trigger": "Trigger",
+   "NotificationEndpoint": "Notification endpoint"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Signing secret rotated"
+  }
+ },
+ "errorCodes": {
+  "ReferencedByTrigger": "A trigger uses this record. Change or delete that trigger first.",
+  "ReferencedByNotificationEndpoint": "A notification endpoint filters on this record. Change or delete that endpoint first.",
+  "NotAWebhookTrigger": "Only webhook triggers have a signing secret.",
+  "TriggerInactive": "This trigger is inactive.",
+  "InvalidSignature": "The webhook signature is missing, malformed, too old, or does not match.",
+  "PayloadTooLarge": "The payload is larger than the server accepts."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidUrl": "Enter an absolute HTTP or HTTPS URL without a user name or password.",
+   "DestinationBlocked": "The server refuses this destination: loopback, private, link-local, and metadata addresses are blocked unless an operator allows private destinations.",
+   "EventsRequired": "Choose at least one event.",
+   "InvalidEvent": "One of the events is not supported.",
+   "InvalidCron": "The cron expression is invalid. Use five fields: minute, hour, day of month, month, and day of week.",
+   "InvalidTimeZone": "Unknown time zone. Use an IANA name such as UTC or America/New_York.",
+   "TypeImmutable": "The trigger type cannot change. Create a new trigger instead.",
+   "TargetMismatch": "This field does not belong to the chosen target.",
+   "PayloadTooLarge": "The payload is larger than the server accepts."
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "triggerId": "Trigger",
+    "kind": "Run kind"
+   }
+  },
+  "triggers": {
+   "title": "Triggers",
+   "subtitle": "Cron schedules and signed webhooks that start an agent run or a pipeline run.",
+   "add": "Add trigger",
+   "create": "Create trigger",
+   "edit": "Edit trigger",
+   "view": "Trigger details",
+   "deleteTitle": "Delete trigger",
+   "emptyTitle": "No triggers yet",
+   "emptyBody": "Create a trigger to run an agent on a schedule or when another system sends a webhook.",
+   "columns": {
+    "name": "Name",
+    "type": "Type",
+    "target": "Starts",
+    "schedule": "Schedule",
+    "active": "Active",
+    "lastFire": "Last fire",
+    "nextFireUtc": "Next fire",
+    "fireCount": "Fires",
+    "runAs": "Runs as",
+    "signingSecretLast4": "Secret ends",
+    "description": "Description",
+    "id": "ID",
+    "createdUtc": "Created"
+   },
+   "fields": {
+    "name": "Name",
+    "type": "Type",
+    "description": "Description",
+    "targetType": "Starts",
+    "agentId": "Agent",
+    "deploymentId": "Deployment",
+    "pipelineId": "Pipeline",
+    "inputTemplateId": "Input template",
+    "priority": "Priority",
+    "cronExpression": "Cron expression",
+    "timeZone": "Time zone",
+    "active": "Active",
+    "webhook": "Webhook URL"
+   },
+   "hints": {
+    "type": "The type cannot change after the trigger is created.",
+    "inputTemplateId": "A Task template that renders the run input from trigger.* and webhook.* variables. Empty uses the built-in trigger-input template.",
+    "priority": "From {{min}} to {{max}}. Higher runs first.",
+    "cronExpression": "Five fields: minute, hour, day of month, month, day of week. Example: 0 9 * * 1-5 runs at 09:00 on weekdays.",
+    "timeZone": "IANA name such as UTC or America/New_York. Daylight saving changes are handled for you.",
+    "webhookNew": "The webhook URL and the signing secret appear after you save. The secret is shown once."
+   },
+   "errors": {
+    "name": "Use 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.",
+    "description": "Descriptions are limited to {{max}} characters.",
+    "agentRequired": "Choose the agent this trigger runs.",
+    "pipelineRequired": "Choose the pipeline this trigger starts.",
+    "cron": "Enter five fields (minute hour day month weekday) or a macro such as @daily.",
+    "priority": "Enter a whole number from {{min}} to {{max}}."
+   },
+   "actions": {
+    "fire": "Fire now",
+    "fires": "Fire history",
+    "runs": "View runs",
+    "rotateSecret": "Rotate secret"
+   },
+   "fires": {
+    "firedUtc": "Fired",
+    "source": "Source",
+    "outcome": "Outcome",
+    "started": "Started run",
+    "deliveryId": "Delivery ID",
+    "error": "Error",
+    "runId": "Run",
+    "pipelineRunId": "Pipeline run"
+   },
+   "confirmRotateTitle": "Rotate signing secret",
+   "confirmRotate": "Replace the signing secret of {{name}}? The old secret stops working at once, so senders must switch to the new one.",
+   "anyDeployment": "Any active deployment (weighted)",
+   "builtinTemplate": "Built-in trigger-input template",
+   "webhookSchedule": "When a signed webhook arrives",
+   "neverFired": "Not fired yet",
+   "runAsNotice": "Runs as {{name}}. Saving changes makes you the principal this trigger runs as.",
+   "secretEnding": "The current secret ends in {{last4}}."
+  },
+  "notifications": {
+   "title": "Notifications",
+   "subtitle": "Webhook endpoints that receive signed notifications when runs and pipelines finish or approvals wait.",
+   "add": "Add endpoint",
+   "create": "Create notification endpoint",
+   "edit": "Edit notification endpoint",
+   "view": "Notification endpoint details",
+   "deleteTitle": "Delete notification endpoint",
+   "emptyTitle": "No notification endpoints yet",
+   "emptyBody": "Add an endpoint to receive a signed HTTP POST when a run fails, a pipeline finishes, or an approval waits.",
+   "columns": {
+    "name": "Name",
+    "url": "URL",
+    "events": "Events",
+    "filters": "Filters",
+    "active": "Active",
+    "signingSecretLast4": "Secret ends",
+    "includeResultText": "Result text",
+    "description": "Description",
+    "id": "ID",
+    "createdUtc": "Created",
+    "agent": "Agent",
+    "deployment": "Deployment"
+   },
+   "fields": {
+    "name": "Name",
+    "description": "Description",
+    "url": "URL",
+    "events": "Events",
+    "agentId": "Only this agent",
+    "deploymentId": "Only this deployment",
+    "includeResultText": "Include result text",
+    "resultTextMaxChars": "Result text limit (characters)",
+    "active": "Active"
+   },
+   "hints": {
+    "url": "An HTTP or HTTPS URL. Loopback, private, and metadata addresses are refused unless an operator allows private destinations, and redirects are not followed.",
+    "events": "Pipeline events are not sent while an agent or deployment filter is set.",
+    "agentId": "Empty sends events for every agent.",
+    "deploymentId": "Empty sends events for every deployment.",
+    "includeResultText": "Off by default: notifications carry identifiers, status, and timestamps but no run output.",
+    "resultTextMaxChars": "From {{min}} to {{max}}. Default {{default}}."
+   },
+   "errors": {
+    "name": "Use 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.",
+    "url": "Enter an absolute HTTP or HTTPS URL without a user name or password.",
+    "events": "Choose at least one event.",
+    "resultTextMaxChars": "Enter a whole number from {{min}} to {{max}}."
+   },
+   "actions": {
+    "test": "Send test",
+    "deliveries": "Delivery log",
+    "rotateSecret": "Rotate secret"
+   },
+   "deliveries": {
+    "createdUtc": "Queued",
+    "event": "Event",
+    "status": "Status",
+    "attempts": "Attempts",
+    "lastStatusCode": "HTTP status",
+    "lastError": "Last error",
+    "lastAttemptUtc": "Last attempt",
+    "nextAttemptUtc": "Next attempt",
+    "deliveredUtc": "Delivered",
+    "payload": "Payload",
+    "id": "Delivery ID"
+   },
+   "confirmRotateTitle": "Rotate signing secret",
+   "confirmRotate": "Replace the signing secret of {{name}}? Notifications are signed with the new secret from now on, including retries already queued.",
+   "anyAgent": "Every agent",
+   "anyDeployment": "Every deployment",
+   "noFilter": "Everything",
+   "eventCount_one": "{{count}} event",
+   "eventCount_other": "{{count}} events",
+   "resultTextUpTo_one": "Up to {{count}} character",
+   "resultTextUpTo_other": "Up to {{count}} characters",
+   "secretNotice": "Notifications are signed with a secret ending in {{last4}}, set {{time}}. Rotate it to get a new one."
+  }
+ },
+ "components": {
+  "signingSecret": {
+   "title": "Signing secret",
+   "warning": "Copy this secret now. Garrison stores it encrypted and will not show it again; rotate it if it is lost.",
+   "secret": "Secret",
+   "url": "Webhook URL",
+   "done": "I saved it",
+   "scheme": "Sign each request with the header {{header}}: {{format}}. Send {{delivery}} to make repeated deliveries count once."
+  },
+  "triggerFire": {
+   "title": "Fire {{name}}",
+   "intro": "Start this trigger now. A payload is optional; the input template sees it as webhook.body.",
+   "body": "Payload",
+   "contentType": "Payload content type",
+   "submit": "Fire",
+   "firing": "Firing..."
+  },
+  "triggerFires": {
+   "title": "Fire history",
+   "count_one": "{{shown}} of {{count}} fire",
+   "count_other": "{{shown}} of {{count}} fires",
+   "empty": "This trigger has not fired yet.",
+   "scheduled": "for {{time}}"
+  },
+  "notificationDeliveries": {
+   "title": "Delivery log",
+   "count_one": "{{shown}} of {{count}} delivery",
+   "count_other": "{{shown}} of {{count}} deliveries",
+   "empty": "Nothing was sent to this endpoint yet.",
+   "detail": "Selected delivery"
+  },
+  "notificationTest": {
+   "title": "Test notification",
+   "sending": "Sending a test notification...",
+   "succeeded": "The endpoint accepted the test notification.",
+   "failed": "The test notification failed and will not be retried. See the error below.",
+   "pending": "The first attempt failed; Garrison will retry it. See the error below."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "Trigger"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Triggers",
+    "Notifications": "Notifications"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Largest webhook body (bytes)",
+     "WebhookToleranceSeconds": "Webhook timestamp tolerance (seconds)",
+     "CronMaxLatenessSeconds": "Cron catch-up limit (seconds)",
+     "FireRetentionDays": "Fire history retention (days)"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Allow private destinations",
+     "MaxAttempts": "Delivery attempts",
+     "InitialBackoffSeconds": "First retry delay (seconds)",
+     "MaxBackoffSeconds": "Longest retry delay (seconds)",
+     "TimeoutSeconds": "Delivery timeout (seconds)",
+     "DispatchIntervalMs": "Dispatch interval (ms)",
+     "SweepOverlapSeconds": "Event sweep overlap (seconds)",
+     "DeliveryRetentionDays": "Delivery log retention (days)"
+    }
+   }
+  }
+ }
+});

@@ -234,6 +234,13 @@ namespace Garrison.Core.Database.Ado
             v27.Index("deployment_egress_rules", "parent", false, "deploymentid", "position");
             migrations.Add(new SchemaMigration(27, "Deployment egress allowlists", v27._Statements, v27._Columns));
 
+            // P12.5 and P12.14: triggers with fire history, notification endpoints with subscribed events, the
+            // notification outbox and delivery log, and the leader's event sweep cursors. Runs and pipeline runs record
+            // the trigger that started them.
+            SchemaBuilder v28 = new SchemaBuilder(catalog, dialect);
+            v28.BuildVersion28();
+            migrations.Add(new SchemaMigration(28, "Cron and webhook triggers, notification endpoints, and the notification outbox", v28._Statements, v28._Columns));
+
             return migrations;
         }
 
@@ -297,6 +304,128 @@ namespace Garrison.Core.Database.Ado
         private void Column(string rawTable, string column, string definition)
         {
             _Columns.Add(new SchemaColumnAddition(rawTable, column, definition));
+        }
+
+        private void BuildVersion28()
+        {
+            SqlDialect d = _Dialect;
+            string boolean = d.TypeBool + " NOT NULL";
+
+            Column("runs", "triggerid", d.TypeId);
+            Column("pipeline_runs", "triggerid", d.TypeId);
+            PartialIndex("runs", "trigger", false, "triggerid IS NOT NULL", "tenantid", "triggerid", "createdutc");
+
+            Table("triggers",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description " + d.TypeText,
+                "triggertype VARCHAR(32) NOT NULL",
+                "targettype VARCHAR(32) NOT NULL",
+                "agentid " + d.TypeId,
+                "deploymentid " + d.TypeId,
+                "pipelineid " + d.TypeId,
+                "inputtemplateid VARCHAR(256)",
+                "priority " + d.TypeInt + " NOT NULL",
+                "cronexpression VARCHAR(256)",
+                "timezone VARCHAR(128) NOT NULL",
+                "active " + boolean,
+                "secretencrypted " + d.TypeText,
+                "secretkeyversion " + d.TypeInt + " NOT NULL",
+                "secretlast4 VARCHAR(8)",
+                "secretrotatedutc " + d.TypeTimestamp,
+                "runastype VARCHAR(32) NOT NULL",
+                "runasid " + d.TypeId,
+                "runasname VARCHAR(256)",
+                "lastfireutc " + d.TypeTimestamp,
+                "lastfireoutcome VARCHAR(32)",
+                "nextfireutc " + d.TypeTimestamp,
+                "firecount " + d.TypeBigInt + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("triggers", "tenantname", true, "tenantid", "name");
+            Index("triggers", "due", false, "triggertype", "active", "nextfireutc");
+            Index("triggers", "tenantcreated", false, "tenantid", "createdutc");
+
+            Table("trigger_fires",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "triggerid " + d.TypeId + " NOT NULL",
+                "triggername VARCHAR(128) NOT NULL",
+                "source VARCHAR(32) NOT NULL",
+                "firekey VARCHAR(256) NOT NULL",
+                "deliveryid VARCHAR(128)",
+                "scheduledutc " + d.TypeTimestamp + " NOT NULL",
+                "firedutc " + d.TypeTimestamp + " NOT NULL",
+                "outcome VARCHAR(32) NOT NULL",
+                "runid " + d.TypeId,
+                "pipelinerunid " + d.TypeId,
+                "errorcode VARCHAR(64)",
+                "errormessage " + d.TypeText,
+                "createdutc " + d.TypeTimestamp + " NOT NULL");
+            Index("trigger_fires", "key", true, "triggerid", "firekey");
+            Index("trigger_fires", "trigger", false, "tenantid", "triggerid", "createdutc");
+            Index("trigger_fires", "created", false, "createdutc");
+
+            Table("notification_endpoints",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "name VARCHAR(128) NOT NULL",
+                "description " + d.TypeText,
+                "url VARCHAR(2048) NOT NULL",
+                "agentid " + d.TypeId,
+                "deploymentid " + d.TypeId,
+                "includeresulttext " + boolean,
+                "resulttextmaxchars " + d.TypeInt + " NOT NULL",
+                "active " + boolean,
+                "secretencrypted " + d.TypeText,
+                "secretkeyversion " + d.TypeInt + " NOT NULL",
+                "secretlast4 VARCHAR(8)",
+                "secretrotatedutc " + d.TypeTimestamp,
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("notification_endpoints", "tenantname", true, "tenantid", "name");
+            Index("notification_endpoints", "active", false, "active");
+            Table("notification_endpoint_events",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "endpointid " + d.TypeId + " NOT NULL",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "position " + d.TypeInt + " NOT NULL",
+                "eventname VARCHAR(64) NOT NULL");
+            Index("notification_endpoint_events", "parent", false, "endpointid", "position");
+
+            Table("notification_deliveries",
+                "id " + d.TypeId + " NOT NULL PRIMARY KEY",
+                "tenantid " + d.TypeId + " NOT NULL",
+                "endpointid " + d.TypeId + " NOT NULL",
+                "eventname VARCHAR(64) NOT NULL",
+                "eventkey VARCHAR(256) NOT NULL",
+                "subjecttype VARCHAR(32) NOT NULL",
+                "subjectid " + d.TypeId,
+                "status VARCHAR(32) NOT NULL",
+                "attempts " + d.TypeInt + " NOT NULL",
+                "maxattempts " + d.TypeInt + " NOT NULL",
+                "nextattemptutc " + d.TypeTimestamp,
+                "claimedby VARCHAR(128)",
+                "claimuntilutc " + d.TypeTimestamp,
+                "laststatuscode " + d.TypeInt,
+                "lasterror " + d.TypeText,
+                "lastattemptutc " + d.TypeTimestamp,
+                "lastdurationms " + d.TypeBigInt + " NOT NULL",
+                "deliveredutc " + d.TypeTimestamp,
+                "payload " + d.TypeText + " NOT NULL",
+                "createdutc " + d.TypeTimestamp + " NOT NULL",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
+            Index("notification_deliveries", "eventkey", true, "endpointid", "eventkey");
+            Index("notification_deliveries", "due", false, "status", "nextattemptutc");
+            Index("notification_deliveries", "endpoint", false, "tenantid", "endpointid", "createdutc");
+            Index("notification_deliveries", "created", false, "createdutc");
+
+            Table("notification_cursors",
+                "source VARCHAR(64) NOT NULL PRIMARY KEY",
+                "cursorutc " + d.TypeTimestamp + " NOT NULL",
+                "cursorid VARCHAR(64)",
+                "lastupdateutc " + d.TypeTimestamp + " NOT NULL");
         }
 
         private void BuildVersion21()

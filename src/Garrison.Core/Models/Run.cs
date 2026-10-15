@@ -379,6 +379,11 @@ namespace Garrison.Core.Models
         public int PipelineExecution { get; set; } = 0;
 
         /// <summary>
+        /// Trigger that started this run (P12.5), or null. Stage runs of a pipeline run a trigger started carry it too.
+        /// </summary>
+        public string? TriggerId { get; set; } = null;
+
+        /// <summary>
         /// W3C trace ID (32 lowercase hexadecimal characters) of the trace the run was created and compiled in, or null
         /// for runs created before trace IDs were recorded. Server spans (run:create, run:claim, run:compile) and the
         /// worker span (harness &lt;type&gt; exec) for the run share this trace. Always serialized, including when null.

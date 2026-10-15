@@ -2157,3 +2157,335 @@ zhHans.tips.enums.runBlockedReason.NoIsolatingWorker = "已阻塞：此运行需
 zhHans.tips.resources.deployments.egressRules = "此部署的运行 Pod 可以访问的目标，以 CIDR 地址块表示，可选端口和协议。留空则使用默认的运行出站规则。";
 zhHans.tips.resources.deployments.egressRulesItems = {"cidr": "CIDR 表示法的目标地址块，IPv4 或 IPv6，例如 203.0.113.0/24。请自行将主机名解析为地址。", "port": "1 到 65535 之间的目标端口。留空则允许该地址块的所有端口。", "protocol": "大多数服务使用 TCP，或选择 UDP。"};
 zhHans.tips.resources.deployments.egressDefault = "没有出站允许列表：运行 Pod 使用集群默认的运行出站规则。";
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "nav": {
+  "items": {
+   "triggers": {
+    "label": "触发器",
+    "tip": "启动运行的 cron 计划和签名 Webhook"
+   },
+   "notifications": {
+    "label": "通知",
+    "tip": "关于运行、流水线和审批的签名 Webhook"
+   }
+  }
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "cron 计划",
+   "Webhook": "签名 Webhook"
+  },
+  "triggerTargetType": {
+   "Agent": "智能体运行",
+   "Pipeline": "流水线运行"
+  },
+  "triggerFireSource": {
+   "Cron": "计划",
+   "Webhook": "Webhook 投递",
+   "Manual": "手动触发"
+  },
+  "triggerFireOutcome": {
+   "Started": "已启动",
+   "Failed": "失败",
+   "Skipped": "已跳过"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "运行成功",
+   "RunFailed": "运行失败",
+   "RunCancelled": "运行已取消",
+   "RunTimedOut": "运行超时",
+   "PipelineCompleted": "流水线已完成",
+   "PipelineFailed": "流水线失败",
+   "ApprovalRequested": "请求审批",
+   "Test": "测试通知"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "等待中",
+   "Delivering": "投递中",
+   "Succeeded": "已投递",
+   "Failed": "已放弃"
+  },
+  "runKind": {
+   "Invoke": "调用",
+   "Delegated": "委派",
+   "Test": "测试运行",
+   "Retry": "重试",
+   "Pipeline": "流水线阶段",
+   "Trigger": "由触发器启动"
+  },
+  "resourceType": {
+   "Trigger": "触发器",
+   "NotificationEndpoint": "通知端点"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "已轮换签名密钥"
+  }
+ },
+ "errorCodes": {
+  "ReferencedByTrigger": "有触发器在使用此记录。请先修改或删除该触发器。",
+  "ReferencedByNotificationEndpoint": "有通知端点按此记录筛选。请先修改或删除该端点。",
+  "NotAWebhookTrigger": "只有 Webhook 触发器才有签名密钥。",
+  "TriggerInactive": "此触发器未启用。",
+  "InvalidSignature": "Webhook 签名缺失、格式错误、过期或不匹配。",
+  "PayloadTooLarge": "负载超过服务器可接受的大小。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidUrl": "请输入不含用户名和密码的绝对 HTTP 或 HTTPS URL。",
+   "DestinationBlocked": "服务器拒绝此目标：除非运维人员允许私有目标，否则回环、私有、链路本地和元数据地址都会被阻止。",
+   "EventsRequired": "请至少选择一个事件。",
+   "InvalidEvent": "其中有不支持的事件。",
+   "InvalidCron": "cron 表达式无效。请使用五个字段：分、时、日、月、星期。",
+   "InvalidTimeZone": "未知时区。请使用 UTC 或 Asia/Shanghai 等 IANA 名称。",
+   "TypeImmutable": "触发器类型不能更改。请改为创建新触发器。",
+   "TargetMismatch": "此字段不属于所选目标。",
+   "PayloadTooLarge": "负载超过服务器可接受的大小。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "triggerId": "触发器",
+    "kind": "运行类型"
+   }
+  },
+  "triggers": {
+   "title": "触发器",
+   "subtitle": "启动智能体运行或流水线运行的 cron 计划和签名 Webhook。",
+   "add": "添加触发器",
+   "create": "创建触发器",
+   "edit": "编辑触发器",
+   "view": "触发器详情",
+   "deleteTitle": "删除触发器",
+   "emptyTitle": "还没有触发器",
+   "emptyBody": "创建触发器，按计划或在其他系统发送 Webhook 时运行智能体。",
+   "columns": {
+    "name": "名称",
+    "type": "类型",
+    "target": "启动对象",
+    "schedule": "计划",
+    "active": "启用",
+    "lastFire": "上次触发",
+    "nextFireUtc": "下次触发",
+    "fireCount": "触发次数",
+    "runAs": "运行身份",
+    "signingSecretLast4": "密钥末尾",
+    "description": "描述",
+    "id": "ID",
+    "createdUtc": "创建时间"
+   },
+   "fields": {
+    "name": "名称",
+    "type": "类型",
+    "description": "描述",
+    "targetType": "启动对象",
+    "agentId": "智能体",
+    "deploymentId": "部署",
+    "pipelineId": "流水线",
+    "inputTemplateId": "输入模板",
+    "priority": "优先级",
+    "cronExpression": "cron 表达式",
+    "timeZone": "时区",
+    "active": "启用",
+    "webhook": "Webhook 地址"
+   },
+   "hints": {
+    "type": "创建后不能更改类型。",
+    "inputTemplateId": "用 trigger.* 和 webhook.* 变量生成运行输入的 Task 模板。留空则使用内置的 trigger-input 模板。",
+    "priority": "{{min}} 到 {{max}}。数值越大越先运行。",
+    "cronExpression": "五个字段：分、时、日、月、星期。示例：0 9 * * 1-5 表示工作日 09:00 运行。",
+    "timeZone": "UTC 或 Asia/Shanghai 等 IANA 名称。夏令时切换会自动处理。",
+    "webhookNew": "保存后会显示 Webhook 地址和签名密钥。密钥只显示一次。"
+   },
+   "errors": {
+    "name": "请使用 1 到 64 个小写字母、数字和连字符，并以字母或数字开头和结尾。",
+    "description": "描述最多 {{max}} 个字符。",
+    "agentRequired": "请选择此触发器要运行的智能体。",
+    "pipelineRequired": "请选择此触发器要启动的流水线。",
+    "cron": "请输入五个字段（分 时 日 月 星期）或 @daily 等宏。",
+    "priority": "请输入 {{min}} 到 {{max}} 之间的整数。"
+   },
+   "actions": {
+    "fire": "立即触发",
+    "fires": "触发记录",
+    "runs": "查看运行",
+    "rotateSecret": "轮换密钥"
+   },
+   "fires": {
+    "firedUtc": "触发时间",
+    "source": "来源",
+    "outcome": "结果",
+    "started": "已启动的运行",
+    "deliveryId": "投递 ID",
+    "error": "错误",
+    "runId": "运行",
+    "pipelineRunId": "流水线运行"
+   },
+   "confirmRotateTitle": "轮换签名密钥",
+   "confirmRotate": "要替换 {{name}} 的签名密钥吗？旧密钥会立即失效，发送方必须改用新密钥。",
+   "anyDeployment": "任意启用的部署（按权重）",
+   "builtinTemplate": "内置 trigger-input 模板",
+   "webhookSchedule": "收到签名 Webhook 时",
+   "neverFired": "尚未触发",
+   "runAsNotice": "以 {{name}} 的身份运行。保存更改后，此触发器将以您的身份运行。",
+   "secretEnding": "当前密钥以 {{last4}} 结尾。"
+  },
+  "notifications": {
+   "title": "通知",
+   "subtitle": "在运行和流水线结束或审批等待时接收签名通知的 Webhook 端点。",
+   "add": "添加端点",
+   "create": "创建通知端点",
+   "edit": "编辑通知端点",
+   "view": "通知端点详情",
+   "deleteTitle": "删除通知端点",
+   "emptyTitle": "还没有通知端点",
+   "emptyBody": "添加端点，在运行失败、流水线结束或审批等待时接收签名的 HTTP POST。",
+   "columns": {
+    "name": "名称",
+    "url": "URL",
+    "events": "事件",
+    "filters": "筛选",
+    "active": "启用",
+    "signingSecretLast4": "密钥末尾",
+    "includeResultText": "结果文本",
+    "description": "描述",
+    "id": "ID",
+    "createdUtc": "创建时间",
+    "agent": "智能体",
+    "deployment": "部署"
+   },
+   "fields": {
+    "name": "名称",
+    "description": "描述",
+    "url": "URL",
+    "events": "事件",
+    "agentId": "仅此智能体",
+    "deploymentId": "仅此部署",
+    "includeResultText": "包含结果文本",
+    "resultTextMaxChars": "结果文本上限（字符）",
+    "active": "启用"
+   },
+   "hints": {
+    "url": "HTTP 或 HTTPS URL。除非运维人员允许私有目标，否则回环、私有和元数据地址会被拒绝，且不跟随重定向。",
+    "events": "设置了智能体或部署筛选时，不发送流水线事件。",
+    "agentId": "留空则发送所有智能体的事件。",
+    "deploymentId": "留空则发送所有部署的事件。",
+    "includeResultText": "默认关闭：通知包含标识、状态和时间戳，但不含运行输出。",
+    "resultTextMaxChars": "{{min}} 到 {{max}}。默认 {{default}}。"
+   },
+   "errors": {
+    "name": "请使用 1 到 64 个小写字母、数字和连字符，并以字母或数字开头和结尾。",
+    "url": "请输入不含用户名和密码的绝对 HTTP 或 HTTPS URL。",
+    "events": "请至少选择一个事件。",
+    "resultTextMaxChars": "请输入 {{min}} 到 {{max}} 之间的整数。"
+   },
+   "actions": {
+    "test": "发送测试",
+    "deliveries": "投递日志",
+    "rotateSecret": "轮换密钥"
+   },
+   "deliveries": {
+    "createdUtc": "入队时间",
+    "event": "事件",
+    "status": "状态",
+    "attempts": "尝试次数",
+    "lastStatusCode": "HTTP 状态",
+    "lastError": "最近错误",
+    "lastAttemptUtc": "最近尝试",
+    "nextAttemptUtc": "下次尝试",
+    "deliveredUtc": "投递时间",
+    "payload": "负载",
+    "id": "投递 ID"
+   },
+   "confirmRotateTitle": "轮换签名密钥",
+   "confirmRotate": "要替换 {{name}} 的签名密钥吗？此后的通知（包括已排队的重试）都将使用新密钥签名。",
+   "anyAgent": "所有智能体",
+   "anyDeployment": "所有部署",
+   "noFilter": "全部",
+   "eventCount_one": "{{count}} 个事件",
+   "eventCount_other": "{{count}} 个事件",
+   "resultTextUpTo_one": "最多 {{count}} 个字符",
+   "resultTextUpTo_other": "最多 {{count}} 个字符",
+   "secretNotice": "通知使用以 {{last4}} 结尾的密钥签名，设置于 {{time}}。轮换即可获得新密钥。"
+  }
+ },
+ "components": {
+  "signingSecret": {
+   "title": "签名密钥",
+   "warning": "请立即复制此密钥。Garrison 会加密保存且不会再次显示；如有遗失请轮换。",
+   "secret": "密钥",
+   "url": "Webhook 地址",
+   "done": "我已保存",
+   "scheme": "用请求头 {{header}} 为每个请求签名：{{format}}。发送 {{delivery}} 可让重复投递只计一次。"
+  },
+  "triggerFire": {
+   "title": "触发 {{name}}",
+   "intro": "立即启动此触发器。负载可选；输入模板会以 webhook.body 读取它。",
+   "body": "负载",
+   "contentType": "负载内容类型",
+   "submit": "触发",
+   "firing": "正在触发..."
+  },
+  "triggerFires": {
+   "title": "触发记录",
+   "count_one": "共 {{count}} 次触发，显示 {{shown}} 次",
+   "count_other": "共 {{count}} 次触发，显示 {{shown}} 次",
+   "empty": "此触发器尚未触发。",
+   "scheduled": "对应 {{time}}"
+  },
+  "notificationDeliveries": {
+   "title": "投递日志",
+   "count_one": "共 {{count}} 次投递，显示 {{shown}} 次",
+   "count_other": "共 {{count}} 次投递，显示 {{shown}} 次",
+   "empty": "尚未向此端点发送任何内容。",
+   "detail": "所选投递"
+  },
+  "notificationTest": {
+   "title": "测试通知",
+   "sending": "正在发送测试通知...",
+   "succeeded": "端点已接受测试通知。",
+   "failed": "测试通知失败，且不会重试。请查看下方错误。",
+   "pending": "首次尝试失败；Garrison 会重试。请查看下方错误。"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "触发器"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "触发器",
+    "Notifications": "通知"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Webhook 正文上限（字节）",
+     "WebhookToleranceSeconds": "Webhook 时间戳容差（秒）",
+     "CronMaxLatenessSeconds": "cron 补触发上限（秒）",
+     "FireRetentionDays": "触发记录保留天数"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "允许私有目标",
+     "MaxAttempts": "投递尝试次数",
+     "InitialBackoffSeconds": "首次重试等待（秒）",
+     "MaxBackoffSeconds": "最长重试等待（秒）",
+     "TimeoutSeconds": "投递超时（秒）",
+     "DispatchIntervalMs": "派发间隔（毫秒）",
+     "SweepOverlapSeconds": "事件扫描重叠（秒）",
+     "DeliveryRetentionDays": "投递日志保留天数"
+    }
+   }
+  }
+ }
+});

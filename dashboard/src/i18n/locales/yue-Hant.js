@@ -2156,3 +2156,335 @@ yueHant.tips.enums.runBlockedReason.NoIsolatingWorker = "已封鎖：呢個執�
 yueHant.tips.resources.deployments.egressRules = "呢個部署嘅執行 Pod 可以連去嘅目的地，用 CIDR 位址區塊表示，可以加連接埠同通訊協定。留空就用預設嘅執行出站規則。";
 yueHant.tips.resources.deployments.egressRulesItems = {"cidr": "用 CIDR 表示法寫嘅目的位址區塊，IPv4 或者 IPv6，例如 203.0.113.0/24。請自己將主機名稱解析成位址。", "port": "1 到 65535 之間嘅目的連接埠。留空就容許呢個位址區塊嘅所有連接埠。", "protocol": "大部分服務用 TCP，或者揀 UDP。"};
 yueHant.tips.resources.deployments.egressDefault = "冇出站允許清單：執行 Pod 用叢集預設嘅執行出站規則。";
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(yueHant, {
+ "nav": {
+  "items": {
+   "triggers": {
+    "label": "觸發器",
+    "tip": "用 cron 排程同簽章 Webhook 開始執行"
+   },
+   "notifications": {
+    "label": "通知",
+    "tip": "關於執行、管線同核准嘅簽章 Webhook"
+   }
+  }
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "cron 排程",
+   "Webhook": "簽章 Webhook"
+  },
+  "triggerTargetType": {
+   "Agent": "代理程式執行",
+   "Pipeline": "管線執行"
+  },
+  "triggerFireSource": {
+   "Cron": "排程",
+   "Webhook": "Webhook 傳遞",
+   "Manual": "手動觸發"
+  },
+  "triggerFireOutcome": {
+   "Started": "已啟動",
+   "Failed": "失敗",
+   "Skipped": "跳咗"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "執行成功",
+   "RunFailed": "執行失敗",
+   "RunCancelled": "執行已取消",
+   "RunTimedOut": "執行逾時",
+   "PipelineCompleted": "管線已完成",
+   "PipelineFailed": "管線失敗",
+   "ApprovalRequested": "要求核准",
+   "Test": "測試通知"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "等待中",
+   "Delivering": "傳遞中",
+   "Succeeded": "已經送到",
+   "Failed": "已放棄"
+  },
+  "runKind": {
+   "Invoke": "呼叫",
+   "Delegated": "委派",
+   "Test": "測試執行",
+   "Retry": "重試",
+   "Pipeline": "管線階段",
+   "Trigger": "由觸發器啟動"
+  },
+  "resourceType": {
+   "Trigger": "觸發器",
+   "NotificationEndpoint": "通知端點"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "已輪替簽章密鑰"
+  }
+ },
+ "errorCodes": {
+  "ReferencedByTrigger": "有觸發器正在使用呢筆記錄。請先修改或刪除該觸發器。",
+  "ReferencedByNotificationEndpoint": "有通知端點依呢筆記錄篩選。請先修改或刪除該端點。",
+  "NotAWebhookTrigger": "只有 Webhook 觸發器才有簽章密鑰。",
+  "TriggerInactive": "呢個觸發器未啟用。",
+  "InvalidSignature": "Webhook 簽章遺失、格式錯誤、過期或不相符。",
+  "PayloadTooLarge": "酬載超過伺服器可接受嘅大小。"
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidUrl": "請輸入不含使用者名稱同密碼嘅絕對 HTTP 或 HTTPS URL。",
+   "DestinationBlocked": "伺服器拒絕此目嘅地：除非維運人員允許私人目嘅地，否則迴路、私人、連結本機同中繼資料位址都會遭到封鎖。",
+   "EventsRequired": "請至少選擇一個事件。",
+   "InvalidEvent": "其中有不支援嘅事件。",
+   "InvalidCron": "cron 運算式無效。請使用五個欄位：分、時、日、月、星期。",
+   "InvalidTimeZone": "不明嘅時區。請使用 UTC 或 Asia/Taipei 等 IANA 名稱。",
+   "TypeImmutable": "觸發器類型冇辦法變更。請改為建立新嘅觸發器。",
+   "TargetMismatch": "此欄位不屬於所選嘅目標。",
+   "PayloadTooLarge": "酬載超過伺服器可接受嘅大小。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "triggerId": "觸發器",
+    "kind": "執行類型"
+   }
+  },
+  "triggers": {
+   "title": "觸發器",
+   "subtitle": "啟動代理程式執行或管線執行嘅 cron 排程同簽章 Webhook。",
+   "add": "新增觸發器",
+   "create": "建立觸發器",
+   "edit": "編輯觸發器",
+   "view": "觸發器詳細資料",
+   "deleteTitle": "刪除觸發器",
+   "emptyTitle": "仲未有觸發器",
+   "emptyBody": "建立觸發器，依排程或在其他系統傳送 Webhook 時執行代理程式。",
+   "columns": {
+    "name": "名稱",
+    "type": "類型",
+    "target": "啟動對象",
+    "schedule": "排程",
+    "active": "啟用",
+    "lastFire": "上次觸發",
+    "nextFireUtc": "下次觸發",
+    "fireCount": "觸發次數",
+    "runAs": "執行身分",
+    "signingSecretLast4": "密鑰結尾",
+    "description": "說明",
+    "id": "ID",
+    "createdUtc": "建立時間"
+   },
+   "fields": {
+    "name": "名稱",
+    "type": "類型",
+    "description": "說明",
+    "targetType": "啟動對象",
+    "agentId": "代理程式",
+    "deploymentId": "部署",
+    "pipelineId": "管線",
+    "inputTemplateId": "輸入範本",
+    "priority": "優先順序",
+    "cronExpression": "cron 運算式",
+    "timeZone": "時區",
+    "active": "啟用",
+    "webhook": "Webhook 網址"
+   },
+   "hints": {
+    "type": "建立後冇辦法變更類型。",
+    "inputTemplateId": "以 trigger.* 同 webhook.* 變數產生執行輸入嘅 Task 範本。留空則使用內建嘅 trigger-input 範本。",
+    "priority": "{{min}} 到 {{max}}。數值越大越先執行。",
+    "cronExpression": "五個欄位：分、時、日、月、星期。範例：0 9 * * 1-5 表示平日 09:00 執行。",
+    "timeZone": "UTC 或 Asia/Taipei 等 IANA 名稱。日光節約時間嘅切換會自動處理。",
+    "webhookNew": "儲存後會顯示 Webhook 網址同簽章密鑰。密鑰只會顯示一次。"
+   },
+   "errors": {
+    "name": "請使用 1 到 64 個小寫字母、數字同連字號，並以字母或數字開頭同結尾。",
+    "description": "說明最多 {{max}} 個字元。",
+    "agentRequired": "請選擇此觸發器要執行嘅代理程式。",
+    "pipelineRequired": "請選擇此觸發器要啟動嘅管線。",
+    "cron": "請輸入五個欄位（分 時 日 月 星期）或 @daily 等巨集。",
+    "priority": "請輸入 {{min}} 到 {{max}} 之間嘅整數。"
+   },
+   "actions": {
+    "fire": "立即觸發",
+    "fires": "觸發紀錄",
+    "runs": "檢視執行",
+    "rotateSecret": "輪替密鑰"
+   },
+   "fires": {
+    "firedUtc": "觸發時間",
+    "source": "來源",
+    "outcome": "結果",
+    "started": "已啟動嘅執行",
+    "deliveryId": "傳遞 ID",
+    "error": "錯誤",
+    "runId": "執行",
+    "pipelineRunId": "管線執行"
+   },
+   "confirmRotateTitle": "輪替簽章密鑰",
+   "confirmRotate": "要取代 {{name}} 嘅簽章密鑰嗎？舊密鑰會立即失效，傳送端必須改用新密鑰。",
+   "anyDeployment": "任何啟用中嘅部署（依權重）",
+   "builtinTemplate": "內建 trigger-input 範本",
+   "webhookSchedule": "收到簽章 Webhook 時",
+   "neverFired": "仲未觸發",
+   "runAsNotice": "以 {{name}} 嘅身分執行。儲存變更後，此觸發器會以你嘅身分執行。",
+   "secretEnding": "目前嘅密鑰結尾為 {{last4}}。"
+  },
+  "notifications": {
+   "title": "通知",
+   "subtitle": "在執行同管線結束或核准等待時接收簽章通知嘅 Webhook 端點。",
+   "add": "新增端點",
+   "create": "建立通知端點",
+   "edit": "編輯通知端點",
+   "view": "通知端點詳細資料",
+   "deleteTitle": "刪除通知端點",
+   "emptyTitle": "仲未有通知端點",
+   "emptyBody": "新增端點，在執行失敗、管線結束或核准等待時接收簽章嘅 HTTP POST。",
+   "columns": {
+    "name": "名稱",
+    "url": "URL",
+    "events": "事件",
+    "filters": "篩選",
+    "active": "啟用",
+    "signingSecretLast4": "密鑰結尾",
+    "includeResultText": "結果文字",
+    "description": "說明",
+    "id": "ID",
+    "createdUtc": "建立時間",
+    "agent": "代理程式",
+    "deployment": "部署"
+   },
+   "fields": {
+    "name": "名稱",
+    "description": "說明",
+    "url": "URL",
+    "events": "事件",
+    "agentId": "僅此代理程式",
+    "deploymentId": "僅此部署",
+    "includeResultText": "包含結果文字",
+    "resultTextMaxChars": "結果文字上限（字元）",
+    "active": "啟用"
+   },
+   "hints": {
+    "url": "HTTP 或 HTTPS URL。除非維運人員允許私人目嘅地，否則迴路、私人同中繼資料位址會遭拒，且不跟隨重新導向。",
+    "events": "設定代理程式或部署篩選時，唔會傳送管線事件。",
+    "agentId": "留空則傳送所有代理程式嘅事件。",
+    "deploymentId": "留空則傳送所有部署嘅事件。",
+    "includeResultText": "預設關閉：通知包含識別碼、狀態同時間戳記，但不含執行輸出。",
+    "resultTextMaxChars": "{{min}} 到 {{max}}。預設 {{default}}。"
+   },
+   "errors": {
+    "name": "請使用 1 到 64 個小寫字母、數字同連字號，並以字母或數字開頭同結尾。",
+    "url": "請輸入不含使用者名稱同密碼嘅絕對 HTTP 或 HTTPS URL。",
+    "events": "請至少選擇一個事件。",
+    "resultTextMaxChars": "請輸入 {{min}} 到 {{max}} 之間嘅整數。"
+   },
+   "actions": {
+    "test": "傳送測試",
+    "deliveries": "傳遞紀錄",
+    "rotateSecret": "輪替密鑰"
+   },
+   "deliveries": {
+    "createdUtc": "排入佇列",
+    "event": "事件",
+    "status": "狀態",
+    "attempts": "嘗試次數",
+    "lastStatusCode": "HTTP 狀態",
+    "lastError": "最近錯誤",
+    "lastAttemptUtc": "最近嘗試",
+    "nextAttemptUtc": "下次嘗試",
+    "deliveredUtc": "送達時間",
+    "payload": "酬載",
+    "id": "傳遞 ID"
+   },
+   "confirmRotateTitle": "輪替簽章密鑰",
+   "confirmRotate": "要取代 {{name}} 嘅簽章密鑰嗎？之後嘅通知（包括已排入佇列嘅重試）都會以新密鑰簽章。",
+   "anyAgent": "所有代理程式",
+   "anyDeployment": "所有部署",
+   "noFilter": "全部",
+   "eventCount_one": "{{count}} 個事件",
+   "eventCount_other": "{{count}} 個事件",
+   "resultTextUpTo_one": "最多 {{count}} 個字元",
+   "resultTextUpTo_other": "最多 {{count}} 個字元",
+   "secretNotice": "通知以結尾為 {{last4}} 嘅密鑰簽章，設定於 {{time}}。輪替即可取得新密鑰。"
+  }
+ },
+ "components": {
+  "signingSecret": {
+   "title": "簽章密鑰",
+   "warning": "請立即複製呢個密鑰。Garrison 會加密儲存且唔會再次顯示；遺失時請輪替。",
+   "secret": "密鑰",
+   "url": "Webhook 網址",
+   "done": "我已儲存",
+   "scheme": "以標頭 {{header}} 為每個要求簽章：{{format}}。傳送 {{delivery}} 可讓重複嘅傳遞只算一次。"
+  },
+  "triggerFire": {
+   "title": "觸發 {{name}}",
+   "intro": "立即啟動呢個觸發器。酬載為選填；輸入範本會以 webhook.body 讀取。",
+   "body": "酬載",
+   "contentType": "酬載內容類型",
+   "submit": "觸發",
+   "firing": "觸發中..."
+  },
+  "triggerFires": {
+   "title": "觸發紀錄",
+   "count_one": "共 {{count}} 次觸發，顯示 {{shown}} 次",
+   "count_other": "共 {{count}} 次觸發，顯示 {{shown}} 次",
+   "empty": "呢個觸發器仲未觸發。",
+   "scheduled": "對應 {{time}}"
+  },
+  "notificationDeliveries": {
+   "title": "傳遞紀錄",
+   "count_one": "共 {{count}} 次傳遞，顯示 {{shown}} 次",
+   "count_other": "共 {{count}} 次傳遞，顯示 {{shown}} 次",
+   "empty": "仲未傳送任何內容到呢個端點。",
+   "detail": "所選嘅傳遞"
+  },
+  "notificationTest": {
+   "title": "測試通知",
+   "sending": "正在傳送測試通知...",
+   "succeeded": "端點已接受測試通知。",
+   "failed": "測試通知失敗，且唔會重試。請睇下方錯誤。",
+   "pending": "第一次嘗試失敗；Garrison 會重試。請睇下方錯誤。"
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "觸發器"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "觸發器",
+    "Notifications": "通知"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Webhook 本文上限（位元組）",
+     "WebhookToleranceSeconds": "Webhook 時間戳記容許差（秒）",
+     "CronMaxLatenessSeconds": "cron 補觸發上限（秒）",
+     "FireRetentionDays": "觸發紀錄保留天數"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "允許私人目嘅地",
+     "MaxAttempts": "傳遞嘗試次數",
+     "InitialBackoffSeconds": "首次重試等待（秒）",
+     "MaxBackoffSeconds": "最長重試等待（秒）",
+     "TimeoutSeconds": "傳遞逾時（秒）",
+     "DispatchIntervalMs": "派送間隔（毫秒）",
+     "SweepOverlapSeconds": "事件掃描重疊（秒）",
+     "DeliveryRetentionDays": "傳遞紀錄保留天數"
+    }
+   }
+  }
+ }
+});

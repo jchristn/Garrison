@@ -156,6 +156,11 @@ namespace Garrison.Core.Models
         public string? IdempotencyKey { get; set; } = null;
 
         /// <summary>
+        /// Trigger that started this pipeline run (P12.5), or null.
+        /// </summary>
+        public string? TriggerId { get; set; } = null;
+
+        /// <summary>
         /// Priority given to every stage run.
         /// </summary>
         public int Priority { get; set; } = 0;

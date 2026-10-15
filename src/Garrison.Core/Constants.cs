@@ -45,6 +45,36 @@ namespace Garrison.Core
         /// <summary>Deployment egress allowlist rule row identifier prefix (P11.15).</summary>
         public const string DeploymentEgressRuleIdPrefix = "der_";
 
+        /// <summary>Trigger identifier prefix: a cron schedule or signed webhook that starts runs (P12.5).</summary>
+        public const string TriggerIdPrefix = "trg_";
+
+        /// <summary>Trigger fire history record identifier prefix (P12.5).</summary>
+        public const string TriggerFireIdPrefix = "tfr_";
+
+        /// <summary>Notification endpoint identifier prefix: an outbound webhook subscription (P12.14).</summary>
+        public const string NotificationEndpointIdPrefix = "nep_";
+
+        /// <summary>Notification endpoint subscribed event row identifier prefix (P12.14).</summary>
+        public const string NotificationEndpointEventIdPrefix = "nev_";
+
+        /// <summary>Notification delivery (outbox and delivery log) identifier prefix (P12.14).</summary>
+        public const string NotificationDeliveryIdPrefix = "ndl_";
+
+        /// <summary>
+        /// Header carrying a Garrison webhook signature, inbound on trigger webhooks and outbound on notifications:
+        /// <c>t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256 of "&lt;t&gt;.&lt;raw body&gt;"&gt;</c> (P12.5, P12.14).
+        /// </summary>
+        public const string HeaderWebhookSignature = "X-Garrison-Signature";
+
+        /// <summary>
+        /// Header carrying a webhook delivery identifier. Inbound on a trigger webhook it makes a repeated delivery
+        /// idempotent; outbound on a notification it is the delivery identifier, the same on every retry.
+        /// </summary>
+        public const string HeaderWebhookDelivery = "X-Garrison-Delivery";
+
+        /// <summary>Header carrying the event name of an outbound notification (P12.14).</summary>
+        public const string HeaderWebhookEvent = "X-Garrison-Event";
+
         /// <summary>
         /// Product name.
         /// </summary>

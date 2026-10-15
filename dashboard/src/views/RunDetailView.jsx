@@ -390,6 +390,24 @@ export default function RunDetailView({ recordId }) {
             </span>
           </Detail>
         )}
+        {run.triggerId && (
+          <Detail label={t('views.runDetail.trigger')} tip={t('tips.views.runDetail.trigger')}>
+            <span className="inline-meta">
+              <a
+                href={pathFor('triggers', null, { fires: run.triggerId })}
+                data-testid="run-trigger-link"
+                {...tip(t('tips.views.runDetail.openTrigger'))}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(pathFor('triggers', null, { fires: run.triggerId }));
+                }}
+              >
+                <code>{run.triggerId}</code>
+              </a>
+              <span className="text-muted">{enumLabel(t, 'runKind', run.kind || 'Trigger')}</span>
+            </span>
+          </Detail>
+        )}
         <Detail label={t('views.runDetail.attempt')} tip={t('tips.views.runDetail.attempt')}>{`${run.attempt ?? 1} / ${run.maxAttempts ?? 1}`}</Detail>
         {run.outputSchemaValid != null && (
           <Detail label={t('views.runDetail.outputSchema')} tip={t('tips.views.runDetail.outputSchema')}>

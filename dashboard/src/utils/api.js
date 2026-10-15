@@ -717,6 +717,95 @@ class ApiClient {
     return page.totalCount ?? 0;
   }
 
+  // ------------------------------------------------------------------ triggers (P12.5)
+
+  /** Cron and webhook triggers. filters: type (Cron or Webhook), search, activeOnly, pageNumber, pageSize. */
+  listTriggers(tenantId, params) {
+    return this._list(this._t(tenantId, 'triggers'), params);
+  }
+
+  /** Read a trigger by ID or name. The signing secret is never returned here. */
+  getTrigger(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `triggers/${enc(id)}`));
+  }
+
+  /** Create a trigger. A webhook trigger's signingSecret is in this response only. */
+  createTrigger(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'triggers'), { body });
+  }
+
+  /** Update a trigger (the caller becomes its run-as principal; the type cannot change). */
+  updateTrigger(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `triggers/${enc(id)}`), { body });
+  }
+
+  /** Delete a trigger and its fire history. */
+  deleteTrigger(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `triggers/${enc(id)}`));
+  }
+
+  /** Replace a webhook trigger's signing secret; the new secret is in this response only. */
+  rotateTriggerSecret(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `triggers/${enc(id)}/rotate-secret`));
+  }
+
+  /** Fire a trigger now. body: { body?: payload text, contentType? }. Returns the fire record. */
+  fireTrigger(tenantId, id, body) {
+    return this._request('POST', this._t(tenantId, `triggers/${enc(id)}/fire`), { body: body || {} });
+  }
+
+  /** A trigger's fires, newest first. filters: outcome, pageNumber, pageSize. */
+  listTriggerFires(tenantId, id, params) {
+    return this._list(this._t(tenantId, `triggers/${enc(id)}/fires`), params);
+  }
+
+  // ------------------------------------------------------------------ notification endpoints (P12.14)
+
+  /** Outbound webhook subscriptions. filters: search, activeOnly, pageNumber, pageSize. */
+  listNotificationEndpoints(tenantId, params) {
+    return this._list(this._t(tenantId, 'notification-endpoints'), params);
+  }
+
+  /** Read a notification endpoint by ID or name. */
+  getNotificationEndpoint(tenantId, id) {
+    return this._request('GET', this._t(tenantId, `notification-endpoints/${enc(id)}`));
+  }
+
+  /** Create a notification endpoint; signingSecret is in this response only. 400 DestinationBlocked for refused URLs. */
+  createNotificationEndpoint(tenantId, body) {
+    return this._request('POST', this._t(tenantId, 'notification-endpoints'), { body });
+  }
+
+  /** Update a notification endpoint (the signing secret is kept). */
+  updateNotificationEndpoint(tenantId, id, body) {
+    return this._request('PUT', this._t(tenantId, `notification-endpoints/${enc(id)}`), { body });
+  }
+
+  /** Delete a notification endpoint and its delivery log. */
+  deleteNotificationEndpoint(tenantId, id) {
+    return this._request('DELETE', this._t(tenantId, `notification-endpoints/${enc(id)}`));
+  }
+
+  /** Replace a notification endpoint's signing secret; the new secret is in this response only. */
+  rotateNotificationEndpointSecret(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `notification-endpoints/${enc(id)}/rotate-secret`));
+  }
+
+  /** Send a test notification now; returns the delivery after its first attempt. */
+  testNotificationEndpoint(tenantId, id) {
+    return this._request('POST', this._t(tenantId, `notification-endpoints/${enc(id)}/test`));
+  }
+
+  /** An endpoint's delivery log, newest first. filters: status, pageNumber, pageSize. */
+  listNotificationDeliveries(tenantId, id, params) {
+    return this._list(this._t(tenantId, `notification-endpoints/${enc(id)}/deliveries`), params);
+  }
+
+  /** One delivery with its payload. */
+  getNotificationDelivery(tenantId, id, deliveryId) {
+    return this._request('GET', this._t(tenantId, `notification-endpoints/${enc(id)}/deliveries/${enc(deliveryId)}`));
+  }
+
   // ------------------------------------------------------------------ pipelines (P12.9)
 
   /** Pipeline definitions: ordered agent stages with optional review gates. filters: search, pageNumber, pageSize. */

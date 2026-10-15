@@ -1912,3 +1912,224 @@ tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields
 tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
   CacheSeconds: "Wie lange jede Replik die Sitzungen, Mandanten, Benutzer und Anmeldedaten behält, die sie zur Authentifizierung liest, in Sekunden. Das Widerrufen eines Tokens oder Änderungen an Benutzern, Anmeldedaten, Rollen oder Mandanten über die API wirken sofort auf jeder Replik; dies ist die längste Zeit, die eine anders vorgenommene Änderung unbemerkt bleiben kann. 0 schaltet den Cache aus. Standard 5."
 });
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "triggers": "Läufe ohne Aufrufer starten: Cron-Zeitpläne in einer Zeitzone und Webhook-URLs, die HMAC-signierte Anfragen anderer Systeme annehmen.",
+   "notifications": "Andere Systeme informieren: Garrison sendet eine signierte JSON-Benachrichtigung, wenn ein Lauf oder eine Pipeline endet oder eine Freigabe auf eine Person wartet."
+  }
+ },
+ "filters": {
+  "type": "Nur Cron-Auslöser oder nur Webhook-Auslöser anzeigen. Alle zeigt beide.",
+  "outcome": "Nur Auslösungen anzeigen, die einen Lauf gestartet haben, fehlgeschlagen sind oder übersprungen wurden.",
+  "deliveryStatus": "Nur Zustellungen in einem Zustand anzeigen: wartend, im Versand, zugestellt oder aufgegeben."
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Löst nach einem fünfteiligen Cron-Zeitplan aus, den der Leader der Steuerungsebene in der Zeitzone des Auslösers auswertet.",
+   "Webhook": "Löst aus, wenn an seiner Webhook-URL eine mit seinem Geheimnis signierte Anfrage eintrifft."
+  },
+  "triggerTargetType": {
+   "Agent": "Jede Auslösung reiht einen Lauf des Agenten ein, auf fester Bereitstellung oder nach Gewichtung.",
+   "Pipeline": "Jede Auslösung startet einen Lauf der Pipeline mit allen Stufen."
+  },
+  "triggerFireSource": {
+   "Cron": "Der Cron-Zeitplan war fällig und der Leader hat ausgelöst.",
+   "Webhook": "Eine korrekt signierte Webhook-Zustellung ist eingetroffen.",
+   "Manual": "Eine Person oder ein Zugang hat Jetzt auslösen verwendet."
+  },
+  "triggerFireOutcome": {
+   "Started": "Die Auslösung hat einen Lauf oder Pipeline-Lauf erzeugt; folgen Sie dem Link.",
+   "Failed": "Nichts gestartet: Die Vorlage schlug fehl, der ausführende Prinzipal verlor den Zugriff oder das Ziel fehlte.",
+   "Skipped": "Der Termin wurde länger als die Cron-Nachholgrenze verpasst und nicht ausgelöst."
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Wird gesendet, wenn ein Lauf mit Status Erfolgreich endet.",
+   "RunFailed": "Wird gesendet, wenn ein Lauf fehlschlägt oder abgelehnt wird.",
+   "RunCancelled": "Wird gesendet, wenn ein Lauf vor dem Ende abgebrochen wird.",
+   "RunTimedOut": "Wird gesendet, wenn ein Lauf seine Frist überschreitet und gestoppt wird.",
+   "PipelineCompleted": "Wird gesendet, wenn alle Stufen eines Pipeline-Laufs erfolgreich waren.",
+   "PipelineFailed": "Wird gesendet, wenn ein Pipeline-Lauf scheitert, die Zeit überschreitet oder abgebrochen wird.",
+   "ApprovalRequested": "Wird gesendet, wenn eine Werkzeugfreigabe oder eine Stufenprüfung auf eine Person wartet.",
+   "Test": "Wird nur von der Aktion Test senden verschickt, um den Endpunkt zu prüfen."
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "Wartet auf den nächsten Versuch; Fehlversuche werden mit wachsenden Abständen wiederholt.",
+   "Delivering": "Ein Replikat der Steuerungsebene sendet sie gerade.",
+   "Succeeded": "Der Endpunkt hat mit einem 2xx-Status geantwortet; die Benachrichtigung ist erledigt.",
+   "Failed": "Garrison hat aufgegeben: Die Versuche sind aufgebraucht oder der Endpunkt antwortete mit einem Status, der nicht wiederholt wird."
+  },
+  "runKind": {
+   "Invoke": "Von einem Aufrufer über REST, MCP, A2A oder das Dashboard gestartet.",
+   "Delegated": "Von einem anderen Agenten über Garrison-Delegation gestartet.",
+   "Test": "Ein Testlauf einer Bereitstellung aus Dashboard oder API.",
+   "Retry": "Ein neuer Versuch eines früheren Laufs, den jemand wiederholt hat.",
+   "Pipeline": "Eine Stufenausführung eines Pipeline-Laufs.",
+   "Trigger": "Durch einen Cron-Zeitplan, einen signierten Webhook oder eine manuelle Auslösung gestartet."
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Jemand hat das Signaturgeheimnis eines Auslösers oder Benachrichtigungsendpunkts ersetzt; das alte ist ungültig."
+  }
+ },
+ "resources": {
+  "runs": {
+   "triggerId": "Der Auslöser, der diesen Lauf gestartet hat. Klicken öffnet seinen Auslöseverlauf.",
+   "kind": "Wie der Lauf gestartet wurde: durch einen Aufrufer, einen anderen Agenten, als Test, Wiederholung, Pipeline-Stufe oder durch einen Auslöser.",
+   "openTrigger": "Den Auslöseverlauf des Auslösers öffnen, der diesen Lauf gestartet hat."
+  },
+  "triggers": {
+   "add": "Einen Cron-Zeitplan oder signierten Webhook anlegen, der einen Agenten oder eine Pipeline ohne Aufrufer startet.",
+   "type": "Cron löst nach Zeitplan aus, Webhook bei einer signierten Anfrage eines anderen Systems. Später nicht änderbar.",
+   "target": "Was jede Auslösung startet: einen Lauf eines Agenten oder einer Pipeline.",
+   "schedule": "Der Cron-Ausdruck mit Zeitzone oder der Hinweis, dass der Auslöser auf Webhook-Zustellungen wartet.",
+   "lastFire": "Wann der Auslöser zuletzt ausgelöst hat und ob dabei ein Lauf startete.",
+   "nextFireUtc": "Wann ein aktiver Cron-Auslöser als Nächstes auslöst. Webhook- und inaktive Auslöser haben keinen Termin.",
+   "fireCount": "Wie oft dieser Auslöser ausgelöst hat, einschließlich fehlgeschlagener und übersprungener Auslösungen.",
+   "runAs": "Der Benutzer oder Zugang, als der die gestarteten Läufe handeln. Jede Auslösung prüft, ob er das Ziel noch ausführen darf.",
+   "signingSecretLast4": "Die letzten vier Zeichen des Signaturgeheimnisses, damit Sie erkennen, welches ein Absender verwendet.",
+   "targetType": "Ob jede Auslösung einen Agenten ausführt oder eine ganze Pipeline startet.",
+   "agentId": "Der Agent, den jede Auslösung ausführt. Sie brauchen die Berechtigung, ihn auszuführen.",
+   "deploymentId": "Läufe auf eine Bereitstellung des Agenten festlegen oder leer lassen, um nach Gewichtung zu wählen.",
+   "pipelineId": "Die Pipeline, die jede Auslösung startet. Sie brauchen die Berechtigung, sie und ihre Stufenagenten auszuführen.",
+   "inputTemplateId": "Die Prompt-Vorlage, die aus der Auslösung (Zeit, Nutzlast, Zustellungs-ID) die Laufeingabe macht.",
+   "priority": "Warteschlangenpriorität der gestarteten Läufe, von -100 bis 100. Höhere werden zuerst vergeben.",
+   "cronExpression": "Wann der Auslöser auslöst, als fünfteiliger Cron-Ausdruck oder Makro wie @hourly.",
+   "timeZone": "Die IANA-Zeitzone, in der der Cron-Ausdruck gelesen wird, zum Beispiel Europe/Berlin.",
+   "webhook": "Signierte POST-Anfragen hierher senden. Anfragen mit fehlender, veralteter oder falscher Signatur werden mit 401 abgelehnt.",
+   "actions": {
+    "fire": "Diesen Auslöser jetzt einmal auslösen, optional mit Testnutzlast, und den gestarteten Lauf sehen.",
+    "fires": "Sehen, wann und warum dieser Auslöser ausgelöst hat und welchen Lauf jede Auslösung startete.",
+    "runs": "Die Laufliste gefiltert auf die von diesem Auslöser gestarteten Läufe öffnen.",
+    "rotateSecret": "Ein neues Webhook-Signaturgeheimnis erzeugen. Das alte ist sofort ungültig."
+   },
+   "fires": {
+    "firedUtc": "Wann die Auslösung verarbeitet wurde. Cron-Auslösungen zeigen auch ihren Termin.",
+    "source": "Warum ausgelöst wurde: Zeitplan, Webhook-Zustellung oder eine Person.",
+    "outcome": "Ob die Auslösung einen Lauf startete, fehlschlug oder übersprungen wurde.",
+    "started": "Der Lauf oder Pipeline-Lauf dieser Auslösung. Klicken öffnet ihn.",
+    "deliveryId": "Der Header X-Garrison-Delivery der Webhook-Anfrage; Wiederholungen mit gleichem Wert lösen einmal aus.",
+    "error": "Warum die Auslösung nichts gestartet hat, mit stabilem Fehlercode.",
+    "runId": "Der Lauf dieser Auslösung. Klicken öffnet den Lauf.",
+    "pipelineRunId": "Der Pipeline-Lauf dieser Auslösung. Klicken öffnet ihn."
+   }
+  },
+  "notifications": {
+   "add": "Eine URL registrieren, die einen signierten HTTP-POST erhält, wenn gewählte Ereignisse in diesem Mandanten eintreten.",
+   "url": "Wohin Garrison Benachrichtigungen sendet. Private und Metadatenadressen werden abgelehnt, Weiterleitungen nicht verfolgt.",
+   "events": "Die Ereignisse, die dieser Endpunkt erhält. Fahren Sie über den Wert, um alle zu sehen.",
+   "filters": "Agenten- oder Bereitstellungsfilter, die einschränken, welche Lauf- und Freigabeereignisse gesendet werden.",
+   "signingSecretLast4": "Die letzten vier Zeichen des Signaturgeheimnisses, damit Empfänger erkennen, welches Geheimnis signiert.",
+   "includeResultText": "Ob Laufbenachrichtigungen den Ergebnistext enthalten, gekürzt auf die eingestellte Grenze.",
+   "agentId": "Nur Ereignisse zu Läufen dieses Agenten senden. Pipeline-Ereignisse entfallen, solange ein Filter gesetzt ist.",
+   "deploymentId": "Nur Ereignisse zu Läufen dieser Bereitstellung senden. Pipeline-Ereignisse entfallen, solange ein Filter gesetzt ist.",
+   "resultTextMaxChars": "Längster Ergebnistext in einer Benachrichtigung, in Zeichen.",
+   "actions": {
+    "test": "Jetzt eine Testbenachrichtigung senden und zeigen, ob der Endpunkt sie angenommen hat.",
+    "deliveries": "Alle an diesen Endpunkt gesendeten Benachrichtigungen mit Versuchen, HTTP-Status und Fehlern sehen.",
+    "rotateSecret": "Ein neues Signaturgeheimnis erzeugen. Bereits eingereihte Wiederholungen werden damit signiert."
+   },
+   "deliveries": {
+    "createdUtc": "Wann das Ereignis für diesen Endpunkt eingereiht wurde. Klicken zeigt die Details.",
+    "event": "Welches Ereignis diese Benachrichtigung meldet.",
+    "status": "Ob die Benachrichtigung wartet, gesendet wird, zugestellt oder aufgegeben ist.",
+    "attempts": "Bisherige Versuche und die Höchstzahl an Versuchen.",
+    "lastStatusCode": "HTTP-Status der letzten Antwort des Endpunkts; leer, wenn keine Antwort kam.",
+    "lastError": "Was beim letzten Versuch schiefging, etwa eine Zeitüberschreitung oder ein abgelehntes Ziel.",
+    "lastAttemptUtc": "Wann zuletzt versucht wurde, diese Benachrichtigung zu senden.",
+    "nextAttemptUtc": "Wann die nächste Wiederholung fällig ist; leer, sobald die Zustellung beendet ist.",
+    "deliveredUtc": "Wann der Endpunkt die Benachrichtigung angenommen hat.",
+    "payload": "Der genaue JSON-Inhalt, der bei jedem Versuch gesendet wird. Er enthält nie Geheimnisse.",
+    "id": "Zustellungskennung, auch als X-Garrison-Delivery gesendet, damit Empfänger Wiederholungen ignorieren können."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "Der Auslöser, der diesen Lauf gestartet hat, und wie der Lauf gestartet wurde.",
+   "openTrigger": "Den Auslöseverlauf dieses Auslösers unter Agenten > Auslöser öffnen."
+  },
+  "pipelineRunDetail": {
+   "trigger": "Der Auslöser, der diesen Pipeline-Lauf gestartet hat. Seine Stufenläufe tragen denselben Auslöser."
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Grenzen für Webhooks von Auslösern, das Nachholen von Cron-Terminen nach Ausfällen und die Aufbewahrung des Auslöseverlaufs.",
+    "Notifications": "Zustellung ausgehender Benachrichtigungen: SSRF-Schutz, Wiederholungen, Zeitlimits und Aufbewahrung des Zustellprotokolls."
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Größter Inhalt einer Webhook-Anfrage in Bytes. Größere Zustellungen erhalten 413, bevor die Signatur geprüft wird.",
+     "WebhookToleranceSeconds": "Größte Abweichung zwischen Signaturzeitstempel und Serveruhr. Ältere Zustellungen werden abgelehnt, sodass mitgeschnittene Anfragen nicht wiederholt werden können.",
+     "CronMaxLatenessSeconds": "Verpasste Cron-Termine werden zu einer Auslösung zusammengefasst, außer der letzte ist älter als so viele Sekunden; dann wird er als Übersprungen erfasst. 0 löst immer einmal aus.",
+     "FireRetentionDays": "Tage, die der Auslöseverlauf aufbewahrt wird."
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Benachrichtigungs-URLs in Loopback- und privaten Netzen erlauben. Standardmäßig aus, um Server-Side Request Forgery zu verhindern; Link-Local- und Metadatenadressen bleiben gesperrt.",
+     "MaxAttempts": "Höchstzahl an Zustellversuchen je Benachrichtigung, bevor sie als aufgegeben gilt.",
+     "InitialBackoffSeconds": "Wartezeit vor dem zweiten Versuch; jede weitere verdoppelt sich bis zur längsten Wartezeit.",
+     "MaxBackoffSeconds": "Die längste Wartezeit zwischen zwei Versuchen einer Benachrichtigung.",
+     "TimeoutSeconds": "Sekunden, die ein Zustellversuch samt Verbindungsaufbau dauern darf.",
+     "DispatchIntervalMs": "Wie oft jedes Replikat der Steuerungsebene nach fälligen Benachrichtigungen sucht, in Millisekunden.",
+     "SweepOverlapSeconds": "Sekunden bereits durchsuchter Historie, die der Leader bei jedem Durchlauf erneut liest, damit späte Ereignisse nicht verloren gehen.",
+     "DeliveryRetentionDays": "Tage, die abgeschlossene Zustellungen im Protokoll bleiben."
+    }
+   }
+  }
+ },
+ "signingSecret": {
+  "done": "Dieses Fenster schließen. Das Geheimnis kann nicht erneut angezeigt werden, kopieren Sie es vorher.",
+  "secret": "Das Signaturgeheimnis. Absender und Empfänger berechnen damit die HMAC-SHA256-Signatur.",
+  "copy": "Das Signaturgeheimnis in die Zwischenablage kopieren, um es im anderen System zu hinterlegen.",
+  "url": "Die URL, an die andere Systeme signierte Webhook-Zustellungen senden.",
+  "copyUrl": "Die Webhook-URL in die Zwischenablage kopieren."
+ },
+ "triggerFire": {
+  "submit": "Den Auslöser jetzt einmal mit dieser Nutzlast auslösen. Der Lauf startet als der ausführende Prinzipal des Auslösers.",
+  "body": "Optionaler Nutzlasttext. Die Eingabevorlage sieht ihn als webhook.body und als webhook.json, wenn er JSON ist.",
+  "contentType": "Medientyp der Nutzlast, etwa application/json. Leer für reinen Text.",
+  "openRun": "Den Lauf öffnen, den diese Auslösung gestartet hat.",
+  "openPipelineRun": "Den Pipeline-Lauf öffnen, den diese Auslösung gestartet hat."
+ },
+ "triggerFires": {
+  "refresh": "Die neuesten Auslösungen dieses Auslösers erneut laden."
+ },
+ "notificationDeliveries": {
+  "refresh": "Die neuesten Zustellungen dieses Endpunkts erneut laden.",
+  "open": "Nutzlast, Versuche und letzten Fehler dieser Zustellung unter der Liste anzeigen.",
+  "detail": "Alle Felder der gewählten Zustellung, einschließlich des gesendeten JSON-Inhalts."
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "triggers": {
+  "title": "Auslöser",
+  "p1": "Ein Auslöser startet einen Agentenlauf oder Pipeline-Lauf ohne Aufrufer: nach Cron-Zeitplan oder wenn ein anderes System einen mit seinem Geheimnis signierten Webhook sendet.",
+  "p2": "Die Laufeingabe stammt aus einer Prompt-Vorlage, die Auslösezeit und Webhook-Nutzlast verwenden kann. Läufe handeln als der Benutzer oder Zugang, der den Auslöser zuletzt gespeichert hat, und jede Auslösung prüft, ob dieser das Ziel noch ausführen darf.",
+  "p3": "Konnte eine Weile kein Replikat einen Zeitplan auslösen, werden die verpassten Termine zu einer Auslösung. Webhook-Zustellungen mit wiederholtem X-Garrison-Delivery-Wert lösen einmal aus."
+ },
+ "notifications": {
+  "title": "Benachrichtigungen",
+  "p1": "Ein Benachrichtigungsendpunkt erhält einen signierten JSON-POST, wenn ein abonniertes Ereignis eintritt: ein Lauf oder eine Pipeline endet oder eine Freigabe wartet auf eine Person.",
+  "p2": "Zustellungen werden dauerhaft eingereiht und mit wachsenden Abständen wiederholt. Jeder Versuch trägt dieselbe Zustellungs-ID, damit Empfänger Wiederholungen ignorieren können.",
+  "p3": "Benachrichtigungen enthalten nie Geheimnisse oder Laufeingaben und Laufausgaben nur, wenn Sie es erlauben. Private Netzadressen werden abgelehnt, solange ein Betreiber sie nicht erlaubt."
+ }
+});

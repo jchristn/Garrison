@@ -60,6 +60,11 @@ namespace Garrison.Core.Requests
         public string? PipelineRunId { get; set; } = null;
 
         /// <summary>
+        /// Trigger filter (runs a trigger started, P12.5).
+        /// </summary>
+        public string? TriggerId { get; set; } = null;
+
+        /// <summary>
         /// Outcome filter.
         /// </summary>
         public RunOutcomeEnum? Outcome { get; set; } = null;

@@ -1911,3 +1911,224 @@ tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields
 tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
   CacheSeconds: "每個副本保留其為驗證請求而讀取的工作階段、租用戶、使用者與憑證的時間 (秒)。透過 API 撤銷權杖，或變更使用者、憑證、角色或租用戶，會立即在所有副本生效；此值是以其他方式所做的變更可能未被察覺的最長時間。0 表示關閉快取。預設 5。"
 });
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "triggers": "不需呼叫端即可啟動執行：在指定時區計算的 cron 排程，以及接受其他系統 HMAC 簽章要求的 Webhook 網址。",
+   "notifications": "通知其他系統：執行或管線結束、或核准等待人員處理時，Garrison 會 POST 一則簽章的 JSON 通知。"
+  }
+ },
+ "filters": {
+  "type": "只顯示 cron 觸發器或只顯示 Webhook 觸發器。選擇全部可同時顯示。",
+  "outcome": "只顯示啟動了執行、失敗或遭略過的觸發。",
+  "deliveryStatus": "只顯示處於某種狀態的傳遞：等待中、傳送中、已送達或已放棄。"
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "依五欄位 cron 排程觸發，由控制平面領導者在觸發器的時區中計算。",
+   "Webhook": "當以觸發器密鑰簽章的要求抵達其 Webhook 網址時觸發。"
+  },
+  "triggerTargetType": {
+   "Agent": "每次觸發為代理程式排入一次執行，使用固定部署或依流量權重選擇。",
+   "Pipeline": "每次觸發啟動一次包含所有階段的管線執行。"
+  },
+  "triggerFireSource": {
+   "Cron": "cron 排程時間到，領導者執行了觸發。",
+   "Webhook": "收到一筆簽章正確的 Webhook 傳遞。",
+   "Manual": "有人或某個認證使用了「立即觸發」。"
+  },
+  "triggerFireOutcome": {
+   "Started": "這次觸發建立了執行或管線執行；點選連結查看。",
+   "Failed": "沒有啟動任何內容：範本失敗、執行身分失去權限，或目標不存在。",
+   "Skipped": "錯過該次排程的時間超過 cron 補觸發上限，因此未觸發。"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "執行以成功狀態結束時傳送。",
+   "RunFailed": "執行失敗或遭拒絕時傳送。",
+   "RunCancelled": "執行在結束前遭取消時傳送。",
+   "RunTimedOut": "執行超過期限而遭停止時傳送。",
+   "PipelineCompleted": "管線執行的所有階段都成功時傳送。",
+   "PipelineFailed": "管線執行失敗、逾時或遭取消時傳送。",
+   "ApprovalRequested": "工具呼叫核准或管線階段審查等待人員處理時傳送。",
+   "Test": "只由「傳送測試」動作傳送，用來檢查端點是否正常。"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "等待下一次嘗試；失敗的嘗試會以遞增的間隔重試。",
+   "Delivering": "某個控制平面複本正在傳送。",
+   "Succeeded": "端點回應 2xx 狀態，通知已完成。",
+   "Failed": "Garrison 已停止嘗試：嘗試次數用完，或端點回應了不會重試的狀態。"
+  },
+  "runKind": {
+   "Invoke": "由呼叫端透過 REST、MCP、A2A 或儀表板啟動。",
+   "Delegated": "由另一個代理程式透過 Garrison 委派啟動。",
+   "Test": "從儀表板或 API 對某個部署進行的測試執行。",
+   "Retry": "有人重試先前執行所產生的新嘗試。",
+   "Pipeline": "管線執行中的一次階段執行。",
+   "Trigger": "由 cron 排程、簽章 Webhook 或觸發器的手動觸發啟動。"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "有人取代了觸發器或通知端點的簽章密鑰，舊密鑰已失效。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "triggerId": "啟動此執行的觸發器。點選可開啟該觸發器的觸發紀錄。",
+   "kind": "執行的啟動方式：呼叫端、另一個代理程式、測試、重試、管線階段或觸發器。",
+   "openTrigger": "開啟啟動此執行之觸發器的觸發紀錄。"
+  },
+  "triggers": {
+   "add": "建立 cron 排程或簽章 Webhook，不需任何人呼叫即可啟動代理程式或管線。",
+   "type": "Cron 依排程觸發；Webhook 在其他系統傳送簽章要求時觸發。建立後無法變更。",
+   "target": "每次觸發所啟動的內容：代理程式執行或管線執行。",
+   "schedule": "cron 運算式及其時區，或表示觸發器在等待 Webhook 傳遞的說明。",
+   "lastFire": "觸發器上次觸發的時間，以及那次觸發是否啟動了執行。",
+   "nextFireUtc": "啟用中的 cron 觸發器下次觸發的時間。Webhook 觸發器與未啟用的觸發器沒有此項。",
+   "fireCount": "此觸發器的觸發次數，包括失敗與略過的觸發。",
+   "runAs": "此觸發器所啟動執行使用的使用者或認證身分。每次觸發都會檢查其是否仍可執行目標。",
+   "signingSecretLast4": "Webhook 簽章密鑰的最後四個字元，方便辨識傳送端使用的是哪個密鑰。",
+   "targetType": "每次觸發是執行一個代理程式，還是啟動整條管線。",
+   "agentId": "每次觸發要執行的代理程式。您需要有執行它的權限。",
+   "deploymentId": "將執行固定到代理程式的某個部署；留白則依流量權重選擇。",
+   "pipelineId": "每次觸發要啟動的管線。您需要有啟動它並執行其階段代理程式的權限。",
+   "inputTemplateId": "將觸發（時間、酬載、傳遞 ID）轉換為執行輸入的提示範本。",
+   "priority": "此觸發器所啟動執行在佇列中的優先順序，範圍 -100 到 100。數值越大越先分配。",
+   "cronExpression": "觸發的時間，使用五欄位 cron 運算式或 @hourly 等巨集。",
+   "timeZone": "解讀 cron 運算式所用的 IANA 時區，例如 Asia/Taipei。",
+   "webhook": "將簽章的 POST 要求傳送到這裡。簽章遺失、過期或錯誤的要求會以 401 拒絕。",
+   "actions": {
+    "fire": "立即觸發一次（可附測試酬載），並查看它所啟動的執行。",
+    "fires": "查看此觸發器何時、為何觸發，以及每次觸發啟動了哪個執行。",
+    "runs": "開啟已篩選為此觸發器所啟動執行的執行清單。",
+    "rotateSecret": "產生新的 Webhook 簽章密鑰。舊密鑰會立即失效。"
+   },
+   "fires": {
+    "firedUtc": "處理這次觸發的時間。cron 觸發也會顯示對應的排程時間。",
+    "source": "觸發原因：排程、Webhook 傳遞或人員操作。",
+    "outcome": "這次觸發是啟動了執行、失敗還是遭略過。",
+    "started": "這次觸發建立的執行或管線執行。點選即可開啟。",
+    "deliveryId": "Webhook 要求的 X-Garrison-Delivery 標頭；相同值的重複要求只觸發一次。",
+    "error": "這次觸發沒有啟動任何內容的原因，附穩定的錯誤代碼。",
+    "runId": "這次觸發建立的執行。點選即可開啟。",
+    "pipelineRunId": "這次觸發啟動的管線執行。點選即可開啟。"
+   }
+  },
+  "notifications": {
+   "add": "註冊一個 URL，在此租用戶發生所選事件時接收簽章的 HTTP POST。",
+   "url": "Garrison 傳送通知的位址。私人與中繼資料位址會遭拒，且不跟隨重新導向。",
+   "events": "此端點接收的事件。將滑鼠移到值上可查看全部。",
+   "filters": "用來限定傳送哪些執行與核准事件的代理程式或部署篩選。",
+   "signingSecretLast4": "簽章密鑰的最後四個字元，方便接收端辨識是哪個密鑰簽章。",
+   "includeResultText": "執行通知是否包含結果文字，並依設定的上限截斷。",
+   "agentId": "只傳送此代理程式執行的事件。設定篩選時不傳送管線事件。",
+   "deploymentId": "只傳送此部署執行的事件。設定篩選時不傳送管線事件。",
+   "resultTextMaxChars": "通知中包含的結果文字的最大字元數。",
+   "actions": {
+    "test": "立即傳送測試通知，並顯示端點是否接受。",
+    "deliveries": "查看傳送到此端點的所有通知，包含嘗試次數、HTTP 狀態與錯誤。",
+    "rotateSecret": "產生新的簽章密鑰。已排入佇列的重試也會以它簽章。"
+   },
+   "deliveries": {
+    "createdUtc": "事件為此端點排入佇列的時間。點選可查看詳細資料。",
+    "event": "此通知回報的事件。",
+    "status": "通知是等待中、傳送中、已送達還是已放棄。",
+    "attempts": "目前已嘗試的次數與最多嘗試次數。",
+    "lastStatusCode": "最近一次嘗試時端點回應的 HTTP 狀態；沒有回應時為空白。",
+    "lastError": "最近一次嘗試發生的問題，例如逾時或目的地遭拒。",
+    "lastAttemptUtc": "最近一次嘗試傳送此通知的時間。",
+    "nextAttemptUtc": "下次重試的時間；傳遞結束後為空白。",
+    "deliveredUtc": "端點接受此通知的時間。",
+    "payload": "每次嘗試傳送的完整 JSON 本文，絕不包含密鑰。",
+    "id": "傳遞識別碼，也會以 X-Garrison-Delivery 傳送，方便接收端忽略重複。"
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "啟動此執行的觸發器，以及執行的啟動方式。",
+   "openTrigger": "在「代理程式 > 觸發器」中開啟此觸發器的觸發紀錄。"
+  },
+  "pipelineRunDetail": {
+   "trigger": "啟動此管線執行的觸發器。其階段執行也記錄同一個觸發器。"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "觸發器 Webhook 的限制、停機後的 cron 補觸發，以及觸發紀錄的保留期間。",
+    "Notifications": "外送通知的傳遞：SSRF 防護、重試與等待、逾時，以及傳遞紀錄的保留期間。"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Webhook 要求本文的最大位元組數。超過的傳遞會在檢查簽章前回應 413。",
+     "WebhookToleranceSeconds": "簽章時間戳記與伺服器時鐘的最大差距。過舊的傳遞會遭拒，因此攔截到的要求無法重送。",
+     "CronMaxLatenessSeconds": "錯過的 cron 排程會合併為一次觸發；若最近一次早於此秒數，則記為已略過。0 表示一律觸發一次。",
+     "FireRetentionDays": "觸發紀錄在刪除前保留的天數。"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "允許迴路與私人網路上的通知 URL。為防止伺服器端要求偽造而預設關閉；連結本機與中繼資料位址一律封鎖。",
+     "MaxAttempts": "一則通知在放棄前最多的傳遞嘗試次數。",
+     "InitialBackoffSeconds": "第二次嘗試前的等待時間；之後每次加倍，直到最長等待時間。",
+     "MaxBackoffSeconds": "一則通知兩次嘗試之間的最長等待時間。",
+     "TimeoutSeconds": "一次傳遞嘗試（包含連線）允許的秒數。",
+     "DispatchIntervalMs": "每個控制平面複本尋找到期通知的間隔，單位為毫秒。",
+     "SweepOverlapSeconds": "領導者每次重新讀取的已掃描歷程秒數，避免漏掉延遲寫入的事件。",
+     "DeliveryRetentionDays": "已結束的傳遞在紀錄中保留的天數。"
+    }
+   }
+  }
+ },
+ "signingSecret": {
+  "done": "關閉此視窗。密鑰無法再次顯示，請先複製。",
+  "secret": "簽章密鑰。傳送端與接收端用它計算 HMAC-SHA256 簽章。",
+  "copy": "將簽章密鑰複製到剪貼簿，以便存到另一個系統中。",
+  "url": "其他系統 POST 簽章 Webhook 傳遞的網址。",
+  "copyUrl": "將 Webhook 網址複製到剪貼簿。"
+ },
+ "triggerFire": {
+  "submit": "立即以此酬載觸發一次。執行會以觸發器的執行身分啟動。",
+  "body": "選填的酬載文字。輸入範本以 webhook.body 讀取，若為 JSON 也可透過 webhook.json 讀取。",
+  "contentType": "酬載的媒體類型，例如 application/json。純文字請留白。",
+  "openRun": "開啟這次觸發所啟動的執行。",
+  "openPipelineRun": "開啟這次觸發所啟動的管線執行。"
+ },
+ "triggerFires": {
+  "refresh": "重新載入此觸發器的最新觸發紀錄。"
+ },
+ "notificationDeliveries": {
+  "refresh": "重新載入此端點的最新傳遞。",
+  "open": "在清單下方顯示此傳遞的酬載、嘗試次數與最近錯誤。",
+  "detail": "所選傳遞的所有欄位，包括已傳送的 JSON 本文。"
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "triggers": {
+  "title": "觸發器",
+  "p1": "觸發器不需任何人呼叫即可啟動代理程式執行或管線執行：依 cron 排程，或在其他系統傳送以觸發器密鑰簽章的 Webhook 時。",
+  "p2": "執行輸入來自提示範本，可使用觸發時間與 Webhook 酬載。執行會以最後儲存觸發器的使用者或認證身分進行，每次觸發都會檢查其是否仍可執行目標。",
+  "p3": "如果一段時間內沒有複本能觸發某個排程，錯過的排程會合併為一次觸發。X-Garrison-Delivery 值重複的 Webhook 傳遞只會觸發一次。"
+ },
+ "notifications": {
+  "title": "通知",
+  "p1": "當訂閱的事件發生時（執行或管線結束，或核准等待人員處理），通知端點會收到簽章的 JSON POST。",
+  "p2": "傳遞會持久排入佇列，並以遞增的間隔重試。每次嘗試都帶有相同的傳遞 ID，接收端可據此忽略重複。",
+  "p3": "通知絕不包含密鑰或執行輸入，只有在您允許時才包含執行輸出。除非維運人員允許，否則私人網路位址會遭拒。"
+ }
+});

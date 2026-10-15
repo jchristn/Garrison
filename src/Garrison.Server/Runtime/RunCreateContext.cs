@@ -119,6 +119,11 @@ namespace Garrison.Server.Runtime
         public int PipelineExecution { get; set; } = 0;
 
         /// <summary>
+        /// Trigger that started the run (P12.5), or null.
+        /// </summary>
+        public string? TriggerId { get; set; } = null;
+
+        /// <summary>
         /// Identifier to give the new run, or null (the default) to generate one. The delegation wait handshake (P12.38)
         /// records the parent's wait on this identifier before the run exists. An idempotent retry still returns the
         /// existing run with its own identifier.

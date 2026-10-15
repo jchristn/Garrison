@@ -1914,3 +1914,224 @@ tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields
 tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
   CacheSeconds: "Durée pendant laquelle chaque réplique conserve les sessions, locataires, utilisateurs et identifiants qu’elle lit pour authentifier les requêtes, en secondes. Révoquer un jeton ou modifier des utilisateurs, identifiants, rôles ou locataires via l’API prend effet immédiatement sur toutes les répliques ; c’est la durée maximale pendant laquelle une modification faite autrement peut passer inaperçue. 0 désactive le cache. Par défaut 5."
 });
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "triggers": "Lancer des exécutions sans appelant : planifications cron évaluées dans un fuseau horaire et URL de webhook qui acceptent des requêtes signées HMAC d'autres systèmes.",
+   "notifications": "Prévenir d'autres systèmes : Garrison envoie en POST une notification JSON signée quand une exécution ou un pipeline se termine ou qu'une approbation attend une personne."
+  }
+ },
+ "filters": {
+  "type": "Afficher uniquement les déclencheurs cron ou uniquement les déclencheurs webhook. Tous affiche les deux.",
+  "outcome": "Afficher uniquement les déclenchements qui ont lancé une exécution, échoué ou été ignorés.",
+  "deliveryStatus": "Afficher uniquement les livraisons dans un état : en attente, en cours, livrées ou abandonnées."
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Se déclenche selon une planification cron à cinq champs que le leader du plan de contrôle évalue dans le fuseau du déclencheur.",
+   "Webhook": "Se déclenche quand une requête signée avec le secret du déclencheur arrive à son URL."
+  },
+  "triggerTargetType": {
+   "Agent": "Chaque déclenchement met en file une exécution de l'agent, sur un déploiement fixe ou selon le poids du trafic.",
+   "Pipeline": "Chaque déclenchement lance une exécution du pipeline avec toutes ses étapes."
+  },
+  "triggerFireSource": {
+   "Cron": "La planification cron est arrivée à échéance et le leader a déclenché.",
+   "Webhook": "Une livraison de webhook correctement signée est arrivée.",
+   "Manual": "Une personne ou un identifiant a utilisé l'action Déclencher maintenant."
+  },
+  "triggerFireOutcome": {
+   "Started": "Le déclenchement a créé une exécution ou une exécution de pipeline ; suivez le lien pour la voir.",
+   "Failed": "Rien n'a été lancé : le modèle a échoué, l'identité d'exécution a perdu son accès ou la cible manquait.",
+   "Skipped": "L'occurrence a été manquée plus longtemps que la limite de rattrapage cron et n'a pas été déclenchée."
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Envoyé quand une exécution se termine avec succès.",
+   "RunFailed": "Envoyé quand une exécution échoue ou est rejetée.",
+   "RunCancelled": "Envoyé quand une exécution est annulée avant la fin.",
+   "RunTimedOut": "Envoyé quand une exécution dépasse son échéance et est arrêtée.",
+   "PipelineCompleted": "Envoyé quand toutes les étapes d'une exécution de pipeline ont réussi.",
+   "PipelineFailed": "Envoyé quand une exécution de pipeline échoue, dépasse son délai ou est annulée.",
+   "ApprovalRequested": "Envoyé quand une approbation d'outil ou une revue d'étape attend une personne.",
+   "Test": "Envoyé uniquement par l'action Envoyer un essai, pour vérifier que le point de terminaison fonctionne."
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "Attend sa prochaine tentative ; les échecs sont relancés avec des délais croissants.",
+   "Delivering": "Une réplique du plan de contrôle l'envoie en ce moment.",
+   "Succeeded": "Le point de terminaison a répondu avec un statut 2xx ; la notification est terminée.",
+   "Failed": "Garrison a abandonné : les tentatives sont épuisées ou le point de terminaison a répondu avec un statut non relancé."
+  },
+  "runKind": {
+   "Invoke": "Lancée par un appelant via REST, MCP, A2A ou le tableau de bord.",
+   "Delegated": "Lancée par un autre agent via la délégation Garrison.",
+   "Test": "Une exécution d'essai d'un déploiement depuis le tableau de bord ou l'API.",
+   "Retry": "Une nouvelle tentative d'une exécution précédente relancée par quelqu'un.",
+   "Pipeline": "L'exécution d'une étape d'une exécution de pipeline.",
+   "Trigger": "Lancée par une planification cron, un webhook signé ou un déclenchement manuel."
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Quelqu'un a remplacé le secret de signature d'un déclencheur ou d'un point de terminaison de notification ; l'ancien ne fonctionne plus."
+  }
+ },
+ "resources": {
+  "runs": {
+   "triggerId": "Le déclencheur qui a lancé cette exécution. Cliquez pour ouvrir son historique de déclenchements.",
+   "kind": "Comment l'exécution a été lancée : par un appelant, un autre agent, comme essai, nouvelle tentative, étape de pipeline ou par un déclencheur.",
+   "openTrigger": "Ouvrir l'historique du déclencheur qui a lancé cette exécution."
+  },
+  "triggers": {
+   "add": "Créer une planification cron ou un webhook signé qui lance un agent ou un pipeline sans que personne ne l'appelle.",
+   "type": "Cron se déclenche selon une planification ; Webhook quand un autre système envoie une requête signée. Non modifiable ensuite.",
+   "target": "Ce que lance chaque déclenchement : une exécution d'agent ou de pipeline.",
+   "schedule": "L'expression cron et son fuseau horaire, ou l'indication que le déclencheur attend des livraisons de webhook.",
+   "lastFire": "Quand le déclencheur s'est déclenché pour la dernière fois et si cela a lancé une exécution.",
+   "nextFireUtc": "Quand un déclencheur cron actif se déclenchera ensuite. Les déclencheurs webhook et inactifs n'en ont pas.",
+   "fireCount": "Nombre de déclenchements, y compris ceux qui ont échoué ou été ignorés.",
+   "runAs": "L'utilisateur ou l'identifiant au nom duquel agissent les exécutions. Chaque déclenchement vérifie qu'il peut encore exécuter la cible.",
+   "signingSecretLast4": "Les quatre derniers caractères du secret de signature, pour savoir quel secret un expéditeur utilise.",
+   "targetType": "Si chaque déclenchement exécute un agent ou lance un pipeline complet.",
+   "agentId": "L'agent exécuté à chaque déclenchement. Vous devez avoir le droit de l'exécuter.",
+   "deploymentId": "Fixer les exécutions sur un déploiement de l'agent, ou laisser vide pour choisir selon le poids.",
+   "pipelineId": "Le pipeline lancé à chaque déclenchement. Vous devez pouvoir le lancer et exécuter ses agents d'étape.",
+   "inputTemplateId": "Le modèle de prompt qui transforme le déclenchement (heure, charge utile, ID de livraison) en entrée d'exécution.",
+   "priority": "Priorité en file des exécutions lancées, de -100 à 100. Les plus élevées sont attribuées d'abord.",
+   "cronExpression": "Quand le déclencheur se déclenche, sous forme d'expression cron à cinq champs ou de macro comme @hourly.",
+   "timeZone": "Le fuseau IANA dans lequel l'expression cron est lue, par exemple Europe/Paris.",
+   "webhook": "Envoyez ici des requêtes POST signées. Celles dont la signature manque, a expiré ou est fausse sont refusées avec 401.",
+   "actions": {
+    "fire": "Déclencher une fois maintenant, avec une charge utile d'essai facultative, et voir l'exécution lancée.",
+    "fires": "Voir quand et pourquoi ce déclencheur s'est déclenché et quelle exécution chaque déclenchement a lancée.",
+    "runs": "Ouvrir la liste des exécutions filtrée sur celles lancées par ce déclencheur.",
+    "rotateSecret": "Créer un nouveau secret de signature du webhook. L'ancien cesse de fonctionner immédiatement."
+   },
+   "fires": {
+    "firedUtc": "Quand le déclenchement a été traité. Les déclenchements cron indiquent aussi leur occurrence.",
+    "source": "Pourquoi il a été déclenché : sa planification, une livraison de webhook ou une personne.",
+    "outcome": "Si le déclenchement a lancé une exécution, échoué ou été ignoré.",
+    "started": "L'exécution ou l'exécution de pipeline créée par ce déclenchement. Cliquez pour l'ouvrir.",
+    "deliveryId": "L'en-tête X-Garrison-Delivery de la requête ; les répétitions avec la même valeur déclenchent une fois.",
+    "error": "Pourquoi le déclenchement n'a rien lancé, avec un code d'erreur stable.",
+    "runId": "L'exécution créée par ce déclenchement. Cliquez pour l'ouvrir.",
+    "pipelineRunId": "L'exécution de pipeline lancée par ce déclenchement. Cliquez pour l'ouvrir."
+   }
+  },
+  "notifications": {
+   "add": "Enregistrer une URL qui reçoit un POST HTTP signé quand les événements choisis surviennent dans ce locataire.",
+   "url": "Où Garrison envoie les notifications. Les adresses privées et de métadonnées sont refusées et les redirections ne sont pas suivies.",
+   "events": "Les événements reçus par ce point de terminaison. Survolez la valeur pour les voir tous.",
+   "filters": "Filtres d'agent ou de déploiement qui limitent les événements d'exécution et d'approbation envoyés.",
+   "signingSecretLast4": "Les quatre derniers caractères du secret de signature, pour que les destinataires sachent quel secret signe.",
+   "includeResultText": "Si les notifications d'exécution incluent le texte du résultat, coupé à la limite configurée.",
+   "agentId": "N'envoyer que les événements des exécutions de cet agent. Les événements de pipeline s'arrêtent tant qu'un filtre est défini.",
+   "deploymentId": "N'envoyer que les événements des exécutions de ce déploiement. Les événements de pipeline s'arrêtent tant qu'un filtre est défini.",
+   "resultTextMaxChars": "Texte de résultat le plus long inclus dans une notification, en caractères.",
+   "actions": {
+    "test": "Envoyer maintenant une notification d'essai et montrer si le point de terminaison l'a acceptée.",
+    "deliveries": "Voir toutes les notifications envoyées à ce point de terminaison avec tentatives, statut HTTP et erreurs.",
+    "rotateSecret": "Créer un nouveau secret de signature. Les nouvelles tentatives déjà en file sont aussi signées avec."
+   },
+   "deliveries": {
+    "createdUtc": "Quand l'événement a été mis en file pour ce point de terminaison. Cliquez pour voir les détails.",
+    "event": "Quel événement cette notification signale.",
+    "status": "Si la notification attend, est en cours, livrée ou abandonnée.",
+    "attempts": "Tentatives faites jusqu'ici et le maximum prévu.",
+    "lastStatusCode": "Statut HTTP renvoyé par le point de terminaison à la dernière tentative ; vide sans réponse.",
+    "lastError": "Ce qui a échoué à la dernière tentative, comme un délai dépassé ou une destination refusée.",
+    "lastAttemptUtc": "Quand l'envoi de cette notification a été tenté pour la dernière fois.",
+    "nextAttemptUtc": "Quand la prochaine tentative est prévue ; vide une fois la livraison terminée.",
+    "deliveredUtc": "Quand le point de terminaison a accepté la notification.",
+    "payload": "Le corps JSON exact envoyé à chaque tentative. Il ne contient jamais de secrets.",
+    "id": "Identifiant de livraison, aussi envoyé dans X-Garrison-Delivery pour que les destinataires ignorent les répétitions."
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "Le déclencheur qui a lancé cette exécution, et comment l'exécution a été lancée.",
+   "openTrigger": "Ouvrir l'historique de ce déclencheur dans Agents > Déclencheurs."
+  },
+  "pipelineRunDetail": {
+   "trigger": "Le déclencheur qui a lancé cette exécution de pipeline. Ses exécutions d'étape portent le même déclencheur."
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Limites des webhooks de déclencheurs, rattrapage cron après une panne et conservation de l'historique des déclenchements.",
+    "Notifications": "Livraison des notifications sortantes : protection SSRF, relances et délais, délais maximaux et conservation du journal des livraisons."
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Corps de requête webhook maximal en octets. Les livraisons plus grosses reçoivent 413 avant la vérification de la signature.",
+     "WebhookToleranceSeconds": "Écart maximal entre l'horodatage de la signature et l'horloge du serveur. Les livraisons trop anciennes sont refusées, donc une requête capturée ne peut pas être rejouée.",
+     "CronMaxLatenessSeconds": "Les occurrences cron manquées sont regroupées en un déclenchement, sauf si la dernière date de plus de ce nombre de secondes ; elle est alors notée Ignoré. 0 déclenche toujours une fois.",
+     "FireRetentionDays": "Jours de conservation de l'historique des déclenchements."
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Autoriser les URL de notification sur les réseaux de bouclage et privés. Désactivé par défaut pour empêcher la falsification de requêtes côté serveur ; les adresses de lien local et de métadonnées restent bloquées.",
+     "MaxAttempts": "Nombre maximal de tentatives de livraison d'une notification avant de l'abandonner.",
+     "InitialBackoffSeconds": "Délai avant la deuxième tentative ; chaque délai suivant double jusqu'au délai maximal.",
+     "MaxBackoffSeconds": "Le délai le plus long entre deux tentatives d'une notification.",
+     "TimeoutSeconds": "Secondes accordées à une tentative de livraison, connexion comprise.",
+     "DispatchIntervalMs": "Fréquence à laquelle chaque réplique du plan de contrôle cherche des notifications à envoyer, en millisecondes.",
+     "SweepOverlapSeconds": "Secondes d'historique déjà parcouru que le leader relit à chaque passage pour ne pas manquer d'événements tardifs.",
+     "DeliveryRetentionDays": "Jours pendant lesquels les livraisons terminées restent dans le journal."
+    }
+   }
+  }
+ },
+ "signingSecret": {
+  "done": "Fermer cette fenêtre. Le secret ne peut pas être réaffiché, copiez-le d'abord.",
+  "secret": "Le secret de signature. Expéditeurs et destinataires calculent avec lui la signature HMAC-SHA256.",
+  "copy": "Copier le secret de signature dans le presse-papiers pour l'enregistrer dans l'autre système.",
+  "url": "L'URL à laquelle d'autres systèmes envoient en POST des livraisons de webhook signées.",
+  "copyUrl": "Copier l'URL du webhook dans le presse-papiers."
+ },
+ "triggerFire": {
+  "submit": "Déclencher une fois maintenant avec cette charge utile. L'exécution démarre avec l'identité d'exécution du déclencheur.",
+  "body": "Texte de charge utile facultatif. Le modèle d'entrée le voit comme webhook.body, et comme webhook.json s'il s'agit de JSON.",
+  "contentType": "Type de média de la charge utile, comme application/json. Vide pour du texte brut.",
+  "openRun": "Ouvrir l'exécution lancée par ce déclenchement.",
+  "openPipelineRun": "Ouvrir l'exécution de pipeline lancée par ce déclenchement."
+ },
+ "triggerFires": {
+  "refresh": "Recharger les déclenchements les plus récents de ce déclencheur."
+ },
+ "notificationDeliveries": {
+  "refresh": "Recharger les livraisons les plus récentes de ce point de terminaison.",
+  "open": "Afficher la charge utile, les tentatives et la dernière erreur de cette livraison sous la liste.",
+  "detail": "Tous les champs de la livraison sélectionnée, y compris le corps JSON envoyé."
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "triggers": {
+  "title": "Déclencheurs",
+  "p1": "Un déclencheur lance une exécution d'agent ou de pipeline sans que personne ne l'appelle : selon une planification cron ou quand un autre système envoie un webhook signé avec le secret du déclencheur.",
+  "p2": "L'entrée de l'exécution provient d'un modèle de prompt qui peut utiliser l'heure du déclenchement et la charge utile du webhook. Les exécutions agissent au nom de l'utilisateur ou de l'identifiant qui a enregistré le déclencheur en dernier, et chaque déclenchement vérifie qu'il peut encore exécuter la cible.",
+  "p3": "Si aucune réplique n'a pu déclencher une planification pendant un moment, les occurrences manquées deviennent un seul déclenchement. Les livraisons de webhook qui répètent une valeur X-Garrison-Delivery ne déclenchent qu'une fois."
+ },
+ "notifications": {
+  "title": "Notifications sortantes",
+  "p1": "Un point de terminaison de notification reçoit un POST JSON signé quand un événement suivi survient : une exécution ou un pipeline qui se termine, ou une approbation qui attend une personne.",
+  "p2": "Les livraisons sont mises en file de façon durable et relancées avec des délais croissants. Chaque tentative porte le même ID de livraison, pour que les destinataires ignorent les répétitions.",
+  "p3": "Les notifications n'incluent jamais de secrets ni l'entrée de l'exécution, et la sortie seulement si vous l'autorisez. Les adresses de réseaux privés sont refusées sauf si un opérateur les autorise."
+ }
+});

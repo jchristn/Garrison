@@ -1,4 +1,4 @@
--- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 24).
+-- Garrison reference schema for Sqlite. Generated from Garrison.Core SchemaBuilder (migrations 1 to 28).
 -- Apply it, then set Database.ManageSchema=false, if Garrison must not create tables itself.
 CREATE TABLE IF NOT EXISTS "schema_migrations" (
     version INTEGER NOT NULL PRIMARY KEY,
@@ -1364,3 +1364,121 @@ CREATE TABLE IF NOT EXISTS "deployment_egress_rules" (
     protocol VARCHAR(8) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "idx_deployment_egress_rules_parent" ON "deployment_egress_rules" ("deploymentid", "position");
+
+-- Migration 28: Cron and webhook triggers, notification endpoints, and the notification outbox
+ALTER TABLE "runs" ADD COLUMN triggerid VARCHAR(64);
+ALTER TABLE "pipeline_runs" ADD COLUMN triggerid VARCHAR(64);
+CREATE INDEX IF NOT EXISTS "idx_runs_trigger" ON "runs" ("tenantid", "triggerid", "createdutc") WHERE triggerid IS NOT NULL;
+CREATE TABLE IF NOT EXISTS "triggers" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    triggertype VARCHAR(32) NOT NULL,
+    targettype VARCHAR(32) NOT NULL,
+    agentid VARCHAR(64),
+    deploymentid VARCHAR(64),
+    pipelineid VARCHAR(64),
+    inputtemplateid VARCHAR(256),
+    priority INTEGER NOT NULL,
+    cronexpression VARCHAR(256),
+    timezone VARCHAR(128) NOT NULL,
+    active INTEGER NOT NULL,
+    secretencrypted TEXT,
+    secretkeyversion INTEGER NOT NULL,
+    secretlast4 VARCHAR(8),
+    secretrotatedutc TEXT,
+    runastype VARCHAR(32) NOT NULL,
+    runasid VARCHAR(64),
+    runasname VARCHAR(256),
+    lastfireutc TEXT,
+    lastfireoutcome VARCHAR(32),
+    nextfireutc TEXT,
+    firecount BIGINT NOT NULL,
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_triggers_tenantname" ON "triggers" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_triggers_due" ON "triggers" ("triggertype", "active", "nextfireutc");
+CREATE INDEX IF NOT EXISTS "idx_triggers_tenantcreated" ON "triggers" ("tenantid", "createdutc");
+CREATE TABLE IF NOT EXISTS "trigger_fires" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    triggerid VARCHAR(64) NOT NULL,
+    triggername VARCHAR(128) NOT NULL,
+    source VARCHAR(32) NOT NULL,
+    firekey VARCHAR(256) NOT NULL,
+    deliveryid VARCHAR(128),
+    scheduledutc TEXT NOT NULL,
+    firedutc TEXT NOT NULL,
+    outcome VARCHAR(32) NOT NULL,
+    runid VARCHAR(64),
+    pipelinerunid VARCHAR(64),
+    errorcode VARCHAR(64),
+    errormessage TEXT,
+    createdutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_trigger_fires_key" ON "trigger_fires" ("triggerid", "firekey");
+CREATE INDEX IF NOT EXISTS "idx_trigger_fires_trigger" ON "trigger_fires" ("tenantid", "triggerid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_trigger_fires_created" ON "trigger_fires" ("createdutc");
+CREATE TABLE IF NOT EXISTS "notification_endpoints" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    url VARCHAR(2048) NOT NULL,
+    agentid VARCHAR(64),
+    deploymentid VARCHAR(64),
+    includeresulttext INTEGER NOT NULL,
+    resulttextmaxchars INTEGER NOT NULL,
+    active INTEGER NOT NULL,
+    secretencrypted TEXT,
+    secretkeyversion INTEGER NOT NULL,
+    secretlast4 VARCHAR(8),
+    secretrotatedutc TEXT,
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_notification_endpoints_tenantname" ON "notification_endpoints" ("tenantid", "name");
+CREATE INDEX IF NOT EXISTS "idx_notification_endpoints_active" ON "notification_endpoints" ("active");
+CREATE TABLE IF NOT EXISTS "notification_endpoint_events" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    endpointid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    eventname VARCHAR(64) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_notification_endpoint_events_parent" ON "notification_endpoint_events" ("endpointid", "position");
+CREATE TABLE IF NOT EXISTS "notification_deliveries" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    tenantid VARCHAR(64) NOT NULL,
+    endpointid VARCHAR(64) NOT NULL,
+    eventname VARCHAR(64) NOT NULL,
+    eventkey VARCHAR(256) NOT NULL,
+    subjecttype VARCHAR(32) NOT NULL,
+    subjectid VARCHAR(64),
+    status VARCHAR(32) NOT NULL,
+    attempts INTEGER NOT NULL,
+    maxattempts INTEGER NOT NULL,
+    nextattemptutc TEXT,
+    claimedby VARCHAR(128),
+    claimuntilutc TEXT,
+    laststatuscode INTEGER,
+    lasterror TEXT,
+    lastattemptutc TEXT,
+    lastdurationms BIGINT NOT NULL,
+    deliveredutc TEXT,
+    payload TEXT NOT NULL,
+    createdutc TEXT NOT NULL,
+    lastupdateutc TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_notification_deliveries_eventkey" ON "notification_deliveries" ("endpointid", "eventkey");
+CREATE INDEX IF NOT EXISTS "idx_notification_deliveries_due" ON "notification_deliveries" ("status", "nextattemptutc");
+CREATE INDEX IF NOT EXISTS "idx_notification_deliveries_endpoint" ON "notification_deliveries" ("tenantid", "endpointid", "createdutc");
+CREATE INDEX IF NOT EXISTS "idx_notification_deliveries_created" ON "notification_deliveries" ("createdutc");
+CREATE TABLE IF NOT EXISTS "notification_cursors" (
+    source VARCHAR(64) NOT NULL PRIMARY KEY,
+    cursorutc TEXT NOT NULL,
+    cursorid VARCHAR(64),
+    lastupdateutc TEXT NOT NULL
+);

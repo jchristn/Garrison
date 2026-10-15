@@ -34,6 +34,7 @@ Built-ins have no tenant, are visible to every tenant, and cannot be edited or d
 | `builtin/conversation-fallback` | Task | Task prompt of a conversation turn that cannot resume its harness session and starts a fresh one: repeats the earlier turns, then the current task (see [Conversation fallback](#conversation-fallback)) |
 | `builtin/pipeline-stage` | Task | Task prompt of a pipeline stage run (P12.9): wraps the stage run's own task prompt (`pipeline.task`) and hands it the previous stage's output, structured output, artifact references, reviewer notes, and revision feedback |
 | `builtin/pipeline-revision` | Fragment | Review feedback wording that `builtin/pipeline-stage` includes when a reviewer requested changes and the stage runs again |
+| `builtin/trigger-input` | Task | Run input of a trigger fire (P12.5): describes the cron occurrence, the webhook delivery and its payload, or the manual fire (see [Trigger input](#trigger-input)). A trigger's `inputTemplateId` replaces it, and a tenant `Task` template named `trigger-input` replaces it for that tenant's triggers that set none |
 | `builtin/mcp-tool-description` | ToolDescription | Description of an agent offered as its own MCP tool (`exposeMcpTool`, see `MCP_API.md`) |
 | `builtin/a2a-skill-description` | ToolDescription | Description of an agent's A2A skill |
 | `builtin/mcp-tool-garrison_*` | ToolDescription | Descriptions of the Garrison MCP tools (see `MCP_API.md`). A tenant overrides one with its own template named `mcp-tool-garrison_<tool>` |
@@ -237,6 +238,24 @@ A reviewer did not accept your previous attempt at this stage (revision {{pipeli
 
 To change the wording for one stage, create a `Task` template and set it as the stage's `handoffTemplateId`; to change it for every pipeline stage a deployment runs, bind it to the deployment's `PipelineStage` role. Your template can include `builtin/pipeline-revision` or word the revision block itself. `POST .../pipelines/{id}/preview` renders each stage's prompt from sample outputs, and the versions of the stage template and its includes are added to the run's `templateVersions`. `docs/PIPELINES.md` shows a rendered example.
 
+## Trigger input
+
+A [trigger](TRIGGERS.md) fire has no caller to write the input, so the input comes from a template. The trigger's own `inputTemplateId` (a `Task` template, by identifier or name) wins. Without one, a tenant `Task` template named `trigger-input` is used when it exists and is active, and `builtin/trigger-input` otherwise. The rendered text becomes the run's input (or the pipeline run's input) and then goes through the deployment's normal task template like any caller's message, so the harness sees it wrapped exactly as an invoke would be. An input that renders empty fails the fire with `InputRequired`.
+
+| Variable | Contents |
+|---|---|
+| `trigger.id`, `trigger.name`, `trigger.description`, `trigger.type` | The trigger |
+| `trigger.source` | `Cron`, `Webhook`, or `Manual`, with the flags `trigger.isCron`, `trigger.isWebhook`, `trigger.isManual` |
+| `trigger.fireId` | The fire record (`tfr_...`) |
+| `trigger.scheduledUtc`, `trigger.firedUtc` | The cron occurrence (or arrival time) and the processing time, as ISO 8601 text |
+| `trigger.cron`, `trigger.timeZone` | The schedule of a cron trigger |
+| `webhook.body` | The raw payload as UTF-8 text, for webhook deliveries and manual fires with a body; empty otherwise |
+| `webhook.json` | The payload parsed as JSON when the content type mentions `json` or the body starts with `{` or `[`, navigable like any map (`webhook.json.pull_request.number`); null when it is not JSON |
+| `webhook.contentType`, `webhook.deliveryId` | The payload media type and the `X-Garrison-Delivery` header |
+| `tenant.id`, `now` | The tenant and the render time |
+
+The run variables (`agent`, `deployment`, `run`, and so on) are not available here: the run does not exist yet when its input is rendered. A webhook payload is untrusted text. Quote it, cut it down, or pick the fields you need from `webhook.json` rather than pasting a whole document into an instruction.
+
 ## Template language
 
 The language is small on purpose. It has variables, filters, conditionals, loops, includes, comments, and raw blocks, and nothing that can call out of the renderer.
@@ -283,6 +302,7 @@ The variables available when a run is compiled (`tenant`, `agent`, `deployment`,
 | `caller.agentName`, `run.depth`, `run.callChain` | Who is asking, in a delegation chain |
 | `repair.error`, `repair.schema`, `repair.previousOutput` | Only during a structured output repair (see above) |
 | `pipeline.task`, `pipeline.previous.output`, `pipeline.reviewNotes`, `pipeline.revision.feedback` | Only meaningful in a pipeline stage run (see [Pipeline stages](#pipeline-stages)) |
+| `trigger.*`, `webhook.*` | Only in a trigger input template (see [Trigger input](#trigger-input)) |
 | `garrison.delegationEnabled`, `garrison.mcpServerName` | Whether this run can delegate, and the MCP server name to tell it about |
 | `harness.type`, `harness.nativeSchema` | Which harness will run the prompt |
 | `tool.name`, `tool.defaultDescription` | Only in tool description templates: the tool being described and its built-in description |

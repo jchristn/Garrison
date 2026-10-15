@@ -2209,3 +2209,335 @@ es.tips.enums.runBlockedReason.NoIsolatingWorker = "Bloqueada: esta ejecución n
 es.tips.resources.deployments.egressRules = "Destinos que pueden alcanzar los pods de ejecución de este despliegue, como bloques CIDR con puerto y protocolo opcionales. Vacía usa la salida predeterminada.";
 es.tips.resources.deployments.egressRulesItems = {"cidr": "Bloque de destino en notación CIDR, IPv4 o IPv6, por ejemplo 203.0.113.0/24. Resuelve tú los nombres de host a direcciones.", "port": "Puerto de destino de 1 a 65535. Déjalo vacío para permitir todos los puertos del bloque.", "protocol": "TCP para la mayoría de los servicios, o UDP."};
 es.tips.resources.deployments.egressDefault = "Sin lista de salida permitida: los pods de ejecución usan la salida predeterminada del clúster.";
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "nav": {
+  "items": {
+   "triggers": {
+    "label": "Disparadores",
+    "tip": "Programaciones cron y webhooks firmados que inician ejecuciones"
+   },
+   "notifications": {
+    "label": "Notificaciones",
+    "tip": "Webhooks firmados sobre ejecuciones, canalizaciones y aprobaciones"
+   }
+  }
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "Programación cron",
+   "Webhook": "Webhook firmado"
+  },
+  "triggerTargetType": {
+   "Agent": "Ejecución de agente",
+   "Pipeline": "Ejecución de canalización"
+  },
+  "triggerFireSource": {
+   "Cron": "Programación",
+   "Webhook": "Entrega de webhook",
+   "Manual": "Disparado a mano"
+  },
+  "triggerFireOutcome": {
+   "Started": "Iniciado",
+   "Failed": "Fallido",
+   "Skipped": "Omitido"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "Ejecución correcta",
+   "RunFailed": "Ejecución fallida",
+   "RunCancelled": "Ejecución cancelada",
+   "RunTimedOut": "Ejecución agotó el tiempo",
+   "PipelineCompleted": "Canalización completada",
+   "PipelineFailed": "Canalización fallida",
+   "ApprovalRequested": "Aprobación solicitada",
+   "Test": "Notificación de prueba"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "En espera",
+   "Delivering": "Entregando",
+   "Succeeded": "Entregada",
+   "Failed": "Abandonada"
+  },
+  "runKind": {
+   "Invoke": "Invocación",
+   "Delegated": "Delegada",
+   "Test": "Ejecución de prueba",
+   "Retry": "Reintento",
+   "Pipeline": "Etapa de canalización",
+   "Trigger": "Iniciada por un disparador"
+  },
+  "resourceType": {
+   "Trigger": "Disparador",
+   "NotificationEndpoint": "Endpoint de notificación"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "Secreto de firma renovado"
+  }
+ },
+ "errorCodes": {
+  "ReferencedByTrigger": "Un disparador usa este registro. Cambia o elimina primero ese disparador.",
+  "ReferencedByNotificationEndpoint": "Un endpoint de notificación filtra por este registro. Cambia o elimina primero ese endpoint.",
+  "NotAWebhookTrigger": "Solo los disparadores de webhook tienen secreto de firma.",
+  "TriggerInactive": "Este disparador está inactivo.",
+  "InvalidSignature": "La firma del webhook falta, tiene un formato incorrecto, es demasiado antigua o no coincide.",
+  "PayloadTooLarge": "La carga útil supera lo que acepta el servidor."
+ },
+ "common": {
+  "fieldCodes": {
+   "InvalidUrl": "Introduce una URL HTTP o HTTPS absoluta, sin usuario ni contraseña.",
+   "DestinationBlocked": "El servidor rechaza este destino: las direcciones de loopback, privadas, de enlace local y de metadatos están bloqueadas salvo que un operador permita destinos privados.",
+   "EventsRequired": "Elige al menos un evento.",
+   "InvalidEvent": "Uno de los eventos no está admitido.",
+   "InvalidCron": "La expresión cron no es válida. Usa cinco campos: minuto, hora, día del mes, mes y día de la semana.",
+   "InvalidTimeZone": "Zona horaria desconocida. Usa un nombre IANA como UTC o Europe/Madrid.",
+   "TypeImmutable": "El tipo de un disparador no puede cambiar. Crea un disparador nuevo.",
+   "TargetMismatch": "Este campo no corresponde al destino elegido.",
+   "PayloadTooLarge": "La carga útil supera lo que acepta el servidor."
+  }
+ },
+ "resources": {
+  "runs": {
+   "columns": {
+    "triggerId": "Disparador",
+    "kind": "Tipo de ejecución"
+   }
+  },
+  "triggers": {
+   "title": "Disparadores",
+   "subtitle": "Programaciones cron y webhooks firmados que inician una ejecución de agente o de canalización.",
+   "add": "Añadir disparador",
+   "create": "Crear disparador",
+   "edit": "Editar disparador",
+   "view": "Detalles del disparador",
+   "deleteTitle": "Eliminar disparador",
+   "emptyTitle": "Aún no hay disparadores",
+   "emptyBody": "Crea un disparador para ejecutar un agente según una programación o cuando otro sistema envíe un webhook.",
+   "columns": {
+    "name": "Nombre",
+    "type": "Tipo",
+    "target": "Inicia",
+    "schedule": "Programación",
+    "active": "Activo",
+    "lastFire": "Último disparo",
+    "nextFireUtc": "Próximo disparo",
+    "fireCount": "Disparos",
+    "runAs": "Se ejecuta como",
+    "signingSecretLast4": "Secreto termina en",
+    "description": "Descripción",
+    "id": "ID",
+    "createdUtc": "Creado"
+   },
+   "fields": {
+    "name": "Nombre",
+    "type": "Tipo",
+    "description": "Descripción",
+    "targetType": "Inicia",
+    "agentId": "Agente",
+    "deploymentId": "Despliegue",
+    "pipelineId": "Canalización",
+    "inputTemplateId": "Plantilla de entrada",
+    "priority": "Prioridad",
+    "cronExpression": "Expresión cron",
+    "timeZone": "Zona horaria",
+    "active": "Activo",
+    "webhook": "URL del webhook"
+   },
+   "hints": {
+    "type": "El tipo no se puede cambiar después de crear el disparador.",
+    "inputTemplateId": "Una plantilla Task que genera la entrada de la ejecución con las variables trigger.* y webhook.*. Vacío usa la plantilla integrada trigger-input.",
+    "priority": "De {{min}} a {{max}}. Las más altas se ejecutan antes.",
+    "cronExpression": "Cinco campos: minuto, hora, día del mes, mes y día de la semana. Ejemplo: 0 9 * * 1-5 se ejecuta a las 09:00 en días laborables.",
+    "timeZone": "Nombre IANA como UTC o Europe/Madrid. Los cambios de horario de verano se gestionan solos.",
+    "webhookNew": "La URL del webhook y el secreto de firma aparecen al guardar. El secreto se muestra una sola vez."
+   },
+   "errors": {
+    "name": "Usa de 1 a 64 letras minúsculas, dígitos y guiones, empezando y terminando con una letra o un dígito.",
+    "description": "Las descripciones tienen un máximo de {{max}} caracteres.",
+    "agentRequired": "Elige el agente que ejecuta este disparador.",
+    "pipelineRequired": "Elige la canalización que inicia este disparador.",
+    "cron": "Introduce cinco campos (minuto hora día mes día-de-semana) o una macro como @daily.",
+    "priority": "Introduce un número entero de {{min}} a {{max}}."
+   },
+   "actions": {
+    "fire": "Disparar ahora",
+    "fires": "Historial de disparos",
+    "runs": "Ver ejecuciones",
+    "rotateSecret": "Renovar secreto"
+   },
+   "fires": {
+    "firedUtc": "Disparado",
+    "source": "Origen",
+    "outcome": "Resultado",
+    "started": "Ejecución iniciada",
+    "deliveryId": "ID de entrega",
+    "error": "Fallo",
+    "runId": "Ejecución",
+    "pipelineRunId": "Ejecución de canalización"
+   },
+   "confirmRotateTitle": "Renovar secreto de firma",
+   "confirmRotate": "¿Reemplazar el secreto de firma de {{name}}? El secreto anterior deja de funcionar al instante, así que los emisores deben pasar al nuevo.",
+   "anyDeployment": "Cualquier despliegue activo (ponderado)",
+   "builtinTemplate": "Plantilla integrada trigger-input",
+   "webhookSchedule": "Cuando llega un webhook firmado",
+   "neverFired": "Aún no se ha disparado",
+   "runAsNotice": "Se ejecuta como {{name}}. Al guardar cambios, este disparador pasa a ejecutarse como tú.",
+   "secretEnding": "El secreto actual termina en {{last4}}."
+  },
+  "notifications": {
+   "title": "Notificaciones",
+   "subtitle": "Endpoints de webhook que reciben notificaciones firmadas cuando terminan ejecuciones y canalizaciones o esperan aprobaciones.",
+   "add": "Añadir endpoint",
+   "create": "Crear endpoint de notificación",
+   "edit": "Editar endpoint de notificación",
+   "view": "Detalles del endpoint de notificación",
+   "deleteTitle": "Eliminar endpoint de notificación",
+   "emptyTitle": "Aún no hay endpoints de notificación",
+   "emptyBody": "Añade un endpoint para recibir un POST HTTP firmado cuando falla una ejecución, termina una canalización o espera una aprobación.",
+   "columns": {
+    "name": "Nombre",
+    "url": "URL",
+    "events": "Eventos",
+    "filters": "Filtros",
+    "active": "Activo",
+    "signingSecretLast4": "Secreto termina en",
+    "includeResultText": "Texto del resultado",
+    "description": "Descripción",
+    "id": "ID",
+    "createdUtc": "Creado",
+    "agent": "Agente",
+    "deployment": "Despliegue"
+   },
+   "fields": {
+    "name": "Nombre",
+    "description": "Descripción",
+    "url": "URL",
+    "events": "Eventos",
+    "agentId": "Solo este agente",
+    "deploymentId": "Solo este despliegue",
+    "includeResultText": "Incluir el texto del resultado",
+    "resultTextMaxChars": "Límite del texto del resultado (caracteres)",
+    "active": "Activo"
+   },
+   "hints": {
+    "url": "Una URL HTTP o HTTPS. Las direcciones de loopback, privadas y de metadatos se rechazan salvo que un operador permita destinos privados, y no se siguen redirecciones.",
+    "events": "Los eventos de canalización no se envían mientras haya un filtro de agente o de despliegue.",
+    "agentId": "Vacío envía eventos de todos los agentes.",
+    "deploymentId": "Vacío envía eventos de todos los despliegues.",
+    "includeResultText": "Desactivado por defecto: las notificaciones llevan identificadores, estado y marcas de tiempo, pero no la salida de la ejecución.",
+    "resultTextMaxChars": "De {{min}} a {{max}}. Por defecto {{default}}."
+   },
+   "errors": {
+    "name": "Usa de 1 a 64 letras minúsculas, dígitos y guiones, empezando y terminando con una letra o un dígito.",
+    "url": "Introduce una URL HTTP o HTTPS absoluta, sin usuario ni contraseña.",
+    "events": "Elige al menos un evento.",
+    "resultTextMaxChars": "Introduce un número entero de {{min}} a {{max}}."
+   },
+   "actions": {
+    "test": "Enviar prueba",
+    "deliveries": "Registro de entregas",
+    "rotateSecret": "Renovar secreto"
+   },
+   "deliveries": {
+    "createdUtc": "En cola desde",
+    "event": "Evento",
+    "status": "Estado",
+    "attempts": "Intentos",
+    "lastStatusCode": "Estado HTTP",
+    "lastError": "Último fallo",
+    "lastAttemptUtc": "Último intento",
+    "nextAttemptUtc": "Próximo intento",
+    "deliveredUtc": "Entregada",
+    "payload": "Carga útil",
+    "id": "ID de entrega"
+   },
+   "confirmRotateTitle": "Renovar secreto de firma",
+   "confirmRotate": "¿Reemplazar el secreto de firma de {{name}}? Desde ahora las notificaciones se firman con el nuevo secreto, incluidos los reintentos ya en cola.",
+   "anyAgent": "Todos los agentes",
+   "anyDeployment": "Todos los despliegues",
+   "noFilter": "Todo",
+   "eventCount_one": "{{count}} evento",
+   "eventCount_other": "{{count}} eventos",
+   "resultTextUpTo_one": "Hasta {{count}} carácter",
+   "resultTextUpTo_other": "Hasta {{count}} caracteres",
+   "secretNotice": "Las notificaciones se firman con un secreto que termina en {{last4}}, establecido el {{time}}. Renuévalo para obtener uno nuevo."
+  }
+ },
+ "components": {
+  "signingSecret": {
+   "title": "Secreto de firma",
+   "warning": "Copia este secreto ahora. Garrison lo guarda cifrado y no lo volverá a mostrar; renuévalo si se pierde.",
+   "secret": "Secreto",
+   "url": "URL del webhook",
+   "done": "Ya lo guardé",
+   "scheme": "Firma cada solicitud con la cabecera {{header}}: {{format}}. Envía {{delivery}} para que las entregas repetidas cuenten una sola vez."
+  },
+  "triggerFire": {
+   "title": "Disparar {{name}}",
+   "intro": "Inicia este disparador ahora. La carga útil es opcional; la plantilla de entrada la ve como webhook.body.",
+   "body": "Carga útil",
+   "contentType": "Tipo de contenido de la carga útil",
+   "submit": "Disparar",
+   "firing": "Disparando..."
+  },
+  "triggerFires": {
+   "title": "Historial de disparos",
+   "count_one": "{{shown}} de {{count}} disparo",
+   "count_other": "{{shown}} de {{count}} disparos",
+   "empty": "Este disparador aún no se ha disparado.",
+   "scheduled": "para {{time}}"
+  },
+  "notificationDeliveries": {
+   "title": "Registro de entregas",
+   "count_one": "{{shown}} de {{count}} entrega",
+   "count_other": "{{shown}} de {{count}} entregas",
+   "empty": "Aún no se ha enviado nada a este endpoint.",
+   "detail": "Entrega seleccionada"
+  },
+  "notificationTest": {
+   "title": "Notificación de prueba",
+   "sending": "Enviando una notificación de prueba...",
+   "succeeded": "El endpoint aceptó la notificación de prueba.",
+   "failed": "La notificación de prueba falló y no se reintentará. Consulta el fallo abajo.",
+   "pending": "El primer intento falló; Garrison lo reintentará. Consulta el fallo abajo."
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "Disparador"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "Disparadores",
+    "Notifications": "Notificaciones"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Cuerpo de webhook más grande (bytes)",
+     "WebhookToleranceSeconds": "Tolerancia de marca de tiempo del webhook (segundos)",
+     "CronMaxLatenessSeconds": "Límite de recuperación de cron (segundos)",
+     "FireRetentionDays": "Retención del historial de disparos (días)"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "Permitir destinos privados",
+     "MaxAttempts": "Intentos de entrega",
+     "InitialBackoffSeconds": "Espera antes del primer reintento (segundos)",
+     "MaxBackoffSeconds": "Espera máxima entre reintentos (segundos)",
+     "TimeoutSeconds": "Tiempo límite de entrega (segundos)",
+     "DispatchIntervalMs": "Intervalo de envío (ms)",
+     "SweepOverlapSeconds": "Solapamiento del barrido de eventos (segundos)",
+     "DeliveryRetentionDays": "Retención del registro de entregas (días)"
+    }
+   }
+  }
+ }
+});

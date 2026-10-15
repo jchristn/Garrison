@@ -65,7 +65,7 @@ Responses are dictionaries with the server's camelCase field names, exactly as d
 
 ## Modules
 
-`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
+`tenants`, `users`, `credentials`, `roles`, `permissions`, `rolePermissions`, `userRoleAssignments`, `credentialScopeAssignments`, `agents`, `deployments`, `harnessProfiles`, `promptTemplates`, `mcpServers`, `secrets`, `workspaceTemplates`, `artifactStores`, `manifests`, `runs`, `conversations`, `approvals`, `pipelines`, `pipelineRuns`, `pipelineReviews`, `triggers`, `notificationEndpoints`, `analytics`, `nodes`, `controlNodes`, `nodePools`, `requestHistory`, `audit`, and `settings`. Collections offer `list`, `get`, `create`, `update`, and `delete` plus resource-specific calls. Common objects (`Agent`, `Deployment`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `WorkerNode`, `FieldWarning`, `Run`, `RunEvent`, `Conversation`, `Pipeline`, `PipelineRun`, `PipelineReview`, `EnumerationResult<T>`) are typed; other fields pass through untouched.
 
 Control-plane replicas are read-only: `client.controlNodes.list(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `respondingNodeId`, the replica that answered) and `client.controlNodes.get(nodeId)` reads one replica. `ControlNode` is typed: `status` (`ControlNodeStatus`: `Starting`, `Ready`, `Draining`, `Offline`), `version`, `schemaVersion`, `backplane`, `startedUtc`, `lastHeartbeatUtc`, `activeRequests`, `openStreams`, `heldLongPolls`, `isLeader`, and `leaderEpoch` (leader only). The tenant overview also returns `controlNodesByStatus` and `leaderNodeId`.
 
@@ -105,6 +105,25 @@ const finished = await client.pipelineRuns.get(run.id, 60);
 - `pipelineRuns.list` takes a `PipelineRunFilter` (`pipelineId`, `status`, `callerId`, `fromUtc`, `toUtc`). `get(id, waitSeconds)` returns the detail (`stages`, `runs`, `reviews`); `waitFor(id, timeoutMs, untilReview)` polls. `cancel` rejects with 409 (`PipelineRunFinished`) once the pipeline run ended, `retry` resumes a Failed, TimedOut, or Cancelled pipeline run at its stopped stage (409 `PipelineRunNotRetryable` otherwise), and `delete` removes a finished pipeline run (409 `PipelineRunActive` while active).
 - `pipelineReviews` are authorized as Approval Read and Update. `decide` takes `Approve` (the optional comment reaches the next stage), `RequestChanges` (comment required, 400 without one; the stage runs again with the feedback, 409 `RevisionLimitReached` past `maxRevisions`), or `Reject` (the pipeline run fails). A second decision rejects with 409 (`ReviewNotPending`).
 - Enums are string unions: `PipelineRunStatus`, `PipelineRunOutcome`, `PipelineStageStatus`, `PipelineReviewStatus`, `PipelineReviewDecision`, and `PipelineReviewSource`. Run tokens cannot use the pipeline APIs.
+
+## Triggers and notifications
+
+A trigger starts an agent run or a pipeline run on a cron schedule or when a signed webhook arrives. It runs as the principal that last created or changed it, so creating one needs Execute on its agent (or on the pipeline and every stage agent). A webhook trigger's `signingSecret` is returned only by `create` and `rotateSecret`; store it then.
+
+```ts
+import { verifyWebhook } from "@garrison/sdk";
+
+const hook = await client.triggers.create({ name: "on-push", type: "Webhook", agentId });
+const fire = await client.triggers.deliverWebhook(hook.id!, hook.signingSecret!, '{"ref":"main"}', { deliveryId: "delivery-1" });
+const nightly = await client.triggers.create({ name: "nightly", type: "Cron", agentId, cronExpression: "0 2 * * *", timeZone: "America/New_York" });
+const failed = await client.triggers.listFires(nightly.id!, { outcome: "Failed" });
+```
+
+`client.triggers` adds `list({ type })`, `rotateSecret`, `fire` (fires now; an optional `body` reaches the input template as `webhook.body`), `listFires` (filter by outcome), and `deliverWebhook` (signs and posts a webhook as an external sender would). Runs a trigger started have `kind` `Trigger` and `triggerId`; `client.runs.list({ triggerId })` lists them, and pipeline runs carry `triggerId` too.
+
+`client.notificationEndpoints` manages URLs that receive signed JSON notifications for `NOTIFICATION_EVENTS` (`Test` is only sent by the test action). It adds `rotateSecret`, `test` (sends a `Test` notification and resolves with the delivery after its first attempt), `listDeliveries` (filter by status), and `getDelivery`. A loopback or private URL rejects with `GarrisonError` 400 and `fieldCodes.url === "DestinationBlocked"` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
+
+`signWebhook(secret, unixSeconds, body)` builds a signature and `verifyWebhook(header, secret, body, toleranceSeconds = 300)` checks one; both are async because they use Web Crypto. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
 ## Streaming run events
 
@@ -264,7 +283,7 @@ Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to 
 node sdk/js/bin/console.mjs http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
 The npm package installs the `garrison` console command. Set `client.transport.abortSignal` to an AbortSignal to cancel SDK HTTP calls and streams; leave it unset for ordinary use.
 

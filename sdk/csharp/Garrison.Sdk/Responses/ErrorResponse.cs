@@ -53,6 +53,11 @@ namespace Garrison.Sdk.Responses
         public System.Collections.Generic.Dictionary<string, string>? Errors { get; set; } = null;
 
         /// <summary>
+        /// Machine-readable codes of validation errors keyed by field path (for example DestinationBlocked for url), or null.
+        /// </summary>
+        public System.Collections.Generic.Dictionary<string, string>? FieldCodes { get; set; } = null;
+
+        /// <summary>
         /// Instantiate.
         /// </summary>
         public ErrorResponse()

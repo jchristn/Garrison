@@ -11483,6 +11483,986 @@
       ]
     },
     {
+      "name": "Triggers",
+      "description": "Cron schedules and signed webhooks that start runs (P12.5). A trigger runs as the principal that last created or changed it, so creating one needs Execute on its agent. The webhook route is unauthenticated: only the X-Garrison-Signature header authorizes it.",
+      "item": [
+        {
+          "name": "Create webhook trigger",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers"
+              ]
+            },
+            "description": "Creates a Webhook trigger that runs the Postman agent. The response carries signingSecret once; it is never returned again (rotate it to get a new one). Needs Create on Trigger and Execute on the agent. Validation failures answer 400 with field codes such as ReferenceNotFound, InvalidCron, InvalidTimeZone, and TargetMismatch; a duplicate name answers 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-hook-{{suffix}}\",\n  \"description\": \"Runs the Postman agent on a signed webhook\",\n  \"type\": \"Webhook\",\n  \"targetType\": \"Agent\",\n  \"agentId\": \"{{agentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('triggerId', json.id);",
+                  "pm.collectionVariables.set('triggerSecret', json.signingSecret);",
+                  "pm.test('trg_ identifier and a signing secret shown once', function () { pm.expect(json.id).to.match(/^trg_/); pm.expect(json.signingSecret).to.match(/^whsec_/); pm.expect(json.signingSecretLast4).to.eql(json.signingSecret.slice(-4)); });",
+                  "pm.test('runs as the caller', function () { pm.expect(json.runAsType).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get trigger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}"
+              ]
+            },
+            "description": "Reads a trigger by identifier or name. The signing secret is never included."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('no signing secret on read', function () { pm.expect(json.signingSecret).to.be.undefined; pm.expect(json.signingSecretLast4).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List triggers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers?type=Webhook&search=postman-hook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "Webhook"
+                },
+                {
+                  "key": "search",
+                  "value": "postman-hook"
+                }
+              ]
+            },
+            "description": "Lists triggers, newest first. Takes type (Cron or Webhook) plus the usual search, activeOnly, maxResults, skip, and ordering."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('lists the webhook trigger', function () { pm.expect(json.objects.map(function (t) { return t.id; })).to.include(pm.collectionVariables.get('triggerId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deliver signed webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Garrison-Delivery",
+                "value": "postman-delivery-{{suffix}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}",
+                "webhook"
+              ]
+            },
+            "description": "Delivers a webhook the way an external sender would: no credentials, the pre-request script signs the raw body with the trigger secret. X-Garrison-Delivery makes repeats idempotent. A new delivery answers 202 with the fire record.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"event\":\"push\",\"ref\":\"refs/heads/main\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sign the exact raw body: X-Garrison-Signature = t=<unix seconds>,v1=<hex HMAC-SHA256 of '<t>.' + body> with the trigger's signing secret.",
+                  "var cryptoJs = require('crypto-js');",
+                  "var secret = pm.collectionVariables.get('triggerSecret');",
+                  "var body = pm.request.body ? pm.request.body.raw : '';",
+                  "var t = Math.floor(Date.now() / 1000).toString();",
+                  "var sig = cryptoJs.HmacSHA256(t + '.' + body, secret).toString(cryptoJs.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Garrison-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 202', function () { pm.response.to.have.status(202); });",
+                  "pm.collectionVariables.set('triggerFireId', json.id);",
+                  "pm.collectionVariables.set('triggerRunId', json.runId);",
+                  "pm.test('fire started a run', function () { pm.expect(json.outcome).to.eql('Started'); pm.expect(json.runId).to.match(/^run_/); pm.expect(json.source).to.eql('Webhook'); pm.expect(json.duplicate).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repeat webhook delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Garrison-Delivery",
+                "value": "postman-delivery-{{suffix}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}",
+                "webhook"
+              ]
+            },
+            "description": "Sends the same delivery identifier again: the server answers 200 with the earlier fire (duplicate true) and starts nothing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"event\":\"push\",\"ref\":\"refs/heads/main\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sign the exact raw body: X-Garrison-Signature = t=<unix seconds>,v1=<hex HMAC-SHA256 of '<t>.' + body> with the trigger's signing secret.",
+                  "var cryptoJs = require('crypto-js');",
+                  "var secret = pm.collectionVariables.get('triggerSecret');",
+                  "var body = pm.request.body ? pm.request.body.raw : '';",
+                  "var t = Math.floor(Date.now() / 1000).toString();",
+                  "var sig = cryptoJs.HmacSHA256(t + '.' + body, secret).toString(cryptoJs.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Garrison-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('same fire, marked duplicate', function () { pm.expect(json.id).to.eql(pm.collectionVariables.get('triggerFireId')); pm.expect(json.duplicate).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Webhook with a wrong signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Garrison-Signature",
+                "value": "t=1700000000,v1=0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}",
+                "webhook"
+              ]
+            },
+            "description": "A missing, malformed, stale, or wrong signature answers the same 401 InvalidSignature, whether or not the trigger exists.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"event\":\"push\",\"ref\":\"refs/heads/main\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('InvalidSignature', function () { pm.expect(json.code).to.eql('InvalidSignature'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run started by the trigger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs?triggerId={{triggerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "triggerId",
+                  "value": "{{triggerId}}"
+                }
+              ]
+            },
+            "description": "Lists runs by triggerId. Runs a trigger started have kind Trigger and carry triggerId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('the webhook run', function () { var run = json.objects.find(function (r) { return r.id === pm.collectionVariables.get('triggerRunId'); }); pm.expect(run).to.be.an('object'); pm.expect(run.kind).to.eql('Trigger'); pm.expect(run.triggerId).to.eql(pm.collectionVariables.get('triggerId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fire trigger by hand",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}/fire",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}",
+                "fire"
+              ]
+            },
+            "description": "Fires the trigger now. The optional body reaches the input template as webhook.body. Needs Execute on Trigger.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"{\\\"note\\\":\\\"fired from Postman\\\"}\",\n  \"contentType\": \"application/json\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('manual fire started', function () { pm.expect(json.source).to.eql('Manual'); pm.expect(json.outcome).to.eql('Started'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List trigger fires",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}/fires?outcome=Started",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}",
+                "fires"
+              ],
+              "query": [
+                {
+                  "key": "outcome",
+                  "value": "Started"
+                }
+              ]
+            },
+            "description": "Lists the trigger's fires, newest first, with the run each one started or why it failed. Filter with outcome (Started, Failed, Skipped)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('two fires (webhook and manual)', function () { pm.expect(json.objects.length).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rotate trigger signing secret",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}/rotate-secret",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}",
+                "rotate-secret"
+              ]
+            },
+            "description": "Replaces the signing secret; the old one stops working at once. The new secret is in this response only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('new secret', function () { pm.expect(json.signingSecret).to.match(/^whsec_/); pm.expect(json.signingSecret).to.not.eql(pm.collectionVariables.get('triggerSecret')); });",
+                  "pm.collectionVariables.set('triggerSecret', json.signingSecret);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deactivate trigger",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}"
+              ]
+            },
+            "description": "Replaces the trigger configuration. The type cannot change (400 TypeImmutable) and the caller becomes the run-as principal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-hook-{{suffix}}\",\n  \"type\": \"Webhook\",\n  \"agentId\": \"{{agentId}}\",\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('inactive', function () { pm.expect(json.active).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create cron trigger",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers"
+              ]
+            },
+            "description": "Creates a Cron trigger: five fields evaluated in an IANA time zone by the control-plane leader. nextFireUtc is the next occurrence.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-cron-{{suffix}}\",\n  \"type\": \"Cron\",\n  \"agentId\": \"{{agentId}}\",\n  \"cronExpression\": \"0 9 * * 1-5\",\n  \"timeZone\": \"America/New_York\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('cronTriggerId', json.id);",
+                  "pm.test('next fire and no secret', function () { pm.expect(json.nextFireUtc).to.be.a('string'); pm.expect(json.signingSecret).to.be.undefined; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "description": "Notification endpoints (P12.14): signed outbound webhooks for run, pipeline, and approval events, delivered at least once from a durable outbox with retries. Destinations are checked against the SSRF rules.",
+      "item": [
+        {
+          "name": "Loopback destination is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints"
+              ]
+            },
+            "description": "Loopback and private destinations answer 400 with field code DestinationBlocked unless the cluster setting Notifications.AllowPrivateDestinations is on; link-local addresses such as 169.254.169.254 are always refused.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-local-{{suffix}}\",\n  \"url\": \"http://127.0.0.1:9/hook\",\n  \"events\": [\n    \"RunFailed\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('DestinationBlocked', function () { pm.expect(json.fieldCodes.url).to.eql('DestinationBlocked'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create notification endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints"
+              ]
+            },
+            "description": "Creates an endpoint for run events. The response carries signingSecret once. The host here does not resolve, so deliveries fail and retry, which keeps the example self-contained.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-notify-{{suffix}}\",\n  \"url\": \"https://example.invalid/hook\",\n  \"events\": [\n    \"RunSucceeded\",\n    \"RunFailed\"\n  ],\n  \"agentId\": \"{{agentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('notificationEndpointId', json.id);",
+                  "pm.collectionVariables.set('notificationSecret', json.signingSecret);",
+                  "pm.test('nep_ identifier and a signing secret shown once', function () { pm.expect(json.id).to.match(/^nep_/); pm.expect(json.signingSecret).to.match(/^whsec_/); pm.expect(json.events).to.eql(['RunSucceeded', 'RunFailed']); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get notification endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints/{{notificationEndpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints",
+                "{{notificationEndpointId}}"
+              ]
+            },
+            "description": "Reads an endpoint by identifier or name. The signing secret is never included."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('no signing secret on read', function () { pm.expect(json.signingSecret).to.be.undefined; pm.expect(json.signingSecretLast4).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List notification endpoints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints?search=postman-notify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "postman-notify"
+                }
+              ]
+            },
+            "description": "Lists endpoints with their events."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('lists the endpoint', function () { pm.expect(json.objects.map(function (e) { return e.id; })).to.include(pm.collectionVariables.get('notificationEndpointId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update notification endpoint",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints/{{notificationEndpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints",
+                "{{notificationEndpointId}}"
+              ]
+            },
+            "description": "Replaces the configuration; the signing secret is kept. includeResultText adds the run result text, cut to resultTextMaxChars.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-notify-{{suffix}}\",\n  \"url\": \"https://example.invalid/hook\",\n  \"events\": [\n    \"RunSucceeded\",\n    \"RunFailed\",\n    \"RunTimedOut\"\n  ],\n  \"includeResultText\": true,\n  \"resultTextMaxChars\": 500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('updated', function () { pm.expect(json.events).to.include('RunTimedOut'); pm.expect(json.includeResultText).to.eql(true); pm.expect(json.resultTextMaxChars).to.eql(500); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rotate notification signing secret",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints/{{notificationEndpointId}}/rotate-secret",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints",
+                "{{notificationEndpointId}}",
+                "rotate-secret"
+              ]
+            },
+            "description": "Replaces the signing secret; retries of queued deliveries are signed with the new one. The new secret is in this response only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('new secret', function () { pm.expect(json.signingSecret).to.match(/^whsec_/); pm.expect(json.signingSecret).to.not.eql(pm.collectionVariables.get('notificationSecret')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send test notification",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints/{{notificationEndpointId}}/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints",
+                "{{notificationEndpointId}}",
+                "test"
+              ]
+            },
+            "description": "Queues a Test notification and answers with the delivery after its first attempt. Needs Execute on NotificationEndpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.collectionVariables.set('notificationDeliveryId', json.id);",
+                  "pm.test('test delivery attempted', function () { pm.expect(json.event).to.eql('Test'); pm.expect(json.attempts).to.eql(1); pm.expect(['Pending', 'Failed', 'Succeeded']).to.include(json.status); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List deliveries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints/{{notificationEndpointId}}/deliveries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints",
+                "{{notificationEndpointId}}",
+                "deliveries"
+              ]
+            },
+            "description": "The delivery log, newest first: event, status, attempts, last HTTP status, last error. Filter with status (Pending, Delivering, Succeeded, Failed)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('lists the test delivery', function () { pm.expect(json.objects.map(function (d) { return d.id; })).to.include(pm.collectionVariables.get('notificationDeliveryId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get delivery",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints/{{notificationEndpointId}}/deliveries/{{notificationDeliveryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints",
+                "{{notificationEndpointId}}",
+                "deliveries",
+                "{{notificationDeliveryId}}"
+              ]
+            },
+            "description": "One delivery with the exact JSON body sent on every attempt."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) { }",
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('payload is the test notification', function () { var payload = JSON.parse(json.payload); pm.expect(payload.event).to.eql('Test'); pm.expect(payload.id).to.eql(json.id); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Optional provider API smoke (explicit opt-in)",
       "description": "Set providerApiSmokeEnabled to true only when endpoint/model and an existing OpenAiApiKey secret are configured. Uses the standard APIs and may consume provider tokens. See docs/PROVIDER_API.md.",
       "item": [
@@ -11711,6 +12691,105 @@
       "name": "Cleanup",
       "description": "Deletes everything the collection created, in dependency order, and revokes the extra session token.",
       "item": [
+        {
+          "name": "Delete webhook trigger",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{triggerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{triggerId}}"
+              ]
+            },
+            "description": "Deletes the webhook trigger and its fire history. Runs it started are kept."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete cron trigger",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/triggers/{{cronTriggerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "triggers",
+                "{{cronTriggerId}}"
+              ]
+            },
+            "description": "Deletes the cron trigger."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete notification endpoint",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/notification-endpoints/{{notificationEndpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "notification-endpoints",
+                "{{notificationEndpointId}}"
+              ]
+            },
+            "description": "Deletes the endpoint and its delivery log; queued notifications are not sent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Delete run",
           "request": {
@@ -13090,6 +14169,38 @@
     },
     {
       "key": "cancelPipelineRunId",
+      "value": ""
+    },
+    {
+      "key": "triggerId",
+      "value": ""
+    },
+    {
+      "key": "triggerSecret",
+      "value": ""
+    },
+    {
+      "key": "triggerFireId",
+      "value": ""
+    },
+    {
+      "key": "triggerRunId",
+      "value": ""
+    },
+    {
+      "key": "cronTriggerId",
+      "value": ""
+    },
+    {
+      "key": "notificationEndpointId",
+      "value": ""
+    },
+    {
+      "key": "notificationSecret",
+      "value": ""
+    },
+    {
+      "key": "notificationDeliveryId",
       "value": ""
     }
   ]

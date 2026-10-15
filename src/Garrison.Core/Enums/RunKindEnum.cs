@@ -28,6 +28,11 @@ namespace Garrison.Core.Enums
         /// <summary>
         /// A stage of a pipeline run (P12.9). The run carries pipelineRunId, pipelinePosition, and pipelineExecution.
         /// </summary>
-        Pipeline
+        Pipeline,
+
+        /// <summary>
+        /// Started by a trigger (P12.5): a cron schedule, a signed webhook, or a manual fire. The run carries triggerId.
+        /// </summary>
+        Trigger
     }
 }

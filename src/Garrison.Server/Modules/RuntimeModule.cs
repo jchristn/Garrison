@@ -59,6 +59,10 @@ namespace Garrison.Server.Modules
         private ApprovalService? _Approvals = null;
         private PipelineService? _Pipelines = null;
         private ManifestService? _Manifests = null;
+        private TriggerOptions? _TriggerOptions = null;
+        private NotificationOptions? _NotificationOptions = null;
+        private TriggerService? _Triggers = null;
+        private NotificationService? _Notifications = null;
 
         #endregion
 
@@ -111,6 +115,12 @@ namespace Garrison.Server.Modules
             _Pipelines.IsLeader = () => _Leader.IsLeader;
             _Scheduler.Pipelines = _Pipelines;
             _Maintenance.Pipelines = _Pipelines;
+            _TriggerOptions = new TriggerOptions();
+            _NotificationOptions = new NotificationOptions();
+            _Triggers = new TriggerService(context.Database, _Runs, _Pipelines, context.Authorization, _TriggerOptions, context.Logging);
+            _Notifications = new NotificationService(context.Database, context.Cipher, _NotificationOptions, () => ExternalUrls.RestBaseUrl(context, null), context.NodeId, context.Logging);
+            _Maintenance.Triggers = _Triggers;
+            _Maintenance.Notifications = _Notifications;
             if (context.Settings.Archive.Enabled)
             {
                 _Maintenance.Archiver = new RunArchiver(context.Database, context.Settings.Archive.Directory!, context.Logging);
@@ -133,6 +143,10 @@ namespace Garrison.Server.Modules
             context.Register(_Blocked);
             context.Register(_Approvals);
             context.Register(_Pipelines);
+            context.Register(_TriggerOptions);
+            context.Register(_NotificationOptions);
+            context.Register(_Triggers);
+            context.Register(_Notifications);
             _Gauges = new RunGaugeService(context.Database, context.Telemetry, context.Logging);
             context.Register(_Gauges);
             _Codex = new CodexCredentialService(context.Database, context.Cipher, () => context.Settings.Codex, context.NodeId, context.Logging, leaseProvider: _Leases);
@@ -155,6 +169,8 @@ namespace Garrison.Server.Modules
             new PipelineRoutes(context, _Pipelines!).Register(routes);
             new PipelineRunRoutes(context, _Pipelines!).Register(routes);
             new PipelineReviewRoutes(context, _Pipelines!).Register(routes);
+            new TriggerRoutes(context, _Triggers!).Register(routes);
+            new NotificationEndpointRoutes(context, _Notifications!).Register(routes);
             new OverviewRoutes(context, _Blocked!).Register(routes);
             WatsonWebserver.Webserver server = context.Get<WatsonWebserver.Webserver>();
             Garrison.Server.WebSockets.LiveUpdatesHandler live = new Garrison.Server.WebSockets.LiveUpdatesHandler(context, _Events!, _Blocked!);
@@ -205,6 +221,7 @@ namespace Garrison.Server.Modules
             _Leader!.Start(token);
             _Maintenance!.Start(token);
             _Pipelines!.Start(token);
+            _Notifications!.Start(token);
             _Codex!.Start(() => _Leader!.IsLeader, token);
             _Gauges?.Start(token);
             return Task.CompletedTask;
@@ -236,11 +253,13 @@ namespace Garrison.Server.Modules
             if (_Gauges != null) await _Gauges.StopAsync().ConfigureAwait(false);
             _Gauges?.Dispose();
             if (_Pipelines != null) await _Pipelines.StopAsync().ConfigureAwait(false);
+            if (_Notifications != null) await _Notifications.StopAsync().ConfigureAwait(false);
             if (_Maintenance != null) await _Maintenance.StopAsync().ConfigureAwait(false);
             if (_Leader != null) await _Leader.StopAsync(token).ConfigureAwait(false);
             _Maintenance?.Dispose();
             _Approvals?.Dispose();
             _Pipelines?.Dispose();
+            _Notifications?.Dispose();
             _Leader?.Dispose();
             _Signals?.Waiters.Dispose();
             if (_Leases is ClutchLeaseProvider clutch) await clutch.StopAsync(token).ConfigureAwait(false);
@@ -291,6 +310,25 @@ namespace Garrison.Server.Modules
             _Options.PipelineSweepIntervalMs = cluster.GetInt("Runtime.PipelineSweepIntervalMs");
             _Options.PipelineMaxStages = cluster.GetInt("Runtime.PipelineMaxStages");
             if (_Manifests != null) _Manifests.MaxPipelineStages = _Options.PipelineMaxStages;
+            if (_TriggerOptions != null)
+            {
+                _TriggerOptions.WebhookMaxBodyBytes = cluster.GetInt("Triggers.WebhookMaxBodyBytes");
+                _TriggerOptions.WebhookToleranceSeconds = cluster.GetInt("Triggers.WebhookToleranceSeconds");
+                _TriggerOptions.CronMaxLatenessSeconds = cluster.GetInt("Triggers.CronMaxLatenessSeconds");
+                _TriggerOptions.FireRetentionDays = cluster.GetInt("Triggers.FireRetentionDays");
+            }
+            if (_NotificationOptions != null)
+            {
+                _NotificationOptions.AllowPrivateDestinations = cluster.GetBool("Notifications.AllowPrivateDestinations");
+                _NotificationOptions.MaxAttempts = cluster.GetInt("Notifications.MaxAttempts");
+                _NotificationOptions.InitialBackoffSeconds = cluster.GetInt("Notifications.InitialBackoffSeconds");
+                _NotificationOptions.MaxBackoffSeconds = cluster.GetInt("Notifications.MaxBackoffSeconds");
+                _NotificationOptions.TimeoutSeconds = cluster.GetInt("Notifications.TimeoutSeconds");
+                _NotificationOptions.DispatchIntervalMs = cluster.GetInt("Notifications.DispatchIntervalMs");
+                _NotificationOptions.SweepOverlapSeconds = cluster.GetInt("Notifications.SweepOverlapSeconds");
+                _NotificationOptions.DeliveryRetentionDays = cluster.GetInt("Notifications.DeliveryRetentionDays");
+                if (_Manifests != null) _Manifests.AllowPrivateNotificationDestinations = _NotificationOptions.AllowPrivateDestinations;
+            }
             if (_Compiler != null)
             {
                 _Compiler.DefaultTimeoutSeconds = cluster.GetInt("Runs.DefaultTimeoutSeconds");

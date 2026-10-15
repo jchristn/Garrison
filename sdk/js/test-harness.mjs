@@ -1,6 +1,6 @@
 // End-to-end harness for the Garrison JavaScript/TypeScript SDK.
 // Usage: node test-harness.mjs [baseUrl] [accessKey] [secretKey]   (run "npm run build" first)
-import { EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, TRUST_LEVELS } from "./dist/esm/index.js";
+import { EFFECT_POLICIES, EGRESS_PROTOCOLS, GarrisonClient, GarrisonError, TRUST_LEVELS, signWebhook, verifyWebhook } from "./dist/esm/index.js";
 
 const [baseUrl = "http://127.0.0.1:8700", accessKey = "access_garrison_default", secretKey = "secret_garrison_default_change_me"] = process.argv.slice(2);
 const suffix = Math.random().toString(16).slice(2, 10);
@@ -472,6 +472,73 @@ await check("pipeline definitions, runs, and reviews", async () => {
     await client.agents.delete(editor.id);
   }
 });
+await check("webhook signature helper", async () => {
+  const body = '{"a":1}';
+  const now = Math.floor(Date.now() / 1000);
+  const header = await signWebhook("whsec_test_secret_value", now, body);
+  require(header.startsWith(`t=${now},v1=`) && header.length === `t=${now},v1=`.length + 64, `header shape ${header}`);
+  require(await verifyWebhook(header, "whsec_test_secret_value", body), "verify own signature");
+  require(await verifyWebhook(`t=${now},v1=${"0".repeat(64)},v1=${header.split(",v1=")[1]}`, "whsec_test_secret_value", body), "verify second v1");
+  require(!(await verifyWebhook(header, "whsec_other_secret_value", body)), "wrong secret");
+  require(!(await verifyWebhook(await signWebhook("whsec_test_secret_value", now - 3600, body), "whsec_test_secret_value", body)), "stale");
+});
+
+await check("webhook and cron triggers", async () => {
+  let webhook;
+  let cron;
+  try {
+    webhook = await client.triggers.create({ name: `sdk-js-hook-${suffix}`, type: "Webhook", agentId: state.agent });
+    const secret = webhook.signingSecret;
+    require(webhook.id.startsWith("trg_") && secret?.startsWith("whsec_") && webhook.signingSecretLast4 === secret.slice(-4), "webhook create");
+    const read = await client.triggers.get(webhook.name);
+    require(read.id === webhook.id && read.signingSecret === undefined && read.runAsType === "Credential", "get hides the secret");
+    const deliveryId = `sdk-js-delivery-${suffix}`;
+    const fire = await client.triggers.deliverWebhook(webhook.id, secret, '{"event":"push"}', { deliveryId });
+    require(fire.outcome === "Started" && fire.runId && !fire.duplicate && fire.deliveryId === deliveryId, `signed delivery: ${JSON.stringify(fire)}`);
+    const repeat = await client.triggers.deliverWebhook(webhook.id, secret, '{"event":"push"}', { deliveryId });
+    require(repeat.duplicate && repeat.id === fire.id, "repeated delivery returns the same fire");
+    const run = await client.runs.get(fire.runId);
+    require(run.triggerId === webhook.id && run.kind === "Trigger", "run carries the trigger");
+    require((await client.runs.list({ triggerId: webhook.id })).objects.some((r) => r.id === fire.runId), "runs by trigger");
+    let status = 0;
+    let code;
+    try { await client.triggers.deliverWebhook(webhook.id, "whsec_wrong_secret_for_this_trigger", "{}"); } catch (e) { status = e.statusCode; code = e.code; }
+    require(status === 401 && code === "InvalidSignature", `bad signature: ${status} ${code}`);
+    const fires = await client.triggers.listFires(webhook.id, { outcome: "Started" });
+    require(fires.objects.length === 1 && fires.objects[0].id === fire.id, "fire history");
+    const rotated = await client.triggers.rotateSecret(webhook.id);
+    require(rotated.signingSecret && rotated.signingSecret !== secret, "rotate secret");
+    cron = await client.triggers.create({ name: `sdk-js-cron-${suffix}`, type: "Cron", agentId: state.agent, cronExpression: "0 9 * * 1-5", timeZone: "America/New_York" });
+    require(cron.nextFireUtc && cron.signingSecret === undefined, "cron next fire");
+    require((await client.triggers.list({ type: "Cron" })).objects.some((t) => t.id === cron.id), "list by type");
+  } finally {
+    if (webhook) await client.triggers.delete(webhook.id);
+    if (cron) await client.triggers.delete(cron.id);
+  }
+});
+
+await check("notification endpoints", async () => {
+  let status = 0;
+  let codes;
+  try { await client.notificationEndpoints.create({ name: `sdk-js-local-${suffix}`, url: "http://127.0.0.1:9/x", events: ["RunFailed"] }); } catch (e) { status = e.statusCode; codes = e.fieldCodes; }
+  require(status === 400 && codes?.url === "DestinationBlocked", `loopback refused: ${status} ${JSON.stringify(codes)}`);
+  const endpoint = await client.notificationEndpoints.create({ name: `sdk-js-notify-${suffix}`, url: "https://example.invalid/hook", events: ["RunSucceeded", "RunFailed"] });
+  try {
+    require(endpoint.id.startsWith("nep_") && endpoint.signingSecret && endpoint.events.length === 2, "endpoint create");
+    const read = await client.notificationEndpoints.get(endpoint.name);
+    require(read.signingSecret === undefined && read.signingSecretLast4, "get hides the secret");
+    const test = await client.notificationEndpoints.test(endpoint.id);
+    require(test.event === "Test" && test.attempts === 1 && (test.status === "Pending" || test.status === "Failed"), `test delivery ${JSON.stringify(test)}`);
+    require((await client.notificationEndpoints.listDeliveries(endpoint.id)).objects.some((d) => d.id === test.id), "delivery log");
+    const one = await client.notificationEndpoints.getDelivery(endpoint.id, test.id);
+    require(one.payload.includes('"event":"Test"'), "delivery payload");
+    read.active = false;
+    require(!(await client.notificationEndpoints.update(endpoint.id, read)).active, "endpoint update");
+  } finally {
+    await client.notificationEndpoints.delete(endpoint.id);
+  }
+});
+
 await check("stdio MCP worker diagnostic", async () => {
   const node = (await client.nodes.list()).objects.find((n) => n.supportsMcpTests && n.status === "Ready");
   require(node, "compatible worker");

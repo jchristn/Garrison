@@ -1911,3 +1911,224 @@ tips.views.settings.fields.Scheduling = Object.assign(tips.views.settings.fields
 tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth || {}, {
   CacheSeconds: "每个副本保留其为认证请求而读取的会话、租户、用户和凭据的时间 (秒)。通过 API 撤销令牌或更改用户、凭据、角色或租户，会立即在所有副本上生效；此值是以其他方式所做更改可能未被察觉的最长时间。0 表示关闭缓存。默认 5。"
 });
+
+// Triggers (P12.5) and notification endpoints (P12.14).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "nav": {
+  "tabs": {
+   "triggers": "无需调用方即可启动运行：在指定时区计算的 cron 计划，以及接受其他系统 HMAC 签名请求的 Webhook 地址。",
+   "notifications": "通知其他系统：运行或流水线结束、或审批等待人员处理时，Garrison 会 POST 一条签名的 JSON 通知。"
+  }
+ },
+ "filters": {
+  "type": "只显示 cron 触发器或只显示 Webhook 触发器。选择全部可同时显示。",
+  "outcome": "只显示启动了运行、失败或被跳过的触发。",
+  "deliveryStatus": "只显示处于某种状态的投递：等待中、发送中、已投递或已放弃。"
+ },
+ "enums": {
+  "triggerType": {
+   "Cron": "按五字段 cron 计划触发，由控制平面主节点在触发器时区中计算。",
+   "Webhook": "当用触发器密钥签名的请求到达其 Webhook 地址时触发。"
+  },
+  "triggerTargetType": {
+   "Agent": "每次触发为智能体排入一次运行，使用固定部署或按流量权重选择。",
+   "Pipeline": "每次触发启动一次包含全部阶段的流水线运行。"
+  },
+  "triggerFireSource": {
+   "Cron": "cron 计划到期，主节点执行了触发。",
+   "Webhook": "收到一次签名正确的 Webhook 投递。",
+   "Manual": "有人或某个凭据使用了“立即触发”。"
+  },
+  "triggerFireOutcome": {
+   "Started": "此次触发创建了运行或流水线运行；点击链接查看。",
+   "Failed": "没有启动任何内容：模板失败、运行身份失去权限或目标不存在。",
+   "Skipped": "错过该次计划的时间超过 cron 补触发上限，因此未触发。"
+  },
+  "notificationEvent": {
+   "RunSucceeded": "运行以成功状态结束时发送。",
+   "RunFailed": "运行失败或被拒绝时发送。",
+   "RunCancelled": "运行在结束前被取消时发送。",
+   "RunTimedOut": "运行超过期限被停止时发送。",
+   "PipelineCompleted": "流水线运行的所有阶段都成功时发送。",
+   "PipelineFailed": "流水线运行失败、超时或被取消时发送。",
+   "ApprovalRequested": "工具调用审批或流水线阶段审核等待人员处理时发送。",
+   "Test": "仅由“发送测试”操作发送，用于检查端点是否正常。"
+  },
+  "notificationDeliveryStatus": {
+   "Pending": "等待下一次尝试；失败的尝试会以递增的间隔重试。",
+   "Delivering": "某个控制平面副本正在发送。",
+   "Succeeded": "端点返回 2xx 状态，通知已完成。",
+   "Failed": "Garrison 已停止尝试：尝试次数用尽，或端点返回了不会重试的状态。"
+  },
+  "runKind": {
+   "Invoke": "由调用方通过 REST、MCP、A2A 或控制台启动。",
+   "Delegated": "由另一个智能体通过 Garrison 委派启动。",
+   "Test": "从控制台或 API 对某个部署进行的测试运行。",
+   "Retry": "有人重试的先前运行的新尝试。",
+   "Pipeline": "流水线运行中的一次阶段执行。",
+   "Trigger": "由 cron 计划、签名 Webhook 或触发器的手动触发启动。"
+  },
+  "auditEventType": {
+   "SigningSecretRotated": "有人替换了触发器或通知端点的签名密钥，旧密钥已失效。"
+  }
+ },
+ "resources": {
+  "runs": {
+   "triggerId": "启动此运行的触发器。点击可打开该触发器的触发记录。",
+   "kind": "运行的启动方式：调用方、另一个智能体、测试、重试、流水线阶段或触发器。",
+   "openTrigger": "打开启动此运行的触发器的触发记录。"
+  },
+  "triggers": {
+   "add": "创建 cron 计划或签名 Webhook，无需任何人调用即可启动智能体或流水线。",
+   "type": "Cron 按计划触发；Webhook 在其他系统发送签名请求时触发。创建后不能更改。",
+   "target": "每次触发启动的内容：智能体运行或流水线运行。",
+   "schedule": "cron 表达式及其时区，或表示触发器在等待 Webhook 投递的说明。",
+   "lastFire": "触发器上次触发的时间，以及那次触发是否启动了运行。",
+   "nextFireUtc": "启用的 cron 触发器下次触发的时间。Webhook 触发器和未启用的触发器没有此项。",
+   "fireCount": "此触发器的触发次数，包括失败和跳过的触发。",
+   "runAs": "此触发器启动的运行所使用的用户或凭据身份。每次触发都会检查其是否仍可运行目标。",
+   "signingSecretLast4": "Webhook 签名密钥的最后四个字符，便于分辨发送方使用的是哪个密钥。",
+   "targetType": "每次触发是运行一个智能体，还是启动整个流水线。",
+   "agentId": "每次触发要运行的智能体。您需要有执行它的权限。",
+   "deploymentId": "将运行固定到智能体的某个部署；留空则按流量权重选择。",
+   "pipelineId": "每次触发要启动的流水线。您需要有启动它并运行其阶段智能体的权限。",
+   "inputTemplateId": "将触发（时间、负载、投递 ID）转换为运行输入的提示词模板。",
+   "priority": "此触发器启动的运行在队列中的优先级，范围 -100 到 100。数值越大越先分配。",
+   "cronExpression": "触发时间，使用五字段 cron 表达式或 @hourly 等宏。",
+   "timeZone": "解析 cron 表达式所用的 IANA 时区，例如 Asia/Shanghai。",
+   "webhook": "将签名的 POST 请求发送到此处。签名缺失、过期或错误的请求会被以 401 拒绝。",
+   "actions": {
+    "fire": "立即触发一次（可附测试负载），并查看它启动的运行。",
+    "fires": "查看此触发器何时、为何触发，以及每次触发启动了哪个运行。",
+    "runs": "打开已筛选为此触发器所启动运行的运行列表。",
+    "rotateSecret": "生成新的 Webhook 签名密钥。旧密钥会立即失效。"
+   },
+   "fires": {
+    "firedUtc": "处理此次触发的时间。cron 触发还会显示对应的计划时间。",
+    "source": "触发原因：计划、Webhook 投递或人员操作。",
+    "outcome": "此次触发是启动了运行、失败还是被跳过。",
+    "started": "此次触发创建的运行或流水线运行。点击可打开。",
+    "deliveryId": "Webhook 请求的 X-Garrison-Delivery 请求头；相同值的重复请求只触发一次。",
+    "error": "此次触发未启动任何内容的原因，附稳定的错误代码。",
+    "runId": "此次触发创建的运行。点击可打开。",
+    "pipelineRunId": "此次触发启动的流水线运行。点击可打开。"
+   }
+  },
+  "notifications": {
+   "add": "注册一个 URL，当此租户发生所选事件时接收签名的 HTTP POST。",
+   "url": "Garrison 发送通知的地址。私有和元数据地址会被拒绝，且不跟随重定向。",
+   "events": "此端点接收的事件。将鼠标悬停在值上可查看全部。",
+   "filters": "用于限定发送哪些运行和审批事件的智能体或部署筛选。",
+   "signingSecretLast4": "签名密钥的最后四个字符，便于接收方分辨使用的是哪个密钥。",
+   "includeResultText": "运行通知是否包含结果文本，并按配置的上限截断。",
+   "agentId": "只发送此智能体运行的事件。设置筛选时不发送流水线事件。",
+   "deploymentId": "只发送此部署运行的事件。设置筛选时不发送流水线事件。",
+   "resultTextMaxChars": "通知中包含的结果文本的最大字符数。",
+   "actions": {
+    "test": "立即发送测试通知，并显示端点是否接受。",
+    "deliveries": "查看发送到此端点的所有通知，包括尝试次数、HTTP 状态和错误。",
+    "rotateSecret": "生成新的签名密钥。已排队的重试也会用它签名。"
+   },
+   "deliveries": {
+    "createdUtc": "事件为此端点入队的时间。点击可查看详情。",
+    "event": "此通知报告的事件。",
+    "status": "通知是等待中、发送中、已投递还是已放弃。",
+    "attempts": "目前已尝试的次数和最多尝试次数。",
+    "lastStatusCode": "最近一次尝试时端点返回的 HTTP 状态；无响应时为空。",
+    "lastError": "最近一次尝试出现的问题，例如超时或目标被拒绝。",
+    "lastAttemptUtc": "最近一次尝试发送此通知的时间。",
+    "nextAttemptUtc": "下次重试的时间；投递结束后为空。",
+    "deliveredUtc": "端点接受此通知的时间。",
+    "payload": "每次尝试发送的完整 JSON 正文，绝不包含密钥。",
+    "id": "投递标识，也作为 X-Garrison-Delivery 发送，便于接收方忽略重复。"
+   }
+  }
+ },
+ "views": {
+  "runDetail": {
+   "trigger": "启动此运行的触发器，以及运行的启动方式。",
+   "openTrigger": "在“智能体 > 触发器”中打开此触发器的触发记录。"
+  },
+  "pipelineRunDetail": {
+   "trigger": "启动此流水线运行的触发器。其阶段运行也记录同一触发器。"
+  },
+  "settings": {
+   "groups": {
+    "Triggers": "触发器 Webhook 的限制、停机后的 cron 补触发，以及触发记录的保留时长。",
+    "Notifications": "出站通知投递：SSRF 防护、重试与等待、超时，以及投递日志的保留时长。"
+   },
+   "fields": {
+    "Triggers": {
+     "WebhookMaxBodyBytes": "Webhook 请求正文的最大字节数。超出的投递会在检查签名前返回 413。",
+     "WebhookToleranceSeconds": "签名时间戳与服务器时钟的最大差值。过旧的投递会被拒绝，因此截获的请求无法重放。",
+     "CronMaxLatenessSeconds": "错过的 cron 计划会合并为一次触发；若最近一次早于此秒数，则记为已跳过。0 表示始终触发一次。",
+     "FireRetentionDays": "触发记录在删除前保留的天数。"
+    },
+    "Notifications": {
+     "AllowPrivateDestinations": "允许回环和私有网络上的通知 URL。为防止服务器端请求伪造默认关闭；链路本地和元数据地址始终被阻止。",
+     "MaxAttempts": "一条通知在放弃前的最多投递尝试次数。",
+     "InitialBackoffSeconds": "第二次尝试前的等待时间；之后每次加倍，直到最长等待时间。",
+     "MaxBackoffSeconds": "一条通知两次尝试之间的最长等待时间。",
+     "TimeoutSeconds": "一次投递尝试（包括建立连接）允许的秒数。",
+     "DispatchIntervalMs": "每个控制平面副本查找到期通知的间隔，单位为毫秒。",
+     "SweepOverlapSeconds": "主节点每次重新读取的已扫描历史秒数，避免遗漏延迟写入的事件。",
+     "DeliveryRetentionDays": "已结束的投递在日志中保留的天数。"
+    }
+   }
+  }
+ },
+ "signingSecret": {
+  "done": "关闭此窗口。密钥无法再次显示，请先复制。",
+  "secret": "签名密钥。发送方和接收方用它计算 HMAC-SHA256 签名。",
+  "copy": "将签名密钥复制到剪贴板，以便保存到另一个系统中。",
+  "url": "其他系统 POST 签名 Webhook 投递的地址。",
+  "copyUrl": "将 Webhook 地址复制到剪贴板。"
+ },
+ "triggerFire": {
+  "submit": "立即用此负载触发一次。运行将以触发器的运行身份启动。",
+  "body": "可选的负载文本。输入模板以 webhook.body 读取，若为 JSON 还可通过 webhook.json 读取。",
+  "contentType": "负载的媒体类型，例如 application/json。纯文本请留空。",
+  "openRun": "打开此次触发启动的运行。",
+  "openPipelineRun": "打开此次触发启动的流水线运行。"
+ },
+ "triggerFires": {
+  "refresh": "重新加载此触发器的最新触发记录。"
+ },
+ "notificationDeliveries": {
+  "refresh": "重新加载此端点的最新投递。",
+  "open": "在列表下方显示此投递的负载、尝试次数和最近错误。",
+  "detail": "所选投递的全部字段，包括已发送的 JSON 正文。"
+ }
+});
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(explainers, {
+ "triggers": {
+  "title": "触发器",
+  "p1": "触发器无需任何人调用即可启动智能体运行或流水线运行：按 cron 计划，或在其他系统发送用触发器密钥签名的 Webhook 时。",
+  "p2": "运行输入来自提示词模板，可使用触发时间和 Webhook 负载。运行以最后保存触发器的用户或凭据身份执行，每次触发都会检查其是否仍可运行目标。",
+  "p3": "如果一段时间内没有副本能触发某个计划，错过的计划会合并为一次触发。X-Garrison-Delivery 值重复的 Webhook 投递只触发一次。"
+ },
+ "notifications": {
+  "title": "通知",
+  "p1": "当订阅的事件发生时（运行或流水线结束，或审批等待人员处理），通知端点会收到签名的 JSON POST。",
+  "p2": "投递会持久排队，并以递增的间隔重试。每次尝试都带相同的投递 ID，接收方可据此忽略重复。",
+  "p3": "通知绝不包含密钥或运行输入，只有在您允许时才包含运行输出。除非运维人员允许，否则私有网络地址会被拒绝。"
+ }
+});

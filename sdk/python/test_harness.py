@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from garrison_sdk import (EFFECT_POLICIES, EGRESS_PROTOCOLS, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
-                          GarrisonError)
+                          GarrisonError, sign_webhook, verify_webhook)
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8700"
 ACCESS = sys.argv[2] if len(sys.argv) > 2 else "access_garrison_default"
@@ -545,6 +545,80 @@ def t_pipelines():
         client.agents.delete(second["id"])
 
 
+def t_webhook_signature():
+    body = b'{"a":1}'
+    now = int(time.time())
+    header = sign_webhook("whsec_test_secret_value", now, body)
+    require(header.startswith(f"t={now},v1=") and len(header) == len(f"t={now},v1=") + 64, f"header shape {header}")
+    require(verify_webhook(header, "whsec_test_secret_value", body), "verify own signature")
+    second = f"t={now},v1={'0' * 64},v1=" + header.split(",v1=", 1)[1]
+    require(verify_webhook(second, "whsec_test_secret_value", body), "verify second v1")
+    require(not verify_webhook(header, "whsec_other_secret_value", body), "wrong secret")
+    require(not verify_webhook(sign_webhook("whsec_test_secret_value", now - 3600, body), "whsec_test_secret_value", body), "stale")
+
+
+def t_triggers():
+    webhook = None
+    cron = None
+    try:
+        webhook = client.triggers.create({"name": f"sdk-py-hook-{SUFFIX}", "type": "Webhook", "agentId": state["agent"]})
+        secret = webhook.get("signingSecret")
+        require(webhook["id"].startswith("trg_") and secret and secret.startswith("whsec_") and webhook["signingSecretLast4"] == secret[-4:], "webhook create")
+        read = client.triggers.get(webhook["name"])
+        require(read["id"] == webhook["id"] and "signingSecret" not in read and read["runAsType"] == "Credential", "get hides the secret")
+        delivery = f"sdk-py-delivery-{SUFFIX}"
+        fire = client.triggers.deliver_webhook(webhook["id"], secret, '{"event":"push"}', delivery_id=delivery)
+        require(fire["outcome"] == "Started" and fire.get("runId") and not fire.get("duplicate") and fire["deliveryId"] == delivery,
+                f"signed delivery started a run: {fire}")
+        repeat = client.triggers.deliver_webhook(webhook["id"], secret, '{"event":"push"}', delivery_id=delivery)
+        require(repeat.get("duplicate") and repeat["id"] == fire["id"], "repeated delivery returns the same fire")
+        run = client.runs.get(fire["runId"])
+        require(run.get("triggerId") == webhook["id"] and run["kind"] == "Trigger", "run carries the trigger")
+        require(any(r["id"] == fire["runId"] for r in client.runs.list(trigger_id=webhook["id"])["objects"]), "runs by trigger")
+        try:
+            client.triggers.deliver_webhook(webhook["id"], "whsec_wrong_secret_for_this_trigger", "{}")
+            raise AssertionError("bad signature accepted")
+        except GarrisonError as e:
+            require(e.status_code == 401 and e.code == "InvalidSignature", f"bad signature: {e}")
+        fires = client.triggers.list_fires(webhook["id"], outcome="Started")
+        require(len(fires["objects"]) == 1 and fires["objects"][0]["id"] == fire["id"], "fire history")
+        rotated = client.triggers.rotate_secret(webhook["id"])
+        require(rotated.get("signingSecret") and rotated["signingSecret"] != secret, "rotate secret")
+        cron = client.triggers.create({"name": f"sdk-py-cron-{SUFFIX}", "type": "Cron", "agentId": state["agent"],
+                                       "cronExpression": "0 9 * * 1-5", "timeZone": "America/New_York"})
+        require(cron.get("nextFireUtc") and "signingSecret" not in cron, "cron next fire")
+        require(any(t["id"] == cron["id"] for t in client.triggers.list(type="Cron")["objects"]), "list by type")
+    finally:
+        if webhook:
+            client.triggers.delete(webhook["id"])
+        if cron:
+            client.triggers.delete(cron["id"])
+
+
+def t_notifications():
+    try:
+        client.notification_endpoints.create({"name": f"sdk-py-local-{SUFFIX}", "url": "http://127.0.0.1:9/x", "events": ["RunFailed"]})
+        raise AssertionError("loopback URL accepted")
+    except GarrisonError as e:
+        codes = (e.error or {}).get("fieldCodes") or {}
+        require(e.status_code == 400 and codes.get("url") == "DestinationBlocked", f"loopback refused: {e} {codes}")
+    endpoint = client.notification_endpoints.create({"name": f"sdk-py-notify-{SUFFIX}", "url": "https://example.invalid/hook",
+                                                     "events": ["RunSucceeded", "RunFailed"]})
+    try:
+        require(endpoint["id"].startswith("nep_") and endpoint.get("signingSecret") and len(endpoint["events"]) == 2, "endpoint create")
+        read = client.notification_endpoints.get(endpoint["name"])
+        require("signingSecret" not in read and read.get("signingSecretLast4"), "get hides the secret")
+        test = client.notification_endpoints.test(endpoint["id"])
+        require(test["event"] == "Test" and test["attempts"] == 1 and test["status"] in ("Pending", "Failed"), f"test delivery {test}")
+        require(any(d["id"] == test["id"] for d in client.notification_endpoints.list_deliveries(endpoint["id"])["objects"]), "delivery log")
+        one = client.notification_endpoints.get_delivery(endpoint["id"], test["id"])
+        require('"event":"Test"' in one["payload"], "delivery payload")
+        read["active"] = False
+        require(not client.notification_endpoints.update(endpoint["id"], read)["active"], "endpoint update")
+    finally:
+        client.notification_endpoints.delete(endpoint["id"])
+
+
 def t_cleanup():
     if "conversation_deployment" in state:
         client.deployments.delete(state["conversation_deployment"])
@@ -581,7 +655,8 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("control nodes", t_control_nodes),
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),
-                 ("pipelines, runs, and reviews", t_pipelines), ("cleanup", t_cleanup)]:
+                 ("pipelines, runs, and reviews", t_pipelines), ("webhook signature helper", t_webhook_signature),
+                 ("webhook and cron triggers", t_triggers), ("notification endpoints", t_notifications), ("cleanup", t_cleanup)]:
     check(name, fn)
     if "auth_failed" in state:
         print()

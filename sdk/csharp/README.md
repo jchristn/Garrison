@@ -78,7 +78,7 @@ You can also create a credential of your own in the dashboard (Access > Credenti
 
 ## Modules
 
-`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
+`GarrisonClient` exposes one client per resource: `Tenants`, `Users`, `Credentials`, `Roles`, `Permissions`, `RolePermissions`, `UserRoleAssignments`, `CredentialScopeAssignments`, `Agents`, `Deployments`, `HarnessProfiles`, `PromptTemplates`, `McpServers`, `Secrets`, `WorkspaceTemplates`, `ArtifactStores`, `Manifests`, `Runs`, `Conversations`, `Approvals`, `Pipelines`, `PipelineRuns`, `PipelineReviews`, `Triggers`, `NotificationEndpoints`, `Analytics`, `Nodes`, `ControlNodes`, `NodePools`, `RequestHistory`, `Audit`, and `Settings`. Resource clients provide `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`, and `DeleteAsync`, plus resource-specific operations such as `Agents.InvokeAsync`, `Credentials.RotateAsync`, and `PromptTemplates.RenderAsync`.
 
 Control-plane replicas are read-only: `ControlNodes.ListAsync(query)` returns a `ControlNodeListResponse` (a page of `ControlNode` plus `RespondingNodeId`, the replica that answered) and `ControlNodes.GetAsync(id)` reads one replica by node ID. Each `ControlNode` carries `Status` (`ControlNodeStatusEnum`: `Starting`, `Ready`, `Draining`, `Offline`), version, schema version, backplane, start and heartbeat times, activity (`ActiveRequests`, `OpenStreams`, `HeldLongPolls`), `IsLeader`, and `LeaderEpoch` (leader only). `OverviewResponse` also has `ControlNodesByStatus` and `LeaderNodeId`. Reading needs Read on Node, like worker nodes.
 
@@ -128,6 +128,24 @@ run = await client.PipelineRuns.GetAsync(run.Id, waitSeconds: 60);
 `PipelineRuns` lists by pipeline, status (`PipelineRunStatusEnum`), caller, and time range; `GetAsync` takes an optional `waitSeconds` (up to 600) and returns when the pipeline run ends or waits for a review, with its `Stages`, stage `Runs`, and `Reviews`. `CancelAsync` cancels the pending review and the current stage run; `RetryAsync` resumes a `Failed`, `TimedOut`, or `Cancelled` pipeline run at the stage where it stopped; `DeleteAsync` removes a finished pipeline run (409 `PipelineRunActive` otherwise).
 
 `PipelineReviews` lists by status (`PipelineReviewStatusEnum`), pipeline run, pipeline, stage run, and decision source, and `DecideAsync` takes `Approve` (the comment reaches the next stage as review notes), `RequestChanges` (comment required; the stage runs again with it, up to the stage's `MaxRevisions`, then 409 `RevisionLimitReached`), or `Reject` (the pipeline run fails with outcome `ReviewRejected`). A second decision answers 409 `ReviewNotPending`. Reviews are authorized as `Approval` Read and Update. Run tokens cannot use pipelines, pipeline runs, or reviews.
+
+## Triggers and notifications
+
+A trigger starts an agent run or a pipeline run on a cron schedule or when a signed webhook arrives. It runs as the principal that last created or changed it, so creating one needs Execute on its agent (or on the pipeline and every stage agent). A webhook trigger's `SigningSecret` is returned only by `CreateAsync` and `RotateSecretAsync`; store it then.
+
+```csharp
+Trigger hook = await client.Triggers.CreateAsync(new Trigger { Name = "on-push", Type = TriggerTypeEnum.Webhook, AgentId = agentId });
+string secret = hook.SigningSecret!;
+TriggerFire fire = await client.Triggers.DeliverWebhookAsync(hook.Id, secret, "{\"ref\":\"main\"}", "application/json", deliveryId: "delivery-1");
+Trigger nightly = await client.Triggers.CreateAsync(new Trigger { Name = "nightly", Type = TriggerTypeEnum.Cron, AgentId = agentId, CronExpression = "0 2 * * *", TimeZone = "America/New_York" });
+EnumerationResult<TriggerFire> fires = await client.Triggers.ListFiresAsync(nightly.Id, TriggerFireOutcomeEnum.Failed);
+```
+
+`Triggers` adds `ListAsync(query, type)`, `RotateSecretAsync`, `FireAsync` (fires now; an optional `TriggerFireRequest` payload reaches the input template as `webhook.body`), `ListFiresAsync` (filter by `TriggerFireOutcomeEnum`), and `DeliverWebhookAsync` (signs and posts a webhook as an external sender would). Runs a trigger started have `Kind` `Trigger` and `TriggerId`; `RunFilter.TriggerId` lists them, and `PipelineRun.TriggerId` is set the same way.
+
+`NotificationEndpoints` manages URLs that receive signed JSON notifications for `NotificationEventEnum` events (`RunSucceeded`, `RunFailed`, `RunCancelled`, `RunTimedOut`, `PipelineCompleted`, `PipelineFailed`, `ApprovalRequested`). It adds `RotateSecretAsync`, `TestAsync` (sends a `Test` notification and returns the `NotificationDelivery` after its first attempt), `ListDeliveriesAsync` (filter by `NotificationDeliveryStatusEnum`), and `GetDeliveryAsync`. A loopback or private URL answers 400 with field code `DestinationBlocked` in `GarrisonException.Error.FieldCodes` unless the operator turned on `Notifications.AllowPrivateDestinations`; link-local addresses such as 169.254.169.254 are always refused.
+
+`WebhookSignature.Header(secret, unixSeconds, body)` builds a signature and `WebhookSignature.Verify(header, secret, body, toleranceSeconds)` checks one. The signature header is `X-Garrison-Signature: t=<unix seconds>,v1=<hex>`, where the hex value is the lowercase HMAC-SHA256, keyed with the UTF-8 bytes of the signing secret, of the timestamp, a period, and the raw body. A header may carry several `v1` values; any match is accepted. The server accepts a webhook only within `Triggers.WebhookToleranceSeconds` (default 300) of its clock, answers every failed check with the same 401 `InvalidSignature`, and returns the earlier fire (HTTP 200, `duplicate` true) for a repeated `X-Garrison-Delivery`. Notifications are signed the same way, so a receiver checks them with the same verify function and ignores a `X-Garrison-Delivery` it has seen before: delivery is at least once.
 
 ## Streaming run events
 
@@ -313,7 +331,7 @@ Usage quotas default to monitoring only. Explicitly set `enforcementEnabled` to 
 dotnet run --project sdk/csharp/Garrison.Sdk.Console -f net10.0 -- http://127.0.0.1:8700
 ```
 
-Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
+Commands: `help`, `health`, `login <tenant> <email>`, `keys`, `tenant <id>`, `agents`, `runs`, `invoke <agent> <input>`, `run <id>`, `events <id>`, `watch <id>`, `pipelines`, `pipeline-runs`, `pipeline-reviews`, `start-pipeline <pipeline> <input>`, `triggers`, `fire-trigger <trigger>`, `notification-endpoints`, and `quit`. Login/keys prompt for credentials without terminal echo and never save them to history or print authentication responses. Ctrl+C cancels an active request or stream. Authenticate, then use `invoke` to start a run and `watch` to follow its ID.
 
 ## Executor capabilities
 
