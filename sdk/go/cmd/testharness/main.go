@@ -352,6 +352,52 @@ func main() {
 		}
 		return nil
 	})
+	check("egress allowlist round trip, validation, and queueing", func(ctx context.Context) error {
+		port := 443
+		body := map[string]any{
+			"name": "sdk-go-" + suffix + "-egress", "agentId": agentID, "harnessProfileId": fakeID, "weight": 0,
+			"egressRules": []garrison.DeploymentEgressRule{{CIDR: "203.0.113.0/24", Port: &port, Protocol: garrison.EgressProtocolTCP}},
+		}
+		var dep garrison.Deployment
+		if err := client.Deployments.Create(ctx, body, &dep); err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, dep.ID)
+		var read garrison.Deployment
+		if err := client.Deployments.Get(ctx, dep.ID, &read); err != nil {
+			return err
+		}
+		if len(read.EgressRules) != 1 || read.EgressRules[0].CIDR != "203.0.113.0/24" || read.EgressRules[0].Port == nil || *read.EgressRules[0].Port != 443 || read.EgressRules[0].Protocol != garrison.EgressProtocolTCP {
+			return fmt.Errorf("egressRules %+v", read.EgressRules)
+		}
+		bad := map[string]any{
+			"name": read.Name, "agentId": agentID, "harnessProfileId": fakeID, "weight": 0,
+			"egressRules": []garrison.DeploymentEgressRule{{CIDR: "203.0.113.7/24", Port: &port, Protocol: garrison.EgressProtocolTCP}},
+		}
+		err := client.Deployments.Update(ctx, dep.ID, bad, nil)
+		var apiErr *garrison.Error
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != 400 || !strings.Contains(apiErr.Body, "InvalidCidr") {
+			return fmt.Errorf("bad cidr not rejected: %v", err)
+		}
+		run, err := client.Runs.Create(ctx, garrison.RunCreateRequest{AgentID: agentID, DeploymentID: dep.ID, Input: "Egress allowlist"})
+		if err != nil {
+			return err
+		}
+		queued, err := client.Runs.Get(ctx, run.ID)
+		if err != nil {
+			return err
+		}
+		if queued.Executor != garrison.RunExecutorKubernetesJob {
+			return fmt.Errorf("run executor %s", queued.Executor)
+		}
+		if queued.Status != "Queued" || queued.BlockedReason == nil || *queued.BlockedReason != "NoIsolatingWorker" {
+			return fmt.Errorf("run %s %v", queued.Status, queued.BlockedReason)
+		}
+		if _, err := client.Runs.Cancel(ctx, run.ID); err != nil {
+			return err
+		}
+		return nil
+	})
 	check("manifest dry run", func(ctx context.Context) error {
 		yaml := "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-go-manifest-" + suffix + "\nspec:\n  description: Dry run only.\n"
 		result, err := client.Manifests.Apply(ctx, yaml, true, false)

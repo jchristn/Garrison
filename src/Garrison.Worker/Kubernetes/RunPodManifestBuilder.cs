@@ -65,7 +65,9 @@ namespace Garrison.Worker.Kubernetes
         #region Public-Methods
 
         /// <summary>
-        /// Labels shared by the Job, its pod, and the spec Secret.
+        /// Labels shared by the Job, its pod, the spec Secret, and the run's egress NetworkPolicy. A run whose spec has
+        /// egress rules (P11.15) also gets garrison.io/egress=allowlist; the label is built in and cannot be set through
+        /// Kubernetes.PodLabels.
         /// </summary>
         /// <param name="request">Request.</param>
         /// <returns>Labels.</returns>
@@ -83,7 +85,114 @@ namespace Garrison.Worker.Kubernetes
             labels[RunPodNames.WorkerLabel] = RunPodNames.LabelValue(request.NodeName);
             labels[RunPodNames.TenantLabel] = RunPodNames.LabelValue(request.Assignment.Spec?.TenantId);
             labels[RunPodNames.EpochLabel] = request.Assignment.Epoch.ToString(CultureInfo.InvariantCulture);
+            labels.Remove(RunPodNames.EgressLabel);
+            if (HasEgressRules(request)) labels[RunPodNames.EgressLabel] = RunPodNames.EgressAllowlistValue;
             return labels;
+        }
+
+        /// <summary>
+        /// Whether a run has an egress allowlist (P11.15).
+        /// </summary>
+        /// <param name="request">Request.</param>
+        /// <returns>True when the run's spec has at least one egress rule.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when request is null.</exception>
+        public static bool HasEgressRules(RunPodRequest request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return request.Assignment.Spec != null && request.Assignment.Spec.EgressRules.Count > 0;
+        }
+
+        /// <summary>
+        /// The per-run egress NetworkPolicy of a run with an egress allowlist (P11.15, D-052). It selects exactly the
+        /// run's pod (app.kubernetes.io/name, run ID, epoch, and the allowlist label), has policyTypes Egress only, and
+        /// allows DNS (UDP and TCP 53 to any namespace), the Garrison server MCP port (pods labelled
+        /// app.kubernetes.io/name=garrison-server, in <paramref name="serverNamespace"/> when it differs from the run
+        /// namespace), and each egress rule as an ipBlock with its port and protocol (no port means every port). The
+        /// garrison-run policy still denies ingress, and garrison-run-default-egress does not select the pod, so these
+        /// are the only destinations the pod can reach. Owned by the Job, so Kubernetes deletes it with the Job.
+        /// </summary>
+        /// <param name="request">Request; its spec must have egress rules.</param>
+        /// <param name="job">The created Job (owner), or null to build the policy without an owner.</param>
+        /// <param name="serverNamespace">Namespace of the server pods, or null when it is the run namespace.</param>
+        /// <returns>NetworkPolicy.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when request is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when the run has no egress rules.</exception>
+        public V1NetworkPolicy BuildNetworkPolicy(RunPodRequest request, V1Job? job, string? serverNamespace)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (!HasEgressRules(request)) throw new ArgumentException("The run has no egress rules, so it needs no egress NetworkPolicy.", nameof(request));
+            ExecutionSpec spec = request.Assignment.Spec!;
+            string jobName = RunPodNames.JobName(request.Assignment.RunId, request.Assignment.Epoch);
+
+            V1NetworkPolicy policy = new V1NetworkPolicy();
+            policy.ApiVersion = "networking.k8s.io/v1";
+            policy.Kind = "NetworkPolicy";
+            policy.Metadata = new V1ObjectMeta();
+            policy.Metadata.Name = RunPodNames.NetworkPolicyName(jobName);
+            policy.Metadata.NamespaceProperty = request.Namespace;
+            policy.Metadata.Labels = Labels(request);
+            policy.Metadata.Annotations = new Dictionary<string, string>
+            {
+                { "garrison.io/run-id", request.Assignment.RunId },
+                { "garrison.io/deployment-id", spec.DeploymentId ?? String.Empty }
+            };
+            if (job != null && job.Metadata != null && !String.IsNullOrEmpty(job.Metadata.Uid))
+            {
+                V1OwnerReference owner = new V1OwnerReference();
+                owner.ApiVersion = "batch/v1";
+                owner.Kind = "Job";
+                owner.Name = job.Metadata.Name;
+                owner.Uid = job.Metadata.Uid;
+                owner.Controller = false;
+                owner.BlockOwnerDeletion = false;
+                policy.Metadata.OwnerReferences = new List<V1OwnerReference> { owner };
+            }
+
+            policy.Spec = new V1NetworkPolicySpec();
+            policy.Spec.PodSelector = new V1LabelSelector();
+            policy.Spec.PodSelector.MatchLabels = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                { "app.kubernetes.io/name", RunPodNames.AppName },
+                { RunPodNames.RunIdLabel, RunPodNames.LabelValue(request.Assignment.RunId) },
+                { RunPodNames.EpochLabel, request.Assignment.Epoch.ToString(CultureInfo.InvariantCulture) },
+                { RunPodNames.EgressLabel, RunPodNames.EgressAllowlistValue }
+            };
+            policy.Spec.PolicyTypes = new List<string> { "Egress" };
+
+            List<V1NetworkPolicyEgressRule> egress = new List<V1NetworkPolicyEgressRule>();
+            egress.Add(new V1NetworkPolicyEgressRule
+            {
+                To = new List<V1NetworkPolicyPeer> { new V1NetworkPolicyPeer { NamespaceSelector = new V1LabelSelector() } },
+                Ports = new List<V1NetworkPolicyPort>
+                {
+                    new V1NetworkPolicyPort { Port = (IntOrString)53, Protocol = "UDP" },
+                    new V1NetworkPolicyPort { Port = (IntOrString)53, Protocol = "TCP" }
+                }
+            });
+
+            V1NetworkPolicyPeer server = new V1NetworkPolicyPeer();
+            server.PodSelector = new V1LabelSelector { MatchLabels = new Dictionary<string, string> { { "app.kubernetes.io/name", "garrison-server" } } };
+            if (!String.IsNullOrWhiteSpace(serverNamespace) && !String.Equals(serverNamespace, request.Namespace, StringComparison.Ordinal))
+                server.NamespaceSelector = new V1LabelSelector { MatchLabels = new Dictionary<string, string> { { "kubernetes.io/metadata.name", serverNamespace! } } };
+            egress.Add(new V1NetworkPolicyEgressRule
+            {
+                To = new List<V1NetworkPolicyPeer> { server },
+                Ports = new List<V1NetworkPolicyPort> { new V1NetworkPolicyPort { Port = (IntOrString)_Settings.ServerMcpPort, Protocol = "TCP" } }
+            });
+
+            foreach (DeploymentEgressRule rule in spec.EgressRules)
+            {
+                V1NetworkPolicyPort port = new V1NetworkPolicyPort();
+                port.Protocol = rule.Protocol == EgressProtocolEnum.UDP ? "UDP" : "TCP";
+                if (rule.Port.HasValue) port.Port = (IntOrString)rule.Port.Value;
+                egress.Add(new V1NetworkPolicyEgressRule
+                {
+                    To = new List<V1NetworkPolicyPeer> { new V1NetworkPolicyPeer { IpBlock = new V1IPBlock { Cidr = rule.Cidr } } },
+                    Ports = new List<V1NetworkPolicyPort> { port }
+                });
+            }
+            policy.Spec.Egress = egress;
+            return policy;
         }
 
         /// <summary>

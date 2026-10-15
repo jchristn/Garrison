@@ -82,6 +82,26 @@ const (
 	TrustLevelUntrusted = "Untrusted"
 )
 
+// Egress rule protocols (DeploymentEgressRule.Protocol). An empty Protocol means EgressProtocolTCP.
+const (
+	EgressProtocolTCP = "TCP"
+	EgressProtocolUDP = "UDP"
+)
+
+// DeploymentEgressRule is one entry of a deployment's egress allowlist. With any rules, run pods reach only DNS, the
+// Garrison MCP port, and the rules; an unset executor resolves to KubernetesJob and a run no Ready worker can enforce
+// stays Queued with BlockedReason "NoIsolatingWorker". The server rejects an invalid CIDR (InvalidCidr), a port
+// outside 1 to 65535 (PortOutOfRange), more than 64 rules (TooManyEgressRules), Process executor with rules
+// (EgressRulesNeedKubernetesJob), and Warm cold start with rules (EgressRulesNeedColdStart).
+type DeploymentEgressRule struct {
+	// CIDR is the destination network address in CIDR notation, for example "203.0.113.0/24"; host names are not accepted.
+	CIDR string `json:"cidr"`
+	// Port is the destination port, 1 to 65535; nil allows every port.
+	Port *int `json:"port,omitempty"`
+	// Protocol is EgressProtocolTCP (the default when empty) or EgressProtocolUDP.
+	Protocol string `json:"protocol,omitempty"`
+}
+
 // Effect policies (Deployment.EffectPolicy, Run.EffectPolicy): what happens to a run that was already Running when its
 // worker was lost. An empty Deployment.EffectPolicy on create means EffectPolicyAtMostOnce. The deprecated
 // retryOnNodeLoss is still accepted on input (true is AtLeastOnce, false is AtMostOnce); sending both with different
@@ -327,6 +347,8 @@ type Deployment struct {
 	Executor *string `json:"executor,omitempty"`
 	// TrustLevel is TrustLevelTrusted (the default when empty) or TrustLevelUntrusted.
 	TrustLevel string `json:"trustLevel,omitempty"`
+	// EgressRules is the egress allowlist; empty means no allowlist (the cluster's default run egress).
+	EgressRules []DeploymentEgressRule `json:"egressRules,omitempty"`
 	// EffectPolicy is EffectPolicyAtMostOnce (the default when empty), EffectPolicyAtLeastOnce, or EffectPolicyJournaled.
 	EffectPolicy string `json:"effectPolicy,omitempty"`
 	// PodResources are the run pod requests and limits for KubernetesJob runs.

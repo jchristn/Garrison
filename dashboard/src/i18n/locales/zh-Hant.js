@@ -2142,3 +2142,18 @@ zhHant.tips.views.runDetail.effectPolicy = "此執行進入佇列時部署的作
 zhHant.views.settings.fields.Scheduling.QueueWakeFanout = "每個副本喚醒的輪詢數";
 zhHant.views.settings.fields.Scheduling.RemoteWakeDelayMs = "遠端喚醒暫緩時間 (ms)";
 zhHant.views.settings.fields.Auth.CacheSeconds = "認證快取有效期 (秒)";
+
+// Deployment egress allowlists (P11.15).
+zhHant.resources.deployments.fields.egressRules = "出站允許清單";
+zhHant.resources.deployments.fields.egressCidr = "CIDR 位址區塊";
+zhHant.resources.deployments.fields.egressPort = "目的連接埠";
+zhHant.resources.deployments.fields.egressProtocol = "通訊協定";
+zhHant.resources.deployments.columns.egressRules = "出站";
+zhHant.resources.deployments.hints.egressRules = "留空則使用叢集預設的執行出站規則 (允許 HTTPS 連到任何位址)。設定規則後，執行 Pod 只能連到 DNS、Garrison MCP 連接埠和這些位址區塊，且執行需要能強制執行規則的 Kubernetes worker。請輸入 CIDR 位址區塊而非主機名稱；請自行將名稱解析為位址。連接埠留空表示允許所有連接埠。最多 64 條規則。";
+zhHant.resources.deployments.egress = {"add": "新增出站規則", "allPorts": "所有連接埠", "default": "預設", "count_one": "允許清單，{{count}} 條規則", "count_other": "允許清單，{{count}} 條規則", "note_one": "這個部署有 {{count}} 條出站規則。它的執行只會在啟用出站允許清單的 Kubernetes worker 上進行，執行所在 Pod 的 NetworkPolicy 只允許 DNS、Garrison MCP 連接埠和這些規則。沒有這樣的 worker 就緒時，執行會在佇列中等待 (沒有可隔離的工作節點)；絕不會在沒有允許清單的情況下執行。", "note_other": "這個部署有 {{count}} 條出站規則。它的執行只會在啟用出站允許清單的 Kubernetes worker 上進行，執行所在 Pod 的 NetworkPolicy 只允許 DNS、Garrison MCP 連接埠和這些規則。沒有這樣的 worker 就緒時，執行會在佇列中等待 (沒有可隔離的工作節點)；絕不會在沒有允許清單的情況下執行。", "errors": {"cidrRequired": "請輸入 CIDR 位址區塊，例如 203.0.113.0/24。", "cidrFormat": "請使用含前置長度的 CIDR 表示法，例如 198.51.100.7/32。不接受主機名稱。", "cidrAddress": "這個位址不是有效的 IPv4 或 IPv6 位址。", "cidrPrefix": "前置長度超出範圍 (IPv4 為 0 到 32，IPv6 為 0 到 128)。", "cidrMapped": "不允許使用 IPv4 對應的 IPv6 位址；請改為輸入 IPv4 位址區塊。", "cidrHostBits": "這個位址在前置長度之後有設定的位元；請使用位址區塊的網路位址。"}};
+Object.assign(zhHant.common.fieldCodes, {"InvalidCidr": "CIDR 位址區塊無效。", "PortOutOfRange": "連接埠必須介於 1 到 65535，或留空表示所有連接埠。", "InvalidProtocol": "不明的通訊協定；請使用 TCP 或 UDP。", "TooManyEgressRules": "一個部署最多可以有 64 條出站規則。", "EgressRulesNeedKubernetesJob": "出站規則只對 Kubernetes Job 執行強制執行。請選擇 Kubernetes Job，或將執行器留空。", "EgressRulesNeedColdStart": "出站規則需要冷啟動，因為預熱 Pod 已經在預設出站規則下執行。請清空啟動類別或選擇冷啟動。"});
+zhHant.components.blocked.reasons.NoIsolatingWorkerEgress = "這個執行的部署有出站允許清單，只有啟用出站允許清單的 Kubernetes worker 才能強制執行，而能執行 {{harness}} 的就緒 worker 都不提供這項能力。執行會在佇列中等待，絕不會在沒有允許清單的情況下執行。請在網路外掛會強制執行 NetworkPolicy 的叢集中，為 Kubernetes Job worker 啟用出站允許清單。";
+zhHant.tips.enums.runBlockedReason.NoIsolatingWorker = "已封鎖：這個執行需要可隔離的 worker (不可信任的執行需要容器隔離，含出站允許清單的部署需要出站控制)，而具備其 harness 的就緒 worker 都不提供。它會在佇列中等待，直到合適的 Kubernetes Job worker 註冊。";
+zhHant.tips.resources.deployments.egressRules = "這個部署的執行 Pod 可以連到的目的地，以 CIDR 位址區塊表示，可選連接埠和通訊協定。留空則使用預設的執行出站規則。";
+zhHant.tips.resources.deployments.egressRulesItems = {"cidr": "CIDR 表示法的目的位址區塊，IPv4 或 IPv6，例如 203.0.113.0/24。請自行將主機名稱解析為位址。", "port": "1 到 65535 之間的目的連接埠。留空則允許該位址區塊的所有連接埠。", "protocol": "大多數服務使用 TCP，或選擇 UDP。"};
+zhHant.tips.resources.deployments.egressDefault = "沒有出站允許清單：執行 Pod 使用叢集預設的執行出站規則。";

@@ -122,6 +122,7 @@ namespace Garrison.Core.Database
                 "pipeline_run_stage_parameters",
                 "pipeline_reviews",
                 "run_child_waits",
+                "deployment_egress_rules",
         };
 
         private readonly SqlDialect _Dialect;

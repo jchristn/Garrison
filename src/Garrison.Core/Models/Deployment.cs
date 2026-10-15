@@ -555,6 +555,38 @@ namespace Garrison.Core.Models
         /// </summary>
         public DeploymentTrustLevelEnum TrustLevel { get; set; } = DeploymentTrustLevelEnum.Trusted;
 
+        /// <summary>
+        /// Egress allowlist (P11.15, D-052), in display order. Empty (the default) means no allowlist: run pods use the
+        /// cluster's default run egress (HTTPS to anywhere in the shipped manifests). With at least one rule, a run pod
+        /// may reach only DNS, the Garrison server MCP port, and these rules, enforced by a per-run Kubernetes
+        /// NetworkPolicy; every run then needs EgressControl and at least Container isolation, an unset
+        /// <see cref="Executor"/> resolves to KubernetesJob, and a run with no worker able to enforce the rules stays
+        /// Queued with the blocked reason NoIsolatingWorker. At most <see cref="MaxEgressRules"/> rules. Never null.
+        /// </summary>
+        public List<DeploymentEgressRule> EgressRules
+        {
+            get
+            {
+                return _EgressRules;
+            }
+            set
+            {
+                _EgressRules = value ?? new List<DeploymentEgressRule>();
+            }
+        }
+
+        /// <summary>
+        /// Most egress rules one deployment may have. Each rule becomes one NetworkPolicy egress entry, and policy
+        /// controllers slow down with very large policies. Fixed at 64.
+        /// </summary>
+        public static int MaxEgressRules
+        {
+            get
+            {
+                return 64;
+            }
+        }
+
         #endregion
 
         #region Private-Members
@@ -585,6 +617,7 @@ namespace Garrison.Core.Models
         private List<DeploymentParameter> _Parameters = new List<DeploymentParameter>();
         private List<DeploymentRunOverrideRule> _AllowedRunOverrides = new List<DeploymentRunOverrideRule>();
         private List<DeploymentApprovalRule> _ApprovalRules = new List<DeploymentApprovalRule>();
+        private List<DeploymentEgressRule> _EgressRules = new List<DeploymentEgressRule>();
         private int _ApprovalTimeoutSeconds = 300;
 
         private ExecutorRequirements _RequiredCapabilities = new ExecutorRequirements();

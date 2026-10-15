@@ -133,6 +133,13 @@ namespace Garrison.Core.Manifests
         public List<string>? ArtifactGlobs { get; set; } = null;
 
         /// <summary>
+        /// Egress allowlist (P11.15): a list of rules, each with cidr (required), port (1 to 65535, omitted for every
+        /// port), and protocol (TCP, the default, or UDP). Null or empty means no allowlist; export omits it then. With
+        /// rules, run pods may reach only DNS, the Garrison server MCP port, and these rules.
+        /// </summary>
+        public List<Garrison.Core.Models.DeploymentEgressRule>? EgressRules { get; set; } = null;
+
+        /// <summary>
         /// Role to template name (name@version pins a version).
         /// </summary>
         public Dictionary<string, string> Prompts { get; set; } = new Dictionary<string, string>();

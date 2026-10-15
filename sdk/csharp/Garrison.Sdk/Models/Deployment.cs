@@ -485,6 +485,19 @@ namespace Garrison.Sdk.Models
         /// </summary>
         public DeploymentTrustLevelEnum TrustLevel { get; set; } = DeploymentTrustLevelEnum.Trusted;
 
+        /// <summary>
+        /// Egress allowlist, at most 64 rules. Empty (the default) means no allowlist: run pods use the cluster's default
+        /// run egress. With rules, a run pod may reach only DNS, the Garrison server MCP port, and these rules; every run
+        /// then needs a KubernetesJob worker that enforces egress (an unset executor resolves to KubernetesJob, Process
+        /// is rejected with field code EgressRulesNeedKubernetesJob), and a run no Ready worker can enforce stays Queued
+        /// with blocked reason NoIsolatingWorker. Never null.
+        /// </summary>
+        public List<DeploymentEgressRule> EgressRules
+        {
+            get { return _EgressRules; }
+            set { _EgressRules = value ?? new List<DeploymentEgressRule>(); }
+        }
+
         #endregion
 
         #region Private-Members
@@ -509,6 +522,7 @@ namespace Garrison.Sdk.Models
         private List<DeploymentParameter> _Parameters = new List<DeploymentParameter>();
         private List<DeploymentRunOverrideRule> _AllowedRunOverrides = new List<DeploymentRunOverrideRule>();
         private List<DeploymentApprovalRule> _ApprovalRules = new List<DeploymentApprovalRule>();
+        private List<DeploymentEgressRule> _EgressRules = new List<DeploymentEgressRule>();
         private int _ApprovalTimeoutSeconds = 300;
 
         private ExecutorRequirements _RequiredCapabilities = new ExecutorRequirements();

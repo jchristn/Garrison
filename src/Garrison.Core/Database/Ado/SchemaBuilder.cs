@@ -220,6 +220,20 @@ namespace Garrison.Core.Database.Ado
             v26.Index("manifest_apply_warnings", "parent", false, "manifestapplyid");
             migrations.Add(new SchemaMigration(26, "Manifest apply item warnings", v26._Statements, v26._Columns));
 
+            // P11.15: per-deployment egress allowlists. Existing deployments have no rows, so their runs keep the
+            // default run egress and their placement is unchanged.
+            SchemaBuilder v27 = new SchemaBuilder(catalog, dialect);
+            v27.Table("deployment_egress_rules",
+                "id " + dialect.TypeId + " NOT NULL PRIMARY KEY",
+                "deploymentid " + dialect.TypeId + " NOT NULL",
+                "tenantid " + dialect.TypeId + " NOT NULL",
+                "position " + dialect.TypeInt + " NOT NULL",
+                "cidr VARCHAR(64) NOT NULL",
+                "port " + dialect.TypeInt,
+                "protocol VARCHAR(8) NOT NULL");
+            v27.Index("deployment_egress_rules", "parent", false, "deploymentid", "position");
+            migrations.Add(new SchemaMigration(27, "Deployment egress allowlists", v27._Statements, v27._Columns));
+
             return migrations;
         }
 

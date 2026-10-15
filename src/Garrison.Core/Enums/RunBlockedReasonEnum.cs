@@ -22,9 +22,11 @@ namespace Garrison.Core.Enums
         NoMatchingPool,
 
         /// <summary>
-        /// The run is Untrusted (P11.14) and Ready nodes report its harness, but none offers its executor with the
-        /// isolation it needs (at least Container, for example a worker with the KubernetesJob executor). The run waits
-        /// in the queue until such a worker registers.
+        /// The run is Untrusted (P11.14) or needs egress control because its deployment has an egress allowlist
+        /// (P11.15), and Ready nodes report its harness, but none offers its executor with the isolation it needs (at
+        /// least Container, for example a worker with the KubernetesJob executor) and, for an allowlist, egress control
+        /// (a KubernetesJob worker with Kubernetes.EgressAllowlists on). The run waits in the queue until such a worker
+        /// registers; it never runs without the allowlist enforced.
         /// </summary>
         NoIsolatingWorker
     }

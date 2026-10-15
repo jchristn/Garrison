@@ -149,12 +149,12 @@ Each run gets its own Job and pod (`docs/KUBERNETES.md`, "Pod-per-run executor")
 - has no Garrison credentials besides the run token in its MCP configuration (needed for delegation, limited to its delegation tree, and revoked when the run ends) and the secrets its own deployment binds;
 - runs as UID 10001 with `runAsNonRoot`, a read-only root filesystem, every capability dropped, `allowPrivilegeEscalation: false`, the `RuntimeDefault` seccomp profile, and no service environment variables (`enableServiceLinks: false`);
 - is limited by the deployment's CPU, memory, and ephemeral storage requests and limits, so a runaway harness is OOMKilled or evicted instead of starving the node's other runs;
-- accepts no inbound traffic and may only resolve DNS, reach the Garrison MCP port, and make HTTPS connections (the `garrison-run` NetworkPolicy; adjust it to your harnesses' endpoints). Policies need a network plugin that enforces them; K3S's default one does;
+- accepts no inbound traffic and may only resolve DNS, reach the Garrison MCP port (the `garrison-run` NetworkPolicy), and make HTTPS connections (the `garrison-run-default-egress` NetworkPolicy). A deployment with an egress allowlist replaces that HTTPS rule with its own CIDR and port rules ("Egress allowlists" below). Policies need a network plugin that enforces them; K3S's default one does;
 - can optionally run under gVisor or Kata Containers (`runtimeClassName`) for a kernel boundary as well.
 
 The worker trusts nothing the pod prints except lines that start with the run's random nonce, which only the worker and the pod's spec Secret know. JSON encoding keeps harness text on one line, and `run-one` marks itself non-dumpable so the harness, which runs as the same user with no capabilities, cannot open `run-one`'s stdout through `/proc`. A harness that reads its own spec file learns its own nonce and could, at worst, misreport its own run; it cannot affect other runs or the control plane.
 
-What it does not protect against: run pods still share the node's kernel unless you use a sandboxed runtime; the default egress rule allows HTTPS to anywhere, which a prompt-injected harness can use to send out what it can read (its workspace, its own secrets); and the worker's Role can create pods in the run namespace, which can mount that namespace's Secrets, so a compromised worker in the same namespace as `garrison-secrets` could read them.
+What it does not protect against: run pods still share the node's kernel unless you use a sandboxed runtime; for deployments without an egress allowlist, the default egress rule allows HTTPS to anywhere, which a prompt-injected harness can use to send out what it can read (its workspace, its own secrets), so give such deployments `egressRules` (below); and the worker's Role can create pods in the run namespace, which can mount that namespace's Secrets, so a compromised worker in the same namespace as `garrison-secrets` could read them.
 
 ### Codex sandbox in containers
 
@@ -178,7 +178,45 @@ A tenant can require Untrusted for all its deployments with `requireUntrustedDep
 
 Delegated children run under their own deployment's trust level, not their parent's. An Untrusted parent may delegate to a Trusted child when the parent's delegation rules allow it, and the child then runs on whatever executor its own deployment allows. Since a child's input is the parent's output, keep untrusted agents' delegation allowlists to children whose deployments are also Untrusted, or that you would trust with that content.
 
-Trust level is a placement policy, not a sandbox by itself: Container isolation means the KubernetesJob executor described above, with the limits listed under it (shared kernel unless you use a sandboxed runtime, and the default egress rule).
+Trust level is a placement policy, not a sandbox by itself: Container isolation means the KubernetesJob executor described above, with the limits listed under it (shared kernel unless you use a sandboxed runtime, and the default egress rule unless the deployment has an egress allowlist).
+
+### Egress allowlists
+
+Egress allowlists are the way to narrow what a run can reach on the network, per deployment (P11.15, D-035, D-052). A deployment lists the destinations its runs need, such as the model API, a git host, or an MCP server, as `egressRules`:
+
+```json
+"egressRules": [
+  { "cidr": "203.0.113.0/24", "port": 443, "protocol": "TCP" },
+  { "cidr": "2001:db8::/32", "port": 443 },
+  { "cidr": "198.51.100.7/32" }
+]
+```
+
+Each rule is a CIDR block (IPv4 or IPv6, written as its network address), an optional port from 1 to 65535 (omitted means every port), and a protocol, `TCP` (the default) or `UDP`. A deployment can have at most 64 rules. Host names are not accepted: resolve them yourself and list the blocks, and keep the list current when a provider's addresses change. Many providers publish their ranges.
+
+With at least one rule, a run pod of that deployment can reach only:
+
+- DNS (UDP and TCP port 53),
+- the Garrison server's MCP port (the same rule as `garrison-run`),
+- the listed rules.
+
+The HTTPS-to-anywhere default does not apply to it. An empty list (the default, and what every existing deployment has) keeps today's behavior.
+
+How it is enforced:
+
+- Only KubernetesJob run pods with a NetworkPolicy enforce an allowlist. Admission requires the `EgressControl` capability and at least Container isolation for every run of such a deployment, and an unset executor resolves to `KubernetesJob`. `executor: Process` is rejected (`EgressRulesNeedKubernetesJob`), and so is Warm startup (`EgressRulesNeedColdStart`).
+- Only workers that enforce allowlists claim these runs. A worker reports `EgressControl` when all of the following hold: `Kubernetes.EgressAllowlists` is on, `Kubernetes.EgressCanary` is set, its Role can create, get, list, and delete NetworkPolicies, and no shared NetworkPolicy in the run namespace would widen allowlisted pods.
+- When no such worker is Ready, the run waits in the queue with `blockedReason: NoIsolatingWorker`. It is never run without its allowlist.
+- For each run the worker labels the Job and pod `garrison.io/egress: allowlist`, so `garrison-run-default-egress` never selects the pod. It then creates a NetworkPolicy owned by the Job that selects only that pod and allows DNS, the MCP port, and the rules. This policy exists before the spec Secret, so it is in place before `run-one` can start, and the egress canary still has to be blocked before the harness starts.
+- The worker deletes the policy when the run ends, and reconciliation removes any it misses. Warm pods are never used for these runs: a warm pod already runs under the default egress, and relabeling it would leave a short window that the canary cannot detect.
+- Defense in depth: the compiler refuses to lease an allowlisted spec for any executor but KubernetesJob. A Process executor that receives one anyway fails the run (`NoCapableWorker`), and so does a KubernetesJob worker that cannot enforce the rules at that moment.
+
+Limits:
+
+- NetworkPolicy works on addresses, not names. A CDN or shared IP range lets the pod reach every host that shares the range.
+- DNS stays open, so a determined harness can still leak small amounts of data through DNS queries to the cluster resolver.
+- The rules are only as strong as the network plugin, which must enforce NetworkPolicy, including IPv6 rules if you list IPv6 blocks.
+- Do not list a block that contains the Garrison server's pod or service address on every port. Doing so makes the egress canary reachable, and runs then fail with `PodFailed` rather than start.
 
 ### Recommendations for untrusted prompts
 
@@ -186,7 +224,7 @@ Trust level is a placement policy, not a sandbox by itself: Container isolation 
 
 - Use `executor: KubernetesJob` (or leave it unset on an Untrusted deployment) for every deployment that handles prompts, documents, or repositories you do not control.
 - Put run pods in their own namespace (`kubernetesExecutor.runNamespace`) with the `restricted` Pod Security level, away from `garrison-secrets`.
-- Narrow `runEgress` from 443-anywhere to the model APIs and git hosts the harness needs.
+- Give every deployment that handles untrusted input `egressRules` listing only the model APIs, git hosts, and MCP servers it needs, and narrow `runEgress` (the default for deployments without rules) from 443-anywhere as far as your other deployments allow.
 - Set `podResources` limits so one run cannot exhaust a node, and use a sandboxed `runtimeClassName` where the nodes support it.
 - Bind only the secrets and MCP servers the agent needs, keep delegation off or on a tight allowlist, and use the harnesses' own sandboxes (`sandbox` for Codex and Mux, `permissionMode` and `allowedTools` for Claude Code) as tightly as the work allows.
 - A worker with the KubernetesJob executor enabled mounts its service account token, which Process runs on that worker can read. Where Process deployments also take untrusted input, give them a separate worker pool with `GARRISON_WORKER_KUBERNETES_ENABLED=false` and `automountServiceAccountToken: false`, and keep the Job-capable pool for KubernetesJob deployments (pin them with a node pool or `nodeSelector`).

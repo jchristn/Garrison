@@ -83,6 +83,27 @@ namespace Garrison.Worker.Kubernetes
         }
 
         /// <summary>
+        /// Whether per-run egress allowlists are enforced (P11.15): the executor is available, Kubernetes.EgressAllowlists
+        /// is on, the worker may create, get, list, and delete NetworkPolicies in the run namespace, and no shared policy
+        /// widens allowlisted run pods (<see cref="EgressPolicyAudit"/>). Reported as the EgressControl capability.
+        /// </summary>
+        public bool EgressAvailable
+        {
+            get { return Available && _Settings.EgressAllowlists && Volatile.Read(ref _EgressAvailable) == 1; }
+        }
+
+        /// <summary>
+        /// Why egress allowlists are not enforced, or a summary when they are.
+        /// </summary>
+        public string EgressDetail { get; private set; } = "not initialized";
+
+        /// <summary>
+        /// Namespace of the Garrison server pods for the MCP rule of allowlisted run pods: Kubernetes.ServerNamespace,
+        /// else the worker's own namespace (resolved at initialization).
+        /// </summary>
+        public string ServerNamespace { get; private set; } = "default";
+
+        /// <summary>
         /// Why the executor is unavailable, or a summary when available.
         /// </summary>
         public string Detail { get; private set; } = "not initialized";
@@ -99,6 +120,7 @@ namespace Garrison.Worker.Kubernetes
         private IKubernetes? _Client = null;
         private int _Available = 0;
         private int _WarmAvailable = 0;
+        private int _EgressAvailable = 0;
         private bool _Disposed = false;
 
         #endregion
@@ -148,9 +170,13 @@ namespace Garrison.Worker.Kubernetes
                     {
                         return SetAvailable(false, "not running in a cluster (no service account token) and no Kubernetes.KubeconfigPath");
                     }
+                    string own = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POD_NAMESPACE")) ? Environment.GetEnvironmentVariable("POD_NAMESPACE")!
+                        : !String.IsNullOrWhiteSpace(configuration.Namespace) ? configuration.Namespace!
+                        : "default";
                     Namespace = !String.IsNullOrWhiteSpace(_Settings.RunNamespace) ? _Settings.RunNamespace!
                         : !String.IsNullOrWhiteSpace(configuration.Namespace) ? configuration.Namespace!
                         : Environment.GetEnvironmentVariable("POD_NAMESPACE") ?? "default";
+                    ServerNamespace = !String.IsNullOrWhiteSpace(_Settings.ServerNamespace) ? _Settings.ServerNamespace!.Trim() : own;
                     // Every Kubernetes API call is an outbound call (service kubernetes) with a client span (P13.24).
                     _Client = new k8s.Kubernetes(configuration, new TelemetryHttpHandler("kubernetes"));
                 }
@@ -187,6 +213,7 @@ namespace Garrison.Worker.Kubernetes
                 }
                 Interlocked.Exchange(ref _WarmAvailable, _Settings.WarmPods.Enabled && warmDenied.Count == 0 ? 1 : 0);
                 if (warmDenied.Count > 0) _Log?.Invoke("warm pods unavailable; cold execution remains available. Missing RBAC: " + String.Join(", ", warmDenied));
+                await CheckEgressAsync(token).ConfigureAwait(false);
                 return SetAvailable(true, "namespace " + Namespace + ", image " + Image);
             }
             catch (Exception e) when (e is HttpOperationException || e is HttpRequestException || e is IOException || e is k8s.Exceptions.KubeConfigException || e is TaskCanceledException)
@@ -220,6 +247,31 @@ namespace Garrison.Worker.Kubernetes
             catch (HttpOperationException e)
             {
                 _Log?.Invoke("deleting job " + name + " failed: " + e.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Delete a run's egress NetworkPolicy (P11.15). Not found counts as deleted.
+        /// </summary>
+        /// <param name="name">Policy name.</param>
+        /// <param name="token">Cancellation token.</param>
+        /// <returns>True when deleted or already gone.</returns>
+        public async Task<bool> DeleteNetworkPolicyAsync(string name, CancellationToken token)
+        {
+            IKubernetes client = RequireClient();
+            try
+            {
+                await client.NetworkingV1.DeleteNamespacedNetworkPolicyAsync(name, Namespace, cancellationToken: token).ConfigureAwait(false);
+                return true;
+            }
+            catch (HttpOperationException e) when (e.Response != null && e.Response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return true;
+            }
+            catch (HttpOperationException e)
+            {
+                _Log?.Invoke("deleting network policy " + name + " failed: " + e.Message);
                 return false;
             }
         }
@@ -264,6 +316,56 @@ namespace Garrison.Worker.Kubernetes
             Detail = detail;
             if (changed) _Log?.Invoke("KubernetesJob executor " + (available ? "available: " : "unavailable: ") + detail);
             return available;
+        }
+
+        private async Task CheckEgressAsync(CancellationToken token)
+        {
+            if (!_Settings.EgressAllowlists)
+            {
+                SetEgress(false, "off (Kubernetes.EgressAllowlists is false)");
+                return;
+            }
+            if (String.IsNullOrWhiteSpace(_Settings.EgressCanary))
+            {
+                // Without the canary nothing proves the network plugin enforces NetworkPolicy, and an allowlist that is
+                // not enforced must never look enforced (D-052).
+                SetEgress(false, "Kubernetes.EgressCanary is not set, so the worker cannot confirm that the network plugin enforces NetworkPolicy");
+                return;
+            }
+            try
+            {
+                List<string> denied = new List<string>();
+                foreach (string verb in new[] { "create", "get", "list", "delete" })
+                {
+                    if (!await AllowedAsync("networking.k8s.io", "networkpolicies", verb, "", token).ConfigureAwait(false)) denied.Add(verb + " networkpolicies");
+                }
+                if (denied.Count > 0)
+                {
+                    SetEgress(false, "RBAC in namespace " + Namespace + " does not allow: " + String.Join(", ", denied));
+                    return;
+                }
+                V1NetworkPolicyList list = await RequireClient().NetworkingV1.ListNamespacedNetworkPolicyAsync(Namespace, cancellationToken: token).ConfigureAwait(false);
+                List<string> widening = EgressPolicyAudit.Widening(list.Items ?? new List<V1NetworkPolicy>(), EgressPolicyAudit.AllowlistedPodLabels(_Settings.PodLabels));
+                if (widening.Count > 0)
+                {
+                    SetEgress(false, "a shared NetworkPolicy in " + Namespace + " would widen allowlisted run pods (" + String.Join("; ", widening) + "); select only pods without the " + RunPodNames.EgressLabel + " label, as garrison-run-default-egress does");
+                    return;
+                }
+                SetEgress(true, "enforced in namespace " + Namespace);
+            }
+            catch (Exception e) when (e is HttpOperationException || e is HttpRequestException || e is IOException)
+            {
+                if (token.IsCancellationRequested) throw;
+                SetEgress(false, "checking NetworkPolicies failed: " + e.Message);
+            }
+        }
+
+        private void SetEgress(bool available, string detail)
+        {
+            int previous = Interlocked.Exchange(ref _EgressAvailable, available ? 1 : 0);
+            bool changed = (previous == 1) != available || !String.Equals(EgressDetail, detail, StringComparison.Ordinal);
+            EgressDetail = detail;
+            if (changed && _Settings.EgressAllowlists) _Log?.Invoke("egress allowlists " + (available ? "available: " : "unavailable: ") + detail);
         }
 
         private static bool InCluster()

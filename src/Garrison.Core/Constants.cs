@@ -42,6 +42,9 @@ namespace Garrison.Core
         /// <summary>Child wait record identifier prefix: a parent run waiting synchronously on a child run (P12.38).</summary>
         public const string RunChildWaitIdPrefix = "rcw_";
 
+        /// <summary>Deployment egress allowlist rule row identifier prefix (P11.15).</summary>
+        public const string DeploymentEgressRuleIdPrefix = "der_";
+
         /// <summary>
         /// Product name.
         /// </summary>

@@ -367,6 +367,54 @@ namespace Garrison.Sdk.Test
                     }
                 }).ConfigureAwait(false);
 
+                await CheckAsync("egress allowlist round trip, validation, and queueing", async () =>
+                {
+                    Deployment allowlisted = new Deployment();
+                    allowlisted.Name = "sdk-cs-" + suffix + "-egress";
+                    allowlisted.AgentId = agentId ?? throw new InvalidOperationException("no agent");
+                    allowlisted.HarnessProfileId = fakeProfileId ?? throw new InvalidOperationException("no fake profile");
+                    allowlisted.Weight = 0;
+                    DeploymentEgressRule rule = new DeploymentEgressRule();
+                    rule.Cidr = "203.0.113.0/24";
+                    rule.Port = 443;
+                    rule.Protocol = EgressProtocolEnum.TCP;
+                    allowlisted.EgressRules.Add(rule);
+                    allowlisted = await client.Deployments.CreateAsync(allowlisted, token).ConfigureAwait(false);
+                    try
+                    {
+                        Deployment read = await client.Deployments.GetAsync(allowlisted.Id, token).ConfigureAwait(false);
+                        Require(read.EgressRules.Count == 1, "egressRules count " + read.EgressRules.Count);
+                        Require(read.EgressRules[0].Cidr == "203.0.113.0/24" && read.EgressRules[0].Port == 443 && read.EgressRules[0].Protocol == EgressProtocolEnum.TCP,
+                            "egress rule " + read.EgressRules[0].Cidr + " " + read.EgressRules[0].Port + " " + read.EgressRules[0].Protocol);
+
+                        read.EgressRules[0].Cidr = "203.0.113.7/24";
+                        bool rejected = false;
+                        try
+                        {
+                            await client.Deployments.UpdateAsync(read.Id, read, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 400)
+                        {
+                            rejected = (e.ResponseBody ?? String.Empty).Contains("InvalidCidr", StringComparison.Ordinal);
+                        }
+                        Require(rejected, "expected 400 InvalidCidr for a CIDR with host bits set");
+
+                        RunCreateRequest request = new RunCreateRequest();
+                        request.AgentId = agentId;
+                        request.DeploymentId = allowlisted.Id;
+                        request.Input = "Egress allowlist";
+                        Run run = await client.Runs.CreateAsync(request, token).ConfigureAwait(false);
+                        Run queued = await client.Runs.GetAsync(run.Id, token).ConfigureAwait(false);
+                        Require(queued.Executor == RunExecutorEnum.KubernetesJob, "run executor " + queued.Executor);
+                        Require(queued.Status == RunStatusEnum.Queued && queued.BlockedReason == RunBlockedReasonEnum.NoIsolatingWorker, "run " + queued.Status + " " + queued.BlockedReason);
+                        await client.Runs.CancelAsync(run.Id, token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await client.Deployments.DeleteAsync(allowlisted.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("manifest dry run", async () =>
                 {
                     string yaml = "apiVersion: garrison/v1\nkind: Agent\nmetadata:\n  name: sdk-cs-manifest-" + suffix + "\nspec:\n  description: Dry run only.\n";

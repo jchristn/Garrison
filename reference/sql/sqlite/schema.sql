@@ -1334,3 +1334,33 @@ ALTER TABLE "deployments" ADD COLUMN effectpolicy VARCHAR(32) NOT NULL DEFAULT '
 ALTER TABLE "runs" ADD COLUMN effectpolicy VARCHAR(32) NOT NULL DEFAULT 'AtMostOnce';
 UPDATE "deployments" SET effectpolicy = 'AtLeastOnce' WHERE retryonnodeloss = 1;
 UPDATE "runs" SET effectpolicy = 'AtLeastOnce' WHERE deploymentid IN (SELECT id FROM "deployments" WHERE retryonnodeloss = 1);
+
+-- Migration 25: Worker containerized flag
+ALTER TABLE "nodes" ADD COLUMN containerized INTEGER NOT NULL DEFAULT 0;
+
+-- Migration 26: Manifest apply item warnings
+CREATE TABLE IF NOT EXISTS "manifest_apply_warnings" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    manifestapplyid VARCHAR(64) NOT NULL,
+    manifestapplyitemid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64),
+    position INTEGER NOT NULL,
+    field VARCHAR(512) NOT NULL,
+    code VARCHAR(64) NOT NULL,
+    givenvalue VARCHAR(256),
+    storedvalue VARCHAR(256),
+    message VARCHAR(1024)
+);
+CREATE INDEX IF NOT EXISTS "idx_manifest_apply_warnings_parent" ON "manifest_apply_warnings" ("manifestapplyid");
+
+-- Migration 27: Deployment egress allowlists
+CREATE TABLE IF NOT EXISTS "deployment_egress_rules" (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    deploymentid VARCHAR(64) NOT NULL,
+    tenantid VARCHAR(64) NOT NULL,
+    position INTEGER NOT NULL,
+    cidr VARCHAR(64) NOT NULL,
+    port INTEGER,
+    protocol VARCHAR(8) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "idx_deployment_egress_rules_parent" ON "deployment_egress_rules" ("deploymentid", "position");

@@ -215,5 +215,25 @@ namespace Garrison.Core.Compilation
         /// sets none or the run is a Process run. Unset values fall back to the worker's defaults.
         /// </summary>
         public RunPodResources? PodResources { get; set; } = null;
+
+        /// <summary>
+        /// Egress allowlist of the run's deployment (P11.15), compiled at lease time. Empty means no allowlist (the
+        /// cluster's default run egress applies). With rules, the KubernetesJob executor labels the run pod
+        /// garrison.io/egress=allowlist and creates a NetworkPolicy that allows only DNS, the Garrison server MCP port,
+        /// and these rules; a worker that cannot enforce them fails the run instead of running it. Never null.
+        /// </summary>
+        public List<DeploymentEgressRule> EgressRules
+        {
+            get
+            {
+                return _EgressRules;
+            }
+            set
+            {
+                _EgressRules = value ?? new List<DeploymentEgressRule>();
+            }
+        }
+
+        private List<DeploymentEgressRule> _EgressRules = new List<DeploymentEgressRule>();
     }
 }

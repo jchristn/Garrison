@@ -162,6 +162,12 @@ namespace Garrison.Worker.Kubernetes
             string ns = _Runtime.Namespace;
             SecretScrubber scrubber = new SecretScrubber(spec.ScrubValues);
             RunPodRequest request = BuildRequest(assignment, nonce, ns);
+            bool egress = RunPodManifestBuilder.HasEgressRules(request);
+            if (egress && !_Runtime.EgressAvailable)
+            {
+                // P11.15 (D-052): never run an allowlisted run without its NetworkPolicy.
+                return Fail(RunOutcomeEnum.NoCapableWorker, "This run's deployment has an egress allowlist, but this worker cannot enforce it right now (" + _Runtime.EgressDetail + "); the run was not started.");
+            }
             bool requireWarm = spec.RequiredCapabilities?.ColdStartClass == ExecutorColdStartEnum.Warm;
             bool allowWarm = spec.RequiredCapabilities?.ColdStartClass != ExecutorColdStartEnum.Cold;
             if (requireWarm && (_WarmPool?.Available != true || !KubernetesWarmPool.Compatible(spec)))
@@ -181,6 +187,7 @@ namespace Garrison.Worker.Kubernetes
             using (CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(token, watchdog.Token))
             {
                 bool created = false;
+                bool policyCreated = false;
                 try
                 {
                     V1Job job = _Builder.BuildJob(request);
@@ -198,6 +205,24 @@ namespace Garrison.Worker.Kubernetes
                     Interlocked.Increment(ref _ColdApiWrites);
                     created = true;
                     GarrisonMetrics.Count(GarrisonMetricCatalog.K8sJobs, "result", "created");
+                    if (egress)
+                    {
+                        // The pod cannot start run-one until the spec Secret below exists, so creating the policy first
+                        // guarantees it is in place before the harness can run. The pod carries the allowlist label from
+                        // creation, so the default egress policy never selects it.
+                        try
+                        {
+                            await client.NetworkingV1.CreateNamespacedNetworkPolicyAsync(_Builder.BuildNetworkPolicy(request, createdJob, _Runtime.ServerNamespace), ns, cancellationToken: linked.Token).ConfigureAwait(false);
+                            Interlocked.Increment(ref _ColdApiWrites);
+                            policyCreated = true;
+                        }
+                        catch (HttpOperationException e)
+                        {
+                            await DeleteAsync(jobName).ConfigureAwait(false);
+                            return Fail(RunOutcomeEnum.PodFailed, "Creating the run egress NetworkPolicy failed: " + Describe(e));
+                        }
+                        Lifecycle(reporter, "RunPodEgressPolicyCreated", "Created NetworkPolicy " + RunPodNames.NetworkPolicyName(jobName) + " allowing DNS, the Garrison MCP port, and " + assignment.Spec!.EgressRules.Count + " egress rule(s).");
+                    }
                     try
                     {
                         await client.CoreV1.CreateNamespacedSecretAsync(_Builder.BuildSecret(request, createdJob), ns, cancellationToken: linked.Token).ConfigureAwait(false);
@@ -280,6 +305,12 @@ namespace Garrison.Worker.Kubernetes
                     if (created) await DeleteAsync(jobName).ConfigureAwait(false);
                     string detail = e is HttpOperationException http ? Describe(http) : e.Message;
                     return Fail(RunOutcomeEnum.PodFailed, scrubber.Scrub("Run pod failed: " + detail));
+                }
+                finally
+                {
+                    // The Job owns the policy, so Kubernetes deletes it with the Job; delete it now as well, because a
+                    // finished Job is kept for its TTL. Reconciliation removes any policy this misses.
+                    if (policyCreated) await DeletePolicyAsync(RunPodNames.NetworkPolicyName(jobName)).ConfigureAwait(false);
                 }
             }
         }
@@ -519,6 +550,21 @@ namespace Garrison.Worker.Kubernetes
             catch (HttpOperationException e) when (e.Response != null && e.Response.StatusCode == HttpStatusCode.NotFound)
             {
                 return null;
+            }
+        }
+
+        private async Task DeletePolicyAsync(string policyName)
+        {
+            using (CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(_DeleteTimeoutSeconds)))
+            {
+                try
+                {
+                    if (await _Runtime.DeleteNetworkPolicyAsync(policyName, timeout.Token).ConfigureAwait(false)) Interlocked.Increment(ref _ColdApiWrites);
+                }
+                catch (Exception e) when (e is OperationCanceledException || e is HttpRequestException || e is IOException)
+                {
+                    _Log?.Invoke("deleting network policy " + policyName + " failed: " + e.Message + "; reconciliation will retry");
+                }
             }
         }
 

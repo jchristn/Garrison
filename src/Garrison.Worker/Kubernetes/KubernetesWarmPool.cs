@@ -94,12 +94,15 @@ namespace Garrison.Worker.Kubernetes
             }
         }
 
-        /// <summary>Whether the precreated pod layout can execute this spec without altering isolation or resources.</summary>
+        /// <summary>Whether the precreated pod layout can execute this spec without altering isolation or resources.
+        /// Runs with an egress allowlist (P11.15) are never compatible: a warm pod already runs under the default run
+        /// egress, and relabeling it would leave a window in which the harness could reach the default destinations
+        /// before the policy controller reprograms the pod, a window the egress canary cannot detect.</summary>
         /// <param name="spec">Spec.</param>
         /// <returns>Whether default warm layout is compatible.</returns>
         public static bool Compatible(ExecutionSpec spec)
         {
-            return spec.Workspace.Kind != WorkspaceKindEnum.PersistentVolume && (spec.PodResources == null || spec.PodResources.IsEmpty);
+            return spec.Workspace.Kind != WorkspaceKindEnum.PersistentVolume && (spec.PodResources == null || spec.PodResources.IsEmpty) && spec.EgressRules.Count == 0;
         }
 
         /// <summary>Reserve one ready pod using a resource-version compare-and-set.</summary>

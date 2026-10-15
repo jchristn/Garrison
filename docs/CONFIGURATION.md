@@ -292,6 +292,18 @@ Tenants have one related setting, `requireUntrustedDeployments` (default `false`
 
 Each change is audited on the tenant. See [Security](SECURITY.md#deployment-trust-level) for the trust model.
 
+## Deployment egress allowlists
+
+Each deployment can list `egressRules` (CIDR, optional port, `TCP` or `UDP`; at most 64). There is no cluster setting for them; they are per deployment. Runs of a deployment with rules need a worker that enforces them and wait with `blockedReason: NoIsolatingWorker` until one is Ready. Enforcement is a worker setting:
+
+| Worker setting | Environment | Default | Meaning |
+|---|---|---|---|
+| `Kubernetes.EgressAllowlists` | `GARRISON_WORKER_RUN_EGRESS_ALLOWLISTS` | `false` (`true` in the Kubernetes manifests and Helm) | Create a NetworkPolicy per allowlisted run and report the `EgressControl` capability. Also needs `Kubernetes.EgressCanary` and NetworkPolicy RBAC |
+| `Kubernetes.ServerMcpPort` | `GARRISON_WORKER_RUN_SERVER_MCP_PORT` | `8701` | MCP port allowlisted run pods may reach on the server pods (1 to 65535) |
+| `Kubernetes.ServerNamespace` | `GARRISON_WORKER_SERVER_NAMESPACE` | the worker's namespace | Server namespace for that rule when runs live elsewhere |
+
+The code default is off because allowlists are only enforced with the split run NetworkPolicies the manifests ship (`garrison-run` and `garrison-run-default-egress`). See [Security](SECURITY.md#egress-allowlists) and [Kubernetes](KUBERNETES.md).
+
 ## Artifact collection
 
 Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example `["reports/**/*.json"]`. Empty globs disable collection. See [Run artifacts](ARTIFACTS.md) for filesystem/S3 configuration, limits, downloads, and API examples.

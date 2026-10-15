@@ -522,6 +522,7 @@ namespace Garrison.Core.Manifests
             }
 
             deployment.ArtifactGlobs = spec.ArtifactGlobs == null ? new List<string>() : new List<string>(spec.ArtifactGlobs);
+            deployment.EgressRules = spec.EgressRules == null ? new List<DeploymentEgressRule>() : spec.EgressRules.Select(r => r == null ? new DeploymentEgressRule() : r.Clone()).ToList();
 
             foreach (KeyValuePair<string, string> prompt in spec.Prompts)
             {
@@ -972,6 +973,7 @@ namespace Garrison.Core.Manifests
             spec.Weight = deployment.Weight;
             if (!String.IsNullOrEmpty(deployment.WorkspaceTemplateId)) spec.Workspace = await resolver.NameAsync("WorkspaceTemplate", deployment.WorkspaceTemplateId, token).ConfigureAwait(false);
             spec.ArtifactGlobs = deployment.ArtifactGlobs.Count == 0 ? null : new List<string>(deployment.ArtifactGlobs);
+            spec.EgressRules = deployment.EgressRules.Count == 0 ? null : deployment.EgressRules.Select(r => r.Clone()).ToList();
             if (!String.IsNullOrEmpty(deployment.ArtifactStoreId))
             {
                 ArtifactStore? store = await _Database.ArtifactStores.ReadAsync(deployment.ArtifactStoreId, token).ConfigureAwait(false);

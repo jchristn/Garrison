@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from garrison_sdk import (EFFECT_POLICIES, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
+from garrison_sdk import (EFFECT_POLICIES, EGRESS_PROTOCOLS, FIELD_WARNING_CODES, RUN_BLOCKED_REASONS, TRUST_LEVELS, FieldWarning, GarrisonClient,
                           GarrisonError)
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8700"
@@ -249,6 +249,31 @@ def t_effect_policy():
             require(e.status_code == 400 and "EffectPolicyConflict" in str(e.body), f"conflict {e.status_code} {e.body}")
         run = client.runs.create("Effect policy", agent_id=state["agent"], deployment_id=deployment["id"])
         require(run["effectPolicy"] == "AtLeastOnce", f"run effectPolicy {run.get('effectPolicy')}")
+        client.runs.cancel(run["id"])
+    finally:
+        client.deployments.delete(deployment["id"])
+
+
+def t_egress_rules():
+    require(EGRESS_PROTOCOLS == ("TCP", "UDP"), "egress protocol constants")
+    rule = {"cidr": "203.0.113.0/24", "port": 443, "protocol": "TCP"}
+    deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-egress", "agentId": state["agent"], "harnessProfileId": state["fake"],
+                                            "weight": 0, "egressRules": [rule]})
+    try:
+        read = client.deployments.get(deployment["id"])
+        rules = read.get("egressRules") or []
+        require(len(rules) == 1 and rules[0].get("cidr") == "203.0.113.0/24" and rules[0].get("port") == 443 and rules[0].get("protocol") == "TCP",
+                f"egressRules {rules}")
+        bad = dict(read, egressRules=[{"cidr": "203.0.113.7/24", "port": 443, "protocol": "TCP"}])
+        try:
+            client.deployments.update(deployment["id"], bad)
+            raise AssertionError("CIDR with host bits accepted")
+        except GarrisonError as e:
+            require(e.status_code == 400 and "InvalidCidr" in str(e.body), f"bad cidr {e.status_code} {e.body}")
+        run = client.runs.create("Egress allowlist", agent_id=state["agent"], deployment_id=deployment["id"])
+        queued = client.runs.get(run["id"])
+        require(queued["executor"] == "KubernetesJob", f"run executor {queued.get('executor')}")
+        require(queued["status"] == "Queued" and queued["blockedReason"] == "NoIsolatingWorker", f"run {queued['status']} {queued['blockedReason']}")
         client.runs.cancel(run["id"])
     finally:
         client.deployments.delete(deployment["id"])
@@ -548,6 +573,7 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("run analytics rejects from >= to", t_analytics_invalid), ("stream events", t_stream), ("cancel run", t_cancel),
                  ("untrusted deployment queues without isolation", t_trust_level),
                  ("effect policy default, update, and conflict", t_effect_policy),
+                 ("egress allowlist round trip, validation, and queueing", t_egress_rules),
                  ("manifest dry run", t_manifest), ("clamped values return ValueClamped warnings", t_clamp_warnings),
                  ("nodes report containerized", t_node_containerized), ("list runs by agent", t_list_runs),
                  ("conversation start", t_conversation_start), ("conversation continue", t_conversation_continue),

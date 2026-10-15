@@ -2142,3 +2142,18 @@ zhHans.tips.views.runDetail.effectPolicy = "此运行进入队列时部署的作
 zhHans.views.settings.fields.Scheduling.QueueWakeFanout = "每个副本唤醒的轮询数";
 zhHans.views.settings.fields.Scheduling.RemoteWakeDelayMs = "远端唤醒暂缓时间 (ms)";
 zhHans.views.settings.fields.Auth.CacheSeconds = "认证缓存有效期 (秒)";
+
+// Deployment egress allowlists (P11.15).
+zhHans.resources.deployments.fields.egressRules = "出站允许列表";
+zhHans.resources.deployments.fields.egressCidr = "CIDR 地址块";
+zhHans.resources.deployments.fields.egressPort = "目标端口";
+zhHans.resources.deployments.fields.egressProtocol = "协议";
+zhHans.resources.deployments.columns.egressRules = "出站";
+zhHans.resources.deployments.hints.egressRules = "留空则使用集群默认的运行出站规则 (允许 HTTPS 访问任意地址)。设置规则后，运行 Pod 只能访问 DNS、Garrison MCP 端口和这些地址块，且运行需要能强制执行规则的 Kubernetes worker。请填写 CIDR 地址块而不是主机名；请自行将名称解析为地址。端口留空表示允许所有端口。最多 64 条规则。";
+zhHans.resources.deployments.egress = {"add": "添加出站规则", "allPorts": "所有端口", "default": "默认", "count_one": "允许列表，{{count}} 条规则", "count_other": "允许列表，{{count}} 条规则", "note_one": "此部署有 {{count}} 条出站规则。它的运行只会在启用了出站允许列表的 Kubernetes worker 上进行，运行所在 Pod 的 NetworkPolicy 只允许 DNS、Garrison MCP 端口和这些规则。没有这样的 worker 就绪时，运行会在队列中等待 (没有可隔离的工作节点)；绝不会在没有允许列表的情况下运行。", "note_other": "此部署有 {{count}} 条出站规则。它的运行只会在启用了出站允许列表的 Kubernetes worker 上进行，运行所在 Pod 的 NetworkPolicy 只允许 DNS、Garrison MCP 端口和这些规则。没有这样的 worker 就绪时，运行会在队列中等待 (没有可隔离的工作节点)；绝不会在没有允许列表的情况下运行。", "errors": {"cidrRequired": "请输入 CIDR 地址块，例如 203.0.113.0/24。", "cidrFormat": "请使用带前缀长度的 CIDR 表示法，例如 198.51.100.7/32。不接受主机名。", "cidrAddress": "该地址不是有效的 IPv4 或 IPv6 地址。", "cidrPrefix": "前缀长度超出范围 (IPv4 为 0 到 32，IPv6 为 0 到 128)。", "cidrMapped": "不允许使用 IPv4 映射的 IPv6 地址；请改为输入 IPv4 地址块。", "cidrHostBits": "该地址在前缀之后有置位的比特；请使用地址块的网络地址。"}};
+Object.assign(zhHans.common.fieldCodes, {"InvalidCidr": "CIDR 地址块无效。", "PortOutOfRange": "端口必须在 1 到 65535 之间，或留空表示所有端口。", "InvalidProtocol": "未知协议；请使用 TCP 或 UDP。", "TooManyEgressRules": "一个部署最多可以有 64 条出站规则。", "EgressRulesNeedKubernetesJob": "出站规则只对 Kubernetes Job 运行强制执行。请选择 Kubernetes Job，或将执行器留空。", "EgressRulesNeedColdStart": "出站规则需要冷启动，因为预热 Pod 已经在默认出站规则下运行。请清空启动类别或选择冷启动。"});
+zhHans.components.blocked.reasons.NoIsolatingWorkerEgress = "此运行的部署有出站允许列表，只有启用了出站允许列表的 Kubernetes worker 才能强制执行，而能运行 {{harness}} 的就绪 worker 都不提供这一能力。运行会在队列中等待，绝不会在没有允许列表的情况下运行。请在网络插件会强制执行 NetworkPolicy 的集群中，为 Kubernetes Job worker 启用出站允许列表。";
+zhHans.tips.enums.runBlockedReason.NoIsolatingWorker = "已阻塞：此运行需要可隔离的 worker (不可信的运行需要容器隔离，带出站允许列表的部署需要出站控制)，而具备其 harness 的就绪 worker 都不提供。它会在队列中等待，直到合适的 Kubernetes Job worker 注册。";
+zhHans.tips.resources.deployments.egressRules = "此部署的运行 Pod 可以访问的目标，以 CIDR 地址块表示，可选端口和协议。留空则使用默认的运行出站规则。";
+zhHans.tips.resources.deployments.egressRulesItems = {"cidr": "CIDR 表示法的目标地址块，IPv4 或 IPv6，例如 203.0.113.0/24。请自行将主机名解析为地址。", "port": "1 到 65535 之间的目标端口。留空则允许该地址块的所有端口。", "protocol": "大多数服务使用 TCP，或选择 UDP。"};
+zhHans.tips.resources.deployments.egressDefault = "没有出站允许列表：运行 Pod 使用集群默认的运行出站规则。";

@@ -30,6 +30,7 @@ namespace Garrison.Core.Database.Ado
         private readonly string _AllowedRunOverridesTable;
         private readonly string _ApprovalRulesTable;
         private readonly string _ArtifactGlobsTable;
+        private readonly string _EgressRulesTable;
 
         #endregion
 
@@ -54,6 +55,7 @@ namespace Garrison.Core.Database.Ado
             _AllowedRunOverridesTable = driver.Table("deployment_run_overrides");
             _ApprovalRulesTable = driver.Table("deployment_approval_rules");
             _ArtifactGlobsTable = driver.Table("deployment_artifact_globs");
+            _EgressRulesTable = driver.Table("deployment_egress_rules");
         }
 
         #endregion
@@ -367,6 +369,12 @@ namespace Garrison.Core.Database.Ado
                 command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
                 MapApprovalRules,
                 token).ConfigureAwait(false);
+
+            obj.EgressRules = await _Driver.QueryAsync(
+                "SELECT * FROM " + _EgressRulesTable + " WHERE deploymentid = @parentid ORDER BY position ASC;",
+                command => AdoDatabaseDriver.Add(command, "parentid", obj.Id),
+                MapEgressRules,
+                token).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -645,6 +653,23 @@ namespace Garrison.Core.Database.Ado
                         AdoDatabaseDriver.Add(command, "description", child.Description);
                     }, token).ConfigureAwait(false);
             }
+            for (int i = 0; i < obj.EgressRules.Count; i++)
+            {
+                DeploymentEgressRule child = obj.EgressRules[i];
+                int position = i;
+                await AdoDatabaseDriver.ExecuteAsync(connection, transaction,
+                    "INSERT INTO " + _EgressRulesTable + " (id, deploymentid, tenantid, position, cidr, port, protocol) VALUES (@id, @deploymentid, @tenantid, @position, @cidr, @port, @protocol);",
+                    command =>
+                    {
+                        AdoDatabaseDriver.Add(command, "id", IdGenerator.NewDeploymentEgressRuleId());
+                        AdoDatabaseDriver.Add(command, "deploymentid", obj.Id);
+                        AdoDatabaseDriver.Add(command, "tenantid", obj.TenantId);
+                        AdoDatabaseDriver.Add(command, "position", position);
+                        AdoDatabaseDriver.Add(command, "cidr", child.Cidr);
+                        AdoDatabaseDriver.Add(command, "port", child.Port);
+                        AdoDatabaseDriver.Add(command, "protocol", child.Protocol.ToString());
+                    }, token).ConfigureAwait(false);
+            }
         }
 
         private async Task DeleteChildrenAsync(DbConnection connection, DbTransaction transaction, string parentId, CancellationToken token)
@@ -659,6 +684,7 @@ namespace Garrison.Core.Database.Ado
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ParametersTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _AllowedRunOverridesTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
             await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _ApprovalRulesTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
+            await AdoDatabaseDriver.ExecuteAsync(connection, transaction, "DELETE FROM " + _EgressRulesTable + " WHERE deploymentid = @parentid;", command => AdoDatabaseDriver.Add(command, "parentid", parentId), token).ConfigureAwait(false);
         }
 
         private static DeploymentPromptBinding MapPromptBindings(DbDataReader reader)
@@ -760,6 +786,15 @@ namespace Garrison.Core.Database.Ado
             child.Pattern = AdoConverters.Str(reader, "pattern");
             child.InputPattern = AdoConverters.NullableStr(reader, "inputpattern");
             child.Description = AdoConverters.NullableStr(reader, "description");
+            return child;
+        }
+
+        private static DeploymentEgressRule MapEgressRules(DbDataReader reader)
+        {
+            DeploymentEgressRule child = new DeploymentEgressRule();
+            child.Cidr = AdoConverters.Str(reader, "cidr");
+            child.Port = AdoConverters.NullableInt(reader, "port");
+            child.Protocol = AdoConverters.Enum<EgressProtocolEnum>(reader, "protocol", EgressProtocolEnum.TCP);
             return child;
         }
 

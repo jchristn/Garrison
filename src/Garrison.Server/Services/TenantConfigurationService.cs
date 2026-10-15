@@ -82,7 +82,7 @@ namespace Garrison.Server.Services
             Deployment? existing = await _Server.Database.Deployments.ReadByNameAsync(tenantId, deployment.Name, token).ConfigureAwait(false);
             ConfigurationSupport.EnsureNameAvailable(existing, existing?.Id, null, deployment.Name);
             Deployment created = await _Server.Database.Deployments.CreateAsync(deployment, token).ConfigureAwait(false);
-            await AuditAsync(ctx, tenantId, "Deployment", created.Id, "Created deployment " + created.Name + " (trust level " + created.TrustLevel + ", effect policy " + created.EffectPolicy + ").", token).ConfigureAwait(false);
+            await AuditAsync(ctx, tenantId, "Deployment", created.Id, "Created deployment " + created.Name + " (trust level " + created.TrustLevel + ", effect policy " + created.EffectPolicy + ", egress allowlist " + EgressSummary(created) + ").", token).ConfigureAwait(false);
             return created;
         }
         /// <summary>Replace an authorized deployment and advance its configuration version.</summary>
@@ -107,7 +107,8 @@ namespace Garrison.Server.Services
             Deployment updated = await _Server.Database.Deployments.UpdateAsync(deployment, token).ConfigureAwait(false);
             string trust = existing.TrustLevel != updated.TrustLevel ? " Trust level changed from " + existing.TrustLevel + " to " + updated.TrustLevel + "." : String.Empty;
             string effect = existing.EffectPolicy != updated.EffectPolicy ? " Effect policy changed from " + existing.EffectPolicy + " to " + updated.EffectPolicy + "." : String.Empty;
-            await AuditAsync(ctx, tenantId, "Deployment", updated.Id, "Updated deployment " + updated.Name + " to configuration version " + updated.ConfigVersion + "." + trust + effect, token).ConfigureAwait(false);
+            string egress = EgressSummary(existing) != EgressSummary(updated) ? " Egress allowlist changed from " + EgressSummary(existing) + " to " + EgressSummary(updated) + "." : String.Empty;
+            await AuditAsync(ctx, tenantId, "Deployment", updated.Id, "Updated deployment " + updated.Name + " to configuration version " + updated.ConfigVersion + "." + trust + effect + egress, token).ConfigureAwait(false);
             return updated;
         }
         /// <summary>Delete an authorized agent and its deployments, matching REST cascade behavior.</summary>
@@ -225,6 +226,12 @@ namespace Garrison.Server.Services
             RuntimeOptions? options = _Server.TryGet<RuntimeOptions>();
             return options?.PipelineMaxStages ?? 20;
         }
+        private static string EgressSummary(Deployment deployment)
+        {
+            if (deployment.EgressRules.Count == 0) return "none";
+            return String.Join(", ", deployment.EgressRules.Select(r => r.Cidr + (r.Port.HasValue ? ":" + r.Port.Value : String.Empty) + "/" + r.Protocol));
+        }
+
         private static void Normalize(Pipeline pipeline)
         {
             pipeline.Name = (pipeline.Name ?? String.Empty).Trim();

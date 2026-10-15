@@ -16,7 +16,9 @@ namespace Garrison.Worker.Kubernetes
     /// nothing, so every unfinished Job labelled with its node name is orphaned; the control plane requeues or fails
     /// those runs when their leases expire. Spec Secrets need no reconciliation: each is created after its Job with an
     /// owner reference to it, so Kubernetes garbage collects it with the Job (the worker is never granted list or get on
-    /// Secrets). Finished Jobs are left to their TTL. Thread-safe.
+    /// Secrets). Finished Jobs are left to their TTL. Per-run egress NetworkPolicies (P11.15) are owned by their Job too,
+    /// and are also deleted here once their run is no longer held, finished or not, because the executor deletes them
+    /// when the run ends and one that remains was missed. Thread-safe.
     /// </summary>
     public class KubernetesJobReconciler
     {
@@ -70,6 +72,20 @@ namespace Garrison.Worker.Kubernetes
         }
 
         /// <summary>
+        /// Whether a run's egress NetworkPolicy must be deleted: it belongs to a run and epoch this worker does not hold.
+        /// </summary>
+        /// <param name="policy">Policy.</param>
+        /// <param name="held">Held runs as "runId/epoch" keys built with <see cref="Key"/>.</param>
+        /// <returns>True to delete.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when policy or held is null.</exception>
+        public static bool IsOrphan(V1NetworkPolicy policy, ISet<string> held)
+        {
+            if (policy == null) throw new ArgumentNullException(nameof(policy));
+            if (held == null) throw new ArgumentNullException(nameof(held));
+            return !held.Contains(Key(RunIdOf(policy.Metadata), EpochOf(policy.Metadata)));
+        }
+
+        /// <summary>
         /// Key of a held run.
         /// </summary>
         /// <param name="runId">Run ID.</param>
@@ -114,12 +130,49 @@ namespace Garrison.Worker.Kubernetes
             {
                 _Log?.Invoke("job reconciliation failed: " + e.Message);
             }
+            if (_Runtime.EgressAvailable)
+            {
+                try
+                {
+                    V1NetworkPolicyList policies = await client.NetworkingV1.ListNamespacedNetworkPolicyAsync(_Runtime.Namespace, labelSelector: selector, cancellationToken: token).ConfigureAwait(false);
+                    ISet<string> held = heldRuns();
+                    foreach (V1NetworkPolicy policy in policies.Items ?? new List<V1NetworkPolicy>())
+                    {
+                        if (policy.Metadata?.Name == null) continue;
+                        if (!IsOrphan(policy, held)) continue;
+                        if (await _Runtime.DeleteNetworkPolicyAsync(policy.Metadata.Name, token).ConfigureAwait(false))
+                        {
+                            deleted++;
+                            _Log?.Invoke("reconciliation deleted orphaned network policy " + policy.Metadata.Name + " (run not held by this worker)");
+                        }
+                    }
+                }
+                catch (Exception e) when ((e is HttpOperationException || e is HttpRequestException) && !token.IsCancellationRequested)
+                {
+                    _Log?.Invoke("network policy reconciliation failed: " + e.Message);
+                }
+            }
             return deleted;
         }
 
         #endregion
 
         #region Private-Methods
+
+        private static string RunIdOf(V1ObjectMeta? metadata)
+        {
+            string? runId = null;
+            if (metadata?.Annotations != null) metadata.Annotations.TryGetValue(RunPodNames.RunIdLabel, out runId);
+            if (String.IsNullOrEmpty(runId) && metadata?.Labels != null) metadata.Labels.TryGetValue(RunPodNames.RunIdLabel, out runId);
+            return runId ?? String.Empty;
+        }
+
+        private static long EpochOf(V1ObjectMeta? metadata)
+        {
+            string? epochText = null;
+            if (metadata?.Labels != null) metadata.Labels.TryGetValue(RunPodNames.EpochLabel, out epochText);
+            return Int64.TryParse(epochText, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed) ? parsed : -1;
+        }
 
         private static bool Finished(V1Job job)
         {

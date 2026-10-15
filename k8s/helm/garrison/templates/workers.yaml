@@ -163,6 +163,7 @@ spec:
             - { name: GARRISON_WORKER_RUN_PENDING_TIMEOUT_SECONDS, value: {{ .pendingTimeoutSeconds | quote }} }
             {{- if and .egressCanary $.Values.networkPolicies.enabled }}
             - { name: GARRISON_WORKER_RUN_EGRESS_CANARY, value: {{ tpl .egressCanary $ | quote }} }
+            - { name: GARRISON_WORKER_RUN_EGRESS_ALLOWLISTS, value: {{ .egressAllowlists | quote }} }
             {{- end }}
             {{- if .runNamespace }}
             - { name: GARRISON_WORKER_RUN_NAMESPACE, value: {{ .runNamespace | quote }} }
