@@ -1,6 +1,6 @@
 # Continuous Integration
 
-GitHub Actions runs the smoke workflows only on pushes, without scheduled, pull-request, or manual triggers. Path filters avoid unrelated backend, dashboard, and Kubernetes jobs. Each workflow cancels an older run on the same branch. Two workflows are exceptions: `Isolation` also runs on demand (D-053), and `Security scans` also runs on pull requests, weekly, and on demand (D-054), because new advisories appear without any code change.
+GitHub Actions runs the smoke workflows only on pushes, without scheduled, pull-request, or manual triggers. Path filters avoid unrelated backend, dashboard, and Kubernetes jobs. Each workflow cancels an older run on the same branch. One workflow is an exception: `Isolation` also runs on demand (D-053). `Security scans` runs on pushes only like the rest (D-055), so an advisory published between pushes shows up on the next push.
 
 | Workflow | Commit checks | Timeout |
 |---|---|---|
@@ -38,7 +38,7 @@ The warm-pod gate (`scripts/check-warm-pods.sh`) also runs locally, never on a p
 
 ## Security scans
 
-`.github/workflows/security-scans.yaml` (P15.4) runs on every push and pull request, every Monday at 06:17 UTC, and on demand. Each check is its own job, so one failing scanner does not hide the others:
+`.github/workflows/security-scans.yaml` (P15.4) runs on every push. Each check is its own job, so one failing scanner does not hide the others:
 
 | Job | Command | Fails on |
 |---|---|---|

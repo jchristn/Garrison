@@ -4,16 +4,11 @@ name: Security scans
 # fix available: NuGet packages across the solution (including transitive), npm packages in the dashboard and the
 # JavaScript SDK, Python SDK dependencies (pip-audit), Go SDK modules and reachable standard library code
 # (govulncheck), and the server, worker, and dashboard images built from this commit (Trivy, ignore-unfixed).
-# Runs on pushes, pull requests, weekly (new advisories appear without code changes), and on demand. Images are built
-# locally on the runner and never pushed.
+# Runs on pushes only (D-055). Images are built locally on the runner and never pushed.
 
 on:
   push:
     branches: ["**"]
-  pull_request:
-  schedule:
-    - cron: '17 6 * * 1'
-  workflow_dispatch:
 
 permissions:
   contents: read
