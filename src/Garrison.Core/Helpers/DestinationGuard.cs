@@ -16,6 +16,12 @@ namespace Garrison.Core.Helpers
     /// </summary>
     public static class DestinationGuard
     {
+        #region Private-Members
+
+        private static readonly IPAddress AwsMetadataV6 = IPAddress.Parse("fd00:ec2::254");
+
+        #endregion
+
         #region Public-Methods
 
         /// <summary>
@@ -64,12 +70,19 @@ namespace Garrison.Core.Helpers
             return reason;
         }
 
-        #endregion
-
-        #region Private-Methods
-
-        private static DestinationBlockReasonEnum Classify(IPAddress address)
+        /// <summary>
+        /// Classify one address regardless of policy: Loopback, Private (RFC 1918, 100.64.0.0/10, fc00::/7), LinkLocal
+        /// (169.254.0.0/16, fe80::/10, and the AWS IPv6 metadata address fd00:ec2::254), Reserved (unspecified, multicast,
+        /// and other special-purpose ranges), or None for a public address. IPv4-mapped, IPv4-compatible, and NAT64
+        /// (64:ff9b::/96) IPv6 addresses are classified by their embedded IPv4 address. This is the single address
+        /// classification for every outbound check, including <see cref="Garrison.Core.Security.OutboundAddressPolicy"/>.
+        /// </summary>
+        /// <param name="address">Address.</param>
+        /// <returns>Classification.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when address is null.</exception>
+        public static DestinationBlockReasonEnum Classify(IPAddress address)
         {
+            if (address == null) throw new ArgumentNullException(nameof(address));
             if (address.AddressFamily == AddressFamily.InterNetworkV6)
             {
                 IPAddress? embedded = EmbeddedIPv4(address);
@@ -79,6 +92,10 @@ namespace Garrison.Core.Helpers
             if (address.AddressFamily == AddressFamily.InterNetwork) return ClassifyV4(address.GetAddressBytes());
             return DestinationBlockReasonEnum.Reserved;
         }
+
+        #endregion
+
+        #region Private-Methods
 
         private static IPAddress? EmbeddedIPv4(IPAddress address)
         {
@@ -125,7 +142,7 @@ namespace Garrison.Core.Helpers
         {
             if (address.Equals(IPAddress.IPv6Loopback)) return DestinationBlockReasonEnum.Loopback;
             if (address.Equals(IPAddress.IPv6Any) || address.Equals(IPAddress.IPv6None)) return DestinationBlockReasonEnum.Reserved;
-            if (address.IsIPv6LinkLocal) return DestinationBlockReasonEnum.LinkLocal;
+            if (address.IsIPv6LinkLocal || address.Equals(AwsMetadataV6)) return DestinationBlockReasonEnum.LinkLocal;
             if (address.IsIPv6Multicast) return DestinationBlockReasonEnum.Reserved;
             if (address.IsIPv6SiteLocal) return DestinationBlockReasonEnum.Private;
             byte[] b = address.GetAddressBytes();

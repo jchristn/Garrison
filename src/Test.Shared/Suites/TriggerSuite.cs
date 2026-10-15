@@ -50,6 +50,7 @@ namespace Test.Shared.Suites
                 List<TestCaseDescriptor> cases = new List<TestCaseDescriptor>();
                 cases.Add(new TestCaseDescriptor(id, "crud-validation", "CRUD by id and name, signing secret shown once, validation codes, type immutability, reference guards, RBAC, the target check, and tenant isolation (" + provider + ")", ct => CrudValidationAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "webhook", "Signed webhooks: 202 with a run, the same delivery identifier answers 200 with the same fire, uniform 401 for missing, wrong, stale, and unknown, 413, 409 inactive, rotation, input templates over JSON payloads, and pipeline targets (" + provider + ")", ct => WebhookAsync(provider, ct)));
+                cases.Add(new TestCaseDescriptor(id, "webhook-rate-limit", "Failed webhook signatures count against Auth.RateLimitPerMinute per address; past it the address gets 429 until the minute ends, even with a valid signature (" + provider + ")", ct => WebhookRateLimitAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "cron-firing", "Cron firing: a due trigger fires once and advances, missed occurrences collapse into one, an occurrence past the lateness bound is Skipped, the run-as principal is re-checked, and manual fire (" + provider + ")", ct => CronFiringAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "leader-once", "Two replicas: concurrent sweeps fire each occurrence once, and only the leader's maintenance pass fires (" + provider + ")", ct => LeaderOnceAsync(provider, ct)));
                 cases.Add(new TestCaseDescriptor(id, "manifests", "Manifest kind Trigger: dry run, apply, unchanged re-apply, run-as of the applier, signing secret only with allowSecretValues, and export (" + provider + ")", ct => ManifestsAsync(provider, ct)));
@@ -346,6 +347,29 @@ namespace Test.Shared.Suites
                 List<AuditRecord> audit = (await host.Server.Context.Database.Audit.EnumerateAsync(host.TenantId, new EnumerationQuery { MaxResults = 1000 }, token).ConfigureAwait(false)).Objects;
                 Assert.True(audit.Any(a => a.ResourceType == "Trigger" && a.ResourceId == hook.Id && a.Description != null && a.Description.StartsWith("Deleted trigger", StringComparison.Ordinal)), "Deletion is audited");
                 Assert.True(audit.Any(a => a.ResourceType == "Trigger" && a.ResourceId == created.Id && a.Description != null && a.Description.StartsWith("Created Cron trigger", StringComparison.Ordinal)), "Creation is audited");
+            }
+        }
+
+        private static async Task WebhookRateLimitAsync(DatabaseTypeEnum provider, CancellationToken token)
+        {
+            await using (TestCluster cluster = await ClusterAsync(provider, token).ConfigureAwait(false))
+            {
+                TestServerHost host = cluster.Server;
+                Agent agent = await cluster.CreateAgentAsync("trig-limited", "builtin/fake", null, token).ConfigureAwait(false);
+                Trigger hook = await CreateAsync(host, Webhook("limited", agent), token).ConfigureAwait(false);
+                host.Settings.Auth.RateLimitPerMinute = 3;
+                // A minute boundary between the failures resets the count, so allow one retry of the whole sequence.
+                int status = 0;
+                for (int attempt = 0; attempt < 2 && status != 429; attempt++)
+                {
+                    for (int i = 0; i < 4; i++)
+                    {
+                        TestResponse bad = await DeliverAsync(host, host.TenantId, hook.Id, WebhookSigner.NewSecret(), "{}", null, 0, token).ConfigureAwait(false);
+                        Assert.True(bad.StatusCode == 401 || bad.StatusCode == 429, "A wrong signature answers 401, or 429 once limited (" + bad.StatusCode + ")");
+                    }
+                    status = (await DeliverAsync(host, host.TenantId, hook.Id, hook.SigningSecret!, "{}", null, 0, token).ConfigureAwait(false)).StatusCode;
+                }
+                Assert.Equal(429, status, "After more failed signatures than the limit, the address is refused even with a valid signature");
             }
         }
 

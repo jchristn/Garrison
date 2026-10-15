@@ -1,6 +1,8 @@
 namespace Garrison.Server.Routes
 {
     using System;
+    using System.Collections.Concurrent;
+    using System.Threading;
     using System.Threading.Tasks;
     using Garrison.Core;
     using Garrison.Core.Enumeration;
@@ -29,6 +31,8 @@ namespace Garrison.Server.Routes
         private readonly ServerContext _Server;
         private readonly TenantConfigurationService _Mutations;
         private readonly TriggerService _Triggers;
+        private readonly AuthRateLimiter _SignatureFailures;
+        private readonly ConcurrentDictionary<string, DateTime> _Throttled = new ConcurrentDictionary<string, DateTime>(StringComparer.Ordinal);
         private RouteRegistrar? _Routes = null;
         private static readonly string _Base = "/v1.0/api/tenants/{tenantId}/triggers";
 
@@ -46,6 +50,10 @@ namespace Garrison.Server.Routes
         {
             _Server = server ?? throw new ArgumentNullException(nameof(server));
             _Triggers = triggers ?? throw new ArgumentNullException(nameof(triggers));
+            // Failed webhook signatures count against the same per-address limit as failed sign-ins and keys
+            // (Auth.RateLimitPerMinute), shared across replicas.
+            _SignatureFailures = new AuthRateLimiter(_Server.Database, () => _Server.Settings.Auth.RateLimitPerMinute);
+            _SignatureFailures.Scope = "webhook-signature";
             _Mutations = new TenantConfigurationService(_Server);
         }
 
@@ -151,6 +159,13 @@ namespace Garrison.Server.Routes
 
         private async Task WebhookAsync(HttpContextBase http)
         {
+            string source = String.IsNullOrEmpty(http.Request.Source.IpAddress) ? "unknown" : http.Request.Source.IpAddress;
+            if (IsThrottled(source))
+            {
+                Reject("rate_limited");
+                await RouteHelpers.ErrorAsync(http, 429, "RateLimited", "Too many webhook deliveries with an invalid signature from this address. Try again in a minute.").ConfigureAwait(false);
+                return;
+            }
             TriggerOptions options = _Triggers.Options;
             if (http.Request.ContentLength > options.WebhookMaxBodyBytes)
             {
@@ -179,6 +194,7 @@ namespace Garrison.Server.Routes
             if (result != WebhookSignatureResultEnum.Valid || trigger == null)
             {
                 Reject(result == WebhookSignatureResultEnum.Valid ? "mismatch" : result.ToString().ToLowerInvariant());
+                await CountSignatureFailureAsync(source, http.Token).ConfigureAwait(false);
                 await RouteHelpers.ErrorAsync(http, 401, "InvalidSignature", "The webhook signature is missing, malformed, outside the accepted time window, or does not match.").ConfigureAwait(false);
                 return;
             }
@@ -236,6 +252,22 @@ namespace Garrison.Server.Routes
                 if (c < 0x21 || c > 0x7e) return false;
             }
             return true;
+        }
+
+        private bool IsThrottled(string source)
+        {
+            if (!_Throttled.TryGetValue(source, out DateTime until)) return false;
+            if (until > DateTime.UtcNow) return true;
+            _Throttled.TryRemove(source, out DateTime _);
+            return false;
+        }
+
+        private async Task CountSignatureFailureAsync(string source, CancellationToken token)
+        {
+            if (await _SignatureFailures.TryAcquireAsync(source, token).ConfigureAwait(false)) return;
+            long minute = DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute;
+            _Throttled[source] = new DateTime((minute + 1) * TimeSpan.TicksPerMinute, DateTimeKind.Utc);
+            if (_Throttled.Count > 100000) _Throttled.Clear();
         }
 
         #endregion

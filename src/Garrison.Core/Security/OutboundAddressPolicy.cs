@@ -8,6 +8,8 @@ namespace Garrison.Core.Security
     using System.Net.Sockets;
     using System.Threading;
     using System.Threading.Tasks;
+    using Garrison.Core.Enums;
+    using Garrison.Core.Helpers;
 
     /// <summary>
     /// Addresses Garrison never contacts on a tenant's behalf: unspecified (0.0.0.0/8, ::), link-local (169.254.0.0/16,
@@ -26,7 +28,8 @@ namespace Garrison.Core.Security
         #region Public-Methods
 
         /// <summary>
-        /// Whether an address is always refused.
+        /// Whether an address is always refused: link-local (including cloud metadata), unspecified, multicast, and other
+        /// reserved ranges, as classified by <see cref="DestinationGuard.Classify"/>.
         /// </summary>
         /// <param name="address">Address.</param>
         /// <returns>True when refused.</returns>
@@ -34,26 +37,8 @@ namespace Garrison.Core.Security
         public static bool IsAlwaysBlocked(IPAddress address)
         {
             if (address == null) throw new ArgumentNullException(nameof(address));
-            if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-
-            if (address.AddressFamily == AddressFamily.InterNetwork)
-            {
-                byte[] b = address.GetAddressBytes();
-                if (b[0] == 0) return true;
-                if (b[0] == 169 && b[1] == 254) return true;
-                if (b[0] >= 224) return true;
-                return false;
-            }
-
-            if (address.AddressFamily == AddressFamily.InterNetworkV6)
-            {
-                if (address.Equals(IPAddress.IPv6None) || address.Equals(IPAddress.IPv6Any)) return true;
-                if (address.IsIPv6LinkLocal || address.IsIPv6Multicast) return true;
-                if (address.Equals(IPAddress.Parse("fd00:ec2::254"))) return true;
-                return false;
-            }
-
-            return true;
+            DestinationBlockReasonEnum reason = DestinationGuard.Classify(address);
+            return reason != DestinationBlockReasonEnum.None && reason != DestinationBlockReasonEnum.Loopback && reason != DestinationBlockReasonEnum.Private;
         }
 
         /// <summary>
@@ -66,23 +51,8 @@ namespace Garrison.Core.Security
         public static bool IsLoopbackOrPrivate(IPAddress address)
         {
             if (address == null) throw new ArgumentNullException(nameof(address));
-            if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-            if (IPAddress.IsLoopback(address)) return true;
-            if (address.AddressFamily == AddressFamily.InterNetwork)
-            {
-                byte[] b = address.GetAddressBytes();
-                if (b[0] == 10) return true;
-                if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;
-                if (b[0] == 192 && b[1] == 168) return true;
-                if (b[0] == 100 && b[1] >= 64 && b[1] <= 127) return true;
-                return false;
-            }
-            if (address.AddressFamily == AddressFamily.InterNetworkV6)
-            {
-                byte first = address.GetAddressBytes()[0];
-                return (first & 0xFE) == 0xFC;
-            }
-            return false;
+            DestinationBlockReasonEnum reason = DestinationGuard.Classify(address);
+            return reason == DestinationBlockReasonEnum.Loopback || reason == DestinationBlockReasonEnum.Private;
         }
 
         /// <summary>
