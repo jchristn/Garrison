@@ -2491,3 +2491,67 @@ zhHans.tips.resources.deployments.egressDefault = "没有出站允许列表：�
 });
 Object.assign(zhHans.common.fieldCodes, {"SecretUseDenied": "你没有使用此机密的权限。请申请此机密的 SecretUser 或 SecretManager 角色。", "GrantCeiling": "你只能授予自己拥有的权限。", "ReservedRoleName": "这是内置角色的名称。请选择其他名称。"});
 zhHans.components.mcpTest.noWorkers = "没有就绪的工作节点提供 stdio 诊断。命令会在工作节点主机上、运行隔离之外执行，因此只有运维人员在工作节点上设置 GARRISON_WORKER_MCP_TESTS_ENABLED=true 时才会运行。";
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(zhHans, {
+ "components": {
+  "transcriptExport": {
+   "label": "导出对话记录",
+   "exporting": "正在导出...",
+   "markdown": "Markdown 文档 (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "包含思考过程",
+   "failed": "导出对话记录失败：{{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "结构化输入",
+    "modeLabel": "输入编辑器",
+    "modeForm": "表单",
+    "modeJson": "原始 JSON",
+    "required": "必填",
+    "choose": "选择一个值",
+    "addItem": "添加项",
+    "removeItem": "移除项",
+    "jsonLabel": "输入 JSON",
+    "jsonPlaceholder": "JSON 值",
+    "unsupported": "此输入架构没有可用于生成表单的属性。请输入智能体期望的 JSON 文档。",
+    "invalidRaw": "JSON 无效。请先修正，再切换到表单。",
+    "errors": {
+     "required": "此字段为必填项。",
+     "number": "请输入数字。",
+     "integer": "请输入整数。",
+     "json": "请输入有效的 JSON。"
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "导出范围",
+    "scopeAll": "所有资源",
+    "scopeSelected": "所选资源",
+    "kinds": "类型",
+    "resources": "资源",
+    "resourcesHint": "每行一个 类型/名称，或用逗号分隔，例如 Agent/triage。",
+    "invalidSelectors": "不是已知类型的 类型/名称：{{entries}}",
+    "followReferences": "包含它们引用的资源",
+    "includeBuiltIn": "包含引用的内置资源",
+    "exporting": "正在导出...",
+    "noSecrets": "此包不需要任何密钥。",
+    "requiredSecrets": "应用之前，请在目标租户中创建这些密钥。密钥值永远不会被导出。",
+    "requiredArtifactStores": "应用之前，请在目标租户中创建这些制品存储。"
+   }
+  }
+ }
+});

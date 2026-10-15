@@ -326,7 +326,14 @@ type Agent struct {
 	Kind           string   `json:"kind,omitempty"`
 	DelegationMode string   `json:"delegationMode,omitempty"`
 	Tags           []string `json:"tags,omitempty"`
-	CreatedUTC     string   `json:"createdUtc,omitempty"`
+	// InputMode is "Text" (default) or "Structured".
+	InputMode string `json:"inputMode,omitempty"`
+	// InputSchemaJSON is JSON Schema text for the input. When set, every invocation's input must be a JSON document
+	// that matches it (see FieldCodeInputNotJSON and FieldCodeInputSchemaViolation).
+	InputSchemaJSON string `json:"inputSchemaJson,omitempty"`
+	// OutputSchemaJSON is JSON Schema text the final output is validated against.
+	OutputSchemaJSON string `json:"outputSchemaJson,omitempty"`
+	CreatedUTC       string `json:"createdUtc,omitempty"`
 	// Warnings is set on create and update responses only; see FieldWarning.
 	Warnings []FieldWarning `json:"warnings,omitempty"`
 }
@@ -706,12 +713,14 @@ type RunStreamItem struct {
 
 // InvokeRequest is the body of an agent invocation.
 type InvokeRequest struct {
-	Input        string            `json:"input"`
-	Wait         bool              `json:"wait"`
-	WaitSeconds  int               `json:"waitSeconds,omitempty"`
-	Parameters   map[string]string `json:"parameters,omitempty"`
-	DeploymentID string            `json:"deploymentId,omitempty"`
-	Priority     int               `json:"priority,omitempty"`
+	Input string `json:"input"`
+	// InputContentType is, for example, "application/json" for a structured input.
+	InputContentType string            `json:"inputContentType,omitempty"`
+	Wait             bool              `json:"wait"`
+	WaitSeconds      int               `json:"waitSeconds,omitempty"`
+	Parameters       map[string]string `json:"parameters,omitempty"`
+	DeploymentID     string            `json:"deploymentId,omitempty"`
+	Priority         int               `json:"priority,omitempty"`
 	// CancelOnDisconnect, when waiting, cancels the run if the client disconnects first. Nil means true.
 	CancelOnDisconnect *bool `json:"cancelOnDisconnect,omitempty"`
 	// ConversationID continues that conversation as its next turn. The server answers 409 ConversationBusy while the

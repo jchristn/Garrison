@@ -27,6 +27,7 @@ namespace Garrison.Server.Runtime
         private readonly RunService _Runs;
         private readonly DelegationPolicy _Delegation;
         private readonly RuntimeOptions _Options;
+        private readonly InputSchemaValidator _InputSchemas = new InputSchemaValidator();
 
         #endregion
 
@@ -78,7 +79,7 @@ namespace Garrison.Server.Runtime
         /// <param name="token">Cancellation token.</param>
         /// <returns>Run (finished when waiting succeeded within the timeout).</returns>
         /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
-        /// <exception cref="ValidationException">Thrown with the field code InputRequired when the input is missing, empty, or whitespace.</exception>
+        /// <exception cref="ValidationException">Thrown with the field code InputRequired when the input is missing, empty, or whitespace, and with InputNotJson or InputSchemaViolation field codes when the agent has an input schema the input does not match.</exception>
         /// <exception cref="DelegationCapacityExhaustedException">Thrown when a calling run would wait on its child but the delegation capacity limits refuse the wait.</exception>
         public async Task<Run> InvokeAsync(RequestContext ctx, string tenantId, Agent agent, InvocationOptions options, CancellationToken token = default)
         {
@@ -86,6 +87,9 @@ namespace Garrison.Server.Runtime
             if (agent == null) throw new ArgumentNullException(nameof(agent));
             if (options == null) throw new ArgumentNullException(nameof(options));
             InvocationInputRules.Require(options.Input);
+
+            // P12.22: an agent with an input schema takes a JSON document that matches it, on every surface.
+            _InputSchemas.Require(agent.InputSchemaJson, options.Input);
 
             RunCreateContext create = new RunCreateContext();
             create.TenantId = tenantId;

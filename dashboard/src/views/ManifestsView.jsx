@@ -17,6 +17,8 @@ import { formatRelativeTime } from '../i18n/formatters';
 import Explainer from '../components/Explainer';
 import { tip } from '../components/Tooltip';
 import { resourceTip } from '../utils/tips';
+import { downloadText } from '../utils/exporters';
+import { EXPORT_KINDS, parseResourceSelectors, invalidResourceSelectors, bundleFileName, bundleRequirements } from '../utils/manifestBundles';
 
 
 const appliesConfig = {
@@ -55,6 +57,18 @@ export default function ManifestsView() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [exported, setExported] = useState(null);
+  // P12.21 bundle selection: everything, or chosen kinds and Kind/name resources, optionally with what they reference.
+  const [scope, setScope] = useState('all');
+  const [kinds, setKinds] = useState([]);
+  const [resourceText, setResourceText] = useState('');
+  const [followReferences, setFollowReferences] = useState(true);
+  const [includeBuiltIn, setIncludeBuiltIn] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(null);
+  const resources = parseResourceSelectors(resourceText);
+  const badSelectors = invalidResourceSelectors(resources);
+  const selectionEmpty = scope === 'selected' && kinds.length === 0 && resources.length === 0;
+  const requirements = exported ? bundleRequirements(exported) : null;
   const fileRef = useRef(null);
 
   const run = async (dryRun) => {
@@ -74,23 +88,23 @@ export default function ManifestsView() {
   };
 
   const doExport = async () => {
+    if (badSelectors.length || selectionEmpty) return;
+    setExporting(true);
+    setExportError(null);
     try {
-      const r = await apiClient.exportManifests(tenantId);
-      setExported(typeof r === 'string' ? r : r?.content || r?.yaml || JSON.stringify(r, null, 2));
+      const selection = scope === 'all' ? { includeBuiltIn } : { kinds, resources, followReferences, includeBuiltIn };
+      const r = await apiClient.exportManifests(tenantId, selection);
+      setExported(typeof r === 'string' ? r : JSON.stringify(r, null, 2));
     } catch (e) {
-      addToast({ type: 'error', message: errorMessage(t, e) });
+      setExported(null);
+      setExportError(e);
+    } finally {
+      setExporting(false);
     }
   };
 
-  const download = () => {
-    const blob = new Blob([exported || ''], { type: 'application/yaml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `garrison-${tenantId}.yaml`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const download = () => downloadText(bundleFileName(tenantId), exported || '', 'application/yaml;charset=utf-8');
+  const toggleKind = (kind, on) => setKinds((prev) => (on ? [...prev.filter((k) => k !== kind), kind] : prev.filter((k) => k !== kind)));
 
   const items = result?.items || result?.results || [];
 
@@ -155,18 +169,95 @@ export default function ManifestsView() {
         </div>
       )}
       {tab === 'export' && (
-        <div className="panel flex-col gap-md">
+        <div className="panel flex-col gap-md" data-testid="manifest-export">
           <p className="text-muted">{t('views.manifests.exportHelp')}</p>
+          <div className="flex gap-md items-center wrap" role="radiogroup" aria-label={t('views.manifests.bundle.scope')}>
+            <label className="flex gap-sm items-center" {...tip(t('tips.views.manifests.bundle.scopeAll'))}>
+              <input type="radio" name="bundle-scope" value="all" checked={scope === 'all'} onChange={() => setScope('all')} data-testid="bundle-scope-all" {...tip(t('tips.views.manifests.bundle.scopeAll'))} />
+              {t('views.manifests.bundle.scopeAll')}
+            </label>
+            <label className="flex gap-sm items-center" {...tip(t('tips.views.manifests.bundle.scopeSelected'))}>
+              <input type="radio" name="bundle-scope" value="selected" checked={scope === 'selected'} onChange={() => setScope('selected')} data-testid="bundle-scope-selected" {...tip(t('tips.views.manifests.bundle.scopeSelected'))} />
+              {t('views.manifests.bundle.scopeSelected')}
+            </label>
+          </div>
+          {scope === 'selected' && (
+            <div className="flex-col gap-sm" data-testid="bundle-selection">
+              <div className="section-title" {...tip(t('tips.views.manifests.bundle.kinds'))}>{t('views.manifests.bundle.kinds')}</div>
+              <div className="flex gap-md wrap">
+                {EXPORT_KINDS.map((kind) => (
+                  <label key={kind} className="flex gap-sm items-center" {...tip(t('tips.views.manifests.bundle.kind', { kind }))}>
+                    <input type="checkbox" checked={kinds.includes(kind)} onChange={(e) => toggleKind(kind, e.target.checked)} data-testid={`bundle-kind-${kind}`} {...tip(t('tips.views.manifests.bundle.kind', { kind }))} />
+                    <code>{kind}</code>
+                  </label>
+                ))}
+              </div>
+              <div className={`field ${badSelectors.length ? 'has-error' : ''}`}>
+                <label htmlFor="bundle-resources" {...tip(t('tips.views.manifests.bundle.resources'))}>{t('views.manifests.bundle.resources')}</label>
+                <textarea id="bundle-resources" className="monospace" rows={4} spellCheck={false} value={resourceText} onChange={(e) => setResourceText(e.target.value)} placeholder={'Agent/triage\nPipeline/release'} data-testid="bundle-resources" {...tip(t('tips.views.manifests.bundle.resources'))} />
+                <div className="field-hint">{t('views.manifests.bundle.resourcesHint')}</div>
+                {badSelectors.length > 0 && (
+                  <div className="field-error" role="alert" data-testid="bundle-resources-error">
+                    {t('views.manifests.bundle.invalidSelectors', { entries: badSelectors.join(', ') })}
+                  </div>
+                )}
+              </div>
+              <label className="flex gap-sm items-center" {...tip(t('tips.views.manifests.bundle.followReferences'))}>
+                <input type="checkbox" checked={followReferences} onChange={(e) => setFollowReferences(e.target.checked)} data-testid="bundle-follow-references" {...tip(t('tips.views.manifests.bundle.followReferences'))} />
+                {t('views.manifests.bundle.followReferences')}
+              </label>
+            </div>
+          )}
+          <label className="flex gap-sm items-center" {...tip(t('tips.views.manifests.bundle.includeBuiltIn'))}>
+            <input type="checkbox" checked={includeBuiltIn} onChange={(e) => setIncludeBuiltIn(e.target.checked)} data-testid="bundle-include-builtin" {...tip(t('tips.views.manifests.bundle.includeBuiltIn'))} />
+            {t('views.manifests.bundle.includeBuiltIn')}
+          </label>
           <div className="flex gap-sm">
-            <button type="button" className="button-primary" onClick={doExport} {...tip(t('tips.views.manifests.export'))}>
-              {t('views.manifests.export')}
+            <button type="button" className="button-primary" onClick={doExport} disabled={exporting || badSelectors.length > 0 || selectionEmpty} data-testid="manifest-export-run" {...tip(t('tips.views.manifests.export'))}>
+              {exporting ? t('views.manifests.bundle.exporting') : t('views.manifests.export')}
             </button>
             {exported && (
-              <button type="button" className="button-secondary" onClick={download} {...tip(t('tips.views.manifests.download'))}>
+              <button type="button" className="button-secondary" onClick={download} data-testid="manifest-export-download" {...tip(t('tips.views.manifests.download'))}>
                 <DownloadIcon size={14} /> {t('views.manifests.download')}
               </button>
             )}
           </div>
+          {exportError && <ErrorBanner message={errorMessage(t, exportError)} />}
+          {requirements && (
+            <div className={requirements.secrets.length || requirements.artifactStores.length ? 'warning-banner' : 'info-banner'} role="note" data-testid="bundle-requirements">
+              {requirements.secrets.length === 0 && requirements.artifactStores.length === 0 ? (
+                <span>{t('views.manifests.bundle.noSecrets')}</span>
+              ) : (
+                <div className="flex-col gap-sm">
+                  {requirements.secrets.length > 0 && (
+                    <div>
+                      <div>{t('views.manifests.bundle.requiredSecrets')}</div>
+                      <ul data-testid="bundle-required-secrets">
+                        {requirements.secrets.map((x) => (
+                          <li key={x.name}>
+                            <code>{x.name}</code>
+                            {x.kind ? ` (${x.kind})` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {requirements.artifactStores.length > 0 && (
+                    <div>
+                      <div>{t('views.manifests.bundle.requiredArtifactStores')}</div>
+                      <ul>
+                        {requirements.artifactStores.map((x) => (
+                          <li key={x}>
+                            <code>{x}</code>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {exported && <CodeBlock value={exported} />}
         </div>
       )}

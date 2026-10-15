@@ -2525,3 +2525,67 @@ de.tips.resources.deployments.egressDefault = "Keine Egress-Zulassungsliste: Lau
 });
 Object.assign(de.common.fieldCodes, {"SecretUseDenied": "Sie dürfen dieses Geheimnis nicht verwenden. Bitten Sie um die Rolle SecretUser oder SecretManager dafür.", "GrantCeiling": "Sie können nur Berechtigungen vergeben, die Sie selbst haben.", "ReservedRoleName": "Das ist der Name einer integrierten Rolle. Wählen Sie einen anderen Namen."});
 de.components.mcpTest.noWorkers = "Kein bereiter Worker bietet stdio-Diagnosen an. Worker führen sie nur aus, wenn ein Betreiber GARRISON_WORKER_MCP_TESTS_ENABLED=true für sie setzt, denn der Befehl läuft auf dem Worker-Host außerhalb der Laufisolation.";
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(de, {
+ "components": {
+  "transcriptExport": {
+   "label": "Verlauf exportieren",
+   "exporting": "Wird exportiert...",
+   "markdown": "Markdown-Dokument (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "Denkschritte einbeziehen",
+   "failed": "Export des Verlaufs fehlgeschlagen: {{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "Strukturierte Eingabe",
+    "modeLabel": "Eingabe-Editor",
+    "modeForm": "Formular",
+    "modeJson": "Rohes JSON",
+    "required": "Pflichtfeld",
+    "choose": "Wert auswählen",
+    "addItem": "Eintrag hinzufügen",
+    "removeItem": "Eintrag entfernen",
+    "jsonLabel": "Eingabe-JSON",
+    "jsonPlaceholder": "JSON-Wert",
+    "unsupported": "Dieses Eingabeschema hat keine Eigenschaften, aus denen sich ein Formular bauen lässt. Geben Sie das JSON-Dokument ein, das der Agent erwartet.",
+    "invalidRaw": "Das JSON ist ungültig. Korrigieren Sie es, bevor Sie zum Formular wechseln.",
+    "errors": {
+     "required": "Dieses Feld ist erforderlich.",
+     "number": "Geben Sie eine Zahl ein.",
+     "integer": "Geben Sie eine ganze Zahl ein.",
+     "json": "Geben Sie gültiges JSON ein."
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "Exportumfang",
+    "scopeAll": "Alle Ressourcen",
+    "scopeSelected": "Ausgewählte Ressourcen",
+    "kinds": "Arten",
+    "resources": "Ressourcen",
+    "resourcesHint": "Ein Kind/Name pro Zeile oder durch Kommas getrennt, zum Beispiel Agent/triage.",
+    "invalidSelectors": "Kein Kind/Name mit bekannter Art: {{entries}}",
+    "followReferences": "Referenzierte Ressourcen einbeziehen",
+    "includeBuiltIn": "Referenzierte integrierte Ressourcen einbeziehen",
+    "exporting": "Wird exportiert...",
+    "noSecrets": "Dieses Paket benötigt keine Geheimnisse.",
+    "requiredSecrets": "Legen Sie diese Geheimnisse im Ziel-Mandanten an, bevor Sie anwenden. Geheimniswerte werden nie exportiert.",
+    "requiredArtifactStores": "Legen Sie diese Artefaktspeicher im Ziel-Mandanten an, bevor Sie anwenden."
+   }
+  }
+ }
+});

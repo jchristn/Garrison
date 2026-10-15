@@ -674,33 +674,7 @@ namespace Garrison.Server.Runtime
 
         private async Task<ApprovalRedactor> RedactorAsync(Run run, Deployment? deployment, CancellationToken token)
         {
-            List<string> values = new List<string>();
-            if (deployment != null)
-            {
-                foreach (DeploymentResourceBinding binding in deployment.ResourceBindings.Where(b => b.Kind == ResourceBindingKindEnum.Secret))
-                {
-                    Secret? secret = await _Database.Secrets.ReadAsync(run.TenantId, binding.ResourceId, token).ConfigureAwait(false);
-                    if (secret == null || String.IsNullOrEmpty(secret.ValueEncrypted)) continue;
-                    try
-                    {
-                        string value = _Cipher.Decrypt(secret.ValueEncrypted, secret.Id);
-                        values.Add(value);
-                        CodexAuthFile? file = secret.Kind == SecretKindEnum.CodexAuthJson ? CodexAuthDocument.TryParse(value) : null;
-                        if (file?.Tokens != null)
-                        {
-                            foreach (string? item in new string?[] { file.Tokens.AccessToken, file.Tokens.RefreshToken, file.Tokens.IdToken, file.OpenAiApiKey })
-                            {
-                                if (!String.IsNullOrEmpty(item)) values.Add(item);
-                            }
-                        }
-                    }
-                    catch (Exception e) when (e is CryptographicException || e is FormatException)
-                    {
-                        // A secret that cannot be decrypted cannot leak through a preview either.
-                    }
-                }
-            }
-            return new ApprovalRedactor(values);
+            return await new RunRedactorFactory(_Database, _Cipher).ForDeploymentAsync(run.TenantId, deployment, token).ConfigureAwait(false);
         }
 
         #endregion

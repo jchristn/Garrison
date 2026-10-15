@@ -90,6 +90,37 @@ await check("invoke with wait", async () => {
   require((run.resultText ?? "").startsWith("Echo:"), `result ${run.resultText}`);
   state.run = run;
 });
+await check("run transcript (Markdown and JSON)", async () => {
+  require(state.run, "no finished run");
+  const markdown = await client.runs.transcriptMarkdown(state.run.id);
+  require(markdown.includes(`sdk-js-${suffix}`), "markdown lacks the agent name");
+  require(markdown.includes("Hello from the JavaScript SDK"), "markdown lacks the input");
+  const transcript = await client.runs.transcript(state.run.id);
+  require(transcript.schema === "garrison.transcript/v1" && transcript.kind === "Run", `schema ${transcript.schema} kind ${transcript.kind}`);
+  require(transcript.runId === state.run.id && transcript.agentName === `sdk-js-${suffix}`, `run ${transcript.runId} agent ${transcript.agentName}`);
+  require(transcript.turnCount === 1 && transcript.turns.length === 1, `turns ${transcript.turnCount}`);
+  require(transcript.turns[0].input === "Hello from the JavaScript SDK", `turn input ${transcript.turns[0].input}`);
+  require(transcript.includesThinking === false, "thinking included by default");
+});
+await check("input schema enforcement", async () => {
+  const schema = { type: "object", properties: { topic: { type: "string" }, count: { type: "integer" } }, required: ["topic"] };
+  const agent = await client.agents.create({ name: `sdk-js-${suffix}-schema`, inputMode: "Structured", inputSchemaJson: JSON.stringify(schema) });
+  const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-schema-fake`, agentId: agent.id, harnessProfileId: state.fake });
+  try {
+    require((agent.inputSchemaJson ?? "").includes("topic"), "inputSchemaJson not stored");
+    const run = await client.agents.invoke(agent.id, JSON.stringify({ topic: "sdk", count: 2 }), { waitSeconds: 90, inputContentType: "application/json" });
+    require(run.status === "Succeeded", `valid input status ${run.status} ${run.errorMessage ?? ""}`);
+    let codes;
+    try { await client.agents.invoke(agent.id, JSON.stringify({ count: "x" }), { inputContentType: "application/json" }); } catch (e) { if (!(e instanceof GarrisonError) || e.statusCode !== 400) throw e; codes = e.fieldCodes ?? {}; }
+    require(codes && codes["input.topic"] === "InputSchemaViolation", `fieldCodes ${JSON.stringify(codes)}`);
+    let notJson;
+    try { await client.agents.invoke(agent.id, "plain words"); } catch (e) { if (!(e instanceof GarrisonError) || e.statusCode !== 400) throw e; notJson = e.fieldCodes ?? {}; }
+    require(notJson && notJson.input === "InputNotJson", `fieldCodes ${JSON.stringify(notJson)}`);
+  } finally {
+    await client.deployments.delete(deployment.id);
+    await client.agents.delete(agent.id);
+  }
+});
 await check("run timing fields", async () => {
   const run = state.run;
   require(run, "no finished run");
@@ -196,6 +227,18 @@ await check("manifest dry run", async () => {
   const clamped = await client.manifests.apply(yaml.replace("description: Dry run only.", "description: Dry run only.\n  delegationMaxDepth: 99"), { dryRun: true });
   const warning = (clamped.items[0].warnings ?? []).find((w) => w.field === "delegationMaxDepth");
   require(warning && warning.code === "ValueClamped" && warning.given === "99" && warning.stored === "10", `manifest warnings ${JSON.stringify(clamped.items[0].warnings)}`);
+});
+await check("manifest bundle export", async () => {
+  const bundle = await client.manifests.export({ resources: [`Agent/sdk-js-${suffix}`], followReferences: true });
+  require(bundle.includes("kind: Bundle"), "no Bundle document");
+  require(bundle.includes("kind: Agent") && bundle.includes(`name: sdk-js-${suffix}`), "agent missing from bundle");
+  require(bundle.includes(`sdk-js-${suffix}-fake`), "followReferences did not bring the deployment");
+  require(bundle.includes("builtin/fake"), "built-in requirement missing");
+  const dry = await client.manifests.apply(bundle, { dryRun: true });
+  require(dry.failedCount === 0, `bundle dry run failed ${dry.failedCount}`);
+  let code;
+  try { await client.manifests.export({ kinds: ["NoSuchKind"] }); } catch (e) { if (!(e instanceof GarrisonError) || e.statusCode !== 400) throw e; code = e.fieldCodes?.kinds; }
+  require(code === "UnknownKind", `expected 400 UnknownKind, got ${code}`);
 });
 await check("clamped values return ValueClamped warnings", async () => {
   const deployment = await client.deployments.create({ name: `sdk-js-${suffix}-clamp`, agentId: state.agent, harnessProfileId: state.fake, weight: 0, maxAttempts: 99 });
@@ -310,6 +353,14 @@ await check("conversation read and list", async () => {
   require(turns[0].conversationTurn === 1 && turns[1].conversationTurn === 2, `turn order ${turns.map((r) => r.conversationTurn).join(",")}`);
   const runs = await client.runs.list({ conversationId: state.conversation });
   require(runs.totalRecords === 2, `runs by conversationId ${runs.totalRecords}`);
+});
+await check("conversation transcript", async () => {
+  const transcript = await client.conversations.transcript(state.conversation);
+  require(transcript.kind === "Conversation" && transcript.conversationId === state.conversation, `kind ${transcript.kind}`);
+  require(transcript.turnCount === 2 && transcript.turns.length === 2, `turns ${transcript.turnCount}`);
+  require(transcript.turns[0].turn === 1 && transcript.turns[1].turn === 2, "turn order");
+  const markdown = await client.conversations.transcriptMarkdown(state.conversation);
+  require(markdown.includes("First turn from the JavaScript SDK") && markdown.includes("Second turn from the JavaScript SDK"), "markdown lacks a turn");
 });
 await check("conversation delete", async () => {
   await client.conversations.delete(state.conversation);

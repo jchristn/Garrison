@@ -786,7 +786,7 @@ const tips = {
         description: '技能的作用，面向调用它的智能体编写。'
       },
       inputMode: 'Text 接受纯文本消息。Structured 要求输入符合输入 JSON Schema。',
-      inputSchemaJson: '输入模式为 Structured 时，输入必须符合的 JSON Schema。',
+      inputSchemaJson: "智能体输入的 JSON 架构。设置后，每次调用的输入都必须是符合它的 JSON 文档，调用页面会显示据此生成的表单。",
       outputSchemaJson: '结果必须符合的 JSON Schema。Garrison 会验证输出，失败时使用修复提示词重试一次。',
       delegationAllowList: '委派使用允许列表时，此智能体可以调用的智能体。',
       delegationMaxDepth: '此智能体之下最多可以有多少层智能体间调用。范围为 0 到 10。',
@@ -2130,5 +2130,51 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "p1": "当订阅的事件发生时（运行或流水线结束，或审批等待人员处理），通知端点会收到签名的 JSON POST。",
   "p2": "投递会持久排队，并以递增的间隔重试。每次尝试都带相同的投递 ID，接收方可据此忽略重复。",
   "p3": "通知绝不包含密钥或运行输入，只有在您允许时才包含运行输出。除非运维人员允许，否则私有网络地址会被拒绝。"
+ }
+});
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "components": {
+  "transcriptExport": {
+   "menu": "将此对话记录下载为文件：包括输入、助手文本、工具调用、审批、错误、用量和费用，密钥已隐去。",
+   "markdown": "下载易读的 Markdown 对话记录，适合分享或附加到工单。",
+   "json": "将对话记录下载为带类型的 JSON 文档 (garrison.transcript/v1)，供脚本和其他工具使用。",
+   "includeThinking": "同时包含模型的思考事件。由于内容较长且属于内部信息，默认不包含。"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "此智能体有输入架构，因此其输入是一个 JSON 文档。请填写表单，或切换到原始 JSON。",
+    "modeForm": "使用根据智能体输入架构生成的表单编辑输入。",
+    "modeJson": "以原始 JSON 文本编辑输入。切换回表单时会保留这些值。",
+    "field": "{{name}} 的值，按智能体输入架构的描述填写。",
+    "fieldWithDescription": "{{name}}：{{description}}",
+    "addItem": "向此列表添加一项。",
+    "removeItem": "从列表中移除此项。",
+    "jsonLabel": "作为运行输入发送的 JSON 文档。它必须符合智能体的输入架构。"
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scopeAll": "导出此租户拥有的所有资源。除非选择包含，否则不包含内置资源。",
+    "scopeSelected": "仅导出所选的类型和资源，并可选择包含它们依赖的资源。",
+    "kinds": "导出所勾选类型的全部资源。",
+    "kind": "导出此租户中的全部 {{kind}}。",
+    "resources": "要导出的具体资源，写作 类型/名称，例如 Agent/triage 或 Pipeline/release。",
+    "followReferences": "同时导出所选内容依赖的资源：部署、harness 配置文件、提示模板、工作区、MCP 服务器、触发器和通知端点。密钥只作为前提条件列出，绝不导出。",
+    "includeBuiltIn": "添加包所引用的内置提示模板和 harness 配置文件。应用时不会更改它们，只检查它们是否存在。"
+   }
+  }
  }
 });

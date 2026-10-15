@@ -2539,3 +2539,67 @@ it.tips.resources.deployments.egressDefault = "Nessun elenco di uscita consentit
 });
 Object.assign(it.common.fieldCodes, {"SecretUseDenied": "Non hai il permesso di usare questo segreto. Chiedi il ruolo SecretUser o SecretManager su di esso.", "GrantCeiling": "Puoi concedere solo i permessi che hai tu stesso.", "ReservedRoleName": "È il nome di un ruolo integrato. Scegli un altro nome."});
 it.components.mcpTest.noWorkers = "Nessun worker pronto offre diagnostica stdio. I worker la eseguono solo quando un operatore imposta GARRISON_WORKER_MCP_TESTS_ENABLED=true su di loro, perché il comando gira sull'host del worker, fuori dall'isolamento delle esecuzioni.";
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(it, {
+ "components": {
+  "transcriptExport": {
+   "label": "Esporta trascrizione",
+   "exporting": "Esportazione...",
+   "markdown": "Documento Markdown (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "Includi il ragionamento",
+   "failed": "Esportazione della trascrizione non riuscita: {{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "Input strutturato",
+    "modeLabel": "Editor dell'input",
+    "modeForm": "Modulo",
+    "modeJson": "JSON grezzo",
+    "required": "obbligatorio",
+    "choose": "Seleziona un valore",
+    "addItem": "Aggiungi elemento",
+    "removeItem": "Rimuovi elemento",
+    "jsonLabel": "JSON di input",
+    "jsonPlaceholder": "Valore JSON",
+    "unsupported": "Questo schema di input non ha proprietà con cui creare un modulo. Inserisci il documento JSON che l'agente si aspetta.",
+    "invalidRaw": "Il JSON non è valido. Correggilo prima di passare al modulo.",
+    "errors": {
+     "required": "Questo campo è obbligatorio.",
+     "number": "Inserisci un numero.",
+     "integer": "Inserisci un numero intero.",
+     "json": "Inserisci un JSON valido."
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "Ambito dell'esportazione",
+    "scopeAll": "Tutte le risorse",
+    "scopeSelected": "Risorse selezionate",
+    "kinds": "Tipi",
+    "resources": "Risorse",
+    "resourcesHint": "Un Tipo/nome per riga o separati da virgole, ad esempio Agent/triage.",
+    "invalidSelectors": "Non è un Tipo/nome con un tipo noto: {{entries}}",
+    "followReferences": "Includi ciò a cui fanno riferimento",
+    "includeBuiltIn": "Includi gli elementi predefiniti referenziati",
+    "exporting": "Esportazione...",
+    "noSecrets": "Questo pacchetto non richiede segreti.",
+    "requiredSecrets": "Crea questi segreti nel tenant di destinazione prima di applicare. I valori dei segreti non vengono mai esportati.",
+    "requiredArtifactStores": "Crea questi archivi di artefatti nel tenant di destinazione prima di applicare."
+   }
+  }
+ }
+});

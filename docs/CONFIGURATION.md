@@ -200,6 +200,9 @@ These are stored in the database and shared by every replica. Changes apply with
 | `Notifications.DispatchIntervalMs` | `1000` | 100 to 60000 | How often each replica looks for notifications due to be sent |
 | `Notifications.SweepOverlapSeconds` | `30` | 0 to 600 | How much already-scanned history the leader's notification sweep reads again on every pass, so an event written late by a slow replica or a skewed clock is not missed. Events already queued are not queued twice |
 | `Notifications.DeliveryRetentionDays` | `14` | 1 to 3650 | How long finished deliveries (`Succeeded` or `Failed`) stay in the delivery log |
+| `Transcripts.MaxBytes` | `4194304` | 65536 to 67108864 | Largest run or conversation transcript in bytes. Events past the cap are left out and the transcript is marked truncated. See `docs/TRANSCRIPTS.md` |
+| `Transcripts.ToolTextMaxChars` | `2000` | 100 to 100000 | Characters of each tool call's arguments and each tool result kept in a transcript; longer text is cut and marked `textTruncated` |
+| `Transcripts.MaxTurns` | `200` | 1 to 1000 | Most turns a conversation transcript includes, oldest first; the rest are left out and the transcript is marked truncated |
 | `ControlPlane.HeartbeatIntervalMs` | `5000` | 1000 to 60000 | How often each control-plane replica heartbeats its row in `control_nodes` (status, activity counters) |
 | `ControlPlane.OfflineAfterMs` | `30000` | 5000 to 600000 | Silence after which the leader marks a control-plane replica `Offline`. Keep it several heartbeat intervals long |
 | `ControlPlane.OfflineRetentionHours` | `24` | 1 to 8760 | How long an `Offline` control-plane replica stays listed (counted from its last heartbeat) before the leader deletes its row |

@@ -60,6 +60,7 @@ namespace Garrison.Server.Routes
             routes.Scoped(HttpMethod.GET, baseConversations, ResourceTypeEnum.Conversation, OperationTypeEnum.Read, ListAsync, "List conversations", tag, null, typeof(EnumerationResult<Conversation>));
             routes.Scoped(HttpMethod.GET, baseConversations + "/{id}", ResourceTypeEnum.Conversation, OperationTypeEnum.Read, ReadAsync, "Read a conversation", tag, null, typeof(Conversation));
             routes.Scoped(HttpMethod.DELETE, baseConversations + "/{id}", ResourceTypeEnum.Conversation, OperationTypeEnum.Delete, DeleteAsync, "Delete a conversation that has no unfinished turn (its runs are kept)", tag);
+            routes.Scoped(HttpMethod.GET, baseConversations + "/{id}/transcript", ResourceTypeEnum.Conversation, OperationTypeEnum.Read, TranscriptAsync, "Export a conversation transcript (every turn) as Markdown or JSON (query: format, includeThinking)", tag, null, typeof(Garrison.Core.Transcripts.Transcript));
             routes.Scoped(HttpMethod.GET, baseConversations + "/{id}/runs", ResourceTypeEnum.Conversation, OperationTypeEnum.Read, RunsAsync, "List a conversation's turns (runs), oldest first", tag, null, typeof(EnumerationResult<Run>));
         }
 
@@ -116,6 +117,15 @@ namespace Garrison.Server.Routes
             EnumerationResult<Run> page = await _Context.Database.Runs.EnumerateAsync(filter, context.Token).ConfigureAwait(false);
             await _Blocked.AnnotateManyAsync(page.Objects, context.Token).ConfigureAwait(false);
             await RouteHelpers.JsonAsync(context, 200, page).ConfigureAwait(false);
+        }
+
+        private async Task TranscriptAsync(HttpContextBase context)
+        {
+            TranscriptFormatEnum format = TranscriptResponder.Format(context);
+            Conversation conversation = await RequireAsync(context).ConfigureAwait(false);
+            bool thinking = RouteHelpers.QueryBool(context, "includeThinking") ?? false;
+            Garrison.Core.Transcripts.Transcript transcript = await _Context.Get<TranscriptService>().BuildConversationAsync(conversation, thinking, context.Token).ConfigureAwait(false);
+            await TranscriptResponder.SendAsync(context, transcript, format).ConfigureAwait(false);
         }
 
         private async Task<Conversation> RequireAsync(HttpContextBase context)

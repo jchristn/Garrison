@@ -205,6 +205,68 @@ func main() {
 		finished = run
 		return nil
 	})
+	check("run transcript (Markdown and JSON)", func(ctx context.Context) error {
+		if finished == nil {
+			return errors.New("no finished run")
+		}
+		markdown, err := client.Runs.TranscriptMarkdown(ctx, finished.ID, false)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(markdown, "sdk-go-"+suffix) || !strings.Contains(markdown, "Hello from the Go SDK") {
+			return errors.New("markdown lacks the agent name or the input")
+		}
+		transcript, err := client.Runs.Transcript(ctx, finished.ID, false)
+		if err != nil {
+			return err
+		}
+		if transcript.Schema != "garrison.transcript/v1" || transcript.Kind != "Run" {
+			return fmt.Errorf("schema %s kind %s", transcript.Schema, transcript.Kind)
+		}
+		if transcript.RunID != finished.ID || transcript.AgentName != "sdk-go-"+suffix {
+			return fmt.Errorf("run %s agent %s", transcript.RunID, transcript.AgentName)
+		}
+		if transcript.TurnCount != 1 || len(transcript.Turns) != 1 || transcript.Turns[0].Input != "Hello from the Go SDK" {
+			return fmt.Errorf("turns %d", transcript.TurnCount)
+		}
+		if transcript.IncludesThinking {
+			return errors.New("thinking included by default")
+		}
+		return nil
+	})
+	check("input schema enforcement", func(ctx context.Context) error {
+		var agent garrison.Agent
+		schema := `{"type":"object","properties":{"topic":{"type":"string"},"count":{"type":"integer"}},"required":["topic"]}`
+		if err := client.Agents.Create(ctx, garrison.Agent{Name: "sdk-go-" + suffix + "-schema", InputMode: "Structured", InputSchemaJSON: schema}, &agent); err != nil {
+			return err
+		}
+		defer client.Agents.Delete(ctx, agent.ID)
+		var dep garrison.Deployment
+		if err := client.Deployments.Create(ctx, garrison.Deployment{Name: "sdk-go-" + suffix + "-schema-fake", AgentID: agent.ID, HarnessProfileID: fakeID}, &dep); err != nil {
+			return err
+		}
+		defer client.Deployments.Delete(ctx, dep.ID)
+		if !strings.Contains(agent.InputSchemaJSON, "topic") {
+			return errors.New("inputSchemaJson not stored")
+		}
+		run, err := client.Agents.Invoke(ctx, agent.ID, garrison.InvokeRequest{Input: `{"topic":"sdk","count":2}`, InputContentType: "application/json", Wait: true, WaitSeconds: 90})
+		if err != nil {
+			return err
+		}
+		if run.Status != "Succeeded" {
+			return fmt.Errorf("valid input status %s %s", run.Status, run.ErrorMessage)
+		}
+		_, err = client.Agents.Invoke(ctx, agent.ID, garrison.InvokeRequest{Input: `{"count":"x"}`, InputContentType: "application/json"})
+		var apiErr *garrison.Error
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.FieldCodes["input.topic"] != garrison.FieldCodeInputSchemaViolation {
+			return fmt.Errorf("expected 400 InputSchemaViolation on input.topic, got %v", err)
+		}
+		_, err = client.Agents.Invoke(ctx, agent.ID, garrison.InvokeRequest{Input: "plain words"})
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.FieldCodes["input"] != garrison.FieldCodeInputNotJSON {
+			return fmt.Errorf("expected 400 InputNotJson on input, got %v", err)
+		}
+		return nil
+	})
 	check("run timing fields", func(ctx context.Context) error {
 		if finished == nil {
 			return errors.New("no finished run")
@@ -406,6 +468,31 @@ func main() {
 		}
 		if !result.DryRun || result.FailedCount != 0 {
 			return fmt.Errorf("dryRun %v failed %d", result.DryRun, result.FailedCount)
+		}
+		return nil
+	})
+	check("manifest bundle export", func(ctx context.Context) error {
+		bundle, err := client.Manifests.Export(ctx, garrison.ManifestExportOptions{Resources: []string{"Agent/sdk-go-" + suffix}, FollowReferences: true})
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(bundle, "kind: Bundle") || !strings.Contains(bundle, "kind: Agent") || !strings.Contains(bundle, "name: sdk-go-"+suffix) {
+			return errors.New("bundle lacks the Bundle or Agent document")
+		}
+		if !strings.Contains(bundle, "sdk-go-"+suffix+"-fake") || !strings.Contains(bundle, "builtin/fake") {
+			return errors.New("followReferences did not bring the deployment and its built-in requirement")
+		}
+		dry, err := client.Manifests.Apply(ctx, bundle, true, false)
+		if err != nil {
+			return err
+		}
+		if dry.FailedCount != 0 {
+			return fmt.Errorf("bundle dry run failed %d", dry.FailedCount)
+		}
+		_, err = client.Manifests.Export(ctx, garrison.ManifestExportOptions{Kinds: []string{"NoSuchKind"}})
+		var apiErr *garrison.Error
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.FieldCodes["kinds"] != "UnknownKind" {
+			return fmt.Errorf("expected 400 UnknownKind, got %v", err)
 		}
 		return nil
 	})
@@ -706,6 +793,26 @@ func main() {
 		}
 		if runs.TotalRecords != 2 {
 			return fmt.Errorf("runs by conversationId %d", runs.TotalRecords)
+		}
+		return nil
+	})
+	check("conversation transcript", func(ctx context.Context) error {
+		transcript, err := client.Conversations.Transcript(ctx, conversationID, false)
+		if err != nil {
+			return err
+		}
+		if transcript.Kind != "Conversation" || transcript.ConversationID != conversationID {
+			return fmt.Errorf("kind %s conversation %s", transcript.Kind, transcript.ConversationID)
+		}
+		if transcript.TurnCount != 2 || len(transcript.Turns) != 2 || transcript.Turns[0].Turn != 1 || transcript.Turns[1].Turn != 2 {
+			return fmt.Errorf("turns %d", transcript.TurnCount)
+		}
+		markdown, err := client.Conversations.TranscriptMarkdown(ctx, conversationID, false)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(markdown, "First turn from the Go SDK") || !strings.Contains(markdown, "Second turn from the Go SDK") {
+			return errors.New("markdown lacks a turn")
 		}
 		return nil
 	})

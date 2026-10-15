@@ -862,7 +862,7 @@ export const agentsConfig = {
       }),
       section(id, t, 'io'),
       field(id, t, 'inputMode', 'select', { required: true, options: enumOptions(t, 'agentInputMode') }),
-      field(id, t, 'inputSchemaJson', 'json', { showIf: (x) => x.inputMode === 'Structured' }),
+      field(id, t, 'inputSchemaJson', 'json'),
       field(id, t, 'outputSchemaJson', 'json'),
       section(id, t, 'delegation'),
       field(id, t, 'delegationMode', 'select', { required: true, options: enumOptions(t, 'delegationMode') }),

@@ -223,7 +223,7 @@ namespace Test.Shared.Suites
                 Assert.Equal(600, deployment.TimeoutSeconds ?? 0, "timeout");
                 Assert.True(deployment.RequiredCapabilities.SessionContinuation && deployment.RequiredCapabilities.ColdStartClass == ExecutorColdStartEnum.Immediate, "Manifest capability requirements persist");
 
-                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/manifests/export", null, token).ConfigureAwait(false);
+                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/manifests/export", null, token).ConfigureAwait(false);
                 Assert.True(export.Body.Contains("kind: Deployment", StringComparison.Ordinal) && export.Body.Contains("claude-helper-default", StringComparison.Ordinal), "export");
 
                 ManifestApply reapplyExport = await ApplyAsync(host, export.Body, String.Empty, 200, token).ConfigureAwait(false);

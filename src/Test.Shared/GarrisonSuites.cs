@@ -69,6 +69,9 @@ namespace Test.Shared
                 suites.AddRange(UpgradeSuite.Build());
                 suites.AddRange(TriggerSuite.Build());
                 suites.AddRange(NotificationSuite.Build());
+                suites.AddRange(TranscriptSuite.Build());
+                suites.AddRange(ManifestBundleSuite.Build());
+                suites.AddRange(InputSchemaSuite.Build());
                 return suites;
             }
         }

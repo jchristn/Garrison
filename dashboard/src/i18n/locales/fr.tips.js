@@ -789,7 +789,7 @@ const tips = {
         description: 'Ce que fait la compétence, rédigé pour l\'agent appelant.'
       },
       inputMode: 'Text accepte un message simple. Structured exige une entrée conforme au JSON Schema d\'entrée.',
-      inputSchemaJson: 'JSON Schema auquel l\'entrée doit se conformer lorsque le mode d\'entrée est Structured.',
+      inputSchemaJson: "JSON Schema de l'entrée de l'agent. S'il est défini, chaque entrée d'invocation doit être un document JSON conforme, et Invoquer affiche un formulaire généré à partir de lui.",
       outputSchemaJson: 'JSON Schema auquel le résultat doit se conformer. Garrison valide la sortie et réessaie une fois avec un prompt de correction.',
       delegationAllowList: 'Les agents que cet agent peut appeler lorsque la délégation utilise une liste d\'autorisation.',
       delegationMaxDepth: 'Nombre de niveaux d\'appels d\'agent à agent autorisés sous cet agent. Entre 0 et 10.',
@@ -2133,5 +2133,51 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "p1": "Un point de terminaison de notification reçoit un POST JSON signé quand un événement suivi survient : une exécution ou un pipeline qui se termine, ou une approbation qui attend une personne.",
   "p2": "Les livraisons sont mises en file de façon durable et relancées avec des délais croissants. Chaque tentative porte le même ID de livraison, pour que les destinataires ignorent les répétitions.",
   "p3": "Les notifications n'incluent jamais de secrets ni l'entrée de l'exécution, et la sortie seulement si vous l'autorisez. Les adresses de réseaux privés sont refusées sauf si un opérateur les autorise."
+ }
+});
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "components": {
+  "transcriptExport": {
+   "menu": "Téléchargez cette transcription sous forme de fichier : entrée, texte de l'assistant, appels d'outils, approbations, erreurs, consommation et coût, avec les secrets masqués.",
+   "markdown": "Téléchargez une transcription Markdown lisible, à partager ou à joindre à un ticket.",
+   "json": "Téléchargez la transcription sous forme de document JSON typé (garrison.transcript/v1) pour les scripts et autres outils.",
+   "includeThinking": "Incluez aussi les événements de raisonnement du modèle. Ils sont exclus par défaut car longs et internes."
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "Cet agent a un schéma d'entrée : son entrée est donc un document JSON. Remplissez le formulaire ou passez au JSON brut.",
+    "modeForm": "Modifiez l'entrée avec un formulaire généré à partir du schéma d'entrée de l'agent.",
+    "modeJson": "Modifiez l'entrée sous forme de texte JSON brut. Les valeurs sont conservées quand vous revenez au formulaire.",
+    "field": "Valeur de {{name}}, telle que la décrit le schéma d'entrée de l'agent.",
+    "fieldWithDescription": "{{name}} : {{description}}",
+    "addItem": "Ajoutez un autre élément à cette liste.",
+    "removeItem": "Retirez cet élément de la liste.",
+    "jsonLabel": "Le document JSON envoyé comme entrée de l'exécution. Il doit respecter le schéma d'entrée de l'agent."
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scopeAll": "Exportez toutes les ressources de ce locataire. Les éléments intégrés sont exclus sauf si vous les incluez.",
+    "scopeSelected": "Exportez uniquement les types et ressources choisis, éventuellement avec ce dont ils dépendent.",
+    "kinds": "Exportez toutes les ressources des types cochés.",
+    "kind": "Exportez toutes les ressources {{kind}} de ce locataire.",
+    "resources": "Ressources précises à exporter, écrites sous la forme Type/nom, par exemple Agent/triage ou Pipeline/release.",
+    "followReferences": "Exportez aussi ce dont la sélection dépend : déploiements, profils de harness, modèles de prompt, espaces de travail, serveurs MCP, déclencheurs et points de notification. Les secrets sont listés comme prérequis, jamais exportés.",
+    "includeBuiltIn": "Ajoutez les modèles de prompt et profils de harness intégrés que le paquet référence. L'application ne les modifie pas ; elle vérifie seulement qu'ils existent."
+   }
+  }
  }
 });

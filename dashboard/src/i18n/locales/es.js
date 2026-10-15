@@ -2543,3 +2543,67 @@ es.tips.resources.deployments.egressDefault = "Sin lista de salida permitida: lo
 });
 Object.assign(es.common.fieldCodes, {"SecretUseDenied": "No tienes permiso para usar este secreto. Pide el rol SecretUser o SecretManager sobre él.", "GrantCeiling": "Solo puedes conceder permisos que tú mismo tienes.", "ReservedRoleName": "Es el nombre de un rol integrado. Elige otro nombre."});
 es.components.mcpTest.noWorkers = "Ningún worker listo ofrece diagnósticos stdio. Los workers solo los ejecutan cuando un operador define GARRISON_WORKER_MCP_TESTS_ENABLED=true en ellos, porque el comando se ejecuta en el host del worker, fuera del aislamiento de las ejecuciones.";
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(es, {
+ "components": {
+  "transcriptExport": {
+   "label": "Exportar transcripción",
+   "exporting": "Exportando...",
+   "markdown": "Documento Markdown (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "Incluir razonamiento",
+   "failed": "No se pudo exportar la transcripción: {{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "Entrada estructurada",
+    "modeLabel": "Editor de entrada",
+    "modeForm": "Formulario",
+    "modeJson": "JSON sin procesar",
+    "required": "obligatorio",
+    "choose": "Seleccione un valor",
+    "addItem": "Añadir elemento",
+    "removeItem": "Quitar elemento",
+    "jsonLabel": "JSON de entrada",
+    "jsonPlaceholder": "Valor JSON",
+    "unsupported": "Este esquema de entrada no tiene propiedades con las que crear un formulario. Escriba el documento JSON que espera el agente.",
+    "invalidRaw": "El JSON no es válido. Corríjalo antes de cambiar al formulario.",
+    "errors": {
+     "required": "Este campo es obligatorio.",
+     "number": "Escriba un número.",
+     "integer": "Escriba un número entero.",
+     "json": "Escriba un JSON válido."
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "Alcance de la exportación",
+    "scopeAll": "Todos los recursos",
+    "scopeSelected": "Recursos seleccionados",
+    "kinds": "Tipos",
+    "resources": "Recursos",
+    "resourcesHint": "Un Tipo/nombre por línea o separados por comas, por ejemplo Agent/triage.",
+    "invalidSelectors": "No es un Tipo/nombre con un tipo conocido: {{entries}}",
+    "followReferences": "Incluir lo que referencian",
+    "includeBuiltIn": "Incluir los integrados referenciados",
+    "exporting": "Exportando...",
+    "noSecrets": "Este paquete no necesita secretos.",
+    "requiredSecrets": "Cree estos secretos en el inquilino de destino antes de aplicar. Los valores de los secretos nunca se exportan.",
+    "requiredArtifactStores": "Cree estos almacenes de artefactos en el inquilino de destino antes de aplicar."
+   }
+  }
+ }
+});

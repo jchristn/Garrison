@@ -2518,3 +2518,67 @@ en.tips.resources.deployments.egressDefault = "No egress allowlist: run pods use
 });
 Object.assign(en.common.fieldCodes, {"SecretUseDenied": "You do not have permission to use this secret. Ask for the SecretUser or SecretManager role on it.", "GrantCeiling": "You can only grant permissions you hold yourself.", "ReservedRoleName": "This is the name of a built-in role. Choose another name."});
 en.components.mcpTest.noWorkers = "No Ready worker offers stdio diagnostics. Workers run them only when an operator sets GARRISON_WORKER_MCP_TESTS_ENABLED=true on them, because the command runs on the worker host, outside run isolation.";
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(en, {
+ "components": {
+  "transcriptExport": {
+   "label": "Export transcript",
+   "exporting": "Exporting...",
+   "markdown": "Markdown document (.md)",
+   "json": "JSON (.json)",
+   "includeThinking": "Include thinking",
+   "failed": "Transcript export failed: {{message}}"
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "Structured input",
+    "modeLabel": "Input editor",
+    "modeForm": "Form",
+    "modeJson": "Raw JSON",
+    "required": "required",
+    "choose": "Select a value",
+    "addItem": "Add item",
+    "removeItem": "Remove item",
+    "jsonLabel": "Input JSON",
+    "jsonPlaceholder": "JSON value",
+    "unsupported": "This input schema has no properties to build a form from. Enter the JSON document the agent expects.",
+    "invalidRaw": "The JSON is not valid. Fix it before switching to the form.",
+    "errors": {
+     "required": "This field is required.",
+     "number": "Enter a number.",
+     "integer": "Enter a whole number.",
+     "json": "Enter valid JSON."
+    }
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scope": "Export scope",
+    "scopeAll": "All resources",
+    "scopeSelected": "Selected resources",
+    "kinds": "Kinds",
+    "resources": "Resources",
+    "resourcesHint": "One Kind/name per line or separated by commas, for example Agent/triage.",
+    "invalidSelectors": "Not a Kind/name with a known kind: {{entries}}",
+    "followReferences": "Include what they reference",
+    "includeBuiltIn": "Include referenced built-ins",
+    "exporting": "Exporting...",
+    "noSecrets": "This bundle needs no secrets.",
+    "requiredSecrets": "Create these secrets in the target tenant before applying. Secret values are never exported.",
+    "requiredArtifactStores": "Create these artifact stores in the target tenant before applying."
+   }
+  }
+ }
+});

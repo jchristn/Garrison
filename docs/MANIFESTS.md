@@ -1,6 +1,6 @@
 # Manifests
 
-A manifest describes a tenant's configuration (secrets, prompt templates, harness profiles, MCP servers, workspace templates, agents, deployments, pipelines, triggers, and notification endpoints) as YAML or JSON documents you can keep in source control, review, and apply to any Garrison. Applying the same manifest twice changes nothing. Exporting a tenant gives you a manifest that recreates it.
+A manifest describes a tenant's configuration (secrets, prompt templates, harness profiles, MCP servers, workspace templates, agents, deployments, pipelines, triggers, and notification endpoints) as YAML or JSON documents you can keep in source control, review, and apply to any Garrison. Applying the same manifest twice changes nothing. Exporting a tenant, or part of it, gives you a bundle that recreates it in another tenant or on another Garrison.
 
 Every example on this page was checked with a dry run against a live server.
 
@@ -21,7 +21,7 @@ spec:
 | Field | Meaning |
 |---|---|
 | `apiVersion` | Always `garrison/v1` |
-| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `Agent`, `Deployment`, `Pipeline`, `Trigger`, or `NotificationEndpoint` |
+| `kind` | `Secret`, `PromptTemplate`, `HarnessProfile`, `McpServer`, `WorkspaceTemplate`, `Agent`, `Deployment`, `Pipeline`, `Trigger`, `NotificationEndpoint`, or `Bundle` (the requirements document an export starts with, see [Bundle](#bundle)) |
 | `metadata.name` | The record's name, which is also how other documents refer to it. Names starting with `builtin/` are reserved |
 | `metadata.description` | Optional; becomes the record's description |
 | `spec` | The record's fields in camelCase, as in the REST API, with the conveniences listed below |
@@ -92,7 +92,12 @@ A failed item also carries `errorCode` and, when one field is at fault, `errorFi
   "message": "Secret mux-api-key (documents[1]) has an invalid spec: spec.kind is 'Generic', which is not an allowed value. Allowed values: GenericEnv, GenericFile." }
 ```
 
-Other failures use `ValidationFailed` (for example a name that breaks the naming rules) or the code of a reference or template problem, such as `ReferenceNotFound`.
+Other failures use `ValidationFailed` (for example a name that breaks the naming rules) or the code of a reference or template problem. A reference that does not resolve fails with `MissingSecret` when it names a secret and `ReferenceNotFound` for any other kind, and `errorField` names the reference:
+
+```json
+{ "kind": "Deployment", "name": "triage-default", "result": "Failed", "errorCode": "MissingSecret", "errorField": "resources.secrets.github",
+  "message": "Reference 'resources.secrets.github' points to Secret 'github-token', which does not exist and is not defined earlier in this manifest." }
+```
 
 A few numeric fields have a range and are clamped into it rather than rejected (the same rule as the REST API, listed under "Warnings" in `REST_API.md`). The document still applies, and its item carries a `warnings` entry naming the field, the value you wrote, and the value stored, on a dry run as well as on an apply, and again on every re-apply until you fix the value:
 
@@ -111,12 +116,63 @@ Manifests never delete anything. Removing a document from a manifest leaves the 
 
 ## Exporting
 
+`GET .../manifests/export` returns a bundle: multi-document YAML that `POST .../manifests/apply` accepts as it is. Export needs Read on Manifest.
+
 ```bash
-curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/export \
-  -H "Authorization: Bearer $TOKEN" > tenant.yaml
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/export" \
+  -H "Authorization: Bearer $TOKEN" -o tenant.yaml
 ```
 
-The response is `application/yaml` with every tenant-owned record (built-ins are left out, but references to them are kept). Secrets are exported without values. Deployments come out with every field, including the default prompt bindings:
+With no parameters you get every tenant-owned record. Built-ins are left out, but references to them are kept. To export part of a tenant, select what you want:
+
+| Query parameter | Default | Meaning |
+|---|---|---|
+| `kinds` | none | Comma list of kinds to export in full, such as `Agent,Pipeline`. Any kind except `Secret` and `Bundle` |
+| `resources` | none | Comma list of `Kind/name`, such as `Agent/triage,Pipeline/release`. The kind ends at the first `/` |
+| `followReferences` | `false` | Also export what the selection depends on (see below) |
+| `includeBuiltIn` | `false` | Include the built-in prompt templates and harness profiles the bundle refers to |
+
+`kinds` and `resources` can be used together. An unknown kind answers 400 with field code `UnknownKind`, a `resources` entry without a `/` answers 400 with `InvalidSelector`, and a resource that does not exist in the tenant answers 404.
+
+With `followReferences=true` the bundle carries everything the selection needs:
+
+| Selected | Also exported |
+|---|---|
+| Agent | Its deployments, the triggers and notification endpoints that target it, the agents in its delegation allow list, and its tool and skill description templates |
+| Deployment | Its agent, harness profile, prompt templates, workspace template, and MCP servers |
+| Pipeline | Its stage agents (with their own dependencies), pinned deployments, handoff templates, and the triggers that target it |
+| Trigger | Its agent or pipeline, deployment, and input template |
+| NotificationEndpoint | Its agent and deployment |
+
+Secret values are never exported, and secrets are not documents in a bundle at all. Neither are artifact stores. Both are listed as requirements instead, in a header comment and in the first document, `kind: Bundle`:
+
+```yaml
+# Garrison manifest bundle (garrison/v1) exported 2026-10-14T12:00:00Z from tenant default.
+# Apply it with POST /v1.0/api/tenants/{tenantId}/manifests/apply (add ?dryRun=true to check it first).
+# Secret values are never exported. Create these secrets in the target tenant before applying:
+#   - github-token (GitCredential)
+apiVersion: garrison/v1
+kind: Bundle
+metadata:
+  name: garrison-bundle
+spec:
+  exportedUtc: 2026-10-14T12:00:00.0000000Z
+  requiredSecrets:
+  - name: github-token
+    kind: GitCredential
+  requiredArtifactStores: []
+  requiredBuiltIns:
+  - kind: HarnessProfile
+    name: builtin/claude-code
+---
+apiVersion: garrison/v1
+kind: Agent
+metadata:
+  name: triage
+...
+```
+
+The other documents follow in apply order. Deployments come out with every field, including the default prompt bindings:
 
 ```yaml
 apiVersion: garrison/v1
@@ -136,12 +192,73 @@ spec:
     Task: shouty-task@1
   resources:
     mcpServers: []
-    secrets: []
+    secrets:
+    - alias: github
+      secret: github-token
   effectPolicy: AtMostOnce
   weight: 100
 ```
 
+### Moving an agent to another tenant
+
+Export one agent with what it depends on:
+
+```bash
+curl -s "http://127.0.0.1:8700/v1.0/api/tenants/default/manifests/export?resources=Agent/triage&followReferences=true" \
+  -H "Authorization: Bearer $TOKEN" -o triage.yaml
+grep '^#   - ' triage.yaml
+```
+
+The `grep` prints the secrets the target needs. Check the bundle against the target tenant first. Until the secrets exist, the dry run reports the `Bundle` document and every document that uses them as `Failed` with `MissingSecret`, and nothing is written:
+
+```bash
+curl -s -X POST "http://127.0.0.1:8700/v1.0/api/tenants/team-b/manifests/apply?dryRun=true" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/yaml" --data-binary @triage.yaml \
+  | jq '.items[] | select(.result == "Failed") | {kind, name, errorCode, errorField}'
+```
+
+Create each secret in the target tenant, with its value:
+
+```bash
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/team-b/secrets \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"github-token","kind":"GitCredential","value":"..."}'
+```
+
+Then apply. A second apply of the same file reports every document `Unchanged`:
+
+```bash
+curl -s -X POST http://127.0.0.1:8700/v1.0/api/tenants/team-b/manifests/apply \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/yaml" --data-binary @triage.yaml \
+  | jq '{createdCount, updatedCount, unchangedCount, failedCount}'
+```
+
+The dashboard does the same under Configuration, Manifests: choose what to export and download the bundle, then paste or upload it in the target tenant and use **Dry run** and **Apply**. Over MCP, `garrison_export_manifest` takes the same selectors (see [MANAGEMENT_MCP.md](MANAGEMENT_MCP.md)).
+
+A webhook trigger or notification endpoint applied from a bundle gets a new signing secret in the target tenant; rotate it there to read it. Triggers run as the principal that applied the bundle.
+
 ## Kinds
+
+### Bundle
+
+```yaml
+apiVersion: garrison/v1
+kind: Bundle
+metadata:
+  name: garrison-bundle
+spec:
+  requiredSecrets:
+  - name: github-token
+    kind: GitCredential
+  requiredArtifactStores: [reports]
+  requiredBuiltIns:
+  - kind: PromptTemplate
+    name: builtin/default-system
+```
+
+Export writes this document; you rarely write one yourself. Applying it changes nothing. It checks that each required secret exists in the tenant (or is a `Secret` document in the same manifest), and that each artifact store and built-in exists. When everything is there the item is `Unchanged`. Otherwise it fails with `errorCode` `MissingSecret`, `MissingArtifactStore`, or `MissingBuiltIn` and `errorField` such as `spec.requiredSecrets[0]`, and because apply is all or nothing, the rest of the bundle is not written either. `exportedUtc` is informational.
+
+Built-in documents (names starting with `builtin/`, written by an export with `includeBuiltIn=true`) are never applied. Such a document reports `Unchanged` when the built-in exists in the target and fails with `MissingBuiltIn` when it does not; built-ins themselves are managed by the server.
 
 ### Secret
 
@@ -285,6 +402,19 @@ Agents accept a few shorthands:
 | `delegation.mode`, `delegation.allow`, `delegation.maxDepth`, `delegation.allowRecursion` | `delegationMode`, `delegationAllowList`, `delegationMaxDepth`, `delegationAllowRecursion`. Without `mode`, a non-empty `allow` means `AllowList` and anything else means `None` |
 | `inputSchema`, `outputSchema` as YAML mappings | `inputSchemaJson`, `outputSchemaJson` |
 | `toolDescriptionTemplate`, `skillDescriptionTemplate` | The prompt template, by name |
+
+Both schemas must be valid JSON Schema documents; one that is not fails the document with field code `InvalidJsonSchema`. An agent with an input schema only accepts input that is a JSON document matching it, on every surface (see "Input schemas" in `REST_API.md`), and the dashboard's Invoke page builds a form from it:
+
+```yaml
+spec:
+  inputMode: Structured
+  inputSchema:
+    type: object
+    required: [topic]
+    properties:
+      topic: { type: string, description: What to research }
+      depth: { type: integer, minimum: 1, maximum: 5, default: 2 }
+```
 
 ### Deployment
 
@@ -486,4 +616,4 @@ Deployments may set `artifactStoreId` and explicit `artifactGlobs`, for example 
 
 ## MCP configuration clients
 
-Developer/user credentials may call `garrison_apply_manifest` with the same YAML/JSON text, dry-run and inline-secret options as REST. `garrison_export_manifest` returns reusable YAML with secret metadata only. Existing permissions still apply; hosted run tokens cannot manage configuration. See [management MCP](MANAGEMENT_MCP.md).
+Developer/user credentials may call `garrison_apply_manifest` with the same YAML/JSON text, dry-run and inline-secret options as REST. `garrison_export_manifest` takes the same selectors as REST export and returns the bundle YAML, which never carries secret values. Existing permissions still apply; hosted run tokens cannot manage configuration. See [management MCP](MANAGEMENT_MCP.md).

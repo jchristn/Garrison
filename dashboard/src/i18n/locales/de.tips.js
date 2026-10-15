@@ -787,7 +787,7 @@ const tips = {
         description: 'Was die Fähigkeit tut, geschrieben für den aufrufenden Agenten.'
       },
       inputMode: 'Text akzeptiert eine einfache Nachricht. Strukturiert verlangt eine Eingabe, die dem JSON-Schema der Eingabe entspricht.',
-      inputSchemaJson: 'JSON-Schema, dem die Eingabe im Eingabemodus Strukturiert entsprechen muss.',
+      inputSchemaJson: "JSON-Schema für die Eingabe des Agenten. Wenn gesetzt, muss jede Eingabe eines Aufrufs ein passendes JSON-Dokument sein, und Aufrufen zeigt ein daraus erzeugtes Formular.",
       outputSchemaJson: 'JSON-Schema, dem das Ergebnis entsprechen muss. Garrison prüft die Ausgabe und versucht es einmal mit einem Reparatur-Prompt erneut.',
       delegationAllowList: 'Die Agenten, die dieser Agent aufrufen darf, wenn die Delegation eine Zulassungsliste verwendet.',
       delegationMaxDepth: 'Wie viele Ebenen von Agent-zu-Agent-Aufrufen unterhalb dieses Agenten folgen dürfen. Zwischen 0 und 10.',
@@ -2131,5 +2131,51 @@ tips.views.settings.fields.Auth = Object.assign(tips.views.settings.fields.Auth 
   "p1": "Ein Benachrichtigungsendpunkt erhält einen signierten JSON-POST, wenn ein abonniertes Ereignis eintritt: ein Lauf oder eine Pipeline endet oder eine Freigabe wartet auf eine Person.",
   "p2": "Zustellungen werden dauerhaft eingereiht und mit wachsenden Abständen wiederholt. Jeder Versuch trägt dieselbe Zustellungs-ID, damit Empfänger Wiederholungen ignorieren können.",
   "p3": "Benachrichtigungen enthalten nie Geheimnisse oder Laufeingaben und Laufausgaben nur, wenn Sie es erlauben. Private Netzadressen werden abgelehnt, solange ein Betreiber sie nicht erlaubt."
+ }
+});
+
+// Transcript export (P12.27), manifest bundle export (P12.21), and schema invoke forms (P12.22).
+(function mergeCatalog(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object') {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      mergeCatalog(target[key], value);
+    } else {
+      target[key] = value;
+    }
+  }
+})(tips, {
+ "components": {
+  "transcriptExport": {
+   "menu": "Diesen Verlauf als Datei herunterladen: Eingabe, Assistententext, Werkzeugaufrufe, Freigaben, Fehler, Verbrauch und Kosten, mit geschwärzten Geheimnissen.",
+   "markdown": "Einen lesbaren Markdown-Verlauf herunterladen, geeignet zum Teilen oder Anhängen an ein Ticket.",
+   "json": "Den Verlauf als typisiertes JSON-Dokument (garrison.transcript/v1) für Skripte und andere Werkzeuge herunterladen.",
+   "includeThinking": "Auch die Denkschritte des Modells einbeziehen. Sie fehlen standardmäßig, weil sie lang und intern sind."
+  }
+ },
+ "views": {
+  "invoke": {
+   "schemaForm": {
+    "title": "Dieser Agent hat ein Eingabeschema, daher ist seine Eingabe ein JSON-Dokument. Füllen Sie das Formular aus oder wechseln Sie zu rohem JSON.",
+    "modeForm": "Die Eingabe mit einem Formular bearbeiten, das aus dem Eingabeschema des Agenten erzeugt wird.",
+    "modeJson": "Die Eingabe als rohen JSON-Text bearbeiten. Die Werte bleiben erhalten, wenn Sie zum Formular zurückwechseln.",
+    "field": "Wert für {{name}}, wie im Eingabeschema des Agenten beschrieben.",
+    "fieldWithDescription": "{{name}}: {{description}}",
+    "addItem": "Dieser Liste einen weiteren Eintrag hinzufügen.",
+    "removeItem": "Diesen Eintrag aus der Liste entfernen.",
+    "jsonLabel": "Das JSON-Dokument, das als Eingabe des Laufs gesendet wird. Es muss dem Eingabeschema des Agenten entsprechen."
+   }
+  },
+  "manifests": {
+   "bundle": {
+    "scopeAll": "Jede Ressource dieses Mandanten exportieren. Integrierte Ressourcen fehlen, außer Sie beziehen sie ein.",
+    "scopeSelected": "Nur die gewählten Arten und Ressourcen exportieren, wahlweise mit allem, wovon sie abhängen.",
+    "kinds": "Jede Ressource der markierten Arten exportieren.",
+    "kind": "Jede Ressource der Art {{kind}} in diesem Mandanten exportieren.",
+    "resources": "Einzelne zu exportierende Ressourcen im Format Kind/Name, zum Beispiel Agent/triage oder Pipeline/release.",
+    "followReferences": "Auch exportieren, wovon die Auswahl abhängt: Bereitstellungen, Harness-Profile, Prompt-Vorlagen, Arbeitsbereiche, MCP-Server, Auslöser und Benachrichtigungsendpunkte. Geheimnisse werden als Voraussetzung aufgeführt, nie exportiert.",
+    "includeBuiltIn": "Die integrierten Prompt-Vorlagen und Harness-Profile hinzufügen, auf die das Paket verweist. Beim Anwenden bleiben sie unverändert; es wird nur geprüft, dass sie existieren."
+   }
+  }
  }
 });

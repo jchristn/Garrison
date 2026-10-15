@@ -5,6 +5,7 @@ Usage: python test_harness.py [baseUrl] [accessKey] [secretKey]
 Requires a running server and a worker able to run the builtin/fake harness profile.
 """
 
+import json
 import re
 import sys
 import time
@@ -363,6 +364,67 @@ def t_conversation_read():
     require(runs["totalRecords"] == 2, f"runs by conversationId {runs['totalRecords']}")
 
 
+def t_run_transcript():
+    markdown = client.runs.transcript_markdown(state["run"])
+    require(f"sdk-py-{SUFFIX}" in markdown, "markdown lacks the agent name")
+    require("Hello from the Python SDK" in markdown, "markdown lacks the input")
+    transcript = client.runs.transcript(state["run"])
+    require(transcript["schema"] == "garrison.transcript/v1" and transcript["kind"] == "Run", f"schema {transcript.get('schema')} kind {transcript.get('kind')}")
+    require(transcript["runId"] == state["run"] and transcript["agentName"] == f"sdk-py-{SUFFIX}", f"run {transcript.get('runId')} agent {transcript.get('agentName')}")
+    require(transcript["turnCount"] == 1 and len(transcript["turns"]) == 1, f"turns {transcript.get('turnCount')}")
+    require(transcript["turns"][0].get("input") == "Hello from the Python SDK", f"turn input {transcript['turns'][0].get('input')}")
+    require(transcript["includesThinking"] is False, "thinking included by default")
+
+
+def t_input_schema():
+    schema = {"type": "object", "properties": {"topic": {"type": "string"}, "count": {"type": "integer"}}, "required": ["topic"]}
+    agent = client.agents.create({"name": f"sdk-py-{SUFFIX}-schema", "inputMode": "Structured", "inputSchemaJson": json.dumps(schema)})
+    deployment = client.deployments.create({"name": f"sdk-py-{SUFFIX}-schema-fake", "agentId": agent["id"], "harnessProfileId": state["fake"]})
+    try:
+        require("topic" in (agent.get("inputSchemaJson") or ""), "inputSchemaJson not stored")
+        run = client.agents.invoke(agent["id"], json.dumps({"topic": "sdk", "count": 2}), wait=True, wait_seconds=90,
+                                   input_content_type="application/json")
+        require(run["status"] == "Succeeded", f"valid input status {run['status']} {run.get('errorMessage')}")
+        try:
+            client.agents.invoke(agent["id"], json.dumps({"count": "x"}), input_content_type="application/json")
+            raise AssertionError("expected 400 for an input that breaks the schema")
+        except GarrisonError as e:
+            require(e.status_code == 400, f"status {e.status_code}")
+            require(e.field_codes.get("input.topic") == "InputSchemaViolation", f"fieldCodes {e.field_codes}")
+        try:
+            client.agents.invoke(agent["id"], "plain words")
+            raise AssertionError("expected 400 for an input that is not JSON")
+        except GarrisonError as e:
+            require(e.status_code == 400 and e.field_codes.get("input") == "InputNotJson", f"status {e.status_code} fieldCodes {e.field_codes}")
+    finally:
+        client.deployments.delete(deployment["id"])
+        client.agents.delete(agent["id"])
+
+
+def t_bundle_export():
+    bundle = client.manifests.export(resources=[f"Agent/sdk-py-{SUFFIX}"], follow_references=True)
+    require("kind: Bundle" in bundle, "no Bundle document")
+    require("kind: Agent" in bundle and f"name: sdk-py-{SUFFIX}" in bundle, "agent missing from bundle")
+    require(f"sdk-py-{SUFFIX}-fake" in bundle, "followReferences did not bring the deployment")
+    require("builtin/fake" in bundle, "built-in requirement missing")
+    dry = client.manifests.apply(bundle, dry_run=True)
+    require(dry["failedCount"] == 0, f"bundle dry run failed {dry['failedCount']}")
+    try:
+        client.manifests.export(kinds=["NoSuchKind"])
+        raise AssertionError("expected 400 UnknownKind")
+    except GarrisonError as e:
+        require(e.status_code == 400 and e.field_codes.get("kinds") == "UnknownKind", f"status {e.status_code} fieldCodes {e.field_codes}")
+
+
+def t_conversation_transcript():
+    transcript = client.conversations.transcript(state["conversation"])
+    require(transcript["kind"] == "Conversation" and transcript["conversationId"] == state["conversation"], f"kind {transcript.get('kind')}")
+    require(transcript["turnCount"] == 2 and len(transcript["turns"]) == 2, f"turns {transcript.get('turnCount')}")
+    require(transcript["turns"][0]["turn"] == 1 and transcript["turns"][1]["turn"] == 2, "turn order")
+    markdown = client.conversations.transcript_markdown(state["conversation"])
+    require("First turn from the Python SDK" in markdown and "Second turn from the Python SDK" in markdown, "markdown lacks a turn")
+
+
 def t_conversation_delete():
     client.conversations.delete(state["conversation"])
     try:
@@ -640,7 +702,8 @@ AUTH_HELP = (
 
 for name, fn in [("health", t_health), ("token auth", t_token), ("signed request auth", t_signed),
                  ("model price CRUD", t_prices), ("builtin harness profiles", t_builtin), ("create agent and deployment", t_create), ("usage quota CRUD and meters", t_quotas),
-                 ("invoke with wait", t_invoke), ("run timing metrics", t_run_metrics),
+                 ("invoke with wait", t_invoke), ("run transcript (Markdown and JSON)", t_run_transcript),
+                 ("input schema enforcement", t_input_schema), ("run timing metrics", t_run_metrics),
                  ("run analytics", t_analytics), ("run analytics grouped by harness", t_analytics_group),
                  ("run analytics grouped by harness and model", t_analytics_harness_model),
                  ("run analytics dimensions", t_analytics_dimensions), ("run analytics filtered by model", t_analytics_model),
@@ -648,10 +711,11 @@ for name, fn in [("health", t_health), ("token auth", t_token), ("signed request
                  ("untrusted deployment queues without isolation", t_trust_level),
                  ("effect policy default, update, and conflict", t_effect_policy),
                  ("egress allowlist round trip, validation, and queueing", t_egress_rules),
-                 ("manifest dry run", t_manifest), ("clamped values return ValueClamped warnings", t_clamp_warnings),
+                 ("manifest dry run", t_manifest), ("manifest bundle export", t_bundle_export), ("clamped values return ValueClamped warnings", t_clamp_warnings),
                  ("nodes report containerized", t_node_containerized), ("list runs by agent", t_list_runs),
                  ("conversation start", t_conversation_start), ("conversation continue", t_conversation_continue),
-                 ("conversation read and list", t_conversation_read), ("conversation delete", t_conversation_delete),
+                 ("conversation read and list", t_conversation_read),
+                 ("conversation transcript", t_conversation_transcript), ("conversation delete", t_conversation_delete),
                  ("control nodes", t_control_nodes),
                  ("approvals list and read", t_approvals), ("approval rules and approval check", t_approval_check),
                  ("artifact collection and binary download", t_artifacts), ("stdio MCP worker diagnostic", t_stdio_mcp),

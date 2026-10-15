@@ -169,6 +169,75 @@ namespace Garrison.Sdk.Test
                     invokedRun = run;
                 }).ConfigureAwait(false);
 
+                await CheckAsync("run transcript (Markdown and JSON)", async () =>
+                {
+                    string runId = invokedRun?.Id ?? throw new InvalidOperationException("no invoked run");
+                    string markdown = await client.Runs.GetTranscriptMarkdownAsync(runId, false, token).ConfigureAwait(false);
+                    Require(markdown.Contains("sdk-cs-" + suffix, StringComparison.Ordinal), "markdown lacks the agent name");
+                    Require(markdown.Contains("Hello from the C# SDK", StringComparison.Ordinal), "markdown lacks the input");
+                    Transcript transcript = await client.Runs.GetTranscriptAsync(runId, false, token).ConfigureAwait(false);
+                    Require(transcript.Schema == "garrison.transcript/v1" && transcript.Kind == TranscriptKindEnum.Run, "schema " + transcript.Schema + " kind " + transcript.Kind);
+                    Require(transcript.RunId == runId && transcript.AgentName == "sdk-cs-" + suffix, "run " + transcript.RunId + " agent " + transcript.AgentName);
+                    Require(transcript.TurnCount == 1 && transcript.Turns.Count == 1, "turns " + transcript.TurnCount);
+                    Require(transcript.Turns[0].Input == "Hello from the C# SDK" && transcript.Turns[0].Status == RunStatusEnum.Succeeded, "turn input " + transcript.Turns[0].Input);
+                    Require(!transcript.IncludesThinking, "thinking included by default");
+                }).ConfigureAwait(false);
+
+                await CheckAsync("input schema enforcement", async () =>
+                {
+                    Agent structured = new Agent();
+                    structured.Name = "sdk-cs-" + suffix + "-schema";
+                    structured.InputMode = AgentInputModeEnum.Structured;
+                    structured.InputSchemaJson = "{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"},\"count\":{\"type\":\"integer\"}},\"required\":[\"topic\"]}";
+                    structured = await client.Agents.CreateAsync(structured, token).ConfigureAwait(false);
+                    Deployment structuredDeployment = new Deployment();
+                    structuredDeployment.Name = "sdk-cs-" + suffix + "-schema-fake";
+                    structuredDeployment.AgentId = structured.Id;
+                    structuredDeployment.HarnessProfileId = fakeProfileId ?? throw new InvalidOperationException("no fake profile");
+                    structuredDeployment = await client.Deployments.CreateAsync(structuredDeployment, token).ConfigureAwait(false);
+                    try
+                    {
+                        Require(structured.InputSchemaJson != null && structured.InputSchemaJson.Contains("topic", StringComparison.Ordinal), "inputSchemaJson not stored");
+                        InvokeRequest valid = new InvokeRequest();
+                        valid.Input = "{\"topic\":\"sdk\",\"count\":2}";
+                        valid.InputContentType = "application/json";
+                        valid.WaitSeconds = 90;
+                        Run run = await client.Agents.InvokeAsync(structured.Id, valid, token).ConfigureAwait(false);
+                        Require(run.Status == RunStatusEnum.Succeeded, "valid input status " + run.Status + " " + run.ErrorMessage);
+
+                        GarrisonException? missing = null;
+                        try
+                        {
+                            await client.Agents.InvokeAsync(structured.Id, new InvokeRequest { Input = "{\"count\":\"x\"}", InputContentType = "application/json" }, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 400)
+                        {
+                            missing = e;
+                        }
+                        Require(missing != null, "expected 400 for an input that breaks the schema");
+                        Dictionary<string, string> codes = missing!.Error?.FieldCodes ?? new Dictionary<string, string>();
+                        Require(codes.TryGetValue("input.topic", out string? topicCode) && topicCode == "InputSchemaViolation", "fieldCodes " + String.Join(",", codes.Select(c => c.Key + "=" + c.Value)));
+
+                        GarrisonException? notJson = null;
+                        try
+                        {
+                            await client.Agents.InvokeAsync(structured.Id, new InvokeRequest { Input = "plain words" }, token).ConfigureAwait(false);
+                        }
+                        catch (GarrisonException e) when (e.StatusCode == 400)
+                        {
+                            notJson = e;
+                        }
+                        Require(notJson != null, "expected 400 for an input that is not JSON");
+                        Dictionary<string, string> notJsonCodes = notJson!.Error?.FieldCodes ?? new Dictionary<string, string>();
+                        Require(notJsonCodes.TryGetValue("input", out string? inputCode) && inputCode == "InputNotJson", "fieldCodes " + String.Join(",", notJsonCodes.Select(c => c.Key + "=" + c.Value)));
+                    }
+                    finally
+                    {
+                        await client.Deployments.DeleteAsync(structuredDeployment.Id, token).ConfigureAwait(false);
+                        await client.Agents.DeleteAsync(structured.Id, token).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+
                 await CheckAsync("run timing fields", async () =>
                 {
                     Run run = await client.Runs.GetAsync(invokedRun?.Id ?? throw new InvalidOperationException("no invoked run"), token).ConfigureAwait(false);
@@ -423,6 +492,31 @@ namespace Garrison.Sdk.Test
                     Require(result.FailedCount == 0, "failed documents " + result.FailedCount);
                 }).ConfigureAwait(false);
 
+                await CheckAsync("manifest bundle export", async () =>
+                {
+                    ManifestExportRequest request = new ManifestExportRequest();
+                    request.Resources.Add("Agent/sdk-cs-" + suffix);
+                    request.FollowReferences = true;
+                    string bundle = await client.Manifests.ExportAsync(request, token).ConfigureAwait(false);
+                    Require(bundle.Contains("kind: Bundle", StringComparison.Ordinal), "no Bundle document");
+                    Require(bundle.Contains("kind: Agent", StringComparison.Ordinal) && bundle.Contains("name: sdk-cs-" + suffix, StringComparison.Ordinal), "agent missing from bundle");
+                    Require(bundle.Contains("sdk-cs-" + suffix + "-fake", StringComparison.Ordinal), "followReferences did not bring the deployment");
+                    Require(bundle.Contains("builtin/fake", StringComparison.Ordinal), "built-in requirement missing");
+                    ManifestApply dry = await client.Manifests.ApplyAsync(bundle, true, false, token).ConfigureAwait(false);
+                    Require(dry.FailedCount == 0, "bundle dry run failed " + dry.FailedCount);
+
+                    bool rejected = false;
+                    try
+                    {
+                        await client.Manifests.ExportAsync(new ManifestExportRequest { Kinds = new List<string> { "NoSuchKind" } }, token).ConfigureAwait(false);
+                    }
+                    catch (GarrisonException e) when (e.StatusCode == 400)
+                    {
+                        rejected = e.Error?.FieldCodes != null && e.Error.FieldCodes.TryGetValue("kinds", out string? code) && code == "UnknownKind";
+                    }
+                    Require(rejected, "expected 400 UnknownKind");
+                }).ConfigureAwait(false);
+
                 await CheckAsync("clamped values return ValueClamped warnings", async () =>
                 {
                     // The typed Deployment model clamps MaxAttempts locally, so send the out-of-range value through the transport.
@@ -535,6 +629,17 @@ namespace Garrison.Sdk.Test
                     runFilter.ConversationId = id;
                     EnumerationResult<Run> runs = await client.Runs.ListAsync(runFilter, token).ConfigureAwait(false);
                     Require(runs.TotalRecords == 2, "runs by conversationId " + runs.TotalRecords);
+                }).ConfigureAwait(false);
+
+                await CheckAsync("conversation transcript", async () =>
+                {
+                    string id = conversationId ?? throw new InvalidOperationException("no conversation");
+                    Transcript transcript = await client.Conversations.GetTranscriptAsync(id, false, token).ConfigureAwait(false);
+                    Require(transcript.Kind == TranscriptKindEnum.Conversation && transcript.ConversationId == id, "kind " + transcript.Kind + " conversation " + transcript.ConversationId);
+                    Require(transcript.TurnCount == 2 && transcript.Turns.Count == 2, "turns " + transcript.TurnCount);
+                    Require(transcript.Turns[0].Turn == 1 && transcript.Turns[1].Input == "Second turn from the C# SDK", "turn order");
+                    string markdown = await client.Conversations.GetTranscriptMarkdownAsync(id, false, token).ConfigureAwait(false);
+                    Require(markdown.Contains("First turn from the C# SDK", StringComparison.Ordinal) && markdown.Contains("Second turn from the C# SDK", StringComparison.Ordinal), "markdown lacks a turn");
                 }).ConfigureAwait(false);
 
                 await CheckAsync("conversation delete", async () =>

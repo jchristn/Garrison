@@ -699,7 +699,7 @@ namespace Test.Shared.Suites
                 Assert.True(generatedApply.Items[0].Message != null && generatedApply.Items[0].Message!.Contains("rotate", StringComparison.Ordinal), "A webhook trigger without a secret gets a generated one");
                 Assert.True((await host.Server.Context.Database.Triggers.ReadByNameAsync(host.TenantId, "manifest-generated", token).ConfigureAwait(false))!.SigningSecretLast4 != null, "Generated secret stored");
 
-                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Post, T(host) + "/manifests/export", null, token).ConfigureAwait(false);
+                TestResponse export = await HttpTestHelpers.SendAsync(host.AdminClient, HttpMethod.Get, T(host) + "/manifests/export", null, token).ConfigureAwait(false);
                 Assert.True(export.StatusCode == 200 && export.Body.Contains("kind: Trigger", StringComparison.Ordinal) && export.Body.Contains("manifest-hook", StringComparison.Ordinal) && export.Body.Contains("30 8 * * 1-5", StringComparison.Ordinal), "Export carries triggers");
                 Assert.True(!export.Body.Contains(secret, StringComparison.Ordinal) && !export.Body.Contains("signingSecret", StringComparison.Ordinal), "Export never carries a signing secret");
             }

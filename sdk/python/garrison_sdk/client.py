@@ -46,6 +46,91 @@ class FieldWarning(TypedDict, total=False):
     """Explanation naming the field, the given value, the allowed range, and the stored value."""
 
 
+class TranscriptUsage(TypedDict, total=False):
+    """Token, tool, cost, and duration totals of a transcript or one turn."""
+    inputTokens: int
+    outputTokens: int
+    cachedTokens: int
+    reasoningTokens: int
+    toolCallCount: int
+    costUsd: Optional[float]
+    costEstimated: bool
+    durationMs: Optional[int]
+
+
+class TranscriptEntry(TypedDict, total=False):
+    """One transcript event. type is AssistantText, Thinking (only with include_thinking), ToolCall, ToolResult, Warning,
+    Error, or Lifecycle. Tool text is cut to the server limit (textTruncated). Secrets read [REDACTED]."""
+    sequence: int
+    timestampUtc: str
+    type: str
+    text: Optional[str]
+    toolName: Optional[str]
+    toolCallId: Optional[str]
+    success: Optional[bool]
+    code: Optional[str]
+    textTruncated: bool
+
+
+class TranscriptApproval(TypedDict, total=False):
+    """An approval requested during a turn."""
+    id: str
+    kind: str
+    toolName: str
+    summary: Optional[str]
+    inputPreview: Optional[str]
+    status: str
+    decision: Optional[str]
+    decisionSource: Optional[str]
+    decidedBy: Optional[str]
+    reason: Optional[str]
+    requestedUtc: str
+    decidedUtc: Optional[str]
+
+
+class TranscriptTurn(TypedDict, total=False):
+    """One run of a transcript (a conversation has one per turn)."""
+    turn: int
+    runId: str
+    agentName: str
+    deploymentId: str
+    kind: str
+    status: str
+    outcome: str
+    callerName: Optional[str]
+    model: Optional[str]
+    input: Optional[str]
+    inputContentType: Optional[str]
+    createdUtc: str
+    startedUtc: Optional[str]
+    completedUtc: Optional[str]
+    entries: List[TranscriptEntry]
+    approvals: List[TranscriptApproval]
+    result: Optional[str]
+    errorMessage: Optional[str]
+    usage: TranscriptUsage
+    omittedEvents: int
+    truncated: bool
+
+
+class Transcript(TypedDict, total=False):
+    """Run or conversation transcript (schema "garrison.transcript/v1"); kind is "Run" or "Conversation"."""
+    schema: str
+    kind: str
+    tenantId: str
+    runId: Optional[str]
+    conversationId: Optional[str]
+    agentName: str
+    title: Optional[str]
+    generatedUtc: str
+    includesThinking: bool
+    truncated: bool
+    truncationNote: Optional[str]
+    turnCount: int
+    usage: TranscriptUsage
+    turns: List[TranscriptTurn]
+
+
 DEFAULT_BASE_URL = "http://127.0.0.1:8700"
 TERMINAL_STATUSES = {"Succeeded", "Failed", "Cancelled", "TimedOut", "Rejected"}
 # Run executors: deployment "executor", node pool "defaultExecutor", run "executor", node "executors".
@@ -67,6 +152,13 @@ EFFECT_POLICIES = ("AtMostOnce", "AtLeastOnce", "Journaled")
 # FieldWarning["code"] values. ValueClamped: the value was outside its allowed range and the nearest allowed value was
 # stored (for example deployment maxAttempts 99 is stored as 10).
 FIELD_WARNING_CODES = ("ValueClamped",)
+# Input schema field codes (GarrisonError.field_codes values) when an agent with "inputSchemaJson" is invoked with an
+# input that is not JSON (key "input") or does not match the schema (key "input" or "input.<path>", for example
+# "input.topic" or "input.tags[1]"). Saving an agent whose inputSchemaJson or outputSchemaJson is not a valid JSON
+# Schema fails with InvalidJsonSchema.
+INPUT_SCHEMA_FIELD_CODES = ("InputNotJson", "InputSchemaViolation", "InvalidJsonSchema")
+# Transcript formats (runs.transcript_markdown / transcript, conversations.transcript_markdown / transcript).
+TRANSCRIPT_FORMATS = ("markdown", "json")
 # Node["containerized"] (bool, default False): whether the worker runs inside a container or pod, reported at registration.
 # Run["blockedReason"] values, computed on read for Queued runs no Ready worker can take; None otherwise.
 RUN_BLOCKED_REASONS = ("NoReadyWorker", "NoCapableWorker", "NoMatchingPool", "NoIsolatingWorker")
@@ -175,6 +267,18 @@ class GarrisonError(Exception):
     @property
     def code(self) -> Optional[str]:
         return self.error.get("code") if isinstance(self.error, dict) else None
+
+    @property
+    def fields(self) -> Dict[str, str]:
+        """Field messages of a validation error, keyed by field path (for example "input.topic"); empty otherwise."""
+        value = self.error.get("fields") if isinstance(self.error, dict) else None
+        return value if isinstance(value, dict) else {}
+
+    @property
+    def field_codes(self) -> Dict[str, str]:
+        """Stable field codes of a validation error (for example {"input.topic": "InputSchemaViolation"}); empty otherwise."""
+        value = self.error.get("fieldCodes") if isinstance(self.error, dict) else None
+        return value if isinstance(value, dict) else {}
 
 
 def _clean(params: Optional[Dict[str, Any]]) -> Dict[str, str]:
@@ -551,12 +655,18 @@ class Roles(Resource):
 class Agents(Resource):
     def invoke(self, agent: str, input: str, wait: bool = True, wait_seconds: int = 60, parameters: Optional[Dict[str, str]] = None,
                deployment_id: Optional[str] = None, priority: int = 0, cancel_on_disconnect: Optional[bool] = None,
-               conversation_id: Optional[str] = None, start_conversation: bool = False) -> Dict[str, Any]:
+               conversation_id: Optional[str] = None, start_conversation: bool = False,
+               input_content_type: Optional[str] = None) -> Dict[str, Any]:
         """Invoke an agent by identifier or name. With wait=True the finished run is returned when it completes in time.
         A waiting call that disconnects cancels its run unless cancel_on_disconnect is False. start_conversation=True
         starts a conversation (the run's conversationId names it); conversation_id sends the next turn of one, and raises
-        GarrisonError 409 ConversationBusy while the previous turn is unfinished."""
+        GarrisonError 409 ConversationBusy while the previous turn is unfinished. For an agent with an "inputSchemaJson",
+        input must be a JSON document that matches it (send json.dumps(value) with input_content_type="application/json");
+        otherwise GarrisonError 400 is raised and field_codes maps "input" (InputNotJson) or "input.<path>"
+        (InputSchemaViolation) to the failure."""
         body = {"input": input, "wait": wait, "waitSeconds": wait_seconds, "parameters": parameters or {}, "priority": priority}
+        if input_content_type:
+            body["inputContentType"] = input_content_type
         if deployment_id:
             body["deploymentId"] = deployment_id
         if cancel_on_disconnect is not None:
@@ -644,8 +754,20 @@ class Manifests:
                                {"dryRun": dry_run, "allowSecretValues": True if allow_secret_values else None},
                                body=content, content_type=content_type)
 
-    def export(self) -> str:
-        return self._t.request("POST", self._t.tenant_path("/manifests/export"), raw=True)
+    def export(self, kinds: Optional[List[str]] = None, resources: Optional[List[str]] = None,
+               follow_references: bool = False, include_built_in: bool = False) -> str:
+        """Export a multi-document YAML bundle that apply accepts unchanged. With no kinds and no resources every
+        tenant-owned resource is exported. kinds names whole kinds (for example ["Agent", "Pipeline"]); resources names
+        single records as "Kind/name" (for example ["Agent/triage"]). follow_references also exports what the selection
+        depends on; include_built_in adds referenced built-ins. Secret values are never exported: the leading Bundle
+        document lists requiredSecrets, requiredArtifactStores, and requiredBuiltIns. Raises GarrisonError 400 (field
+        codes UnknownKind, InvalidSelector) or 404 when a selected resource does not exist."""
+        params: Dict[str, Any] = {
+            "kinds": ",".join(kinds) if kinds else None,
+            "resources": ",".join(resources) if resources else None,
+            "followReferences": True if follow_references else None,
+            "includeBuiltIn": True if include_built_in else None}
+        return self._t.request("GET", self._t.tenant_path("/manifests/export"), params, raw=True)
 
     def applies(self, max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
         return self._t.request("GET", self._t.tenant_path("/manifests/applies"), _enum(max_results, skip))
@@ -741,6 +863,16 @@ class Runs:
     def children(self, id: str) -> Dict[str, Any]:
         return self._t.request("GET", self._p(f"/{_seg(id)}/children"))
 
+    def transcript_markdown(self, id: str, include_thinking: bool = False) -> str:
+        """Download a run's transcript as Markdown (secrets redacted). Raises GarrisonError 404 for an unknown run."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}/transcript"),
+                               {"format": "markdown", "includeThinking": include_thinking}, raw=True)
+
+    def transcript(self, id: str, include_thinking: bool = False) -> Transcript:
+        """Download a run's transcript as the typed JSON document (schema garrison.transcript/v1)."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}/transcript"),
+                               {"format": "json", "includeThinking": include_thinking})
+
     def delete(self, id: str) -> Any:
         return self._t.request("DELETE", self._p(f"/{_seg(id)}"))
 
@@ -782,6 +914,16 @@ class Conversations:
     def list_runs(self, id: str, max_results: Optional[int] = None, skip: Optional[int] = None) -> Dict[str, Any]:
         """List a conversation's turns (runs), oldest first."""
         return self._t.request("GET", self._p(f"/{_seg(id)}/runs"), {"maxResults": max_results, "skip": skip})
+
+    def transcript_markdown(self, id: str, include_thinking: bool = False) -> str:
+        """Download a conversation's transcript (every turn, oldest first) as Markdown."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}/transcript"),
+                               {"format": "markdown", "includeThinking": include_thinking}, raw=True)
+
+    def transcript(self, id: str, include_thinking: bool = False) -> Transcript:
+        """Download a conversation's transcript (every turn, oldest first) as the typed JSON document."""
+        return self._t.request("GET", self._p(f"/{_seg(id)}/transcript"),
+                               {"format": "json", "includeThinking": include_thinking})
 
 
 class Approvals:

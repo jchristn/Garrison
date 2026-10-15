@@ -4983,6 +4983,231 @@
           ]
         },
         {
+          "name": "Create agent with an input schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "description": "An agent whose input must be a JSON document with a topic. It has no deployment; the input is checked before a deployment is chosen.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-schema-{{suffix}}\",\n  \"inputMode\": \"Structured\",\n  \"inputSchemaJson\": \"{\\\"type\\\":\\\"object\\\",\\\"required\\\":[\\\"topic\\\"],\\\"properties\\\":{\\\"topic\\\":{\\\"type\\\":\\\"string\\\"},\\\"depth\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":1}}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('schemaAgentId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent with an invalid input schema is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents"
+              ]
+            },
+            "description": "An input schema must be a usable JSON Schema: 400 with field code InvalidJsonSchema.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-badschema-{{suffix}}\",\n  \"inputSchemaJson\": \"{\\\"type\\\":\\\"objekt\\\"}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code', function () { pm.expect(pm.response.json().fieldCodes.inputSchemaJson).to.eql('InvalidJsonSchema'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invoke with input that breaks the input schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{schemaAgentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{schemaAgentId}}",
+                "invoke"
+              ]
+            },
+            "description": "The input is missing topic and has a depth below the minimum: 400 ValidationFailed with a field per problem.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"{\\\"depth\\\": 0}\",\n  \"inputContentType\": \"application/json\",\n  \"wait\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field codes', function () { var b = pm.response.json(); pm.expect(b.code).to.eql('ValidationFailed'); pm.expect(b.fieldCodes['input.topic']).to.eql('InputSchemaViolation'); pm.expect(b.fieldCodes['input.depth']).to.eql('InputSchemaViolation'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invoke with input that is not JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{schemaAgentId}}/invoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{schemaAgentId}}",
+                "invoke"
+              ]
+            },
+            "description": "Plain text cannot match an input schema: field code InputNotJson on input.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": \"Research something\",\n  \"wait\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code', function () { pm.expect(pm.response.json().fieldCodes.input).to.eql('InputNotJson'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete agent with an input schema",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/agents/{{schemaAgentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "agents",
+                "{{schemaAgentId}}"
+              ]
+            },
+            "description": "Removes the agent created above."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Test deployment",
           "request": {
             "method": "POST",
@@ -5657,6 +5882,136 @@
           ]
         },
         {
+          "name": "Run transcript (Markdown)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/transcript?format=markdown",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "transcript"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "markdown"
+                }
+              ]
+            },
+            "description": "The run as a Markdown transcript, sent as an attachment. Secrets are redacted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('markdown', function () { pm.expect(pm.response.headers.get('Content-Type')).to.include('text/markdown'); });",
+                  "pm.test('attachment', function () { pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment'); pm.expect(pm.response.headers.get('Content-Disposition')).to.include('-transcript.md'); });",
+                  "pm.test('names the run', function () { pm.expect(pm.response.text()).to.include(pm.collectionVariables.get('runId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run transcript (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/transcript?format=json&includeThinking=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "transcript"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "json"
+                },
+                {
+                  "key": "includeThinking",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "The same run as a typed JSON transcript (garrison.transcript/v1)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('json transcript', function () { var t = pm.response.json(); pm.expect(t.schema).to.eql('garrison.transcript/v1'); pm.expect(t.kind).to.eql('Run'); pm.expect(t.runId).to.eql(pm.collectionVariables.get('runId')); pm.expect(t.turns.length).to.eql(1); pm.expect(t.usage).to.be.an('object'); });",
+                  "pm.test('truncation header', function () { pm.expect(pm.response.headers.get('X-Garrison-Transcript-Truncated')).to.eql(String(pm.response.json().truncated)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run transcript with an unknown format is rejected",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/runs/{{runId}}/transcript?format=pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "runs",
+                "{{runId}}",
+                "transcript"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "pdf"
+                }
+              ]
+            },
+            "description": "Only markdown and json are formats: 400 with field code InvalidFormat."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code', function () { pm.expect(pm.response.json().fieldCodes.format).to.eql('InvalidFormat'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Run event stream",
           "request": {
             "method": "GET",
@@ -6131,6 +6486,87 @@
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
                   "pm.test('two runs', function () { pm.expect(pm.response.json().totalRecords).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conversation transcript (Markdown)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{conversationId}}/transcript?format=markdown",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{conversationId}}",
+                "transcript"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "markdown"
+                }
+              ]
+            },
+            "description": "Every turn of the conversation, oldest first, as Markdown."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('markdown attachment', function () { pm.expect(pm.response.headers.get('Content-Type')).to.include('text/markdown'); pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conversation transcript (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/conversations/{{conversationId}}/transcript",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "conversations",
+                "{{conversationId}}",
+                "transcript"
+              ]
+            },
+            "description": "The conversation as a typed JSON transcript, one turn per run. Without format, an Accept of application/json picks JSON."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('every turn', function () { var t = pm.response.json(); pm.expect(t.kind).to.eql('Conversation'); pm.expect(t.conversationId).to.eql(pm.collectionVariables.get('conversationId')); pm.expect(t.turns.length).to.be.at.least(2); pm.expect(t.turns[0].turn).to.eql(1); });"
                 ]
               }
             }
@@ -8768,7 +9204,7 @@
         {
           "name": "Export manifests",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/manifests/export",
@@ -8784,7 +9220,7 @@
                 "export"
               ]
             },
-            "description": "The tenant's configuration as YAML."
+            "description": "The whole tenant as a manifest bundle (YAML). Secrets are requirements in the Bundle document, never values."
           },
           "event": [
             {
@@ -8793,7 +9229,147 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('yaml', function () { pm.expect(pm.response.text()).to.include('apiVersion: garrison/v1'); });"
+                  "pm.test('bundle', function () { var y = pm.response.text(); pm.expect(y).to.include('apiVersion: garrison/v1'); pm.expect(y).to.include('kind: Bundle'); pm.expect(y).not.to.include('kind: Secret'); });",
+                  "pm.test('attachment', function () { pm.expect(pm.response.headers.get('Content-Disposition')).to.include('garrison-bundle-'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Export one agent with its references",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/manifests/export?resources=Agent/postman-manifest-agent-{{suffix}}&followReferences=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "manifests",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "resources",
+                  "value": "Agent/postman-manifest-agent-{{suffix}}"
+                },
+                {
+                  "key": "followReferences",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Only the manifest agent, plus what it depends on: its deployment and the deployment's prompt template."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('agent and dependencies', function () { var y = pm.response.text(); pm.expect(y).to.include('postman-manifest-agent-' + pm.collectionVariables.get('suffix')); pm.expect(y).to.include('postman-manifest-dep-' + pm.collectionVariables.get('suffix')); pm.expect(y).to.include('postman-manifest-task-' + pm.collectionVariables.get('suffix')); });",
+                  "pm.collectionVariables.set('manifestBundle', pm.response.text());"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Re-apply the exported bundle (dry run) reports no changes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/yaml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/manifests/apply?dryRun=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "manifests",
+                "apply"
+              ],
+              "query": [
+                {
+                  "key": "dryRun",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "An exported bundle applies unchanged; in the tenant it came from, every document is Unchanged.",
+            "body": {
+              "mode": "raw",
+              "raw": "{{manifestBundle}}",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('no changes', function () { var b = pm.response.json(); pm.expect(b.failedCount).to.eql(0); pm.expect(b.createdCount).to.eql(0); pm.expect(b.updatedCount).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Export with an unknown kind is rejected",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1.0/api/tenants/{{tenantId}}/manifests/export?kinds=Secret",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1.0",
+                "api",
+                "tenants",
+                "{{tenantId}}",
+                "manifests",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "kinds",
+                  "value": "Secret"
+                }
+              ]
+            },
+            "description": "Secrets are never exported: 400 with field code UnknownKind."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('field code', function () { pm.expect(pm.response.json().fieldCodes.kinds).to.eql('UnknownKind'); });"
                 ]
               }
             }
@@ -14201,6 +14777,14 @@
     },
     {
       "key": "notificationDeliveryId",
+      "value": ""
+    },
+    {
+      "key": "schemaAgentId",
+      "value": ""
+    },
+    {
+      "key": "manifestBundle",
       "value": ""
     }
   ]

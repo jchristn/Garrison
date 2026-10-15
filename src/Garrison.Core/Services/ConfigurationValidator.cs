@@ -162,8 +162,9 @@ namespace Garrison.Core.Services
             if (agent == null) throw new ValidationException("An agent is required.");
             Dictionary<string, string> errors = new Dictionary<string, string>();
             if (!_AgentName.IsMatch(agent.Name ?? String.Empty)) errors["name"] = "Agent names are 1 to 64 lowercase letters, digits, and hyphens, starting and ending with a letter or digit.";
-            Json(agent.InputSchemaJson, errors, "inputSchemaJson");
-            Json(agent.OutputSchemaJson, errors, "outputSchemaJson");
+            Dictionary<string, string> codes = new Dictionary<string, string>();
+            Schema(agent.InputSchemaJson, errors, codes, "inputSchemaJson");
+            Schema(agent.OutputSchemaJson, errors, codes, "outputSchemaJson");
             if (agent.Kind == AgentKindEnum.Remote && String.IsNullOrWhiteSpace(agent.RemoteEndpointUrl)) errors["remoteEndpointUrl"] = "Remote agents need an endpoint URL.";
             else if (!String.IsNullOrWhiteSpace(agent.RemoteEndpointUrl))
             {
@@ -177,7 +178,7 @@ namespace Garrison.Core.Services
             {
                 if (!_AgentName.IsMatch(name ?? String.Empty)) errors["delegationAllowList"] = "'" + name + "' is not a valid agent name.";
             }
-            if (errors.Count > 0) throw new ValidationException("The agent is invalid.", errors);
+            if (errors.Count > 0) throw new ValidationException("The agent is invalid.", errors, codes);
         }
 
         /// <summary>
@@ -992,6 +993,22 @@ namespace Garrison.Core.Services
         {
             if (value == null) return;
             if (!KubernetesNames.IsQuantity(value)) errors[field] = "'" + value + "' is not a Kubernetes quantity (for example 500m, 2, 512Mi, 4Gi).";
+        }
+
+        private static void Schema(string? json, Dictionary<string, string> errors, Dictionary<string, string> codes, string field)
+        {
+            // P12.22: input and output schemas must be usable JSON Schema documents, not only JSON.
+            if (String.IsNullOrWhiteSpace(json)) return;
+            Json(json, errors, field);
+            if (errors.ContainsKey(field))
+            {
+                codes[field] = InputSchemaValidator.InvalidSchemaCode;
+                return;
+            }
+            string? problem = InputSchemaValidator.CheckSchema(json);
+            if (problem == null) return;
+            errors[field] = problem;
+            codes[field] = InputSchemaValidator.InvalidSchemaCode;
         }
 
         private static void Json(string? json, Dictionary<string, string> errors, string field)
